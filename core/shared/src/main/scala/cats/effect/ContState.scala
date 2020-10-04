@@ -16,30 +16,23 @@
 
 package cats.effect
 
-sealed abstract private[effect] class AsyncState extends Product with Serializable {
+// TODO rename
+sealed abstract private[effect] class ContState extends Product with Serializable {
   def result: Either[Throwable, Any] = sys.error("impossible")
   def tag: Byte
 }
 
-private[effect] object AsyncState {
+private[effect] object ContState {
   // no one completed
-  case object Initial extends AsyncState {
+  case object Initial extends ContState {
     def tag = 0
   }
 
-  case object RegisteredNoFinalizer extends AsyncState {
+  case object Waiting extends ContState {
     def tag = 1
   }
 
-  case object RegisteredWithFinalizer extends AsyncState {
+  final case class Result(override val result: Either[Throwable, Any]) extends ContState {
     def tag = 2
-  }
-
-  final case class Result(override val result: Either[Throwable, Any]) extends AsyncState {
-    def tag = 3
-  }
-
-  case object Done extends AsyncState {
-    def tag = 4
   }
 }

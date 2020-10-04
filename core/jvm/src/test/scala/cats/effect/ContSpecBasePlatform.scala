@@ -14,23 +14,8 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect
 
-import scala.concurrent.duration.FiniteDuration
-import scala.scalajs.js.timers
-
-private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
-  def createDefaultScheduler(): (Scheduler, () => Unit) =
-    (
-      new Scheduler {
-        def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-          val handle = timers.setTimeout(delay)(task.run())
-          () => timers.clearTimeout(handle)
-        }
-
-        def nowMillis() = System.currentTimeMillis()
-        def monotonicNanos() = System.nanoTime()
-      },
-      () => ())
-
+trait ContSpecBasePlatform { this: ContSpecBase =>
+  val iterations = 100000
 }

@@ -19,8 +19,19 @@ package cats.effect.unsafe
 import scala.concurrent.duration.FiniteDuration
 
 import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.Executors
 
 private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
+  def createDefaultScheduler(): (Scheduler, () => Unit) = {
+    val scheduler = Executors.newSingleThreadScheduledExecutor { r =>
+      val t = new Thread(r)
+      t.setName("io-scheduler")
+      t.setDaemon(true)
+      t.setPriority(Thread.MAX_PRIORITY)
+      t
+    }
+    (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
+  }
 
   def fromScheduledExecutor(scheduler: ScheduledExecutorService): Scheduler =
     new Scheduler {

@@ -36,6 +36,8 @@ import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+
 sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   private[effect] def tag: Byte
@@ -309,20 +311,28 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def defer[A](thunk: => IO[A]): IO[A] =
     delay(thunk).flatten
 
-  def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = Async(k)
+  def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
+    asyncForIO.async(k)
 
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
-    async(cb => apply { k(cb); None })
+    asyncForIO.async_(k)
 
   def canceled: IO[Unit] = Canceled
 
   def cede: IO[Unit] = Cede
 
+  /**
+   * This is a low-level API which is meant for implementors,
+   * please use `background`, `start`, `async`, or `Deferred` instead,
+   * depending on the use case
+   */
+  def cont[A](body: Cont[IO, A]): IO[A] =
+    IOCont[A](body)
+
   def executionContext: IO[ExecutionContext] = ReadEC
 
   def monotonic: IO[FiniteDuration] = Monotonic
 
-  private[this] val _never: IO[Nothing] = async(_ => pure(None))
   def never[A]: IO[A] = _never
 
   def pure[A](value: A): IO[A] = Pure(value)
@@ -471,8 +481,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def raiseError[A](e: Throwable): IO[A] =
       IO.raiseError(e)
 
-    def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
-      IO.async(k)
+    def cont[A](body: Cont[IO, A]): IO[A] = IO.cont(body)
 
     def evalOn[A](fa: IO[A], ec: ExecutionContext): IO[A] =
       fa.evalOn(ec)
@@ -564,6 +573,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   implicit def parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = _parallelForIO
 
+  // This is cached as a val to save allocations, but it uses ops from the Async
+  // instance which is also cached as a val, and therefore needs to appear
+  // later in the file
+  private[this] val _never: IO[Nothing] = asyncForIO.never
+
   // implementations
 
   final private[effect] case class Pure[+A](value: A) extends IO[A] {
@@ -571,79 +585,89 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def toString: String = s"IO($value)"
   }
 
-  // we keep Delay as a separate case as a fast-path, since the added tags don't appear to confuse HotSpot (for reasons unknown)
-  private[effect] final case class Delay[+A](thunk: () => A) extends IO[A] { def tag = 1 }
+  private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A) extends IO[A] {
+    def tag = 1
+  }
 
-  private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A) extends IO[A] {
+  private[effect] final case class FlatMap[E, +A](ioe: IO[E], f: E => IO[A]) extends IO[A] {
     def tag = 2
   }
 
   private[effect] final case class Error(t: Throwable) extends IO[Nothing] { def tag = 3 }
 
-  private[effect] final case class Async[+A](
-      k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]])
-      extends IO[A] {
-
+  private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]] {
     def tag = 4
-  }
-
-  private[effect] case object ReadEC extends IO[ExecutionContext] { def tag = 5 }
-
-  private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {
-    def tag = 6
-  }
-
-  private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A) extends IO[A] {
-    def tag = 7
-  }
-
-  private[effect] final case class FlatMap[E, +A](ioe: IO[E], f: E => IO[A]) extends IO[A] {
-    def tag = 8
   }
 
   private[effect] final case class HandleErrorWith[+A](ioa: IO[A], f: Throwable => IO[A])
       extends IO[A] {
-    def tag = 9
+    def tag = 5
   }
 
+  // we keep Delay as a separate case as a fast-path, since the added tags don't appear to confuse HotSpot (for reasons unknown)
+  private[effect] final case class Delay[+A](thunk: () => A) extends IO[A] { def tag = 6 }
+
+  private[effect] case object Canceled extends IO[Unit] { def tag = 7 }
+
   private[effect] final case class OnCancel[+A](ioa: IO[A], fin: IO[Unit]) extends IO[A] {
-    def tag = 10
+    def tag = 8
   }
 
   private[effect] final case class Uncancelable[+A](body: Poll[IO] => IO[A]) extends IO[A] {
+    def tag = 9
+  }
+  private[effect] object Uncancelable {
+    // INTERNAL, it's only created by the runloop itself during the execution of `Uncancelable`
+    final case class UnmaskRunLoop[+A](ioa: IO[A], id: Int) extends IO[A] {
+      def tag = 10
+    }
+  }
+
+  // Low level construction that powers `async`
+  private[effect] final case class IOCont[A](body: Cont[IO, A]) extends IO[A] {
     def tag = 11
   }
+  private[effect] object IOCont {
+    // INTERNAL, it's only created by the runloop itself during the execution of `IOCont`
+    final case class Get[A](state: AtomicReference[ContState], wasFinalizing: AtomicBoolean)
+        extends IO[A] {
+      def tag = 12
+    }
+  }
 
-  private[effect] case object Canceled extends IO[Unit] { def tag = 12 }
+  private[effect] case object Cede extends IO[Unit] { def tag = 13 }
 
   private[effect] final case class Start[A](ioa: IO[A]) extends IO[FiberIO[A]] {
-    def tag = 13
-  }
-  private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B])
-      extends IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] {
-
     def tag = 14
   }
 
-  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
+  private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B])
+      extends IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] {
+
     def tag = 15
   }
 
-  private[effect] case object RealTime extends IO[FiniteDuration] { def tag = 16 }
-  private[effect] case object Monotonic extends IO[FiniteDuration] { def tag = 17 }
-
-  private[effect] case object Cede extends IO[Unit] { def tag = 18 }
-
-  // INTERNAL
-  private[effect] final case class UnmaskRunLoop[+A](ioa: IO[A], id: Int) extends IO[A] {
-    def tag = 19
+  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
+    def tag = 16
   }
 
-  private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]] {
+  private[effect] case object RealTime extends IO[FiniteDuration] { def tag = 17 }
+
+  private[effect] case object Monotonic extends IO[FiniteDuration] { def tag = 18 }
+
+  private[effect] case object ReadEC extends IO[ExecutionContext] { def tag = 19 }
+
+  private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {
     def tag = 20
   }
 
-  private[effect] case object BlockFiber extends IO[Nothing] {
+  private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A) extends IO[A] {
+    def tag = 21
+  }
+
+  // INTERNAL, only created by the runloop itself as the terminal state of several operations
+  private[effect] case object EndFiber extends IO[Nothing] {
     def tag = -1
   }
+
 }
