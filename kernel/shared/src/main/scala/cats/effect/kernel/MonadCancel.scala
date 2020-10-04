@@ -114,6 +114,7 @@ import cats.syntax.all._
  * and [[MonadCancel!.onCancel onCancel]] directly.
  */
 trait MonadCancel[F[_], E] extends MonadError[F, E] {
+  implicit private def F: MonadError[F, E] = this
 
   /**
    * Analogous to [[productR]], but suppresses short-circuiting behavior
@@ -281,12 +282,12 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
   def bracketFull[A, B](acquire: Poll[F] => F[A])(use: A => F[B])(
       release: (A, Outcome[F, E, B]) => F[Unit]): F[B] =
     uncancelable { poll =>
-      flatMap(acquire(poll)) { a =>
+      acquire(poll).flatMap { a =>
         val finalized = onCancel(poll(use(a)), release(a, Outcome.Canceled()))
-        val handled = onError(finalized) {
+        val handled = finalized.onError {
           case e => void(attempt(release(a, Outcome.Errored(e))))
         }
-        flatMap(handled)(b => as(attempt(release(a, Outcome.Succeeded(pure(b)))), b))
+        handled.flatTap { b => release(a, Outcome.Succeeded(b.pure)).attempt }
       }
     }
 }
