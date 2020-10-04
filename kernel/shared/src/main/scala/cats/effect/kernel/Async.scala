@@ -72,31 +72,31 @@ object Async {
   def apply[F[_]](implicit F: Async[F]): F.type = F
 
   def defaultCont[F[_], A](body: Cont[F, A])(implicit F: Async[F]): F[A] = {
-    sealed trait State[A]
-    case class Initial[A]() extends State[A]
-    case class Value[A](v: Either[Throwable, A]) extends State[A]
-    case class Waiting[A](cb: Either[Throwable, A] => Unit) extends State[A]
+    sealed trait State
+    case object Initial extends State
+    case class Value(v: Either[Throwable, A]) extends State
+    case class Waiting(cb: Either[Throwable, A] => Unit) extends State
 
-    F.delay(new AtomicReference[State[A]](Initial())).flatMap { state =>
+    F.delay(new AtomicReference[State](Initial)).flatMap { state =>
         def get: F[A] =
     F.defer {
       state.get match {
         case Value(v) => F.fromEither(v)
-        case Initial() =>
+        case Initial =>
           F.async { cb =>
             val waiting = Waiting(cb)
 
             @tailrec
             def loop(): Unit =
               state.get match {
-                case s @ Initial() =>
+                case s @ Initial =>
                   state.compareAndSet(s, waiting)
                   loop()
                 case Waiting(_) => ()
                 case Value(v) => cb(v)
               }
 
-            def onCancel = F.delay(state.compareAndSet(waiting, Initial())).void
+            def onCancel = F.delay(state.compareAndSet(waiting, Initial)).void
 
             F.delay(loop()).as(onCancel.some)
           }
@@ -118,7 +118,7 @@ object Async {
         def loop(): Unit =
           state.get match {
             case Value(_) => () /* idempotent, double calls are forbidden */
-            case s @ Initial() =>
+            case s @ Initial =>
               if (!state.compareAndSet(s, Value(v))) loop()
               else ()
             case s @ Waiting(cb) =>
