@@ -23,7 +23,7 @@ import cats.syntax.all._
 import cats.effect.kernel.syntax.monadCancel._
 
 trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
-  implicit private def F: MonadCancel[F, E] = this
+  implicit private[this] def F: MonadCancel[F, E] = this
 
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 

@@ -114,7 +114,7 @@ import cats.syntax.all._
  * and [[MonadCancel!.onCancel onCancel]] directly.
  */
 trait MonadCancel[F[_], E] extends MonadError[F, E] {
-  implicit private def F: MonadError[F, E] = this
+  implicit private[this] def F: MonadError[F, E] = this
 
   /**
    * Analogous to [[productR]], but suppresses short-circuiting behavior
