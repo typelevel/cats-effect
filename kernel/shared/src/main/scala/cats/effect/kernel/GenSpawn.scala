@@ -20,10 +20,10 @@ import cats.~>
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{Monoid, Semigroup}
 import cats.syntax.all._
-import cats.effect.kernel.syntax.all._
+import cats.effect.kernel.syntax.monadCancel._
 
 trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
-  implicit private def F: GenSpawn[F, E] = this
+  implicit private def F: MonadCancel[F, E] = this
 
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 
