@@ -1025,7 +1025,7 @@ private final class IOFiber[A](
         /* this can happen if we don't check the canceled flag before completion */
         OutcomeCanceled
       else
-        Outcome.Completed(IO.pure(result.asInstanceOf[A]))
+        Outcome.Succeeded(IO.pure(result.asInstanceOf[A]))
 
     done(outcome)
     IOEndFiber

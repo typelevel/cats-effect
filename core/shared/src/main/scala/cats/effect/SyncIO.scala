@@ -16,11 +16,10 @@
 
 package cats.effect
 
-import cats.{~>, Eval, Now, Show, StackSafeMonad}
+import cats.{Eval, Now, Show, StackSafeMonad}
 import cats.kernel.{Monoid, Semigroup}
 
 import scala.annotation.{switch, tailrec}
-import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
 import scala.util.Try
 import scala.util.control.NonFatal
@@ -156,27 +155,6 @@ sealed abstract class SyncIO[+A] private () {
 
   def redeemWith[B](recover: Throwable => SyncIO[B], bind: A => SyncIO[B]): SyncIO[B] =
     attempt.flatMap(_.fold(recover, bind))
-
-  /**
-   * Converts the source `SyncIO` into any `F` type that implements
-   * the [[Sync]] type class.
-   */
-  def to[F[_]](implicit F: Sync[F]): F[A @uncheckedVariance] =
-    if (F eq SyncIO.syncEffectForSyncIO) {
-      this.asInstanceOf[F[A]]
-    } else {
-      this match {
-        case SyncIO.Pure(a) => F.pure(a)
-        case SyncIO.Delay(thunk) => F.delay(thunk())
-        case SyncIO.Error(t) => F.raiseError(t)
-        case SyncIO.Map(ioe, f) => F.map(ioe.to[F])(f)
-        case SyncIO.FlatMap(ioe, f) => F.defer(F.flatMap(ioe.to[F])(f.andThen(_.to[F])))
-        case SyncIO.HandleErrorWith(ioa, f) => F.handleErrorWith(ioa.to[F])(f.andThen(_.to[F]))
-        case SyncIO.Success(a) => F.pure(a)
-        case SyncIO.Failure(t) => F.raiseError(t)
-        case self: SyncIO.Attempt[_] => F.attempt(self.ioa.to[F]).asInstanceOf[F[A]]
-      }
-    }
 
   /**
    * Alias for `map(_ => ())`.
@@ -502,16 +480,6 @@ object SyncIO extends SyncIOLowPriorityImplicits {
   def fromTry[A](t: Try[A]): SyncIO[A] =
     t.fold(raiseError, pure)
 
-  /**
-   * `SyncIO#to` as a natural transformation.
-   *
-   * @see [[SyncIO#to]]
-   */
-  def toK[F[_]: Sync]: SyncIO ~> F =
-    new (SyncIO ~> F) {
-      def apply[A](ioa: SyncIO[A]): F[A] = ioa.to[F]
-    }
-
   // instances
 
   implicit def showForSyncIO[A](implicit A: Show[A]): Show[SyncIO[A]] =
@@ -529,8 +497,9 @@ object SyncIO extends SyncIOLowPriorityImplicits {
     def empty: SyncIO[A] = pure(A.empty)
   }
 
-  private[this] val _syncEffectForSyncIO: SyncEffect[SyncIO] = new SyncEffect[SyncIO]
+  private[this] val _syncForSyncIO: Sync[SyncIO] = new Sync[SyncIO]
     with StackSafeMonad[SyncIO] {
+
     def pure[A](x: A): SyncIO[A] =
       SyncIO.pure(x)
 
@@ -552,9 +521,6 @@ object SyncIO extends SyncIOLowPriorityImplicits {
     def suspend[A](hint: Sync.Type)(thunk: => A): SyncIO[A] =
       SyncIO(thunk)
 
-    def toK[G[_]: SyncEffect]: SyncIO ~> G =
-      SyncIO.toK[G]
-
     override def attempt[A](fa: SyncIO[A]): SyncIO[Either[Throwable, A]] =
       fa.attempt
 
@@ -566,7 +532,7 @@ object SyncIO extends SyncIOLowPriorityImplicits {
       fa.redeemWith(recover, bind)
   }
 
-  implicit def syncEffectForSyncIO: SyncEffect[SyncIO] = _syncEffectForSyncIO
+  implicit def syncForSyncIO: Sync[SyncIO] = _syncForSyncIO
 
   // implementations
 

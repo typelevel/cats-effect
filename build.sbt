@@ -91,9 +91,9 @@ ThisBuild / Test / jsEnv := {
   }
 }
 
-Global / homepage := Some(url("https://github.com/typelevel/cats-effect"))
+ThisBuild / homepage := Some(url("https://github.com/typelevel/cats-effect"))
 
-Global / scmInfo := Some(
+ThisBuild / scmInfo := Some(
   ScmInfo(
     url("https://github.com/typelevel/cats-effect"),
     "git@github.com:typelevel/cats-effect.git"))

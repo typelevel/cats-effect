@@ -45,14 +45,8 @@ package object effect {
   type Sync[F[_]] = cekernel.Sync[F]
   val Sync = cekernel.Sync
 
-  type SyncEffect[F[_]] = cekernel.SyncEffect[F]
-  val SyncEffect = cekernel.SyncEffect
-
   type Async[F[_]] = cekernel.Async[F]
   val Async = cekernel.Async
-
-  type Effect[F[_]] = cekernel.Effect[F]
-  val Effect = cekernel.Effect
 
   type MonadThrow[F[_]] = cekernel.MonadThrow[F]
   type MonadCancelThrow[F[_]] = cekernel.MonadCancelThrow[F]

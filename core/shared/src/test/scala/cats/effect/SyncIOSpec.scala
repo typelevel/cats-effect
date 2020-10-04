@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.kernel.laws.discipline.MonoidTests
-import cats.effect.laws.SyncEffectTests
+import cats.effect.laws.SyncTests
 import cats.effect.testkit.SyncTypeGenerators
 import cats.syntax.all._
 
@@ -201,7 +201,7 @@ class SyncIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck
   {
     checkAll(
       "SyncIO",
-      SyncEffectTests[SyncIO].syncEffect[Int, Int, Int]
+      SyncTests[SyncIO].sync[Int, Int, Int]
     )
   }
 

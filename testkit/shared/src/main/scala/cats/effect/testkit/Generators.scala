@@ -323,7 +323,7 @@ object OutcomeGenerators {
       implicit A: Cogen[F[A]]): Cogen[Outcome[F, E, A]] =
     Cogen[Option[Either[E, F[A]]]].contramap {
       case Outcome.Canceled() => None
-      case Outcome.Completed(fa) => Some(Right(fa))
+      case Outcome.Succeeded(fa) => Some(Right(fa))
       case Outcome.Errored(e) => Some(Left(e))
     }
 }
