@@ -416,13 +416,28 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Reads a line as a string from the standard input by using the platform's default charset, as per
    * `java.nio.charset.Charset.defaultCharset()`.
    *
+   * @see `cats.effect.concurrent.Console#readLineWithCharset` for reading using a custom
+   * `java.nio.charset.Charset`
+   *
    * @return an IO effect that describes reading the user's input from the standard input as a string
    */
   def readLine: IO[String] =
     Console[IO].readLine
 
   /**
+   * Prints a value to the standard output using the implicit `cats.Show` instance.
+   *
+   * @see `cats.effect.concurrent.Console` for more standard input, output and error operations
+   *
+   * @param a value to be printed to the standard output
+   */
+  def print[A: Show](a: A): IO[Unit] =
+    Console[IO].print(a)
+
+  /**
    * Prints a value to the standard output followed by a new line using the implicit `cats.Show` instance.
+   *
+   * @see `cats.effect.concurrent.Console` for more standard input, output and error operations
    *
    * @param a value to be printed to the standard output
    */

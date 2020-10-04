@@ -74,7 +74,7 @@ class ConsoleSpec extends BaseSpec {
   "Console" should {
     "print to the standard output" in real {
       val message = "Message"
-      standardOutTest(Console[IO].print(message)).flatMap { msg =>
+      standardOutTest(IO.print(message)).flatMap { msg =>
         IO {
           msg must beEqualTo(message)
         }
