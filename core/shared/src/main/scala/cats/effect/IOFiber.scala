@@ -220,6 +220,10 @@ private final class IOFiber[A](
       asyncCancel(null)
     } else {
       // println(s"<$name> looping on $cur0")
+      /*
+       * The cases have to use continuous constants to generate a `tableswitch`.
+       * Do not name or reorder them.
+       */
       (cur0.tag: @switch) match {
         case 0 =>
           val cur = cur0.asInstanceOf[Pure[Any]]
