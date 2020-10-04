@@ -22,7 +22,7 @@ import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations._
 
 import java.util.concurrent.TimeUnit
-import cats.effect.concurrent.Ref
+import cats.effect.kernel.Ref
 
 /**
  * To do comparative benchmarks between versions:
