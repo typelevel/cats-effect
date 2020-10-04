@@ -17,13 +17,14 @@
 package cats
 package effect
 
-import kernel.Ref
-import unsafe.Scheduler
+import cats.effect.kernel.Ref
 import cats.effect.syntax.all._
+import cats.effect.unsafe.Scheduler
 import cats.syntax.all._
-import scala.concurrent.duration._
 
 import org.specs2.execute._
+
+import scala.concurrent.duration._
 
 class ContSpec extends ContSpecBase {
   def cont[A](body: Cont[IO, A]): IO[A] =
@@ -161,6 +162,20 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
         .guarantee(IO(close()))
 
     io.flatMap { r => IO(r mustEqual true -> true) }
+  }
+
+  "get exclusively within onCancel" in real {
+    val (scheduler, close) = Scheduler.createDefaultScheduler()
+    val test = cont {
+      new Cont[IO, Unit] {
+        def apply[F[_]: Cancelable] = { (resume, get, lift) =>
+          lift(IO(scheduler.sleep(100.millis, () => resume(().asRight)))) >>
+            lift(IO.never).onCancel(get)
+        }
+      }
+    }
+
+    test.timeoutTo(50.millis, IO.unit).guarantee(IO(close())).as(ok)
   }
 
   "get is idempotent - 1" in real {

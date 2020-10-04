@@ -334,6 +334,7 @@ private final class IOFiber[A](
 
         case 11 =>
           val cur = cur0.asInstanceOf[IOCont[Any]]
+
           /*
            * Takes `cb` (callback) and `get` and returns an IO that
            * uses them to embed async computations.
@@ -366,6 +367,7 @@ private final class IOFiber[A](
            *
            */
           val state = new AtomicReference[ContState](ContStateInitial)
+          val wasFinalizing = new AtomicBoolean(finalizing)
 
           val cb: Either[Throwable, Any] => Unit = { e =>
             /*
@@ -383,15 +385,23 @@ private final class IOFiber[A](
               // println(s"cb loop sees suspended ${suspended.get} on fiber $name")
               /* try to take ownership of the runloop */
               if (resume()) {
-                if (!shouldFinalize()) {
-                  /* we weren't cancelled, so resume the runloop */
-                  asyncContinue(e)
+                if (finalizing == wasFinalizing.get()) {
+                  if (!shouldFinalize()) {
+                    /* we weren't cancelled, so resume the runloop */
+                    asyncContinue(e)
+                  } else {
+                    /*
+                     * we were canceled, but since we have won the race on `suspended`
+                     * via `resume`, `cancel` cannot run the finalisers, and we have to.
+                     */
+                    asyncCancel(null)
+                  }
                 } else {
                   /*
-                   * we were canceled, but since we have won the race on `suspended`
-                   * via `resume`, `cancel` cannot run the finalisers, and we have to.
+                   * we were canceled while suspended, then our finalizer suspended,
+                   * then we hit this line, so we shouldn't own the runloop at all
                    */
-                  asyncCancel(null)
+                  suspend()
                 }
               } else if (!shouldFinalize()) {
                 /*
@@ -445,7 +455,7 @@ private final class IOFiber[A](
           }
 
           val get: IO[Any] = IOCont
-            .Get(state)
+            .Get(state, wasFinalizing)
             .onCancel(
               /*
                * If get gets canceled but the result hasn't been computed yet,
@@ -461,7 +471,9 @@ private final class IOFiber[A](
 
         case 12 =>
           val cur = cur0.asInstanceOf[IOCont.Get[Any]]
+
           val state = cur.state
+          val wasFinalizing = cur.wasFinalizing
 
           if (state.compareAndSet(ContStateInitial, ContStateWaiting)) {
             /*
@@ -469,6 +481,12 @@ private final class IOFiber[A](
              * it needs to set the state to `Waiting` and suspend: `cb` will
              * resume with the result once that's ready
              */
+
+            /*
+             * we set the finalizing check to the *suspension* point, which may
+             * be in a different finalizer scope than the cont itself
+             */
+            wasFinalizing.set(finalizing)
 
             /*
              * This CAS should always succeed since we own the runloop,

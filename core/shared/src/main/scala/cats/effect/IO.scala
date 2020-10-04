@@ -37,6 +37,8 @@ import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+
 sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   private[effect] def tag: Byte
@@ -280,7 +282,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case _: IO.ReadEC.type => F.executionContext.asInstanceOf[F[A]]
         case IO.EvalOn(ioa, ec) => F.evalOn(ioa.to[F], ec)
         case IO.Blocking(hint, thunk) => F.suspend(hint)(thunk())
-        case IO.Uncancelable.UnmaskRunLoop(_, _) | IO.EndFiber | IO.IOCont.Get(_) =>
+        case IO.Uncancelable.UnmaskRunLoop(_, _) | IO.EndFiber | IO.IOCont.Get(_, _) =>
           // Will never be executed. Cases demanded for exhaustiveness.
           sys.error("impossible")
       }
@@ -686,7 +688,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
   private[effect] object IOCont {
     // INTERNAL, it's only created by the runloop itself during the execution of `IOCont`
-    final case class Get[A](state: java.util.concurrent.atomic.AtomicReference[ContState])
+    final case class Get[A](state: AtomicReference[ContState], wasFinalizing: AtomicBoolean)
         extends IO[A] {
       def tag = 12
     }
