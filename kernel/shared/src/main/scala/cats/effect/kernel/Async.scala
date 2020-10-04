@@ -78,40 +78,40 @@ object Async {
     case class Waiting(cb: Either[Throwable, A] => Unit) extends State
 
     F.delay(new AtomicReference[State](Initial)).flatMap { state =>
-        def get: F[A] =
-    F.defer {
-      state.get match {
-        case Value(v) => F.fromEither(v)
-        case Initial =>
-          F.async { cb =>
-            val waiting = Waiting(cb)
+      def get: F[A] =
+        F.defer {
+          state.get match {
+            case Value(v) => F.fromEither(v)
+            case Initial =>
+              F.async { cb =>
+                val waiting = Waiting(cb)
 
-            @tailrec
-            def loop(): Unit =
-              state.get match {
-                case s @ Initial =>
-                  state.compareAndSet(s, waiting)
-                  loop()
-                case Waiting(_) => ()
-                case Value(v) => cb(v)
+                @tailrec
+                def loop(): Unit =
+                  state.get match {
+                    case s @ Initial =>
+                      state.compareAndSet(s, waiting)
+                      loop()
+                    case Waiting(_) => ()
+                    case Value(v) => cb(v)
+                  }
+
+                def onCancel = F.delay(state.compareAndSet(waiting, Initial)).void
+
+                F.delay(loop()).as(onCancel.some)
               }
-
-            def onCancel = F.delay(state.compareAndSet(waiting, Initial)).void
-
-            F.delay(loop()).as(onCancel.some)
+            case Waiting(_) =>
+              /*
+               * - `cont` forbids concurrency, so no other `get` can be in Waiting.
+               * -  if a previous get has succeeded or failed and we are being sequenced
+               *    afterwards, it means `resume` has set the state to `Value`.
+               * - if a previous `get` has been interrupted and we are running as part of
+               *   its finalisers, the state would have been either restored to `Initial`
+               *   by the finaliser of that `get`, or set to `Value` by `resume`
+               */
+              sys.error("Impossible")
           }
-        case Waiting(_) =>
-          /*
-           * - `cont` forbids concurrency, so no other `get` can be in Waiting.
-           * -  if a previous get has succeeded or failed and we are being sequenced
-           *    afterwards, it means `resume` has set the state to `Value`.
-           * - if a previous `get` has been interrupted and we are running as part of
-           *   its finalisers, the state would have been either restored to `Initial`
-           *   by the finaliser of that `get`, or set to `Value` by `resume`
-           */
-          sys.error("Impossible")
-      }
-    }
+        }
 
       def resume(v: Either[Throwable, A]): Unit = {
         @tailrec
@@ -128,7 +128,6 @@ object Async {
 
         loop()
       }
-
 
       body[F].apply(resume, get, FunctionK.id)
     }
