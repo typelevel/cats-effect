@@ -641,16 +641,16 @@ abstract private[effect] class ResourceInstances extends ResourceInstances0 {
       def F = F0
     }
 
-  implicit def catsEffectCommutativeApplicativeForResourcePar[F[_]](
-      implicit F: Async[F]
-  ): CommutativeApplicative[Resource.Par[F, Throwable, *]] =
-    new ResourceParCommutativeApplicative[F] {
+  implicit def catsEffectCommutativeApplicativeForResourcePar[F[_], E](
+      implicit F: GenConcurrent[F, E]
+  ): CommutativeApplicative[Resource.Par[F, E, *]] =
+    new ResourceParCommutativeApplicative[F, E] {
       def F0 = F
     }
 
-  implicit def catsEffectParallelForResource[F0[_]: Async]
-      : Parallel.Aux[Resource[F0, Throwable, *], Resource.Par[F0, Throwable, *]] =
-    new ResourceParallel[F0, Throwable] {
+  implicit def catsEffectParallelForResource[F0[_], E](implicit F: GenConcurrent[F0, E])
+      : Parallel.Aux[Resource[F0, E, *], Resource.Par[F0, E, *]] =
+    new ResourceParallel[F0, E] {
       def F0 = catsEffectCommutativeApplicativeForResourcePar
       def F1 = catsEffectMonadForResource
     }
@@ -797,26 +797,26 @@ abstract private[effect] class ResourceSemigroupK[F[_], E]
     }
 }
 
-abstract private[effect] class ResourceParCommutativeApplicative[F[_]]
-    extends CommutativeApplicative[Resource.Par[F, Throwable, *]] {
+abstract private[effect] class ResourceParCommutativeApplicative[F[_], E]
+    extends CommutativeApplicative[Resource.Par[F, E, *]] {
   import Resource.Par
   import Resource.Par.{unwrap, apply => par}
 
-  implicit protected def F0: Async[F]
+  implicit protected def F0: GenConcurrent[F, E]
 
-  final override def map[A, B](fa: Par[F, Throwable, A])(f: A => B): Par[F, Throwable, B] =
+  final override def map[A, B](fa: Par[F, E, A])(f: A => B): Par[F, E, B] =
     par(unwrap(fa).map(f))
-  final override def pure[A](x: A): Par[F, Throwable, A] =
-    par(Resource.pure[F, Throwable, A](x))
+  final override def pure[A](x: A): Par[F, E, A] =
+    par(Resource.pure[F, E, A](x))
   final override def product[A, B](
-      fa: Par[F, Throwable, A],
-      fb: Par[F, Throwable, B]): Par[F, Throwable, (A, B)] =
+      fa: Par[F, E, A],
+      fb: Par[F, E, B]): Par[F, E, (A, B)] =
     par(unwrap(fa).parZip(unwrap(fb)))
-  final override def map2[A, B, Z](fa: Par[F, Throwable, A], fb: Par[F, Throwable, B])(
-      f: (A, B) => Z): Par[F, Throwable, Z] =
+  final override def map2[A, B, Z](fa: Par[F, E, A], fb: Par[F, E, B])(
+      f: (A, B) => Z): Par[F, E, Z] =
     map(product(fa, fb)) { case (a, b) => f(a, b) }
-  final override def ap[A, B](ff: Par[F, Throwable, A => B])(
-      fa: Par[F, Throwable, A]): Par[F, Throwable, B] =
+  final override def ap[A, B](ff: Par[F, E, A => B])(
+      fa: Par[F, E, A]): Par[F, E, B] =
     map(product(ff, fa)) { case (ff, a) => ff(a) }
 }
 
