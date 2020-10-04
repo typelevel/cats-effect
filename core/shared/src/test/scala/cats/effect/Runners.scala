@@ -63,7 +63,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
 
         val cogenE: Cogen[Throwable] = Cogen[Throwable]
 
-        val F: Async[IO] = IO.effectForIO
+        val F: Async[IO] = IO.asyncForIO
 
         def cogenCase[B: Cogen]: Cogen[OutcomeIO[B]] =
           OutcomeGenerators.cogenOutcome[IO, Throwable, B]
