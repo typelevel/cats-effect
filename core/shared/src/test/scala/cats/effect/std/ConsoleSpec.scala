@@ -15,7 +15,7 @@
  */
 
 package cats.effect
-package concurrent
+package std
 
 import cats.syntax.all._
 

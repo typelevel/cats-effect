@@ -38,7 +38,7 @@ In addition to `bracket`, `MonadCancel` also provides a lower-level operation, `
 
 ```scala mdoc
 import cats.effect.MonadCancel
-import cats.effect.concurrent.Semaphore
+import cats.effect.std.Semaphore
 import cats.effect.syntax.all._
 import cats.syntax.all._
 

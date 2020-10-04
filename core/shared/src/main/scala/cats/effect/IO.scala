@@ -28,7 +28,7 @@ import cats.{
   StackSafeMonad
 }
 import cats.syntax.all._
-import cats.effect.concurrent.Console
+import cats.effect.std.Console
 import cats.effect.implicits._
 import cats.effect.kernel.{Deferred, Ref}
 
@@ -416,7 +416,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Reads a line as a string from the standard input by using the platform's default charset, as per
    * `java.nio.charset.Charset.defaultCharset()`.
    *
-   * @see `cats.effect.concurrent.Console#readLineWithCharset` for reading using a custom
+   * @see `cats.effect.std.Console#readLineWithCharset` for reading using a custom
    * `java.nio.charset.Charset`
    *
    * @return an IO effect that describes reading the user's input from the standard input as a string
@@ -427,7 +427,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   /**
    * Prints a value to the standard output using the implicit `cats.Show` instance.
    *
-   * @see `cats.effect.concurrent.Console` for more standard input, output and error operations
+   * @see `cats.effect.std.Console` for more standard input, output and error operations
    *
    * @param a value to be printed to the standard output
    */
@@ -437,7 +437,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   /**
    * Prints a value to the standard output followed by a new line using the implicit `cats.Show` instance.
    *
-   * @see `cats.effect.concurrent.Console` for more standard input, output and error operations
+   * @see `cats.effect.std.Console` for more standard input, output and error operations
    *
    * @param a value to be printed to the standard output
    */

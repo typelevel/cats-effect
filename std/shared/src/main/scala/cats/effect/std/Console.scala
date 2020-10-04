@@ -19,7 +19,7 @@
  * by Gabriel Volpe.
  */
 
-package cats.effect.concurrent
+package cats.effect.std
 
 import cats.Show
 import cats.effect.kernel.Sync
@@ -36,7 +36,7 @@ import java.nio.charset.{Charset, CodingErrorAction, MalformedInputException}
  * for extremely simple console output.
  *
  * @example {{{
- *   import cats.effect.concurrent.Console
+ *   import cats.effect.std.Console
  *   import cats.effect.kernel.Sync
  *   import cats.syntax.all._
  *
