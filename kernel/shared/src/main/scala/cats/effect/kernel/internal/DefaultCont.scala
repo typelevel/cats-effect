@@ -20,6 +20,7 @@ package internal
 import cats.syntax.all._
 import cats.arrow.FunctionK
 import java.util.concurrent.atomic.AtomicReference
+import scala.annotation.tailrec
 
 private[kernel] final class DefaultCont[F[_], A](implicit F: Async[F]) {
   import DefaultCont._
@@ -35,6 +36,7 @@ private[kernel] final class DefaultCont[F[_], A](implicit F: Async[F]) {
           F.async { cb =>
             val waiting = Waiting(cb)
 
+            @tailrec
             def loop(): Unit =
               state.get match {
                 case s @ Initial() =>
@@ -62,6 +64,7 @@ private[kernel] final class DefaultCont[F[_], A](implicit F: Async[F]) {
     }
 
   def resume(v: Either[Throwable, A]): Unit = {
+    @tailrec
     def loop(): Unit =
       state.get match {
         case Value(_) => () /* idempotent, double calls are forbidden */
