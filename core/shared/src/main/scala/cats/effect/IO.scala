@@ -28,6 +28,7 @@ import cats.{
   StackSafeMonad
 }
 import cats.syntax.all._
+import cats.effect.concurrent.Console
 import cats.effect.implicits._
 import cats.effect.kernel.{Deferred, Ref}
 
@@ -410,6 +411,23 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    */
   def raiseUnless(cond: Boolean)(e: => Throwable): IO[Unit] =
     IO.unlessA(cond)(IO.raiseError(e))
+
+  /**
+   * Reads a line as a string from the standard input by using the platform's default charset, as per
+   * `java.nio.charset.Charset.defaultCharset()`.
+   *
+   * @return an IO effect that describes reading the user's input from the standard input as a string
+   */
+  def readLine: IO[String] =
+    Console[IO].readLine
+
+  /**
+   * Prints a value to the standard output followed by a new line using the implicit `cats.Show` instance.
+   *
+   * @param a value to be printed to the standard output
+   */
+  def println[A: Show](a: A): IO[Unit] =
+    Console[IO].println(a)
 
   def eval[A](fa: Eval[A]): IO[A] =
     fa match {
