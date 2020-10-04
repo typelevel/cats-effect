@@ -16,7 +16,7 @@
 
 package cats
 package effect
-package concurrent
+package laws
 
 import cats.syntax.all._
 import cats.effect.kernel.{/*Outcome,*/ Temporal} // , Outcome._
@@ -43,14 +43,14 @@ class GenTemporalSpec extends Specification { outer =>
       "succeed" in {
         val op = F.timeout(F.pure(true), 10.seconds)
 
-        run(TimeT.run(op)) mustEqual Completed(Some(true))
+        run(TimeT.run(op)) mustEqual Succeeded(Some(true))
       }.pendingUntilFixed
 
       "cancel a loop" in {
         val op: TimeT[F, Either[Throwable, Unit]] = F.timeout(loop, 5.millis).attempt
 
         run(TimeT.run(op)) must beLike {
-          case Completed(Some(Left(e))) => e must haveClass[TimeoutException]
+          case Succeeded(Some(Left(e))) => e must haveClass[TimeoutException]
         }
       }.pendingUntilFixed
     }
@@ -59,13 +59,13 @@ class GenTemporalSpec extends Specification { outer =>
       "succeed" in {
         val op: TimeT[F, Boolean] = F.timeoutTo(F.pure(true), 5.millis, F.raiseError(new RuntimeException))
 
-        run(TimeT.run(op)) mustEqual Completed(Some(true))
+        run(TimeT.run(op)) mustEqual Succeeded(Some(true))
       }.pendingUntilFixed
 
       "use fallback" in {
         val op: TimeT[F, Boolean] = F.timeoutTo(loop >> F.pure(false), 5.millis, F.pure(true))
 
-        run(TimeT.run(op)) mustEqual Completed(Some(true))
+        run(TimeT.run(op)) mustEqual Succeeded(Some(true))
       }.pendingUntilFixed
     }
   }*/

@@ -15,32 +15,21 @@
  */
 
 package cats.effect
+package laws
 
-import cats.{Eq, FlatMap, Show}
+import cats.{Eq, FlatMap}
 import cats.data.StateT
-//import cats.laws.discipline.{AlignTests, ParallelTests}
-import cats.laws.discipline.arbitrary._
-import cats.laws.discipline.eq._
-import cats.laws.discipline.MiniInt
-import cats.syntax.all._
-//import cats.effect.kernel.ParallelF
-import cats.effect.laws.MonadCancelTests
 import cats.effect.testkit.{pure, PureConcGenerators}, pure._
-
-// import org.scalacheck.rng.Seed
-import org.scalacheck.util.Pretty
+import cats.laws.discipline.{arbitrary, eq, MiniInt}, arbitrary._, eq._
 
 import org.specs2.ScalaCheck
-import org.specs2.scalacheck.Parameters
 import org.specs2.mutable._
+import org.specs2.scalacheck.Parameters
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class StateTPureConcSpec extends Specification with Discipline with ScalaCheck {
+class StateTPureConcSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
   import PureConcGenerators._
-
-  implicit def prettyFromShow[A: Show](a: A): Pretty =
-    Pretty.prettyString(a.show)
 
   implicit def stateTEq[F[_]: FlatMap, S, A](
       implicit ev: Eq[S => F[(S, A)]]): Eq[StateT[F, S, A]] =
@@ -49,6 +38,5 @@ class StateTPureConcSpec extends Specification with Discipline with ScalaCheck {
   checkAll(
     "StateT[PureConc]",
     MonadCancelTests[StateT[PureConc[Int, *], MiniInt, *], Int].monadCancel[Int, Int, Int]
-  )(Parameters(minTestsOk =
-    25 /*, seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get*/ ))
+  )(Parameters(minTestsOk = 25))
 }

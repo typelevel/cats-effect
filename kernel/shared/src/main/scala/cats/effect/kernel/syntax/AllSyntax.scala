@@ -22,5 +22,3 @@ trait AllSyntax
     with GenTemporalSyntax
     with GenConcurrentSyntax
     with AsyncSyntax
-    with SyncEffectSyntax
-    with EffectSyntax

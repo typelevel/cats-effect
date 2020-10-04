@@ -15,29 +15,22 @@
  */
 
 package cats.effect
+package laws
 
-import cats.{Eval /*, Id*/}
-import cats.effect.kernel.Outcome
-import cats.effect.testkit.OutcomeGenerators
-import cats.laws.discipline.{ApplicativeErrorTests, MonadErrorTests}
+import cats.data.ContT
+import cats.effect.testkit.{freeEval, FreeSyncGenerators}, freeEval._
+import cats.laws.discipline.arbitrary._
 
+import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class OutcomeSpec extends Specification with Discipline {
-  import OutcomeGenerators._
+class ClockSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
+  import FreeSyncGenerators._
 
-  // doesn't compile on scala 2.12
-  // checkAll(
-  //   "Outcome[Id, Int, *]",
-  //   MonadErrorTests[Outcome[Id, Int, *], Int].monadError[Int, Int, Int])
-
+  // we only need to test the ones that *aren't* also Sync
   checkAll(
-    "Outcome[Option, Int, *]",
-    MonadErrorTests[Outcome[Option, Int, *], Int].monadError[Int, Int, Int])
-
-  checkAll(
-    "Outcome[Eval, Int, *]",
-    ApplicativeErrorTests[Outcome[Eval, Int, *], Int].applicativeError[Int, Int, Int])
+    "ContT[FreeEitherSync, Int, *]",
+    ClockTests[ContT[FreeEitherSync, Int, *]].clock[Int, Int, Int])
 }

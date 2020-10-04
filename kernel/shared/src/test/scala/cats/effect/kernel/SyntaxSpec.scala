@@ -116,36 +116,4 @@ class SyntaxSpec extends Specification {
       result: F[A]
     }
   }
-
-  def syncEffectSyntax[F[_], G[_], A](
-      target: F[A])(implicit F: SyncEffect[F], G: SyncEffect[G]) = {
-    import syntax.syncEffect._
-
-    SyncEffect[F]: F.type
-
-    {
-      val result = target.to[G]
-      result: G[A]
-    }
-  }
-
-  def effectSyntax[F[_], G[_], A](target: F[A])(implicit F: Effect[F], G: Effect[G]) = {
-    import syntax.effect._
-
-    Effect[F]: F.type
-
-    {
-      val result = target.to[G]
-      result: G[A]
-    }
-  }
-
-  def allSyntax[F[_], G[_], A](target: F[A])(implicit F: Effect[F], G: Effect[G]) = {
-    import syntax.all._
-
-    {
-      val result = target.to[G]
-      result: G[A]
-    }
-  }
 }

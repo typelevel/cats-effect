@@ -27,10 +27,6 @@ class SyntaxSpec extends Specification {
     Ref[F].of(15)
     Deferred[F, Unit]
     Semaphore[F](15)
-    MVar[F].of(1)
-    MVar[F].empty[String]
-    MVar.empty[F, String]
-    MVar.of[F, String]("bar")
   }
 
   def genConcurrent[F[_]](implicit F: GenConcurrent[F, _]) = {

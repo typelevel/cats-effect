@@ -220,6 +220,10 @@ private final class IOFiber[A](
       asyncCancel(null)
     } else {
       // println(s"<$name> looping on $cur0")
+      /*
+       * The cases have to use continuous constants to generate a `tableswitch`.
+       * Do not name or reorder them.
+       */
       (cur0.tag: @switch) match {
         case 0 =>
           val cur = cur0.asInstanceOf[Pure[Any]]
@@ -334,6 +338,7 @@ private final class IOFiber[A](
 
         case 11 =>
           val cur = cur0.asInstanceOf[IOCont[Any]]
+
           /*
            * Takes `cb` (callback) and `get` and returns an IO that
            * uses them to embed async computations.
@@ -366,6 +371,7 @@ private final class IOFiber[A](
            *
            */
           val state = new AtomicReference[ContState](ContStateInitial)
+          val wasFinalizing = new AtomicBoolean(finalizing)
 
           val cb: Either[Throwable, Any] => Unit = { e =>
             /*
@@ -383,15 +389,23 @@ private final class IOFiber[A](
               // println(s"cb loop sees suspended ${suspended.get} on fiber $name")
               /* try to take ownership of the runloop */
               if (resume()) {
-                if (!shouldFinalize()) {
-                  /* we weren't cancelled, so resume the runloop */
-                  asyncContinue(e)
+                if (finalizing == wasFinalizing.get()) {
+                  if (!shouldFinalize()) {
+                    /* we weren't cancelled, so resume the runloop */
+                    asyncContinue(e)
+                  } else {
+                    /*
+                     * we were canceled, but since we have won the race on `suspended`
+                     * via `resume`, `cancel` cannot run the finalisers, and we have to.
+                     */
+                    asyncCancel(null)
+                  }
                 } else {
                   /*
-                   * we were canceled, but since we have won the race on `suspended`
-                   * via `resume`, `cancel` cannot run the finalisers, and we have to.
+                   * we were canceled while suspended, then our finalizer suspended,
+                   * then we hit this line, so we shouldn't own the runloop at all
                    */
-                  asyncCancel(null)
+                  suspend()
                 }
               } else if (!shouldFinalize()) {
                 /*
@@ -445,7 +459,7 @@ private final class IOFiber[A](
           }
 
           val get: IO[Any] = IOCont
-            .Get(state)
+            .Get(state, wasFinalizing)
             .onCancel(
               /*
                * If get gets canceled but the result hasn't been computed yet,
@@ -461,7 +475,9 @@ private final class IOFiber[A](
 
         case 12 =>
           val cur = cur0.asInstanceOf[IOCont.Get[Any]]
+
           val state = cur.state
+          val wasFinalizing = cur.wasFinalizing
 
           if (state.compareAndSet(ContStateInitial, ContStateWaiting)) {
             /*
@@ -469,6 +485,12 @@ private final class IOFiber[A](
              * it needs to set the state to `Waiting` and suspend: `cb` will
              * resume with the result once that's ready
              */
+
+            /*
+             * we set the finalizing check to the *suspension* point, which may
+             * be in a different finalizer scope than the cont itself
+             */
+            wasFinalizing.set(finalizing)
 
             /*
              * This CAS should always succeed since we own the runloop,
@@ -662,15 +684,15 @@ private final class IOFiber[A](
     try {
       callbacks(oc)
     } finally {
-      callbacks.lazySet(null) // avoid leaks
+      callbacks.lazySet(null) /* avoid leaks */
     }
 
     /*
      * need to reset masks to 0 to terminate async callbacks
-     * busy spinning in `loop`.
+     * in `cont` busy spinning in `loop` on the `!shouldFinalize` check.
      */
     masks = initMask
-    /* full memory barrier to publish masks */
+    /* write barrier to publish masks */
     suspended.set(false)
 
     /* clear out literally everything to avoid any possible memory leaks */
@@ -694,13 +716,6 @@ private final class IOFiber[A](
     resumeTag = DoneR
   }
 
-  /*
-   4 possible cases for callback and cancellation:
-   1. Callback completes before cancelation and takes over the runloop
-   2. Callback completes after cancelation and takes over runloop
-   3. Callback completes after cancelation and can't take over the runloop
-   4. Callback completes after cancelation and after the finalizers have run, so it can take the runloop, but shouldn't
-   */
   private[this] def asyncContinue(e: Either[Throwable, Any]): Unit = {
     val ec = currentCtx
     resumeTag = AsyncContinueR
@@ -1010,7 +1025,7 @@ private final class IOFiber[A](
         /* this can happen if we don't check the canceled flag before completion */
         OutcomeCanceled
       else
-        Outcome.Completed(IO.pure(result.asInstanceOf[A]))
+        Outcome.Succeeded(IO.pure(result.asInstanceOf[A]))
 
     done(outcome)
     IOEndFiber

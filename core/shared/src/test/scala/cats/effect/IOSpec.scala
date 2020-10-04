@@ -18,7 +18,7 @@ package cats.effect
 
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.SemigroupKTests
-import cats.effect.laws.EffectTests
+import cats.effect.laws.AsyncTests
 import cats.effect.testkit.{SyncTypeGenerators, TestContext}
 import cats.syntax.all._
 
@@ -367,13 +367,13 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
         test.flatMap { results =>
           results.traverse { result =>
-            IO(result must beLike { case Outcome.Completed(_) => ok }).flatMap { _ =>
+            IO(result must beLike { case Outcome.Succeeded(_) => ok }).flatMap { _ =>
               result match {
-                case Outcome.Completed(ioa) =>
+                case Outcome.Succeeded(ioa) =>
                   ioa.flatMap { oc =>
-                    IO(result must beLike { case Outcome.Completed(_) => ok }).flatMap { _ =>
+                    IO(result must beLike { case Outcome.Succeeded(_) => ok }).flatMap { _ =>
                       oc match {
-                        case Outcome.Completed(ioa) =>
+                        case Outcome.Succeeded(ioa) =>
                           ioa flatMap { i => IO(i mustEqual 42) }
 
                         case _ => sys.error("nope")
@@ -708,7 +708,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
         // convenient proxy for an async that returns a cancelToken
         val test = IO.sleep(1.day).onCase {
-          case Outcome.Completed(_) => IO { passed = true }
+          case Outcome.Succeeded(_) => IO { passed = true }
         }
 
         test must completeAs(())
@@ -883,7 +883,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     checkAll(
       "IO",
-      EffectTests[IO].effect[Int, Int, Int](10.millis)
+      AsyncTests[IO].async[Int, Int, Int](10.millis)
     ) /*(Parameters(seed = Some(Seed.fromBase64("XidlR_tu11X7_v51XojzZJsm6EaeU99RAEL9vzbkWBD=").get)))*/
   }
 

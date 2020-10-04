@@ -15,33 +15,37 @@
  */
 
 package cats.effect
+package laws
 
-import cats.data.ContT
-import cats.{Eq, Show}
-import cats.effect.testkit.{freeEval, FreeSyncGenerators}, freeEval._
-import cats.syntax.all._
+import cats.data.IorT
+import cats.effect.testkit.{pure, PureConcGenerators, TimeT}, pure._, TimeT._
 import cats.laws.discipline.arbitrary._
-import cats.effect.laws.ClockTests
 
-import org.scalacheck.util.Pretty
+import org.scalacheck.Prop
 
 import org.specs2.ScalaCheck
-import org.specs2.mutable.Specification
+import org.specs2.mutable._
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class ClockSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
-  import FreeSyncGenerators._
+import scala.concurrent.duration._
 
-  implicit def prettyFromShow[A: Show](a: A): Pretty =
-    Pretty.prettyString(a.show)
+class IorTPureConcSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
+  import PureConcGenerators._
 
-  implicit val eqThrowable: Eq[Throwable] =
-    Eq.fromUniversalEquals
-
-  // we only need to test the ones that *aren't* also Sync
+  implicit def exec[L](sbool: IorT[TimeT[PureConc[Int, *], *], L, Boolean]): Prop =
+    Prop(
+      pure
+        .run(TimeT.run(sbool.value))
+        .fold(
+          false,
+          _ => false,
+          iO => iO.fold(false)(i => i.fold(_ => false, _ => true, (_, _) => false)))
+    )
 
   checkAll(
-    "ContT[FreeEitherSync, Int, *]",
-    ClockTests[ContT[FreeEitherSync, Int, *]].clock[Int, Int, Int])
+    "IorT[PureConc]",
+    GenTemporalTests[IorT[TimeT[PureConc[Int, *], *], Int, *], Int]
+      .temporal[Int, Int, Int](10.millis)
+  )
 }
