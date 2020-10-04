@@ -230,7 +230,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def to[F[_]](implicit F: Effect[F]): F[A @uncheckedVariance] =
     // re-comment this fast-path to test the implementation with IO itself
-    if (F eq IO.effectForIO) {
+    if (F eq IO.asyncForIO) {
       asInstanceOf[F[A]]
     } else {
       def fiberFrom[B](f: Fiber[F, Throwable, B]): FiberIO[B] =
@@ -367,10 +367,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     delay(thunk).flatten
 
   def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
-    effectForIO.async(k)
+    asyncForIO.async(k)
 
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
-    effectForIO.async_(k)
+    asyncForIO.async_(k)
 
   def canceled: IO[Unit] = Canceled
 
@@ -414,7 +414,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     left.both(right)
 
   def fromFuture[A](fut: IO[Future[A]]): IO[A] =
-    effectForIO.fromFuture(fut)
+    asyncForIO.fromFuture(fut)
 
   def race[A, B](left: IO[A], right: IO[B]): IO[Either[A, B]] =
     left.race(right)
@@ -520,7 +520,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       a.handleErrorWith(_ => b)
   }
 
-  private[this] val _effectForIO: Effect[IO] = new Effect[IO] with StackSafeMonad[IO] {
+  private[this] val _asyncForIO: Effect[IO] = new Effect[IO] with StackSafeMonad[IO] {
 
     override def as[A, B](ioa: IO[A], b: B): IO[B] =
       ioa.as(b)
@@ -622,7 +622,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def deferred[A]: IO[Deferred[IO, A]] = IO(Deferred.unsafe)
   }
 
-  implicit def effectForIO: Effect[IO] = _effectForIO
+  implicit def asyncForIO: Effect[IO] = _asyncForIO
 
   implicit def unsafeRunForIO(implicit runtime: unsafe.IORuntime): unsafe.UnsafeRun[IO] =
     runtime.unsafeRunForIO
@@ -635,7 +635,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   // This is cached as a val to save allocations, but it uses ops from the Async
   // instance which is also cached as a val, and therefore needs to appear
   // later in the file
-  private[this] val _never: IO[Nothing] = effectForIO.never
+  private[this] val _never: IO[Nothing] = asyncForIO.never
 
   // implementations
 
