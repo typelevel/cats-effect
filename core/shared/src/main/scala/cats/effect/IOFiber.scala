@@ -1111,14 +1111,14 @@ private final class IOFiber[A](
   }
 
   private[effect] def debug(): Unit = {
-    println("================")
-    println(s"fiber: $name")
-    println("================")
-    println(s"conts = ${conts.unsafeBuffer().toList.filterNot(_ == 0)}")
-    println(s"canceled = $canceled")
-    println(s"masks = $masks (out of initMask = $initMask)")
-    println(s"suspended = ${suspended.get()}")
-    println(s"outcome = ${outcome}")
+    System.out.println("================")
+    System.out.println(s"fiber: $name")
+    System.out.println("================")
+    System.out.println(s"conts = ${conts.unsafeBuffer().toList.filterNot(_ == 0)}")
+    System.out.println(s"canceled = $canceled")
+    System.out.println(s"masks = $masks (out of initMask = $initMask)")
+    System.out.println(s"suspended = ${suspended.get()}")
+    System.out.println(s"outcome = ${outcome}")
   }
 }
 
