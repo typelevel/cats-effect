@@ -648,8 +648,9 @@ abstract private[effect] class ResourceInstances extends ResourceInstances0 {
       def F0 = F
     }
 
-  implicit def catsEffectParallelForResource[F0[_], E](implicit F: GenConcurrent[F0, E])
-      : Parallel.Aux[Resource[F0, E, *], Resource.Par[F0, E, *]] =
+  implicit def catsEffectParallelForResource[F0[_], E](
+      implicit
+      F: GenConcurrent[F0, E]): Parallel.Aux[Resource[F0, E, *], Resource.Par[F0, E, *]] =
     new ResourceParallel[F0, E] {
       def F0 = catsEffectCommutativeApplicativeForResourcePar
       def F1 = catsEffectMonadForResource
@@ -808,15 +809,12 @@ abstract private[effect] class ResourceParCommutativeApplicative[F[_], E]
     par(unwrap(fa).map(f))
   final override def pure[A](x: A): Par[F, E, A] =
     par(Resource.pure[F, E, A](x))
-  final override def product[A, B](
-      fa: Par[F, E, A],
-      fb: Par[F, E, B]): Par[F, E, (A, B)] =
+  final override def product[A, B](fa: Par[F, E, A], fb: Par[F, E, B]): Par[F, E, (A, B)] =
     par(unwrap(fa).parZip(unwrap(fb)))
   final override def map2[A, B, Z](fa: Par[F, E, A], fb: Par[F, E, B])(
       f: (A, B) => Z): Par[F, E, Z] =
     map(product(fa, fb)) { case (a, b) => f(a, b) }
-  final override def ap[A, B](ff: Par[F, E, A => B])(
-      fa: Par[F, E, A]): Par[F, E, B] =
+  final override def ap[A, B](ff: Par[F, E, A => B])(fa: Par[F, E, A]): Par[F, E, B] =
     map(product(ff, fa)) { case (ff, a) => ff(a) }
 }
 

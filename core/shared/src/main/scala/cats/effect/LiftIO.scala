@@ -139,19 +139,19 @@ object LiftIO {
   /**
    * [[LiftIO]] instance for [[Resource]] values.
    */
-  implicit def catsEffectLiftIOForResource[F[_]](
+  implicit def catsEffectLiftIOForResource[F[_], E](
       implicit F00: LiftIO[F],
-      F10: Applicative[F]): LiftIO[Resource[F, *]] =
-    new ResourceLiftIO[F] {
+      F10: Applicative[F]): LiftIO[Resource[F, E, *]] =
+    new ResourceLiftIO[F, E] {
       def F0 = F00
       def F1 = F10
     }
 
-  abstract private class ResourceLiftIO[F[_]] extends LiftIO[Resource[F, *]] {
+  abstract private class ResourceLiftIO[F[_], E] extends LiftIO[Resource[F, E, *]] {
     implicit protected def F0: LiftIO[F]
     implicit protected def F1: Applicative[F]
 
-    def liftIO[A](ioa: IO[A]): Resource[F, A] =
+    def liftIO[A](ioa: IO[A]): Resource[F, E, A] =
       Resource.liftF(F0.liftIO(ioa))
   }
 }
