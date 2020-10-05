@@ -34,4 +34,6 @@ package object kernel {
 
   type ParallelF[F[_], A] = Par.ParallelF[F, A]
   val ParallelF = Par.ParallelF
+
+  type Resource[+F[_], +A] = GenResource[F, Throwable, A]
 }

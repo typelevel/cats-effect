@@ -102,33 +102,33 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     Arbitrary(generators.generators[A])
   }
 
-  implicit def arbitraryResource[F[_], A](
+  implicit def arbitraryGenResource[F[_], E, A](
       implicit F: Applicative[F],
       AFA: Arbitrary[F[A]],
-      AFU: Arbitrary[F[Unit]]): Arbitrary[Resource[F, A]] =
-    Arbitrary(Gen.delay(genResource[F, A]))
+      AFU: Arbitrary[F[Unit]]): Arbitrary[GenResource[F, E, A]] =
+    Arbitrary(Gen.delay(genGenResource[F, E, A]))
 
-  implicit def arbitraryResourceParallel[F[_], A](
-      implicit A: Arbitrary[Resource[F, A]]
-  ): Arbitrary[Resource.Par[F, A]] =
-    Arbitrary(A.arbitrary.map(Resource.Par.apply))
+  implicit def arbitraryGenResourceParallel[F[_], E, A](
+      implicit A: Arbitrary[GenResource[F, E, A]]
+  ): Arbitrary[GenResource.Par[F, E, A]] =
+    Arbitrary(A.arbitrary.map(GenResource.Par.apply))
 
   // Consider improving this a strategy similar to Generators.
-  def genResource[F[_], A](
+  def genGenResource[F[_], E, A](
       implicit F: Applicative[F],
       AFA: Arbitrary[F[A]],
-      AFU: Arbitrary[F[Unit]]): Gen[Resource[F, A]] = {
-    def genAllocate: Gen[Resource[F, A]] =
+      AFU: Arbitrary[F[Unit]]): Gen[GenResource[F, E, A]] = {
+    def genAllocate: Gen[GenResource[F, E, A]] =
       for {
         alloc <- arbitrary[F[A]]
         dispose <- arbitrary[F[Unit]]
-      } yield Resource(alloc.map(a => a -> dispose))
+      } yield GenResource(alloc.map(a => a -> dispose))
 
-    def genBind: Gen[Resource[F, A]] =
-      genAllocate.map(_.flatMap(a => Resource.pure[F, A](a)))
+    def genBind: Gen[GenResource[F, E, A]] =
+      genAllocate.map(_.flatMap(a => GenResource.pure[F, E, A](a)))
 
-    def genSuspend: Gen[Resource[F, A]] =
-      genAllocate.map(r => Resource.suspend(r.pure[F]))
+    def genSuspend: Gen[GenResource[F, E, A]] =
+      genAllocate.map(r => GenResource.suspend(r.pure[F]))
 
     Gen.frequency(
       5 -> genAllocate,
@@ -182,27 +182,28 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     }*/
 
   /**
-   * Defines equality for a `Resource`.  Two resources are deemed
+   * Defines equality for a `GenResource`.  Two resources are deemed
    * equivalent if they allocate an equivalent resource.  Cleanup,
    * which is run purely for effect, is not considered.
    */
-  implicit def eqResource[F[_], A](
+  implicit def eqGenResource[F[_], E, A](
       implicit E: Eq[F[A]],
-      F: Resource.Bracket[F]): Eq[Resource[F, A]] =
-    new Eq[Resource[F, A]] {
-      def eqv(x: Resource[F, A], y: Resource[F, A]): Boolean =
+      F: GenResource.Bracket[F, E]): Eq[GenResource[F, E, A]] =
+    new Eq[GenResource[F, E, A]] {
+      def eqv(x: GenResource[F, E, A], y: GenResource[F, E, A]): Boolean =
         E.eqv(x.use(F.pure), y.use(F.pure))
     }
 
   /**
-   * Defines equality for `Resource.Par`.  Two resources are deemed
+   * Defines equality for `GenResource.Par`.  Two resources are deemed
    * equivalent if they allocate an equivalent resource.  Cleanup,
    * which is run purely for effect, is not considered.
    */
-  implicit def eqResourcePar[F[_], A](implicit E: Eq[Resource[F, A]]): Eq[Resource.Par[F, A]] =
-    new Eq[Resource.Par[F, A]] {
-      import Resource.Par.unwrap
-      def eqv(x: Resource.Par[F, A], y: Resource.Par[F, A]): Boolean =
+  implicit def eqGenResourcePar[F[_], E, A](
+      implicit E: Eq[GenResource[F, E, A]]): Eq[GenResource.Par[F, E, A]] =
+    new Eq[GenResource.Par[F, E, A]] {
+      import GenResource.Par.unwrap
+      def eqv(x: GenResource.Par[F, E, A], y: GenResource.Par[F, E, A]): Boolean =
         E.eqv(unwrap(x), unwrap(y))
     }
 

@@ -22,23 +22,23 @@ import cats.syntax.all._
 import cats.effect.kernel.implicits._
 
 import scala.annotation.tailrec
-import Resource.ExitCase
+import GenResource.ExitCase
 
 /**
- * The `Resource` is a data structure that captures the effectful
+ * The `GenResource` is a data structure that captures the effectful
  * allocation of a resource, along with its finalizer.
  *
  * This can be used to wrap expensive resources. Example:
  *
  * {{{
- *   def open(file: File): Resource[IO, Throwable, BufferedReader] =
- *     Resource(IO {
+ *   def open(file: File): GenResource[IO, Throwable, BufferedReader] =
+ *     GenResource(IO {
  *       val in = new BufferedReader(new FileReader(file))
  *       (in, IO(in.close()))
  *     })
  * }}}
  *
- * Usage is done via [[Resource!.use use]] and note that resource usage nests,
+ * Usage is done via [[GenResource!.use use]] and note that resource usage nests,
  * because its implementation is specified in terms of [[Bracket]]:
  *
  * {{{
@@ -49,7 +49,7 @@ import Resource.ExitCase
  *   }
  * }}}
  *
- * `Resource` forms a `MonadError` on the resource type when the
+ * `GenResource` forms a `MonadError` on the resource type when the
  * effect type has a `cats.MonadError` instance. Nested resources are
  * released in reverse order of acquisition. Outer resources are
  * released even if an inner use or release fails.
@@ -58,7 +58,7 @@ import Resource.ExitCase
  *   def mkResource(s: String) = {
  *     val acquire = IO(println(s"Acquiring $$s")) *> IO.pure(s)
  *     def release(s: String) = IO(println(s"Releasing $$s"))
- *     Resource.make(acquire)(release)
+ *     GenResource.make(acquire)(release)
  *   }
  *
  *   val r = for {
@@ -81,41 +81,41 @@ import Resource.ExitCase
  *   Releasing outer
  * }}}
  *
- * A `Resource` is nothing more than a data structure, an ADT, described by
+ * A `GenResource` is nothing more than a data structure, an ADT, described by
  * the following node types and that can be interpreted if needed:
  *
- *  - [[cats.effect.Resource.Allocate Allocate]]
- *  - [[cats.effect.Resource.Suspend Suspend]]
- *  - [[cats.effect.Resource.Bind Bind]]
+ *  - [[cats.effect.GenResource.Allocate Allocate]]
+ *  - [[cats.effect.GenResource.Suspend Suspend]]
+ *  - [[cats.effect.GenResource.Bind Bind]]
  *
  * Normally users don't need to care about these node types, unless conversions
- * from `Resource` into something else is needed (e.g. conversion from `Resource`
+ * from `GenResource` into something else is needed (e.g. conversion from `GenResource`
  * into a streaming data type).
  *
  * @tparam F the effect type in which the resource is allocated and released
  * @tparam A the type of resource
  */
-sealed abstract class Resource[+F[_], E, +A] {
+sealed abstract class GenResource[+F[_], E, +A] {
   private[effect] type F0[x] <: F[x]
 
-  import Resource.{Allocate, Bind, Suspend}
+  import GenResource.{Allocate, Bind, Suspend}
 
   private[effect] def fold[G[x] >: F[x], B](
       onOutput: A => G[B],
       onRelease: G[Unit] => G[Unit]
-  )(implicit G: Resource.Bracket[G, E]): G[B] = {
+  )(implicit G: GenResource.Bracket[G, E]): G[B] = {
     sealed trait Stack[AA]
     case object Nil extends Stack[A]
-    final case class Frame[AA, BB](head: AA => Resource[G, E, BB], tail: Stack[BB])
+    final case class Frame[AA, BB](head: AA => GenResource[G, E, BB], tail: Stack[BB])
         extends Stack[AA]
 
     // Indirection for calling `loop` needed because `loop` must be @tailrec
-    def continue[C](current: Resource[G, E, C], stack: Stack[C]): G[B] =
+    def continue[C](current: GenResource[G, E, C], stack: Stack[C]): G[B] =
       loop(current, stack)
 
-    // Interpreter that knows how to evaluate a Resource data structure;
+    // Interpreter that knows how to evaluate a GenResource data structure;
     // Maintains its own stack for dealing with Bind chains
-    @tailrec def loop[C](current: Resource[G, E, C], stack: Stack[C]): G[B] =
+    @tailrec def loop[C](current: GenResource[G, E, C], stack: Stack[C]): G[B] =
       current.invariant match {
         case Allocate(resource) =>
           G.bracketCase(resource) {
@@ -144,12 +144,12 @@ sealed abstract class Resource[+F[_], E, +A] {
    * @param f the function to apply to the allocated resource
    * @return the result of applying [F] to
    */
-  def use[G[x] >: F[x], B](f: A => G[B])(implicit G: Resource.Bracket[G, E]): G[B] =
+  def use[G[x] >: F[x], B](f: A => G[B])(implicit G: GenResource.Bracket[G, E]): G[B] =
     fold[G, B](f, identity)
 
   /**
    * Allocates a resource with a non-terminating use action.
-   * Useful to run programs that are expressed entirely in `Resource`.
+   * Useful to run programs that are expressed entirely in `GenResource`.
    *
    * The finalisers run when the resulting program fails or gets interrupted.
    */
@@ -163,7 +163,7 @@ sealed abstract class Resource[+F[_], E, +A] {
    * but within _each_ of the two resources, nested finalizers are run in the usual
    * reverse order of acquisition.
    *
-   * Note that `Resource` also comes with a `cats.Parallel` instance
+   * Note that `GenResource` also comes with a `cats.Parallel` instance
    * that offers more convenient access to the same functionality as
    * `parZip`, for example via `parMapN`:
    *
@@ -174,7 +174,7 @@ sealed abstract class Resource[+F[_], E, +A] {
    *       IO(println(s"Acquiring $$name")).as(name)
    *
    *     val release = IO(println(s"Releasing $$name"))
-   *     Resource.make(acquire)(release)
+   *     GenResource.make(acquire)(release)
    *   }
    *
    *  val r = (mkResource("one"), mkResource("two"))
@@ -182,20 +182,20 @@ sealed abstract class Resource[+F[_], E, +A] {
    *             .use(msg => IO(println(msg)))
    * }}}
    */
-  def parZip[G[x] >: F[x]: GenConcurrent[*[_], E], B](
-      that: Resource[G, E, B]
-  ): Resource[G, E, (A, B)] = {
+  def parZip[G[x] >: F[x], B](
+      that: GenResource[G, E, B]
+  )(implicit F: GenConcurrent[G, E]): GenResource[G, E, (A, B)] = {
     type Update = (G[Unit] => G[Unit]) => G[Unit]
 
-    def allocate[C](r: Resource[G, E, C], storeFinalizer: Update): G[C] =
+    def allocate[C](r: GenResource[G, E, C], storeFinalizer: Update): G[C] =
       r.fold[G, C](
         _.pure[G],
-        release => storeFinalizer(Resource.Bracket[G, E].guarantee(_)(release))
+        release => storeFinalizer(GenResource.Bracket[G, E].guarantee(_)(release))
       )
 
     val bothFinalizers = Ref.of(().pure[G] -> ().pure[G])
 
-    Resource.make(bothFinalizers)(_.get.flatMap(_.parTupled).void).evalMap { store =>
+    GenResource.make(bothFinalizers)(_.get.flatMap(_.parTupled).void).evalMap { store =>
       val leftStore: Update = f => store.update(_.leftMap(f))
       val rightStore: Update =
         f =>
@@ -209,25 +209,25 @@ sealed abstract class Resource[+F[_], E, +A] {
    * Implementation for the `flatMap` operation, as described via the
    * `cats.Monad` type class.
    */
-  def flatMap[G[x] >: F[x], B](f: A => Resource[G, E, B]): Resource[G, E, B] =
+  def flatMap[G[x] >: F[x], B](f: A => GenResource[G, E, B]): GenResource[G, E, B] =
     Bind(this, f)
 
   /**
    *  Given a mapping function, transforms the resource provided by
-   *  this Resource.
+   *  this GenResource.
    *
    *  This is the standard `Functor.map`.
    */
-  def map[G[x] >: F[x], B](f: A => B)(implicit F: Applicative[G]): Resource[G, E, B] =
-    flatMap(a => Resource.pure(f(a)))
+  def map[G[x] >: F[x], B](f: A => B)(implicit F: Applicative[G]): GenResource[G, E, B] =
+    flatMap(a => GenResource.pure(f(a)))
 
   /**
    * Given a natural transformation from `F` to `G`, transforms this
-   * Resource from effect `F` to effect `G`.
+   * GenResource from effect `F` to effect `G`.
    */
   def mapK[G[x] >: F[x], H[_]](
       f: G ~> H
-  )(implicit D: Defer[H], G: Applicative[H]): Resource[H, E, A] =
+  )(implicit D: Defer[H], G: Applicative[H]): GenResource[H, E, A] =
     this match {
       case Allocate(resource) =>
         Allocate(f(resource).map { case (a, r) => (a, r.andThen(u => f(u))) })
@@ -238,8 +238,8 @@ sealed abstract class Resource[+F[_], E, +A] {
     }
 
   /**
-   * Given a `Resource`, possibly built by composing multiple
-   * `Resource`s monadically, returns the acquired resource, as well
+   * Given a `GenResource`, possibly built by composing multiple
+   * `GenResource`s monadically, returns the acquired resource, as well
    * as an action that runs all the finalizers for releasing it.
    *
    * If the outer `F` fails or is interrupted, `allocated` guarantees
@@ -250,7 +250,7 @@ sealed abstract class Resource[+F[_], E, +A] {
    *
    * For this reason, this is an advanced and potentially unsafe api
    * which can cause a resource leak if not used correctly, please
-   * prefer [[use]] as the standard way of running a `Resource`
+   * prefer [[use]] as the standard way of running a `GenResource`
    * program.
    *
    * Use cases include interacting with side-effectful apis that
@@ -259,23 +259,24 @@ sealed abstract class Resource[+F[_], E, +A] {
    * code that needs to modify or move the finalizer for an existing
    * resource.
    */
-  def allocated[G[x] >: F[x], B >: A](implicit G: Resource.Bracket[G, E]): G[(B, G[Unit])] = {
+  def allocated[G[x] >: F[x], B >: A](
+      implicit G: GenResource.Bracket[G, E]): G[(B, G[Unit])] = {
     sealed trait Stack[AA]
     case object Nil extends Stack[B]
-    final case class Frame[AA, BB](head: AA => Resource[G, E, BB], tail: Stack[BB])
+    final case class Frame[AA, BB](head: AA => GenResource[G, E, BB], tail: Stack[BB])
         extends Stack[AA]
 
     // Indirection for calling `loop` needed because `loop` must be @tailrec
     def continue[C](
-        current: Resource[G, E, C],
+        current: GenResource[G, E, C],
         stack: Stack[C],
         release: G[Unit]): G[(B, G[Unit])] =
       loop(current, stack, release)
 
-    // Interpreter that knows how to evaluate a Resource data structure;
+    // Interpreter that knows how to evaluate a GenResource data structure;
     // Maintains its own stack for dealing with Bind chains
     @tailrec def loop[C](
-        current: Resource[G, E, C],
+        current: GenResource[G, E, C],
         stack: Stack[C],
         release: G[Unit]): G[(B, G[Unit])] =
       current.invariant match {
@@ -307,24 +308,24 @@ sealed abstract class Resource[+F[_], E, +A] {
    * Applies an effectful transformation to the allocated resource. Like a
    * `flatMap` on `F[A]` while maintaining the resource context
    */
-  def evalMap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G]): Resource[G, E, B] =
-    this.flatMap(a => Resource.liftF(f(a)))
+  def evalMap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G]): GenResource[G, E, B] =
+    this.flatMap(a => GenResource.liftF(f(a)))
 
   /**
    * Applies an effectful transformation to the allocated resource. Like a
    * `flatTap` on `F[A]` while maintaining the resource context
    */
-  def evalTap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G]): Resource[G, E, A] =
+  def evalTap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G]): GenResource[G, E, A] =
     this.evalMap(a => f(a).as(a))
 
   /**
    * Converts this to an `InvariantResource` to facilitate pattern matches
    * that Scala 2 cannot otherwise handle correctly.
    */
-  private[effect] def invariant: Resource.InvariantResource[F0, E, A]
+  private[effect] def invariant: GenResource.InvariantResource[F0, E, A]
 }
 
-object Resource extends ResourceInstances with ResourcePlatform {
+object GenResource extends GenResourceInstances {
 
   /**
    * Creates a resource from an allocating effect.
@@ -337,7 +338,8 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * @param resource an effect that returns a tuple of a resource and
    *        an effect to release it
    */
-  def apply[F[_], E, A](resource: F[(A, F[Unit])])(implicit F: Functor[F]): Resource[F, E, A] =
+  def apply[F[_], E, A](resource: F[(A, F[Unit])])(
+      implicit F: Functor[F]): GenResource[F, E, A] =
     Allocate[F, E, A] {
       resource.map {
         case (a, release) =>
@@ -357,14 +359,14 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * @param resource an effect that returns a tuple of a resource and
    *        an effectful function to release it
    */
-  def applyCase[F[_], E, A](resource: F[(A, ExitCase[E] => F[Unit])]): Resource[F, E, A] =
+  def applyCase[F[_], E, A](resource: F[(A, ExitCase[E] => F[Unit])]): GenResource[F, E, A] =
     Allocate(resource)
 
   /**
-   * Given a `Resource` suspended in `F[_]`, lifts it in the `Resource` context.
+   * Given a `GenResource` suspended in `F[_]`, lifts it in the `GenResource` context.
    */
-  def suspend[F[_], E, A](fr: F[Resource[F, E, A]]): Resource[F, E, A] =
-    Resource.Suspend(fr)
+  def suspend[F[_], E, A](fr: F[GenResource[F, E, A]]): GenResource[F, E, A] =
+    GenResource.Suspend(fr)
 
   /**
    * Creates a resource from an acquiring effect and a release function.
@@ -377,7 +379,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * @param release a function to effectfully release the resource returned by `acquire`
    */
   def make[F[_], E, A](acquire: F[A])(release: A => F[Unit])(
-      implicit F: Functor[F]): Resource[F, E, A] =
+      implicit F: Functor[F]): GenResource[F, E, A] =
     apply(acquire.map(a => a -> release(a)))
 
   /**
@@ -393,7 +395,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    */
   def makeCase[F[_], E, A](
       acquire: F[A]
-  )(release: (A, ExitCase[E]) => F[Unit])(implicit F: Functor[F]): Resource[F, E, A] =
+  )(release: (A, ExitCase[E]) => F[Unit])(implicit F: Functor[F]): GenResource[F, E, A] =
     applyCase(acquire.map(a => (a, e => release(a, e))))
 
   /**
@@ -401,7 +403,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    *
    * @param a the value to lift into a resource
    */
-  def pure[F[_], E, A](a: A)(implicit F: Applicative[F]): Resource[F, E, A] =
+  def pure[F[_], E, A](a: A)(implicit F: Applicative[F]): GenResource[F, E, A] =
     Allocate((a, (_: ExitCase[E]) => F.unit).pure[F])
 
   /**
@@ -410,73 +412,47 @@ object Resource extends ResourceInstances with ResourcePlatform {
    *
    * @param fa the value to lift into a resource
    */
-  def liftF[F[_], E, A](fa: F[A])(implicit F: Applicative[F]): Resource[F, E, A] =
-    Resource.suspend(fa.map(a => Resource.pure[F, E, A](a)))
+  def liftF[F[_], E, A](fa: F[A])(implicit F: Applicative[F]): GenResource[F, E, A] =
+    GenResource.suspend(fa.map(a => GenResource.pure[F, E, A](a)))
 
   /**
    * Lifts an applicative into a resource as a `FunctionK`. The resource has a no-op release.
    */
-  def liftK[F[_], E](implicit F: Applicative[F]): F ~> Resource[F, E, *] =
-    new (F ~> Resource[F, E, *]) {
-      def apply[A](fa: F[A]): Resource[F, E, A] = Resource.liftF(fa)
+  def liftK[F[_], E](implicit F: Applicative[F]): F ~> GenResource[F, E, *] =
+    new (F ~> GenResource[F, E, *]) {
+      def apply[A](fa: F[A]): GenResource[F, E, A] = GenResource.liftF(fa)
     }
 
   /**
-   * Like `Resource`, but invariant in `F`. Facilitates pattern matches that Scala 2 cannot
+   * Like `GenResource`, but invariant in `F`. Facilitates pattern matches that Scala 2 cannot
    * otherwise handle correctly.
    */
-  private[effect] sealed trait InvariantResource[F[_], E, +A] extends Resource[F, E, A] {
+  private[effect] sealed trait InvariantResource[F[_], E, +A] extends GenResource[F, E, A] {
     private[effect] type F0[x] = F[x]
 
     def invariant: InvariantResource[F0, E, A] = this
   }
 
   /**
-   * Creates a [[Resource]] by wrapping a Java
-   * [[https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html AutoCloseable]].
-   *
-   * In most real world cases, implementors of AutoCloseable are
-   * blocking as well, so the close action runs in the blocking
-   * context.
-   *
-   * Example:
-   * {{{
-   *   import cats.effect._
-   *   import scala.io.Source
-   *
-   *   def reader[F[_]](data: String)(implicit F: Sync[F]): GenResource[F, E, Source] =
-   *     Resource.fromAutoCloseable(F.blocking {
-   *       Source.fromString(data)
-   *     })
-   * }}}
-   * @param acquire The effect with the resource to acquire.
-   * @param F the effect type in which the resource was acquired and will be released
-   * @tparam F the type of the effect
-   * @tparam A the type of the autocloseable resource
-   * @return a Resource that will automatically close after use
-   */
-  def fromAutoCloseable[F[_], A <: AutoCloseable](acquire: F[A])(
-      implicit F: Sync[F]): Resource[F, Throwable, A] =
-    Resource.make(acquire)(autoCloseable => F.blocking(autoCloseable.close()))
-
-  /**
-   * `Resource` data constructor that wraps an effect allocating a resource,
+   * `GenResource` data constructor that wraps an effect allocating a resource,
    * along with its finalizers.
    */
   final case class Allocate[F[_], E, A](resource: F[(A, ExitCase[E] => F[Unit])])
       extends InvariantResource[F, E, A]
 
   /**
-   * `Resource` data constructor that encodes the `flatMap` operation.
+   * `GenResource` data constructor that encodes the `flatMap` operation.
    */
-  final case class Bind[F[_], S, E, +A](source: Resource[F, E, S], fs: S => Resource[F, E, A])
+  final case class Bind[F[_], S, E, +A](
+      source: GenResource[F, E, S],
+      fs: S => GenResource[F, E, A])
       extends InvariantResource[F, E, A]
 
   /**
-   * `Resource` data constructor that suspends the evaluation of another
+   * `GenResource` data constructor that suspends the evaluation of another
    * resource value.
    */
-  final case class Suspend[F[_], E, A](resource: F[Resource[F, E, A]])
+  final case class Suspend[F[_], E, A](resource: F[GenResource[F, E, A]])
       extends InvariantResource[F, E, A]
 
   /**
@@ -524,7 +500,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
   }
 
   @annotation.implicitNotFound(
-    "Cannot find an instance for Resource.Bracket. This normally means you need to add implicit evidence of MonadCancel[${F}, Throwable]")
+    "Cannot find an instance for GenResource.Bracket[${F}, ${E}]. This normally means you need to add implicit evidence of MonadCancel[${F}, ${E}]")
   trait Bracket[F[_], E] extends MonadError[F, E] {
     def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
         release: (A, ExitCase[E]) => F[Unit]): F[B]
@@ -599,7 +575,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
   }
 
   /**
-   * Newtype encoding for a `Resource` datatype that has a `cats.Applicative`
+   * Newtype encoding for a `GenResource` datatype that has a `cats.Applicative`
    * capable of doing parallel processing in `ap` and `map2`, needed
    * for implementing `cats.Parallel`.
    *
@@ -618,24 +594,24 @@ object Resource extends ResourceInstances with ResourcePlatform {
     trait Tag extends Any
     type Type[+F[_], +E, +A] <: Base with Tag
 
-    def apply[F[_], E, A](fa: Resource[F, E, A]): Type[F, E, A] =
+    def apply[F[_], E, A](fa: GenResource[F, E, A]): Type[F, E, A] =
       fa.asInstanceOf[Type[F, E, A]]
 
-    def unwrap[F[_], E, A](fa: Type[F, E, A]): Resource[F, E, A] =
-      fa.asInstanceOf[Resource[F, E, A]]
+    def unwrap[F[_], E, A](fa: Type[F, E, A]): GenResource[F, E, A] =
+      fa.asInstanceOf[GenResource[F, E, A]]
   }
 }
 
-abstract private[effect] class ResourceInstances extends ResourceInstances0 {
+abstract private[effect] class GenResourceInstances extends ResourceInstances0 {
   implicit def catsEffectMonadErrorForResource[F[_], E](
-      implicit F0: MonadError[F, E]): MonadError[Resource[F, E, *], E] =
+      implicit F0: MonadError[F, E]): MonadError[GenResource[F, E, *], E] =
     new ResourceMonadError[F, E] {
       def F = F0
     }
 
   implicit def catsEffectMonoidForResource[F[_], E, A](
       implicit F0: Monad[F],
-      A0: Monoid[A]): Monoid[Resource[F, E, A]] =
+      A0: Monoid[A]): Monoid[GenResource[F, E, A]] =
     new ResourceMonoid[F, E, A] {
       def A = A0
       def F = F0
@@ -643,14 +619,14 @@ abstract private[effect] class ResourceInstances extends ResourceInstances0 {
 
   implicit def catsEffectCommutativeApplicativeForResourcePar[F[_], E](
       implicit F: GenConcurrent[F, E]
-  ): CommutativeApplicative[Resource.Par[F, E, *]] =
+  ): CommutativeApplicative[GenResource.Par[F, E, *]] =
     new ResourceParCommutativeApplicative[F, E] {
       def F0 = F
     }
 
   implicit def catsEffectParallelForResource[F0[_], E](
       implicit
-      F: GenConcurrent[F0, E]): Parallel.Aux[Resource[F0, E, *], Resource.Par[F0, E, *]] =
+      F: GenConcurrent[F0, E]): Parallel.Aux[GenResource[F0, E, *], GenResource.Par[F0, E, *]] =
     new ResourceParallel[F0, E] {
       def F0 = catsEffectCommutativeApplicativeForResourcePar
       def F1 = catsEffectMonadForResource
@@ -659,7 +635,7 @@ abstract private[effect] class ResourceInstances extends ResourceInstances0 {
 
 abstract private[effect] class ResourceInstances0 {
   implicit def catsEffectMonadForResource[F[_], E](
-      implicit F0: Monad[F]): Monad[Resource[F, E, *]] =
+      implicit F0: Monad[F]): Monad[GenResource[F, E, *]] =
     new ResourceMonad[F, E] {
       def F = F0
     }
@@ -673,7 +649,7 @@ abstract private[effect] class ResourceInstances0 {
     }
 
   implicit def catsEffectSemigroupKForResource[F[_], E, A](
-      implicit F0: Resource.Bracket[F, E],
+      implicit F0: GenResource.Bracket[F, E],
       K0: SemigroupK[F],
       G0: Ref.Make[F]): ResourceSemigroupK[F, E] =
     new ResourceSemigroupK[F, E] {
@@ -685,61 +661,63 @@ abstract private[effect] class ResourceInstances0 {
 
 abstract private[effect] class ResourceMonadError[F[_], E]
     extends ResourceMonad[F, E]
-    with MonadError[Resource[F, E, *], E] {
-  import Resource.{Allocate, Bind, Suspend}
+    with MonadError[GenResource[F, E, *], E] {
+  import GenResource.{Allocate, Bind, Suspend}
 
   implicit protected def F: MonadError[F, E]
 
-  override def attempt[A](fa: Resource[F, E, A]): Resource[F, E, Either[E, A]] =
+  override def attempt[A](fa: GenResource[F, E, A]): GenResource[F, E, Either[E, A]] =
     fa match {
       case Allocate(fa) =>
         Allocate[F, E, Either[E, A]](F.attempt(fa).map {
           case Left(error) => (Left(error), (_: ExitCase[E]) => F.unit)
           case Right((a, release)) => (Right(a), release)
         })
-      case Bind(source: Resource[F, E, s], fs) =>
-        Suspend(F.pure(source).map[Resource[F, E, Either[E, A]]] { source =>
+      case Bind(source: GenResource[F, E, s], fs) =>
+        Suspend(F.pure(source).map[GenResource[F, E, Either[E, A]]] { source =>
           Bind(
             attempt(source),
             (r: Either[E, s]) =>
               r match {
-                case Left(error) => Resource.pure[F, E, Either[E, A]](Left(error))
+                case Left(error) => GenResource.pure[F, E, Either[E, A]](Left(error))
                 case Right(s) => attempt(fs(s))
               })
         })
       case Suspend(resource) =>
         Suspend(F.attempt(resource) map {
-          case Left(error) => Resource.pure[F, E, Either[E, A]](Left(error))
-          case Right(fa: Resource[F, E, A]) => attempt(fa)
+          case Left(error) => GenResource.pure[F, E, Either[E, A]](Left(error))
+          case Right(fa: GenResource[F, E, A]) => attempt(fa)
         })
     }
 
-  def handleErrorWith[A](fa: Resource[F, E, A])(f: E => Resource[F, E, A]): Resource[F, E, A] =
+  def handleErrorWith[A](fa: GenResource[F, E, A])(
+      f: E => GenResource[F, E, A]): GenResource[F, E, A] =
     flatMap(attempt(fa)) {
-      case Right(a) => Resource.pure(a)
+      case Right(a) => GenResource.pure(a)
       case Left(e) => f(e)
     }
 
-  def raiseError[A](e: E): Resource[F, E, A] =
-    Resource.applyCase[F, E, A](F.raiseError(e))
+  def raiseError[A](e: E): GenResource[F, E, A] =
+    GenResource.applyCase[F, E, A](F.raiseError(e))
 }
 
-abstract private[effect] class ResourceMonad[F[_], E] extends Monad[Resource[F, E, *]] {
-  import Resource.{Allocate, Bind, Suspend}
+abstract private[effect] class ResourceMonad[F[_], E] extends Monad[GenResource[F, E, *]] {
+  import GenResource.{Allocate, Bind, Suspend}
 
   implicit protected def F: Monad[F]
 
-  override def map[A, B](fa: Resource[F, E, A])(f: A => B): Resource[F, E, B] =
+  override def map[A, B](fa: GenResource[F, E, A])(f: A => B): GenResource[F, E, B] =
     fa.map(f)
 
-  def pure[A](a: A): Resource[F, E, A] =
-    Resource.applyCase[F, E, A](F.pure((a, _ => F.unit)))
+  def pure[A](a: A): GenResource[F, E, A] =
+    GenResource.applyCase[F, E, A](F.pure((a, _ => F.unit)))
 
-  def flatMap[A, B](fa: Resource[F, E, A])(f: A => Resource[F, E, B]): Resource[F, E, B] =
+  def flatMap[A, B](fa: GenResource[F, E, A])(
+      f: A => GenResource[F, E, B]): GenResource[F, E, B] =
     fa.flatMap(f)
 
-  def tailRecM[A, B](a: A)(f: A => Resource[F, E, Either[A, B]]): Resource[F, E, B] = {
-    def continue(r: Resource[F, E, Either[A, B]]): Resource[F, E, B] =
+  def tailRecM[A, B](a: A)(f: A => GenResource[F, E, Either[A, B]]): GenResource[F, E, B] = {
+    def continue(r: GenResource[F, E, Either[A, B]]): GenResource[F, E, B] =
       r.invariant match {
         case Allocate(resource) =>
           Suspend(F.flatMap(resource) {
@@ -748,7 +726,7 @@ abstract private[effect] class ResourceMonad[F[_], E] extends Monad[Resource[F, 
                 case Left(a) =>
                   F.map(release(ExitCase.Succeeded))(_ => tailRecM(a)(f))
                 case Right(b) =>
-                  F.pure[Resource[F, E, B]](Allocate[F, E, B](F.pure((b, release))))
+                  F.pure[GenResource[F, E, B]](Allocate[F, E, B](F.pure((b, release))))
               }
           })
         case Suspend(resource) =>
@@ -763,18 +741,18 @@ abstract private[effect] class ResourceMonad[F[_], E] extends Monad[Resource[F, 
 
 abstract private[effect] class ResourceMonoid[F[_], E, A]
     extends ResourceSemigroup[F, E, A]
-    with Monoid[Resource[F, E, A]] {
+    with Monoid[GenResource[F, E, A]] {
   implicit protected def A: Monoid[A]
 
-  def empty: Resource[F, E, A] = Resource.pure(A.empty)
+  def empty: GenResource[F, E, A] = GenResource.pure(A.empty)
 }
 
 abstract private[effect] class ResourceSemigroup[F[_], E, A]
-    extends Semigroup[Resource[F, E, A]] {
+    extends Semigroup[GenResource[F, E, A]] {
   implicit protected def F: Monad[F]
   implicit protected def A: Semigroup[A]
 
-  def combine(rx: Resource[F, E, A], ry: Resource[F, E, A]): Resource[F, E, A] =
+  def combine(rx: GenResource[F, E, A], ry: GenResource[F, E, A]): GenResource[F, E, A] =
     for {
       x <- rx
       y <- ry
@@ -782,33 +760,34 @@ abstract private[effect] class ResourceSemigroup[F[_], E, A]
 }
 
 abstract private[effect] class ResourceSemigroupK[F[_], E]
-    extends SemigroupK[Resource[F, E, *]] {
-  implicit protected def F: Resource.Bracket[F, E]
+    extends SemigroupK[GenResource[F, E, *]] {
+  implicit protected def F: GenResource.Bracket[F, E]
   implicit protected def K: SemigroupK[F]
   implicit protected def G: Ref.Make[F]
 
-  def combineK[A](ra: Resource[F, E, A], rb: Resource[F, E, A]): Resource[F, E, A] =
-    Resource.make(Ref[F].of(F.unit))(_.get.flatten).evalMap { finalizers =>
-      def allocate(r: Resource[F, E, A]): F[A] =
+  def combineK[A](ra: GenResource[F, E, A], rb: GenResource[F, E, A]): GenResource[F, E, A] =
+    GenResource.make(Ref[F].of(F.unit))(_.get.flatten).evalMap { finalizers =>
+      def allocate(r: GenResource[F, E, A]): F[A] =
         r.fold(
           _.pure[F],
-          (release: F[Unit]) => finalizers.update(Resource.Bracket[F, E].guarantee(_)(release)))
+          (release: F[Unit]) =>
+            finalizers.update(GenResource.Bracket[F, E].guarantee(_)(release)))
 
       K.combineK(allocate(ra), allocate(rb))
     }
 }
 
 abstract private[effect] class ResourceParCommutativeApplicative[F[_], E]
-    extends CommutativeApplicative[Resource.Par[F, E, *]] {
-  import Resource.Par
-  import Resource.Par.{unwrap, apply => par}
+    extends CommutativeApplicative[GenResource.Par[F, E, *]] {
+  import GenResource.Par
+  import GenResource.Par.{unwrap, apply => par}
 
   implicit protected def F0: GenConcurrent[F, E]
 
   final override def map[A, B](fa: Par[F, E, A])(f: A => B): Par[F, E, B] =
     par(unwrap(fa).map(f))
   final override def pure[A](x: A): Par[F, E, A] =
-    par(Resource.pure[F, E, A](x))
+    par(GenResource.pure[F, E, A](x))
   final override def product[A, B](fa: Par[F, E, A], fb: Par[F, E, B]): Par[F, E, (A, B)] =
     par(unwrap(fa).parZip(unwrap(fb)))
   final override def map2[A, B, Z](fa: Par[F, E, A], fb: Par[F, E, B])(
@@ -818,22 +797,96 @@ abstract private[effect] class ResourceParCommutativeApplicative[F[_], E]
     map(product(ff, fa)) { case (ff, a) => ff(a) }
 }
 
-abstract private[effect] class ResourceParallel[F0[_], E] extends Parallel[Resource[F0, E, *]] {
-  protected def F0: Applicative[Resource.Par[F0, E, *]]
-  protected def F1: Monad[Resource[F0, E, *]]
+abstract private[effect] class ResourceParallel[F0[_], E]
+    extends Parallel[GenResource[F0, E, *]] {
+  protected def F0: Applicative[GenResource.Par[F0, E, *]]
+  protected def F1: Monad[GenResource[F0, E, *]]
 
-  type F[x] = Resource.Par[F0, E, x]
+  type F[x] = GenResource.Par[F0, E, x]
 
-  final override val applicative: Applicative[Resource.Par[F0, E, *]] = F0
-  final override val monad: Monad[Resource[F0, E, *]] = F1
+  final override val applicative: Applicative[GenResource.Par[F0, E, *]] = F0
+  final override val monad: Monad[GenResource[F0, E, *]] = F1
 
-  final override val sequential: Resource.Par[F0, E, *] ~> Resource[F0, E, *] =
-    new (Resource.Par[F0, E, *] ~> Resource[F0, E, *]) {
-      def apply[A](fa: Resource.Par[F0, E, A]): Resource[F0, E, A] = Resource.Par.unwrap(fa)
+  final override val sequential: GenResource.Par[F0, E, *] ~> GenResource[F0, E, *] =
+    new (GenResource.Par[F0, E, *] ~> GenResource[F0, E, *]) {
+      def apply[A](fa: GenResource.Par[F0, E, A]): GenResource[F0, E, A] =
+        GenResource.Par.unwrap(fa)
     }
 
-  final override val parallel: Resource[F0, E, *] ~> Resource.Par[F0, E, *] =
-    new (Resource[F0, E, *] ~> Resource.Par[F0, E, *]) {
-      def apply[A](fa: Resource[F0, E, A]): Resource.Par[F0, E, A] = Resource.Par(fa)
+  final override val parallel: GenResource[F0, E, *] ~> GenResource.Par[F0, E, *] =
+    new (GenResource[F0, E, *] ~> GenResource.Par[F0, E, *]) {
+      def apply[A](fa: GenResource[F0, E, A]): GenResource.Par[F0, E, A] = GenResource.Par(fa)
     }
+}
+
+object Resource extends ResourcePlatform {
+  def apply[F[_], A](resource: F[(A, F[Unit])])(implicit F: Functor[F]): Resource[F, A] =
+    GenResource.apply(resource)
+
+  def applyCase[F[_], A](resource: F[(A, ExitCase[Throwable] => F[Unit])]): Resource[F, A] =
+    GenResource.applyCase(resource)
+
+  def suspend[F[_], A](fr: F[Resource[F, A]]): Resource[F, A] =
+    GenResource.suspend(fr)
+
+  def make[F[_], A](acquire: F[A])(release: A => F[Unit])(
+      implicit F: Functor[F]): Resource[F, A] =
+    GenResource.make(acquire)(release)
+
+  def makeCase[F[_], A](
+      acquire: F[A]
+  )(release: (A, ExitCase[Throwable]) => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
+    GenResource.makeCase(acquire)(release)
+
+  def pure[F[_], A](a: A)(implicit F: Applicative[F]): Resource[F, A] =
+    GenResource.pure(a)
+
+  def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]): Resource[F, A] =
+    GenResource.liftF(fa)
+
+  def liftK[F[_]](implicit F: Applicative[F]): F ~> Resource[F, *] =
+    GenResource.liftK
+
+  type Bracket[F[_]] = GenResource.Bracket[F, Throwable]
+  val Bracket = GenResource.Bracket
+
+  type Par[F[_], A] = GenResource.Par[F, Throwable, A]
+  val Par = GenResource.Par
+
+  object ExitCase {
+    val Succeeded = GenResource.ExitCase.Succeeded
+
+    type Errored = GenResource.ExitCase.Errored[Throwable]
+    val Errored = GenResource.ExitCase.Errored
+
+    val Canceled = GenResource.ExitCase.Canceled
+  }
+
+  /**
+   * Creates a [[Resource]] by wrapping a Java
+   * [[https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html AutoCloseable]].
+   *
+   * In most real world cases, implementors of AutoCloseable are
+   * blocking as well, so the close action runs in the blocking
+   * context.
+   *
+   * Example:
+   * {{{
+   *   import cats.effect._
+   *   import scala.io.Source
+   *
+   *   def reader[F[_]](data: String)(implicit F: Sync[F]): Resource[F, Source] =
+   *     GenResource.fromAutoCloseable(F.blocking {
+   *       Source.fromString(data)
+   *     })
+   * }}}
+   * @param acquire The effect with the resource to acquire.
+   * @param F the effect type in which the resource was acquired and will be released
+   * @tparam F the type of the effect
+   * @tparam A the type of the autocloseable resource
+   * @return a GenResource that will automatically close after use
+   */
+  def fromAutoCloseable[F[_], A <: AutoCloseable](acquire: F[A])(
+      implicit F: Sync[F]): Resource[F, A] =
+    GenResource.make(acquire)(autoCloseable => F.blocking(autoCloseable.close()))
 }

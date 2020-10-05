@@ -45,6 +45,6 @@ private[effect] trait ResourcePlatform {
    * @return a Resource that will automatically destroy after use
    */
   def fromDestroyable[F[_], A <: Destroyable](acquire: F[A])(
-      implicit F: Sync[F]): Resource[F, Throwable, A] =
+      implicit F: Sync[F]): Resource[F, A] =
     Resource.make(acquire)(destroyable => F.delay(destroyable.destroy()))
 }

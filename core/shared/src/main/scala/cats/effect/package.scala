@@ -41,6 +41,9 @@ package object effect {
   type GenTemporal[F[_], E] = cekernel.GenTemporal[F, E]
   val GenTemporal = cekernel.GenTemporal
 
+  type GenResource[+F[_], E, +A] = cekernel.GenResource[F, E, A]
+  val GenResource = cekernel.GenResource
+
   type Sync[F[_]] = cekernel.Sync[F]
   val Sync = cekernel.Sync
 
@@ -62,10 +65,10 @@ package object effect {
   type ParallelF[F[_], A] = cekernel.Par.ParallelF[F, A]
   val ParallelF = cekernel.Par.ParallelF
 
-  type Resource[+F[_], E, +A] = cekernel.Resource[F, E, A]
+  type Resource[+F[_], +A] = cekernel.Resource[F, A]
   val Resource = cekernel.Resource
 
   type OutcomeIO[A] = Outcome[IO, Throwable, A]
   type FiberIO[A] = Fiber[IO, Throwable, A]
-  type ResourceIO[A] = Resource[IO, Throwable, A]
+  type ResourceIO[A] = Resource[IO, A]
 }

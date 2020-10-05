@@ -137,21 +137,21 @@ object LiftIO {
     new LiftIO[IO] { override def liftIO[A](ioa: IO[A]): IO[A] = ioa }
 
   /**
-   * [[LiftIO]] instance for [[Resource]] values.
+   * [[LiftIO]] instance for [[GenResource]] values.
    */
-  implicit def catsEffectLiftIOForResource[F[_], E](
+  implicit def catsEffectLiftIOForGenResource[F[_], E](
       implicit F00: LiftIO[F],
-      F10: Applicative[F]): LiftIO[Resource[F, E, *]] =
-    new ResourceLiftIO[F, E] {
+      F10: Applicative[F]): LiftIO[GenResource[F, E, *]] =
+    new GenResourceLiftIO[F, E] {
       def F0 = F00
       def F1 = F10
     }
 
-  abstract private class ResourceLiftIO[F[_], E] extends LiftIO[Resource[F, E, *]] {
+  abstract private class GenResourceLiftIO[F[_], E] extends LiftIO[GenResource[F, E, *]] {
     implicit protected def F0: LiftIO[F]
     implicit protected def F1: Applicative[F]
 
-    def liftIO[A](ioa: IO[A]): Resource[F, E, A] =
-      Resource.liftF(F0.liftIO(ioa))
+    def liftIO[A](ioa: IO[A]): GenResource[F, E, A] =
+      GenResource.liftF(F0.liftIO(ioa))
   }
 }
