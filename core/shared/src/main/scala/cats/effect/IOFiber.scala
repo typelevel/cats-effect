@@ -28,6 +28,7 @@ import scala.util.control.NonFatal
 
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
+import scala.util.control.NoStackTrace
 
 /*
  * Rationale on memory barrier exploitation in this class...
@@ -666,6 +667,166 @@ private final class IOFiber[A](
           } else {
             runLoop(interruptibleImpl(cur, blockingEc), nextIteration)
           }
+        case 22 =>
+          val cur = cur0.asInstanceOf[Race[Any, Any]]
+
+          val state: AtomicReference[Option[Any]] = new AtomicReference[Option[Any]](None)
+
+          val finalizer: AtomicReference[IO[Unit]] = new AtomicReference[IO[Unit]](IO.unit)
+
+          val next =
+            IO.async[Either[Any, Any]] { cb =>
+              IO {
+                val initMask2 = childMask
+                val ec = currentCtx
+                val fiberA = new IOFiber[Any](
+                  s"race-left-${childCount.getAndIncrement()}",
+                  scheduler,
+                  blockingEc,
+                  initMask2,
+                  null,
+                  cur.ioa,
+                  ec)
+                val fiberB = new IOFiber[Any](
+                  s"race-right-${childCount.getAndIncrement()}",
+                  scheduler,
+                  blockingEc,
+                  initMask2,
+                  null,
+                  cur.iob,
+                  ec)
+
+                fiberA.registerListener(oc => {
+                  val s = state.getAndSet(Some(oc))
+                  oc match {
+                    case Outcome.Succeeded(Pure(a)) =>
+                      finalizer.set(fiberB.cancel)
+                      cb(Right(Left(a)))
+                    case Outcome.Canceled() =>
+                      s.fold(()) {
+                        //Other fiber already completed
+                        case Outcome.Succeeded(_) => //cb should have been invoked in other fiber
+                        case Outcome.Canceled() => cb(Left(AsyncPropagateCancelation))
+                        case Outcome.Errored(_) => //cb should have been invoked in other fiber
+                      }
+                    case Outcome.Errored(e) =>
+                      finalizer.set(fiberB.cancel)
+                      cb(Left(e))
+                  }
+                })
+                fiberB.registerListener(oc => {
+                  val s = state.getAndSet(Some(oc))
+                  oc match {
+                    case Outcome.Succeeded(Pure(b)) =>
+                      finalizer.set(fiberA.cancel)
+                      cb(Right(Right(b)))
+                    case Outcome.Canceled() =>
+                      s.fold(()) {
+                        //Other fiber already completed
+                        case Outcome.Succeeded(_) => //cb should have been invoked in other fiber
+                        case Outcome.Canceled() => cb(Left(AsyncPropagateCancelation))
+                        case Outcome.Errored(_) => //cb should have been invoked in other fiber
+                      }
+                    case Outcome.Errored(e) =>
+                      finalizer.set(fiberA.cancel)
+                      cb(Left(e))
+                  }
+                })
+
+                execute(ec)(fiberA)
+                execute(ec)(fiberB)
+
+                Some(fiberA.cancel.both(fiberB.cancel).void)
+              }
+            }.handleErrorWith {
+              case AsyncPropagateCancelation => IO.canceled
+              case e => IO.raiseError(e)
+            }.guarantee(finalizer.get())
+
+          runLoop(next, nextIteration)
+
+        case 23 =>
+          val cur = cur0.asInstanceOf[Both[Any, Any]]
+
+          val state: AtomicReference[Option[Any]] = new AtomicReference[Option[Any]](None)
+
+          val finalizer: AtomicReference[IO[Unit]] = new AtomicReference[IO[Unit]](IO.unit)
+
+          val next =
+            IO.async[(Any, Any)] { cb =>
+              IO {
+                val initMask2 = childMask
+                val ec = currentCtx
+                val fiberA = new IOFiber[Any](
+                  s"both-left-${childCount.getAndIncrement()}",
+                  scheduler,
+                  blockingEc,
+                  initMask2,
+                  null,
+                  cur.ioa,
+                  ec)
+                val fiberB = new IOFiber[Any](
+                  s"both-right-${childCount.getAndIncrement()}",
+                  scheduler,
+                  blockingEc,
+                  initMask2,
+                  null,
+                  cur.iob,
+                  ec)
+
+                fiberA.registerListener(oc => {
+                  val s = state.getAndSet(Some(oc))
+                  oc match {
+                    case Outcome.Succeeded(Pure(a)) =>
+                      s.fold(()) {
+                        //Other fiber already completed
+                        case Outcome.Succeeded(Pure(b)) =>
+                          cb(Right(a -> b))
+                        case Outcome.Errored(e) => cb(Left(e.asInstanceOf[Throwable]))
+                        //Both fibers have completed so no need for cancellation
+                        case Outcome.Canceled() => cb(Left(AsyncPropagateCancelation))
+                      }
+                    case Outcome.Errored(e) =>
+                      finalizer.set(fiberB.cancel)
+                      cb(Left(e))
+                    case Outcome.Canceled() =>
+                      finalizer.set(fiberB.cancel)
+                      cb(Left(AsyncPropagateCancelation))
+                  }
+                })
+                fiberB.registerListener(oc => {
+                  val s = state.getAndSet(Some(oc))
+                  oc match {
+                    case Outcome.Succeeded(Pure(b)) => {
+                      s.fold(()) {
+                        //Other fiber already completed
+                        case Outcome.Succeeded(Pure(a)) =>
+                          cb(Right(a -> b))
+                        case Outcome.Errored(e) => cb(Left(e.asInstanceOf[Throwable]))
+                        case Outcome.Canceled() => cb(Left(AsyncPropagateCancelation))
+                      }
+                    }
+                    case Outcome.Errored(e) => {
+                      finalizer.set(fiberA.cancel)
+                      cb(Left(e))
+                    }
+                    case Outcome.Canceled() =>
+                      finalizer.set(fiberA.cancel)
+                      cb(Left(AsyncPropagateCancelation))
+                  }
+                })
+                execute(ec)(fiberA)
+                execute(ec)(fiberB)
+
+                Some(fiberA.cancel.both(fiberB.cancel).void)
+              }
+            }.handleErrorWith {
+              case AsyncPropagateCancelation => IO.canceled
+              case e => IO.raiseError(e)
+            }.guarantee(finalizer.get())
+
+          runLoop(next, nextIteration)
+
       }
     }
   }
@@ -1129,3 +1290,5 @@ private object IOFiber {
   private val OutcomeCanceled = Outcome.Canceled()
   private[effect] val RightUnit = Right(())
 }
+
+case object AsyncPropagateCancelation extends NoStackTrace
