@@ -72,9 +72,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   //     racePair(that).flatMap {
   //       case Left((oc, f)) =>
   //         oc match {
-  //           case Outcome.Completed(fa) =>
+  //           case Outcome.Succeeded(fa) =>
   //             poll(f.join).onCancel(f.cancel).flatMap {
-  //               case Outcome.Completed(fb) => fa.product(fb)
+  //               case Outcome.Succeeded(fb) => fa.product(fb)
   //               case Outcome.Errored(eb) => IO.raiseError(eb)
   //               case Outcome.Canceled() => IO.canceled *> IO.never
   //             }
@@ -83,9 +83,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   //         }
   //       case Right((f, oc)) =>
   //         oc match {
-  //           case Outcome.Completed(fb) =>
+  //           case Outcome.Succeeded(fb) =>
   //             poll(f.join).onCancel(f.cancel).flatMap {
-  //               case Outcome.Completed(fa) => fa.product(fb)
+  //               case Outcome.Succeeded(fa) => fa.product(fb)
   //               case Outcome.Errored(ea) => IO.raiseError(ea)
   //               case Outcome.Canceled() => IO.canceled *> IO.never
   //             }
@@ -162,22 +162,22 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   //       racePair(that).flatMap {
   //         case Left((oc, f)) =>
   //           oc match {
-  //             case Outcome.Completed(fa) => f.cancel *> fa.map(Left(_))
+  //             case Outcome.Succeeded(fa) => f.cancel *> fa.map(Left(_))
   //             case Outcome.Errored(ea) => f.cancel *> IO.raiseError(ea)
   //             case Outcome.Canceled() =>
   //               poll(f.join).onCancel(f.cancel).flatMap {
-  //                 case Outcome.Completed(fb) => fb.map(Right(_))
+  //                 case Outcome.Succeeded(fb) => fb.map(Right(_))
   //                 case Outcome.Errored(eb) => IO.raiseError(eb)
   //                 case Outcome.Canceled() => IO.canceled *> IO.never
   //               }
   //           }
   //         case Right((f, oc)) =>
   //           oc match {
-  //             case Outcome.Completed(fb) => f.cancel *> fb.map(Right(_))
+  //             case Outcome.Succeeded(fb) => f.cancel *> fb.map(Right(_))
   //             case Outcome.Errored(eb) => f.cancel *> IO.raiseError(eb)
   //             case Outcome.Canceled() =>
   //               poll(f.join).onCancel(f.cancel).flatMap {
-  //                 case Outcome.Completed(fa) => fa.map(Left(_))
+  //                 case Outcome.Succeeded(fa) => fa.map(Left(_))
   //                 case Outcome.Errored(ea) => IO.raiseError(ea)
   //                 case Outcome.Canceled() => IO.canceled *> IO.never
   //               }
