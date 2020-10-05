@@ -380,6 +380,11 @@ object Resource extends ResourceInstances with ResourcePlatform {
       implicit F: Functor[F]): Resource[F, A] =
     apply[F, A](acquire.map(a => a -> release(a)))
 
+  def makeMask[F[_]: Monad, A](awaitAndRelease: F[(F[A], F[Unit])]): Resource[F, A] =
+    Resource.make(awaitAndRelease) { case (_, release) => release }.evalMap {
+      case (awaitCancelable, _) => awaitCancelable
+    }
+
   /**
    * Creates a resource from an acquiring effect and a release function that can
    * discriminate between different [[ExitCase exit cases]].

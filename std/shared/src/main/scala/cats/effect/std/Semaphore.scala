@@ -18,7 +18,8 @@ package cats
 package effect
 package std
 
-import cats.effect.kernel.{Concurrent, Deferred, Outcome, Ref, Spawn}
+import cats.Defer
+import cats.effect.kernel.{Concurrent, Deferred, Outcome, Ref, Resource, Spawn}
 import cats.effect.std.Semaphore.TransformedSemaphore
 import cats.syntax.all._
 
@@ -95,6 +96,8 @@ abstract class Semaphore[F[_]] {
    */
   def release: F[Unit] = releaseN(1)
 
+  def permit: Resource[F, Unit]
+
   /**
    * Returns an effect that acquires a permit, runs the supplied effect, and then releases the permit.
    */
@@ -103,7 +106,7 @@ abstract class Semaphore[F[_]] {
   /**
    * Modify the context `F` using natural isomorphism  `f` with `g`.
    */
-  def imapK[G[_]](f: F ~> G, g: G ~> F): Semaphore[G] =
+  def imapK[G[_]: Applicative: Defer](f: F ~> G, g: G ~> F): Semaphore[G] =
     new TransformedSemaphore(this, f, g)
 }
 
@@ -250,7 +253,10 @@ object Semaphore {
       }
 
     def withPermit[A](t: F[A]): F[A] =
-      F.bracket(acquireNInternal(1))(_.await *> t)(_.release)
+      permit.use(_ => t)
+
+    val permit: Resource[F, Unit] =
+      Resource.makeMask(acquireNInternal(1).map { p => (p.await, p.release) })
   }
 
   final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Concurrent[F])
@@ -258,7 +264,7 @@ object Semaphore {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
   }
 
-  final private[std] class TransformedSemaphore[F[_], G[_]](
+  final private[std] class TransformedSemaphore[F[_], G[_]: Defer: Applicative](
       underlying: Semaphore[F],
       trans: F ~> G,
       inverse: G ~> F
@@ -268,6 +274,7 @@ object Semaphore {
     override def acquireN(n: Long): G[Unit] = trans(underlying.acquireN(n))
     override def tryAcquireN(n: Long): G[Boolean] = trans(underlying.tryAcquireN(n))
     override def releaseN(n: Long): G[Unit] = trans(underlying.releaseN(n))
+    override def permit: Resource[G, Unit] = underlying.permit.mapK(trans)
     override def withPermit[A](t: G[A]): G[A] = trans(underlying.withPermit(inverse(t)))
   }
 }
