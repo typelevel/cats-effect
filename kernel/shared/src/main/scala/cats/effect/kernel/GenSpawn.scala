@@ -24,150 +24,151 @@ import cats.syntax.all._
 /**
  * A typeclass that characterizes monads which support spawning and racing of
  * fibers. [[GenSpawn]] extends the capabilities of [[MonadCancel]], so an
- * instance of this typeclass must also provide a lawful instance for 
+ * instance of this typeclass must also provide a lawful instance for
  * [[MonadCancel]].
- * 
+ *
  * ==== Concurrency ====
- * 
+ *
  * [[GenSpawn]] introduces a notion of concurrency that enables fibers to
- * safely interact with eachother via three special functions. 
- * [[GenSpawn!.start start]] spawns a fiber that executes concurrently with the 
- * spawning fiber. [[Fiber!.join join]] semantically blocks the joining fiber 
- * until the joinee fiber terminates, after which the outcome of the joinee is 
- * returned. [[Fiber!.cancel cancel]] requests a fiber to abnormally terminate, 
- * and semantically blocks the canceller until the cancellee has completed 
+ * safely interact with each other via three special functions.
+ * [[GenSpawn!.start start]] spawns a fiber that executes concurrently with the
+ * spawning fiber. [[Fiber!.join join]] semantically blocks the joining fiber
+ * until the joinee fiber terminates, after which the outcome of the joinee is
+ * returned. [[Fiber!.cancel cancel]] requests a fiber to abnormally terminate,
+ * and semantically blocks the canceller until the cancellee has completed
  * finalization.
- * 
- * Just like threads, fibers can execute concurrently with respect to 
- * eachother. This means that the effects of independent fibers may be
- * interleaved in an indeterminate fashion. This mode of concurrency is 
- * beneficial to modular program design: fibers that are described separately 
- * can execute simultaneously without requiring programmers to explicitly
- * yield back to the runtime system. 
- * 
+ *
+ * Just like threads, fibers can execute concurrently with respect to
+ * each other. This means that the effects of independent fibers may be
+ * interleaved nondeterministically. This mode of concurrency reaps benefits
+ * for modular program design; fibers that are described separately can execute
+ * simultaneously without requiring programmers to explicitly yield back to the
+ * runtime system.
+ *
  * The interleaving of effects is illustrated in the following program:
- * 
+ *
  * {{{
- * 
+ *
  *   for {
  *     fa <- (println("A1") *> println("A2")).start
  *     fb <- (println("B1") *> println("B2")).start
  *   } yield ()
- * 
+ *
  * }}}
- * 
- * In this program, two fibers A and B are spawned concurrently. There are six 
- * possible executions, each of which exhibits a different ordering of effects. 
+ *
+ * In this program, two fibers A and B are spawned concurrently. There are six
+ * possible executions, each of which exhibits a different ordering of effects.
  * The observed output of each execution is shown below:
- * 
+ *
  *   1. A1, A2, B1, B2
  *   2. A1, B1, A2, B2
  *   3. A1, B1, B2, A2
  *   4. B1, B2, A1, A2
  *   5. B1, A1, B2, A2
  *   6. B1, A1, A2, B3
- * 
+ *
  * Notice how every execution preserves sequential consistency of the effects
- * within each fiber: `A1` always prints before `A2`, and `B1` always prints 
- * before `B2`. However, there are no guarantees around how the effects of 
- * both fibers will be ordered with respect to eachother; it is entirely
- * non-deterministic.
- * 
- * 
- * The nature by which concurrent evaluation of fibers takes place depends 
- * completely on the native platform and the runtime system. Here are some 
+ * within each fiber: `A1` always prints before `A2`, and `B1` always prints
+ * before `B2`. However, there are no guarantees around how the effects of
+ * both fibers will be ordered with respect to each other; it is entirely
+ * nondeterministic.
+ *
+ * The nature by which concurrent evaluation of fibers takes place depends
+ * completely on the native platform and the runtime system. Here are some
  * examples describing how a runtime system can choose to execute fibers:
- * 
+ *
  * For example, an application running on a JVM with multiple
- * threads could run two independent fibers on two 
+ * threads could run two independent fibers on two
  * separate threads simultaneously. In contrast, an application running on a JavaScript
- * runtime is constrained to a single thread of control. 
- * 
+ * runtime is constrained to a single thread of control.
+ *
  * Describe different configurations here, like how we could associate a fiber with a thread.
- * 
+ *
  * ==== Cancellation ====
- * 
+ *
  * [[MonadCancel]] introduces a notion of cancellation, specifically
  * self-cancellation, where a fiber can request to abnormally terminate its own
  * execution. [[GenSpawn]] expands on this by allowing fibers to be cancelled
- * by external parties. This is achieved by calling 
+ * by external parties. This is achieved by calling
  * [[Fiber!.cancelled cancelled]]
- * 
+ *
  * TODO talk about:
  * blocking/semantically blocking
  * cancellation boundary
- * 
+ *
  * cancellation should interact with MonadCancel finalizers the same way
  * self cancellation
- * 
+ *
  * unlike self-cancellation, external cancellation need not ever be observed
  * because of JVM memory model guarantees
- * 
- * 
  */
 trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
 
   /**
    * A low-level primitive for requesting concurrent evaluation of an effect.
    * TODO: Common bad pattern start.flatmap(_.cancel)
-   * 
+   *
    * use background instead
    */
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 
   /**
    * An effect that never completes, causing the fiber to semantically block
-   * indefinitely. This is the purely functional equivalent of an infinite 
-   * while loop in Java, but no threads are blocked.
-   * 
+   * indefinitely. This is the purely functional, asynchronous equivalent of an
+   * infinite while loop in Java, where no threads are blocked.
+   *
    * A fiber that is suspended in `never` can be cancelled if it is completely
    * unmasked before it suspends:
-   * 
+   *
    * {{{
-   * 
+   *
    *   // ignoring race conditions between `start` and `cancel`
    *   F.never.start.flatMap(_.cancel) <-> F.unit
-   * 
+   *
    * }}}
-   * 
-   * However, if the fiber is masked, cancellers will be semantically blocked 
+   *
+   * However, if the fiber is masked, cancellers will be semantically blocked
    * forever:
-   * 
+   *
    * {{{
-   * 
+   *
    *   // ignoring race conditions between `start` and `cancel`
    *   F.uncancelable(_ => F.never).start.flatMap(_.cancel) <-> F.never
-   * 
+   *
    * }}}
    */
   def never[A]: F[A]
 
   /**
    * Introduces a fairness boundary that yields control back to the scheduler
-   * of the runtime system. This allows the carrier thread to resume execution 
-   * of another waiting fiber. 
-   * 
+   * of the runtime system. This allows the carrier thread to resume execution
+   * of another waiting fiber.
+   *
    * `cede` is a means of cooperative multitasking by which a fiber signals to
-   * the runtime system that it wishes to suspend itself with the intention of 
-   * resuming later, at the discretion of the scheduler. This is in contrast to 
-   * preemptive multitasking, in which threads of control are forcibly 
-   * suspended after a well-defined time slice. Preemptive and cooperative 
-   * multitasking are both features of runtime systems that influence the 
-   * fairness and throughput properties of an application.
-   * 
+   * the runtime system that it wishes to suspend itself with the intention of
+   * resuming later, at the discretion of the scheduler. This is in contrast to
+   * preemptive multitasking, in which threads of control are forcibly yielded
+   * after a well-defined time slice. Preemptive and cooperative multitasking
+   * are both features of runtime systems that influence the fairness and
+   * throughput properties of an application. These modes of scheduling are not
+   * necessarily mutually exclusive: a runtime system may incorporate a blend
+   * of the two, where users may yield at their own discretion, but the runtime
+   * may preempt a fiber if it has not yielded for some time.
+   *
    * Note that `cede` is merely a hint to the runtime system; implementations
    * have the liberty to interpret this method to their liking as long as it
-   * obeys the respective laws. For example, a lawful implementation of this 
-   * function is `F.unit`, in which case the fairness boundary is a no-op.
+   * obeys the respective laws. For example, a lawful, but atypical,
+   * implementation of this function is `F.unit`, in which case the fairness
+   * boundary is a no-op.
    */
   def cede: F[Unit]
 
   /**
-   * A low-level primitive for racing the evaluation of two arbitrary effects. 
+   * A low-level primitive for racing the evaluation of two arbitrary effects.
    * Returns the outcome of the winner and a handle to the fiber of the loser.
-   * 
+   *
    * [[racePair]] is considered to be an unsafe function.
-   * 
+   *
    * @see [[raceOutcome]], [[race]], [[bothOutcome]] and [[both]] for safer
    * variants.
    */

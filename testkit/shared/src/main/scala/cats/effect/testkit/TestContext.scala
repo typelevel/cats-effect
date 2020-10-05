@@ -170,7 +170,7 @@ final class TestContext private () extends ExecutionContext { self =>
    * }}}
    *
    * Note that ask extraction has a random factor, the behavior being like
-   * [[tick]], in order to simulate non-determinism. So you can't rely on
+   * [[tick]], in order to simulate nondeterminism. So you can't rely on
    * some ordering of execution if multiple tasks are waiting execution.
    *
    * @return `true` if a task was available in the internal queue, and
@@ -198,7 +198,7 @@ final class TestContext private () extends ExecutionContext { self =>
    * executing them all, until no tasks remain in the queue to execute.
    *
    * Order of execution isn't guaranteed, the queued `Runnable`s are
-   * being shuffled in order to simulate the needed non-determinism
+   * being shuffled in order to simulate the needed nondeterminism
    * that happens with multi-threading.
    *
    * {{{
