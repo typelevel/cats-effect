@@ -69,6 +69,19 @@ class SemaphoreSpec extends BaseSpec { outer =>
       }
     }
 
+    "permit.use does not leak fibers or permits upon cancelation" in real {
+      val op = Semaphore[IO](0L).flatMap { s =>
+        // Same as for `withPermit`
+        s.permit.use(_ => s.release).timeout(1.milli).attempt *> s.release *> IO.sleep(
+          10.millis) *> s.count
+      }
+
+      op.flatMap { res =>
+        IO {
+          res must beEqualTo(1: Long)
+        }
+      }
+    }
   }
 
   //TODO this requires background, which in turn requires Resource
