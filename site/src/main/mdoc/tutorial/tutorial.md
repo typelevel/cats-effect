@@ -10,14 +10,11 @@ position: 2
 
 This tutorial tries to help newcomers to cats-effect to get familiar with its
 main concepts by means of code examples, in a learn-by-doing fashion. Two small
-programs will be coded. The first one copies the contents from one file to
-another, safely handling resources in the process. That should help us to flex
-our muscles. The second one is a bit more elaborated, it is a light TCP server
-able to attend concurrent connections. In both cases complexity will grow as we
-add more features, which will allow to introduce more and more concepts from
-cats-effect. Also, while the first example is focused on `IO`, the second one
-will shift towards polymorphic functions that make use of cats-effect type
-classes and do not tie our code to `IO`.
+programs will be coded, each one in its own section. [The first
+one](#copyingfiles) copies the contents from one file to another, safely
+handling _resources_ and _cancellation_ in the process. That should help us to
+flex our muscles. [The second one](#producerconsumer) implements a solution to
+the producer-consumer problem to introduce cats-effect _fibers_.
 
 This tutorial assumes certain familiarity with functional programming. It is
 also a good idea to read cats-effect documentation prior to starting this
@@ -27,12 +24,13 @@ tutorial, at least the
 Please read this tutorial as training material, not as a best-practices
 document. As you gain more experience with cats-effect, probably you will find
 your own solutions to deal with the problems presented here. Also, bear in mind
-that using cats-effect for copying files or building TCP servers is suitable for
-a 'getting things done' approach, but for more complex
-systems/settings/requirements you might want to take a look at
-[fs2](http://fs2.io) or [Monix](https://monix.io) to find powerful network and
-file abstractions that integrate with cats-effect. But that is beyond the
-purpose of this tutorial, which focuses solely on cats-effect.
+that using cats-effect for copying files or implementing basic concurrency
+patterns (such as the producer-consumer problem) is suitable for a 'getting
+things done' approach, but for more complex systems/settings/requirements you
+might want to take a look at [fs2](http://fs2.io) or [Monix](https://monix.io)
+to find powerful network and file abstractions that integrate with cats-effect.
+But that is beyond the purpose of this tutorial, which focuses solely on
+cats-effect.
 
 That said, let's go!
 
@@ -47,11 +45,11 @@ same dependencies and compilation options:
 ```scala
 name := "cats-effect-tutorial"
 
-version := "2.1.4"
+version := "2.2.0"
 
 scalaVersion := "2.12.8"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "2.1.4" withSources() withJavadoc()
+libraryDependencies += "org.typelevel" %% "cats-effect" % "2.2.0" withSources() withJavadoc()
 
 scalacOptions ++= Seq(
   "-feature",
@@ -65,7 +63,7 @@ scalacOptions ++= Seq(
 Code snippets in this tutorial can be pasted and compiled right in the scala
 console of the project defined above (or any project with similar settings).
 
-## Copying contents of a file - safely handling resources
+## <a name="copyingfiles"></a>Copying files - basic concepts, resource handling and cancellation
 
 Our goal is to create a program that copies files. First we will work on a
 function that carries such task, and then we will create a program that can be
@@ -298,35 +296,31 @@ cancellation in the next section.
 
 ### Dealing with cancellation
 Cancellation is a powerful but non-trivial cats-effect feature. In cats-effect,
-some `IO` instances can be cancelable, meaning that their evaluation will be
-aborted. If the programmer is careful, an alternative `IO` task will be run
-under cancellation, for example to deal with potential cleaning up activities.
-We will see how an `IO` can be actually canceled at the end of the [Fibers are
-not threads! section](#fibers-are-not-threads) later on, but for now we will
-just keep in mind that during the execution of the `IO` returned by the `copy`
-method a cancellation could be requested at any time.
+some `IO` instances can be canceled ( _e.g._ by other `IO` instaces running
+concurrently) meaning that their evalation will be aborted. If the programmer is
+careful, an alternative `IO` task will be run under cancellation, for example to
+deal with potential cleaning up activities.
 
 Now, `IO`s created with `Resource.use` can be canceled. The cancellation will
 trigger the execution of the code that handles the closing of the resource. In
 our case, that would close both streams. So far so good! But what happens if
-cancellation happens _while_ the streams are being used? This could lead to
-data corruption as a stream where some thread is writing to is at the same time
-being closed by another thread. For more info about this problem see [Gotcha:
-Cancellation is a concurrent
-action](../datatypes/io.md#gotcha-cancellation-is-a-concurrent-action) in
-cats-effect site.
+cancellation happens _while_ the streams are being used? This could lead to data
+corruption as a stream where some thread is writing to is at the same time being
+closed by another thread. For more info about this problem see
+[Gotcha: Cancellation is a concurrent action](../datatypes/io.md#gotcha-cancellation-is-a-concurrent-action)
+in cats-effect site.
 
 To prevent such data corruption we must use some concurrency control mechanism
-that ensures that no stream will be closed while the `IO` returned by
-`transfer` is being evaluated.  Cats-effect provides several constructs for
-controlling concurrency, for this case we will use a
-[_semaphore_](../concurrency/semaphore.md). A semaphore has a number of
-permits, its method `.acquire` 'blocks' if no permit is available until
-`release` is called on the same semaphore. It is important to remark that
-_there is no actual thread being really blocked_, the thread that finds the
-`.acquire` call will be immediately recycled by cats-effect. When the `release`
-method is invoked then cats-effect will look for some available thread to
-resume the execution of the code after `.acquire`.
+that ensures that no stream will be closed while the `IO` returned by `transfer`
+is being evaluated.  Cats-effect provides several constructs for controlling
+concurrency, for this case we will use a
+[_semaphore_](../concurrency/semaphore.md). A semaphore has a number of permits,
+its method `.acquire` 'blocks' if no permit is available until `release` is
+called on the same semaphore. It is important to remark that _there is no actual
+thread being really blocked_, the thread that finds the `.acquire` call will be
+immediately recycled by cats-effect. When the `release` method is invoked then
+cats-effect will look for some available thread to resume the execution of the
+code after `.acquire`.
 
 We will use a semaphore with a single permit. The `.withPermit` method acquires
 one permit, runs the `IO` given and then releases the permit.  We could also
@@ -391,10 +385,10 @@ Mark that while the `IO` returned by `copy` is cancelable (because so are `IO`
 instances returned by `Resource.use`), the `IO` returned by `transfer` is not.
 Trying to cancel it will not have any effect and that `IO` will run until the
 whole file is copied! In real world code you will probably want to make your
-functions cancelable, section [Building cancelable IO
-tasks](../datatypes/io.md#building-cancelable-io-tasks) of `IO` documentation
-explains how to create such cancelable `IO` instances (besides calling
-`Resource.use`, as we have done for our code).
+functions cancelable, section 
+[Building cancelable IO tasks](../datatypes/io.html#building-cancelable-io-tasks) 
+of `IO` documentation explains how to create such cancelable `IO` instances
+(besides calling `Resource.use`, as we have done for our code).
 
 And that is it! We are done, now we can create a program that uses this
 `copy` function.
@@ -447,12 +441,12 @@ moment call to `IO.raiseError` to interrupt a sequence of `IO` operations.
 
 #### Copy program code
 You can check the [final version of our copy program
-here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/CopyFile.scala).
+here](https://github.com/lrodero/cats-effect-tutorial/blob/replace_tcp_section_with_prodcons/src/main/scala/catseffecttutorial/copyfile/CopyFile.scala).
 
 The program can be run from `sbt` just by issuing this call:
 
 ```scala
-> runMain catsEffectTutorial.CopyFile origin.txt destination.txt
+> runMain catseffecttutorial.CopyFile origin.txt destination.txt
 ```
 
 It can be argued that using `IO{java.nio.file.Files.copy(...)}` would get an
@@ -551,7 +545,7 @@ actually easier to work on `F` than on any specific type.
 
 #### Copy program code, polymorphic version
 The polymorphic version of our copy program in full is available
-[here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/CopyFilePolymorphic.scala).
+[here](https://github.com/lrodero/cats-effect-tutorial/blob/replace_tcp_section_with_prodcons/src/main/scala/catseffecttutorial/copyfile/CopyFilePolymorphic.scala).
 
 ### Exercises: improving our small `IO` program
 
@@ -571,771 +565,539 @@ your IO-kungfu:
    subfolders, then their contents must be recursively copied too. Of course the
    copying must be safely cancelable at any moment.
 
-## TCP echo server - concurrent system with `Fiber`s
+## <a name="producerconsumer"></a>Producer-consumer problem - concurrency and fibers
+The _producer-consumer_ pattern is often found in concurrent setups. Here one or
+more producers insert data on a shared data structure like a queue or buffer
+while one or more consumers extract data from it. Readers and writers run
+concurrently. If the queue is empty then readers will block until data is
+available, if the queue is full then writers will wait for some 'bucket' to be
+free. Only one writer at a time can add data to the queue to prevent data
+corruption. Also only one reader can extract data from the queue so no two
+readers get the same data item.
 
-This program is a bit more complex than the previous one. Here we create an echo
-TCP server that replies to each text message from a client sending back that
-same message. When the client sends an empty line its connection is shutdown by
-the server. This server will also bring a key feature, it will be able to attend
-several clients at the same time. For that we will use `cats-effect`'s `Fiber`,
-which can be seen as light threads. For each new client a `Fiber` instance will
-be spawned to serve that client.
+Variations of this problem exists depending on whether there are more than one
+consumer/producer, or whether the data structure siting between them is
+size-bounded or not. Unless stated otherwise, the solutions discussed here are
+suited for multi consumer and multi reader settings. Initially the solutions
+will assume an unbounded data structure, to then present a solution for a
+bounded one.
 
-We will stick to a simple design principle: _whoever method creates a resource
-is the sole responsible of dispatching it!_  It's worth to remark this from the
-beginning to better understand the code listings shown in this tutorial.
+But before we work on the solution for this problem we must introduce _fibers_,
+which are the basic building block of cats-effect concurrency.
 
-Ok, we are ready to start coding our server. Let's build it step-by-step. First
-we will code a method that implements the echo protocol. It will take as input
-the socket (`java.net.Socket` instance) that is connected to the client. The
-method will be basically a loop that at each iteration reads the input from the
-client, if the input is not an empty line then the text is sent back to the
-client, otherwise the method will finish.
+### Intro to fibers
+A fiber carries an `F` action to execute (typically an `IO` instance). Fibers
+are like 'light' threads, meaning they can be used in a similar way than threads
+to create concurrent code. However, they are _not_ threads. Spawning new fibers
+does not guarantee that the action described in the `F` associated to it will be
+run if there is a shortage of threads. Internally cats-effect uses thread pools
+to run fibers. So if there is no thread available in the pool then the fiber
+execution will 'wait' until some thread is free again. On the other hand fibers
+are, unlike threads, very cheap entities. We can spawn millions of them at ease
+without impacting the performance.
 
-The method signature will look like this:
+`ContextShift[F]` is in charge of assigning threads to the fibers waiting to be
+run. When using `IOApp` we get also the `ContextShift[IO]` that we need to run
+the fibers in our code.  But the developer can also create new `ContextShift[F]`
+instances using custom thread pools.
 
-```scala
-import cats.effect.Sync
-import java.net.Socket
-def echoProtocol[F[_]: Sync](clientSocket: Socket): F[Unit] = ???
-```
+Cats-effect implements some concurrency primitives to coordinate concurrent
+fibers: [Deferred](../concurrency/deferred.md),
+[MVar2](../concurrency/mvar.md),
+[Ref](../concurrency/ref.md) and
+[Semaphore](../concurrency/semaphore.md)
+(semaphores we already discussed in the first part of this tutorial). It is
+important to understand that, when a fiber gets blocked by some concurrent data
+structure, cats-effect recycles the thread so it becomes available for other
+fibers. Cats-effect also recovers threads of finished and cancelled fibers.  But
+keep in mind that, in contrast, if the fiber is blocked by some external action
+like waiting for some input from a TCP socket, then cats-effect has no way to
+recover back that thread until the action finishes.
 
-Reading and writing will be done using `java.io.BufferedReader` and
-`java.io.BufferedWriter` instances built from the socket. Recall that this
-method will be in charge of closing those buffers, but not the client socket (it
-did not create that socket after all!). We will use again `Resource` to ensure
-that we close the streams we create. Also, all actions with potential
-side-effects are encapsulated in `F` instances, where `F` only requires an
-implicit instance of `Sync[F]` to be present. That way we ensure no side-effect
-is actually run until the `F` returned by this method is evaluated.  With this
-in mind, the code looks like:
+Way more detailed info about concurrency in cats-effect can be found in [this
+other tutorial 'Concurrency in Scala with
+Cats-Effect'](https://github.com/slouc/concurrency-in-scala-with-ce). It is also
+strongly advised to read the 
+[Concurrency section of cats-effect docs](../concurrency/index.md). But for the
+remaining of this tutorial we will focus on a practical approach to those
+concepts.
+
+Ok, now we have briefly discussed fibers we can start working on our
+producer-consumer problem.
+
+### First (and inefficient) implementation
+We need an intermediate structure where producer(s) can insert data to and
+consumer(s) extracts data from. Let's assume a simple queue. Initially there
+will be only one producer and one consumer. Producer will generate a sequence of
+integers (`1`, `2`, `3`...), consumer will just read that sequence.  Our shared
+queue will be an instance of an immutable `Queue[Int]`.
+
+As accesses to the queue can (and will!) be concurrent, we need some way to
+protect the queue so only one fiber at a time is handling it. The best way to
+ensure an ordered access to some shared data is 
+[Ref](../concurrency/ref.md). A `Ref` instance
+wraps some given data and implements methods to manipulate that data in a safe
+manner. When some fiber is runnning one of those methods, any other call to any
+method of the `Ref` instance will be blocked.
+
+The `Ref` wrapping our queue will be `Ref[F, Queue[Int]]` (for some `F[_]`).
+
+Now, our `producer` method will be:
 
 ```scala
 import cats.effect._
+import cats.effect.concurrent.Ref
 import cats.syntax.all._
-import java.io._
-import java.net._
+import collection.immutable.Queue
 
-def echoProtocol[F[_]: Sync](clientSocket: Socket): F[Unit] = {
+def producer[F[_]: Sync: ContextShift](queueR: Ref[F, Queue[Int]], counter: Int): F[Unit] =
+  (for {
+    _ <- if(counter % 10000 == 0) Sync[F].delay(println(s"Produced $counter items")) else Sync[F].unit
+    _ <- queueR.getAndUpdate(_.enqueue(counter + 1)) // Putting data in shared queue
+    _ <- ContextShift[F].shift
+  } yield ()) >> producer(queueR, counter + 1)
+```
 
-  def loop(reader: BufferedReader, writer: BufferedWriter): F[Unit] = for {
-    line <- Sync[F].delay(reader.readLine())
-    _    <- line match {
-              case "" => Sync[F].unit // Empty line, we are done
-              case _  => Sync[F].delay{ writer.write(line); writer.newLine(); writer.flush() } >> loop(reader, writer)
-            }
-  } yield ()
+First line just prints some log message every `10000` items, so we know if it is
+'alive'. Then it calls `queueR.getAndUpdate` to add data into the queue. Note
+that `.getAndUpdate` provides the current queue, then we use `.enqueue` to
+insert the next value `counter+1`. This call returns a new queue with the value
+added that is stored by the ref instance. If some other fiber is accessing to
+`queueR` then the fiber is blocked.
 
-  def reader(clientSocket: Socket): Resource[F, BufferedReader] =
-    Resource.make {
-      Sync[F].delay( new BufferedReader(new InputStreamReader(clientSocket.getInputStream())) )
-    } { reader =>
-      Sync[F].delay(reader.close()).handleErrorWith(_ => Sync[F].unit)
+Finally we run `ContextShift[F].shift` before calling again to the producer
+recursively with the next counter value. In fact, the call to `.shift` is not
+strictly needed but it is a good policy to include it in recursive functions.
+Why is that? Well, internally cats-effect tries to assign fibers so all tasks
+are given the chance to be executed. But in a recursive function that
+potentially never ends it can be that the fiber is always running and
+cats-effect has no change to recover the thread being used by it. By calling to
+`.shift` the programmer explicitly tells cats-effect that the current thread
+can be re-assigned to other fiber if so decides. Strictly speaking, maybe our
+`producer` does not need such call as the access to `queueR.getAndUpdate` will
+get the fiber blocked if some other fiber is using `queueR` at that moment, and
+cats-effect can recycle blocked fibers for other tasks. Still, we keep it there
+as good practice.
+
+The `consumer` method is a bit different. It will try to read data from the
+queue but it must be aware that the queue must be empty:
+
+```scala
+import cats.effect._
+import cats.effect.concurrent.Ref
+import cats.syntax.all._
+import collection.immutable.Queue
+
+def consumer[F[_] : Sync: ContextShift](queueR: Ref[F, Queue[Int]]): F[Unit] =
+  (for {
+    iO <- queueR.modify{ queue =>
+      queue.dequeueOption.fold((queue, Option.empty[Int])){case (i,queue) => (queue, Option(i))}
     }
+    _ <- if(iO.exists(_ % 10000 == 0)) Sync[F].delay(println(s"Consumed ${iO.get} items"))
+      else Sync[F].unit
+    _ <- ContextShift[F].shift
+  } yield iO) >> consumer(queueR)
+```
 
-  def writer(clientSocket: Socket): Resource[F, BufferedWriter] =
-    Resource.make {
-      Sync[F].delay( new BufferedWriter(new PrintWriter(clientSocket.getOutputStream())) )
-    } { writer =>
-      Sync[F].delay(writer.close()).handleErrorWith(_ => Sync[F].unit)
-    }
+The call to `queueR.modify` allows to modify the wrapped data (our queue) and
+return a value that is computed from that data. In our case, it returns an
+`Option[Int]` that will be `None` if queue was empty. Next line is used to log
+a message in console every `10000` read items. Finally `consumer` is called
+recursively to start again.
 
-  def readerWriter(clientSocket: Socket): Resource[F, (BufferedReader, BufferedWriter)] =
+We can now create a program that instantiates our `queueR` and runs both
+`producer` and `consumer` in parallel:
+
+```scala
+import cats.effect._
+import cats.effect.concurrent.Ref
+import cats.syntax.all._
+
+import collection.immutable.Queue
+
+object InefficientProducerConsumer extends IOApp {
+
+  def producer[F[_]: Sync: ContextShift](queueR: Ref[F, Queue[Int]], counter: Int): F[Unit] = ??? // As defined before
+  def consumer[F[_] : Sync: ContextShift](queueR: Ref[F, Queue[Int]]): F[Unit] = ??? // As defined before
+
+  override def run(args: List[String]): IO[ExitCode] =
     for {
-      reader <- reader(clientSocket)
-      writer <- writer(clientSocket)
-    } yield (reader, writer)
+      queueR <- Ref.of[IO, Queue[Int]](Queue.empty[Int])
+      res <- (consumer(queueR), producer(queueR, 0))
+        .parMapN((_, _) => ExitCode.Success) // Run producer and consumer in parallel until done (likely by user cancelling with CTRL-C)
+        .handleErrorWith { t =>
+          IO(println(s"Error caught: ${t.getMessage}")).as(ExitCode.Error)
+        }
+    } yield res
 
-  readerWriter(clientSocket).use { case (reader, writer) =>
-    loop(reader, writer) // Let's get to work
-  }
 }
 ```
 
-Note that, as we did in the previous example, we swallow possible errors when
-closing the streams, as there is little to do in such cases.
+The full implementation of this naive producer consumer is available
+[here](https://github.com/lrodero/cats-effect-tutorial/blob/replace_tcp_section_with_prodcons/src/main/scala/catseffecttutorial/producerconsumer/InefficientProducerConsumer.scala).
 
-The actual interaction with the client is done by the `loop` function. It tries
-to read a line from the client, and if successful then it checks the line
-content. If empty it finishes the method, if not it sends back the line through
-the writer and loops back to the beginning. And what happens if we find any
-error in the `reader.readLine()` call? Well, `F` will catch the exception and
-will short-circuit the evaluation, this method would then return an `F`
-instance carrying the caught exception. Easy, right :) ?
+Our `run` function instantiates the shared queue wrapped in a `Ref` and boots
+the producer and consumer in parallel. To do to it uses `parMapN`, that creates
+and runs the fibers that will run the `IO`s passed as paremeter. Then it takes
+the output of each fiber and and applies a given function to them. In our case
+both producer and consumer shall run forever until user presses CTRL-C which
+will trigger a cancellation.
 
-So we are done with our `echoProtocol` method, good! But we still miss the part
-of our server that will listen for new connections and create fibers to attend
-them. Let's work on that, we implement that functionality in another method
-that takes as input the `java.io.ServerSocket` instance that will listen for
-clients:
+Alternatively we could have used `start` method to explicitely create new
+`Fiber` instances that will run the producer and consumer, then use `join` to
+wait for them to finish, something like:
 
 ```scala
-import cats.effect._
-import cats.effect.syntax.all._
-import cats.effect.ExitCase._
-import cats.syntax.all._
-import java.net.{ServerSocket, Socket}
-
-// echoProtocol as defined before
-def echoProtocol[F[_]: Sync](clientSocket: Socket): F[Unit] = ???
-
-def serve[F[_]: Concurrent](serverSocket: ServerSocket): F[Unit] = {
-  def close(socket: Socket): F[Unit] = 
-    Sync[F].delay(socket.close()).handleErrorWith(_ => Sync[F].unit)
-
+def run(args: List[String]): IO[ExitCode] =
   for {
-    _ <- Sync[F]
-      .delay(serverSocket.accept())
-      .bracketCase { socket =>
-        echoProtocol(socket)
-          .guarantee(close(socket))                 // Ensuring socket is closed
-          .start                                    // Will run in its own Fiber!
-      }{ (socket, exit) => exit match {
-        case Completed => Sync[F].unit
-        case Error(_) | Canceled => close(socket)
-      }}
-          _ <- serve(serverSocket)                  // Looping back to the beginning
-  } yield ()
-}
+    queueR <- Ref.of[IO, Queue[Int]](Queue.empty[Int])
+    producerFiber <- producer(queueR, 0).start
+    consumerFiber <- consumer(queueR, 0).start
+    _ <- producerFiber.join
+    _ <- consumerFiber.join
+  } yield ExitCode.Error
 ```
 
-We invoke the `accept` method of `ServerSocket` and use `bracketCase` to define
-both the action that will make use of the resource (the client socket) and how
-it will be released. The action in this case invokes `echoProtocol`, and then
-uses `guarantee` call on the returned `F` to ensure that the socket will be
-safely closed when `echoProtocol` is done. Also quite interesting: we use
-`start`! By doing so the `echoProtocol` call will run on its own fiber thus
-not blocking the main loop. To be able to invoke `start` we need an instance of
-`Concurrent[F]` in scope (in fact we are invoking `Concurrent[F].start(...)`
-but the `cats.effect.syntax.all._` classes that we are importing did the
-trick). Finally, the release part of the `bracketCase` will only close the
-socket if there was an error or cancellation during the `accept` call or the
-subsequent invocation to `echoProtocol`. If that is not the case, it means that
-`echoProtocol` was started without any issue and so we do not need to take any
-action, the `guarantee` call will close the socket when `echoProtocol` is done.
+Problem is, if there is an error in any of the fibers the `join` call will not
+hint it, nor it will return. In contrast `parMapN` does promote the error it
+finds to the caller. _In general, if possible, programmers should prefer to use
+higher level commands such as `parMapN` or `parSequence` to deal with fibers_.
 
-You may wonder if using `bracketCase` when we already have `guarantee` is not a
-bit overkill. We could have coded our loop like this:
+Ok, we stick to our implementation based on `.parMapN`. Are we done? Does it
+Work? Well, it works... but it is far from ideal. If we run it we will find that
+the producer runs faster than the consumer so the queue is constantly growing.
+And, even if that was not the case, we must realize that the consumer will be
+continually running regardless if there are elements in the queue, which is far
+from ideal. We will try to improve it in the next section using _semaphores_.
+Also we will use several consumers and producers to balance production and
+consumption rate.
 
-```scala
-for {
-  socket <- Sync[F].delay(serverSocket.accept)
-  _      <- echoProtocol(socket)
-              .guarantee(close(socket))
-              .start
-  _      <- serve(serverSocket)            
-} yield ()
-```
+### Bringing in semaphores
+As discussed in the first section of this tutorial, semaphores are used to
+control access to critical sections of our code that handle shared resources,
+when those sections can be run concurrently. Each semaphore contains a number
+that represents _permits_. To access a critical section permits have to be
+obtained, later to be released when the critical section is left.
 
-That code is way simpler, but it contains a bug: if there is a cancellation in
-the `flatMap` between `socket` and `echoProtocol` then `close(socket)` does not
-execute. Using `bracketCase` solves that problem.
+In our producer/consumer code we already protect access to the queue (our shared
+resource) using a `Ref`. But we can use semaphores on top of that to signal
+whether there are elements in the queue or not. This can be done by keeping in
+the semaphore a counter of `filled` buckets, which will be increased when adding
+elements to the queue, and decreased when elements are removed. Consumer code
+will be changed so it blocks when there are no elements to be retrieved
+(`filled` has zero permits).
 
-So there it is, we have our concurrent code ready, able to handle several client
-connections at once!
-
-_NOTE: If you have coded servers before, probably you are wondering if
-cats-effect provides some magical way to attend an unlimited number of clients
-without balancing the load somehow. Truth is, it doesn't. You can spawn as many
-fibers as you wish, but there is no guarantee they will run simultaneously. More
-about this in the [Fibers are not threads!](#fibers-are-not-threads)_ section.
-
-### `IOApp` for our server
-So, what do we miss now? Only the creation of the server socket of course,
-which we can already do in the `run` method of an `IOApp`:
+So now our producer and consumer look like this:
 
 ```scala
+import cats.effect.concurrent.{Ref, Semaphore}
 import cats.effect._
 import cats.syntax.all._
-import java.net.ServerSocket
 
-object Main extends IOApp {
-  
-  // serve as defined before
-  def serve[F[_]: Concurrent](serverSocket: ServerSocket): F[Unit] = ???
-  
-  def run(args: List[String]): IO[ExitCode] = {
-  
-    def close[F[_]: Sync](socket: ServerSocket): F[Unit] =
-      Sync[F].delay(socket.close()).handleErrorWith(_ => Sync[F].unit)
-  
-    IO( new ServerSocket(args.headOption.map(_.toInt).getOrElse(5432)) )
-      .bracket{
-        serverSocket => serve[IO](serverSocket) >> IO.pure(ExitCode.Success)
-      } {
-        serverSocket => close[IO](serverSocket) >> IO(println("Server finished"))
-      }
-  }
-}
+import scala.collection.immutable.Queue
+
+def producer[F[_]: Sync: ContextShift](id: Int, queueR: Ref[F, Queue[Int]], counterR: Ref[F, Int], filled: Semaphore[F]): F[Unit] =
+  (for {
+    i <- counterR.getAndUpdate(_ + 1)
+    _ <- queueR.getAndUpdate(_.enqueue(i))
+    _ <- filled.release // Signal new item in queue
+    _ <- if(i % 10000 == 0) Sync[F].delay(println(s"Producer $id has reached $i items")) else Sync[F].unit
+    _ <- ContextShift[F].shift
+  } yield ()) >> producer(id, queueR, counterR, filled)
+
+def consumer[F[_]: Sync: ContextShift](id: Int, queueR: Ref[F, Queue[Int]], filled: Semaphore[F]): F[Unit] =
+  (for {
+    _ <- filled.acquire // Wait for some item in queue
+    i <- queueR.modify(_.dequeue.swap)
+    _ <- if(i % 10000 == 0) Sync[F].delay(println(s"Consumer $id has reached $i items")) else Sync[F].unit
+    _ <- ContextShift[F].shift
+  } yield ()) >> consumer(id, queueR, filled)
 ```
 
-Heed how this time we can use `bracket` right ahead, as there is a single
-resource to deal with and no action to be taken if the creation fails. Also
-`IOApp` provides a `ContextShift` in scope that brings a `Concurrent[IO]`, so we
-do not have to create our own.
+Note how the producer uses `filled.release` to signal that a new item is
+available in the queue by increasing the number of permits in the semaphore.
+Likewise, consumer uses `filled.acquire` which block if `filled` is zero (no
+elements in queue). If it is not zero (or as soon as it becomes > 0) the call is
+unblocked and the number of permits in the semaphore is decreased. Now our consumer
+is not concerned about trying to read from an empty queue. If it got a 'permit'
+from the semaphore it means the queue will have an element the consumer can
+read.
 
-#### Echo server code, simple version
-Full code of our basic echo server is available
-[here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV1_Simple.scala).
-
-As before you can run in for example from the `sbt` console just by typing
- 
-```scala
-> runMain catsEffectTutorial.EchoServerV1_Simple
-```
-
-That will start the server on default port `5432`, you can also set any other
-port by passing it as argument. To test the server is properly running, you can
-connect to it using `telnet`. Here we connect, send `hi`, and the server replies
-with the same text. Finally we send an empty line to close the connection:
-
-```console
-$ telnet localhost 5432
-Trying 127.0.0.1...
-Connected to localhost.
-Escape character is '^]'.
-hi
-hi
-
-Connection closed by foreign host.
-```
-
-You can connect several telnet sessions at the same time to verify that indeed
-our server can attend all of them simultaneously. Several... but not many, more
-about that in [Fibers are not threads!](#fibers-are-not-threads) section.
-
-Unfortunately this server is a bit too simplistic. For example, how can we stop
-it? Well, that is something we have not addressed yet and it is when things can
-get a bit more complicated. We will deal with proper server halting in the next
-section.
-
-
-### Graceful server stop (handling exit events)
-
-There is no way to shutdown gracefully the echo server coded in the previous
-section. Sure we can always `Ctrl-c` it, but proper servers should provide
-better mechanisms to stop them. In this section we use some other `cats-effect`
-types to deal with this.
-
-First, we will use a flag to signal when the server shall quit. The main server
-loop will run on its own fiber, that will be canceled when that flag is set.
-The flag will be an instance of `MVar`. The `cats-effect` documentation
-describes `MVar` as _a mutable location that can be empty or contains a value,
-asynchronously blocking reads when empty and blocking writes when full_. Why not
-using `Semaphore` or `Deferred`? Thing is, as we will see later on, we will need
-to be able to 'peek' whether a value has been written or not in a non-blocking
-fashion. That's a handy feature that `MVar` implements.
-
-So, we will 'block' by reading our `MVar` instance, and we will only write on it
-when `STOP` is received, the write being the _signal_ that the server must be
-shut down. The server will be only stopped once, so we are not concerned about
-blocking on writing.
-
-And who shall signal that the server must be stopped? In this example, we will
-assume that it will be the connected users who can request the server to halt by
-sending a `STOP` message. Thus, the method attending clients (`echoProtocol`!)
-needs access to the flag to use it to communicate that the server must stop when
-that message is received.
-
-Let's first define a new method `server` that instantiates the flag, runs the
-`serve` method in its own fiber and waits on the flag to be set. Only when
-the flag is set the server fiber will be canceled. The cancellation itself (the
-call to `fiber.cancel`) is also run in a separate fiber to prevent being
-blocked by it. This is not always needed, but the cancellation of actions
-defined by `bracket` or `bracketCase` will wait until all finalizers (release
-stage of bracket) are finished. The `F` created by our `serve` function is
-defined based on `bracketCase`, so if the action is blocked at any bracket stage
-(acquisition, usage or release), then the cancel call will be blocked too. And
-our bracket blocks as the `serverSocket.accept` call is blocking!. As a result,
-invoking `.cancel` will block our `server` function. To fix this we just execute
-the cancellation on its own fiber by running `.cancel.start`.
+Finally we modify our main program so it instantiates the counter and queue
+references, alongside with the semaphore. Also it will create several consumers
+and producers, 10 of each, and will start all of them in parallel:
 
 ```scala
+import cats.effect.concurrent.{Ref, Semaphore}
 import cats.effect._
-import cats.effect.syntax.all._
-import cats.effect.concurrent.MVar
+import cats.instances.list._
 import cats.syntax.all._
-import java.net.ServerSocket
 
-// serve now requires access to the stopFlag, it will use it to signal the
-// server must stop
-def serve[F[_]: Concurrent](serverSocket: ServerSocket, stopFlag: MVar[F, Unit]): F[Unit] = ???
+import scala.collection.immutable.Queue
 
-def server[F[_]: Concurrent](serverSocket: ServerSocket): F[ExitCode] =
-  for {
-    stopFlag    <- MVar[F].empty[Unit]
-    serverFiber <- serve(serverSocket, stopFlag).start // Server runs on its own Fiber
-    _           <- stopFlag.read                       // Blocked until 'stopFlag.put(())' is run
-    _           <- serverFiber.cancel.start            // Stopping server!
-  } yield ExitCode.Success
-```
+object ProducerConsumer extends IOApp {
 
-As before, creating new fibers requires a `Concurrent[F]` in scope.
+  def producer[F[_]: Sync: ContextShift](id: Int, queueR: Ref[F, Queue[Int]], counterR: Ref[F, Int], filled: Semaphore[F]): F[Unit] = ??? // As defined before
 
-We must also modify the main `run` method in `IOApp` so now it calls to `server`:
+  def consumer[F[_]: Sync: ContextShift](id: Int, queueR: Ref[F, Queue[Int]], filled: Semaphore[F]): F[Unit] = ??? // As defined before
 
-```scala
-import cats.effect._
-import cats.syntax.all._
-import java.net.ServerSocket
-
-object Main extends IOApp {
-
-  // server as defined before
-  def server[F[_]: Concurrent](serverSocket: ServerSocket): F[ExitCode] = ???
-  
-  override def run(args: List[String]): IO[ExitCode] = {
-  
-    def close[F[_]: Sync](socket: ServerSocket): F[Unit] =
-      Sync[F].delay(socket.close()).handleErrorWith(_ => Sync[F].unit)
-  
-    IO{ new ServerSocket(args.headOption.map(_.toInt).getOrElse(5432)) }
-      .bracket{
-        serverSocket => server[IO](serverSocket) >> IO.pure(ExitCode.Success)
-      } {
-        serverSocket => close[IO](serverSocket)  >> IO(println("Server finished"))
-      }
-  }
-}
-```
-
-So `run` calls `server` which in turn calls `serve`. Do we need to modify
-`serve` as well? Yes, as we need to pass the `stopFlag` to the `echoProtocol`
-method:
-
-```scala
-import cats.effect._
-import cats.effect.ExitCase._
-import cats.effect.concurrent.MVar
-import cats.effect.syntax.all._
-import cats.syntax.all._
-import java.net._
-
-// echoProtocol now requires access to the stopFlag, it will use it to signal the
-// server must stop
-def echoProtocol[F[_]: Sync](clientSocket: Socket, stopFlag: MVar[F, Unit]): F[Unit] = ???
-
-def serve[F[_]: Concurrent](serverSocket: ServerSocket, stopFlag: MVar[F, Unit]): F[Unit] = {
-
-  def close(socket: Socket): F[Unit] = 
-    Sync[F].delay(socket.close()).handleErrorWith(_ => Sync[F].unit)
-  
-  for {
-    _ <- Sync[F]
-           .delay(serverSocket.accept())
-           .bracketCase { socket =>
-             echoProtocol(socket, stopFlag)
-               .guarantee(close(socket))                 // Ensuring socket is closed
-               .start                                    // Client attended by its own Fiber
-           }{ (socket, exit) => exit match {
-             case Completed => Sync[F].unit
-             case Error(_) | Canceled => close(socket)
-           }}
-    _ <- serve(serverSocket, stopFlag)                   // Looping back to the beginning
-  } yield ()
-}
-```
-
-There is only one step missing, modifying `echoProtocol`. In fact, the only
-relevant changes are on its inner `loop` method. Now it will check whether the
-line received from the client is `STOP`, if so it will set the `stopFlag` to
-signal the server must be stopped, and the function will quit:
-
-```scala
-import cats.effect._
-import cats.effect.concurrent.MVar
-import cats.effect.syntax.all._
-import cats.syntax.all._
-import java.io._
-
-def loop[F[_]:Concurrent](reader: BufferedReader, writer: BufferedWriter, stopFlag: MVar[F, Unit]): F[Unit] =
-  for {
-    line <- Sync[F].delay(reader.readLine())
-    _    <- line match {
-              case "STOP" => stopFlag.put(()) // Stopping server! Also put(()) returns F[Unit] which is handy as we are done
-              case ""     => Sync[F].unit     // Empty line, we are done
-              case _      => Sync[F].delay{ writer.write(line); writer.newLine(); writer.flush() } >> loop(reader, writer, stopFlag)
-            }
-  } yield ()
-```
-
-#### Echo server code, graceful stop version
-The code of the server able to react to stop events is available
-[here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV2_GracefulStop.scala).
-
-If you run the server coded above, open a telnet session against it and send an
-`STOP` message you will see how the server is properly terminated: the `server`
-function will cancel the fiber on `serve` and return, then `bracket` defined in
-our main `run` method will finalize the usage stage and relaese the server
-socket. This will make the `serverSocket.accept()` in the `serve` function to
-throw an exception that will be caught by the `bracketCase` of that function.
-Because `serve` was already canceled, and given how we defined the release stage
-of its `bracketCase`, the function will finish normally.
-
-#### Exercise: closing client connections to echo server on shutdown
-There is a catch yet in our server. If there are several clients connected,
-sending a `STOP` message will close the server's fiber and the one attending
-the client that sent the message. But the other fibers will keep running
-normally! It is like they were daemon threads. Arguably, we could expect that
-shutting down the server shall close _all_ connections. How could we do it?
-Solving that issue is the proposed exercise below.
-
-We need to close all connections with clients when the server is shut down. To
-do that we can call `cancel` on each one of the `Fiber` instances we have
-created to attend each new client. But how? After all, we are not tracking
-which fibers are running at any given time. We propose this exercise to you: can
-you devise a mechanism so all client connections are closed when the server is
-shutdown? We outline a solution in the next subsection, but maybe you can
-consider taking some time looking for a solution yourself :) .
-
-#### Solution
-We could keep a list of active fibers serving client connections. It is
-doable, but cumbersome … and not really needed at this point.
-
-Think about it: we have a `stopFlag` that signals when the server must be
-stopped. When that flag is set we can assume we shall close all client
-connections too. Thus what we need to do is, every time we create a new fiber to
-attend some new client, we must also make sure that when `stopFlag` is set that
-client is 'shutdown'. As `Fiber` instances are very light we can create a new
-instance just to wait for `stopFlag.read` and then forcing the client to stop.
-This is how the `serve` method will look like now with that change:
-
-```scala
-import cats.effect._
-import cats.effect.ExitCase._
-import cats.effect.concurrent.MVar
-import cats.syntax.all._
-import cats.effect.syntax.all._
-import java.net._
-
-def echoProtocol[F[_]: Sync](clientSocket: Socket, stopFlag: MVar[F, Unit]): F[Unit] = ???
-
-def serve[F[_]: Concurrent](serverSocket: ServerSocket, stopFlag: MVar[F, Unit]): F[Unit] = {
-
-  def close(socket: Socket): F[Unit] = 
-    Sync[F].delay(socket.close()).handleErrorWith(_ => Sync[F].unit)
-
-  for {
-    socket <- Sync[F]
-                .delay(serverSocket.accept())
-                .bracketCase { socket =>
-                  echoProtocol(socket, stopFlag)
-                    .guarantee(close(socket))                 // Ensuring socket is closed
-                    .start >> Sync[F].pure(socket)            // Client attended by its own Fiber, socket is returned
-                }{ (socket, exit) => exit match {
-                  case Completed => Sync[F].unit
-                  case Error(_) | Canceled => close(socket)
-                }}
-    _      <- (stopFlag.read >> close(socket)) 
-                .start                                        // Another Fiber to cancel the client when stopFlag is set
-    _      <- serve(serverSocket, stopFlag)                   // Looping back to the beginning
-  } yield ()
-}
-```
-
-Here we close the client socket once the read on `stopFlag` unblocks. This will
-trigger an exception on the `reader.readLine` call. To capture and process the
-exception we will use `attempt`, which returns an `Either` instance that will
-contain either a `Right[String]` with the line read or a `Left[Throwable]` with
-the exception captured. If some error is detected first the state of `stopFlag`
-is checked, and if it is set a graceful shutdown is assumed and no action is
-taken; otherwise the error is raised:
-
-```scala
-import cats.effect._
-import cats.effect.concurrent.MVar
-import cats.syntax.all._
-import java.io._
-
-def loop[F[_]: Sync](reader: BufferedReader, writer: BufferedWriter, stopFlag: MVar[F, Unit]): F[Unit] =
-  for {
-    lineE <- Sync[F].delay(reader.readLine()).attempt
-    _     <- lineE match {
-               case Right(line) => line match {
-                 case "STOP" => stopFlag.put(()) // Stopping server! Also put(()) returns F[Unit] which is handy as we are done
-                 case ""     => Sync[F].unit     // Empty line, we are done
-                 case _      => Sync[F].delay{ writer.write(line); writer.newLine(); writer.flush() } >> loop(reader, writer, stopFlag)
-               }
-               case Left(e) =>
-                 for { // readLine() failed, stopFlag will tell us whether this is a graceful shutdown
-                   isEmpty <- stopFlag.isEmpty
-                   _       <- if(!isEmpty) Sync[F].unit  // stopFlag is set, cool, we are done
-                              else Sync[F].raiseError(e) // stopFlag not set, must raise error
-                 } yield ()
-             }
-  } yield ()
-```
-
-Recall that we used `Resource` to instantiate both the `reader` and `writer`
-used by `loop`; following how we coded that resource, both that `reader` and
-`writer` will be automatically closed.
-
-Now you may think '_wait a minute!, why don't we cancel the client fiber instead
-of closing the socket straight away?_' In fact this is perfectly possible, and
-it will have a similar effect:
-
-```scala
-import cats.effect._
-import cats.effect.ExitCase._
-import cats.effect.concurrent.MVar
-import cats.syntax.all._
-import cats.effect.syntax.all._
-import java.net._
-
-def echoProtocol[F[_]: Sync](clientSocket: Socket, stopFlag: MVar[F, Unit]): F[Unit] = ???
-
-def serve[F[_]: Concurrent](serverSocket: ServerSocket, stopFlag: MVar[F, Unit]): F[Unit] = {
-
-  def close(socket: Socket): F[Unit] = 
-    Sync[F].delay(socket.close()).handleErrorWith(_ => Sync[F].unit)
-
-  for {
-    fiber <- Sync[F]
-               .delay(serverSocket.accept())
-               .bracketCase { socket =>
-                 echoProtocol(socket, stopFlag)
-                   .guarantee(close(socket))                 // Ensuring socket is closed
-                   .start                                    // Client attended by its own Fiber, which is returned
-               }{ (socket, exit) => exit match {
-                 case Completed => Sync[F].unit
-                 case Error(_) | Canceled => close(socket)
-               }}
-    _     <- (stopFlag.read >> fiber.cancel) 
-               .start                                        // Another Fiber to cancel the client when stopFlag is set
-    _     <- serve(serverSocket, stopFlag)                   // Looping back to the beginning
-  } yield ()
-}
-```
-
-What is happening in this latter case? If you take a look again to
-`echoProtocol` you will see that the `F` returned by `echoProtocol` is the `F`
-given by `Resource.use`. When we cancel the fiber running that `F`, the release
-of the resources defined is triggered. That release phase closes the `reader`
-and `writer` streams that we created from the client socket... which in turn
-closes the client socket! As before, the `attempt` call will take care of the
-exception raised. In fact using `cancel` looks cleaner overall. But there is a
-catch. The call to `cancel` does not force an `F` to be immediately terminated,
-it is not like a `Thread.interrupt`! It happened in our server because it
-indirectly created an exception that was raised inside the `F` running the
-`reader.readLine`, caused by the socket being closed. If that had not been the
-case, the `cancel` call would only have taken effect when the code inside the
-`F` running the `reader.readLine` was normally finished. Keep that in mind when
-using `cancel` to handle fibers.
-
-#### Echo server code, closing client connections version
-The resulting code of this new server, able to shutdown all client connections
-on shutdown, is available
-[here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV3_ClosingClientsOnShutdown.scala).
-
-### `Fiber`s are not threads!<a name="fibers-are-not-threads"></a>
-
-As stated before, fibers are like 'light' threads, meaning they can be used in a
-similar way than threads to create concurrent code. However, they are _not_
-threads. Spawning new fibers does not guarantee that the action described in the
-`F` associated to it will be run if there is a shortage of threads. At the end
-of the day, if no thread is available that can run the fiber, then the actions
-in that fiber will be blocked until some thread is free again.
-
-You can test this yourself. Start the server defined in the previous sections
-and try to connect several clients and send lines to the server through them.
-Soon you will notice that the latest clients... do not get any echo reply when
-sending lines! Why is that?  Well, the answer is that the first fibers already
-used all _underlying_ threads available!  But if we close one of the active
-clients by sending an empty line (recall that makes the server to close that
-client session) then immediately one of the blocked clients will be active.
-
-It shall be clear from that experiment that fibers are run by thread pools. And
-that in our case, all our fibers share the same thread pool! `ContextShift[F]`
-is in charge of assigning threads to the fibers waiting to be run, each one
-with a pending `F` action. When using `IOApp` we get also the `ContextShift[IO]`
-that we need to run the fibers in our code. So there are our threads!
-
-### The `ContextShift` type class
-
-Cats-effect provides ways to use different `ContextShift`s (each with its own
-thread pool) when running `F` actions, and to swap which one should be used for
-each new `F` to ask to reschedule threads among the current active `F`
-instances _e.g._ for improved fairness etc. Code below shows an example of how to
-declare tasks that will be run in different thread pools: the first task will be
-run by the thread pool of the `ExecutionContext` passed as parameter, the second
-task will be run in the default thread pool.
-
-```scala
-import cats.effect._
-import cats.syntax.all._
-import scala.concurrent.ExecutionContext
-
-def doHeavyStuffInADifferentThreadPool[F[_]: ContextShift: Sync](implicit ec: ExecutionContext): F[Unit] =
-  for {
-    _ <- ContextShift[F].evalOn(ec)(Sync[F].delay(println("Hi!"))) // Swapping to thread pool of given ExecutionContext
-    _ <- Sync[F].delay(println("Welcome!")) // Running back in default thread pool
-  } yield ()
-```
-
-#### Exercise: using a custom thread pool in echo server
-Given what we know so far, how could we solve the problem of the limited number
-of clients attended in parallel in our echo server? Recall that in traditional
-servers we would make use of a specific thread pool for clients, able to resize
-itself by creating new threads if they are needed. You can get such a pool using
-`Executors.newCachedThreadPool()`. But take care of shutting the pool down when
-the server is stopped!
-
-#### Solution
-Well, the solution is quite straightforward. We only need to create a thread pool
-and execution context, and use it whenever we need to read input from some
-connected client. So the beginning of the `echoProtocol` function would look like:
-
-```scala
-def echoProtocol[F[_]: Sync: ContextShift](clientSocket: Socket, stopFlag: MVar[F, Unit])(implicit clientsExecutionContext: ExecutionContext): F[Unit] = {
-
-  def loop(reader: BufferedReader, writer: BufferedWriter, stopFlag: MVar[F, Unit]): F[Unit] =
+  override def run(args: List[String]): IO[ExitCode] =
     for {
-      lineE <- ContextShift[F].evalOn(clientsExecutionContext)(Sync[F].delay(reader.readLine()).attempt)
-//    ...
-```
-
-and... that is mostly it. Only pending change is to create the thread pool and
-execution context in the `server` function, which will be in charge also of
-shutting down the thread pool when the server finishes:
-
-```scala
-import cats.effect._
-import cats.effect.concurrent.MVar
-import cats.effect.syntax.all._
-import cats.syntax.all._
-import java.net.ServerSocket
-import java.util.concurrent.Executors
-import scala.concurrent.ExecutionContext
-
-def serve[F[_]: Concurrent: ContextShift](serverSocket: ServerSocket, stopFlag: MVar[F, Unit])(implicit clientsExecutionContext: ExecutionContext): F[Unit] = ???
-
-def server[F[_]: Concurrent: ContextShift](serverSocket: ServerSocket): F[ExitCode] = {
-
-  val clientsThreadPool = Executors.newCachedThreadPool()
-  implicit val clientsExecutionContext = ExecutionContext.fromExecutor(clientsThreadPool)
-
-  for {
-    stopFlag    <- MVar[F].empty[Unit]
-    serverFiber <- serve(serverSocket, stopFlag).start         // Server runs on its own Fiber
-    _           <- stopFlag.read                               // Blocked until 'stopFlag.put(())' is run
-    _           <- Sync[F].delay(clientsThreadPool.shutdown()) // Shutting down clients pool
-    _           <- serverFiber.cancel.start                    // Stopping server
-  } yield ExitCode.Success
+      queueR <- Ref.of[IO, Queue[Int]](Queue.empty[Int])
+      counterR <- Ref.of[IO, Int](1)
+      filled <- Semaphore[IO](0)
+      producers = List.range(1, 11).map(producer(_, queueR, counterR, filled)) // 10 producers
+      consumers = List.range(1, 11).map(consumer(_, queueR, filled))           // 10 consumers
+      res <- (producers ++ consumers)
+        .parSequence.as(ExitCode.Success) // Run producers and consumers in parallel until done (likely by user cancelling with CTRL-C)
+        .handleErrorWith { t =>
+          IO(println(s"Error caught: ${t.getMessage}")).as(ExitCode.Error)
+        }
+    } yield res
 }
 ```
 
-Signatures of `serve` and of `echoProtocol` will have to be changed too to pass
-the execution context as parameter. Finally, we need an implicit
-`ContextShift[F]` that will be carried by the function's signature. It is `IOApp`
-which provides the instance of `ContextShift[IO]` in the `run` method.
+The full implementation of this producer consumer with unbounded queue is available
+[here](https://github.com/lrodero/cats-effect-tutorial/blob/replace_tcp_section_with_prodcons/src/main/scala/catseffecttutorial/producerconsumer/ProducerConsumer.scala).
 
-#### Echo server code, thread pool for clients version
-The version of our echo server using a thread pool is available
-[here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV4_ClientThreadPool.scala).
+Producers and consumers are created as two list of `IO` instances. All of them
+are started in their own fiber by the call to `parSequence`, which will wait for
+all of them to finish and then return the value passed as parameter. As in the
+previous example it shall run forever until the user presses CTRL-C.
 
-## Let's not forget about `async`
+Having several consumers and producers improves the balance between consumers
+and producers... but still, on the long run, queue tends to grow in size. To
+fix this we will ensure the size of the queue is bounded, so whenever that max
+size is reached producers will block as they consumers do when the queue is
+empty.
 
-The `async` functionality is another powerful capability of cats-effect we have
-not mentioned yet. It is provided by `Async` type class, and it allows to
-describe `F` instances that may be terminated by a thread different than the
-one carrying the evaluation of that instance. The result will be returned by
-using a callback.
+### Producer consumer with bounded queue
+We will use another semaphore `empty` to represent the amount of empty 'buckets'
+in the queue. It will mirror the behavior of `filled`. When a new item is
+enqueued a call to `empty.release` will signal that there is a new empty bucket
+in the queue. Likewise, the producers will request an empty bucket by calling
+`empty.acquire` prior to add new elements, blocking when `empty` number of
+permits is zero.
 
-Some of you may wonder if that could help us to solve the issue of having
-blocking code in our fabulous echo server. Unfortunately, `async` cannot
-magically 'unblock' such code. Try this simple code snippet (_e.g._ in `sbt`
-console):
+Producer and consumer code now becomes:
 
 ```scala
+import cats.effect.concurrent.{Ref, Semaphore}
 import cats.effect._
-import cats.effect.syntax.all._
 import cats.syntax.all._
-import scala.util.Either
 
-def delayed[F[_]: Async]: F[Unit] = for {
-  _ <- Sync[F].delay(println("Starting")) // Async extends Sync, so (F[_]: Async) 'brings' (F[_]: Sync)
-  _ <- Async[F].async{ (cb: Either[Throwable,Unit] => Unit) =>
-      Thread.sleep(2000)
-      cb(Right(()))
-    }
-  _ <- Sync[F].delay(println("Done")) // 2 seconds to get here, no matter what, as we were 'blocked' by previous call
-} yield()
+import scala.collection.immutable.Queue
 
-delayed[IO].unsafeRunSync() // a way to run an IO without IOApp
+def producer[F[_]: Sync: ContextShift](id: Int, queueR: Ref[F, Queue[Int]], counterR: Ref[F, Int], empty: Semaphore[F], filled: Semaphore[F]): F[Unit] =
+  (for {
+    i <- counterR.getAndUpdate(_ + 1)
+    _ <- empty.acquire  // Wait for some bucket free in queue
+    _ <- queueR.getAndUpdate(_.enqueue(i))
+    _ <- filled.release // Signal new item in queue
+    _ <- if(i % 10000 == 0) Sync[F].delay(println(s"Producer $id has reached $i items")) else Sync[F].unit
+    _ <- ContextShift[F].shift
+  } yield ()) >> producer(id, queueR, counterR, empty, filled)
+
+def consumer[F[_]: Sync: ContextShift](id: Int, queueR: Ref[F, Queue[Int]], empty: Semaphore[F], filled: Semaphore[F]): F[Unit] =
+  (for {
+    _ <- filled.acquire // Wait for some item in queue
+    i <- queueR.modify(_.dequeue.swap)
+    _ <- empty.release  // Signal new bucket free in queue
+    _ <- if(i % 10000 == 0) Sync[F].delay(println(s"Consumer $id has reached $i items")) else Sync[F].unit
+    _ <- ContextShift[F].shift
+  } yield ()) >> consumer(id, queueR, empty, filled)
 ```
 
-You will notice that the code above still blocks, waiting for the `async` call
-to finish.
-
-### Using `async` in our echo server
-So how is `async` useful? Well, let's see how we can apply it on our server
-code. Because `async` allows a different thread to finish the task, we can
-modify the blocking read call inside the `loop` function of our server with
-something like:
+The main program is almost the same, we only add the creation of the `empty`
+semaphore setting as value the max size of the queue. So for a max size of `100`
+we would have:
 
 ```scala
-for {
-  lineE <- Async[F].async{ (cb: Either[Throwable, Either[Throwable, String]] => Unit) => 
-             clientsExecutionContext.execute(new Runnable {
-               override def run(): Unit = {
-                 val result: Either[Throwable, String] = Try(reader.readLine()).toEither
-                 cb(Right(result))
-               }
-             })
-           }
-// ...           
-```
-
-Note that the call `clientsExecutionContext.execute` will create a thread from
-that execution context, setting free the thread that was evaluating the `F`
-for-comprehension. If the thread pool used by the execution context can create
-new threads if no free ones are available, then we will be able to attend as
-many clients as needed. This is similar to the solution we used previously when
-we asked to run the blocking `readLine` call in a different execution context.
-The final result will be identical to our previous server version. To attend
-client connections, if no thread is available in the pool, new threads will be
-created from that pool.
-
-#### Echo server code, async version
-A full version of our echo server using this async approach is available
-[here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV5_Async.scala).
-
-### When is `async` useful then?
-The `Async` type class is useful specially when the task to run by the `F` can
-be terminated by any thread. For example, calls to remote services are often
-modeled with `Future`s so they do not block the calling thread. When defining
-our `F`, should we block on the `Future` waiting for the result? No! We can
-wrap the call in an `async` call like:
-
-```scala
+import cats.effect.concurrent.{Ref, Semaphore}
 import cats.effect._
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import scala.util._
+import cats.instances.list._
+import cats.syntax.all._
 
-trait Service { def getResult(): Future[String] }
-def service: Service = ???
+import scala.collection.immutable.Queue
 
-def processServiceResult[F[_]: Async] = Async[F].async{ (cb: Either[Throwable, String] => Unit) => 
-  service.getResult().onComplete {
-    case Success(s) => cb(Right(s))
-    case Failure(e) => cb(Left(e))
-  }
+object ProducerConsumerBounded extends IOApp {
+
+  def producer[F[_]: Sync: ContextShift](id: Int, queueR: Ref[F, Queue[Int]], counterR: Ref[F, Int], empty: Semaphore[F], filled: Semaphore[F]): F[Unit] = ??? // As defined before
+
+  def consumer[F[_]: Sync: ContextShift](id: Int, queueR: Ref[F, Queue[Int]], empty: Semaphore[F], filled: Semaphore[F]): F[Unit] = ??? // As defined before
+
+  override def run(args: List[String]): IO[ExitCode] =
+    for {
+      queueR <- Ref.of[IO, Queue[Int]](Queue.empty[Int])
+      counterR <- Ref.of[IO, Int](1)
+      empty <- Semaphore[IO](100)
+      filled <- Semaphore[IO](0)
+      producers = List.range(1, 11).map(producer(_, queueR, counterR, empty, filled)) // 10 producers
+      consumers = List.range(1, 11).map(consumer(_, queueR, empty, filled))           // 10 consumers
+      res <- (producers ++ consumers)
+        .parSequence.as(ExitCode.Success) // Run producers and consumers in parallel until done (likely by user cancelling with CTRL-C)
+        .handleErrorWith { t =>
+          IO(println(s"Error caught: ${t.getMessage}")).as(ExitCode.Error)
+        }
+    } yield res
 }
 ```
 
-So, let's say our new goal is to create an echo server that does not require a
-thread per connected socket to wait on the blocking `read()` method. If we use a
-network library that avoids blocking operations, we could then combine that with
-`async` to create such non-blocking server. And Java NIO can be helpful here.
-While Java NIO does have some blocking method (`Selector`'s `select()`), it
-allows to build servers that do not require a thread per connected client:
-`select()` will return those 'channels' (such as `SocketChannel`) that have data
-available to read from, then processing of the incoming data can be split among
-threads of a size-bounded pool. This way, a thread-per-client approach is not
-needed. Java NIO2 or netty could also be applicable to this scenario. We leave
-as a final exercise to implement again our echo server but this time using an
-async lib.
+The full implementation of this producer consumer with bounded queue is available
+[here](https://github.com/lrodero/cats-effect-tutorial/blob/replace_tcp_section_with_prodcons/src/main/scala/catseffecttutorial/producerconsumer/ProducerConsumerBounded.scala).
+
+### On cancellation of producer and consumers
+In our producers/consumers code we have not dealt yet with cancellation. Truth
+is the only cancellation that can happen in those small programs is caused by
+the user 'killing' the main program, and in that case we are not much concerned
+about the consequences (the program has terminated after all). But in more
+complex settings we have to be careful as consumers and producers fibers can be
+cancelled at any time. And which will then be the consequences? Well, basically
+we would not be able to trust our semaphores to represent the amount of items
+and free buckets in the queue. See for example the code of a consumer in our
+bounded queue setting. It must make sure that whenever a `filled` permit is
+acquired then a) a new element is added and b) `empty.release` is called. A
+cancellation right before those actions will leave the semaphores with values
+that do not represent the internal state of the queue.
+
+To prevent this we must make sure that a call to a producer and a consumer is
+fully run without being cancelled. This can be done with `Sync[F].uncancelable`,
+which ensures that the `F` instance passed as parameter cannot be cancelled. So,
+for example, our consumer in the bounded queue example will look like:
+
+```scala
+import cats.effect.concurrent.{Ref, Semaphore}
+import cats.effect.{ContextShift, ExitCode, IO, IOApp, Sync}
+import cats.syntax.all._
+
+import scala.collection.immutable.Queue
+
+def consumer[F[_]: Sync: ContextShift](id: Int, queueR: Ref[F, Queue[Int]], empty: Semaphore[F], filled: Semaphore[F]): F[Unit] =
+  Sync[F].uncancelable(
+    for {
+      _ <- filled.acquire // Wait for some item in queue
+      i <- queueR.modify(_.dequeue.swap)
+      _ <- empty.release
+      _ <- if(i % 10000 == 0) Sync[F].delay(println(s"Consumer $id has reached $i items")) else Sync[F].unit
+      _ <- ContextShift[F].shift
+    } yield ()
+  ) >> consumer(id, queueR, empty, filled)
+```
+
+Making the `producer` function uncancelable is similar, we leave that as a small
+exercise.
+
+
+### Exercise: build a concurrent queue
+A _concurrent queue_ is, well, a queue data structure that allows safe
+concurrent access. That is, several concurrent processes can safely add and
+retrieve data from the queue. It is easy to realize that during the previous
+sections we already implemented that kind of functionality, it was
+embedded in our `producer` and `consumer` functions. To build a concurrent queue
+we only need to extract from those methods the part that handles the concurrent
+access.
+
+A simple concurrent queue with only two methods could be defined as:
+
+```scala
+import cats.effect.{Concurrent, Sync}
+
+trait SimpleConcurrentQueue[F[_], A] {
+  /** Get and remove first element from queue, blocks if queue empty. */
+  def poll: F[A]
+  /** Put element at then end of queue, blocks if queue is bounded and full.*/
+  def put(a: A): F[Unit]
+}
+
+// Exercise: implement builder methods in this companion object
+object SimpleConcurrentQueue {
+  def unbounded[F[_]: Concurrent: Sync, A]: F[SimpleConcurrentQueue[F, A]] = ???
+  def bounded[F[_]: Concurrent: Sync, A](size: Int): F[SimpleConcurrentQueue[F, A]] = ???
+}
+```
+
+The exercise is to implement the missing constructor methods we have included in
+`SimpleConcurrentQueue` companion object. A possible implementation is given
+[here](https://github.com/lrodero/cats-effect-tutorial/blob/replace_tcp_section_with_prodcons/src/main/scala/catseffecttutorial/producerconsumer/exerciseconcurrentqueue/SimpleConcurrentQueue.scala) for reference.
+
+Finally, we propose you to write a more complete concurrent queue
+implementation with these definitions:
+
+```scala
+import cats.effect.{Concurrent, Sync}
+
+trait ConcurrentQueue[F[_], A] {
+  /** Get and remove first element from queue, blocks if queue empty. */
+  def poll: F[A]
+  /** Get and remove first `n` elements from queue, blocks if less than `n` items are available in queue.
+   * Error raised if `n < 0` or, in bounded queues, if `n > max size of queue`.*/
+  def pollN(n: Int): F[List[A]]
+  /** Get, but not remove, first element in queue, blocks if queue empty. */
+  def peek: F[A]
+  /** Get, but not remove, first `n` elements in queue, blocks if less than `n` items are available in queue.
+   * Error raised if `n < 0` or, in bounded queues, if `n > max size of queue`.*/
+  def peekN(n: Int): F[List[A]]
+  /** Put element at then end of queue, blocks if queue is bounded and full. */
+  def put(a: A): F[Unit]
+  /** Puts elements at the end of the queue, blocks if queue is bounded and does not have spare size for all items.
+   * Error raised in bounded queues if `as.size > max size of queue`.*/
+  def putN(as: List[A]): F[Unit]
+  /** Try to get and remove first element from queue, immediately returning `F[None]` if queue empty. Non-blocking. */
+  def tryPoll: F[Option[A]]
+  /** Try to get and remove first `n` elements from queue, immediately returning `F[None]` if less than `n` items are available in queue. Non-blocking.
+   * Error raised if n < 0. */
+  def tryPollN(n: Int): F[Option[List[A]]]
+  /** Try to get, but not remove, first element from queue, immediately returning `F[None]` if queue empty. Non-blocking. */
+  def tryPeek: F[Option[A]]
+  /** Try to get, but not remove, first  `n` elements from queue, immediately returning `F[None]` if less than `n` items are available in queue. Non-blocking.
+   * Error raised if n < 0. */
+  def tryPeekN(n: Int): F[Option[List[A]]]
+  /** Try to put element at the end of queue, immediately returning `F[false]` if queue is bounded and full. Non-blocking. */
+  def tryPut(a: A): F[Boolean]
+  /** Try to put elements in list at the end of queue, immediately returning `F[false]` if queue is bounded and does not have spare size for all items. Non-blocking. */
+  def tryPutN(as: List[A]): F[Boolean]
+  /** Returns # of items in queue. Non-blocking. */
+  def size: F[Long]
+  /** Returns `F[true]` if queue empty, `F[false]` otherwise. Non-blocking. */
+  def isEmpty: F[Boolean]
+}
+
+/**
+ * Specific methods for bounded concurrent queues.
+ */
+trait BoundedConcurrentQueue[F[_], A] extends ConcurrentQueue [F, A] {
+  /** Max queue size. */
+  val maxQueueSize: Int
+  /** Remaining empty buckets. Non-blocking.*/
+  def emptyBuckets: F[Long]
+  /** Returns `F[true]` if queue full, `F[false]` otherwise. Non-blocking. */
+  def isFull: F[Boolean]
+}
+
+// Exercise: implement builder methods in this companion object
+object ConcurrentQueue {
+  def unbounded[F[_]: Concurrent: Sync, A]: F[ConcurrentQueue[F, A]] = ???
+  def bounded[F[_]: Concurrent: Sync, A](size: Int): F[BoundedConcurrentQueue[F, A]] = ???
+}
+```
+
+Note that now bounded concurrent queues have their own type
+`BoundedConcurrentQueue` which extends `ConcurrentQueue` with some functions
+specific to them. As before, you should try to implement the builder methods in
+companion object `ConcurrentQueue`. **Tip**: we have not reviewed all methods
+that cats-effect's `Semaphore` has to offer. Take a look to `Semaphore`
+[API](https://typelevel.org/cats-effect/api/cats/effect/concurrent/Semaphore.html)
+as you will find some new useful methods there.
+
+
+A possible implementation of the concurrent queue is given
+[here](https://github.com/lrodero/cats-effect-tutorial/blob/replace_tcp_section_with_prodcons/src/main/scala/catseffecttutorial/producerconsumer/exerciseconcurrentqueue/ConcurrentQueue.scala)
+for reference. **NOTE** this concurrent queue implementation is not intended for
+high-throughput requirements, and it has not been tested in production
+environments.  For a production-ready, high-performance concurrent queue it is
+strongly advised to consider [Monix's concurrent
+queue](https://monix.io/api/current/monix/catnap/ConcurrentQueue.html), which is
+cats-effect compatible.
 
 ## Conclusion
 
