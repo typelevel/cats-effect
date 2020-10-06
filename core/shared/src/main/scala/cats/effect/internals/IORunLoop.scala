@@ -21,6 +21,7 @@ import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError,
 import cats.effect.tracing.{IOEvent, IOTrace}
 import cats.effect.internals.TracingPlatform.{enhancedExceptions, isStackTracing}
 
+import scala.reflect.NameTransformer
 import scala.util.control.NonFatal
 
 private[effect] object IORunLoop {
@@ -384,7 +385,9 @@ private[effect] object IORunLoop {
           .flatMap(t => IOTrace.getOpAndCallSite(t.stackTrace))
           .map {
             case (methodSite, callSite) =>
-              new StackTraceElement(methodSite.getMethodName + " @ " + callSite.getClassName,
+              val op = NameTransformer.decode(methodSite.getMethodName)
+
+              new StackTraceElement(op + " @ " + callSite.getClassName,
                                     callSite.getMethodName,
                                     callSite.getFileName,
                                     callSite.getLineNumber)
