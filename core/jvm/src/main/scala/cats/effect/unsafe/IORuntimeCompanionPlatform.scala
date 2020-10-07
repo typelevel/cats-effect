@@ -65,9 +65,21 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       blocking._1,
       scheduler._1,
       () => {
-        compute._2()
-        blocking._2()
-        scheduler._2()
+        try {
+          compute._2()
+        } catch {
+          case _: Throwable =>
+        }
+        try {
+          blocking._2()
+        } catch {
+          case _: Throwable =>
+        }
+        try {
+          scheduler._2()
+        } catch {
+          case _: Throwable =>
+        }
       })
   }
 }
