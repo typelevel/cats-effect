@@ -18,4 +18,4 @@ package cats.effect.kernel
 
 import cats.~>
 
-trait Poll[F[_]] extends (F ~> F)
+trait Demask[F[_]] extends (F ~> F)

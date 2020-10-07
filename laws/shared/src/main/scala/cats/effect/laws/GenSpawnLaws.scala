@@ -26,14 +26,14 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] {
 
   // we need to phrase this in terms of never because we can't *evaluate* laws which rely on nondetermnistic substitutability
   def raceDerivesFromRacePairLeft[A, B](fa: F[A]) = {
-    val results: F[Either[A, B]] = F uncancelable { poll =>
+    val results: F[Either[A, B]] = F uncancelable { demask =>
       F.flatMap(F.racePair(fa, F.never[B])) {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) => F.productR(f.cancel)(F.map(fa)(Left(_)))
             case Outcome.Errored(ea) => F.productR(f.cancel)(F.raiseError(ea))
             case Outcome.Canceled() =>
-              F.flatMap(F.onCancel(poll(f.join), f.cancel)) {
+              F.flatMap(F.onCancel(demask(f.join), f.cancel)) {
                 case Outcome.Succeeded(fb) => F.map(fb)(Right(_))
                 case Outcome.Errored(eb) => F.raiseError(eb)
                 case Outcome.Canceled() => F.productR(F.canceled)(F.never)
@@ -44,7 +44,7 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] {
             case Outcome.Succeeded(fb) => F.productR(f.cancel)(F.map(fb)(Right(_)))
             case Outcome.Errored(eb) => F.productR(f.cancel)(F.raiseError(eb))
             case Outcome.Canceled() =>
-              F.flatMap(F.onCancel(poll(f.join), f.cancel)) {
+              F.flatMap(F.onCancel(demask(f.join), f.cancel)) {
                 case Outcome.Succeeded(fa) => F.map(fa)(Left(_))
                 case Outcome.Errored(ea) => F.raiseError(ea)
                 case Outcome.Canceled() => F.productR(F.canceled)(F.never)
@@ -57,14 +57,14 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] {
   }
 
   def raceDerivesFromRacePairRight[A, B](fb: F[B]) = {
-    val results: F[Either[A, B]] = F uncancelable { poll =>
+    val results: F[Either[A, B]] = F uncancelable { demask =>
       F.flatMap(F.racePair(F.never[A], fb)) {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) => F.productR(f.cancel)(F.map(fa)(Left(_)))
             case Outcome.Errored(ea) => F.productR(f.cancel)(F.raiseError(ea))
             case Outcome.Canceled() =>
-              F.flatMap(F.onCancel(poll(f.join), f.cancel)) {
+              F.flatMap(F.onCancel(demask(f.join), f.cancel)) {
                 case Outcome.Succeeded(fb) => F.map(fb)(Right(_))
                 case Outcome.Errored(eb) => F.raiseError(eb)
                 case Outcome.Canceled() => F.productR(F.canceled)(F.never)
@@ -75,7 +75,7 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] {
             case Outcome.Succeeded(fb) => F.productR(f.cancel)(F.map(fb)(Right(_)))
             case Outcome.Errored(eb) => F.productR(f.cancel)(F.raiseError(eb))
             case Outcome.Canceled() =>
-              F.flatMap(F.onCancel(poll(f.join), f.cancel)) {
+              F.flatMap(F.onCancel(demask(f.join), f.cancel)) {
                 case Outcome.Succeeded(fa) => F.map(fa)(Left(_))
                 case Outcome.Errored(ea) => F.raiseError(ea)
                 case Outcome.Canceled() => F.productR(F.canceled)(F.never)

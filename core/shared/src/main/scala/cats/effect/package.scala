@@ -30,7 +30,7 @@ package object effect {
   val GenSpawn = cekernel.GenSpawn
 
   type Fiber[F[_], E, A] = cekernel.Fiber[F, E, A]
-  type Poll[F[_]] = cekernel.Poll[F]
+  type Demask[F[_]] = cekernel.Demask[F]
   type Cont[F[_], A] = cekernel.Cont[F, A]
 
   type GenConcurrent[F[_], E] = cekernel.GenConcurrent[F, E]

@@ -30,10 +30,10 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
     val body = new Cont[F, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
-        G.uncancelable { poll =>
+        G.uncancelable { demask =>
           lift(k(resume)) flatMap {
-            case Some(fin) => G.onCancel(poll(get), lift(fin))
-            case None => poll(get)
+            case Some(fin) => G.onCancel(demask(get), lift(fin))
+            case None => demask(get)
           }
         }
       }

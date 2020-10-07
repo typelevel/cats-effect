@@ -19,7 +19,7 @@ package testkit
 
 import cats.{~>, Group, Monad, Monoid, Order}
 import cats.data.Kleisli
-import cats.effect.kernel.{Deferred, Fiber, GenConcurrent, GenTemporal, Outcome, Poll, Ref}
+import cats.effect.kernel.{Deferred, Demask, Fiber, GenConcurrent, GenTemporal, Outcome, Ref}
 import cats.syntax.all._
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
@@ -143,12 +143,12 @@ object TimeT {
         delegate <- Kleisli.liftF(F.start(fa.run(forked)))
       } yield fiberize(forked, delegate)
 
-    def uncancelable[A](body: Poll[TimeT[F, *]] => TimeT[F, A]): TimeT[F, A] =
+    def uncancelable[A](body: Demask[TimeT[F, *]] => TimeT[F, A]): TimeT[F, A] =
       Kleisli { time =>
-        F.uncancelable { poll =>
-          val poll2 = new Poll[TimeT[F, *]] {
+        F.uncancelable { demask =>
+          val poll2 = new Demask[TimeT[F, *]] {
             def apply[a](tfa: TimeT[F, a]) =
-              Kleisli { time2 => poll(tfa.run(time2)) }
+              Kleisli { time2 => demask(tfa.run(time2)) }
           }
 
           body(poll2).run(time)

@@ -59,20 +59,20 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.Attempt(this)
 
   def bothOutcome[B](that: IO[B]): IO[(OutcomeIO[A @uncheckedVariance], OutcomeIO[B])] =
-    IO.uncancelable { poll =>
+    IO.uncancelable { demask =>
       racePair(that).flatMap {
-        case Left((oc, f)) => poll(f.join).onCancel(f.cancel).map((oc, _))
-        case Right((f, oc)) => poll(f.join).onCancel(f.cancel).map((_, oc))
+        case Left((oc, f)) => demask(f.join).onCancel(f.cancel).map((oc, _))
+        case Right((f, oc)) => demask(f.join).onCancel(f.cancel).map((_, oc))
       }
     }
 
   def both[B](that: IO[B]): IO[(A, B)] =
-    IO.uncancelable { poll =>
+    IO.uncancelable { demask =>
       racePair(that).flatMap {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              demask(f.join).onCancel(f.cancel).flatMap {
                 case Outcome.Succeeded(fb) => fa.product(fb)
                 case Outcome.Errored(eb) => IO.raiseError(eb)
                 case Outcome.Canceled() => IO.canceled *> IO.never
@@ -83,7 +83,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case Right((f, oc)) =>
           oc match {
             case Outcome.Succeeded(fb) =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              demask(f.join).onCancel(f.cancel).flatMap {
                 case Outcome.Succeeded(fa) => fa.product(fb)
                 case Outcome.Errored(ea) => IO.raiseError(ea)
                 case Outcome.Canceled() => IO.canceled *> IO.never
@@ -103,9 +103,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
       }
 
-    IO uncancelable { poll =>
+    IO uncancelable { demask =>
       flatMap { a =>
-        val finalized = poll(use(a)).onCancel(release(a, Outcome.Canceled()))
+        val finalized = demask(use(a)).onCancel(release(a, Outcome.Canceled()))
         val handled = finalized onError {
           case e => doRelease(a, Outcome.Errored(e))
         }
@@ -141,8 +141,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
           IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
         })
 
-    IO uncancelable { poll =>
-      val base = poll(this)
+    IO uncancelable { demask =>
+      val base = demask(this)
       val finalized = pf.lift(Outcome.Canceled()).map(base.onCancel(_)).getOrElse(base)
 
       finalized.attempt flatMap {
@@ -158,14 +158,14 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     handleErrorWith(t => f(t).attempt *> IO.raiseError(t))
 
   def race[B](that: IO[B]): IO[Either[A, B]] =
-    IO.uncancelable { poll =>
+    IO.uncancelable { demask =>
       racePair(that).flatMap {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) => f.cancel *> fa.map(Left(_))
             case Outcome.Errored(ea) => f.cancel *> IO.raiseError(ea)
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              demask(f.join).onCancel(f.cancel).flatMap {
                 case Outcome.Succeeded(fb) => fb.map(Right(_))
                 case Outcome.Errored(eb) => IO.raiseError(eb)
                 case Outcome.Canceled() => IO.canceled *> IO.never
@@ -176,7 +176,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
             case Outcome.Succeeded(fb) => f.cancel *> fb.map(Right(_))
             case Outcome.Errored(eb) => f.cancel *> IO.raiseError(eb)
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              demask(f.join).onCancel(f.cancel).flatMap {
                 case Outcome.Succeeded(fa) => fa.map(Left(_))
                 case Outcome.Errored(ea) => IO.raiseError(ea)
                 case Outcome.Canceled() => IO.canceled *> IO.never
@@ -345,7 +345,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def sleep(delay: FiniteDuration): IO[Unit] =
     Sleep(delay)
 
-  def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
+  def uncancelable[A](body: Demask[IO] => IO[A]): IO[A] =
     Uncancelable(body)
 
   private[this] val _unit: IO[Unit] = Pure(())
@@ -564,7 +564,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def start[A](fa: IO[A]): IO[FiberIO[A]] =
       fa.start
 
-    def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
+    def uncancelable[A](body: Demask[IO] => IO[A]): IO[A] =
       IO.uncancelable(body)
 
     override def map[A, B](fa: IO[A])(f: A => B): IO[B] =
@@ -646,7 +646,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 8
   }
 
-  private[effect] final case class Uncancelable[+A](body: Poll[IO] => IO[A]) extends IO[A] {
+  private[effect] final case class Uncancelable[+A](body: Demask[IO] => IO[A]) extends IO[A] {
     def tag = 9
   }
   private[effect] object Uncancelable {

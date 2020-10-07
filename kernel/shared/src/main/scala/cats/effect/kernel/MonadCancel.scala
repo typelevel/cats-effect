@@ -98,9 +98,9 @@ import cats.syntax.all._
  * {{{
  *
  *   def bracket[A, B](acquire: F[A])(use: A => F[B])(release: A => F[Unit]): F[B] =
- *     uncancelable { poll =>
+ *     uncancelable { demask =>
  *       flatMap(acquire) { a =>
- *         val finalized = onCancel(poll(use(a)), release(a))
+ *         val finalized = onCancel(demask(use(a)), release(a))
  *         val handled = onError(finalized) { case e => void(attempt(release(a))) }
  *         flatMap(handled)(b => as(attempt(release(a)), b))
  *       }
@@ -123,7 +123,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
 
   /**
    * Masks cancellation while evaluating an effect. The argument to `body`
-   * of type `Poll[F]` is a natural transformation `F ~> F` that enables
+   * of type `Demask[F]` is a natural transformation `F ~> F` that enables
    * unmasking within the masked region.
    *
    * In the following example, cancellation can be observed during the
@@ -131,8 +131,8 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    *
    * {{{
    *
-   *   F.uncancelable { poll =>
-   *     fa *> poll(fb) *> fc
+   *   F.uncancelable { demask =>
+   *     fa *> demask(fb) *> fc
    *   }
    *
    * }}}
@@ -140,7 +140,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * If cancellation is observed while a fiber is masked, it will only
    * be respected whenever the fiber is completely unmasked.
    */
-  def uncancelable[A](body: Poll[F] => F[A]): F[A]
+  def uncancelable[A](body: Demask[F] => F[A]): F[A]
 
   /**
    * An effect that requests self-cancellation on the current fiber when
@@ -278,11 +278,11 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    *            is the return value of this function
    * @param release the lifecycle release action which depends on the outcome of `use`
    */
-  def bracketFull[A, B](acquire: Poll[F] => F[A])(use: A => F[B])(
+  def bracketFull[A, B](acquire: Demask[F] => F[A])(use: A => F[B])(
       release: (A, Outcome[F, E, B]) => F[Unit]): F[B] =
-    uncancelable { poll =>
-      flatMap(acquire(poll)) { a =>
-        val finalized = onCancel(poll(use(a)), release(a, Outcome.Canceled()))
+    uncancelable { demask =>
+      flatMap(acquire(demask)) { a =>
+        val finalized = onCancel(demask(use(a)), release(a, Outcome.Canceled()))
         val handled = onError(finalized) {
           case e => void(attempt(release(a, Outcome.Errored(e))))
         }
@@ -357,10 +357,10 @@ object MonadCancel {
     protected def delegate: MonadError[OptionT[F, *], E] =
       OptionT.catsDataMonadErrorForOptionT[F, E]
 
-    def uncancelable[A](body: Poll[OptionT[F, *]] => OptionT[F, A]): OptionT[F, A] =
+    def uncancelable[A](body: Demask[OptionT[F, *]] => OptionT[F, A]): OptionT[F, A] =
       OptionT(
         F.uncancelable { nat =>
-          val natT = new Poll[OptionT[F, *]] {
+          val natT = new Demask[OptionT[F, *]] {
             def apply[B](optfa: OptionT[F, B]): OptionT[F, B] = OptionT(nat(optfa.value))
           }
           body(natT).value
@@ -399,11 +399,12 @@ object MonadCancel {
     protected def delegate: MonadError[EitherT[F, E0, *], E] =
       EitherT.catsDataMonadErrorFForEitherT[F, E, E0]
 
-    def uncancelable[A](body: Poll[EitherT[F, E0, *]] => EitherT[F, E0, A]): EitherT[F, E0, A] =
+    def uncancelable[A](
+        body: Demask[EitherT[F, E0, *]] => EitherT[F, E0, A]): EitherT[F, E0, A] =
       EitherT(
         F.uncancelable { nat =>
           val natT =
-            new Poll[EitherT[F, E0, *]] {
+            new Demask[EitherT[F, E0, *]] {
               def apply[B](optfa: EitherT[F, E0, B]): EitherT[F, E0, B] =
                 EitherT(nat(optfa.value))
             }
@@ -445,10 +446,10 @@ object MonadCancel {
     protected def delegate: MonadError[IorT[F, L, *], E] =
       IorT.catsDataMonadErrorFForIorT[F, L, E]
 
-    def uncancelable[A](body: Poll[IorT[F, L, *]] => IorT[F, L, A]): IorT[F, L, A] =
+    def uncancelable[A](body: Demask[IorT[F, L, *]] => IorT[F, L, A]): IorT[F, L, A] =
       IorT(
         F.uncancelable { nat =>
-          val natT = new Poll[IorT[F, L, *]] {
+          val natT = new Demask[IorT[F, L, *]] {
             def apply[B](optfa: IorT[F, L, B]): IorT[F, L, B] = IorT(nat(optfa.value))
           }
           body(natT).value
@@ -487,11 +488,11 @@ object MonadCancel {
     protected def delegate: MonadError[Kleisli[F, R, *], E] =
       Kleisli.catsDataMonadErrorForKleisli[F, R, E]
 
-    def uncancelable[A](body: Poll[Kleisli[F, R, *]] => Kleisli[F, R, A]): Kleisli[F, R, A] =
+    def uncancelable[A](body: Demask[Kleisli[F, R, *]] => Kleisli[F, R, A]): Kleisli[F, R, A] =
       Kleisli { r =>
         F.uncancelable { nat =>
           val natT =
-            new Poll[Kleisli[F, R, *]] {
+            new Demask[Kleisli[F, R, *]] {
               def apply[B](stfa: Kleisli[F, R, B]): Kleisli[F, R, B] =
                 Kleisli { r => nat(stfa.run(r)) }
             }
@@ -531,11 +532,11 @@ object MonadCancel {
     protected def delegate: MonadError[WriterT[F, L, *], E] =
       WriterT.catsDataMonadErrorForWriterT[F, L, E]
 
-    def uncancelable[A](body: Poll[WriterT[F, L, *]] => WriterT[F, L, A]): WriterT[F, L, A] =
+    def uncancelable[A](body: Demask[WriterT[F, L, *]] => WriterT[F, L, A]): WriterT[F, L, A] =
       WriterT(
         F.uncancelable { nat =>
           val natT =
-            new Poll[WriterT[F, L, *]] {
+            new Demask[WriterT[F, L, *]] {
               def apply[B](optfa: WriterT[F, L, B]): WriterT[F, L, B] = WriterT(nat(optfa.run))
             }
           body(natT).run
@@ -600,12 +601,12 @@ object MonadCancel {
     def onCancel[A](fa: StateT[F, S, A], fin: StateT[F, S, Unit]): StateT[F, S, A] =
       StateT[F, S, A](s => F.onCancel(fa.run(s), fin.runA(s)))
 
-    def uncancelable[A](body: Poll[StateT[F, S, *]] => StateT[F, S, A]): StateT[F, S, A] =
+    def uncancelable[A](body: Demask[StateT[F, S, *]] => StateT[F, S, A]): StateT[F, S, A] =
       StateT[F, S, A] { s =>
-        F uncancelable { poll =>
-          val poll2 = new Poll[StateT[F, S, *]] {
+        F uncancelable { demask =>
+          val poll2 = new Demask[StateT[F, S, *]] {
             def apply[B](fb: StateT[F, S, B]) =
-              StateT[F, S, B](s => poll(fb.run(s)))
+              StateT[F, S, B](s => demask(fb.run(s)))
           }
 
           body(poll2).run(s)
@@ -656,13 +657,13 @@ object MonadCancel {
       ReaderWriterStateT[F, E0, L, S, A]((e, s) => F.onCancel(fa.run(e, s), fin.runA(e, s)))
 
     def uncancelable[A](
-        body: Poll[ReaderWriterStateT[F, E0, L, S, *]] => ReaderWriterStateT[F, E0, L, S, A])
+        body: Demask[ReaderWriterStateT[F, E0, L, S, *]] => ReaderWriterStateT[F, E0, L, S, A])
         : ReaderWriterStateT[F, E0, L, S, A] =
       ReaderWriterStateT[F, E0, L, S, A] { (e, s) =>
-        F uncancelable { poll =>
-          val poll2 = new Poll[ReaderWriterStateT[F, E0, L, S, *]] {
+        F uncancelable { demask =>
+          val poll2 = new Demask[ReaderWriterStateT[F, E0, L, S, *]] {
             def apply[B](fb: ReaderWriterStateT[F, E0, L, S, B]) =
-              ReaderWriterStateT[F, E0, L, S, B]((e, s) => poll(fb.run(e, s)))
+              ReaderWriterStateT[F, E0, L, S, B]((e, s) => demask(fb.run(e, s)))
           }
 
           body(poll2).run(e, s)

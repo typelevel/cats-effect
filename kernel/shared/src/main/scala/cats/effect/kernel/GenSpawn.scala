@@ -43,14 +43,14 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
     }
 
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
-    uncancelable { poll =>
+    uncancelable { demask =>
       flatMap(racePair(fa, fb)) {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) => productR(f.cancel)(map(fa)(Left(_)))
             case Outcome.Errored(ea) => productR(f.cancel)(raiseError(ea))
             case Outcome.Canceled() =>
-              flatMap(onCancel(poll(f.join), f.cancel)) {
+              flatMap(onCancel(demask(f.join), f.cancel)) {
                 case Outcome.Succeeded(fb) => map(fb)(Right(_))
                 case Outcome.Errored(eb) => raiseError(eb)
                 case Outcome.Canceled() => productR(canceled)(never)
@@ -61,7 +61,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
             case Outcome.Succeeded(fb) => productR(f.cancel)(map(fb)(Right(_)))
             case Outcome.Errored(eb) => productR(f.cancel)(raiseError(eb))
             case Outcome.Canceled() =>
-              flatMap(onCancel(poll(f.join), f.cancel)) {
+              flatMap(onCancel(demask(f.join), f.cancel)) {
                 case Outcome.Succeeded(fa) => map(fa)(Left(_))
                 case Outcome.Errored(ea) => raiseError(ea)
                 case Outcome.Canceled() => productR(canceled)(never)
@@ -71,20 +71,20 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
     }
 
   def bothOutcome[A, B](fa: F[A], fb: F[B]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
-    uncancelable { poll =>
+    uncancelable { demask =>
       flatMap(racePair(fa, fb)) {
-        case Left((oc, f)) => map(onCancel(poll(f.join), f.cancel))((oc, _))
-        case Right((f, oc)) => map(onCancel(poll(f.join), f.cancel))((_, oc))
+        case Left((oc, f)) => map(onCancel(demask(f.join), f.cancel))((oc, _))
+        case Right((f, oc)) => map(onCancel(demask(f.join), f.cancel))((_, oc))
       }
     }
 
   def both[A, B](fa: F[A], fb: F[B]): F[(A, B)] =
-    uncancelable { poll =>
+    uncancelable { demask =>
       flatMap(racePair(fa, fb)) {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) =>
-              flatMap(onCancel(poll(f.join), f.cancel)) {
+              flatMap(onCancel(demask(f.join), f.cancel)) {
                 case Outcome.Succeeded(fb) => product(fa, fb)
                 case Outcome.Errored(eb) => raiseError(eb)
                 case Outcome.Canceled() => productR(canceled)(never)
@@ -95,7 +95,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
         case Right((f, oc)) =>
           oc match {
             case Outcome.Succeeded(fb) =>
-              flatMap(onCancel(poll(f.join), f.cancel)) {
+              flatMap(onCancel(demask(f.join), f.cancel)) {
                 case Outcome.Succeeded(fa) => product(fa, fb)
                 case Outcome.Errored(ea) => raiseError(ea)
                 case Outcome.Canceled() => productR(canceled)(never)
@@ -181,8 +181,8 @@ object GenSpawn {
       Either[
         (Outcome[OptionT[F, *], E, A], Fiber[OptionT[F, *], E, B]),
         (Fiber[OptionT[F, *], E, A], Outcome[OptionT[F, *], E, B])]] = {
-      OptionT.liftF(F.uncancelable(poll =>
-        poll(F.racePair(fa.value, fb.value)).map {
+      OptionT.liftF(F.uncancelable(demask =>
+        demask(F.racePair(fa.value, fb.value)).map {
           case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
           case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
         }))
@@ -238,8 +238,8 @@ object GenSpawn {
       Either[
         (Outcome[EitherT[F, E0, *], E, A], Fiber[EitherT[F, E0, *], E, B]),
         (Fiber[EitherT[F, E0, *], E, A], Outcome[EitherT[F, E0, *], E, B])]] = {
-      EitherT.liftF(F.uncancelable(poll =>
-        poll(F.racePair(fa.value, fb.value)).map {
+      EitherT.liftF(F.uncancelable(demask =>
+        demask(F.racePair(fa.value, fb.value)).map {
           case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
           case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
         }))
@@ -304,8 +304,8 @@ object GenSpawn {
       Either[
         (Outcome[IorT[F, L, *], E, A], Fiber[IorT[F, L, *], E, B]),
         (Fiber[IorT[F, L, *], E, A], Outcome[IorT[F, L, *], E, B])]] = {
-      IorT.liftF(F.uncancelable(poll =>
-        poll(F.racePair(fa.value, fb.value)).map {
+      IorT.liftF(F.uncancelable(demask =>
+        demask(F.racePair(fa.value, fb.value)).map {
           case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
           case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
         }))
@@ -360,8 +360,8 @@ object GenSpawn {
         (Outcome[Kleisli[F, R, *], E, A], Fiber[Kleisli[F, R, *], E, B]),
         (Fiber[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B])]] = {
       Kleisli { r =>
-        F.uncancelable(poll =>
-          poll((F.racePair(fa.run(r), fb.run(r))).map {
+        F.uncancelable(demask =>
+          demask((F.racePair(fa.run(r), fb.run(r))).map {
             case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
             case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
           }))
@@ -428,8 +428,8 @@ object GenSpawn {
       Either[
         (Outcome[WriterT[F, L, *], E, A], Fiber[WriterT[F, L, *], E, B]),
         (Fiber[WriterT[F, L, *], E, A], Outcome[WriterT[F, L, *], E, B])]] = {
-      WriterT.liftF(F.uncancelable(poll =>
-        poll(F.racePair(fa.run, fb.run)).map {
+      WriterT.liftF(F.uncancelable(demask =>
+        demask(F.racePair(fa.run, fb.run)).map {
           case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
           case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
         }))

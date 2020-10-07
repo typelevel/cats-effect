@@ -307,7 +307,7 @@ private final class IOFiber[A](
 
           masks += 1
           val id = masks
-          val poll = new Poll[IO] {
+          val demask = new Demask[IO] {
             def apply[B](ioa: IO[B]) = IO.Uncancelable.UnmaskRunLoop(ioa, id)
           }
 
@@ -316,7 +316,7 @@ private final class IOFiber[A](
            * to unmask once body completes.
            */
           conts.push(UncancelableK)
-          runLoop(cur.body(poll), nextIteration)
+          runLoop(cur.body(demask), nextIteration)
 
         case 10 =>
           val cur = cur0.asInstanceOf[Uncancelable.UnmaskRunLoop[Any]]
@@ -574,9 +574,9 @@ private final class IOFiber[A](
           runLoop(succeeded(fiber, 0), nextIteration)
 
         case 15 =>
-          // TODO self-cancelation within a nested poll could result in deadlocks in `both`
+          // TODO self-cancelation within a nested demask could result in deadlocks in `both`
           // example: uncancelable(p => F.both(fa >> p(canceled) >> fc, fd)).
-          // when we check cancelation in the parent fiber, we are using the masking at the point of racePair, rather than just trusting the masking at the point of the poll
+          // when we check cancelation in the parent fiber, we are using the masking at the point of racePair, rather than just trusting the masking at the point of the demask
           val cur = cur0.asInstanceOf[RacePair[Any, Any]]
 
           val next =

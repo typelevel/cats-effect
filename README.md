@@ -214,7 +214,7 @@ Laws are more than just a [TCK](https://en.wikipedia.org/wiki/Technology_Compati
 
 Notice how the laws are written in terms of the `<->` "rewrite" operator. This operator simply turns into a ScalaCheck property in practice, but in *theory* it should be read as something much more powerful: an equational substitution.
 
-The first law is saying that any time we see a program which contains the pattern `F.uncancelable(poll => poll(...))` for *any* value of the `...` subexpression, we can rewrite it as just the `...` subexpression itself. This kind of step-wise evaluation semantic is the foundation of all formal computational calculi, including Scala itself (as of Dotty, via the DOT calculus).
+The first law is saying that any time we see a program which contains the pattern `F.uncancelable(demask => demask(...))` for *any* value of the `...` subexpression, we can rewrite it as just the `...` subexpression itself. This kind of step-wise evaluation semantic is the foundation of all formal computational calculi, including Scala itself (as of Dotty, via the DOT calculus).
 
 Unfortunately, due to expressiveness limitations, not *all* programs can be reduced to a simple composition of these evaluation rules (laws). However, significantly more such programs can be reduced now than was possible with the laws framework in ce2, in which a single law very frequently reduced to a rewrite asserting one side was equal to `F.pure(...)` of some value, which is a rewrite of very limited applicability.
 
@@ -247,9 +247,9 @@ def bracketCase[A, B](
     release: (A, Outcome[F, E, B]) => F[Unit])(
     implicit F: Concurrent[F, E])
     : F[B] =
-  F uncancelable { poll =>
+  F uncancelable { demask =>
     acquire flatMap { a =>
-      val finalized = poll(use(a)).onCancel(release(a, Outcome.Canceled()))
+      val finalized = demask(use(a)).onCancel(release(a, Outcome.Canceled()))
       val handled = finalized onError {
         case e => release(a, Outcome.Errored(e)).attempt.void
       }

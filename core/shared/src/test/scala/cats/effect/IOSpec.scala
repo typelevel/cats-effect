@@ -339,7 +339,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         test must completeAs(42)
       }
 
-      "complete a fiber with Canceled under finalizer on poll" in ticked { implicit ticker =>
+      "complete a fiber with Canceled under finalizer on demask" in ticked { implicit ticker =>
         val ioa =
           IO.uncancelable(p => IO.canceled >> p(IO.unit).guarantee(IO.unit))
             .start
@@ -487,18 +487,18 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
       "sequence onCancel when canceled before registration" in ticked { implicit ticker =>
         var passed = false
-        val test = IO.uncancelable { poll =>
-          IO.canceled >> poll(IO.unit).onCancel(IO { passed = true })
+        val test = IO.uncancelable { demask =>
+          IO.canceled >> demask(IO.unit).onCancel(IO { passed = true })
         }
 
         test must nonTerminate
         passed must beTrue
       }
 
-      "break out of uncancelable when canceled before poll" in ticked { implicit ticker =>
+      "break out of uncancelable when canceled before demask" in ticked { implicit ticker =>
         var passed = true
-        val test = IO.uncancelable { poll =>
-          IO.canceled >> poll(IO.unit) >> IO { passed = false }
+        val test = IO.uncancelable { demask =>
+          IO.canceled >> demask(IO.unit) >> IO { passed = false }
         }
 
         test must nonTerminate
@@ -515,8 +515,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
       "only unmask within current fiber" in ticked { implicit ticker =>
         var passed = false
-        val test = IO uncancelable { poll =>
-          IO.uncancelable(_ => poll(IO.canceled >> IO { passed = true }))
+        val test = IO uncancelable { demask =>
+          IO.uncancelable(_ => demask(IO.canceled >> IO { passed = true }))
             .start
             .flatMap(_.join)
             .void
@@ -565,8 +565,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       "ignore repeated polls" in ticked { implicit ticker =>
         var passed = true
 
-        val test = IO.uncancelable { poll =>
-          poll(poll(IO.unit) >> IO.canceled) >> IO { passed = false }
+        val test = IO.uncancelable { demask =>
+          demask(demask(IO.unit) >> IO.canceled) >> IO { passed = false }
         }
 
         test must nonTerminate

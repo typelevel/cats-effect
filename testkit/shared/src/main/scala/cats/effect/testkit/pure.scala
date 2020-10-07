@@ -327,7 +327,7 @@ object pure {
           fa2 = start0(fa, fiberBVar.read) { (oca, fiberB) => Left((oca, fiberB)) }
           fb2 = start0(fb, fiberAVar.read) { (ocb, fiberA) => Right((fiberA, ocb)) }
 
-          back <- uncancelable { poll =>
+          back <- uncancelable { demask =>
             for {
               fiberA <- start(fa2)
               fiberB <- start(fb2)
@@ -335,7 +335,7 @@ object pure {
               _ <- fiberAVar.put(fiberA)
               _ <- fiberBVar.put(fiberB)
 
-              back <- onCancel(poll(results.read), fiberA.cancel >> fiberB.cancel)
+              back <- onCancel(demask(results.read), fiberA.cancel >> fiberB.cancel)
             } yield back
           }
         } yield back
@@ -353,11 +353,11 @@ object pure {
           }
         }
 
-      def uncancelable[A](body: Poll[PureConc[E, *]] => PureConc[E, A]): PureConc[E, A] =
+      def uncancelable[A](body: Demask[PureConc[E, *]] => PureConc[E, A]): PureConc[E, A] =
         Thread.annotate("uncancelable", true) {
           val mask = new MaskId
 
-          val poll = new Poll[PureConc[E, *]] {
+          val demask = new Demask[PureConc[E, *]] {
             def apply[a](fa: PureConc[E, a]) =
               withCtx { ctx =>
                 val ctx2 = ctx.copy(masks = ctx.masks.dropWhile(mask === _))
@@ -367,7 +367,7 @@ object pure {
 
           withCtx { ctx =>
             val ctx2 = ctx.copy(masks = mask :: ctx.masks)
-            localCtx(ctx2, body(poll))
+            localCtx(ctx2, body(demask))
           }
         }
 

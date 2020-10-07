@@ -62,10 +62,10 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
       val parents = Seq(monadError[A, B, C])
 
       val props = Seq(
-        "uncancelable poll is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
-        "uncancelable ignored poll eliminates nesting" -> forAll(
+        "uncancelable demask is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
+        "uncancelable ignored demask eliminates nesting" -> forAll(
           laws.uncancelableIgnoredPollEliminatesNesting[A] _),
-        "uncancelable poll inverse nest is uncancelable" -> forAll(
+        "uncancelable demask inverse nest is uncancelable" -> forAll(
           laws.uncancelablePollInverseNestIsUncancelable[A] _),
         "uncancelable canceled associates right over flatMap" -> forAll(
           laws.uncancelableCanceledAssociatesRightOverFlatMap[A] _),

@@ -51,9 +51,9 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
             }.flatten
 
           def fetch: F[Either[E, A]] =
-            uncancelable { poll =>
+            uncancelable { demask =>
               for {
-                result0 <- poll(fa).attempt
+                result0 <- demask(fa).attempt
                 // in some interleavings, there may be several racing fetches.
                 // always respect the first completion.
                 result <- state.modify {
@@ -64,14 +64,14 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
               } yield result
             }
 
-          uncancelable { poll =>
+          uncancelable { demask =>
             state.modify {
               case Start() => {
                 val start = fetch.start.flatMap(fiber => stop.complete(fiber.cancel))
-                Running(1, value, stop) -> start *> poll(value.get).onCancel(removeSubscriber)
+                Running(1, value, stop) -> start *> demask(value.get).onCancel(removeSubscriber)
               }
               case Running(subs, value, stop) =>
-                Running(subs + 1, value, stop) -> poll(value.get).onCancel(removeSubscriber)
+                Running(subs + 1, value, stop) -> demask(value.get).onCancel(removeSubscriber)
               case st @ Done(value) =>
                 st -> F.pure(value)
             }.flatten

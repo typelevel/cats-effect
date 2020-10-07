@@ -579,9 +579,9 @@ object Resource extends ResourceInstances with ResourcePlatform {
 
       def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
           release: (A, ExitCase) => F[Unit]): F[B] =
-        F.uncancelable { poll =>
+        F.uncancelable { demask =>
           flatMap(acquire) { a =>
-            val finalized = F.onCancel(poll(use(a)), release(a, ExitCase.Canceled))
+            val finalized = F.onCancel(demask(use(a)), release(a, ExitCase.Canceled))
             val handled = onError(finalized) {
               case e => void(attempt(release(a, ExitCase.Errored(e))))
             }

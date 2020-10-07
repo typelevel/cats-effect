@@ -49,38 +49,38 @@ def guarded[F[_], R, A, E](
     release: R => F[Unit])(
     implicit F: MonadCancel[F, E])
     : F[A] =
-  F uncancelable { poll =>
+  F uncancelable { demask =>
     for {
       r <- alloc
 
-      _ <- poll(s.acquire).onCancel(release(r))
+      _ <- demask(s.acquire).onCancel(release(r))
       releaseAll = s.release >> release(r)
 
-      a <- poll(use(r)).guarantee(releaseAll)
+      a <- demask(use(r)).guarantee(releaseAll)
     } yield a
   }
 ```
 
-The above looks intimidating, but it's actually just another flavor of `bracket`, the operation we saw earlier! The whole thing is wrapped in `uncancelable`, which means we don't need to worry about other fibers interrupting us in the middle of each of these actions. In particular, the very *first* action we perform is `alloc`, which allocates a value of type `R`. Once this has completed successfully, we attempt to acquire the `Semaphore`. If some other fiber has already acquired the lock, this may end up blocking for quite a while. We *want* other fibers to be able to interrupt this blocking, so we wrap the acquisition in `poll`.
+The above looks intimidating, but it's actually just another flavor of `bracket`, the operation we saw earlier! The whole thing is wrapped in `uncancelable`, which means we don't need to worry about other fibers interrupting us in the middle of each of these actions. In particular, the very *first* action we perform is `alloc`, which allocates a value of type `R`. Once this has completed successfully, we attempt to acquire the `Semaphore`. If some other fiber has already acquired the lock, this may end up blocking for quite a while. We *want* other fibers to be able to interrupt this blocking, so we wrap the acquisition in `demask`.
 
-You can think of `poll` like a "cancelable" block: it re-enables cancellation for whatever is inside of it, but *only* if that's possible. There's a reason it's not just called `cancelable`! We'll come back to this a little bit later.
+You can think of `demask` like a "cancelable" block: it re-enables cancellation for whatever is inside of it, but *only* if that's possible. There's a reason it's not just called `cancelable`! We'll come back to this a little bit later.
 
 If the semaphore acquisition is canceled, we want to make sure we still release the resource, `r`, so we use `onCancel` to achieve this. From that moment forward, if and when we're ready to release our resource, we want to *also* release the semaphore, so we create an effect which merges these two things together.
 
-Finally we move on to invoking the `use(r)` action, which again we need to wrap in `poll` to ensure that it can be interrupted by an external fiber. This `use(r)` action may take quite a long time and have a lot of complicated internal workings, and the last thing we want to do is suppress cancellation for its entire duration. It's likely safe to cancel `use`, because the resource management is already handled (by us!).
+Finally we move on to invoking the `use(r)` action, which again we need to wrap in `demask` to ensure that it can be interrupted by an external fiber. This `use(r)` action may take quite a long time and have a lot of complicated internal workings, and the last thing we want to do is suppress cancellation for its entire duration. It's likely safe to cancel `use`, because the resource management is already handled (by us!).
 
 Finally, once `use(r)` is done, we run `releaseAll`. The `guarantee` method does exactly what it sounds like it does: ensures that `releaseAll` is run regardless of whether `use(r)` completes naturally, raises an error, or is canceled.
 
-As mentioned earlier, `poll` is *not* the same as a function hypothetically named `cancelable`. If we had something like `cancelable`, then we would need to answer an impossible question: what does `uncancelable` mean if someone can always contradict you with `cancelable`? Additionally, whatever answer you come up with to *that* question has to be applied to weird and complicated things such as `uncancelable(uncancelable(cancelable(...)))`, which is unpleasant and hard to define.
+As mentioned earlier, `demask` is *not* the same as a function hypothetically named `cancelable`. If we had something like `cancelable`, then we would need to answer an impossible question: what does `uncancelable` mean if someone can always contradict you with `cancelable`? Additionally, whatever answer you come up with to *that* question has to be applied to weird and complicated things such as `uncancelable(uncancelable(cancelable(...)))`, which is unpleasant and hard to define.
 
-At the end of the day, the better option is to simply add `poll` to `uncancelable` after the fashion we have done. The *meaning* of `poll` is that it "undoes" the effect of its origin `uncancelable`. So in other words:
+At the end of the day, the better option is to simply add `demask` to `uncancelable` after the fashion we have done. The *meaning* of `demask` is that it "undoes" the effect of its origin `uncancelable`. So in other words:
 
 ```scala
 val fa: F[A] = ???
-MonadCancel[F].uncancelable(poll => poll(fa))  // => fa
+MonadCancel[F].uncancelable(demask => demask(fa))  // => fa
 ```
 
-The `poll` wrapped around the `fa` effectively *eliminates* the `uncancelable`, so the above is equivalent to just writing `fa`. This significance of this "elimination" semantic becomes apparent when you consider what happens when multiple `uncancelable`s are nested within each other:
+The `demask` wrapped around the `fa` effectively *eliminates* the `uncancelable`, so the above is equivalent to just writing `fa`. This significance of this "elimination" semantic becomes apparent when you consider what happens when multiple `uncancelable`s are nested within each other:
 
 ```scala
 MonadCancel[F] uncancelable { outer =>
@@ -90,7 +90,7 @@ MonadCancel[F] uncancelable { outer =>
 }
 ```
 
-The `inner` poll eliminates the inner `uncancelable`, but the *outer* `uncancelable` still applies, meaning that this whole thing is equivalent to `MonadCancel[F].uncancelable(_ => fa)`.
+The `inner` demask eliminates the inner `uncancelable`, but the *outer* `uncancelable` still applies, meaning that this whole thing is equivalent to `MonadCancel[F].uncancelable(_ => fa)`.
 
 Note that polling for an *outer* block within an inner one has no effect whatsoever. For example:
 
@@ -112,7 +112,7 @@ MonadCancel[F] uncancelable { _ =>
 }
 ```
 
-The use of the `outer` poll within the inner `uncancelable` is simply ignored unless we have already stripped off the inner `uncancelable` using *its* `poll`. For example:
+The use of the `outer` demask within the inner `uncancelable` is simply ignored unless we have already stripped off the inner `uncancelable` using *its* `demask`. For example:
 
 ```scala
 MonadCancel[F] uncancelable { outer =>
@@ -122,7 +122,7 @@ MonadCancel[F] uncancelable { outer =>
 }
 ```
 
-This is simply equivalent to writing `fa`. Which is to say, `poll` composes in the way you would expect.
+This is simply equivalent to writing `fa`. Which is to say, `demask` composes in the way you would expect.
 
 ### Self-Cancelation
 
@@ -136,7 +136,7 @@ The above will result in a canceled evaluation, and `fa` will never be run, *pro
 
 Self-cancellation is somewhat similar to raising an error with `raiseError` in that it will short-circuit evaluation and begin "popping" back up the stack until it hits a handler. Just as `raiseError` can be observed using the `onError` method, `canceled` can be observed using `onCancel`.
 
-The primary differences between self-cancellation and `raiseError` are two-fold. First, `uncancelable` suppresses `canceled` within its body (unless `poll`ed!), turning it into something equivalent to just `().pure[F]`. There is no analogue for this kind of functionality with errors. Second, if you sequence an error with `raiseError`, it's always possible to use `attempt` or `handleError` to *handle* the error and resume normal execution. No such functionality is available for cancellation.
+The primary differences between self-cancellation and `raiseError` are two-fold. First, `uncancelable` suppresses `canceled` within its body (unless `demask`ed!), turning it into something equivalent to just `().pure[F]`. There is no analogue for this kind of functionality with errors. Second, if you sequence an error with `raiseError`, it's always possible to use `attempt` or `handleError` to *handle* the error and resume normal execution. No such functionality is available for cancellation.
 
 In other words, cancellation is effective; it cannot be undone. It can be suppressed, but once it is observed, it must be respected by the canceled fiber. This feature is exceptionally important for ensuring deterministic evaluation and avoiding deadlocks.
 
@@ -179,8 +179,8 @@ def endpoint[F[_]: Spawn](
       _ <- conn.write(response)
     } yield ()
 
-  val handler = MonadCancel[F] uncancelable { poll =>
-    poll(server.accept) flatMap { conn =>
+  val handler = MonadCancel[F] uncancelable { demask =>
+    demask(server.accept) flatMap { conn =>
       handle(conn).guarantee(conn.close).start
     }
   }
@@ -198,8 +198,8 @@ handler.foreverM
 Alright, so whatever `handler` happens to be, we're going to keep doing it *indefinitely*. This already seems to imply that `handler` is probably "the thing that handles a single request". Let's look at `handler` and see if that intuition is born out:
 
 ```scala
-val handler = MonadCancel[F] uncancelable { poll =>
-  poll(server.accept) flatMap { conn =>
+val handler = MonadCancel[F] uncancelable { demask =>
+  demask(server.accept) flatMap { conn =>
     handle(conn).guarantee(conn.close).start
   }
 }
