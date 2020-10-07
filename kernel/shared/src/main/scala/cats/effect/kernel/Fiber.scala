@@ -37,6 +37,8 @@ trait Fiber[F[_], E, A] {
    * semantics as the first call: all cancellers semantically block until
    * finalization is complete. If `cancel` is called after finalization is
    * complete, it will immediately return.
+   *
+   * @see [[GenSpawn]] documentation for more detailed semantics
    */
   def cancel: F[Unit]
 

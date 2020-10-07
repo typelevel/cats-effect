@@ -73,34 +73,62 @@ import cats.syntax.all._
  * both fibers will be ordered with respect to each other; it is entirely
  * nondeterministic.
  *
- * The nature by which concurrent evaluation of fibers takes place depends
- * completely on the native platform and the runtime system. Here are some
- * examples describing how a runtime system can choose to execute fibers:
- *
- * For example, an application running on a JVM with multiple
- * threads could run two independent fibers on two
- * separate threads simultaneously. In contrast, an application running on a JavaScript
- * runtime is constrained to a single thread of control.
- *
- * Describe different configurations here, like how we could associate a fiber with a thread.
- *
  * ==== Cancellation ====
  *
- * [[MonadCancel]] introduces a notion of cancellation, specifically
- * self-cancellation, where a fiber can request to abnormally terminate its own
- * execution. [[GenSpawn]] expands on this by allowing fibers to be cancelled
- * by external parties. This is achieved by calling
- * [[Fiber!.cancelled cancelled]]
+ * [[MonadCancel]] introduces a simple means of cancellation, particularly
+ * self-cancellation, where a fiber can request the abnormally terminatation of
+ * its own execution. This is achieved by calling
+ * [[MonadCancel!.canceled canceled]].
  *
- * TODO talk about:
- * blocking/semantically blocking
- * cancellation boundary
+ * [[GenSpawn]] expands on this capability by introducing a new form of
+ * cancellation, external cancellation. by which a fiber can request the
+ * abnormal termination of another fiber, other than itself. This is achieved
+ * by calling [[Fiber!.cancel cancel]].
  *
- * cancellation should interact with MonadCancel finalizers the same way
- * self cancellation
+ * External cancellation behaves similarly to self-cancellation in many ways.
+ * To guarantee the consistent behavior between these two modes, the following
+ * semantics are shared:
  *
- * unlike self-cancellation, external cancellation need not ever be observed
- * because of JVM memory model guarantees
+ *   1. Masking: if one fiber cancels a second while it is in a masked state,
+ *      cancellation is suppressed until it reaches an unmasked state. Once it
+ *      reaches an unmasked state, finalization occurs. Refer to [[MonadCancel]]
+ *      documentation for more details.
+ *   1. Backpressure: [[Fiber!.cancel cancel]] semantically blocks all callers
+ *      until finalization is complete.
+ *   2. Idempotency: once a fiber's cancellation has been requested, subsequent
+ *      cancellations have no effect.
+ *   3. Terminal: Cancellation of a fiber that has completed finalization
+ *      immediately returns.
+ *
+ * External cancellation contrasts with self-cancellation in one aspect: the
+ * boundaries at which cancellation is observed and respected. In the case of
+ * self-cancellation, cancellation is immediately observed but respected only
+ * when masking state permits. Depending on the runtime platform, external
+ * cancellation may require synchronization between multiple threads to
+ * communicate the cancellation request. Implementations have the liberty to
+ * decide how and when this synchronization takes place.
+ *
+ * ==== Scheduling ====
+ *
+ * Fibers are commonly referred to as *lightweight threads* or *green threads*.
+ * This alludes to the nature by which fibers are schdeuled by runtime systems:
+ * many fibers are multiplexed onto one or more native threads.
+ *
+ * For applications running on the JVM, the scheduler typically manages a thread
+ * pool onto which fibers are scheduled. These fibers are executed
+ * simultaneously by the threads in the pool, achieving both concurrency and
+ * parallelism. For applications running on JavaScript platforms, all compute
+ * is restricted to a single worker thread, so multiple fibers must share that
+ * worker thread (dictated by fairness properties), achieving concurrency.
+ *
+ * [[GenSpawn!.cede cede]] is a special function that interacts directly with
+ * the underlying scheduler: it signals to the scheduler that the current fiber
+ * would like to pause and resume execution at a later time.
+ *
+ * For more details on schedulers, visit the following resources:
+ *
+ *   1. https://gist.github.com/djspiewak/3ac3f3f55a780e8ab6fa2ca87160ca40
+ *   2. https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c
  */
 trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
 
