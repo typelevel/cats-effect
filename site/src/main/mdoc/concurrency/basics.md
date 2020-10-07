@@ -175,10 +175,15 @@ In other words, `IO` is executing synchronously until we call `IO.shift` or use 
 In terms of individual thread pools, we can actually treat `IO` like **green thread** with
 [cooperative multitasking](https://en.wikipedia.org/wiki/Cooperative_multitasking).  Instead of
 [preemption](https://en.wikipedia.org/wiki/Preemption_(computing)#PREEMPTIVE),
-we can decide when we yield to other threads from the same pool by calling `shift`.
-
+we can decide when we yield to other pending fibers from the same pool by calling `shift`. 
 Calling `IO.shift` schedules the work again, so if there are other `IO`s waiting to execute, they can have their chance.
-Allowing different threads to advance their work is called **fairness**. Let's illustrate this:
+
+From the thread pool's point of view, the process of yielding to other fibers can be described like this:
+- When `shift` is called on some fiber:
+  - Remove that fiber from its current thread and put it in the pool of pending fibers
+  - For each available thread (including the one from the previous step), assign it one of the pending fibers from the pool
+
+Allowing different fibers to advance their work is called **fairness**.  Let's illustrate this:
 
 ```scala mdoc:reset:silent
 import java.util.concurrent.Executors
