@@ -227,15 +227,42 @@ sealed abstract class Resource[+F[_], +A] {
    */
   def mapK[G[x] >: F[x], H[_]](
       f: G ~> H
-  )(implicit D: Defer[H], G: Applicative[H]): Resource[H, A] =
-    this match {
-      case Allocate(resource) =>
-        Allocate(f(resource).map { case (a, r) => (a, r.andThen(u => f(u))) })
-      case Bind(source, f0) =>
-        Bind(Suspend(D.defer(G.pure(source.mapK(f)))), f0.andThen(_.mapK(f)))
-      case Suspend(resource) =>
-        Suspend(f(resource).map(_.mapK(f)))
-    }
+  )(implicit G: Applicative[H]): Resource[H, A] = {
+
+    sealed trait Stack[AA]
+    case object Nil extends Stack[A]
+    final case class Frame[AA, BB](head: AA => Resource[G, BB], tail: Stack[BB])
+        extends Stack[AA]
+
+    // Indirection for calling `loop` needed because `loop` must be @tailrec
+    def continue[C](current: Resource[G, C], stack: Stack[C]): Resource[H, A] =
+      loop(current, stack)
+
+    @tailrec
+    def loop[C](current: Resource[G, C], stack: Stack[C]): Resource[H, A] =
+      current.invariant match {
+        case Allocate(resource) =>
+          val mappedK = Allocate(f(resource).map {
+            case (a, r) => (a, r.andThen(u => f(u)))
+          })
+          stack match {
+            case Nil => mappedK
+            case Frame(head, tail) =>
+              mappedK.flatMap(a => continue(head(a), tail))
+          }
+        case Bind(source, fs) =>
+          loop(source, Frame(fs, stack))
+        case Suspend(resource) =>
+          val mappedK = Suspend(f(resource).map(_.mapK(f)))
+          stack match {
+            case Nil => mappedK
+            case Frame(head, tail) =>
+              mappedK.flatMap(a => continue(head(a), tail))
+          }
+      }
+
+    loop(this, Nil)
+  }
 
   /**
    * Given a `Resource`, possibly built by composing multiple

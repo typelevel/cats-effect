@@ -188,6 +188,19 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       r eqv IO.unit
     }
 
+    "mapK is stack-safe over binds" in ticked { implicit ticker =>
+      val r = (1 to 10000)
+        .foldLeft(Resource.liftF(IO.unit)) {
+          case (r, _) =>
+            r.flatMap(_ => Resource.liftF(IO.unit))
+        }
+        .mapK(new ~>[IO, IO] {
+          def apply[A](a: IO[A]): IO[A] = a
+        })
+        .use(IO.pure)
+      r eqv IO.unit
+    }
+
     "allocate does not release until close is invoked" in ticked { implicit ticker =>
       val released = new java.util.concurrent.atomic.AtomicBoolean(false)
       val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
