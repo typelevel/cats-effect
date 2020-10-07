@@ -56,10 +56,18 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
   }
 
-  lazy val global: IORuntime =
+  lazy val global: IORuntime = {
+    val compute = createDefaultComputeThreadPool(global)
+    val blocking = createDefaultBlockingExecutionContext()
+    val scheduler = createDefaultScheduler()
     new IORuntime(
-      createDefaultComputeThreadPool(global)._1,
-      createDefaultBlockingExecutionContext()._1,
-      createDefaultScheduler()._1,
-      () => ())
+      compute._1,
+      blocking._1,
+      scheduler._1,
+      () => {
+        compute._2()
+        blocking._2()
+        scheduler._2()
+      })
+  }
 }
