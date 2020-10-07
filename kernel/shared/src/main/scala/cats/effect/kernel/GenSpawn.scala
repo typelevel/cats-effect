@@ -95,9 +95,9 @@ import cats.syntax.all._
  *      documentation for more details.
  *   1. Backpressure: [[Fiber!.cancel cancel]] semantically blocks all callers
  *      until finalization is complete.
- *   2. Idempotency: once a fiber's cancellation has been requested, subsequent
+ *   1. Idempotency: once a fiber's cancellation has been requested, subsequent
  *      cancellations have no effect.
- *   3. Terminal: Cancellation of a fiber that has completed finalization
+ *   1. Terminal: Cancellation of a fiber that has completed finalization
  *      immediately returns.
  *
  * External cancellation contrasts with self-cancellation in one aspect: the
@@ -128,7 +128,7 @@ import cats.syntax.all._
  * For more details on schedulers, visit the following resources:
  *
  *   1. https://gist.github.com/djspiewak/3ac3f3f55a780e8ab6fa2ca87160ca40
- *   2. https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c
+ *   1. https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c
  */
 trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
 
