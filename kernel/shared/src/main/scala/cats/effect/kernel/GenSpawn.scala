@@ -101,12 +101,10 @@ import cats.syntax.all._
  *      immediately returns.
  *
  * External cancellation contrasts with self-cancellation in one aspect: the
- * boundaries at which cancellation is observed and respected. In the case of
- * self-cancellation, cancellation is immediately observed but respected only
- * when masking state permits. Depending on the runtime platform, external
- * cancellation may require synchronization between multiple threads to
- * communicate the cancellation request. Implementations have the liberty to
- * decide how and when this synchronization takes place.
+ * former may require synchronization between multiple threads to communicate
+ * a cancellation request. As a result, cancellation may not be immediately
+ * observed by a fiber. Implementations are free to decide how and when this
+ * synchronization takes place.
  *
  * ==== Scheduling ====
  *
