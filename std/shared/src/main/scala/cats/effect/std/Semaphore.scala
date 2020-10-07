@@ -18,7 +18,6 @@ package cats
 package effect
 package std
 
-import cats.Defer
 import cats.effect.kernel.{Concurrent, Deferred, Outcome, Ref, Resource, Spawn}
 import cats.effect.std.Semaphore.TransformedSemaphore
 import cats.syntax.all._
