@@ -47,7 +47,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(2: Long)
+          res must beEqualTo(2L)
         }
       }
     }
@@ -64,7 +64,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(1: Long)
+          res must beEqualTo(1L)
         }
       }
     }
@@ -78,7 +78,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(1: Long)
+          res must beEqualTo(1L)
         }
       }
     }
@@ -112,7 +112,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(0: Long)
+          res must beEqualTo(0L)
         }
       }
     }
@@ -216,7 +216,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(1: Long)
+          res must beEqualTo(1L)
         }
       }
     }
@@ -231,7 +231,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(0: Long)
+          res must beEqualTo(0L)
         }
       }
     }
@@ -282,7 +282,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
         case Outcome.Succeeded(ioa) =>
           ioa.flatMap { res =>
             IO {
-              res must beEqualTo(0: Long)
+              res must beEqualTo(0L)
             }
           }
         case _ => IO.pure(false must beTrue) //Is there a not a `const failure` matcher?
@@ -301,7 +301,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
   //       (acquires(s, permits), releases(s, permits)).parTupled *> s.count
   //     }
 
-  //   op must completeAs(0: Long)
+  //   op must completeAs(0L)
   // }
 
 }
