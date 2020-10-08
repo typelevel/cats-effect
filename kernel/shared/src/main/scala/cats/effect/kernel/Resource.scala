@@ -96,9 +96,7 @@ import Resource.ExitCase
  * @tparam A the type of resource
  */
 sealed abstract class Resource[+F[_], +A] {
-  private[effect] type F0[x] <: F[x]
-
-  import Resource.{Allocate, Bind, Suspend}
+  import Resource.{Allocate, Bind, LiftF, Pure, Suspend}
 
   private[effect] def fold[G[x] >: F[x], B](
       onOutput: A => G[B],
@@ -116,7 +114,7 @@ sealed abstract class Resource[+F[_], +A] {
     // Interpreter that knows how to evaluate a Resource data structure;
     // Maintains its own stack for dealing with Bind chains
     @tailrec def loop[C](current: Resource[G, C], stack: Stack[C]): G[B] =
-      current.invariant match {
+      current.preinterpret match {
         case Allocate(resource) =>
           G.bracketCase(resource) {
             case (a, _) =>
@@ -218,7 +216,7 @@ sealed abstract class Resource[+F[_], +A] {
    *
    *  This is the standard `Functor.map`.
    */
-  def map[G[x] >: F[x], B](f: A => B)(implicit F: Applicative[G]): Resource[G, B] =
+  def map[G[x] >: F[x], B](f: A => B): Resource[G, B] =
     flatMap(a => Resource.pure[G, B](f(a)))
 
   /**
@@ -227,14 +225,16 @@ sealed abstract class Resource[+F[_], +A] {
    */
   def mapK[G[x] >: F[x], H[_]](
       f: G ~> H
-  )(implicit D: Defer[H], G: Applicative[H]): Resource[H, A] =
+  )(implicit F: Functor[H]): Resource[H, A] =
     this match {
       case Allocate(resource) =>
         Allocate(f(resource).map { case (a, r) => (a, r.andThen(u => f(u))) })
       case Bind(source, f0) =>
-        Bind(Suspend(D.defer(G.pure(source.mapK(f)))), f0.andThen(_.mapK(f)))
+        Bind(source.mapK(f), f0.andThen(_.mapK(f)))
       case Suspend(resource) =>
         Suspend(f(resource).map(_.mapK(f)))
+      case Pure(a) => Pure(a)
+      case LiftF(source) => LiftF(f(source))
     }
 
   /**
@@ -278,7 +278,7 @@ sealed abstract class Resource[+F[_], +A] {
         current: Resource[G, C],
         stack: Stack[C],
         release: G[Unit]): G[(B, G[Unit])] =
-      current.invariant match {
+      current.preinterpret match {
         case Allocate(resource) =>
           G.bracketCase(resource) {
             case (a, rel) =>
@@ -297,7 +297,7 @@ sealed abstract class Resource[+F[_], +A] {
         case Bind(source, fs) =>
           loop(source, Frame(fs, stack), release)
         case Suspend(resource) =>
-          G.flatMap(resource)(continue(_, stack, release))
+          resource.flatMap(continue(_, stack, release))
       }
 
     loop(this, Nil, G.unit)
@@ -307,7 +307,7 @@ sealed abstract class Resource[+F[_], +A] {
    * Applies an effectful transformation to the allocated resource. Like a
    * `flatMap` on `F[A]` while maintaining the resource context
    */
-  def evalMap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G]): Resource[G, B] =
+  def evalMap[G[x] >: F[x], B](f: A => G[B]): Resource[G, B] =
     this.flatMap(a => Resource.liftF(f(a)))
 
   /**
@@ -318,10 +318,10 @@ sealed abstract class Resource[+F[_], +A] {
     this.evalMap(a => f(a).as(a))
 
   /**
-   * Converts this to an `InvariantResource` to facilitate pattern matches
+   * Converts this to an `Primitive` to facilitate pattern matches
    * that Scala 2 cannot otherwise handle correctly.
    */
-  private[effect] def invariant: Resource.InvariantResource[F0, A]
+  def preinterpret[G[x] >: F[x]](implicit F: Applicative[G]): Resource.Primitive[G, A]
 }
 
 object Resource extends ResourceInstances with ResourcePlatform {
@@ -401,8 +401,8 @@ object Resource extends ResourceInstances with ResourcePlatform {
    *
    * @param a the value to lift into a resource
    */
-  def pure[F[_], A](a: A)(implicit F: Applicative[F]): Resource[F, A] =
-    Allocate((a, (_: ExitCase) => F.unit).pure[F])
+  def pure[F[_], A](a: A): Resource[F, A] =
+    Pure(a)
 
   /**
    * Lifts an applicative into a resource. The resource has a no-op release.
@@ -410,13 +410,13 @@ object Resource extends ResourceInstances with ResourcePlatform {
    *
    * @param fa the value to lift into a resource
    */
-  def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]): Resource[F, A] =
-    Resource.suspend(fa.map(a => Resource.pure[F, A](a)))
+  def liftF[F[_], A](fa: F[A]): Resource[F, A] =
+    Resource.LiftF(fa)
 
   /**
    * Lifts an applicative into a resource as a `FunctionK`. The resource has a no-op release.
    */
-  def liftK[F[_]](implicit F: Applicative[F]): F ~> Resource[F, *] =
+  def liftK[F[_]]: F ~> Resource[F, *] =
     new (F ~> Resource[F, *]) {
       def apply[A](fa: F[A]): Resource[F, A] = Resource.liftF(fa)
     }
@@ -425,10 +425,9 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * Like `Resource`, but invariant in `F`. Facilitates pattern matches that Scala 2 cannot
    * otherwise handle correctly.
    */
-  private[effect] sealed trait InvariantResource[F[_], +A] extends Resource[F, A] {
-    private[effect] type F0[x] = F[x]
-
-    def invariant: InvariantResource[F0, A] = this
+  sealed trait Primitive[F[_], +A] extends Resource[F, A] {
+    def preinterpret[G[x] >: F[x]](implicit F: Applicative[G]): Primitive[G, A] =
+      this.asInstanceOf[Primitive[G, A]]
   }
 
   /**
@@ -464,19 +463,29 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * along with its finalizers.
    */
   final case class Allocate[F[_], A](resource: F[(A, ExitCase => F[Unit])])
-      extends InvariantResource[F, A]
+      extends Primitive[F, A]
 
   /**
    * `Resource` data constructor that encodes the `flatMap` operation.
    */
   final case class Bind[F[_], S, +A](source: Resource[F, S], fs: S => Resource[F, A])
-      extends InvariantResource[F, A]
+      extends Primitive[F, A]
 
   /**
    * `Resource` data constructor that suspends the evaluation of another
    * resource value.
    */
-  final case class Suspend[F[_], A](resource: F[Resource[F, A]]) extends InvariantResource[F, A]
+  final case class Suspend[F[_], A](resource: F[Resource[F, A]]) extends Primitive[F, A]
+
+  private[effect] final case class Pure[F[_], +A](a: A) extends Resource[F, A] {
+    def preinterpret[G[x] >: F[x]](implicit F: Applicative[G]): Primitive[G, A] =
+      Allocate((a, (_: ExitCase) => F.unit).pure[G])
+  }
+
+  private[effect] final case class LiftF[F[_], A](fa: F[A]) extends Resource[F, A] {
+    def preinterpret[G[x] >: F[x]](implicit F: Applicative[G]): Primitive[G, A] =
+      Suspend(F.map[A, Resource[G, A]](fa)(a => Allocate[G, A]((a, (_: ExitCase) => F.unit).pure[G])))
+  }
 
   /**
    * Type for signaling the exit condition of an effectful
@@ -687,7 +696,7 @@ abstract private[effect] class ResourceMonadError[F[_], E]
   implicit protected def F: MonadError[F, E]
 
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
-    fa match {
+    fa.preinterpret[F] match {
       case Allocate(fa) =>
         Allocate[F, Either[E, A]](F.attempt(fa).map {
           case Left(error) => (Left(error), (_: ExitCase) => F.unit)
@@ -729,14 +738,14 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
     fa.map(f)
 
   def pure[A](a: A): Resource[F, A] =
-    Resource.applyCase[F, A](F.pure((a, _ => F.unit)))
+    Resource.pure(a)
 
   def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
     fa.flatMap(f)
 
   def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] = {
     def continue(r: Resource[F, Either[A, B]]): Resource[F, B] =
-      r.invariant match {
+      r.preinterpret[F] match {
         case Allocate(resource) =>
           Suspend(F.flatMap(resource) {
             case (eab, release) =>
@@ -749,7 +758,7 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
           })
         case Suspend(resource) =>
           Suspend(F.map(resource)(continue))
-        case b: Bind[r.F0, s, Either[A, B]] =>
+        case b: Bind[F, s, Either[A, B]] =>
           Bind(b.source, AndThen(b.fs).andThen(continue))
       }
 
