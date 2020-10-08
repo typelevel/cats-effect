@@ -30,6 +30,7 @@ import cats.data.{
 }
 import cats.syntax.all._
 
+// TODO: talk about cancellation boundaries
 /**
  * A typeclass that characterizes monads which support safe cancellation,
  * masking, and finalization. [[MonadCancel]] extends the capabilities of
@@ -69,8 +70,6 @@ import cats.syntax.all._
  *      whenever it reaches an unmasked state.
  *   1. [[GenSpawn]] introduces external cancellation, another cancellation
  *      mechanism by which fibers can be cancelled by external parties.
- *
- * TODO: describe when and where cancellation can take place
  *
  * ==Finalization==
  *

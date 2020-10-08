@@ -26,7 +26,7 @@ import cats.syntax.all._
  * fibers. [[GenSpawn]] extends the capabilities of [[MonadCancel]], so an
  * instance of this typeclass must also provide a lawful instance for
  * [[MonadCancel]].
- * 
+ *
  * This documentation builds upon concepts introduced in the [[MonadCancel]]
  * documentation.
  *
@@ -115,42 +115,42 @@ import cats.syntax.all._
  * in the absence of masking without violating effectful lifecycles or leaking
  * resources. These functions require extra attention and care from users to
  * ensure safe usage.
- * 
+ *
  * [[start]] and [[racePair]] are both considered to be cancellation-unsafe
  * effects because they return a [[Fiber]], which is a resource that has a
  * lifecycle.
- * 
+ *
  * {{{
- * 
+ *
  *   // Start a fiber that continuously prints "A".
  *   // After 10 seconds, cancel the fiber.
  *   F.start(F.delay(println("A")).foreverM).flatMap { fiber =>
  *     F.sleep(10.seconds) *> fiber.cancel
  *   }
- * 
+ *
  * }}}
- * 
+ *
  * In the above example, imagine the spawning fiber is cancelled after it
  * starts the printing fiber, but before the latter is cancelled. In this
- * situation, the printing fiber is cancelled and will continue executing 
- * forever, contending with other fibers for system resources. This is known 
+ * situation, the printing fiber is cancelled and will continue executing
+ * forever, contending with other fibers for system resources. This is known
  * as a fiber leak, which is similar to a thread leak.
- * 
+ *
  * Resource leaks like this are unfavorable when writing applications. In
  * the case of [[start]] and [[racePair]], it is recommended against using
  * these methods in favor of [[background]] and [[race]] respectively.
- * 
+ *
  * The following example depicts a safer version of the `start` example
  * above:
- * 
+ *
  * {{{
- * 
+ *
  *   // Starts a fiber that continously prints "A".
  *   // After 10 seconds, the resource scope exits so the fiber is cancelled.
- *   F.background(F.delay(println("A")).foreverM).use { _ => 
+ *   F.background(F.delay(println("A")).foreverM).use { _ =>
  *     F.sleep(10.seconds)
  *   }
- * 
+ *
  * }}}
  *
  * ==Scheduling==
@@ -207,15 +207,15 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
    *
    * When the [[Resource]] goes out of scope or if the spawning fiber is
    * cancelled, the underlying fiber is cancelled.
-   * 
+   *
    * {{{
-   * 
+   *
    *   // Starts a fiber that continously prints "A".
    *   // After 10 seconds, the resource scope exits so the fiber is cancelled.
-   *   F.background(F.delay(println("A")).foreverM).use { _ => 
+   *   F.background(F.delay(println("A")).foreverM).use { _ =>
    *     F.sleep(10.seconds)
    *   }
-   * 
+   *
    * }}}
    *
    * @param fa the effect for the spawned fiber
