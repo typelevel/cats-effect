@@ -227,7 +227,7 @@ sealed abstract class Resource[+F[_], +A] {
    */
   def mapK[G[x] >: F[x], H[_]](
       f: G ~> H
-  )(implicit G: Applicative[H]): Resource[H, A] = {
+  )(implicit G: Functor[H]): Resource[H, A] = {
 
     sealed trait Stack[AA]
     case object Nil extends Stack[A]
