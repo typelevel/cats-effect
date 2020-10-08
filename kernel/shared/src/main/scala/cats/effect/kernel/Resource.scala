@@ -149,21 +149,17 @@ sealed abstract class Resource[+F[_], +A] {
           val fkFixed = fk.asInstanceOf[ffa.F0 ~> G]
           ffa.invariant match {
             case Allocate(resource) =>
-              loop(
-                Allocate(
-                  G.map[(A, ExitCase => ffa.F0[Unit]), (A, ExitCase => G[Unit])](
-                    fk(resource).widen) {
-                    case (a, r) => (a, r.andThen(u => fk(u)))
-                  })
-              )
+              Allocate(
+                G.map[(A, ExitCase => ffa.F0[Unit]), (A, ExitCase => G[Unit])](
+                  fk(resource).widen) {
+                  case (a, r) => (a, r.andThen(u => fk(u)))
+                })
             case Bind(source, f0) =>
-              loop(Bind(source.mapK[ffa.F0, G](fkFixed), f0.andThen(_.mapK(fkFixed))))
+              Bind(source.mapK[ffa.F0, G](fkFixed), f0.andThen(_.mapK(fkFixed)))
             case Suspend(resource) =>
-              loop(
-                Suspend(
-                  G.map[Resource[ffa.F0, A], Resource[G, A]](fkFixed(resource).widen)(
-                    _.mapK(fkFixed)))
-              )
+              Suspend(
+                G.map[Resource[ffa.F0, A], Resource[G, A]](fkFixed(resource).widen)(
+                  _.mapK(fkFixed)))
             case Pure(a) => loop(Pure(a))
             case LiftF(source) => loop(LiftF(fkFixed(source)))
             case MapK(fffa, ffk) =>
