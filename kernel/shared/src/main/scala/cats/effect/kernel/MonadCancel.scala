@@ -36,6 +36,8 @@ import cats.syntax.all._
  * [[MonadError]], so an instance of this typeclass must also provide a lawful
  * instance for [[MonadError]].
  *
+ * ==Fibers==
+ *
  * A fiber is a sequence of effects which are bound together by [[flatMap]].
  * The execution of a fiber of an effect `F[E, A]` produces one of three
  * outcomes, which are encoded by the datatype [[Outcome]]:
@@ -46,6 +48,8 @@ import cats.syntax.all._
  *
  * Additionally, a fiber may never produce an outcome, in which case it is said
  * to be non-terminating.
+ *
+ * ==Cancellation==
  *
  * Cancellation refers to the act of requesting that the execution of a fiber
  * be abnormally terminated. [[MonadCancel]] exposes a means of
@@ -68,6 +72,8 @@ import cats.syntax.all._
  *
  * TODO: describe when and where cancellation can take place
  *
+ * ==Finalization==
+ *
  * Finalization refers to the act of running finalizers in the event of
  * cancellation. Finalizers are those effects whose evaluation is guaranteed
  * in the event of cancellation.
@@ -76,6 +82,8 @@ import cats.syntax.all._
  * [[MonadCancel!.onCancel onCancel]]. If a fiber is cancelled while running
  * that effect, the registered finalizer is guaranteed to be invoked before
  * terminating.
+ *
+ * ==Bracket pattern==
  *
  * The aforementioned concepts work together to unlock a powerful pattern for
  * safely interacting with effectful lifecycles: the bracket pattern. This is

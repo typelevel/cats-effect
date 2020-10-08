@@ -19,7 +19,8 @@ package cats.effect.kernel
 import cats.syntax.all._
 
 /**
- * A datatype which represents a handle to a fiber.
+ * A datatype that represents a handle to a fiber and allows for waiting and
+ * cancellation against that fiber.
  *
  * @see [[GenSpawn]] documentation for more detailed information on
  * concurrency of fibers.
@@ -43,13 +44,31 @@ trait Fiber[F[_], E, A] {
   def cancel: F[Unit]
 
   /**
-   * Waits for the completion of the fiber bound to this `Fiber` handle.
+   * Waits for the completion of the fiber bound to this [[Fiber]] and returns
+   * its [[Outcome]] once it completes.
    */
   def join: F[Outcome[F, E, A]]
 
+  /**
+   * Waits for the completion of the bound fiber and returns its result once
+   * it completes.
+   *
+   * If the fiber completes with [[Succeeded]], the successful value is
+   * returned. If the fiber completes with [[Errored]], the error is raised.
+   * If the fiber completes with [[Cancelled]], `onCancel` is run.
+   */
   def joinAndEmbed(onCancel: F[A])(implicit F: MonadCancel[F, E]): F[A] =
     join.flatMap(_.embed(onCancel))
 
+  /**
+   * Waits for the completion of the bound fiber and returns its result once
+   * it completes.
+   *
+   * If the fiber completes with [[Succeeded]], the successful value is
+   * returned. If the fiber completes with [[Errored]], the error is raised.
+   * If the fiber completes with [[Cancelled]], the caller is indefinitely
+   * suspended without termination.
+   */
   def joinAndEmbedNever(implicit F: GenSpawn[F, E]): F[A] =
     joinAndEmbed(F.never)
 }
