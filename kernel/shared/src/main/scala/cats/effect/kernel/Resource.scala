@@ -484,7 +484,8 @@ object Resource extends ResourceInstances with ResourcePlatform {
 
   private[effect] final case class LiftF[F[_], A](fa: F[A]) extends Resource[F, A] {
     def preinterpret[G[x] >: F[x]](implicit F: Applicative[G]): Primitive[G, A] =
-      Suspend(F.map[A, Resource[G, A]](fa)(a => Allocate[G, A]((a, (_: ExitCase) => F.unit).pure[G])))
+      Suspend(
+        F.map[A, Resource[G, A]](fa)(a => Allocate[G, A]((a, (_: ExitCase) => F.unit).pure[G])))
   }
 
   /**
