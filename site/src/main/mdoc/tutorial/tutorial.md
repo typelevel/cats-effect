@@ -72,16 +72,16 @@ invoked from the shell and uses that function.
 First of all we must code the function that copies the content from a file to
 another file. The function takes the source and destination files as parameters.
 But this is functional programming! So invoking the function shall not copy
-anything, instead it will return an `IO` instance that encapsulates all the
-side effects involved (opening/closing files, reading/writing content), that way
-_purity_ is kept.  Only when that `IO` instance is evaluated all those
-side-effectful actions will be run. In our implementation the `IO` instance will
-return the amount of bytes copied upon execution, but this is just a design
-decision. Of course errors can occur, but when working with any `IO` those
-should be embedded in the `IO` instance. That is, no exception is raised outside
-the `IO` and so no `try` (or the like) needs to be used when using the function,
-instead the `IO` evaluation will fail and the `IO` instance will carry the error
-raised.
+anything, instead it will return an [`IO`](../datatypes/io.md) instance that
+encapsulates all the side effects involved (opening/closing files,
+reading/writing content), that way _purity_ is kept.  Only when that `IO`
+instance is evaluated all those side-effectful actions will be run. In our
+implementation the `IO` instance will return the amount of bytes copied upon
+execution, but this is just a design decision. Of course errors can occur, but
+when working with any `IO` those should be embedded in the `IO` instance. That
+is, no exception is raised outside the `IO` and so no `try` (or the like) needs
+to be used when using the function, instead the `IO` evaluation will fail and
+the `IO` instance will carry the error raised.
 
 Now, the signature of our function looks like this:
 
@@ -101,8 +101,8 @@ First, we need to open two streams that will read and write file contents.
 ### Acquiring and releasing `Resource`s
 We consider opening a stream to be a side-effect action, so we have to
 encapsulate those actions in their own `IO` instances. For this, we will make
-use of cats-effect `Resource`, that allows to orderly create, use and then
-release resources. See this code:
+use of cats-effect [`Resource`](../datatypes/resource.md), that allows to
+orderly create, use and then release resources. See this code:
 
 ```scala
 import cats.effect.{IO, Resource}
@@ -189,10 +189,11 @@ input file then the output file will not be opened.  On the other hand, if there
 is any issue opening the output file, then the input stream will be closed.
 
 ### What about `bracket`?
-Now, if you are familiar with cats-effect's `bracket` you may be wondering why
-we are not using it as it looks so similar to `Resource` (and there is a good
-reason for that: `Resource` is based on `bracket`). Ok, before moving forward it
-is worth to take a look to `bracket`.
+Now, if you are familiar with cats-effect's
+[`Bracket`](../typeclasses/bracket.md) you may be wondering why we are not using
+it as it looks so similar to `Resource` (and there is a good reason for that:
+`Resource` is based on `bracket`). Ok, before moving forward it is worth to take
+a look to `bracket`.
 
 There are three stages when using `bracket`: _resource acquisition_, _usage_,
 and _release_. Each stage is defined by an `IO` instance.  A fundamental
@@ -386,7 +387,7 @@ instances returned by `Resource.use`), the `IO` returned by `transfer` is not.
 Trying to cancel it will not have any effect and that `IO` will run until the
 whole file is copied! In real world code you will probably want to make your
 functions cancelable, section 
-[Building cancelable IO tasks](../datatypes/io.html#building-cancelable-io-tasks) 
+[Building cancelable IO tasks](../datatypes/io.md#building-cancelable-io-tasks) 
 of `IO` documentation explains how to create such cancelable `IO` instances
 (besides calling `Resource.use`, as we have done for our code).
 
@@ -397,8 +398,8 @@ And that is it! We are done, now we can create a program that uses this
 
 We will create a program that copies files, this program only takes two
 parameters: the name of the origin and destination files. For coding this
-program we will use `IOApp` as it allows to maintain purity in our definitions
-up to the program main function.
+program we will use [`IOApp`](../datatypes/ioapp.md) as it allows to maintain
+purity in our definitions up to the program main function.
 
 `IOApp` is a kind of 'functional' equivalent to Scala's `App`, where instead of
 coding an effectful `main` method we code a pure `run` function. When executing
@@ -469,12 +470,13 @@ in the same JVM as itself.
 There is an important characteristic of `IO` that we shall be aware of. `IO` is
 able to encapsulate side-effects, but the capacity to define concurrent and/or
 async and/or cancelable `IO` instances comes from the existence of a
-`Concurrent[IO]` instance. `Concurrent[F[_]]` is a type class that, for an `F`
-carrying a side-effect, brings the ability to cancel or start concurrently the
-side-effect in `F`. `Concurrent` also extends type class `Async[F[_]]`, that
-allows to define synchronous/asynchronous computations. `Async[F[_]]`, in turn,
-extends type class `Sync[F[_]]`, which can suspend the execution of side effects
-in `F`.
+`Concurrent[IO]` instance. [`Concurrent`](../typeclasses/concurrent.md) is a
+type class that, for an `F[_]` carrying a side-effect, brings the ability to
+cancel or start concurrently the side-effect in `F`. `Concurrent` also extends
+type class [`Async`](../typeclasses/async.md), that allows to define
+synchronous/asynchronous computations. `Async`, in turn, extends type class
+[`Sync`](../typeclasses/sync.md), which can suspend the execution of side
+effects in `F`.
 
 So well, `Sync` can suspend side effects (and so can `Async` and `Concurrent` as
 they extend `Sync`). We have used `IO` so far mostly for that purpose. Now,
@@ -1084,7 +1086,7 @@ object ConcurrentQueue {
 Note that now bounded concurrent queues have their own type
 `BoundedConcurrentQueue` which extends `ConcurrentQueue` with some functions
 specific to them. As before, you should try to implement the builder methods in
-companion object `ConcurrentQueue`. **Tip**: we have not reviewed all methods
+companion object `ConcurrentQueue`. **TIP**: we have not reviewed all methods
 that cats-effect's `Semaphore` has to offer. Take a look to `Semaphore`
 [API](https://typelevel.org/cats-effect/api/cats/effect/concurrent/Semaphore.html)
 as you will find some new useful methods there.
