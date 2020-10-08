@@ -146,6 +146,7 @@ sealed abstract class Resource[+F[_], +A] {
           Suspend(G.map[A, Resource[G, A]](fa.widen[A])(a =>
             Allocate[G, A]((a, (_: ExitCase) => G.unit).pure[G])))
         case MapK(ffa, fk) =>
+          val fkFixed = fk.asInstanceOf[ffa.F0 ~> G]
           ffa.invariant match {
             case Allocate(resource) =>
               loop(
@@ -156,14 +157,15 @@ sealed abstract class Resource[+F[_], +A] {
                   })
               )
             case Bind(source, f0) =>
-              loop(Bind(source.mapK(fk), f0.andThen(_.mapK(fk))))
+              loop(Bind(source.mapK[ffa.F0, G](fkFixed), f0.andThen(_.mapK(fkFixed))))
             case Suspend(resource) =>
               loop(
                 Suspend(
-                  G.map[Resource[ffa.F0, A], Resource[G, A]](fk(resource).widen)(_.mapK(fk)))
+                  G.map[Resource[ffa.F0, A], Resource[G, A]](fkFixed(resource).widen)(
+                    _.mapK(fkFixed)))
               )
             case Pure(a) => loop(Pure(a))
-            case LiftF(source) => loop(LiftF(fk(source)))
+            case LiftF(source) => loop(LiftF(fkFixed(source)))
             case MapK(fffa, ffk) =>
               val combined = new FunctionK[fffa.F0, G] {
                 def apply[A0](fa: fffa.F0[A0]): G[A0] = fk(ffk(fa))
