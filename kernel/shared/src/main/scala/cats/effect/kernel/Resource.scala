@@ -97,9 +97,9 @@ import Resource.ExitCase
  * @tparam A the type of resource
  */
 sealed abstract class Resource[+F[_], +A] {
-  import Resource.{Allocate, Bind, LiftF, MapK, Pure, Suspend}
-
   private[effect] type F0[x] <: F[x]
+
+  import Resource.{Allocate, Bind, LiftF, MapK, Pure, Suspend}
 
   private[effect] def fold[G[x] >: F[x], B](
       onOutput: A => G[B],
@@ -452,16 +452,16 @@ object Resource extends ResourceInstances with ResourcePlatform {
       def apply[A](fa: F[A]): Resource[F, A] = Resource.liftF(fa)
     }
 
+  /**
+   * Like `Resource`, but invariant in `F`. Facilitates pattern matches that Scala 2 cannot
+   * otherwise handle correctly.
+   */
   private[effect] sealed trait InvariantResource[F[_], +A] extends Resource[F, A] {
     type F0[x] = F[x]
     override private[effect] def invariant: InvariantResource[F0, A] = this
     def widen[G[x] >: F[x]: Functor] = this.asInstanceOf[InvariantResource[G, A]]
   }
 
-  /**
-   * Like `Resource`, but invariant in `F`. Facilitates pattern matches that Scala 2 cannot
-   * otherwise handle correctly.
-   */
   sealed trait Primitive[F[_], +A] extends InvariantResource[F, A]
 
   /**
