@@ -489,7 +489,6 @@ methods of the `Sync[F[_]]` instance!
 
 ```scala
 import cats.effect.Sync
-import cats.effect.syntax.all._
 import cats.syntax.all._
 import java.io._
 
@@ -512,7 +511,6 @@ instantiation:
 ```scala
 import cats.effect._
 import cats.effect.concurrent.Semaphore
-import cats.effect.syntax.all._
 import cats.syntax.all._
 import java.io._
 
