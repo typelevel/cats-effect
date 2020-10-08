@@ -414,14 +414,15 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   /**
    * Reads a line as a string from the standard input by using the platform's default charset, as per
-   * `java.nio.charset.Charset.defaultCharset()`.
+   * `java.nio.charset.Charset.defaultCharset()`. The line is returned as an optional value with `None` meaning
+   * that the end of the standard input stream has been reached.
    *
    * @see `cats.effect.std.Console#readLineWithCharset` for reading using a custom
    * `java.nio.charset.Charset`
    *
-   * @return an IO effect that describes reading the user's input from the standard input as a string
+   * @return an IO effect that describes reading the user's input from the standard input as an optional string
    */
-  def readLine: IO[String] =
+  def readLine: IO[Option[String]] =
     Console[IO].readLine
 
   /**

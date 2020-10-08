@@ -53,27 +53,29 @@ final class Console[F[_]] private (val F: Sync[F]) extends AnyVal {
 
   /**
    * Reads a line as a string from the standard input by using the platform's default charset, as per
-   * `java.nio.charset.Charset.defaultCharset()`.
+   * `java.nio.charset.Charset.defaultCharset()`. The line is returned as an optional value with `None` meaning
+   * that the end of the standard input stream has been reached.
    *
-   * @return an effect that describes reading the user's input from the standard input as a string
+   * @return an effect that describes reading the user's input from the standard input as an optional string
    */
-  def readLine: F[String] =
+  def readLine: F[Option[String]] =
     readLineWithCharset(Charset.defaultCharset())
 
   /**
-   * Reads a line as a string from the standard input by using the provided charset.
+   * Reads a line as a string from the standard input by using the provided charset. The line is returned as an optional
+   * value with `None` meaning that the end of the standard input stream has been reached.
    *
    * @param charset the `java.nio.charset.Charset` to be used when decoding the input stream
-   * @return an effect that describes reading the user's input from the standard input as a string
+   * @return an effect that describes reading the user's input from the standard input as an optional string
    */
-  def readLineWithCharset(charset: Charset): F[String] =
+  def readLineWithCharset(charset: Charset): F[Option[String]] =
     F.interruptible(false) {
       val in = System.in
       val decoder = charset
         .newDecoder()
         .onMalformedInput(CodingErrorAction.REPORT)
         .onUnmappableCharacter(CodingErrorAction.REPLACE)
-      val bytes = ByteBuffer.allocate(16)
+      val bytes = ByteBuffer.allocate(64)
       val builder = new JStringBuilder()
 
       def decodeNext(): CharBuffer = {
@@ -103,10 +105,10 @@ final class Console[F[_]] private (val F: Sync[F]) extends AnyVal {
       }
 
       @tailrec
-      def loop(): String = {
+      def loop(): Option[String] = {
         val buffer = decodeNext()
         if (buffer == null) {
-          return builder.toString()
+          return Some(builder.toString()).filter(_.nonEmpty)
         }
         val decoded = buffer.toString()
         if (decoded == "\n") {
@@ -116,7 +118,7 @@ final class Console[F[_]] private (val F: Sync[F]) extends AnyVal {
               builder.deleteCharAt(len - 1)
             }
           }
-          builder.toString()
+          Some(builder.toString())
         } else {
           builder.append(decoded)
           loop()
