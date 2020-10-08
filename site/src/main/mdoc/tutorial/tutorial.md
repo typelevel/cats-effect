@@ -712,7 +712,6 @@ We can now create a program that instantiates our `queueR` and runs both
 import cats.effect._
 import cats.effect.concurrent.Ref
 import cats.syntax.all._
-
 import collection.immutable.Queue
 
 object InefficientProducerConsumer extends IOApp {
@@ -793,7 +792,6 @@ So now our producer and consumer look like this:
 import cats.effect.concurrent.{Ref, Semaphore}
 import cats.effect._
 import cats.syntax.all._
-
 import scala.collection.immutable.Queue
 
 def producer[F[_]: Sync: ContextShift](id: Int, queueR: Ref[F, Queue[Int]], counterR: Ref[F, Int], filled: Semaphore[F]): F[Unit] =
@@ -832,7 +830,6 @@ import cats.effect.concurrent.{Ref, Semaphore}
 import cats.effect._
 import cats.instances.list._
 import cats.syntax.all._
-
 import scala.collection.immutable.Queue
 
 object ProducerConsumer extends IOApp {
@@ -885,7 +882,6 @@ Producer and consumer code now becomes:
 import cats.effect.concurrent.{Ref, Semaphore}
 import cats.effect._
 import cats.syntax.all._
-
 import scala.collection.immutable.Queue
 
 def producer[F[_]: Sync: ContextShift](id: Int, queueR: Ref[F, Queue[Int]], counterR: Ref[F, Int], empty: Semaphore[F], filled: Semaphore[F]): F[Unit] =
@@ -917,7 +913,6 @@ import cats.effect.concurrent.{Ref, Semaphore}
 import cats.effect._
 import cats.instances.list._
 import cats.syntax.all._
-
 import scala.collection.immutable.Queue
 
 object ProducerConsumerBounded extends IOApp {
@@ -969,7 +964,6 @@ for example, our consumer in the bounded queue example will look like:
 import cats.effect.concurrent.{Ref, Semaphore}
 import cats.effect.{ContextShift, ExitCode, IO, IOApp, Sync}
 import cats.syntax.all._
-
 import scala.collection.immutable.Queue
 
 def consumer[F[_]: Sync: ContextShift](id: Int, queueR: Ref[F, Queue[Int]], empty: Semaphore[F], filled: Semaphore[F]): F[Unit] =
