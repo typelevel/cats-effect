@@ -216,8 +216,8 @@ sealed abstract class Resource[+F[_], +A] {
    *
    *  This is the standard `Functor.map`.
    */
-  def map[G[x] >: F[x], B](f: A => B): Resource[G, B] =
-    flatMap(a => Resource.pure[G, B](f(a)))
+  def map[B](f: A => B): Resource[F, B] =
+    flatMap(a => Resource.pure[F, B](f(a)))
 
   /**
    * Given a natural transformation from `F` to `G`, transforms this
