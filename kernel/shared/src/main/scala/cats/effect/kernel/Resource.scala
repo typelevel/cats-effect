@@ -92,6 +92,9 @@ import Resource.ExitCase
  * Normally users don't need to care about these node types, unless conversions
  * from `Resource` into something else is needed (e.g. conversion from `Resource`
  * into a streaming data type).
+ * 
+ * Further node types are used internally. To compile a resource down to the
+ * above three types, call [[Resource#preinterpret]].
  *
  * @tparam F the effect type in which the resource is allocated and released
  * @tparam A the type of resource
@@ -137,6 +140,16 @@ sealed abstract class Resource[+F[_], +A] {
     loop(this, Nil)
   }
 
+  /**
+   * Compiles this down to the three primitive types:
+   * 
+   *  - [[cats.effect.Resource.Allocate Allocate]]
+   *  - [[cats.effect.Resource.Suspend Suspend]]
+   *  - [[cats.effect.Resource.Bind Bind]]
+   * 
+   * Note that this is done in a "shallow" fashion - when traversing a [[Resource]]
+   * recursively, this will need to be done repeatedly.
+   */
   def preinterpret[G[x] >: F[x]](implicit G: Applicative[G]): Resource.Primitive[G, A] = {
     @tailrec def loop(current: Resource[G, A]): Resource.Primitive[G, A] =
       current.invariant.widen[G] match {
@@ -145,8 +158,10 @@ sealed abstract class Resource[+F[_], +A] {
         case LiftF(fa) =>
           Suspend(fa.map[Resource[G, A]](a => Allocate((a, (_: ExitCase) => G.unit).pure[G])))
         case MapK(rea, fk0) =>
-          val fk = fk0.asInstanceOf[rea.F0 ~> G]
-          rea.invariant match {
+           // this would be easier if we could call `rea.preinterpret` but we don't have
+           // the right `Applicative` instance available.
+          val fk = fk0.asInstanceOf[rea.F0 ~> G] // scala 2 infers this as `Any ~> G`
+           rea.invariant match {
             case Allocate(resource) =>
               Allocate(fk(resource).map {
                 case (a, r) => (a, r.andThen(fk(_)))
@@ -455,10 +470,13 @@ object Resource extends ResourceInstances with ResourcePlatform {
   private[effect] sealed trait InvariantResource[F[_], +A] extends Resource[F, A] {
     type F0[x] = F[x]
     override private[effect] def invariant: InvariantResource[F0, A] = this
+
+    /**
+     * Widens the effect type of this `InvariantResource` from `F` to `G`.
+     * The `Functor` requirement makes this a type-safe operation.
+     */
     def widen[G[x] >: F[x]: Functor] = this.asInstanceOf[InvariantResource[G, A]]
   }
-
-  sealed trait Primitive[F[_], +A] extends InvariantResource[F, A]
 
   /**
    * Creates a [[Resource]] by wrapping a Java
@@ -487,6 +505,12 @@ object Resource extends ResourceInstances with ResourcePlatform {
   def fromAutoCloseable[F[_], A <: AutoCloseable](acquire: F[A])(
       implicit F: Sync[F]): Resource[F, A] =
     Resource.make(acquire)(autoCloseable => F.blocking(autoCloseable.close()))
+
+  /**
+   * Public supertype for the three node types that constitute teh public API
+   * for interpreting a [[Resource]].
+   */ 
+  sealed trait Primitive[F[_], +A] extends InvariantResource[F, A]
 
   /**
    * `Resource` data constructor that wraps an effect allocating a resource,
