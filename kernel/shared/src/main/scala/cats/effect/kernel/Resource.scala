@@ -143,30 +143,27 @@ sealed abstract class Resource[+F[_], +A] {
         case pr: Resource.Primitive[G, A] => pr
         case Pure(a) => Allocate((a, (_: ExitCase) => G.unit).pure[G])
         case LiftF(fa) =>
-          Suspend(G.map[A, Resource[G, A]](fa.widen[A])(a =>
-            Allocate[G, A]((a, (_: ExitCase) => G.unit).pure[G])))
-        case MapK(ffa, fk) =>
-          val fkFixed = fk.asInstanceOf[ffa.F0 ~> G]
-          ffa.invariant match {
+          Suspend(fa.map(a => Allocate((a, (_: ExitCase) => G.unit).pure[G])))
+        case MapK(rea, fk0) =>
+          val fk = fk0.asInstanceOf[rea.F0 ~> G]
+          rea.invariant match {
             case Allocate(resource) =>
-              Allocate(
-                G.map[(A, ExitCase => ffa.F0[Unit]), (A, ExitCase => G[Unit])](
-                  fk(resource).widen) {
-                  case (a, r) => (a, r.andThen(u => fk(u)))
-                })
+              Allocate(fk(resource).map {
+                case (a, r) => (a, r.andThen(fk(_)))
+              })
             case Bind(source, f0) =>
-              Bind(source.mapK[ffa.F0, G](fkFixed), f0.andThen(_.mapK(fkFixed)))
+              Bind(source.mapK(fk), f0.andThen(_.mapK(fk)))
             case Suspend(resource) =>
-              Suspend(
-                G.map[Resource[ffa.F0, A], Resource[G, A]](fkFixed(resource).widen)(
-                  _.mapK(fkFixed)))
-            case Pure(a) => loop(Pure(a))
-            case LiftF(source) => loop(LiftF(fkFixed(source)))
-            case MapK(fffa, ffk) =>
-              val combined = new FunctionK[fffa.F0, G] {
-                def apply[A0](fa: fffa.F0[A0]): G[A0] = fk(ffk(fa))
-              }
-              loop(fffa.invariant.mapK[fffa.F0, G](combined))
+              Suspend(fk(resource).map(_.mapK(fk)))
+            case Pure(a) => Allocate((a, (_: ExitCase) => G.unit).pure[G])
+            case LiftF(rea) =>
+              Suspend(fk(rea).map(a => Allocate((a, (_: ExitCase) => G.unit).pure[G])))
+            case MapK(ea0, ek) =>
+              loop(ea0.invariant.mapK {
+                new FunctionK[ea0.F0, G] {
+                  def apply[A0](fa: ea0.F0[A0]): G[A0] = fk(ek(fa))
+                }
+              })
           }
       }
     loop(this)
@@ -513,7 +510,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
 
   private[effect] final case class LiftF[F[_], A](fa: F[A]) extends InvariantResource[F, A]
 
-  private[effect] final case class MapK[F0[_], F[_], A](source: Resource[F0, A], f: F0 ~> F)
+  private[effect] final case class MapK[E[_], F[_], A](source: Resource[E, A], f: E ~> F)
       extends InvariantResource[F, A]
 
   /**
