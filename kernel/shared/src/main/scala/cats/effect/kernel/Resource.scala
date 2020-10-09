@@ -143,7 +143,7 @@ sealed abstract class Resource[+F[_], +A] {
         case pr: Resource.Primitive[G, A] => pr
         case Pure(a) => Allocate((a, (_: ExitCase) => G.unit).pure[G])
         case LiftF(fa) =>
-          Suspend(fa.map(a => Allocate((a, (_: ExitCase) => G.unit).pure[G])))
+          Suspend(fa.map[Resource[G, A]](a => Allocate((a, (_: ExitCase) => G.unit).pure[G])))
         case MapK(rea, fk0) =>
           val fk = fk0.asInstanceOf[rea.F0 ~> G]
           rea.invariant match {
@@ -157,7 +157,8 @@ sealed abstract class Resource[+F[_], +A] {
               Suspend(fk(resource).map(_.mapK(fk)))
             case Pure(a) => Allocate((a, (_: ExitCase) => G.unit).pure[G])
             case LiftF(rea) =>
-              Suspend(fk(rea).map(a => Allocate((a, (_: ExitCase) => G.unit).pure[G])))
+              Suspend(fk(rea).map[Resource[G, A]](a =>
+                Allocate((a, (_: ExitCase) => G.unit).pure[G])))
             case MapK(ea0, ek) =>
               loop(ea0.invariant.mapK {
                 new FunctionK[ea0.F0, G] {
