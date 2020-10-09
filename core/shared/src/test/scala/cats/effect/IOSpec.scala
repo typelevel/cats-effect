@@ -973,11 +973,12 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         val run = for {
           //Run in a tight loop on single-threaded ec so only hope of
           //seeing cancellation status is auto-cede
-          fiber <- forever.evalOn(ec).start
-          _ <- fiber.joinAndEmbedNever.timeout(5.seconds)
+          fiber <- forever.start
+          _ <- IO.sleep(5.millis)
+          _     <- fiber.cancel
         } yield ()
 
-        run.map { res => res mustEqual true }
+        run.evalOn(ec).map { res => res mustEqual () }
       }
 
     }

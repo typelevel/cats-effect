@@ -222,9 +222,9 @@ private final class IOFiber[A](
 
     if (shouldFinalize()) {
       asyncCancel(null)
-      return
-    }
-
+    } else if (nextIteration == 100) {
+      runLoop(IO.cede >> _cur0, nextIteration)
+    } else {
     // println(s"<$name> looping on $cur0")
     /*
      * The cases have to use continuous constants to generate a `tableswitch`.
