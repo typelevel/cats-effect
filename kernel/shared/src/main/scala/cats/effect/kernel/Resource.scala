@@ -92,7 +92,7 @@ import Resource.ExitCase
  * Normally users don't need to care about these node types, unless conversions
  * from `Resource` into something else is needed (e.g. conversion from `Resource`
  * into a streaming data type).
- * 
+ *
  * Further node types are used internally. To compile a resource down to the
  * above three types, call [[Resource#preinterpret]].
  *
@@ -142,11 +142,11 @@ sealed abstract class Resource[+F[_], +A] {
 
   /**
    * Compiles this down to the three primitive types:
-   * 
+   *
    *  - [[cats.effect.Resource.Allocate Allocate]]
    *  - [[cats.effect.Resource.Suspend Suspend]]
    *  - [[cats.effect.Resource.Bind Bind]]
-   * 
+   *
    * Note that this is done in a "shallow" fashion - when traversing a [[Resource]]
    * recursively, this will need to be done repeatedly.
    */
@@ -158,10 +158,10 @@ sealed abstract class Resource[+F[_], +A] {
         case LiftF(fa) =>
           Suspend(fa.map[Resource[G, A]](a => Allocate((a, (_: ExitCase) => G.unit).pure[G])))
         case MapK(rea, fk0) =>
-           // this would be easier if we could call `rea.preinterpret` but we don't have
-           // the right `Applicative` instance available.
+          // this would be easier if we could call `rea.preinterpret` but we don't have
+          // the right `Applicative` instance available.
           val fk = fk0.asInstanceOf[rea.F0 ~> G] // scala 2 infers this as `Any ~> G`
-           rea.invariant match {
+          rea.invariant match {
             case Allocate(resource) =>
               Allocate(fk(resource).map {
                 case (a, r) => (a, r.andThen(fk(_)))
@@ -509,7 +509,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
   /**
    * Public supertype for the three node types that constitute teh public API
    * for interpreting a [[Resource]].
-   */ 
+   */
   sealed trait Primitive[F[_], +A] extends InvariantResource[F, A]
 
   /**
