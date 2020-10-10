@@ -520,7 +520,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
             r2 <- r.get
           } yield (l2 -> r2)) must completeAs(true -> true)
         }
-  
+
         "evaluate a timeout using sleep and race" in ticked { implicit ticker =>
           IO.race(IO.never[Unit], IO.sleep(2.seconds)) must completeAs(Right(()))
         }
@@ -954,6 +954,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         (IO.sleep(10.seconds) >> IO { affected = true }) must completeAs(())
         affected must beTrue
       }
+
       "timeout" should {
         "succeed" in real {
           val op = IO.pure(true).timeout(100.millis)
@@ -977,6 +978,15 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
               }
             }
           }
+        }
+
+        "invoke finalizers on timed out things" in real {
+          for {
+            ref <- Ref[IO].of(false)
+            _ <- IO.sleep(100.millis).onCancel(ref.set(true)).timeoutTo(50.millis, IO.unit)
+            v <- ref.get
+            r <- IO(v must beTrue)
+          } yield r
         }
       }
 

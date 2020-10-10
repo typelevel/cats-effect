@@ -672,7 +672,6 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[Race[Any, Any]]
 
           val state: AtomicReference[Option[Any]] = new AtomicReference[Option[Any]](None)
-
           val finalizer: AtomicReference[IO[Unit]] = new AtomicReference[IO[Unit]](IO.unit)
 
           val next =
@@ -753,7 +752,7 @@ private final class IOFiber[A](
             }.handleErrorWith {
               case AsyncPropagateCancelation => IO.canceled
               case e => IO.raiseError(e)
-            }.guarantee(finalizer.get())
+            }.guarantee(IO.defer(finalizer.get()))
 
           runLoop(next, nextIteration)
 
@@ -761,7 +760,6 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[Both[Any, Any]]
 
           val state: AtomicReference[Option[Any]] = new AtomicReference[Option[Any]](None)
-
           val finalizer: AtomicReference[IO[Unit]] = new AtomicReference[IO[Unit]](IO.unit)
 
           val next =
@@ -845,7 +843,7 @@ private final class IOFiber[A](
             }.handleErrorWith {
               case AsyncPropagateCancelation => IO.canceled
               case e => IO.raiseError(e)
-            }.guarantee(finalizer.get())
+            }.guarantee(IO.defer(finalizer.get()))
 
           runLoop(next, nextIteration)
       }
