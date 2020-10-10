@@ -83,25 +83,24 @@ import cats.syntax.all._
  * its own execution. This is achieved by calling
  * [[MonadCancel!.canceled canceled]].
  *
- * [[GenSpawn]] expands on this capability by introducing a new form of
- * cancellation, external cancellation. by which a fiber can request the
- * abnormal termination of another fiber, other than itself. This is achieved
- * by calling [[Fiber!.cancel cancel]].
+ * [[GenSpawn]] expands on the cancellation model described by [[MonadCancel]]
+ * by introducing a means of external cancellation. With external cancellation,
+ * a fiber can request the abnormal termination of another fiber by calling
+ * [[Fiber!.cancel]].
  *
- * External cancellation behaves similarly to self-cancellation in many ways.
- * To guarantee the consistent behavior between these two modes, the following
- * semantics are shared:
+ * The cancellation model dictates that external cancellation behaves
+ * identically to self-cancellation. To guarantee consistent behavior between
+ * the two, the following semantics are shared:
  *
- *   1. Masking: if one fiber cancels a second while it is in a masked state,
- *      cancellation is suppressed until it reaches an unmasked state. Once it
- *      reaches an unmasked state, finalization occurs. Refer to
+ *   1. Masking: if a fiber is cancelled while it is masked, cancellation is
+ *      suppressed until it reaches a completely unmasked state. See
  *      [[MonadCancel]] documentation for more details.
  *   1. Backpressure: [[Fiber!.cancel cancel]] semantically blocks all callers
  *      until finalization is complete.
  *   1. Idempotency: once a fiber's cancellation has been requested, subsequent
- *      cancellations have no effect.
- *   1. Terminal: Cancellation of a fiber that has completed finalization
- *      immediately returns.
+ *      cancellations have no effect on cancellation status.
+ *   1. Terminal: Cancellation of a fiber that has terminated immediately
+ *      returns.
  *
  * External cancellation contrasts with self-cancellation in one aspect: the
  * former may require synchronization between multiple threads to communicate

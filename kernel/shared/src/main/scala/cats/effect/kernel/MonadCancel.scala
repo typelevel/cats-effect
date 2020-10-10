@@ -54,32 +54,55 @@ import cats.syntax.all._
  *
  * Cancellation refers to the act of requesting that the execution of a fiber
  * be abnormally terminated. [[MonadCancel]] exposes a means of
- * self-cancellation, with which a fiber can request that its own execution be
- * terminated. Self-cancellation is achieved via [[MonadCancel!.canceled canceled]].
+ * self-cancellation, with which a fiber can request that its own execution
+ * be terminated. Self-cancellation is achieved via
+ * [[MonadCancel!.canceled canceled]].
  *
- * Cancellation is vaguely similar to the short-circuit behavior introduced by
- * [[MonadError]], but there are several key differences:
+ * Cancellation is vaguely similar to the short-circuiting behavior introduced
+ * by [[MonadError]], but there are several key differences:
  *
  *   1. Cancellation is effective; if it is observed it must be respected, and
  *      it cannot be reversed. In contrast, [[MonadError!handleError handleError]]
  *      exposes the ability to catch and recover from errors, and then proceed
  *      with normal execution.
- *   1. Cancellation can be masked via [[MonadCancel!.uncancelable]]. This
- *      allows a fiber to suppress cancellation for a period of time. If a
- *      fiber is cancelled while it is masked, it must respect cancellation
- *      whenever it reaches an unmasked state.
+ *   1. Cancellation can be masked via [[MonadCancel!.uncancelable]]. Masking
+ *      is discussed in the next section.
  *   1. [[GenSpawn]] introduces external cancellation, another cancellation
  *      mechanism by which fibers can be cancelled by external parties.
  *
+ * ==Masking==
+ *
+ * Masking allows a fiber to suppress cancellation for a period of time, which
+ * is achieved via [[MonadCancel!.uncancelable uncancelable]]. If a fiber is
+ * cancelled while it is masked, the cancellation is suppressed for as long as
+ * the fiber remains masked. Once the fiber reaches a completely unmasked
+ * state, it responds to the cancellation.
+ *
+ * While a fiber is masked, it may optionally unmask by "polling", rendering
+ * itself cancelable again.
+ *
+ * {{{
+ *
+ *   F.uncancelable { poll =>
+ *     // can only observe cancellation within `fb`
+ *     fa *> poll(fb) *> fc
+ *   }
+ *
+ * }}}
+ *
+ * These semantics allow users to precisely mark what regions of code are
+ * cancelable within a larger code block.
+ *
  * ==Finalization==
  *
- * Finalization refers to the act of running finalizers in the event of
+ * Finalization refers to the act of running finalizers in response to a
  * cancellation. Finalizers are those effects whose evaluation is guaranteed
- * in the event of cancellation.
+ * in the event of cancellation. After a fiber has completed finalization,
+ * it terminates with an outcome of `Canceled`.
  *
- * Finalizers can be registered for the duration of some effect via
+ * Finalizers can be registered to a fiber for the duration of some effect via
  * [[MonadCancel!.onCancel onCancel]]. If a fiber is cancelled while running
- * that effect, the registered finalizer is guaranteed to be invoked before
+ * that effect, the registered finalizer is guaranteed to be run before
  * terminating.
  *
  * ==Bracket pattern==
@@ -91,12 +114,12 @@ import cats.syntax.all._
  * A lifecycle refers to a pair of actions, which are called the acquisition
  * action and the release action respectively. The relationship between these
  * two actions is that if the former completes successfully, then the latter is
- * guaranteed to be run eventually, even in the presence of exceptions and
+ * guaranteed to be run eventually, even in the presence of errors and
  * cancellation. While the lifecycle is active, other work can be performed, but
  * this invariant is always respected.
  *
  * The bracket pattern is an invaluable tool for safely handling resource
- * lifecycles.  Imagine an application that opens network connections to a
+ * lifecycles. Imagine an application that opens network connections to a
  * database server to do work. If a task in the application is cancelled while
  * it holds an open database connection, the connection would never be released
  * or returned to a pool, causing a resource leak.
@@ -131,12 +154,13 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
   def forceR[A, B](fa: F[A])(fb: F[B]): F[B]
 
   /**
-   * Masks cancellation while evaluating an effect. The argument to `body`
-   * of type `Poll[F]` is a natural transformation `F ~> F` that enables
-   * unmasking within the masked region.
+   * Masks cancellation on the current fiber. The argument to `body` of type
+   * `Poll[F]` is a natural transformation `F ~> F` that enables polling.
+   * Polling causes a fiber to unmask within a masked region so that
+   * cancellation can be observed again.
    *
-   * In the following example, cancellation can be observed during the
-   * evaluation of `fb`, but not during the evaluation of `fa` or `fc`.
+   * In the following example, cancellation can be observed only within `fb`
+   * and nowhere else:
    *
    * {{{
    *
@@ -146,14 +170,35 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    *
    * }}}
    *
-   * If cancellation is observed while a fiber is masked, it will only
-   * be respected whenever the fiber is completely unmasked.
+   * If a fiber is cancelled while it is masked, the cancellation is suppressed
+   * for as long as the fiber remains masked. Whenever the fiber is completely
+   * unmasked again, the cancellation will be respected.
+   *
+   * Masks can also be stacked or nested within each other. If multiple masks
+   * are active, all masks must be undone so that cancellation can be observed.
+   * In order to completely unmask within a multi-masked region, the poll
+   * corresponding to each mask must be applied, innermost-first.
+   *
+   * {{{
+   *
+   *   F.uncancelable { p1 =>
+   *     F.uncancelable { p2 =>
+   *       fa *> p2(p1(fb)) *> fc
+   *     }
+   *   }
+   *
+   * }}}
+   *
+   * The following operations are no-ops:
+   *
+   *   1. Polling in the wrong order
+   *   1. Applying the same poll more than once: `poll(poll(fa))`
+   *   1. Applying a poll bound to one fiber within another fiber
    */
   def uncancelable[A](body: Poll[F] => F[A]): F[A]
 
   /**
-   * An effect that requests self-cancellation on the current fiber when
-   * evaluated.
+   * An effect that requests self-cancellation on the current fiber.
    *
    * In the following example, the fiber requests self-cancellation in a masked
    * region, so cancellation is suppressed until the fiber is completely
