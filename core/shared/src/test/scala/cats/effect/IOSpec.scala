@@ -451,18 +451,18 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
       "race" should {
         "succeed with faster side" in ticked { implicit ticker =>
-          IO.race(IO.sleep(10 minutes) >> IO.pure(1), IO.pure(2)) must completeAs(Right(2))
+          IO.race(IO.sleep(10.minutes) >> IO.pure(1), IO.pure(2)) must completeAs(Right(2))
         }
 
         "fail if lhs fails" in ticked { implicit ticker =>
           case object TestException extends Throwable
-          IO.race(IO.raiseError[Int](TestException), IO.sleep(10 millis) >> IO.pure(1))
+          IO.race(IO.raiseError[Int](TestException), IO.sleep(10.millis) >> IO.pure(1))
             .void must failAs(TestException)
         }
 
         "fail if rhs fails" in ticked { implicit ticker =>
           case object TestException extends Throwable
-          IO.race(IO.sleep(10 millis) >> IO.pure(1), IO.raiseError[Int](TestException))
+          IO.race(IO.sleep(10.millis) >> IO.pure(1), IO.raiseError[Int](TestException))
             .void must failAs(TestException)
         }
 
