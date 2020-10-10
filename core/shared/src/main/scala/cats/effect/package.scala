@@ -48,6 +48,7 @@ package object effect {
   type Async[F[_]] = cekernel.Async[F]
   val Async = cekernel.Async
 
+  type ApplicativeThrow[F[_]] = cekernel.ApplicativeThrow[F]
   type MonadThrow[F[_]] = cekernel.MonadThrow[F]
   type MonadCancelThrow[F[_]] = cekernel.MonadCancelThrow[F]
 
