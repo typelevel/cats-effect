@@ -102,16 +102,10 @@ abstract class Semaphore[F[_]] {
   def permit: Resource[F, Unit]
 
   /**
-   * Returns an effect that acquires a permit, runs the supplied effect, and then releases the permit.
-   * Equivalent to permit.use(_ => t)
+   * Modify the context `F` using natural transformation `f`.
    */
-  def withPermit[A](t: F[A]): F[A]
-
-  /**
-   * Modify the context `F` using natural isomorphism  `f` with `g`.
-   */
-  def imapK[G[_]: Applicative](f: F ~> G, g: G ~> F): Semaphore[G] =
-    new TransformedSemaphore(this, f, g)
+  def mapK[G[_]: Applicative](f: F ~> G): Semaphore[G] =
+    new TransformedSemaphore(this, f)
 }
 
 object Semaphore {
@@ -258,9 +252,6 @@ object Semaphore {
 
     val permit: Resource[F, Unit] =
       Resource.make(acquireNInternal(1))(_.release).evalMap(_.await)
-
-    def withPermit[A](t: F[A]): F[A] =
-      F.bracket(acquireNInternal(1))(_.await *> t)(_.release)
   }
 
   final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Concurrent[F])
@@ -268,10 +259,9 @@ object Semaphore {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
   }
 
-  final private[std] class TransformedSemaphore[F[_], G[_]: Applicative](
+  final private[std] class TransformedSemaphore[F[_], G[_]](
       underlying: Semaphore[F],
-      trans: F ~> G,
-      inverse: G ~> F
+      trans: F ~> G
   ) extends Semaphore[G] {
     override def available: G[Long] = trans(underlying.available)
     override def count: G[Long] = trans(underlying.count)
@@ -279,6 +269,5 @@ object Semaphore {
     override def tryAcquireN(n: Long): G[Boolean] = trans(underlying.tryAcquireN(n))
     override def releaseN(n: Long): G[Unit] = trans(underlying.releaseN(n))
     override def permit: Resource[G, Unit] = underlying.permit.mapK(trans)
-    override def withPermit[A](t: G[A]): G[A] = trans(underlying.withPermit(inverse(t)))
   }
 }
