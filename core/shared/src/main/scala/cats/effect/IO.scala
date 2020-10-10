@@ -646,13 +646,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 21
   }
 
-  private[effect] final case class Race[A, B](ioa: IO[A], iob: IO[B])
-      extends IO[Either[A, B]] {
+  private[effect] final case class Race[A, B](ioa: IO[A], iob: IO[B]) extends IO[Either[A, B]] {
     def tag = 22
   }
 
-  private[effect] final case class Both[A, B](ioa: IO[A], iob: IO[B])
-      extends IO[(A, B)] {
+  private[effect] final case class Both[A, B](ioa: IO[A], iob: IO[B]) extends IO[(A, B)] {
     def tag = 23
   }
 

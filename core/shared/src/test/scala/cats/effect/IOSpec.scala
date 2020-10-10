@@ -406,12 +406,14 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         }
 
         "cancel if lhs cancels" in ticked { implicit ticker =>
-          IO.both(IO.canceled, IO.unit).void.start.flatMap(_.join) must completeAs(Outcome.canceled[IO, Throwable, Unit])
+          IO.both(IO.canceled, IO.unit).void.start.flatMap(_.join) must completeAs(
+            Outcome.canceled[IO, Throwable, Unit])
 
         }
 
         "cancel if rhs cancels" in ticked { implicit ticker =>
-          IO.both(IO.unit, IO.canceled).void.start.flatMap(_.join) must completeAs(Outcome.canceled[IO, Throwable, Unit])
+          IO.both(IO.unit, IO.canceled).void.start.flatMap(_.join) must completeAs(
+            Outcome.canceled[IO, Throwable, Unit])
         }
 
         "non terminate if lhs never completes" in ticked { implicit ticker =>
@@ -437,10 +439,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
             l <- Ref[IO].of(false)
             r <- Ref[IO].of(false)
             fiber <-
-              IO.both(
-                IO.never.onCancel(l.set(true)),
-                IO.never.onCancel(r.set(true)))
-                .start
+              IO.both(IO.never.onCancel(l.set(true)), IO.never.onCancel(r.set(true))).start
             _ <- IO(ticker.ctx.tickAll())
             _ <- fiber.cancel
             l2 <- l.get
@@ -457,12 +456,14 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
         "fail if lhs fails" in ticked { implicit ticker =>
           case object TestException extends Throwable
-          IO.race(IO.raiseError[Int](TestException), IO.sleep(10 millis) >> IO.pure(1)).void must failAs(TestException)
+          IO.race(IO.raiseError[Int](TestException), IO.sleep(10 millis) >> IO.pure(1))
+            .void must failAs(TestException)
         }
 
         "fail if rhs fails" in ticked { implicit ticker =>
           case object TestException extends Throwable
-          IO.race(IO.sleep(10 millis) >> IO.pure(1), IO.raiseError[Int](TestException)).void must failAs(TestException)
+          IO.race(IO.sleep(10 millis) >> IO.pure(1), IO.raiseError[Int](TestException))
+            .void must failAs(TestException)
         }
 
         "fail if lhs fails and rhs never completes" in ticked { implicit ticker =>
@@ -484,7 +485,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         }
 
         "cancel if both sides cancel" in ticked { implicit ticker =>
-          IO.both(IO.canceled, IO.canceled).void.start.flatMap(_.join) must completeAs(Outcome.canceled[IO, Throwable, Unit])
+          IO.both(IO.canceled, IO.canceled).void.start.flatMap(_.join) must completeAs(
+            Outcome.canceled[IO, Throwable, Unit])
         }
 
         "succeed if lhs cancels" in ticked { implicit ticker =>
@@ -497,12 +499,14 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
         "fail if lhs cancels and rhs fails" in ticked { implicit ticker =>
           case object TestException extends Throwable
-          IO.race(IO.canceled, IO.raiseError[Unit](TestException)).void must failAs(TestException)
+          IO.race(IO.canceled, IO.raiseError[Unit](TestException)).void must failAs(
+            TestException)
         }
 
         "fail if rhs cancels and lhs fails" in ticked { implicit ticker =>
           case object TestException extends Throwable
-          IO.race(IO.raiseError[Unit](TestException), IO.canceled).void must failAs(TestException)
+          IO.race(IO.raiseError[Unit](TestException), IO.canceled).void must failAs(
+            TestException)
         }
 
         "cancel both fibers" in ticked { implicit ticker =>
@@ -510,10 +514,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
             l <- Ref.of[IO, Boolean](false)
             r <- Ref.of[IO, Boolean](false)
             fiber <-
-              IO.race(
-                IO.never.onCancel(l.set(true)),
-                IO.never.onCancel(r.set(true)))
-                .start
+              IO.race(IO.never.onCancel(l.set(true)), IO.never.onCancel(r.set(true))).start
             _ <- IO(ticker.ctx.tickAll())
             _ <- fiber.cancel
             l2 <- l.get
