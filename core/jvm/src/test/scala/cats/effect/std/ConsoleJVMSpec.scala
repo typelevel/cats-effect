@@ -31,10 +31,10 @@ class ConsoleJVMSpec extends BaseSpec {
   private def fileContents(name: String, charset: Charset): IO[String] = {
     val acquire =
       IO.blocking(Source.fromResource(s"readline-test.$name.txt")(charset))
-    val release = (src: Source) => IO.blocking(src.close())
+    val release = (src: Source) => IO(src.close())
     Resource
       .make(acquire)(release)
-      .use(src => IO(src.getLines().mkString(System.lineSeparator())))
+      .use(src => IO.interruptible(false)(src.getLines().mkString(System.lineSeparator())))
       .handleErrorWith(_ => IO.pure(""))
   }
 
@@ -47,7 +47,7 @@ class ConsoleJVMSpec extends BaseSpec {
             .getContextClassLoader()
             .getResourceAsStream(s"readline-test.$name.txt")
         }
-      val release = (in: InputStream) => IO.blocking(in.close())
+      val release = (in: InputStream) => IO(in.close())
       Resource.make(acquire)(release)
     }
 
@@ -55,7 +55,7 @@ class ConsoleJVMSpec extends BaseSpec {
       def replace(in: InputStream): IO[InputStream] =
         for {
           std <- IO(System.in)
-          _ <- IO.blocking(System.setIn(in))
+          _ <- IO(System.setIn(in))
         } yield std
 
       def restore(in: InputStream): IO[Unit] =
@@ -82,7 +82,8 @@ class ConsoleJVMSpec extends BaseSpec {
     for {
       contents <- fileContents(name, charset)
       lines <- readLines(name, charset)
-    } yield contents must beEqualTo(lines)
+      result <- IO(contents must beEqualTo(lines))
+    } yield result
 
   "Console" should {
     "read all lines from an ISO-8859-1 encoded file" in real {
