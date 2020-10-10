@@ -24,9 +24,6 @@ ThisBuild / baseVersion := "3.0"
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
 
-ThisBuild / publishGithubUser := "djspiewak"
-ThisBuild / publishFullName := "Daniel Spiewak"
-
 ThisBuild / developers := List(
   Developer("djspiewak", "Daniel Spiewak", "@djspiewak", url("https://github.com/djspiewak")),
   Developer("SystemFw", "Fabio Labella", "", url("https://github.com/SystemFw")),

@@ -696,12 +696,16 @@ private final class IOFiber[A](
                   cur.iob,
                   ec)
 
-                fiberA.registerListener(oc => {
+                fiberA registerListener { oc =>
                   val s = state.getAndSet(Some(oc))
                   oc match {
                     case Outcome.Succeeded(Pure(a)) =>
                       finalizer.set(fiberB.cancel)
                       cb(Right(Left(a)))
+
+                    case Outcome.Succeeded(_) =>
+                      throw new AssertionError
+
                     case Outcome.Canceled() =>
                       s.fold(()) {
                         //Other fiber already completed
@@ -709,17 +713,23 @@ private final class IOFiber[A](
                         case Outcome.Canceled() => cb(Left(AsyncPropagateCancelation))
                         case Outcome.Errored(_) => //cb should have been invoked in other fiber
                       }
+
                     case Outcome.Errored(e) =>
                       finalizer.set(fiberB.cancel)
                       cb(Left(e))
                   }
-                })
-                fiberB.registerListener(oc => {
+                }
+
+                fiberB registerListener { oc =>
                   val s = state.getAndSet(Some(oc))
                   oc match {
                     case Outcome.Succeeded(Pure(b)) =>
                       finalizer.set(fiberA.cancel)
                       cb(Right(Right(b)))
+
+                    case Outcome.Succeeded(_) =>
+                      throw new AssertionError
+
                     case Outcome.Canceled() =>
                       s.fold(()) {
                         //Other fiber already completed
@@ -727,11 +737,12 @@ private final class IOFiber[A](
                         case Outcome.Canceled() => cb(Left(AsyncPropagateCancelation))
                         case Outcome.Errored(_) => //cb should have been invoked in other fiber
                       }
+
                     case Outcome.Errored(e) =>
                       finalizer.set(fiberA.cancel)
                       cb(Left(e))
                   }
-                })
+                }
 
                 execute(ec)(fiberA)
                 execute(ec)(fiberB)
@@ -774,7 +785,7 @@ private final class IOFiber[A](
                   cur.iob,
                   ec)
 
-                fiberA.registerListener(oc => {
+                fiberA registerListener { oc =>
                   val s = state.getAndSet(Some(oc))
                   oc match {
                     case Outcome.Succeeded(Pure(a)) =>
@@ -786,18 +797,24 @@ private final class IOFiber[A](
                         //Both fibers have completed so no need for cancellation
                         case Outcome.Canceled() => cb(Left(AsyncPropagateCancelation))
                       }
+
+                    case Outcome.Succeeded(_) =>
+                      throw new AssertionError
+
                     case Outcome.Errored(e) =>
                       finalizer.set(fiberB.cancel)
                       cb(Left(e))
+
                     case Outcome.Canceled() =>
                       finalizer.set(fiberB.cancel)
                       cb(Left(AsyncPropagateCancelation))
                   }
-                })
-                fiberB.registerListener(oc => {
+                }
+
+                fiberB registerListener { oc =>
                   val s = state.getAndSet(Some(oc))
                   oc match {
-                    case Outcome.Succeeded(Pure(b)) => {
+                    case Outcome.Succeeded(Pure(b)) =>
                       s.fold(()) {
                         //Other fiber already completed
                         case Outcome.Succeeded(Pure(a)) =>
@@ -805,16 +822,20 @@ private final class IOFiber[A](
                         case Outcome.Errored(e) => cb(Left(e.asInstanceOf[Throwable]))
                         case Outcome.Canceled() => cb(Left(AsyncPropagateCancelation))
                       }
-                    }
-                    case Outcome.Errored(e) => {
+
+                    case Outcome.Succeeded(_) =>
+                      throw new AssertionError
+
+                    case Outcome.Errored(e) =>
                       finalizer.set(fiberA.cancel)
                       cb(Left(e))
-                    }
+
                     case Outcome.Canceled() =>
                       finalizer.set(fiberA.cancel)
                       cb(Left(AsyncPropagateCancelation))
                   }
-                })
+                }
+
                 execute(ec)(fiberA)
                 execute(ec)(fiberB)
 
