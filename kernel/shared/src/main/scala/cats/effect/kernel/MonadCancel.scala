@@ -40,7 +40,7 @@ import cats.syntax.all._
  * ==Fibers==
  *
  * A fiber is a sequence of effects which are bound together by [[flatMap]].
- * The execution of a fiber of an effect `F[E, A]` produces one of three
+ * The execution of a fiber of an effect `F[E, A]` terminates with one of three
  * outcomes, which are encoded by the datatype [[Outcome]]:
  *
  *   1. [[Completed]]: indicates success with a value of type `A`
