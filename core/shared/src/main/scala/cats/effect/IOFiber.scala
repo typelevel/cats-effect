@@ -667,6 +667,7 @@ private final class IOFiber[A](
           } else {
             runLoop(interruptibleImpl(cur, blockingEc), nextIteration)
           }
+
         case 22 =>
           val cur = cur0.asInstanceOf[Race[Any, Any]]
 
@@ -847,7 +848,6 @@ private final class IOFiber[A](
             }.guarantee(finalizer.get())
 
           runLoop(next, nextIteration)
-
       }
     }
   }
