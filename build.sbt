@@ -27,6 +27,18 @@ ThisBuild / organizationName := "Typelevel"
 ThisBuild / publishGithubUser := "djspiewak"
 ThisBuild / publishFullName := "Daniel Spiewak"
 
+ThisBuild / developers := List(
+  Developer("djspiewak", "Daniel Spiewak", "@djspiewak", url("https://github.com/djspiewak")),
+  Developer("SystemFw", "Fabio Labella", "", url("https://github.com/SystemFw")),
+  Developer("RaasAhsan", "Raas Ahsan", "", url("https://github.com/RaasAhsan")),
+  Developer("TimWSpence", "Tim Spence", "@TimWSpence", url("https://github.com/TimWSpence")),
+  Developer("kubukoz", "Jakub Kozłowski", "@kubukoz", url("https://github.com/kubukoz")),
+  Developer("mpilquist", "Michael Pilquist", "@mpilquist", url("https://github.com/mpilquist")),
+  Developer("vasilmkd", "Vasil Vasilev", "@vasilvasilev97", url("https://github.com/vasilmkd")),
+  Developer("bplommer", "Ben Plommer", "@bplommer", url("https://github.com/bplommer")),
+  Developer("gvolpe", "Gabriel Volpe", "@volpegabriel87", url("https://github.com/gvolpe"))
+)
+
 val PrimaryOS = "ubuntu-latest"
 
 val ScalaJSJava = "adopt@1.8"
