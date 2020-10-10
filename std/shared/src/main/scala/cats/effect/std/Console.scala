@@ -15,8 +15,8 @@
  */
 
 /*
- * This is an adapted version of the code originally found in https://github.com/profunktor/console4cats,
- * by Gabriel Volpe.
+ * This is an adapted version of the code originally found in
+ * https://github.com/profunktor/console4cats, by Gabriel Volpe.
  */
 
 package cats.effect.std
@@ -28,12 +28,14 @@ import cats.syntax.show._
 import scala.annotation.tailrec
 
 import java.lang.{StringBuilder => JStringBuilder}
+import java.io.EOFException
 import java.nio.{ByteBuffer, CharBuffer}
 import java.nio.charset.{Charset, CodingErrorAction, MalformedInputException}
 
 /**
- * Effect type agnostic `Console` with common methods to write to and read from the standard console. Suited only
- * for extremely simple console output.
+ * Effect type agnostic `Console` with common methods to write to and read from
+ * the standard console. Suited only for extremely simple console input and
+ * output.
  *
  * @example {{{
  *   import cats.effect.std.Console
@@ -52,23 +54,35 @@ import java.nio.charset.{Charset, CodingErrorAction, MalformedInputException}
 final class Console[F[_]] private (val F: Sync[F]) extends AnyVal {
 
   /**
-   * Reads a line as a string from the standard input by using the platform's default charset, as per
-   * `java.nio.charset.Charset.defaultCharset()`. The line is returned as an optional value with `None` meaning
-   * that the end of the standard input stream has been reached.
+   * Reads a line as a string from the standard input using the platform's
+   * default charset, as per `java.nio.charset.Charset.defaultCharset()`.
    *
-   * @return an effect that describes reading the user's input from the standard input as an optional string
+   * The effect can raise a `java.io.EOFException` if no input has been consumed
+   * before the EOF is observed. This should never happen with the standard
+   * input, unless it has been replaced with a finite `java.io.InputStream`
+   * through `java.lang.System#setIn` or similar.
+   *
+   * @return an effect that describes reading the user's input from the standard
+   *         input as a string
    */
-  def readLine: F[Option[String]] =
+  def readLine: F[String] =
     readLineWithCharset(Charset.defaultCharset())
 
   /**
-   * Reads a line as a string from the standard input by using the provided charset. The line is returned as an optional
-   * value with `None` meaning that the end of the standard input stream has been reached.
+   * Reads a line as a string from the standard input using the provided
+   * charset.
    *
-   * @param charset the `java.nio.charset.Charset` to be used when decoding the input stream
-   * @return an effect that describes reading the user's input from the standard input as an optional string
+   * The effect can raise a `java.io.EOFException` if no input has been consumed
+   * before the EOF is observed. This should never happen with the standard
+   * input, unless it has been replaced with a finite `java.io.InputStream`
+   * through `java.lang.System#setIn` or similar.
+   *
+   * @param charset the `java.nio.charset.Charset` to be used when decoding the
+   *                input stream
+   * @return an effect that describes reading the user's input from the standard
+   *         input as a string
    */
-  def readLineWithCharset(charset: Charset): F[Option[String]] =
+  def readLineWithCharset(charset: Charset): F[String] =
     F.interruptible(false) {
       val in = System.in
       val decoder = charset
@@ -86,42 +100,45 @@ final class Console[F[_]] private (val F: Sync[F]) extends AnyVal {
       @tailrec
       def decodeNextLoop(): CharBuffer = {
         val b = in.read()
-        if (b == -1) {
-          return null
+        if (b == -1) null
+        else {
+          bytes.put(b.toByte)
+          val limit = bytes.limit()
+          val position = bytes.position()
+          var result: CharBuffer = null
+          try {
+            bytes.flip()
+            result = decoder.decode(bytes)
+          } catch {
+            case _: MalformedInputException =>
+              bytes.limit(limit)
+              bytes.position(position)
+          }
+          if (result == null) decodeNextLoop() else result
         }
-        bytes.put(b.toByte)
-        val limit = bytes.limit()
-        val position = bytes.position()
-        var result: CharBuffer = null
-        try {
-          bytes.flip()
-          result = decoder.decode(bytes)
-        } catch {
-          case _: MalformedInputException =>
-            bytes.limit(limit)
-            bytes.position(position)
-        }
-        if (result == null) decodeNextLoop() else result
       }
 
       @tailrec
-      def loop(): Option[String] = {
+      def loop(): String = {
         val buffer = decodeNext()
         if (buffer == null) {
-          return Some(builder.toString()).filter(_.nonEmpty)
-        }
-        val decoded = buffer.toString()
-        if (decoded == "\n") {
-          val len = builder.length()
-          if (len > 0) {
-            if (builder.charAt(len - 1) == '\r') {
-              builder.deleteCharAt(len - 1)
-            }
-          }
-          Some(builder.toString())
+          val result = builder.toString()
+          if (result.nonEmpty) result
+          else throw new EOFException()
         } else {
-          builder.append(decoded)
-          loop()
+          val decoded = buffer.toString()
+          if (decoded == "\n") {
+            val len = builder.length()
+            if (len > 0) {
+              if (builder.charAt(len - 1) == '\r') {
+                builder.deleteCharAt(len - 1)
+              }
+            }
+            builder.toString()
+          } else {
+            builder.append(decoded)
+            loop()
+          }
         }
       }
 
@@ -129,7 +146,8 @@ final class Console[F[_]] private (val F: Sync[F]) extends AnyVal {
     }
 
   /**
-   * Prints a value to the standard output using the implicit `cats.Show` instance.
+   * Prints a value to the standard output using the implicit `cats.Show`
+   * instance.
    *
    * @param a value to be printed to the standard output
    */
@@ -139,7 +157,8 @@ final class Console[F[_]] private (val F: Sync[F]) extends AnyVal {
   }
 
   /**
-   * Prints a value to the standard output followed by a new line using the implicit `cats.Show` instance.
+   * Prints a value to the standard output followed by a new line using the
+   * implicit `cats.Show` instance.
    *
    * @param a value to be printed to the standard output
    */
@@ -149,7 +168,8 @@ final class Console[F[_]] private (val F: Sync[F]) extends AnyVal {
   }
 
   /**
-   * Prints a value to the standard error output using the implicit `cats.Show` instance.
+   * Prints a value to the standard error output using the implicit `cats.Show`
+   * instance.
    *
    * @param a value to be printed to the standard error output
    */
@@ -159,7 +179,8 @@ final class Console[F[_]] private (val F: Sync[F]) extends AnyVal {
   }
 
   /**
-   * Prints a value to the standard error output followed by a new line using the implicit `cast.Show` instance.
+   * Prints a value to the standard error output followed by a new line using
+   * the implicit `cast.Show` instance.
    *
    * @param a value to be printed to the standard error output
    */
@@ -172,7 +193,8 @@ final class Console[F[_]] private (val F: Sync[F]) extends AnyVal {
 object Console {
 
   /**
-   * Allows access to `Console` functionality for `F` data types that are [[Sync]].
+   * Allows access to `Console` functionality for `F` data types that are
+   * [[Sync]].
    *
    * For printing to the standard output:
    * {{{

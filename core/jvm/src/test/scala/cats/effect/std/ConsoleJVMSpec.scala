@@ -70,10 +70,10 @@ class ConsoleJVMSpec extends BaseSpec {
     } yield ()
 
     def loop(acc: List[String]): IO[String] =
-      Console[IO].readLineWithCharset(charset).flatMap {
-        case Some(line) => loop(line :: acc)
-        case None => IO.pure(acc.reverse.mkString("\n"))
-      }
+      Console[IO]
+        .readLineWithCharset(charset)
+        .flatMap(ln => loop(ln :: acc))
+        .handleErrorWith(_ => IO.pure(acc.reverse.mkString("\n")))
 
     test.use(_ => loop(Nil))
   }
