@@ -1310,4 +1310,4 @@ private object IOFiber {
   private[effect] val RightUnit = Right(())
 }
 
-case object AsyncPropagateCancelation extends NoStackTrace
+private[effect] case object AsyncPropagateCancelation extends NoStackTrace
