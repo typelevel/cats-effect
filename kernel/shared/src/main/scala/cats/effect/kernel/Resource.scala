@@ -599,7 +599,8 @@ object Resource extends ResourceInstances with ResourcePlatform {
   }
 
   trait Bracket0 {
-    implicit def catsEffectResourceBracketForMonadThrow[F[_]](implicit F0: MonadThrow[F]): Bracket[F] =
+    implicit def catsEffectResourceBracketForMonadThrow[F[_]](
+        implicit F0: MonadThrow[F]): Bracket[F] =
       new MonadThrowBracket[F] {
         implicit protected def F: MonadThrow[F] = F0
       }

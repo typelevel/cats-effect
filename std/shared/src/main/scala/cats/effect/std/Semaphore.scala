@@ -253,7 +253,8 @@ object Semaphore {
       Resource.make(acquireNInternal(1))(_.release).evalMap(_.await)
   }
 
-  final private class ConcurrentSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Concurrent[F])
+  final private class ConcurrentSemaphore[F[_]](state: Ref[F, State[F]])(
+      implicit F: Concurrent[F])
       extends AbstractSemaphore(state) {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
   }
