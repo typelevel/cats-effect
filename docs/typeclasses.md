@@ -1,3 +1,8 @@
+---
+id: typeclasses
+title: Typeclasses
+---
+
 # Typeclasses
 
 The typeclass hierarchy within Cats Effect defines what it means, fundamentally, to *be* a functional effect. This is very similar to how we have a set of rules which tell us what it means to be a number, or what it means to have a `flatMap` method. Broadly, the rules for functional effects can be broken down into the following categories:
