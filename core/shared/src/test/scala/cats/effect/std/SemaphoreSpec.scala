@@ -55,23 +55,9 @@ class SemaphoreSpec extends BaseSpec { outer =>
     "permit.use does not leak fibers or permits upon cancelation" in real {
       val op = Semaphore[IO](0L).flatMap { s =>
         // The inner s.release should never be run b/c the timeout will be reached before a permit
-        // is available. After the timeout and hence cancelation of s.withPermit(...), we release
-        // a permit and then sleep a bit, then check the permit count. If withPermit doesn't properly
+        // is available. After the timeout and hence cancelation of s.permit.use(_ => ...), we release
+        // a permit and then sleep a bit, then check the permit count. If permit.use doesn't properly
         // cancel, the permit count will be 2, otherwise 1
-        s.permit.use(_ => s.release).timeout(1.milli).attempt *> s.release *> IO.sleep(
-          10.millis) *> s.count
-      }
-
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo(1L)
-        }
-      }
-    }
-
-    "permit.use does not leak fibers or permits upon cancelation" in real {
-      val op = Semaphore[IO](0L).flatMap { s =>
-        // Same as for `withPermit`
         s.permit.use(_ => s.release).timeout(1.milli).attempt *> s.release *> IO.sleep(
           10.millis) *> s.count
       }
