@@ -68,13 +68,13 @@ import cats.syntax.all._
  *   1. Cancellation can be masked via [[MonadCancel!.uncancelable]]. Masking
  *      is discussed in the next section.
  *   1. [[GenSpawn]] introduces external cancellation, another cancellation
- *      mechanism by which fibers can be cancelled by external parties.
+ *      mechanism by which fibers can be canceled by external parties.
  *
  * ==Masking==
  *
  * Masking allows a fiber to suppress cancellation for a period of time, which
  * is achieved via [[MonadCancel!.uncancelable uncancelable]]. If a fiber is
- * cancelled while it is masked, the cancellation is suppressed for as long as
+ * canceled while it is masked, the cancellation is suppressed for as long as
  * the fiber remains masked. Once the fiber reaches a completely unmasked
  * state, it responds to the cancellation.
  *
@@ -101,7 +101,7 @@ import cats.syntax.all._
  * it terminates with an outcome of `Canceled`.
  *
  * Finalizers can be registered to a fiber for the duration of some effect via
- * [[MonadCancel!.onCancel onCancel]]. If a fiber is cancelled while running
+ * [[MonadCancel!.onCancel onCancel]]. If a fiber is canceled while running
  * that effect, the registered finalizer is guaranteed to be run before
  * terminating.
  *
@@ -120,7 +120,7 @@ import cats.syntax.all._
  *
  * The bracket pattern is an invaluable tool for safely handling resource
  * lifecycles. Imagine an application that opens network connections to a
- * database server to do work. If a task in the application is cancelled while
+ * database server to do work. If a task in the application is canceled while
  * it holds an open database connection, the connection would never be released
  * or returned to a pool, causing a resource leak.
  *
@@ -170,7 +170,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    *
    * }}}
    *
-   * If a fiber is cancelled while it is masked, the cancellation is suppressed
+   * If a fiber is canceled while it is masked, the cancellation is suppressed
    * for as long as the fiber remains masked. Whenever the fiber is completely
    * unmasked again, the cancellation will be respected.
    *
@@ -282,7 +282,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * A pattern for safely interacting with effectful lifecycles.
    *
    * If `acquire` completes successfully, `use` is called. If `use` succeeds,
-   * fails, or is cancelled, `release` is guaranteed to be called exactly once.
+   * fails, or is canceled, `release` is guaranteed to be called exactly once.
    *
    * `acquire` is uncancelable.
    * `release` is uncancelable.
@@ -304,7 +304,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * A pattern for safely interacting with effectful lifecycles.
    *
    * If `acquire` completes successfully, `use` is called. If `use` succeeds,
-   * fails, or is cancelled, `release` is guaranteed to be called exactly once.
+   * fails, or is canceled, `release` is guaranteed to be called exactly once.
    *
    * `acquire` is uncancelable.
    * `release` is uncancelable.
@@ -330,7 +330,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * A pattern for safely interacting with effectful lifecycles.
    *
    * If `acquire` completes successfully, `use` is called. If `use` succeeds,
-   * fails, or is cancelled, `release` is guaranteed to be called exactly once.
+   * fails, or is canceled, `release` is guaranteed to be called exactly once.
    *
    * If `use` succeeds the returned value `B` is returned. If `use` returns
    * an exception, the exception is returned.
@@ -339,7 +339,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * `release` is uncancelable.
    * `use` is cancelable by default, but can be masked.
    *
-   * @param acquire the lifecycle acquisition action which can be cancelled
+   * @param acquire the lifecycle acquisition action which can be canceled
    * @param use the effect to which the lifecycle is scoped, whose result
    *            is the return value of this function
    * @param release the lifecycle release action which depends on the outcome of `use`
