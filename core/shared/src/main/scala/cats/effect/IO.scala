@@ -361,21 +361,29 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     IO.unlessA(cond)(IO.raiseError(e))
 
   /**
-   * Reads a line as a string from the standard input by using the platform's default charset, as per
-   * `java.nio.charset.Charset.defaultCharset()`.
+   * Reads a line as a string from the standard input using the platform's
+   * default charset, as per `java.nio.charset.Charset.defaultCharset()`.
    *
-   * @see `cats.effect.std.Console#readLineWithCharset` for reading using a custom
-   * `java.nio.charset.Charset`
+   * The effect can raise a `java.io.EOFException` if no input has been consumed
+   * before the EOF is observed. This should never happen with the standard
+   * input, unless it has been replaced with a finite `java.io.InputStream`
+   * through `java.lang.System#setIn` or similar.
    *
-   * @return an IO effect that describes reading the user's input from the standard input as a string
+   * @see `cats.effect.std.Console#readLineWithCharset` for reading using a
+   * custom `java.nio.charset.Charset`
+   *
+   * @return an IO effect that describes reading the user's input from the
+   *         standard input as a string
    */
   def readLine: IO[String] =
     Console[IO].readLine
 
   /**
-   * Prints a value to the standard output using the implicit `cats.Show` instance.
+   * Prints a value to the standard output using the implicit `cats.Show`
+   * instance.
    *
-   * @see `cats.effect.std.Console` for more standard input, output and error operations
+   * @see `cats.effect.std.Console` for more standard input, output and error
+   * operations
    *
    * @param a value to be printed to the standard output
    */
@@ -383,9 +391,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     Console[IO].print(a)
 
   /**
-   * Prints a value to the standard output followed by a new line using the implicit `cats.Show` instance.
+   * Prints a value to the standard output followed by a new line using the
+   * implicit `cats.Show` instance.
    *
-   * @see `cats.effect.std.Console` for more standard input, output and error operations
+   * @see `cats.effect.std.Console` for more standard input, output and error
+   * operations
    *
    * @param a value to be printed to the standard output
    */
