@@ -5,83 +5,11 @@
     "previous": "Previous",
     "tagline": "The purely functional runtime for Scala",
     "docs": {
-      "concurrency/basics": {
-        "title": "Basics"
-      },
-      "concurrency/deferred": {
-        "title": "Deferred"
-      },
-      "concurrency/mvar": {
-        "title": "MVar"
-      },
-      "concurrency/overview": {
-        "title": "Overview"
-      },
-      "concurrency/ref": {
-        "title": "Ref"
-      },
-      "concurrency/semaphore": {
-        "title": "Semaphore"
-      },
-      "datatypes/clock": {
-        "title": "Clock"
-      },
-      "datatypes/contextshift": {
-        "title": "ContextShift"
-      },
-      "datatypes/fiber": {
-        "title": "Fiber"
-      },
-      "datatypes/index": {
-        "title": "Data Types"
-      },
-      "datatypes/io": {
-        "title": "IO"
-      },
-      "datatypes/ioapp": {
-        "title": "IOApp"
-      },
-      "datatypes/resource": {
-        "title": "Resource"
-      },
-      "datatypes/syncio": {
-        "title": "SyncIO"
-      },
-      "datatypes/timer": {
-        "title": "Timer"
-      },
-      "guides/tracing": {
-        "title": "Tracing"
-      },
-      "guides/tutorial": {
-        "title": "Tutorial"
-      },
       "installation": {
         "title": "Installation"
       },
-      "typeclasses/async": {
-        "title": "Async"
-      },
-      "typeclasses/bracket": {
-        "title": "Bracket"
-      },
-      "typeclasses/concurrenteffect": {
-        "title": "ConcurrentEffect"
-      },
-      "typeclasses/concurrent": {
-        "title": "Concurrent"
-      },
-      "typeclasses/effect": {
-        "title": "Effect"
-      },
-      "typeclasses/liftio": {
-        "title": "LiftIO"
-      },
-      "typeclasses/overview": {
-        "title": "Overview"
-      },
-      "typeclasses/sync": {
-        "title": "Sync"
+      "typeclasses": {
+        "title": "Typeclasses"
       },
       "version-2.x/concurrency/version-2.x-basics": {
         "title": "Basics"
@@ -160,17 +88,22 @@
       },
       "version-2.x/typeclasses/version-2.x-sync": {
         "title": "Sync"
+      },
+      "version-3.x/version-3.x-installation": {
+        "title": "Installation"
+      },
+      "version-3.x/version-3.x-typeclasses": {
+        "title": "Typeclasses"
       }
     },
     "links": {
       "Docs": "Docs",
       "GitHub": "GitHub",
-      "API": "API",
-      "Resources": "Resources",
-      "Ecosystem": "Ecosystem"
+      "API": "API"
     },
     "categories": {
       "Getting Started": "Getting Started",
+      "Typeclasses": "Typeclasses",
       "Guides": "Guides",
       "Data Types": "Data Types",
       "Concurrency": "Concurrency",

@@ -10,7 +10,6 @@ const versions = require(`${CWD}/versions.json`);
 
 function Versions(props) {
   const {config: siteConfig} = props;
-  const latestVersion = versions[0];
   const repoUrl = `https://github.com/${siteConfig.organizationName}/${siteConfig.projectName}`;
   const baseUrl = siteConfig.baseUrl + siteConfig.docsUrl + '/' + (props.language ? props.language + '/' : '');
   return (
@@ -27,16 +26,25 @@ function Versions(props) {
             The 2.x series will be considered current until 3.x reaches stable.
           </p>
 
-          <h3 id="latest">Stable versions</h3>
+          <h3 id="latest">Versions</h3>
           <table className="versions">
             <tbody>
               <tr>
-                <th>{latestVersion}</th>
+                <th>2.x</th>
                 <td>
                   <a href={baseUrl + 'installation'}>Documentation</a>
                 </td>
                 <td>
                   <a href={'/cats-effect/api/'}>Scaladoc</a>
+                </td>
+              </tr>
+              <tr>
+                <th>3.x</th>
+                <td>
+                  <a href={siteConfig.baseUrl + 'docs/3.x/installation'}>Documentation</a>
+                </td>
+                <td>
+                  <a href={'/cats-effect/3.x/api/'}>Scaladoc</a>
                 </td>
               </tr>
             </tbody>

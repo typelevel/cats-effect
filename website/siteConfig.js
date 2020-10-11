@@ -19,8 +19,7 @@ const siteConfig = {
     {doc: 'installation', label: 'Docs'},
     {href: 'https://github.com/typelevel/cats-effect', label: "GitHub", external: true},
     {href: `/cats-effect/api/index.html`, label: 'API'},
-    {href: '/cats-effect/resources.html', label: 'Resources'},
-    {href: '/cats-effect/ecosystem.html', label: 'Ecosystem'}
+    // {href: '/cats-effect/resources.html', label: 'Resources'}
   ],
 
   /* path to images for header/footer */
