@@ -355,8 +355,8 @@ sealed abstract class Resource[+F[_], +A] {
    * Applies an effectful transformation to the allocated resource. Like a
    * `flatTap` on `F[A]` while maintaining the resource context
    */
-  def evalTap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G]): Resource[G, A] =
-    this.evalMap(a => f(a).as(a))
+  def evalTap[G[x] >: F[x], B](f: A => G[B]): Resource[G, A] =
+    this.flatMap(a => Resource.liftF(f(a)).map(_ => a))
 
   /**
    * Converts this to an `InvariantResource` to facilitate pattern matches
