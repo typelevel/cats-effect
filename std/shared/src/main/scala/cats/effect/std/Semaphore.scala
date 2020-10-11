@@ -24,7 +24,6 @@ import cats.syntax.all._
 
 import scala.collection.immutable.Queue
 import cats.effect.kernel.Sync
-import cats.effect.kernel.Async
 
 /**
  * A purely functional semaphore.
@@ -115,15 +114,15 @@ object Semaphore {
    */
   def apply[F[_]](n: Long)(implicit F: Concurrent[F]): F[Semaphore[F]] =
     assertNonNegative[F](n) *>
-      F.ref[State[F]](Right(n)).map(stateRef => new AsyncSemaphore[F](stateRef))
+      F.ref[State[F]](Right(n)).map(stateRef => new ConcurrentSemaphore[F](stateRef))
 
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
    * like `apply` but initializes state using another effect constructor
    */
-  def in[F[_], G[_]](n: Long)(implicit F: Sync[F], G: Async[G]): F[Semaphore[G]] =
+  def in[F[_], G[_]](n: Long)(implicit F: Sync[F], G: Sync[G]): F[Semaphore[G]] =
     assertNonNegative[F](n) *>
-      Ref.in[F, G, State[G]](Right(n)).map(stateRef => new AsyncSemaphore[G](stateRef))
+      Ref.in[F, G, State[G]](Right(n)).map(stateRef => new ConcurrentSemaphore[G](stateRef))
 
   private def assertNonNegative[F[_]](n: Long)(
       implicit F: ApplicativeError[F, Throwable]): F[Unit] =
@@ -254,7 +253,7 @@ object Semaphore {
       Resource.make(acquireNInternal(1))(_.release).evalMap(_.await)
   }
 
-  final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Concurrent[F])
+  final private class ConcurrentSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Concurrent[F])
       extends AbstractSemaphore(state) {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
   }
