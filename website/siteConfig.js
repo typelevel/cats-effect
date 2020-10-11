@@ -89,10 +89,17 @@ const siteConfig = {
       pinned: true
     },
     {
-      image: 'img/adopters/precog.svg',
-      caption: 'Precog',
-      title: 'Precog',
-      infoLink: 'https://precog.com/',
+      image: 'img/adopters/philips.svg',
+      caption: 'Philips',
+      title: 'Philips',
+      infoLink: 'https://www.philips.com',
+      pinned: true
+    },
+    {
+      image: 'img/adopters/itv.png',
+      caption: 'ITV',
+      title: 'ITV',
+      infoLink: 'https://www.itv.com',
       pinned: true
     },
     {
