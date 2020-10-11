@@ -429,7 +429,7 @@ object SyncIO extends SyncIOLowPriorityImplicits {
    *
    * @see [[SyncIO#attempt]]
    *
-   * @param t [[Throwable]] value to fail with
+   * @param t [[java.lang.Throwable]] value to fail with
    * @return a `SyncIO` that results in failure with value `t`
    */
   def raiseError[A](t: Throwable): SyncIO[A] =
