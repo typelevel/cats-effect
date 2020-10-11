@@ -26,7 +26,7 @@ import scala.concurrent.{Future, Promise}
 import java.util.concurrent.{Semaphore => JSemaphore}
 import java.util.concurrent.atomic.AtomicReference
 
-object Dispatcher {
+object Dispatcher extends DispatcherPlatform {
 
   def apply[F[_]: Async, A](unsafe: Runner[F] => F[A]): Resource[F, A] =
     for {
@@ -68,7 +68,7 @@ object Dispatcher {
       }
     } yield back
 
-  sealed trait Runner[F[_]] {
+  sealed trait Runner[F[_]] extends RunnerPlatform[F] {
 
     def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit])
 

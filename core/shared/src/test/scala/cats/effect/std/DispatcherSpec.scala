@@ -43,7 +43,7 @@ class DispatcherSpec extends BaseSpec {
 
       val rec = Dispatcher[IO, Unit] { runner =>
         val act = IO(runner.unsafeRunAndForget(increment))
-        (0 until num).toList.traverse_(_ => act)
+        act.replicateA(num).void
       }
 
       rec.use(_ => IO(counter mustEqual num))
