@@ -120,7 +120,8 @@ object Semaphore {
    * Creates a new `Semaphore`, initialized with `n` available permits.
    * like `apply` but initializes state using another effect constructor
    */
-  def in[F[_], G[_]](n: Long)(implicit F: Sync[F], G: Sync[G]): F[Semaphore[G]] =
+  def in[F[_], G[_]](
+      n: Long)(implicit F: Sync[F], G: Sync[G], C: Concurrent[G]): F[Semaphore[G]] =
     assertNonNegative[F](n) *>
       Ref.in[F, G, State[G]](Right(n)).map(stateRef => new ConcurrentSemaphore[G](stateRef))
 
