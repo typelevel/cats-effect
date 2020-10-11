@@ -43,11 +43,13 @@ import java.util.concurrent.TimeUnit
 trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   import OutcomeGenerators._
 
+  def executionTimeout = 10.seconds
+
   def ticked[A: AsResult](test: Ticker => A): Execution =
     Execution.result(test(Ticker(TestContext())))
 
   def real[A: AsResult](test: => IO[A]): Execution =
-    Execution.withEnvAsync(_ => timeout(test.unsafeToFuture()(runtime()), 10.seconds))
+    Execution.withEnvAsync(_ => timeout(test.unsafeToFuture()(runtime()), executionTimeout))
 
   implicit def cogenIO[A: Cogen](implicit ticker: Ticker): Cogen[IO[A]] =
     Cogen[Outcome[Option, Throwable, A]].contramap(unsafeRun(_))
@@ -61,7 +63,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
 
         val cogenE: Cogen[Throwable] = Cogen[Throwable]
 
-        val F: Async[IO] = IO.effectForIO
+        val F: Async[IO] = IO.asyncForIO
 
         def cogenCase[B: Cogen]: Cogen[OutcomeIO[B]] =
           OutcomeGenerators.cogenOutcome[IO, Throwable, B]
@@ -96,7 +98,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
         outer.arbitraryFD
 
       val F: Sync[SyncIO] =
-        SyncIO.syncEffectForSyncIO
+        SyncIO.syncForSyncIO
     }
 
     Arbitrary(generators.generators[A])
@@ -227,7 +229,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     }
 
   def completeAs[A: Eq: Show](expected: A)(implicit ticker: Ticker): Matcher[IO[A]] =
-    tickTo(Outcome.Completed(Some(expected)))
+    tickTo(Outcome.Succeeded(Some(expected)))
 
   def completeAsSync[A: Eq: Show](expected: A): Matcher[SyncIO[A]] = { (ioa: SyncIO[A]) =>
     val a = ioa.unsafeRunSync()
@@ -247,7 +249,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   }
 
   def nonTerminate(implicit ticker: Ticker): Matcher[IO[Unit]] =
-    tickTo[Unit](Outcome.Completed(None))
+    tickTo[Unit](Outcome.Succeeded(None))
 
   def tickTo[A: Eq: Show](expected: Outcome[Option, Throwable, A])(
       implicit ticker: Ticker): Matcher[IO[A]] = { (ioa: IO[A]) =>
@@ -257,14 +259,14 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
 
   def unsafeRun[A](ioa: IO[A])(implicit ticker: Ticker): Outcome[Option, Throwable, A] =
     try {
-      var results: Outcome[Option, Throwable, A] = Outcome.Completed(None)
+      var results: Outcome[Option, Throwable, A] = Outcome.Succeeded(None)
 
       ioa.unsafeRunAsync {
         case Left(t) => results = Outcome.Errored(t)
-        case Right(a) => results = Outcome.Completed(Some(a))
+        case Right(a) => results = Outcome.Succeeded(Some(a))
       }(unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => ()))
 
-      ticker.ctx.tickAll(3.days)
+      ticker.ctx.tickAll(1.days)
 
       /*println("====================================")
       println(s"completed ioa with $results")

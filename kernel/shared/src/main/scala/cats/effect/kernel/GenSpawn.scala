@@ -227,7 +227,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
    * @param fa the effect for the spawned fiber
    */
   def background[A](fa: F[A]): Resource[F, F[Outcome[F, E, A]]] =
-    Resource.make(start(fa))(_.cancel)(this).map(_.join)(this)
+    Resource.make(start(fa))(_.cancel)(this).map(_.join)
 
   /**
    * A non-terminating effect that never completes, which causes a fiber to
@@ -333,22 +333,22 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
       flatMap(racePair(fa, fb)) {
         case Left((oc, f)) =>
           oc match {
-            case Outcome.Completed(fa) => productR(f.cancel)(map(fa)(Left(_)))
+            case Outcome.Succeeded(fa) => productR(f.cancel)(map(fa)(Left(_)))
             case Outcome.Errored(ea) => productR(f.cancel)(raiseError(ea))
             case Outcome.Canceled() =>
               flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Completed(fb) => map(fb)(Right(_))
+                case Outcome.Succeeded(fb) => map(fb)(Right(_))
                 case Outcome.Errored(eb) => raiseError(eb)
                 case Outcome.Canceled() => productR(poll(canceled))(never)
               }
           }
         case Right((f, oc)) =>
           oc match {
-            case Outcome.Completed(fb) => productR(f.cancel)(map(fb)(Right(_)))
+            case Outcome.Succeeded(fb) => productR(f.cancel)(map(fb)(Right(_)))
             case Outcome.Errored(eb) => productR(f.cancel)(raiseError(eb))
             case Outcome.Canceled() =>
               flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Completed(fa) => map(fa)(Left(_))
+                case Outcome.Succeeded(fa) => map(fa)(Left(_))
                 case Outcome.Errored(ea) => raiseError(ea)
                 case Outcome.Canceled() => productR(poll(canceled))(never)
               }
@@ -406,9 +406,9 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
       flatMap(racePair(fa, fb)) {
         case Left((oc, f)) =>
           oc match {
-            case Outcome.Completed(fa) =>
+            case Outcome.Succeeded(fa) =>
               flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Completed(fb) => product(fa, fb)
+                case Outcome.Succeeded(fb) => product(fa, fb)
                 case Outcome.Errored(eb) => raiseError(eb)
                 case Outcome.Canceled() => productR(poll(canceled))(never)
               }
@@ -417,9 +417,9 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
           }
         case Right((f, oc)) =>
           oc match {
-            case Outcome.Completed(fb) =>
+            case Outcome.Succeeded(fb) =>
               flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Completed(fa) => product(fa, fb)
+                case Outcome.Succeeded(fa) => product(fa, fb)
                 case Outcome.Errored(ea) => raiseError(ea)
                 case Outcome.Canceled() => productR(poll(canceled))(never)
               }
@@ -501,20 +501,37 @@ object GenSpawn {
       Either[
         (Outcome[OptionT[F, *], E, A], Fiber[OptionT[F, *], E, B]),
         (Fiber[OptionT[F, *], E, A], Outcome[OptionT[F, *], E, B])]] = {
-      OptionT.liftF(F.racePair(fa.value, fb.value).map {
-        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-      })
+      OptionT.liftF(F.uncancelable(poll =>
+        poll(F.racePair(fa.value, fb.value)).map {
+          case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+          case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+        }))
     }
 
-    def liftOutcome[A](oc: Outcome[F, E, Option[A]]): Outcome[OptionT[F, *], E, A] =
+    override def race[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[F, Either[A, B]] =
+      OptionT(F.race(fa.value, fb.value).map(_.bisequence))
+
+    override def both[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[F, (A, B)] =
+      OptionT(F.both(fa.value, fb.value).map(_.tupled))
+
+    override def raceOutcome[A, B](fa: OptionT[F, A], fb: OptionT[F, B])
+        : OptionT[F, Either[Outcome[OptionT[F, *], E, A], Outcome[OptionT[F, *], E, B]]] =
+      OptionT.liftF(
+        F.raceOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+
+    override def bothOutcome[A, B](fa: OptionT[F, A], fb: OptionT[F, B])
+        : OptionT[F, (Outcome[OptionT[F, *], E, A], Outcome[OptionT[F, *], E, B])] =
+      OptionT.liftF(
+        F.bothOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+
+    private def liftOutcome[A](oc: Outcome[F, E, Option[A]]): Outcome[OptionT[F, *], E, A] =
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
         case Outcome.Errored(e) => Outcome.Errored(e)
-        case Outcome.Completed(foa) => Outcome.Completed(OptionT(foa))
+        case Outcome.Succeeded(foa) => Outcome.Succeeded(OptionT(foa))
       }
 
-    def liftFiber[A](fib: Fiber[F, E, Option[A]]): Fiber[OptionT[F, *], E, A] =
+    private def liftFiber[A](fib: Fiber[F, E, Option[A]]): Fiber[OptionT[F, *], E, A] =
       new Fiber[OptionT[F, *], E, A] {
         def cancel: OptionT[F, Unit] = OptionT.liftF(fib.cancel)
         def join: OptionT[F, Outcome[OptionT[F, *], E, A]] =
@@ -541,20 +558,44 @@ object GenSpawn {
       Either[
         (Outcome[EitherT[F, E0, *], E, A], Fiber[EitherT[F, E0, *], E, B]),
         (Fiber[EitherT[F, E0, *], E, A], Outcome[EitherT[F, E0, *], E, B])]] = {
-      EitherT.liftF(F.racePair(fa.value, fb.value).map {
-        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-      })
+      EitherT.liftF(F.uncancelable(poll =>
+        poll(F.racePair(fa.value, fb.value)).map {
+          case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+          case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+        }))
     }
 
-    def liftOutcome[A](oc: Outcome[F, E, Either[E0, A]]): Outcome[EitherT[F, E0, *], E, A] =
+    override def race[A, B](
+        fa: EitherT[F, E0, A],
+        fb: EitherT[F, E0, B]): EitherT[F, E0, Either[A, B]] =
+      EitherT(F.race(fa.value, fb.value).map(_.bisequence))
+
+    override def both[A, B](
+        fa: EitherT[F, E0, A],
+        fb: EitherT[F, E0, B]): EitherT[F, E0, (A, B)] =
+      EitherT(F.both(fa.value, fb.value).map(_.tupled))
+
+    override def raceOutcome[A, B](fa: EitherT[F, E0, A], fb: EitherT[F, E0, B]): EitherT[
+      F,
+      E0,
+      Either[Outcome[EitherT[F, E0, *], E, A], Outcome[EitherT[F, E0, *], E, B]]] =
+      EitherT.liftF(
+        F.raceOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+
+    override def bothOutcome[A, B](fa: EitherT[F, E0, A], fb: EitherT[F, E0, B])
+        : EitherT[F, E0, (Outcome[EitherT[F, E0, *], E, A], Outcome[EitherT[F, E0, *], E, B])] =
+      EitherT.liftF(
+        F.bothOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+
+    private def liftOutcome[A](
+        oc: Outcome[F, E, Either[E0, A]]): Outcome[EitherT[F, E0, *], E, A] =
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
         case Outcome.Errored(e) => Outcome.Errored(e)
-        case Outcome.Completed(foa) => Outcome.Completed(EitherT(foa))
+        case Outcome.Succeeded(foa) => Outcome.Succeeded(EitherT(foa))
       }
 
-    def liftFiber[A](fib: Fiber[F, E, Either[E0, A]]): Fiber[EitherT[F, E0, *], E, A] =
+    private def liftFiber[A](fib: Fiber[F, E, Either[E0, A]]): Fiber[EitherT[F, E0, *], E, A] =
       new Fiber[EitherT[F, E0, *], E, A] {
         def cancel: EitherT[F, E0, Unit] = EitherT.liftF(fib.cancel)
         def join: EitherT[F, E0, Outcome[EitherT[F, E0, *], E, A]] =
@@ -583,20 +624,35 @@ object GenSpawn {
       Either[
         (Outcome[IorT[F, L, *], E, A], Fiber[IorT[F, L, *], E, B]),
         (Fiber[IorT[F, L, *], E, A], Outcome[IorT[F, L, *], E, B])]] = {
-      IorT.liftF(F.racePair(fa.value, fb.value).map {
-        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-      })
+      IorT.liftF(F.uncancelable(poll =>
+        poll(F.racePair(fa.value, fb.value)).map {
+          case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+          case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+        }))
     }
 
-    def liftOutcome[A](oc: Outcome[F, E, Ior[L, A]]): Outcome[IorT[F, L, *], E, A] =
+    override def race[A, B](fa: IorT[F, L, A], fb: IorT[F, L, B]): IorT[F, L, Either[A, B]] =
+      IorT(F.race(fa.value, fb.value).map(_.bisequence))
+
+    override def both[A, B](fa: IorT[F, L, A], fb: IorT[F, L, B]): IorT[F, L, (A, B)] =
+      IorT(F.both(fa.value, fb.value).map(_.tupled))
+
+    override def raceOutcome[A, B](fa: IorT[F, L, A], fb: IorT[F, L, B])
+        : IorT[F, L, Either[Outcome[IorT[F, L, *], E, A], Outcome[IorT[F, L, *], E, B]]] =
+      IorT.liftF(F.raceOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+
+    override def bothOutcome[A, B](fa: IorT[F, L, A], fb: IorT[F, L, B])
+        : IorT[F, L, (Outcome[IorT[F, L, *], E, A], Outcome[IorT[F, L, *], E, B])] =
+      IorT.liftF(F.bothOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+
+    private def liftOutcome[A](oc: Outcome[F, E, Ior[L, A]]): Outcome[IorT[F, L, *], E, A] =
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
         case Outcome.Errored(e) => Outcome.Errored(e)
-        case Outcome.Completed(foa) => Outcome.Completed(IorT(foa))
+        case Outcome.Succeeded(foa) => Outcome.Succeeded(IorT(foa))
       }
 
-    def liftFiber[A](fib: Fiber[F, E, Ior[L, A]]): Fiber[IorT[F, L, *], E, A] =
+    private def liftFiber[A](fib: Fiber[F, E, Ior[L, A]]): Fiber[IorT[F, L, *], E, A] =
       new Fiber[IorT[F, L, *], E, A] {
         def cancel: IorT[F, L, Unit] = IorT.liftF(fib.cancel)
         def join: IorT[F, L, Outcome[IorT[F, L, *], E, A]] =
@@ -624,14 +680,37 @@ object GenSpawn {
         (Outcome[Kleisli[F, R, *], E, A], Fiber[Kleisli[F, R, *], E, B]),
         (Fiber[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B])]] = {
       Kleisli { r =>
-        (F.racePair(fa.run(r), fb.run(r)).map {
-          case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-          case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-        })
+        F.uncancelable(poll =>
+          poll((F.racePair(fa.run(r), fb.run(r))).map {
+            case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+            case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+          }))
       }
     }
 
-    def liftOutcome[A](oc: Outcome[F, E, A]): Outcome[Kleisli[F, R, *], E, A] = {
+    override def race[A, B](
+        fa: Kleisli[F, R, A],
+        fb: Kleisli[F, R, B]): Kleisli[F, R, Either[A, B]] =
+      Kleisli { r => F.race(fa.run(r), fb.run(r)) }
+
+    override def both[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]): Kleisli[F, R, (A, B)] =
+      Kleisli { r => F.both(fa.run(r), fb.run(r)) }
+
+    override def raceOutcome[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]): Kleisli[
+      F,
+      R,
+      Either[Outcome[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B]]] =
+      Kleisli { r =>
+        F.raceOutcome(fa.run(r), fb.run(r)).map(_.bimap(liftOutcome(_), liftOutcome(_)))
+      }
+
+    override def bothOutcome[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B])
+        : Kleisli[F, R, (Outcome[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B])] =
+      Kleisli { r =>
+        F.bothOutcome(fa.run(r), fb.run(r)).map(_.bimap(liftOutcome(_), liftOutcome(_)))
+      }
+
+    private def liftOutcome[A](oc: Outcome[F, E, A]): Outcome[Kleisli[F, R, *], E, A] = {
 
       val nat: F ~> Kleisli[F, R, *] = new ~>[F, Kleisli[F, R, *]] {
         def apply[B](fa: F[B]) = Kleisli.liftF(fa)
@@ -640,7 +719,7 @@ object GenSpawn {
       oc.mapK(nat)
     }
 
-    def liftFiber[A](fib: Fiber[F, E, A]): Fiber[Kleisli[F, R, *], E, A] =
+    private def liftFiber[A](fib: Fiber[F, E, A]): Fiber[Kleisli[F, R, *], E, A] =
       new Fiber[Kleisli[F, R, *], E, A] {
         def cancel: Kleisli[F, R, Unit] = Kleisli.liftF(fib.cancel)
         def join: Kleisli[F, R, Outcome[Kleisli[F, R, *], E, A]] =
@@ -669,20 +748,41 @@ object GenSpawn {
       Either[
         (Outcome[WriterT[F, L, *], E, A], Fiber[WriterT[F, L, *], E, B]),
         (Fiber[WriterT[F, L, *], E, A], Outcome[WriterT[F, L, *], E, B])]] = {
-      WriterT.liftF(F.racePair(fa.run, fb.run).map {
-        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-      })
+      WriterT.liftF(F.uncancelable(poll =>
+        poll(F.racePair(fa.run, fb.run)).map {
+          case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+          case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+        }))
     }
 
-    def liftOutcome[A](oc: Outcome[F, E, (L, A)]): Outcome[WriterT[F, L, *], E, A] =
+    override def race[A, B](
+        fa: WriterT[F, L, A],
+        fb: WriterT[F, L, B]): WriterT[F, L, Either[A, B]] =
+      WriterT(F.race(fa.run, fb.run).map(_.bisequence))
+
+    override def both[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[F, L, (A, B)] =
+      WriterT(F.both(fa.run, fb.run).map {
+        case ((l1, a), (l2, b)) => (l1 |+| l2) -> (a -> b)
+      })
+
+    override def raceOutcome[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[
+      F,
+      L,
+      Either[Outcome[WriterT[F, L, *], E, A], Outcome[WriterT[F, L, *], E, B]]] =
+      WriterT.liftF(F.raceOutcome(fa.run, fb.run).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+
+    override def bothOutcome[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B])
+        : WriterT[F, L, (Outcome[WriterT[F, L, *], E, A], Outcome[WriterT[F, L, *], E, B])] =
+      WriterT.liftF(F.bothOutcome(fa.run, fb.run).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+
+    private def liftOutcome[A](oc: Outcome[F, E, (L, A)]): Outcome[WriterT[F, L, *], E, A] =
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
         case Outcome.Errored(e) => Outcome.Errored(e)
-        case Outcome.Completed(foa) => Outcome.Completed(WriterT(foa))
+        case Outcome.Succeeded(foa) => Outcome.Succeeded(WriterT(foa))
       }
 
-    def liftFiber[A](fib: Fiber[F, E, (L, A)]): Fiber[WriterT[F, L, *], E, A] =
+    private def liftFiber[A](fib: Fiber[F, E, (L, A)]): Fiber[WriterT[F, L, *], E, A] =
       new Fiber[WriterT[F, L, *], E, A] {
         def cancel: WriterT[F, L, Unit] = WriterT.liftF(fib.cancel)
         def join: WriterT[F, L, Outcome[WriterT[F, L, *], E, A]] =

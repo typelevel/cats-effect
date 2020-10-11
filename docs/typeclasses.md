@@ -38,7 +38,7 @@ In addition to `bracket`, `MonadCancel` also provides a lower-level operation, `
 
 ```scala mdoc
 import cats.effect.MonadCancel
-import cats.effect.concurrent.Semaphore
+import cats.effect.std.Semaphore
 import cats.effect.syntax.all._
 import cats.syntax.all._
 
@@ -280,7 +280,7 @@ The `joinAndEmbedNever` function is a convenience method built on top of `join`,
 
 `Outcome` has the following shape:
 
-- `Completed` (containing a value of type `F[A]`)
+- `Succeeded` (containing a value of type `F[A]`)
 - `Errored` (containing a value of type `E`, usually `Throwable`)
 - `Canceled` (which contains nothing)
 
@@ -288,7 +288,7 @@ These represent the three possible termination states for a fiber, and by produc
 
 ```scala
 fiber.join flatMap {
-  case Outcome.Completed(fa) => 
+  case Outcome.Succeeded(fa) =>
     fa
 
   case Outcome.Errored(e) => 
@@ -316,7 +316,7 @@ There's a subtle issue here though: `canceled` produces an effect of type `F[Uni
 
 ```scala
 fiber.join flatMap {
-  case Outcome.Completed(fa) => // => F[A]
+  case Outcome.Succeeded(fa) => // => F[A]
     fa
 
   case Outcome.Errored(e) => // => F[A]
@@ -340,7 +340,7 @@ This probably works, but it's kind of hacky, and not all `A`s have sane defaults
 import cats.conversions.all._
 
 fiber.join flatMap {
-  case Outcome.Completed(fa) => // => F[Some[A]]
+  case Outcome.Succeeded(fa) => // => F[Some[A]]
     fa.map(Some(_))
 
   case Outcome.Errored(e) => // => F[Option[A]]
@@ -357,7 +357,7 @@ If you are *really* sure that you're `join`ing and you're never, ever going to b
 
 ```scala
 fiber.join flatMap {
-  case Outcome.Completed(fa) => // => F[A]
+  case Outcome.Succeeded(fa) => // => F[A]
     fa
 
   case Outcome.Errored(e) => // => F[A]

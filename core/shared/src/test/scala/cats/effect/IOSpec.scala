@@ -16,9 +16,10 @@
 
 package cats.effect
 
+import cats.effect.kernel.Ref
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.SemigroupKTests
-import cats.effect.laws.EffectTests
+import cats.effect.laws.AsyncTests
 import cats.effect.testkit.{SyncTypeGenerators, TestContext}
 import cats.syntax.all._
 
@@ -367,13 +368,13 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
         test.flatMap { results =>
           results.traverse { result =>
-            IO(result must beLike { case Outcome.Completed(_) => ok }).flatMap { _ =>
+            IO(result must beLike { case Outcome.Succeeded(_) => ok }).flatMap { _ =>
               result match {
-                case Outcome.Completed(ioa) =>
+                case Outcome.Succeeded(ioa) =>
                   ioa.flatMap { oc =>
-                    IO(result must beLike { case Outcome.Completed(_) => ok }).flatMap { _ =>
+                    IO(result must beLike { case Outcome.Succeeded(_) => ok }).flatMap { _ =>
                       oc match {
-                        case Outcome.Completed(ioa) =>
+                        case Outcome.Succeeded(ioa) =>
                           ioa flatMap { i => IO(i mustEqual 42) }
 
                         case _ => sys.error("nope")
@@ -388,7 +389,138 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         }
       }
 
+      "both" should {
+
+        "succeed if both sides succeed" in ticked { implicit ticker =>
+          IO.both(IO.pure(1), IO.pure(2)) must completeAs((1, 2))
+        }
+
+        "fail if lhs fails" in ticked { implicit ticker =>
+          case object TestException extends Throwable
+          IO.both(IO.raiseError(TestException), IO.pure(2)).void must failAs(TestException)
+        }
+
+        "fail if rhs fails" in ticked { implicit ticker =>
+          case object TestException extends Throwable
+          IO.both(IO.pure(2), IO.raiseError(TestException)).void must failAs(TestException)
+        }
+
+        "cancel if lhs cancels" in ticked { implicit ticker =>
+          IO.both(IO.canceled, IO.unit).void.start.flatMap(_.join) must completeAs(
+            Outcome.canceled[IO, Throwable, Unit])
+
+        }
+
+        "cancel if rhs cancels" in ticked { implicit ticker =>
+          IO.both(IO.unit, IO.canceled).void.start.flatMap(_.join) must completeAs(
+            Outcome.canceled[IO, Throwable, Unit])
+        }
+
+        "non terminate if lhs never completes" in ticked { implicit ticker =>
+          IO.both(IO.never, IO.pure(1)).void must nonTerminate
+        }
+
+        "non terminate if rhs never completes" in ticked { implicit ticker =>
+          IO.both(IO.pure(1), IO.never).void must nonTerminate
+        }
+
+        "propagate cancellation" in ticked { implicit ticker =>
+          (for {
+            fiber <- IO.both(IO.never, IO.never).void.start
+            _ <- IO(ticker.ctx.tickAll())
+            _ <- fiber.cancel
+            _ <- IO(ticker.ctx.tickAll())
+            oc <- fiber.join
+          } yield oc) must completeAs(Outcome.canceled[IO, Throwable, Unit])
+        }
+
+        "cancel both fibers" in ticked { implicit ticker =>
+          (for {
+            l <- Ref[IO].of(false)
+            r <- Ref[IO].of(false)
+            fiber <-
+              IO.both(IO.never.onCancel(l.set(true)), IO.never.onCancel(r.set(true))).start
+            _ <- IO(ticker.ctx.tickAll())
+            _ <- fiber.cancel
+            l2 <- l.get
+            r2 <- r.get
+          } yield (l2 -> r2)) must completeAs(true -> true)
+        }
+
+      }
+
       "race" should {
+        "succeed with faster side" in ticked { implicit ticker =>
+          IO.race(IO.sleep(10.minutes) >> IO.pure(1), IO.pure(2)) must completeAs(Right(2))
+        }
+
+        "fail if lhs fails" in ticked { implicit ticker =>
+          case object TestException extends Throwable
+          IO.race(IO.raiseError[Int](TestException), IO.sleep(10.millis) >> IO.pure(1))
+            .void must failAs(TestException)
+        }
+
+        "fail if rhs fails" in ticked { implicit ticker =>
+          case object TestException extends Throwable
+          IO.race(IO.sleep(10.millis) >> IO.pure(1), IO.raiseError[Int](TestException))
+            .void must failAs(TestException)
+        }
+
+        "fail if lhs fails and rhs never completes" in ticked { implicit ticker =>
+          case object TestException extends Throwable
+          IO.race(IO.raiseError[Int](TestException), IO.never).void must failAs(TestException)
+        }
+
+        "fail if rhs fails and lhs never completes" in ticked { implicit ticker =>
+          case object TestException extends Throwable
+          IO.race(IO.never, IO.raiseError[Int](TestException)).void must failAs(TestException)
+        }
+
+        "succeed if lhs never completes" in ticked { implicit ticker =>
+          IO.race(IO.never[Int], IO.pure(2)) must completeAs(Right(2))
+        }
+
+        "succeed if rhs never completes" in ticked { implicit ticker =>
+          IO.race(IO.pure(2), IO.never[Int]) must completeAs(Left(2))
+        }
+
+        "cancel if both sides cancel" in ticked { implicit ticker =>
+          IO.both(IO.canceled, IO.canceled).void.start.flatMap(_.join) must completeAs(
+            Outcome.canceled[IO, Throwable, Unit])
+        }
+
+        "succeed if lhs cancels" in ticked { implicit ticker =>
+          IO.race(IO.canceled, IO.pure(1)) must completeAs(Right(1))
+        }
+
+        "succeed if rhs cancels" in ticked { implicit ticker =>
+          IO.race(IO.pure(1), IO.canceled) must completeAs(Left(1))
+        }
+
+        "fail if lhs cancels and rhs fails" in ticked { implicit ticker =>
+          case object TestException extends Throwable
+          IO.race(IO.canceled, IO.raiseError[Unit](TestException)).void must failAs(
+            TestException)
+        }
+
+        "fail if rhs cancels and lhs fails" in ticked { implicit ticker =>
+          case object TestException extends Throwable
+          IO.race(IO.raiseError[Unit](TestException), IO.canceled).void must failAs(
+            TestException)
+        }
+
+        "cancel both fibers" in ticked { implicit ticker =>
+          (for {
+            l <- Ref.of[IO, Boolean](false)
+            r <- Ref.of[IO, Boolean](false)
+            fiber <-
+              IO.race(IO.never.onCancel(l.set(true)), IO.never.onCancel(r.set(true))).start
+            _ <- IO(ticker.ctx.tickAll())
+            _ <- fiber.cancel
+            l2 <- l.get
+            r2 <- r.get
+          } yield (l2 -> r2)) must completeAs(true -> true)
+        }
 
         "evaluate a timeout using sleep and race" in ticked { implicit ticker =>
           IO.race(IO.never[Unit], IO.sleep(2.seconds)) must completeAs(Right(()))
@@ -708,7 +840,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
         // convenient proxy for an async that returns a cancelToken
         val test = IO.sleep(1.day).onCase {
-          case Outcome.Completed(_) => IO { passed = true }
+          case Outcome.Succeeded(_) => IO { passed = true }
         }
 
         test must completeAs(())
@@ -823,6 +955,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         (IO.sleep(10.seconds) >> IO { affected = true }) must completeAs(())
         affected must beTrue
       }
+
       "timeout" should {
         "succeed" in real {
           val op = IO.pure(true).timeout(100.millis)
@@ -846,6 +979,15 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
               }
             }
           }
+        }
+
+        "invoke finalizers on timed out things" in real {
+          for {
+            ref <- Ref[IO].of(false)
+            _ <- IO.sleep(100.millis).onCancel(ref.set(true)).timeoutTo(50.millis, IO.unit)
+            v <- ref.get
+            r <- IO(v must beTrue)
+          } yield r
         }
       }
 
@@ -883,7 +1025,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     checkAll(
       "IO",
-      EffectTests[IO].effect[Int, Int, Int](10.millis)
+      AsyncTests[IO].async[Int, Int, Int](10.millis)
     ) /*(Parameters(seed = Some(Seed.fromBase64("XidlR_tu11X7_v51XojzZJsm6EaeU99RAEL9vzbkWBD=").get)))*/
   }
 

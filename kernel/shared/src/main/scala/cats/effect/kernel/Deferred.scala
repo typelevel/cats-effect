@@ -163,10 +163,10 @@ object Deferred {
           case State.Unset(_, _) =>
             F.async[A] { cb =>
               val resume = (a: A) => cb(Right(a))
-              val id = addReader(awakeReader = resume)
-              val onCancel = F.delay(deleteReader(id))
-
-              onCancel.some.pure[F]
+              F.delay(addReader(awakeReader = resume)).map { id =>
+                // if canceled
+                F.delay(deleteReader(id)).some
+              }
             }
         }
       }

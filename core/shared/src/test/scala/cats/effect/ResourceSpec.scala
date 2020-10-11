@@ -133,7 +133,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       def sideEffectyResource: (AtomicBoolean, Resource[IO, Unit]) = {
         val cleanExit = new java.util.concurrent.atomic.AtomicBoolean(false)
         val res = Resource.makeCase(IO.unit) {
-          case (_, Resource.ExitCase.Completed) =>
+          case (_, Resource.ExitCase.Succeeded) =>
             IO {
               cleanExit.set(true)
             }
@@ -176,6 +176,16 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         a0 eqv a1
       }
+    }
+
+    "use is stack-safe over binds" in ticked { implicit ticker =>
+      val r = (1 to 10000)
+        .foldLeft(Resource.liftF(IO.unit)) {
+          case (r, _) =>
+            r.flatMap(_ => Resource.liftF(IO.unit))
+        }
+        .use(IO.pure)
+      r eqv IO.unit
     }
 
     "allocate does not release until close is invoked" in ticked { implicit ticker =>

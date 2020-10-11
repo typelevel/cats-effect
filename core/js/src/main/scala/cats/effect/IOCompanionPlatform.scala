@@ -34,5 +34,5 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   }
 
   def fromPromise[A](iop: IO[Promise[A]]): IO[A] =
-    effectForIO.fromPromise(iop)
+    asyncForIO.fromPromise(iop)
 }

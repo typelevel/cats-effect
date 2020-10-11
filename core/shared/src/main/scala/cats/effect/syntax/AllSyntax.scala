@@ -23,5 +23,3 @@ trait AllSyntax
     with kernel.syntax.GenConcurrentSyntax
     with kernel.syntax.GenTemporalSyntax
     with kernel.syntax.AsyncSyntax
-    with kernel.syntax.SyncEffectSyntax
-    with kernel.syntax.EffectSyntax
