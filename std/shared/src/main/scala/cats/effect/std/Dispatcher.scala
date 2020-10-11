@@ -28,8 +28,9 @@ import java.util.concurrent.atomic.AtomicReference
 
 object Dispatcher {
 
-  def apply[F[_]: Async, A](unsafe: (F ~> Future) => F[A]): Resource[F, A] =
+  def apply[F[_]: Async, A](unsafe: Runner[F] => F[A]): Resource[F, A] =
     for {
+      // TODO we can make this non-blocking if we encode an inline async queue
       invokeRef <- Resource.liftF(Sync[F].delay(new AtomicReference[F[Unit] => Unit]))
       invokeLatch <- Resource.liftF(Sync[F].delay(new JSemaphore(1)))
       _ <- Resource.liftF(Sync[F].delay(invokeLatch.acquire()))
@@ -40,26 +41,43 @@ object Dispatcher {
           invokeLatch.release()
         }
 
+        // TODO spawn a fiber here to manage the runtime
         cont.flatten
       }
 
       _ <- runner.foreverM[Unit].background
 
       back <- Resource liftF {
-        def unsafeToFuture[E](fe: F[E]): Future[E] = {
-          val promise = Promise[E]()
+        unsafe {
+          new Runner[F] {
+            def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
+              val promise = Promise[E]()
 
-          invokeLatch.acquire()
-          invokeRef.get() {
-            fe.flatMap(e => Sync[F].delay(promise.success(e)))
-              .onError { case t => Sync[F].delay(promise.failure(t)) }
-              .void
+              invokeLatch.acquire()
+              invokeRef.get() {
+                fe.flatMap(e => Sync[F].delay(promise.success(e)))
+                .onError { case t => Sync[F].delay(promise.failure(t)) }
+                .void
+              }
+
+              // TODO cancel token
+              (promise.future, () => Future.successful(()))
+            }
           }
-
-          promise.future
         }
-
-        unsafe(new (F ~> Future) { def apply[E](fe: F[E]) = unsafeToFuture(fe) })
       }
     } yield back
+
+  sealed trait Runner[F[_]] {
+
+    def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit])
+
+    def unsafeToFuture[A](fa: F[A]): Future[A] =
+      unsafeToFutureCancelable(fa)._1
+
+    def unsafeRunAndForget[A](fa: F[A]): Unit = {
+      unsafeToFutureCancelable(fa)
+      ()
+    }
+  }
 }
