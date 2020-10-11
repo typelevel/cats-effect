@@ -700,13 +700,13 @@ abstract private[effect] class ResourceInstances extends ResourceInstances0 {
     }
 
   implicit def catsEffectCommutativeApplicativeForResourcePar[F[_]](
-      implicit F: Async[F]
+      implicit F: Concurrent[F]
   ): CommutativeApplicative[Resource.Par[F, *]] =
     new ResourceParCommutativeApplicative[F] {
       def F0 = F
     }
 
-  implicit def catsEffectParallelForResource[F0[_]: Async]
+  implicit def catsEffectParallelForResource[F0[_]: Concurrent]
       : Parallel.Aux[Resource[F0, *], Resource.Par[F0, *]] =
     new ResourceParallel[F0] {
       def F0 = catsEffectCommutativeApplicativeForResourcePar
@@ -857,7 +857,7 @@ abstract private[effect] class ResourceParCommutativeApplicative[F[_]]
   import Resource.Par
   import Resource.Par.{unwrap, apply => par}
 
-  implicit protected def F0: Async[F]
+  implicit protected def F0: Concurrent[F]
 
   final override def map[A, B](fa: Par[F, A])(f: A => B): Par[F, B] =
     par(unwrap(fa).map(f))
