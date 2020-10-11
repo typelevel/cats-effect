@@ -599,13 +599,13 @@ object Resource extends ResourceInstances with ResourcePlatform {
   }
 
   trait Bracket0 {
-    implicit def catsEffectResourceBracketForSync[F[_]](implicit F0: Sync[F]): Bracket[F] =
-      new SyncBracket[F] {
-        implicit protected def F: Sync[F] = F0
+    implicit def catsEffectResourceBracketForMonadThrow[F[_]](implicit F0: MonadThrow[F]): Bracket[F] =
+      new MonadThrowBracket[F] {
+        implicit protected def F: MonadThrow[F] = F0
       }
 
-    trait SyncBracket[F[_]] extends Bracket[F] {
-      implicit protected def F: Sync[F]
+    trait MonadThrowBracket[F[_]] extends Bracket[F] {
+      implicit protected def F: MonadThrow[F]
 
       def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
           release: (A, ExitCase) => F[Unit]): F[B] =
