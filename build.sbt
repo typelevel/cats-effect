@@ -238,6 +238,6 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(noPublishSettings)
   .enablePlugins(JmhPlugin)
 
-lazy val docs = project.in(file("ce3-docs"))
+lazy val docs = project.in(file("site-docs"))
   .dependsOn(core.jvm)
   .enablePlugins(MdocPlugin)
