@@ -14,7 +14,7 @@ rm -rf ./docs
 
 # Generate scaladoc and mdoc from each submodule
 (cd versions/2.x && sbt clean doc docs/mdoc)
-(cd versions/3.x && sbt clean doc docs/mdoc)
+(cd versions/3.x && sbt clean coreJVM/doc docs/mdoc)
 
 # Create Docusaurus directories
 mkdir -p ./website/versioned_sidebars
