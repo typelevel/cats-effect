@@ -16,10 +16,11 @@
 
 package cats.effect
 
-import cats.MonadError
+import cats.{ApplicativeError, MonadError}
 
 package object kernel {
 
+  type ApplicativeThrow[F[_]] = ApplicativeError[F, Throwable]
   type MonadThrow[F[_]] = MonadError[F, Throwable]
   type MonadCancelThrow[F[_]] = MonadCancel[F, Throwable]
 

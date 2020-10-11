@@ -43,11 +43,13 @@ import java.util.concurrent.TimeUnit
 trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   import OutcomeGenerators._
 
+  def executionTimeout = 10.seconds
+
   def ticked[A: AsResult](test: Ticker => A): Execution =
     Execution.result(test(Ticker(TestContext())))
 
   def real[A: AsResult](test: => IO[A]): Execution =
-    Execution.withEnvAsync(_ => timeout(test.unsafeToFuture()(runtime()), 10.seconds))
+    Execution.withEnvAsync(_ => timeout(test.unsafeToFuture()(runtime()), executionTimeout))
 
   implicit def cogenIO[A: Cogen](implicit ticker: Ticker): Cogen[IO[A]] =
     Cogen[Outcome[Option, Throwable, A]].contramap(unsafeRun(_))
@@ -264,7 +266,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
         case Right(a) => results = Outcome.Succeeded(Some(a))
       }(unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => ()))
 
-      ticker.ctx.tickAll(3.days)
+      ticker.ctx.tickAll(1.days)
 
       /*println("====================================")
       println(s"completed ioa with $results")
