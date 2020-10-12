@@ -727,7 +727,7 @@ private final class IOFiber[A](
                           cb(Left(e))
                       }
                     case Some(_) =>
-                      //We lose
+                    //We lose
                   }
                 }
 
@@ -762,7 +762,7 @@ private final class IOFiber[A](
                           cb(Left(e))
                       }
                     case Some(_) =>
-                      //We lose
+                    //We lose
                   }
                 }
 
