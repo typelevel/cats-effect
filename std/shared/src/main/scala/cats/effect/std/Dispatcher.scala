@@ -16,7 +16,7 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.{Async, Fiber, Deferred, MonadCancel, Ref, Resource, Sync}
+import cats.effect.kernel.{Async, Deferred, Fiber, MonadCancel, Ref, Resource, Sync}
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
 
@@ -29,7 +29,10 @@ import java.util.concurrent.atomic.AtomicReference
 object Dispatcher extends DispatcherPlatform {
 
   def apply[F[_]: Async, A](unsafe: Runner[F] => F[A]): Resource[F, A] = {
-    final case class State(begin: Long, end: Long, registry: LongMap[(F[Unit], F[Unit] => Unit)]) {
+    final case class State(
+        begin: Long,
+        end: Long,
+        registry: LongMap[(F[Unit], F[Unit] => Unit)]) {
       // efficiency on the CAS
       override def equals(that: Any) = this eq that.asInstanceOf[AnyRef]
       override def hashCode = System.identityHashCode(this)
@@ -47,41 +50,42 @@ object Dispatcher extends DispatcherPlatform {
       }
 
       dispatcher = for {
-        _ <- Sync[F].delay(latch.set(null))   // reset to null
+        _ <- Sync[F].delay(latch.set(null)) // reset to null
         s <- Sync[F].delay(state.getAndSet(Empty))
 
         State(begin, end, registry) = s
         pairs = (begin until end).toList.flatMap(registry.get)
 
-        _ <- if (pairs.isEmpty) {
-          Async[F].async_[Unit] { cb =>
-            if (!latch.compareAndSet(null, () => cb(Right(())))) {
-              // state was changed between when we last set the latch and now; complete the callback immediately
-              cb(Right(()))
+        _ <-
+          if (pairs.isEmpty) {
+            Async[F].async_[Unit] { cb =>
+              if (!latch.compareAndSet(null, () => cb(Right(())))) {
+                // state was changed between when we last set the latch and now; complete the callback immediately
+                cb(Right(()))
+              }
+            }
+          } else {
+            MonadCancel[F] uncancelable { _ =>
+              for {
+                fibers <- pairs traverse {
+                  case (action, f) =>
+                    for {
+                      fiberDef <- Deferred[F, Fiber[F, Throwable, Unit]]
+
+                      enriched = action guarantee {
+                        fiberDef.get.flatMap(fiber => active.update(_ - fiber))
+                      }
+
+                      fiber <- enriched.start
+                      _ <- fiberDef.complete(fiber)
+                      _ <- Sync[F].delay(f(fiber.cancel))
+                    } yield fiber
+                }
+
+                _ <- active.update(_ ++ fibers)
+              } yield ()
             }
           }
-        } else {
-          MonadCancel[F] uncancelable { _ =>
-            for {
-              fibers <- pairs traverse {
-                case (action, f) =>
-                  for {
-                    fiberDef <- Deferred[F, Fiber[F, Throwable, Unit]]
-
-                    enriched = action guarantee {
-                      fiberDef.get.flatMap(fiber => active.update(_ - fiber))
-                    }
-
-                    fiber <- enriched.start
-                    _ <- fiberDef.complete(fiber)
-                    _ <- Sync[F].delay(f(fiber.cancel))
-                  } yield fiber
-              }
-
-              _ <- active.update(_ ++ fibers)
-            } yield ()
-          }
-        }
       } yield ()
 
       _ <- dispatcher.foreverM[Unit].background
@@ -92,7 +96,8 @@ object Dispatcher extends DispatcherPlatform {
             def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
               val promise = Promise[E]()
 
-              val action = fe.flatMap(e => Sync[F].delay(promise.success(e)))
+              val action = fe
+                .flatMap(e => Sync[F].delay(promise.success(e)))
                 .onError { case t => Sync[F].delay(promise.failure(t)) }
                 .void
 
