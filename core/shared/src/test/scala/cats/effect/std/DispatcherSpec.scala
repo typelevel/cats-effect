@@ -20,6 +20,8 @@ package std
 import cats.effect.kernel.Deferred
 import cats.syntax.all._
 
+import scala.concurrent.duration._
+
 class DispatcherSpec extends BaseSpec {
 
   "async dispatcher" should {
@@ -67,6 +69,18 @@ class DispatcherSpec extends BaseSpec {
           rec.use(_ => IO.unit)
         }
       } yield ok
+    }
+
+    "forward cancelation onto the inner action" in real {
+      var canceled = false
+
+      val rec = Dispatcher[IO, Unit] { runner =>
+        IO(runner.unsafeToFutureCancelable(IO.never.onCancel(IO { canceled = true }))._2) flatMap { ct =>
+          IO.sleep(100.millis) >> IO.fromFuture(IO(ct()))
+        }
+      }
+
+      rec.use(_ => IO(canceled must beTrue))
     }
   }
 }
