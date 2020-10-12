@@ -197,6 +197,7 @@ private final class IOFiber[A](
   /* masks encoding: initMask => no masks, ++ => push, -- => pop */
   @tailrec
   private[this] def runLoop(_cur0: IO[Any], iteration: Int): Unit = {
+    import IOFiber.{cancellationCheckThreshold, iterationThreshold, yieldThreshold}
     /*
      * `cur` will be set to `EndFiber` when the runloop needs to terminate,
      * either because the entire IO is done, or because this branch is done
@@ -213,16 +214,19 @@ private final class IOFiber[A](
       _cur0
     }
 
-    val nextIteration = if (iteration > 512) {
-      readBarrier()
+    val nextIteration = if (iteration > iterationThreshold) {
       0
     } else {
       iteration + 1
     }
 
+    if ((nextIteration % cancellationCheckThreshold) == 0) {
+      readBarrier()
+    }
+
     if (shouldFinalize()) {
       asyncCancel(null)
-    } else if (nextIteration == 100) {
+    } else if ((nextIteration % yieldThreshold) == 0) {
       runLoop(IO.cede >> _cur0, nextIteration)
     } else {
     // println(s"<$name> looping on $cur0")
@@ -1299,6 +1303,11 @@ private final class IOFiber[A](
 
 private object IOFiber {
   private val childCount = new AtomicInteger(0)
+
+  private val yieldThreshold =
+    System.getProperty("cats.effect.auto.yield.threshold", "1024").toInt
+  private val cancellationCheckThreshold = 512
+  private val iterationThreshold = yieldThreshold * cancellationCheckThreshold
 
   /* prefetch */
   private val OutcomeCanceled = Outcome.Canceled()
