@@ -16,7 +16,6 @@
 
 package cats.effect.std
 
-import cats.~>
 import cats.effect.kernel.{Async, Fiber, Deferred, MonadCancel, Ref, Resource, Sync}
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
@@ -25,7 +24,6 @@ import scala.annotation.tailrec
 import scala.collection.immutable.LongMap
 import scala.concurrent.{Future, Promise}
 
-import java.util.concurrent.{Semaphore => JSemaphore}
 import java.util.concurrent.atomic.AtomicReference
 
 object Dispatcher extends DispatcherPlatform {
@@ -107,7 +105,7 @@ object Dispatcher extends DispatcherPlatform {
               @tailrec
               def enqueue(): Long = {
                 val s @ State(_, end, registry) = state.get()
-                val registry2 = registry.updated(end, (action, registerCancel))
+                val registry2 = registry.updated(end, (action, registerCancel _))
 
                 if (!state.compareAndSet(s, s.copy(end = end + 1, registry = registry2)))
                   enqueue()

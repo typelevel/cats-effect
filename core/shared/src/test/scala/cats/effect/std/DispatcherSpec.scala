@@ -59,7 +59,7 @@ class DispatcherSpec extends BaseSpec {
         // engineer a deadlock: all subjects must be run in parallel or this will hang
         subjects = latches.map(latch => latch.complete(()) >> awaitAll)
 
-        result <- {
+        _ <- {
           val rec = Dispatcher[IO, Unit] { runner =>
             subjects.parTraverse_(act => IO(runner.unsafeRunAndForget(act)))
           }

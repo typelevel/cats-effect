@@ -19,7 +19,7 @@ package cats.effect.std
 import scala.concurrent.{Await, TimeoutException}
 import scala.concurrent.duration.Duration
 
-private trait DispatcherPlatform { this: Dispatcher.type =>
+private[std] trait DispatcherPlatform { this: Dispatcher.type =>
 
   protected trait RunnerPlatform[F[_]] { this: Runner[F] =>
 
