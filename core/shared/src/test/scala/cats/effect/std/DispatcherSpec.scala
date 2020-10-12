@@ -75,9 +75,11 @@ class DispatcherSpec extends BaseSpec {
       var canceled = false
 
       val rec = Dispatcher[IO, Unit] { runner =>
-        IO(runner.unsafeToFutureCancelable(IO.never.onCancel(IO { canceled = true }))._2) flatMap { ct =>
-          IO.sleep(100.millis) >> IO.fromFuture(IO(ct()))
+        val run = IO {
+          runner.unsafeToFutureCancelable(IO.never.onCancel(IO { canceled = true }))._2
         }
+
+        run.flatMap(ct => IO.sleep(100.millis) >> IO.fromFuture(IO(ct())))
       }
 
       rec.use(_ => IO(canceled must beTrue))
