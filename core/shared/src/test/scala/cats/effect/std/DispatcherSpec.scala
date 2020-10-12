@@ -17,6 +17,7 @@
 package cats.effect
 package std
 
+import cats.effect.kernel.Deferred
 import cats.syntax.all._
 
 class DispatcherSpec extends BaseSpec {
@@ -42,11 +43,30 @@ class DispatcherSpec extends BaseSpec {
       val num = 10
 
       val rec = Dispatcher[IO, Unit] { runner =>
-        val act = IO(runner.unsafeRunAndForget(increment))
-        act.replicateA(num).void
+        IO.fromFuture(IO(runner.unsafeToFuture(increment))).replicateA(num).void
       }
 
       rec.use(_ => IO(counter mustEqual num))
+    }
+
+    "run multiple IOs in parallel" in real {
+      val num = 10
+
+      for {
+        latches <- (0 until num).toList.traverse(_ => Deferred[IO, Unit])
+        awaitAll = latches.parTraverse_(_.get)
+
+        // engineer a deadlock: all subjects must be run in parallel or this will hang
+        subjects = latches.map(latch => latch.complete(()) >> awaitAll)
+
+        result <- {
+          val rec = Dispatcher[IO, Unit] { runner =>
+            subjects.parTraverse_(act => IO(runner.unsafeRunAndForget(act)))
+          }
+
+          rec.use(_ => IO.unit)
+        }
+      } yield ok
     }
   }
 }
