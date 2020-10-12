@@ -705,8 +705,9 @@ private final class IOFiber[A](
                         case Outcome.Succeeded(Pure(a)) =>
                           finalizer.set(fiberB.cancel)
                           cb(Right(Left(a)))
+                        case Outcome.Succeeded(_) =>
                         case Outcome.Canceled() =>
-                          //See if the other side will complete
+                        //See if the other side will complete
                         case Outcome.Errored(e) =>
                           finalizer.set(fiberB.cancel)
                           cb(Left(e))
@@ -717,6 +718,7 @@ private final class IOFiber[A](
                         case Outcome.Succeeded(Pure(a)) =>
                           finalizer.set(fiberB.cancel)
                           cb(Right(Left(a)))
+                        case Outcome.Succeeded(_) =>
                         case Outcome.Canceled() =>
                           //Both sides cancelled so propagate
                           cb(Left(AsyncPropagateCancelation))
@@ -725,7 +727,7 @@ private final class IOFiber[A](
                           cb(Left(e))
                       }
                     case Some(_) =>
-                    //We lose
+                      //We lose
                   }
                 }
 
@@ -738,8 +740,9 @@ private final class IOFiber[A](
                         case Outcome.Succeeded(Pure(b)) =>
                           finalizer.set(fiberA.cancel)
                           cb(Right(Right(b)))
+                        case Outcome.Succeeded(_) =>
                         case Outcome.Canceled() =>
-                          //See if the other side will complete
+                        //See if the other side will complete
                         case Outcome.Errored(e) =>
                           finalizer.set(fiberA.cancel)
                           cb(Left(e))
@@ -750,6 +753,7 @@ private final class IOFiber[A](
                         case Outcome.Succeeded(Pure(b)) =>
                           finalizer.set(fiberA.cancel)
                           cb(Right(Right(b)))
+                        case Outcome.Succeeded(_) =>
                         case Outcome.Canceled() =>
                           //Both sides cancelled so propagate
                           cb(Left(AsyncPropagateCancelation))
@@ -758,7 +762,7 @@ private final class IOFiber[A](
                           cb(Left(e))
                       }
                     case Some(_) =>
-                    //We lose
+                      //We lose
                   }
                 }
 
@@ -810,6 +814,7 @@ private final class IOFiber[A](
                         //Other fiber already completed
                         case Outcome.Succeeded(Pure(b)) =>
                           cb(Right(a -> b))
+                        case Outcome.Succeeded(_) =>
                         case Outcome.Errored(e) => cb(Left(e.asInstanceOf[Throwable]))
                         //Both fibers have completed so no need for cancellation
                         case Outcome.Canceled() => cb(Left(AsyncPropagateCancelation))
@@ -836,6 +841,7 @@ private final class IOFiber[A](
                         //Other fiber already completed
                         case Outcome.Succeeded(Pure(a)) =>
                           cb(Right(a -> b))
+                        case Outcome.Succeeded(_) =>
                         case Outcome.Errored(e) => cb(Left(e.asInstanceOf[Throwable]))
                         case Outcome.Canceled() => cb(Left(AsyncPropagateCancelation))
                       }
