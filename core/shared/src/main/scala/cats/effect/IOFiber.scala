@@ -221,6 +221,7 @@ private final class IOFiber[A](
     }
 
     if ((nextIteration % cancellationCheckThreshold) == 0) {
+      //Ensure that we see cancellation
       readBarrier()
     }
 
