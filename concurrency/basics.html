@@ -167,10 +167,20 @@ will ever run on it!</p>
 In terms of individual thread pools, we can actually treat <code class="language-plaintext highlighter-rouge">IO</code> like <strong>green thread</strong> with
 <a href="https://en.wikipedia.org/wiki/Cooperative_multitasking">cooperative multitasking</a>.  Instead of
 <a href="https://en.wikipedia.org/wiki/Preemption_(computing)#PREEMPTIVE">preemption</a>,
-we can decide when we yield to other threads from the same pool by calling <code class="language-plaintext highlighter-rouge">shift</code>.</p>
+we can decide when we yield to other pending fibers from the same pool by calling <code class="language-plaintext highlighter-rouge">shift</code>. 
+Calling <code class="language-plaintext highlighter-rouge">IO.shift</code> schedules the work again, so if there are other <code class="language-plaintext highlighter-rouge">IO</code>s waiting to execute, they can have their chance.</p>
 
-<p>Calling <code class="language-plaintext highlighter-rouge">IO.shift</code> schedules the work again, so if there are other <code class="language-plaintext highlighter-rouge">IO</code>s waiting to execute, they can have their chance.
-Allowing different threads to advance their work is called <strong>fairness</strong>. Let’s illustrate this:</p>
+<p>From the thread pool’s point of view, the process of yielding to other fibers can be described like this:</p>
+<ul>
+  <li>When <code class="language-plaintext highlighter-rouge">shift</code> is called on some fiber:
+    <ul>
+      <li>Remove that fiber from its current thread and put it in the pool of pending fibers</li>
+      <li>For each available thread (including the one from the previous step), assign it one of the pending fibers from the pool</li>
+    </ul>
+  </li>
+</ul>
+
+<p>Allowing different fibers to advance their work is called <strong>fairness</strong>.  Let’s illustrate this:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.util.concurrent.Executors</span>
 <span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">Fiber</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
