@@ -36,6 +36,6 @@ object Common extends AutoPlugin {
         if (isDotty.value)
           Nil
         else
-          Seq("-Xcheckinit", "-Ypatmat-exhaust-depth", "off")
+          Seq("-Xcheckinit")
       })
 }
