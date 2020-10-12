@@ -698,49 +698,67 @@ private final class IOFiber[A](
 
                 fiberA registerListener { oc =>
                   val s = state.getAndSet(Some(oc))
-                  oc match {
-                    case Outcome.Succeeded(Pure(a)) =>
-                      finalizer.set(fiberB.cancel)
-                      cb(Right(Left(a)))
-
-                    case Outcome.Succeeded(_) =>
-                      throw new AssertionError
-
-                    case Outcome.Canceled() =>
-                      s.fold(()) {
-                        //Other fiber already completed
-                        case Outcome.Succeeded(_) => //cb should have been invoked in other fiber
-                        case Outcome.Canceled() => cb(Left(AsyncPropagateCancelation))
-                        case Outcome.Errored(_) => //cb should have been invoked in other fiber
+                  s match {
+                    case None =>
+                      //We win
+                      oc match {
+                        case Outcome.Succeeded(Pure(a)) =>
+                          finalizer.set(fiberB.cancel)
+                          cb(Right(Left(a)))
+                        case Outcome.Canceled() =>
+                        //See if the other side will complete
+                        case Outcome.Errored(e) =>
+                          finalizer.set(fiberB.cancel)
+                          cb(Left(e))
                       }
-
-                    case Outcome.Errored(e) =>
-                      finalizer.set(fiberB.cancel)
-                      cb(Left(e))
+                    case Some(Outcome.Canceled()) =>
+                      //We lose and other side was cancelled as well
+                      oc match {
+                        case Outcome.Succeeded(Pure(a)) =>
+                          finalizer.set(fiberB.cancel)
+                          cb(Right(Left(a)))
+                        case Outcome.Canceled() =>
+                          //Both sides cancelled so propagate
+                          cb(Left(AsyncPropagateCancelation))
+                        case Outcome.Errored(e) =>
+                          finalizer.set(fiberB.cancel)
+                          cb(Left(e))
+                      }
+                    case Some(_) =>
+                    //We lose
                   }
                 }
 
                 fiberB registerListener { oc =>
                   val s = state.getAndSet(Some(oc))
-                  oc match {
-                    case Outcome.Succeeded(Pure(b)) =>
-                      finalizer.set(fiberA.cancel)
-                      cb(Right(Right(b)))
-
-                    case Outcome.Succeeded(_) =>
-                      throw new AssertionError
-
-                    case Outcome.Canceled() =>
-                      s.fold(()) {
-                        //Other fiber already completed
-                        case Outcome.Succeeded(_) => //cb should have been invoked in other fiber
-                        case Outcome.Canceled() => cb(Left(AsyncPropagateCancelation))
-                        case Outcome.Errored(_) => //cb should have been invoked in other fiber
+                  s match {
+                    case None =>
+                      //We win
+                      oc match {
+                        case Outcome.Succeeded(Pure(b)) =>
+                          finalizer.set(fiberA.cancel)
+                          cb(Right(Right(b)))
+                        case Outcome.Canceled() =>
+                        //See if the other side will complete
+                        case Outcome.Errored(e) =>
+                          finalizer.set(fiberA.cancel)
+                          cb(Left(e))
                       }
-
-                    case Outcome.Errored(e) =>
-                      finalizer.set(fiberA.cancel)
-                      cb(Left(e))
+                    case Some(Outcome.Canceled()) =>
+                      //We lose and other side was cancelled as well
+                      oc match {
+                        case Outcome.Succeeded(Pure(b)) =>
+                          finalizer.set(fiberA.cancel)
+                          cb(Right(Right(b)))
+                        case Outcome.Canceled() =>
+                          //Both sides cancelled so propagate
+                          cb(Left(AsyncPropagateCancelation))
+                        case Outcome.Errored(e) =>
+                          finalizer.set(fiberA.cancel)
+                          cb(Left(e))
+                      }
+                    case Some(_) =>
+                    //We lose
                   }
                 }
 
