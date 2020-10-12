@@ -706,13 +706,13 @@ private final class IOFiber[A](
                           finalizer.set(fiberB.cancel)
                           cb(Right(Left(a)))
                         case Outcome.Canceled() =>
-                        //See if the other side will complete
+                          //See if the other side will complete
                         case Outcome.Errored(e) =>
                           finalizer.set(fiberB.cancel)
                           cb(Left(e))
                       }
                     case Some(Outcome.Canceled()) =>
-                      //We lose and other side was cancelled as well
+                      //We lose but the other side was cancelled
                       oc match {
                         case Outcome.Succeeded(Pure(a)) =>
                           finalizer.set(fiberB.cancel)
@@ -739,13 +739,13 @@ private final class IOFiber[A](
                           finalizer.set(fiberA.cancel)
                           cb(Right(Right(b)))
                         case Outcome.Canceled() =>
-                        //See if the other side will complete
+                          //See if the other side will complete
                         case Outcome.Errored(e) =>
                           finalizer.set(fiberA.cancel)
                           cb(Left(e))
                       }
                     case Some(Outcome.Canceled()) =>
-                      //We lose and other side was cancelled as well
+                      //We lose but the other side was cancelled
                       oc match {
                         case Outcome.Succeeded(Pure(b)) =>
                           finalizer.set(fiberA.cancel)
