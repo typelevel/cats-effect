@@ -16,7 +16,7 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.{Async, Deferred, Fiber, Ref, Resource}
+import cats.effect.kernel.{Async, Fiber, Resource}
 import cats.effect.kernel.implicits._
 import cats.syntax.all._
 
@@ -52,8 +52,11 @@ object Dispatcher extends DispatcherPlatform {
       latch <- Resource.liftF(F.delay(new AtomicReference[() => Unit]))
       state <- Resource.liftF(F.delay(new AtomicReference[State](Empty)))
 
-      active <- Resource.make(Ref[F].of(Set[Fiber[F, Throwable, Unit]]())) { ref =>
-        ref.get.flatMap(_.toList.parTraverse_(_.cancel))
+      active <- Resource.make(F.ref(LongMap[Fiber[F, Throwable, Unit]]())) { active =>
+        for {
+          fibers <- active.get
+          _ <- fibers.values.toList.parTraverse_(_.cancel)
+        } yield ()
       }
 
       dispatcher = for {
@@ -85,22 +88,26 @@ object Dispatcher extends DispatcherPlatform {
           } else {
             F uncancelable { _ =>
               for {
-                fibers <- registry.values.toList traverse {
-                  case Registration(action, prepareCancel) =>
+                // for catching race conditions where we finished before we were in the map
+                completed <- F.ref(LongMap[Unit]())
+
+                identifiedFibers <- registry.toList traverse {
+                  case (id, Registration(action, prepareCancel)) =>
+                    val enriched = action guarantee {
+                      completed.update(_.updated(id, ())) *> active.update(_ - id)
+                    }
+
                     for {
-                      fiberDef <- Deferred[F, Fiber[F, Throwable, Unit]]
-
-                      enriched = action guarantee {
-                        fiberDef.get.flatMap(fiber => active.update(_ - fiber))
-                      }
-
                       fiber <- enriched.start
-                      _ <- fiberDef.complete(fiber)
                       _ <- F.delay(prepareCancel(fiber.cancel))
-                    } yield fiber
+                    } yield (id, fiber)
                 }
 
-                _ <- active.update(_ ++ fibers)
+                _ <- active.update(_ ++ identifiedFibers)
+
+                // some actions ran too fast, so we need to remove their fibers from the map
+                winners <- completed.get
+                _ <- active.update(_ -- winners.keys)
               } yield ()
             }
           }
