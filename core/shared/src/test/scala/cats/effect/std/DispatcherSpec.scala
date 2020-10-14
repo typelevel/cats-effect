@@ -27,13 +27,13 @@ class DispatcherSpec extends BaseSpec {
   "async dispatcher" should {
     "run a synchronous IO" in real {
       val ioa = IO(1).map(_ + 2)
-      val rec = Dispatcher[IO, Int](runner => IO.fromFuture(IO(runner.unsafeToFuture(ioa))))
+      val rec = Dispatcher[IO, Int](runner => Resource.liftF(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
       rec.use(i => IO(i mustEqual 3))
     }
 
     "run an asynchronous IO" in real {
       val ioa = (IO(1) <* IO.cede).map(_ + 2)
-      val rec = Dispatcher[IO, Int](runner => IO.fromFuture(IO(runner.unsafeToFuture(ioa))))
+      val rec = Dispatcher[IO, Int](runner => Resource.liftF(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
       rec.use(i => IO(i mustEqual 3))
     }
 
@@ -45,7 +45,7 @@ class DispatcherSpec extends BaseSpec {
       val num = 10
 
       val rec = Dispatcher[IO, Unit] { runner =>
-        IO.fromFuture(IO(runner.unsafeToFuture(increment))).replicateA(num).void
+        Resource.liftF(IO.fromFuture(IO(runner.unsafeToFuture(increment))).replicateA(num).void)
       }
 
       rec.use(_ => IO(counter mustEqual num))
@@ -63,7 +63,7 @@ class DispatcherSpec extends BaseSpec {
 
         _ <- {
           val rec = Dispatcher[IO, Unit] { runner =>
-            subjects.parTraverse_(act => IO(runner.unsafeRunAndForget(act)))
+            Resource.liftF(subjects.parTraverse_(act => IO(runner.unsafeRunAndForget(act))))
           }
 
           rec.use(_ => IO.unit)
@@ -79,10 +79,44 @@ class DispatcherSpec extends BaseSpec {
           runner.unsafeToFutureCancelable(IO.never.onCancel(IO { canceled = true }))._2
         }
 
-        run.flatMap(ct => IO.sleep(100.millis) >> IO.fromFuture(IO(ct())))
+        Resource liftF {
+          run.flatMap(ct => IO.sleep(100.millis) >> IO.fromFuture(IO(ct())))
+        }
       }
 
       rec.use(_ => IO(canceled must beTrue))
+    }
+
+    "cancel all inner effects when canceled" in real {
+      @volatile
+      var canceledA = false
+      @volatile
+      var canceledB = false
+
+      val rec = Dispatcher[IO, Unit] { runner =>
+        Resource liftF {
+          IO {
+            // these finalizers never return, so this test is intentionally designed to hang
+            // they flip their booleans first though; this is just testing that both run in parallel
+            val a = IO.never.onCancel(IO { canceledA = true } *> IO.never)
+            val b = IO.never.onCancel(IO { canceledB = true } *> IO.never)
+
+            runner.unsafeRunAndForget(a)
+            runner.unsafeRunAndForget(b)
+          }
+        }
+      }
+
+      for {
+        _ <- rec.use(_ => IO.sleep(50.millis)).start
+        _ <- IO.sleep(100.millis)  // scope should be closed by now
+
+        r <- IO {
+          // if we don't run the finalizers in parallel, one of these will be false
+          canceledA must beTrue
+          canceledB must beTrue
+        }
+      } yield r
     }
   }
 }

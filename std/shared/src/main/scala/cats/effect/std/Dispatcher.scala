@@ -17,7 +17,7 @@
 package cats.effect.std
 
 import cats.effect.kernel.{Async, Deferred, Fiber, MonadCancel, Ref, Resource, Sync}
-import cats.effect.kernel.syntax.all._
+import cats.effect.kernel.implicits._
 import cats.syntax.all._
 
 import scala.annotation.tailrec
@@ -28,36 +28,54 @@ import java.util.concurrent.atomic.AtomicReference
 
 object Dispatcher extends DispatcherPlatform {
 
-  def apply[F[_]: Async, A](unsafe: Runner[F] => F[A]): Resource[F, A] = {
-    final case class State(
-        begin: Long,
-        end: Long,
-        registry: LongMap[(F[Unit], F[Unit] => Unit)]) {
-      // efficiency on the CAS
+  private[this] val Open = () => ()
+
+  def apply[F[_]: Async, A](unsafe: Runner[F] => Resource[F, A]): Resource[F, A] = {
+    final case class Registration(action: F[Unit], prepareCancel: F[Unit] => Unit)
+
+    final case class State(end: Long, registry: LongMap[Registration]) {
+
+      /*
+       * We know we never need structural equality on this type. We do, however,
+       * perform a compare-and-swap relatively frequently, and that operation
+       * delegates to the `equals` implementation. I like having the case class
+       * for pattern matching and general convenience, so we simply override the
+       * equals/hashCode implementation to use pointer equality.
+       */
       override def equals(that: Any) = this eq that.asInstanceOf[AnyRef]
       override def hashCode = System.identityHashCode(this)
     }
 
-    val Open = () => ()
-    val Empty = State(0, 0, LongMap())
+    val Empty = State(0, LongMap())
 
     for {
       latch <- Resource.liftF(Sync[F].delay(new AtomicReference[() => Unit]))
       state <- Resource.liftF(Sync[F].delay(new AtomicReference[State](Empty)))
 
       active <- Resource.make(Ref[F].of(Set[Fiber[F, Throwable, Unit]]())) { ref =>
-        ref.get.flatMap(_.toList.traverse_(_.cancel))
+        ref.get.flatMap(_.toList.parTraverse_(_.cancel))
       }
 
       dispatcher = for {
         _ <- Sync[F].delay(latch.set(null)) // reset to null
-        s <- Sync[F].delay(state.getAndSet(Empty))
 
-        State(begin, end, registry) = s
-        pairs = (begin until end).toList.flatMap(registry.get)
+        s <- Sync[F] delay {
+          @tailrec
+          def loop(): State = {
+            val s = state.get()
+            if (!state.compareAndSet(s, s.copy(registry = s.registry.empty)))
+              loop()
+            else
+              s
+          }
+
+          loop()
+        }
+
+        State(end, registry) = s
 
         _ <-
-          if (pairs.isEmpty) {
+          if (registry.isEmpty) {
             Async[F].async_[Unit] { cb =>
               if (!latch.compareAndSet(null, () => cb(Right(())))) {
                 // state was changed between when we last set the latch and now; complete the callback immediately
@@ -67,8 +85,8 @@ object Dispatcher extends DispatcherPlatform {
           } else {
             MonadCancel[F] uncancelable { _ =>
               for {
-                fibers <- pairs traverse {
-                  case (action, f) =>
+                fibers <- registry.values.toList traverse {
+                  case Registration(action, prepareCancel) =>
                     for {
                       fiberDef <- Deferred[F, Fiber[F, Throwable, Unit]]
 
@@ -78,7 +96,7 @@ object Dispatcher extends DispatcherPlatform {
 
                       fiber <- enriched.start
                       _ <- fiberDef.complete(fiber)
-                      _ <- Sync[F].delay(f(fiber.cancel))
+                      _ <- Sync[F].delay(prepareCancel(fiber.cancel))
                     } yield fiber
                 }
 
@@ -90,63 +108,61 @@ object Dispatcher extends DispatcherPlatform {
 
       _ <- dispatcher.foreverM[Unit].background
 
-      back <- Resource liftF {
-        unsafe {
-          new Runner[F] {
-            def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
-              val promise = Promise[E]()
+      back <- unsafe {
+        new Runner[F] {
+          def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
+            val promise = Promise[E]()
 
-              val action = fe
-                .flatMap(e => Sync[F].delay(promise.success(e)))
-                .onError { case t => Sync[F].delay(promise.failure(t)) }
-                .void
+            val action = fe
+              .flatMap(e => Sync[F].delay(promise.success(e)))
+              .onError { case t => Sync[F].delay(promise.failure(t)) }
+              .void
 
-              @volatile
-              var cancelToken: F[Unit] = null.asInstanceOf[F[Unit]]
+            @volatile
+            var cancelToken: F[Unit] = null.asInstanceOf[F[Unit]]
 
-              def registerCancel(token: F[Unit]): Unit =
-                cancelToken = token
+            def registerCancel(token: F[Unit]): Unit =
+              cancelToken = token
 
-              @tailrec
-              def enqueue(): Long = {
-                val s @ State(_, end, registry) = state.get()
-                val registry2 = registry.updated(end, (action, registerCancel _))
+            @tailrec
+            def enqueue(): Long = {
+              val s @ State(end, registry) = state.get()
+              val registry2 = registry.updated(end, Registration(action, registerCancel _))
 
-                if (!state.compareAndSet(s, s.copy(end = end + 1, registry = registry2)))
-                  enqueue()
-                else
-                  end
-              }
-
-              @tailrec
-              def dequeue(id: Long): Unit = {
-                val s @ State(_, _, registry) = state.get()
-                val registry2 = registry - id
-
-                if (!state.compareAndSet(s, s.copy(registry = registry2))) {
-                  dequeue(id)
-                }
-              }
-
-              val id = enqueue()
-
-              val f = latch.getAndSet(Open)
-              if (f != null) {
-                f()
-              }
-
-              val cancel = { () =>
-                dequeue(id)
-
-                val token = cancelToken
-                if (token != null)
-                  unsafeToFuture(token)
-                else
-                  Future.unit
-              }
-
-              (promise.future, cancel)
+              if (!state.compareAndSet(s, State(end + 1, registry2)))
+                enqueue()
+              else
+                end
             }
+
+            @tailrec
+            def dequeue(id: Long): Unit = {
+              val s @ State(_, registry) = state.get()
+              val registry2 = registry - id
+
+              if (!state.compareAndSet(s, s.copy(registry = registry2))) {
+                dequeue(id)
+              }
+            }
+
+            val id = enqueue()
+
+            val f = latch.getAndSet(Open)
+            if (f != null) {
+              f()
+            }
+
+            val cancel = { () =>
+              dequeue(id)
+
+              val token = cancelToken
+              if (token != null)
+                unsafeToFuture(token)
+              else
+                Future.unit
+            }
+
+            (promise.future, cancel)
           }
         }
       }
