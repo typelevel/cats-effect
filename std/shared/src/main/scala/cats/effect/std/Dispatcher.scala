@@ -30,7 +30,8 @@ object Dispatcher extends DispatcherPlatform {
 
   private[this] val Open = () => ()
 
-  def apply[F[_], A](unsafe: Runner[F] => Resource[F, A])(implicit F: Async[F]): Resource[F, A] = {
+  def apply[F[_], A](unsafe: Runner[F] => Resource[F, A])(
+      implicit F: Async[F]): Resource[F, A] = {
     final case class Registration(action: F[Unit], prepareCancel: F[Unit] => Unit)
 
     final case class State(end: Long, registry: LongMap[Registration]) {

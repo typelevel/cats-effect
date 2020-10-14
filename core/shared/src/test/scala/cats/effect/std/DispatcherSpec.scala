@@ -27,13 +27,15 @@ class DispatcherSpec extends BaseSpec {
   "async dispatcher" should {
     "run a synchronous IO" in real {
       val ioa = IO(1).map(_ + 2)
-      val rec = Dispatcher[IO, Int](runner => Resource.liftF(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
+      val rec = Dispatcher[IO, Int](runner =>
+        Resource.liftF(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
       rec.use(i => IO(i mustEqual 3))
     }
 
     "run an asynchronous IO" in real {
       val ioa = (IO(1) <* IO.cede).map(_ + 2)
-      val rec = Dispatcher[IO, Int](runner => Resource.liftF(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
+      val rec = Dispatcher[IO, Int](runner =>
+        Resource.liftF(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
       rec.use(i => IO(i mustEqual 3))
     }
 
@@ -109,7 +111,7 @@ class DispatcherSpec extends BaseSpec {
 
       for {
         _ <- rec.use(_ => IO.sleep(50.millis)).start
-        _ <- IO.sleep(100.millis)  // scope should be closed by now
+        _ <- IO.sleep(100.millis) // scope should be closed by now
 
         r <- IO {
           // if we don't run the finalizers in parallel, one of these will be false
@@ -120,10 +122,11 @@ class DispatcherSpec extends BaseSpec {
     }
 
     "raise an error on leaked runner" in real {
-      Dispatcher[IO, Dispatcher.Runner[IO]](Resource.pure(_)).use(IO.pure(_)) flatMap { runner =>
-        IO {
-          runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException]
-        }
+      Dispatcher[IO, Dispatcher.Runner[IO]](Resource.pure(_)).use(IO.pure(_)) flatMap {
+        runner =>
+          IO {
+            runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException]
+          }
       }
     }
   }
