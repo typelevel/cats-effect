@@ -126,10 +126,20 @@ object Dispatcher extends DispatcherPlatform {
               .void
 
             @volatile
-            var cancelToken: F[Unit] = null.asInstanceOf[F[Unit]]
+            var cancelToken: () => Future[Unit] = null
 
-            def registerCancel(token: F[Unit]): Unit =
-              cancelToken = token
+            @volatile
+            var canceled = false
+
+            def registerCancel(token: F[Unit]): Unit = {
+              cancelToken = () => unsafeToFuture(token)
+
+              // double-check to resolve race condition here
+              if (canceled) {
+                cancelToken()
+                ()
+              }
+            }
 
             @tailrec
             def enqueue(): Long = {
@@ -160,11 +170,12 @@ object Dispatcher extends DispatcherPlatform {
             }
 
             val cancel = { () =>
+              canceled = true
               dequeue(id)
 
               val token = cancelToken
               if (token != null)
-                unsafeToFuture(token)
+                token()
               else
                 Future.unit
             }
