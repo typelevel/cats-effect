@@ -318,6 +318,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       right: IO[B]): IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] =
     left.racePair(right)
 
+  def ref[A](a: A): IO[Ref[IO, A]] = IO(Ref.unsafe(a))
+
+  def deferred[A]: IO[Deferred[IO, A]] = IO(Deferred.unsafe)
+
   /**
    * Returns the given argument if `cond` is true, otherwise `IO.Unit`
    *
@@ -549,9 +553,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
         fa: IO[A])(recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
       fa.redeemWith(recover, bind)
 
-    override def ref[A](a: A): IO[Ref[IO, A]] = IO(Ref.unsafe(a))
+    override def ref[A](a: A): IO[Ref[IO, A]] = IO.ref(a)
 
-    override def deferred[A]: IO[Deferred[IO, A]] = IO(Deferred.unsafe)
+    override def deferred[A]: IO[Deferred[IO, A]] = IO.deferred
   }
 
   implicit def asyncForIO: kernel.Async[IO] = _asyncForIO
