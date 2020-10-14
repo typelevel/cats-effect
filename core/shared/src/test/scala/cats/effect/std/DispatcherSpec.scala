@@ -118,5 +118,13 @@ class DispatcherSpec extends BaseSpec {
         }
       } yield r
     }
+
+    "raise an error on leaked runner" in real {
+      Dispatcher[IO, Dispatcher.Runner[IO]](Resource.pure(_)).use(IO.pure(_)) flatMap { runner =>
+        IO {
+          runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException]
+        }
+      }
+    }
   }
 }

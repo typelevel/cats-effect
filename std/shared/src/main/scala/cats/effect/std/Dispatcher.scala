@@ -24,7 +24,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.LongMap
 import scala.concurrent.{Future, Promise}
 
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 object Dispatcher extends DispatcherPlatform {
 
@@ -52,6 +52,7 @@ object Dispatcher extends DispatcherPlatform {
       latch <- Resource.liftF(F.delay(new AtomicReference[() => Unit]))
       state <- Resource.liftF(F.delay(new AtomicReference[State](Empty)))
 
+      alive <- Resource.make(F.delay(new AtomicBoolean(true)))(ref => F.delay(ref.set(false)))
       active <- Resource.make(F.ref(LongMap[Fiber[F, Throwable, Unit]]())) { active =>
         for {
           fibers <- active.get
@@ -162,25 +163,36 @@ object Dispatcher extends DispatcherPlatform {
               }
             }
 
-            val id = enqueue()
+            if (alive.get()) {
+              val id = enqueue()
 
-            val f = latch.getAndSet(Open)
-            if (f != null) {
-              f()
+              val f = latch.getAndSet(Open)
+              if (f != null) {
+                f()
+              }
+
+              val cancel = { () =>
+                canceled = true
+                dequeue(id)
+
+                val token = cancelToken
+                if (token != null)
+                  token()
+                else
+                  Future.unit
+              }
+
+              // double-check after we already put things in the structure
+              if (alive.get()) {
+                (promise.future, cancel)
+              } else {
+                // we were shutdown *during* the enqueue
+                cancel()
+                throw new IllegalStateException("dispatcher already shutdown")
+              }
+            } else {
+              throw new IllegalStateException("dispatcher already shutdown")
             }
-
-            val cancel = { () =>
-              canceled = true
-              dequeue(id)
-
-              val token = cancelToken
-              if (token != null)
-                token()
-              else
-                Future.unit
-            }
-
-            (promise.future, cancel)
           }
         }
       }
