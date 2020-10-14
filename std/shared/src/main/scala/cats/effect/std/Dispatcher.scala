@@ -16,7 +16,7 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.{Async, Deferred, Fiber, MonadCancel, Ref, Resource, Sync}
+import cats.effect.kernel.{Async, Deferred, Fiber, Ref, Resource}
 import cats.effect.kernel.implicits._
 import cats.syntax.all._
 
@@ -30,7 +30,7 @@ object Dispatcher extends DispatcherPlatform {
 
   private[this] val Open = () => ()
 
-  def apply[F[_]: Async, A](unsafe: Runner[F] => Resource[F, A]): Resource[F, A] = {
+  def apply[F[_], A](unsafe: Runner[F] => Resource[F, A])(implicit F: Async[F]): Resource[F, A] = {
     final case class Registration(action: F[Unit], prepareCancel: F[Unit] => Unit)
 
     final case class State(end: Long, registry: LongMap[Registration]) {
@@ -49,17 +49,17 @@ object Dispatcher extends DispatcherPlatform {
     val Empty = State(0, LongMap())
 
     for {
-      latch <- Resource.liftF(Sync[F].delay(new AtomicReference[() => Unit]))
-      state <- Resource.liftF(Sync[F].delay(new AtomicReference[State](Empty)))
+      latch <- Resource.liftF(F.delay(new AtomicReference[() => Unit]))
+      state <- Resource.liftF(F.delay(new AtomicReference[State](Empty)))
 
       active <- Resource.make(Ref[F].of(Set[Fiber[F, Throwable, Unit]]())) { ref =>
         ref.get.flatMap(_.toList.parTraverse_(_.cancel))
       }
 
       dispatcher = for {
-        _ <- Sync[F].delay(latch.set(null)) // reset to null
+        _ <- F.delay(latch.set(null)) // reset to null
 
-        s <- Sync[F] delay {
+        s <- F delay {
           @tailrec
           def loop(): State = {
             val s = state.get()
@@ -76,14 +76,14 @@ object Dispatcher extends DispatcherPlatform {
 
         _ <-
           if (registry.isEmpty) {
-            Async[F].async_[Unit] { cb =>
+            F.async_[Unit] { cb =>
               if (!latch.compareAndSet(null, () => cb(Right(())))) {
                 // state was changed between when we last set the latch and now; complete the callback immediately
                 cb(Right(()))
               }
             }
           } else {
-            MonadCancel[F] uncancelable { _ =>
+            F uncancelable { _ =>
               for {
                 fibers <- registry.values.toList traverse {
                   case Registration(action, prepareCancel) =>
@@ -96,7 +96,7 @@ object Dispatcher extends DispatcherPlatform {
 
                       fiber <- enriched.start
                       _ <- fiberDef.complete(fiber)
-                      _ <- Sync[F].delay(prepareCancel(fiber.cancel))
+                      _ <- F.delay(prepareCancel(fiber.cancel))
                     } yield fiber
                 }
 
@@ -114,8 +114,8 @@ object Dispatcher extends DispatcherPlatform {
             val promise = Promise[E]()
 
             val action = fe
-              .flatMap(e => Sync[F].delay(promise.success(e)))
-              .onError { case t => Sync[F].delay(promise.failure(t)) }
+              .flatMap(e => F.delay(promise.success(e)))
+              .onError { case t => F.delay(promise.failure(t)) }
               .void
 
             @volatile
