@@ -102,7 +102,7 @@ import Resource.ExitCase
 sealed abstract class Resource[+F[_], +A] {
   private[effect] type F0[x] <: F[x]
 
-  import Resource.{Allocate, Bind, LiftF, MapK, Pure, Suspend}
+  import Resource.{Allocate, Bind, LiftF, MapK, OnFinalizeCase, Pure, Suspend}
 
   private[effect] def fold[G[x] >: F[x], B](
       onOutput: A => G[B],
@@ -157,6 +157,10 @@ sealed abstract class Resource[+F[_], +A] {
         case Pure(a) => Allocate((a, (_: ExitCase) => G.unit).pure[G])
         case LiftF(fa) =>
           Suspend(fa.map[Resource[G, A]](a => Allocate((a, (_: ExitCase) => G.unit).pure[G])))
+        case OnFinalizeCase(resource, finalizer) =>
+          Bind(
+            Allocate[G, Unit](G.pure[(Unit, ExitCase => G[Unit])](() -> finalizer)),
+            (_: Unit) => resource)
         case MapK(rea, fk0) =>
           // this would be easier if we could call `rea.preinterpret` but we don't have
           // the right `Applicative` instance available.
@@ -170,6 +174,11 @@ sealed abstract class Resource[+F[_], +A] {
               Bind(source.mapK(fk), f0.andThen(_.mapK(fk)))
             case Suspend(resource) =>
               Suspend(fk(resource).map(_.mapK(fk)))
+            case OnFinalizeCase(resource, finalizer) =>
+              Bind(
+                Allocate[G, Unit](
+                  G.pure[(Unit, ExitCase => G[Unit])](() -> finalizer.andThen(fk.apply))),
+                (_: Unit) => resource.mapK(fk))
             case Pure(a) => Allocate((a, (_: ExitCase) => G.unit).pure[G])
             case LiftF(rea) =>
               Suspend(fk(rea).map[Resource[G, A]](a =>
@@ -277,6 +286,19 @@ sealed abstract class Resource[+F[_], +A] {
   def mapK[G[x] >: F[x], H[_]](
       f: G ~> H
   ): Resource[H, A] = Resource.MapK(this, f)
+
+  /**
+   * Runs `finalizer` when this resource is closed. Unlike the release action passed to `Resource.make`, this will
+   * run even if resource acquisition fails or is canceled.
+   */
+  def onFinalize[G[x] >: F[x]](finalizer: G[Unit]): Resource[G, A] =
+    onFinalizeCase(_ => finalizer)
+
+  /**
+   * Like `onFinalize`, but the action performed depends on the exit case.
+   */
+  def onFinalizeCase[G[x] >: F[x]](f: ExitCase => G[Unit]): Resource[G, A] =
+    OnFinalizeCase(this, f)
 
   /**
    * Given a `Resource`, possibly built by composing multiple
@@ -530,6 +552,11 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * resource value.
    */
   final case class Suspend[F[_], A](resource: F[Resource[F, A]]) extends Primitive[F, A]
+
+  private[effect] final case class OnFinalizeCase[F[_], A](
+      resource: Resource[F, A],
+      finalizer: ExitCase => F[Unit])
+      extends InvariantResource[F, A]
 
   private[effect] final case class Pure[F[_], +A](a: A) extends InvariantResource[F, A]
 
