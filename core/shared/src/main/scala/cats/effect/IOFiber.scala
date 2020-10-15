@@ -134,7 +134,7 @@ private final class IOFiber[A](
   /* similar prefetch for EndFiber */
   private[this] val IOEndFiber = IO.EndFiber
 
-  private[this] val iterationThreshold = autoYieldThreshold * cancellationCheckThreshold
+  private[this] val iterationThreshold = autoYieldThreshold
 
   override def run(): Unit = {
     // insert a read barrier after every async boundary
