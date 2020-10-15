@@ -67,7 +67,9 @@ private final class IOFiber[A](
     initMask: Int,
     cb: OutcomeIO[A] => Unit,
     startIO: IO[A],
-    startEC: ExecutionContext)
+    startEC: ExecutionContext,
+    cancellationCheckThreshold: Int,
+    autoYieldThreshold: Int)
     extends IOFiberPlatform[A]
     with FiberIO[A]
     with Runnable {
@@ -131,6 +133,8 @@ private final class IOFiber[A](
 
   /* similar prefetch for EndFiber */
   private[this] val IOEndFiber = IO.EndFiber
+
+  private[this] val iterationThreshold = autoYieldThreshold * cancellationCheckThreshold
 
   override def run(): Unit = {
     // insert a read barrier after every async boundary
@@ -197,7 +201,6 @@ private final class IOFiber[A](
   /* masks encoding: initMask => no masks, ++ => push, -- => pop */
   @tailrec
   private[this] def runLoop(_cur0: IO[Any], iteration: Int): Unit = {
-    import IOFiber.{cancellationCheckThreshold, iterationThreshold, yieldThreshold}
     /*
      * `cur` will be set to `EndFiber` when the runloop needs to terminate,
      * either because the entire IO is done, or because this branch is done
@@ -227,7 +230,7 @@ private final class IOFiber[A](
 
     if (shouldFinalize()) {
       asyncCancel(null)
-    } else if ((nextIteration % yieldThreshold) == 0) {
+    } else if ((nextIteration % autoYieldThreshold) == 0) {
       runLoop(IO.cede >> _cur0, nextIteration)
     } else {
     // println(s"<$name> looping on $cur0")
@@ -603,7 +606,9 @@ private final class IOFiber[A](
                   initMask2,
                   null,
                   cur.ioa,
-                  ec)
+                  ec,
+                  cancellationCheckThreshold,
+                  autoYieldThreshold)
                 val fiberB = new IOFiber[Any](
                   s"racePair-right-${childCount.getAndIncrement()}",
                   scheduler,
@@ -611,7 +616,9 @@ private final class IOFiber[A](
                   initMask2,
                   null,
                   cur.iob,
-                  ec)
+                  ec,
+                  cancellationCheckThreshold,
+                  autoYieldThreshold)
 
                 fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
                 fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
@@ -1304,11 +1311,6 @@ private final class IOFiber[A](
 
 private object IOFiber {
   private val childCount = new AtomicInteger(0)
-
-  private val yieldThreshold =
-    System.getProperty("cats.effect.auto.yield.threshold", "1024").toInt
-  private val cancellationCheckThreshold = 512
-  private val iterationThreshold = yieldThreshold * cancellationCheckThreshold
 
   /* prefetch */
   private val OutcomeCanceled = Outcome.Canceled()

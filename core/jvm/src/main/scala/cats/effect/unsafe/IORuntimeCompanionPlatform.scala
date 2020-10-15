@@ -61,5 +61,9 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       createDefaultComputeThreadPool(global)._1,
       createDefaultBlockingExecutionContext()._1,
       createDefaultScheduler()._1,
-      () => ())
+      () => (),
+      IORuntimeConfig(
+        System.getProperty("cats.effect.cancellation.check.threshold", "512").toInt,
+        System.getProperty("cats.effect.auto.yield.threshold", "2").toInt
+      ))
 }

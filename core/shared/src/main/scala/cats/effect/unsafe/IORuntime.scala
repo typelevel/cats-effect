@@ -37,10 +37,17 @@ final class IORuntime private[effect] (
     val compute: ExecutionContext,
     val blocking: ExecutionContext,
     val scheduler: Scheduler,
-    val shutdown: () => Unit) {
+    val shutdown: () => Unit,
+    val config: IORuntimeConfig) {
 
   override def toString: String = s"IORuntime($compute, $scheduler)"
 }
+
+final case class IORuntimeConfig (
+  val cancellationCheckThreshold: Int = 512,
+  //Insert IO.cede every autoYieldThreshold * cancellationCheckThreshold
+  val autoYieldThreshold: Int = 2
+)
 
 object IORuntime extends IORuntimeCompanionPlatform {
   def apply(
@@ -48,5 +55,13 @@ object IORuntime extends IORuntimeCompanionPlatform {
       blocking: ExecutionContext,
       scheduler: Scheduler,
       shutdown: () => Unit): IORuntime =
-    new IORuntime(compute, blocking, scheduler, shutdown)
+    new IORuntime(compute, blocking, scheduler, shutdown, new IORuntimeConfig())
+
+  def apply(
+      compute: ExecutionContext,
+      blocking: ExecutionContext,
+      scheduler: Scheduler,
+      shutdown: () => Unit,
+      config: IORuntimeConfig): IORuntime =
+    new IORuntime(compute, blocking, scheduler, shutdown, config)
 }
