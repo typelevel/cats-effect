@@ -497,42 +497,53 @@ object SyncIO extends SyncIOLowPriorityImplicits {
     def empty: SyncIO[A] = pure(A.empty)
   }
 
-  private[this] val _syncForSyncIO: Sync[SyncIO] = new Sync[SyncIO]
-    with StackSafeMonad[SyncIO] {
+  private[this] val _syncForSyncIO: Sync[SyncIO] with MonadCancel[SyncIO, Throwable] =
+    new Sync[SyncIO] with StackSafeMonad[SyncIO] with MonadCancel[SyncIO, Throwable] {
 
-    def pure[A](x: A): SyncIO[A] =
-      SyncIO.pure(x)
+      def pure[A](x: A): SyncIO[A] =
+        SyncIO.pure(x)
 
-    def raiseError[A](e: Throwable): SyncIO[A] =
-      SyncIO.raiseError(e)
+      def raiseError[A](e: Throwable): SyncIO[A] =
+        SyncIO.raiseError(e)
 
-    def handleErrorWith[A](fa: SyncIO[A])(f: Throwable => SyncIO[A]): SyncIO[A] =
-      fa.handleErrorWith(f)
+      def handleErrorWith[A](fa: SyncIO[A])(f: Throwable => SyncIO[A]): SyncIO[A] =
+        fa.handleErrorWith(f)
 
-    def flatMap[A, B](fa: SyncIO[A])(f: A => SyncIO[B]): SyncIO[B] =
-      fa.flatMap(f)
+      def flatMap[A, B](fa: SyncIO[A])(f: A => SyncIO[B]): SyncIO[B] =
+        fa.flatMap(f)
 
-    def monotonic: SyncIO[FiniteDuration] =
-      SyncIO.monotonic
+      def monotonic: SyncIO[FiniteDuration] =
+        SyncIO.monotonic
 
-    def realTime: SyncIO[FiniteDuration] =
-      SyncIO.realTime
+      def realTime: SyncIO[FiniteDuration] =
+        SyncIO.realTime
 
-    def suspend[A](hint: Sync.Type)(thunk: => A): SyncIO[A] =
-      SyncIO(thunk)
+      def suspend[A](hint: Sync.Type)(thunk: => A): SyncIO[A] =
+        SyncIO(thunk)
 
-    override def attempt[A](fa: SyncIO[A]): SyncIO[Either[Throwable, A]] =
-      fa.attempt
+      override def attempt[A](fa: SyncIO[A]): SyncIO[Either[Throwable, A]] =
+        fa.attempt
 
-    override def redeem[A, B](fa: SyncIO[A])(recover: Throwable => B, f: A => B): SyncIO[B] =
-      fa.redeem(recover, f)
+      override def redeem[A, B](fa: SyncIO[A])(recover: Throwable => B, f: A => B): SyncIO[B] =
+        fa.redeem(recover, f)
 
-    override def redeemWith[A, B](
-        fa: SyncIO[A])(recover: Throwable => SyncIO[B], bind: A => SyncIO[B]): SyncIO[B] =
-      fa.redeemWith(recover, bind)
-  }
+      override def redeemWith[A, B](
+          fa: SyncIO[A])(recover: Throwable => SyncIO[B], bind: A => SyncIO[B]): SyncIO[B] =
+        fa.redeemWith(recover, bind)
 
-  implicit def syncForSyncIO: Sync[SyncIO] = _syncForSyncIO
+      def canceled: SyncIO[Unit] = unit
+
+      def forceR[A, B](fa: SyncIO[A])(fb: SyncIO[B]): SyncIO[B] =
+        productR(fa)(fb)
+
+      def onCancel[A](fa: SyncIO[A], fin: SyncIO[Unit]): SyncIO[A] =
+        fa <* fin
+
+      def uncancelable[A](body: Poll[SyncIO] => SyncIO[A]): SyncIO[A] =
+        body(new Poll[SyncIO] { def apply[X](fx: SyncIO[X]) = fx })
+    }
+
+  implicit def syncForSyncIO: Sync[SyncIO] with MonadCancel[SyncIO, Throwable] = _syncForSyncIO
 
   // implementations
 

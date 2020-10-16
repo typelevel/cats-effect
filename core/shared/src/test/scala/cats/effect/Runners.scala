@@ -197,7 +197,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
    */
   implicit def eqResource[F[_], A](
       implicit E: Eq[F[A]],
-      F: Resource.Bracket[F]): Eq[Resource[F, A]] =
+      F: MonadCancel[F, Throwable]): Eq[Resource[F, A]] =
     new Eq[Resource[F, A]] {
       def eqv(x: Resource[F, A], y: Resource[F, A]): Boolean =
         E.eqv(x.use(F.pure), y.use(F.pure))
