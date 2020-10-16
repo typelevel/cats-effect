@@ -24,6 +24,7 @@ import cats.effect.testkit.{
   SyncGenerators,
   TestContext
 }
+import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}, Arbitrary.arbitrary
@@ -50,6 +51,12 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
 
   def real[A: AsResult](test: => IO[A]): Execution =
     Execution.withEnvAsync(_ => timeout(test.unsafeToFuture()(runtime()), executionTimeout))
+
+  def realWithRuntime[A: AsResult](test: IORuntime => IO[A]): Execution =
+    Execution.withEnvAsync { _ =>
+      val rt = runtime()
+      timeout(test(rt).unsafeToFuture()(rt), executionTimeout)
+    }
 
   implicit def cogenIO[A: Cogen](implicit ticker: Ticker): Cogen[IO[A]] =
     Cogen[Outcome[Option, Throwable, A]].contramap(unsafeRun(_))
