@@ -347,7 +347,8 @@ sealed abstract class Resource[+F[_], +A] {
    * code that needs to modify or move the finalizer for an existing
    * resource.
    */
-  def allocated[G[x] >: F[x], B >: A](implicit G: MonadCancel[G, Throwable]): G[(B, G[Unit])] = {
+  def allocated[G[x] >: F[x], B >: A](
+      implicit G: MonadCancel[G, Throwable]): G[(B, G[Unit])] = {
     sealed trait Stack[AA]
     case object Nil extends Stack[B]
     final case class Frame[AA, BB](head: AA => Resource[G, BB], tail: Stack[BB])
@@ -628,7 +629,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
      *
      * Note that "successful" is from the type of view of the
      * `MonadCancel` type.
-     * 
+     *
      * When combining such a type with `EitherT` or `OptionT` for
      * example, this exit condition might not signal a successful
      * outcome for the user, but it does for the purposes of the
@@ -848,7 +849,8 @@ abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resou
       def allocate(r: Resource[F, A]): F[A] =
         r.fold(
           _.pure[F],
-          (release: F[Unit]) => finalizers.update(MonadCancel[F, Throwable].guarantee(_, release)))
+          (release: F[Unit]) =>
+            finalizers.update(MonadCancel[F, Throwable].guarantee(_, release)))
 
       K.combineK(allocate(ra), allocate(rb))
     }
