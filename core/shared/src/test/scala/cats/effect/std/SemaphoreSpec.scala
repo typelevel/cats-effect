@@ -78,8 +78,8 @@ class SemaphoreSpec extends BaseSpec { outer =>
   //   }
 
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Fragments = {
-    s"$label - do not allow negative n" in real {
-      val op = sc(-42).attempt
+    s"$label - throw on negative n" in real {
+      val op = IO(sc(-42)).attempt
 
       op.flatMap { res =>
         IO {
