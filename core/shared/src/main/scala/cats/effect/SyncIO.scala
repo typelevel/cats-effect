@@ -534,10 +534,10 @@ object SyncIO extends SyncIOLowPriorityImplicits {
       def canceled: SyncIO[Unit] = unit
 
       def forceR[A, B](fa: SyncIO[A])(fb: SyncIO[B]): SyncIO[B] =
-        productR(fa)(fb)
+        productR(fa.attempt)(fb)
 
       def onCancel[A](fa: SyncIO[A], fin: SyncIO[Unit]): SyncIO[A] =
-        fa <* fin
+        fa
 
       def uncancelable[A](body: Poll[SyncIO] => SyncIO[A]): SyncIO[A] =
         body(new Poll[SyncIO] { def apply[X](fx: SyncIO[X]) = fx })
