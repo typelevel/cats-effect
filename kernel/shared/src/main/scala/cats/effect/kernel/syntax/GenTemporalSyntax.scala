@@ -25,11 +25,11 @@ trait GenTemporalSyntax {
 
   implicit def genTemporalOps[F[_], A, E](
       wrapped: F[A]
-  ): TemporalOps[F, A, E] =
-    new TemporalOps(wrapped)
+  ): GenTemporalOps[F, A, E] =
+    new GenTemporalOps(wrapped)
 }
 
-final class TemporalOps[F[_], A, E] private[syntax] (private[syntax] val wrapped: F[A])
+final class GenTemporalOps[F[_], A, E] private[syntax] (private[syntax] val wrapped: F[A])
     extends AnyVal {
 
   def timeoutTo(duration: FiniteDuration, fallback: F[A])(implicit F: GenTemporal[F, E]): F[A] =
