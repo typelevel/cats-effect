@@ -26,7 +26,8 @@ trait GenSpawnSyntax {
     new GenSpawnOps(wrapped)
 }
 
-final class GenSpawnOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
+final class GenSpawnOps[F[_], A, E] private[syntax] (private[syntax] val wrapped: F[A])
+    extends AnyVal {
 
   def start(implicit F: GenSpawn[F, E]): F[Fiber[F, E, A]] = F.start(wrapped)
 

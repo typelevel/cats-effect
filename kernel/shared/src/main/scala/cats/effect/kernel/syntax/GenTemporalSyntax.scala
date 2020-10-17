@@ -16,9 +16,10 @@
 
 package cats.effect.kernel.syntax
 
-import cats.effect.kernel.{GenTemporal, Temporal}
+import cats.effect.kernel.GenTemporal
 
 import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeoutException
 
 trait GenTemporalSyntax {
 
@@ -26,21 +27,21 @@ trait GenTemporalSyntax {
       wrapped: F[A]
   ): TemporalOps[F, A, E] =
     new TemporalOps(wrapped)
-
-  implicit def genTemporalTimeoutOps[F[_], A](
-      wrapped: F[A]
-  ): TemporalTimeoutOps[F, A] =
-    new TemporalTimeoutOps(wrapped)
 }
 
-final class TemporalOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
+final class TemporalOps[F[_], A, E] private[syntax] (private[syntax] val wrapped: F[A])
+    extends AnyVal {
 
   def timeoutTo(duration: FiniteDuration, fallback: F[A])(implicit F: GenTemporal[F, E]): F[A] =
     F.timeoutTo(wrapped, duration, fallback)
-}
 
-final class TemporalTimeoutOps[F[_], A](val wrapped: F[A]) extends AnyVal {
-
-  def timeout(duration: FiniteDuration)(implicit F: Temporal[F]): F[A] =
+  def timeout(duration: FiniteDuration)(
+      implicit F: GenTemporal[F, _ >: TimeoutException]): F[A] =
     F.timeout(wrapped, duration)
+
+  def delayBy[E](time: FiniteDuration)(implicit F: GenTemporal[F, E]): F[A] =
+    F.delayBy(wrapped, time)
+
+  def andWait[E](time: FiniteDuration)(implicit F: GenTemporal[F, E]): F[A] =
+    F.andWait(wrapped, time)
 }

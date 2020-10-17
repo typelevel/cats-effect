@@ -23,6 +23,7 @@ trait ResourceSyntax {
     new EffectResourceOps(wrapped)
 }
 
-final class EffectResourceOps[F[_], A](val wrapped: F[A]) extends AnyVal {
+final class EffectResourceOps[F[_], A] private[syntax] (private[syntax] val wrapped: F[A])
+    extends AnyVal {
   def liftToResource: Resource[F, A] = Resource.liftF(wrapped)
 }
