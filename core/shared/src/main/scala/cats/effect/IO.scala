@@ -301,10 +301,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   // utilities
 
-  private[this] val _stub: IO[Nothing] = raiseError(
-    new NotImplementedError("This IO is not implemented"))
-
-  def stub: IO[Nothing] = _stub
+  def stub: IO[Nothing] = {
+    val t = new NotImplementedError("this IO is not implemented"))
+    raiseError(t)
+  }
 
   def bothOutcome[A, B](left: IO[A], right: IO[B]): IO[(OutcomeIO[A], OutcomeIO[B])] =
     left.bothOutcome(right)
