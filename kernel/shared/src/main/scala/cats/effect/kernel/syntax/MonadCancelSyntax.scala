@@ -20,7 +20,7 @@ import cats.effect.kernel.{MonadCancel, Outcome}
 
 trait MonadCancelSyntax {
 
-  implicit def genMonadCancelOps[F[_], A, E](
+  implicit def monadCancelOps[F[_], A, E](
       wrapped: F[A]
   ): MonadCancelOps[F, A, E] =
     new MonadCancelOps(wrapped)

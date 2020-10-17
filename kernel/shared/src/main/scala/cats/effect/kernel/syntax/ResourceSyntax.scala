@@ -16,10 +16,13 @@
 
 package cats.effect.kernel.syntax
 
-trait AllSyntax
-    extends MonadCancelSyntax
-    with GenSpawnSyntax
-    with GenTemporalSyntax
-    with GenConcurrentSyntax
-    with AsyncSyntax
-    with ResourceSyntax
+import cats.effect.kernel.Resource
+
+trait ResourceSyntax {
+  implicit def effectResourceOps[F[_], A](wrapped: F[A]): EffectResourceOps[F, A] =
+    new EffectResourceOps(wrapped)
+}
+
+final class EffectResourceOps[F[_], A](val wrapped: F[A]) extends AnyVal {
+  def liftToResource: Resource[F, A] = Resource.liftF(wrapped)
+}
