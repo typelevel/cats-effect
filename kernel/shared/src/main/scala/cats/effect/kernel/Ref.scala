@@ -199,20 +199,6 @@ object Ref {
   def of[F[_], A](a: A)(implicit mk: Make[F]): F[Ref[F, A]] = mk.refOf(a)
 
   /**
-   * Creates a Ref starting with the value of the one in `source`.
-   *
-   * Updates of either of the Refs will not have an effect on the other (assuming A is immutable).
-   */
-  def copyOf[F[_]: Make: FlatMap, A](source: Ref[F, A]): F[Ref[F, A]] =
-    ofEffect(source.get)
-
-  /**
-   * Creates a Ref starting with the result of the effect `fa`.
-   */
-  def ofEffect[F[_]: Make: FlatMap, A](fa: F[A]): F[Ref[F, A]] =
-    FlatMap[F].flatMap(fa)(of(_))
-
-  /**
    * Like `apply` but returns the newly allocated ref directly instead of wrapping it in `F.delay`.
    * This method is considered unsafe because it is not referentially transparent -- it allocates
    * mutable state.
