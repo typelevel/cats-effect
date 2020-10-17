@@ -32,4 +32,18 @@ final class GenSpawnOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
 
   def background(implicit F: GenSpawn[F, E]): Resource[F, F[Outcome[F, E, A]]] =
     F.background(wrapped)
+
+  def race[B](another: F[B])(implicit F: GenSpawn[F, E]) =
+    F.race(wrapped, another)
+
+  def raceOutcome[B](another: F[B])(
+      implicit F: GenSpawn[F, E]): F[Either[Outcome[F, E, A], Outcome[F, E, B]]] =
+    F.raceOutcome(wrapped, another)
+
+  def both[B](another: F[B])(implicit F: GenSpawn[F, E]): F[(A, B)] =
+    F.both(wrapped, another)
+
+  def bothOutcome[B](another: F[B])(
+      implicit F: GenSpawn[F, E]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
+    F.bothOutcome(wrapped, another)
 }
