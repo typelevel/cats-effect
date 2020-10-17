@@ -26,11 +26,25 @@ import scala.concurrent.{Future, Promise}
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
-object Dispatcher extends DispatcherPlatform {
+sealed trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
+
+  def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit])
+
+  def unsafeToFuture[A](fa: F[A]): Future[A] =
+    unsafeToFutureCancelable(fa)._1
+
+  def unsafeRunAndForget[A](fa: F[A]): Unit = {
+    unsafeToFutureCancelable(fa)
+    ()
+  }
+}
+
+
+object Dispatcher {
 
   private[this] val Open = () => ()
 
-  def apply[F[_]](implicit F: Async[F]): Resource[F, Runner[F]] = {
+  def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] = {
     final case class Registration(action: F[Unit], prepareCancel: F[Unit] => Unit)
 
     final case class State(end: Long, registry: LongMap[Registration]) {
@@ -116,7 +130,7 @@ object Dispatcher extends DispatcherPlatform {
 
       _ <- dispatcher.foreverM[Unit].background
     } yield {
-      new Runner[F] {
+      new Dispatcher[F] {
         def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
           val promise = Promise[E]()
 
@@ -194,19 +208,6 @@ object Dispatcher extends DispatcherPlatform {
           }
         }
       }
-    }
-  }
-
-  sealed trait Runner[F[_]] extends RunnerPlatform[F] {
-
-    def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit])
-
-    def unsafeToFuture[A](fa: F[A]): Future[A] =
-      unsafeToFutureCancelable(fa)._1
-
-    def unsafeRunAndForget[A](fa: F[A]): Unit = {
-      unsafeToFutureCancelable(fa)
-      ()
     }
   }
 }

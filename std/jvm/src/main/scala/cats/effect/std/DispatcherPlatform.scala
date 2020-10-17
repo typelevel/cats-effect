@@ -19,21 +19,18 @@ package cats.effect.std
 import scala.concurrent.{Await, TimeoutException}
 import scala.concurrent.duration.Duration
 
-private[std] trait DispatcherPlatform { this: Dispatcher.type =>
+private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] =>
 
-  protected trait RunnerPlatform[F[_]] { this: Runner[F] =>
+  def unsafeRunSync[A](fa: F[A]): A =
+    unsafeRunTimed(fa, Duration.Inf)
 
-    def unsafeRunSync[A](fa: F[A]): A =
-      unsafeRunTimed(fa, Duration.Inf)
-
-    def unsafeRunTimed[A](fa: F[A], timeout: Duration): A = {
-      val (fut, cancel) = unsafeToFutureCancelable(fa)
-      try Await.result(fut, timeout)
-      catch {
-        case t: TimeoutException =>
-          cancel()
-          throw t
-      }
+  def unsafeRunTimed[A](fa: F[A], timeout: Duration): A = {
+    val (fut, cancel) = unsafeToFutureCancelable(fa)
+    try Await.result(fut, timeout)
+    catch {
+      case t: TimeoutException =>
+        cancel()
+        throw t
     }
   }
 }

@@ -16,7 +16,5 @@
 
 package cats.effect.std
 
-private[std] trait DispatcherPlatform { this: Dispatcher.type =>
-
-  protected trait RunnerPlatform[F[_]] { this: Runner[F] => }
+private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] =>
 }
