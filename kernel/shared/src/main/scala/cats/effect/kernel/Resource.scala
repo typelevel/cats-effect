@@ -407,6 +407,11 @@ sealed abstract class Resource[+F[_], +A] {
     this.flatMap(a => Resource.liftF(f(a)).map(_ => a))
 
   /**
+   * Widens the effect type of this resource.
+   */
+  def covary[G[x] >: F[x]]: Resource[G, A] = this
+
+  /**
    * Converts this to an `InvariantResource` to facilitate pattern matches
    * that Scala 2 cannot otherwise handle correctly.
    */
@@ -495,6 +500,11 @@ object Resource extends ResourceInstances with ResourcePlatform {
     Pure(a)
 
   /**
+   * A resource with a no-op allocation and a no-op release.
+   */
+  val unit: Resource[Nothing, Unit] = pure(())
+
+  /**
    * Lifts an applicative into a resource. The resource has a no-op release.
    * Preserves interruptibility of `fa`.
    *
@@ -516,7 +526,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * Preserves interruptibility of `release`.
    */
   def onFinalizeCase[F[_]: Applicative](release: ExitCase => F[Unit]): Resource[F, Unit] =
-    makeCase(Applicative[F].unit)((_, exit) => release(exit))
+    unit.onFinalizeCase(release)
 
   /**
    * Lifts an applicative into a resource as a `FunctionK`. The resource has a no-op release.
