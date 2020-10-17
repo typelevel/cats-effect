@@ -221,9 +221,10 @@ sealed abstract class Resource[+F[_], +A] {
   def used[G[x] >: F[x]](implicit G: Resource.Bracket[G]): G[Unit] = use(_ => G.unit)
 
   /**
-    * Allocates the resource and uses it to run the given Kleisli.
-    */
-  def useKleisli[G[x] >: F[x]: Resource.Bracket, B >: A, C](usage: Kleisli[G, B, C]): G[C] = use(usage.run)
+   * Allocates the resource and uses it to run the given Kleisli.
+   */
+  def useKleisli[G[x] >: F[x]: Resource.Bracket, B >: A, C](usage: Kleisli[G, B, C]): G[C] =
+    use(usage.run)
 
   /**
    * Creates a FunctionK that, when applied, will allocate the resource and use it to run the given Kleisli.
