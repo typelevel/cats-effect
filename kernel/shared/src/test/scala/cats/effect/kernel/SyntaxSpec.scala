@@ -121,7 +121,17 @@ class SyntaxSpec extends Specification {
 
     {
       val param: FiniteDuration = null.asInstanceOf[FiniteDuration]
-      val result = target.timeout(param).delayBy(param).andWait(param)
+      val result = target.timeout(param)
+      result: F[A]
+    }
+    {
+      val param: FiniteDuration = null.asInstanceOf[FiniteDuration]
+      val result = target.delayBy(param)
+      result: F[A]
+    }
+    {
+      val param: FiniteDuration = null.asInstanceOf[FiniteDuration]
+      val result = target.andWait(param)
       result: F[A]
     }
   }
