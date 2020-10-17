@@ -30,8 +30,7 @@ object Dispatcher extends DispatcherPlatform {
 
   private[this] val Open = () => ()
 
-  def apply[F[_], A](unsafe: Runner[F] => Resource[F, A])(
-      implicit F: Async[F]): Resource[F, A] = {
+  def apply[F[_]](implicit F: Async[F]): Resource[F, Runner[F]] = {
     final case class Registration(action: F[Unit], prepareCancel: F[Unit] => Unit)
 
     final case class State(end: Long, registry: LongMap[Registration]) {
@@ -116,88 +115,86 @@ object Dispatcher extends DispatcherPlatform {
       } yield ()
 
       _ <- dispatcher.foreverM[Unit].background
+    } yield {
+      new Runner[F] {
+        def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
+          val promise = Promise[E]()
 
-      back <- unsafe {
-        new Runner[F] {
-          def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
-            val promise = Promise[E]()
+          val action = fe
+            .flatMap(e => F.delay(promise.success(e)))
+            .onError { case t => F.delay(promise.failure(t)) }
+            .void
 
-            val action = fe
-              .flatMap(e => F.delay(promise.success(e)))
-              .onError { case t => F.delay(promise.failure(t)) }
-              .void
+          @volatile
+          var cancelToken: () => Future[Unit] = null
 
-            @volatile
-            var cancelToken: () => Future[Unit] = null
+          @volatile
+          var canceled = false
 
-            @volatile
-            var canceled = false
+          def registerCancel(token: F[Unit]): Unit = {
+            cancelToken = () => unsafeToFuture(token)
 
-            def registerCancel(token: F[Unit]): Unit = {
-              cancelToken = () => unsafeToFuture(token)
+            // double-check to resolve race condition here
+            if (canceled) {
+              cancelToken()
+              ()
+            }
+          }
 
-              // double-check to resolve race condition here
-              if (canceled) {
-                cancelToken()
-                ()
-              }
+          @tailrec
+          def enqueue(): Long = {
+            val s @ State(end, registry) = state.get()
+            val registry2 = registry.updated(end, Registration(action, registerCancel _))
+
+            if (!state.compareAndSet(s, State(end + 1, registry2)))
+              enqueue()
+            else
+              end
+          }
+
+          @tailrec
+          def dequeue(id: Long): Unit = {
+            val s @ State(_, registry) = state.get()
+            val registry2 = registry - id
+
+            if (!state.compareAndSet(s, s.copy(registry = registry2))) {
+              dequeue(id)
+            }
+          }
+
+          if (alive.get()) {
+            val id = enqueue()
+
+            val f = latch.getAndSet(Open)
+            if (f != null) {
+              f()
             }
 
-            @tailrec
-            def enqueue(): Long = {
-              val s @ State(end, registry) = state.get()
-              val registry2 = registry.updated(end, Registration(action, registerCancel _))
+            val cancel = { () =>
+              canceled = true
+              dequeue(id)
 
-              if (!state.compareAndSet(s, State(end + 1, registry2)))
-                enqueue()
+              val token = cancelToken
+              if (token != null)
+                token()
               else
-                end
+                Future.unit
             }
 
-            @tailrec
-            def dequeue(id: Long): Unit = {
-              val s @ State(_, registry) = state.get()
-              val registry2 = registry - id
-
-              if (!state.compareAndSet(s, s.copy(registry = registry2))) {
-                dequeue(id)
-              }
-            }
-
+            // double-check after we already put things in the structure
             if (alive.get()) {
-              val id = enqueue()
-
-              val f = latch.getAndSet(Open)
-              if (f != null) {
-                f()
-              }
-
-              val cancel = { () =>
-                canceled = true
-                dequeue(id)
-
-                val token = cancelToken
-                if (token != null)
-                  token()
-                else
-                  Future.unit
-              }
-
-              // double-check after we already put things in the structure
-              if (alive.get()) {
-                (promise.future, cancel)
-              } else {
-                // we were shutdown *during* the enqueue
-                cancel()
-                throw new IllegalStateException("dispatcher already shutdown")
-              }
+              (promise.future, cancel)
             } else {
+              // we were shutdown *during* the enqueue
+              cancel()
               throw new IllegalStateException("dispatcher already shutdown")
             }
+          } else {
+            throw new IllegalStateException("dispatcher already shutdown")
           }
         }
       }
-    } yield back
+    }
   }
 
   sealed trait Runner[F[_]] extends RunnerPlatform[F] {

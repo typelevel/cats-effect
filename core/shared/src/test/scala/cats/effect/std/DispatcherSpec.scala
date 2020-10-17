@@ -27,14 +27,14 @@ class DispatcherSpec extends BaseSpec {
   "async dispatcher" should {
     "run a synchronous IO" in real {
       val ioa = IO(1).map(_ + 2)
-      val rec = Dispatcher[IO, Int](runner =>
+      val rec = Dispatcher[IO].flatMap(runner =>
         Resource.liftF(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
       rec.use(i => IO(i mustEqual 3))
     }
 
     "run an asynchronous IO" in real {
       val ioa = (IO(1) <* IO.cede).map(_ + 2)
-      val rec = Dispatcher[IO, Int](runner =>
+      val rec = Dispatcher[IO].flatMap(runner =>
         Resource.liftF(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
       rec.use(i => IO(i mustEqual 3))
     }
@@ -46,7 +46,7 @@ class DispatcherSpec extends BaseSpec {
 
       val num = 10
 
-      val rec = Dispatcher[IO, Unit] { runner =>
+      val rec = Dispatcher[IO] flatMap { runner =>
         Resource.liftF(IO.fromFuture(IO(runner.unsafeToFuture(increment))).replicateA(num).void)
       }
 
@@ -64,7 +64,7 @@ class DispatcherSpec extends BaseSpec {
         subjects = latches.map(latch => latch.complete(()) >> awaitAll)
 
         _ <- {
-          val rec = Dispatcher[IO, Unit] { runner =>
+          val rec = Dispatcher[IO] flatMap { runner =>
             Resource.liftF(subjects.parTraverse_(act => IO(runner.unsafeRunAndForget(act))))
           }
 
@@ -76,7 +76,7 @@ class DispatcherSpec extends BaseSpec {
     "forward cancelation onto the inner action" in real {
       var canceled = false
 
-      val rec = Dispatcher[IO, Unit] { runner =>
+      val rec = Dispatcher[IO] flatMap { runner =>
         val run = IO {
           runner.unsafeToFutureCancelable(IO.never.onCancel(IO { canceled = true }))._2
         }
@@ -95,7 +95,7 @@ class DispatcherSpec extends BaseSpec {
       @volatile
       var canceledB = false
 
-      val rec = Dispatcher[IO, Unit] { runner =>
+      val rec = Dispatcher[IO] flatMap { runner =>
         Resource liftF {
           IO {
             // these finalizers never return, so this test is intentionally designed to hang
@@ -122,11 +122,10 @@ class DispatcherSpec extends BaseSpec {
     }
 
     "raise an error on leaked runner" in real {
-      Dispatcher[IO, Dispatcher.Runner[IO]](Resource.pure(_)).use(IO.pure(_)) flatMap {
-        runner =>
-          IO {
-            runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException]
-          }
+      Dispatcher[IO].use(IO.pure(_)) flatMap { runner =>
+        IO {
+          runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException]
+        }
       }
     }
   }
