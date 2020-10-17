@@ -515,7 +515,6 @@ object Resource extends ResourceInstances with ResourcePlatform {
 
   /**
    * Lifts a finalizer into a resource. The resource has a no-op allocation.
-   * Preserves interruptibility of `release`.
    */
   def onFinalize[F[_]: Applicative](release: F[Unit]): Resource[F, Unit] =
     make(Applicative[F].unit)(_ => release)
@@ -523,7 +522,6 @@ object Resource extends ResourceInstances with ResourcePlatform {
   /**
    * Creates a resource that allocates immediately without any effects,
    * but calls `release` when closing, providing the [[ExitCase the usage completed with]].
-   * Preserves interruptibility of `release`.
    */
   def onFinalizeCase[F[_]: Applicative](release: ExitCase => F[Unit]): Resource[F, Unit] =
     unit.onFinalizeCase(release)
