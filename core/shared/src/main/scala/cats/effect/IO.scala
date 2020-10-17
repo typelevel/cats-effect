@@ -301,6 +301,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   // utilities
 
+  val stub: IO[Nothing] = raiseError(new NotImplementedError("This IO is not implemented"))
+
   def bothOutcome[A, B](left: IO[A], right: IO[B]): IO[(OutcomeIO[A], OutcomeIO[B])] =
     left.bothOutcome(right)
 

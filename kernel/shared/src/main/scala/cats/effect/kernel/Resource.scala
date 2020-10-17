@@ -215,6 +215,11 @@ sealed abstract class Resource[+F[_], +A] {
     use[G, Nothing](_ => G.never)
 
   /**
+   * Allocates a resource and closes it immediately.
+   */
+  def used[G[x] >: F[x]](implicit G: Resource.Bracket[G]): G[Unit] = use(_ => G.unit)
+
+  /**
    * Allocates two resources concurrently, and combines their results in a tuple.
    *
    * The finalizers for the two resources are also run concurrently with each other,
@@ -286,6 +291,12 @@ sealed abstract class Resource[+F[_], +A] {
   def mapK[G[x] >: F[x], H[_]](
       f: G ~> H
   ): Resource[H, A] = Resource.MapK(this, f)
+
+  /**
+   * Runs `precede` before this resource is allocated.
+   */
+  def preAllocate[G[x] >: F[x]](precede: G[Unit]): Resource[G, A] =
+    Resource.liftF(precede).flatMap(_ => this)
 
   /**
    * Runs `finalizer` when this resource is closed. Unlike the release action passed to `Resource.make`, this will
@@ -529,7 +540,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
     Resource.make(acquire)(autoCloseable => F.blocking(autoCloseable.close()))
 
   /**
-   * Public supertype for the three node types that constitute teh public API
+   * Public supertype for the three node types that constitute the public API
    * for interpreting a [[Resource]].
    */
   sealed trait Primitive[F[_], +A] extends InvariantResource[F, A]
