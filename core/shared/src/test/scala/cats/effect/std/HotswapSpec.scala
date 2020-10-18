@@ -24,34 +24,32 @@ class HotswapSpec extends BaseSpec { outer =>
 
   sequential
 
-  def log(state: Ref[IO, List[String]], message: String): IO[Unit] =
-    state.update(_ :: message)
-
-  def resource(state: Ref[IO, List[String]], name: String): IO[Unit] =
-    Resource.make(log(state, s"open $name"))(_ => log(state, s"close $name"))
+  def logged(log: Ref[IO, List[String]], name: String): Resource[IO, Unit] =
+    Resource.make(log.update(_ :+ s"open $name"))(_ => log.update(_ :+ (s"close $name")))
 
   "Hotswap" should {
     "run finalizer of target run when hotswap is finalized" in real {
       val op = for {
-        state <- Ref.of[IO, Int](0)
-        _ <- Hotswap[IO, Unit](Resource.make(IO.unit)(_ => state.set(1))).use(_ => IO.unit)
-        value <- state.get
+        log <- Ref.of[IO, List[String]](List())
+        _ <- Hotswap[IO, Unit](logged(log, "a")).use(_ => IO.unit)
+        value <- log.get
       } yield value
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(1)
+          res must beEqualTo(List("open a", "close a"))
         }
       }
     }
 
     "acquire new resource and finalize old resource on swap" in real {
       val op = for {
-        state <- Ref.of[IO, List[String]](0)
-        _ <- Hotswap[IO, Unit](resource(state, "a")).use { hotswap =>
-          hotswap.swap(resource(state, "b"))
+        log <- Ref.of[IO, List[String]](List())
+        _ <- Hotswap[IO, Unit](logged(log, "a")).use {
+          case (hotswap, _) =>
+            hotswap.swap(logged(log, "b"))
         }
-        log <- state.get
+        value <- log.get
       } yield value
 
       op.flatMap { res =>
@@ -63,11 +61,12 @@ class HotswapSpec extends BaseSpec { outer =>
 
     "finalize old resource on clear" in real {
       val op = for {
-        state <- Ref.of[IO, List[String]](0)
-        _ <- Hotswap[IO, Unit](resource(state, "a")).use { hotswap =>
-          hotswap.clear *> hotswap.swap(resource(state, "b"))
+        log <- Ref.of[IO, List[String]](List())
+        _ <- Hotswap[IO, Unit](logged(log, "a")).use {
+          case (hotswap, _) =>
+            hotswap.clear *> hotswap.swap(logged(log, "b"))
         }
-        log <- state.get
+        value <- log.get
       } yield value
 
       op.flatMap { res =>
