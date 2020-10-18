@@ -117,7 +117,7 @@ object Hotswap {
 
         override def swap(next: Resource[F, R]): F[R] =
           F.uncancelable { _ =>
-            next.allocated.flatMap {
+            next.allocated[F, R].flatMap {
               case (r, finalizer) =>
                 swapFinalizer(finalizer).as(r)
             }
@@ -129,7 +129,7 @@ object Hotswap {
         private def swapFinalizer(next: F[Unit]): F[Unit] =
           state.modify {
             case Some(previous) =>
-              Some(next) -> previous.attempt.void
+              Some(next) -> previous
             case None =>
               None -> (next *> raise("Cannot swap after finalization"))
           }.flatten
