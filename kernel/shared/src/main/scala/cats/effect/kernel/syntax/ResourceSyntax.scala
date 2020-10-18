@@ -14,19 +14,16 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect.kernel.syntax
 
-import scala.concurrent.Future
+import cats.effect.kernel.Resource
 
-trait UnsafeRun[F[_]] extends UnsafeRunPlatform[F] {
-  def unsafeRunFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit])
-
-  def unsafeRunAndForget[A](fa: F[A]): Unit = {
-    unsafeRunFutureCancelable(fa)
-    ()
-  }
+trait ResourceSyntax {
+  implicit def effectResourceOps[F[_], A](wrapped: F[A]): EffectResourceOps[F, A] =
+    new EffectResourceOps(wrapped)
 }
 
-object UnsafeRun {
-  def apply[F[_]](implicit F: UnsafeRun[F]): F.type = F
+final class EffectResourceOps[F[_], A] private[syntax] (private[syntax] val wrapped: F[A])
+    extends AnyVal {
+  def toResource: Resource[F, A] = Resource.liftF(wrapped)
 }

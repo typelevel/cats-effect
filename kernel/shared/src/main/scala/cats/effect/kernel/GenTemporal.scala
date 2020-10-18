@@ -26,6 +26,12 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
   // (sleep(n) *> now) <-> now.map(_ + n + d) forSome { val d: Double }
   def sleep(time: FiniteDuration): F[Unit]
 
+  def delayBy[A](fa: F[A], time: FiniteDuration): F[A] =
+    productR(sleep(time))(fa)
+
+  def andWait[A](fa: F[A], time: FiniteDuration) =
+    productL(fa)(sleep(time))
+
   /**
    * Returns an effect that either completes with the result of the source within
    * the specified time `duration` or otherwise evaluates the `fallback`.

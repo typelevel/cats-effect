@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect.std
 
-private[unsafe] trait UnsafeRunPlatform[F[_]] {}
+private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] => }

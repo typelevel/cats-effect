@@ -22,7 +22,8 @@ package object syntax {
 
   object monadCancel extends kernel.syntax.MonadCancelSyntax
   object spawn extends kernel.syntax.GenSpawnSyntax
-  object temporal extends kernel.syntax.GenTemporalSyntax
   object concurrent extends kernel.syntax.GenConcurrentSyntax
+  object temporal extends kernel.syntax.GenTemporalSyntax
   object async extends kernel.syntax.AsyncSyntax
+  object resource extends kernel.syntax.ResourceSyntax
 }

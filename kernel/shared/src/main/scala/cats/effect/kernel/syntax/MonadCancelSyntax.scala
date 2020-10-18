@@ -20,13 +20,14 @@ import cats.effect.kernel.{MonadCancel, Outcome}
 
 trait MonadCancelSyntax {
 
-  implicit def genMonadCancelOps[F[_], A, E](
+  implicit def monadCancelOps[F[_], A, E](
       wrapped: F[A]
   ): MonadCancelOps[F, A, E] =
     new MonadCancelOps(wrapped)
 }
 
-final class MonadCancelOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
+final class MonadCancelOps[F[_], A, E] private[syntax] (private[syntax] val wrapped: F[A])
+    extends AnyVal {
 
   def forceR[B](fb: F[B])(implicit F: MonadCancel[F, E]): F[B] =
     F.forceR(wrapped)(fb)

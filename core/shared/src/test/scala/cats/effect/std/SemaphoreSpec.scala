@@ -34,7 +34,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
     tests("async", n => Semaphore[IO](n))
     tests("async in", n => Semaphore.in[IO, IO](n))
-    tests("async imapK", n => Semaphore[IO](n).map(_.imapK[IO](FunctionK.id, FunctionK.id)))
+    tests("async mapK", n => Semaphore[IO](n).map(_.mapK[IO](FunctionK.id)))
 
     "acquire does not leak permits upon cancelation" in real {
       val op = Semaphore[IO](1L).flatMap { s =>
@@ -47,28 +47,27 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(2: Long)
+          res must beEqualTo(2L)
         }
       }
     }
 
-    "withPermit does not leak fibers or permits upon cancelation" in real {
+    "permit.use does not leak fibers or permits upon cancelation" in real {
       val op = Semaphore[IO](0L).flatMap { s =>
         // The inner s.release should never be run b/c the timeout will be reached before a permit
-        // is available. After the timeout and hence cancelation of s.withPermit(...), we release
-        // a permit and then sleep a bit, then check the permit count. If withPermit doesn't properly
+        // is available. After the timeout and hence cancelation of s.permit.use(_ => ...), we release
+        // a permit and then sleep a bit, then check the permit count. If permit.use doesn't properly
         // cancel, the permit count will be 2, otherwise 1
-        s.withPermit(s.release).timeout(1.milli).attempt *> s.release *> IO.sleep(
+        s.permit.use(_ => s.release).timeout(1.milli).attempt *> s.release *> IO.sleep(
           10.millis) *> s.count
       }
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(1: Long)
+          res must beEqualTo(1L)
         }
       }
     }
-
   }
 
   //TODO this requires background, which in turn requires Resource
@@ -99,7 +98,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(0: Long)
+          res must beEqualTo(0L)
         }
       }
     }
@@ -203,7 +202,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(1: Long)
+          res must beEqualTo(1L)
         }
       }
     }
@@ -218,7 +217,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(0: Long)
+          res must beEqualTo(0L)
         }
       }
     }
@@ -269,7 +268,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
         case Outcome.Succeeded(ioa) =>
           ioa.flatMap { res =>
             IO {
-              res must beEqualTo(0: Long)
+              res must beEqualTo(0L)
             }
           }
         case _ => IO.pure(false must beTrue) //Is there a not a `const failure` matcher?
@@ -288,7 +287,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
   //       (acquires(s, permits), releases(s, permits)).parTupled *> s.count
   //     }
 
-  //   op must completeAs(0: Long)
+  //   op must completeAs(0L)
   // }
 
 }

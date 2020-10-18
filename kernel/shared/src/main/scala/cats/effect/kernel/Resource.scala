@@ -24,6 +24,7 @@ import cats.effect.kernel.implicits._
 
 import scala.annotation.tailrec
 import Resource.ExitCase
+import cats.data.Kleisli
 
 /**
  * The `Resource` is a data structure that captures the effectful
@@ -102,7 +103,7 @@ import Resource.ExitCase
 sealed abstract class Resource[+F[_], +A] {
   private[effect] type F0[x] <: F[x]
 
-  import Resource.{Allocate, Bind, LiftF, MapK, Pure, Suspend}
+  import Resource.{Allocate, Bind, LiftF, MapK, OnFinalizeCase, Pure, Suspend}
 
   private[effect] def fold[G[x] >: F[x], B](
       onOutput: A => G[B],
@@ -157,6 +158,10 @@ sealed abstract class Resource[+F[_], +A] {
         case Pure(a) => Allocate((a, (_: ExitCase) => G.unit).pure[G])
         case LiftF(fa) =>
           Suspend(fa.map[Resource[G, A]](a => Allocate((a, (_: ExitCase) => G.unit).pure[G])))
+        case OnFinalizeCase(resource, finalizer) =>
+          Bind(
+            Allocate[G, Unit](G.pure[(Unit, ExitCase => G[Unit])](() -> finalizer)),
+            (_: Unit) => resource)
         case MapK(rea, fk0) =>
           // this would be easier if we could call `rea.preinterpret` but we don't have
           // the right `Applicative` instance available.
@@ -170,6 +175,11 @@ sealed abstract class Resource[+F[_], +A] {
               Bind(source.mapK(fk), f0.andThen(_.mapK(fk)))
             case Suspend(resource) =>
               Suspend(fk(resource).map(_.mapK(fk)))
+            case OnFinalizeCase(resource, finalizer) =>
+              Bind(
+                Allocate[G, Unit](
+                  G.pure[(Unit, ExitCase => G[Unit])](() -> finalizer.andThen(fk.apply))),
+                (_: Unit) => resource.mapK(fk))
             case Pure(a) => Allocate((a, (_: ExitCase) => G.unit).pure[G])
             case LiftF(rea) =>
               Suspend(fk(rea).map[Resource[G, A]](a =>
@@ -204,6 +214,25 @@ sealed abstract class Resource[+F[_], +A] {
    */
   def useForever[G[x] >: F[x]](implicit G: Spawn[G]): G[Nothing] =
     use[G, Nothing](_ => G.never)
+
+  /**
+   * Allocates a resource and closes it immediately.
+   */
+  def use_[G[x] >: F[x]](implicit G: Resource.Bracket[G]): G[Unit] = use(_ => G.unit)
+
+  /**
+   * Allocates the resource and uses it to run the given Kleisli.
+   */
+  def useKleisli[G[x] >: F[x]: Resource.Bracket, B >: A, C](usage: Kleisli[G, B, C]): G[C] =
+    use(usage.run)
+
+  /**
+   * Creates a FunctionK that, when applied, will allocate the resource and use it to run the given Kleisli.
+   */
+  def useKleisliK[G[x] >: F[x]: Resource.Bracket, B >: A]: Kleisli[G, B, *] ~> G =
+    new (Kleisli[G, B, *] ~> G) {
+      def apply[C](fa: Kleisli[G, B, C]): G[C] = useKleisli(fa)
+    }
 
   /**
    * Allocates two resources concurrently, and combines their results in a tuple.
@@ -277,6 +306,25 @@ sealed abstract class Resource[+F[_], +A] {
   def mapK[G[x] >: F[x], H[_]](
       f: G ~> H
   ): Resource[H, A] = Resource.MapK(this, f)
+
+  /**
+   * Runs `precede` before this resource is allocated.
+   */
+  def preAllocate[G[x] >: F[x]](precede: G[Unit]): Resource[G, A] =
+    Resource.liftF(precede).flatMap(_ => this)
+
+  /**
+   * Runs `finalizer` when this resource is closed. Unlike the release action passed to `Resource.make`, this will
+   * run even if resource acquisition fails or is canceled.
+   */
+  def onFinalize[G[x] >: F[x]](finalizer: G[Unit]): Resource[G, A] =
+    onFinalizeCase(_ => finalizer)
+
+  /**
+   * Like `onFinalize`, but the action performed depends on the exit case.
+   */
+  def onFinalizeCase[G[x] >: F[x]](f: ExitCase => G[Unit]): Resource[G, A] =
+    OnFinalizeCase(this, f)
 
   /**
    * Given a `Resource`, possibly built by composing multiple
@@ -357,6 +405,11 @@ sealed abstract class Resource[+F[_], +A] {
    */
   def evalTap[G[x] >: F[x], B](f: A => G[B]): Resource[G, A] =
     this.flatMap(a => Resource.liftF(f(a)).map(_ => a))
+
+  /**
+   * Widens the effect type of this resource.
+   */
+  def covary[G[x] >: F[x]]: Resource[G, A] = this
 
   /**
    * Converts this to an `InvariantResource` to facilitate pattern matches
@@ -447,6 +500,11 @@ object Resource extends ResourceInstances with ResourcePlatform {
     Pure(a)
 
   /**
+   * A resource with a no-op allocation and a no-op release.
+   */
+  val unit: Resource[Nothing, Unit] = pure(())
+
+  /**
    * Lifts an applicative into a resource. The resource has a no-op release.
    * Preserves interruptibility of `fa`.
    *
@@ -454,6 +512,19 @@ object Resource extends ResourceInstances with ResourcePlatform {
    */
   def liftF[F[_], A](fa: F[A]): Resource[F, A] =
     Resource.LiftF(fa)
+
+  /**
+   * Lifts a finalizer into a resource. The resource has a no-op allocation.
+   */
+  def onFinalize[F[_]](release: F[Unit]): Resource[F, Unit] =
+    unit.onFinalize(release)
+
+  /**
+   * Creates a resource that allocates immediately without any effects,
+   * but calls `release` when closing, providing the [[ExitCase the usage completed with]].
+   */
+  def onFinalizeCase[F[_]](release: ExitCase => F[Unit]): Resource[F, Unit] =
+    unit.onFinalizeCase(release)
 
   /**
    * Lifts an applicative into a resource as a `FunctionK`. The resource has a no-op release.
@@ -507,7 +578,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
     Resource.make(acquire)(autoCloseable => F.blocking(autoCloseable.close()))
 
   /**
-   * Public supertype for the three node types that constitute teh public API
+   * Public supertype for the three node types that constitute the public API
    * for interpreting a [[Resource]].
    */
   sealed trait Primitive[F[_], +A] extends InvariantResource[F, A]
@@ -530,6 +601,11 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * resource value.
    */
   final case class Suspend[F[_], A](resource: F[Resource[F, A]]) extends Primitive[F, A]
+
+  private[effect] final case class OnFinalizeCase[F[_], A](
+      resource: Resource[F, A],
+      finalizer: ExitCase => F[Unit])
+      extends InvariantResource[F, A]
 
   private[effect] final case class Pure[F[_], +A](a: A) extends InvariantResource[F, A]
 

@@ -58,7 +58,7 @@ class SyntaxSpec extends Specification {
     }
   }
 
-  def genSpawnSyntax[F[_], A, E](target: F[A])(implicit F: GenSpawn[F, E]) = {
+  def genSpawnSyntax[F[_], A, B, E](target: F[A], another: F[B])(implicit F: GenSpawn[F, E]) = {
     import syntax.spawn._
 
     GenSpawn[F]: F.type
@@ -73,6 +73,27 @@ class SyntaxSpec extends Specification {
       val result = target.background
       result: Resource[F, F[Outcome[F, E, A]]]
     }
+
+    {
+      val result = target.race(another)
+      result: F[Either[A, B]]
+    }
+
+    {
+      val result = target.raceOutcome(another)
+      result: F[Either[Outcome[F, E, A], Outcome[F, E, B]]]
+    }
+
+    {
+      val result = target.both(another)
+      result: F[(A, B)]
+    }
+
+    {
+      val result = target.bothOutcome(another)
+      result: F[(Outcome[F, E, A], Outcome[F, E, B])]
+    }
+
   }
 
   def spawnForwarder[F[_]: Spawn] =
@@ -103,6 +124,16 @@ class SyntaxSpec extends Specification {
       val result = target.timeout(param)
       result: F[A]
     }
+    {
+      val param: FiniteDuration = null.asInstanceOf[FiniteDuration]
+      val result = target.delayBy(param)
+      result: F[A]
+    }
+    {
+      val param: FiniteDuration = null.asInstanceOf[FiniteDuration]
+      val result = target.andWait(param)
+      result: F[A]
+    }
   }
 
   def asyncSyntax[F[_], A](target: F[A])(implicit F: Async[F]) = {
@@ -114,6 +145,14 @@ class SyntaxSpec extends Specification {
       val param: ExecutionContext = null.asInstanceOf[ExecutionContext]
       val result = target.evalOn(param)
       result: F[A]
+    }
+  }
+
+  def resourceSyntax[F[_], A](target: F[A]) = {
+    import syntax.resource._
+    {
+      val result = target.toResource
+      result: Resource[F, A]
     }
   }
 }
