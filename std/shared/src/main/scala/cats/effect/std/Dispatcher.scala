@@ -39,7 +39,6 @@ sealed trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
   }
 }
 
-
 object Dispatcher {
 
   private[this] val Open = () => ()
