@@ -541,6 +541,15 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
             Outcome.completed[IO, Throwable, Int](IO.pure(42)))
         }
 
+        "immediately cancel inner race when outer unit" in real {
+          for {
+            start <- IO.monotonic
+            _ <- IO.race(IO.unit, IO.race(IO.never, IO.sleep(10.seconds)))
+            end <- IO.monotonic
+
+            result <- IO((end - start) must beLessThan(5.seconds))
+          } yield result
+        }
       }
 
     }
