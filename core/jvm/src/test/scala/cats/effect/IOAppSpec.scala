@@ -46,7 +46,7 @@ class IOAppSpec extends Specification {
     }
 
     "run finalizers on TERM" in {
-      if ("Windows".equals(System.getenv("RUNNER_OS"))) {
+      if (System.getProperty("os.name").contains("Windows")) {
         // The jvm cannot gracefully terminate processes on Windows, so this
         // test cannot be carried out properly. Same for testing IOApp in sbt.
         ok
