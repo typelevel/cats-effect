@@ -35,50 +35,56 @@ class IOAppSpec extends Specification {
     "evaluate and print hello world" in {
       val h = java(HelloWorld, Nil)
       h.awaitStatus() mustEqual 0
-      h.stdout() mustEqual "Hello, World!\n"
+      h.stdout() mustEqual s"Hello, World!${System.lineSeparator()}"
     }
 
     "pass all arguments to child" in {
       val expected = List("the", "quick", "brown", "fox jumped", "over")
       val h = java(Arguments, expected)
       h.awaitStatus() mustEqual 0
-      h.stdout() mustEqual expected.mkString("", "\n", "\n")
+      h.stdout() mustEqual expected.mkString("", System.lineSeparator(), System.lineSeparator())
     }
 
     "run finalizers on TERM" in {
-      import _root_.java.io.{BufferedReader, FileReader}
+      if ("Windows".equals(System.getenv("RUNNER_OS"))) {
+        // The jvm cannot gracefully terminate processes on Windows, so this
+        // test cannot be carried out properly. Same for testing IOApp in sbt.
+        ok
+      } else {
+        import _root_.java.io.{BufferedReader, FileReader}
 
-      // we have to resort to this convoluted approach because Process#destroy kills listeners before killing the process
-      val test = File.createTempFile("cats-effect", "finalizer-test")
-      def readTest(): String = {
-        val reader = new BufferedReader(new FileReader(test))
-        try {
-          reader.readLine()
-        } finally {
-          reader.close()
+        // we have to resort to this convoluted approach because Process#destroy kills listeners before killing the process
+        val test = File.createTempFile("cats-effect", "finalizer-test")
+        def readTest(): String = {
+          val reader = new BufferedReader(new FileReader(test))
+          try {
+            reader.readLine()
+          } finally {
+            reader.close()
+          }
         }
+
+        val h = java(Finalizers, test.getAbsolutePath() :: Nil)
+
+        var i = 0
+        while (!h.stdout().contains("Started") && i < 100) {
+          Thread.sleep(100)
+          i += 1
+        }
+
+        Thread.sleep(
+          100
+        ) // give thread scheduling just a sec to catch up and get us into the latch.await()
+
+        h.term()
+        h.awaitStatus() mustEqual 143
+
+        i = 0
+        while (readTest() == null && i < 100) {
+          i += 1
+        }
+        readTest() must contain("canceled")
       }
-
-      val h = java(Finalizers, test.getAbsolutePath() :: Nil)
-
-      var i = 0
-      while (!h.stdout().contains("Started") && i < 100) {
-        Thread.sleep(100)
-        i += 1
-      }
-
-      Thread.sleep(
-        100
-      ) // give thread scheduling just a sec to catch up and get us into the latch.await()
-
-      h.term()
-      h.awaitStatus() mustEqual 143
-
-      i = 0
-      while (readTest() == null && i < 100) {
-        i += 1
-      }
-      readTest() must contain("canceled")
     }
   }
 

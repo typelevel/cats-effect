@@ -50,7 +50,7 @@ val LatestJava = "adopt@14"
 val GraalVM8 = "graalvm8@20.1.0"
 
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
-ThisBuild / githubWorkflowOSes := Seq(PrimaryOS)
+ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, "windows-latest")
 
 ThisBuild / githubWorkflowBuildPreamble +=
   WorkflowStep.Use(
@@ -69,19 +69,26 @@ ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Run(
     List("example/test-jvm.sh ${{ matrix.scala }}"),
     name = Some("Test Example JVM App Within Sbt"),
-    cond = Some("matrix.ci == 'ciJVM'")),
+    cond = Some("matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'")),
 
   WorkflowStep.Run(
     List("example/test-js.sh ${{ matrix.scala }}"),
     name = Some("Test Example JavaScript App Using Node"),
-    cond = Some("matrix.ci == 'ciJS'")))
+    cond = Some("matrix.ci == 'ciJS' && matrix.os == 'ubuntu-latest'")))
 
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> List("ciJVM", "ciJS", "ciFirefox")
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++=
   Seq("ciJS", "ciFirefox") flatMap { ci =>
     (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)) map { java =>
-      MatrixExclude(Map("ci" -> ci, "java" -> java))
+        MatrixExclude(Map("ci" -> ci, "java" -> java))
+    }
+  }
+
+ThisBuild / githubWorkflowBuildMatrixExclusions ++=
+  Seq("ciJS", "ciFirefox") flatMap { ci =>
+    (ThisBuild / githubWorkflowOSes).value.filterNot(Set(PrimaryOS)) map { os =>
+        MatrixExclude(Map("ci" -> ci, "os" -> os))
     }
   }
 
