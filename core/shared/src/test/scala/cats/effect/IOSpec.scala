@@ -923,6 +923,18 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         loop(0) must completeAs(())
       }
 
+      "evaluate 10,000 consecutive attempt continuations" in ticked { implicit ticker =>
+        var acc: IO[Any] = IO.unit
+
+        var j = 0
+        while (j < 10000) {
+          acc = acc.attempt
+          j += 1
+        }
+
+        acc.void must completeAs(())
+      }
+
     }
 
     "miscellaneous" should {
