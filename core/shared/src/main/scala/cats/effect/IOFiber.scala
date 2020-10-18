@@ -990,7 +990,7 @@ private final class IOFiber[A](
       case 6 => onCancelSuccessK(result, depth)
       case 7 => uncancelableSuccessK(result, depth)
       case 8 => unmaskSuccessK(result, depth)
-      case 9 => succeeded(Right(result), depth + 1)
+      case 9 => succeeded(Right(result), depth)
     }
 
   private[this] def failed(error: Throwable, depth: Int): IO[Any] = {
@@ -1026,7 +1026,7 @@ private final class IOFiber[A](
       case 6 => onCancelFailureK(error, depth)
       case 7 => uncancelableFailureK(error, depth)
       case 8 => unmaskFailureK(error, depth)
-      case 9 => succeeded(Left(error), depth + 1) // attemptK
+      case 9 => succeeded(Left(error), depth) // attemptK
     }
   }
 
