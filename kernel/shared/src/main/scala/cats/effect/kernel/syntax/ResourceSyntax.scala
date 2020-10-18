@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-package cats.effect.kernel
+package cats.effect.kernel.syntax
 
-package object syntax {
+import cats.effect.kernel.Resource
 
-  object all extends AllSyntax
+trait ResourceSyntax {
+  implicit def effectResourceOps[F[_], A](wrapped: F[A]): EffectResourceOps[F, A] =
+    new EffectResourceOps(wrapped)
+}
 
-  object monadCancel extends MonadCancelSyntax
-  object spawn extends GenSpawnSyntax
-  object concurrent extends GenConcurrentSyntax
-  object temporal extends GenTemporalSyntax
-  object async extends AsyncSyntax
-  object resource extends ResourceSyntax
+final class EffectResourceOps[F[_], A] private[syntax] (private[syntax] val wrapped: F[A])
+    extends AnyVal {
+  def toResource: Resource[F, A] = Resource.liftF(wrapped)
 }

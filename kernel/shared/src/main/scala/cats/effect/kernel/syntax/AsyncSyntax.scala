@@ -25,7 +25,8 @@ trait AsyncSyntax {
     new AsyncOps(wrapped)
 }
 
-final class AsyncOps[F[_], A](val wrapped: F[A]) extends AnyVal {
+final class AsyncOps[F[_], A] private[syntax] (private[syntax] val wrapped: F[A])
+    extends AnyVal {
   def evalOn(ec: ExecutionContext)(implicit F: Async[F]): F[A] =
     Async[F].evalOn(wrapped, ec)
 }

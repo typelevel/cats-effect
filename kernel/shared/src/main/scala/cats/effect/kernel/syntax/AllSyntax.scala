@@ -22,3 +22,4 @@ trait AllSyntax
     with GenTemporalSyntax
     with GenConcurrentSyntax
     with AsyncSyntax
+    with ResourceSyntax
