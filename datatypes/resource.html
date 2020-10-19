@@ -31,7 +31,7 @@
 <span class="k">val</span> <span class="nv">acquire</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Acquire cats..."</span><span class="o">))</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="s">"cats"</span><span class="o">)</span>
 <span class="c1">// acquire: IO[String] = Bind(</span>
 <span class="c1">//   source = Delay(thunk = &lt;function0&gt;),</span>
-<span class="c1">//   f = cats.effect.IO$$Lambda$10115/0x0000000802bdf840@3af669f7,</span>
+<span class="c1">//   f = cats.effect.IO$$Lambda$10966/0x0000000802e77840@6922c089,</span>
 <span class="c1">//   trace = StackTrace(</span>
 <span class="c1">//     stackTrace = List(</span>
 <span class="c1">//       cats.effect.internals.IOTracing$.buildFrame(IOTracing.scala:48),</span>
@@ -54,19 +54,19 @@
 <span class="c1">//       scala.Console$.withOut(Console.scala:164),</span>
 <span class="c1">//       mdoc.internal.document.DocumentBuilder$$doc$.build(DocumentBuilder.scala:88),</span>
 <span class="c1">//       mdoc.internal.markdown.MarkdownBuilder$.buildDocument(MarkdownBuilder.scala:44),</span>
-<span class="c1">//       mdoc.internal.markdown.Processor.processScalaInputs(Processor.scala:186),</span>
-<span class="c1">//       mdoc.internal.markdown.Processor.processScalaInputs(Processor.scala:153),</span>
+<span class="c1">//       mdoc.internal.markdown.Processor.processScalaInputs(Processor.scala:185),</span>
+<span class="c1">//       mdoc.internal.markdown.Processor.processScalaInputs(Processor.scala:152),</span>
 <span class="c1">//       mdoc.internal.markdown.Processor.processDocument(Processor.scala:52),</span>
 <span class="c1">//       mdoc.internal.markdown.Markdown$.toMarkdown(Markdown.scala:132),</span>
 <span class="c1">//       mdoc.internal.cli.MainOps.handleMarkdown(MainOps.scala:82),</span>
 <span class="c1">//       mdoc.internal.cli.MainOps.handleFile(MainOps.scala:110),</span>
-<span class="c1">//       mdoc.internal.cli.MainOps.$anonfun$generateCompleteSite$1(MainOps.scala:157),</span>
+<span class="c1">//       mdoc.internal.cli.MainOps.$anonfun$generateCompleteSite$1(MainOps.scala:156),</span>
 <span class="c1">//       scala.collection.LinearSeqOps.foldLeft(LinearSeq.scala:168),</span>
 <span class="c1">//       scala.collection.LinearSeqOps.foldLeft$(LinearSeq.scala:164),</span>
 <span class="c1">//       scala.collection.immutable.List.foldLeft(List.scala:79),</span>
 <span class="c1">//       mdoc.internal.cli.MainOps.generateCompleteSite(MainOps.scala:155),</span>
-<span class="c1">//       mdoc.internal.cli.MainOps.run(MainOps.scala:178),</span>
-<span class="c1">//       mdoc.internal.cli.MainOps$.process(MainOps.scala:270),</span>
+<span class="c1">//       mdoc.internal.cli.MainOps.run(MainOps.scala:177),</span>
+<span class="c1">//       mdoc.internal.cli.MainOps$.process(MainOps.scala:269),</span>
 <span class="c1">//       mdoc.Main$.process(Main.scala:26),</span>
 <span class="c1">//       mdoc.Main$.process(Main.scala:21),</span>
 <span class="c1">//       mdoc.Main$.main(Main.scala:16),</span>
