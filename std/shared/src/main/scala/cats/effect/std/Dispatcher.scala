@@ -142,7 +142,7 @@ object Dispatcher {
             def loop(): Unit = {
               val state = cancelState.get()
               state match {
-                case CancelInit() =>
+                case CancelInit =>
                   if (!cancelState.compareAndSet(state, CancelToken(cancelToken))) {
                     loop()
                   }
@@ -150,6 +150,7 @@ object Dispatcher {
                   if (!cancelState.compareAndSet(state, CancelToken(cancelToken))) {
                     loop()
                   } else {
+                    import scala.concurrent.ExecutionContext.Implicits.global
                     cancelToken().onComplete {
                       case Success(_) => promise.success(())
                       case Failure(ex) => promise.failure(ex)
@@ -197,7 +198,7 @@ object Dispatcher {
               def loop(): Future[Unit] = {
                 val state = cancelState.get()
                 state match {
-                  case CancelInit() =>
+                  case CancelInit =>
                     val promise = Promise[Unit]()
                     if (!cancelState.compareAndSet(state, CancelledNoToken(promise))) {
                       loop()
