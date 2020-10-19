@@ -17,7 +17,6 @@
 package cats
 package effect
 
-import cats.effect.kernel.Ref
 import cats.effect.syntax.all._
 import cats.effect.unsafe.Scheduler
 import cats.syntax.all._

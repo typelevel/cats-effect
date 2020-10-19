@@ -70,4 +70,10 @@ package object effect {
   type OutcomeIO[A] = Outcome[IO, Throwable, A]
   type FiberIO[A] = Fiber[IO, Throwable, A]
   type ResourceIO[A] = Resource[IO, A]
+
+  type Deferred[F[_], A] = cekernel.Deferred[F, A]
+  val Deferred = cekernel.Deferred
+
+  type Ref[F[_], A] = cekernel.Ref[F, A]
+  val Ref = cekernel.Ref
 }
