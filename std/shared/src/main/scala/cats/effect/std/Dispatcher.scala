@@ -139,6 +139,7 @@ object Dispatcher {
           def registerCancel(token: F[Unit]): Unit = {
             val cancelToken = () => unsafeToFuture(token)
 
+            @tailrec
             def loop(): Unit = {
               val state = cancelState.get()
               state match {
@@ -195,6 +196,7 @@ object Dispatcher {
             val cancel = { () =>
               dequeue(id)
 
+              @tailrec
               def loop(): Future[Unit] = {
                 val state = cancelState.get()
                 state match {
