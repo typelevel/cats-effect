@@ -51,7 +51,7 @@ object Dispatcher {
 
     sealed trait CancelState
     case object CancelInit extends CancelState
-    final case class CancelledNoToken(promise: Promise[Unit]) extends CancelState
+    final case class CanceledNoToken(promise: Promise[Unit]) extends CancelState
     final case class CancelToken(cancelToken: () => Future[Unit]) extends CancelState
 
     val Empty = State(0, LongMap())
@@ -59,6 +59,7 @@ object Dispatcher {
     for {
       latch <- Resource.liftF(F.delay(new AtomicReference[() => Unit]))
       state <- Resource.liftF(F.delay(new AtomicReference[State](Empty)))
+      ec <- Resource.liftF(F.executionContext)
 
       alive <- Resource.make(F.delay(new AtomicBoolean(true)))(ref => F.delay(ref.set(false)))
       active <- Resource.make(F.ref(LongMap[Fiber[F, Throwable, Unit]]())) { active =>
@@ -146,15 +147,14 @@ object Dispatcher {
                   if (!cancelState.compareAndSet(state, CancelToken(cancelToken))) {
                     loop()
                   }
-                case CancelledNoToken(promise) =>
+                case CanceledNoToken(promise) =>
                   if (!cancelState.compareAndSet(state, CancelToken(cancelToken))) {
                     loop()
                   } else {
-                    import scala.concurrent.ExecutionContext.Implicits.global
                     cancelToken().onComplete {
                       case Success(_) => promise.success(())
                       case Failure(ex) => promise.failure(ex)
-                    }
+                    }(ec)
                   }
                 case _ => ()
               }
@@ -201,12 +201,12 @@ object Dispatcher {
                 state match {
                   case CancelInit =>
                     val promise = Promise[Unit]()
-                    if (!cancelState.compareAndSet(state, CancelledNoToken(promise))) {
+                    if (!cancelState.compareAndSet(state, CanceledNoToken(promise))) {
                       loop()
                     } else {
                       promise.future
                     }
-                  case CancelledNoToken(promise) =>
+                  case CanceledNoToken(promise) =>
                     promise.future
                   case CancelToken(cancelToken) =>
                     cancelToken()
