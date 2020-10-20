@@ -25,8 +25,7 @@ import scala.collection.immutable.LongMap
 import scala.concurrent.{Future, Promise}
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
-import scala.util.Success
-import scala.util.Failure
+import scala.util.{Failure, Success}
 
 sealed trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 
