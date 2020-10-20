@@ -181,9 +181,9 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
           _ <- IO.sleep(5.millis)
           //Only hope for the cancellation being run is auto-yielding
           _ <- fiber.cancel
-        } yield ()
+        } yield true
 
-        run.evalOn(ec).map { res => res mustEqual () }
+        run.evalOn(ec).map { res => res mustEqual true }
       }
 
     }
