@@ -25,6 +25,7 @@ import scala.collection.immutable.LongMap
 import scala.concurrent.{Future, Promise}
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import scala.util.{Failure, Success}
 
 sealed trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 
@@ -46,24 +47,19 @@ object Dispatcher {
   def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] = {
     final case class Registration(action: F[Unit], prepareCancel: F[Unit] => Unit)
 
-    final case class State(end: Long, registry: LongMap[Registration]) {
+    final case class State(end: Long, registry: LongMap[Registration])
 
-      /*
-       * We know we never need structural equality on this type. We do, however,
-       * perform a compare-and-swap relatively frequently, and that operation
-       * delegates to the `equals` implementation. I like having the case class
-       * for pattern matching and general convenience, so we simply override the
-       * equals/hashCode implementation to use pointer equality.
-       */
-      override def equals(that: Any) = this eq that.asInstanceOf[AnyRef]
-      override def hashCode = System.identityHashCode(this)
-    }
+    sealed trait CancelState
+    case object CancelInit extends CancelState
+    final case class CanceledNoToken(promise: Promise[Unit]) extends CancelState
+    final case class CancelToken(cancelToken: () => Future[Unit]) extends CancelState
 
     val Empty = State(0, LongMap())
 
     for {
       latch <- Resource.liftF(F.delay(new AtomicReference[() => Unit]))
       state <- Resource.liftF(F.delay(new AtomicReference[State](Empty)))
+      ec <- Resource.liftF(F.executionContext)
 
       alive <- Resource.make(F.delay(new AtomicBoolean(true)))(ref => F.delay(ref.set(false)))
       active <- Resource.make(F.ref(LongMap[Fiber[F, Throwable, Unit]]())) { active =>
@@ -138,20 +134,33 @@ object Dispatcher {
             .onError { case t => F.delay(promise.failure(t)) }
             .void
 
-          @volatile
-          var cancelToken: () => Future[Unit] = null
-
-          @volatile
-          var canceled = false
+          val cancelState = new AtomicReference[CancelState](CancelInit)
 
           def registerCancel(token: F[Unit]): Unit = {
-            cancelToken = () => unsafeToFuture(token)
+            val cancelToken = () => unsafeToFuture(token)
 
-            // double-check to resolve race condition here
-            if (canceled) {
-              cancelToken()
-              ()
+            @tailrec
+            def loop(): Unit = {
+              val state = cancelState.get()
+              state match {
+                case CancelInit =>
+                  if (!cancelState.compareAndSet(state, CancelToken(cancelToken))) {
+                    loop()
+                  }
+                case CanceledNoToken(promise) =>
+                  if (!cancelState.compareAndSet(state, CancelToken(cancelToken))) {
+                    loop()
+                  } else {
+                    cancelToken().onComplete {
+                      case Success(_) => promise.success(())
+                      case Failure(ex) => promise.failure(ex)
+                    }(ec)
+                  }
+                case _ => ()
+              }
             }
+
+            loop()
           }
 
           @tailrec
@@ -184,14 +193,27 @@ object Dispatcher {
             }
 
             val cancel = { () =>
-              canceled = true
               dequeue(id)
 
-              val token = cancelToken
-              if (token != null)
-                token()
-              else
-                Future.unit
+              @tailrec
+              def loop(): Future[Unit] = {
+                val state = cancelState.get()
+                state match {
+                  case CancelInit =>
+                    val promise = Promise[Unit]()
+                    if (!cancelState.compareAndSet(state, CanceledNoToken(promise))) {
+                      loop()
+                    } else {
+                      promise.future
+                    }
+                  case CanceledNoToken(promise) =>
+                    promise.future
+                  case CancelToken(cancelToken) =>
+                    cancelToken()
+                }
+              }
+
+              loop()
             }
 
             // double-check after we already put things in the structure
