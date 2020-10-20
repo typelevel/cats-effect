@@ -10,7 +10,7 @@ A `Monad` that can suspend the execution of side effects in the `F[_]` context.
 
 ```scala mdoc:silent
 import cats.Defer
-import cats.effect.Bracket
+import cats.effect.BracketThrow
 
 trait Sync[F[_]] extends BracketThrow[F] with Defer[F] {
   def suspend[A](thunk: => F[A]): F[A]
