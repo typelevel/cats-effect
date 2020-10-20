@@ -30,7 +30,6 @@ import cats.{
 import cats.syntax.all._
 import cats.effect.std.Console
 import cats.effect.implicits._
-import cats.effect.kernel.{Deferred, Ref}
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}

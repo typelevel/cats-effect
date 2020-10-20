@@ -16,7 +16,6 @@
 
 package cats.effect
 
-import cats.effect.kernel.Ref
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.SemigroupKTests
 import cats.effect.laws.AsyncTests
