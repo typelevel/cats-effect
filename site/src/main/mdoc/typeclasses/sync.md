@@ -12,7 +12,7 @@ A `Monad` that can suspend the execution of side effects in the `F[_]` context.
 import cats.Defer
 import cats.effect.Bracket
 
-trait Sync[F[_]] extends Bracket[F, Throwable] with Defer[F] {
+trait Sync[F[_]] extends BracketThrow[F] with Defer[F] {
   def suspend[A](thunk: => F[A]): F[A]
   def delay[A](thunk: => A): F[A] = suspend(pure(thunk))
 }

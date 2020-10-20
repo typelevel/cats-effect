@@ -14,7 +14,7 @@ The [Acquiring and releasing `Resource`s](../tutorial/tutorial.md#acquiring-and-
 import cats.effect.Bracket
 
 abstract class Resource[F[_], A] {
-  def use[B](f: A => F[B])(implicit F: Bracket[F, Throwable]): F[B]
+  def use[B](f: A => F[B])(implicit F: BracketThrow[F]): F[B]
 }
 ```
 

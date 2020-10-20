@@ -103,7 +103,7 @@ sealed abstract class Resource[+F[_], +A] extends ResourceLike[F, A] {
   private def fold[G[x] >: F[x], B](
     onOutput: A => G[B],
     onRelease: G[Unit] => G[Unit]
-  )(implicit F: Bracket[G, Throwable]): G[B] = {
+  )(implicit F: BracketThrow[G]): G[B] = {
     sealed trait Stack[AA]
     case object Nil extends Stack[A]
     final case class Frame[AA, BB](head: AA => Resource[G, BB], tail: Stack[BB]) extends Stack[AA]
@@ -138,7 +138,7 @@ sealed abstract class Resource[+F[_], +A] extends ResourceLike[F, A] {
   /**
    * Implementation of `use`, which is declared in `ResourceLike`
    */
-  protected def use_[G[x] >: F[x], B](f: A => G[B])(implicit F: Bracket[G, Throwable]): G[B] =
+  protected def use_[G[x] >: F[x], B](f: A => G[B])(implicit F: BracketThrow[G]): G[B] =
     fold[G, B](f, identity)
 
   /**
@@ -179,7 +179,7 @@ sealed abstract class Resource[+F[_], +A] extends ResourceLike[F, A] {
 
   @deprecated("Use the overload that doesn't require Bracket", "2.2.0")
   private[effect] def mapK[G[x] >: F[x], H[_]](f: G ~> H,
-                                               B: Bracket[G, Throwable],
+                                               B: BracketThrow[G],
                                                D: Defer[H],
                                                G: Applicative[H]): Resource[H, A] =
     this.mapK[G, H](f)(D, G)
@@ -216,7 +216,7 @@ sealed abstract class Resource[+F[_], +A] extends ResourceLike[F, A] {
   /**
    * Implementation of `allocated`, which is declared in `ResourceLike`
    */
-  protected def allocated_[G[x] >: F[x], B >: A](implicit F: Bracket[G, Throwable]): G[(B, G[Unit])] = {
+  protected def allocated_[G[x] >: F[x], B >: A](implicit F: BracketThrow[G]): G[(B, G[Unit])] = {
     sealed trait Stack[AA]
     case object Nil extends Stack[B]
     final case class Frame[AA, BB](head: AA => Resource[G, BB], tail: Stack[BB]) extends Stack[AA]

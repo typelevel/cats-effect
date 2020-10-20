@@ -16,7 +16,7 @@
 
 package cats.effect.laws.util
 
-import cats.effect.{Bracket, IO, Resource, SyncIO}
+import cats.effect.{BracketThrow, IO, Resource, SyncIO}
 import cats.kernel.Eq
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -94,7 +94,7 @@ trait TestInstances {
    * equivalent if they allocate an equivalent resource.  Cleanup,
    * which is run purely for effect, is not considered.
    */
-  implicit def eqResource[F[_], A](implicit E: Eq[F[A]], F: Bracket[F, Throwable]): Eq[Resource[F, A]] =
+  implicit def eqResource[F[_], A](implicit E: Eq[F[A]], F: BracketThrow[F]): Eq[Resource[F, A]] =
     new Eq[Resource[F, A]] {
       def eqv(x: Resource[F, A], y: Resource[F, A]): Boolean =
         E.eqv(x.use(F.pure), y.use(F.pure))
