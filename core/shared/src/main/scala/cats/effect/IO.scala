@@ -224,8 +224,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         oc.fold((), e => cb(Left(e)), ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))),
       this,
       runtime.compute,
-      runtime.config.cancellationCheckThreshold,
-      runtime.config.autoYieldThreshold
+      runtime
     )
 
     if (shift)
