@@ -168,6 +168,24 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
         } yield ok
       }
 
+      "auto-cede" in real {
+        val forever = IO.unit.foreverM
+
+        val ec = ExecutionContext.fromExecutorService(Executors.newSingleThreadExecutor())
+
+        val run = for {
+          //Run in a tight loop on single-threaded ec so only hope of
+          //seeing cancellation status is auto-cede
+          fiber <- forever.start
+          //Allow the tight loop to be scheduled
+          _ <- IO.sleep(5.millis)
+          //Only hope for the cancellation being run is auto-yielding
+          _ <- fiber.cancel
+        } yield ()
+
+        run.evalOn(ec).map { res => res mustEqual () }
+      }
+
     }
   }
 }

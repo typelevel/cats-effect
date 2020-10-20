@@ -16,8 +16,6 @@
 
 package cats.effect
 
-import java.util.concurrent.Executors
-
 import cats.effect.kernel.Ref
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.SemigroupKTests
@@ -963,24 +961,6 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
             res mustEqual List(1, 2)
           }
         }
-      }
-
-      "auto-cede" in real {
-        val forever = IO.unit.foreverM
-
-        val ec = ExecutionContext.fromExecutorService(Executors.newSingleThreadExecutor())
-
-        val run = for {
-          //Run in a tight loop on single-threaded ec so only hope of
-          //seeing cancellation status is auto-cede
-          fiber <- forever.start
-          //Allow the tight loop to be scheduled
-          _ <- IO.sleep(5.millis)
-          //Only hope for the cancellation being run is auto-yielding
-          _ <- fiber.cancel
-        } yield ()
-
-        run.evalOn(ec).map { res => res mustEqual () }
       }
 
     }
