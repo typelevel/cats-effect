@@ -38,6 +38,12 @@ package object effect {
    */
   type CancelToken[F[_]] = F[Unit]
 
+  type ApplicativeThrow[F[_], A] = ApplicativeError[F, Throwable]
+
+  type MonadThrow[F[_]] = MonadError[F, Throwable]
+
+  type BracketThrow[F[_]] = Bracket[F, Throwable]
+
   /**
    * Provides missing methods on Scala 2.11's Either while allowing
    * -Xfatal-warnings along with -Ywarn-unused-import

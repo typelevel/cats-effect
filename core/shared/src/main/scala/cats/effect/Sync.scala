@@ -27,7 +27,7 @@ import scala.annotation.implicitNotFound
  * in the `F[_]` context.
  */
 @implicitNotFound("Could not find an instance of Sync for ${F}")
-trait Sync[F[_]] extends Bracket[F, Throwable] with Defer[F] {
+trait Sync[F[_]] extends BracketThrow[F] with Defer[F] {
 
   /**
    * Suspends the evaluation of an `F` reference.
