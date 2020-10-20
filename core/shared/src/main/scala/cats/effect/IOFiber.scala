@@ -219,7 +219,7 @@ private final class IOFiber[A](
     }
 
     val nextIteration = if (iteration > iterationThreshold) {
-      0
+      1
     } else {
       iteration + 1
     }
@@ -944,7 +944,7 @@ private final class IOFiber[A](
       /* suppress all subsequent cancelation on this fiber */
       masks += 1
       // println(s"$name: Running finalizers on ${Thread.currentThread().getName}")
-      runLoop(finalizers.pop(), 0)
+      runLoop(finalizers.pop(), 1)
     } else {
       if (cb != null)
         cb(RightUnit)
@@ -1105,7 +1105,7 @@ private final class IOFiber[A](
       currentCtx = startEC
       ctxs.push(startEC)
 
-      runLoop(startIO, 0)
+      runLoop(startIO, 1)
     }
   }
 
@@ -1117,7 +1117,7 @@ private final class IOFiber[A](
       case Right(a) => succeeded(a, 0)
     }
 
-    runLoop(next, 0)
+    runLoop(next, 1)
   }
 
   private[this] def blockingR(): Unit = {
@@ -1143,13 +1143,13 @@ private final class IOFiber[A](
   private[this] def afterBlockingSuccessfulR(): Unit = {
     val result = afterBlockingSuccessfulResult
     afterBlockingSuccessfulResult = null
-    runLoop(succeeded(result, 0), 0)
+    runLoop(succeeded(result, 0), 1)
   }
 
   private[this] def afterBlockingFailedR(): Unit = {
     val error = afterBlockingFailedError
     afterBlockingFailedError = null
-    runLoop(failed(error, 0), 0)
+    runLoop(failed(error, 0), 1)
   }
 
   private[this] def evalOnR(): Unit = {
@@ -1159,7 +1159,7 @@ private final class IOFiber[A](
   }
 
   private[this] def cedeR(): Unit = {
-    runLoop(succeeded((), 0), 0)
+    runLoop(succeeded((), 0), 1)
   }
 
   //////////////////////////////////////
@@ -1198,7 +1198,7 @@ private final class IOFiber[A](
   private[this] def cancelationLoopSuccessK(): IO[Any] = {
     if (!finalizers.isEmpty()) {
       conts.push(CancelationLoopK)
-      runLoop(finalizers.pop(), 0)
+      runLoop(finalizers.pop(), 1)
     } else {
       /* resume external canceller */
       val cb = objectState.pop()
