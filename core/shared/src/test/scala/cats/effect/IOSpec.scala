@@ -227,7 +227,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
       "start and join on a successful fiber" in ticked { implicit ticker =>
         IO.pure(42).map(_ + 1).start.flatMap(_.join) must completeAs(
-          Outcome.completed[IO, Throwable, Int](IO.pure(43)))
+          Outcome.succeeded[IO, Throwable, Int](IO.pure(43)))
       }
 
       "start and join on a failed fiber" in ticked { implicit ticker =>
@@ -278,7 +278,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           oc <- f.join
         } yield oc
 
-        ioa must completeAs(Outcome.completed[IO, Throwable, ExecutionContext](IO.pure(ec)))
+        ioa must completeAs(Outcome.succeeded[IO, Throwable, ExecutionContext](IO.pure(ec)))
       }
 
       "produce Canceled from start of canceled" in ticked { implicit ticker =>
@@ -538,7 +538,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           IO.pure(42)
             .racePair(IO.never: IO[Unit])
             .map(_.left.toOption.map(_._1).get) must completeAs(
-            Outcome.completed[IO, Throwable, Int](IO.pure(42)))
+            Outcome.succeeded[IO, Throwable, Int](IO.pure(42)))
         }
 
       }
