@@ -70,12 +70,12 @@ ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Run(
     List("example/test-jvm.sh ${{ matrix.scala }}"),
     name = Some("Test Example JVM App Within Sbt"),
-    cond = Some("matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'")),
+    cond = Some(s"matrix.ci == 'ciJVM' && matrix.os == '$PrimaryOS'")),
 
   WorkflowStep.Run(
     List("example/test-js.sh ${{ matrix.scala }}"),
     name = Some("Test Example JavaScript App Using Node"),
-    cond = Some("matrix.ci == 'ciJS' && matrix.os == 'ubuntu-latest'")))
+    cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")))
 
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> List("ciJVM", "ciJS", "ciFirefox")
 
