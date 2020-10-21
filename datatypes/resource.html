@@ -4,10 +4,10 @@
 
 <p>The <a href="/cats-effect/tutorial/tutorial.html#acquiring-and-releasing-resources">Acquiring and releasing <code class="language-plaintext highlighter-rouge">Resource</code>s</a> section of the tutorial provides some additional context and examples regarding <code class="language-plaintext highlighter-rouge">Resource</code>.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.Bracket</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.BracketThrow</span>
 
 <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Resource</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="nf">use</span><span class="o">[</span><span class="kt">B</span><span class="o">](</span><span class="n">f</span><span class="k">:</span> <span class="kt">A</span> <span class="o">=&gt;</span> <span class="n">F</span><span class="o">[</span><span class="kt">B</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">Bracket</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Throwable</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">B</span><span class="o">]</span>
+  <span class="k">def</span> <span class="nf">use</span><span class="o">[</span><span class="kt">B</span><span class="o">](</span><span class="n">f</span><span class="k">:</span> <span class="kt">A</span> <span class="o">=&gt;</span> <span class="n">F</span><span class="o">[</span><span class="kt">B</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">BracketThrow</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">B</span><span class="o">]</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
@@ -31,7 +31,7 @@
 <span class="k">val</span> <span class="nv">acquire</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Acquire cats..."</span><span class="o">))</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="s">"cats"</span><span class="o">)</span>
 <span class="c1">// acquire: IO[String] = Bind(</span>
 <span class="c1">//   source = Delay(thunk = &lt;function0&gt;),</span>
-<span class="c1">//   f = cats.effect.IO$$Lambda$10966/0x0000000802e77840@6922c089,</span>
+<span class="c1">//   f = cats.effect.IO$$Lambda$11155/0x0000000802f77840@129b5a86,</span>
 <span class="c1">//   trace = StackTrace(</span>
 <span class="c1">//     stackTrace = List(</span>
 <span class="c1">//       cats.effect.internals.IOTracing$.buildFrame(IOTracing.scala:48),</span>
