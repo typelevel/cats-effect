@@ -16,7 +16,6 @@
 
 package cats.effect
 
-import cats.effect.kernel.Ref
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.SemigroupKTests
 import cats.effect.laws.AsyncTests
@@ -541,6 +540,15 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
             Outcome.completed[IO, Throwable, Int](IO.pure(42)))
         }
 
+        "immediately cancel inner race when outer unit" in real {
+          for {
+            start <- IO.monotonic
+            _ <- IO.race(IO.unit, IO.race(IO.never, IO.sleep(10.seconds)))
+            end <- IO.monotonic
+
+            result <- IO((end - start) must beLessThan(5.seconds))
+          } yield result
+        }
       }
 
     }
@@ -921,6 +929,18 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
             IO.unit
 
         loop(0) must completeAs(())
+      }
+
+      "evaluate 10,000 consecutive attempt continuations" in ticked { implicit ticker =>
+        var acc: IO[Any] = IO.unit
+
+        var j = 0
+        while (j < 10000) {
+          acc = acc.attempt
+          j += 1
+        }
+
+        acc.void must completeAs(())
       }
 
     }

@@ -17,7 +17,7 @@
 package cats.effect
 package unsafe
 
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.ExecutionContext
 
 @annotation.implicitNotFound("""Could not find an implicit IORuntime.
 
@@ -38,20 +38,6 @@ final class IORuntime private[effect] (
     val blocking: ExecutionContext,
     val scheduler: Scheduler,
     val shutdown: () => Unit) {
-
-  private implicit val self: IORuntime = this
-
-  val unsafeRunForIO: UnsafeRun[IO] =
-    new UnsafeRun[IO] {
-      def unsafeRunFutureCancelable[A](fa: IO[A]): (Future[A], () => Future[Unit]) = {
-        val p = Promise[A]()
-        val fiber = fa.unsafeRunFiber(true) {
-          case Left(t) => p.failure(t)
-          case Right(a) => p.success(a)
-        }
-        (p.future, () => fiber.cancel.unsafeToFuture())
-      }
-    }
 
   override def toString: String = s"IORuntime($compute, $scheduler)"
 }

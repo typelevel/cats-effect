@@ -20,6 +20,7 @@ import cats.~>
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{Monoid, Semigroup}
 import cats.syntax.all._
+import cats.effect.kernel.syntax.monadCancel._
 
 /**
  * A typeclass that characterizes monads which support spawning and racing of
@@ -189,6 +190,7 @@ import cats.syntax.all._
  *   1. https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c
  */
 trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
+  implicit private[this] def F: MonadCancel[F, E] = this
 
   /**
    * A low-level primitive for starting the concurrent evaluation of a fiber.
@@ -300,9 +302,9 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
    */
   def raceOutcome[A, B](fa: F[A], fb: F[B]): F[Either[Outcome[F, E, A], Outcome[F, E, B]]] =
     uncancelable { _ =>
-      flatMap(racePair(fa, fb)) {
-        case Left((oc, f)) => as(f.cancel, Left(oc))
-        case Right((f, oc)) => as(f.cancel, Right(oc))
+      racePair(fa, fb).flatMap {
+        case Left((oc, f)) => f.cancel.as(Left(oc))
+        case Right((f, oc)) => f.cancel.as(Right(oc))
       }
     }
 
@@ -330,27 +332,27 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
    */
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
     uncancelable { poll =>
-      flatMap(racePair(fa, fb)) {
+      racePair(fa, fb).flatMap {
         case Left((oc, f)) =>
           oc match {
-            case Outcome.Succeeded(fa) => productR(f.cancel)(map(fa)(Left(_)))
-            case Outcome.Errored(ea) => productR(f.cancel)(raiseError(ea))
+            case Outcome.Succeeded(fa) => f.cancel *> fa.map(Left(_))
+            case Outcome.Errored(ea) => f.cancel *> raiseError(ea)
             case Outcome.Canceled() =>
-              flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Succeeded(fb) => map(fb)(Right(_))
+              poll(f.join).onCancel(f.cancel).flatMap {
+                case Outcome.Succeeded(fb) => fb.map(Right(_))
                 case Outcome.Errored(eb) => raiseError(eb)
-                case Outcome.Canceled() => productR(poll(canceled))(never)
+                case Outcome.Canceled() => poll(canceled) *> never
               }
           }
         case Right((f, oc)) =>
           oc match {
-            case Outcome.Succeeded(fb) => productR(f.cancel)(map(fb)(Right(_)))
-            case Outcome.Errored(eb) => productR(f.cancel)(raiseError(eb))
+            case Outcome.Succeeded(fb) => f.cancel *> fb.map(Right(_))
+            case Outcome.Errored(eb) => f.cancel *> raiseError(eb)
             case Outcome.Canceled() =>
-              flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Succeeded(fa) => map(fa)(Left(_))
+              poll(f.join).onCancel(f.cancel).flatMap {
+                case Outcome.Succeeded(fa) => fa.map(Left(_))
                 case Outcome.Errored(ea) => raiseError(ea)
-                case Outcome.Canceled() => productR(poll(canceled))(never)
+                case Outcome.Canceled() => poll(canceled) *> never
               }
           }
       }
@@ -369,9 +371,9 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
    */
   def bothOutcome[A, B](fa: F[A], fb: F[B]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
     uncancelable { poll =>
-      flatMap(racePair(fa, fb)) {
-        case Left((oc, f)) => map(onCancel(poll(f.join), f.cancel))((oc, _))
-        case Right((f, oc)) => map(onCancel(poll(f.join), f.cancel))((_, oc))
+      racePair(fa, fb).flatMap {
+        case Left((oc, f)) => poll(f.join).onCancel(f.cancel).tupleLeft(oc)
+        case Right((f, oc)) => poll(f.join).onCancel(f.cancel).tupleRight(oc)
       }
     }
 
@@ -403,28 +405,28 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
    */
   def both[A, B](fa: F[A], fb: F[B]): F[(A, B)] =
     uncancelable { poll =>
-      flatMap(racePair(fa, fb)) {
+      racePair(fa, fb).flatMap {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) =>
-              flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Succeeded(fb) => product(fa, fb)
+              poll(f.join).onCancel(f.cancel).flatMap {
+                case Outcome.Succeeded(fb) => fa.product(fb)
                 case Outcome.Errored(eb) => raiseError(eb)
-                case Outcome.Canceled() => productR(poll(canceled))(never)
+                case Outcome.Canceled() => poll(canceled) *> never
               }
-            case Outcome.Errored(ea) => productR(f.cancel)(raiseError(ea))
-            case Outcome.Canceled() => productR(f.cancel)(productR(poll(canceled))(never))
+            case Outcome.Errored(ea) => f.cancel *> raiseError(ea)
+            case Outcome.Canceled() => f.cancel *> poll(canceled) *> never
           }
         case Right((f, oc)) =>
           oc match {
             case Outcome.Succeeded(fb) =>
-              flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Succeeded(fa) => product(fa, fb)
+              poll(f.join).onCancel(f.cancel).flatMap {
+                case Outcome.Succeeded(fa) => fa.product(fb)
                 case Outcome.Errored(ea) => raiseError(ea)
-                case Outcome.Canceled() => productR(poll(canceled))(never)
+                case Outcome.Canceled() => poll(canceled) *> never
               }
-            case Outcome.Errored(eb) => productR(f.cancel)(raiseError(eb))
-            case Outcome.Canceled() => productR(f.cancel)(productR(poll(canceled))(never))
+            case Outcome.Errored(eb) => f.cancel *> raiseError(eb)
+            case Outcome.Canceled() => f.cancel *> poll(canceled) *> never
           }
       }
     }

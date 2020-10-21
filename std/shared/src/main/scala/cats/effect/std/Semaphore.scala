@@ -18,13 +18,11 @@ package cats
 package effect
 package std
 
-import cats.effect.kernel.{Deferred, GenConcurrent, GenSpawn, Outcome, Ref, Resource}
+import cats.effect.kernel._
 import cats.effect.std.Semaphore.TransformedSemaphore
 import cats.syntax.all._
 
-import scala.collection.immutable.Queue
-import cats.effect.kernel.Sync
-import cats.effect.kernel.Async
+import scala.collection.immutable.{Queue => ScalaQueue}
 
 /**
  * A purely functional semaphore.
@@ -134,7 +132,7 @@ object Semaphore {
 
   // A semaphore is either empty, and there are number of outstanding acquires (Left)
   // or it is non-empty, and there are n permits available (Right)
-  private type State[F[_]] = Either[Queue[Request[F]], Long]
+  private type State[F[_]] = Either[ScalaQueue[Request[F]], Long]
 
   private final case class Permit[F[_]](await: F[Unit], release: F[Unit])
 
@@ -171,7 +169,7 @@ object Semaphore {
                 if (n <= m) {
                   Right(m - n)
                 } else {
-                  Left(Queue(Request(n - m, gate)))
+                  Left(ScalaQueue(Request(n - m, gate)))
                 }
             }
             .map {

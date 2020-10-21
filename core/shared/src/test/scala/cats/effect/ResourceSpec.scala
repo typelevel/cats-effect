@@ -18,7 +18,6 @@ package cats.effect
 
 import cats.{~>, SemigroupK}
 import cats.data.Kleisli
-import cats.effect.kernel.Deferred
 import cats.effect.testkit.TestContext
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._

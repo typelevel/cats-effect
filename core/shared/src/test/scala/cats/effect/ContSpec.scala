@@ -17,7 +17,6 @@
 package cats
 package effect
 
-import cats.effect.kernel.Ref
 import cats.effect.syntax.all._
 import cats.effect.unsafe.Scheduler
 import cats.syntax.all._
@@ -125,13 +124,13 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
             cont {
               new Cont[IO, Unit] {
                 def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                  lift(IO(scheduler.sleep(100.millis, () => resume(().asRight)))) >>
+                  lift(IO(scheduler.sleep(1.second, () => resume(().asRight)))) >>
                     get.onCancel {
                       lift(start.set(true)) >> get >> lift(end.set(true))
                     }
                 }
               }
-            }.timeoutTo(50.millis, ().pure[IO]) >> (start.get, end.get).tupled
+            }.timeoutTo(500.millis, ().pure[IO]) >> (start.get, end.get).tupled
         }
         .guarantee(IO(close()))
 
@@ -151,13 +150,13 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
             cont {
               new Cont[IO, Unit] {
                 def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                  lift(IO(scheduler.sleep(100.millis, () => resume(().asRight)))) >>
+                  lift(IO(scheduler.sleep(1.second, () => resume(().asRight)))) >>
                     get.onCancel {
                       lift(start.set(true) >> IO.sleep(60.millis)) >> get >> lift(end.set(true))
                     }
                 }
               }
-            }.timeoutTo(50.millis, ().pure[IO]) >> (start.get, end.get).tupled
+            }.timeoutTo(500.millis, ().pure[IO]) >> (start.get, end.get).tupled
         }
         .guarantee(IO(close()))
 
@@ -169,13 +168,13 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     val test = cont {
       new Cont[IO, Unit] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(scheduler.sleep(100.millis, () => resume(().asRight)))) >>
+          lift(IO(scheduler.sleep(1.second, () => resume(().asRight)))) >>
             lift(IO.never).onCancel(get)
         }
       }
     }
 
-    test.timeoutTo(50.millis, IO.unit).guarantee(IO(close())).as(ok)
+    test.timeoutTo(500.millis, IO.unit).guarantee(IO(close())).as(ok)
   }
 
   "get is idempotent - 1" in real {

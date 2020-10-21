@@ -24,6 +24,7 @@ import cats.effect.kernel.implicits._
 
 import scala.annotation.tailrec
 import Resource.ExitCase
+import cats.data.Kleisli
 
 /**
  * The `Resource` is a data structure that captures the effectful
@@ -215,6 +216,25 @@ sealed abstract class Resource[+F[_], +A] {
     use[G, Nothing](_ => G.never)
 
   /**
+   * Allocates a resource and closes it immediately.
+   */
+  def use_[G[x] >: F[x]](implicit G: Resource.Bracket[G]): G[Unit] = use(_ => G.unit)
+
+  /**
+   * Allocates the resource and uses it to run the given Kleisli.
+   */
+  def useKleisli[G[x] >: F[x]: Resource.Bracket, B >: A, C](usage: Kleisli[G, B, C]): G[C] =
+    use(usage.run)
+
+  /**
+   * Creates a FunctionK that, when applied, will allocate the resource and use it to run the given Kleisli.
+   */
+  def useKleisliK[G[x] >: F[x]: Resource.Bracket, B >: A]: Kleisli[G, B, *] ~> G =
+    new (Kleisli[G, B, *] ~> G) {
+      def apply[C](fa: Kleisli[G, B, C]): G[C] = useKleisli(fa)
+    }
+
+  /**
    * Allocates two resources concurrently, and combines their results in a tuple.
    *
    * The finalizers for the two resources are also run concurrently with each other,
@@ -286,6 +306,12 @@ sealed abstract class Resource[+F[_], +A] {
   def mapK[G[x] >: F[x], H[_]](
       f: G ~> H
   ): Resource[H, A] = Resource.MapK(this, f)
+
+  /**
+   * Runs `precede` before this resource is allocated.
+   */
+  def preAllocate[G[x] >: F[x]](precede: G[Unit]): Resource[G, A] =
+    Resource.liftF(precede).flatMap(_ => this)
 
   /**
    * Runs `finalizer` when this resource is closed. Unlike the release action passed to `Resource.make`, this will
@@ -381,6 +407,11 @@ sealed abstract class Resource[+F[_], +A] {
     this.flatMap(a => Resource.liftF(f(a)).map(_ => a))
 
   /**
+   * Widens the effect type of this resource.
+   */
+  def covary[G[x] >: F[x]]: Resource[G, A] = this
+
+  /**
    * Converts this to an `InvariantResource` to facilitate pattern matches
    * that Scala 2 cannot otherwise handle correctly.
    */
@@ -469,6 +500,11 @@ object Resource extends ResourceInstances with ResourcePlatform {
     Pure(a)
 
   /**
+   * A resource with a no-op allocation and a no-op release.
+   */
+  val unit: Resource[Nothing, Unit] = pure(())
+
+  /**
    * Lifts an applicative into a resource. The resource has a no-op release.
    * Preserves interruptibility of `fa`.
    *
@@ -476,6 +512,19 @@ object Resource extends ResourceInstances with ResourcePlatform {
    */
   def liftF[F[_], A](fa: F[A]): Resource[F, A] =
     Resource.LiftF(fa)
+
+  /**
+   * Lifts a finalizer into a resource. The resource has a no-op allocation.
+   */
+  def onFinalize[F[_]](release: F[Unit]): Resource[F, Unit] =
+    unit.onFinalize(release)
+
+  /**
+   * Creates a resource that allocates immediately without any effects,
+   * but calls `release` when closing, providing the [[ExitCase the usage completed with]].
+   */
+  def onFinalizeCase[F[_]](release: ExitCase => F[Unit]): Resource[F, Unit] =
+    unit.onFinalizeCase(release)
 
   /**
    * Lifts an applicative into a resource as a `FunctionK`. The resource has a no-op release.
@@ -529,7 +578,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
     Resource.make(acquire)(autoCloseable => F.blocking(autoCloseable.close()))
 
   /**
-   * Public supertype for the three node types that constitute teh public API
+   * Public supertype for the three node types that constitute the public API
    * for interpreting a [[Resource]].
    */
   sealed trait Primitive[F[_], +A] extends InvariantResource[F, A]

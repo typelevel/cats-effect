@@ -25,4 +25,5 @@ package object syntax {
   object concurrent extends GenConcurrentSyntax
   object temporal extends GenTemporalSyntax
   object async extends AsyncSyntax
+  object resource extends ResourceSyntax
 }

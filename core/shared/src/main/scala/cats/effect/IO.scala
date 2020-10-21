@@ -30,7 +30,6 @@ import cats.{
 import cats.syntax.all._
 import cats.effect.std.Console
 import cats.effect.implicits._
-import cats.effect.kernel.{Deferred, Ref}
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
@@ -301,6 +300,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   // utilities
 
+  def stub: IO[Nothing] = {
+    val e = new NotImplementedError("This IO is not implemented")
+    raiseError(e)
+  }
+
   def bothOutcome[A, B](left: IO[A], right: IO[B]): IO[(OutcomeIO[A], OutcomeIO[B])] =
     left.bothOutcome(right)
 
@@ -559,9 +563,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
 
   implicit def asyncForIO: kernel.Async[IO] = _asyncForIO
-
-  implicit def unsafeRunForIO(implicit runtime: unsafe.IORuntime): unsafe.UnsafeRun[IO] =
-    runtime.unsafeRunForIO
 
   private[this] val _parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] =
     parallelForGenSpawn[IO, Throwable]
