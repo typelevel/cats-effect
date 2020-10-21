@@ -45,18 +45,14 @@ final class IORuntime private[effect] (
 
 final case class IORuntimeConfig private (
     val cancellationCheckThreshold: Int,
-    val autoYieldThreshold: Int
-)
+    val autoYieldThreshold: Int)
 
 object IORuntimeConfig {
   def apply(): IORuntimeConfig = new IORuntimeConfig(512, 1024)
 
   def apply(cancellationCheckThreshold: Int, autoYieldThreshold: Int): IORuntimeConfig = {
     if (autoYieldThreshold % cancellationCheckThreshold == 0)
-      new IORuntimeConfig(
-        cancellationCheckThreshold,
-        autoYieldThreshold
-      )
+      new IORuntimeConfig(cancellationCheckThreshold, autoYieldThreshold)
     else
       throw new AssertionError(
         s"Auto yield threshold $autoYieldThreshold must be a multiple of cancellation check threshold $cancellationCheckThreshold")

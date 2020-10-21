@@ -232,7 +232,9 @@ private final class IOFiber[A](
     if (shouldFinalize()) {
       asyncCancel(null)
     } else if ((nextIteration % autoYieldThreshold) == 0) {
-      runLoop(IO.cede >> _cur0, nextIteration)
+      objectState.push((_: Any) => cur0) //
+      conts.push(FlatMapK)
+      cede()
     } else {
       // println(s"<$name> looping on $cur0")
       /*
@@ -569,8 +571,7 @@ private final class IOFiber[A](
 
         /* Cede */
         case 13 =>
-          resumeTag = CedeR
-          reschedule(currentCtx)(this)
+          cede()
 
         case 14 =>
           val cur = cur0.asInstanceOf[Start[Any]]
@@ -951,6 +952,11 @@ private final class IOFiber[A](
 
       done(OutcomeCanceled)
     }
+  }
+
+  private[this] def cede(): Unit = {
+    resumeTag = CedeR
+    reschedule(currentCtx)(this)
   }
 
   /*
