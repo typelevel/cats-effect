@@ -173,7 +173,7 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
 
         val ec = ExecutionContext.fromExecutorService(Executors.newSingleThreadExecutor())
 
-        val run = (for {
+        val run = for {
           //Run in a tight loop on single-threaded ec so only hope of
           //seeing cancellation status is auto-cede
           fiber <- forever.start
@@ -181,9 +181,9 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
           _ <- IO.sleep(5.millis)
           //Only hope for the cancellation being run is auto-yielding
           _ <- fiber.cancel
-        } yield true).guarantee(IO(ec.shutdown()))
+        } yield true
 
-        run.evalOn(ec).flatMap { res => IO(res must beTrue) }
+        run.evalOn(ec).guarantee(IO(ec.shutdown())).flatMap { res => IO(res must beTrue) }
       }
 
     }
