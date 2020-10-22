@@ -110,7 +110,7 @@ private[kernel] trait LowPriorityImplicits {
 
 object Outcome extends LowPriorityImplicits {
 
-  def completed[F[_], E, A](fa: F[A]): Outcome[F, E, A] =
+  def succeeded[F[_], E, A](fa: F[A]): Outcome[F, E, A] =
     Succeeded(fa)
 
   def errored[F[_], E, A](e: E): Outcome[F, E, A] =
