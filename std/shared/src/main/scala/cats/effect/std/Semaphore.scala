@@ -18,7 +18,7 @@ package cats
 package effect
 package std
 
-import cats.effect.kernel.{Async, Concurrent, Deferred, Outcome, Ref, Resource, Spawn, Sync}
+import cats.effect.kernel._
 import cats.effect.std.Semaphore.TransformedSemaphore
 import cats.syntax.all._
 
@@ -111,22 +111,22 @@ object Semaphore {
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
    */
-  def apply[F[_]](n: Long)(implicit F: Concurrent[F]): F[Semaphore[F]] =
-    assertNonNegative[F](n) *>
-      F.ref[State[F]](Right(n)).map(stateRef => new AsyncSemaphore[F](stateRef))
+  def apply[F[_]](n: Long)(implicit F: GenConcurrent[F, _]): F[Semaphore[F]] = {
+    requireNonNegative(n)
+    F.ref[State[F]](Right(n)).map(stateRef => new AsyncSemaphore[F](stateRef))
+  }
 
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
    * like `apply` but initializes state using another effect constructor
    */
-  def in[F[_], G[_]](n: Long)(implicit F: Sync[F], G: Async[G]): F[Semaphore[G]] =
-    assertNonNegative[F](n) *>
-      Ref.in[F, G, State[G]](Right(n)).map(stateRef => new AsyncSemaphore[G](stateRef))
+  def in[F[_], G[_]](n: Long)(implicit F: Sync[F], G: Async[G]): F[Semaphore[G]] = {
+    requireNonNegative(n)
+    Ref.in[F, G, State[G]](Right(n)).map(stateRef => new AsyncSemaphore[G](stateRef))
+  }
 
-  private def assertNonNegative[F[_]](n: Long)(
-      implicit F: ApplicativeError[F, Throwable]): F[Unit] =
-    if (n < 0) F.raiseError(new IllegalArgumentException(s"n must be nonnegative, was: $n"))
-    else F.unit
+  private def requireNonNegative(n: Long): Unit =
+    require(n >= 0, s"n must be nonnegative, was: $n")
 
   private final case class Request[F[_]](n: Long, gate: Deferred[F, Unit])
 
@@ -136,7 +136,8 @@ object Semaphore {
 
   private final case class Permit[F[_]](await: F[Unit], release: F[Unit])
 
-  abstract private class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Spawn[F])
+  abstract private class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(
+      implicit F: GenSpawn[F, _])
       extends Semaphore[F] {
     protected def mkGate: F[Deferred[F, Unit]]
 
@@ -156,91 +157,91 @@ object Semaphore {
         case _ => F.unit
       }
 
-    def acquireNInternal(n: Long): F[Permit[F]] =
-      assertNonNegative[F](n) *> {
-        if (n == 0) F.pure(Permit(F.unit, F.unit))
-        else {
-          mkGate.flatMap { gate =>
-            state
-              .updateAndGet {
-                case Left(waiting) => Left(waiting :+ Request(n, gate))
-                case Right(m) =>
-                  if (n <= m) {
-                    Right(m - n)
-                  } else {
-                    Left(ScalaQueue(Request(n - m, gate)))
-                  }
-              }
-              .map {
-                case Left(_) =>
-                  val cleanup = state.modify {
-                    case Left(waiting) =>
-                      waiting.find(_.gate eq gate).map(_.n) match {
-                        case None => (Left(waiting), releaseN(n))
-                        case Some(m) =>
-                          (Left(waiting.filterNot(_.gate eq gate)), releaseN(n - m))
-                      }
-                    case Right(m) => (Right(m + n), F.unit)
-                  }.flatten
+    def acquireNInternal(n: Long): F[Permit[F]] = {
+      requireNonNegative(n)
+      if (n == 0) F.pure(Permit(F.unit, F.unit))
+      else {
+        mkGate.flatMap { gate =>
+          state
+            .updateAndGet {
+              case Left(waiting) => Left(waiting :+ Request(n, gate))
+              case Right(m) =>
+                if (n <= m) {
+                  Right(m - n)
+                } else {
+                  Left(ScalaQueue(Request(n - m, gate)))
+                }
+            }
+            .map {
+              case Left(_) =>
+                val cleanup = state.modify {
+                  case Left(waiting) =>
+                    waiting.find(_.gate eq gate).map(_.n) match {
+                      case None => (Left(waiting), releaseN(n))
+                      case Some(m) =>
+                        (Left(waiting.filterNot(_.gate eq gate)), releaseN(n - m))
+                    }
+                  case Right(m) => (Right(m + n), F.unit)
+                }.flatten
 
-                  Permit(gate.get, cleanup)
+                Permit(gate.get, cleanup)
 
-                case Right(_) => Permit(F.unit, releaseN(n))
-              }
-          }
+              case Right(_) => Permit(F.unit, releaseN(n))
+            }
         }
       }
+    }
 
-    def tryAcquireN(n: Long): F[Boolean] =
-      assertNonNegative[F](n) *> {
-        if (n == 0) F.pure(true)
-        else
-          state.modify {
-            case Right(m) if m >= n => (Right(m - n), true)
-            case other => (other, false)
-          }
-      }
+    def tryAcquireN(n: Long): F[Boolean] = {
+      requireNonNegative(n)
+      if (n == 0) F.pure(true)
+      else
+        state.modify {
+          case Right(m) if m >= n => (Right(m - n), true)
+          case other => (other, false)
+        }
+    }
 
-    def releaseN(n: Long): F[Unit] =
-      assertNonNegative[F](n) *> {
-        if (n == 0) F.unit
-        else
-          state
-            .modify { old =>
-              val u = old match {
-                case Left(waiting) =>
-                  // just figure out how many to strip from waiting queue,
-                  // but don't run anything here inside the modify
-                  var m = n
-                  var waiting2 = waiting
-                  while (waiting2.nonEmpty && m > 0) {
-                    val Request(k, gate) = waiting2.head
-                    if (k > m) {
-                      waiting2 = Request(k - m, gate) +: waiting2.tail
-                      m = 0
-                    } else {
-                      m -= k
-                      waiting2 = waiting2.tail
-                    }
+    def releaseN(n: Long): F[Unit] = {
+      requireNonNegative(n)
+      if (n == 0) F.unit
+      else
+        state
+          .modify { old =>
+            val u = old match {
+              case Left(waiting) =>
+                // just figure out how many to strip from waiting queue,
+                // but don't run anything here inside the modify
+                var m = n
+                var waiting2 = waiting
+                while (waiting2.nonEmpty && m > 0) {
+                  val Request(k, gate) = waiting2.head
+                  if (k > m) {
+                    waiting2 = Request(k - m, gate) +: waiting2.tail
+                    m = 0
+                  } else {
+                    m -= k
+                    waiting2 = waiting2.tail
                   }
-                  if (waiting2.nonEmpty) Left(waiting2)
-                  else Right(m)
-                case Right(m) => Right(m + n)
-              }
-              (u, (old, u))
-            }
-            .flatMap {
-              case (Left(waiting), now) =>
-                // invariant: count_(now) == count_(previous) + n
-                // now compare old and new sizes to figure out which actions to run
-                val newSize = now match {
-                  case Left(w) => w.size
-                  case Right(_) => 0
                 }
-                waiting.dropRight(newSize).traverse(request => open(request.gate)).void
-              case (Right(_), _) => F.unit
+                if (waiting2.nonEmpty) Left(waiting2)
+                else Right(m)
+              case Right(m) => Right(m + n)
             }
-      }
+            (u, (old, u))
+          }
+          .flatMap {
+            case (Left(waiting), now) =>
+              // invariant: count_(now) == count_(previous) + n
+              // now compare old and new sizes to figure out which actions to run
+              val newSize = now match {
+                case Left(w) => w.size
+                case Right(_) => 0
+              }
+              waiting.dropRight(newSize).traverse(request => open(request.gate)).void
+            case (Right(_), _) => F.unit
+          }
+    }
 
     def available: F[Long] =
       state.get.map {
@@ -252,7 +253,8 @@ object Semaphore {
       Resource.make(acquireNInternal(1))(_.release).evalMap(_.await)
   }
 
-  final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Concurrent[F])
+  final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(
+      implicit F: GenConcurrent[F, _])
       extends AbstractSemaphore(state) {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
   }
