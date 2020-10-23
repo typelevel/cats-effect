@@ -33,10 +33,10 @@ trait IOApp {
 
     val ioa = run(args.toList)
 
-    val fiber = ioa.unsafeRunFiber({ e =>
+    val fiber = ioa.unsafeRunFiber { e =>
       results = e
       latch.countDown()
-    })(runtime)
+    }(runtime)
 
     def handleShutdown(): Unit = {
       if (latch.getCount() > 0) {
