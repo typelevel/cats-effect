@@ -149,7 +149,6 @@ object PQueue {
         .flatten
         .uncancelable
 
-    //TODO keep pointer to head to make this O(1)
     def take: F[A] =
       F.deferred[A].flatMap { taker =>
         F.uncancelable { poll =>
@@ -175,7 +174,6 @@ object PQueue {
         }
       }
 
-    //TODO keep pointer to head to make this O(1)
     def tryTake: F[Option[A]] =
       ref
         .modify {
@@ -273,7 +271,6 @@ object PQueue {
           else insert(t1.link(t2), merge(ts1, ts2))
       }
 
-    //TODO we can make this O(1) by storing a pointer to the smallest root instead
     def peek[A](trees: List[Tree[A]])(implicit Ord: Order[A]): Option[A] =
       trees match {
         case Nil => None
