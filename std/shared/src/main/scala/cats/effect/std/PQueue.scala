@@ -18,6 +18,7 @@ package cats.effect.std
 
 import cats.{~>, Order}
 import cats.implicits._
+import cats.effect.kernel.syntax.all._
 import cats.effect.kernel.{Concurrent, Deferred, Poll, Ref}
 import scala.annotation.tailrec
 
@@ -105,7 +106,7 @@ object PQueue {
   def unbounded[F[_], A](implicit F: Concurrent[F], O: Order[A]): F[PQueue[F, A]] =
     bounded(Int.MaxValue)
 
-  private[std] abstract class PQueueImpl[F[_], A](ref: Ref[F, State[F, A]], capacity: Int)
+  private[std] abstract class PQueueImpl[F[_], A](ref: Ref[F, State[F, A]], capacity: Int)(implicit F: Concurrent[F])
       extends PQueue[F, A] {
     implicit val Ord: Order[A]
 
@@ -122,23 +123,57 @@ object PQueue {
         }
       })
 
-    //TODO semantic blocking
     //TODO keep pointer to head to make this O(1)
-    def take: F[A] = ???
+    def take: F[A] =
+      F.deferred[A].flatMap { taker =>
+        F.uncancelable { poll =>
+          ref.modify {
+            case State(heap, size, takers, offerers) if heap.nonEmpty && offerers.isEmpty =>
+              val (rest, a) = heap.take
+              State(rest, size - 1, takers, offerers) -> F.pure(a)
+
+            case State(heap, size, takers, offerers) if heap.nonEmpty =>
+              val ( rest, a) = heap.take
+              val ((move, release), tail) = offerers.dequeue
+              State(rest.insert(move), size, takers, tail) -> release.complete(()).as(a)
+
+            case State(heap, size, takers, offerers) if offerers.nonEmpty =>
+              val ((a, release), rest) = offerers.dequeue
+              State(heap, size, takers, rest) -> release.complete(()).as(a)
+
+            case State(heap, size, takers, offerers) =>
+              val cleanup = ref.update { s => s.copy(takers = s.takers.filter(_ ne taker)) }
+              State(heap, size, takers.enqueue(taker), offerers) ->
+                poll(taker.get).onCancel(cleanup)
+          }.flatten
+        }
+      }
 
     //TODO keep pointer to head to make this O(1)
     def tryTake: F[Option[A]] =
-      ref.modify(s => {
-        if (s.size == 0) {
-          s -> None
-        } else {
-          val (newHeap, x) = s.heap.take
-          s.copy(size = s.size - 1, heap = newHeap) -> x
+      ref
+        .modify {
+          case State(heap, size, takers, offerers) if heap.nonEmpty && offerers.isEmpty =>
+            val (rest, a) = heap.take
+            State(rest, size - 1, takers, offerers) -> F.pure(a.some)
+
+          case State(heap, size, takers, offerers) if heap.nonEmpty =>
+            val (rest, a) = heap.take
+            val ((move, release), tail) = offerers.dequeue
+            State(rest.insert(move), size, takers, tail) -> release.complete(()).as(a.some)
+
+          case State(queue, size, takers, offerers) if offerers.nonEmpty =>
+            val ((a, release), rest) = offerers.dequeue
+            State(queue, size, takers, rest) -> release.complete(()).as(a.some)
+
+          case s =>
+            s -> F.pure(none[A])
         }
-      })
+        .flatten
+        .uncancelable
   }
 
-  private[std] case class State[F[_], A](
+  private[std] final case class State[F[_], A](
       heap: BinomialHeap[A],
       size: Int,
       takers: ScalaQueue[Deferred[F, A]],
@@ -160,6 +195,8 @@ object PQueue {
     //different Ord instances for A
     implicit val Ord: Order[A]
 
+    def nonEmpty: Boolean = trees.nonEmpty
+
     def insert(tree: Tree[A]): BinomialHeap[A] =
       BinomialHeap[A](BinomialHeap.insert(tree, trees))
 
@@ -167,7 +204,9 @@ object PQueue {
 
     def peek: Option[A] = BinomialHeap.peek(trees)
 
-    def take: (BinomialHeap[A], Option[A]) = {
+    def take: (BinomialHeap[A], A) = tryTake.map(_.get)
+
+    def tryTake: (BinomialHeap[A], Option[A]) = {
       val (ts, head) = BinomialHeap.take(trees)
       BinomialHeap(ts) -> head
     }
@@ -219,7 +258,6 @@ object PQueue {
           }
       }
 
-    //TODO we can make this O(1) by storing a pointer to the smallest root instead
     def take[A](trees: List[Tree[A]])(implicit Ord: Order[A]): (List[Tree[A]], Option[A]) = {
       //Note this is partial but we don't want to allocate a NonEmptyList
       def min(trees: List[Tree[A]]): (Tree[A], List[Tree[A]]) =
@@ -247,7 +285,7 @@ object PQueue {
   /**
    * Children are stored in monotonically decreasing order of rank
    */
-  private[std] case class Tree[A](rank: Int, value: A, children: List[Tree[A]]) {
+  private[std] final case class Tree[A](rank: Int, value: A, children: List[Tree[A]]) {
 
     /**
      * Link two trees of rank r to produce a tree of rank r + 1
