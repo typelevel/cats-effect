@@ -30,6 +30,8 @@ import cats.{
 import cats.syntax.all._
 import cats.effect.std.Console
 import cats.effect.implicits._
+import cats.effect.std.Semaphore
+import cats.Traverse
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
@@ -276,6 +278,24 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def monotonic: IO[FiniteDuration] = Monotonic
 
   def never[A]: IO[A] = _never
+
+  /**
+   * Like `Parallel.parTraverse`, but limits the degree of parallelism.
+   */
+  def parTraverseN[T[_]: Traverse, A, B](n: Long)(ta: T[A])(f: A => IO[B]): IO[T[B]] =
+    for {
+      semaphore <- Semaphore[IO](n)
+      tb <- ta.parTraverse { a => semaphore.permit.use(_ => f(a)) }
+    } yield tb
+
+  /**
+   * Like `Parallel.parSequence`, but limits the degree of parallelism.
+   */
+  def parSequenceN[T[_]: Traverse, A](n: Long)(tma: T[IO[A]]): IO[T[A]] =
+    for {
+      semaphore <- Semaphore[IO](n)
+      mta <- tma.map(x => semaphore.permit.use(_ => x)).parSequence
+    } yield mta
 
   def pure[A](value: A): IO[A] = Pure(value)
 

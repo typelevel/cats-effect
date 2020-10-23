@@ -966,6 +966,23 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         }
       }
 
+      "parTraverseN" in real {
+        IO.parTraverseN(3)(List(1, 2, 3, 4, 5))(n => IO.pure(n + 1)).flatMap { res =>
+          IO {
+            res mustEqual List(2, 3, 4, 5, 6)
+          }
+        }
+      }
+
+      "parSequenceN" in real {
+        IO.parSequenceN(3)(List(IO.pure(1), IO.pure(2), IO.pure(3), IO.pure(4), IO.pure(5)))
+          .flatMap { res =>
+            IO {
+              res mustEqual List(1, 2, 3, 4, 5)
+            }
+          }
+      }
+
     }
 
     "temporal" should {
