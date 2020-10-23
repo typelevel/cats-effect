@@ -106,22 +106,48 @@ object PQueue {
   def unbounded[F[_], A](implicit F: Concurrent[F], O: Order[A]): F[PQueue[F, A]] =
     bounded(Int.MaxValue)
 
-  private[std] abstract class PQueueImpl[F[_], A](ref: Ref[F, State[F, A]], capacity: Int)(implicit F: Concurrent[F])
+  private[std] abstract class PQueueImpl[F[_], A](ref: Ref[F, State[F, A]], capacity: Int)(
+      implicit F: Concurrent[F])
       extends PQueue[F, A] {
     implicit val Ord: Order[A]
 
-    //TODO semantic blocking
-    def offer(a: A): F[Unit] = ???
+    def offer(a: A): F[Unit] =
+      F.deferred[Unit].flatMap { offerer =>
+        F.uncancelable { poll =>
+          ref.modify {
+            case State(heap, size, takers, offerers) if takers.nonEmpty =>
+              val (taker, rest) = takers.dequeue
+              State(heap, size, rest, offerers) -> taker.complete(a).void
+
+            case State(heap, size, takers, offerers) if size < capacity =>
+              State(heap.insert(a), size + 1, takers, offerers) -> F.unit
+
+            case s => {
+              val State(heap, size, takers, offerers) = s
+              val cleanup = ref.update { s =>
+                s.copy(offerers = s.offerers.filter(_._2 ne offerer))
+              }
+              State(heap, size, takers, offerers.enqueue(a -> offerer)) -> poll(offerer.get)
+                .onCancel(cleanup)
+            }
+          }.flatten
+        }
+      }
 
     def tryOffer(a: A): F[Boolean] =
-      ref.modify(s => {
-        if (s.size == capacity) {
-          s -> false
-        } else {
-          val newHeap = s.heap.insert(a)
-          s.copy(size = s.size + 1, heap = newHeap) -> true
+      ref
+        .modify {
+          case State(heap, size, takers, offerers) if takers.nonEmpty =>
+            val (taker, rest) = takers.dequeue
+            State(heap, size, rest, offerers) -> taker.complete(a).as(true)
+
+          case State(heap, size, takers, offerers) if size < capacity =>
+            State(heap.insert(a), size + 1, takers, offerers) -> F.pure(true)
+
+          case s => s -> F.pure(false)
         }
-      })
+        .flatten
+        .uncancelable
 
     //TODO keep pointer to head to make this O(1)
     def take: F[A] =
@@ -133,7 +159,7 @@ object PQueue {
               State(rest, size - 1, takers, offerers) -> F.pure(a)
 
             case State(heap, size, takers, offerers) if heap.nonEmpty =>
-              val ( rest, a) = heap.take
+              val (rest, a) = heap.take
               val ((move, release), tail) = offerers.dequeue
               State(rest.insert(move), size, takers, tail) -> release.complete(()).as(a)
 
