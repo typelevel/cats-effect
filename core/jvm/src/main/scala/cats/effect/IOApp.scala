@@ -33,7 +33,7 @@ trait IOApp {
 
     val ioa = run(args.toList)
 
-    val fiber = ioa.unsafeRunFiber(true) { e =>
+    val fiber = ioa.unsafeRunFiber { e =>
       results = e
       latch.countDown()
     }(runtime)

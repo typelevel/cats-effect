@@ -55,7 +55,7 @@ class DeepBindBenchmark {
           loop(j + 1)
       }
 
-    loop(0).unsafeRunSyncBenchmark()
+    loop(0).unsafeRunSync()
   }
 
   @Benchmark
@@ -68,7 +68,7 @@ class DeepBindBenchmark {
           loop(j + 1)
       }
 
-    loop(0).unsafeRunSyncBenchmark()
+    loop(0).unsafeRunSync()
   }
 
   @Benchmark

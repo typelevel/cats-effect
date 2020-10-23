@@ -53,7 +53,7 @@ class RaceBenchmark {
         IO.race(IO.pure(i + 1), IO.pure(i + 1)).flatMap(e => e.fold(loop(_), loop(_)))
       else IO.pure(i)
 
-    loop(0).unsafeRunSyncBenchmark()
+    loop(0).unsafeRunSync()
   }
 
 }

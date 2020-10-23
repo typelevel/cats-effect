@@ -52,7 +52,7 @@ class BothBenchmark {
       if (i < size) IO.both(IO.pure(i + 1), IO.pure(i + 1)).flatMap(p => loop(p._1))
       else IO.pure(i)
 
-    loop(0).unsafeRunSyncBenchmark()
+    loop(0).unsafeRunSync()
   }
 
 }

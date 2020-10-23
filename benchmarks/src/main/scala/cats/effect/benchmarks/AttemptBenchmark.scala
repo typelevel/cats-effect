@@ -52,7 +52,7 @@ class AttemptBenchmark {
       if (i < size) IO.pure(i + 1).attempt.flatMap(_.fold(IO.raiseError, loop))
       else IO.pure(i)
 
-    loop(0).unsafeRunSyncBenchmark()
+    loop(0).unsafeRunSync()
   }
 
   @Benchmark
@@ -69,6 +69,6 @@ class AttemptBenchmark {
       else
         IO.pure(i)
 
-    loop(0).unsafeRunSyncBenchmark()
+    loop(0).unsafeRunSync()
   }
 }

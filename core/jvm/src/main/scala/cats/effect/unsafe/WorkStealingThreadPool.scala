@@ -315,7 +315,7 @@ private[effect] final class WorkStealingThreadPool(
       }
 
       // `unsafeRunFiber(true)` will enqueue the fiber, no need to do it manually
-      IO(runnable.run()).unsafeRunFiber(true)(_.fold(reportFailure(_), _ => ()))(self)
+      IO(runnable.run()).unsafeRunFiber(_.fold(reportFailure(_), _ => ()))(self)
       ()
     }
   }

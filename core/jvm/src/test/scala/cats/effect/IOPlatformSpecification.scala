@@ -112,10 +112,6 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
         }
       }
 
-      "reliably cancel infinite IO.unit(s)" in real {
-        IO.unit.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel).as(ok)
-      }
-
       "interrupt well-behaved blocking synchronous effect" in real {
         var interrupted = true
         val latch = new CountDownLatch(1)
