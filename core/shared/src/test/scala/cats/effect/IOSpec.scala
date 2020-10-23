@@ -751,6 +751,10 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         test must nonTerminate
       }
 
+      "reliably cancel infinite IO.unit(s)" in real {
+        IO.unit.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel).as(ok)
+      }
+
       "reliably cancel infinite IO.cede(s)" in real {
         IO.cede.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel).as(ok)
       }
