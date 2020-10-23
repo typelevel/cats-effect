@@ -61,7 +61,7 @@ object RefBenchmark {
       }
       loop(iterations, 0L)
     }
-  }.void.unsafeRunSyncBenchmark()
+  }.void.unsafeRunSync()
 
   def getAndUpdate(iterations: Int): Unit = {
     Ref[IO].of(0L).flatMap { ref =>
@@ -71,6 +71,6 @@ object RefBenchmark {
       }
       loop(iterations, 0L)
     }
-  }.void.unsafeRunSyncBenchmark()
+  }.void.unsafeRunSync()
 
 }
