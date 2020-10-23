@@ -222,7 +222,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       (oc: OutcomeIO[A]) =>
         oc.fold((), e => cb(Left(e)), ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))),
       this,
-      runtime.compute
+      runtime.compute,
+      runtime
     )
 
     if (shift)

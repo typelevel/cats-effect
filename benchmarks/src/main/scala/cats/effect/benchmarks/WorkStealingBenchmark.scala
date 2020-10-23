@@ -103,7 +103,7 @@ class WorkStealingBenchmark {
 
       val compute = new WorkStealingThreadPool(256, "io-compute", runtime)
 
-      new IORuntime(compute, blocking, scheduler, () => ())
+      IORuntime(compute, blocking, scheduler, () => ())
     }
 
     benchmark

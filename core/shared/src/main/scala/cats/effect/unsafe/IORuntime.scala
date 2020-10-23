@@ -37,9 +37,26 @@ final class IORuntime private[effect] (
     val compute: ExecutionContext,
     val blocking: ExecutionContext,
     val scheduler: Scheduler,
-    val shutdown: () => Unit) {
+    val shutdown: () => Unit,
+    val config: IORuntimeConfig) {
 
-  override def toString: String = s"IORuntime($compute, $scheduler)"
+  override def toString: String = s"IORuntime($compute, $scheduler, $config)"
+}
+
+final case class IORuntimeConfig private (
+    val cancellationCheckThreshold: Int,
+    val autoYieldThreshold: Int)
+
+object IORuntimeConfig {
+  def apply(): IORuntimeConfig = new IORuntimeConfig(512, 1024)
+
+  def apply(cancellationCheckThreshold: Int, autoYieldThreshold: Int): IORuntimeConfig = {
+    if (autoYieldThreshold % cancellationCheckThreshold == 0)
+      new IORuntimeConfig(cancellationCheckThreshold, autoYieldThreshold)
+    else
+      throw new AssertionError(
+        s"Auto yield threshold $autoYieldThreshold must be a multiple of cancellation check threshold $cancellationCheckThreshold")
+  }
 }
 
 object IORuntime extends IORuntimeCompanionPlatform {
@@ -48,5 +65,13 @@ object IORuntime extends IORuntimeCompanionPlatform {
       blocking: ExecutionContext,
       scheduler: Scheduler,
       shutdown: () => Unit): IORuntime =
-    new IORuntime(compute, blocking, scheduler, shutdown)
+    new IORuntime(compute, blocking, scheduler, shutdown, IORuntimeConfig())
+
+  def apply(
+      compute: ExecutionContext,
+      blocking: ExecutionContext,
+      scheduler: Scheduler,
+      shutdown: () => Unit,
+      config: IORuntimeConfig): IORuntime =
+    new IORuntime(compute, blocking, scheduler, shutdown, config)
 }
