@@ -26,6 +26,8 @@ import scala.collection.immutable.{Queue => ScalaQueue}
 /**
  * A purely functional Priority Queue implementation based
  * on a binomial heap (Okasaki)
+ *
+ * Assumes an `Order` instance is in scope for `A`
  */
 
 abstract class PQueue[F[_], A] { self =>
@@ -34,7 +36,9 @@ abstract class PQueue[F[_], A] { self =>
    * Enqueues the given element, possibly semantically
    * blocking until sufficient capacity becomes available.
    *
-   * @param a the element to be put at the back of the queue
+   * O(log(n))
+   *
+   * @param a the element to be put in the queue
    */
   def offer(a: A): F[Unit]
 
@@ -42,21 +46,27 @@ abstract class PQueue[F[_], A] { self =>
    * Attempts to enqueue the given element without
    * semantically blocking.
    *
-   * @param a the element to be put at the back of the queue
+   * O(log(n))
+   *
+   * @param a the element to be put in the queue
    * @return an effect that describes whether the enqueuing of the given
    *         element succeeded without blocking
    */
   def tryOffer(a: A): F[Boolean]
 
   /**
-   * Dequeues an element from the front of the queue, possibly semantically
+   * Dequeues the least element from the queue, possibly semantically
    * blocking until an element becomes available.
+   *
+   * O(log(n))
    */
   def take: F[A]
 
   /**
-   * Attempts to dequeue an element from the front of the queue, if one is
+   * Attempts to dequeue the least element from the queue, if one is
    * available without semantically blocking.
+   *
+   * O(log(n))
    *
    * @return an effect that describes whether the dequeueing of an element from
    *         the queue succeeded without blocking, with `None` denoting that no
@@ -67,6 +77,8 @@ abstract class PQueue[F[_], A] { self =>
   /**
    * Modifies the context in which this queue is executed using the natural
    * transformation `f`.
+   *
+   * O(1)
    *
    * @return a queue in the new context obtained by mapping the current one
    *         using `f`
@@ -111,8 +123,10 @@ object PQueue {
       })
 
     //TODO semantic blocking
+    //TODO keep pointer to head to make this O(1)
     def take: F[A] = ???
 
+    //TODO keep pointer to head to make this O(1)
     def tryTake: F[Option[A]] =
       ref.modify(s => {
         if (s.size == 0) {
