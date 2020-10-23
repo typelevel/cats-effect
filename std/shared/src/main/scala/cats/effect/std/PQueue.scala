@@ -16,10 +16,12 @@
 
 package cats.effect.std
 
-import cats.{~>, Monad, Order}
+import cats.{~>, Order}
 import cats.implicits._
 import cats.effect.kernel.{Concurrent, Deferred, Poll, Ref}
 import scala.annotation.tailrec
+
+import scala.collection.immutable.{Queue => ScalaQueue}
 
 /**
  * A purely functional Priority Queue implementation based
@@ -29,12 +31,22 @@ import scala.annotation.tailrec
 abstract class PQueue[F[_], A] { self =>
 
   /**
-   * Enqueues the given element at the back of the queue, possibly semantically
+   * Enqueues the given element, possibly semantically
    * blocking until sufficient capacity becomes available.
    *
    * @param a the element to be put at the back of the queue
    */
   def offer(a: A): F[Unit]
+
+  /**
+   * Attempts to enqueue the given element without
+   * semantically blocking.
+   *
+   * @param a the element to be put at the back of the queue
+   * @return an effect that describes whether the enqueuing of the given
+   *         element succeeded without blocking
+   */
+  def tryOffer(a: A): F[Boolean]
 
   /**
    * Dequeues an element from the front of the queue, possibly semantically
@@ -62,6 +74,7 @@ abstract class PQueue[F[_], A] { self =>
   def mapK[G[_]](f: F ~> G): PQueue[G, A] =
     new PQueue[G, A] {
       def offer(a: A): G[Unit] = f(self.offer(a))
+      def tryOffer(a: A): G[Boolean] = f(self.tryOffer(a))
       val take: G[A] = f(self.take)
       val tryTake: G[Option[A]] = f(self.tryTake)
     }
@@ -70,22 +83,61 @@ abstract class PQueue[F[_], A] { self =>
 
 object PQueue {
 
-  def empty[F[_], A](implicit F: Concurrent[F], O: Order[A]): F[PQueue[F, A]] =
-    F.ref(BinomialHeap.empty[A]).map { ref =>
-      new PQueueImpl[F, A](ref) {
+  def bounded[F[_], A](maxSize: Int)(implicit F: Concurrent[F], O: Order[A]): F[PQueue[F, A]] =
+    F.ref(State.empty[F, A]).map { ref =>
+      new PQueueImpl[F, A](ref, maxSize) {
         implicit val Ord = O
       }
     }
 
-  private[std] abstract class PQueueImpl[F[_], A](ref: Ref[F, BinomialHeap[A]])
+  def unbounded[F[_], A](implicit F: Concurrent[F], O: Order[A]): F[PQueue[F, A]] =
+    bounded(Int.MaxValue)
+
+  private[std] abstract class PQueueImpl[F[_], A](ref: Ref[F, State[F, A]], maxSize: Int)
       extends PQueue[F, A] {
     implicit val Ord: Order[A]
 
-    def offer(a: A): F[Unit] = ref.update(_.insert(a))
+    //TODO semantic blocking
+    def offer(a: A): F[Unit] = ???
 
+    def tryOffer(a: A): F[Boolean] =
+      ref.modify(s => {
+        if (s.size == maxSize) {
+          s -> false
+        } else {
+          val newHeap = s.heap.insert(a)
+          s.copy(size = s.size + 1, heap = newHeap) -> true
+        }
+      })
+
+    //TODO semantic blocking
     def take: F[A] = ???
 
-    def tryTake: F[Option[A]] = ref.modify(_.take)
+    def tryTake: F[Option[A]] =
+      ref.modify(s => {
+        if (s.size == 0) {
+          s -> None
+        } else {
+          val (newHeap, x) = s.heap.take
+          s.copy(size = s.size - 1, heap = newHeap) -> x
+        }
+      })
+  }
+
+  private[std] case class State[F[_], A](
+      heap: BinomialHeap[A],
+      size: Int,
+      takers: ScalaQueue[Deferred[F, A]],
+      offerers: ScalaQueue[(A, Deferred[F, Unit])])
+
+  private[std] object State {
+    def empty[F[_], A: Order]: State[F, A] =
+      State(
+        BinomialHeap.empty[A],
+        0,
+        ScalaQueue.empty,
+        ScalaQueue.empty
+      )
   }
 
   private[std] abstract case class BinomialHeap[A](trees: List[Tree[A]]) { self =>
@@ -178,10 +230,13 @@ object PQueue {
 
   }
 
+  /**
+   * Children are stored in monotonically decreasing order of rank
+   */
   private[std] case class Tree[A](rank: Int, value: A, children: List[Tree[A]]) {
 
     /**
-     * Link two trees of rank R to produce a tree of rank r + 1
+     * Link two trees of rank r to produce a tree of rank r + 1
      */
     def link(other: Tree[A])(implicit Ord: Order[A]): Tree[A] = {
       assert(rank == other.rank)
