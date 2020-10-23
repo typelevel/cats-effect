@@ -25,13 +25,12 @@ import cats.{
   Semigroup,
   SemigroupK,
   Show,
-  StackSafeMonad
+  StackSafeMonad,
+  Traverse
 }
 import cats.syntax.all._
-import cats.effect.std.Console
-import cats.effect.implicits._
-import cats.effect.std.Semaphore
-import cats.Traverse
+import cats.effect.instances.spawn
+import cats.effect.std.{Console, Semaphore}
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
@@ -579,7 +578,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   implicit def asyncForIO: kernel.Async[IO] = _asyncForIO
 
   private[this] val _parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] =
-    parallelForGenSpawn[IO, Throwable]
+    spawn.parallelForGenSpawn[IO, Throwable]
 
   implicit def parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = _parallelForIO
 
