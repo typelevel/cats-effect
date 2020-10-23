@@ -83,9 +83,9 @@ abstract class PQueue[F[_], A] { self =>
 
 object PQueue {
 
-  def bounded[F[_], A](maxSize: Int)(implicit F: Concurrent[F], O: Order[A]): F[PQueue[F, A]] =
+  def bounded[F[_], A](capacity: Int)(implicit F: Concurrent[F], O: Order[A]): F[PQueue[F, A]] =
     F.ref(State.empty[F, A]).map { ref =>
-      new PQueueImpl[F, A](ref, maxSize) {
+      new PQueueImpl[F, A](ref, capacity) {
         implicit val Ord = O
       }
     }
@@ -93,7 +93,7 @@ object PQueue {
   def unbounded[F[_], A](implicit F: Concurrent[F], O: Order[A]): F[PQueue[F, A]] =
     bounded(Int.MaxValue)
 
-  private[std] abstract class PQueueImpl[F[_], A](ref: Ref[F, State[F, A]], maxSize: Int)
+  private[std] abstract class PQueueImpl[F[_], A](ref: Ref[F, State[F, A]], capacity: Int)
       extends PQueue[F, A] {
     implicit val Ord: Order[A]
 
@@ -102,7 +102,7 @@ object PQueue {
 
     def tryOffer(a: A): F[Boolean] =
       ref.modify(s => {
-        if (s.size == maxSize) {
+        if (s.size == capacity) {
           s -> false
         } else {
           val newHeap = s.heap.insert(a)
