@@ -232,8 +232,8 @@ private final class IOFiber[A](
     if (shouldFinalize()) {
       asyncCancel(null)
     } else if ((nextIteration % autoYieldThreshold) == 0) {
-      objectState.push((_: Any) => cur0) //
-      conts.push(FlatMapK)
+      objectState.push(cur0)
+      conts.push(AutoCedeK)
       cede()
     } else {
       // println(s"<$name> looping on $cur0")
@@ -1021,6 +1021,7 @@ private final class IOFiber[A](
       case 7 => uncancelableSuccessK(result, depth)
       case 8 => unmaskSuccessK(result, depth)
       case 9 => succeeded(Right(result), depth)
+      case 10 => autoCedeK()
     }
 
   private[this] def failed(error: Throwable, depth: Int): IO[Any] = {
@@ -1032,11 +1033,11 @@ private final class IOFiber[A](
     var k: Byte = -1
 
     /*
-     * short circuit on error by dropping map and flatMap continuations
+     * short circuit on error by dropping map, flatMap, and auto-cede continuations
      * until we hit a continuation that needs to deal with errors.
      */
     while (i >= 0 && k < 0) {
-      if (buffer(i) == FlatMapK || buffer(i) == MapK)
+      if (buffer(i) == FlatMapK || buffer(i) == MapK || buffer(i) == AutoCedeK)
         i -= 1
       else
         k = buffer(i)
@@ -1057,6 +1058,7 @@ private final class IOFiber[A](
       case 7 => uncancelableFailureK(error, depth)
       case 8 => unmaskFailureK(error, depth)
       case 9 => succeeded(Left(error), depth) // attemptK
+      // (case 10) will never continue
     }
   }
 
@@ -1314,6 +1316,9 @@ private final class IOFiber[A](
     masks += 1
     failed(t, depth + 1)
   }
+
+  private[this] def autoCedeK(): IO[Any] =
+    objectState.pop().asInstanceOf[IO[Any]]
 
   private[effect] def debug(): Unit = {
     System.out.println("================")
