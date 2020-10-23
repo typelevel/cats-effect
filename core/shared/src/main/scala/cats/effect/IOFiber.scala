@@ -19,7 +19,6 @@ package cats.effect
 import cats.effect.unsafe.{IORuntime, WorkStealingThreadPool}
 
 import cats.arrow.FunctionK
-import cats.syntax.all._
 
 import scala.annotation.{switch, tailrec}
 import scala.concurrent.ExecutionContext
@@ -27,7 +26,7 @@ import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.util.control.NoStackTrace
 
 /*
@@ -61,15 +60,12 @@ import scala.util.control.NoStackTrace
  * merely a fast-path and are not necessary for correctness.
  */
 private final class IOFiber[A](
-    name: String,
-    scheduler: unsafe.Scheduler,
-    blockingEc: ExecutionContext,
     initMask: Int,
     cb: OutcomeIO[A] => Unit,
     startIO: IO[A],
     startEC: ExecutionContext,
-    runtime: IORuntime)
-    extends IOFiberPlatform[A]
+    runtime: IORuntime
+) extends IOFiberPlatform[A]
     with FiberIO[A]
     with Runnable {
 
@@ -108,7 +104,6 @@ private final class IOFiber[A](
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
 
-  private[this] val childCount = IOFiber.childCount
   private[this] val TypeBlocking = Sync.Type.Blocking
 
   /* mutable state for resuming the fiber in different states */
@@ -576,20 +571,15 @@ private final class IOFiber[A](
         case 14 =>
           val cur = cur0.asInstanceOf[Start[Any]]
 
-          val childName = s"start-${childCount.getAndIncrement()}"
           val initMask2 = childMask
-
           val ec = currentCtx
-          val fiber =
-            new IOFiber[Any](
-              childName,
-              scheduler,
-              blockingEc,
-              initMask2,
-              null,
-              cur.ioa,
-              ec,
-              runtime)
+          val fiber = new IOFiber[Any](
+            initMask2,
+            null,
+            cur.ioa,
+            ec,
+            runtime
+          )
 
           // println(s"<$name> spawning <$childName>")
 
@@ -610,23 +600,19 @@ private final class IOFiber[A](
                   val initMask2 = childMask
                   val ec = currentCtx
                   val fiberA = new IOFiber[Any](
-                    s"racePair-left-${childCount.getAndIncrement()}",
-                    scheduler,
-                    blockingEc,
                     initMask2,
                     null,
                     cur.ioa,
                     ec,
-                    runtime)
+                    runtime
+                  )
                   val fiberB = new IOFiber[Any](
-                    s"racePair-right-${childCount.getAndIncrement()}",
-                    scheduler,
-                    blockingEc,
                     initMask2,
                     null,
                     cur.iob,
                     ec,
-                    runtime)
+                    runtime
+                  )
 
                   fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
                   fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
@@ -645,7 +631,7 @@ private final class IOFiber[A](
 
           val next = IO.async[Unit] { cb =>
             IO {
-              val cancel = scheduler.sleep(cur.delay, () => cb(RightUnit))
+              val cancel = runtime.scheduler.sleep(cur.delay, () => cb(RightUnit))
               Some(IO(cancel.run()))
             }
           }
@@ -654,11 +640,11 @@ private final class IOFiber[A](
 
         /* RealTime */
         case 17 =>
-          runLoop(succeeded(scheduler.nowMillis().millis, 0), nextIteration)
+          runLoop(succeeded(runtime.scheduler.nowMillis().millis, 0), nextIteration)
 
         /* Monotonic */
         case 18 =>
-          runLoop(succeeded(scheduler.monotonicNanos().nanos, 0), nextIteration)
+          runLoop(succeeded(runtime.scheduler.monotonicNanos().nanos, 0), nextIteration)
 
         /* ReadEC */
         case 19 =>
@@ -688,9 +674,9 @@ private final class IOFiber[A](
           if (cur.hint eq TypeBlocking) {
             resumeTag = BlockingR
             blockingCur = cur
-            blockingEc.execute(this)
+            runtime.blocking.execute(this)
           } else {
-            runLoop(interruptibleImpl(cur, blockingEc), nextIteration)
+            runLoop(interruptibleImpl(cur, runtime.blocking), nextIteration)
           }
 
         case 22 =>
@@ -705,23 +691,19 @@ private final class IOFiber[A](
                 val initMask2 = childMask
                 val ec = currentCtx
                 val fiberA = new IOFiber[Any](
-                  s"race-left-${childCount.getAndIncrement()}",
-                  scheduler,
-                  blockingEc,
                   initMask2,
                   null,
                   cur.ioa,
                   ec,
-                  runtime)
+                  runtime
+                )
                 val fiberB = new IOFiber[Any](
-                  s"race-right-${childCount.getAndIncrement()}",
-                  scheduler,
-                  blockingEc,
                   initMask2,
                   null,
                   cur.iob,
                   ec,
-                  runtime)
+                  runtime
+                )
 
                 fiberA registerListener { oc =>
                   val s = state.getAndSet(Some(oc))
@@ -795,23 +777,19 @@ private final class IOFiber[A](
                 val initMask2 = childMask
                 val ec = currentCtx
                 val fiberA = new IOFiber[Any](
-                  s"both-left-${childCount.getAndIncrement()}",
-                  scheduler,
-                  blockingEc,
                   initMask2,
                   null,
                   cur.ioa,
                   ec,
-                  runtime)
+                  runtime
+                )
                 val fiberB = new IOFiber[Any](
-                  s"both-right-${childCount.getAndIncrement()}",
-                  scheduler,
-                  blockingEc,
                   initMask2,
                   null,
                   cur.iob,
                   ec,
-                  runtime)
+                  runtime
+                )
 
                 fiberA registerListener { oc =>
                   val s = state.getAndSet(Some(oc))
@@ -1319,22 +1297,9 @@ private final class IOFiber[A](
 
   private[this] def autoCedeK(): IO[Any] =
     objectState.pop().asInstanceOf[IO[Any]]
-
-  private[effect] def debug(): Unit = {
-    System.out.println("================")
-    System.out.println(s"fiber: $name")
-    System.out.println("================")
-    System.out.println(s"conts = ${conts.unsafeBuffer().toList.filterNot(_ == 0)}")
-    System.out.println(s"canceled = $canceled")
-    System.out.println(s"masks = $masks (out of initMask = $initMask)")
-    System.out.println(s"suspended = ${suspended.get()}")
-    System.out.println(s"outcome = ${outcome}")
-  }
 }
 
 private object IOFiber {
-  private val childCount = new AtomicInteger(0)
-
   /* prefetch */
   private val OutcomeCanceled = Outcome.Canceled()
   private[effect] val RightUnit = Right(())
