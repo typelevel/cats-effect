@@ -213,6 +213,18 @@ object PQueue {
       )
   }
 
+  /**
+   * A binomial heap is a list of trees maintaining the following invariants:
+   * - The list is strictly monotonically increasing in the rank of the trees
+   *   In fact, a binomial heap built from n elements has is a tree of rank i
+   *   iff there is a 1 in the ith digit of the binary representation of n
+   *   Consequently, the length of the list is <= 1 + log(n)
+   * - Each tree satisfies the heap property (the value at any node is greater
+   *   than that of its parent). This means that the smallest element of the
+   *   heap is found at one of the roots of the trees
+   * - The ranks of the children of a node are strictly monotonically decreasing
+   *   (in fact the rank of the ith child is r - i)
+   */
   private[std] abstract case class BinomialHeap[A](trees: List[Tree[A]]) { self =>
 
     //Allows us to fix this on construction, ensuring some safety from
