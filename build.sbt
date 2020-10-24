@@ -37,6 +37,7 @@ ThisBuild / developers := List(
 )
 
 val PrimaryOS = "ubuntu-latest"
+val Windows = "windows-latest"
 
 val ScalaJSJava = "adopt@1.8"
 val Scala213 = "2.13.3"
@@ -50,7 +51,7 @@ val LatestJava = "adopt@14"
 val GraalVM8 = "graalvm8@20.1.0"
 
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
-ThisBuild / githubWorkflowOSes := Seq(PrimaryOS)
+ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
 
 ThisBuild / githubWorkflowBuildPreamble +=
   WorkflowStep.Use(
@@ -69,21 +70,25 @@ ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Run(
     List("example/test-jvm.sh ${{ matrix.scala }}"),
     name = Some("Test Example JVM App Within Sbt"),
-    cond = Some("matrix.ci == 'ciJVM'")),
+    cond = Some(s"matrix.ci == 'ciJVM' && matrix.os == '$PrimaryOS'")),
 
   WorkflowStep.Run(
     List("example/test-js.sh ${{ matrix.scala }}"),
     name = Some("Test Example JavaScript App Using Node"),
-    cond = Some("matrix.ci == 'ciJS'")))
+    cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")))
 
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> List("ciJVM", "ciJS", "ciFirefox")
 
-ThisBuild / githubWorkflowBuildMatrixExclusions ++=
-  Seq("ciJS", "ciFirefox") flatMap { ci =>
-    (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)) map { java =>
+ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
+  Seq("ciJS", "ciFirefox").flatMap { ci =>
+    (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)).map { java =>
       MatrixExclude(Map("ci" -> ci, "java" -> java))
     }
-  }
+  } ++ Seq(
+    MatrixExclude(Map("ci" -> "ciJS", "os" -> Windows)),
+    MatrixExclude(Map("ci" -> "ciFirefox", "os" -> Windows))
+  )
+}
 
 lazy val useFirefoxEnv = settingKey[Boolean]("Use headless Firefox (via geckodriver) for running tests")
 Global / useFirefoxEnv := false

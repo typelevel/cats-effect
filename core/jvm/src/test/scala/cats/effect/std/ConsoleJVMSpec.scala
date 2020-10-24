@@ -20,7 +20,7 @@ package std
 import cats.syntax.all._
 import org.specs2.matcher.MatchResult
 
-import java.io.InputStream
+import java.io.{ByteArrayInputStream, InputStream}
 import java.nio.charset.{Charset, StandardCharsets}
 
 import scala.io.Source
@@ -28,24 +28,22 @@ import scala.io.Source
 class ConsoleJVMSpec extends BaseSpec {
   sequential
 
-  private def fileContents(name: String, charset: Charset): IO[String] = {
+  private def fileLines(name: String, charset: Charset): IO[List[String]] = {
     val acquire =
       IO.blocking(Source.fromResource(s"readline-test.$name.txt")(charset))
     val release = (src: Source) => IO(src.close())
     Resource
       .make(acquire)(release)
-      .use(src => IO.interruptible(false)(src.getLines().mkString(System.lineSeparator())))
-      .handleErrorWith(_ => IO.pure(""))
+      .use(src => IO.interruptible(false)(src.getLines().toList))
+      .handleErrorWith(_ => IO.pure(Nil))
   }
 
-  private def readLines(name: String, charset: Charset): IO[String] = {
-    def inputStream(name: String): Resource[IO, InputStream] = {
+  private def consoleReadLines(lines: List[String], charset: Charset): IO[List[String]] = {
+    def inputStream: Resource[IO, InputStream] = {
       val acquire =
-        IO.blocking {
-          Thread
-            .currentThread()
-            .getContextClassLoader()
-            .getResourceAsStream(s"readline-test.$name.txt")
+        IO {
+          val bytes = lines.mkString(System.lineSeparator()).getBytes(charset)
+          new ByteArrayInputStream(bytes)
         }
       val release = (in: InputStream) => IO(in.close())
       Resource.make(acquire)(release)
@@ -65,24 +63,24 @@ class ConsoleJVMSpec extends BaseSpec {
     }
 
     val test = for {
-      in <- inputStream(name)
+      in <- inputStream
       _ <- replaceStandardIn(in)
     } yield ()
 
-    def loop(acc: List[String]): IO[String] =
+    def loop(acc: List[String]): IO[List[String]] =
       Console[IO]
         .readLineWithCharset(charset)
         .flatMap(ln => loop(ln :: acc))
-        .handleErrorWith(_ => IO.pure(acc.reverse.mkString("\n")))
+        .handleErrorWith(_ => IO.pure(acc.reverse))
 
     test.use(_ => loop(Nil))
   }
 
-  private def readLineTest(name: String, charset: Charset): IO[MatchResult[String]] =
+  private def readLineTest(name: String, charset: Charset): IO[MatchResult[List[String]]] =
     for {
-      contents <- fileContents(name, charset)
-      lines <- readLines(name, charset)
-      result <- IO(contents must beEqualTo(lines))
+      rawLines <- fileLines(name, charset)
+      lines <- consoleReadLines(rawLines, charset)
+      result <- IO(lines must beEqualTo(rawLines))
     } yield result
 
   "Console" should {
