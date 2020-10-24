@@ -27,7 +27,7 @@ import scala.concurrent.{Future, Promise}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.util.{Failure, Success}
 
-sealed trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
+trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 
   def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit])
 
