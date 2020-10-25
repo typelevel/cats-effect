@@ -32,10 +32,15 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
     var results: Either[Throwable, A] = null
     val latch = new CountDownLatch(1)
 
-    unsafeRunFiber { e =>
-      results = e
-      latch.countDown()
-    }
+    unsafeRunFiber(
+      t => {
+        results = Left(t)
+        latch.countDown()
+      },
+      a => {
+        results = Right(a)
+        latch.countDown()
+      })
 
     if (latch.await(limit.toNanos, TimeUnit.NANOSECONDS)) {
       results.fold(throw _, a => Some(a))

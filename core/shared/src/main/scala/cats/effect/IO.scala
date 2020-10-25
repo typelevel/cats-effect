@@ -193,7 +193,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def unsafeRunAsync(cb: Either[Throwable, A] => Unit)(
       implicit runtime: unsafe.IORuntime): Unit = {
-    unsafeRunFiber(cb)
+    unsafeRunFiber(t => cb(Left(t)), a => cb(Right(a)))
     ()
   }
 
@@ -211,18 +211,29 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     p.future
   }
 
-  private[effect] def unsafeRunFiber(cb: Either[Throwable, A] => Unit)(
+  private[effect] def unsafeRunFiber(failure: Throwable => Unit, success: A => Unit)(
       implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
-    val fiber = new IOFiber(
+    val fiber = new IOFiber[A](
       0,
-      (oc: OutcomeIO[A]) =>
-        oc.fold((), e => cb(Left(e)), ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))),
+      oc =>
+        oc.fold(
+          (),
+          t => {
+            runtime.fiberErrorCbs.remove(failure)
+            failure(t)
+          },
+          ioa => {
+            runtime.fiberErrorCbs.remove(failure)
+            success(ioa.asInstanceOf[IO.Pure[A]].value)
+          }
+        ),
       this,
       runtime.compute,
       runtime
     )
 
+    runtime.fiberErrorCbs.put(failure)
     runtime.compute.execute(fiber)
     fiber
   }

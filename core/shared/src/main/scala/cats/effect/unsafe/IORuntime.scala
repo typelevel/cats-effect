@@ -34,12 +34,14 @@ avoid unintentionally degrading your application performance.
 """)
 // Constructor visible in the effect package for use in benchmarks.
 final class IORuntime private[effect] (
-    val compute: ExecutionContext,
+    private[effect] val compute: ExecutionContext,
     val blocking: ExecutionContext,
-    val scheduler: Scheduler,
+    private[effect] val scheduler: Scheduler,
     val shutdown: () => Unit,
-    val config: IORuntimeConfig) {
-
+    val config: IORuntimeConfig,
+    private[effect] val fiberErrorCbs: FiberErrorHashtable = new FiberErrorHashtable(16),
+    private[effect] val internalShutdown: () => Unit = () => ()
+) {
   override def toString: String = s"IORuntime($compute, $scheduler, $config)"
 }
 

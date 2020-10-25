@@ -29,14 +29,20 @@ trait IOApp {
     val rt = Runtime.getRuntime()
 
     val latch = new CountDownLatch(1)
-    @volatile var results: Either[Throwable, ExitCode] = null
+    @volatile var error: Throwable = null
+    @volatile var result: ExitCode = null
 
     val ioa = run(args.toList)
 
-    val fiber = ioa.unsafeRunFiber { e =>
-      results = e
-      latch.countDown()
-    }(runtime)
+    val fiber = ioa.unsafeRunFiber(
+      t => {
+        error = t
+        latch.countDown()
+      },
+      a => {
+        result = a
+        latch.countDown()
+      })(runtime)
 
     def handleShutdown(): Unit = {
       if (latch.getCount() > 0) {
@@ -45,6 +51,9 @@ trait IOApp {
         cancelLatch.await()
       }
 
+      // Clean up after ourselves, relevant for running IOApps in sbt,
+      // otherwise scheduler threads will accumulate over time.
+      runtime.internalShutdown()
       runtime.shutdown()
     }
 
@@ -55,8 +64,16 @@ trait IOApp {
 
     try {
       latch.await()
-
-      results.fold(throw _, ec => System.exit(ec.code))
+      if (error != null) {
+        // Runtime has already been shutdown in IOFiber.
+        throw error
+      } else {
+        // Clean up after ourselves, relevant for running IOApps in sbt,
+        // otherwise scheduler threads will accumulate over time.
+        runtime.internalShutdown()
+        runtime.shutdown()
+        System.exit(result.code)
+      }
     } catch {
       // this handles sbt when fork := false
       case _: InterruptedException =>
