@@ -33,11 +33,11 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
     val latch = new CountDownLatch(1)
 
     unsafeRunFiber(
-      t => {
+      { t =>
         results = Left(t)
         latch.countDown()
       },
-      a => {
+      { a =>
         results = Right(a)
         latch.countDown()
       })

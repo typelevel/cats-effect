@@ -219,11 +219,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       oc =>
         oc.fold(
           (),
-          t => {
+          { t =>
             runtime.fiberErrorCbs.remove(failure)
             failure(t)
           },
-          ioa => {
+          { ioa =>
             runtime.fiberErrorCbs.remove(failure)
             success(ioa.asInstanceOf[IO.Pure[A]].value)
           }

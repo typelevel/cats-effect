@@ -34,9 +34,9 @@ avoid unintentionally degrading your application performance.
 """)
 // Constructor visible in the effect package for use in benchmarks.
 final class IORuntime private[effect] (
-    private[effect] val compute: ExecutionContext,
-    val blocking: ExecutionContext,
-    private[effect] val scheduler: Scheduler,
+    val compute: ExecutionContext,
+    private[effect] val blocking: ExecutionContext,
+    val scheduler: Scheduler,
     val shutdown: () => Unit,
     val config: IORuntimeConfig,
     private[effect] val fiberErrorCbs: FiberErrorHashtable = new FiberErrorHashtable(16),

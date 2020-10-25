@@ -46,22 +46,13 @@ class IOAppSpec extends Specification {
       h.stdout() mustEqual expected.mkString("", System.lineSeparator(), System.lineSeparator())
     }
 
-    "exit on fatal error" in {
-      val h = java(FatalError, List.empty)
-      h.awaitStatus() mustEqual 1
-      h.stderr() must contain("Boom!")
-    }
-
-    "exit on fatal error with other unsafe runs" in {
-      val h = java(FatalErrorUnsafeRun, List.empty)
-      h.awaitStatus() mustEqual 1
-      h.stderr() must contain("Boom!")
-    }
-
     if (System.getProperty("os.name").toLowerCase.contains("windows")) {
       // The jvm cannot gracefully terminate processes on Windows, so this
       // test cannot be carried out properly. Same for testing IOApp in sbt.
       "run finalizers on TERM" in skipped(
+        "cannot observe graceful process termination on Windows")
+      "exit on fatal error" in skipped("cannot observe graceful process termination on Windows")
+      "exit on fatal error with other unsafe runs" in skipped(
         "cannot observe graceful process termination on Windows")
     } else {
       "run finalizers on TERM" in {
@@ -104,6 +95,18 @@ class IOAppSpec extends Specification {
           }
           readTest() must contain("canceled")
         }
+      }
+
+      "exit on fatal error" in {
+        val h = java(FatalError, List.empty)
+        h.awaitStatus() mustEqual 1
+        h.stderr() must contain("Boom!")
+      }
+
+      "exit on fatal error with other unsafe runs" in {
+        val h = java(FatalErrorUnsafeRun, List.empty)
+        h.awaitStatus() mustEqual 1
+        h.stderr() must contain("Boom!")
       }
     }
   }
@@ -171,7 +174,8 @@ package examples {
 
     def run(args: List[String]): IO[ExitCode] =
       for {
-        _ <- IO(IO(throw new OutOfMemoryError("Boom!")).start.void.unsafeRunSync())
+        _ <- (0 until 100).toList.traverse(_ => IO.blocking(IO.never.unsafeRunSync()).start)
+        _ <- IO.blocking(IO(throw new OutOfMemoryError("Boom!")).start.unsafeRunSync())
         _ <- IO.never[Unit]
       } yield ExitCode.Success
   }
