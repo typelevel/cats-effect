@@ -241,7 +241,10 @@ object PQueue {
 
     def insert(a: A): BinomialHeap[A] = insert(Tree(0, a, Nil))
 
-    def take: (BinomialHeap[A], A) = tryTake.map(_.get)
+    def take: (BinomialHeap[A], A) = {
+      val (ts, head) = BinomialHeap.take(trees)
+      BinomialHeap(ts) -> head.get
+    }
 
     def tryTake: (BinomialHeap[A], Option[A]) = {
       val (ts, head) = BinomialHeap.take(trees)
