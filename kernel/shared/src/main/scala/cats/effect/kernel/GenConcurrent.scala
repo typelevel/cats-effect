@@ -89,22 +89,16 @@ object GenConcurrent {
   /**
    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
    */
-  def parTraverseN[T[_]: Traverse, F[_]: Concurrent: Parallel, A, B](n: Long)(ta: T[A])(
-      f: A => F[B]): F[T[B]] =
-    for {
-      semaphore <- Semaphore[F](n)
-      tb <- ta.parTraverse { a => semaphore.permit.use(_ => f(a)) }
-    } yield tb
+  def parTraverseN[T[_]: Traverse, F[_], A, B](n: Long)(ta: T[A])(f: A => F[B])(
+      implicit F: ParTraverseN[F]): F[T[B]] =
+    F.parTraverseN(n)(ta)(f)
 
   /**
    * Like `Parallel.parSequence`, but limits the degree of parallelism.
    */
-  def parSequenceN[T[_]: Traverse, F[_]: Concurrent: Parallel, A](n: Long)(
-      tma: T[F[A]]): F[T[A]] =
-    for {
-      semaphore <- Semaphore[F](n)
-      mta <- tma.map(x => semaphore.permit.use(_ => x)).parSequence
-    } yield mta
+  def parSequenceN[T[_]: Traverse, F[_], A](n: Long)(tma: T[F[A]])(
+      implicit F: ParTraverseN[F]): F[T[A]] =
+    F.parSequenceN(n)(tma)
 
   private sealed abstract class Memoize[F[_], E, A]
   private object Memoize {
@@ -217,5 +211,38 @@ object GenConcurrent {
     override def deferred[A]: WriterT[F, L, Deferred[WriterT[F, L, *], A]] =
       WriterT.liftF(F.map(F.deferred[A])(_.mapK(WriterT.liftK)))
   }
+
+}
+
+private[effect] trait ParTraverseN[F[_]] {
+
+  /**
+   * Like `Parallel.parTraverse`, but limits the degree of parallelism.
+   */
+  def parTraverseN[T[_]: Traverse, A, B](n: Long)(ta: T[A])(f: A => F[B]): F[T[B]]
+
+  /**
+   * Like `Parallel.parSequence`, but limits the degree of parallelism.
+   */
+  def parSequenceN[T[_]: Traverse, A](n: Long)(tma: T[F[A]]): F[T[A]]
+}
+
+private[effect] object ParTraverseN {
+
+  implicit def parTraverseForConcurrent[F[_]: Concurrent: Parallel]: ParTraverseN[F] =
+    new ParTraverseN[F] {
+
+      def parTraverseN[T[_]: Traverse, A, B](n: Long)(ta: T[A])(f: A => F[B]): F[T[B]] =
+        for {
+          semaphore <- Semaphore[F](n)
+          tb <- ta.parTraverse { a => semaphore.permit.use(_ => f(a)) }
+        } yield tb
+
+      def parSequenceN[T[_]: Traverse, A](n: Long)(tma: T[F[A]]): F[T[A]] =
+        for {
+          semaphore <- Semaphore[F](n)
+          mta <- tma.map(x => semaphore.permit.use(_ => x)).parSequence
+        } yield mta
+    }
 
 }

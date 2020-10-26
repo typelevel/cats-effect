@@ -30,6 +30,7 @@ import cats.{
 }
 import cats.syntax.all._
 import cats.effect.instances.spawn
+import cats.effect.kernel.ParTraverseN
 import cats.effect.std.Console
 
 import scala.annotation.unchecked.uncheckedVariance
@@ -576,6 +577,15 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
 
   implicit def asyncForIO: kernel.Async[IO] = _asyncForIO
+
+  private[effect] implicit val parTraverseNForIO: ParTraverseN[IO] = new ParTraverseN[IO] {
+
+    def parTraverseN[T[_]: Traverse, A, B](n: Long)(ta: T[A])(f: A => IO[B]): IO[T[B]] =
+      IO.parTraverseN(n)(ta)(f)
+
+    def parSequenceN[T[_]: Traverse, A](n: Long)(tma: T[IO[A]]): IO[T[A]] =
+      IO.parSequenceN(n)(tma)
+  }
 
   private[this] val _parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] =
     spawn.parallelForGenSpawn[IO, Throwable]

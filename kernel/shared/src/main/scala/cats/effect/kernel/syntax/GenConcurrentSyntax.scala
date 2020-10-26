@@ -16,8 +16,8 @@
 
 package cats.effect.kernel.syntax
 
-import cats.effect.kernel.{Concurrent, GenConcurrent}
-import cats.{Parallel, Traverse}
+import cats.effect.kernel.{GenConcurrent, ParTraverseN}
+import cats.Traverse
 
 trait GenConcurrentSyntax {
   implicit def genConcurrentOps[F[_], E, A](wrapped: F[A]): GenConcurrentOps[F, E, A] =
@@ -42,14 +42,13 @@ final class ConcurrentParTraverseOps[F[_], T[_], A, B] private[syntax] (
     private[syntax] val wrapped: T[A])
     extends AnyVal {
   def parTraverseN(n: Long)(
-      f: A => F[B])(implicit F: Concurrent[F], P: Parallel[F], T: Traverse[T]): F[T[B]] =
-    GenConcurrent.parTraverseN(n)(wrapped)(f)
+      f: A => F[B])(implicit F: ParTraverseN[F], T: Traverse[T]): F[T[B]] =
+    F.parTraverseN(n)(wrapped)(f)
 }
 
 final class ConcurrentParSequenceOps[F[_], T[_], A] private[syntax] (
     private[syntax] val wrapped: T[F[A]])
     extends AnyVal {
-  def parSequenceN(
-      n: Long)(implicit F: Concurrent[F], P: Parallel[F], T: Traverse[T]): F[T[A]] =
-    GenConcurrent.parSequenceN(n)(wrapped)
+  def parSequenceN(n: Long)(implicit F: ParTraverseN[F], T: Traverse[T]): F[T[A]] =
+    F.parSequenceN(n)(wrapped)
 }
