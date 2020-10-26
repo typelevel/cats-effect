@@ -39,7 +39,7 @@ abstract class PQueue[F[_], A] { self =>
    *
    * O(log(n))
    *
-   * @param a the element to be put in the queue
+   * @param a the element to be put in the PQueue
    */
   def offer(a: A): F[Unit]
 
@@ -49,14 +49,14 @@ abstract class PQueue[F[_], A] { self =>
    *
    * O(log(n))
    *
-   * @param a the element to be put in the queue
+   * @param a the element to be put in the PQueue
    * @return an effect that describes whether the enqueuing of the given
    *         element succeeded without blocking
    */
   def tryOffer(a: A): F[Boolean]
 
   /**
-   * Dequeues the least element from the queue, possibly semantically
+   * Dequeues the least element from the PQueue, possibly semantically
    * blocking until an element becomes available.
    *
    * O(log(n))
@@ -64,24 +64,24 @@ abstract class PQueue[F[_], A] { self =>
   def take: F[A]
 
   /**
-   * Attempts to dequeue the least element from the queue, if one is
+   * Attempts to dequeue the least element from the PQueue, if one is
    * available without semantically blocking.
    *
    * O(log(n))
    *
    * @return an effect that describes whether the dequeueing of an element from
-   *         the queue succeeded without blocking, with `None` denoting that no
+   *         the PQueue succeeded without blocking, with `None` denoting that no
    *         element was available
    */
   def tryTake: F[Option[A]]
 
   /**
-   * Modifies the context in which this queue is executed using the natural
+   * Modifies the context in which this PQueue is executed using the natural
    * transformation `f`.
    *
    * O(1)
    *
-   * @return a queue in the new context obtained by mapping the current one
+   * @return a PQueue in the new context obtained by mapping the current one
    *         using `f`
    */
   def mapK[G[_]](f: F ~> G): PQueue[G, A] =
@@ -259,7 +259,7 @@ object PQueue {
       }
 
     /**
-     * Assumes trees is monotonically increasing in rank
+     * Assumes trees is strictly monotonically increasing in rank
      */
     @tailrec
     def insert[A: Order](tree: Tree[A], trees: List[Tree[A]]): List[Tree[A]] =
@@ -272,7 +272,7 @@ object PQueue {
       }
 
     /**
-     * Assumes each list is monotonically increasing in rank
+     * Assumes each list is strictly monotonically increasing in rank
      */
     def merge[A: Order](lhs: List[Tree[A]], rhs: List[Tree[A]]): List[Tree[A]] =
       (lhs, rhs) match {
