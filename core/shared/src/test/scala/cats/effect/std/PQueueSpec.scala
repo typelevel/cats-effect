@@ -25,6 +25,7 @@ package std
 import cats.implicits._
 import cats.Order
 import cats.arrow.FunctionK
+import org.scalacheck.Arbitrary.arbitrary
 import org.specs2.specification.core.Fragments
 
 import scala.collection.immutable.{Queue => ScalaQueue}
@@ -103,15 +104,7 @@ class BoundedPQueueSpec extends BaseSpec with PQueueTests {
     cancelableOfferTests(name, constructor)
     tryOfferTryTakeTests(name, constructor)
     commonTests(name, constructor)
-
-    s"$name - simple order check" in real {
-      for {
-        q <- constructor(10)
-        _ <- List(1, 3, 4, 2, 5).traverse(q.offer(_))
-        res <- List.fill(5)(q.take).sequence
-        r <- IO(res must beEqualTo(List(1, 2, 3, 4, 5)))
-      } yield r
-    }
+    dequeueInPriorityOrder(name, constructor)
 
   }
 }
@@ -134,10 +127,33 @@ class UnboundedPQueueSpec extends BaseSpec with PQueueTests {
     tryOfferOnFullTests(name, _ => constructor, true)
     tryOfferTryTakeTests(name, _ => constructor)
     commonTests(name, _ => constructor)
+    dequeueInPriorityOrder(name, _ => constructor)
   }
 }
 
 trait PQueueTests { self: BaseSpec =>
+
+  def dequeueInPriorityOrder(
+      name: String,
+      constructor: Int => IO[PQueue[IO, Int]]): Fragments = {
+
+    /**
+     * Hand-rolled scalacheck effect as we don't have that for CE3 yet
+     */
+    s"$name - dequeue in priority order" in real {
+      val gen = arbitrary[List[Int]]
+      List.range(1, 100).traverse { _ =>
+        val in = gen.sample.get
+        for {
+          q <- constructor(Int.MaxValue)
+          _ <- in.traverse_(q.offer(_))
+          out <- List.fill(in.length)(q.take).sequence
+          res <- IO(out must beEqualTo(in.sorted))
+        } yield res
+      }
+    }
+
+  }
 
   def zeroCapacityConstructionTests(
       name: String,
