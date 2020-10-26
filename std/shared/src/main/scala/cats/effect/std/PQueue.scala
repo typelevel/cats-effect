@@ -189,9 +189,9 @@ object PQueue {
             val ((move, release), tail) = offerers.dequeue
             State(rest.insert(move), size, takers, tail) -> release.complete(()).as(a.some)
 
-          case State(queue, size, takers, offerers) if offerers.nonEmpty =>
+          case State(heap, size, takers, offerers) if offerers.nonEmpty =>
             val ((a, release), rest) = offerers.dequeue
-            State(queue, size, takers, rest) -> release.complete(()).as(a.some)
+            State(heap, size, takers, rest) -> release.complete(()).as(a.some)
 
           case s =>
             s -> F.pure(none[A])
