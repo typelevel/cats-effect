@@ -16,9 +16,9 @@
 
 package cats.effect.kernel
 
-import cats.{Monoid, Semigroup, Traverse}
+import cats.{Monoid, Parallel, Semigroup, Traverse}
 import cats.syntax.all._
-import cats.effect.kernel.implicits._
+import cats.effect.kernel.syntax.all._
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
 
 trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
@@ -89,7 +89,7 @@ object GenConcurrent {
   /**
    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
    */
-  def parTraverseN[T[_]: Traverse, F[_]: Concurrent, A, B](n: Long)(ta: T[A])(
+  def parTraverseN[T[_]: Traverse, F[_]: Concurrent: Parallel, A, B](n: Long)(ta: T[A])(
       f: A => F[B]): F[T[B]] =
     for {
       semaphore <- Semaphore[F](n)
@@ -99,7 +99,8 @@ object GenConcurrent {
   /**
    * Like `Parallel.parSequence`, but limits the degree of parallelism.
    */
-  def parSequenceN[T[_]: Traverse, F[_]: Concurrent, A](n: Long)(tma: T[F[A]]): F[T[A]] =
+  def parSequenceN[T[_]: Traverse, F[_]: Concurrent: Parallel, A](n: Long)(
+      tma: T[F[A]]): F[T[A]] =
     for {
       semaphore <- Semaphore[F](n)
       mta <- tma.map(x => semaphore.permit.use(_ => x)).parSequence
