@@ -96,12 +96,15 @@ abstract class PQueue[F[_], A] { self =>
 
 object PQueue {
 
-  def bounded[F[_], A](capacity: Int)(implicit F: Concurrent[F], O: Order[A]): F[PQueue[F, A]] =
+  def bounded[F[_], A](
+      capacity: Int)(implicit F: Concurrent[F], O: Order[A]): F[PQueue[F, A]] = {
+    assertNonNegative(capacity)
     F.ref(State.empty[F, A]).map { ref =>
       new PQueueImpl[F, A](ref, capacity) {
         implicit val Ord = O
       }
     }
+  }
 
   def unbounded[F[_], A](implicit F: Concurrent[F], O: Order[A]): F[PQueue[F, A]] =
     bounded(Int.MaxValue)
@@ -314,12 +317,14 @@ object PQueue {
      * Link two trees of rank r to produce a tree of rank r + 1
      */
     def link(other: Tree[A])(implicit Ord: Order[A]): Tree[A] = {
-      assert(rank == other.rank)
       if (Ord.lteqv(value, other.value))
         Tree(rank + 1, value, other :: children)
       else Tree(rank + 1, other.value, this :: other.children)
     }
 
   }
+
+  private def assertNonNegative(capacity: Int): Unit =
+    require(capacity >= 0, s"Bounded queue capacity must be non-negative, was: $capacity")
 
 }
