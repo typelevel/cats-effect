@@ -563,6 +563,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   implicit def parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = _parallelForIO
 
+  implicit val consoleForIO: Console[IO] =
+    Console.make
+
   // This is cached as a val to save allocations, but it uses ops from the Async
   // instance which is also cached as a val, and therefore needs to appear
   // later in the file
