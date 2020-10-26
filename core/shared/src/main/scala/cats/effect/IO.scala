@@ -30,7 +30,7 @@ import cats.{
 }
 import cats.syntax.all._
 import cats.effect.instances.spawn
-import cats.effect.std.{Console, Semaphore}
+import cats.effect.std.Console
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
