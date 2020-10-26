@@ -19,7 +19,7 @@ package cats.effect.std
 import cats.{~>, Order}
 import cats.implicits._
 import cats.effect.kernel.syntax.all._
-import cats.effect.kernel.{Concurrent, Deferred, Poll, Ref}
+import cats.effect.kernel.{Concurrent, Deferred, Ref}
 import scala.annotation.tailrec
 
 import scala.collection.immutable.{Queue => ScalaQueue}
@@ -238,8 +238,6 @@ object PQueue {
 
     def insert(a: A): BinomialHeap[A] = insert(Tree(0, a, Nil))
 
-    def peek: Option[A] = BinomialHeap.peek(trees)
-
     def take: (BinomialHeap[A], A) = tryTake.map(_.get)
 
     def tryTake: (BinomialHeap[A], Option[A]) = {
@@ -281,16 +279,6 @@ object PQueue {
           if (t1.rank < t2.rank) t1 :: merge(ts1, l2)
           else if (t2.rank < t1.rank) t2 :: merge(l1, ts2)
           else insert(t1.link(t2), merge(ts1, ts2))
-      }
-
-    def peek[A](trees: List[Tree[A]])(implicit Ord: Order[A]): Option[A] =
-      trees match {
-        case Nil => None
-        case h :: t =>
-          peek(t) match {
-            case None => Some(h.value)
-            case Some(v) => Some(Ord.min(h.value, v))
-          }
       }
 
     def take[A](trees: List[Tree[A]])(implicit Ord: Order[A]): (List[Tree[A]], Option[A]) = {
