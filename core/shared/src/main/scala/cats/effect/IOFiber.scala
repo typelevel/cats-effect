@@ -135,15 +135,35 @@ private final class IOFiber[A](
   override def run(): Unit = {
     // insert a read barrier after every async boundary
     readBarrier()
-    (resumeTag: @switch) match {
-      case 0 => execR()
-      case 1 => asyncContinueR()
-      case 2 => blockingR()
-      case 3 => afterBlockingSuccessfulR()
-      case 4 => afterBlockingFailedR()
-      case 5 => evalOnR()
-      case 6 => cedeR()
-      case 7 => ()
+    try {
+      (resumeTag: @switch) match {
+        case 0 => execR()
+        case 1 => asyncContinueR()
+        case 2 => blockingR()
+        case 3 => afterBlockingSuccessfulR()
+        case 4 => afterBlockingFailedR()
+        case 5 => evalOnR()
+        case 6 => cedeR()
+        case 7 => ()
+      }
+    } catch {
+      case t: Throwable =>
+        runtime.internalShutdown()
+        runtime.shutdown()
+        Thread.interrupted()
+        currentCtx.reportFailure(t)
+        runtime.fiberErrorCbs.lock.synchronized {
+          var idx = 0
+          val len = runtime.fiberErrorCbs.hashtable.length
+          while (idx < len) {
+            val cb = runtime.fiberErrorCbs.hashtable(idx)
+            if (cb != null) {
+              cb(t)
+            }
+            idx += 1
+          }
+        }
+        Thread.currentThread().interrupt()
     }
   }
 

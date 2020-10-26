@@ -315,7 +315,7 @@ private[effect] final class WorkStealingThreadPool(
       }
 
       // `unsafeRunFiber(true)` will enqueue the fiber, no need to do it manually
-      IO(runnable.run()).unsafeRunFiber(_.fold(reportFailure(_), _ => ()))(self)
+      IO(runnable.run()).unsafeRunFiber(reportFailure, _ => ())(self)
       ()
     }
   }
@@ -339,8 +339,6 @@ private[effect] final class WorkStealingThreadPool(
     externalQueue.shutdown()
     // Send an interrupt signal to each of the worker threads.
     workerThreads.foreach(_.interrupt())
-    // Join all worker threads.
-    workerThreads.foreach(_.join())
     // Remove the references to the worker threads so that they can be cleaned up, including their worker queues.
     for (i <- 0 until workerThreads.length) {
       workerThreads(i) = null
