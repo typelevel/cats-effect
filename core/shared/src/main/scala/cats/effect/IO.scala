@@ -400,7 +400,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    * @param a value to be printed to the standard output
    */
-  def print[A: Show](a: A): IO[Unit] =
+  def print[A](a: A)(implicit S: Show[A] = Show.fromToString): IO[Unit] =
     Console[IO].print(a)
 
   /**
@@ -412,7 +412,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    * @param a value to be printed to the standard output
    */
-  def println[A: Show](a: A): IO[Unit] =
+  def println[A](a: A)(implicit S: Show[A] = Show.fromToString): IO[Unit] =
     Console[IO].println(a)
 
   def eval[A](fa: Eval[A]): IO[A] =
