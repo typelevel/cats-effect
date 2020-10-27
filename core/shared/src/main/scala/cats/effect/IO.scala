@@ -280,19 +280,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   /**
    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
-   */
-  def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(f: A => IO[B]): IO[T[B]] = ???
-
-  /**
-   * Like `Parallel.parSequence`, but limits the degree of parallelism.
    *
    * Based on https://github.com/monix/monix/blob/series/3.x/monix-eval/shared/src/main/scala/monix/eval/internal/TaskParSequenceN.scala
    */
-  def parSequenceN[T[_]: Traverse, A](n: Int)(tma: T[IO[A]]): IO[T[A]] =
+  def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(f: A => IO[B]): IO[T[B]] =
     for {
       error <- Deferred[IO, Throwable]
-      queue <- Queue.bounded[IO, (Deferred[IO, A], IO[A])](n)
-      pairs <- tma.traverse(task => Deferred[IO, A].map(p => (p, task)))
+      queue <- Queue.bounded[IO, (Deferred[IO, B], IO[B])](n)
+      pairs <- ta.traverse(a => Deferred[IO, B].map(p => (p, f(a))))
       _ <- pairs.traverse_(queue.offer(_))
       workers =
         List
@@ -323,6 +318,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
         }
       } { fibers => fibers.traverse(_.cancel).void }
     } yield res
+
+  /**
+   * Like `Parallel.parSequence`, but limits the degree of parallelism.
+   */
+  def parSequenceN[T[_]: Traverse, A](n: Int)(tma: T[IO[A]]): IO[T[A]] =
+    parTraverseN(n)(tma)(identity)
 
   def pure[A](value: A): IO[A] = Pure(value)
 
