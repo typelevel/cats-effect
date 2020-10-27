@@ -81,27 +81,27 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
   }
 
   /**
-   * Like `Parallel.parTraverse`, but limits the degree of parallelism.
-   */
-  def parTraverseN[T[_]: Traverse, A, B](n: Long)(ta: T[A])(
-      f: A => F[B])(implicit P: Parallel[F], ev: E <:< Throwable): F[T[B]] = {
-    implicit val F: Concurrent[F] = this.asInstanceOf[GenConcurrent[F, Throwable]]
-    for {
-      semaphore <- Semaphore[F](n)
-      tb <- ta.parTraverse { a => semaphore.permit.use(_ => f(a)) }
-    } yield tb
-  }
-
-  /**
    * Like `Parallel.parSequence`, but limits the degree of parallelism.
    */
-  def parSequenceN[T[_]: Traverse, A](n: Long)(
+  def parSequenceN[T[_]: Traverse, A](n: Int)(
       tma: T[F[A]])(implicit P: Parallel[F], ev: E <:< Throwable): F[T[A]] = {
     implicit val F: Concurrent[F] = this.asInstanceOf[GenConcurrent[F, Throwable]]
     for {
-      semaphore <- Semaphore[F](n)
+      semaphore <- Semaphore[F](n.toLong)
       mta <- tma.map(x => semaphore.permit.use(_ => x)).parSequence
     } yield mta
+  }
+
+  /**
+   * Like `Parallel.parTraverse`, but limits the degree of parallelism.
+   */
+  def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(
+      f: A => F[B])(implicit P: Parallel[F], ev: E <:< Throwable): F[T[B]] = {
+    implicit val F: Concurrent[F] = this.asInstanceOf[GenConcurrent[F, Throwable]]
+    for {
+      semaphore <- Semaphore[F](n.toLong)
+      tb <- ta.parTraverse { a => semaphore.permit.use(_ => f(a)) }
+    } yield tb
   }
 
 }
