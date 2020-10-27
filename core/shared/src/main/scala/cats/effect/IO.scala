@@ -310,7 +310,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
               .start
           }
           .parSequence
-      res <- workers.bracketCase { _ =>
+      res <- workers.bracket { _ =>
         IO.race(
           error.get,
           (pairs.map(_._1.get)).sequence
@@ -321,13 +321,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
           case Right(values) =>
             IO.pure(values)
         }
-      } {
-        case (fibers, exit) =>
-          exit match {
-            case Outcome.Succeeded(_) => IO.unit
-            case _ => fibers.traverse(_.cancel).void
-          }
-      }
+      } { fibers => fibers.traverse(_.cancel).void }
     } yield res
 
   def pure[A](value: A): IO[A] = Pure(value)
