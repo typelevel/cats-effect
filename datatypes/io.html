@@ -1451,7 +1451,7 @@ but only if there’s an <code class="language-plaintext highlighter-rouge">Exec
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Potentially cancelable!"</span><span class="o">)).</span><span class="py">unsafeRunCancelable</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Potentially cancelable!</span>
 <span class="c1">// res59: cats.effect.package.CancelToken[IO] = Suspend(</span>
-<span class="c1">//   thunk = cats.effect.internals.IOConnection$Impl$$Lambda$10049/0x0000000802b67040@2df31d44</span>
+<span class="c1">//   thunk = cats.effect.internals.IOConnection$Impl$$Lambda$9980/0x0000000802b1f040@27704466</span>
 <span class="c1">// )</span>
 </code></pre></div></div>
 
