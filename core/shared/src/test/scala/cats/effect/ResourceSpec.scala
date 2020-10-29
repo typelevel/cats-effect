@@ -470,6 +470,25 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     //   }
     // }
 
+    "surround - should wrap an effect in a usage and ignore the value produced by resource" in ticked {
+      implicit ticker =>
+        val r = Resource.liftF(IO.pure(0))
+        val surroundee = IO(1)
+        val surrounded = r.surround(surroundee)
+
+        surrounded eqv surroundee
+    }
+
+    "surroundK - should wrap an effect in a usage, ignore the value produced by resource and return FunctionK" in ticked {
+      implicit ticker =>
+        val r = Resource.liftF(IO.pure(0))
+        val surroundee = IO(1)
+        val surround = r.surroundK
+        val surrounded = surround(surroundee)
+
+        surrounded eqv surroundee
+    }
+
   }
 
   {

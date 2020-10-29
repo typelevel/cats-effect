@@ -417,6 +417,20 @@ sealed abstract class Resource[+F[_], +A] {
    */
 
   private[effect] def invariant: Resource.InvariantResource[F0, A]
+
+  /**
+   * Wraps an effect in a usage and ignores the value produced by resource.
+   */
+  def surround[G[x] >: F[x]: Resource.Bracket, B >: A](gb: G[B]): G[B] =
+    use(_ => gb)
+
+  /**
+   * Creates a FunctionK that wraps an effect in a usage when applied. Value produced by the resource is ignored.
+   */
+  def surroundK[G[x] >: F[x]: Resource.Bracket]: G ~> G =
+    new (G ~> G) {
+      override def apply[B](gb: G[B]): G[B] = use(_ => gb)
+    }
 }
 
 object Resource extends ResourceInstances with ResourcePlatform {
