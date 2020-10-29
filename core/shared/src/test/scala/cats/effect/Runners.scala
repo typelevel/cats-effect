@@ -294,7 +294,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     }
 
   def unsafeRunSync[A](ioa: SyncIO[A]): Outcome[Id, Throwable, A] =
-    try Outcome.completed[Id, Throwable, A](ioa.unsafeRunSync())
+    try Outcome.succeeded[Id, Throwable, A](ioa.unsafeRunSync())
     catch {
       case _: CancellationException => Outcome.canceled
       case t: Throwable => Outcome.errored(t)
