@@ -17,7 +17,7 @@
 package cats.effect.std
 
 import cats.~>
-import cats.effect.kernel.{Deferred, GenConcurrent, Poll, Ref}
+import cats.effect.kernel.{Deferred, GenConcurrent, Ref}
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
 
@@ -28,6 +28,8 @@ trait Dequeue[F[_], A] extends Queue[F, A] { self =>
 
   def offerBack(a: A): F[Unit]
 
+  def tryOfferBack(a: A): F[Boolean]
+
   def takeBack: F[A]
 
   def tryTakeBack: F[Option[A]]
@@ -36,6 +38,7 @@ trait Dequeue[F[_], A] extends Queue[F, A] { self =>
     new Dequeue[G, A] {
       def offer(a: A): G[Unit] = f(self.offer(a))
       def tryOffer(a: A): G[Boolean] = f(self.tryOffer(a))
+      def tryOfferBack(a: A): G[Boolean] = f(self.tryOfferBack(a))
       def take: G[A] = f(self.take)
       def tryTake: G[Option[A]] = f(self.tryTake)
       def offerBack(a: A): G[Unit] = f(self.offerBack(a))
@@ -71,23 +74,104 @@ object Dequeue {
   def unbounded[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     bounded(Int.MaxValue)
 
-  private[std] class BoundedDequeue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])
+  private[std] class BoundedDequeue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
+      implicit F: GenConcurrent[F, _])
       extends Dequeue[F, A] {
 
-    override def offer(a: A): F[Unit] = ???
+    override def offer(a: A): F[Unit] =
+      F.deferred[Unit].flatMap { offerer =>
+        F.uncancelable { poll =>
+          state.modify {
+            case State(queue, size, takers, offerers) if takers.nonEmpty =>
+              val (taker, rest) = takers.dequeue
+              State(queue, size, rest, offerers) -> taker.complete(a).void
 
-    override def tryOffer(a: A): F[Boolean] = ???
+            case State(queue, size, takers, offerers) if size < capacity =>
+              State(queue.pushBack(a), size + 1, takers, offerers) -> F.unit
 
-    override def take: F[A] = ???
+            case s =>
+              val State(queue, size, takers, offerers) = s
+              val cleanup = state.update { s =>
+                s.copy(offerers = s.offerers.filter(_._2 ne offerer))
+              }
+              State(queue, size, takers, offerers.enqueue(a -> offerer)) -> poll(offerer.get)
+                .onCancel(cleanup)
+          }.flatten
+        }
+      }
 
-    override def tryTake: F[Option[A]] = ???
+    override def tryOffer(a: A): F[Boolean] =
+      state
+        .modify {
+          case State(queue, size, takers, offerers) if takers.nonEmpty =>
+            val (taker, rest) = takers.dequeue
+            State(queue, size, rest, offerers) -> taker.complete(a).as(true)
+
+          case State(queue, size, takers, offerers) if size < capacity =>
+            State(queue.pushBack(a), size + 1, takers, offerers) -> F.pure(true)
+
+          case s =>
+            s -> F.pure(false)
+        }
+        .flatten
+        .uncancelable
+
+    override def take: F[A] =
+      F.deferred[A].flatMap { taker =>
+        F.uncancelable { poll =>
+          state.modify {
+            case State(queue, size, takers, offerers) if queue.nonEmpty && offerers.isEmpty =>
+              val (rest, ma) = queue.tryPopFront
+              val a = ma.get
+              State(rest, size - 1, takers, offerers) -> F.pure(a)
+
+            case State(queue, size, takers, offerers) if queue.nonEmpty =>
+              val (rest, ma) = queue.tryPopFront
+              val a = ma.get
+              val ((move, release), tail) = offerers.dequeue
+              State(rest.pushBack(move), size, takers, tail) -> release.complete(()).as(a)
+
+            case State(queue, size, takers, offerers) if offerers.nonEmpty =>
+              val ((a, release), rest) = offerers.dequeue
+              State(queue, size, takers, rest) -> release.complete(()).as(a)
+
+            case State(queue, size, takers, offerers) =>
+              val cleanup = state.update { s => s.copy(takers = s.takers.filter(_ ne taker)) }
+              State(queue, size, takers.enqueue(taker), offerers) ->
+                poll(taker.get).onCancel(cleanup)
+          }.flatten
+        }
+      }
+
+    override def tryTake: F[Option[A]] =
+      state
+        .modify {
+          case State(queue, size, takers, offerers) if queue.nonEmpty && offerers.isEmpty =>
+            val (rest, ma) = queue.tryPopFront
+            State(rest, size - 1, takers, offerers) -> F.pure(ma)
+
+          case State(queue, size, takers, offerers) if queue.nonEmpty =>
+            val (rest, ma) = queue.tryPopFront
+            val ((move, release), tail) = offerers.dequeue
+            State(rest.pushBack(move), size, takers, tail) -> release.complete(()).as(ma)
+
+          case State(queue, size, takers, offerers) if offerers.nonEmpty =>
+            val ((a, release), rest) = offerers.dequeue
+            State(queue, size, takers, rest) -> release.complete(()).as(a.some)
+
+          case s =>
+            s -> F.pure(none[A])
+        }
+        .flatten
+        .uncancelable
 
     override def offerBack(a: A): F[Unit] = ???
+
+    override def tryOfferBack(a: A): F[Boolean] = ???
 
     override def takeBack: F[A] = ???
 
     override def tryTakeBack: F[Option[A]] = ???
-
   }
 
   private def assertNonNegative(capacity: Int): Unit =
@@ -118,20 +202,8 @@ object Dequeue {
       back: List[A],
       backLen: Int) {
     import BankersQueue._
-    def rebalance(): BankersQueue[A] =
-      if (frontLen > rebalanceConstant * backLen + 1) {
-        val i = (frontLen + backLen) / 2
-        val j = frontLen + backLen - i
-        val f = front.take(i)
-        val b = back ++ f.drop(i).reverse
-        BankersQueue(f, i, b, j)
-      } else if (backLen > rebalanceConstant * frontLen + 1) {
-        val i = (frontLen + backLen) / 2
-        val j = frontLen + backLen - i
-        val f = front ++ back.drop(j).reverse
-        val b = back.take(j)
-        BankersQueue(f, i, b, j)
-      } else this
+
+    def nonEmpty: Boolean = frontLen > 0 || backLen > 0
 
     def pushFront(a: A): BankersQueue[A] =
       BankersQueue(a :: front, frontLen + 1, back, backLen).rebalance()
@@ -150,6 +222,22 @@ object Dequeue {
         BankersQueue(front, frontLen, back.tail, backLen - 1).rebalance() -> Some(back.head)
       else if (frontLen > 0) BankersQueue(Nil, 0, back, backLen) -> Some(front.head)
       else this -> None
+
+    def rebalance(): BankersQueue[A] =
+      if (frontLen > rebalanceConstant * backLen + 1) {
+        val i = (frontLen + backLen) / 2
+        val j = frontLen + backLen - i
+        val f = front.take(i)
+        val b = back ++ f.drop(i).reverse
+        BankersQueue(f, i, b, j)
+      } else if (backLen > rebalanceConstant * frontLen + 1) {
+        val i = (frontLen + backLen) / 2
+        val j = frontLen + backLen - i
+        val f = front ++ back.drop(j).reverse
+        val b = back.take(j)
+        BankersQueue(f, i, b, j)
+      } else this
+
   }
 
   object BankersQueue {
