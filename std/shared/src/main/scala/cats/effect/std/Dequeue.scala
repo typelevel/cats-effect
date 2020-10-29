@@ -34,16 +34,32 @@ trait Dequeue[F[_], A] extends Queue[F, A] { self =>
 
   def tryTakeBack: F[Option[A]]
 
+  def offerFront(a: A): F[Unit]
+
+  def tryOfferFront(a: A): F[Boolean]
+
+  def takeFront: F[A]
+
+  def tryTakeFront: F[Option[A]]
+
+  override def offer(a: A): F[Unit] = offerBack(a)
+
+  override def tryOffer(a: A): F[Boolean] = tryOfferBack(a)
+
+  override def take: F[A] = takeFront
+
+  override def tryTake: F[Option[A]] = tryTakeFront
+
   override def mapK[G[_]](f: F ~> G): Dequeue[G, A] =
     new Dequeue[G, A] {
-      def offer(a: A): G[Unit] = f(self.offer(a))
-      def tryOffer(a: A): G[Boolean] = f(self.tryOffer(a))
-      def tryOfferBack(a: A): G[Boolean] = f(self.tryOfferBack(a))
-      def take: G[A] = f(self.take)
-      def tryTake: G[Option[A]] = f(self.tryTake)
       def offerBack(a: A): G[Unit] = f(self.offerBack(a))
+      def tryOfferBack(a: A): G[Boolean] = f(self.tryOfferBack(a))
       def takeBack: G[A] = f(self.takeBack)
       def tryTakeBack: G[Option[A]] = f(self.tryTakeBack)
+      def offerFront(a: A): G[Unit] = f(self.offerFront(a))
+      def tryOfferFront(a: A): G[Boolean] = f(self.tryOfferFront(a))
+      def takeFront: G[A] = f(self.takeFront)
+      def tryTakeFront: G[Option[A]] = f(self.tryTakeFront)
     }
 
 }
@@ -78,29 +94,29 @@ object Dequeue {
       implicit F: GenConcurrent[F, _])
       extends Dequeue[F, A] {
 
-    override def offer(a: A): F[Unit] =
+    override def offerBack(a: A): F[Unit] =
       _offer(a, queue => queue.pushBack(a))
 
-    override def tryOffer(a: A): F[Boolean] =
-      _tryOffer(a, queue => queue.pushBack(a))
-
-    override def take: F[A] =
-      _take(queue => queue.tryPopFront)
-
-    override def tryTake: F[Option[A]] =
-      _tryTake(queue => queue.tryPopFront)
-
-    override def offerBack(a: A): F[Unit] =
-      _offer(a, queue => queue.pushFront(a))
-
     override def tryOfferBack(a: A): F[Boolean] =
-      _tryOffer(a, queue => queue.pushFront(a))
+      _tryOffer(a, queue => queue.pushBack(a))
 
     override def takeBack: F[A] =
       _take(queue => queue.tryPopBack)
 
     override def tryTakeBack: F[Option[A]] =
       _tryTake(queue => queue.tryPopBack)
+
+    override def offerFront(a: A): F[Unit] =
+      _offer(a, queue => queue.pushFront(a))
+
+    override def tryOfferFront(a: A): F[Boolean] =
+      _tryOffer(a, queue => queue.pushFront(a))
+
+    override def takeFront: F[A] =
+      _take(queue => queue.tryPopFront)
+
+    override def tryTakeFront: F[Option[A]] =
+      _tryTake(queue => queue.tryPopFront)
 
     private def _offer(a: A, update: BankersQueue[A] => BankersQueue[A]): F[Unit] =
       F.deferred[Unit].flatMap { offerer =>
