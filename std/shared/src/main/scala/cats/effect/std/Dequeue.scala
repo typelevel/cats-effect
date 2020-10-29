@@ -79,6 +79,30 @@ object Dequeue {
       extends Dequeue[F, A] {
 
     override def offer(a: A): F[Unit] =
+      _offer(a, queue => queue.pushBack(a))
+
+    override def tryOffer(a: A): F[Boolean] =
+      _tryOffer(a, queue => queue.pushBack(a))
+
+    override def take: F[A] =
+      _take(queue => queue.tryPopFront)
+
+    override def tryTake: F[Option[A]] =
+      _tryTake(queue => queue.tryPopFront)
+
+    override def offerBack(a: A): F[Unit] =
+      _offer(a, queue => queue.pushFront(a))
+
+    override def tryOfferBack(a: A): F[Boolean] =
+      _tryOffer(a, queue => queue.pushFront(a))
+
+    override def takeBack: F[A] =
+      _take(queue => queue.tryPopBack)
+
+    override def tryTakeBack: F[Option[A]] =
+      _tryTake(queue => queue.tryPopBack)
+
+    private def _offer(a: A, update: BankersQueue[A] => BankersQueue[A]): F[Unit] =
       F.deferred[Unit].flatMap { offerer =>
         F.uncancelable { poll =>
           state.modify {
@@ -87,7 +111,7 @@ object Dequeue {
               State(queue, size, rest, offerers) -> taker.complete(a).void
 
             case State(queue, size, takers, offerers) if size < capacity =>
-              State(queue.pushBack(a), size + 1, takers, offerers) -> F.unit
+              State(update(queue), size + 1, takers, offerers) -> F.unit
 
             case s =>
               val State(queue, size, takers, offerers) = s
@@ -100,7 +124,7 @@ object Dequeue {
         }
       }
 
-    override def tryOffer(a: A): F[Boolean] =
+    private def _tryOffer(a: A, update: BankersQueue[A] => BankersQueue[A]) =
       state
         .modify {
           case State(queue, size, takers, offerers) if takers.nonEmpty =>
@@ -108,7 +132,7 @@ object Dequeue {
             State(queue, size, rest, offerers) -> taker.complete(a).as(true)
 
           case State(queue, size, takers, offerers) if size < capacity =>
-            State(queue.pushBack(a), size + 1, takers, offerers) -> F.pure(true)
+            State(update(queue), size + 1, takers, offerers) -> F.pure(true)
 
           case s =>
             s -> F.pure(false)
@@ -116,17 +140,17 @@ object Dequeue {
         .flatten
         .uncancelable
 
-    override def take: F[A] =
+    private def _take(dequeue: BankersQueue[A] => (BankersQueue[A], Option[A])): F[A] =
       F.deferred[A].flatMap { taker =>
         F.uncancelable { poll =>
           state.modify {
             case State(queue, size, takers, offerers) if queue.nonEmpty && offerers.isEmpty =>
-              val (rest, ma) = queue.tryPopFront
+              val (rest, ma) = dequeue(queue)
               val a = ma.get
               State(rest, size - 1, takers, offerers) -> F.pure(a)
 
             case State(queue, size, takers, offerers) if queue.nonEmpty =>
-              val (rest, ma) = queue.tryPopFront
+              val (rest, ma) = dequeue(queue)
               val a = ma.get
               val ((move, release), tail) = offerers.dequeue
               State(rest.pushBack(move), size, takers, tail) -> release.complete(()).as(a)
@@ -143,15 +167,16 @@ object Dequeue {
         }
       }
 
-    override def tryTake: F[Option[A]] =
+    private def _tryTake(
+        dequeue: BankersQueue[A] => (BankersQueue[A], Option[A])): F[Option[A]] =
       state
         .modify {
           case State(queue, size, takers, offerers) if queue.nonEmpty && offerers.isEmpty =>
-            val (rest, ma) = queue.tryPopFront
+            val (rest, ma) = dequeue(queue)
             State(rest, size - 1, takers, offerers) -> F.pure(ma)
 
           case State(queue, size, takers, offerers) if queue.nonEmpty =>
-            val (rest, ma) = queue.tryPopFront
+            val (rest, ma) = dequeue(queue)
             val ((move, release), tail) = offerers.dequeue
             State(rest.pushBack(move), size, takers, tail) -> release.complete(()).as(ma)
 
@@ -164,14 +189,6 @@ object Dequeue {
         }
         .flatten
         .uncancelable
-
-    override def offerBack(a: A): F[Unit] = ???
-
-    override def tryOfferBack(a: A): F[Boolean] = ???
-
-    override def takeBack: F[A] = ???
-
-    override def tryTakeBack: F[Option[A]] = ???
   }
 
   private def assertNonNegative(capacity: Int): Unit =
