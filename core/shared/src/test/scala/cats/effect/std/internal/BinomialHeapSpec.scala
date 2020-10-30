@@ -38,6 +38,10 @@ class BinomialHeapSpec extends Specification with ScalaCheck {
       toList(heap) must beEqualTo(elems.sorted)
     }
 
+    /**
+     * The root of a heap must be <= any of its children and all of its children
+     * must also be heaps
+     */
     "maintain the heap property" in prop { elems: List[Int] =>
       val heap = buildHeap(elems)
 
