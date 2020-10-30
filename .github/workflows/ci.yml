@@ -21,7 +21,7 @@ jobs:
     name: Build and Test
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, self-hosted]
         scala: [0.27.0-RC1, 2.12.12, 2.13.3]
         java:
           - adopt@1.8
@@ -36,16 +36,20 @@ jobs:
             java: adopt@14
           - ci: ciJS
             java: graalvm8@20.1.0
+          - ci: ciJS
+            os: windows-latest
+          - ci: ciJS
+            os: self-hosted
           - ci: ciFirefox
             java: adopt@11
           - ci: ciFirefox
             java: adopt@14
           - ci: ciFirefox
             java: graalvm8@20.1.0
-          - ci: ciJS
-            os: windows-latest
           - ci: ciFirefox
             os: windows-latest
+          - ci: ciFirefox
+            os: self-hosted
     runs-on: ${{ matrix.os }}
     steps:
       - name: Ignore line ending differences in git

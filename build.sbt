@@ -38,6 +38,7 @@ ThisBuild / developers := List(
 
 val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
+val Arm = "self-hosted"
 
 val ScalaJSJava = "adopt@1.8"
 val Scala213 = "2.13.3"
@@ -51,7 +52,7 @@ val LatestJava = "adopt@14"
 val GraalVM8 = "graalvm8@20.1.0"
 
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
-ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
+ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, Arm)
 
 ThisBuild / githubWorkflowBuildPreamble +=
   WorkflowStep.Use(
@@ -81,13 +82,13 @@ ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> List("ciJVM", "ciJS", 
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   Seq("ciJS", "ciFirefox").flatMap { ci =>
-    (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)).map { java =>
-      MatrixExclude(Map("ci" -> ci, "java" -> java))
-    }
-  } ++ Seq(
-    MatrixExclude(Map("ci" -> "ciJS", "os" -> Windows)),
-    MatrixExclude(Map("ci" -> "ciFirefox", "os" -> Windows))
-  )
+    val jsExcl =
+      (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)).map { java =>
+        MatrixExclude(Map("ci" -> ci, "java" -> java))
+      }
+
+    jsExcl ++ Seq(Windows, Arm).map(os => MatrixExclude(Map("ci" -> ci, "os" -> os)))
+  }
 }
 
 lazy val useFirefoxEnv = settingKey[Boolean]("Use headless Firefox (via geckodriver) for running tests")
