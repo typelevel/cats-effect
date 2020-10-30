@@ -20,7 +20,7 @@ import cats.{~>, Order}
 import cats.implicits._
 import cats.effect.kernel.syntax.all._
 import cats.effect.kernel.{Concurrent, Deferred, Ref}
-import scala.annotation.tailrec
+import cats.effect.std.internal.BinomialHeap
 
 import scala.collection.immutable.{Queue => ScalaQueue}
 
@@ -214,117 +214,6 @@ object PQueue {
         ScalaQueue.empty,
         ScalaQueue.empty
       )
-  }
-
-  /**
-   * A binomial heap is a list of trees maintaining the following invariants:
-   * - The list is strictly monotonically increasing in the rank of the trees
-   *   In fact, a binomial heap built from n elements has is a tree of rank i
-   *   iff there is a 1 in the ith digit of the binary representation of n
-   *   Consequently, the length of the list is <= 1 + log(n)
-   * - Each tree satisfies the heap property (the value at any node is greater
-   *   than that of its parent). This means that the smallest element of the
-   *   heap is found at one of the roots of the trees
-   * - The ranks of the children of a node are strictly monotonically decreasing
-   *   (in fact the rank of the ith child is r - i)
-   */
-  private[std] abstract case class BinomialHeap[A](trees: List[Tree[A]]) { self =>
-
-    //Allows us to fix this on construction, ensuring some safety from
-    //different Ord instances for A
-    implicit val Ord: Order[A]
-
-    def nonEmpty: Boolean = trees.nonEmpty
-
-    def insert(tree: Tree[A]): BinomialHeap[A] =
-      BinomialHeap[A](BinomialHeap.insert(tree, trees))
-
-    def insert(a: A): BinomialHeap[A] = insert(Tree(0, a, Nil))
-
-    def take: (BinomialHeap[A], A) = {
-      val (ts, head) = BinomialHeap.take(trees)
-      BinomialHeap(ts) -> head.get
-    }
-
-    def tryTake: (BinomialHeap[A], Option[A]) = {
-      val (ts, head) = BinomialHeap.take(trees)
-      BinomialHeap(ts) -> head
-    }
-  }
-
-  private[std] object BinomialHeap {
-
-    def empty[A: Order]: BinomialHeap[A] = BinomialHeap(Nil)
-
-    def apply[A](trees: List[Tree[A]])(implicit ord: Order[A]) =
-      new BinomialHeap[A](trees) {
-        implicit val Ord = ord
-      }
-
-    /**
-     * Assumes trees is strictly monotonically increasing in rank
-     */
-    @tailrec
-    def insert[A: Order](tree: Tree[A], trees: List[Tree[A]]): List[Tree[A]] =
-      trees match {
-        case Nil => List(tree)
-        case l @ (t :: ts) =>
-          if (tree.rank < t.rank)
-            (tree :: l)
-          else insert(tree.link(t), ts)
-      }
-
-    /**
-     * Assumes each list is strictly monotonically increasing in rank
-     */
-    def merge[A: Order](lhs: List[Tree[A]], rhs: List[Tree[A]]): List[Tree[A]] =
-      (lhs, rhs) match {
-        case (Nil, ts) => ts
-        case (ts, Nil) => ts
-        case (l1 @ (t1 :: ts1), l2 @ (t2 :: ts2)) =>
-          if (t1.rank < t2.rank) t1 :: merge(ts1, l2)
-          else if (t2.rank < t1.rank) t2 :: merge(l1, ts2)
-          else insert(t1.link(t2), merge(ts1, ts2))
-      }
-
-    def take[A](trees: List[Tree[A]])(implicit Ord: Order[A]): (List[Tree[A]], Option[A]) = {
-      //Note this is partial but we don't want to allocate a NonEmptyList
-      def min(trees: List[Tree[A]]): (Tree[A], List[Tree[A]]) =
-        trees match {
-          case t :: Nil => (t, Nil)
-          case t :: ts => {
-            val (t1, ts1) = min(ts)
-            if (Ord.lteqv(t.value, t1.value)) (t, ts) else (t1, t :: ts1)
-          }
-          case _ => throw new AssertionError
-        }
-
-      trees match {
-        case Nil => Nil -> None
-        case l => {
-          val (t, ts) = min(l)
-          merge(t.children.reverse, ts) -> Some(t.value)
-        }
-      }
-
-    }
-
-  }
-
-  /**
-   * Children are stored in monotonically decreasing order of rank
-   */
-  private[std] final case class Tree[A](rank: Int, value: A, children: List[Tree[A]]) {
-
-    /**
-     * Link two trees of rank r to produce a tree of rank r + 1
-     */
-    def link(other: Tree[A])(implicit Ord: Order[A]): Tree[A] = {
-      if (Ord.lteqv(value, other.value))
-        Tree(rank + 1, value, other :: children)
-      else Tree(rank + 1, other.value, this :: other.children)
-    }
-
   }
 
   private def assertNonNegative(capacity: Int): Unit =
