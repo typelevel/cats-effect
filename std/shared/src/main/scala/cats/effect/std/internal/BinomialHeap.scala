@@ -32,7 +32,7 @@ import scala.annotation.tailrec
  * - The ranks of the children of a node are strictly monotonically decreasing
  *   (in fact the rank of the ith child is r - i)
  */
-private[std] abstract case class BinomialHeap[A](trees: List[Tree[A]]) { self =>
+private[std] abstract case class BinomialHeap[A](trees: List[BinomialTree[A]]) { self =>
 
   //Allows us to fix this on construction, ensuring some safety from
   //different Ord instances for A
@@ -40,10 +40,10 @@ private[std] abstract case class BinomialHeap[A](trees: List[Tree[A]]) { self =>
 
   def nonEmpty: Boolean = trees.nonEmpty
 
-  def insert(tree: Tree[A]): BinomialHeap[A] =
+  def insert(tree: BinomialTree[A]): BinomialHeap[A] =
     BinomialHeap[A](BinomialHeap.insert(tree, trees))
 
-  def insert(a: A): BinomialHeap[A] = insert(Tree(0, a, Nil))
+  def insert(a: A): BinomialHeap[A] = insert(BinomialTree(0, a, Nil))
 
   def take: (BinomialHeap[A], A) = {
     val (ts, head) = BinomialHeap.take(trees)
@@ -60,7 +60,7 @@ private[std] object BinomialHeap {
 
   def empty[A: Order]: BinomialHeap[A] = BinomialHeap(Nil)
 
-  def apply[A](trees: List[Tree[A]])(implicit ord: Order[A]) =
+  def apply[A](trees: List[BinomialTree[A]])(implicit ord: Order[A]) =
     new BinomialHeap[A](trees) {
       implicit val Ord = ord
     }
@@ -69,7 +69,9 @@ private[std] object BinomialHeap {
    * Assumes trees is strictly monotonically increasing in rank
    */
   @tailrec
-  def insert[A: Order](tree: Tree[A], trees: List[Tree[A]]): List[Tree[A]] =
+  def insert[A: Order](
+      tree: BinomialTree[A],
+      trees: List[BinomialTree[A]]): List[BinomialTree[A]] =
     trees match {
       case Nil => tree :: Nil
       case l @ (t :: ts) =>
@@ -81,7 +83,9 @@ private[std] object BinomialHeap {
   /**
    * Assumes each list is strictly monotonically increasing in rank
    */
-  def merge[A: Order](lhs: List[Tree[A]], rhs: List[Tree[A]]): List[Tree[A]] =
+  def merge[A: Order](
+      lhs: List[BinomialTree[A]],
+      rhs: List[BinomialTree[A]]): List[BinomialTree[A]] =
     (lhs, rhs) match {
       case (Nil, ts) => ts
       case (ts, Nil) => ts
@@ -91,9 +95,10 @@ private[std] object BinomialHeap {
         else insert(t1.link(t2), merge(ts1, ts2))
     }
 
-  def take[A](trees: List[Tree[A]])(implicit Ord: Order[A]): (List[Tree[A]], Option[A]) = {
+  def take[A](trees: List[BinomialTree[A]])(
+      implicit Ord: Order[A]): (List[BinomialTree[A]], Option[A]) = {
     //Note this is partial but we don't want to allocate a NonEmptyList
-    def min(trees: List[Tree[A]]): (Tree[A], List[Tree[A]]) =
+    def min(trees: List[BinomialTree[A]]): (BinomialTree[A], List[BinomialTree[A]]) =
       trees match {
         case t :: Nil => (t, Nil)
         case t :: ts => {
@@ -118,15 +123,18 @@ private[std] object BinomialHeap {
 /**
  * Children are stored in monotonically decreasing order of rank
  */
-private[std] final case class Tree[A](rank: Int, value: A, children: List[Tree[A]]) {
+private[std] final case class BinomialTree[A](
+    rank: Int,
+    value: A,
+    children: List[BinomialTree[A]]) {
 
   /**
    * Link two trees of rank r to produce a tree of rank r + 1
    */
-  def link(other: Tree[A])(implicit Ord: Order[A]): Tree[A] = {
+  def link(other: BinomialTree[A])(implicit Ord: Order[A]): BinomialTree[A] = {
     if (Ord.lteqv(value, other.value))
-      Tree(rank + 1, value, other :: children)
-    else Tree(rank + 1, other.value, this :: other.children)
+      BinomialTree(rank + 1, value, other :: children)
+    else BinomialTree(rank + 1, other.value, this :: other.children)
   }
 
 }
