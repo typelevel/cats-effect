@@ -67,7 +67,7 @@ trait Dequeue[F[_], A] extends Queue[F, A] { self =>
 object Dequeue {
 
   /**
-   * Constructs an empty, bounded queue holding up to `capacity` elements for
+   * Constructs an empty, bounded dequeue holding up to `capacity` elements for
    * `F` data types that are [[Concurrent]]. When the queue is full (contains
    * exactly `capacity` elements), every next [[Queue#offer]] will be
    * backpressured (i.e. the [[Queue#offer]] blocks semantically).
@@ -81,7 +81,7 @@ object Dequeue {
   }
 
   /**
-   * Constructs an empty, unbounded queue for `F` data types that are
+   * Constructs an empty, unbounded dequeue for `F` data types that are
    * [[Concurrent]]. [[Queue#offer]] never blocks semantically, as there is
    * always spare capacity in the queue.
    *
