@@ -121,7 +121,8 @@ private[std] object BinomialHeap {
 }
 
 /**
- * Children are stored in monotonically decreasing order of rank
+ * Children are stored in strictly monotonically decreasing order of rank
+ * A tree of rank r will have children of ranks r-1, r-2, ..., 1
  */
 private[std] final case class BinomialTree[A](
     rank: Int,
