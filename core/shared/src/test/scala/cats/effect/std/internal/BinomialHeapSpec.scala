@@ -71,8 +71,8 @@ class BinomialHeapSpec extends Specification with ScalaCheck {
    * The root of a heap must be <= any of its children and all of its children
    * must also be heaps
    */
-  private def validHeap[A: Order](tree: BinomialTree[A]): Boolean = {
-    def validHeap[A](parent: A, tree: BinomialTree[A])(implicit Ord: Order[A]): Boolean =
+  private def validHeap[A](tree: BinomialTree[A])(implicit Ord: Order[A]): Boolean = {
+    def validHeap(parent: A, tree: BinomialTree[A]): Boolean =
       Ord.lteqv(parent, tree.value) && tree.children.forall(validHeap(tree.value, _))
 
     tree.children match {
