@@ -421,7 +421,7 @@ sealed abstract class Resource[+F[_], +A] {
   /**
    * Wraps an effect in a usage and ignores the value produced by resource.
    */
-  def surround[G[x] >: F[x]: Resource.Bracket, B >: A](gb: G[B]): G[B] =
+  def surround[G[x] >: F[x]: Resource.Bracket, B](gb: G[B]): G[B] =
     use(_ => gb)
 
   /**
@@ -429,7 +429,7 @@ sealed abstract class Resource[+F[_], +A] {
    */
   def surroundK[G[x] >: F[x]: Resource.Bracket]: G ~> G =
     new (G ~> G) {
-      override def apply[B](gb: G[B]): G[B] = use(_ => gb)
+      override def apply[B](gb: G[B]): G[B] = surround(gb)
     }
 }
 
