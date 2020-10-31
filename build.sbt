@@ -22,7 +22,7 @@ import scala.sys.process._
 ThisBuild / baseVersion := "2.2"
 
 val OldScala = "2.12.12"
-ThisBuild / crossScalaVersions := Seq("0.26.0", "0.27.0-RC1", OldScala, "2.13.3")
+ThisBuild / crossScalaVersions := Seq("0.27.0-RC1", OldScala, "2.13.3")
 ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@11")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/2.x")
@@ -52,7 +52,7 @@ ThisBuild / scmInfo := Some(
   ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")
 )
 
-val CatsVersion = "2.2.0"
+val CatsVersion = "2.3.0-M1"
 val DisciplineMunitVersion = "0.3.0"
 val SilencerVersion = "1.7.1"
 
@@ -244,7 +244,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "cats-core" % CatsVersion,
       "org.typelevel" %%% "cats-laws" % CatsVersion % Test,
       "org.typelevel" %%% "discipline-munit" % DisciplineMunitVersion % Test
-    ).map(_.withDottyCompat(scalaVersion.value)),
+    ),
     libraryDependencies ++= {
       if (isDotty.value)
         Seq(
@@ -286,7 +286,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
       "org.typelevel" %%% "discipline-munit" % DisciplineMunitVersion % Test
-    ).map(_.withDottyCompat(scalaVersion.value))
+    )
   )
   .jvmSettings(
     mimaPreviousArtifacts := {
@@ -315,7 +315,7 @@ lazy val runtimeTests = project
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
       "org.typelevel" %%% "discipline-munit" % DisciplineMunitVersion % Test
-    ).map(_.withDottyCompat(scalaVersion.value))
+    )
   )
   .configs(FullTracingTest)
   .settings(inConfig(FullTracingTest)(Defaults.testSettings): _*)
