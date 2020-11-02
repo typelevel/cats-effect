@@ -84,9 +84,9 @@ class BankersQueueSpec extends Specification with ScalaCheck {
           (1, Gen.const(PopFront)),
           (1, Gen.const(PopBack)),
           (
-            3,
+            3, //Bias the generation to produce non-trivial queues
             arbitrary[A].map(PushFront(_))
-          ), //Bias the generation to produce non-trivial queues
+          ),
           (3, arbitrary[A].map(PushBack(_)))
         )
       )

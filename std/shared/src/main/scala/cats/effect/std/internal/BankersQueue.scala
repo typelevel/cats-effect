@@ -46,7 +46,6 @@ private[std] final case class BankersQueue[A](
 
   def tryPopBack: (BankersQueue[A], Option[A]) =
     if (backLen > 0) {
-      // println(this)
       BankersQueue(front, frontLen, back.tail, backLen - 1).rebalance() -> Some(back.head)
     } else if (frontLen > 0) BankersQueue(Nil, 0, back, backLen) -> Some(front.head)
     else this -> None
