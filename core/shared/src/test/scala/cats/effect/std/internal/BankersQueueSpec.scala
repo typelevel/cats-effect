@@ -102,10 +102,4 @@ class BankersQueueSpec extends Specification with ScalaCheck {
 
       }
   }
-
-  // private def toList[A](heap: BankersQueue[A]): List[A] =
-  //   heap.tryTake match {
-  //     case (rest, Some(a)) => a :: toList(rest)
-  //     case _ => Nil
-  //   }
 }

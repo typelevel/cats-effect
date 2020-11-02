@@ -45,9 +45,10 @@ private[std] final case class BankersQueue[A](
     else this -> None
 
   def tryPopBack: (BankersQueue[A], Option[A]) =
-    if (backLen > 0)
+    if (backLen > 0) {
+      // println(this)
       BankersQueue(front, frontLen, back.tail, backLen - 1).rebalance() -> Some(back.head)
-    else if (frontLen > 0) BankersQueue(Nil, 0, back, backLen) -> Some(front.head)
+    } else if (frontLen > 0) BankersQueue(Nil, 0, back, backLen) -> Some(front.head)
     else this -> None
 
   def rebalance(): BankersQueue[A] =
@@ -55,7 +56,7 @@ private[std] final case class BankersQueue[A](
       val i = (frontLen + backLen) / 2
       val j = frontLen + backLen - i
       val f = front.take(i)
-      val b = back ++ f.drop(i).reverse
+      val b = back ++ front.drop(i).reverse
       BankersQueue(f, i, b, j)
     } else if (backLen > rebalanceConstant * frontLen + 1) {
       val i = (frontLen + backLen) / 2
