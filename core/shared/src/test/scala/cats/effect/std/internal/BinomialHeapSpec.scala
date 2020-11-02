@@ -26,6 +26,8 @@ import cats.Order
 import org.specs2.mutable.Specification
 import org.specs2.ScalaCheck
 
+import org.scalacheck.{Arbitrary, Gen}, Arbitrary.arbitrary
+
 class BinomialHeapSpec extends Specification with ScalaCheck {
 
   implicit val orderForInt: Order[Int] = Order.fromLessThan((x, y) => x < y)
@@ -42,8 +44,8 @@ class BinomialHeapSpec extends Specification with ScalaCheck {
      * The root of a heap must be <= any of its children and all of its children
      * must also be heaps
      */
-    "maintain the heap property" in prop { elems: List[Int] =>
-      val heap = buildHeap(elems)
+    "maintain the heap property" in prop { ops: List[Op[Int]] =>
+      val heap = Op.toHeap(ops)
 
       heap.trees.forall(validHeap(_)) must beTrue
     }
@@ -57,8 +59,8 @@ class BinomialHeapSpec extends Specification with ScalaCheck {
      * should be trees of monotonically decreasing rank
      * i-1, i-2, ..., 1
      */
-    "maintain correct subtree ranks" in prop { elems: List[Int] =>
-      val heap = buildHeap(elems)
+    "maintain correct subtree ranks" in prop { ops: List[Op[Int]] =>
+      val heap = Op.toHeap(ops)
 
       var currentRank = 0
       heap.trees.forall { t =>
@@ -112,5 +114,28 @@ class BinomialHeapSpec extends Specification with ScalaCheck {
           case (r, t) => checkRank(r, t)
         }
     }
+
+  sealed trait Op[+A]
+  case class Insert[A](a: A) extends Op[A]
+  case object Take extends Op[Nothing]
+
+  object Op {
+    implicit def arbitraryForOp[A: Arbitrary]: Arbitrary[Op[A]] =
+      Arbitrary(
+        Gen.frequency(
+          (1, Gen.const(Take)),
+          (3, arbitrary[A].map(Insert(_))) //Bias towards insert to generate non-trivial heaps
+        )
+      )
+
+    def toHeap[A: Order](ops: List[Op[A]]) =
+      ops.foldLeft(BinomialHeap.empty[A]) { (heap, op) =>
+        op match {
+          case Insert(a) => heap.insert(a)
+          case Take => heap.tryTake._1
+        }
+
+      }
+  }
 
 }
