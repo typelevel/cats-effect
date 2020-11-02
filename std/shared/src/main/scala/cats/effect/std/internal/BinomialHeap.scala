@@ -45,6 +45,10 @@ private[std] abstract case class BinomialHeap[A](trees: List[BinomialTree[A]]) {
 
   def insert(a: A): BinomialHeap[A] = insert(BinomialTree(0, a, Nil))
 
+  /**
+   * Assumes heap is non-empty. Used in Dequeue where we track
+   * size externally
+   */
   def take: (BinomialHeap[A], A) = {
     val (ts, head) = BinomialHeap.take(trees)
     BinomialHeap(ts) -> head.get
