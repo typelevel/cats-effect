@@ -24,7 +24,7 @@ import scala.concurrent.duration.FiniteDuration
 import cats.kernel.{Monoid, Semigroup}
 import cats.{Defer, Monad}
 
-trait Clock[F[_]] extends Applicative[F] {
+trait Clock[F[_]] extends ClockPlatform[F] with Applicative[F] {
 
   // (monotonic, monotonic).mapN(_ <= _)
   def monotonic: F[FiniteDuration]

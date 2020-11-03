@@ -15,27 +15,9 @@
  */
 
 package cats.effect
-import scalajs.js
+import java.time.Instant
 
-import scala.scalajs.js.Promise
-
-private[effect] abstract class IOCompanionPlatform { this: IO.type =>
-
-  def blocking[A](thunk: => A): IO[A] =
-    apply(thunk)
-
-  def interruptible[A](many: Boolean)(thunk: => A): IO[A] = {
-    val _ = many
-    apply(thunk)
-  }
-
-  def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] = {
-    val _ = hint
-    apply(thunk)
-  }
-
-  def fromPromise[A](iop: IO[Promise[A]]): IO[A] =
-    asyncForIO.fromPromise(iop)
-
-  def nowJsDate: IO[js.Date] = asyncForIO.nowJsDate
+private[effect] trait SyncIOCompanionPlatform { this: SyncIO.type =>
+  final def now: SyncIO[Instant] =
+    syncForSyncIO.map(syncForSyncIO.realTime)(d => Instant.ofEpochMilli(d.toMillis))
 }

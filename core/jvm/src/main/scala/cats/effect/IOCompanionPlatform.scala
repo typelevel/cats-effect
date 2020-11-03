@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import java.time.Instant
 import java.util.concurrent.CompletableFuture
 
 private[effect] abstract class IOCompanionPlatform { this: IO.type =>
@@ -51,4 +52,6 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
         }
       }
     }
+
+  def now: IO[Instant] = asyncForIO.now
 }

@@ -20,14 +20,16 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.effect.laws.SyncTests
 import cats.effect.testkit.SyncTypeGenerators
 import cats.syntax.all._
-
-import org.scalacheck.Prop, Prop.forAll
-
+import org.scalacheck.Prop
+import Prop.forAll
 import org.specs2.ScalaCheck
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class SyncIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
+class SyncIOSpec
+    extends SyncIOPlatformSpecification
+    with Discipline
+    with ScalaCheck
+    with BaseSpec {
 
   import SyncTypeGenerators._
 
@@ -212,4 +214,5 @@ class SyncIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck
     )
   }
 
+  platformSpecs
 }

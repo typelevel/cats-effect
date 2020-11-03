@@ -15,27 +15,23 @@
  */
 
 package cats.effect
-import scalajs.js
 
-import scala.scalajs.js.Promise
+import org.specs2.mutable.Specification
 
-private[effect] abstract class IOCompanionPlatform { this: IO.type =>
+abstract class SyncIOPlatformSpecification extends Specification with Runners {
+  def platformSpecs = {
+    "platform" should {
+      "now should return an Instant constructed from realTime" in {
+        // Unfortunately since SyncIO doesn't rely on a controllable
+        // time source, this is the best I can do
+        val op = for {
+          realTime <- SyncIO.realTime
+          jsDate <- SyncIO.nowJsDate
+        } yield (jsDate.getTime().toLong - realTime.toMillis) <= 30
 
-  def blocking[A](thunk: => A): IO[A] =
-    apply(thunk)
-
-  def interruptible[A](many: Boolean)(thunk: => A): IO[A] = {
-    val _ = many
-    apply(thunk)
+        op must completeAsSync(true)
+      }
+    }
   }
 
-  def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] = {
-    val _ = hint
-    apply(thunk)
-  }
-
-  def fromPromise[A](iop: IO[Promise[A]]): IO[A] =
-    asyncForIO.fromPromise(iop)
-
-  def nowJsDate: IO[js.Date] = asyncForIO.nowJsDate
 }
