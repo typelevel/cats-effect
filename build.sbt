@@ -23,7 +23,7 @@ ThisBuild / baseVersion := "2.2"
 
 val OldScala = "2.12.12"
 ThisBuild / crossScalaVersions := Seq("0.26.0", "0.27.0-RC1", OldScala, "2.13.3")
-ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@11")
+ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/2.x")
 
