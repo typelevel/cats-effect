@@ -182,13 +182,14 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
         run.evalOn(ec).guarantee(IO(ec.shutdown())).flatMap { res => IO(res must beTrue) }
       }
 
-      "now should return an Instant constructed from realTime" in ticked { implicit ticker =>
-        val op = for {
-          now <- IO.now
-          realTime <- IO.realTime
-        } yield now.toEpochMilli == realTime.toMillis
+      "instantNow should return an Instant constructed from realTime" in ticked {
+        implicit ticker =>
+          val op = for {
+            now <- IO.instantNow
+            realTime <- IO.realTime
+          } yield now.toEpochMilli == realTime.toMillis
 
-        op must completeAs(true)
+          op must completeAs(true)
       }
 
     }

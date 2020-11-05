@@ -19,5 +19,6 @@ package cats.effect.kernel
 import java.time.Instant
 
 private[effect] trait ClockPlatform[F[_]] { self: Clock[F] =>
-  def now: F[java.time.Instant] = self.map(self.realTime)(d => Instant.ofEpochMilli(d.toMillis))
+  def instantNow: F[java.time.Instant] =
+    self.map(self.realTime)(d => Instant.ofEpochMilli(d.toMillis))
 }
