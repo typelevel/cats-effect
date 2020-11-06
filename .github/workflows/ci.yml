@@ -25,23 +25,23 @@ jobs:
         scala: [0.27.0-RC1, 2.12.12, 2.13.3]
         java:
           - adopt@1.8
-          - adopt@11
-          - adopt@14
-          - graalvm8@20.1.0
+          - adopt@1.11
+          - adopt@1.15
+          - graalvm-ce-java8@20.2.0
         ci: [ciJVM, ciJS, ciFirefox]
         exclude:
           - ci: ciJS
-            java: adopt@11
+            java: adopt@1.11
           - ci: ciJS
-            java: adopt@14
+            java: adopt@1.15
           - ci: ciJS
-            java: graalvm8@20.1.0
+            java: graalvm-ce-java8@20.2.0
           - ci: ciFirefox
-            java: adopt@11
+            java: adopt@1.11
           - ci: ciFirefox
-            java: adopt@14
+            java: adopt@1.15
           - ci: ciFirefox
-            java: graalvm8@20.1.0
+            java: graalvm-ce-java8@20.2.0
           - ci: ciJS
             os: windows-latest
           - ci: ciFirefox
