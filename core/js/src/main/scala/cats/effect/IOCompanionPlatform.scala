@@ -15,6 +15,7 @@
  */
 
 package cats.effect
+
 import scalajs.js
 
 import scala.scalajs.js.Promise

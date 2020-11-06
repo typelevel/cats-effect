@@ -15,9 +15,9 @@
  */
 
 package cats.effect
+
 import scalajs.js
 
 private[effect] trait SyncIOCompanionPlatform { this: SyncIO.type =>
-  def jsDateNow: SyncIO[js.Date] =
-    syncForSyncIO.map(syncForSyncIO.realTime)(d => new js.Date(d.toMillis.toDouble))
+  final def jsDateNow: SyncIO[js.Date] = realTime.map(d => new js.Date(d.toMillis.toDouble))
 }
