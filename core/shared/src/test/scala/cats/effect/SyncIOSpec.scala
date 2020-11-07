@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.kernel.laws.discipline.MonoidTests
-import cats.effect.laws.SyncTests
+import cats.effect.laws.{MonadCancelTests, SyncTests}
 import cats.effect.testkit.SyncTypeGenerators
 import cats.syntax.all._
 
@@ -196,6 +196,68 @@ class SyncIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck
         .handleErrorWith(_ => (throw TestException): SyncIO[Unit])
         .attempt must completeAsSync(Left(TestException))
     }
+
+    "preserve monad right identity on uncancelable" in {
+      val fa = MonadCancel[SyncIO].uncancelable(_ => MonadCancel[SyncIO].canceled)
+      fa.flatMap(SyncIO.pure(_)) must beCanceledSync
+      fa must beCanceledSync
+    }
+
+    "cancel flatMap continuations following a canceled uncancelable block" in {
+      MonadCancel[SyncIO]
+        .uncancelable(_ => MonadCancel[SyncIO].canceled)
+        .flatMap(_ => SyncIO.pure(())) must beCanceledSync
+    }
+
+    "cancel map continuations following a canceled uncancelable block" in {
+      MonadCancel[SyncIO]
+        .uncancelable(_ => MonadCancel[SyncIO].canceled)
+        .map(_ => ()) must beCanceledSync
+    }
+
+    "sequence onCancel when canceled before registration" in {
+      var passed = false
+      val test = MonadCancel[SyncIO].uncancelable { poll =>
+        MonadCancel[SyncIO].canceled >> poll(SyncIO.unit).onCancel(SyncIO { passed = true })
+      }
+
+      test must beCanceledSync
+      passed must beTrue
+    }
+
+    "break out of uncancelable when canceled before poll" in {
+      var passed = true
+      val test = MonadCancel[SyncIO].uncancelable { poll =>
+        MonadCancel[SyncIO].canceled >> poll(SyncIO.unit) >> SyncIO { passed = false }
+      }
+
+      test must beCanceledSync
+      passed must beTrue
+    }
+
+    "not invoke onCancel when previously canceled within uncancelable" in {
+      var failed = false
+      MonadCancel[SyncIO].uncancelable(_ =>
+        MonadCancel[SyncIO].canceled >> SyncIO
+          .unit
+          .onCancel(SyncIO { failed = true })) must beCanceledSync
+      failed must beFalse
+    }
+
+    "ignore repeated polls" in {
+      var passed = true
+
+      val test = MonadCancel[SyncIO].uncancelable { poll =>
+        poll(poll(SyncIO.unit) >> MonadCancel[SyncIO].canceled) >> SyncIO { passed = false }
+      }
+
+      test must beCanceledSync
+      passed must beTrue
+    }
+
+    "mapping something with a finalizer should complete" in {
+      SyncIO.pure(42).onCancel(SyncIO.unit).as(()) must completeAsSync(())
+    }
   }
 
   {
@@ -212,4 +274,10 @@ class SyncIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck
     )
   }
 
+  {
+    checkAll(
+      "SyncIO MonadCancel",
+      MonadCancelTests[SyncIO, Throwable].monadCancel[Int, Int, Int]
+    )
+  }
 }
