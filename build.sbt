@@ -77,9 +77,9 @@ def scalaVersionSpecificFolders(srcName: String, srcBaseDir: java.io.File, scala
     List(CrossType.Pure, CrossType.Full)
       .flatMap(_.sharedSrcDir(srcBaseDir, srcName).toList.map(f => file(f.getPath + suffix)))
   CrossVersion.partialVersion(scalaVersion) match {
-    case Some((2, y)) => extraDirs("-2.x") ++ (if (y >= 13) extraDirs("-2.13+") else Nil)
+    case Some((2, y))     => extraDirs("-2.x") ++ (if (y >= 13) extraDirs("-2.13+") else Nil)
     case Some((0 | 3, _)) => extraDirs("-2.13+") ++ extraDirs("-3.x")
-    case _            => Nil
+    case _                => Nil
   }
 }
 
@@ -241,9 +241,7 @@ lazy val root = project
   .disablePlugins(MimaPlugin)
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS, runtimeTests)
   .settings(noPublishSettings)
-  .settings(
-    crossScalaVersions := Seq(),
-    scalaVersion := OldScala)
+  .settings(crossScalaVersions := Seq(), scalaVersion := OldScala)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
