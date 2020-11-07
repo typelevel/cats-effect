@@ -78,7 +78,7 @@ import cats.effect.tracing.{IOEvent, IOTrace}
  *       if (n > 0)
  *         fib(n - 1, b, b2)
  *       else
- *         IO.pure(b2)
+ *         IO.pure(a)
  *     }
  * }}}
  */
