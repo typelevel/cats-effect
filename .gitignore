@@ -13,3 +13,5 @@ benchmarks/results
 .bloop
 .bundle
 project/metals.sbt
+
+/.bsp/

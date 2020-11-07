@@ -22,7 +22,12 @@ import scala.sys.process._
 ThisBuild / baseVersion := "2.2"
 
 val OldScala = "2.12.12"
-ThisBuild / crossScalaVersions := Seq("0.26.0", "0.27.0-RC1", OldScala, "2.13.3")
+val OldDotty = "0.27.0-RC1"
+val NewDotty = "3.0.0-M1"
+
+ThisBuild / crossScalaVersions := Seq(OldDotty, NewDotty, OldScala, "2.13.3")
+ThisBuild / scalaVersion := (ThisBuild / crossScalaVersions).value.last
+
 ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/2.x")
@@ -52,7 +57,7 @@ ThisBuild / scmInfo := Some(
   ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")
 )
 
-val CatsVersion = "2.2.0"
+val CatsVersion = "2.3.0-M2"
 val DisciplineMunitVersion = "1.0.1"
 val SilencerVersion = "1.7.1"
 
@@ -72,9 +77,9 @@ def scalaVersionSpecificFolders(srcName: String, srcBaseDir: java.io.File, scala
     List(CrossType.Pure, CrossType.Full)
       .flatMap(_.sharedSrcDir(srcBaseDir, srcName).toList.map(f => file(f.getPath + suffix)))
   CrossVersion.partialVersion(scalaVersion) match {
-    case Some((2, y)) => extraDirs("-2.x") ++ (if (y >= 13) extraDirs("-2.13+") else Nil)
-    case Some((0, _)) => extraDirs("-2.13+") ++ extraDirs("-3.x")
-    case _            => Nil
+    case Some((2, y))     => extraDirs("-2.x") ++ (if (y >= 13) extraDirs("-2.13+") else Nil)
+    case Some((0 | 3, _)) => extraDirs("-2.13+") ++ extraDirs("-3.x")
+    case _                => Nil
   }
 }
 
@@ -188,6 +193,7 @@ val mimaSettings = Seq(
 )
 
 lazy val scalaJSSettings = Seq(
+  crossScalaVersions := (ThisBuild / crossScalaVersions).value.filter(_.startsWith("2.")),
   // Use globally accessible (rather than local) source paths in JS source maps
   scalacOptions ++= {
     val hasVersion = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.nonEmpty
@@ -217,7 +223,8 @@ lazy val scalaJSSettings = Seq(
       if (isDotty.value) s.startsWith("-P:scalajs:mapSourceURI")
       else false
     }
-  }
+  },
+  crossScalaVersions := crossScalaVersions.value.filter(_.startsWith("2."))
 )
 
 lazy val sharedSourcesSettings = Seq(
@@ -234,6 +241,7 @@ lazy val root = project
   .disablePlugins(MimaPlugin)
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS, runtimeTests)
   .settings(noPublishSettings)
+  .settings(crossScalaVersions := Seq(), scalaVersion := OldScala)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
@@ -244,7 +252,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "cats-core" % CatsVersion,
       "org.typelevel" %%% "cats-laws" % CatsVersion % Test,
       "org.typelevel" %%% "discipline-munit" % DisciplineMunitVersion % Test
-    ).map(_.withDottyCompat(scalaVersion.value)),
+    ),
     libraryDependencies ++= {
       if (isDotty.value)
         Seq(
@@ -268,11 +276,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
     mimaFailOnNoPrevious := !isDotty.value
   )
   .jsSettings(scalaJSSettings)
-  // Workaround for enabling dotty Scala.js for 0.27.0-RC1
-  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
-  .jsSettings(
-    crossScalaVersions := ("0.27.0-RC1" +: crossScalaVersions.value)
-  )
 
 lazy val coreJVM = core.jvm
 lazy val coreJS = core.js
@@ -286,7 +289,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
       "org.typelevel" %%% "discipline-munit" % DisciplineMunitVersion % Test
-    ).map(_.withDottyCompat(scalaVersion.value))
+    )
   )
   .jvmSettings(
     mimaPreviousArtifacts := {
@@ -296,11 +299,6 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
     mimaFailOnNoPrevious := !isDotty.value
   )
   .jsSettings(scalaJSSettings)
-  // Workaround for enabling dotty Scala.js for 0.27.0-RC1
-  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
-  .jsSettings(
-    crossScalaVersions := ("0.27.0-RC1" +: crossScalaVersions.value)
-  )
 
 lazy val lawsJVM = laws.jvm
 lazy val lawsJS = laws.js
@@ -315,7 +313,7 @@ lazy val runtimeTests = project
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
       "org.typelevel" %%% "discipline-munit" % DisciplineMunitVersion % Test
-    ).map(_.withDottyCompat(scalaVersion.value))
+    )
   )
   .configs(FullTracingTest)
   .settings(inConfig(FullTracingTest)(Defaults.testSettings): _*)
