@@ -12,11 +12,11 @@
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>Provides safe concurrent access and modification of its content, but no functionality for synchronisation, which is instead handled by <code class="language-plaintext highlighter-rouge">Deferred</code>.</p>
+<p>Provides safe concurrent access and modification of its content, but no functionality for synchronisation, which is instead handled by <code class="highlighter-rouge">Deferred</code>.</p>
 
-<p>For this reason, a <code class="language-plaintext highlighter-rouge">Ref</code> is always initialised to a value.</p>
+<p>For this reason, a <code class="highlighter-rouge">Ref</code> is always initialised to a value.</p>
 
-<p>The default implementation is nonblocking and lightweight, consisting essentially of a purely functional wrapper over an <code class="language-plaintext highlighter-rouge">AtomicReference</code>.</p>
+<p>The default implementation is nonblocking and lightweight, consisting essentially of a purely functional wrapper over an <code class="highlighter-rouge">AtomicReference</code>.</p>
 
 <h3 id="concurrent-counter">Concurrent Counter</h3>
 
@@ -24,7 +24,7 @@
 
 <p>The workers will concurrently run and modify the value of the Ref so this is one possible outcome showing “#worker » currentCount”:</p>
 
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#2 &gt;&gt; 0
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#2 &gt;&gt; 0
 #1 &gt;&gt; 0
 #3 &gt;&gt; 0
 #1 &gt;&gt; 0
