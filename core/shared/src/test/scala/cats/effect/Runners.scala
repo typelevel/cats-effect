@@ -45,6 +45,7 @@ import scala.concurrent.{
 import scala.concurrent.duration._
 import scala.util.Try
 
+import java.io.{ByteArrayOutputStream, PrintStream}
 import java.util.concurrent.TimeUnit
 
 trait Runners extends SpecificationLike with RunnersPlatform { outer =>
@@ -225,7 +226,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     Try(io.unsafeRunSync()).toEither
 
   implicit def eqSyncIOA[A: Eq]: Eq[SyncIO[A]] =
-    Eq.by(unsafeRunSync)
+    Eq.by(unsafeRunSyncSupressedError)
 
   // feel the rhythm, feel the rhyme...
   implicit def boolRunnings(iob: IO[Boolean])(implicit ticker: Ticker): Prop =
@@ -299,6 +300,17 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
       case _: CancellationException => Outcome.canceled
       case t: Throwable => Outcome.errored(t)
     }
+
+  private def unsafeRunSyncSupressedError[A](ioa: SyncIO[A]): Outcome[Id, Throwable, A] = {
+    val old = System.err
+    val err = new PrintStream(new ByteArrayOutputStream())
+    try {
+      System.setErr(err)
+      unsafeRunSync(ioa)
+    } finally {
+      System.setErr(old)
+    }
+  }
 
   implicit def materializeRuntime(implicit ticker: Ticker): unsafe.IORuntime =
     unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => ())
