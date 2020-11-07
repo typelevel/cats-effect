@@ -19,7 +19,7 @@ import microsites.{ConfigYml, ExtraMdFileConfig}
 import scala.util.Try
 import scala.sys.process._
 
-ThisBuild / baseVersion := "2.2"
+ThisBuild / baseVersion := "2.3"
 
 val OldScala = "2.12.12"
 val OldDotty = "0.27.0-RC1"
