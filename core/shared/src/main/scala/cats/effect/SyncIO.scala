@@ -667,63 +667,57 @@ object SyncIO extends SyncIOLowPriorityImplicits {
 
   // implementations
 
-  private[effect] final case class Pure[+A](value: A) extends SyncIO[A] {
+  private final case class Pure[+A](value: A) extends SyncIO[A] {
     def tag = 0
     override def toString: String = s"SyncIO($value)"
   }
 
-  private[effect] final case class Delay[+A](thunk: () => A) extends SyncIO[A] {
+  private final case class Delay[+A](thunk: () => A) extends SyncIO[A] {
     def tag = 1
   }
 
-  private[effect] final case class Error(t: Throwable) extends SyncIO[Nothing] {
+  private final case class Error(t: Throwable) extends SyncIO[Nothing] {
     def tag = 2
   }
 
-  private[effect] final case class Map[E, +A](ioe: SyncIO[E], f: E => A) extends SyncIO[A] {
+  private final case class Map[E, +A](ioe: SyncIO[E], f: E => A) extends SyncIO[A] {
     def tag = 3
   }
 
-  private[effect] final case class FlatMap[E, +A](ioe: SyncIO[E], f: E => SyncIO[A])
-      extends SyncIO[A] {
+  private final case class FlatMap[E, +A](ioe: SyncIO[E], f: E => SyncIO[A]) extends SyncIO[A] {
     def tag = 4
   }
 
-  private[effect] final case class HandleErrorWith[+A](
-      ioa: SyncIO[A],
-      f: Throwable => SyncIO[A])
+  private final case class HandleErrorWith[+A](ioa: SyncIO[A], f: Throwable => SyncIO[A])
       extends SyncIO[A] {
     def tag = 5
   }
 
-  private[effect] final case class Success[+A](value: A) extends SyncIO[A] {
+  private final case class Success[+A](value: A) extends SyncIO[A] {
     def tag = 6
   }
 
-  private[effect] final case class Failure(t: Throwable) extends SyncIO[Nothing] {
+  private final case class Failure(t: Throwable) extends SyncIO[Nothing] {
     def tag = 7
   }
 
-  private[effect] final case class Attempt[+A](ioa: SyncIO[A])
-      extends SyncIO[Either[Throwable, A]] {
+  private final case class Attempt[+A](ioa: SyncIO[A]) extends SyncIO[Either[Throwable, A]] {
     def tag = 8
   }
 
-  private[effect] case object Canceled extends SyncIO[Unit] {
+  private case object Canceled extends SyncIO[Unit] {
     def tag = 9
   }
 
-  private[effect] final case class OnCancel[+A](ioa: SyncIO[A], fin: SyncIO[Unit])
-      extends SyncIO[A] {
+  private final case class OnCancel[+A](ioa: SyncIO[A], fin: SyncIO[Unit]) extends SyncIO[A] {
     def tag = 10
   }
 
-  private[effect] final case class Uncancelable[+A](body: Poll[SyncIO] => SyncIO[A])
-      extends SyncIO[A] {
+  private final case class Uncancelable[+A](body: Poll[SyncIO] => SyncIO[A]) extends SyncIO[A] {
     def tag = 11
   }
 
-  private[effect] object Uncancelable {
+  private object Uncancelable {
     final case class UnmaskRunLoop[+A](ioa: SyncIO[A], id: Int) extends SyncIO[A] {
       def tag = 12
     }
