@@ -106,9 +106,7 @@ val commonSettings = Seq(
   scalacOptions in Test ~= (_.filterNot(Set("-Wvalue-discard", "-Ywarn-value-discard"))),
   // Disable parallel execution in tests; otherwise we cannot test System.err
   parallelExecution in Test := false,
-  parallelExecution in IntegrationTest := false,
   testForkedParallel in Test := false,
-  testForkedParallel in IntegrationTest := false,
   testFrameworks += new TestFramework("munit.Framework"),
   concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
   headerLicense := Some(HeaderLicense.Custom("""|Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
@@ -384,7 +382,6 @@ lazy val siteSettings = Seq(
   ),
   micrositeCompilingDocsTool := WithMdoc,
   mdocIn := (sourceDirectory in Compile).value / "mdoc",
-  fork in mdoc := true,
   Compile / scalacOptions ~= (_.filterNot(
     Set(
       "-Xfatal-warnings",
