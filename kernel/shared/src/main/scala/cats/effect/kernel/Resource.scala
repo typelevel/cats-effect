@@ -423,13 +423,13 @@ sealed abstract class Resource[+F[_], +A] {
   /**
    * Acquires the resource, runs `gb` and closes the resource once `gb` terminates, fails or gets interrupted
    */
-  def surround[G[x] >: F[x]: Resource.Bracket, B](gb: G[B]): G[B] =
+  def surround[G[x] >: F[x], B](gb: G[B])(implicit G: MonadCancel[G, Throwable]): G[B] =
     use(_ => gb)
 
   /**
    * Creates a FunctionK that can run `gb` within a resource, which is then closed once `gb` terminates, fails or gets interrupted
    */
-  def surroundK[G[x] >: F[x]: Resource.Bracket]: G ~> G =
+  def surroundK[G[x] >: F[x]](implicit G: MonadCancel[G, Throwable]): G ~> G =
     new (G ~> G) {
       override def apply[B](gb: G[B]): G[B] = surround(gb)
     }
