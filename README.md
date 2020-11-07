@@ -11,6 +11,7 @@ Even more importantly, Cats Effect defines a set of typeclasses which define wha
 Versions of Cats Effect:
 
 - Stable: `2.2.0`
+- Unstable: `2.3.0-M1`
 
 See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/series/2.x/versioning.md) for more information on our compatibility and semantic versioning policies.
 
@@ -20,9 +21,11 @@ libraryDependencies += "org.typelevel" %% "cats-effect" % "2.2.0"
 
 Cats Effect relies on improved type inference and needs partial unification enabled as described in the Cats [Getting Started](https://github.com/typelevel/cats#getting-started) documentation.
 
-If your project uses Scala.js, replace the double-`%` with a triple. Note that **cats-effect** has an upstream dependency on **cats-core** version 2.x.
+If your project uses ScalaJS, replace the double-`%` with a triple. Note that **cats-effect** has an upstream dependency on **cats-core** version 2.x.
 
-Cross-builds are available for Scala 2.12.x and 2.13.x, with Scala.js builds targeting 1.x (note that, prior to 2.2.0, Cats Effect was available for Scala.js 0.6).
+Cross-builds are available for Scala 2.12.x and 2.13.x, with ScalaJS builds targeting 1.x (note that, prior to 2.2.0, Cats Effect was available for ScalaJS 0.6).
+
+Additionally, cross-builds of `2.3.0-M1` are available for 2.12.x and 2.13.x (with ScalaJS targeting the 1.x series), as well as Dotty 0.27.0-RC1 and Scala 3.0.0-M1 (without ScalaJS support).
 
 The most current snapshot (or major release) can be found in the maven badge at the top of this readme. If you are a very brave sort, you are free to depend on snapshots; they are stable versions, as they are derived from the git hash rather than an unstable `-SNAPSHOT` suffix, but they do not come with any particular confidence or compatibility guarantees.
 
@@ -62,7 +65,7 @@ These are some well known libraries that depend on `cats-effect`:
 | [Fs2](https://fs2.io/) | Functional Streams for Scala (Streaming I/O library) |
 | [Finch](https://finagle.github.io/finch/) | Scala combinator API for building Finagle HTTP services |
 | [Http4s](http://http4s.org/) | Typeful, functional, streaming HTTP for Scala |
-| [Monix](https://monix.io/) / [Monix BIO](https://bio.monix.io/) | Asynchronous, Reactive Programming for Scala and Scala.js |
+| [Monix](https://monix.io/) / [Monix BIO](https://bio.monix.io/) | Asynchronous, Reactive Programming for Scala and ScalaJS |
 | [Pure Config](https://pureconfig.github.io/) | A boilerplate-free library for loading configuration files |
 | [Scala Cache](https://cb372.github.io/scalacache/) | A facade for the most popular cache implementations for Scala |
 | [Sttp](http://sttp.readthedocs.io/en/latest/) | The Scala HTTP client you always wanted |
