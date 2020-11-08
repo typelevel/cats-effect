@@ -82,7 +82,7 @@ class DispatcherSpec extends BaseSpec {
         }
 
         Resource liftF {
-          run.flatMap(ct => IO.sleep(100.millis) >> IO.fromFuture(IO(ct())))
+          run.flatMap(ct => IO.sleep(500.millis) >> IO.fromFuture(IO(ct())))
         }
       }
 
@@ -110,8 +110,8 @@ class DispatcherSpec extends BaseSpec {
       }
 
       for {
-        _ <- rec.use(_ => IO.sleep(50.millis)).start
-        _ <- IO.sleep(100.millis) // scope should be closed by now
+        _ <- rec.use(_ => IO.sleep(250.millis)).start
+        _ <- IO.sleep(500.millis) // scope should be closed by now
 
         r <- IO {
           // if we don't run the finalizers in parallel, one of these will be false
