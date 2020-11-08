@@ -332,7 +332,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
    */
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
     uncancelable { poll =>
-      racePair(fa, fb).flatMap {
+      poll(racePair(fa, fb)).flatMap {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) => f.cancel *> fa.map(Left(_))
@@ -405,7 +405,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
    */
   def both[A, B](fa: F[A], fb: F[B]): F[(A, B)] =
     uncancelable { poll =>
-      racePair(fa, fb).flatMap {
+      poll(racePair(fa, fb)).flatMap {
         case Left((oc, f)) =>
           oc match {
             case Outcome.Succeeded(fa) =>

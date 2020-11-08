@@ -115,7 +115,7 @@ object TimeT {
     def never[A]: TimeT[F, A] =
       TimeT.liftF(F.never[A])
 
-    def racePair[A, B](fa: TimeT[F, A], fb: TimeT[F, B]): TimeT[
+    override def racePair[A, B](fa: TimeT[F, A], fb: TimeT[F, B]): TimeT[
       F,
       Either[
         (Outcome[TimeT[F, *], E, A], Fiber[TimeT[F, *], E, B]),
