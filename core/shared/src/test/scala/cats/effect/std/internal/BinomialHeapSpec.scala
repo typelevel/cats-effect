@@ -34,7 +34,7 @@ class BinomialHeapSpec extends Specification with ScalaCheck {
 
   "Binomial heap" should {
 
-    "dequeue by priority" in prop { elems: List[Int] =>
+    "dequeue by priority" in prop { (elems: List[Int]) =>
       val heap = buildHeap(elems)
 
       toList(heap) must beEqualTo(elems.sorted)
@@ -44,7 +44,7 @@ class BinomialHeapSpec extends Specification with ScalaCheck {
      * The root of a heap must be <= any of its children and all of its children
      * must also be heaps
      */
-    "maintain the heap property" in prop { ops: List[Op[Int]] =>
+    "maintain the heap property" in prop { (ops: List[Op[Int]]) =>
       val heap = Op.toHeap(ops)
 
       heap.trees.forall(validHeap(_)) must beTrue
@@ -59,7 +59,7 @@ class BinomialHeapSpec extends Specification with ScalaCheck {
      * should be trees of monotonically decreasing rank
      * i-1, i-2, ..., 1
      */
-    "maintain correct subtree ranks" in prop { ops: List[Op[Int]] =>
+    "maintain correct subtree ranks" in prop { (ops: List[Op[Int]]) =>
       val heap = Op.toHeap(ops)
 
       var currentRank = 0
