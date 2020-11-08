@@ -80,7 +80,8 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
     }
   }
 
-  override def racePair[A, B](fa: F[A], fb: F[B]): F[Either[(Outcome[F, E, A], Fiber[F, E, B]), (Fiber[F, E, A], Outcome[F, E, B])]] = {
+  override def racePair[A, B](fa: F[A], fb: F[B])
+      : F[Either[(Outcome[F, E, A], Fiber[F, E, B]), (Fiber[F, E, A], Outcome[F, E, B])]] = {
     implicit val F: GenConcurrent[F, E] = this
 
     uncancelable { poll =>
@@ -88,35 +89,35 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
         fibADef <- deferred[Fiber[F, E, A]]
         fibBDef <- deferred[Fiber[F, E, B]]
 
-        result <- deferred[Either[(Outcome[F, E, A], Fiber[F, E, B]), (Fiber[F, E, A], Outcome[F, E, B])]]
+        result <-
+          deferred[
+            Either[(Outcome[F, E, A], Fiber[F, E, B]), (Fiber[F, E, A], Outcome[F, E, B])]]
 
         fibA <- start {
           guaranteeCase(fa) { oc =>
-            fibBDef.get flatMap { fibB =>
-              result.complete(Left((oc, fibB))).void
-            }
+            fibBDef.get flatMap { fibB => result.complete(Left((oc, fibB))).void }
           }
         }
 
         fibB <- start {
           guaranteeCase(fb) { oc =>
-            fibADef.get flatMap { fibA =>
-              result.complete(Right((fibA, oc))).void
-            }
+            fibADef.get flatMap { fibA => result.complete(Right((fibA, oc))).void }
           }
         }
 
         _ <- fibADef.complete(fibA)
         _ <- fibBDef.complete(fibB)
 
-        back <- onCancel(poll(result.get), {
-          for {
-            done <- deferred[Unit]
-            _ <- start(guarantee(fibA.cancel, done.complete(()).void))
-            _ <- start(guarantee(fibB.cancel, done.complete(()).void))
-            _ <- done.get
-          } yield ()
-        })
+        back <- onCancel(
+          poll(result.get), {
+            for {
+              done <- deferred[Unit]
+              _ <- start(guarantee(fibA.cancel, done.complete(()).void))
+              _ <- start(guarantee(fibB.cancel, done.complete(()).void))
+              _ <- done.get
+            } yield ()
+          }
+        )
       } yield back
     }
   }
@@ -184,7 +185,11 @@ object GenConcurrent {
     override def deferred[A]: OptionT[F, Deferred[OptionT[F, *], A]] =
       OptionT.liftF(F.map(F.deferred[A])(_.mapK(OptionT.liftK)))
 
-    override def racePair[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[F, Either[(Outcome[OptionT[F, *], E, A], Fiber[OptionT[F, *], E, B]), (Fiber[OptionT[F, *], E, A], Outcome[OptionT[F, *], E, B])]] =
+    override def racePair[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[
+      F,
+      Either[
+        (Outcome[OptionT[F, *], E, A], Fiber[OptionT[F, *], E, B]),
+        (Fiber[OptionT[F, *], E, A], Outcome[OptionT[F, *], E, B])]] =
       super.racePair(fa, fb)
   }
 
@@ -199,7 +204,12 @@ object GenConcurrent {
     override def deferred[A]: EitherT[F, E0, Deferred[EitherT[F, E0, *], A]] =
       EitherT.liftF(F.map(F.deferred[A])(_.mapK(EitherT.liftK)))
 
-    override def racePair[A, B](fa: EitherT[F, E0, A], fb: EitherT[F, E0, B]): EitherT[F, E0, Either[(Outcome[EitherT[F, E0, *], E, A], Fiber[EitherT[F, E0, *], E, B]), (Fiber[EitherT[F, E0, *], E, A], Outcome[EitherT[F, E0, *], E, B])]] =
+    override def racePair[A, B](fa: EitherT[F, E0, A], fb: EitherT[F, E0, B]): EitherT[
+      F,
+      E0,
+      Either[
+        (Outcome[EitherT[F, E0, *], E, A], Fiber[EitherT[F, E0, *], E, B]),
+        (Fiber[EitherT[F, E0, *], E, A], Outcome[EitherT[F, E0, *], E, B])]] =
       super.racePair(fa, fb)
   }
 
@@ -214,7 +224,12 @@ object GenConcurrent {
     override def deferred[A]: Kleisli[F, R, Deferred[Kleisli[F, R, *], A]] =
       Kleisli.liftF(F.map(F.deferred[A])(_.mapK(Kleisli.liftK)))
 
-    override def racePair[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]): Kleisli[F, R, Either[(Outcome[Kleisli[F, R, *], E, A], Fiber[Kleisli[F, R, *], E, B]), (Fiber[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B])]] =
+    override def racePair[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]): Kleisli[
+      F,
+      R,
+      Either[
+        (Outcome[Kleisli[F, R, *], E, A], Fiber[Kleisli[F, R, *], E, B]),
+        (Fiber[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B])]] =
       super.racePair(fa, fb)
   }
 
@@ -231,7 +246,12 @@ object GenConcurrent {
     override def deferred[A]: IorT[F, L, Deferred[IorT[F, L, *], A]] =
       IorT.liftF(F.map(F.deferred[A])(_.mapK(IorT.liftK)))
 
-    override def racePair[A, B](fa: IorT[F, L, A], fb: IorT[F, L, B]): IorT[F, L, Either[(Outcome[IorT[F, L, *], E, A], Fiber[IorT[F, L, *], E, B]), (Fiber[IorT[F, L, *], E, A], Outcome[IorT[F, L, *], E, B])]] =
+    override def racePair[A, B](fa: IorT[F, L, A], fb: IorT[F, L, B]): IorT[
+      F,
+      L,
+      Either[
+        (Outcome[IorT[F, L, *], E, A], Fiber[IorT[F, L, *], E, B]),
+        (Fiber[IorT[F, L, *], E, A], Outcome[IorT[F, L, *], E, B])]] =
       super.racePair(fa, fb)
   }
 
@@ -249,7 +269,12 @@ object GenConcurrent {
     override def deferred[A]: WriterT[F, L, Deferred[WriterT[F, L, *], A]] =
       WriterT.liftF(F.map(F.deferred[A])(_.mapK(WriterT.liftK)))
 
-    override def racePair[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[F, L, Either[(Outcome[WriterT[F, L, *], E, A], Fiber[WriterT[F, L, *], E, B]), (Fiber[WriterT[F, L, *], E, A], Outcome[WriterT[F, L, *], E, B])]] =
+    override def racePair[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[
+      F,
+      L,
+      Either[
+        (Outcome[WriterT[F, L, *], E, A], Fiber[WriterT[F, L, *], E, B]),
+        (Fiber[WriterT[F, L, *], E, A], Outcome[WriterT[F, L, *], E, B])]] =
       super.racePair(fa, fb)
   }
 
