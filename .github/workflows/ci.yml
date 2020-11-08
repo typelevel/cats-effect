@@ -22,7 +22,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        scala: [0.27.0-RC1, 2.12.12, 2.13.3]
+        scala: [0.27.0-RC1, 3.0.0-M1, 2.12.12, 2.13.3]
         java:
           - adopt@1.8
           - adopt@1.11
@@ -36,16 +36,26 @@ jobs:
             java: adopt@1.15
           - ci: ciJS
             java: graalvm-ce-java8@20.2.0
+          - ci: ciJS
+            scala: 0.27.0-RC1
+          - ci: ciJS
+            scala: 3.0.0-M1
+          - ci: ciJS
+            os: windows-latest
           - ci: ciFirefox
             java: adopt@1.11
           - ci: ciFirefox
             java: adopt@1.15
           - ci: ciFirefox
             java: graalvm-ce-java8@20.2.0
+          - ci: ciFirefox
+            scala: 0.27.0-RC1
+          - ci: ciFirefox
+            scala: 3.0.0-M1
           - ci: ciJS
             os: windows-latest
-          - ci: ciFirefox
-            os: windows-latest
+          - java: adopt@1.15
+            scala: 3.0.0-M1
     runs-on: ${{ matrix.os }}
     steps:
       - name: Ignore line ending differences in git
@@ -59,7 +69,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Java and Scala
-        uses: olafurpg/setup-scala@v5
+        uses: olafurpg/setup-scala@v10
         with:
           java-version: ${{ matrix.java }}
 
