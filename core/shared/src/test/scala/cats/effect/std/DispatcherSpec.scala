@@ -110,8 +110,9 @@ class DispatcherSpec extends BaseSpec {
       }
 
       for {
-        _ <- rec.use(_ => IO.sleep(250.millis)).start
-        _ <- IO.sleep(500.millis) // scope should be closed by now
+        gate <- Deferred[IO, Unit]
+        _ <- (rec.use(_ => IO.unit) *> gate.complete(())).start
+        _ <- gate.get
 
         r <- IO {
           // if we don't run the finalizers in parallel, one of these will be false
