@@ -65,7 +65,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       }
     }
 
-  def both[B](that: IO[B]): IO[(A, B)] = IO.Both(this, that)
+  def both[B](that: IO[B]): IO[(A, B)] =
+    IO.both(this, that)
 
   def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
     bracketCase(use)((a, _) => release(a))
@@ -130,7 +131,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def onError(f: Throwable => IO[Unit]): IO[A] =
     handleErrorWith(t => f(t).attempt *> IO.raiseError(t))
 
-  def race[B](that: IO[B]): IO[Either[A, B]] = IO.Race(this, that)
+  def race[B](that: IO[B]): IO[Either[A, B]] =
+    IO.race(this, that)
 
   def raceOutcome[B](that: IO[B]): IO[Either[OutcomeIO[A @uncheckedVariance], OutcomeIO[B]]] =
     IO.uncancelable { _ =>
@@ -314,13 +316,13 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     left.bothOutcome(right)
 
   def both[A, B](left: IO[A], right: IO[B]): IO[(A, B)] =
-    left.both(right)
+    asyncForIO.both(left, right)
 
   def fromFuture[A](fut: IO[Future[A]]): IO[A] =
     asyncForIO.fromFuture(fut)
 
   def race[A, B](left: IO[A], right: IO[B]): IO[Either[A, B]] =
-    left.race(right)
+    asyncForIO.race(left, right)
 
   def racePair[A, B](
       left: IO[A],
@@ -525,12 +527,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
         fa: IO[A],
         fb: IO[B]): IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] =
       fa.racePair(fb)
-
-    override def race[A, B](fa: IO[A], fb: IO[B]): IO[Either[A, B]] =
-      fa.race(fb)
-
-    override def both[A, B](fa: IO[A], fb: IO[B]): IO[(A, B)] =
-      fa.both(fb)
 
     def start[A](fa: IO[A]): IO[FiberIO[A]] =
       fa.start
