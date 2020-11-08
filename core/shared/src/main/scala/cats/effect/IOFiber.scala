@@ -26,7 +26,7 @@ import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference, AtomicInteger}
 import scala.util.control.NoStackTrace
 
 /*
@@ -718,6 +718,7 @@ private final class IOFiber[A](
                 val ec = currentCtx
                 val fiberA = new IOFiber[Any](
                   initMask2,
+                  localState,
                   null,
                   cur.ioa,
                   ec,
@@ -725,6 +726,7 @@ private final class IOFiber[A](
                 )
                 val fiberB = new IOFiber[Any](
                   initMask2,
+                  localState,
                   null,
                   cur.iob,
                   ec,
@@ -804,6 +806,7 @@ private final class IOFiber[A](
                 val ec = currentCtx
                 val fiberA = new IOFiber[Any](
                   initMask2,
+                  localState,
                   null,
                   cur.ioa,
                   ec,
@@ -811,6 +814,7 @@ private final class IOFiber[A](
                 )
                 val fiberB = new IOFiber[Any](
                   initMask2,
+                  localState,
                   null,
                   cur.iob,
                   ec,
@@ -1338,7 +1342,6 @@ private final class IOFiber[A](
 }
 
 private object IOFiber {
-  private val childCount = new AtomicInteger(0)
   private val localIndex = new AtomicInteger(0)
 
   /* prefetch */

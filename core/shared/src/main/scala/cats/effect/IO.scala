@@ -216,11 +216,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
     val fiber = new IOFiber[A](
       0,
-<<<<<<< HEAD
       Map(),
-      (oc: OutcomeIO[A]) =>
-        oc.fold((), e => cb(Left(e)), ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))),
-=======
       oc =>
         oc.fold(
           (),
@@ -233,7 +229,6 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
             success(ioa.asInstanceOf[IO.Pure[A]].value)
           }
         ),
->>>>>>> series/3.x
       this,
       runtime.compute,
       runtime

@@ -26,6 +26,15 @@ final class Local[A] private (index: Int, default: A) {
   def set(value: A): IO[Unit] =
     IO.SetLocal[A](index, value)
 
+  def update(f: A => A): IO[Unit] =
+    get.flatMap(a => set(f(a)))
+
+  def getAndSet(value: A): IO[A] =
+    get <* set(value)
+
+  def clear: IO[Unit] =
+    IO.SetLocal[A](index, default)
+
 }
 
 object Local {

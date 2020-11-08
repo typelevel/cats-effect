@@ -17,7 +17,7 @@
 package cats.effect.local
 
 import cats.effect.IO
-import cats.effect.concurrent.Ref
+import cats.effect.kernel.Ref
 
 final class LocalRef[A] private (local: Local[Ref[IO, A]]) extends Ref[IO, A] {
 
