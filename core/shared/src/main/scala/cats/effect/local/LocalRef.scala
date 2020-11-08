@@ -21,7 +21,7 @@ import cats.effect.kernel.Ref
 
 final class LocalRef[A] private (local: Local[Ref[IO, A]]) extends Ref[IO, A] {
 
-  override def get: IO[A] = 
+  override def get: IO[A] =
     local.get.flatMap(_.get)
 
   override def set(a: A): IO[Unit] =
@@ -42,17 +42,20 @@ final class LocalRef[A] private (local: Local[Ref[IO, A]]) extends Ref[IO, A] {
   override def modify[B](f: A => (A, B)): IO[B] =
     local.get.flatMap(_.modify(f))
 
-  override def tryModifyState[B](state: cats.data.State[A,B]): IO[Option[B]] =
+  override def tryModifyState[B](state: cats.data.State[A, B]): IO[Option[B]] =
     local.get.flatMap(_.tryModifyState(state))
 
-  override def modifyState[B](state: cats.data.State[A,B]): IO[B] = 
+  override def modifyState[B](state: cats.data.State[A, B]): IO[B] =
     local.get.flatMap(_.modifyState(state))
 
 }
 
 object LocalRef {
 
-  def apply[A](default: A): IO[LocalRef[A]] = 
+  def apply[A](default: A): IO[LocalRef[A]] =
+    of(default)
+
+  def of[A](default: A): IO[LocalRef[A]] =
     for {
       ref <- Ref.of[IO, A](default)
       local <- Local.of[Ref[IO, A]](ref)

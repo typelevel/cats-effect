@@ -39,6 +39,9 @@ final class Local[A] private (index: Int, default: A) {
 
 object Local {
 
+  def apply[A](default: A): IO[Local[A]] =
+    of(default)
+
   def of[A](default: A): IO[Local[A]] =
     IO {
       val index = IOFiber.nextLocalIndex()

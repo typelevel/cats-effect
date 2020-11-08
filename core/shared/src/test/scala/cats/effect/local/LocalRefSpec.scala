@@ -19,7 +19,7 @@ package effect
 package local
 
 class LocalRefSpec extends BaseSpec {
-  
+
   "LocalRef" should {
     "return a default value" in ticked { implicit ticker =>
       val io = LocalRef(0).flatMap(_.get)

@@ -19,17 +19,17 @@ package effect
 package local
 
 class LocalSpec extends BaseSpec {
-  
+
   "Local" should {
     "return a default value" in ticked { implicit ticker =>
-      val io = Local.of(0).flatMap(_.get)
+      val io = Local(0).flatMap(_.get)
 
       io must completeAs(0)
     }
 
     "set and get a value" in ticked { implicit ticker =>
       val io = for {
-        local <- Local.of(0)
+        local <- Local(0)
         _ <- local.set(10)
         value <- local.get
       } yield value
@@ -39,7 +39,7 @@ class LocalSpec extends BaseSpec {
 
     "preserve locals across async boundaries" in ticked { implicit ticker =>
       val io = for {
-        local <- Local.of(0)
+        local <- Local(0)
         _ <- local.set(10)
         _ <- IO.cede
         value <- local.get
@@ -50,7 +50,7 @@ class LocalSpec extends BaseSpec {
 
     "copy locals to children fibers" in ticked { implicit ticker =>
       val io = for {
-        local <- Local.of(0)
+        local <- Local(0)
         _ <- local.set(10)
         f <- local.get.start
         value <- f.joinAndEmbedNever
@@ -61,7 +61,7 @@ class LocalSpec extends BaseSpec {
 
     "child local manipulation is invisible to parents" in ticked { implicit ticker =>
       val io = for {
-        local <- Local.of(10)
+        local <- Local(10)
         f <- local.set(20).start
         _ <- f.join
         value <- local.get
@@ -72,7 +72,7 @@ class LocalSpec extends BaseSpec {
 
     "parent local manipulation is invisible to children" in ticked { implicit ticker =>
       val io = for {
-        local <- Local.of(0)
+        local <- Local(0)
         d1 <- Deferred[IO, Unit]
         f <- (d1.get *> local.get).start
         _ <- local.set(10)
