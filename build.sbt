@@ -119,7 +119,7 @@ ThisBuild / scmInfo := Some(
     "git@github.com:typelevel/cats-effect.git"))
 
 val CatsVersion = "2.3.0-M2"
-val Specs2Version = "4.10.0"
+val Specs2Version = "4.10.5"
 val ScalaCheckVersion = "1.15.1"
 val DisciplineVersion = "1.1.1"
 
