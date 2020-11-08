@@ -82,7 +82,7 @@ class DispatcherSpec extends BaseSpec {
         }
 
         Resource liftF {
-          run.flatMap(ct => IO.sleep(100.millis) >> IO.fromFuture(IO(ct())))
+          run.flatMap(ct => IO.sleep(500.millis) >> IO.fromFuture(IO(ct())))
         }
       }
 
@@ -90,35 +90,35 @@ class DispatcherSpec extends BaseSpec {
     }
 
     "cancel all inner effects when canceled" in real {
-      @volatile
-      var canceledA = false
-      @volatile
-      var canceledB = false
+      for {
+        gate1 <- Semaphore[IO](2)
+        _ <- gate1.acquireN(2)
 
-      val rec = Dispatcher[IO] flatMap { runner =>
-        Resource liftF {
-          IO {
-            // these finalizers never return, so this test is intentionally designed to hang
-            // they flip their booleans first though; this is just testing that both run in parallel
-            val a = IO.never.onCancel(IO { canceledA = true } *> IO.never)
-            val b = IO.never.onCancel(IO { canceledB = true } *> IO.never)
+        gate2 <- Semaphore[IO](2)
+        _ <- gate2.acquireN(2)
 
-            runner.unsafeRunAndForget(a)
-            runner.unsafeRunAndForget(b)
+        rec = Dispatcher[IO] flatMap { runner =>
+          Resource liftF {
+            IO {
+              // these finalizers never return, so this test is intentionally designed to hang
+              // they flip their gates first though; this is just testing that both run in parallel
+              val a = (gate1.release *> IO.never) onCancel {
+                gate2.release *> IO.never
+              }
+
+              val b = (gate1.release *> IO.never) onCancel {
+                gate2.release *> IO.never
+              }
+
+              runner.unsafeRunAndForget(a)
+              runner.unsafeRunAndForget(b)
+            }
           }
         }
-      }
 
-      for {
-        _ <- rec.use(_ => IO.sleep(50.millis)).start
-        _ <- IO.sleep(100.millis) // scope should be closed by now
-
-        r <- IO {
-          // if we don't run the finalizers in parallel, one of these will be false
-          canceledA must beTrue
-          canceledB must beTrue
-        }
-      } yield r
+        _ <- rec.use(_ => gate1.acquireN(2)).start
+        _ <- gate2.acquireN(2)    // if both are not run in parallel, then this will hang
+      } yield ok
     }
 
     "raise an error on leaked runner" in real {
