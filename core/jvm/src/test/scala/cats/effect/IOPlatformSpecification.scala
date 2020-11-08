@@ -103,7 +103,7 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
           }
         }
 
-        task.replicateA(100000).as(ok)
+        task.replicateA(1000).as(ok)
       }
 
       "round trip through j.u.c.CompletableFuture" in ticked { implicit ticker =>
