@@ -24,23 +24,34 @@ ThisBuild / baseVersion := "3.0"
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
 
-ThisBuild / publishGithubUser := "djspiewak"
-ThisBuild / publishFullName := "Daniel Spiewak"
+ThisBuild / developers := List(
+  Developer("djspiewak", "Daniel Spiewak", "@djspiewak", url("https://github.com/djspiewak")),
+  Developer("SystemFw", "Fabio Labella", "", url("https://github.com/SystemFw")),
+  Developer("RaasAhsan", "Raas Ahsan", "", url("https://github.com/RaasAhsan")),
+  Developer("TimWSpence", "Tim Spence", "@TimWSpence", url("https://github.com/TimWSpence")),
+  Developer("kubukoz", "Jakub Kozłowski", "@kubukoz", url("https://github.com/kubukoz")),
+  Developer("mpilquist", "Michael Pilquist", "@mpilquist", url("https://github.com/mpilquist")),
+  Developer("vasilmkd", "Vasil Vasilev", "@vasilvasilev97", url("https://github.com/vasilmkd")),
+  Developer("bplommer", "Ben Plommer", "@bplommer", url("https://github.com/bplommer")),
+  Developer("gvolpe", "Gabriel Volpe", "@volpegabriel87", url("https://github.com/gvolpe"))
+)
 
 val PrimaryOS = "ubuntu-latest"
+val Windows = "windows-latest"
 
 val ScalaJSJava = "adopt@1.8"
+val Scala213 = "2.13.3"
 
-ThisBuild / crossScalaVersions := Seq("0.27.0-RC1", "2.12.12", "2.13.3")
+ThisBuild / crossScalaVersions := Seq("0.27.0-RC1", "2.12.12", Scala213)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
-val LTSJava = "adopt@11"
-val LatestJava = "adopt@14"
-val GraalVM8 = "graalvm8@20.1.0"
+val LTSJava = "adopt@1.11"
+val LatestJava = "adopt@1.15"
+val GraalVM8 = "graalvm-ce-java8@20.2.0"
 
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
-ThisBuild / githubWorkflowOSes := Seq(PrimaryOS)
+ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
 
 ThisBuild / githubWorkflowBuildPreamble +=
   WorkflowStep.Use(
@@ -52,24 +63,32 @@ ThisBuild / githubWorkflowBuildPreamble +=
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
 
+  WorkflowStep.Sbt(
+    List("docs/mdoc"),
+    cond = Some(s"matrix.scala == '$Scala213' && matrix.ci == 'ciJVM'")),
+
   WorkflowStep.Run(
     List("example/test-jvm.sh ${{ matrix.scala }}"),
     name = Some("Test Example JVM App Within Sbt"),
-    cond = Some("matrix.ci == 'ciJVM'")),
+    cond = Some(s"matrix.ci == 'ciJVM' && matrix.os == '$PrimaryOS'")),
 
   WorkflowStep.Run(
     List("example/test-js.sh ${{ matrix.scala }}"),
     name = Some("Test Example JavaScript App Using Node"),
-    cond = Some("matrix.ci == 'ciJS'")))
+    cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")))
 
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> List("ciJVM", "ciJS", "ciFirefox")
 
-ThisBuild / githubWorkflowBuildMatrixExclusions ++=
-  Seq("ciJS", "ciFirefox") flatMap { ci =>
-    (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)) map { java =>
+ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
+  Seq("ciJS", "ciFirefox").flatMap { ci =>
+    (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)).map { java =>
       MatrixExclude(Map("ci" -> ci, "java" -> java))
     }
-  }
+  } ++ Seq(
+    MatrixExclude(Map("ci" -> "ciJS", "os" -> Windows)),
+    MatrixExclude(Map("ci" -> "ciFirefox", "os" -> Windows))
+  )
+}
 
 lazy val useFirefoxEnv = settingKey[Boolean]("Use headless Firefox (via geckodriver) for running tests")
 Global / useFirefoxEnv := false
@@ -86,9 +105,9 @@ ThisBuild / Test / jsEnv := {
   }
 }
 
-Global / homepage := Some(url("https://github.com/typelevel/cats-effect"))
+ThisBuild / homepage := Some(url("https://github.com/typelevel/cats-effect"))
 
-Global / scmInfo := Some(
+ThisBuild / scmInfo := Some(
   ScmInfo(
     url("https://github.com/typelevel/cats-effect"),
     "git@github.com:typelevel/cats-effect.git"))
@@ -98,6 +117,7 @@ val Specs2Version = "4.10.0"
 val DisciplineVersion = "1.1.0"
 
 replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; test; coreJVM/mimaReportBinaryIssues; set Global / useFirefoxEnv := true; coreJS/test; set Global / useFirefoxEnv := false")
+addCommandAlias("ciAll", "; project /; +headerCheck; +scalafmtCheck; +clean; +test; +coreJVM/mimaReportBinaryIssues; set Global / useFirefoxEnv := true; +coreJS/test; set Global / useFirefoxEnv := false")
 
 addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues")
 addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; test")
@@ -112,11 +132,11 @@ lazy val root = project.in(file("."))
   .settings(noPublishSettings)
 
 lazy val rootJVM = project
-  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm, concurrent.jvm, example.jvm, benchmarks)
+  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm, std.jvm, example.jvm, benchmarks)
   .settings(noPublishSettings)
 
 lazy val rootJS = project
-  .aggregate(kernel.js, testkit.js, laws.js, core.js, concurrent.js, example.js)
+  .aggregate(kernel.js, testkit.js, laws.js, core.js, std.js, example.js)
   .settings(noPublishSettings)
 
 /**
@@ -171,7 +191,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
  * (such as IOApp). This is the "batteries included" dependency.
  */
 lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
-  .dependsOn(kernel, concurrent, laws % Test, testkit % Test)
+  .dependsOn(kernel, std, laws % Test, testkit % Test)
   .settings(
     name := "cats-effect",
 
@@ -191,17 +211,17 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
   .settings(dottyLibrarySettings)
 
 /**
- * Implementations of concurrent data structures (Ref, MVar, etc) purely in
- * terms of cats effect typeclasses (no dependency on IO)
+ * Implementations lof standard functionality (e.g. Semaphore, Console, Queue)
+ * purely in terms of the typeclasses, with no dependency on IO. In most cases,
+ * the *tests* for these implementations will require IO, and thus those tests
+ * will be located within the core project.
  */
-lazy val concurrent = crossProject(JSPlatform, JVMPlatform).in(file("concurrent"))
+lazy val std = crossProject(JSPlatform, JVMPlatform).in(file("std"))
   .dependsOn(kernel)
   .settings(
-    name := "cats-effect-concurrent",
+    name := "cats-effect-std",
     libraryDependencies ++= Seq(
-      "org.specs2"    %%% "specs2-scalacheck" % Specs2Version % Test
-    )
-  )
+      "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test))
   .settings(dottyLibrarySettings)
 
 /**
@@ -222,3 +242,7 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(name := "cats-effect-benchmarks")
   .settings(noPublishSettings)
   .enablePlugins(JmhPlugin)
+
+lazy val docs = project.in(file("site-docs"))
+  .dependsOn(core.jvm)
+  .enablePlugins(MdocPlugin)

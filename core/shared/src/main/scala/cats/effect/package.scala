@@ -31,6 +31,7 @@ package object effect {
 
   type Fiber[F[_], E, A] = cekernel.Fiber[F, E, A]
   type Poll[F[_]] = cekernel.Poll[F]
+  type Cont[F[_], A] = cekernel.Cont[F, A]
 
   type GenConcurrent[F[_], E] = cekernel.GenConcurrent[F, E]
   val GenConcurrent = cekernel.GenConcurrent
@@ -44,15 +45,10 @@ package object effect {
   type Sync[F[_]] = cekernel.Sync[F]
   val Sync = cekernel.Sync
 
-  type SyncEffect[F[_]] = cekernel.SyncEffect[F]
-  val SyncEffect = cekernel.SyncEffect
-
   type Async[F[_]] = cekernel.Async[F]
   val Async = cekernel.Async
 
-  type Effect[F[_]] = cekernel.Effect[F]
-  val Effect = cekernel.Effect
-
+  type ApplicativeThrow[F[_]] = cekernel.ApplicativeThrow[F]
   type MonadThrow[F[_]] = cekernel.MonadThrow[F]
   type MonadCancelThrow[F[_]] = cekernel.MonadCancelThrow[F]
 
@@ -74,4 +70,10 @@ package object effect {
   type OutcomeIO[A] = Outcome[IO, Throwable, A]
   type FiberIO[A] = Fiber[IO, Throwable, A]
   type ResourceIO[A] = Resource[IO, A]
+
+  type Deferred[F[_], A] = cekernel.Deferred[F, A]
+  val Deferred = cekernel.Deferred
+
+  type Ref[F[_], A] = cekernel.Ref[F, A]
+  val Ref = cekernel.Ref
 }

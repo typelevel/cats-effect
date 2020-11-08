@@ -16,11 +16,11 @@
 
 package cats.effect
 
-import cats.{~>, Eval, Now, Show, StackSafeMonad}
+import cats.{Eval, Now, Show, StackSafeMonad}
 import cats.kernel.{Monoid, Semigroup}
 
 import scala.annotation.{switch, tailrec}
-import scala.annotation.unchecked.uncheckedVariance
+import scala.concurrent.CancellationException
 import scala.concurrent.duration._
 import scala.util.Try
 import scala.util.control.NonFatal
@@ -133,6 +133,9 @@ sealed abstract class SyncIO[+A] private () {
   def map[B](f: A => B): SyncIO[B] =
     SyncIO.Map(this, f)
 
+  def onCancel(fin: SyncIO[Unit]): SyncIO[A] =
+    SyncIO.OnCancel(this, fin)
+
   /**
    * Executes `that` only for the side effects.
    *
@@ -156,27 +159,6 @@ sealed abstract class SyncIO[+A] private () {
 
   def redeemWith[B](recover: Throwable => SyncIO[B], bind: A => SyncIO[B]): SyncIO[B] =
     attempt.flatMap(_.fold(recover, bind))
-
-  /**
-   * Converts the source `SyncIO` into any `F` type that implements
-   * the [[Sync]] type class.
-   */
-  def to[F[_]](implicit F: Sync[F]): F[A @uncheckedVariance] =
-    if (F eq SyncIO.syncEffectForSyncIO) {
-      this.asInstanceOf[F[A]]
-    } else {
-      this match {
-        case SyncIO.Pure(a) => F.pure(a)
-        case SyncIO.Delay(thunk) => F.delay(thunk())
-        case SyncIO.Error(t) => F.raiseError(t)
-        case SyncIO.Map(ioe, f) => F.map(ioe.to[F])(f)
-        case SyncIO.FlatMap(ioe, f) => F.defer(F.flatMap(ioe.to[F])(f.andThen(_.to[F])))
-        case SyncIO.HandleErrorWith(ioa, f) => F.handleErrorWith(ioa.to[F])(f.andThen(_.to[F]))
-        case SyncIO.Success(a) => F.pure(a)
-        case SyncIO.Failure(t) => F.raiseError(t)
-        case self: SyncIO.Attempt[_] => F.attempt(self.ioa.to[F]).asInstanceOf[F[A]]
-      }
-    }
 
   /**
    * Alias for `map(_ => ())`.
@@ -206,13 +188,21 @@ sealed abstract class SyncIO[+A] private () {
   def unsafeRunSync(): A = {
     import SyncIOConstants._
 
-    val conts = new ByteStack(16)
+    var conts = new ByteStack(16)
     val objectState = new ArrayStack[AnyRef](16)
+    val initMask = 0
+    var masks = initMask
+    val finalizers = new ArrayStack[SyncIO[Unit]](16)
+    var canceled = false
 
     conts.push(RunTerminusK)
 
     @tailrec
-    def runLoop(cur0: SyncIO[Any]): A =
+    def runLoop(cur0: SyncIO[Any]): A = {
+      if (shouldFinalize()) {
+        syncCancel()
+      }
+
       (cur0.tag: @switch) match {
         case 0 =>
           val cur = cur0.asInstanceOf[SyncIO.Pure[Any]]
@@ -275,7 +265,63 @@ sealed abstract class SyncIO[+A] private () {
 
           conts.push(AttemptK)
           runLoop(cur.ioa)
+
+        case 9 =>
+          canceled = true
+          if (isUnmasked()) {
+            syncCancel()
+          } else {
+            runLoop(succeeded((), 0))
+          }
+
+        case 10 =>
+          val cur = cur0.asInstanceOf[SyncIO.OnCancel[Any]]
+
+          finalizers.push(cur.fin)
+          conts.push(OnCancelK)
+          runLoop(cur.ioa)
+
+        case 11 =>
+          val cur = cur0.asInstanceOf[SyncIO.Uncancelable[Any]]
+
+          masks += 1
+          val id = masks
+          val poll = new Poll[SyncIO] {
+            def apply[B](ioa: SyncIO[B]) =
+              SyncIO.Uncancelable.UnmaskRunLoop(ioa, id)
+          }
+
+          conts.push(UncancelableK)
+          runLoop(cur.body(poll))
+
+        case 12 =>
+          val cur = cur0.asInstanceOf[SyncIO.Uncancelable.UnmaskRunLoop[Any]]
+
+          if (masks == cur.id) {
+            masks -= 1
+            conts.push(UnmaskK)
+          }
+
+          runLoop(cur.ioa)
       }
+    }
+
+    def shouldFinalize(): Boolean =
+      canceled && isUnmasked()
+
+    def isUnmasked(): Boolean =
+      masks == initMask
+
+    def syncCancel(): A = {
+      if (!finalizers.isEmpty()) {
+        conts = new ByteStack(16)
+        conts.push(CancelationLoopK)
+        masks += 1
+        runLoop(finalizers.pop())
+      } else {
+        throw new CancellationException()
+      }
+    }
 
     @tailrec
     def succeeded(result: Any, depth: Int): SyncIO[Any] =
@@ -289,6 +335,10 @@ sealed abstract class SyncIO[+A] private () {
           succeeded(result, depth)
         case 3 => SyncIO.Success(result)
         case 4 => succeeded(Right(result), depth + 1)
+        case 5 => cancelationLoopSuccessK()
+        case 6 => onCancelSuccessK(result, depth)
+        case 7 => uncancelableSuccessK(result, depth)
+        case 8 => unmaskSuccessK(result, depth)
       }
 
     def failed(error: Throwable, depth: Int): SyncIO[Any] = {
@@ -312,6 +362,10 @@ sealed abstract class SyncIO[+A] private () {
         case 2 => handleErrorWithK(error, depth)
         case 3 => SyncIO.Failure(error)
         case 4 => succeeded(Left(error), depth + 1)
+        case 5 => cancelationLoopFailureK(error)
+        case 6 => onCancelFailureK(error, depth)
+        case 7 => uncancelableFailureK(error, depth)
+        case 8 => unmaskFailureK(error, depth)
       }
     }
 
@@ -350,6 +404,50 @@ sealed abstract class SyncIO[+A] private () {
       catch {
         case NonFatal(t) => failed(t, depth + 1)
       }
+    }
+
+    def cancelationLoopSuccessK(): SyncIO[Any] = {
+      if (!finalizers.isEmpty()) {
+        conts.push(CancelationLoopK)
+        finalizers.pop()
+      } else {
+        throw new CancellationException()
+      }
+    }
+
+    def cancelationLoopFailureK(t: Throwable): SyncIO[Any] = {
+      t.printStackTrace()
+      cancelationLoopSuccessK()
+    }
+
+    def onCancelSuccessK(result: Any, depth: Int): SyncIO[Any] = {
+      finalizers.pop()
+      succeeded(result, depth + 1)
+    }
+
+    def onCancelFailureK(t: Throwable, depth: Int): SyncIO[Any] = {
+      finalizers.pop()
+      failed(t, depth + 1)
+    }
+
+    def uncancelableSuccessK(result: Any, depth: Int): SyncIO[Any] = {
+      masks -= 1
+      succeeded(result, depth + 1)
+    }
+
+    def uncancelableFailureK(t: Throwable, depth: Int): SyncIO[Any] = {
+      masks -= 1
+      failed(t, depth + 1)
+    }
+
+    def unmaskSuccessK(result: Any, depth: Int): SyncIO[Any] = {
+      masks += 1
+      succeeded(result, depth + 1)
+    }
+
+    def unmaskFailureK(t: Throwable, depth: Int): SyncIO[Any] = {
+      masks += 1
+      failed(t, depth + 1)
     }
 
     runLoop(this)
@@ -451,7 +549,7 @@ object SyncIO extends SyncIOLowPriorityImplicits {
    *
    * @see [[SyncIO#attempt]]
    *
-   * @param t [[Throwable]] value to fail with
+   * @param t [[java.lang.Throwable]] value to fail with
    * @return a `SyncIO` that results in failure with value `t`
    */
   def raiseError[A](t: Throwable): SyncIO[A] =
@@ -502,16 +600,6 @@ object SyncIO extends SyncIOLowPriorityImplicits {
   def fromTry[A](t: Try[A]): SyncIO[A] =
     t.fold(raiseError, pure)
 
-  /**
-   * `SyncIO#to` as a natural transformation.
-   *
-   * @see [[SyncIO#to]]
-   */
-  def toK[F[_]: Sync]: SyncIO ~> F =
-    new (SyncIO ~> F) {
-      def apply[A](ioa: SyncIO[A]): F[A] = ioa.to[F]
-    }
-
   // instances
 
   implicit def showForSyncIO[A](implicit A: Show[A]): Show[SyncIO[A]] =
@@ -529,86 +617,109 @@ object SyncIO extends SyncIOLowPriorityImplicits {
     def empty: SyncIO[A] = pure(A.empty)
   }
 
-  private[this] val _syncEffectForSyncIO: SyncEffect[SyncIO] = new SyncEffect[SyncIO]
-    with StackSafeMonad[SyncIO] {
-    def pure[A](x: A): SyncIO[A] =
-      SyncIO.pure(x)
+  private[this] val _syncForSyncIO: Sync[SyncIO] with MonadCancel[SyncIO, Throwable] =
+    new Sync[SyncIO] with StackSafeMonad[SyncIO] with MonadCancel[SyncIO, Throwable] {
 
-    def raiseError[A](e: Throwable): SyncIO[A] =
-      SyncIO.raiseError(e)
+      def pure[A](x: A): SyncIO[A] =
+        SyncIO.pure(x)
 
-    def handleErrorWith[A](fa: SyncIO[A])(f: Throwable => SyncIO[A]): SyncIO[A] =
-      fa.handleErrorWith(f)
+      def raiseError[A](e: Throwable): SyncIO[A] =
+        SyncIO.raiseError(e)
 
-    def flatMap[A, B](fa: SyncIO[A])(f: A => SyncIO[B]): SyncIO[B] =
-      fa.flatMap(f)
+      def handleErrorWith[A](fa: SyncIO[A])(f: Throwable => SyncIO[A]): SyncIO[A] =
+        fa.handleErrorWith(f)
 
-    def monotonic: SyncIO[FiniteDuration] =
-      SyncIO.monotonic
+      def flatMap[A, B](fa: SyncIO[A])(f: A => SyncIO[B]): SyncIO[B] =
+        fa.flatMap(f)
 
-    def realTime: SyncIO[FiniteDuration] =
-      SyncIO.realTime
+      def monotonic: SyncIO[FiniteDuration] =
+        SyncIO.monotonic
 
-    def suspend[A](hint: Sync.Type)(thunk: => A): SyncIO[A] =
-      SyncIO(thunk)
+      def realTime: SyncIO[FiniteDuration] =
+        SyncIO.realTime
 
-    def toK[G[_]: SyncEffect]: SyncIO ~> G =
-      SyncIO.toK[G]
+      def suspend[A](hint: Sync.Type)(thunk: => A): SyncIO[A] =
+        SyncIO(thunk)
 
-    override def attempt[A](fa: SyncIO[A]): SyncIO[Either[Throwable, A]] =
-      fa.attempt
+      override def attempt[A](fa: SyncIO[A]): SyncIO[Either[Throwable, A]] =
+        fa.attempt
 
-    override def redeem[A, B](fa: SyncIO[A])(recover: Throwable => B, f: A => B): SyncIO[B] =
-      fa.redeem(recover, f)
+      override def redeem[A, B](fa: SyncIO[A])(recover: Throwable => B, f: A => B): SyncIO[B] =
+        fa.redeem(recover, f)
 
-    override def redeemWith[A, B](
-        fa: SyncIO[A])(recover: Throwable => SyncIO[B], bind: A => SyncIO[B]): SyncIO[B] =
-      fa.redeemWith(recover, bind)
-  }
+      override def redeemWith[A, B](
+          fa: SyncIO[A])(recover: Throwable => SyncIO[B], bind: A => SyncIO[B]): SyncIO[B] =
+        fa.redeemWith(recover, bind)
 
-  implicit def syncEffectForSyncIO: SyncEffect[SyncIO] = _syncEffectForSyncIO
+      def canceled: SyncIO[Unit] = Canceled
+
+      def forceR[A, B](fa: SyncIO[A])(fb: SyncIO[B]): SyncIO[B] =
+        fa.attempt.productR(fb)
+
+      def onCancel[A](fa: SyncIO[A], fin: SyncIO[Unit]): SyncIO[A] =
+        fa.onCancel(fin)
+
+      def uncancelable[A](body: Poll[SyncIO] => SyncIO[A]): SyncIO[A] =
+        Uncancelable(body)
+    }
+
+  implicit def syncForSyncIO: Sync[SyncIO] with MonadCancel[SyncIO, Throwable] = _syncForSyncIO
 
   // implementations
 
-  private[effect] final case class Pure[+A](value: A) extends SyncIO[A] {
+  private final case class Pure[+A](value: A) extends SyncIO[A] {
     def tag = 0
     override def toString: String = s"SyncIO($value)"
   }
 
-  private[effect] final case class Delay[+A](thunk: () => A) extends SyncIO[A] {
+  private final case class Delay[+A](thunk: () => A) extends SyncIO[A] {
     def tag = 1
   }
 
-  private[effect] final case class Error(t: Throwable) extends SyncIO[Nothing] {
+  private final case class Error(t: Throwable) extends SyncIO[Nothing] {
     def tag = 2
   }
 
-  private[effect] final case class Map[E, +A](ioe: SyncIO[E], f: E => A) extends SyncIO[A] {
+  private final case class Map[E, +A](ioe: SyncIO[E], f: E => A) extends SyncIO[A] {
     def tag = 3
   }
 
-  private[effect] final case class FlatMap[E, +A](ioe: SyncIO[E], f: E => SyncIO[A])
-      extends SyncIO[A] {
+  private final case class FlatMap[E, +A](ioe: SyncIO[E], f: E => SyncIO[A]) extends SyncIO[A] {
     def tag = 4
   }
 
-  private[effect] final case class HandleErrorWith[+A](
-      ioa: SyncIO[A],
-      f: Throwable => SyncIO[A])
+  private final case class HandleErrorWith[+A](ioa: SyncIO[A], f: Throwable => SyncIO[A])
       extends SyncIO[A] {
     def tag = 5
   }
 
-  private[effect] final case class Success[+A](value: A) extends SyncIO[A] {
+  private final case class Success[+A](value: A) extends SyncIO[A] {
     def tag = 6
   }
 
-  private[effect] final case class Failure(t: Throwable) extends SyncIO[Nothing] {
+  private final case class Failure(t: Throwable) extends SyncIO[Nothing] {
     def tag = 7
   }
 
-  private[effect] final case class Attempt[+A](ioa: SyncIO[A])
-      extends SyncIO[Either[Throwable, A]] {
+  private final case class Attempt[+A](ioa: SyncIO[A]) extends SyncIO[Either[Throwable, A]] {
     def tag = 8
+  }
+
+  private case object Canceled extends SyncIO[Unit] {
+    def tag = 9
+  }
+
+  private final case class OnCancel[+A](ioa: SyncIO[A], fin: SyncIO[Unit]) extends SyncIO[A] {
+    def tag = 10
+  }
+
+  private final case class Uncancelable[+A](body: Poll[SyncIO] => SyncIO[A]) extends SyncIO[A] {
+    def tag = 11
+  }
+
+  private object Uncancelable {
+    final case class UnmaskRunLoop[+A](ioa: SyncIO[A], id: Int) extends SyncIO[A] {
+      def tag = 12
+    }
   }
 }

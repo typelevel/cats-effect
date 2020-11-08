@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, Eq, Order, Show}
+import cats.{Applicative, Eq, Id, Order, Show}
 import cats.effect.testkit.{
   AsyncGenerators,
   GenK,
@@ -24,6 +24,7 @@ import cats.effect.testkit.{
   SyncGenerators,
   TestContext
 }
+import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}, Arbitrary.arbitrary
@@ -34,20 +35,35 @@ import org.specs2.mutable.SpecificationLike
 import org.specs2.specification.core.Execution
 
 import scala.annotation.implicitNotFound
-import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
+import scala.concurrent.{
+  CancellationException,
+  ExecutionContext,
+  Future,
+  Promise,
+  TimeoutException
+}
 import scala.concurrent.duration._
 import scala.util.Try
 
+import java.io.{ByteArrayOutputStream, PrintStream}
 import java.util.concurrent.TimeUnit
 
 trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   import OutcomeGenerators._
 
+  def executionTimeout = 10.seconds
+
   def ticked[A: AsResult](test: Ticker => A): Execution =
     Execution.result(test(Ticker(TestContext())))
 
   def real[A: AsResult](test: => IO[A]): Execution =
-    Execution.withEnvAsync(_ => timeout(test.unsafeToFuture()(runtime()), 10.seconds))
+    Execution.withEnvAsync(_ => timeout(test.unsafeToFuture()(runtime()), executionTimeout))
+
+  def realWithRuntime[A: AsResult](test: IORuntime => IO[A]): Execution =
+    Execution.withEnvAsync { _ =>
+      val rt = runtime()
+      timeout(test(rt).unsafeToFuture()(rt), executionTimeout)
+    }
 
   implicit def cogenIO[A: Cogen](implicit ticker: Ticker): Cogen[IO[A]] =
     Cogen[Outcome[Option, Throwable, A]].contramap(unsafeRun(_))
@@ -61,7 +77,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
 
         val cogenE: Cogen[Throwable] = Cogen[Throwable]
 
-        val F: Async[IO] = IO.effectForIO
+        val F: Async[IO] = IO.asyncForIO
 
         def cogenCase[B: Cogen]: Cogen[OutcomeIO[B]] =
           OutcomeGenerators.cogenOutcome[IO, Throwable, B]
@@ -96,7 +112,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
         outer.arbitraryFD
 
       val F: Sync[SyncIO] =
-        SyncIO.syncEffectForSyncIO
+        SyncIO.syncForSyncIO
     }
 
     Arbitrary(generators.generators[A])
@@ -188,7 +204,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
    */
   implicit def eqResource[F[_], A](
       implicit E: Eq[F[A]],
-      F: Resource.Bracket[F]): Eq[Resource[F, A]] =
+      F: MonadCancel[F, Throwable]): Eq[Resource[F, A]] =
     new Eq[Resource[F, A]] {
       def eqv(x: Resource[F, A], y: Resource[F, A]): Boolean =
         E.eqv(x.use(F.pure), y.use(F.pure))
@@ -210,9 +226,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     Try(io.unsafeRunSync()).toEither
 
   implicit def eqSyncIOA[A: Eq]: Eq[SyncIO[A]] =
-    Eq.instance { (left, right) =>
-      unsafeRunSyncIOEither(left) === unsafeRunSyncIOEither(right)
-    }
+    Eq.by(unsafeRunSyncSupressedError)
 
   // feel the rhythm, feel the rhyme...
   implicit def boolRunnings(iob: IO[Boolean])(implicit ticker: Ticker): Prop =
@@ -227,7 +241,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     }
 
   def completeAs[A: Eq: Show](expected: A)(implicit ticker: Ticker): Matcher[IO[A]] =
-    tickTo(Outcome.Completed(Some(expected)))
+    tickTo(Outcome.Succeeded(Some(expected)))
 
   def completeAsSync[A: Eq: Show](expected: A): Matcher[SyncIO[A]] = { (ioa: SyncIO[A]) =>
     val a = ioa.unsafeRunSync()
@@ -247,7 +261,10 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   }
 
   def nonTerminate(implicit ticker: Ticker): Matcher[IO[Unit]] =
-    tickTo[Unit](Outcome.Completed(None))
+    tickTo[Unit](Outcome.Succeeded(None))
+
+  def beCanceledSync: Matcher[SyncIO[Unit]] =
+    (ioa: SyncIO[Unit]) => unsafeRunSync(ioa) eqv Outcome.canceled
 
   def tickTo[A: Eq: Show](expected: Outcome[Option, Throwable, A])(
       implicit ticker: Ticker): Matcher[IO[A]] = { (ioa: IO[A]) =>
@@ -257,14 +274,14 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
 
   def unsafeRun[A](ioa: IO[A])(implicit ticker: Ticker): Outcome[Option, Throwable, A] =
     try {
-      var results: Outcome[Option, Throwable, A] = Outcome.Completed(None)
+      var results: Outcome[Option, Throwable, A] = Outcome.Succeeded(None)
 
       ioa.unsafeRunAsync {
         case Left(t) => results = Outcome.Errored(t)
-        case Right(a) => results = Outcome.Completed(Some(a))
+        case Right(a) => results = Outcome.Succeeded(Some(a))
       }(unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => ()))
 
-      ticker.ctx.tickAll(3.days)
+      ticker.ctx.tickAll(1.days)
 
       /*println("====================================")
       println(s"completed ioa with $results")
@@ -276,6 +293,24 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
         t.printStackTrace()
         throw t
     }
+
+  def unsafeRunSync[A](ioa: SyncIO[A]): Outcome[Id, Throwable, A] =
+    try Outcome.succeeded[Id, Throwable, A](ioa.unsafeRunSync())
+    catch {
+      case _: CancellationException => Outcome.canceled
+      case t: Throwable => Outcome.errored(t)
+    }
+
+  private def unsafeRunSyncSupressedError[A](ioa: SyncIO[A]): Outcome[Id, Throwable, A] = {
+    val old = System.err
+    val err = new PrintStream(new ByteArrayOutputStream())
+    try {
+      System.setErr(err)
+      unsafeRunSync(ioa)
+    } finally {
+      System.setErr(old)
+    }
+  }
 
   implicit def materializeRuntime(implicit ticker: Ticker): unsafe.IORuntime =
     unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => ())

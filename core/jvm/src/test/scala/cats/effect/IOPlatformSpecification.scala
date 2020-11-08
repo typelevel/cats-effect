@@ -112,10 +112,6 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
         }
       }
 
-      "reliably cancel infinite IO.unit(s)" in real {
-        IO.unit.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel).as(ok)
-      }
-
       "interrupt well-behaved blocking synchronous effect" in real {
         var interrupted = true
         val latch = new CountDownLatch(1)
@@ -166,6 +162,24 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
           _ <- f.cancel
           _ <- IO(interrupted must beTrue)
         } yield ok
+      }
+
+      "auto-cede" in real {
+        val forever = IO.unit.foreverM
+
+        val ec = ExecutionContext.fromExecutorService(Executors.newSingleThreadExecutor())
+
+        val run = for {
+          //Run in a tight loop on single-threaded ec so only hope of
+          //seeing cancellation status is auto-cede
+          fiber <- forever.start
+          //Allow the tight loop to be scheduled
+          _ <- IO.sleep(5.millis)
+          //Only hope for the cancellation being run is auto-yielding
+          _ <- fiber.cancel
+        } yield true
+
+        run.evalOn(ec).guarantee(IO(ec.shutdown())).flatMap { res => IO(res must beTrue) }
       }
 
     }

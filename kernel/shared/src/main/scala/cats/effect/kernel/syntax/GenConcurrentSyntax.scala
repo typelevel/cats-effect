@@ -23,7 +23,8 @@ trait GenConcurrentSyntax {
     new GenConcurrentOps(wrapped)
 }
 
-final class GenConcurrentOps[F[_], E, A](val wrapped: F[A]) extends AnyVal {
+final class GenConcurrentOps[F[_], E, A] private[syntax] (private[syntax] val wrapped: F[A])
+    extends AnyVal {
   def memoize(implicit F: GenConcurrent[F, E]): F[F[A]] =
     F.memoize(wrapped)
 }

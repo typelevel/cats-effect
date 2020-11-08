@@ -63,7 +63,7 @@ class AsyncBenchmark {
       if (i < size) evalAsync(i + 1).flatMap(loop)
       else evalAsync(i)
 
-    IO(0).flatMap(loop).unsafeRunSyncBenchmark()
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 
   @Benchmark
@@ -72,7 +72,7 @@ class AsyncBenchmark {
       if (i < size) evalCancelable(i + 1).flatMap(loop)
       else evalCancelable(i)
 
-    IO(0).flatMap(loop).unsafeRunSyncBenchmark()
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 
   // TODO
@@ -98,9 +98,9 @@ class AsyncBenchmark {
     val task = (0 until size).foldLeft(IO.never[Int])((acc, _) =>
       IO.racePair(acc, IO(1)).flatMap {
         case Left((oc, fiber)) =>
-          fiber.cancel.flatMap(_ => oc.fold(IO.never, IO.raiseError(_), fa => fa))
+          fiber.cancel.flatMap(_ => oc.embedNever)
         case Right((fiber, oc)) =>
-          fiber.cancel.flatMap(_ => oc.fold(IO.never, IO.raiseError(_), fa => fa))
+          fiber.cancel.flatMap(_ => oc.embedNever)
       })
 
     task.unsafeRunSync()
@@ -124,7 +124,7 @@ class AsyncBenchmark {
       else
         IO.pure(i)
 
-    IO(0).flatMap(loop).unsafeRunSyncBenchmark()
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 
   @Benchmark
@@ -135,6 +135,6 @@ class AsyncBenchmark {
       else
         IO.pure(i)
 
-    IO(0).flatMap(loop).unsafeRunSyncBenchmark()
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 }

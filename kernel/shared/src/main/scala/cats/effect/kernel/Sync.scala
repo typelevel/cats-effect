@@ -102,7 +102,9 @@ object Sync {
       implicit override def L: Monoid[L] = L0
     }
 
-  trait OptionTSync[F[_]] extends Sync[OptionT[F, *]] with Clock.OptionTClock[F] {
+  private[effect] trait OptionTSync[F[_]]
+      extends Sync[OptionT[F, *]]
+      with Clock.OptionTClock[F] {
 
     implicit protected def F: Sync[F]
 
@@ -125,7 +127,9 @@ object Sync {
       OptionT.liftF(F.suspend(hint)(thunk))
   }
 
-  trait EitherTSync[F[_], E] extends Sync[EitherT[F, E, *]] with Clock.EitherTClock[F, E] {
+  private[effect] trait EitherTSync[F[_], E]
+      extends Sync[EitherT[F, E, *]]
+      with Clock.EitherTClock[F, E] {
     implicit protected def F: Sync[F]
 
     override protected def delegate: MonadError[EitherT[F, E, *], Throwable] =
@@ -148,7 +152,9 @@ object Sync {
       EitherT.liftF(F.suspend(hint)(thunk))
   }
 
-  trait StateTSync[F[_], S] extends Sync[StateT[F, S, *]] with Clock.StateTClock[F, S] {
+  private[effect] trait StateTSync[F[_], S]
+      extends Sync[StateT[F, S, *]]
+      with Clock.StateTClock[F, S] {
     implicit protected def F: Sync[F]
 
     override protected def delegate: MonadError[StateT[F, S, *], Throwable] =
@@ -171,7 +177,9 @@ object Sync {
       StateT.liftF(F.suspend(hint)(thunk))
   }
 
-  trait WriterTSync[F[_], S] extends Sync[WriterT[F, S, *]] with Clock.WriterTClock[F, S] {
+  private[effect] trait WriterTSync[F[_], S]
+      extends Sync[WriterT[F, S, *]]
+      with Clock.WriterTClock[F, S] {
     implicit protected def F: Sync[F]
 
     override protected def delegate: MonadError[WriterT[F, S, *], Throwable] =
@@ -194,7 +202,9 @@ object Sync {
       WriterT.liftF(F.suspend(hint)(thunk))
   }
 
-  trait IorTSync[F[_], L] extends Sync[IorT[F, L, *]] with Clock.IorTClock[F, L] {
+  private[effect] trait IorTSync[F[_], L]
+      extends Sync[IorT[F, L, *]]
+      with Clock.IorTClock[F, L] {
     implicit protected def F: Sync[F]
 
     override protected def delegate: MonadError[IorT[F, L, *], Throwable] =
@@ -216,7 +226,9 @@ object Sync {
       IorT.liftF(F.suspend(hint)(thunk))
   }
 
-  trait KleisliSync[F[_], R] extends Sync[Kleisli[F, R, *]] with Clock.KleisliClock[F, R] {
+  private[effect] trait KleisliSync[F[_], R]
+      extends Sync[Kleisli[F, R, *]]
+      with Clock.KleisliClock[F, R] {
     implicit protected def F: Sync[F]
 
     override protected def delegate: MonadError[Kleisli[F, R, *], Throwable] =
@@ -239,7 +251,7 @@ object Sync {
       Kleisli.liftF(F.suspend(hint)(thunk))
   }
 
-  trait ReaderWriterStateTSync[F[_], R, L, S]
+  private[effect] trait ReaderWriterStateTSync[F[_], R, L, S]
       extends Sync[ReaderWriterStateT[F, R, L, S, *]]
       with Clock.ReaderWriterStateTClock[F, R, L, S] {
     implicit protected def F: Sync[F]

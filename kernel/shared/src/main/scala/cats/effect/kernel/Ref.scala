@@ -199,6 +199,20 @@ object Ref {
   def of[F[_], A](a: A)(implicit mk: Make[F]): F[Ref[F, A]] = mk.refOf(a)
 
   /**
+   * Creates a Ref starting with the value of the one in `source`.
+   *
+   * Updates of either of the Refs will not have an effect on the other (assuming A is immutable).
+   */
+  def copyOf[F[_]: Make: FlatMap, A](source: Ref[F, A]): F[Ref[F, A]] =
+    ofEffect(source.get)
+
+  /**
+   * Creates a Ref starting with the result of the effect `fa`.
+   */
+  def ofEffect[F[_]: Make: FlatMap, A](fa: F[A]): F[Ref[F, A]] =
+    FlatMap[F].flatMap(fa)(of(_))
+
+  /**
    * Like `apply` but returns the newly allocated ref directly instead of wrapping it in `F.delay`.
    * This method is considered unsafe because it is not referentially transparent -- it allocates
    * mutable state.
@@ -284,6 +298,17 @@ object Ref {
 
     override def getAndSet(a: A): F[A] = F.delay(ar.getAndSet(a))
 
+    override def getAndUpdate(f: A => A): F[A] = {
+      @tailrec
+      def spin: A = {
+        val a = ar.get
+        val u = f(a)
+        if (!ar.compareAndSet(a, u)) spin
+        else a
+      }
+      F.delay(spin)
+    }
+
     def access: F[(A, A => F[Boolean])] =
       F.delay {
         val snapshot = ar.get
@@ -305,7 +330,26 @@ object Ref {
         else None
       }
 
-    def update(f: A => A): F[Unit] = modify { a => (f(a), ()) }
+    def update(f: A => A): F[Unit] = {
+      @tailrec
+      def spin(): Unit = {
+        val a = ar.get
+        val u = f(a)
+        if (!ar.compareAndSet(a, u)) spin()
+      }
+      F.delay(spin())
+    }
+
+    override def updateAndGet(f: A => A): F[A] = {
+      @tailrec
+      def spin: A = {
+        val a = ar.get
+        val u = f(a)
+        if (!ar.compareAndSet(a, u)) spin
+        else u
+      }
+      F.delay(spin)
+    }
 
     def modify[B](f: A => (A, B)): F[B] = {
       @tailrec

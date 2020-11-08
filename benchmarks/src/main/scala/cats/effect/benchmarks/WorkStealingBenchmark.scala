@@ -79,7 +79,7 @@ class WorkStealingBenchmark {
   @Benchmark
   def asyncTooManyThreads(): Int = {
     implicit lazy val runtime: IORuntime = {
-      val blocking = {
+      val (blocking, blockDown) = {
         val threadCount = new AtomicInteger(0)
         val executor = Executors.newCachedThreadPool { (r: Runnable) =>
           val t = new Thread(r)
@@ -87,10 +87,10 @@ class WorkStealingBenchmark {
           t.setDaemon(true)
           t
         }
-        ExecutionContext.fromExecutor(executor)
+        (ExecutionContext.fromExecutor(executor), () => executor.shutdown())
       }
 
-      val scheduler = {
+      val (scheduler, schedDown) = {
         val executor = Executors.newSingleThreadScheduledExecutor { r =>
           val t = new Thread(r)
           t.setName("io-scheduler")
@@ -98,12 +98,31 @@ class WorkStealingBenchmark {
           t.setPriority(Thread.MAX_PRIORITY)
           t
         }
-        Scheduler.fromScheduledExecutor(executor)
+        (Scheduler.fromScheduledExecutor(executor), () => executor.shutdown())
       }
 
       val compute = new WorkStealingThreadPool(256, "io-compute", runtime)
 
-      new IORuntime(compute, blocking, scheduler, () => ())
+      val cancellationCheckThreshold =
+        System.getProperty("cats.effect.cancellation.check.threshold", "512").toInt
+
+      new IORuntime(
+        compute,
+        blocking,
+        scheduler,
+        () => (),
+        IORuntimeConfig(
+          cancellationCheckThreshold,
+          System
+            .getProperty("cats.effect.auto.yield.threshold.multiplier", "2")
+            .toInt * cancellationCheckThreshold
+        ),
+        internalShutdown = () => {
+          compute.shutdown()
+          blockDown()
+          schedDown()
+        }
+      )
     }
 
     benchmark

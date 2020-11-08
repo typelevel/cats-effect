@@ -16,7 +16,7 @@
 
 package cats.effect.kernel.syntax
 
-import cats.effect.kernel.{Fiber, GenSpawn, Outcome}
+import cats.effect.kernel.{Fiber, GenSpawn, Outcome, Resource}
 
 trait GenSpawnSyntax {
 
@@ -26,32 +26,25 @@ trait GenSpawnSyntax {
     new GenSpawnOps(wrapped)
 }
 
-final class GenSpawnOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
-
-  def forceR[B](fb: F[B])(implicit F: GenSpawn[F, E]): F[B] =
-    F.forceR(wrapped)(fb)
-
-  def !>[B](fb: F[B])(implicit F: GenSpawn[F, E]): F[B] =
-    forceR(fb)
+final class GenSpawnOps[F[_], A, E] private[syntax] (private[syntax] val wrapped: F[A])
+    extends AnyVal {
 
   def start(implicit F: GenSpawn[F, E]): F[Fiber[F, E, A]] = F.start(wrapped)
 
-  def uncancelable(implicit F: GenSpawn[F, E]): F[A] =
-    F.uncancelable(_ => wrapped)
+  def background(implicit F: GenSpawn[F, E]): Resource[F, F[Outcome[F, E, A]]] =
+    F.background(wrapped)
 
-  def onCancel(fin: F[Unit])(implicit F: GenSpawn[F, E]): F[A] =
-    F.onCancel(wrapped, fin)
+  def race[B](another: F[B])(implicit F: GenSpawn[F, E]) =
+    F.race(wrapped, another)
 
-  def guarantee(fin: F[Unit])(implicit F: GenSpawn[F, E]): F[A] =
-    F.guarantee(wrapped, fin)
+  def raceOutcome[B](another: F[B])(
+      implicit F: GenSpawn[F, E]): F[Either[Outcome[F, E, A], Outcome[F, E, B]]] =
+    F.raceOutcome(wrapped, another)
 
-  def guaranteeCase(fin: Outcome[F, E, A] => F[Unit])(implicit F: GenSpawn[F, E]): F[A] =
-    F.guaranteeCase(wrapped)(fin)
+  def both[B](another: F[B])(implicit F: GenSpawn[F, E]): F[(A, B)] =
+    F.both(wrapped, another)
 
-  def bracket[B](use: A => F[B])(release: A => F[Unit])(implicit F: GenSpawn[F, E]): F[B] =
-    F.bracket(wrapped)(use)(release)
-
-  def bracketCase[B](use: A => F[B])(release: (A, Outcome[F, E, B]) => F[Unit])(
-      implicit F: GenSpawn[F, E]): F[B] =
-    F.bracketCase(wrapped)(use)(release)
+  def bothOutcome[B](another: F[B])(
+      implicit F: GenSpawn[F, E]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
+    F.bothOutcome(wrapped, another)
 }

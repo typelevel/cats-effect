@@ -4,34 +4,34 @@ Cats Effect 3 (or "ce3") is an ongoing project designed to fully replace the exi
 
 ## Getting Started
 
-At present, no full releases have been published. However, Cats Effect adheres to a stable Git hash snapshot scheme. No guarantees are made about the actual *code* stability of snapshot releases, but the versions themselves are permanent. The latest snapshot release of Cats Effect 3 is [**3.0-ac83d13**](https://github.com/typelevel/cats-effect/tree/ac83d13). If you need a newer snapshot for whatever reason, get in touch with us [in Gitter](https://gitter.im/typelevel/cats-effect-dev)!
+At present, no final releases have been published for Cats Effect 3. We are, however, beginning to release stable milestones to allow the ecosystem to progressively migrate forward. The latest milestone release of Cats Effect 3 is [**3.0.0-M2**](https://github.com/typelevel/cats-effect/releases/tag/v3.0.0-M2). If you need a newer stable snapshot for whatever reason, get in touch with us [in Gitter](https://gitter.im/typelevel/cats-effect-dev)!
 
 If you're an end-user (i.e. writing an application, not a library), then you probably want the full, batteries-included dependency of **core**, which gives you access to `IO`, `IOApp`, and other goodies:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.0-ac83d13"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.0.0-M2"
 ```
 
 If you're a datatype implementation (like Monix), you probably only want to depend on **kernel** (the typeclasses) in your compile scope and **laws** in your test scope:
 
 ```scala
 libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-effect-kernel" % "3.0-ac83d13",
-  "org.typelevel" %% "cats-effect-laws"   % "3.0-ac83d13" % Test)
+  "org.typelevel" %% "cats-effect-kernel" % "3.0.0-M2",
+  "org.typelevel" %% "cats-effect-laws"   % "3.0.0-M2" % Test)
 ```
 
 If you're a middleware framework (like fs2), you probably want to depend on **concurrent**, which gives you access to `Ref` and `Deferred` and such without introducing a hard-dependency on `IO` outside of your tests:
 
 ```scala
 libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-effect-concurrent" % "3.0-ac83d13",
-  "org.typelevel" %% "cats-effect"            % "3.0-ac83d13" % Test)
+  "org.typelevel" %% "cats-effect-concurrent" % "3.0.0-M2",
+  "org.typelevel" %% "cats-effect"            % "3.0.0-M2" % Test)
 ```
 
 You may also find some utility in the **testkit** project, which contains `TestContext`, `TimeT`, and a few other things:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect-testkit" % "3.0-ac83d13" % Test
+libraryDependencies += "org.typelevel" %% "cats-effect-testkit" % "3.0.0-M2" % Test
 ```
 
 Please note that there are no particular guarantees about binary compatibility until we get to a final release, or at the *very least* a release candidate. **Please do not put this into production yet.**
@@ -118,7 +118,7 @@ The first program produces `42`, exactly as you would expect. The second fails w
 
 This is really difficult to work around in practice. Cancelation is a very frequent element of using Cats Effect in practice, and yet manipulating it directly or even *detecting* it is extremely difficult. As a high-level concrete example, the concept of [supervisor nets](https://erlang.org/doc/man/supervisor.html) makes a great deal of sense when we think about how fibers are `start`ed by a "parent" fiber, which then has the ability to `cancel` or `join` it, and thus one can imagine an implicit directed acyclic graph of dependencies and supervisory capabilities. However, this is impossible since one of the three fundamental outcomes of a fiber, cancelation, cannot be safely observed even by the parent.
 
-One of the major goals of CE3 is to address soundness issues in the hierarchy like the one illustrated here. For example, in CE3, the `join` function produces a value of type `F[Outcome[F, E, A]]`, where `E` is the error type (`Throwable` in the case of `IO`). `Outcome` represents the three possible results explicitly: `Completed`, `Errored`, and `Canceled`, giving callers of `join` the ability to make a decision on the desired semantics.
+One of the major goals of CE3 is to address soundness issues in the hierarchy like the one illustrated here. For example, in CE3, the `join` function produces a value of type `F[Outcome[F, E, A]]`, where `E` is the error type (`Throwable` in the case of `IO`). `Outcome` represents the three possible results explicitly: `Succeeded`, `Errored`, and `Canceled`, giving callers of `join` the ability to make a decision on the desired semantics.
 
 ### Safety
 
@@ -254,7 +254,7 @@ def bracketCase[A, B](
         case e => release(a, Outcome.Errored(e)).attempt.void
       }
 
-      handled.flatTap(b => release(a, Outcome.Completed(pure(b))).attempt)
+      handled.flatTap(b => release(a, Outcome.Succeeded(pure(b))).attempt)
     }
   }
 ```

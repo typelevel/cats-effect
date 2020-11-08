@@ -236,15 +236,15 @@ trait GenSpawnGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
       back = F.racePair(fa, fb).flatMap {
         case Left((oc, f)) =>
           if (cancel)
-            f.cancel *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+            f.cancel *> oc.embedNever
           else
-            f.join *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+            f.join *> oc.embedNever
 
         case Right((f, oc)) =>
           if (cancel)
-            f.cancel *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+            f.cancel *> oc.embedNever
           else
-            f.join *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+            f.join *> oc.embedNever
       }
     } yield back
 }
@@ -323,7 +323,7 @@ object OutcomeGenerators {
       implicit A: Cogen[F[A]]): Cogen[Outcome[F, E, A]] =
     Cogen[Option[Either[E, F[A]]]].contramap {
       case Outcome.Canceled() => None
-      case Outcome.Completed(fa) => Some(Right(fa))
+      case Outcome.Succeeded(fa) => Some(Right(fa))
       case Outcome.Errored(e) => Some(Left(e))
     }
 }

@@ -17,7 +17,6 @@
 package cats
 package effect
 
-import cats.effect.concurrent.{Deferred, Ref}
 import cats.syntax.all._
 
 import org.scalacheck.Prop, Prop.forAll

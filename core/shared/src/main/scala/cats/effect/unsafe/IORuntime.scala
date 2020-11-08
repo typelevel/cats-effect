@@ -17,7 +17,7 @@
 package cats.effect
 package unsafe
 
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.ExecutionContext
 
 @annotation.implicitNotFound("""Could not find an implicit IORuntime.
 
@@ -35,25 +35,30 @@ avoid unintentionally degrading your application performance.
 // Constructor visible in the effect package for use in benchmarks.
 final class IORuntime private[effect] (
     val compute: ExecutionContext,
-    val blocking: ExecutionContext,
+    private[effect] val blocking: ExecutionContext,
     val scheduler: Scheduler,
-    val shutdown: () => Unit) {
+    val shutdown: () => Unit,
+    val config: IORuntimeConfig,
+    private[effect] val fiberErrorCbs: FiberErrorHashtable = new FiberErrorHashtable(16),
+    private[effect] val internalShutdown: () => Unit = () => ()
+) {
+  override def toString: String = s"IORuntime($compute, $scheduler, $config)"
+}
 
-  private implicit val self: IORuntime = this
+final case class IORuntimeConfig private (
+    val cancellationCheckThreshold: Int,
+    val autoYieldThreshold: Int)
 
-  val unsafeRunForIO: UnsafeRun[IO] =
-    new UnsafeRun[IO] {
-      def unsafeRunFutureCancelable[A](fa: IO[A]): (Future[A], () => Future[Unit]) = {
-        val p = Promise[A]()
-        val fiber = fa.unsafeRunFiber(true) {
-          case Left(t) => p.failure(t)
-          case Right(a) => p.success(a)
-        }
-        (p.future, () => fiber.cancel.unsafeToFuture())
-      }
-    }
+object IORuntimeConfig {
+  def apply(): IORuntimeConfig = new IORuntimeConfig(512, 1024)
 
-  override def toString: String = s"IORuntime($compute, $scheduler)"
+  def apply(cancellationCheckThreshold: Int, autoYieldThreshold: Int): IORuntimeConfig = {
+    if (autoYieldThreshold % cancellationCheckThreshold == 0)
+      new IORuntimeConfig(cancellationCheckThreshold, autoYieldThreshold)
+    else
+      throw new AssertionError(
+        s"Auto yield threshold $autoYieldThreshold must be a multiple of cancellation check threshold $cancellationCheckThreshold")
+  }
 }
 
 object IORuntime extends IORuntimeCompanionPlatform {
@@ -62,5 +67,13 @@ object IORuntime extends IORuntimeCompanionPlatform {
       blocking: ExecutionContext,
       scheduler: Scheduler,
       shutdown: () => Unit): IORuntime =
-    new IORuntime(compute, blocking, scheduler, shutdown)
+    new IORuntime(compute, blocking, scheduler, shutdown, IORuntimeConfig())
+
+  def apply(
+      compute: ExecutionContext,
+      blocking: ExecutionContext,
+      scheduler: Scheduler,
+      shutdown: () => Unit,
+      config: IORuntimeConfig): IORuntime =
+    new IORuntime(compute, blocking, scheduler, shutdown, config)
 }

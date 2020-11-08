@@ -111,14 +111,14 @@ object pure {
         import Outcome._
 
         val body = identified flatMap { a =>
-          state.tryPut(Completed(a.pure[PureConc[E, *]]))
+          state.tryPut(Succeeded(a.pure[PureConc[E, *]]))
         } handleErrorWith { e => state.tryPut(Errored(e)) }
 
         val results = state.read.flatMap {
           case Canceled() => (Outcome.Canceled(): IdOC[E, A]).pure[Main]
           case Errored(e) => (Outcome.Errored(e): IdOC[E, A]).pure[Main]
 
-          case Completed(fa) =>
+          case Succeeded(fa) =>
             val identifiedCompletion = fa.mapF { ta =>
               val fk = new (FiberR[E, *] ~> IdOC[E, *]) {
                 def apply[a](ke: FiberR[E, a]) =
@@ -128,7 +128,7 @@ object pure {
               ta.mapK(fk)
             }
 
-            identifiedCompletion.map(a => Completed[Id, E, A](a): IdOC[E, A]) handleError { e =>
+            identifiedCompletion.map(a => Succeeded[Id, E, A](a): IdOC[E, A]) handleError { e =>
               Errored(e)
             }
         }
@@ -141,7 +141,7 @@ object pure {
   }
 
   /**
-   * Produces Completed(None) when the main fiber is deadlocked. Note that
+   * Produces Succeeded(None) when the main fiber is deadlocked. Note that
    * deadlocks outside of the main fiber are ignored when results are
    * appropriately produced (i.e. daemon semantics).
    */
@@ -161,10 +161,10 @@ object pure {
 
     scheduled.run.mapK(optLift).flatMap {
       case (List(results), _) => results.mapK(optLift)
-      case (_, false) => Outcome.Completed(None)
+      case (_, false) => Outcome.Succeeded(None)
 
       // we could make a writer that only receives one object, but that seems meh. just pretend we deadlocked
-      case _ => Outcome.Completed(None)
+      case _ => Outcome.Succeeded(None)
     }
   }
 

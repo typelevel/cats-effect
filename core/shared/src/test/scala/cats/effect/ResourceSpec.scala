@@ -18,7 +18,6 @@ package cats.effect
 
 import cats.{~>, SemigroupK}
 import cats.data.Kleisli
-import cats.effect.kernel.Deferred
 import cats.effect.testkit.TestContext
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
@@ -133,7 +132,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       def sideEffectyResource: (AtomicBoolean, Resource[IO, Unit]) = {
         val cleanExit = new java.util.concurrent.atomic.AtomicBoolean(false)
         val res = Resource.makeCase(IO.unit) {
-          case (_, Resource.ExitCase.Completed) =>
+          case (_, Resource.ExitCase.Succeeded) =>
             IO {
               cleanExit.set(true)
             }
@@ -176,6 +175,29 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         a0 eqv a1
       }
+    }
+
+    "use is stack-safe over binds" in ticked { implicit ticker =>
+      val r = (1 to 10000)
+        .foldLeft(Resource.liftF(IO.unit)) {
+          case (r, _) =>
+            r.flatMap(_ => Resource.liftF(IO.unit))
+        }
+        .use(IO.pure)
+      r eqv IO.unit
+    }
+
+    "mapK is stack-safe over binds" in ticked { implicit ticker =>
+      val r = (1 to 10000)
+        .foldLeft(Resource.liftF(IO.unit)) {
+          case (r, _) =>
+            r.flatMap(_ => Resource.liftF(IO.unit))
+        }
+        .mapK(new ~>[IO, IO] {
+          def apply[A](a: IO[A]): IO[A] = a
+        })
+        .use(IO.pure)
+      r eqv IO.unit
     }
 
     "allocate does not release until close is invoked" in ticked { implicit ticker =>
@@ -446,6 +468,25 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     //     lhs eqv rhs
     //   }
     // }
+
+    "surround - should wrap an effect in a usage and ignore the value produced by resource" in ticked {
+      implicit ticker =>
+        val r = Resource.liftF(IO.pure(0))
+        val surroundee = IO("hello")
+        val surrounded = r.surround(surroundee)
+
+        surrounded eqv surroundee
+    }
+
+    "surroundK - should wrap an effect in a usage, ignore the value produced by resource and return FunctionK" in ticked {
+      implicit ticker =>
+        val r = Resource.liftF(IO.pure(0))
+        val surroundee = IO("hello")
+        val surround = r.surroundK
+        val surrounded = surround(surroundee)
+
+        surrounded eqv surroundee
+    }
 
   }
 

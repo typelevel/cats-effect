@@ -56,10 +56,30 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
   }
 
-  lazy val global: IORuntime =
+  lazy val global: IORuntime = {
+    val cancellationCheckThreshold =
+      System.getProperty("cats.effect.cancellation.check.threshold", "512").toInt
+
+    val (compute, compDown) = createDefaultComputeThreadPool(global)
+    val (blocking, blockDown) = createDefaultBlockingExecutionContext()
+    val (scheduler, schedDown) = createDefaultScheduler()
+
     new IORuntime(
-      createDefaultComputeThreadPool(global)._1,
-      createDefaultBlockingExecutionContext()._1,
-      createDefaultScheduler()._1,
-      () => ())
+      compute,
+      blocking,
+      scheduler,
+      () => (),
+      IORuntimeConfig(
+        cancellationCheckThreshold,
+        System
+          .getProperty("cats.effect.auto.yield.threshold.multiplier", "2")
+          .toInt * cancellationCheckThreshold
+      ),
+      internalShutdown = () => {
+        compDown()
+        blockDown()
+        schedDown()
+      }
+    )
+  }
 }

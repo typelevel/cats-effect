@@ -13,5 +13,6 @@ tags
 
 # Metals
 .metals/
+.bsp/
 .bloop/
 metals.sbt
