@@ -20,4 +20,68 @@ package local
 
 class LocalRefSpec extends BaseSpec {
   
+  "LocalRef" should {
+    "return a default value" in ticked { implicit ticker =>
+      val io = LocalRef(0).flatMap(_.get)
+
+      io must completeAs(0)
+    }
+
+    "set and get a value" in ticked { implicit ticker =>
+      val io = for {
+        local <- LocalRef(0)
+        _ <- local.set(10)
+        value <- local.get
+      } yield value
+
+      io must completeAs(10)
+    }
+
+    "preserve locals across async boundaries" in ticked { implicit ticker =>
+      val io = for {
+        local <- LocalRef(0)
+        _ <- local.set(10)
+        _ <- IO.cede
+        value <- local.get
+      } yield value
+
+      io must completeAs(10)
+    }
+
+    "children fibers can read locals" in ticked { implicit ticker =>
+      val io = for {
+        local <- LocalRef(0)
+        _ <- local.set(10)
+        f <- local.get.start
+        value <- f.joinAndEmbedNever
+      } yield value
+
+      io must completeAs(10)
+    }
+
+    "child local manipulation is visible to parents" in ticked { implicit ticker =>
+      val io = for {
+        local <- LocalRef(0)
+        f <- local.set(20).start
+        _ <- f.join
+        value <- local.get
+      } yield value
+
+      io must completeAs(20)
+    }
+
+    "parent local manipulation is visible to children" in ticked { implicit ticker =>
+      val io = for {
+        local <- LocalRef(0)
+        d1 <- Deferred[IO, Unit]
+        f <- (d1.get *> local.get).start
+        _ <- local.set(10)
+        _ <- d1.complete(())
+        value <- f.joinAndEmbedNever
+      } yield value
+
+      io must completeAs(10)
+    }
+  }
+
 }

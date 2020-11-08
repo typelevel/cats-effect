@@ -61,8 +61,7 @@ class LocalSpec extends BaseSpec {
 
     "child local manipulation is invisible to parents" in ticked { implicit ticker =>
       val io = for {
-        local <- Local.of(0)
-        _ <- local.set(10)
+        local <- Local.of(10)
         f <- local.set(20).start
         _ <- f.join
         value <- local.get
