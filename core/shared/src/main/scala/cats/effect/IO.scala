@@ -145,7 +145,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def racePair[B](that: IO[B]): IO[Either[
     (OutcomeIO[A @uncheckedVariance], FiberIO[B]),
     (FiberIO[A @uncheckedVariance], OutcomeIO[B])]] =
-    IO.RacePair(this, that)
+    IO.racePair(this, that)
 
   def redeem[B](recover: Throwable => B, map: A => B): IO[B] =
     attempt.map(_.fold(recover, map))
@@ -327,7 +327,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def racePair[A, B](
       left: IO[A],
       right: IO[B]): IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] =
-    left.racePair(right)
+    asyncForIO.racePair(left, right)
 
   def ref[A](a: A): IO[Ref[IO, A]] = IO(Ref.unsafe(a))
 
@@ -523,11 +523,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def productR[A, B](left: IO[A])(right: IO[B]): IO[B] =
       left.productR(right)
 
-    def racePair[A, B](
-        fa: IO[A],
-        fb: IO[B]): IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] =
-      fa.racePair(fb)
-
     def start[A](fa: IO[A]): IO[FiberIO[A]] =
       fa.start
 
@@ -641,36 +636,22 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 14
   }
 
-  private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B])
-      extends IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] {
-
+  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
     def tag = 15
   }
 
-  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
-    def tag = 16
-  }
+  private[effect] case object RealTime extends IO[FiniteDuration] { def tag = 16 }
 
-  private[effect] case object RealTime extends IO[FiniteDuration] { def tag = 17 }
+  private[effect] case object Monotonic extends IO[FiniteDuration] { def tag = 17 }
 
-  private[effect] case object Monotonic extends IO[FiniteDuration] { def tag = 18 }
-
-  private[effect] case object ReadEC extends IO[ExecutionContext] { def tag = 19 }
+  private[effect] case object ReadEC extends IO[ExecutionContext] { def tag = 18 }
 
   private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {
-    def tag = 20
+    def tag = 19
   }
 
   private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A) extends IO[A] {
-    def tag = 21
-  }
-
-  private[effect] final case class Race[A, B](ioa: IO[A], iob: IO[B]) extends IO[Either[A, B]] {
-    def tag = 22
-  }
-
-  private[effect] final case class Both[A, B](ioa: IO[A], iob: IO[B]) extends IO[(A, B)] {
-    def tag = 23
+    def tag = 20
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
