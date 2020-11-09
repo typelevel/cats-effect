@@ -34,7 +34,7 @@ class BankersQueueSpec extends Specification with ScalaCheck {
      * frontLen <= rebalanceConstant * backLen + 1
      * backLen <= rebalanceConstant * = frontLen + 1
      */
-    "maintain size invariants" in prop { ops: List[Op[Int]] =>
+    "maintain size invariants" in prop { (ops: List[Op[Int]]) =>
       val queue = Op.fold(ops)
 
       queue.frontLen must beLessThanOrEqualTo(
@@ -43,13 +43,13 @@ class BankersQueueSpec extends Specification with ScalaCheck {
         queue.frontLen * BankersQueue.rebalanceConstant + 1)
     }
 
-    "dequeue in order from front" in prop { elems: List[Int] =>
+    "dequeue in order from front" in prop { (elems: List[Int]) =>
       val queue = buildQueue(elems)
 
       toListFromFront(queue) must beEqualTo(elems)
     }
 
-    "dequeue in order from front" in prop { elems: List[Int] =>
+    "dequeue in order from back" in prop { (elems: List[Int]) =>
       val queue = buildQueue(elems)
 
       toListFromBack(queue) must beEqualTo(elems.reverse)
