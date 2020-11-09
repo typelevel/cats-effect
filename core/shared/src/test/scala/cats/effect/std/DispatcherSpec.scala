@@ -117,7 +117,7 @@ class DispatcherSpec extends BaseSpec {
         }
 
         _ <- rec.use(_ => gate1.acquireN(2)).start
-        _ <- gate2.acquireN(2)    // if both are not run in parallel, then this will hang
+        _ <- gate2.acquireN(2) // if both are not run in parallel, then this will hang
       } yield ok
     }
 

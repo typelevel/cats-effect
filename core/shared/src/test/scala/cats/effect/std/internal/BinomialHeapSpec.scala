@@ -51,7 +51,9 @@ class BinomialHeapSpec extends Specification with ScalaCheck {
     }
 
     /**
-     * The rank of the top-level trees should be strictly monotonically increasing.
+     * The rank of the top-level trees should be strictly monotonically increasing,
+     * where the rank of a tree is defined as the height of the tree ie the
+     * number of nodes on the longest path from the root to a leaf.
      * There is one binomial tree for each nonzero bit in the binary representation
      * of the number of elements n
      *

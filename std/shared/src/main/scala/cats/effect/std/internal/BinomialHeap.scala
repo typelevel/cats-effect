@@ -22,7 +22,9 @@ import scala.annotation.tailrec
 
 /**
  * A binomial heap is a list of trees maintaining the following invariants:
- * - The list is strictly monotonically increasing in the rank of the trees
+ * - The list is strictly monotonically increasing in the rank of the trees,
+ *   where the rank of a tree is defined as the height of the tree ie the
+ *   number of nodes on the longest path from the root to a leaf
  *   In fact, a binomial heap built from n elements has is a tree of rank i
  *   iff there is a 1 in the ith digit of the binary representation of n
  *   Consequently, the length of the list is <= 1 + log(n)
