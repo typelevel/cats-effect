@@ -31,22 +31,43 @@ class BoundedDequeueSpec extends BaseSpec with QueueTests {
   sequential
 
   "BoundedDequeue" should {
-    boundedDequeueTests("BoundedDequeue", Dequeue.bounded)
+    boundedDequeueTests(
+      "BoundedDequeue",
+      Dequeue.bounded(_),
+      (q: Dequeue[IO, Int], i: Int) => q.offerBack(i),
+      (q: Dequeue[IO, Int]) => q.takeFront)
+    boundedDequeueTests(
+      "BoundedDequeue - reverse",
+      Dequeue.bounded(_),
+      (q: Dequeue[IO, Int], i: Int) => q.offerFront(i),
+      (q: Dequeue[IO, Int]) => q.takeBack)
     boundedDequeueTests(
       "BoundedDequeue mapK",
-      Dequeue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
+      Dequeue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)),
+      (q: Dequeue[IO, Int], i: Int) => q.offerBack(i),
+      (q: Dequeue[IO, Int]) => q.takeFront
+    )
+    boundedDequeueTests(
+      "BoundedDequeue mapK",
+      Dequeue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)),
+      (q: Dequeue[IO, Int], i: Int) => q.offerFront(i),
+      (q: Dequeue[IO, Int]) => q.takeBack
+    )
   }
 
   private def boundedDequeueTests(
       name: String,
-      constructor: Int => IO[Queue[IO, Int]]): Fragments = {
+      constructor: Int => IO[Dequeue[IO, Int]],
+      offer: (Dequeue[IO, Int], Int) => IO[Unit],
+      take: Dequeue[IO, Int] => IO[Int]
+  ): Fragments = {
     s"$name - demonstrate offer and take with zero capacity" in real {
       for {
         q <- constructor(0)
-        _ <- q.offer(1).start
-        v1 <- q.take
-        f <- q.take.start
-        _ <- q.offer(2)
+        _ <- offer(q, 1).start
+        v1 <- take(q)
+        f <- take(q).start
+        _ <- offer(q, 2)
         v2 <- f.joinAndEmbedNever
         r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(2)))
       } yield r
@@ -55,13 +76,13 @@ class BoundedDequeueSpec extends BaseSpec with QueueTests {
     s"$name - async take with zero capacity" in realWithRuntime { implicit rt =>
       for {
         q <- constructor(0)
-        _ <- q.offer(1).start
-        v1 <- q.take
+        _ <- offer(q, 1).start
+        v1 <- take(q)
         _ <- IO(v1 must beEqualTo(1))
-        ff <- IO(q.take.unsafeToFuture()).start
+        ff <- IO(take(q).unsafeToFuture()).start
         f <- ff.joinAndEmbedNever
         _ <- IO(f.value must beEqualTo(None))
-        _ <- q.offer(2)
+        _ <- offer(q, 2)
         v2 <- IO.fromFuture(IO.pure(f))
         r <- IO(v2 must beEqualTo(2))
       } yield r
@@ -70,17 +91,17 @@ class BoundedDequeueSpec extends BaseSpec with QueueTests {
     s"$name - offer/take with zero capacity" in real {
       val count = 1000
 
-      def producer(q: Queue[IO, Int], n: Int): IO[Unit] =
+      def producer(q: Dequeue[IO, Int], n: Int): IO[Unit] =
         if (n > 0) q.offer(count - n).flatMap(_ => producer(q, n - 1))
         else IO.unit
 
       def consumer(
-          q: Queue[IO, Int],
+          q: Dequeue[IO, Int],
           n: Int,
           acc: ScalaQueue[Int] = ScalaQueue.empty
       ): IO[Long] =
         if (n > 0)
-          q.take.flatMap { a => consumer(q, n - 1, acc.enqueue(a)) }
+          take(q).flatMap { a => consumer(q, n - 1, acc.enqueue(a)) }
         else
           IO.pure(acc.foldLeft(0L)(_ + _))
 
@@ -107,6 +128,7 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests {
 
   "UnboundedDequeue" should {
     unboundedDequeueTests("UnboundedDequeue", Dequeue.unbounded)
+
     unboundedDequeueTests(
       "UnboundedDequeue mapK",
       Dequeue.unbounded[IO, Int].map(_.mapK(FunctionK.id)))
@@ -114,7 +136,7 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests {
 
   private def unboundedDequeueTests(
       name: String,
-      constructor: IO[Queue[IO, Int]]): Fragments = {
+      constructor: IO[Dequeue[IO, Int]]): Fragments = {
     tryOfferOnFullTests(name, _ => constructor, true)
     tryOfferTryTakeTests(name, _ => constructor)
     commonTests(name, _ => constructor)

@@ -79,7 +79,7 @@ object Dequeue {
    * @param capacity the maximum capacity of the queue
    * @return an empty, bounded queue
    */
-  def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
+  def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Dequeue[F, A]] = {
     assertNonNegative(capacity)
     F.ref(State.empty[F, A]).map(new BoundedDequeue(capacity, _))
   }
@@ -91,7 +91,7 @@ object Dequeue {
    *
    * @return an empty, unbounded queue
    */
-  def unbounded[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
+  def unbounded[F[_], A](implicit F: GenConcurrent[F, _]): F[Dequeue[F, A]] =
     bounded(Int.MaxValue)
 
   private[std] class BoundedDequeue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
