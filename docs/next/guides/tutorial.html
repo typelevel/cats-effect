@@ -1,0 +1,1212 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Tutorial · Cats Effect</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;nav role=&quot;navigation&quot; id=&quot;toc&quot;&gt;&lt;/nav&gt;"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Tutorial · Cats Effect"/><meta property="og:type" content="website"/><meta property="og:url" content="https://typelevel.org/cats-effect/"/><meta property="og:description" content="&lt;nav role=&quot;navigation&quot; id=&quot;toc&quot;&gt;&lt;/nav&gt;"/><meta property="og:image" content="https://typelevel.org/cats-effect/img/undraw_online.svg"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/undraw_tweetstorm.svg"/><link rel="shortcut icon" href="/cats-effect/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github-gist.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="/cats-effect/js/scrollSpy.js"></script><link rel="stylesheet" href="/cats-effect/css/main.css"/><script src="/cats-effect/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/cats-effect/"><img class="logo" src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect"/><h2 class="headerTitleWithLogo">Cats Effect</h2></a><a href="/cats-effect/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/cats-effect/docs/next/installation" target="_self">Docs</a></li><li class=""><a href="https://github.com/typelevel/cats-effect" target="_blank">GitHub</a></li><li class=""><a href="/cats-effect/api/index.html" target="_self">API</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Guides</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Getting Started<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/installation">Installation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Guides<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem navListItemActive"><a class="navItem" href="/cats-effect/docs/next/guides/tutorial">Tutorial</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/guides/tracing">Tracing</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Data Types<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/io">IO</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/syncio">SyncIO</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/fiber">Fiber</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/resource">Resource</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/clock">Clock</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/contextshift">ContextShift</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/timer">Timer</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/ioapp">IOApp</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Concurrency<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/basics">Basics</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/deferred">Deferred</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/mvar">MVar</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/ref">Ref</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/semaphore">Semaphore</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Type Classes<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/bracket">Bracket</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/sync">Sync</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/liftio">LiftIO</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/async">Async</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/concurrent">Concurrent</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/effect">Effect</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/concurrenteffect">ConcurrentEffect</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Tutorial</h1></header><article><div><span><p><nav role="navigation" id="toc"></nav></p>
+<h2><a class="anchor" aria-hidden="true" id="introduction"></a><a href="#introduction" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Introduction</h2>
+<p>This tutorial tries to help newcomers to cats-effect to get familiar with its
+main concepts by means of code examples, in a learn-by-doing fashion. Two small
+programs will be coded. The first one copies the contents from one file to
+another, safely handling resources in the process. That should help us to flex
+our muscles. The second one is a bit more elaborated, it is a light TCP server
+able to attend concurrent connections. In both cases complexity will grow as we
+add more features, which will allow to introduce more and more concepts from
+cats-effect. Also, while the first example is focused on <code>IO</code>, the second one
+will shift towards polymorphic functions that make use of cats-effect type
+classes and do not tie our code to <code>IO</code>.</p>
+<p>This tutorial assumes certain familiarity with functional programming. It is
+also a good idea to read cats-effect documentation prior to starting this
+tutorial, at least the
+<a href="/cats-effect/docs/next/datatypes/io">excellent documentation about <code>IO</code> data type</a>.</p>
+<p>Please read this tutorial as training material, not as a best-practices
+document. As you gain more experience with cats-effect, probably you will find
+your own solutions to deal with the problems presented here. Also, bear in mind
+that using cats-effect for copying files or building TCP servers is suitable for
+a 'getting things done' approach, but for more complex
+systems/settings/requirements you might want to take a look at
+<a href="http://fs2.io">fs2</a> or <a href="https://monix.io">Monix</a> to find powerful network and
+file abstractions that integrate with cats-effect. But that is beyond the
+purpose of this tutorial, which focuses solely on cats-effect.</p>
+<p>That said, let's go!</p>
+<h2><a class="anchor" aria-hidden="true" id="setting-things-up"></a><a href="#setting-things-up" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Setting things up</h2>
+<p>This <a href="https://github.com/lrodero/cats-effect-tutorial">Github repo</a> includes all
+the software that will be developed during this tutorial. It uses <code>sbt</code> as the
+build tool. To ease coding, compiling and running the code snippets in this
+tutorial it is recommended to use the same <code>build.sbt</code>, or at least one with the
+same dependencies and compilation options:</p>
+<pre><code class="hljs css language-scala">name := <span class="hljs-string">"cats-effect-tutorial"</span>
+
+version := <span class="hljs-string">"1.0"</span>
+
+scalaVersion := <span class="hljs-string">"2.12.8"</span>
+
+libraryDependencies += <span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect"</span> % <span class="hljs-string">"1.3.0"</span> withSources() withJavadoc()
+
+scalacOptions ++= <span class="hljs-type">Seq</span>(
+  <span class="hljs-string">"-feature"</span>,
+  <span class="hljs-string">"-deprecation"</span>,
+  <span class="hljs-string">"-unchecked"</span>,
+  <span class="hljs-string">"-language:postfixOps"</span>,
+  <span class="hljs-string">"-language:higherKinds"</span>,
+  <span class="hljs-string">"-Ypartial-unification"</span>)
+</code></pre>
+<p>Code snippets in this tutorial can be pasted and compiled right in the scala
+console of the project defined above (or any project with similar settings).</p>
+<h2><a class="anchor" aria-hidden="true" id="copying-contents-of-a-file---safely-handling-resources"></a><a href="#copying-contents-of-a-file---safely-handling-resources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Copying contents of a file - safely handling resources</h2>
+<p>Our goal is to create a program that copies files. First we will work on a
+function that carries such task, and then we will create a program that can be
+invoked from the shell and uses that function.</p>
+<p>First of all we must code the function that copies the content from a file to
+another file. The function takes the source and destination files as parameters.
+But this is functional programming! So invoking the function shall not copy
+anything, instead it will return an <code>IO</code> instance that encapsulates all the
+side effects involved (opening/closing files, reading/writing content), that way
+<em>purity</em> is kept.  Only when that <code>IO</code> instance is evaluated all those
+side-effectful actions will be run. In our implementation the <code>IO</code> instance will
+return the amount of bytes copied upon execution, but this is just a design
+decision. Of course errors can occur, but when working with any <code>IO</code> those
+should be embedded in the <code>IO</code> instance. That is, no exception is raised outside
+the <code>IO</code> and so no <code>try</code> (or the like) needs to be used when using the function,
+instead the <code>IO</code> evaluation will fail and the <code>IO</code> instance will carry the error
+raised.</p>
+<p>Now, the signature of our function looks like this:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
+<span class="hljs-keyword">import</span> java.io.<span class="hljs-type">File</span>
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">copy</span></span>(origin: <span class="hljs-type">File</span>, destination: <span class="hljs-type">File</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = ???
+</code></pre>
+<p>Nothing scary, uh? As we said before, the function just returns an <code>IO</code>
+instance. When run, all side-effects will be actually executed and the <code>IO</code>
+instance will return the bytes copied in a <code>Long</code> (note that <code>IO</code> is
+parameterized by the return type). Now, let's start implementing our function.
+First, we need to open two streams that will read and write file contents.</p>
+<h3><a class="anchor" aria-hidden="true" id="acquiring-and-releasing-resources"></a><a href="#acquiring-and-releasing-resources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Acquiring and releasing <code>Resource</code>s</h3>
+<p>We consider opening a stream to be a side-effect action, so we have to
+encapsulate those actions in their own <code>IO</code> instances. For this, we will make
+use of cats-effect <code>Resource</code>, that allows to orderly create, use and then
+release resources. See this code:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">Resource</span>}
+<span class="hljs-keyword">import</span> cats.implicits._ 
+<span class="hljs-keyword">import</span> java.io._ 
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputStream</span></span>(f: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">FileInputStream</span>] =
+  <span class="hljs-type">Resource</span>.make {
+    <span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileInputStream</span>(f))                         <span class="hljs-comment">// build</span>
+  } { inStream =&gt;
+    <span class="hljs-type">IO</span>(inStream.close()).handleErrorWith(_ =&gt; <span class="hljs-type">IO</span>.unit) <span class="hljs-comment">// release</span>
+  }
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">outputStream</span></span>(f: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">FileOutputStream</span>] =
+  <span class="hljs-type">Resource</span>.make {
+    <span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileOutputStream</span>(f))                         <span class="hljs-comment">// build </span>
+  } { outStream =&gt;
+    <span class="hljs-type">IO</span>(outStream.close()).handleErrorWith(_ =&gt; <span class="hljs-type">IO</span>.unit) <span class="hljs-comment">// release</span>
+  }
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputOutputStreams</span></span>(in: <span class="hljs-type">File</span>, out: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, (<span class="hljs-type">InputStream</span>, <span class="hljs-type">OutputStream</span>)] =
+  <span class="hljs-keyword">for</span> {
+    inStream  &lt;- inputStream(in)
+    outStream &lt;- outputStream(out)
+  } <span class="hljs-keyword">yield</span> (inStream, outStream)
+</code></pre>
+<p>We want to ensure that streams are closed once we are done using them, no matter
+what. That is precisely why we use <code>Resource</code> in both <code>inputStream</code> and
+<code>outputStream</code> functions, each one returning one <code>Resource</code> that encapsulates
+the actions for opening and then closing each stream.  <code>inputOutputStreams</code>
+encapsulates both resources in a single <code>Resource</code> instance that will be
+available once the creation of both streams has been successful, and only in
+that case. As seen in the code above <code>Resource</code> instances can be combined in
+for-comprehensions as they implement <code>flatMap</code>. Note also that when releasing
+resources we must also take care of any possible error during the release
+itself, for example with the <code>.handleErrorWith</code> call as we do in the code above.
+In this case we just swallow the error, but normally it should be at least
+logged.</p>
+<p>Optionally we could have used <code>Resource.fromAutoCloseable</code> to define our
+resources, that method creates <code>Resource</code> instances over objects that implement
+<code>java.lang.AutoCloseable</code> interface without having to define how the resource is
+released. So our <code>inputStream</code> function would look like this:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">Resource</span>}
+<span class="hljs-keyword">import</span> java.io.{<span class="hljs-type">File</span>, <span class="hljs-type">FileInputStream</span>}
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputStream</span></span>(f: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">FileInputStream</span>] =
+  <span class="hljs-type">Resource</span>.fromAutoCloseable(<span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileInputStream</span>(f)))
+</code></pre>
+<p>That code is way simpler, but with that code we would not have control over what
+would happen if the closing operation throws an exception. Also it could be that
+we want to be aware when closing operations are being run, for example using
+logs. In contrast, using <code>Resource.make</code> allows to easily control the actions
+of the release phase.</p>
+<p>Let's go back to our <code>copy</code> function, which now looks like this:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">Resource</span>}
+<span class="hljs-keyword">import</span> java.io._
+
+<span class="hljs-comment">// as defined before</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputOutputStreams</span></span>(in: <span class="hljs-type">File</span>, out: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, (<span class="hljs-type">InputStream</span>, <span class="hljs-type">OutputStream</span>)] = ???
+
+<span class="hljs-comment">// transfer will do the real work</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>(origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = ???
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">copy</span></span>(origin: <span class="hljs-type">File</span>, destination: <span class="hljs-type">File</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = 
+  inputOutputStreams(origin, destination).use { <span class="hljs-keyword">case</span> (in, out) =&gt; 
+    transfer(in, out)
+  }
+</code></pre>
+<p>The new method <code>transfer</code> will perform the actual copying of data, once the
+resources (the streams) are obtained. When they are not needed anymore, whatever
+the outcome of <code>transfer</code> (success or failure) both streams will be closed. If
+any of the streams could not be obtained, then <code>transfer</code> will not be run. Even
+better, because of <code>Resource</code> semantics, if there is any problem opening the
+input file then the output file will not be opened.  On the other hand, if there
+is any issue opening the output file, then the input stream will be closed.</p>
+<h3><a class="anchor" aria-hidden="true" id="what-about-bracket"></a><a href="#what-about-bracket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What about <code>bracket</code>?</h3>
+<p>Now, if you are familiar with cats-effect's <code>bracket</code> you may be wondering why
+we are not using it as it looks so similar to <code>Resource</code> (and there is a good
+reason for that: <code>Resource</code> is based on <code>bracket</code>). Ok, before moving forward it
+is worth to take a look to <code>bracket</code>.</p>
+<p>There are three stages when using <code>bracket</code>: <em>resource acquisition</em>, <em>usage</em>,
+and <em>release</em>. Each stage is defined by an <code>IO</code> instance.  A fundamental
+property is that the <em>release</em> stage will always be run regardless whether the
+<em>usage</em> stage finished correctly or an exception was thrown during its
+execution. In our case, in the <em>acquisition</em> stage we would create the streams,
+then in the <em>usage</em> stage we will copy the contents, and finally in the release
+stage we will close the streams.  Thus we could define our <code>copy</code> function as
+follows:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
+<span class="hljs-keyword">import</span> cats.implicits._ 
+<span class="hljs-keyword">import</span> java.io._ 
+
+<span class="hljs-comment">// function inputOutputStreams not needed</span>
+
+<span class="hljs-comment">// transfer will do the real work</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>(origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = ???
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">copy</span></span>(origin: <span class="hljs-type">File</span>, destination: <span class="hljs-type">File</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = {
+  <span class="hljs-keyword">val</span> inIO: <span class="hljs-type">IO</span>[<span class="hljs-type">InputStream</span>]  = <span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileInputStream</span>(origin))
+  <span class="hljs-keyword">val</span> outIO:<span class="hljs-type">IO</span>[<span class="hljs-type">OutputStream</span>] = <span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileOutputStream</span>(destination))
+
+  (inIO, outIO)              <span class="hljs-comment">// Stage 1: Getting resources </span>
+    .tupled                  <span class="hljs-comment">// From (IO[InputStream], IO[OutputStream]) to IO[(InputStream, OutputStream)]</span>
+    .bracket{
+      <span class="hljs-keyword">case</span> (in, out) =&gt;
+        transfer(in, out)    <span class="hljs-comment">// Stage 2: Using resources (for copying data, in this case)</span>
+    } {
+      <span class="hljs-keyword">case</span> (in, out) =&gt;      <span class="hljs-comment">// Stage 3: Freeing resources</span>
+        (<span class="hljs-type">IO</span>(in.close()), <span class="hljs-type">IO</span>(out.close()))
+        .tupled              <span class="hljs-comment">// From (IO[Unit], IO[Unit]) to IO[(Unit, Unit)]</span>
+        .handleErrorWith(_ =&gt; <span class="hljs-type">IO</span>.unit).void
+    }
+}
+</code></pre>
+<p>New <code>copy</code> definition is more complex, even though the code as a whole is way
+shorter as we do not need the <code>inputOutputStreams</code> function. But there is a
+catch in the code above.  When using <code>bracket</code>, if there is a problem when
+getting resources in the first stage, then the release stage will not be run.
+Now, in the code above, first the origin file and then the destination file are
+opened (<code>tupled</code> just reorganizes both <code>IO</code> instances into a single one). So
+what would happen if we successfully open the origin file (<em>i.e.</em> when
+evaluating <code>inIO</code>) but then an exception is raised when opening the destination
+file (<em>i.e.</em> when evaluating <code>outIO</code>)? In that case the origin stream will not
+be closed! To solve this we should first get the first stream with one <code>bracket</code>
+call, and then the second stream with another <code>bracket</code> call inside the first.
+But, in a way, that's precisely what we do when we <code>flatMap</code> instances of
+<code>Resource</code>. And the code looks cleaner too. So, while using <code>bracket</code> directly
+has its place, <code>Resource</code> is likely to be a better choice when dealing with
+multiple resources at once.</p>
+<h3><a class="anchor" aria-hidden="true" id="copying-data"></a><a href="#copying-data" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Copying data</h3>
+<p>Finally we have our streams ready to go! We have to focus now on coding
+<code>transfer</code>. That function will have to define a loop that at each iteration
+reads data from the input stream into a buffer, and then writes the buffer
+contents into the output stream. At the same time, the loop will keep a counter
+of the bytes transferred. To reuse the same buffer we should define it outside
+the main loop, and leave the actual transmission of data to another function
+<code>transmit</code> that uses that loop. Something like:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
+<span class="hljs-keyword">import</span> cats.implicits._ 
+<span class="hljs-keyword">import</span> java.io._ 
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transmit</span></span>(origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>, buffer: <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>], acc: <span class="hljs-type">Long</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] =
+  <span class="hljs-keyword">for</span> {
+    amount &lt;- <span class="hljs-type">IO</span>(origin.read(buffer, <span class="hljs-number">0</span>, buffer.size))
+    count  &lt;- <span class="hljs-keyword">if</span>(amount &gt; <span class="hljs-number">-1</span>) <span class="hljs-type">IO</span>(destination.write(buffer, <span class="hljs-number">0</span>, amount)) &gt;&gt; transmit(origin, destination, buffer, acc + amount)
+              <span class="hljs-keyword">else</span> <span class="hljs-type">IO</span>.pure(acc) <span class="hljs-comment">// End of read stream reached (by java.io.InputStream contract), nothing to write</span>
+  } <span class="hljs-keyword">yield</span> count <span class="hljs-comment">// Returns the actual amount of bytes transmitted</span>
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>(origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] =
+  <span class="hljs-keyword">for</span> {
+    buffer &lt;- <span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>](<span class="hljs-number">1024</span> * <span class="hljs-number">10</span>)) <span class="hljs-comment">// Allocated only when the IO is evaluated</span>
+    total  &lt;- transmit(origin, destination, buffer, <span class="hljs-number">0</span>L)
+  } <span class="hljs-keyword">yield</span> total
+</code></pre>
+<p>Take a look at <code>transmit</code>, observe that both input and output actions are
+encapsulated in (suspended in) <code>IO</code>. <code>IO</code> being a monad, we can sequence them
+using a for-comprehension to create another <code>IO</code>. The for-comprehension loops as
+long as the call to <code>read()</code> does not return a negative value that would signal
+that the end of the stream has been reached. <code>&gt;&gt;</code> is a Cats operator to sequence
+two operations where the output of the first is not needed by the second (<em>i.e.</em>
+it is equivalent to <code>first.flatMap(_ =&gt; second)</code>). In the code above that means
+that after each write operation we recursively call <code>transmit</code> again, but as
+<code>IO</code> is stack safe we are not concerned about stack overflow issues. At each
+iteration we increase the counter <code>acc</code> with the amount of bytes read at that
+iteration.</p>
+<p>We are making progress, and already have a version of <code>copy</code> that can be used.
+If any exception is raised when <code>transfer</code> is running, then the streams will be
+automatically closed by <code>Resource</code>. But there is something else we have to take
+into account: <code>IO</code> instances execution can be <strong><em>canceled!</em></strong>. And cancellation
+should not be ignored, as it is a key feature of cats-effect. We will discuss
+cancellation in the next section.</p>
+<h3><a class="anchor" aria-hidden="true" id="dealing-with-cancellation"></a><a href="#dealing-with-cancellation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Dealing with cancellation</h3>
+<p>Cancellation is a powerful but non-trivial cats-effect feature. In cats-effect,
+some <code>IO</code> instances can be cancelable, meaning that their evaluation will be
+aborted. If the programmer is careful, an alternative <code>IO</code> task will be run
+under cancellation, for example to deal with potential cleaning up activities.
+We will see how an <code>IO</code> can be actually canceled at the end of the <a href="#fibers-are-not-threads">Fibers are
+not threads! section</a> later on, but for now we will
+just keep in mind that during the execution of the <code>IO</code> returned by the <code>copy</code>
+method a cancellation could be requested at any time.</p>
+<p>Now, <code>IO</code>s created with <code>Resource.use</code> can be canceled. The cancellation will
+trigger the execution of the code that handles the closing of the resource. In
+our case, that would close both streams. So far so good! But what happens if
+cancellation happens <em>while</em> the streams are being used? This could lead to
+data corruption as a stream where some thread is writing to is at the same time
+being closed by another thread. For more info about this problem see <a href="/cats-effect/docs/next/datatypes/io#gotcha-cancellation-is-a-concurrent-action">Gotcha:
+Cancellation is a concurrent
+action</a> in
+cats-effect site.</p>
+<p>To prevent such data corruption we must use some concurrency control mechanism
+that ensures that no stream will be closed while the <code>IO</code> returned by
+<code>transfer</code> is being evaluated.  Cats-effect provides several constructs for
+controlling concurrency, for this case we will use a
+<a href="/cats-effect/docs/next/concurrency/semaphore"><em>semaphore</em></a>. A semaphore has a number of
+permits, its method <code>.acquire</code> 'blocks' if no permit is available until
+<code>release</code> is called on the same semaphore. It is important to remark that
+<em>there is no actual thread being really blocked</em>, the thread that finds the
+<code>.acquire</code> call will be immediately recycled by cats-effect. When the <code>release</code>
+method is invoked then cats-effect will look for some available thread to
+resume the execution of the code after <code>.acquire</code>.</p>
+<p>We will use a semaphore with a single permit. The <code>.withPermit</code> method acquires
+one permit, runs the <code>IO</code> given and then releases the permit.  We could also
+use <code>.acquire</code> and then <code>.release</code> on the semaphore explicitly, but
+<code>.withPermit</code> is more idiomatic and ensures that the permit is released even if
+the effect run fails.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">Concurrent</span>, <span class="hljs-type">IO</span>, <span class="hljs-type">Resource</span>}
+<span class="hljs-keyword">import</span> cats.effect.concurrent.<span class="hljs-type">Semaphore</span>
+<span class="hljs-keyword">import</span> java.io._
+
+<span class="hljs-comment">// transfer and transmit methods as defined before</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>(origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = ???
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputStream</span></span>(f: <span class="hljs-type">File</span>, guard: <span class="hljs-type">Semaphore</span>[<span class="hljs-type">IO</span>]): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">FileInputStream</span>] =
+  <span class="hljs-type">Resource</span>.make {
+    <span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileInputStream</span>(f))
+  } { inStream =&gt; 
+    guard.withPermit {
+     <span class="hljs-type">IO</span>(inStream.close()).handleErrorWith(_ =&gt; <span class="hljs-type">IO</span>.unit)
+    }
+  }
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">outputStream</span></span>(f: <span class="hljs-type">File</span>, guard: <span class="hljs-type">Semaphore</span>[<span class="hljs-type">IO</span>]): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">FileOutputStream</span>] =
+  <span class="hljs-type">Resource</span>.make {
+    <span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileOutputStream</span>(f))
+  } { outStream =&gt;
+    guard.withPermit {
+     <span class="hljs-type">IO</span>(outStream.close()).handleErrorWith(_ =&gt; <span class="hljs-type">IO</span>.unit)
+    }
+  }
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputOutputStreams</span></span>(in: <span class="hljs-type">File</span>, out: <span class="hljs-type">File</span>, guard: <span class="hljs-type">Semaphore</span>[<span class="hljs-type">IO</span>]): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, (<span class="hljs-type">InputStream</span>, <span class="hljs-type">OutputStream</span>)] =
+  <span class="hljs-keyword">for</span> {
+    inStream  &lt;- inputStream(in, guard)
+    outStream &lt;- outputStream(out, guard)
+  } <span class="hljs-keyword">yield</span> (inStream, outStream)
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">copy</span></span>(origin: <span class="hljs-type">File</span>, destination: <span class="hljs-type">File</span>)(<span class="hljs-keyword">implicit</span> concurrent: <span class="hljs-type">Concurrent</span>[<span class="hljs-type">IO</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = {
+  <span class="hljs-keyword">for</span> {
+    guard &lt;- <span class="hljs-type">Semaphore</span>[<span class="hljs-type">IO</span>](<span class="hljs-number">1</span>)
+    count &lt;- inputOutputStreams(origin, destination, guard).use { <span class="hljs-keyword">case</span> (in, out) =&gt; 
+               guard.withPermit(transfer(in, out))
+             }
+  } <span class="hljs-keyword">yield</span> count
+}
+</code></pre>
+<p>Before calling to <code>transfer</code> we acquire the semaphore, which is not released
+until <code>transfer</code> is done. The <code>use</code> call ensures that the semaphore will be
+released under any circumstances, whatever the result of <code>transfer</code> (success,
+error, or cancellation). As the 'release' parts in the <code>Resource</code> instances are
+now blocked on the same semaphore, we can be sure that streams are closed only
+after <code>transfer</code> is over, <em>i.e.</em> we have implemented mutual exclusion of
+<code>transfer</code> execution and resources releasing. An implicit <code>Concurrent</code> instance
+is required to create the semaphore instance, which is included in the function
+signature.</p>
+<p>Mark that while the <code>IO</code> returned by <code>copy</code> is cancelable (because so are <code>IO</code>
+instances returned by <code>Resource.use</code>), the <code>IO</code> returned by <code>transfer</code> is not.
+Trying to cancel it will not have any effect and that <code>IO</code> will run until the
+whole file is copied! In real world code you will probably want to make your
+functions cancelable, section <a href="/cats-effect/docs/next/datatypes/io#building-cancelable-io-tasks">Building cancelable IO
+tasks</a> of <code>IO</code> documentation
+explains how to create such cancelable <code>IO</code> instances (besides calling
+<code>Resource.use</code>, as we have done for our code).</p>
+<p>And that is it! We are done, now we can create a program that uses this
+<code>copy</code> function.</p>
+<h3><a class="anchor" aria-hidden="true" id="ioapp-for-our-final-program"></a><a href="#ioapp-for-our-final-program" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>IOApp</code> for our final program</h3>
+<p>We will create a program that copies files, this program only takes two
+parameters: the name of the origin and destination files. For coding this
+program we will use <code>IOApp</code> as it allows to maintain purity in our definitions
+up to the program main function.</p>
+<p><code>IOApp</code> is a kind of 'functional' equivalent to Scala's <code>App</code>, where instead of
+coding an effectful <code>main</code> method we code a pure <code>run</code> function. When executing
+the class a <code>main</code> method defined in <code>IOApp</code> will call the <code>run</code> function we
+have coded. Any interruption (like pressing <code>Ctrl-c</code>) will be treated as a
+cancellation of the running <code>IO</code>. Also <code>IOApp</code> provides implicit instances of
+<code>Timer[IO]</code> and <code>ContextShift[IO]</code> (not discussed yet in this tutorial).
+<code>ContextShift[IO]</code> allows for having a <code>Concurrent[IO]</code> in scope, as the one
+required by the <code>copy</code> function.</p>
+<p>When coding <code>IOApp</code>, instead of a <code>main</code> function we have a <code>run</code> function,
+which creates the <code>IO</code> instance that forms the program. In our case, our <code>run</code>
+method can look like this:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> java.io.<span class="hljs-type">File</span>
+
+<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Main</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span> </span>{
+
+  <span class="hljs-comment">// copy as defined before</span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">copy</span></span>(origin: <span class="hljs-type">File</span>, destination: <span class="hljs-type">File</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = ???
+
+  <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">ExitCode</span>] =
+    <span class="hljs-keyword">for</span> {
+      _      &lt;- <span class="hljs-keyword">if</span>(args.length &lt; <span class="hljs-number">2</span>) <span class="hljs-type">IO</span>.raiseError(<span class="hljs-keyword">new</span> <span class="hljs-type">IllegalArgumentException</span>(<span class="hljs-string">"Need origin and destination files"</span>))
+                <span class="hljs-keyword">else</span> <span class="hljs-type">IO</span>.unit
+      orig = <span class="hljs-keyword">new</span> <span class="hljs-type">File</span>(args(<span class="hljs-number">0</span>))
+      dest = <span class="hljs-keyword">new</span> <span class="hljs-type">File</span>(args(<span class="hljs-number">1</span>))
+      count &lt;- copy(orig, dest)
+      _     &lt;- <span class="hljs-type">IO</span>(println(<span class="hljs-string">s"<span class="hljs-subst">$count</span> bytes copied from <span class="hljs-subst">${orig.getPath}</span> to <span class="hljs-subst">${dest.getPath}</span>"</span>))
+    } <span class="hljs-keyword">yield</span> <span class="hljs-type">ExitCode</span>.<span class="hljs-type">Success</span>
+}
+</code></pre>
+<p>Heed how <code>run</code> verifies the <code>args</code> list passed. If there are fewer than two
+arguments, an error is raised. As <code>IO</code> implements <code>MonadError</code> we can at any
+moment call to <code>IO.raiseError</code> to interrupt a sequence of <code>IO</code> operations.</p>
+<h4><a class="anchor" aria-hidden="true" id="copy-program-code"></a><a href="#copy-program-code" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Copy program code</h4>
+<p>You can check the <a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/CopyFile.scala">final version of our copy program
+here</a>.</p>
+<p>The program can be run from <code>sbt</code> just by issuing this call:</p>
+<pre><code class="hljs css language-scala">&gt; runMain catsEffectTutorial.<span class="hljs-type">CopyFile</span> origin.txt destination.txt
+</code></pre>
+<p>It can be argued that using <code>IO{java.nio.file.Files.copy(...)}</code> would get an
+<code>IO</code> with the same characteristics of purity as our function. But there is a
+difference: our <code>IO</code> is safely cancelable! So the user can stop the running code
+at any time for example by pressing <code>Ctrl-c</code>, our code will deal with safe
+resource release (streams closing) even under such circumstances. The same will
+apply if the <code>copy</code> function is run from other modules that require its
+functionality. If the <code>IO</code> returned by this function is canceled while being
+run, still resources will be properly released. But recall what we commented
+before: this is because <code>use</code> returns <code>IO</code> instances that are cancelable, in
+contrast our <code>transfer</code> function is not cancelable.</p>
+<p>WARNING: To properly test cancelation, You should also ensure that
+<code>fork := true</code> is set in the sbt configuration, otherwise sbt will
+intercept the cancelation because it will be running the program
+in the same JVM as itself.</p>
+<h3><a class="anchor" aria-hidden="true" id="polymorphic-cats-effect-code"></a><a href="#polymorphic-cats-effect-code" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Polymorphic cats-effect code</h3>
+<p>There is an important characteristic of <code>IO</code> that we shall be aware of. <code>IO</code> is
+able to encapsulate side-effects, but the capacity to define concurrent and/or
+async and/or cancelable <code>IO</code> instances comes from the existence of a
+<code>Concurrent[IO]</code> instance. <code>Concurrent[F[_]]</code> is a type class that, for an <code>F</code>
+carrying a side-effect, brings the ability to cancel or start concurrently the
+side-effect in <code>F</code>. <code>Concurrent</code> also extends type class <code>Async[F[_]]</code>, that
+allows to define synchronous/asynchronous computations. <code>Async[F[_]]</code>, in turn,
+extends type class <code>Sync[F[_]]</code>, which can suspend the execution of side effects
+in <code>F</code>.</p>
+<p>So well, <code>Sync</code> can suspend side effects (and so can <code>Async</code> and <code>Concurrent</code> as
+they extend <code>Sync</code>). We have used <code>IO</code> so far mostly for that purpose. Now,
+going back to the code we created to copy files, could have we coded its
+functions in terms of some <code>F[_]: Sync</code> instead of <code>IO</code>? Truth is we could and
+<strong>in fact it is recommendable</strong> in real world programs.  See for example how we
+would define a polymorphic version of our <code>transfer</code> function with this
+approach, just by replacing any use of <code>IO</code> by calls to the <code>delay</code> and <code>pure</code>
+methods of the <code>Sync[F[_]]</code> instance!</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">Sync</span>
+<span class="hljs-keyword">import</span> cats.effect.syntax.all._
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> java.io._
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transmit</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>, buffer: <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>], acc: <span class="hljs-type">Long</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Long</span>] =
+  <span class="hljs-keyword">for</span> {
+    amount &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(origin.read(buffer, <span class="hljs-number">0</span>, buffer.size))
+    count  &lt;- <span class="hljs-keyword">if</span>(amount &gt; <span class="hljs-number">-1</span>) <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(destination.write(buffer, <span class="hljs-number">0</span>, amount)) &gt;&gt; transmit(origin, destination, buffer, acc + amount)
+              <span class="hljs-keyword">else</span> <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].pure(acc) <span class="hljs-comment">// End of read stream reached (by java.io.InputStream contract), nothing to write</span>
+  } <span class="hljs-keyword">yield</span> count <span class="hljs-comment">// Returns the actual amount of bytes transmitted</span>
+</code></pre>
+<p>We can do the same transformation to most of the code we have created so far,
+but not all. In <code>copy</code> you will find out that we do need a full instance of
+<code>Concurrent[F]</code> in scope, this is because it is required by the <code>Semaphore</code>
+instantiation:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.effect.concurrent.<span class="hljs-type">Semaphore</span>
+<span class="hljs-keyword">import</span> cats.effect.syntax.all._
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> java.io._
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Long</span>] = ???
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputOutputStreams</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](in: <span class="hljs-type">File</span>, out: <span class="hljs-type">File</span>, guard: <span class="hljs-type">Semaphore</span>[<span class="hljs-type">F</span>]): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, (<span class="hljs-type">InputStream</span>, <span class="hljs-type">OutputStream</span>)] = ???
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">copy</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Concurrent</span>](origin: <span class="hljs-type">File</span>, destination: <span class="hljs-type">File</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Long</span>] = 
+  <span class="hljs-keyword">for</span> {
+    guard &lt;- <span class="hljs-type">Semaphore</span>[<span class="hljs-type">F</span>](<span class="hljs-number">1</span>)
+    count &lt;- inputOutputStreams(origin, destination, guard).use { <span class="hljs-keyword">case</span> (in, out) =&gt; 
+               guard.withPermit(transfer(in, out))
+             }
+  } <span class="hljs-keyword">yield</span> count
+</code></pre>
+<p>Only in our <code>main</code> function we will set <code>IO</code> as the final <code>F</code> for
+our program. To do so, of course, a <code>Concurrent[IO]</code> instance must be in scope,
+but that instance is brought transparently by <code>IOApp</code> so we do not need to be
+concerned about it.</p>
+<p>During the remaining of this tutorial we will use polymorphic code, only falling
+to <code>IO</code> in the <code>run</code> method of our <code>IOApp</code>s. Polymorphic code is less
+restrictive, as functions are not tied to <code>IO</code> but are applicable to any <code>F[_]</code>
+as long as there is an instance of the type class required (<code>Sync[F[_]]</code> ,
+<code>Concurrent[F[_]]</code>...) in scope. The type class to use will depend on the
+requirements of our code. For example, if the execution of the side-effect
+should be cancelable, then we must stick to <code>Concurrent[F[_]]</code>. Also, it is
+actually easier to work on <code>F</code> than on any specific type.</p>
+<h4><a class="anchor" aria-hidden="true" id="copy-program-code-polymorphic-version"></a><a href="#copy-program-code-polymorphic-version" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Copy program code, polymorphic version</h4>
+<p>The polymorphic version of our copy program in full is available
+<a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/CopyFilePolymorphic.scala">here</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="exercises-improving-our-small-io-program"></a><a href="#exercises-improving-our-small-io-program" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Exercises: improving our small <code>IO</code> program</h3>
+<p>To finalize we propose you some exercises that will help you to keep improving
+your IO-kungfu:</p>
+<ol>
+<li>Modify the <code>IOApp</code> so it shows an error and abort the execution if the origin
+and destination files are the same, the origin file cannot be open for
+reading or the destination file cannot be opened for writing. Also, if the
+destination file already exists, the program should ask for confirmation
+before overwriting that file.</li>
+<li>Modify <code>transmit</code> so the buffer size is not hardcoded but passed as
+parameter.</li>
+<li>Use some other concurrency tool of cats-effect instead of <code>semaphore</code> to
+ensure mutual exclusion of <code>transfer</code> execution and streams closing.</li>
+<li>Create a new program able to copy folders. If the origin folder has
+subfolders, then their contents must be recursively copied too. Of course the
+copying must be safely cancelable at any moment.</li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="tcp-echo-server---concurrent-system-with-fibers"></a><a href="#tcp-echo-server---concurrent-system-with-fibers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TCP echo server - concurrent system with <code>Fiber</code>s</h2>
+<p>This program is a bit more complex than the previous one. Here we create an echo
+TCP server that replies to each text message from a client sending back that
+same message. When the client sends an empty line its connection is shutdown by
+the server. This server will also bring a key feature, it will be able to attend
+several clients at the same time. For that we will use <code>cats-effect</code>'s <code>Fiber</code>,
+which can be seen as light threads. For each new client a <code>Fiber</code> instance will
+be spawned to serve that client.</p>
+<p>We will stick to a simple design principle: <em>whoever method creates a resource
+is the sole responsible of dispatching it!</em>  It's worth to remark this from the
+beginning to better understand the code listings shown in this tutorial.</p>
+<p>Ok, we are ready to start coding our server. Let's build it step-by-step. First
+we will code a method that implements the echo protocol. It will take as input
+the socket (<code>java.net.Socket</code> instance) that is connected to the client. The
+method will be basically a loop that at each iteration reads the input from the
+client, if the input is not an empty line then the text is sent back to the
+client, otherwise the method will finish.</p>
+<p>The method signature will look like this:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">Sync</span>
+<span class="hljs-keyword">import</span> java.net.<span class="hljs-type">Socket</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">echoProtocol</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](clientSocket: <span class="hljs-type">Socket</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = ???
+</code></pre>
+<p>Reading and writing will be done using <code>java.io.BufferedReader</code> and
+<code>java.io.BufferedWriter</code> instances built from the socket. Recall that this
+method will be in charge of closing those buffers, but not the client socket (it
+did not create that socket after all!). We will use again <code>Resource</code> to ensure
+that we close the streams we create. Also, all actions with potential
+side-effects are encapsulated in <code>F</code> instances, where <code>F</code> only requires an
+implicit instance of <code>Sync[F]</code> to be present. That way we ensure no side-effect
+is actually run until the <code>F</code> returned by this method is evaluated.  With this
+in mind, the code looks like:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> java.io._
+<span class="hljs-keyword">import</span> java.net._
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">echoProtocol</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](clientSocket: <span class="hljs-type">Socket</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = {
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">loop</span></span>(reader: <span class="hljs-type">BufferedReader</span>, writer: <span class="hljs-type">BufferedWriter</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = <span class="hljs-keyword">for</span> {
+    line &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(reader.readLine())
+    _    &lt;- line <span class="hljs-keyword">match</span> {
+              <span class="hljs-keyword">case</span> <span class="hljs-string">""</span> =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit <span class="hljs-comment">// Empty line, we are done</span>
+              <span class="hljs-keyword">case</span> _  =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay{ writer.write(line); writer.newLine(); writer.flush() } &gt;&gt; loop(reader, writer)
+            }
+  } <span class="hljs-keyword">yield</span> ()
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">reader</span></span>(clientSocket: <span class="hljs-type">Socket</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, <span class="hljs-type">BufferedReader</span>] =
+    <span class="hljs-type">Resource</span>.make {
+      <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay( <span class="hljs-keyword">new</span> <span class="hljs-type">BufferedReader</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">InputStreamReader</span>(clientSocket.getInputStream())) )
+    } { reader =&gt;
+      <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(reader.close()).handleErrorWith(_ =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit)
+    }
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">writer</span></span>(clientSocket: <span class="hljs-type">Socket</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, <span class="hljs-type">BufferedWriter</span>] =
+    <span class="hljs-type">Resource</span>.make {
+      <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay( <span class="hljs-keyword">new</span> <span class="hljs-type">BufferedWriter</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">PrintWriter</span>(clientSocket.getOutputStream())) )
+    } { writer =&gt;
+      <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(writer.close()).handleErrorWith(_ =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit)
+    }
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">readerWriter</span></span>(clientSocket: <span class="hljs-type">Socket</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, (<span class="hljs-type">BufferedReader</span>, <span class="hljs-type">BufferedWriter</span>)] =
+    <span class="hljs-keyword">for</span> {
+      reader &lt;- reader(clientSocket)
+      writer &lt;- writer(clientSocket)
+    } <span class="hljs-keyword">yield</span> (reader, writer)
+
+  readerWriter(clientSocket).use { <span class="hljs-keyword">case</span> (reader, writer) =&gt;
+    loop(reader, writer) <span class="hljs-comment">// Let's get to work</span>
+  }
+}
+</code></pre>
+<p>Note that, as we did in the previous example, we swallow possible errors when
+closing the streams, as there is little to do in such cases.</p>
+<p>The actual interaction with the client is done by the <code>loop</code> function. It tries
+to read a line from the client, and if successful then it checks the line
+content. If empty it finishes the method, if not it sends back the line through
+the writer and loops back to the beginning. And what happens if we find any
+error in the <code>reader.readLine()</code> call? Well, <code>F</code> will catch the exception and
+will short-circuit the evaluation, this method would then return an <code>F</code>
+instance carrying the caught exception. Easy, right :) ?</p>
+<p>So we are done with our <code>echoProtocol</code> method, good! But we still miss the part
+of our server that will listen for new connections and create fibers to attend
+them. Let's work on that, we implement that functionality in another method
+that takes as input the <code>java.io.ServerSocket</code> instance that will listen for
+clients:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.effect.syntax.all._
+<span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">ExitCase</span>._
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> java.net.{<span class="hljs-type">ServerSocket</span>, <span class="hljs-type">Socket</span>}
+
+<span class="hljs-comment">// echoProtocol as defined before</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">echoProtocol</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](clientSocket: <span class="hljs-type">Socket</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = ???
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">serve</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Concurrent</span>](serverSocket: <span class="hljs-type">ServerSocket</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = {
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">close</span></span>(socket: <span class="hljs-type">Socket</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = 
+    <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(socket.close()).handleErrorWith(_ =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit)
+
+  <span class="hljs-keyword">for</span> {
+    _ &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>]
+      .delay(serverSocket.accept())
+      .bracketCase { socket =&gt;
+        echoProtocol(socket)
+          .guarantee(close(socket))                 <span class="hljs-comment">// Ensuring socket is closed</span>
+          .start                                    <span class="hljs-comment">// Will run in its own Fiber!</span>
+      }{ (socket, exit) =&gt; exit <span class="hljs-keyword">match</span> {
+        <span class="hljs-keyword">case</span> <span class="hljs-type">Completed</span> =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit
+        <span class="hljs-keyword">case</span> <span class="hljs-type">Error</span>(_) | <span class="hljs-type">Canceled</span> =&gt; close(socket)
+      }}
+          _ &lt;- serve(serverSocket)                  <span class="hljs-comment">// Looping back to the beginning</span>
+  } <span class="hljs-keyword">yield</span> ()
+}
+</code></pre>
+<p>We invoke the <code>accept</code> method of <code>ServerSocket</code> and use <code>bracketCase</code> to define
+both the action that will make use of the resource (the client socket) and how
+it will be released. The action in this case invokes <code>echoProtocol</code>, and then
+uses <code>guarantee</code> call on the returned <code>F</code> to ensure that the socket will be
+safely closed when <code>echoProtocol</code> is done. Also quite interesting: we use
+<code>start</code>! By doing so the <code>echoProtocol</code> call will run on its own fiber thus
+not blocking the main loop. To be able to invoke <code>start</code> we need an instance of
+<code>Concurrent[F]</code> in scope (in fact we are invoking <code>Concurrent[F].start(...)</code>
+but the <code>cats.effect.syntax.all._</code> classes that we are importing did the
+trick). Finally, the release part of the <code>bracketCase</code> will only close the
+socket if there was an error or cancellation during the <code>accept</code> call or the
+subsequent invocation to <code>echoProtocol</code>. If that is not the case, it means that
+<code>echoProtocol</code> was started without any issue and so we do not need to take any
+action, the <code>guarantee</code> call will close the socket when <code>echoProtocol</code> is done.</p>
+<p>You may wonder if using <code>bracketCase</code> when we already have <code>guarantee</code> is not a
+bit overkill. We could have coded our loop like this:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+  socket &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(serverSocket.accept)
+  _      &lt;- echoProtocol(socket)
+              .guarantee(close(socket))
+              .start
+  _      &lt;- serve(serverSocket)            
+} <span class="hljs-keyword">yield</span> ()
+</code></pre>
+<p>That code is way simpler, but it contains a bug: if there is a cancellation in
+the <code>flatMap</code> between <code>socket</code> and <code>echoProtocol</code> then <code>close(socket)</code> does not
+execute. Using <code>bracketCase</code> solves that problem.</p>
+<p>So there it is, we have our concurrent code ready, able to handle several client
+connections at once!</p>
+<p><em>NOTE: If you have coded servers before, probably you are wondering if
+cats-effect provides some magical way to attend an unlimited number of clients
+without balancing the load somehow. Truth is, it doesn't. You can spawn as many
+fibers as you wish, but there is no guarantee they will run simultaneously. More
+about this in the <a href="#fibers-are-not-threads">Fibers are not threads!</a></em> section.</p>
+<h3><a class="anchor" aria-hidden="true" id="ioapp-for-our-server"></a><a href="#ioapp-for-our-server" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>IOApp</code> for our server</h3>
+<p>So, what do we miss now? Only the creation of the server socket of course,
+which we can already do in the <code>run</code> method of an <code>IOApp</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> java.net.<span class="hljs-type">ServerSocket</span>
+
+<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Main</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span> </span>{
+  
+  <span class="hljs-comment">// serve as defined before</span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">serve</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Concurrent</span>](serverSocket: <span class="hljs-type">ServerSocket</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = ???
+  
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">ExitCode</span>] = {
+  
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">close</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](socket: <span class="hljs-type">ServerSocket</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
+      <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(socket.close()).handleErrorWith(_ =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit)
+  
+    <span class="hljs-type">IO</span>( <span class="hljs-keyword">new</span> <span class="hljs-type">ServerSocket</span>(args.headOption.map(_.toInt).getOrElse(<span class="hljs-number">5432</span>)) )
+      .bracket{
+        serverSocket =&gt; serve[<span class="hljs-type">IO</span>](serverSocket) &gt;&gt; <span class="hljs-type">IO</span>.pure(<span class="hljs-type">ExitCode</span>.<span class="hljs-type">Success</span>)
+      } {
+        serverSocket =&gt; close[<span class="hljs-type">IO</span>](serverSocket) &gt;&gt; <span class="hljs-type">IO</span>(println(<span class="hljs-string">"Server finished"</span>))
+      }
+  }
+}
+</code></pre>
+<p>Heed how this time we can use <code>bracket</code> right ahead, as there is a single
+resource to deal with and no action to be taken if the creation fails. Also
+<code>IOApp</code> provides a <code>ContextShift</code> in scope that brings a <code>Concurrent[IO]</code>, so we
+do not have to create our own.</p>
+<h4><a class="anchor" aria-hidden="true" id="echo-server-code-simple-version"></a><a href="#echo-server-code-simple-version" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Echo server code, simple version</h4>
+<p>Full code of our basic echo server is available
+<a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV1_Simple.scala">here</a>.</p>
+<p>As before you can run in for example from the <code>sbt</code> console just by typing</p>
+<pre><code class="hljs css language-scala">&gt; runMain catsEffectTutorial.<span class="hljs-type">EchoServerV1_Simple</span>
+</code></pre>
+<p>That will start the server on default port <code>5432</code>, you can also set any other
+port by passing it as argument. To test the server is properly running, you can
+connect to it using <code>telnet</code>. Here we connect, send <code>hi</code>, and the server replies
+with the same text. Finally we send an empty line to close the connection:</p>
+<pre><code class="hljs css language-console"><span class="hljs-meta">$</span><span class="bash"> telnet localhost 5432</span>
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+hi
+hi
+
+Connection closed by foreign host.
+</code></pre>
+<p>You can connect several telnet sessions at the same time to verify that indeed
+our server can attend all of them simultaneously. Several... but not many, more
+about that in <a href="#fibers-are-not-threads">Fibers are not threads!</a> section.</p>
+<p>Unfortunately this server is a bit too simplistic. For example, how can we stop
+it? Well, that is something we have not addressed yet and it is when things can
+get a bit more complicated. We will deal with proper server halting in the next
+section.</p>
+<h3><a class="anchor" aria-hidden="true" id="graceful-server-stop-handling-exit-events"></a><a href="#graceful-server-stop-handling-exit-events" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Graceful server stop (handling exit events)</h3>
+<p>There is no way to shutdown gracefully the echo server coded in the previous
+section. Sure we can always <code>Ctrl-c</code> it, but proper servers should provide
+better mechanisms to stop them. In this section we use some other <code>cats-effect</code>
+types to deal with this.</p>
+<p>First, we will use a flag to signal when the server shall quit. The main server
+loop will run on its own fiber, that will be canceled when that flag is set.
+The flag will be an instance of <code>MVar</code>. The <code>cats-effect</code> documentation
+describes <code>MVar</code> as <em>a mutable location that can be empty or contains a value,
+asynchronously blocking reads when empty and blocking writes when full</em>. Why not
+using <code>Semaphore</code> or <code>Deferred</code>? Thing is, as we will see later on, we will need
+to be able to 'peek' whether a value has been written or not in a non-blocking
+fashion. That's a handy feature that <code>MVar</code> implements.</p>
+<p>So, we will 'block' by reading our <code>MVar</code> instance, and we will only write on it
+when <code>STOP</code> is received, the write being the <em>signal</em> that the server must be
+shut down. The server will be only stopped once, so we are not concerned about
+blocking on writing.</p>
+<p>And who shall signal that the server must be stopped? In this example, we will
+assume that it will be the connected users who can request the server to halt by
+sending a <code>STOP</code> message. Thus, the method attending clients (<code>echoProtocol</code>!)
+needs access to the flag to use it to communicate that the server must stop when
+that message is received.</p>
+<p>Let's first define a new method <code>server</code> that instantiates the flag, runs the
+<code>serve</code> method in its own fiber and waits on the flag to be set. Only when
+the flag is set the server fiber will be canceled. The cancellation itself (the
+call to <code>fiber.cancel</code>) is also run in a separate fiber to prevent being
+blocked by it. This is not always needed, but the cancellation of actions
+defined by <code>bracket</code> or <code>bracketCase</code> will wait until all finalizers (release
+stage of bracket) are finished. The <code>F</code> created by our <code>serve</code> function is
+defined based on <code>bracketCase</code>, so if the action is blocked at any bracket stage
+(acquisition, usage or release), then the cancel call will be blocked too. And
+our bracket blocks as the <code>serverSocket.accept</code> call is blocking!. As a result,
+invoking <code>.cancel</code> will block our <code>server</code> function. To fix this we just execute
+the cancellation on its own fiber by running <code>.cancel.start</code>.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.effect.syntax.all._
+<span class="hljs-keyword">import</span> cats.effect.concurrent.<span class="hljs-type">MVar</span>
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> java.net.<span class="hljs-type">ServerSocket</span>
+
+<span class="hljs-comment">// serve now requires access to the stopFlag, it will use it to signal the</span>
+<span class="hljs-comment">// server must stop</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">serve</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Concurrent</span>](serverSocket: <span class="hljs-type">ServerSocket</span>, stopFlag: <span class="hljs-type">MVar</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = ???
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">server</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Concurrent</span>](serverSocket: <span class="hljs-type">ServerSocket</span>): <span class="hljs-type">F</span>[<span class="hljs-type">ExitCode</span>] =
+  <span class="hljs-keyword">for</span> {
+    stopFlag    &lt;- <span class="hljs-type">MVar</span>[<span class="hljs-type">F</span>].empty[<span class="hljs-type">Unit</span>]
+    serverFiber &lt;- serve(serverSocket, stopFlag).start <span class="hljs-comment">// Server runs on its own Fiber</span>
+    _           &lt;- stopFlag.read                       <span class="hljs-comment">// Blocked until 'stopFlag.put(())' is run</span>
+    _           &lt;- serverFiber.cancel.start            <span class="hljs-comment">// Stopping server!</span>
+  } <span class="hljs-keyword">yield</span> <span class="hljs-type">ExitCode</span>.<span class="hljs-type">Success</span>
+</code></pre>
+<p>As before, creating new fibers requires a <code>Concurrent[F]</code> in scope.</p>
+<p>We must also modify the main <code>run</code> method in <code>IOApp</code> so now it calls to <code>server</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> java.net.<span class="hljs-type">ServerSocket</span>
+
+<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Main</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span> </span>{
+
+  <span class="hljs-comment">// server as defined before</span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">server</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Concurrent</span>](serverSocket: <span class="hljs-type">ServerSocket</span>): <span class="hljs-type">F</span>[<span class="hljs-type">ExitCode</span>] = ???
+  
+  <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">ExitCode</span>] = {
+  
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">close</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](socket: <span class="hljs-type">ServerSocket</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
+      <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(socket.close()).handleErrorWith(_ =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit)
+  
+    <span class="hljs-type">IO</span>{ <span class="hljs-keyword">new</span> <span class="hljs-type">ServerSocket</span>(args.headOption.map(_.toInt).getOrElse(<span class="hljs-number">5432</span>)) }
+      .bracket{
+        serverSocket =&gt; server[<span class="hljs-type">IO</span>](serverSocket) &gt;&gt; <span class="hljs-type">IO</span>.pure(<span class="hljs-type">ExitCode</span>.<span class="hljs-type">Success</span>)
+      } {
+        serverSocket =&gt; close[<span class="hljs-type">IO</span>](serverSocket)  &gt;&gt; <span class="hljs-type">IO</span>(println(<span class="hljs-string">"Server finished"</span>))
+      }
+  }
+}
+</code></pre>
+<p>So <code>run</code> calls <code>server</code> which in turn calls <code>serve</code>. Do we need to modify
+<code>serve</code> as well? Yes, as we need to pass the <code>stopFlag</code> to the <code>echoProtocol</code>
+method:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">ExitCase</span>._
+<span class="hljs-keyword">import</span> cats.effect.concurrent.<span class="hljs-type">MVar</span>
+<span class="hljs-keyword">import</span> cats.effect.syntax.all._
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> java.net._
+
+<span class="hljs-comment">// echoProtocol now requires access to the stopFlag, it will use it to signal the</span>
+<span class="hljs-comment">// server must stop</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">echoProtocol</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](clientSocket: <span class="hljs-type">Socket</span>, stopFlag: <span class="hljs-type">MVar</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = ???
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">serve</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Concurrent</span>](serverSocket: <span class="hljs-type">ServerSocket</span>, stopFlag: <span class="hljs-type">MVar</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = {
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">close</span></span>(socket: <span class="hljs-type">Socket</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = 
+    <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(socket.close()).handleErrorWith(_ =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit)
+  
+  <span class="hljs-keyword">for</span> {
+    _ &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>]
+           .delay(serverSocket.accept())
+           .bracketCase { socket =&gt;
+             echoProtocol(socket, stopFlag)
+               .guarantee(close(socket))                 <span class="hljs-comment">// Ensuring socket is closed</span>
+               .start                                    <span class="hljs-comment">// Client attended by its own Fiber</span>
+           }{ (socket, exit) =&gt; exit <span class="hljs-keyword">match</span> {
+             <span class="hljs-keyword">case</span> <span class="hljs-type">Completed</span> =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit
+             <span class="hljs-keyword">case</span> <span class="hljs-type">Error</span>(_) | <span class="hljs-type">Canceled</span> =&gt; close(socket)
+           }}
+    _ &lt;- serve(serverSocket, stopFlag)                   <span class="hljs-comment">// Looping back to the beginning</span>
+  } <span class="hljs-keyword">yield</span> ()
+}
+</code></pre>
+<p>There is only one step missing, modifying <code>echoProtocol</code>. In fact, the only
+relevant changes are on its inner <code>loop</code> method. Now it will check whether the
+line received from the client is <code>STOP</code>, if so it will set the <code>stopFlag</code> to
+signal the server must be stopped, and the function will quit:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.effect.concurrent.<span class="hljs-type">MVar</span>
+<span class="hljs-keyword">import</span> cats.effect.syntax.all._
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> java.io._
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">loop</span></span>[<span class="hljs-type">F</span>[_]:<span class="hljs-type">Concurrent</span>](reader: <span class="hljs-type">BufferedReader</span>, writer: <span class="hljs-type">BufferedWriter</span>, stopFlag: <span class="hljs-type">MVar</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
+  <span class="hljs-keyword">for</span> {
+    line &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(reader.readLine())
+    _    &lt;- line <span class="hljs-keyword">match</span> {
+              <span class="hljs-keyword">case</span> <span class="hljs-string">"STOP"</span> =&gt; stopFlag.put(()) <span class="hljs-comment">// Stopping server! Also put(()) returns F[Unit] which is handy as we are done</span>
+              <span class="hljs-keyword">case</span> <span class="hljs-string">""</span>     =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit     <span class="hljs-comment">// Empty line, we are done</span>
+              <span class="hljs-keyword">case</span> _      =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay{ writer.write(line); writer.newLine(); writer.flush() } &gt;&gt; loop(reader, writer, stopFlag)
+            }
+  } <span class="hljs-keyword">yield</span> ()
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="echo-server-code-graceful-stop-version"></a><a href="#echo-server-code-graceful-stop-version" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Echo server code, graceful stop version</h4>
+<p>The code of the server able to react to stop events is available
+<a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV2_GracefulStop.scala">here</a>.</p>
+<p>If you run the server coded above, open a telnet session against it and send an
+<code>STOP</code> message you will see how the server is properly terminated: the <code>server</code>
+function will cancel the fiber on <code>serve</code> and return, then <code>bracket</code> defined in
+our main <code>run</code> method will finalize the usage stage and relaese the server
+socket. This will make the <code>serverSocket.accept()</code> in the <code>serve</code> function to
+throw an exception that will be caught by the <code>bracketCase</code> of that function.
+Because <code>serve</code> was already canceled, and given how we defined the release stage
+of its <code>bracketCase</code>, the function will finish normally.</p>
+<h4><a class="anchor" aria-hidden="true" id="exercise-closing-client-connections-to-echo-server-on-shutdown"></a><a href="#exercise-closing-client-connections-to-echo-server-on-shutdown" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Exercise: closing client connections to echo server on shutdown</h4>
+<p>There is a catch yet in our server. If there are several clients connected,
+sending a <code>STOP</code> message will close the server's fiber and the one attending
+the client that sent the message. But the other fibers will keep running
+normally! It is like they were daemon threads. Arguably, we could expect that
+shutting down the server shall close <em>all</em> connections. How could we do it?
+Solving that issue is the proposed exercise below.</p>
+<p>We need to close all connections with clients when the server is shut down. To
+do that we can call <code>cancel</code> on each one of the <code>Fiber</code> instances we have
+created to attend each new client. But how? After all, we are not tracking
+which fibers are running at any given time. We propose this exercise to you: can
+you devise a mechanism so all client connections are closed when the server is
+shutdown? We outline a solution in the next subsection, but maybe you can
+consider taking some time looking for a solution yourself :) .</p>
+<h4><a class="anchor" aria-hidden="true" id="solution"></a><a href="#solution" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Solution</h4>
+<p>We could keep a list of active fibers serving client connections. It is
+doable, but cumbersome … and not really needed at this point.</p>
+<p>Think about it: we have a <code>stopFlag</code> that signals when the server must be
+stopped. When that flag is set we can assume we shall close all client
+connections too. Thus what we need to do is, every time we create a new fiber to
+attend some new client, we must also make sure that when <code>stopFlag</code> is set that
+client is 'shutdown'. As <code>Fiber</code> instances are very light we can create a new
+instance just to wait for <code>stopFlag.read</code> and then forcing the client to stop.
+This is how the <code>serve</code> method will look like now with that change:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">ExitCase</span>._
+<span class="hljs-keyword">import</span> cats.effect.concurrent.<span class="hljs-type">MVar</span>
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> cats.effect.syntax.all._
+<span class="hljs-keyword">import</span> java.net._
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">echoProtocol</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](clientSocket: <span class="hljs-type">Socket</span>, stopFlag: <span class="hljs-type">MVar</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = ???
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">serve</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Concurrent</span>](serverSocket: <span class="hljs-type">ServerSocket</span>, stopFlag: <span class="hljs-type">MVar</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = {
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">close</span></span>(socket: <span class="hljs-type">Socket</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = 
+    <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(socket.close()).handleErrorWith(_ =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit)
+
+  <span class="hljs-keyword">for</span> {
+    socket &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>]
+                .delay(serverSocket.accept())
+                .bracketCase { socket =&gt;
+                  echoProtocol(socket, stopFlag)
+                    .guarantee(close(socket))                 <span class="hljs-comment">// Ensuring socket is closed</span>
+                    .start &gt;&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].pure(socket)            <span class="hljs-comment">// Client attended by its own Fiber, socket is returned</span>
+                }{ (socket, exit) =&gt; exit <span class="hljs-keyword">match</span> {
+                  <span class="hljs-keyword">case</span> <span class="hljs-type">Completed</span> =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit
+                  <span class="hljs-keyword">case</span> <span class="hljs-type">Error</span>(_) | <span class="hljs-type">Canceled</span> =&gt; close(socket)
+                }}
+    _      &lt;- (stopFlag.read &gt;&gt; close(socket)) 
+                .start                                        <span class="hljs-comment">// Another Fiber to cancel the client when stopFlag is set</span>
+    _      &lt;- serve(serverSocket, stopFlag)                   <span class="hljs-comment">// Looping back to the beginning</span>
+  } <span class="hljs-keyword">yield</span> ()
+}
+</code></pre>
+<p>Here we close the client socket once the read on <code>stopFlag</code> unblocks. This will
+trigger an exception on the <code>reader.readLine</code> call. To capture and process the
+exception we will use <code>attempt</code>, which returns an <code>Either</code> instance that will
+contain either a <code>Right[String]</code> with the line read or a <code>Left[Throwable]</code> with
+the exception captured. If some error is detected first the state of <code>stopFlag</code>
+is checked, and if it is set a graceful shutdown is assumed and no action is
+taken; otherwise the error is raised:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.effect.concurrent.<span class="hljs-type">MVar</span>
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> java.io._
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">loop</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](reader: <span class="hljs-type">BufferedReader</span>, writer: <span class="hljs-type">BufferedWriter</span>, stopFlag: <span class="hljs-type">MVar</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
+  <span class="hljs-keyword">for</span> {
+    lineE &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(reader.readLine()).attempt
+    _     &lt;- lineE <span class="hljs-keyword">match</span> {
+               <span class="hljs-keyword">case</span> <span class="hljs-type">Right</span>(line) =&gt; line <span class="hljs-keyword">match</span> {
+                 <span class="hljs-keyword">case</span> <span class="hljs-string">"STOP"</span> =&gt; stopFlag.put(()) <span class="hljs-comment">// Stopping server! Also put(()) returns F[Unit] which is handy as we are done</span>
+                 <span class="hljs-keyword">case</span> <span class="hljs-string">""</span>     =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit     <span class="hljs-comment">// Empty line, we are done</span>
+                 <span class="hljs-keyword">case</span> _      =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay{ writer.write(line); writer.newLine(); writer.flush() } &gt;&gt; loop(reader, writer, stopFlag)
+               }
+               <span class="hljs-keyword">case</span> <span class="hljs-type">Left</span>(e) =&gt;
+                 <span class="hljs-keyword">for</span> { <span class="hljs-comment">// readLine() failed, stopFlag will tell us whether this is a graceful shutdown</span>
+                   isEmpty &lt;- stopFlag.isEmpty
+                   _       &lt;- <span class="hljs-keyword">if</span>(!isEmpty) <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit  <span class="hljs-comment">// stopFlag is set, cool, we are done</span>
+                              <span class="hljs-keyword">else</span> <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].raiseError(e) <span class="hljs-comment">// stopFlag not set, must raise error</span>
+                 } <span class="hljs-keyword">yield</span> ()
+             }
+  } <span class="hljs-keyword">yield</span> ()
+</code></pre>
+<p>Recall that we used <code>Resource</code> to instantiate both the <code>reader</code> and <code>writer</code>
+used by <code>loop</code>; following how we coded that resource, both that <code>reader</code> and
+<code>writer</code> will be automatically closed.</p>
+<p>Now you may think '<em>wait a minute!, why don't we cancel the client fiber instead
+of closing the socket straight away?</em>' In fact this is perfectly possible, and
+it will have a similar effect:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">ExitCase</span>._
+<span class="hljs-keyword">import</span> cats.effect.concurrent.<span class="hljs-type">MVar</span>
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> cats.effect.syntax.all._
+<span class="hljs-keyword">import</span> java.net._
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">echoProtocol</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](clientSocket: <span class="hljs-type">Socket</span>, stopFlag: <span class="hljs-type">MVar</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = ???
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">serve</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Concurrent</span>](serverSocket: <span class="hljs-type">ServerSocket</span>, stopFlag: <span class="hljs-type">MVar</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = {
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">close</span></span>(socket: <span class="hljs-type">Socket</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = 
+    <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(socket.close()).handleErrorWith(_ =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit)
+
+  <span class="hljs-keyword">for</span> {
+    fiber &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>]
+               .delay(serverSocket.accept())
+               .bracketCase { socket =&gt;
+                 echoProtocol(socket, stopFlag)
+                   .guarantee(close(socket))                 <span class="hljs-comment">// Ensuring socket is closed</span>
+                   .start                                    <span class="hljs-comment">// Client attended by its own Fiber, which is returned</span>
+               }{ (socket, exit) =&gt; exit <span class="hljs-keyword">match</span> {
+                 <span class="hljs-keyword">case</span> <span class="hljs-type">Completed</span> =&gt; <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].unit
+                 <span class="hljs-keyword">case</span> <span class="hljs-type">Error</span>(_) | <span class="hljs-type">Canceled</span> =&gt; close(socket)
+               }}
+    _     &lt;- (stopFlag.read &gt;&gt; fiber.cancel) 
+               .start                                        <span class="hljs-comment">// Another Fiber to cancel the client when stopFlag is set</span>
+    _     &lt;- serve(serverSocket, stopFlag)                   <span class="hljs-comment">// Looping back to the beginning</span>
+  } <span class="hljs-keyword">yield</span> ()
+}
+</code></pre>
+<p>What is happening in this latter case? If you take a look again to
+<code>echoProtocol</code> you will see that the <code>F</code> returned by <code>echoProtocol</code> is the <code>F</code>
+given by <code>Resource.use</code>. When we cancel the fiber running that <code>F</code>, the release
+of the resources defined is triggered. That release phase closes the <code>reader</code>
+and <code>writer</code> streams that we created from the client socket... which in turn
+closes the client socket! As before, the <code>attempt</code> call will take care of the
+exception raised. In fact using <code>cancel</code> looks cleaner overall. But there is a
+catch. The call to <code>cancel</code> does not force an <code>F</code> to be immediately terminated,
+it is not like a <code>Thread.interrupt</code>! It happened in our server because it
+indirectly created an exception that was raised inside the <code>F</code> running the
+<code>reader.readLine</code>, caused by the socket being closed. If that had not been the
+case, the <code>cancel</code> call would only have taken effect when the code inside the
+<code>F</code> running the <code>reader.readLine</code> was normally finished. Keep that in mind when
+using <code>cancel</code> to handle fibers.</p>
+<h4><a class="anchor" aria-hidden="true" id="echo-server-code-closing-client-connections-version"></a><a href="#echo-server-code-closing-client-connections-version" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Echo server code, closing client connections version</h4>
+<p>The resulting code of this new server, able to shutdown all client connections
+on shutdown, is available
+<a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV3_ClosingClientsOnShutdown.scala">here</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="fibers-are-not-threadsa-namefibers-are-not-threadsa"></a><a href="#fibers-are-not-threadsa-namefibers-are-not-threadsa" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>Fiber</code>s are not threads!<a name="fibers-are-not-threads"></a></h3>
+<p>As stated before, fibers are like 'light' threads, meaning they can be used in a
+similar way than threads to create concurrent code. However, they are <em>not</em>
+threads. Spawning new fibers does not guarantee that the action described in the
+<code>F</code> associated to it will be run if there is a shortage of threads. At the end
+of the day, if no thread is available that can run the fiber, then the actions
+in that fiber will be blocked until some thread is free again.</p>
+<p>You can test this yourself. Start the server defined in the previous sections
+and try to connect several clients and send lines to the server through them.
+Soon you will notice that the latest clients... do not get any echo reply when
+sending lines! Why is that?  Well, the answer is that the first fibers already
+used all <em>underlying</em> threads available!  But if we close one of the active
+clients by sending an empty line (recall that makes the server to close that
+client session) then immediately one of the blocked clients will be active.</p>
+<p>It shall be clear from that experiment that fibers are run by thread pools. And
+that in our case, all our fibers share the same thread pool! <code>ContextShift[F]</code>
+is in charge of assigning threads to the fibers waiting to be run, each one
+with a pending <code>F</code> action. When using <code>IOApp</code> we get also the <code>ContextShift[IO]</code>
+that we need to run the fibers in our code. So there are our threads!</p>
+<h3><a class="anchor" aria-hidden="true" id="the-contextshift-type-class"></a><a href="#the-contextshift-type-class" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The <code>ContextShift</code> type class</h3>
+<p>Cats-effect provides ways to use different <code>ContextShift</code>s (each with its own
+thread pool) when running <code>F</code> actions, and to swap which one should be used for
+each new <code>F</code> to ask to reschedule threads among the current active <code>F</code>
+instances <em>e.g.</em> for improved fairness etc. Code below shows an example of how to
+declare tasks that will be run in different thread pools: the first task will be
+run by the thread pool of the <code>ExecutionContext</code> passed as parameter, the second
+task will be run in the default thread pool.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> scala.concurrent.<span class="hljs-type">ExecutionContext</span>
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">doHeavyStuffInADifferentThreadPool</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">ContextShift</span>: <span class="hljs-type">Sync</span>](<span class="hljs-keyword">implicit</span> ec: <span class="hljs-type">ExecutionContext</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
+  <span class="hljs-keyword">for</span> {
+    _ &lt;- <span class="hljs-type">ContextShift</span>[<span class="hljs-type">F</span>].evalOn(ec)(<span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(println(<span class="hljs-string">"Hi!"</span>))) <span class="hljs-comment">// Swapping to thread pool of given ExecutionContext</span>
+    _ &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(println(<span class="hljs-string">"Welcome!"</span>)) <span class="hljs-comment">// Running back in default thread pool</span>
+  } <span class="hljs-keyword">yield</span> ()
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="exercise-using-a-custom-thread-pool-in-echo-server"></a><a href="#exercise-using-a-custom-thread-pool-in-echo-server" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Exercise: using a custom thread pool in echo server</h4>
+<p>Given what we know so far, how could we solve the problem of the limited number
+of clients attended in parallel in our echo server? Recall that in traditional
+servers we would make use of a specific thread pool for clients, able to resize
+itself by creating new threads if they are needed. You can get such a pool using
+<code>Executors.newCachedThreadPool()</code>. But take care of shutting the pool down when
+the server is stopped!</p>
+<h4><a class="anchor" aria-hidden="true" id="solution-1"></a><a href="#solution-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Solution</h4>
+<p>Well, the solution is quite straightforward. We only need to create a thread pool
+and execution context, and use it whenever we need to read input from some
+connected client. So the beginning of the <code>echoProtocol</code> function would look like:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">echoProtocol</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>: <span class="hljs-type">ContextShift</span>](clientSocket: <span class="hljs-type">Socket</span>, stopFlag: <span class="hljs-type">MVar</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>])(<span class="hljs-keyword">implicit</span> clientsExecutionContext: <span class="hljs-type">ExecutionContext</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = {
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">loop</span></span>(reader: <span class="hljs-type">BufferedReader</span>, writer: <span class="hljs-type">BufferedWriter</span>, stopFlag: <span class="hljs-type">MVar</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
+    <span class="hljs-keyword">for</span> {
+      lineE &lt;- <span class="hljs-type">ContextShift</span>[<span class="hljs-type">F</span>].evalOn(clientsExecutionContext)(<span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(reader.readLine()).attempt)
+<span class="hljs-comment">//    ...</span>
+</code></pre>
+<p>and... that is mostly it. Only pending change is to create the thread pool and
+execution context in the <code>server</code> function, which will be in charge also of
+shutting down the thread pool when the server finishes:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.effect.concurrent.<span class="hljs-type">MVar</span>
+<span class="hljs-keyword">import</span> cats.effect.syntax.all._
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> java.net.<span class="hljs-type">ServerSocket</span>
+<span class="hljs-keyword">import</span> java.util.concurrent.<span class="hljs-type">Executors</span>
+<span class="hljs-keyword">import</span> scala.concurrent.<span class="hljs-type">ExecutionContext</span>
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">serve</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Concurrent</span>: <span class="hljs-type">ContextShift</span>](serverSocket: <span class="hljs-type">ServerSocket</span>, stopFlag: <span class="hljs-type">MVar</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>])(<span class="hljs-keyword">implicit</span> clientsExecutionContext: <span class="hljs-type">ExecutionContext</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = ???
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">server</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Concurrent</span>: <span class="hljs-type">ContextShift</span>](serverSocket: <span class="hljs-type">ServerSocket</span>): <span class="hljs-type">F</span>[<span class="hljs-type">ExitCode</span>] = {
+
+  <span class="hljs-keyword">val</span> clientsThreadPool = <span class="hljs-type">Executors</span>.newCachedThreadPool()
+  <span class="hljs-keyword">implicit</span> <span class="hljs-keyword">val</span> clientsExecutionContext = <span class="hljs-type">ExecutionContext</span>.fromExecutor(clientsThreadPool)
+
+  <span class="hljs-keyword">for</span> {
+    stopFlag    &lt;- <span class="hljs-type">MVar</span>[<span class="hljs-type">F</span>].empty[<span class="hljs-type">Unit</span>]
+    serverFiber &lt;- serve(serverSocket, stopFlag).start         <span class="hljs-comment">// Server runs on its own Fiber</span>
+    _           &lt;- stopFlag.read                               <span class="hljs-comment">// Blocked until 'stopFlag.put(())' is run</span>
+    _           &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(clientsThreadPool.shutdown()) <span class="hljs-comment">// Shutting down clients pool</span>
+    _           &lt;- serverFiber.cancel.start                    <span class="hljs-comment">// Stopping server</span>
+  } <span class="hljs-keyword">yield</span> <span class="hljs-type">ExitCode</span>.<span class="hljs-type">Success</span>
+}
+</code></pre>
+<p>Signatures of <code>serve</code> and of <code>echoProtocol</code> will have to be changed too to pass
+the execution context as parameter. Finally, we need an implicit
+<code>ContextShift[F]</code> that will be carried by the function's signature. It is <code>IOApp</code>
+which provides the instance of <code>ContextShift[IO]</code> in the <code>run</code> method.</p>
+<h4><a class="anchor" aria-hidden="true" id="echo-server-code-thread-pool-for-clients-version"></a><a href="#echo-server-code-thread-pool-for-clients-version" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Echo server code, thread pool for clients version</h4>
+<p>The version of our echo server using a thread pool is available
+<a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV4_ClientThreadPool.scala">here</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="lets-not-forget-about-async"></a><a href="#lets-not-forget-about-async" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Let's not forget about <code>async</code></h2>
+<p>The <code>async</code> functionality is another powerful capability of cats-effect we have
+not mentioned yet. It is provided by <code>Async</code> type class, and it allows to
+describe <code>F</code> instances that may be terminated by a thread different than the
+one carrying the evaluation of that instance. The result will be returned by
+using a callback.</p>
+<p>Some of you may wonder if that could help us to solve the issue of having
+blocking code in our fabulous echo server. Unfortunately, <code>async</code> cannot
+magically 'unblock' such code. Try this simple code snippet (<em>e.g.</em> in <code>sbt</code>
+console):</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.effect.syntax.all._
+<span class="hljs-keyword">import</span> cats.implicits._
+<span class="hljs-keyword">import</span> scala.util.<span class="hljs-type">Either</span>
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">delayed</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Async</span>]: <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = <span class="hljs-keyword">for</span> {
+  _ &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(println(<span class="hljs-string">"Starting"</span>)) <span class="hljs-comment">// Async extends Sync, so (F[_]: Async) 'brings' (F[_]: Sync)</span>
+  _ &lt;- <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].async{ (cb: <span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>,<span class="hljs-type">Unit</span>] =&gt; <span class="hljs-type">Unit</span>) =&gt;
+      <span class="hljs-type">Thread</span>.sleep(<span class="hljs-number">2000</span>)
+      cb(<span class="hljs-type">Right</span>(()))
+    }
+  _ &lt;- <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(println(<span class="hljs-string">"Done"</span>)) <span class="hljs-comment">// 2 seconds to get here, no matter what, as we were 'blocked' by previous call</span>
+} <span class="hljs-keyword">yield</span>()
+
+delayed[<span class="hljs-type">IO</span>].unsafeRunSync() <span class="hljs-comment">// a way to run an IO without IOApp</span>
+</code></pre>
+<p>You will notice that the code above still blocks, waiting for the <code>async</code> call
+to finish.</p>
+<h3><a class="anchor" aria-hidden="true" id="using-async-in-our-echo-server"></a><a href="#using-async-in-our-echo-server" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Using <code>async</code> in our echo server</h3>
+<p>So how is <code>async</code> useful? Well, let's see how we can apply it on our server
+code. Because <code>async</code> allows a different thread to finish the task, we can
+modify the blocking read call inside the <code>loop</code> function of our server with
+something like:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+  lineE &lt;- <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].async{ (cb: <span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">String</span>]] =&gt; <span class="hljs-type">Unit</span>) =&gt; 
+             clientsExecutionContext.execute(<span class="hljs-keyword">new</span> <span class="hljs-type">Runnable</span> {
+               <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(): <span class="hljs-type">Unit</span> = {
+                 <span class="hljs-keyword">val</span> result: <span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">String</span>] = <span class="hljs-type">Try</span>(reader.readLine()).toEither
+                 cb(<span class="hljs-type">Right</span>(result))
+               }
+             })
+           }
+<span class="hljs-comment">// ...           </span>
+</code></pre>
+<p>Note that the call <code>clientsExecutionContext.execute</code> will create a thread from
+that execution context, setting free the thread that was evaluating the <code>F</code>
+for-comprehension. If the thread pool used by the execution context can create
+new threads if no free ones are available, then we will be able to attend as
+many clients as needed. This is similar to the solution we used previously when
+we asked to run the blocking <code>readLine</code> call in a different execution context.
+The final result will be identical to our previous server version. To attend
+client connections, if no thread is available in the pool, new threads will be
+created from that pool.</p>
+<h4><a class="anchor" aria-hidden="true" id="echo-server-code-async-version"></a><a href="#echo-server-code-async-version" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Echo server code, async version</h4>
+<p>A full version of our echo server using this async approach is available
+<a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV5_Async.scala">here</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="when-is-async-useful-then"></a><a href="#when-is-async-useful-then" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>When is <code>async</code> useful then?</h3>
+<p>The <code>Async</code> type class is useful specially when the task to run by the <code>F</code> can
+be terminated by any thread. For example, calls to remote services are often
+modeled with <code>Future</code>s so they do not block the calling thread. When defining
+our <code>F</code>, should we block on the <code>Future</code> waiting for the result? No! We can
+wrap the call in an <code>async</code> call like:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> scala.concurrent.<span class="hljs-type">ExecutionContext</span>.<span class="hljs-type">Implicits</span>.global
+<span class="hljs-keyword">import</span> scala.concurrent.<span class="hljs-type">Future</span>
+<span class="hljs-keyword">import</span> scala.util._
+
+<span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Service</span> </span>{ <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getResult</span></span>(): <span class="hljs-type">Future</span>[<span class="hljs-type">String</span>] }
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">service</span></span>: <span class="hljs-type">Service</span> = ???
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">processServiceResult</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Async</span>] = <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>].async{ (cb: <span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">String</span>] =&gt; <span class="hljs-type">Unit</span>) =&gt; 
+  service.getResult().onComplete {
+    <span class="hljs-keyword">case</span> <span class="hljs-type">Success</span>(s) =&gt; cb(<span class="hljs-type">Right</span>(s))
+    <span class="hljs-keyword">case</span> <span class="hljs-type">Failure</span>(e) =&gt; cb(<span class="hljs-type">Left</span>(e))
+  }
+}
+</code></pre>
+<p>So, let's say our new goal is to create an echo server that does not require a
+thread per connected socket to wait on the blocking <code>read()</code> method. If we use a
+network library that avoids blocking operations, we could then combine that with
+<code>async</code> to create such non-blocking server. And Java NIO can be helpful here.
+While Java NIO does have some blocking method (<code>Selector</code>'s <code>select()</code>), it
+allows to build servers that do not require a thread per connected client:
+<code>select()</code> will return those 'channels' (such as <code>SocketChannel</code>) that have data
+available to read from, then processing of the incoming data can be split among
+threads of a size-bounded pool. This way, a thread-per-client approach is not
+needed. Java NIO2 or netty could also be applicable to this scenario. We leave
+as a final exercise to implement again our echo server but this time using an
+async lib.</p>
+<h2><a class="anchor" aria-hidden="true" id="conclusion"></a><a href="#conclusion" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Conclusion</h2>
+<p>With all this we have covered a good deal of what cats-effect has to offer (but
+not all!). Now you are ready to use to create code that operate side effects in
+a purely functional manner. Enjoy the ride!</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/next/installation"><span class="arrow-prev">← </span><span>Installation</span></a><a class="docs-next button" href="/cats-effect/docs/next/guides/tracing"><span>Tracing</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#introduction">Introduction</a></li><li><a href="#setting-things-up">Setting things up</a></li><li><a href="#copying-contents-of-a-file---safely-handling-resources">Copying contents of a file - safely handling resources</a><ul class="toc-headings"><li><a href="#acquiring-and-releasing-resources">Acquiring and releasing <code>Resource</code>s</a></li><li><a href="#what-about-bracket">What about <code>bracket</code>?</a></li><li><a href="#copying-data">Copying data</a></li><li><a href="#dealing-with-cancellation">Dealing with cancellation</a></li><li><a href="#ioapp-for-our-final-program"><code>IOApp</code> for our final program</a></li><li><a href="#polymorphic-cats-effect-code">Polymorphic cats-effect code</a></li><li><a href="#exercises-improving-our-small-io-program">Exercises: improving our small <code>IO</code> program</a></li></ul></li><li><a href="#tcp-echo-server---concurrent-system-with-fibers">TCP echo server - concurrent system with <code>Fiber</code>s</a><ul class="toc-headings"><li><a href="#ioapp-for-our-server"><code>IOApp</code> for our server</a></li><li><a href="#graceful-server-stop-handling-exit-events">Graceful server stop (handling exit events)</a></li><li><a href="#fibers-are-not-threadsa-namefibers-are-not-threadsa"><code>Fiber</code>s are not threads!<a name="fibers-are-not-threads"></a></a></li><li><a href="#the-contextshift-type-class">The <code>ContextShift</code> type class</a></li></ul></li><li><a href="#lets-not-forget-about-async">Let's not forget about <code>async</code></a><ul class="toc-headings"><li><a href="#using-async-in-our-echo-server">Using <code>async</code> in our echo server</a></li><li><a href="#when-is-async-useful-then">When is <code>async</code> useful then?</a></li></ul></li><li><a href="#conclusion">Conclusion</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/en/installation">Getting Started</a><a href="/cats-effect/docs/en/guides/tutorial">Tutorial</a><a href="/cats-effect/docs/en/datatypes/io">IO Monad</a><a href="/cats-effect/docs/en/concurrency/overview">Concurrency</a></div><div><h5>Community</h5><a href="https://typelevel.org/blog/">Blog</a><a href="https://gitter.im/typelevel/cats-effect">Gitter</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2020 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>

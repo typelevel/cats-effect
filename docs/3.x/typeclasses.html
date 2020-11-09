@@ -1,0 +1,343 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Typeclasses · Cats Effect</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="The typeclass hierarchy within Cats Effect defines what it means, fundamentally, to *be* a functional effect. This is very similar to how we have a set of rules which tell us what it means to be a number, or what it means to have a `flatMap` method. Broadly, the rules for functional effects can be broken down into the following categories:"/><meta name="docsearch:version" content="3.x"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Typeclasses · Cats Effect"/><meta property="og:type" content="website"/><meta property="og:url" content="https://typelevel.org/cats-effect/"/><meta property="og:description" content="The typeclass hierarchy within Cats Effect defines what it means, fundamentally, to *be* a functional effect. This is very similar to how we have a set of rules which tell us what it means to be a number, or what it means to have a `flatMap` method. Broadly, the rules for functional effects can be broken down into the following categories:"/><meta property="og:image" content="https://typelevel.org/cats-effect/img/undraw_online.svg"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/undraw_tweetstorm.svg"/><link rel="shortcut icon" href="/cats-effect/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github-gist.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="/cats-effect/js/scrollSpy.js"></script><link rel="stylesheet" href="/cats-effect/css/main.css"/><script src="/cats-effect/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/cats-effect/"><img class="logo" src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect"/><h2 class="headerTitleWithLogo">Cats Effect</h2></a><a href="/cats-effect/versions"><h3>3.x</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/cats-effect/docs/3.x/installation" target="_self">Docs</a></li><li class=""><a href="https://github.com/typelevel/cats-effect" target="_blank">GitHub</a></li><li class=""><a href="/cats-effect/api/index.html" target="_self">API</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Typeclasses</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Getting Started<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/3.x/installation">Installation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Typeclasses<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem navListItemActive"><a class="navItem" href="/cats-effect/docs/3.x/typeclasses">Typeclasses</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Typeclasses</h1></header><article><div><span><p>The typeclass hierarchy within Cats Effect defines what it means, fundamentally, to <em>be</em> a functional effect. This is very similar to how we have a set of rules which tell us what it means to be a number, or what it means to have a <code>flatMap</code> method. Broadly, the rules for functional effects can be broken down into the following categories:</p>
+<ul>
+<li>Resource safety and cancelation</li>
+<li>Parallel evaluation</li>
+<li>State sharing between parallel processes</li>
+<li>Interactions with time, including current time and <code>sleep</code></li>
+<li>Safe capture of side-effects which return values</li>
+<li>Safe capture of side-effects which invoke a callback</li>
+</ul>
+<p>These are listed roughly in order of increasing power. Parallelism cannot be safely defined without some notion of resource safety and cancelation. Interactions with time have no meaning if there is no notion of parallel evaluation, since it would be impossible to observe the passage of time. Capturing and controlling side-effects makes it possible to do <em>anything</em> simply by &quot;cheating&quot; and capturing something like <code>new Thread</code>, and thus it has the greatest power of all of these categories.</p>
+<p>Beyond the above, certain capabilities are <em>assumed</em> by Cats Effect but defined elsewhere (or rather, defined within <a href="https://typelevel.org/cats">Cats</a>). Non-exhaustively, those capabilities are as follows:</p>
+<ul>
+<li>Transforming the value inside an effect by <code>map</code>ping over it</li>
+<li>Putting a value <em>into</em> an effect</li>
+<li>Composing multiple effectful computations together sequentially, such that each is dependent on the previous</li>
+<li>Raising and handling errors</li>
+</ul>
+<p>Taken together, all of these capabilities define what it means to be an effect. Just as you can rely on the properties of integers when you perform basic mental arithmetic (e.g. you can assume that <code>1 + 2 + 3</code> is the same as <code>1 + 5</code>), so too can you rely on these powerful and general properties of <em>effects</em> to hold when you write complex programs. This allows you to understand and refactor your code based on rules and abstractions, rather than having to think about every possibly implementation detail and use-case. Additionally, it makes it possible for you and others to write very generic code which composes together making an absolute minimum of assumptions. This is the foundation of the Cats Effect ecosystem.</p>
+<h2><a class="anchor" aria-hidden="true" id="monadcancel"></a><a href="#monadcancel" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>MonadCancel</code></h2>
+<p>This typeclass extends <code>MonadError</code> (in Cats) and defines the meaning of resource safety and cancellation. Using it, we can define effects which safely acquire and release resources:</p>
+<!-- TODO enable mdoc for this -->
+```scala
+import cats.effect._
+import cats.effect.syntax.all._
+<p>openFile.bracket(fis =&gt; readFromFile(fis))(fis =&gt; closeFile(fis))</p>
+<pre><code class="hljs">
+The `bracket` combinator works a bit <span class="hljs-meta">like</span> the FP equivalent of `try`/`finally`: <span class="hljs-meta">if</span> `openFile` runs (<span class="hljs-meta">in</span> the above), <span class="hljs-meta">then</span> `closeFile` <span class="hljs-comment">*will* be run, no matter what. This will happen even if `readFromFile` produces an error, or even if the whole process is canceled by some other fiber. Additionally, `openFile` itself is atomic: it either doesn't evaluate at all (e.g. if the current fiber is canceled prior to any of this even happening), or it *fully* evaluates. This allows `openFile` to do complicated things in the process of acquiring the resource without fear of something external getting in the way.
+
+In addition to `bracket`, `MonadCancel` also provides a lower-level operation, `uncancelable`, which makes it possible to perform extremely complex, cancellation-sensitive actions in a safe and composable manner. For example, imagine that we have a block of code which must be guarded by a `Semaphore`, ensuring the runtime has exclusive access when evaluating. The problem here is that the acquisition of the `Semaphore`, which is a resource, may *also* result in blocking the fiber, and thus may need to be canceled externally. Put another way: resource acquisition needs to be uncancelable, but this *particular* resource acquisition has a very specific point at which it needs to allow cancellation, otherwise it might end up locking up the JVM. `uncancelable` provides a mechanism to achieve this:
+
+```scala
+import cats.effect.MonadCancel
+import cats.effect.std.Semaphore
+import cats.effect.syntax.all._
+import cats.syntax.all._
+
+def guarded[F[_], R, A, E](
+    s: Semaphore[F], 
+    alloc: F[R])(
+    use: R =&gt; F[A])(
+    release: R =&gt; F[Unit])(
+    implicit F: MonadCancel[F, E])
+    : F[A] =
+  F uncancelable { poll =&gt;
+    for {
+      r &lt;- alloc
+
+      _ &lt;- poll(s.acquire).onCancel(release(r))
+      releaseAll = s.release &gt;&gt; release(r)
+
+      a &lt;- poll(use(r)).guarantee(releaseAll)
+    } yield a
+  }
+</span></code></pre>
+<p>The above looks intimidating, but it's actually just another flavor of <code>bracket</code>, the operation we saw earlier! The whole thing is wrapped in <code>uncancelable</code>, which means we don't need to worry about other fibers interrupting us in the middle of each of these actions. In particular, the very <em>first</em> action we perform is <code>alloc</code>, which allocates a value of type <code>R</code>. Once this has completed successfully, we attempt to acquire the <code>Semaphore</code>. If some other fiber has already acquired the lock, this may end up blocking for quite a while. We <em>want</em> other fibers to be able to interrupt this blocking, so we wrap the acquisition in <code>poll</code>.</p>
+<p>You can think of <code>poll</code> like a &quot;cancelable&quot; block: it re-enables cancellation for whatever is inside of it, but <em>only</em> if that's possible. There's a reason it's not just called <code>cancelable</code>! We'll come back to this a little bit later.</p>
+<p>If the semaphore acquisition is canceled, we want to make sure we still release the resource, <code>r</code>, so we use <code>onCancel</code> to achieve this. From that moment forward, if and when we're ready to release our resource, we want to <em>also</em> release the semaphore, so we create an effect which merges these two things together.</p>
+<p>Finally we move on to invoking the <code>use(r)</code> action, which again we need to wrap in <code>poll</code> to ensure that it can be interrupted by an external fiber. This <code>use(r)</code> action may take quite a long time and have a lot of complicated internal workings, and the last thing we want to do is suppress cancellation for its entire duration. It's likely safe to cancel <code>use</code>, because the resource management is already handled (by us!).</p>
+<p>Finally, once <code>use(r)</code> is done, we run <code>releaseAll</code>. The <code>guarantee</code> method does exactly what it sounds like it does: ensures that <code>releaseAll</code> is run regardless of whether <code>use(r)</code> completes naturally, raises an error, or is canceled.</p>
+<p>As mentioned earlier, <code>poll</code> is <em>not</em> the same as a function hypothetically named <code>cancelable</code>. If we had something like <code>cancelable</code>, then we would need to answer an impossible question: what does <code>uncancelable</code> mean if someone can always contradict you with <code>cancelable</code>? Additionally, whatever answer you come up with to <em>that</em> question has to be applied to weird and complicated things such as <code>uncancelable(uncancelable(cancelable(...)))</code>, which is unpleasant and hard to define.</p>
+<p>At the end of the day, the better option is to simply add <code>poll</code> to <code>uncancelable</code> after the fashion we have done. The <em>meaning</em> of <code>poll</code> is that it &quot;undoes&quot; the effect of its origin <code>uncancelable</code>. So in other words:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> fa: <span class="hljs-type">F</span>[<span class="hljs-type">A</span>] = ???
+<span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>].uncancelable(poll =&gt; poll(fa))  <span class="hljs-comment">// =&gt; fa</span>
+</code></pre>
+<p>The <code>poll</code> wrapped around the <code>fa</code> effectively <em>eliminates</em> the <code>uncancelable</code>, so the above is equivalent to just writing <code>fa</code>. This significance of this &quot;elimination&quot; semantic becomes apparent when you consider what happens when multiple <code>uncancelable</code>s are nested within each other:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { outer =&gt;
+  <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { inner =&gt;
+    inner(fa)
+  }
+}
+</code></pre>
+<p>The <code>inner</code> poll eliminates the inner <code>uncancelable</code>, but the <em>outer</em> <code>uncancelable</code> still applies, meaning that this whole thing is equivalent to <code>MonadCancel[F].uncancelable(_ =&gt; fa)</code>.</p>
+<p>Note that polling for an <em>outer</em> block within an inner one has no effect whatsoever. For example:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { outer =&gt;
+  <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { _ =&gt;
+    outer(fa)
+  }
+}
+</code></pre>
+<p>This is exactly the same as:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { _ =&gt;
+  <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { _ =&gt;
+    fa
+  }
+}
+</code></pre>
+<p>The use of the <code>outer</code> poll within the inner <code>uncancelable</code> is simply ignored unless we have already stripped off the inner <code>uncancelable</code> using <em>its</em> <code>poll</code>. For example:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { outer =&gt;
+  <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { inner =&gt;
+    outer(inner(fa))
+  }
+}
+</code></pre>
+<p>This is simply equivalent to writing <code>fa</code>. Which is to say, <code>poll</code> composes in the way you would expect.</p>
+<h3><a class="anchor" aria-hidden="true" id="self-cancelation"></a><a href="#self-cancelation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Self-Cancelation</h3>
+<p>One particularly unique aspect of <code>MonadCancel</code> is the ability to self-cancel. For example:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>].canceled &gt;&gt; fa
+</code></pre>
+<p>The above will result in a canceled evaluation, and <code>fa</code> will never be run, <em>provided</em> that it isn't wrapped in an <code>uncancelable</code> block. If the above is wrapped in <code>uncancelable</code>, then the <code>canceled</code> effect will be ignored.</p>
+<p>Self-cancellation is somewhat similar to raising an error with <code>raiseError</code> in that it will short-circuit evaluation and begin &quot;popping&quot; back up the stack until it hits a handler. Just as <code>raiseError</code> can be observed using the <code>onError</code> method, <code>canceled</code> can be observed using <code>onCancel</code>.</p>
+<p>The primary differences between self-cancellation and <code>raiseError</code> are two-fold. First, <code>uncancelable</code> suppresses <code>canceled</code> within its body (unless <code>poll</code>ed!), turning it into something equivalent to just <code>().pure[F]</code>. There is no analogue for this kind of functionality with errors. Second, if you sequence an error with <code>raiseError</code>, it's always possible to use <code>attempt</code> or <code>handleError</code> to <em>handle</em> the error and resume normal execution. No such functionality is available for cancellation.</p>
+<p>In other words, cancellation is effective; it cannot be undone. It can be suppressed, but once it is observed, it must be respected by the canceled fiber. This feature is exceptionally important for ensuring deterministic evaluation and avoiding deadlocks.</p>
+<p>Self-cancellation is intended for use-cases such as <a href="https://erlang.org/doc/man/supervisor.html">supervisor nets</a> and other complex constructs which require the ability to manipulate their own evaluation in this fashion. It isn't something that will be found often in application code.</p>
+<h2><a class="anchor" aria-hidden="true" id="spawn"></a><a href="#spawn" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>Spawn</code></h2>
+<p>This typeclass provides a lightweight <code>Thread</code>-like abstraction, <code>Fiber</code>, which can be used to implement parallel evaluation semantics. Much like <code>Thread</code>, <code>Fiber</code> is not often directly useful in <em>user</em> code, but instead is best when used as an implementation detail for higher-level functionality, such as the <a href="https://typelevel.org/cats/typeclasses/parallel.html"><code>Parallel</code></a> typeclass in Cats.</p>
+<p>Fibers are exceptionally lightweight, <em>semantic</em> threads of execution. There's a lot to unpack in that sentence, so we'll take it one step at a time. <code>Thread</code> is a somewhat infamously expensive construct on the JVM. Even on an extremely beefy machine, you really can't have more than a few thousand of them before the garbage collector begins to bog down and the context switch penalties on the CPU become prohibitively high. In practice though, the situation is even worse. The <em>optimal</em> number of threads is usually just a little over the number of processors available to the host operating system, while the optimal number of <em>concurrent semantic actions</em> is likely to be exceptionally high. For example, an application implementing a microservice would likely desire at least one concurrent action per request at any given point in time, but if the number of concurrent actions is limited to the number of available threads (which is in turn limited to the number of available processors!), then the service is <a href="http://tomcat.apache.org">not likely to scale</a> particularly well.</p>
+<p>Clearly there is a mismatch here. Applications conventionally resolve this through the use of thread pools and other, extremely-manual techniques, and while these work reasonably well, they're quite easy to get wrong and very limited in terms of the functionality which can be built on top of them. A better abstraction is needed, one which allows framework and user code to simply spawn semantic actions as-needed (e.g. to handle an incoming request), while the underlying runtime takes care of the messy details of mapping those actions to real kernel threads in an optimal fashion.</p>
+<p>This is what fibers achieve:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">Spawn</span>
+<span class="hljs-keyword">import</span> cats.effect.syntax.all._
+<span class="hljs-keyword">import</span> cats.syntax.all._
+
+<span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Server</span>[<span class="hljs-type">F</span>[_]] </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">accept</span></span>: <span class="hljs-type">F</span>[<span class="hljs-type">Connection</span>[<span class="hljs-type">F</span>]]
+}
+
+<span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Connection</span>[<span class="hljs-type">F</span>[_]] </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">read</span></span>: <span class="hljs-type">F</span>[<span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>]]
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">write</span></span>(bytes: <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">close</span></span>: <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]
+}
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">endpoint</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Spawn</span>](
+    server: <span class="hljs-type">Server</span>[<span class="hljs-type">F</span>])(
+    body: <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>] =&gt; <span class="hljs-type">F</span>[<span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>]])
+    : <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = {
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">handle</span></span>(conn: <span class="hljs-type">Connection</span>[<span class="hljs-type">F</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
+    <span class="hljs-keyword">for</span> {
+      request &lt;- conn.read
+      response &lt;- body(request)
+      _ &lt;- conn.write(response)
+    } <span class="hljs-keyword">yield</span> ()
+
+  <span class="hljs-keyword">val</span> handler = <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { poll =&gt;
+    poll(server.accept) flatMap { conn =&gt;
+      handle(conn).guarantee(conn.close).start
+    }
+  }
+
+  handler.foreverM
+}
+</code></pre>
+<p>There's a <em>lot</em> going on in this example, but thanks to the power of functional programming, we can break it down into tiny chunks that we analyze and understand one at a time. Let's start at the very end:</p>
+<pre><code class="hljs css language-scala">handler.foreverM
+</code></pre>
+<p>Alright, so whatever <code>handler</code> happens to be, we're going to keep doing it <em>indefinitely</em>. This already seems to imply that <code>handler</code> is probably &quot;the thing that handles a single request&quot;. Let's look at <code>handler</code> and see if that intuition is born out:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> handler = <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { poll =&gt;
+  poll(server.accept) flatMap { conn =&gt;
+    handle(conn).guarantee(conn.close).start
+  }
+}
+</code></pre>
+<p>We're using <code>uncancelable</code> from <code>MonadCancel</code> to avoid resource leaks in the brief interval between when we get a connection (<code>conn</code>) and when we set up the resource management to ensure that it is properly <code>close</code>d. Aside from that added verbosity, this is actually fairly concise. Guessing based on names, we can assume that <code>server.accept</code> is an effect (wrapped in <code>F</code>!) which produces a client connection whenever a new one is established. We then take this connection and pass it to the <code>handle</code> function, which presumably has our endpoint logic, and pair that logic up with a <code>guarantee</code> that the connection will be <code>close</code>d, regardless of the outcome of the handling.</p>
+<p>Then the interesting bit happens: we call <code>.start</code> on this effect. Remember that a functional effect is not <em>running</em> (present tense), but rather a description of something that <em>will run</em> (future tense). So we can talk about <code>handle(conn).guarantee(conn.close)</code> as an expression without being worried about it running off and doing things outside our control. This gives us a lot of power. In this case, it gives us the power to take that effect and create a new fiber which will run it.</p>
+<p>The <code>start</code> function takes an effect <code>F[A]</code> and returns an effect which produces a new <code>Fiber[F, E, A]</code>, where <code>E</code> is the error type for <code>F</code> (usually <code>Throwable</code>). The <code>Fiber</code> type is a <em>running</em> fiber: it is actually executing as soon as you have the <code>Fiber</code> instance in your hand. This means that it's running in the background, which is to say, it is a separate semantic thread.</p>
+<p>On some platforms (such as the JVM), this <code>Fiber</code> might be mapped to a real kernel <code>Thread</code> and may in fact be running in parallel. On other platforms (such as JavaScript), it might be simply waiting for some event dispatcher to have availability. The nice thing about <code>Fiber</code> as an abstraction is we don't <em>really</em> need to care about this distinction: it represents a parallel semantic thread of execution, whether it runs in parallel <em>at this exact moment</em> or not is a concern for the runtime.</p>
+<p>This also provides some marvelous benefits in terms of efficiency. <code>Fiber</code> tends to be incredibly lightweight. Cats Effect's <code>IO</code> implements fibers in roughly 128 bytes <em>per fiber</em>, and most other implementations are within the same order of magnitude. You can allocate literally tens of millions of fibers on a single JVM without causing any problems, and the runtime will sort out the best way to map them down to live threads in a fashion which is optimized for your specific platform and architecture.</p>
+<p>This is how our example above is able to get away with <code>start</code>ing a new <code>Fiber</code> for every new connection: there's no reason <em>not</em> to! Fibers are so lightweight, we can just create as many as we need to get the job done, and the only real limit is memory.</p>
+<p>As an aside, we often use the word &quot;fiber&quot; interchangeably with the phrase &quot;semantic thread of execution&quot;, simply because the former is very much easier to say. It is also no less accurate: all functional effects represent at least one fiber, and each <em>step</em> of that fiber is another <code>flatMap</code>.</p>
+<h3><a class="anchor" aria-hidden="true" id="cancelation"></a><a href="#cancelation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cancelation</h3>
+<p>Probably the most significant benefit that fibers provide, above and beyond their extremely low overhead and optimized runtime mapping, is the fact that, unlike JVM <code>Thread</code>s, they are <em>cancelable</em>. This means that you can safely <code>cancel</code> a running fiber and it will clean up whatever resources it has allocated and bring itself to a halt in short order, ensuring that you don't have errant processes running in the background, eating up resources that could have otherwise been released.</p>
+<p>We can demonstrate this property relatively easily using the <code>IO</code> monad:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> scala.concurrent.duration._
+
+<span class="hljs-keyword">for</span> {
+  target &lt;- <span class="hljs-type">IO</span>(println(<span class="hljs-string">"Catch me if you can!"</span>)).foreverM.start
+  _ &lt;- <span class="hljs-type">IO</span>.sleep(<span class="hljs-number">1.</span>second)
+  _ &lt;- target.cancel
+} <span class="hljs-keyword">yield</span> ()
+<span class="hljs-comment">// res0: IO[Unit] = FlatMap(</span>
+<span class="hljs-comment">//   ioe = Start(</span>
+<span class="hljs-comment">//     ioa = FlatMap(</span>
+<span class="hljs-comment">//       ioe = Map(</span>
+<span class="hljs-comment">//         ioe = Delay(thunk = &lt;function0&gt;),</span>
+<span class="hljs-comment">//         f = cats.FlatMap$$Lambda$10253/1220266978@71965f3f</span>
+<span class="hljs-comment">//       ),</span>
+<span class="hljs-comment">//       f = cats.StackSafeMonad$$Lambda$10255/620768741@602d2fdb</span>
+<span class="hljs-comment">//     )</span>
+<span class="hljs-comment">//   ),</span>
+<span class="hljs-comment">//   f = &lt;function1&gt;</span>
+<span class="hljs-comment">// )</span>
+</code></pre>
+<p>This will print &quot;<code>Catch me if you can!</code>&quot; a nondeterministic number of times (probably quite a few!) as the <code>target</code> fiber loops around and around, printing over and over again, until the main fiber finishes sleeping for one second and cancels it. Technically, cancellation may not <em>instantaneously</em> reflect in the target fiber, depending on implementation details, but in practice it is almost always practically instant. The <code>target</code> fiber's execution is almost immediately halted, it stops printing, and the program terminates.</p>
+<p>It is actually impossible to replicate this example with <code>Thread</code> without building your own machinery for managing cancellation (usually some shared <code>Boolean</code> which tracks whether or not you've been canceled). With <code>Fiber</code>, it is handled for you.</p>
+<p>Even more importantly, this cancellation mechanism is the same one that is described by <code>MonadCancel</code>, meaning that all of the resource safety and <code>uncancelable</code> functionality that it defines can be brought to bear, making it possible to write code which is resource-safe even when externally canceled by some other fiber. This problem is nearly impossible to solve by any other means.</p>
+<p>In practice, this kind of cancellation is often handled for you (the user) in the form of cleanup when unexpected things happen. For example, imagine the following code:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.syntax.all._
+
+(<span class="hljs-number">-10</span> to <span class="hljs-number">10</span>).toList.parTraverse(i =&gt; <span class="hljs-type">IO</span>(<span class="hljs-number">5</span>f / i))
+</code></pre>
+<p>The <code>parTraverse</code> construct is a higher-level concurrency tool provided by Cats, ultimately backed by <code>Spawn</code> and <code>Fiber</code> behind the scenes. In this snippet, for each of the <code>Int</code>s within the <code>List</code>, we create a new <code>IO</code> which uses that value as a divisor under the float <code>5f</code>. The <code>IO</code> computes the result of this division, and since we're using a form of <code>traverse</code>, it will be evaluated and merged together into a single <code>List</code> inside of an outer <code>IO</code>. Thus, the result of this line is an <code>IO[List[Float]]</code>.</p>
+<p>The <code>par</code> part of <code>parTraverse</code> means that, rather than performing each <code>IO</code> action in sequence (from left to right, as it happens), it will actually spawn a new fiber for each action and run them all <em>in parallel</em>. This is usually a much nicer way of doing concurrency than manually fiddling around with <code>start</code> and <code>cancel</code>. It's still <code>Fiber</code> under the surface, but the API is much higher level and easier to work with.</p>
+<p>Of course, <em>one</em> of these divisions will fail and an exception will be raised. When this happens, the result of the whole evaluation is discarded and the <code>IO[List[Float]]</code> will actually just produce the exception itself. Naturally, once any one of the constituent <code>IO</code>s has failed, there is no point in continuing to evaluate the other nineteen, and so their fibers are all immediately <code>cancel</code>ed.</p>
+<p>In these kinds of trivial examples involving primitive arithmetic, this kind of auto-cancellation doesn't represent much of a savings. However, if we were actually <code>parTraverse</code>ing a long <code>List</code> of <code>URL</code>s, where each one was being fetched in parallel, then perhaps failing fast and <code>cancel</code>ing all other actions on the first error would result in a significant savings in bandwidth and CPU.</p>
+<p>Critically, all of this functionality is built on <code>Spawn</code> and nothing else, and so we effectively get it for free whenever this instance is available for a given <code>F</code>.</p>
+<h3><a class="anchor" aria-hidden="true" id="joining"></a><a href="#joining" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Joining</h3>
+<p>Not all parallel operations are strictly &quot;fire-and-forget&quot;. In fact, <em>most</em> of them aren't. Usually you want to fork off a few fibers to perform some task, then wait for them to finish, accept their results, and move forward. The Java <code>Thread</code> abstraction has the seldom-used <code>join</code> to attempt to encode this idea, and <code>Fiber</code> has something similar:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-comment">// don't use this in production; it is a simplified example</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">both</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Spawn</span>, <span class="hljs-type">A</span>, <span class="hljs-type">B</span>](fa: <span class="hljs-type">F</span>[<span class="hljs-type">A</span>], fb: <span class="hljs-type">F</span>[<span class="hljs-type">B</span>]): <span class="hljs-type">F</span>[(<span class="hljs-type">A</span>, <span class="hljs-type">B</span>)] =
+  <span class="hljs-keyword">for</span> {
+    fiberA &lt;- fa.start
+    fiberB &lt;- fb.start
+
+    a &lt;- fiberA.joinAndEmbedNever
+    b &lt;- fiberB.joinAndEmbedNever
+  } <span class="hljs-keyword">yield</span> (a, b)
+</code></pre>
+<p>The <code>joinAndEmbedNever</code> function is a convenience method built on top of <code>join</code>, which is much more general. Specifically, the <code>Fiber#join</code> method returns <code>F[Outcome[F, E, A]]</code> (where <code>E</code> is the error type for <code>F</code>). This is a much more complex signature, but it gives us a lot of power when we need it.</p>
+<p><code>Outcome</code> has the following shape:</p>
+<ul>
+<li><code>Succeeded</code> (containing a value of type <code>F[A]</code>)</li>
+<li><code>Errored</code> (containing a value of type <code>E</code>, usually <code>Throwable</code>)</li>
+<li><code>Canceled</code> (which contains nothing)</li>
+</ul>
+<p>These represent the three possible termination states for a fiber, and by producing them within <code>join</code>, Cats Effect gives you the ability to react to each differently. For example, if the fiber in question produces an error, you may wish to wrap that error in some value and propagate it along within your own fiber:</p>
+<pre><code class="hljs css language-scala">fiber.join flatMap {
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Outcome</span>.<span class="hljs-type">Succeeded</span>(fa) =&gt;
+    fa
+
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Outcome</span>.<span class="hljs-type">Errored</span>(e) =&gt; 
+    <span class="hljs-type">MyWrapper</span>(e).pure[<span class="hljs-type">F</span>]
+
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Outcome</span>.<span class="hljs-type">Canceled</span>() =&gt; ???
+}
+</code></pre>
+<p>Of course, that <code>Canceled()</code> case is exceptionally tricky. This case arises when the <code>fiber</code> you <code>join</code>ed was actually <code>cancel</code>ed, and so it never had a chance to raise an error <em>or</em> produce a result. In this outcome, you need to decide what to do. One option, for example, might be to raise an error, such as <code>new FiberCanceledException</code> or similar:</p>
+<pre><code class="hljs css language-scala">  <span class="hljs-keyword">case</span> <span class="hljs-type">Outcome</span>.<span class="hljs-type">Canceled</span>() =&gt; 
+    <span class="hljs-type">MonadThrow</span>[<span class="hljs-type">F</span>].raiseError(<span class="hljs-keyword">new</span> <span class="hljs-type">FiberCanceledException</span>)
+</code></pre>
+<p>That's a bit weird, but if you really don't expect the fiber to get canceled, perhaps it might fit your use-case. Another possibility might be that you want to cancel <em>yourself</em> in the event that the child fiber was canceled:</p>
+<pre><code class="hljs css language-scala">  <span class="hljs-keyword">case</span> <span class="hljs-type">Outcome</span>.<span class="hljs-type">Canceled</span>() =&gt; 
+    <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>].canceled
+</code></pre>
+<p>There's a subtle issue here though: <code>canceled</code> produces an effect of type <code>F[Unit]</code>, specifically because we <em>might</em> be wrapped in an <code>uncancelable</code>, in which case we <em>can't</em> self-cancel. This is a problem when you view the whole context:</p>
+<pre><code class="hljs css language-scala">fiber.join flatMap {
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Outcome</span>.<span class="hljs-type">Succeeded</span>(fa) =&gt; <span class="hljs-comment">// =&gt; F[A]</span>
+    fa
+
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Outcome</span>.<span class="hljs-type">Errored</span>(e) =&gt; <span class="hljs-comment">// =&gt; F[A]</span>
+    <span class="hljs-type">MonadError</span>[<span class="hljs-type">F</span>, <span class="hljs-type">E</span>].raiseError(e) 
+
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Outcome</span>.<span class="hljs-type">Canceled</span>() =&gt; <span class="hljs-comment">// =&gt; F[Unit]</span>
+    <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>].canceled
+}
+</code></pre>
+<p>The problem of course is the fact that the <code>Canceled()</code> branch returns the wrong type. We need an <code>A</code>, but it can only give us <code>Unit</code> because we don't actually know whether or not we're allowed to self-cancel (for comparison, <code>raiseError</code> always works and cannot be &quot;disabled&quot;, so it doesn't have this problem). There are a couple ways to solve this. One option would be to have a default value for <code>A</code> which we just produce in the event that we aren't allowed to cancel:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">case</span> <span class="hljs-type">Outcome</span>.<span class="hljs-type">Canceled</span>() =&gt; 
+  <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>].canceled.as(<span class="hljs-keyword">default</span>)
+</code></pre>
+<p>This probably works, but it's kind of hacky, and not all <code>A</code>s have sane defaults. However, we <em>could</em> use <code>Option</code>, which (by definition) always has a sane default:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.conversions.all._
+
+fiber.join flatMap {
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Outcome</span>.<span class="hljs-type">Succeeded</span>(fa) =&gt; <span class="hljs-comment">// =&gt; F[Some[A]]</span>
+    fa.map(<span class="hljs-type">Some</span>(_))
+
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Outcome</span>.<span class="hljs-type">Errored</span>(e) =&gt; <span class="hljs-comment">// =&gt; F[Option[A]]</span>
+    <span class="hljs-type">MonadError</span>[<span class="hljs-type">F</span>, <span class="hljs-type">E</span>].raiseError(e) 
+
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Outcome</span>.<span class="hljs-type">Canceled</span>() =&gt; <span class="hljs-comment">// =&gt; F[None]</span>
+    <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>].canceled.as(<span class="hljs-type">None</span>)
+}
+</code></pre>
+<p>This works quite well, but now your downstream logic (anything <em>using</em> the results of this <code>join</code>) must explicitly distinguish between whether or not your child fiber was canceled <em>and</em> you weren't able to self-cancel. This may be what you want! Or it may not be.</p>
+<p>If you are <em>really</em> sure that you're <code>join</code>ing and you're never, ever going to be wrapped in an <code>uncancelable</code>, you can use <code>never</code> to resolve this problem:</p>
+<pre><code class="hljs css language-scala">fiber.join flatMap {
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Outcome</span>.<span class="hljs-type">Succeeded</span>(fa) =&gt; <span class="hljs-comment">// =&gt; F[A]</span>
+    fa
+
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Outcome</span>.<span class="hljs-type">Errored</span>(e) =&gt; <span class="hljs-comment">// =&gt; F[A]</span>
+    <span class="hljs-type">MonadError</span>[<span class="hljs-type">F</span>, <span class="hljs-type">E</span>].raiseError(e) 
+
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Outcome</span>.<span class="hljs-type">Canceled</span>() =&gt; <span class="hljs-comment">// =&gt; F[A]</span>
+    <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>].canceled &gt;&gt; <span class="hljs-type">Spawn</span>[<span class="hljs-type">F</span>].never[<span class="hljs-type">A</span>]
+}
+</code></pre>
+<p>In English, the semantics of this are as follows:</p>
+<ul>
+<li>If the child fiber completed successfully, produce its result</li>
+<li>If it errored, re-raise the error within the current fiber</li>
+<li>If it canceled, attempt to self-cancel, and if the self-cancelation fails, <strong>deadlock</strong></li>
+</ul>
+<p>Sometimes this is an appropriate semantic, and the cautiously-verbose <code>joinAndEmbedNever</code> function implements it for you. It is worth noting that this semantic was the <em>default</em> in Cats Effect 2 (and in fact, no other semantic was possible).</p>
+<p>Regardless of all of the above, <code>join</code> and <code>Outcome</code> give you enough flexibility to choose the appropriate response, regardless of your use-case.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/3.x/installation"><span class="arrow-prev">← </span><span>Installation</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#monadcancel"><code>MonadCancel</code></a><ul class="toc-headings"><li><a href="#self-cancelation">Self-Cancelation</a></li></ul></li><li><a href="#spawn"><code>Spawn</code></a><ul class="toc-headings"><li><a href="#cancelation">Cancelation</a></li><li><a href="#joining">Joining</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/en/installation">Getting Started</a><a href="/cats-effect/docs/en/guides/tutorial">Tutorial</a><a href="/cats-effect/docs/en/datatypes/io">IO Monad</a><a href="/cats-effect/docs/en/concurrency/overview">Concurrency</a></div><div><h5>Community</h5><a href="https://typelevel.org/blog/">Blog</a><a href="https://gitter.im/typelevel/cats-effect">Gitter</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2020 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>

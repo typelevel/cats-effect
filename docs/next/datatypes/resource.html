@@ -1,0 +1,216 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Resource · Cats Effect</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Effectfully allocates and releases a resource. Forms a `MonadError` on the resource type when the effect type has a `Bracket` instance."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Resource · Cats Effect"/><meta property="og:type" content="website"/><meta property="og:url" content="https://typelevel.org/cats-effect/"/><meta property="og:description" content="Effectfully allocates and releases a resource. Forms a `MonadError` on the resource type when the effect type has a `Bracket` instance."/><meta property="og:image" content="https://typelevel.org/cats-effect/img/undraw_online.svg"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/undraw_tweetstorm.svg"/><link rel="shortcut icon" href="/cats-effect/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github-gist.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="/cats-effect/js/scrollSpy.js"></script><link rel="stylesheet" href="/cats-effect/css/main.css"/><script src="/cats-effect/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/cats-effect/"><img class="logo" src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect"/><h2 class="headerTitleWithLogo">Cats Effect</h2></a><a href="/cats-effect/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/cats-effect/docs/next/installation" target="_self">Docs</a></li><li class=""><a href="https://github.com/typelevel/cats-effect" target="_blank">GitHub</a></li><li class=""><a href="/cats-effect/api/index.html" target="_self">API</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Data Types</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Getting Started<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/installation">Installation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Guides<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/guides/tutorial">Tutorial</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/guides/tracing">Tracing</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Data Types<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/io">IO</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/syncio">SyncIO</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/fiber">Fiber</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/cats-effect/docs/next/datatypes/resource">Resource</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/clock">Clock</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/contextshift">ContextShift</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/timer">Timer</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/ioapp">IOApp</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Concurrency<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/basics">Basics</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/deferred">Deferred</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/mvar">MVar</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/ref">Ref</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/semaphore">Semaphore</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Type Classes<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/bracket">Bracket</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/sync">Sync</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/liftio">LiftIO</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/async">Async</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/concurrent">Concurrent</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/effect">Effect</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/concurrenteffect">ConcurrentEffect</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Resource</h1></header><article><div><span><p>Effectfully allocates and releases a resource. Forms a <code>MonadError</code> on the resource type when the effect type has a <code>Bracket</code> instance.</p>
+<p>The <a href="/cats-effect/docs/next/guides/tutorial#acquiring-and-releasing-resources">Acquiring and releasing <code>Resource</code>s</a> section of the tutorial provides some additional context and examples regarding <code>Resource</code>.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">Bracket</span>
+
+<span class="hljs-keyword">abstract</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Resource</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">A</span>] </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">use</span></span>[<span class="hljs-type">B</span>](f: <span class="hljs-type">A</span> =&gt; <span class="hljs-type">F</span>[<span class="hljs-type">B</span>])(<span class="hljs-keyword">implicit</span> <span class="hljs-type">F</span>: <span class="hljs-type">Bracket</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Throwable</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">B</span>]
+}
+</code></pre>
+<p>Nested resources are released in reverse order of acquisition. Outer resources are released even if an inner acquisition, use or release fails.</p>
+<p>You can lift any <code>F[A]</code> with an <code>Applicative</code> instance into a <code>Resource[F, A]</code> with a no-op release via <code>Resource.liftF</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">Resource</span>}
+
+<span class="hljs-keyword">val</span> greet: <span class="hljs-type">String</span> =&gt; <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = x =&gt; <span class="hljs-type">IO</span>(println(<span class="hljs-string">"Hello "</span> + x))
+<span class="hljs-comment">// greet: String =&gt; IO[Unit] = &lt;function1&gt;</span>
+
+<span class="hljs-type">Resource</span>.liftF(<span class="hljs-type">IO</span>.pure(<span class="hljs-string">"World"</span>)).use(greet).unsafeRunSync()
+<span class="hljs-comment">// Hello World</span>
+</code></pre>
+<p>Moreover it's possible to apply further effects to the wrapped resource without leaving the <code>Resource</code> context via <code>evalMap</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">Resource</span>}
+
+<span class="hljs-keyword">val</span> acquire: <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = <span class="hljs-type">IO</span>(println(<span class="hljs-string">"Acquire cats..."</span>)) *&gt; <span class="hljs-type">IO</span>(<span class="hljs-string">"cats"</span>)
+<span class="hljs-comment">// acquire: IO[String] = Bind(</span>
+<span class="hljs-comment">//   source = Delay(thunk = &lt;function0&gt;),</span>
+<span class="hljs-comment">//   f = cats.effect.IO$$Lambda$9826/65308307@7c3babac,</span>
+<span class="hljs-comment">//   trace = StackTrace(</span>
+<span class="hljs-comment">//     stackTrace = List(</span>
+<span class="hljs-comment">//       cats.effect.internals.IOTracing$.buildFrame(IOTracing.scala:48),</span>
+<span class="hljs-comment">//       cats.effect.internals.IOTracing$.buildCachedFrame(IOTracing.scala:39),</span>
+<span class="hljs-comment">//       cats.effect.internals.IOTracing$.cached(IOTracing.scala:34),</span>
+<span class="hljs-comment">//       cats.effect.IO.flatMap(IO.scala:133),</span>
+<span class="hljs-comment">//       cats.effect.IO.$times$greater(IO.scala:770),</span>
+<span class="hljs-comment">//       repl.MdocSession$App7.&lt;init&gt;(io.md:203),</span>
+<span class="hljs-comment">//       repl.MdocSession$App6.&lt;init&gt;(io.md:177),</span>
+<span class="hljs-comment">//       repl.MdocSession$App5.&lt;init&gt;(io.md:155),</span>
+<span class="hljs-comment">//       repl.MdocSession$App.&lt;init&gt;(io.md:137),</span>
+<span class="hljs-comment">//       repl.MdocSession$.app(io.md:3),</span>
+<span class="hljs-comment">//       mdoc.internal.document.DocumentBuilder$$doc$.$anonfun$build$2(DocumentBuilder.scala:82),</span>
+<span class="hljs-comment">//       scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.scala:18),</span>
+<span class="hljs-comment">//       scala.util.DynamicVariable.withValue(DynamicVariable.scala:59),</span>
+<span class="hljs-comment">//       scala.Console$.withErr(Console.scala:193),</span>
+<span class="hljs-comment">//       mdoc.internal.document.DocumentBuilder$$doc$.$anonfun$build$1(DocumentBuilder.scala:82),</span>
+<span class="hljs-comment">//       scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.scala:18),</span>
+<span class="hljs-comment">//       scala.util.DynamicVariable.withValue(DynamicVariable.scala:59),</span>
+<span class="hljs-comment">//       scala.Console$.withOut(Console.scala:164),</span>
+<span class="hljs-comment">//       mdoc.internal.document.DocumentBuilder$$doc$.build(DocumentBuilder.scala:81),</span>
+<span class="hljs-comment">//       mdoc.internal.markdown.MarkdownBuilder$.buildDocument(MarkdownBuilder.scala:44),</span>
+<span class="hljs-comment">//       mdoc.internal.markdown.Processor.processScalaInputs(Processor.scala:183),</span>
+<span class="hljs-comment">//       mdoc.internal.markdown.Processor.processScalaInputs(Processor.scala:150),</span>
+<span class="hljs-comment">//       mdoc.internal.markdown.Processor.processDocument(Processor.scala:52),</span>
+<span class="hljs-comment">//       mdoc.internal.markdown.Markdown$.toMarkdown(Markdown.scala:132),</span>
+<span class="hljs-comment">//       mdoc.internal.cli.MainOps.handleMarkdown(MainOps.scala:81),</span>
+<span class="hljs-comment">//       mdoc.internal.cli.MainOps.handleFile(MainOps.scala:109),</span>
+<span class="hljs-comment">//       mdoc.internal.cli.MainOps.$anonfun$generateCompleteSite$1(MainOps.scala:156),</span>
+<span class="hljs-comment">//       scala.collection.LinearSeqOps.foldLeft(LinearSeq.scala:168),</span>
+<span class="hljs-comment">//       scala.collection.LinearSeqOps.foldLeft$(LinearSeq.scala:164),</span>
+<span class="hljs-comment">//       scala.collection.immutable.List.foldLeft(List.scala:79),</span>
+<span class="hljs-comment">//       mdoc.internal.cli.MainOps.generateCompleteSite(MainOps.scala:154),</span>
+<span class="hljs-comment">//       mdoc.internal.cli.MainOps.run(MainOps.scala:177),</span>
+<span class="hljs-comment">//       mdoc.internal.cli.MainOps$.process(MainOps.scala:269),</span>
+<span class="hljs-comment">//       mdoc.Main$.process(Main.scala:26),</span>
+<span class="hljs-comment">//       mdoc.Main$.process(Main.scala:21),</span>
+<span class="hljs-comment">//       mdoc.Main$.main(Main.scala:16),</span>
+<span class="hljs-comment">//       mdoc.Main.main(Main.scala),</span>
+<span class="hljs-comment">//       sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method),</span>
+<span class="hljs-comment">//       sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:...</span>
+<span class="hljs-keyword">val</span> release: <span class="hljs-type">String</span> =&gt; <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = _ =&gt; <span class="hljs-type">IO</span>(println(<span class="hljs-string">"...release everything"</span>))
+<span class="hljs-comment">// release: String =&gt; IO[Unit] = &lt;function1&gt;</span>
+<span class="hljs-keyword">val</span> addDogs: <span class="hljs-type">String</span> =&gt; <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = x =&gt;
+  <span class="hljs-type">IO</span>(println(<span class="hljs-string">"...more animals..."</span>)) *&gt; <span class="hljs-type">IO</span>.pure(x + <span class="hljs-string">" and dogs"</span>)
+<span class="hljs-comment">// addDogs: String =&gt; IO[String] = &lt;function1&gt;</span>
+<span class="hljs-keyword">val</span> report: <span class="hljs-type">String</span> =&gt; <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = x =&gt;
+  <span class="hljs-type">IO</span>(println(<span class="hljs-string">"...produce weather report..."</span>)) *&gt; <span class="hljs-type">IO</span>(<span class="hljs-string">"It's raining "</span> + x)
+<span class="hljs-comment">// report: String =&gt; IO[String] = &lt;function1&gt;</span>
+
+<span class="hljs-type">Resource</span>.make(acquire)(release).evalMap(addDogs).use(report).unsafeRunSync()
+<span class="hljs-comment">// Acquire cats...</span>
+<span class="hljs-comment">// ...more animals...</span>
+<span class="hljs-comment">// ...produce weather report...</span>
+<span class="hljs-comment">// ...release everything</span>
+<span class="hljs-comment">// res3: String = "It's raining cats and dogs"</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h3>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">Resource</span>}
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">mkResource</span></span>(s: <span class="hljs-type">String</span>) = {
+  <span class="hljs-keyword">val</span> acquire = <span class="hljs-type">IO</span>(println(<span class="hljs-string">s"Acquiring <span class="hljs-subst">$s</span>"</span>)) *&gt; <span class="hljs-type">IO</span>.pure(s)
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">release</span></span>(s: <span class="hljs-type">String</span>) = <span class="hljs-type">IO</span>(println(<span class="hljs-string">s"Releasing <span class="hljs-subst">$s</span>"</span>))
+
+  <span class="hljs-type">Resource</span>.make(acquire)(release)
+}
+
+<span class="hljs-keyword">val</span> r = <span class="hljs-keyword">for</span> {
+  outer &lt;- mkResource(<span class="hljs-string">"outer"</span>)
+  inner &lt;- mkResource(<span class="hljs-string">"inner"</span>)
+} <span class="hljs-keyword">yield</span> (outer, inner)
+
+r.use { <span class="hljs-keyword">case</span> (a, b) =&gt; <span class="hljs-type">IO</span>(println(<span class="hljs-string">s"Using <span class="hljs-subst">$a</span> and <span class="hljs-subst">$b</span>"</span>)) }.unsafeRunSync()
+</code></pre>
+<p>If using an AutoCloseable create a resource without the need to specify how to close.</p>
+<h3><a class="anchor" aria-hidden="true" id="examples"></a><a href="#examples" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Examples</h3>
+<h4><a class="anchor" aria-hidden="true" id="with-scalaiosource"></a><a href="#with-scalaiosource" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>With <code>scala.io.Source</code></h4>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
+
+<span class="hljs-keyword">val</span> acquire = <span class="hljs-type">IO</span> {
+  scala.io.<span class="hljs-type">Source</span>.fromString(<span class="hljs-string">"Hello world"</span>)
+}
+
+<span class="hljs-type">Resource</span>.fromAutoCloseable(acquire).use(source =&gt; <span class="hljs-type">IO</span>(println(source.mkString))).unsafeRunSync()
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="with-javaio-using-io"></a><a href="#with-javaio-using-io" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>With <code>java.io</code> using IO</h4>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> java.io._
+<span class="hljs-keyword">import</span> scala.jdk.<span class="hljs-type">CollectionConverters</span>._
+<span class="hljs-keyword">import</span> cats.effect._
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">readAllLines</span></span>(bufferedReader: <span class="hljs-type">BufferedReader</span>, blocker: <span class="hljs-type">Blocker</span>)(<span class="hljs-keyword">implicit</span> cs: <span class="hljs-type">ContextShift</span>[<span class="hljs-type">IO</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">List</span>[<span class="hljs-type">String</span>]] =
+  blocker.delay[<span class="hljs-type">IO</span>, <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]] {
+    bufferedReader.lines().iterator().asScala.toList
+  }
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">reader</span></span>(file: <span class="hljs-type">File</span>, blocker: <span class="hljs-type">Blocker</span>)(<span class="hljs-keyword">implicit</span> cs: <span class="hljs-type">ContextShift</span>[<span class="hljs-type">IO</span>]): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">BufferedReader</span>] =
+  <span class="hljs-type">Resource</span>.fromAutoCloseableBlocking(blocker)(<span class="hljs-type">IO</span> {
+      <span class="hljs-keyword">new</span> <span class="hljs-type">BufferedReader</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileReader</span>(file))
+    }
+  )
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">readLinesFromFile</span></span>(file: <span class="hljs-type">File</span>, blocker: <span class="hljs-type">Blocker</span>)(<span class="hljs-keyword">implicit</span> cs: <span class="hljs-type">ContextShift</span>[<span class="hljs-type">IO</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">List</span>[<span class="hljs-type">String</span>]] = {
+  reader(file, blocker).use(br =&gt; readAllLines(br, blocker))
+}
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="a-javaio-example-agnostic-of-the-effect-type"></a><a href="#a-javaio-example-agnostic-of-the-effect-type" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>A <code>java.io</code> example agnostic of the effect type</h4>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> java.io._
+<span class="hljs-keyword">import</span> cats.effect._
+<span class="hljs-keyword">import</span> cats.syntax.flatMap._
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">reader</span></span>[<span class="hljs-type">F</span>[_]](file: <span class="hljs-type">File</span>, blocker: <span class="hljs-type">Blocker</span>)(<span class="hljs-keyword">implicit</span> <span class="hljs-type">F</span>: <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>], cs: <span class="hljs-type">ContextShift</span>[<span class="hljs-type">F</span>]): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, <span class="hljs-type">BufferedReader</span>] =
+  <span class="hljs-type">Resource</span>.fromAutoCloseableBlocking(blocker)(<span class="hljs-type">F</span>.delay {
+    <span class="hljs-keyword">new</span> <span class="hljs-type">BufferedReader</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileReader</span>(file))
+  })
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">dumpResource</span></span>[<span class="hljs-type">F</span>[_]](res: <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, <span class="hljs-type">BufferedReader</span>], blocker: <span class="hljs-type">Blocker</span>)(<span class="hljs-keyword">implicit</span> <span class="hljs-type">F</span>: <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>], cs: <span class="hljs-type">ContextShift</span>[<span class="hljs-type">F</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = {
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">loop</span></span>(in: <span class="hljs-type">BufferedReader</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
+    <span class="hljs-type">F</span>.suspend {
+      blocker.delay(in.readLine()).flatMap { line =&gt;
+        <span class="hljs-keyword">if</span> (line != <span class="hljs-literal">null</span>) {
+          <span class="hljs-type">System</span>.out.println(line)
+          loop(in)
+        } <span class="hljs-keyword">else</span> {
+          <span class="hljs-type">F</span>.unit
+        }
+      }
+    }
+  res.use(loop)
+}
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">dumpFile</span></span>[<span class="hljs-type">F</span>[_]](file: <span class="hljs-type">File</span>, blocker: <span class="hljs-type">Blocker</span>)(<span class="hljs-keyword">implicit</span> <span class="hljs-type">F</span>: <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>], cs: <span class="hljs-type">ContextShift</span>[<span class="hljs-type">F</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
+  dumpResource(reader(file, blocker), blocker)
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/next/datatypes/fiber"><span class="arrow-prev">← </span><span>Fiber</span></a><a class="docs-next button" href="/cats-effect/docs/next/datatypes/clock"><span>Clock</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/en/installation">Getting Started</a><a href="/cats-effect/docs/en/guides/tutorial">Tutorial</a><a href="/cats-effect/docs/en/datatypes/io">IO Monad</a><a href="/cats-effect/docs/en/concurrency/overview">Concurrency</a></div><div><h5>Community</h5><a href="https://typelevel.org/blog/">Blog</a><a href="https://gitter.im/typelevel/cats-effect">Gitter</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2020 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
