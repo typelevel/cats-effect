@@ -54,7 +54,7 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       _.tryTakeFront
     )
     boundedDequeueTests(
-      "BoundedDequeue mapK",
+      "BoundedDequeue mapK - reverse",
       Dequeue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)),
       _.offerFront(_),
       _.tryOfferFront(_),
