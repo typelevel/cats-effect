@@ -24,7 +24,6 @@ import cats.syntax.all._
 
 import scala.collection.immutable.{Queue => ScalaQueue}
 
-//TODO this should extend queue
 trait Dequeue[F[_], A] extends Queue[F, A] { self =>
 
   def offerBack(a: A): F[Unit]
