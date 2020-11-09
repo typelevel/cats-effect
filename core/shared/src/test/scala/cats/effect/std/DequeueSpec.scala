@@ -27,31 +27,41 @@ import org.specs2.specification.core.Fragments
 
 import scala.collection.immutable.{Queue => ScalaQueue}
 
-class BoundedDequeueSpec extends BaseSpec with QueueTests {
+class BoundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
   sequential
 
   "BoundedDequeue" should {
     boundedDequeueTests(
       "BoundedDequeue",
       Dequeue.bounded(_),
-      (q: Dequeue[IO, Int], i: Int) => q.offerBack(i),
-      (q: Dequeue[IO, Int]) => q.takeFront)
+      _.offerBack(_),
+      _.tryOfferBack(_),
+      _.takeFront,
+      _.tryTakeFront
+    )
     boundedDequeueTests(
       "BoundedDequeue - reverse",
       Dequeue.bounded(_),
-      (q: Dequeue[IO, Int], i: Int) => q.offerFront(i),
-      (q: Dequeue[IO, Int]) => q.takeBack)
-    boundedDequeueTests(
-      "BoundedDequeue mapK",
-      Dequeue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)),
-      (q: Dequeue[IO, Int], i: Int) => q.offerBack(i),
-      (q: Dequeue[IO, Int]) => q.takeFront
+      _.offerFront(_),
+      _.tryOfferFront(_),
+      _.takeBack,
+      _.tryTakeBack
     )
     boundedDequeueTests(
       "BoundedDequeue mapK",
       Dequeue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)),
-      (q: Dequeue[IO, Int], i: Int) => q.offerFront(i),
-      (q: Dequeue[IO, Int]) => q.takeBack
+      _.offerBack(_),
+      _.tryOfferBack(_),
+      _.takeFront,
+      _.tryTakeFront
+    )
+    boundedDequeueTests(
+      "BoundedDequeue mapK",
+      Dequeue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)),
+      _.offerFront(_),
+      _.tryOfferFront(_),
+      _.takeBack,
+      _.tryTakeBack
     )
   }
 
@@ -59,7 +69,9 @@ class BoundedDequeueSpec extends BaseSpec with QueueTests {
       name: String,
       constructor: Int => IO[Dequeue[IO, Int]],
       offer: (Dequeue[IO, Int], Int) => IO[Unit],
-      take: Dequeue[IO, Int] => IO[Int]
+      tryOffer: (Dequeue[IO, Int], Int) => IO[Boolean],
+      take: Dequeue[IO, Int] => IO[Int],
+      tryTake: Dequeue[IO, Int] => IO[Option[Int]]
   ): Fragments = {
     s"$name - demonstrate offer and take with zero capacity" in real {
       for {
@@ -116,29 +128,62 @@ class BoundedDequeueSpec extends BaseSpec with QueueTests {
     }
 
     negativeCapacityConstructionTests(name, constructor)
-    tryOfferOnFullTests(name, constructor, false)
-    cancelableOfferTests(name, constructor)
-    tryOfferTryTakeTests(name, constructor)
-    commonTests(name, constructor)
+    tryOfferOnFullTests(name, constructor, offer, tryOffer, false)
+    cancelableOfferTests(name, constructor, offer, take, tryTake)
+    tryOfferTryTakeTests(name, constructor, tryOffer, tryTake)
+    commonTests(name, constructor, offer, tryOffer, take, tryTake)
   }
 }
 
-class UnboundedDequeueSpec extends BaseSpec with QueueTests {
+class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
   sequential
 
   "UnboundedDequeue" should {
-    unboundedDequeueTests("UnboundedDequeue", Dequeue.unbounded)
+    unboundedDequeueTests(
+      "UnboundedDequeue",
+      Dequeue.unbounded,
+      _.offerBack(_),
+      _.tryOfferBack(_),
+      _.takeFront,
+      _.tryTakeFront)
+
+    unboundedDequeueTests(
+      "UnboundedDequeue - reverse",
+      Dequeue.unbounded,
+      _.offerFront(_),
+      _.tryOfferFront(_),
+      _.takeBack,
+      _.tryTakeBack)
 
     unboundedDequeueTests(
       "UnboundedDequeue mapK",
-      Dequeue.unbounded[IO, Int].map(_.mapK(FunctionK.id)))
+      Dequeue.unbounded[IO, Int].map(_.mapK(FunctionK.id)),
+      _.offerBack(_),
+      _.tryOfferBack(_),
+      _.takeFront,
+      _.tryTakeFront
+    )
+
+    unboundedDequeueTests(
+      "UnboundedDequeue mapK - reverse",
+      Dequeue.unbounded[IO, Int].map(_.mapK(FunctionK.id)),
+      _.offerFront(_),
+      _.tryOfferFront(_),
+      _.takeBack,
+      _.tryTakeBack
+    )
   }
 
   private def unboundedDequeueTests(
       name: String,
-      constructor: IO[Dequeue[IO, Int]]): Fragments = {
-    tryOfferOnFullTests(name, _ => constructor, true)
-    tryOfferTryTakeTests(name, _ => constructor)
-    commonTests(name, _ => constructor)
+      constructor: IO[Dequeue[IO, Int]],
+      offer: (Dequeue[IO, Int], Int) => IO[Unit],
+      tryOffer: (Dequeue[IO, Int], Int) => IO[Boolean],
+      take: Dequeue[IO, Int] => IO[Int],
+      tryTake: Dequeue[IO, Int] => IO[Option[Int]]
+  ): Fragments = {
+    tryOfferOnFullTests(name, _ => constructor, offer, tryOffer, true)
+    tryOfferTryTakeTests(name, _ => constructor, tryOffer, tryTake)
+    commonTests(name, _ => constructor, offer, tryOffer, take, tryTake)
   }
 }
