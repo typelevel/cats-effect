@@ -14,20 +14,18 @@
  * limitations under the License.
  */
 
-/*
- * These tests have been inspired by and adapted from `monix-catnap`'s `ConcurrentQueueSuite`, available at
- * https://github.com/monix/monix/blob/series/3.x/monix-catnap/shared/src/test/scala/monix/catnap/ConcurrentQueueSuite.scala.
- */
-
 package cats.effect
 package std
 
+import cats.implicits._
 import cats.arrow.FunctionK
 import org.specs2.specification.core.Fragments
 
+import org.scalacheck.Arbitrary, Arbitrary.arbitrary
+
 import scala.collection.immutable.{Queue => ScalaQueue}
 
-class BoundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
+class BoundedDequeueSpec extends BaseSpec with DequeueTests {
   sequential
 
   "BoundedDequeue" should {
@@ -132,6 +130,7 @@ class BoundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
     cancelableOfferTests(name, constructor, offer, take, tryTake)
     tryOfferTryTakeTests(name, constructor, tryOffer, tryTake)
     commonTests(name, constructor, offer, tryOffer, take, tryTake)
+    reverse(name, constructor)
   }
 }
 
@@ -186,4 +185,29 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
     tryOfferTryTakeTests(name, _ => constructor, tryOffer, tryTake)
     commonTests(name, _ => constructor, offer, tryOffer, take, tryTake)
   }
+}
+
+trait DequeueTests extends QueueTests[Dequeue] { self: BaseSpec =>
+
+  def reverse(name: String, constructor: Int => IO[Dequeue[IO, Int]]): Fragments = {
+
+    /**
+     * Hand-rolled scalacheck effect as we don't have that for CE3 yet
+     */
+    s"$name - reverse" in real {
+      val gen = arbitrary[List[Int]]
+      List.range(1, 100).traverse { _ =>
+        val in = gen.sample.get
+        for {
+          q <- constructor(Int.MaxValue)
+          _ <- in.traverse_(q.offer(_))
+          _ <- q.reverse
+          out <- List.fill(in.length)(q.take).sequence
+          res <- IO(out must beEqualTo(in.reverse))
+        } yield res
+      }
+    }
+
+  }
+
 }
