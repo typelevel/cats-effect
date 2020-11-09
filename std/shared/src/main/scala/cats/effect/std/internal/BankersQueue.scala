@@ -17,7 +17,13 @@
 package cats.effect.std.internal
 
 /**
- * A banker's dequeue a la Okasaki
+ * A banker's dequeue a la Okasaki. The front list is
+ * in order, the back list is in reversed order.
+ * Therefore (aside from the edge case where one of the
+ * lists is empty and the other is of size 1)
+ * the first element of the queue is at the head of the
+ * front list and the last element of the queue is at
+ * the head of the back list.
  *
  * Maintains the invariants that:
  * - frontLen <= rebalanceConstant * backLen + 1
@@ -50,7 +56,9 @@ private[std] final case class BankersQueue[A](
     } else if (frontLen > 0) BankersQueue(Nil, 0, back, backLen) -> Some(front.head)
     else this -> None
 
-  def rebalance(): BankersQueue[A] =
+  def reverse: BankersQueue[A] = BankersQueue(back, backLen, front, frontLen)
+
+  private def rebalance(): BankersQueue[A] =
     if (frontLen > rebalanceConstant * backLen + 1) {
       val i = (frontLen + backLen) / 2
       val j = frontLen + backLen - i

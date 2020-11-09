@@ -43,6 +43,8 @@ trait Dequeue[F[_], A] extends Queue[F, A] { self =>
 
   def tryTakeFront: F[Option[A]]
 
+  def reverse: F[Unit]
+
   override def offer(a: A): F[Unit] = offerBack(a)
 
   override def tryOffer(a: A): F[Boolean] = tryOfferBack(a)
@@ -61,6 +63,7 @@ trait Dequeue[F[_], A] extends Queue[F, A] { self =>
       def tryOfferFront(a: A): G[Boolean] = f(self.tryOfferFront(a))
       def takeFront: G[A] = f(self.takeFront)
       def tryTakeFront: G[Option[A]] = f(self.tryTakeFront)
+      def reverse: G[Unit] = f(self.reverse)
     }
 
 }
@@ -118,6 +121,12 @@ object Dequeue {
 
     override def tryTakeFront: F[Option[A]] =
       _tryTake(queue => queue.tryPopFront)
+
+    override def reverse: F[Unit] =
+      state.update {
+        case State(queue, size, takers, offerers) =>
+          State(queue.reverse, size, takers, offerers)
+      }
 
     private def _offer(a: A, update: BankersQueue[A] => BankersQueue[A]): F[Unit] =
       F.deferred[Unit].flatMap { offerer =>
