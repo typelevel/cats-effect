@@ -655,7 +655,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 20
   }
 
-  private[effect] final case class Local[A](f: IOLocalState => (IOLocalState, A))
+  private[effect] final case class Local[+A](f: IOLocalState => (IOLocalState, A))
       extends IO[A] {
     def tag = 21
   }
