@@ -65,7 +65,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       }
     }
 
-  def both[B](that: IO[B]): IO[(A, B)] = IO.Both(this, that)
+  def both[B](that: IO[B]): IO[(A, B)] =
+    IO.both(this, that)
 
   def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
     bracketCase(use)((a, _) => release(a))
@@ -130,7 +131,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def onError(f: Throwable => IO[Unit]): IO[A] =
     handleErrorWith(t => f(t).attempt *> IO.raiseError(t))
 
-  def race[B](that: IO[B]): IO[Either[A, B]] = IO.Race(this, that)
+  def race[B](that: IO[B]): IO[Either[A, B]] =
+    IO.race(this, that)
 
   def raceOutcome[B](that: IO[B]): IO[Either[OutcomeIO[A @uncheckedVariance], OutcomeIO[B]]] =
     IO.uncancelable { _ =>
@@ -143,7 +145,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def racePair[B](that: IO[B]): IO[Either[
     (OutcomeIO[A @uncheckedVariance], FiberIO[B]),
     (FiberIO[A @uncheckedVariance], OutcomeIO[B])]] =
-    IO.RacePair(this, that)
+    IO.racePair(this, that)
 
   def redeem[B](recover: Throwable => B, map: A => B): IO[B] =
     attempt.map(_.fold(recover, map))
@@ -315,18 +317,18 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     left.bothOutcome(right)
 
   def both[A, B](left: IO[A], right: IO[B]): IO[(A, B)] =
-    left.both(right)
+    asyncForIO.both(left, right)
 
   def fromFuture[A](fut: IO[Future[A]]): IO[A] =
     asyncForIO.fromFuture(fut)
 
   def race[A, B](left: IO[A], right: IO[B]): IO[Either[A, B]] =
-    left.race(right)
+    asyncForIO.race(left, right)
 
   def racePair[A, B](
       left: IO[A],
       right: IO[B]): IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] =
-    left.racePair(right)
+    asyncForIO.racePair(left, right)
 
   def ref[A](a: A): IO[Ref[IO, A]] = IO(Ref.unsafe(a))
 
@@ -522,17 +524,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def productR[A, B](left: IO[A])(right: IO[B]): IO[B] =
       left.productR(right)
 
-    def racePair[A, B](
-        fa: IO[A],
-        fb: IO[B]): IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] =
-      fa.racePair(fb)
-
-    override def race[A, B](fa: IO[A], fb: IO[B]): IO[Either[A, B]] =
-      fa.race(fb)
-
-    override def both[A, B](fa: IO[A], fb: IO[B]): IO[(A, B)] =
-      fa.both(fb)
-
     def start[A](fa: IO[A]): IO[FiberIO[A]] =
       fa.start
 
@@ -646,41 +637,27 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 14
   }
 
-  private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B])
-      extends IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] {
-
+  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
     def tag = 15
   }
 
-  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
-    def tag = 16
-  }
+  private[effect] case object RealTime extends IO[FiniteDuration] { def tag = 16 }
 
-  private[effect] case object RealTime extends IO[FiniteDuration] { def tag = 17 }
+  private[effect] case object Monotonic extends IO[FiniteDuration] { def tag = 17 }
 
-  private[effect] case object Monotonic extends IO[FiniteDuration] { def tag = 18 }
-
-  private[effect] case object ReadEC extends IO[ExecutionContext] { def tag = 19 }
+  private[effect] case object ReadEC extends IO[ExecutionContext] { def tag = 18 }
 
   private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {
-    def tag = 20
+    def tag = 19
   }
 
   private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A) extends IO[A] {
-    def tag = 21
-  }
-
-  private[effect] final case class Race[A, B](ioa: IO[A], iob: IO[B]) extends IO[Either[A, B]] {
-    def tag = 22
-  }
-
-  private[effect] final case class Both[A, B](ioa: IO[A], iob: IO[B]) extends IO[(A, B)] {
-    def tag = 23
+    def tag = 20
   }
 
   private[effect] final case class Local[A](f: IOLocalState => (IOLocalState, A))
       extends IO[A] {
-    def tag = 24
+    def tag = 21
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
