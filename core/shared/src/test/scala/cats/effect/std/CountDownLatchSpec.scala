@@ -79,7 +79,7 @@ class CountDownLatchSpec extends BaseSpec {
       for {
         l <- constructor(1)
         f <- l.await.start
-        _ <- IO.sleep(1 milli)
+        _ <- IO.sleep(1.milli)
         _ <- l.release
         r <- f.joinAndEmbedNever
         res <- IO(r must beEqualTo(()))
@@ -90,7 +90,7 @@ class CountDownLatchSpec extends BaseSpec {
       for {
         l <- constructor(2)
         _ <- l.release
-        r <- l.await.timeout(5 millis).attempt
+        r <- l.await.timeout(5.millis).attempt
         res <- IO(r must beLike {
           case Left(e) => e must haveClass[TimeoutException]
         })
@@ -102,7 +102,7 @@ class CountDownLatchSpec extends BaseSpec {
         l <- constructor(1)
         f1 <- l.await.start
         f2 <- l.await.start
-        _ <- IO.sleep(1 milli)
+        _ <- IO.sleep(1.milli)
         _ <- l.release
         r <- (f1.joinAndEmbedNever, f2.joinAndEmbedNever).tupled
         res <- IO(r must beEqualTo(((), ())))
@@ -122,7 +122,7 @@ class CountDownLatchSpec extends BaseSpec {
       for {
         l <- constructor(1)
         fib <- l.await.start
-        _ <- IO.sleep(1 milli)
+        _ <- IO.sleep(1.milli)
         _ <- fib.cancel
         oc <- fib.join
         res <- IO(oc must beEqualTo(Canceled()))
