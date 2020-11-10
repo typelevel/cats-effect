@@ -18,30 +18,30 @@
 
 <h3 id="scalacheck">Scalacheck</h3>
 
-<p>Scalacheck primarily supports properties in the shape <code class="highlighter-rouge">A =&gt; Assertion</code>.
-To support writing effectful properties with the shape <code class="highlighter-rouge">A =&gt; F[Assertion]</code>, you can use one of these tools:</p>
+<p>Scalacheck primarily supports properties in the shape <code class="language-plaintext highlighter-rouge">A =&gt; Assertion</code>.
+To support writing effectful properties with the shape <code class="language-plaintext highlighter-rouge">A =&gt; F[Assertion]</code>, you can use one of these tools:</p>
 
 <ul>
   <li><a href="https://github.com/typelevel/scalacheck-effect">scalacheck-effect</a></li>
   <li><a href="https://github.com/djspiewak/cats-effect-testing">cats-effect-testing</a> - though note that this doesn’t support “true” async, as it does block threads under the hood.</li>
 </ul>
 
-<p>You might also want to use <a href="https://christopherdavenport.github.io/cats-scalacheck/">cats-scalacheck</a>, which provides instances of <code class="highlighter-rouge">cats-core</code> typeclasses.</p>
+<p>You might also want to use <a href="https://christopherdavenport.github.io/cats-scalacheck/">cats-scalacheck</a>, which provides instances of <code class="language-plaintext highlighter-rouge">cats-core</code> typeclasses.</p>
 
 <h2 id="best-practices">Best practices</h2>
 
-<p>Avoid using <code class="highlighter-rouge">unsafe*</code> methods in tests, the same as you’d avoid them in “main” code.
+<p>Avoid using <code class="language-plaintext highlighter-rouge">unsafe*</code> methods in tests, the same as you’d avoid them in “main” code.
 Writing tests to be structured the same way as “normal” code results in tests that are less likely to be flaky, act as executable documentation, and remain easy to read.</p>
 
-<p>Use a compatible framework’s support for writing <code class="highlighter-rouge">IO[Assertion]</code> style tests.</p>
+<p>Use a compatible framework’s support for writing <code class="language-plaintext highlighter-rouge">IO[Assertion]</code> style tests.</p>
 
 <h3 id="testing-concurrency">Testing concurrency</h3>
 
-<p>In many test cases, <code class="highlighter-rouge">TestContext</code> should be used as an <code class="highlighter-rouge">ExecutionContext</code>, <code class="highlighter-rouge">ContextShift</code>, and <code class="highlighter-rouge">Timer</code>. This gives you very precise control over the sequencing and scheduling of evaluation, making it possible to deterministically replicate certain race conditions or even identify timing-related bugs without having to rely on non-deterministic thread ordering. <code class="highlighter-rouge">TestContext</code> also gives you control over <em>time</em> (as exposed by <code class="highlighter-rouge">Timer</code> and <code class="highlighter-rouge">Clock</code>), which makes it easy to write unit tests for time-related semantics without having to rely on <code class="highlighter-rouge">sleep</code>s or other hacks.</p>
+<p>In many test cases, <code class="language-plaintext highlighter-rouge">TestContext</code> should be used as an <code class="language-plaintext highlighter-rouge">ExecutionContext</code>, <code class="language-plaintext highlighter-rouge">ContextShift</code>, and <code class="language-plaintext highlighter-rouge">Timer</code>. This gives you very precise control over the sequencing and scheduling of evaluation, making it possible to deterministically replicate certain race conditions or even identify timing-related bugs without having to rely on non-deterministic thread ordering. <code class="language-plaintext highlighter-rouge">TestContext</code> also gives you control over <em>time</em> (as exposed by <code class="language-plaintext highlighter-rouge">Timer</code> and <code class="language-plaintext highlighter-rouge">Clock</code>), which makes it easy to write unit tests for time-related semantics without having to rely on <code class="language-plaintext highlighter-rouge">sleep</code>s or other hacks.</p>
 
-<p>To simulate time passing in a test, use <code class="highlighter-rouge">Timer[F].sleep(duration)</code>, which will defer to <code class="highlighter-rouge">TestContext</code>.</p>
+<p>To simulate time passing in a test, use <code class="language-plaintext highlighter-rouge">Timer[F].sleep(duration)</code>, which will defer to <code class="language-plaintext highlighter-rouge">TestContext</code>.</p>
 
-<p>Be aware though that <code class="highlighter-rouge">TestContext</code> is a very artificial environment, and it can in turn mask bugs that a realistic executor would uncover. The most comprehensive test suites will often use a balance of both <code class="highlighter-rouge">TestContext</code> and a more real-world thread pool implementation.</p>
+<p>Be aware though that <code class="language-plaintext highlighter-rouge">TestContext</code> is a very artificial environment, and it can in turn mask bugs that a realistic executor would uncover. The most comprehensive test suites will often use a balance of both <code class="language-plaintext highlighter-rouge">TestContext</code> and a more real-world thread pool implementation.</p>
 
 <p>Some reference material on this approach:</p>
 
@@ -54,11 +54,11 @@ Writing tests to be structured the same way as “normal” code results in test
 
 <p>Sometimes you’ll want to write a test that acquires a Resource before the suite and releases it after. For example, spinning up a database.</p>
 
-<p>With the Weaver test framework, this is supported <a href="https://disneystreaming.github.io/weaver-test/docs/resources">using cats-effect <code class="highlighter-rouge">Resource</code></a> out of the box.</p>
+<p>With the Weaver test framework, this is supported <a href="https://disneystreaming.github.io/weaver-test/docs/resources">using cats-effect <code class="language-plaintext highlighter-rouge">Resource</code></a> out of the box.</p>
 
-<p><a href="https://izumi.7mind.io/distage/distage-testkit">distage-testkit</a> test framework extends the usefulness of <code class="highlighter-rouge">Resource</code> further, allowing to designate resources to be acquired only once globally for all test suites or for a subset of test suites. (<a href="https://izumi.7mind.io/latest/snapshot/distage/distage-testkit.html#resource-reuse-memoization">Resource Reuse - Memoization</a>)</p>
+<p><a href="https://izumi.7mind.io/distage/distage-testkit">distage-testkit</a> test framework extends the usefulness of <code class="language-plaintext highlighter-rouge">Resource</code> further, allowing to designate resources to be acquired only once globally for all test suites or for a subset of test suites. (<a href="https://izumi.7mind.io/latest/snapshot/distage/distage-testkit.html#resource-reuse-memoization">Resource Reuse - Memoization</a>)</p>
 
-<p>For other test frameworks that use imperative “hook”-style methods (such as scalatest’s <code class="highlighter-rouge">BeforeAndAfterAll</code> mixin), you can use <a href="https://typelevel.org/cats-effect/api/cats/effect/Resource.html#allocated[G[x]%3E:F[x],B%3E:A](implicitF:cats.effect.Bracket[G,Throwable]):G[(B,G[Unit])]"><code class="highlighter-rouge">allocated</code></a></p>
+<p>For other test frameworks that use imperative “hook”-style methods (such as scalatest’s <code class="language-plaintext highlighter-rouge">BeforeAndAfterAll</code> mixin), you can use <a href="https://typelevel.org/cats-effect/api/cats/effect/Resource.html#allocated[G[x]%3E:F[x],B%3E:A](implicitF:cats.effect.Bracket[G,Throwable]):G[(B,G[Unit])]"><code class="language-plaintext highlighter-rouge">allocated</code></a></p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Database</span> <span class="o">{</span>
     <span class="k">def</span> <span class="nf">close</span><span class="o">()</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">???</span>

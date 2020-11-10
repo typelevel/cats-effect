@@ -2,7 +2,7 @@
 
 <p><a href="https://gitter.im/typelevel/cats-effect"><img src="https://img.shields.io/gitter/room/typelevel/cats-effect.svg" alt="Gitter" /></a> <a href="https://index.scala-lang.org/typelevel/cats-effect/cats-effect"><img src="https://index.scala-lang.org/typelevel/cats-effect/cats-effect/latest.svg?color=orange" alt="Latest version" /></a></p>
 
-<p>Cats Effect is a high-performance, asynchronous, composable framework for building real-world applications in a purely functional style within the <a href="https://typelevel.org">Typelevel</a> ecosystem. It provides a concrete tool, known as “the <code class="highlighter-rouge">IO</code> monad”, for capturing and controlling <em>actions</em>, often referred to as “effects”, that your program wishes to perform within a resource-safe, typed context with seamless support for concurrency and coordination. These effects may be asynchronous (callback-driven) or synchronous (directly returning values); they may return within microseconds or run infinitely.</p>
+<p>Cats Effect is a high-performance, asynchronous, composable framework for building real-world applications in a purely functional style within the <a href="https://typelevel.org">Typelevel</a> ecosystem. It provides a concrete tool, known as “the <code class="language-plaintext highlighter-rouge">IO</code> monad”, for capturing and controlling <em>actions</em>, often referred to as “effects”, that your program wishes to perform within a resource-safe, typed context with seamless support for concurrency and coordination. These effects may be asynchronous (callback-driven) or synchronous (directly returning values); they may return within microseconds or run infinitely.</p>
 
 <p>Even more importantly, Cats Effect defines a set of typeclasses which define what it means to <em>be</em> a purely functional runtime system. These abstractions power a thriving ecosystem consisting of streaming frameworks, JDBC database layers, HTTP servers and clients, asynchronous clients for systems like Redis and MongoDB, and so much more! Additionally, you can leverage these abstractions within your own application to unlock powerful capabilities with little-or-no code changes, for example solving problems such as dependency injection, multiple error channels, shared state across modules, tracing, and more.</p>
 
@@ -11,8 +11,8 @@
 <p>Versions of Cats Effect:</p>
 
 <ul>
-  <li>Stable: <code class="highlighter-rouge">2.2.0</code></li>
-  <li>Unstable: <code class="highlighter-rouge">2.3.0-M1</code></li>
+  <li>Stable: <code class="language-plaintext highlighter-rouge">2.2.0</code></li>
+  <li>Unstable: <code class="language-plaintext highlighter-rouge">2.3.0-M1</code></li>
 </ul>
 
 <p>See <a href="https://github.com/typelevel/cats-effect/blob/series/2.x/versioning.md">compatibility and versioning</a> for more information on our compatibility and semantic versioning policies.</p>
@@ -22,19 +22,19 @@
 
 <p>Cats Effect relies on improved type inference and needs partial unification enabled as described in the Cats <a href="https://github.com/typelevel/cats#getting-started">Getting Started</a> documentation.</p>
 
-<p>If your project uses ScalaJS, replace the double-<code class="highlighter-rouge">%</code> with a triple. Note that <strong>cats-effect</strong> has an upstream dependency on <strong>cats-core</strong> version 2.x.</p>
+<p>If your project uses ScalaJS, replace the double-<code class="language-plaintext highlighter-rouge">%</code> with a triple. Note that <strong>cats-effect</strong> has an upstream dependency on <strong>cats-core</strong> version 2.x.</p>
 
 <p>Cross-builds are available for Scala 2.12.x and 2.13.x, with ScalaJS builds targeting 1.x (note that, prior to 2.2.0, Cats Effect was available for ScalaJS 0.6).</p>
 
-<p>Additionally, cross-builds of <code class="highlighter-rouge">2.3.0-M1</code> are available for 2.12.x and 2.13.x (with ScalaJS targeting the 1.x series), as well as Dotty 0.27.0-RC1 and Scala 3.0.0-M1 (without ScalaJS support).</p>
+<p>Additionally, cross-builds of <code class="language-plaintext highlighter-rouge">2.3.0-M1</code> are available for 2.12.x and 2.13.x (with ScalaJS targeting the 1.x series), as well as Dotty 0.27.0-RC1 and Scala 3.0.0-M1 (without ScalaJS support).</p>
 
-<p>The most current snapshot (or major release) can be found in the maven badge at the top of this readme. If you are a very brave sort, you are free to depend on snapshots; they are stable versions, as they are derived from the git hash rather than an unstable <code class="highlighter-rouge">-SNAPSHOT</code> suffix, but they do not come with any particular confidence or compatibility guarantees.</p>
+<p>The most current snapshot (or major release) can be found in the maven badge at the top of this readme. If you are a very brave sort, you are free to depend on snapshots; they are stable versions, as they are derived from the git hash rather than an unstable <code class="language-plaintext highlighter-rouge">-SNAPSHOT</code> suffix, but they do not come with any particular confidence or compatibility guarantees.</p>
 
 <p>Please see <a href="https://github.com/typelevel/cats-effect/blob/series/2.x/verifying-releases.md">this document</a> for information on how to cryptographically verify the integrity of cats-effect releases. You should <em>absolutely</em> be doing this! It takes five minutes and eliminates the need to trust a third-party with your classpath.</p>
 
 <h3 id="laws">Laws</h3>
 
-<p>The <strong>cats-effect-laws</strong> artifact provides <a href="https://github.com/typelevel/discipline">Discipline-style</a> laws for the <code class="highlighter-rouge">Sync</code>, <code class="highlighter-rouge">Async</code>, <code class="highlighter-rouge">Concurrent</code>, <code class="highlighter-rouge">Effect</code> and <code class="highlighter-rouge">ConcurrentEffect</code> typeclasses (<code class="highlighter-rouge">LiftIO</code> is lawless, but highly parametric). It is relatively easy to use these laws to test your own implementations of these typeclasses. Take a look <a href="https://github.com/typelevel/cats-effect/tree/series/2.x/laws/shared/src/main/scala/cats/effect/laws">here</a> for more.</p>
+<p>The <strong>cats-effect-laws</strong> artifact provides <a href="https://github.com/typelevel/discipline">Discipline-style</a> laws for the <code class="language-plaintext highlighter-rouge">Sync</code>, <code class="language-plaintext highlighter-rouge">Async</code>, <code class="language-plaintext highlighter-rouge">Concurrent</code>, <code class="language-plaintext highlighter-rouge">Effect</code> and <code class="language-plaintext highlighter-rouge">ConcurrentEffect</code> typeclasses (<code class="language-plaintext highlighter-rouge">LiftIO</code> is lawless, but highly parametric). It is relatively easy to use these laws to test your own implementations of these typeclasses. Take a look <a href="https://github.com/typelevel/cats-effect/tree/series/2.x/laws/shared/src/main/scala/cats/effect/laws">here</a> for more.</p>
 
 <pre><code class="language-sbt">libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "2.2.0" % "test"
 </code></pre>
@@ -59,7 +59,7 @@
 
 <h2 id="libraries">Libraries</h2>
 
-<p>These are some well known libraries that depend on <code class="highlighter-rouge">cats-effect</code>:</p>
+<p>These are some well known libraries that depend on <code class="language-plaintext highlighter-rouge">cats-effect</code>:</p>
 
 <table>
   <thead>
@@ -114,7 +114,7 @@
 
 <h2 id="related-projects">Related Projects</h2>
 
-<p>These are some of the projects that provide high-level functions on top of <code class="highlighter-rouge">cats-effect</code>:</p>
+<p>These are some of the projects that provide high-level functions on top of <code class="language-plaintext highlighter-rouge">cats-effect</code>:</p>
 
 <table>
   <thead>
@@ -150,7 +150,7 @@
     </tr>
     <tr>
       <td><a href="https://github.com/kailuowang/mau">Mau</a></td>
-      <td>A tiny library for an auto polling <code class="highlighter-rouge">Ref</code></td>
+      <td>A tiny library for an auto polling <code class="language-plaintext highlighter-rouge">Ref</code></td>
     </tr>
     <tr>
       <td><a href="https://github.com/valskalla/odin">Odin</a></td>
@@ -171,28 +171,28 @@
 
 <p>We use the standard pull request driven github workflow. Pull requests are always welcome, even if it’s for something as minor as a whitespace tweak! If you’re a maintainer, you are expected to do your work in pull requests, rather than pushing directly to the main branch. Ideally, someone other than yourself will merge your PR. However, if you’ve received at least one explicit 👍 from another maintainer (or significant volume of 👍 from the general Cats community), you may merge your own PR in the interest of moving forward with important efforts. Please don’t abuse this policy.</p>
 
-<p>Do <em>not</em> rebase commits that have been PR’d! That history doesn’t belong to you anymore, and it is not yours to rewrite. This goes for maintainers and contributors alike. Rebasing locally is completely fine (and encouraged), since linear history is pretty and checkpoint commits are not. Just don’t rebase something that’s already out there unless you’ve <em>explicitly</em> marked it as a work in progress (e.g. <code class="highlighter-rouge">[WIP]</code>) in some clear and unambiguous way.</p>
+<p>Do <em>not</em> rebase commits that have been PR’d! That history doesn’t belong to you anymore, and it is not yours to rewrite. This goes for maintainers and contributors alike. Rebasing locally is completely fine (and encouraged), since linear history is pretty and checkpoint commits are not. Just don’t rebase something that’s already out there unless you’ve <em>explicitly</em> marked it as a work in progress (e.g. <code class="language-plaintext highlighter-rouge">[WIP]</code>) in some clear and unambiguous way.</p>
 
 <p>cats-effect is a <a href="http://typelevel.org/">Typelevel</a> project. This means we embrace pure, typeful, functional programming, and provide a safe and friendly environment for teaching, learning, and contributing as described in the <a href="https://github.com/typelevel/cats-effect/blob/series/2.x/CODE_OF_CONDUCT.md">Code of Conduct</a>.</p>
 
 <h3 id="contributing-documentation">Contributing documentation</h3>
 
-<p>The sources for the cats-effect microsite can be found in <code class="highlighter-rouge">site/src/main/mdoc</code>.
-The menu structure is in <code class="highlighter-rouge">site/src/main/resources/microsite/data/menu.yml</code>.</p>
+<p>The sources for the cats-effect microsite can be found in <code class="language-plaintext highlighter-rouge">site/src/main/mdoc</code>.
+The menu structure is in <code class="language-plaintext highlighter-rouge">site/src/main/resources/microsite/data/menu.yml</code>.</p>
 
-<p>You can build the microsite with <code class="highlighter-rouge">sbt microsite/makeMicrosite</code>.</p>
+<p>You can build the microsite with <code class="language-plaintext highlighter-rouge">sbt microsite/makeMicrosite</code>.</p>
 
 <p>To preview your changes you need to have
 <a href="https://github.com/jekyll/jekyll">jekyll</a> installed. This depends on your
-platform, but assuming you have ruby installed it could be as simple as <code class="highlighter-rouge">gem
+platform, but assuming you have ruby installed it could be as simple as <code class="language-plaintext highlighter-rouge">gem
 install jekyll jekyll-relative-links sass</code>. Alternatively, you can use the provided
-<a href="https://bundler.io/gemfile.html">Gemfile</a> under <code class="highlighter-rouge">site</code> to install jekyll
+<a href="https://bundler.io/gemfile.html">Gemfile</a> under <code class="language-plaintext highlighter-rouge">site</code> to install jekyll
 and the required plugins.</p>
 
-<p>Start a local server by navigating to <code class="highlighter-rouge">site/target/site</code>, then run <code class="highlighter-rouge">jekyll
+<p>Start a local server by navigating to <code class="language-plaintext highlighter-rouge">site/target/site</code>, then run <code class="language-plaintext highlighter-rouge">jekyll
 serve -b /cats-effect</code>. Finally point your browser at
 <a href="http://localhost:4000/cats-effect/">http://localhost:4000/cats-effect/</a>. Any
-changes should be picked up immediately when you re-run <code class="highlighter-rouge">sbt
+changes should be picked up immediately when you re-run <code class="language-plaintext highlighter-rouge">sbt
 microsite/makeMicrosite</code>.</p>
 
 <h2 id="tool-sponsorship">Tool Sponsorship</h2>
@@ -201,7 +201,7 @@ microsite/makeMicrosite</code>.</p>
 
 <h2 id="license">License</h2>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

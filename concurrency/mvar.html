@@ -2,7 +2,7 @@
 
 <p class="responsive-pic"><img src="/cats-effect/img/concurrency-mvar.png" alt="concurrency mvar" /></p>
 
-<p>An <code class="highlighter-rouge">MVar2</code> is a mutable location that can be empty or contain a value,
+<p>An <code class="language-plaintext highlighter-rouge">MVar2</code> is a mutable location that can be empty or contain a value,
 asynchronously blocking reads when empty and blocking writes when full.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">abstract</span> <span class="k">class</span> <span class="nc">MVar2</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
@@ -17,9 +17,9 @@ asynchronously blocking reads when empty and blocking writes when full.</p>
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p><strong>Update 2.2.0:</strong> <code class="highlighter-rouge">MVar2</code> adds new methods to the <code class="highlighter-rouge">MVar</code> interface 
-without breaking binary compatibility. Please upgrade to <code class="highlighter-rouge">MVar2</code> 
-that supports <code class="highlighter-rouge">tryRead</code> and <code class="highlighter-rouge">swap</code>.</p>
+<p><strong>Update 2.2.0:</strong> <code class="language-plaintext highlighter-rouge">MVar2</code> adds new methods to the <code class="language-plaintext highlighter-rouge">MVar</code> interface 
+without breaking binary compatibility. Please upgrade to <code class="language-plaintext highlighter-rouge">MVar2</code> 
+that supports <code class="language-plaintext highlighter-rouge">tryRead</code> and <code class="language-plaintext highlighter-rouge">swap</code>.</p>
 
 <h2 id="introduction">Introduction</h2>
 
@@ -27,25 +27,25 @@ that supports <code class="highlighter-rouge">tryRead</code> and <code class="hi
 
 <ol>
   <li>As synchronized, thread-safe mutable variables</li>
-  <li>As channels, with <code class="highlighter-rouge">take</code> and <code class="highlighter-rouge">put</code> acting as “receive” and “send”</li>
-  <li>As a binary semaphore, with <code class="highlighter-rouge">take</code> and <code class="highlighter-rouge">put</code> acting as “acquire” and “release”</li>
+  <li>As channels, with <code class="language-plaintext highlighter-rouge">take</code> and <code class="language-plaintext highlighter-rouge">put</code> acting as “receive” and “send”</li>
+  <li>As a binary semaphore, with <code class="language-plaintext highlighter-rouge">take</code> and <code class="language-plaintext highlighter-rouge">put</code> acting as “acquire” and “release”</li>
 </ol>
 
 <p>It has these fundamental (atomic) operations:</p>
 
 <ul>
-  <li><code class="highlighter-rouge">put</code>: fills the <code class="highlighter-rouge">MVar</code> if it is empty, or blocks (asynchronously)
-if the <code class="highlighter-rouge">MVar</code> is full, until the given value is next in line to be
-consumed on <code class="highlighter-rouge">take</code></li>
-  <li><code class="highlighter-rouge">take</code>: tries reading the current value (also emptying it), or blocks (asynchronously)
+  <li><code class="language-plaintext highlighter-rouge">put</code>: fills the <code class="language-plaintext highlighter-rouge">MVar</code> if it is empty, or blocks (asynchronously)
+if the <code class="language-plaintext highlighter-rouge">MVar</code> is full, until the given value is next in line to be
+consumed on <code class="language-plaintext highlighter-rouge">take</code></li>
+  <li><code class="language-plaintext highlighter-rouge">take</code>: tries reading the current value (also emptying it), or blocks (asynchronously)
 until there is a value available, at which point the operation resorts
-to a <code class="highlighter-rouge">take</code> followed by a <code class="highlighter-rouge">put</code></li>
-  <li><code class="highlighter-rouge">read</code>: which reads the current value without modifying the <code class="highlighter-rouge">MVar</code>,
+to a <code class="language-plaintext highlighter-rouge">take</code> followed by a <code class="language-plaintext highlighter-rouge">put</code></li>
+  <li><code class="language-plaintext highlighter-rouge">read</code>: which reads the current value without modifying the <code class="language-plaintext highlighter-rouge">MVar</code>,
 assuming there is a value available, or otherwise it waits until a value
-is made available via <code class="highlighter-rouge">put</code></li>
-  <li><code class="highlighter-rouge">swap</code>: put a new value and return the taken one. It is not atomic.</li>
-  <li><code class="highlighter-rouge">tryRead</code>: returns the value immediately and None if it is empty.</li>
-  <li><code class="highlighter-rouge">tryPut</code> and <code class="highlighter-rouge">tryTake</code> variants of the above, that try
+is made available via <code class="language-plaintext highlighter-rouge">put</code></li>
+  <li><code class="language-plaintext highlighter-rouge">swap</code>: put a new value and return the taken one. It is not atomic.</li>
+  <li><code class="language-plaintext highlighter-rouge">tryRead</code>: returns the value immediately and None if it is empty.</li>
+  <li><code class="language-plaintext highlighter-rouge">tryPut</code> and <code class="language-plaintext highlighter-rouge">tryTake</code> variants of the above, that try
 those operation once and fail in case (semantic) blocking would
 be involved</li>
 </ul>
@@ -60,15 +60,15 @@ and it thus works on top of JavaScript as well.
 
 <h3 id="inspiration">Inspiration</h3>
 
-<p>This data type is inspired by <code class="highlighter-rouge">Control.Concurrent.MVar</code> from Haskell, introduced in the paper
+<p>This data type is inspired by <code class="language-plaintext highlighter-rouge">Control.Concurrent.MVar</code> from Haskell, introduced in the paper
 <a href="http://research.microsoft.com/~simonpj/papers/concurrent-haskell.ps.gz">Concurrent Haskell</a>,
 by Simon Peyton Jones, Andrew Gordon and Sigbjorn Finne, though some details of
-their implementation are changed (in particular, a put on a full <code class="highlighter-rouge">MVar</code> used
+their implementation are changed (in particular, a put on a full <code class="language-plaintext highlighter-rouge">MVar</code> used
 to error, but now merely blocks).</p>
 
 <p>Appropriate for building synchronization primitives and  performing simple
-interthread communication, it’s the equivalent of a <code class="highlighter-rouge">BlockingQueue(capacity = 1)</code>,
-except that there’s no actual thread blocking involved and it is powered by data types such as <code class="highlighter-rouge">IO</code>.</p>
+interthread communication, it’s the equivalent of a <code class="language-plaintext highlighter-rouge">BlockingQueue(capacity = 1)</code>,
+except that there’s no actual thread blocking involved and it is powered by data types such as <code class="language-plaintext highlighter-rouge">IO</code>.</p>
 
 <h2 id="use-case-synchronized-mutable-variables">Use-case: Synchronized Mutable Variables</h2>
 
@@ -86,13 +86,13 @@ except that there’s no actual thread blocking involved and it is powered by da
 <span class="nv">MVar</span><span class="o">.</span><span class="py">of</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">](</span><span class="mi">0</span><span class="o">).</span><span class="py">flatMap</span><span class="o">(</span><span class="nf">sum</span><span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="o">(</span><span class="mi">0</span> <span class="n">until</span> <span class="mi">100</span><span class="o">).</span><span class="py">toList</span><span class="o">))</span>
 </code></pre></div></div>
 
-<p>This sample isn’t very useful, except to show how <code class="highlighter-rouge">MVar</code> can be used
-as a variable. The <code class="highlighter-rouge">take</code> and <code class="highlighter-rouge">put</code> operations are atomic.
-The <code class="highlighter-rouge">take</code> call will (asynchronously) block if there isn’t a value
-available, whereas the call to <code class="highlighter-rouge">put</code> blocks if the <code class="highlighter-rouge">MVar</code> already
+<p>This sample isn’t very useful, except to show how <code class="language-plaintext highlighter-rouge">MVar</code> can be used
+as a variable. The <code class="language-plaintext highlighter-rouge">take</code> and <code class="language-plaintext highlighter-rouge">put</code> operations are atomic.
+The <code class="language-plaintext highlighter-rouge">take</code> call will (asynchronously) block if there isn’t a value
+available, whereas the call to <code class="language-plaintext highlighter-rouge">put</code> blocks if the <code class="language-plaintext highlighter-rouge">MVar</code> already
 has a value in it waiting to be consumed.</p>
 
-<p>Obviously after the call for <code class="highlighter-rouge">take</code> and before the call for <code class="highlighter-rouge">put</code> happens
+<p>Obviously after the call for <code class="language-plaintext highlighter-rouge">take</code> and before the call for <code class="language-plaintext highlighter-rouge">put</code> happens
 we could have concurrent logic that can update the same variable.
 While the two operations are atomic by themselves, a combination of them
 isn’t atomic (i.e. atomic operations don’t compose), therefore if we want
@@ -100,7 +100,7 @@ this sample to be <em>safe</em>, then we need extra synchronization.</p>
 
 <h2 id="use-case-asynchronous-lock-binary-semaphore-mutex">Use-case: Asynchronous Lock (Binary Semaphore, Mutex)</h2>
 
-<p>The <code class="highlighter-rouge">take</code> operation can act as “acquire” and <code class="highlighter-rouge">put</code> can act as the “release”.
+<p>The <code class="language-plaintext highlighter-rouge">take</code> operation can act as “acquire” and <code class="language-plaintext highlighter-rouge">put</code> can act as the “release”.
 Let’s do it:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">final</span> <span class="k">class</span> <span class="nc">MLock</span><span class="o">(</span><span class="n">mvar</span><span class="k">:</span> <span class="kt">MVar2</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Unit</span><span class="o">])</span> <span class="o">{</span>
@@ -173,8 +173,8 @@ a new event.</p>
 <span class="o">}</span> <span class="k">yield</span> <span class="n">sum</span>
 </code></pre></div></div>
 
-<p>Running this will work as expected. Our <code class="highlighter-rouge">producer</code> pushes values
-into our <code class="highlighter-rouge">MVar</code> and our <code class="highlighter-rouge">consumer</code> will consume all of those values.</p>
+<p>Running this will work as expected. Our <code class="language-plaintext highlighter-rouge">producer</code> pushes values
+into our <code class="language-plaintext highlighter-rouge">MVar</code> and our <code class="language-plaintext highlighter-rouge">consumer</code> will consume all of those values.</p>
 
 
 <link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>
