@@ -22,11 +22,13 @@
 package cats.effect
 package std
 
+import cats.implicits._
 import cats.arrow.FunctionK
 import org.specs2.specification.core.Fragments
 
 import scala.concurrent.duration._
 import cats.effect.kernel.Outcome.Canceled
+import java.util.concurrent.TimeoutException
 
 class CountDownLatchSpec extends BaseSpec {
   sequential
@@ -42,25 +44,77 @@ class CountDownLatchSpec extends BaseSpec {
       name: String,
       constructor: Int => IO[CountDownLatch[IO]]): Fragments = {
 
-    s"$name - negative initial latches" in {}
+    s"$name - raise an exception when constructed with negative initial latches" in real {
+      val test = IO.defer(constructor(-1)).attempt
+      test.flatMap { res =>
+        IO {
+          res must beLike {
+            case Left(e) => e must haveClass[IllegalArgumentException]
+          }
+        }
+      }
+    }
 
-    s"$name - zero initial latches" in {}
+    s"$name - raise an exception when constructed with zero initial latches" in real {
+      val test = IO.defer(constructor(0)).attempt
+      test.flatMap { res =>
+        IO {
+          res must beLike {
+            case Left(e) => e must haveClass[IllegalArgumentException]
+          }
+        }
+      }
+    }
 
-    s"$name - release and then await" in real {
+    s"$name - release and then await should complete" in real {
       for {
         l <- constructor(1)
         _ <- l.release
-        u <- l.await
-        res <- IO(u must beEqualTo(()))
+        r <- l.await
+        res <- IO(r must beEqualTo(()))
       } yield res
     }
 
-    s"$name - await with > 1 latch unreleased" in real {
+    s"$name - await and then release should complete" in real {
+      for {
+        l <- constructor(1)
+        f <- l.await.start
+        _ <- IO.sleep(1 milli)
+        _ <- l.release
+        r <- f.joinAndEmbedNever
+        res <- IO(r must beEqualTo(()))
+      } yield res
+    }
+
+    s"$name - await with > 1 latch unreleased should block" in real {
       for {
         l <- constructor(2)
         _ <- l.release
-        u <- l.await
-        res <- IO(u must beEqualTo(()))
+        r <- l.await.timeout(5 millis).attempt
+        res <- IO(r must beLike {
+          case Left(e) => e must haveClass[TimeoutException]
+        })
+      } yield res
+    }
+
+    s"$name - multiple awaits should all complete" in real {
+      for {
+        l <- constructor(1)
+        f1 <- l.await.start
+        f2 <- l.await.start
+        _ <- IO.sleep(1 milli)
+        _ <- l.release
+        r <- (f1.joinAndEmbedNever, f2.joinAndEmbedNever).tupled
+        res <- IO(r must beEqualTo(((), ())))
+      } yield res
+    }
+
+    s"$name - release when latches == 0" in real {
+      for {
+        l <- constructor(1)
+        _ <- l.release
+        r <- l.release
+        res <- IO(r must beEqualTo(()))
       } yield res
     }
 
@@ -69,6 +123,7 @@ class CountDownLatchSpec extends BaseSpec {
         l <- constructor(1)
         fib <- l.await.start
         _ <- IO.sleep(1 milli)
+        _ <- fib.cancel
         oc <- fib.join
         res <- IO(oc must beEqualTo(Canceled()))
       } yield res

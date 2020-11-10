@@ -52,10 +52,14 @@ abstract class CountDownLatch[F[_]] { self =>
 object CountDownLatch {
 
   def apply[F[_]](n: Int)(implicit F: GenConcurrent[F, _]): F[CountDownLatch[F]] =
-    for {
-      state <- State.initial[F](n)
-      ref <- F.ref(state)
-    } yield new ConcurrentCountDownLatch[F](ref)
+    if (n < 1)
+      throw new IllegalArgumentException(
+        s"Initialized with $n latches. Number of latches must be > 0")
+    else
+      for {
+        state <- State.initial[F](n)
+        ref <- F.ref(state)
+      } yield new ConcurrentCountDownLatch[F](ref)
 
   private[std] class ConcurrentCountDownLatch[F[_]](state: Ref[F, State[F]])(
       implicit F: GenConcurrent[F, _])
