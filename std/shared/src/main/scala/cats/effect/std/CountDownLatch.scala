@@ -22,7 +22,9 @@ import cats.effect.kernel.{Deferred, GenConcurrent, Ref}
 
 /**
  * Concurrency abstraction that supports semantically blocking
- * until n latches are released
+ * until n latches are released.
+ * Note that this has 'one-shot' semantics - once the counter
+ * reaches 0 then [[release]] and [[await]] will forever be no-ops
  *
  * See https://typelevel.org/blog/2020/10/30/concurrency-in-ce3.html
  * for a walkthrough of building something like this
@@ -51,6 +53,9 @@ abstract class CountDownLatch[F[_]] { self =>
 
 object CountDownLatch {
 
+  /**
+   * Initialize a CountDown latch with n latches
+   */
   def apply[F[_]](n: Int)(implicit F: GenConcurrent[F, _]): F[CountDownLatch[F]] =
     if (n < 1)
       throw new IllegalArgumentException(
@@ -66,11 +71,13 @@ object CountDownLatch {
       extends CountDownLatch[F] {
 
     override def release: F[Unit] =
-      state.modify {
-        case Awaiting(n, signal) =>
-          if (n > 1) (Awaiting(n - 1, signal), F.unit) else (Done(), signal.complete(()).void)
-        case d @ Done() => (d, F.unit)
-      }.flatten
+      F.uncancelable { _ =>
+        state.modify {
+          case Awaiting(n, signal) =>
+            if (n > 1) (Awaiting(n - 1, signal), F.unit) else (Done(), signal.complete(()).void)
+          case d @ Done() => (d, F.unit)
+        }.flatten
+      }
 
     override def await: F[Unit] =
       state.get.flatMap {

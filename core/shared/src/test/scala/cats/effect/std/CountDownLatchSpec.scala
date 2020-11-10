@@ -32,7 +32,6 @@ import scala.concurrent.duration._
 import java.util.concurrent.TimeoutException
 
 class CountDownLatchSpec extends BaseSpec {
-  sequential
 
   "CountDownLatch" should {
     boundedQueueTests("CountDownLatch", CountDownLatch.apply[IO])
