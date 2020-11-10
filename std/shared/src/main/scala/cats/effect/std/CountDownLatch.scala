@@ -85,7 +85,7 @@ object CountDownLatch {
       extends State[F]
   private[std] case class Done[F[_]]() extends State[F]
 
-  object State {
+  private[std] object State {
     def initial[F[_]](n: Int)(implicit F: GenConcurrent[F, _]): F[State[F]] =
       F.deferred[Unit].map { signal => Awaiting(n, signal) }
   }
