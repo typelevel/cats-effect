@@ -21,10 +21,10 @@ import cats.effect.{IO, IOFiber}
 final class Local[A] private (index: Int, default: A) {
 
   def get: IO[A] =
-    IO.GetLocal[A](index).map(_.getOrElse(default))
+    IO.Local(state => (state, state.get(index).map(_.asInstanceOf[A]).getOrElse(default)))
 
   def set(value: A): IO[Unit] =
-    IO.SetLocal[A](index, value)
+    IO.Local(state => (state + (index -> value), ()))
 
   def update(f: A => A): IO[Unit] =
     get.flatMap(a => set(f(a)))
@@ -33,7 +33,7 @@ final class Local[A] private (index: Int, default: A) {
     get <* set(value)
 
   def clear: IO[Unit] =
-    IO.SetLocal[A](index, default)
+    IO.Local(state => (state - index, ()))
 
 }
 

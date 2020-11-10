@@ -885,16 +885,11 @@ private final class IOFiber[A](
           runLoop(next, nextIteration)
 
         case 24 =>
-          val cur = cur0.asInstanceOf[GetLocal[Any]]
+          val cur = cur0.asInstanceOf[Local[Any]]
 
-          val value = localState.get(cur.index)
+          val (nextLocalState, value) = cur.f(localState)
+          localState = nextLocalState
           runLoop(succeeded(value, 0), nextIteration)
-
-        case 25 =>
-          val cur = cur0.asInstanceOf[SetLocal[Any]]
-
-          localState = localState + (cur.index -> cur.value)
-          runLoop(succeeded((), 0), nextIteration)
       }
     }
   }

@@ -678,12 +678,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 23
   }
 
-  private[effect] final case class GetLocal[A](index: Int) extends IO[Option[A]] {
+  private[effect] final case class Local[A](f: IOLocalState => (IOLocalState, A))
+      extends IO[A] {
     def tag = 24
-  }
-
-  private[effect] final case class SetLocal[A](index: Int, value: A) extends IO[Unit] {
-    def tag = 25
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
