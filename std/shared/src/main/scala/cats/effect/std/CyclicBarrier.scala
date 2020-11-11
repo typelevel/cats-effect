@@ -72,37 +72,31 @@ object CyclicBarrier {
       F.deferred[Unit].flatMap { newSignal =>
         F.uncancelable { poll =>
           state.modify {
-            case State(capacity, current, ids, signal) =>
+            case State(capacity, current, epoch, signal) =>
               if (current < capacity - 1) {
-                val id = new Proxy()
-                val cleanup = state.update(s => {
-                  val newIds = s.ids.filter(_ != id)
-                  s.copy(current = newIds.size, ids = newIds)
-                })
+                val cleanup = state.update(s =>
+                  if (epoch == s.epoch)
+                    //The cyclic barrier hasn't been reset since the cancelled fiber start to await
+                    s.copy(current = s.current - 1)
+                  else s)
                 (
-                  State(capacity, current + 1, ids + id, signal),
+                  State(capacity, current + 1, epoch, signal),
                   poll(signal.get).onCancel(cleanup))
-              } else (State(capacity, 0, Set.empty, newSignal), signal.complete(()).void)
+              } else (State(capacity, 0, epoch + 1, newSignal), signal.complete(()).void)
           }.flatten
         }
       }
 
   }
 
-  /**
-   * Note that this is NOT a case class because we want reference equality
-   * as a proxy for fiber identity
-   */
-  private[std] class Proxy()
-
   private[std] case class State[F[_]](
       capacity: Int,
       current: Int,
-      ids: Set[Proxy],
+      epoch: Long,
       signal: Deferred[F, Unit])
 
   private[std] object State {
     def initial[F[_]](n: Int)(implicit F: GenConcurrent[F, _]): F[State[F]] =
-      F.deferred[Unit].map { signal => State(n, 0, Set.empty, signal) }
+      F.deferred[Unit].map { signal => State(n, 0, 0, signal) }
   }
 }
