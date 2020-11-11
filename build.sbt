@@ -51,7 +51,7 @@ val LatestJava = "adopt@1.15"
 val GraalVM8 = "graalvm-ce-java8@20.2.0"
 
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
-ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
+ThisBuild / githubWorkflowOSes := Seq(PrimaryOS)
 
 ThisBuild / githubWorkflowBuildPreamble +=
   WorkflowStep.Use(
@@ -78,6 +78,12 @@ ThisBuild / githubWorkflowBuild := Seq(
     cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")))
 
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> List("ciJVM", "ciJS", "ciFirefox")
+ThisBuild / githubWorkflowBuildMatrixInclusions ++= (ThisBuild / githubWorkflowJavaVersions).value.map { java =>
+  MatrixInclude(
+    Map("scala" -> Scala213, "java" -> java, "ci" -> "ciJVM"),
+    Map("os" -> Windows)
+  )
+}
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   Seq("ciJS", "ciFirefox").flatMap { ci =>
@@ -89,7 +95,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
       MatrixExclude(Map("ci" -> ci, "scala" -> scala))
     }
 
-    javaFilters ++ scalaFilters :+ MatrixExclude(Map("ci" -> "ciJS", "os" -> Windows))
+    javaFilters ++ scalaFilters
   }
 }
 
