@@ -29,7 +29,8 @@ import cats.syntax.all._
  * a fiber waits by calling [[await]], at which point it is semantically
  * blocked until a total of n fibers are blocked on the same cyclic barrier.
  *
- * At this point the cyclic barrier is reset, allowing it to be used again.
+ * At this point all the fibers are unblocked and the cyclic barrier is reset,
+ * allowing it to be used again.
  */
 abstract class CyclicBarrier[F[_]] { self =>
 
