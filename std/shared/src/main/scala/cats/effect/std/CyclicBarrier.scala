@@ -22,11 +22,29 @@ import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
 
 /**
+ * A synchronization abstraction that allows a set of fibers
+ * to wait until they all reach a certain point.
+ *
+ * A cyclic barrier is initialized with a positive integer capacity n and
+ * a fiber waits by calling [[await]], at which point it is semantically
+ * blocked until a total of n fibers are blocked on the same cyclic barrier.
+ *
+ * At this point the cyclic barrier is reset, allowing it to be used again.
  */
 abstract class CyclicBarrier[F[_]] { self =>
 
+  /**
+   * Possibly semantically block until the cyclic barrier is full
+   */
   def await: F[Unit]
 
+  /**
+   * Modifies the context in which this cyclic barrier is executed using the natural
+   * transformation `f`.
+   *
+   * @return a cyclic barrier in the new context obtained by mapping the current one
+   *         using the natural transformation `f`
+   */
   def mapK[G[_]](f: F ~> G): CyclicBarrier[G] =
     new CyclicBarrier[G] {
       def await: G[Unit] = f(self.await)
