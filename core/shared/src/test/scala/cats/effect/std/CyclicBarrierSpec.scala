@@ -102,10 +102,10 @@ class CyclicBarrierSpec extends BaseSpec {
         r <- (f1.joinAndEmbedNever, f2.joinAndEmbedNever).tupled
         _ <- IO(r must beEqualTo(((), ())))
         //Should have reset at this point
-        f1 <- cb.await.start
-        f2 <- cb.await.start
-        r <- (f1.joinAndEmbedNever, f2.joinAndEmbedNever).tupled
-        res <- IO(r must beEqualTo(((), ())))
+        r <- cb.await.timeout(5.millis).attempt
+        res <- IO(r must beLike {
+          case Left(e) => e must haveClass[TimeoutException]
+        })
       } yield res
     }
 
