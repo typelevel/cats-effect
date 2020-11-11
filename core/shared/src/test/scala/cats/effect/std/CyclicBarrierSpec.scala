@@ -32,13 +32,13 @@ import java.util.concurrent.TimeoutException
 class CyclicBarrierSpec extends BaseSpec {
 
   "Cyclic barrier" should {
-    boundedQueueTests("Cyclic barrier", CyclicBarrier.apply)
-    boundedQueueTests(
+    cyclicBarrierTests("Cyclic barrier", CyclicBarrier.apply)
+    cyclicBarrierTests(
       "Cyclic barrier mapK",
       CyclicBarrier.apply[IO](_).map(_.mapK(FunctionK.id)))
   }
 
-  private def boundedQueueTests(
+  private def cyclicBarrierTests(
       name: String,
       constructor: Int => IO[CyclicBarrier[IO]]): Fragments = {
     s"$name - raise an exception when constructed with a negative capacity" in real {
