@@ -298,7 +298,7 @@ cancellation in the next section.
 ### Dealing with cancellation
 Cancellation is a powerful but non-trivial cats-effect feature. In cats-effect,
 some `IO` instances can be canceled ( _e.g._ by other `IO` instaces running
-concurrently) meaning that their evalation will be aborted. If the programmer is
+concurrently) meaning that their evaluation will be aborted. If the programmer is
 careful, an alternative `IO` task will be run under cancellation, for example to
 deal with potential cleaning up activities.
 
