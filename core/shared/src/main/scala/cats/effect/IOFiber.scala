@@ -84,6 +84,10 @@ private final class IOFiber[A](
   private[this] var ctxs: ArrayStack[ExecutionContext] = _
 
   private[this] var canceled: Boolean = false
+
+  @volatile
+  private[this] var barrier: Boolean = false
+
   private[this] var masks: Int = initMask
   private[this] var finalizing: Boolean = false
 
@@ -170,6 +174,7 @@ private final class IOFiber[A](
   var cancel: IO[Unit] = IO uncancelable { _ =>
     IO defer {
       canceled = true
+      barrier = true
 
       // println(s"${name}: attempting cancellation")
 
@@ -439,13 +444,19 @@ private final class IOFiber[A](
                    */
                   suspend()
                 }
-              } else if (!shouldFinalize()) {
-                /*
-                 * If we aren't canceled, loop on `suspended` to wait
-                 * until `get` has released ownership of the runloop.
-                 */
-                loop()
-              } /*
+              } else {
+                readBarrier()
+
+                if (!shouldFinalize()) {
+                 /*
+                  * If we aren't canceled, loop on `suspended` to wait
+                  * until `get` has released ownership of the runloop.
+                  */
+                  loop()
+                }
+              }
+
+              /*
                * If we are canceled, just die off and let `cancel` or `get` win
                * the race to `resume` and run the finalisers.
                */
@@ -524,13 +535,8 @@ private final class IOFiber[A](
              */
             wasFinalizing.set(finalizing)
 
-            /*
-             * This CAS should always succeed since we own the runloop,
-             * but we need it in order to introduce a full memory barrier
-             * which ensures we will always see the most up-to-date value
-             * for `canceled` in `shouldFinalize`, ensuring no finalisation leaks
-             */
-            suspended.compareAndSet(false, true)
+            suspended.set(true)
+            readBarrier()
 
             /*
              * race condition check: we may have been cancelled
@@ -876,9 +882,8 @@ private final class IOFiber[A](
       }
     }
 
-  // TODO figure out if the JVM ever optimizes this away
   private[this] def readBarrier(): Unit = {
-    suspended.get()
+    val _ = barrier
     ()
   }
 
