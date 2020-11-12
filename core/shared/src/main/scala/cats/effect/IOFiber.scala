@@ -86,7 +86,7 @@ private final class IOFiber[A](
   private[this] var canceled: Boolean = false
 
   @volatile
-  private[this] var barrier: Boolean = false
+  private[this] var parity: Boolean = false
 
   private[this] var masks: Int = initMask
   private[this] var finalizing: Boolean = false
@@ -138,7 +138,7 @@ private final class IOFiber[A](
 
   override def run(): Unit = {
     // insert a read barrier after every async boundary
-    readBarrier()
+    cancelParityCheck()
     try {
       (resumeTag: @switch) match {
         case 0 => execR()
@@ -174,7 +174,7 @@ private final class IOFiber[A](
   var cancel: IO[Unit] = IO uncancelable { _ =>
     IO defer {
       canceled = true
-      writeBarrier()
+      parity = true
 
       // println(s"${name}: attempting cancellation")
 
@@ -246,7 +246,7 @@ private final class IOFiber[A](
 
     if ((nextIteration % cancellationCheckThreshold) == 0) {
       //Ensure that we see cancellation
-      readBarrier()
+      cancelParityCheck()
     }
 
     if (shouldFinalize()) {
@@ -445,7 +445,7 @@ private final class IOFiber[A](
                   suspend()
                 }
               } else {
-                readBarrier()
+                cancelParityCheck()
 
                 if (!shouldFinalize()) {
                   /*
@@ -536,7 +536,7 @@ private final class IOFiber[A](
             wasFinalizing.set(finalizing)
 
             suspended.set(true)
-            readBarrier()
+            cancelParityCheck()
 
             /*
              * race condition check: we may have been cancelled
@@ -882,13 +882,23 @@ private final class IOFiber[A](
       }
     }
 
-  private[this] def writeBarrier(): Unit =
-    barrier = true
-
-  private[this] def readBarrier(): Unit = {
-    val _ = barrier
-    ()
-  }
+  /*
+   * If parity is true, then canceled *should* be true, but it might not be due to memory
+   * visibility issues. This is likely to never be the case on x86, where we can simply
+   * skip the (somewhat expensive) volatile read required to surface the value. Thus, on
+   * x86, if we're canceled, we probably never have to read `parity` in order to see it.
+   * On other architectures with looser memory semantics (such as ARM), we need to hit the
+   * volatile parity check in order to guarantee that we've seen the proper value for
+   * canceled.
+   *
+   * The assignment here is actually redundant: if parity is true, then canceled is *also*
+   * true (similarly for false), and we will see the updated value for canceled once we've
+   * read parity. However, the assignment is actually necessary to prevent the JVM from
+   * entirely eliding the volatile read, which we otherwise only need for the purposes of
+   * triggering a barrier.
+   */
+  private[this] def cancelParityCheck(): Unit =
+    canceled ||= parity
 
   ///////////////////////////////////////
   // Implementations of resume methods //
