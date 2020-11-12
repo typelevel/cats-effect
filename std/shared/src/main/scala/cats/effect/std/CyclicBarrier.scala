@@ -39,6 +39,16 @@ abstract class CyclicBarrier[F[_]] { self =>
    */
   def await: F[Unit]
 
+  /*
+   * The number of fibers required to trip the barrier
+   */
+  def capacity: F[Int]
+
+  /*
+   * The number of fibers currently awaiting
+   */
+  def awaiting: F[Int]
+
   /**
    * Modifies the context in which this cyclic barrier is executed using the natural
    * transformation `f`.
@@ -49,6 +59,8 @@ abstract class CyclicBarrier[F[_]] { self =>
   def mapK[G[_]](f: F ~> G): CyclicBarrier[G] =
     new CyclicBarrier[G] {
       def await: G[Unit] = f(self.await)
+      def capacity: G[Int] = f(self.capacity)
+      def awaiting: G[Int] = f(self.awaiting)
     }
 
 }
@@ -68,30 +80,34 @@ object CyclicBarrier {
       implicit F: GenConcurrent[F, _])
       extends CyclicBarrier[F] {
 
-    def await: F[Unit] =
+    val await: F[Unit] =
       F.deferred[Unit].flatMap { newSignal =>
         F.uncancelable { poll =>
           state.modify {
-            case State(capacity, current, epoch, signal) =>
-              if (current < capacity - 1) {
+            case State(capacity, awaiting, epoch, signal) =>
+              if (awaiting < capacity - 1) {
                 val cleanup = state.update(s =>
                   if (epoch == s.epoch)
                     //The cyclic barrier hasn't been reset since the cancelled fiber start to await
-                    s.copy(current = s.current - 1)
+                    s.copy(awaiting = s.awaiting - 1)
                   else s)
                 (
-                  State(capacity, current + 1, epoch, signal),
+                  State(capacity, awaiting + 1, epoch, signal),
                   poll(signal.get).onCancel(cleanup))
               } else (State(capacity, 0, epoch + 1, newSignal), signal.complete(()).void)
           }.flatten
         }
       }
 
+    val capacity: F[Int] = state.get.map(_.capacity)
+
+    val awaiting: F[Int] = state.get.map(_.awaiting)
+
   }
 
   private[std] case class State[F[_]](
       capacity: Int,
-      current: Int,
+      awaiting: Int,
       epoch: Long,
       signal: Deferred[F, Unit])
 

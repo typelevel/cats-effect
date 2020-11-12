@@ -63,12 +63,27 @@ class CyclicBarrierSpec extends BaseSpec {
       }
     }
 
+    s"$name - capacity when contructed" in real {
+      for {
+        cb <- constructor(5)
+        awaiting <- cb.awaiting
+        _ <- IO(awaiting must beEqualTo(0))
+        c <- cb.capacity
+        res <- IO(c must beEqualTo(5))
+      } yield res
+    }
+
     s"$name - await releases all fibers" in real {
       for {
         cb <- constructor(2)
         f1 <- cb.await.start
+        _ <- IO.sleep(1.milli)
+        awaiting <- cb.awaiting
+        _ <- IO(awaiting must beEqualTo(1))
         f2 <- cb.await.start
         r <- (f1.joinAndEmbedNever, f2.joinAndEmbedNever).tupled
+        awaiting2 <- cb.awaiting
+        _ <- IO(awaiting2 must beEqualTo(0))
         res <- IO(r must beEqualTo(((), ())))
       } yield res
     }
@@ -90,6 +105,8 @@ class CyclicBarrierSpec extends BaseSpec {
         _ <- IO.sleep(1.milli)
         _ <- f.cancel
         r <- f.join
+        awaiting <- cb.awaiting
+        _ <- IO(awaiting must beEqualTo(0))
         res <- IO(r must beEqualTo(Outcome.Canceled()))
       } yield res
     }
@@ -102,6 +119,8 @@ class CyclicBarrierSpec extends BaseSpec {
         r <- (f1.joinAndEmbedNever, f2.joinAndEmbedNever).tupled
         _ <- IO(r must beEqualTo(((), ())))
         //Should have reset at this point
+        awaiting <- cb.awaiting
+        _ <- IO(awaiting must beEqualTo(0))
         r <- cb.await.timeout(5.millis).attempt
         res <- IO(r must beLike {
           case Left(e) => e must haveClass[TimeoutException]
@@ -116,10 +135,31 @@ class CyclicBarrierSpec extends BaseSpec {
         _ <- cb.await.timeout(5.millis).attempt
         //Therefore the capacity should only be 1 when this awaits so will block again
         r <- cb.await.timeout(5.millis).attempt
-        res <- IO(r must beLike {
+        _ <- IO(r must beLike {
           case Left(e) => e must haveClass[TimeoutException]
         })
+        awaiting <- cb.awaiting
+        res <- IO(awaiting must beEqualTo(0)) //
       } yield res
+    }
+
+    /*
+     * Original implementation in b31d5a486757f7793851814ec30e056b9c6e40b8
+     * had a race between cancellation of an awaiting fiber and
+     * resetting the barrier once it's full
+     */
+    s"$name - race fiber cancel and barrier full" in real {
+      val iterations = 100
+
+      val run = for {
+        cb <- constructor(2)
+        f <- cb.await.start
+        _ <- IO.race(cb.await, f.cancel)
+        awaiting <- cb.awaiting
+        res <- IO(awaiting must beGreaterThanOrEqualTo(0))
+      } yield res
+
+      List.fill(iterations)(run).reduce(_ >> _)
     }
   }
 }
