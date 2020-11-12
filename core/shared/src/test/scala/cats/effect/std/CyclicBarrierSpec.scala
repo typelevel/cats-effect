@@ -77,13 +77,10 @@ class CyclicBarrierSpec extends BaseSpec {
       for {
         cb <- constructor(2)
         f1 <- cb.await.start
-        _ <- IO.sleep(5.milli)
-        awaiting <- cb.awaiting
-        _ <- IO(awaiting must beEqualTo(1))
         f2 <- cb.await.start
         r <- (f1.joinAndEmbedNever, f2.joinAndEmbedNever).tupled
-        awaiting2 <- cb.awaiting
-        _ <- IO(awaiting2 must beEqualTo(0))
+        awaiting <- cb.awaiting
+        _ <- IO(awaiting must beEqualTo(0))
         res <- IO(r must beEqualTo(((), ())))
       } yield res
     }
