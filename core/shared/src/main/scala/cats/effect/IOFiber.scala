@@ -448,10 +448,10 @@ private final class IOFiber[A](
                 readBarrier()
 
                 if (!shouldFinalize()) {
-                 /*
-                  * If we aren't canceled, loop on `suspended` to wait
-                  * until `get` has released ownership of the runloop.
-                  */
+                  /*
+                   * If we aren't canceled, loop on `suspended` to wait
+                   * until `get` has released ownership of the runloop.
+                   */
                   loop()
                 }
               }
