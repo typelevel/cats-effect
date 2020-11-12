@@ -20,6 +20,7 @@ import cats.syntax.all._
 
 import org.specs2.mutable.Specification
 
+import scala.io.Source
 import scala.sys.process.{BasicIO, Process}
 
 import java.io.File
@@ -49,6 +50,9 @@ class IOAppSpec extends Specification {
       // The jvm cannot gracefully terminate processes on Windows, so this
       // test cannot be carried out properly. Same for testing IOApp in sbt.
       "run finalizers on TERM" in skipped(
+        "cannot observe graceful process termination on Windows")
+      "exit on fatal error" in skipped("cannot observe graceful process termination on Windows")
+      "exit on fatal error with other unsafe runs" in skipped(
         "cannot observe graceful process termination on Windows")
     } else {
       "run finalizers on TERM" in {
@@ -92,20 +96,37 @@ class IOAppSpec extends Specification {
           readTest() must contain("canceled")
         }
       }
+
+      "exit on fatal error" in {
+        val h = java(FatalError, List.empty)
+        h.awaitStatus() mustEqual 1
+        h.stderr() must contain("Boom!")
+      }
+
+      "exit on fatal error with other unsafe runs" in {
+        val h = java(FatalErrorUnsafeRun, List.empty)
+        h.awaitStatus() mustEqual 1
+        h.stderr() must contain("Boom!")
+      }
     }
   }
 
   def java(proto: IOApp, args: List[String]): Handle = {
     val stdoutBuffer = new StringBuffer()
+    val stderrBuffer = new StringBuffer()
     val builder = Process(
       s"${JavaHome}/bin/java",
       List("-cp", ClassPath, proto.getClass.getName.replaceAll("\\$$", "")) ::: args)
-    val p = builder.run(BasicIO(false, stdoutBuffer, None))
+    val p = builder.run(BasicIO(false, stdoutBuffer, None).withError { in =>
+      val err = Source.fromInputStream(in).getLines().mkString(System.lineSeparator())
+      stderrBuffer.append(err)
+      ()
+    })
 
     new Handle {
       def awaitStatus() = p.exitValue()
       def term() = p.destroy() // TODO probably doesn't work
-      def stderr() = "" // TODO
+      def stderr() = stderrBuffer.toString
       def stdout() = stdoutBuffer.toString
     }
   }
@@ -141,5 +162,21 @@ package examples {
       (IO(println("Started")) >> IO.never)
         .onCancel(writeToFile("canceled", new File(args.head)))
         .as(ExitCode.Success)
+  }
+
+  object FatalError extends IOApp {
+    def run(args: List[String]): IO[ExitCode] =
+      IO(throw new OutOfMemoryError("Boom!")).as(ExitCode.Success)
+  }
+
+  object FatalErrorUnsafeRun extends IOApp {
+    import cats.effect.unsafe.implicits.global
+
+    def run(args: List[String]): IO[ExitCode] =
+      for {
+        _ <- (0 until 100).toList.traverse(_ => IO.blocking(IO.never.unsafeRunSync()).start)
+        _ <- IO.blocking(IO(throw new OutOfMemoryError("Boom!")).start.unsafeRunSync())
+        _ <- IO.never[Unit]
+      } yield ExitCode.Success
   }
 }

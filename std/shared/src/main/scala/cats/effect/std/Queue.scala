@@ -17,7 +17,7 @@
 package cats.effect.std
 
 import cats.~>
-import cats.effect.kernel.{Concurrent, Deferred, Poll, Ref}
+import cats.effect.kernel.{Deferred, GenConcurrent, Poll, Ref}
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
 
@@ -98,7 +98,7 @@ object Queue {
    * @param capacity the maximum capacity of the queue
    * @return an empty, bounded queue
    */
-  def bounded[F[_], A](capacity: Int)(implicit F: Concurrent[F]): F[Queue[F, A]] = {
+  def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
     assertNonNegative(capacity)
     F.ref(State.empty[F, A]).map(new BoundedQueue(capacity, _))
   }
@@ -112,7 +112,7 @@ object Queue {
    *
    * @return a synchronous queue
    */
-  def synchronous[F[_], A](implicit F: Concurrent[F]): F[Queue[F, A]] =
+  def synchronous[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     bounded(0)
 
   /**
@@ -122,7 +122,7 @@ object Queue {
    *
    * @return an empty, unbounded queue
    */
-  def unbounded[F[_], A](implicit F: Concurrent[F]): F[Queue[F, A]] =
+  def unbounded[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     bounded(Int.MaxValue)
 
   /**
@@ -136,7 +136,7 @@ object Queue {
    * @param capacity the maximum capacity of the queue
    * @return an empty, bounded, dropping queue
    */
-  def dropping[F[_], A](capacity: Int)(implicit F: Concurrent[F]): F[Queue[F, A]] = {
+  def dropping[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
     assertPositive(capacity, "Dropping")
     F.ref(State.empty[F, A]).map(new DroppingQueue(capacity, _))
   }
@@ -152,7 +152,8 @@ object Queue {
    * @param capacity the maximum capacity of the queue
    * @return an empty, bounded, sliding queue
    */
-  def circularBuffer[F[_], A](capacity: Int)(implicit F: Concurrent[F]): F[Queue[F, A]] = {
+  def circularBuffer[F[_], A](capacity: Int)(
+      implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
     assertPositive(capacity, "CircularBuffer")
     F.ref(State.empty[F, A]).map(new CircularBufferQueue(capacity, _))
   }
@@ -166,7 +167,7 @@ object Queue {
   private sealed abstract class AbstractQueue[F[_], A](
       capacity: Int,
       state: Ref[F, State[F, A]]
-  )(implicit F: Concurrent[F])
+  )(implicit F: GenConcurrent[F, _])
       extends Queue[F, A] {
 
     protected def onOfferNoCapacity(
@@ -260,7 +261,7 @@ object Queue {
   }
 
   private final class BoundedQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
-      implicit F: Concurrent[F]
+      implicit F: GenConcurrent[F, _]
   ) extends AbstractQueue(capacity, state) {
 
     protected def onOfferNoCapacity(
@@ -280,7 +281,7 @@ object Queue {
   }
 
   private final class DroppingQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
-      implicit F: Concurrent[F]
+      implicit F: GenConcurrent[F, _]
   ) extends AbstractQueue(capacity, state) {
 
     protected def onOfferNoCapacity(
@@ -296,7 +297,7 @@ object Queue {
   }
 
   private final class CircularBufferQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
-      implicit F: Concurrent[F]
+      implicit F: GenConcurrent[F, _]
   ) extends AbstractQueue(capacity, state) {
 
     protected def onOfferNoCapacity(

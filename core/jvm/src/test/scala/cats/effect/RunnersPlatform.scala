@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.effect.unsafe.IORuntime
+import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
 
 import org.specs2.specification.BeforeAfterAll
 
@@ -27,21 +27,33 @@ trait RunnersPlatform extends BeforeAfterAll {
   protected def runtime(): IORuntime = runtime0
 
   def beforeAll(): Unit = {
-    val (blk, disp2) =
+    val cancellationCheckThreshold =
+      System.getProperty("cats.effect.cancellation.check.threshold", "512").toInt
+
+    val (blocking, blockDown) =
       IORuntime.createDefaultBlockingExecutionContext(s"io-blocking-${getClass.getName}")
-    val (sched, disp3) = IORuntime.createDefaultScheduler(s"io-scheduler-${getClass.getName}")
-    val (wstp, disp1) =
+    val (scheduler, schedDown) =
+      IORuntime.createDefaultScheduler(s"io-scheduler-${getClass.getName}")
+    val (compute, compDown) =
       IORuntime.createDefaultComputeThreadPool(runtime0, s"io-compute-${getClass.getName}")
 
-    runtime0 = IORuntime(
-      wstp,
-      blk,
-      sched,
-      { () =>
-        disp1()
-        disp2()
-        disp3()
-      })
+    runtime0 = new IORuntime(
+      compute,
+      blocking,
+      scheduler,
+      () => (),
+      IORuntimeConfig(
+        cancellationCheckThreshold,
+        System
+          .getProperty("cats.effect.auto.yield.threshold.multiplier", "2")
+          .toInt * cancellationCheckThreshold
+      ),
+      internalShutdown = () => {
+        compDown()
+        blockDown()
+        schedDown()
+      }
+    )
   }
 
   def afterAll(): Unit = runtime().shutdown()

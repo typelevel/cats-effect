@@ -441,6 +441,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
               IO.both(IO.never.onCancel(l.set(true)), IO.never.onCancel(r.set(true))).start
             _ <- IO(ticker.ctx.tickAll())
             _ <- fiber.cancel
+            _ <- IO(ticker.ctx.tickAll())
             l2 <- l.get
             r2 <- r.get
           } yield (l2 -> r2)) must completeAs(true -> true)
@@ -516,6 +517,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
               IO.race(IO.never.onCancel(l.set(true)), IO.never.onCancel(r.set(true))).start
             _ <- IO(ticker.ctx.tickAll())
             _ <- fiber.cancel
+            _ <- IO(ticker.ctx.tickAll())
             l2 <- l.get
             r2 <- r.get
           } yield (l2 -> r2)) must completeAs(true -> true)
@@ -1025,7 +1027,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         "invoke finalizers on timed out things" in real {
           for {
             ref <- Ref[IO].of(false)
-            _ <- IO.sleep(100.millis).onCancel(ref.set(true)).timeoutTo(50.millis, IO.unit)
+            _ <- IO.never.onCancel(ref.set(true)).timeoutTo(50.millis, IO.unit)
             v <- ref.get
             r <- IO(v must beTrue)
           } yield r

@@ -40,8 +40,7 @@ import cats.data.Kleisli
  *     })
  * }}}
  *
- * Usage is done via [[Resource!.use use]] and note that resource usage nests,
- * because its implementation is specified in terms of [[Bracket]]:
+ * Usage is done via [[Resource!.use use]] and note that resource usage nests.
  *
  * {{{
  *   open(file1).use { in1 =>
@@ -108,7 +107,7 @@ sealed abstract class Resource[+F[_], +A] {
   private[effect] def fold[G[x] >: F[x], B](
       onOutput: A => G[B],
       onRelease: G[Unit] => G[Unit]
-  )(implicit G: Resource.Bracket[G]): G[B] = {
+  )(implicit G: MonadCancel[G, Throwable]): G[B] = {
     sealed trait Stack[AA]
     case object Nil extends Stack[A]
     final case class Frame[AA, BB](head: AA => Resource[G, BB], tail: Stack[BB])
@@ -130,8 +129,8 @@ sealed abstract class Resource[+F[_], +A] {
                 case Frame(head, tail) => continue(head(a), tail)
               }
           } {
-            case ((_, release), ec) =>
-              onRelease(release(ec))
+            case ((_, release), outcome) =>
+              onRelease(release(ExitCase.fromOutcome(outcome)))
           }
         case Bind(source, fs) =>
           loop(source, Frame(fs, stack))
@@ -203,7 +202,7 @@ sealed abstract class Resource[+F[_], +A] {
    * @param f the function to apply to the allocated resource
    * @return the result of applying [F] to
    */
-  def use[G[x] >: F[x], B](f: A => G[B])(implicit G: Resource.Bracket[G]): G[B] =
+  def use[G[x] >: F[x], B](f: A => G[B])(implicit G: MonadCancel[G, Throwable]): G[B] =
     fold[G, B](f, identity)
 
   /**
@@ -218,18 +217,20 @@ sealed abstract class Resource[+F[_], +A] {
   /**
    * Allocates a resource and closes it immediately.
    */
-  def use_[G[x] >: F[x]](implicit G: Resource.Bracket[G]): G[Unit] = use(_ => G.unit)
+  def use_[G[x] >: F[x]](implicit G: MonadCancel[G, Throwable]): G[Unit] = use(_ => G.unit)
 
   /**
    * Allocates the resource and uses it to run the given Kleisli.
    */
-  def useKleisli[G[x] >: F[x]: Resource.Bracket, B >: A, C](usage: Kleisli[G, B, C]): G[C] =
+  def useKleisli[G[x] >: F[x], B >: A, C](usage: Kleisli[G, B, C])(
+      implicit G: MonadCancel[G, Throwable]): G[C] =
     use(usage.run)
 
   /**
    * Creates a FunctionK that, when applied, will allocate the resource and use it to run the given Kleisli.
    */
-  def useKleisliK[G[x] >: F[x]: Resource.Bracket, B >: A]: Kleisli[G, B, *] ~> G =
+  def useKleisliK[G[x] >: F[x], B >: A](
+      implicit G: MonadCancel[G, Throwable]): Kleisli[G, B, *] ~> G =
     new (Kleisli[G, B, *] ~> G) {
       def apply[C](fa: Kleisli[G, B, C]): G[C] = useKleisli(fa)
     }
@@ -268,7 +269,7 @@ sealed abstract class Resource[+F[_], +A] {
     def allocate[C](r: Resource[G, C], storeFinalizer: Update): G[C] =
       r.fold[G, C](
         _.pure[G],
-        release => storeFinalizer(Resource.Bracket[G].guarantee(_)(release))
+        release => storeFinalizer(MonadCancel[G, Throwable].guarantee(_, release))
       )
 
     val bothFinalizers = Ref.of(().pure[G] -> ().pure[G])
@@ -348,7 +349,8 @@ sealed abstract class Resource[+F[_], +A] {
    * code that needs to modify or move the finalizer for an existing
    * resource.
    */
-  def allocated[G[x] >: F[x], B >: A](implicit G: Resource.Bracket[G]): G[(B, G[Unit])] = {
+  def allocated[G[x] >: F[x], B >: A](
+      implicit G: MonadCancel[G, Throwable]): G[(B, G[Unit])] = {
     sealed trait Stack[AA]
     case object Nil extends Stack[B]
     final case class Frame[AA, BB](head: AA => Resource[G, BB], tail: Stack[BB])
@@ -373,15 +375,15 @@ sealed abstract class Resource[+F[_], +A] {
             case (a, rel) =>
               stack match {
                 case Nil =>
-                  G.pure((a: B) -> G.guarantee(rel(ExitCase.Succeeded))(release))
+                  G.pure((a: B) -> G.guarantee(rel(ExitCase.Succeeded), release))
                 case Frame(head, tail) =>
-                  continue(head(a), tail, G.guarantee(rel(ExitCase.Succeeded))(release))
+                  continue(head(a), tail, G.guarantee(rel(ExitCase.Succeeded), release))
               }
           } {
-            case (_, ExitCase.Succeeded) =>
+            case (_, Outcome.Succeeded(_)) =>
               G.unit
-            case ((_, release), ec) =>
-              release(ec)
+            case ((_, release), outcome) =>
+              release(ExitCase.fromOutcome(outcome))
           }
         case Bind(source, fs) =>
           loop(source, Frame(fs, stack), release)
@@ -417,6 +419,20 @@ sealed abstract class Resource[+F[_], +A] {
    */
 
   private[effect] def invariant: Resource.InvariantResource[F0, A]
+
+  /**
+   * Acquires the resource, runs `gb` and closes the resource once `gb` terminates, fails or gets interrupted
+   */
+  def surround[G[x] >: F[x], B](gb: G[B])(implicit G: MonadCancel[G, Throwable]): G[B] =
+    use(_ => gb)
+
+  /**
+   * Creates a FunctionK that can run `gb` within a resource, which is then closed once `gb` terminates, fails or gets interrupted
+   */
+  def surroundK[G[x] >: F[x]](implicit G: MonadCancel[G, Throwable]): G ~> G =
+    new (G ~> G) {
+      override def apply[B](gb: G[B]): G[B] = surround(gb)
+    }
 }
 
 object Resource extends ResourceInstances with ResourcePlatform {
@@ -464,8 +480,6 @@ object Resource extends ResourceInstances with ResourcePlatform {
   /**
    * Creates a resource from an acquiring effect and a release function.
    *
-   * This builder mirrors the signature of [[Bracket.bracket]].
-   *
    * @tparam F the effect type in which the resource is acquired and released
    * @tparam A the type of the resource
    * @param acquire a function to effectfully acquire a resource
@@ -478,8 +492,6 @@ object Resource extends ResourceInstances with ResourcePlatform {
   /**
    * Creates a resource from an acquiring effect and a release function that can
    * discriminate between different [[ExitCase exit cases]].
-   *
-   * This builder mirrors the signature of [[Bracket.bracketCase]].
    *
    * @tparam F the effect type in which the resource is acquired and released
    * @tparam A the type of the resource
@@ -632,7 +644,8 @@ object Resource extends ResourceInstances with ResourcePlatform {
      * An [[ExitCase]] that signals successful completion.
      *
      * Note that "successful" is from the type of view of the
-     * `MonadError` type that's implementing [[Bracket]].
+     * `MonadCancel` type.
+     *
      * When combining such a type with `EitherT` or `OptionT` for
      * example, this exit condition might not signal a successful
      * outcome for the user, but it does for the purposes of the
@@ -651,85 +664,15 @@ object Resource extends ResourceInstances with ResourcePlatform {
      * As an example this can happen when we have a cancelable data type,
      * like [[IO]] and the task yielded by `bracket` gets canceled
      * when it's at its `use` phase.
-     *
-     * Thus [[Bracket]] allows you to observe interruption conditions
-     * and act on them.
      */
     case object Canceled extends ExitCase
-  }
 
-  @annotation.implicitNotFound(
-    "Cannot find an instance for Resource.Bracket. This normally means you need to add implicit evidence of MonadCancel[${F}, Throwable]")
-  trait Bracket[F[_]] extends MonadThrow[F] {
-    def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
-        release: (A, ExitCase) => F[Unit]): F[B]
-
-    def bracket[A, B](acquire: F[A])(use: A => F[B])(release: A => F[Unit]): F[B] =
-      bracketCase(acquire)(use)((a, _) => release(a))
-
-    def guarantee[A](fa: F[A])(finalizer: F[Unit]): F[A] =
-      bracket(unit)(_ => fa)(_ => finalizer)
-
-    def guaranteeCase[A](fa: F[A])(finalizer: ExitCase => F[Unit]): F[A] =
-      bracketCase(unit)(_ => fa)((_, e) => finalizer(e))
-  }
-
-  trait Bracket0 {
-    implicit def catsEffectResourceBracketForSync[F[_]](implicit F0: Sync[F]): Bracket[F] =
-      new SyncBracket[F] {
-        implicit protected def F: Sync[F] = F0
+    def fromOutcome[F[_], A](outcome: Outcome[F, Throwable, A]): ExitCase =
+      outcome match {
+        case Outcome.Succeeded(_) => Succeeded
+        case Outcome.Errored(t) => Errored(t)
+        case Outcome.Canceled() => Canceled
       }
-
-    trait SyncBracket[F[_]] extends Bracket[F] {
-      implicit protected def F: Sync[F]
-
-      def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
-          release: (A, ExitCase) => F[Unit]): F[B] =
-        flatMap(acquire) { a =>
-          val handled = onError(use(a)) {
-            case e => void(attempt(release(a, ExitCase.Errored(e))))
-          }
-          flatMap(handled)(b => as(attempt(release(a, ExitCase.Succeeded)), b))
-        }
-
-      def pure[A](x: A): F[A] = F.pure(x)
-      def handleErrorWith[A](fa: F[A])(f: Throwable => F[A]): F[A] = F.handleErrorWith(fa)(f)
-      def raiseError[A](e: Throwable): F[A] = F.raiseError(e)
-      def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = F.flatMap(fa)(f)
-      def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = F.tailRecM(a)(f)
-    }
-  }
-
-  object Bracket extends Bracket0 {
-    def apply[F[_]](implicit F: Bracket[F]): F.type = F
-
-    implicit def bracketMonadCancel[F[_]](
-        implicit F0: MonadCancel[F, Throwable]
-    ): Bracket[F] =
-      new MonadCancelBracket[F] {
-        implicit protected def F: MonadCancel[F, Throwable] = F0
-      }
-
-    trait MonadCancelBracket[F[_]] extends Bracket[F] {
-      implicit protected def F: MonadCancel[F, Throwable]
-
-      def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
-          release: (A, ExitCase) => F[Unit]): F[B] =
-        F.uncancelable { poll =>
-          flatMap(acquire) { a =>
-            val finalized = F.onCancel(poll(use(a)), release(a, ExitCase.Canceled))
-            val handled = onError(finalized) {
-              case e => void(attempt(release(a, ExitCase.Errored(e))))
-            }
-            flatMap(handled)(b => as(attempt(release(a, ExitCase.Succeeded)), b))
-          }
-        }
-      def pure[A](x: A): F[A] = F.pure(x)
-      def handleErrorWith[A](fa: F[A])(f: Throwable => F[A]): F[A] = F.handleErrorWith(fa)(f)
-      def raiseError[A](e: Throwable): F[A] = F.raiseError(e)
-      def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = F.flatMap(fa)(f)
-      def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = F.tailRecM(a)(f)
-    }
   }
 
   /**
@@ -805,7 +748,7 @@ abstract private[effect] class ResourceInstances0 {
     }
 
   implicit def catsEffectSemigroupKForResource[F[_], A](
-      implicit F0: Resource.Bracket[F],
+      implicit F0: MonadCancel[F, Throwable],
       K0: SemigroupK[F],
       G0: Ref.Make[F]): ResourceSemigroupK[F] =
     new ResourceSemigroupK[F] {
@@ -913,7 +856,7 @@ abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Reso
 }
 
 abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, *]] {
-  implicit protected def F: Resource.Bracket[F]
+  implicit protected def F: MonadCancel[F, Throwable]
   implicit protected def K: SemigroupK[F]
   implicit protected def G: Ref.Make[F]
 
@@ -922,7 +865,8 @@ abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resou
       def allocate(r: Resource[F, A]): F[A] =
         r.fold(
           _.pure[F],
-          (release: F[Unit]) => finalizers.update(Resource.Bracket[F].guarantee(_)(release)))
+          (release: F[Unit]) =>
+            finalizers.update(MonadCancel[F, Throwable].guarantee(_, release)))
 
       K.combineK(allocate(ra), allocate(rb))
     }
