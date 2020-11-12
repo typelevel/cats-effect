@@ -174,7 +174,7 @@ private final class IOFiber[A](
   var cancel: IO[Unit] = IO uncancelable { _ =>
     IO defer {
       canceled = true
-      barrier = true
+      writeBarrier()
 
       // println(s"${name}: attempting cancellation")
 
@@ -881,6 +881,9 @@ private final class IOFiber[A](
          */
       }
     }
+
+  private[this] def writeBarrier(): Unit =
+    barrier = true
 
   private[this] def readBarrier(): Unit = {
     val _ = barrier
