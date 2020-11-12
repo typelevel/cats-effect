@@ -19,6 +19,8 @@ package cats.effect
 // defined in Java for the JVM, Scala for ScalaJS (where object field access is faster)
 private[effect] object IOFiberConstants {
 
+  val AggressiveCasSemantics = true
+
   val MaxStackDepth: Int = 512
 
   // continuation ids (should all be inlined)

@@ -173,6 +173,16 @@ private final class IOFiber[A](
 
       // println(s"${name}: attempting cancellation")
 
+      // artificial write barrier since resume() may fail
+      // certain architectures define a failed CAS to be a write
+      // barrier (notably x86), and we skip this logic on those
+      val prePublished = if (!AggressiveCasSemantics) {
+        val old = suspended.get()
+        suspended.compareAndSet(old, old)
+      } else {
+        true
+      }
+
       /* check to see if the target fiber is suspended */
       if (resume()) {
         /* ...it was! was it masked? */
@@ -193,6 +203,12 @@ private final class IOFiber[A](
           suspend() /* allow someone else to take the runloop */
           join.void
         }
+      } else if (!prePublished) {
+        // race condition! the loop was suspended on the first check, and *not* suspended on the second
+        // we're in a situation now where we probably haven't published the canceled = true write on
+        // many architectures so we loop
+
+        cancel
       } else {
         // println(s"${name}: had to join")
         /* it's already being run somewhere; await the finalizers */

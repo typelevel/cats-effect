@@ -19,6 +19,9 @@ package cats.effect;
 // defined in Java since Scala doesn't let us define static fields
 final class IOFiberConstants {
 
+  // TODO there will likely be more in here, such as ARM ≥8.1
+  public static final boolean AggressiveCasSemantics = System.getProperty("os.arch").startsWith("x86");
+
   public static final int MaxStackDepth = 512;
 
   // continuation ids (should all be inlined)
