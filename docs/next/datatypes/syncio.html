@@ -79,7 +79,7 @@
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
 
 <span class="hljs-keyword">val</span> ioa: <span class="hljs-type">SyncIO</span>[<span class="hljs-type">Unit</span>] = <span class="hljs-type">SyncIO</span>(println(<span class="hljs-string">"Hello world!"</span>))
-<span class="hljs-comment">// ioa: SyncIO[Unit] = SyncIO$1323744808</span>
+<span class="hljs-comment">// ioa: SyncIO[Unit] = SyncIO$1178612641</span>
 <span class="hljs-keyword">val</span> iob: <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = ioa.to[<span class="hljs-type">IO</span>]
 <span class="hljs-comment">// iob: IO[Unit] = Delay(thunk = &lt;function0&gt;)</span>
 
