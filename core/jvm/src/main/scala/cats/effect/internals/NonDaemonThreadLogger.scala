@@ -32,7 +32,7 @@ private[internals] object NonDaemonThreadLogger {
   def sleepIntervalMillis: Long =
     Option(System.getProperty("cats.effect.logNonDaemonThreads.sleepIntervalMillis"))
       .flatMap(time => Either.catchOnly[NumberFormatException](time.toLong).toOption)
-      .getOrElse(1000L)
+      .getOrElse(10000L)
 }
 
 private[internals] class NonDaemonThreadLogger extends Thread("cats-effect-nondaemon-thread-logger") {
