@@ -106,10 +106,7 @@ object CyclicBarrier {
 
   }
 
-  private[std] case class State[F[_]](
-      awaiting: Int,
-      epoch: Long,
-      signal: Deferred[F, Unit])
+  private[std] case class State[F[_]](awaiting: Int, epoch: Long, signal: Deferred[F, Unit])
 
   private[std] object State {
     def initial[F[_]](implicit F: GenConcurrent[F, _]): F[State[F]] =
