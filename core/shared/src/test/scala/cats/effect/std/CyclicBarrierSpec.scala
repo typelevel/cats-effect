@@ -22,7 +22,6 @@ import cats.arrow.FunctionK
 import scala.concurrent.duration._
 
 import org.specs2.specification.core.Fragments
-import org.specs2.matcher.Matcher
 import java.util.concurrent.TimeoutException
 import scala.reflect.ClassTag
 
@@ -35,7 +34,7 @@ class CyclicBarrierSpec extends BaseSpec {
       CyclicBarrier.apply[IO](_).map(_.mapK(FunctionK.id)))
   }
 
-  implicit class Fails(fa: IO[_]) {
+  implicit class Assertions[A](fa: IO[A]) {
     def mustFailWith[E <: Throwable: ClassTag] =
       fa.attempt.flatMap { res =>
         IO {
@@ -43,6 +42,10 @@ class CyclicBarrierSpec extends BaseSpec {
             case Left(e) => e must haveClass[E]
           }
         }
+      }
+
+    def mustEqual(a: A) = fa.flatMap { res =>
+      IO(res must beEqualTo(a))
     }
   }
 
@@ -57,14 +60,11 @@ class CyclicBarrierSpec extends BaseSpec {
       IO.defer(newBarrier(0)).mustFailWith[IllegalArgumentException]
     }
 
-    s"$name - remaining when contructed" in real {
-      for {
-        barrier <- newBarrier(5)
-        awaiting <- barrier.awaiting
-        _ <- IO(awaiting must beEqualTo(0))
-        r <- barrier.remaining
-        res <- IO(r must beEqualTo(5))
-      } yield res
+    s"$name - remaining when constructed" in real {
+      newBarrier(5).flatMap { barrier =>
+        barrier.awaiting.mustEqual(0) >>
+        barrier.remaining.mustEqual(5)
+      }
     }
 
     s"$name - await releases all fibers" in real {
@@ -72,31 +72,28 @@ class CyclicBarrierSpec extends BaseSpec {
         barrier <- newBarrier(2)
         f1 <- barrier.await.start
         f2 <- barrier.await.start
-        r <- (f1.joinAndEmbedNever, f2.joinAndEmbedNever).tupled
-        awaiting <- barrier.awaiting
-        _ <- IO(awaiting must beEqualTo(0))
-        res <- IO(r must beEqualTo(((), ())))
+        r  = (f1.joinAndEmbedNever, f2.joinAndEmbedNever).tupled
+        res <- r.mustEqual(((), ()))
+        _ <- barrier.awaiting.mustEqual(0)
       } yield res
     }
 
+    // TODO ticker here
     s"$name - await is blocking" in real {
-      for {
-        barrier <- newBarrier(2)
-        r = barrier.await.timeout(5.millis)
-        res <- r.mustFailWith[TimeoutException]
-      } yield res
+      newBarrier(2).flatMap {
+        _.await.timeout(100.millis).mustFailWith[TimeoutException]
+      }
     }
 
+    // TODO ticker here
     s"$name - await is cancelable" in real {
       for {
         barrier <- newBarrier(2)
         f <- barrier.await.start
-        _ <- IO.sleep(1.milli)
+        _ <- IO.sleep(100.millis)
         _ <- f.cancel
-        r <- f.join
-        awaiting <- barrier.awaiting
-        _ <- IO(awaiting must beEqualTo(0))
-        res <- IO(r must beEqualTo(Outcome.Canceled()))
+        res <- f.join.mustEqual(Outcome.Canceled())
+        _ <- barrier.awaiting.mustEqual(0)
       } yield res
     }
 
@@ -108,10 +105,8 @@ class CyclicBarrierSpec extends BaseSpec {
         r <- (f1.joinAndEmbedNever, f2.joinAndEmbedNever).tupled
         _ <- IO(r must beEqualTo(((), ())))
         //Should have reset at this point
-        awaiting <- barrier.awaiting
-        _ <- IO(awaiting must beEqualTo(0))
-        r = barrier.await.timeout(5.millis)
-        res <- r.mustFailWith[TimeoutException]
+        _ <- barrier.awaiting.mustEqual(0)
+        res <- barrier.await.timeout(5.millis).mustFailWith[TimeoutException]
       } yield res
     }
 
@@ -121,10 +116,8 @@ class CyclicBarrierSpec extends BaseSpec {
         //This should time out and reduce the current capacity to 0 again
         _ <- barrier.await.timeout(5.millis).attempt
         //Therefore the capacity should only be 1 when this awaits so will block again
-        r = barrier.await.timeout(5.millis)
-        _ <- r.mustFailWith[TimeoutException]
-        awaiting <- barrier.awaiting
-        res <- IO(awaiting must beEqualTo(0))
+        _ <- barrier.await.timeout(5.millis).mustFailWith[TimeoutException]
+        res <- barrier.awaiting.mustEqual(0)
       } yield res
     }
 
