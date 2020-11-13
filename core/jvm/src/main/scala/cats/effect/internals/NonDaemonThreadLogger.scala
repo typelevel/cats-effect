@@ -17,7 +17,7 @@
 package cats.effect.internals
 
 import cats.syntax.all._
-import scala.jdk.CollectionConverters._
+import scala.collection.mutable.ListBuffer
 
 private[internals] object NonDaemonThreadLogger {
 
@@ -56,8 +56,12 @@ private[internals] class NonDaemonThreadLogger extends Thread("cats-effect-nonda
   }
   private[this] def detectThreads(): List[String] = {
     val threads = Thread.getAllStackTraces().keySet()
-    val daemonThreads = threads.asScala.filterNot(_.isDaemon).map(t => s" - ${t.getId}: ${t}")
-    daemonThreads.toList
+    val nonDaemons = ListBuffer[String]()
+    threads.forEach { t =>
+      if (!t.isDaemon)
+        nonDaemons += s" - ${t.getId}: ${t}"
+    }
+    nonDaemons.toList
   }
 
   private[this] def printThreads(threads: List[String]) = {
