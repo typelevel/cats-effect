@@ -755,6 +755,16 @@ private final class IOFiber[A](
   private[this] def isUnmasked(): Boolean =
     masks == initMask
 
+  /*
+   * You should probably just read this as `suspended.compareAndSet(true, false)`.
+   * This implementation has the same semantics as the above, except that it guarantees
+   * a write memory barrier in all cases, even when resumption fails. This in turn
+   * makes it suitable as a publication mechanism (as we're using it).
+   *
+   * On x86, this should have almost exactly the same performance as a CAS even taking
+   * into account the extra barrier (which x86 doesn't need anyway). On ARM without LSE
+   * it should actually be *faster* because CAS isn't primitive but get-and-set is.
+   */
   private[this] def resume(): Boolean =
     suspended.getAndSet(false)
 
