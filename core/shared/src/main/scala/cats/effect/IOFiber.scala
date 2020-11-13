@@ -756,7 +756,7 @@ private final class IOFiber[A](
     masks == initMask
 
   private[this] def resume(): Boolean =
-    suspended.compareAndSet(true, false)
+    suspended.getAndSet(false)
 
   private[this] def suspend(): Unit =
     suspended.set(true)
