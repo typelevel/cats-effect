@@ -19,10 +19,12 @@ package std
 
 import cats.implicits._
 import cats.arrow.FunctionK
-import org.specs2.specification.core.Fragments
-
 import scala.concurrent.duration._
+
+import org.specs2.specification.core.Fragments
+import org.specs2.matcher.Matcher
 import java.util.concurrent.TimeoutException
+import scala.reflect.ClassTag
 
 class CyclicBarrierSpec extends BaseSpec {
 
@@ -33,29 +35,26 @@ class CyclicBarrierSpec extends BaseSpec {
       CyclicBarrier.apply[IO](_).map(_.mapK(FunctionK.id)))
   }
 
+  implicit class Fails(fa: IO[_]) {
+    def mustFailWith[E <: Throwable: ClassTag] =
+      fa.attempt.flatMap { res =>
+        IO {
+          res must beLike {
+            case Left(e) => e must haveClass[E]
+          }
+        }
+    }
+  }
+
   private def cyclicBarrierTests(
       name: String,
       newBarrier: Int => IO[CyclicBarrier[IO]]): Fragments = {
     s"$name - raise an exception when constructed with a negative capacity" in real {
-      val test = IO.defer(newBarrier(-1)).attempt
-      test.flatMap { res =>
-        IO {
-          res must beLike {
-            case Left(e) => e must haveClass[IllegalArgumentException]
-          }
-        }
-      }
+      IO.defer(newBarrier(-1)).mustFailWith[IllegalArgumentException]
     }
 
     s"$name - raise an exception when constructed with zero capacity" in real {
-      val test = IO.defer(newBarrier(0)).attempt
-      test.flatMap { res =>
-        IO {
-          res must beLike {
-            case Left(e) => e must haveClass[IllegalArgumentException]
-          }
-        }
-      }
+      IO.defer(newBarrier(0)).mustFailWith[IllegalArgumentException]
     }
 
     s"$name - remaining when contructed" in real {
@@ -83,10 +82,8 @@ class CyclicBarrierSpec extends BaseSpec {
     s"$name - await is blocking" in real {
       for {
         barrier <- newBarrier(2)
-        r <- barrier.await.timeout(5.millis).attempt
-        res <- IO(r must beLike {
-          case Left(e) => e must haveClass[TimeoutException]
-        })
+        r = barrier.await.timeout(5.millis)
+        res <- r.mustFailWith[TimeoutException]
       } yield res
     }
 
@@ -113,10 +110,8 @@ class CyclicBarrierSpec extends BaseSpec {
         //Should have reset at this point
         awaiting <- barrier.awaiting
         _ <- IO(awaiting must beEqualTo(0))
-        r <- barrier.await.timeout(5.millis).attempt
-        res <- IO(r must beLike {
-          case Left(e) => e must haveClass[TimeoutException]
-        })
+        r = barrier.await.timeout(5.millis)
+        res <- r.mustFailWith[TimeoutException]
       } yield res
     }
 
@@ -126,12 +121,10 @@ class CyclicBarrierSpec extends BaseSpec {
         //This should time out and reduce the current capacity to 0 again
         _ <- barrier.await.timeout(5.millis).attempt
         //Therefore the capacity should only be 1 when this awaits so will block again
-        r <- barrier.await.timeout(5.millis).attempt
-        _ <- IO(r must beLike {
-          case Left(e) => e must haveClass[TimeoutException]
-        })
+        r = barrier.await.timeout(5.millis)
+        _ <- r.mustFailWith[TimeoutException]
         awaiting <- barrier.awaiting
-        res <- IO(awaiting must beEqualTo(0)) //
+        res <- IO(awaiting must beEqualTo(0))
       } yield res
     }
 
