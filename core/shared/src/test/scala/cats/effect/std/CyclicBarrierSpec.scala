@@ -64,6 +64,12 @@ class CyclicBarrierSpec extends BaseSpec {
       newBarrier(2).flatMap(_.await) must nonTerminate
     }
 
+    s"$name - await releases all fibers" in real {
+      newBarrier(2).flatMap { barrier =>
+        (barrier.await, barrier.await).parTupled.void.mustEqual(())
+      }
+    }
+
     s"$name - remaining when constructed" in real {
       newBarrier(5).flatMap { barrier =>
         barrier.awaiting.mustEqual(0) >>
@@ -71,16 +77,6 @@ class CyclicBarrierSpec extends BaseSpec {
       }
     }
 
-    s"$name - await releases all fibers" in real {
-      for {
-        barrier <- newBarrier(2)
-        f1 <- barrier.await.start
-        f2 <- barrier.await.start
-        r  = (f1.joinAndEmbedNever, f2.joinAndEmbedNever).tupled
-        res <- r.mustEqual(((), ()))
-        _ <- barrier.awaiting.mustEqual(0)
-      } yield res
-    }
 
 
     // TODO ticker here
