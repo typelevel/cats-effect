@@ -60,6 +60,10 @@ class CyclicBarrierSpec extends BaseSpec {
       IO.defer(newBarrier(0)).mustFailWith[IllegalArgumentException]
     }
 
+    s"$name - await is blocking" in ticked { implicit ticker =>
+      newBarrier(2).flatMap(_.await) must nonTerminate
+    }
+
     s"$name - remaining when constructed" in real {
       newBarrier(5).flatMap { barrier =>
         barrier.awaiting.mustEqual(0) >>
@@ -78,12 +82,6 @@ class CyclicBarrierSpec extends BaseSpec {
       } yield res
     }
 
-    // TODO ticker here
-    s"$name - await is blocking" in real {
-      newBarrier(2).flatMap {
-        _.await.timeout(100.millis).mustFailWith[TimeoutException]
-      }
-    }
 
     // TODO ticker here
     s"$name - await is cancelable" in real {

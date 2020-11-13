@@ -74,7 +74,7 @@ object CyclicBarrier {
     case class State[F[_]](awaiting: Int, epoch: Long, unblock: Deferred[F, Unit])
 
     F.deferred[Unit]
-      .map(gate => State(awaiting = capacity, epoch = 0, unblock = gate))
+      .map(gate => State(capacity,0, gate))
       .flatMap(F.ref)
       .map { state =>
         new CyclicBarrier[F] {
