@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-/*
- * These tests have been inspired by and adapted from `monix-catnap`'s `ConcurrentQueueSuite`, available at
- * https://github.com/monix/monix/blob/series/3.x/monix-catnap/shared/src/test/scala/monix/catnap/ConcurrentQueueSuite.scala.
- */
-
 package cats.effect
 package std
 
