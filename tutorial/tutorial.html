@@ -287,7 +287,7 @@ cancellation in the next section.</p>
 <h3 id="dealing-with-cancellation">Dealing with cancellation</h3>
 <p>Cancellation is a powerful but non-trivial cats-effect feature. In cats-effect,
 some <code class="language-plaintext highlighter-rouge">IO</code> instances can be canceled ( <em>e.g.</em> by other <code class="language-plaintext highlighter-rouge">IO</code> instaces running
-concurrently) meaning that their evalation will be aborted. If the programmer is
+concurrently) meaning that their evaluation will be aborted. If the programmer is
 careful, an alternative <code class="language-plaintext highlighter-rouge">IO</code> task will be run under cancellation, for example to
 deal with potential cleaning up activities.</p>
 
