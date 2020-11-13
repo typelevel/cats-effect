@@ -63,13 +63,13 @@ class CyclicBarrierSpec extends BaseSpec {
       }
     }
 
-    s"$name - capacity when contructed" in real {
+    s"$name - remaining when contructed" in real {
       for {
         cb <- constructor(5)
         awaiting <- cb.awaiting
         _ <- IO(awaiting must beEqualTo(0))
-        c <- cb.capacity
-        res <- IO(c must beEqualTo(5))
+        r <- cb.remaining
+        res <- IO(r must beEqualTo(5))
       } yield res
     }
 
