@@ -70,6 +70,13 @@ class CyclicBarrierSpec extends BaseSpec {
       }
     }
 
+    s"$name - await is cancelable" in ticked { implicit ticker =>
+      newBarrier(2)
+        .flatMap(_.await)
+        .timeoutTo(1.second, IO.unit) must completeAs(())
+    }
+
+
     s"$name - remaining when constructed" in real {
       newBarrier(5).flatMap { barrier =>
         barrier.awaiting.mustEqual(0) >>
@@ -79,17 +86,6 @@ class CyclicBarrierSpec extends BaseSpec {
 
 
 
-    // TODO ticker here
-    s"$name - await is cancelable" in real {
-      for {
-        barrier <- newBarrier(2)
-        f <- barrier.await.start
-        _ <- IO.sleep(100.millis)
-        _ <- f.cancel
-        res <- f.join.mustEqual(Outcome.Canceled())
-        _ <- barrier.awaiting.mustEqual(0)
-      } yield res
-    }
 
     s"$name - reset once full" in real {
       for {
