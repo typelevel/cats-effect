@@ -42,7 +42,7 @@ abstract class CyclicBarrier[F[_]] { self =>
   /*
    * The number of fibers required to trip the barrier
    */
-  def capacity: F[Int]
+  def remaining: F[Int]
 
   /*
    * The number of fibers currently awaiting
@@ -59,7 +59,7 @@ abstract class CyclicBarrier[F[_]] { self =>
   def mapK[G[_]](f: F ~> G): CyclicBarrier[G] =
     new CyclicBarrier[G] {
       def await: G[Unit] = f(self.await)
-      def capacity: G[Int] = f(self.capacity)
+      def remaining: G[Int] = f(self.remaining)
       def awaiting: G[Int] = f(self.awaiting)
     }
 
@@ -72,11 +72,11 @@ object CyclicBarrier {
         s"Cyclic barrier constructed with capacity $n. Must be > 0")
     else
       for {
-        state <- State.initial[F](n)
+        state <- State.initial[F]
         ref <- F.ref(state)
-      } yield new ConcurrentCyclicBarrier(ref)
+      } yield new ConcurrentCyclicBarrier(n, ref)
 
-  private[std] class ConcurrentCyclicBarrier[F[_]](state: Ref[F, State[F]])(
+  private[std] class ConcurrentCyclicBarrier[F[_]](capacity: Int, state: Ref[F, State[F]])(
       implicit F: GenConcurrent[F, _])
       extends CyclicBarrier[F] {
 
@@ -84,35 +84,35 @@ object CyclicBarrier {
       F.deferred[Unit].flatMap { newSignal =>
         F.uncancelable { poll =>
           state.modify {
-            case State(capacity, awaiting, epoch, signal) =>
+            case State(awaiting, epoch, signal) =>
               if (awaiting < capacity - 1) {
-                val cleanup = state.update(s =>
+                val cleanup = state.update { s =>
                   if (epoch == s.epoch)
                     //The cyclic barrier hasn't been reset since the cancelled fiber start to await
                     s.copy(awaiting = s.awaiting - 1)
-                  else s)
-                (
-                  State(capacity, awaiting + 1, epoch, signal),
-                  poll(signal.get).onCancel(cleanup))
-              } else (State(capacity, 0, epoch + 1, newSignal), signal.complete(()).void)
+                  else s
+                }
+
+                val nextState = State(awaiting + 1, epoch, signal)
+                (nextState, poll(signal.get).onCancel(cleanup))
+              } else (State(0, epoch + 1, newSignal), signal.complete(()).void)
           }.flatten
         }
       }
 
-    val capacity: F[Int] = state.get.map(_.capacity)
+    val remaining: F[Int] = state.get.map(s => capacity - s.awaiting)
 
     val awaiting: F[Int] = state.get.map(_.awaiting)
 
   }
 
   private[std] case class State[F[_]](
-      capacity: Int,
       awaiting: Int,
       epoch: Long,
       signal: Deferred[F, Unit])
 
   private[std] object State {
-    def initial[F[_]](n: Int)(implicit F: GenConcurrent[F, _]): F[State[F]] =
-      F.deferred[Unit].map { signal => State(n, 0, 0, signal) }
+    def initial[F[_]](implicit F: GenConcurrent[F, _]): F[State[F]] =
+      F.deferred[Unit].map { signal => State(0, 0, signal) }
   }
 }
