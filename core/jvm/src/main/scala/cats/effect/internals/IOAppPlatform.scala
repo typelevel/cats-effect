@@ -27,7 +27,10 @@ private[effect] object IOAppPlatform {
       // Return naturally from main. This allows any non-daemon
       // threads to gracefully complete their work, and managed
       // environments to execute their own shutdown hooks.
-      ()
+      if (NonDaemonThreadLogger.isEnabled())
+        new NonDaemonThreadLogger().start()
+      else
+        ()
     } else {
       sys.exit(code)
     }
