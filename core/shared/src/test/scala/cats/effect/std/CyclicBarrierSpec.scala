@@ -22,7 +22,6 @@ import cats.arrow.FunctionK
 import scala.concurrent.duration._
 
 import org.specs2.specification.core.Fragments
-import scala.reflect.ClassTag
 
 class CyclicBarrierSpec extends BaseSpec {
 
@@ -31,19 +30,6 @@ class CyclicBarrierSpec extends BaseSpec {
     cyclicBarrierTests(
       "Cyclic barrier mapK",
       CyclicBarrier.apply[IO](_).map(_.mapK(FunctionK.id)))
-  }
-
-  implicit class Assertions[A](fa: IO[A]) {
-    def mustFailWith[E <: Throwable: ClassTag] =
-      fa.attempt.flatMap { res =>
-        IO {
-          res must beLike {
-            case Left(e) => e must haveClass[E]
-          }
-        }
-      }
-
-    def mustEqual(a: A) = fa.flatMap { res => IO(res must beEqualTo(a)) }
   }
 
   private def cyclicBarrierTests(
