@@ -26,7 +26,7 @@ abstract class SyncIOPlatformSpecification extends Specification with Runners {
         // time source, this is the best I can do
         val op = for {
           realTime <- SyncIO.realTime
-          jsDate <- SyncIO.jsDateNow
+          jsDate <- SyncIO.realTimeDate
         } yield (jsDate.getTime().toLong - realTime.toMillis) <= 30
 
         op must completeAsSync(true)

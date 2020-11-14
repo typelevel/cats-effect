@@ -20,5 +20,5 @@ import scalajs.js
 
 private[effect] trait ClockPlatform[F[_]] { self: Clock[F] =>
 
-  def jsDateNow: F[js.Date] = self.map(self.realTime)(d => new js.Date(d.toMillis.toDouble))
+  def realTimeDate: F[js.Date] = self.map(self.realTime)(d => new js.Date(d.toMillis.toDouble))
 }

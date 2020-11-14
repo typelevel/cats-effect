@@ -34,10 +34,10 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
         }.pendingUntilFixed // "callback scheduling gets in the way here since Promise doesn't use TestContext"
       }
 
-      "jsDateNow should return a js.Date constructed from realTime" in ticked {
+      "realTimeDate should return a js.Date constructed from realTime" in ticked {
         implicit ticker =>
           val op = for {
-            jsDate <- IO.jsDateNow
+            jsDate <- IO.realTimeDate
             realTime <- IO.realTime
           } yield jsDate.getTime().toLong == realTime.toMillis
 

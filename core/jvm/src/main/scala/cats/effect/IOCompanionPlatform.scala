@@ -53,5 +53,5 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
       }
     }
 
-  def instantNow: IO[Instant] = asyncForIO.instantNow
+  def realTimeInstant: IO[Instant] = asyncForIO.realTimeInstant
 }

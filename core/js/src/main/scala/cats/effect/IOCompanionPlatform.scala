@@ -38,5 +38,5 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   def fromPromise[A](iop: IO[Promise[A]]): IO[A] =
     asyncForIO.fromPromise(iop)
 
-  def jsDateNow: IO[js.Date] = asyncForIO.jsDateNow
+  def realTimeDate: IO[js.Date] = asyncForIO.realTimeDate
 }
