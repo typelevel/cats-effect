@@ -77,10 +77,10 @@ object CyclicBarrier {
                       State(capacity, epoch + 1, gate) -> unblock.complete(()).void
                     else {
                       val newState = State(awaitingNow, epoch, unblock)
+                      // reincrement count if this await gets canceled,
+                      // but only if the barrier hasn't reset in the meantime
                       val cleanup = state.update { s =>
-                        // if the barrier has reset, do not modify the count
-                        if (s.epoch == epoch)
-                          s.copy(awaiting = s.awaiting + 1)
+                        if (s.epoch == epoch) s.copy(awaiting = s.awaiting + 1)
                         else s
                       }
 

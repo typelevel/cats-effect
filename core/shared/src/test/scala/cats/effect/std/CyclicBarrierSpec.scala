@@ -43,9 +43,7 @@ class CyclicBarrierSpec extends BaseSpec {
         }
       }
 
-    def mustEqual(a: A) = fa.flatMap { res =>
-      IO(res must beEqualTo(a))
-    }
+    def mustEqual(a: A) = fa.flatMap { res => IO(res must beEqualTo(a)) }
   }
 
   private def cyclicBarrierTests(
@@ -64,9 +62,7 @@ class CyclicBarrierSpec extends BaseSpec {
     }
 
     s"$name - await is cancelable" in ticked { implicit ticker =>
-      newBarrier(2)
-        .flatMap(_.await)
-        .timeoutTo(1.second, IO.unit) must completeAs(())
+      newBarrier(2).flatMap(_.await).timeoutTo(1.second, IO.unit) must completeAs(())
     }
 
     s"$name - await releases all fibers" in real {
@@ -78,7 +74,7 @@ class CyclicBarrierSpec extends BaseSpec {
     s"$name - reset once full" in ticked { implicit ticker =>
       newBarrier(2).flatMap { barrier =>
         (barrier.await, barrier.await).parTupled >>
-        barrier.await
+          barrier.await
       } must nonTerminate
     }
 
@@ -86,15 +82,13 @@ class CyclicBarrierSpec extends BaseSpec {
       newBarrier(2).flatMap { barrier =>
         // This will time out, so count goes back to 2
         barrier.await.timeoutTo(1.second, IO.unit) >>
-        // Therefore count goes only down to 1 when this awaits, and will block again
-        barrier.await
+          // Therefore count goes only down to 1 when this awaits, and will block again
+          barrier.await
       } must nonTerminate
     }
 
     s"$name - barrier of capacity 1 is a no op" in real {
-      newBarrier(1)
-        .flatMap(_.await)
-        .mustEqual(())
+      newBarrier(1).flatMap(_.await).mustEqual(())
     }
 
     /*
@@ -105,19 +99,21 @@ class CyclicBarrierSpec extends BaseSpec {
     s"$name - race fiber cancel and barrier full" in real {
       val iterations = 100
 
-      val run = newBarrier(2).flatMap { barrier =>
-        barrier.await.start.flatMap { fiber =>
-          barrier.await.race(fiber.cancel).flatMap {
-            case Left(_) =>
-              // without the epoch check in CyclicBarrier,
-              // a late cancelation would increment the count
-              // after the barrier has already reset,
-              // causing this code to never terminate (test times out)
-              (barrier.await, barrier.await).parTupled.void
-            case Right(_) => IO.unit
+      val run = newBarrier(2)
+        .flatMap { barrier =>
+          barrier.await.start.flatMap { fiber =>
+            barrier.await.race(fiber.cancel).flatMap {
+              case Left(_) =>
+                // without the epoch check in CyclicBarrier,
+                // a late cancelation would increment the count
+                // after the barrier has already reset,
+                // causing this code to never terminate (test times out)
+                (barrier.await, barrier.await).parTupled.void
+              case Right(_) => IO.unit
+            }
           }
         }
-      }.mustEqual(())
+        .mustEqual(())
 
       List.fill(iterations)(run).reduce(_ >> _)
     }
