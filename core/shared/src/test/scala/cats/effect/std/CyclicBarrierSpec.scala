@@ -64,51 +64,32 @@ class CyclicBarrierSpec extends BaseSpec {
       newBarrier(2).flatMap(_.await) must nonTerminate
     }
 
-    s"$name - await releases all fibers" in real {
-      newBarrier(2).flatMap { barrier =>
-        (barrier.await, barrier.await).parTupled.void.mustEqual(())
-      }
-    }
-
     s"$name - await is cancelable" in ticked { implicit ticker =>
       newBarrier(2)
         .flatMap(_.await)
         .timeoutTo(1.second, IO.unit) must completeAs(())
     }
 
-
-    s"$name - remaining when constructed" in real {
-      newBarrier(5).flatMap { barrier =>
-        barrier.awaiting.mustEqual(0) >>
-        barrier.remaining.mustEqual(5)
+    s"$name - await releases all fibers" in real {
+      newBarrier(2).flatMap { barrier =>
+        (barrier.await, barrier.await).parTupled.void.mustEqual(())
       }
     }
 
-
-
-
-    s"$name - reset once full" in real {
-      for {
-        barrier <- newBarrier(2)
-        f1 <- barrier.await.start
-        f2 <- barrier.await.start
-        r <- (f1.joinAndEmbedNever, f2.joinAndEmbedNever).tupled
-        _ <- IO(r must beEqualTo(((), ())))
-        //Should have reset at this point
-        _ <- barrier.awaiting.mustEqual(0)
-        res <- barrier.await.timeout(5.millis).mustFailWith[TimeoutException]
-      } yield res
+    s"$name - reset once full" in ticked { implicit ticker =>
+      newBarrier(2).flatMap { barrier =>
+        (barrier.await, barrier.await).parTupled >>
+        barrier.await
+      } must nonTerminate
     }
 
-    s"$name - clean up upon cancellation of await" in real {
-      for {
-        barrier <- newBarrier(2)
-        //This should time out and reduce the current capacity to 0 again
-        _ <- barrier.await.timeout(5.millis).attempt
-        //Therefore the capacity should only be 1 when this awaits so will block again
-        _ <- barrier.await.timeout(5.millis).mustFailWith[TimeoutException]
-        res <- barrier.awaiting.mustEqual(0)
-      } yield res
+    s"$name - clean up upon cancellation of await" in ticked { implicit ticker =>
+      newBarrier(2).flatMap { barrier =>
+        // This should time out, so count goes back to 2
+        barrier.await.timeoutTo(1.second, IO.unit) >>
+        // Therefore count goes only down to 1 when this awaits, and will block again
+        barrier.await
+      } must nonTerminate
     }
 
     /*
@@ -128,6 +109,13 @@ class CyclicBarrierSpec extends BaseSpec {
       } yield res
 
       List.fill(iterations)(run).reduce(_ >> _)
+    }
+
+    s"$name - remaining when constructed" in real {
+      newBarrier(5).flatMap { barrier =>
+        barrier.awaiting.mustEqual(0) >>
+        barrier.remaining.mustEqual(5)
+      }
     }
   }
 }
