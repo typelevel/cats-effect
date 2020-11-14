@@ -21,14 +21,31 @@ jobs:
     name: Build and Test
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        scala: [0.27.0-RC1, 2.12.12, 2.13.3]
+        os: [ubuntu-latest]
+        scala: [0.27.0-RC1, 3.0.0-M1, 2.12.12, 2.13.3]
         java:
           - adopt@1.8
           - adopt@1.11
           - adopt@1.15
           - graalvm-ce-java8@20.2.0
         ci: [ciJVM, ciJS, ciFirefox]
+        include:
+          - scala: 2.13.3
+            java: adopt@1.8
+            ci: ciJVM
+            os: windows-latest
+          - scala: 2.13.3
+            java: adopt@1.11
+            ci: ciJVM
+            os: windows-latest
+          - scala: 2.13.3
+            java: adopt@1.15
+            ci: ciJVM
+            os: windows-latest
+          - scala: 2.13.3
+            java: graalvm-ce-java8@20.2.0
+            ci: ciJVM
+            os: windows-latest
         exclude:
           - ci: ciJS
             java: adopt@1.11
@@ -36,30 +53,31 @@ jobs:
             java: adopt@1.15
           - ci: ciJS
             java: graalvm-ce-java8@20.2.0
+          - ci: ciJS
+            scala: 0.27.0-RC1
+          - ci: ciJS
+            scala: 3.0.0-M1
           - ci: ciFirefox
             java: adopt@1.11
           - ci: ciFirefox
             java: adopt@1.15
           - ci: ciFirefox
             java: graalvm-ce-java8@20.2.0
-          - ci: ciJS
-            os: windows-latest
           - ci: ciFirefox
-            os: windows-latest
+            scala: 0.27.0-RC1
+          - ci: ciFirefox
+            scala: 3.0.0-M1
+          - java: adopt@1.15
+            scala: 3.0.0-M1
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Ignore line ending differences in git
-        if: contains(runner.os, 'windows')
-        shell: bash
-        run: git config --global core.autocrlf false
-
       - name: Checkout current branch (full)
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
       - name: Setup Java and Scala
-        uses: olafurpg/setup-scala@v5
+        uses: olafurpg/setup-scala@v10
         with:
           java-version: ${{ matrix.java }}
 
@@ -109,22 +127,17 @@ jobs:
           node-version: 14
 
       - name: Check that workflows are up to date
-        shell: bash
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
-      - shell: bash
-        run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
+      - run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
 
       - if: matrix.scala == '2.13.3' && matrix.ci == 'ciJVM'
-        shell: bash
         run: sbt ++${{ matrix.scala }} docs/mdoc
 
       - name: Test Example JVM App Within Sbt
         if: matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
-        shell: bash
         run: example/test-jvm.sh ${{ matrix.scala }}
 
       - name: Test Example JavaScript App Using Node
         if: matrix.ci == 'ciJS' && matrix.os == 'ubuntu-latest'
-        shell: bash
         run: example/test-js.sh ${{ matrix.scala }}

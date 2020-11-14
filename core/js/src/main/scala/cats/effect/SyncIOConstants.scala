@@ -24,4 +24,8 @@ private object SyncIOConstants {
   val HandleErrorWithK: Byte = 2
   val RunTerminusK: Byte = 3
   val AttemptK: Byte = 4
+  val CancelationLoopK: Byte = 5
+  val OnCancelK: Byte = 6
+  val UncancelableK: Byte = 7
+  val UnmaskK: Byte = 8
 }

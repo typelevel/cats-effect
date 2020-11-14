@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, Eq, Order, Show}
+import cats.{Applicative, Eq, Id, Order, Show}
 import cats.effect.testkit.{
   AsyncGenerators,
   GenK,
@@ -35,10 +35,17 @@ import org.specs2.mutable.SpecificationLike
 import org.specs2.specification.core.Execution
 
 import scala.annotation.implicitNotFound
-import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
+import scala.concurrent.{
+  CancellationException,
+  ExecutionContext,
+  Future,
+  Promise,
+  TimeoutException
+}
 import scala.concurrent.duration._
 import scala.util.Try
 
+import java.io.{ByteArrayOutputStream, PrintStream}
 import java.util.concurrent.TimeUnit
 
 trait Runners extends SpecificationLike with RunnersPlatform { outer =>
@@ -197,7 +204,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
    */
   implicit def eqResource[F[_], A](
       implicit E: Eq[F[A]],
-      F: Resource.Bracket[F]): Eq[Resource[F, A]] =
+      F: MonadCancel[F, Throwable]): Eq[Resource[F, A]] =
     new Eq[Resource[F, A]] {
       def eqv(x: Resource[F, A], y: Resource[F, A]): Boolean =
         E.eqv(x.use(F.pure), y.use(F.pure))
@@ -219,9 +226,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     Try(io.unsafeRunSync()).toEither
 
   implicit def eqSyncIOA[A: Eq]: Eq[SyncIO[A]] =
-    Eq.instance { (left, right) =>
-      unsafeRunSyncIOEither(left) === unsafeRunSyncIOEither(right)
-    }
+    Eq.by(unsafeRunSyncSupressedError)
 
   // feel the rhythm, feel the rhyme...
   implicit def boolRunnings(iob: IO[Boolean])(implicit ticker: Ticker): Prop =
@@ -258,6 +263,9 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   def nonTerminate(implicit ticker: Ticker): Matcher[IO[Unit]] =
     tickTo[Unit](Outcome.Succeeded(None))
 
+  def beCanceledSync: Matcher[SyncIO[Unit]] =
+    (ioa: SyncIO[Unit]) => unsafeRunSync(ioa) eqv Outcome.canceled
+
   def tickTo[A: Eq: Show](expected: Outcome[Option, Throwable, A])(
       implicit ticker: Ticker): Matcher[IO[A]] = { (ioa: IO[A]) =>
     val oc = unsafeRun(ioa)
@@ -285,6 +293,24 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
         t.printStackTrace()
         throw t
     }
+
+  def unsafeRunSync[A](ioa: SyncIO[A]): Outcome[Id, Throwable, A] =
+    try Outcome.succeeded[Id, Throwable, A](ioa.unsafeRunSync())
+    catch {
+      case _: CancellationException => Outcome.canceled
+      case t: Throwable => Outcome.errored(t)
+    }
+
+  private def unsafeRunSyncSupressedError[A](ioa: SyncIO[A]): Outcome[Id, Throwable, A] = {
+    val old = System.err
+    val err = new PrintStream(new ByteArrayOutputStream())
+    try {
+      System.setErr(err)
+      unsafeRunSync(ioa)
+    } finally {
+      System.setErr(old)
+    }
+  }
 
   implicit def materializeRuntime(implicit ticker: Ticker): unsafe.IORuntime =
     unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => ())
