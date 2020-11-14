@@ -61,36 +61,33 @@ object CyclicBarrier {
 
     case class State[F[_]](awaiting: Int, epoch: Long, unblock: Deferred[F, Unit])
 
-    F.deferred[Unit]
-      .map(gate => State(capacity,0, gate))
-      .flatMap(F.ref)
-      .map { state =>
-        new CyclicBarrier[F] {
-          val await: F[Unit] =
-            F.deferred[Unit].flatMap { gate =>
-              F.uncancelable { poll =>
-                state.modify {
-                  case State(awaiting, epoch, unblock) =>
-                    val awaitingNow = awaiting - 1
+    F.deferred[Unit].map(State(capacity, 0, _)).flatMap(F.ref).map { state =>
+      new CyclicBarrier[F] {
+        val await: F[Unit] =
+          F.deferred[Unit].flatMap { gate =>
+            F.uncancelable { poll =>
+              state.modify {
+                case State(awaiting, epoch, unblock) =>
+                  val awaitingNow = awaiting - 1
 
-                    if (awaitingNow == 0)
-                      State(capacity, epoch + 1, gate) -> unblock.complete(()).void
-                    else {
-                      val newState = State(awaitingNow, epoch, unblock)
-                      // reincrement count if this await gets canceled,
-                      // but only if the barrier hasn't reset in the meantime
-                      val cleanup = state.update { s =>
-                        if (s.epoch == epoch) s.copy(awaiting = s.awaiting + 1)
-                        else s
-                      }
-
-                      newState -> poll(unblock.get).onCancel(cleanup)
+                  if (awaitingNow == 0)
+                    State(capacity, epoch + 1, gate) -> unblock.complete(()).void
+                  else {
+                    val newState = State(awaitingNow, epoch, unblock)
+                    // reincrement count if this await gets canceled,
+                    // but only if the barrier hasn't reset in the meantime
+                    val cleanup = state.update { s =>
+                      if (s.epoch == epoch) s.copy(awaiting = s.awaiting + 1)
+                      else s
                     }
 
-                }.flatten
-              }
+                    newState -> poll(unblock.get).onCancel(cleanup)
+                  }
+
+              }.flatten
             }
-        }
+          }
       }
+    }
   }
 }
