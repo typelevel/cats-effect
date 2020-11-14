@@ -17,7 +17,7 @@
 package cats.effect.std
 
 import cats.~>
-import cats.effect.kernel.{Deferred, GenConcurrent, Ref}
+import cats.effect.kernel.{Deferred, GenConcurrent}
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
 

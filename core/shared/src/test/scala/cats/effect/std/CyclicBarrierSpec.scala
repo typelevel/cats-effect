@@ -22,7 +22,6 @@ import cats.arrow.FunctionK
 import scala.concurrent.duration._
 
 import org.specs2.specification.core.Fragments
-import java.util.concurrent.TimeoutException
 import scala.reflect.ClassTag
 
 class CyclicBarrierSpec extends BaseSpec {
