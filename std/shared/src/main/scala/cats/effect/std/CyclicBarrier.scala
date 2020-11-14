@@ -59,7 +59,7 @@ object CyclicBarrier {
       throw new IllegalArgumentException(
         s"Cyclic barrier constructed with capacity $capacity. Must be > 0")
 
-    case class State[F[_]](awaiting: Int, epoch: Long, unblock: Deferred[F, Unit])
+    case class State(awaiting: Int, epoch: Long, unblock: Deferred[F, Unit])
 
     F.deferred[Unit].map(State(capacity, 0, _)).flatMap(F.ref).map { state =>
       new CyclicBarrier[F] {
