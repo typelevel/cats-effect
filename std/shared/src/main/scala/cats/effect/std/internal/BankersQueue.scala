@@ -75,7 +75,7 @@ private[std] final case class BankersQueue[A](
 
 }
 
-object BankersQueue {
+private[std] object BankersQueue {
   val rebalanceConstant = 2
 
   def empty[A]: BankersQueue[A] = BankersQueue(Nil, 0, Nil, 0)
