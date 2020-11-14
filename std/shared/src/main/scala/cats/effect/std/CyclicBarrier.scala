@@ -90,6 +90,7 @@ object CyclicBarrier {
                     else {
                       val newState = State(awaitingNow, epoch, unblock)
                       val cleanup = state.update { s =>
+                        // if the barrier has reset, do not modify the count
                         if (s.epoch == epoch)
                           s.copy(awaiting = s.awaiting + 1)
                         else s

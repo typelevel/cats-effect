@@ -85,11 +85,17 @@ class CyclicBarrierSpec extends BaseSpec {
 
     s"$name - clean up upon cancellation of await" in ticked { implicit ticker =>
       newBarrier(2).flatMap { barrier =>
-        // This should time out, so count goes back to 2
+        // This will time out, so count goes back to 2
         barrier.await.timeoutTo(1.second, IO.unit) >>
         // Therefore count goes only down to 1 when this awaits, and will block again
         barrier.await
       } must nonTerminate
+    }
+
+    s"$name - barrier of capacity 1 is a no op" in real {
+      newBarrier(1)
+        .flatMap(_.await)
+        .mustEqual(())
     }
 
     /*
@@ -100,13 +106,19 @@ class CyclicBarrierSpec extends BaseSpec {
     s"$name - race fiber cancel and barrier full" in real {
       val iterations = 100
 
-      val run = for {
-        barrier <- newBarrier(2)
-        f <- barrier.await.start
-        _ <- IO.race(barrier.await, f.cancel)
-        awaiting <- barrier.awaiting
-        res <- IO(awaiting must beGreaterThanOrEqualTo(0))
-      } yield res
+      val run = newBarrier(2).flatMap { barrier =>
+        barrier.await.start.flatMap { fiber =>
+          barrier.await.race(fiber.cancel).flatMap {
+            case Left(_) =>
+              // without the epoch check in CyclicBarrier,
+              // a late cancelation would increment the count
+              // after the barrier has already reset,
+              // causing this code to never terminate (test times out)
+              (barrier.await, barrier.await).parTupled.void
+            case Right(_) => IO.unit
+          }
+        }
+      }.mustEqual(())
 
       List.fill(iterations)(run).reduce(_ >> _)
     }
