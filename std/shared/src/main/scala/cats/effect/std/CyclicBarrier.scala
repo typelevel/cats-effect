@@ -39,16 +39,6 @@ abstract class CyclicBarrier[F[_]] { self =>
    */
   def await: F[Unit]
 
-  /*
-   * The number of fibers required to trip the barrier
-   */
-  def remaining: F[Int]
-
-  /*
-   * The number of fibers currently awaiting
-   */
-  def awaiting: F[Int]
-
   /**
    * Modifies the context in which this cyclic barrier is executed using the natural
    * transformation `f`.
@@ -59,8 +49,6 @@ abstract class CyclicBarrier[F[_]] { self =>
   def mapK[G[_]](f: F ~> G): CyclicBarrier[G] =
     new CyclicBarrier[G] {
       def await: G[Unit] = f(self.await)
-      def remaining: G[Int] = f(self.remaining)
-      def awaiting: G[Int] = f(self.awaiting)
     }
 
 }
@@ -102,9 +90,6 @@ object CyclicBarrier {
                 }.flatten
               }
             }
-
-          val remaining: F[Int] = state.get.map(_.awaiting)
-          val awaiting: F[Int] = state.get.map(s => capacity - s.awaiting)
         }
       }
   }

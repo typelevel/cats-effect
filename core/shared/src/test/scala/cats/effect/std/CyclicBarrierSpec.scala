@@ -121,12 +121,5 @@ class CyclicBarrierSpec extends BaseSpec {
 
       List.fill(iterations)(run).reduce(_ >> _)
     }
-
-    s"$name - remaining when constructed" in real {
-      newBarrier(5).flatMap { barrier =>
-        barrier.awaiting.mustEqual(0) >>
-        barrier.remaining.mustEqual(5)
-      }
-    }
   }
 }
