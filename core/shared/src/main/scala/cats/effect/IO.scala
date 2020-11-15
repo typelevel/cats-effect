@@ -469,6 +469,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   private[this] val _asyncForIO: kernel.Async[IO] = new kernel.Async[IO]
     with StackSafeMonad[IO] {
 
+    val applicative = this
+
     override def as[A, B](ioa: IO[A], b: B): IO[B] =
       ioa.as(b)
 

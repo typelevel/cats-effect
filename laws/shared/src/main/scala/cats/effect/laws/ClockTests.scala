@@ -17,37 +17,23 @@
 package cats.effect
 package laws
 
-import cats.Eq
 import cats.effect.kernel.Clock
-import cats.laws.discipline._
-import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._
 
-trait ClockTests[F[_]] extends ApplicativeTests[F] {
+import org.typelevel.discipline.Laws
+
+trait ClockTests[F[_]] extends Laws {
 
   val laws: ClockLaws[F]
 
   def clock[A: Arbitrary, B: Arbitrary, C: Arbitrary](
-      implicit ArbFA: Arbitrary[F[A]],
-      ArbFB: Arbitrary[F[B]],
-      ArbFC: Arbitrary[F[C]],
-      ArbFAtoB: Arbitrary[F[A => B]],
-      ArbFBtoC: Arbitrary[F[B => C]],
-      CogenA: Cogen[A],
-      CogenB: Cogen[B],
-      CogenC: Cogen[C],
-      EqFA: Eq[F[A]],
-      EqFB: Eq[F[B]],
-      EqFC: Eq[F[C]],
-      EqFABC: Eq[F[(A, B, C)]],
-      exec: F[Boolean] => Prop,
-      iso: Isomorphisms[F]): RuleSet = {
+      implicit exec: F[Boolean] => Prop): RuleSet = {
 
     new RuleSet {
       val name = "clock"
       val bases = Nil
-      val parents = Seq(applicative[A, B, C])
+      val parents = Seq()
 
       val props = Seq("monotonicity" -> laws.monotonicity)
     }
