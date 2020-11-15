@@ -620,6 +620,8 @@ object SyncIO extends SyncIOLowPriorityImplicits {
   private[this] val _syncForSyncIO: Sync[SyncIO] with MonadCancel[SyncIO, Throwable] =
     new Sync[SyncIO] with StackSafeMonad[SyncIO] with MonadCancel[SyncIO, Throwable] {
 
+      val applicative = this
+
       def pure[A](x: A): SyncIO[A] =
         SyncIO.pure(x)
 
