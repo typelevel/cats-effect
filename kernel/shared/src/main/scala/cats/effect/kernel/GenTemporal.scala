@@ -118,8 +118,10 @@ object GenTemporal {
       with Clock.OptionTClock[F] {
 
     implicit protected def F: GenTemporal[F, E]
+    protected def C = F
+    def applicative = this
 
-    override def delegate: MonadError[OptionT[F, *], E] =
+    override protected def delegate: MonadError[OptionT[F, *], E] =
       OptionT.catsDataMonadErrorForOptionT[F, E]
 
     def sleep(time: FiniteDuration): OptionT[F, Unit] = OptionT.liftF(F.sleep(time))
@@ -132,8 +134,10 @@ object GenTemporal {
       with Clock.EitherTClock[F, E0] {
 
     implicit protected def F: GenTemporal[F, E]
+    protected def C = F
+    def applicative = this
 
-    override def delegate: MonadError[EitherT[F, E0, *], E] =
+    override protected def delegate: MonadError[EitherT[F, E0, *], E] =
       EitherT.catsDataMonadErrorFForEitherT[F, E, E0]
 
     def sleep(time: FiniteDuration): EitherT[F, E0, Unit] = EitherT.liftF(F.sleep(time))
@@ -145,8 +149,10 @@ object GenTemporal {
       with Clock.IorTClock[F, L] {
 
     implicit protected def F: GenTemporal[F, E]
+    protected def C = F
+    def applicative = this
 
-    override def delegate: MonadError[IorT[F, L, *], E] =
+    override protected def delegate: MonadError[IorT[F, L, *], E] =
       IorT.catsDataMonadErrorFForIorT[F, L, E]
 
     def sleep(time: FiniteDuration): IorT[F, L, Unit] = IorT.liftF(F.sleep(time))
@@ -158,10 +164,12 @@ object GenTemporal {
       with Clock.WriterTClock[F, L] {
 
     implicit protected def F: GenTemporal[F, E]
+    protected def C = F
+    def applicative = this
 
     implicit protected def L: Monoid[L]
 
-    override def delegate: MonadError[WriterT[F, L, *], E] =
+    override protected def delegate: MonadError[WriterT[F, L, *], E] =
       WriterT.catsDataMonadErrorForWriterT[F, L, E]
 
     def sleep(time: FiniteDuration): WriterT[F, L, Unit] = WriterT.liftF(F.sleep(time))
@@ -173,8 +181,10 @@ object GenTemporal {
       with Clock.KleisliClock[F, R] {
 
     implicit protected def F: GenTemporal[F, E]
+    protected def C = F
+    def applicative = this
 
-    override def delegate: MonadError[Kleisli[F, R, *], E] =
+    override protected def delegate: MonadError[Kleisli[F, R, *], E] =
       Kleisli.catsDataMonadErrorForKleisli[F, R, E]
 
     def sleep(time: FiniteDuration): Kleisli[F, R, Unit] = Kleisli.liftF(F.sleep(time))

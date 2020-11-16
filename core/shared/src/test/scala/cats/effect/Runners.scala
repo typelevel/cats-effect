@@ -43,6 +43,7 @@ import scala.concurrent.{
   TimeoutException
 }
 import scala.concurrent.duration._
+import scala.reflect.ClassTag
 import scala.util.Try
 
 import java.io.{ByteArrayOutputStream, PrintStream}
@@ -271,6 +272,22 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     val oc = unsafeRun(ioa)
     (oc eqv expected, s"${oc.show} !== ${expected.show}")
   }
+
+  // useful for tests in the `real` context
+  implicit class Assertions[A](fa: IO[A]) {
+    def mustFailWith[E <: Throwable: ClassTag] =
+      fa.attempt.flatMap { res =>
+        IO {
+          res must beLike {
+            case Left(e) => e must haveClass[E]
+          }
+        }
+      }
+
+    def mustEqual(a: A) = fa.flatMap { res => IO(res must beEqualTo(a)) }
+  }
+
+
 
   def unsafeRun[A](ioa: IO[A])(implicit ticker: Ticker): Outcome[Option, Throwable, A] =
     try {

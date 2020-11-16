@@ -17,7 +17,7 @@
 package cats.effect.std
 
 import cats.~>
-import cats.effect.kernel.{Deferred, GenConcurrent, Ref}
+import cats.effect.kernel.{Deferred, GenConcurrent}
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
 
@@ -39,16 +39,6 @@ abstract class CyclicBarrier[F[_]] { self =>
    */
   def await: F[Unit]
 
-  /*
-   * The number of fibers required to trip the barrier
-   */
-  def capacity: F[Int]
-
-  /*
-   * The number of fibers currently awaiting
-   */
-  def awaiting: F[Int]
-
   /**
    * Modifies the context in which this cyclic barrier is executed using the natural
    * transformation `f`.
@@ -59,60 +49,45 @@ abstract class CyclicBarrier[F[_]] { self =>
   def mapK[G[_]](f: F ~> G): CyclicBarrier[G] =
     new CyclicBarrier[G] {
       def await: G[Unit] = f(self.await)
-      def capacity: G[Int] = f(self.capacity)
-      def awaiting: G[Int] = f(self.awaiting)
     }
 
 }
 
 object CyclicBarrier {
-  def apply[F[_]](n: Int)(implicit F: GenConcurrent[F, _]): F[CyclicBarrier[F]] =
-    if (n < 1)
+  def apply[F[_]](capacity: Int)(implicit F: GenConcurrent[F, _]): F[CyclicBarrier[F]] = {
+    if (capacity < 1)
       throw new IllegalArgumentException(
-        s"Cyclic barrier constructed with capacity $n. Must be > 0")
-    else
-      for {
-        state <- State.initial[F](n)
-        ref <- F.ref(state)
-      } yield new ConcurrentCyclicBarrier(ref)
+        s"Cyclic barrier constructed with capacity $capacity. Must be > 0")
 
-  private[std] class ConcurrentCyclicBarrier[F[_]](state: Ref[F, State[F]])(
-      implicit F: GenConcurrent[F, _])
-      extends CyclicBarrier[F] {
+    case class State(awaiting: Int, epoch: Long, unblock: Deferred[F, Unit])
 
-    val await: F[Unit] =
-      F.deferred[Unit].flatMap { newSignal =>
-        F.uncancelable { poll =>
-          state.modify {
-            case State(capacity, awaiting, epoch, signal) =>
-              if (awaiting < capacity - 1) {
-                val cleanup = state.update(s =>
-                  if (epoch == s.epoch)
-                    //The cyclic barrier hasn't been reset since the cancelled fiber start to await
-                    s.copy(awaiting = s.awaiting - 1)
-                  else s)
-                (
-                  State(capacity, awaiting + 1, epoch, signal),
-                  poll(signal.get).onCancel(cleanup))
-              } else (State(capacity, 0, epoch + 1, newSignal), signal.complete(()).void)
-          }.flatten
-        }
+    F.deferred[Unit].map(State(capacity, 0, _)).flatMap(F.ref).map { state =>
+      new CyclicBarrier[F] {
+        val await: F[Unit] =
+          F.deferred[Unit].flatMap { gate =>
+            F.uncancelable { poll =>
+              state.modify {
+                case State(awaiting, epoch, unblock) =>
+                  val awaitingNow = awaiting - 1
+
+                  if (awaitingNow == 0)
+                    State(capacity, epoch + 1, gate) -> unblock.complete(()).void
+                  else {
+                    val newState = State(awaitingNow, epoch, unblock)
+                    // reincrement count if this await gets canceled,
+                    // but only if the barrier hasn't reset in the meantime
+                    val cleanup = state.update { s =>
+                      if (s.epoch == epoch) s.copy(awaiting = s.awaiting + 1)
+                      else s
+                    }
+
+                    newState -> poll(unblock.get).onCancel(cleanup)
+                  }
+
+              }.flatten
+            }
+          }
       }
-
-    val capacity: F[Int] = state.get.map(_.capacity)
-
-    val awaiting: F[Int] = state.get.map(_.awaiting)
-
-  }
-
-  private[std] case class State[F[_]](
-      capacity: Int,
-      awaiting: Int,
-      epoch: Long,
-      signal: Deferred[F, Unit])
-
-  private[std] object State {
-    def initial[F[_]](n: Int)(implicit F: GenConcurrent[F, _]): F[State[F]] =
-      F.deferred[Unit].map { signal => State(n, 0, 0, signal) }
+    }
   }
 }

@@ -18,8 +18,7 @@ package cats.effect
 package laws
 
 import cats.data.ContT
-import cats.effect.testkit.{freeEval, FreeSyncGenerators}, freeEval._
-import cats.laws.discipline.arbitrary._
+import cats.effect.testkit.freeEval, freeEval._
 
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
@@ -27,7 +26,6 @@ import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class ClockSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
-  import FreeSyncGenerators._
 
   // we only need to test the ones that *aren't* also Sync
   checkAll(

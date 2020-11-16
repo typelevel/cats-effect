@@ -14,20 +14,14 @@
  * limitations under the License.
  */
 
-/*
- * These tests have been inspired by and adapted from `monix-catnap`'s `ConcurrentQueueSuite`, available at
- * https://github.com/monix/monix/blob/series/3.x/monix-catnap/shared/src/test/scala/monix/catnap/ConcurrentQueueSuite.scala.
- */
-
 package cats.effect
 package std
 
 import cats.implicits._
 import cats.arrow.FunctionK
-import org.specs2.specification.core.Fragments
-
 import scala.concurrent.duration._
-import java.util.concurrent.TimeoutException
+
+import org.specs2.specification.core.Fragments
 
 class CyclicBarrierSpec extends BaseSpec {
 
@@ -40,104 +34,47 @@ class CyclicBarrierSpec extends BaseSpec {
 
   private def cyclicBarrierTests(
       name: String,
-      constructor: Int => IO[CyclicBarrier[IO]]): Fragments = {
+      newBarrier: Int => IO[CyclicBarrier[IO]]): Fragments = {
     s"$name - raise an exception when constructed with a negative capacity" in real {
-      val test = IO.defer(constructor(-1)).attempt
-      test.flatMap { res =>
-        IO {
-          res must beLike {
-            case Left(e) => e must haveClass[IllegalArgumentException]
-          }
-        }
-      }
+      IO.defer(newBarrier(-1)).mustFailWith[IllegalArgumentException]
     }
 
     s"$name - raise an exception when constructed with zero capacity" in real {
-      val test = IO.defer(constructor(0)).attempt
-      test.flatMap { res =>
-        IO {
-          res must beLike {
-            case Left(e) => e must haveClass[IllegalArgumentException]
-          }
-        }
-      }
+      IO.defer(newBarrier(0)).mustFailWith[IllegalArgumentException]
     }
 
-    s"$name - capacity when contructed" in real {
-      for {
-        cb <- constructor(5)
-        awaiting <- cb.awaiting
-        _ <- IO(awaiting must beEqualTo(0))
-        c <- cb.capacity
-        res <- IO(c must beEqualTo(5))
-      } yield res
+    s"$name - await is blocking" in ticked { implicit ticker =>
+      newBarrier(2).flatMap(_.await) must nonTerminate
+    }
+
+    s"$name - await is cancelable" in ticked { implicit ticker =>
+      newBarrier(2).flatMap(_.await).timeoutTo(1.second, IO.unit) must completeAs(())
     }
 
     s"$name - await releases all fibers" in real {
-      for {
-        cb <- constructor(2)
-        f1 <- cb.await.start
-        f2 <- cb.await.start
-        r <- (f1.joinAndEmbedNever, f2.joinAndEmbedNever).tupled
-        awaiting <- cb.awaiting
-        _ <- IO(awaiting must beEqualTo(0))
-        res <- IO(r must beEqualTo(((), ())))
-      } yield res
+      newBarrier(2).flatMap { barrier =>
+        (barrier.await, barrier.await).parTupled.void.mustEqual(())
+      }
     }
 
-    s"$name - await is blocking" in real {
-      for {
-        cb <- constructor(2)
-        r <- cb.await.timeout(5.millis).attempt
-        res <- IO(r must beLike {
-          case Left(e) => e must haveClass[TimeoutException]
-        })
-      } yield res
+    s"$name - reset once full" in ticked { implicit ticker =>
+      newBarrier(2).flatMap { barrier =>
+        (barrier.await, barrier.await).parTupled >>
+          barrier.await
+      } must nonTerminate
     }
 
-    s"$name - await is cancelable" in real {
-      for {
-        cb <- constructor(2)
-        f <- cb.await.start
-        _ <- IO.sleep(1.milli)
-        _ <- f.cancel
-        r <- f.join
-        awaiting <- cb.awaiting
-        _ <- IO(awaiting must beEqualTo(0))
-        res <- IO(r must beEqualTo(Outcome.Canceled()))
-      } yield res
+    s"$name - clean up upon cancellation of await" in ticked { implicit ticker =>
+      newBarrier(2).flatMap { barrier =>
+        // This will time out, so count goes back to 2
+        barrier.await.timeoutTo(1.second, IO.unit) >>
+          // Therefore count goes only down to 1 when this awaits, and will block again
+          barrier.await
+      } must nonTerminate
     }
 
-    s"$name - reset once full" in real {
-      for {
-        cb <- constructor(2)
-        f1 <- cb.await.start
-        f2 <- cb.await.start
-        r <- (f1.joinAndEmbedNever, f2.joinAndEmbedNever).tupled
-        _ <- IO(r must beEqualTo(((), ())))
-        //Should have reset at this point
-        awaiting <- cb.awaiting
-        _ <- IO(awaiting must beEqualTo(0))
-        r <- cb.await.timeout(5.millis).attempt
-        res <- IO(r must beLike {
-          case Left(e) => e must haveClass[TimeoutException]
-        })
-      } yield res
-    }
-
-    s"$name - clean up upon cancellation of await" in real {
-      for {
-        cb <- constructor(2)
-        //This should time out and reduce the current capacity to 0 again
-        _ <- cb.await.timeout(5.millis).attempt
-        //Therefore the capacity should only be 1 when this awaits so will block again
-        r <- cb.await.timeout(5.millis).attempt
-        _ <- IO(r must beLike {
-          case Left(e) => e must haveClass[TimeoutException]
-        })
-        awaiting <- cb.awaiting
-        res <- IO(awaiting must beEqualTo(0)) //
-      } yield res
+    s"$name - barrier of capacity 1 is a no op" in real {
+      newBarrier(1).flatMap(_.await).mustEqual(())
     }
 
     /*
@@ -148,13 +85,21 @@ class CyclicBarrierSpec extends BaseSpec {
     s"$name - race fiber cancel and barrier full" in real {
       val iterations = 100
 
-      val run = for {
-        cb <- constructor(2)
-        f <- cb.await.start
-        _ <- IO.race(cb.await, f.cancel)
-        awaiting <- cb.awaiting
-        res <- IO(awaiting must beGreaterThanOrEqualTo(0))
-      } yield res
+      val run = newBarrier(2)
+        .flatMap { barrier =>
+          barrier.await.start.flatMap { fiber =>
+            barrier.await.race(fiber.cancel).flatMap {
+              case Left(_) =>
+                // without the epoch check in CyclicBarrier,
+                // a late cancelation would increment the count
+                // after the barrier has already reset,
+                // causing this code to never terminate (test times out)
+                (barrier.await, barrier.await).parTupled.void
+              case Right(_) => IO.unit
+            }
+          }
+        }
+        .mustEqual(())
 
       List.fill(iterations)(run).reduce(_ >> _)
     }
