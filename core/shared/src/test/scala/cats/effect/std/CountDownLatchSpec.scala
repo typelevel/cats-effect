@@ -44,7 +44,7 @@ class CountDownLatchSpec extends BaseSpec {
       name: String,
       constructor: Int => IO[CountDownLatch[IO]]): Fragments = {
 
-    s"$name - raise an exception when constructed with negative initial latches" in real {
+    s"$name - should raise an exception when constructed with negative initial latches" in real {
       val test = IO.defer(constructor(-1)).attempt
       test.flatMap { res =>
         IO {
@@ -55,7 +55,7 @@ class CountDownLatchSpec extends BaseSpec {
       }
     }
 
-    s"$name - raise an exception when constructed with zero initial latches" in real {
+    s"$name - should raise an exception when constructed with zero initial latches" in real {
       val test = IO.defer(constructor(0)).attempt
       test.flatMap { res =>
         IO {
@@ -109,7 +109,7 @@ class CountDownLatchSpec extends BaseSpec {
       } yield res
     }
 
-    s"$name - release when latches == 0" in real {
+    s"$name - should release when latches == 0" in real {
       for {
         l <- constructor(1)
         _ <- l.release
