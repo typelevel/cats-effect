@@ -23,6 +23,7 @@ import cats.effect.testkit.{SyncTypeGenerators, TestContext}
 import cats.syntax.all._
 
 import org.scalacheck.Prop, Prop.forAll
+import org.scalacheck.Arbitrary.arbitrary
 
 import org.specs2.ScalaCheck
 
@@ -30,6 +31,7 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.{ExecutionContext, TimeoutException}
 import scala.concurrent.duration._
+import org.scalacheck.Gen
 
 class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
   outer =>
@@ -968,23 +970,26 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         }
       }
 
-      "parTraverseN" in real {
-        IO.parTraverseN(3)(List(1, 2, 3, 4, 5))(n => IO.pure(n + 1)).flatMap { res =>
-          IO {
-            res mustEqual List(2, 3, 4, 5, 6)
-          }
-        }
+      "parTraverseN should give the same result as parTraverse" in realProp(
+        Gen.posNum[Int].flatMap(n => arbitrary[List[Int]].map(n -> _))) {
+        case (n, l) =>
+          val f: Int => IO[Int] = n => IO.pure(n + 1)
+          for {
+            actual <- IO.parTraverseN(n)(l)(f)
+            expected <- l.parTraverse(f)
+            res <- IO(actual mustEqual expected)
+          } yield res
       }
 
-      "parSequenceN" in real {
-        IO.parSequenceN(3)(List(IO.pure(1), IO.pure(2), IO.pure(3), IO.pure(4), IO.pure(5)))
-          .flatMap { res =>
-            IO {
-              res mustEqual List(1, 2, 3, 4, 5)
-            }
-          }
+      "parSequenceN should give the same result as parSequence" in realProp(
+        Gen.posNum[Int].flatMap(n => arbitrary[List[Int]].map(n -> _))) {
+        case (n, l) =>
+          for {
+            actual <- IO.parSequenceN(n)(l.map(IO.pure(_)))
+            expected <- l.map(IO.pure(_)).parSequence
+            res <- IO(actual mustEqual expected)
+          } yield res
       }
-
     }
 
     "temporal" should {

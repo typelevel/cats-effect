@@ -30,7 +30,7 @@ import cats.{
 }
 import cats.syntax.all._
 import cats.effect.instances.spawn
-import cats.effect.std.{Console, Queue}
+import cats.effect.std.Console
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
@@ -293,50 +293,15 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   /**
    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
-   *
-   * Based on https://github.com/monix/monix/blob/series/3.x/monix-eval/shared/src/main/scala/monix/eval/internal/TaskParSequenceN.scala
    */
   def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(f: A => IO[B]): IO[T[B]] =
-    for {
-      error <- Deferred[IO, Throwable]
-      queue <- Queue.bounded[IO, (Deferred[IO, B], IO[B])](n)
-      pairs <- ta.traverse(a => Deferred[IO, B].map(p => (p, f(a))))
-      _ <- pairs.traverse_(queue.offer(_))
-      workers =
-        List
-          .fill(n) {
-            queue
-              .take
-              .flatMap {
-                case (p, task) =>
-                  task.redeemWith(
-                    err => error.complete(err).attempt >> IO.raiseError(err),
-                    p.complete
-                  )
-              }
-              .foreverM
-              .start
-          }
-          .parSequence
-      res <- workers.bracket { _ =>
-        IO.race(
-          error.get,
-          (pairs.map(_._1.get)).sequence
-        ).flatMap {
-          case Left(err) =>
-            IO.raiseError(err)
-
-          case Right(values) =>
-            IO.pure(values)
-        }
-      } { fibers => fibers.traverse(_.cancel).void }
-    } yield res
+    _asyncForIO.parTraverseN(n)(ta)(f)
 
   /**
    * Like `Parallel.parSequence`, but limits the degree of parallelism.
    */
   def parSequenceN[T[_]: Traverse, A](n: Int)(tma: T[IO[A]]): IO[T[A]] =
-    parTraverseN(n)(tma)(identity)
+    _asyncForIO.parSequenceN(n)(tma)
 
   def pure[A](value: A): IO[A] = Pure(value)
 
@@ -606,14 +571,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def ref[A](a: A): IO[Ref[IO, A]] = IO.ref(a)
 
     override def deferred[A]: IO[Deferred[IO, A]] = IO.deferred
-
-    override def parSequenceN[T[_]: Traverse, A](n: Int)(
-        tma: T[IO[A]])(implicit P: Parallel[IO], ev: Throwable <:< Throwable): IO[T[A]] =
-      IO.parSequenceN(n)(tma)
-
-    override def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(
-        f: A => IO[B])(implicit P: Parallel[IO], ev: Throwable <:< Throwable): IO[T[B]] =
-      IO.parTraverseN(n)(ta)(f)
   }
 
   implicit def asyncForIO: kernel.Async[IO] = _asyncForIO

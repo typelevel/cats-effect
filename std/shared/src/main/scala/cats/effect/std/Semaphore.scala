@@ -16,10 +16,10 @@
 
 package cats
 package effect
-package kernel
+package std
 
 import cats.effect.kernel._
-import cats.effect.kernel.Semaphore.TransformedSemaphore
+import cats.effect.std.Semaphore.TransformedSemaphore
 import cats.syntax.all._
 
 import scala.collection.immutable.{Queue => ScalaQueue}
@@ -259,7 +259,7 @@ object Semaphore {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
   }
 
-  final private[kernel] class TransformedSemaphore[F[_], G[_]](
+  final private[std] class TransformedSemaphore[F[_], G[_]](
       underlying: Semaphore[F],
       trans: F ~> G
   ) extends Semaphore[G] {

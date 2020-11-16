@@ -60,6 +60,16 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   def real[A: AsResult](test: => IO[A]): Execution =
     Execution.withEnvAsync(_ => timeout(test.unsafeToFuture()(runtime()), executionTimeout))
 
+  /*
+   * Hacky implementation of effectful property testing
+   */
+  def realProp[A, B: AsResult](gen: Gen[A])(f: A => IO[B])(
+      implicit R: AsResult[List[B]]): Execution =
+    real(List.range(1, 100).traverse { _ =>
+      val a = gen.sample.get
+      f(a)
+    })
+
   def realWithRuntime[A: AsResult](test: IORuntime => IO[A]): Execution =
     Execution.withEnvAsync { _ =>
       val rt = runtime()
@@ -286,8 +296,6 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
 
     def mustEqual(a: A) = fa.flatMap { res => IO(res must beEqualTo(a)) }
   }
-
-
 
   def unsafeRun[A](ioa: IO[A])(implicit ticker: Ticker): Outcome[Option, Throwable, A] =
     try {

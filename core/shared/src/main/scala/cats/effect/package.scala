@@ -76,7 +76,4 @@ package object effect {
 
   type Ref[F[_], A] = cekernel.Ref[F, A]
   val Ref = cekernel.Ref
-
-  type Semaphore[F[_]] = cekernel.Semaphore[F]
-  val Semaphore = cekernel.Semaphore
 }

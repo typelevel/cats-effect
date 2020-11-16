@@ -20,6 +20,7 @@ import cats.{Monoid, Parallel, Semigroup, Traverse}
 import cats.syntax.all._
 import cats.effect.kernel.syntax.all._
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
+import scala.collection.immutable.Queue
 
 trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
@@ -84,24 +85,53 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
    * Like `Parallel.parSequence`, but limits the degree of parallelism.
    */
   def parSequenceN[T[_]: Traverse, A](n: Int)(
-      tma: T[F[A]])(implicit P: Parallel[F], ev: E <:< Throwable): F[T[A]] = {
-    implicit val F: Concurrent[F] = this.asInstanceOf[GenConcurrent[F, Throwable]]
-    for {
-      semaphore <- Semaphore[F](n.toLong)
-      mta <- tma.map(x => semaphore.permit.use(_ => x)).parSequence
-    } yield mta
-  }
+      tma: T[F[A]])(implicit P: Parallel[F], ev: E <:< Throwable): F[T[A]] =
+    parTraverseN(n)(tma)(identity)
 
   /**
    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
    */
   def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(
       f: A => F[B])(implicit P: Parallel[F], ev: E <:< Throwable): F[T[B]] = {
-    implicit val F: Concurrent[F] = this.asInstanceOf[GenConcurrent[F, Throwable]]
-    for {
-      semaphore <- Semaphore[F](n.toLong)
-      tb <- ta.parTraverse { a => semaphore.permit.use(_ => f(a)) }
-    } yield tb
+
+    implicit val F: GenConcurrent[F, Throwable] = this.asInstanceOf[GenConcurrent[F, Throwable]]
+
+    def worker(state: Ref[F, Queue[(A, Deferred[F, B])]]): F[Unit] =
+      for {
+        po <- state.modify { q =>
+          q.dequeueOption match {
+            case None => q -> None
+            case Some((p, q2)) => q2 -> Some(p)
+          }
+        }
+        _ <- po match {
+          case None => unit
+          case Some(p) =>
+            (for {
+               //TODO what if this throws?
+              b <- f(p._1)
+              _ <- p._2.complete(b)
+            } yield ()) >> worker(state)
+        }
+      } yield ()
+
+    if (n < 1)
+      F.raiseError(new IllegalArgumentException(s"parTraverseN requires n >= 1. Was given $n"))
+    else
+      uncancelable { poll =>
+        for {
+          state <- ref(Queue.empty[(A, Deferred[F, B])])
+          r <- poll(ta.traverse { a =>
+            for {
+              d <- deferred[B]
+              _ <- state.update(_.enqueue(a -> d))
+            } yield d
+          })
+          workers = List.fill(n)(worker(state).start)
+          ws <- workers.parSequence
+          res <- poll(r.traverse(_.get)).onCancel(ws.parTraverse_(_.cancel))
+        } yield res
+      }
   }
 
   override def racePair[A, B](fa: F[A], fb: F[B])
