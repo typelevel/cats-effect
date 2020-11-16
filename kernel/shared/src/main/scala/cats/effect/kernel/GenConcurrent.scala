@@ -108,7 +108,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
           case None => unit
           case Some(p) =>
             (for {
-               //TODO what if this throws?
+              //TODO what if this throws?
               b <- f(p._1)
               _ <- p._2.complete(b)
             } yield ()) >> worker(state)
