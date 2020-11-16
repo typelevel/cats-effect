@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 import scalajs.js
 
-private[effect] trait ClockPlatform[F[_]] { self: Clock[F] =>
+private[effect] abstract class ClockPlatform[F[_]] { self: Clock[F] =>
 
   def realTimeDate: F[js.Date] = self.map(self.realTime)(d => new js.Date(d.toMillis.toDouble))
 }
