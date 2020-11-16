@@ -138,19 +138,19 @@ trait MonadErrorGenerators[F[_], E]
   implicit val F: MonadError[F, E]
 }
 
-trait ClockGenerators[F[_]] extends ApplicativeGenerators[F] {
+trait ClockGenerators[F[_]] {
   implicit val F: Clock[F]
 
   implicit protected val arbitraryFD: Arbitrary[FiniteDuration]
 
-  override protected def baseGen[A: Arbitrary: Cogen] =
-    List("monotonic" -> genMonotonic[A], "realTime" -> genRealTime[A]) ++ super.baseGen[A]
+  protected def baseGen[A: Arbitrary: Cogen] =
+    List("monotonic" -> genMonotonic[A], "realTime" -> genRealTime[A])
 
   private def genMonotonic[A: Arbitrary] =
-    arbitrary[A].map(F.monotonic.as(_))
+    arbitrary[A].map(F.applicative.as(F.monotonic, _))
 
   private def genRealTime[A: Arbitrary] =
-    arbitrary[A].map(F.realTime.as(_))
+    arbitrary[A].map(F.applicative.as(F.realTime, _))
 }
 
 trait SyncGenerators[F[_]] extends MonadErrorGenerators[F, Throwable] with ClockGenerators[F] {

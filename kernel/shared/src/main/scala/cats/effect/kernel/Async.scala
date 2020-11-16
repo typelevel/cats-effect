@@ -175,6 +175,10 @@ object Async {
 
     implicit protected def F: Async[F]
 
+    override protected final def delegate = super.delegate
+    override protected final def C = F
+    override final def applicative = this
+
     def cont[A](body: Cont[OptionT[F, *], A]): OptionT[F, A] =
       OptionT(
         F.cont(
@@ -231,6 +235,10 @@ object Async {
       with Temporal.EitherTTemporal[F, E, Throwable] {
 
     implicit protected def F: Async[F]
+
+    override protected final def delegate = super.delegate
+    override protected final def C = F
+    override final def applicative = this
 
     def cont[A](body: Cont[EitherT[F, E, *], A]): EitherT[F, E, A] =
       EitherT(
@@ -292,6 +300,10 @@ object Async {
 
     implicit protected def F: Async[F]
 
+    override protected final def delegate = super.delegate
+    override protected final def C = F
+    override final def applicative = this
+
     def cont[A](body: Cont[IorT[F, L, *], A]): IorT[F, L, A] =
       IorT(
         F.cont(
@@ -348,6 +360,10 @@ object Async {
       with Temporal.WriterTTemporal[F, L, Throwable] {
 
     implicit protected def F: Async[F]
+
+    override protected final def delegate = super.delegate
+    override protected final def C = F
+    override final def applicative = this
 
     def cont[A](body: Cont[WriterT[F, L, *], A]): WriterT[F, L, A] =
       WriterT(
@@ -408,6 +424,10 @@ object Async {
       with Temporal.KleisliTemporal[F, R, Throwable] {
 
     implicit protected def F: Async[F]
+
+    override protected final def delegate = super.delegate
+    override protected final def C = F
+    override final def applicative = this
 
     def cont[A](body: Cont[Kleisli[F, R, *], A]): Kleisli[F, R, A] =
       Kleisli(r =>
