@@ -20,5 +20,6 @@ import scalajs.js
 
 private[effect] abstract class ClockPlatform[F[_]] { self: Clock[F] =>
 
-  def realTimeDate: F[js.Date] = self.map(self.realTime)(d => new js.Date(d.toMillis.toDouble))
+  def realTimeDate: F[js.Date] =
+    self.applicative.map(self.realTime)(d => new js.Date(d.toMillis.toDouble))
 }
