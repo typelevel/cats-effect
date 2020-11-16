@@ -31,7 +31,6 @@ import org.specs2.specification.core.Fragments
 import scala.collection.immutable.{Queue => ScalaQueue}
 
 class BoundedPQueueSpec extends BaseSpec with PQueueTests {
-  sequential
 
   implicit val orderForInt: Order[Int] = Order.fromLessThan((x, y) => x < y)
 
@@ -139,7 +138,7 @@ trait PQueueTests extends QueueTests[PQueue] { self: BaseSpec =>
     /**
      * Hand-rolled scalacheck effect as we don't have that for CE3 yet
      */
-    s"$name - dequeue in priority order" in real {
+    s"$name - should dequeue in priority order" in real {
       val gen = arbitrary[List[Int]]
       List.range(1, 100).traverse { _ =>
         val in = gen.sample.get

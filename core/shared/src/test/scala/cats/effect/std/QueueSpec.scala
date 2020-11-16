@@ -29,7 +29,6 @@ import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.concurrent.duration._
 
 class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
-  sequential
 
   "BoundedQueue" should {
     boundedQueueTests("BoundedQueue", Queue.bounded)
