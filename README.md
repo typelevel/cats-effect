@@ -62,30 +62,6 @@ object Main extends IOApp {
 }
 ```
 
-### What's Available
-
-Here's a relatively non-exhaustive list of what is ready for use:
-
-- The typeclass hierarchy (including inductive instances for `Concurrent`, `Temporal`, and `Sync`)
-- The laws governing each class
-- Lawful, high-performance `IO` and `SyncIO` implementations
-- `IOApp` for both the JVM and ScalaJS
-  + (including the polyfills necessary to make fibers fast on JavaScript)
-  + (also including the weirdness required to make things work in `sbt run`)
-- `Resource`
-- `Ref`, `Deferred`, and friends
-
-### What's Missing
-
-- Further improvements to the typeclass hierarchy
-  + `MonadCancel` (replaces CE2's `Bracket`, conceptually)
-  + `Allocate` (generalizes evaluation dataflow and eliminates `Ref.Mk` and friends)
-  + `Async#promise` (generalizes `async` and improves composability considerably)
-- Inductive instances for `Async`
-- Working examples of time mocking on `IO`
-- Tracing
-- A lot of documentation
-
 ## Contributing
 
 There's lots to do! Ask in the [Gitter channel](https://gitter.im/typelevel/cats-effect-dev) if you are unsure where to begin. At this point, the entire hierarchy is in place, along with most of the laws, and we need to begin porting over the higher level machinery from Cats Effect 2. This is where the majority of the work will happen over the next several months.
