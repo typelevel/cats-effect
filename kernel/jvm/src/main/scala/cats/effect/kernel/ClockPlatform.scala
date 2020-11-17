@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 import java.time.Instant
 
-private[effect] abstract class ClockPlatform[F[_]] { self: Clock[F] =>
+private[effect] trait ClockPlatform[F[_]] { self: Clock[F] =>
   def realTimeInstant: F[Instant] = {
     self.applicative.map(self.realTime)(d => Instant.ofEpochMilli(d.toMillis))
   }
