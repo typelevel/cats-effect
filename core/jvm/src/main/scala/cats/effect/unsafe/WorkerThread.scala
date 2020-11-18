@@ -61,10 +61,33 @@ private final class WorkerThread(
   @volatile private[unsafe] var sleeping: Boolean = false
 
   /**
-   * A forwarder method for enqueuing a fiber to the local work stealing queue.
+   * Enqueues a fiber to the local work stealing queue. This method always
+   * notifies another thread that a steal should be attempted from this queue.
    */
-  def enqueue(fiber: IOFiber[_], external: ExternalQueue): Unit =
+  def enqueueAndNotify(fiber: IOFiber[_], external: ExternalQueue): Unit = {
     queue.enqueue(fiber, external)
+    pool.notifyParked()
+  }
+
+  /**
+   * Enqueues a fiber to the local work stealing queue. This method can skip
+   * notifying another thread about potential work to be stolen if it can be
+   * determined that this is a mostly single fiber workload.
+   */
+  def smartEnqueue(fiber: IOFiber[_], external: ExternalQueue): Unit = {
+    // Check if the local queue is empty **before** enqueueing the given fiber.
+    val empty = queue.isEmpty()
+    queue.enqueue(fiber, external)
+    if (tick == ExternalCheckIterationsMask || !empty) {
+      // On the next iteration, this worker thread will check for new work from
+      // the external queue, which means that another thread should be woken up
+      // to contend for the enqueued fiber.
+      // It could also be the case that the current queue was not empty before
+      // the fiber was enqueued, in which case another thread should wake up
+      // to help out.
+      pool.notifyParked()
+    }
+  }
 
   /**
    * A forwarder method for stealing work from the local work stealing queue in

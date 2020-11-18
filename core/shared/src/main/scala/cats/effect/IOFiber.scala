@@ -603,7 +603,7 @@ private final class IOFiber[A](
 
           // println(s"<$name> spawning <$childName>")
 
-          reschedule(ec)(fiber)
+          rescheduleAndNotify(ec)(fiber)
 
           runLoop(succeeded(fiber, 0), nextIteration)
 
@@ -872,18 +872,26 @@ private final class IOFiber[A](
     }
 
   private[this] def reschedule(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
-    if (ec.isInstanceOf[WorkStealingThreadPool]) {
+    if (ec.isInstanceOf[WorkStealingThreadPool])
       ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiber(fiber)
-    } else {
-      try {
-        ec.execute(fiber)
-      } catch {
-        case _: RejectedExecutionException =>
-        /*
-         * swallow this exception, since it means we're being externally murdered,
-         * so we should just... drop the runloop
-         */
-      }
+    else
+      scheduleOnForeignEC(ec)(fiber)
+
+  private[this] def rescheduleAndNotify(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
+    if (ec.isInstanceOf[WorkStealingThreadPool])
+      ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiberAndNotify(fiber)
+    else
+      scheduleOnForeignEC(ec)(fiber)
+
+  private[this] def scheduleOnForeignEC(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
+    try {
+      ec.execute(fiber)
+    } catch {
+      case _: RejectedExecutionException =>
+      /*
+       * swallow this exception, since it means we're being externally murdered,
+       * so we should just... drop the runloop
+       */
     }
 
   // TODO figure out if the JVM ever optimizes this away

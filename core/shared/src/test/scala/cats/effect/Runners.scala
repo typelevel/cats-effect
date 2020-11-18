@@ -287,8 +287,6 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     def mustEqual(a: A) = fa.flatMap { res => IO(res must beEqualTo(a)) }
   }
 
-
-
   def unsafeRun[A](ioa: IO[A])(implicit ticker: Ticker): Outcome[Option, Throwable, A] =
     try {
       var results: Outcome[Option, Throwable, A] = Outcome.Succeeded(None)
