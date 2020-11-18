@@ -35,11 +35,11 @@ class CyclicBarrierSpec extends BaseSpec {
   private def cyclicBarrierTests(
       name: String,
       newBarrier: Int => IO[CyclicBarrier[IO]]): Fragments = {
-    s"$name - raise an exception when constructed with a negative capacity" in real {
+    s"$name - should raise an exception when constructed with a negative capacity" in real {
       IO.defer(newBarrier(-1)).mustFailWith[IllegalArgumentException]
     }
 
-    s"$name - raise an exception when constructed with zero capacity" in real {
+    s"$name - should raise an exception when constructed with zero capacity" in real {
       IO.defer(newBarrier(0)).mustFailWith[IllegalArgumentException]
     }
 
@@ -57,14 +57,14 @@ class CyclicBarrierSpec extends BaseSpec {
       }
     }
 
-    s"$name - reset once full" in ticked { implicit ticker =>
+    s"$name - should reset once full" in ticked { implicit ticker =>
       newBarrier(2).flatMap { barrier =>
         (barrier.await, barrier.await).parTupled >>
           barrier.await
       } must nonTerminate
     }
 
-    s"$name - clean up upon cancellation of await" in ticked { implicit ticker =>
+    s"$name - should clean up upon cancellation of await" in ticked { implicit ticker =>
       newBarrier(2).flatMap { barrier =>
         // This will time out, so count goes back to 2
         barrier.await.timeoutTo(1.second, IO.unit) >>
