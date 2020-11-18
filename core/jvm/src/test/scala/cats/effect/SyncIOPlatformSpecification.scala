@@ -21,12 +21,12 @@ import org.specs2.mutable.Specification
 abstract class SyncIOPlatformSpecification extends Specification with Runners {
   def platformSpecs = {
     "platform" should {
-      "now should return an Instant constructed from realTime" in {
+      "realTimeInstant should return an Instant constructed from realTime" in {
         // Unfortunately since SyncIO doesn't use on a controllable
         // clock source, so a diff best we can do
         val op = for {
           realTime <- SyncIO.realTime
-          now <- SyncIO.now
+          now <- SyncIO.realTimeInstant
         } yield (now.toEpochMilli - realTime.toMillis) <= 30
 
         op must completeAsSync(true)

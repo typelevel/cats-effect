@@ -21,7 +21,7 @@ import org.specs2.mutable.Specification
 abstract class SyncIOPlatformSpecification extends Specification with Runners {
   def platformSpecs = {
     "platform" should {
-      "now should return an Instant constructed from realTime" in {
+      "realTimeDate should return an Instant constructed from realTime" in {
         // Unfortunately since SyncIO doesn't rely on a controllable
         // time source, this is the best I can do
         val op = for {
