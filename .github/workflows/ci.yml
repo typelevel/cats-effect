@@ -21,7 +21,7 @@ jobs:
     name: Build and Test
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, windows-latest]
         scala: [0.27.0-RC1, 3.0.0-M1, 2.12.12, 2.13.3]
         java:
           - adopt@1.8
@@ -29,23 +29,6 @@ jobs:
           - adopt@1.15
           - graalvm-ce-java8@20.2.0
         ci: [ciJVM, ciJS, ciFirefox]
-        include:
-          - scala: 2.13.3
-            java: adopt@1.8
-            ci: ciJVM
-            os: windows-latest
-          - scala: 2.13.3
-            java: adopt@1.11
-            ci: ciJVM
-            os: windows-latest
-          - scala: 2.13.3
-            java: adopt@1.15
-            ci: ciJVM
-            os: windows-latest
-          - scala: 2.13.3
-            java: graalvm-ce-java8@20.2.0
-            ci: ciJVM
-            os: windows-latest
         exclude:
           - ci: ciJS
             java: adopt@1.11
@@ -57,6 +40,14 @@ jobs:
             scala: 0.27.0-RC1
           - ci: ciJS
             scala: 3.0.0-M1
+          - os: windows-latest
+            scala: 0.27.0-RC1
+          - os: windows-latest
+            scala: 3.0.0-M1
+          - os: windows-latest
+            scala: 2.12.12
+          - os: windows-latest
+            ci: ciJS
           - ci: ciFirefox
             java: adopt@1.11
           - ci: ciFirefox
@@ -67,10 +58,23 @@ jobs:
             scala: 0.27.0-RC1
           - ci: ciFirefox
             scala: 3.0.0-M1
+          - os: windows-latest
+            scala: 0.27.0-RC1
+          - os: windows-latest
+            scala: 3.0.0-M1
+          - os: windows-latest
+            scala: 2.12.12
+          - os: windows-latest
+            ci: ciFirefox
           - java: adopt@1.15
             scala: 3.0.0-M1
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Ignore line ending differences in git
+        if: contains(runner.os, 'windows')
+        shell: bash
+        run: git config --global core.autocrlf false
+
       - name: Checkout current branch (full)
         uses: actions/checkout@v2
         with:
@@ -127,17 +131,22 @@ jobs:
           node-version: 14
 
       - name: Check that workflows are up to date
+        shell: bash
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
-      - run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
+      - shell: bash
+        run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
 
       - if: matrix.scala == '2.13.3' && matrix.ci == 'ciJVM'
+        shell: bash
         run: sbt ++${{ matrix.scala }} docs/mdoc
 
       - name: Test Example JVM App Within Sbt
         if: matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        shell: bash
         run: example/test-jvm.sh ${{ matrix.scala }}
 
       - name: Test Example JavaScript App Using Node
         if: matrix.ci == 'ciJS' && matrix.os == 'ubuntu-latest'
+        shell: bash
         run: example/test-js.sh ${{ matrix.scala }}
