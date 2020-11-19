@@ -14,29 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
 import scalajs.js
 
-import scala.scalajs.js.Promise
+private[effect] trait ClockPlatform[F[_]] { self: Clock[F] =>
 
-private[effect] abstract class IOCompanionPlatform { this: IO.type =>
-
-  def blocking[A](thunk: => A): IO[A] =
-    apply(thunk)
-
-  def interruptible[A](many: Boolean)(thunk: => A): IO[A] = {
-    val _ = many
-    apply(thunk)
-  }
-
-  def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] = {
-    val _ = hint
-    apply(thunk)
-  }
-
-  def fromPromise[A](iop: IO[Promise[A]]): IO[A] =
-    asyncForIO.fromPromise(iop)
-
-  def realTimeDate: IO[js.Date] = asyncForIO.realTimeDate
+  def realTimeDate: F[js.Date] =
+    self.applicative.map(self.realTime)(d => new js.Date(d.toMillis.toDouble))
 }
