@@ -35,25 +35,22 @@ package unsafe
  * When a local worker queue overflows (cannot accept new fibers), half of it
  * gets spilled over to this queue.
  */
-private final class ExternalQueue {
+private final class ExternalQueue extends ExternalQueue.LenPadding {
   import WorkStealingQueueConstants._
+
+  // Pointer to the least recently added fiber in the queue.
+  // The next to be dequeued when calling `dequeue`.
+
+  // Pointer to the most recently added fiber in the queue.
+
+  // Number of enqueued fibers. Used as a fast-path to avoid unnecessary locking
+  // on the fast path. Can be accessed without holding the lock.
 
   // Lock that ensures exclusive access to the internal state of the linked queue.
   private[this] val lock: AnyRef = new Object()
 
-  // Pointer to the least recently added fiber in the queue.
-  // The next to be dequeued when calling `dequeue`.
-  private[this] var head: IOFiber[_] = null
-
-  // Pointer to the most recently added fiber in the queue.
-  private[this] var tail: IOFiber[_] = null
-
   // Tracks whether the queue has been shutdown.
   private[this] var _shutdown: Boolean = false
-
-  // Number of enqueued fibers. Used as a fast-path to avoid unnecessary locking
-  // on the fast path. Can be accessed without holding the lock.
-  private[this] var len: Int = 0
 
   /**
    * Enqueues a fiber for later execution at the back of the queue.
@@ -170,5 +167,95 @@ private final class ExternalQueue {
       // Set the shutdown flag.
       _shutdown = true
     }
+  }
+}
+
+private object ExternalQueue {
+  abstract class InitPadding {
+    protected var pinit00: Long = _
+    protected var pinit01: Long = _
+    protected var pinit02: Long = _
+    protected var pinit03: Long = _
+    protected var pinit04: Long = _
+    protected var pinit05: Long = _
+    protected var pinit06: Long = _
+    protected var pinit07: Long = _
+    protected var pinit08: Long = _
+    protected var pinit09: Long = _
+    protected var pinit10: Long = _
+    protected var pinit11: Long = _
+    protected var pinit12: Long = _
+    protected var pinit13: Long = _
+    protected var pinit14: Long = _
+    protected var pinit15: Long = _
+  }
+
+  abstract class Head extends InitPadding {
+    protected var head: IOFiber[_] = null
+  }
+
+  abstract class HeadPadding extends Head {
+    protected var phead00: Long = _
+    protected var phead01: Long = _
+    protected var phead02: Long = _
+    protected var phead03: Long = _
+    protected var phead04: Long = _
+    protected var phead05: Long = _
+    protected var phead06: Long = _
+    protected var phead07: Long = _
+    protected var phead08: Long = _
+    protected var phead09: Long = _
+    protected var phead10: Long = _
+    protected var phead11: Long = _
+    protected var phead12: Long = _
+    protected var phead13: Long = _
+    protected var phead14: Long = _
+    protected var phead15: Long = _
+  }
+
+  abstract class Tail extends HeadPadding {
+    protected var tail: IOFiber[_] = null
+  }
+
+  abstract class TailPadding extends Tail {
+    protected var ptail00: Long = _
+    protected var ptail01: Long = _
+    protected var ptail02: Long = _
+    protected var ptail03: Long = _
+    protected var ptail04: Long = _
+    protected var ptail05: Long = _
+    protected var ptail06: Long = _
+    protected var ptail07: Long = _
+    protected var ptail08: Long = _
+    protected var ptail09: Long = _
+    protected var ptail10: Long = _
+    protected var ptail11: Long = _
+    protected var ptail12: Long = _
+    protected var ptail13: Long = _
+    protected var ptail14: Long = _
+    protected var ptail15: Long = _
+  }
+
+  abstract class Len extends TailPadding {
+    protected var len: Int = 0
+  }
+
+  abstract class LenPadding extends Len {
+    protected var plen00: Long = _
+    protected var plen01: Long = _
+    protected var plen02: Long = _
+    protected var plen03: Long = _
+    protected var plen04: Long = _
+    protected var plen05: Long = _
+    protected var plen06: Long = _
+    protected var plen07: Long = _
+    protected var plen08: Long = _
+    protected var plen09: Long = _
+    protected var plen10: Long = _
+    protected var plen11: Long = _
+    protected var plen12: Long = _
+    protected var plen13: Long = _
+    protected var plen14: Long = _
+    protected var plen15: Long = _
   }
 }

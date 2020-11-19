@@ -28,101 +28,13 @@ package unsafe
 
 import WorkStealingQueueConstants._
 
-private abstract class InitPadding {
-  protected var pinit00: Long = _
-  protected var pinit01: Long = _
-  protected var pinit02: Long = _
-  protected var pinit03: Long = _
-  protected var pinit04: Long = _
-  protected var pinit05: Long = _
-  protected var pinit06: Long = _
-  protected var pinit07: Long = _
-  protected var pinit08: Long = _
-  protected var pinit09: Long = _
-  protected var pinit10: Long = _
-  protected var pinit11: Long = _
-  protected var pinit12: Long = _
-  protected var pinit13: Long = _
-  protected var pinit14: Long = _
-  protected var pinit15: Long = _
-}
-
-private abstract class Head extends InitPadding {
-  protected var head: Int = 0
-}
-
-private abstract class HeadPadding extends Head {
-  protected var phead00: Long = _
-  protected var phead01: Long = _
-  protected var phead02: Long = _
-  protected var phead03: Long = _
-  protected var phead04: Long = _
-  protected var phead05: Long = _
-  protected var phead06: Long = _
-  protected var phead07: Long = _
-  protected var phead08: Long = _
-  protected var phead09: Long = _
-  protected var phead10: Long = _
-  protected var phead11: Long = _
-  protected var phead12: Long = _
-  protected var phead13: Long = _
-  protected var phead14: Long = _
-  protected var phead15: Long = _
-}
-
-private abstract class Tail extends HeadPadding {
-  protected var tail: Int = 0
-}
-
-private abstract class TailPadding extends Tail {
-  protected var ptail00: Long = _
-  protected var ptail01: Long = _
-  protected var ptail02: Long = _
-  protected var ptail03: Long = _
-  protected var ptail04: Long = _
-  protected var ptail05: Long = _
-  protected var ptail06: Long = _
-  protected var ptail07: Long = _
-  protected var ptail08: Long = _
-  protected var ptail09: Long = _
-  protected var ptail10: Long = _
-  protected var ptail11: Long = _
-  protected var ptail12: Long = _
-  protected var ptail13: Long = _
-  protected var ptail14: Long = _
-  protected var ptail15: Long = _
-}
-
-private abstract class Buffer extends TailPadding {
-  protected val buffer: Array[IOFiber[_]] = new Array(LocalQueueCapacity)
-}
-
-private abstract class BufferPadding extends Buffer {
-  protected var pbuff00: Long = _
-  protected var pbuff01: Long = _
-  protected var pbuff02: Long = _
-  protected var pbuff03: Long = _
-  protected var pbuff04: Long = _
-  protected var pbuff05: Long = _
-  protected var pbuff06: Long = _
-  protected var pbuff07: Long = _
-  protected var pbuff08: Long = _
-  protected var pbuff09: Long = _
-  protected var pbuff10: Long = _
-  protected var pbuff11: Long = _
-  protected var pbuff12: Long = _
-  protected var pbuff13: Long = _
-  protected var pbuff14: Long = _
-  protected var pbuff15: Long = _
-}
-
 /**
  * Fixed length, double ended, singe producer, multiple consumer queue local to a
  * single `WorkerThread` that supports single threaded updates to the tail of the
  * queue (to be executed **only** by the owner worker thread) and multi threaded
  * updates to the head (local dequeueing or inter thread work stealing).
  */
-private final class WorkStealingQueue extends BufferPadding {
+private final class WorkStealingQueue extends WorkStealingQueue.BufferPadding {
 
   /**
    * Concurrently updated by many threads.
@@ -149,7 +61,7 @@ private final class WorkStealingQueue extends BufferPadding {
 
   private[this] val headOffset: Long = {
     try {
-      val field = classOf[Head].getDeclaredField("head")
+      val field = classOf[WorkStealingQueue.Head].getDeclaredField("head")
       Unsafe.objectFieldOffset(field)
     } catch {
       case t: Throwable =>
@@ -547,4 +459,94 @@ private final class WorkStealingQueue extends BufferPadding {
    */
   private[this] def unsignedShortSubtraction(x: Int, y: Int): Int =
     lsb(x - y)
+}
+
+private object WorkStealingQueue {
+  abstract class InitPadding {
+    protected var pinit00: Long = _
+    protected var pinit01: Long = _
+    protected var pinit02: Long = _
+    protected var pinit03: Long = _
+    protected var pinit04: Long = _
+    protected var pinit05: Long = _
+    protected var pinit06: Long = _
+    protected var pinit07: Long = _
+    protected var pinit08: Long = _
+    protected var pinit09: Long = _
+    protected var pinit10: Long = _
+    protected var pinit11: Long = _
+    protected var pinit12: Long = _
+    protected var pinit13: Long = _
+    protected var pinit14: Long = _
+    protected var pinit15: Long = _
+  }
+
+  abstract class Head extends InitPadding {
+    protected var head: Int = 0
+  }
+
+  abstract class HeadPadding extends Head {
+    protected var phead00: Long = _
+    protected var phead01: Long = _
+    protected var phead02: Long = _
+    protected var phead03: Long = _
+    protected var phead04: Long = _
+    protected var phead05: Long = _
+    protected var phead06: Long = _
+    protected var phead07: Long = _
+    protected var phead08: Long = _
+    protected var phead09: Long = _
+    protected var phead10: Long = _
+    protected var phead11: Long = _
+    protected var phead12: Long = _
+    protected var phead13: Long = _
+    protected var phead14: Long = _
+    protected var phead15: Long = _
+  }
+
+  abstract class Tail extends HeadPadding {
+    protected var tail: Int = 0
+  }
+
+  abstract class TailPadding extends Tail {
+    protected var ptail00: Long = _
+    protected var ptail01: Long = _
+    protected var ptail02: Long = _
+    protected var ptail03: Long = _
+    protected var ptail04: Long = _
+    protected var ptail05: Long = _
+    protected var ptail06: Long = _
+    protected var ptail07: Long = _
+    protected var ptail08: Long = _
+    protected var ptail09: Long = _
+    protected var ptail10: Long = _
+    protected var ptail11: Long = _
+    protected var ptail12: Long = _
+    protected var ptail13: Long = _
+    protected var ptail14: Long = _
+    protected var ptail15: Long = _
+  }
+
+  abstract class Buffer extends TailPadding {
+    protected val buffer: Array[IOFiber[_]] = new Array(LocalQueueCapacity)
+  }
+
+  abstract class BufferPadding extends Buffer {
+    protected var pbuff00: Long = _
+    protected var pbuff01: Long = _
+    protected var pbuff02: Long = _
+    protected var pbuff03: Long = _
+    protected var pbuff04: Long = _
+    protected var pbuff05: Long = _
+    protected var pbuff06: Long = _
+    protected var pbuff07: Long = _
+    protected var pbuff08: Long = _
+    protected var pbuff09: Long = _
+    protected var pbuff10: Long = _
+    protected var pbuff11: Long = _
+    protected var pbuff12: Long = _
+    protected var pbuff13: Long = _
+    protected var pbuff14: Long = _
+    protected var pbuff15: Long = _
+  }
 }
