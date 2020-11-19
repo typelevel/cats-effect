@@ -27,4 +27,5 @@ private[effect] sealed abstract class WorkStealingThreadPool private ()
   def reportFailure(cause: Throwable): Unit = ()
   private[effect] def executeFiber(fiber: IOFiber[_]): Unit = { val _ = fiber }
   private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit = { val _ = fiber }
+  private[effect] def rescheduleFiberAndNotify(fiber: IOFiber[_]): Unit = { val _ = fiber }
 }
