@@ -58,7 +58,7 @@ private final class WorkerThread(
 
   // Flag that indicates that this worker thread is currently sleeping, in order to
   // guard against spurious wakeups.
-  @volatile private[unsafe] var sleeping: Boolean = false
+  private[unsafe] var sleeping: Boolean = false
 
   /**
    * Enqueues a fiber to the local work stealing queue. This method always

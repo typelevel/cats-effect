@@ -23,14 +23,27 @@ import java.util.concurrent.atomic.AtomicInteger
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
-  // The default compute thread pool on the JVM is now a work stealing thread pool.
+  // The default compute thread pool on the JVM is now a work stealing thread pool,
+  // unless we are running on a JVM which doesn't have access to sun.misc.Unsafe.
   def createDefaultComputeThreadPool(
       self: => IORuntime,
-      threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) = {
+      threadPrefix: String = "io-compute"): (ExecutionContext, () => Unit) = {
     val threads = math.max(2, Runtime.getRuntime().availableProcessors())
-    val threadPool =
-      new WorkStealingThreadPool(threads, threadPrefix, self)
-    (threadPool, { () => threadPool.shutdown() })
+    if (Unsafe.isUnsafeAvailable()) {
+      val pool = new WorkStealingThreadPool(threads, threadPrefix, self)
+      (pool, () => pool.shutdown())
+    } else {
+      val threadCount = new AtomicInteger(0)
+      val pool = Executors.newFixedThreadPool(
+        threads,
+        { r =>
+          val t = new Thread(r)
+          t.setName(s"${threadPrefix}-${threadCount.getAndIncrement()}")
+          t.setDaemon(true)
+          t
+        })
+      (ExecutionContext.fromExecutorService(pool), () => pool.shutdown())
+    }
   }
 
   def createDefaultBlockingExecutionContext(

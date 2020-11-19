@@ -17,20 +17,21 @@
 package cats.effect.unsafe;
 
 final class WorkStealingQueueConstants {
-  
+
   // Fixed capacity of the local work queue (power of 2).
-  public static final int LocalQueueCapacity = 256;
+  static final int LocalQueueCapacity = 256;
 
   // Mask for modulo operations using bitwise shifting.
-  public static final int CapacityMask = LocalQueueCapacity - 1;
+  static final int CapacityMask = LocalQueueCapacity - 1;
 
   // Mask for extracting the 16 least significant bits of a 32 bit integer.
   // Used to represent unsigned 16 bit integers.
-  public static final int UnsignedShortMask = (1 << 16) - 1;
+  static final int UnsignedShortMask = (1 << 16) - 1;
 
   // Half of the local work queue capacity.
-  public static final int HalfLocalQueueCapacity = LocalQueueCapacity / 2;
+  static final int HalfLocalQueueCapacity = LocalQueueCapacity / 2;
 
-  // Half of the local work queue and the new fiber gets offloaded to the external queue.
-  public static final int BatchLength = HalfLocalQueueCapacity + 1;
+  // Half of the local work queue and the new fiber gets offloaded to the external
+  // queue.
+  static final int BatchLength = HalfLocalQueueCapacity + 1;
 }

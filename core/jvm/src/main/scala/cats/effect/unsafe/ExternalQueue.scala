@@ -53,7 +53,7 @@ private final class ExternalQueue {
 
   // Number of enqueued fibers. Used as a fast-path to avoid unnecessary locking
   // on the fast path. Can be accessed without holding the lock.
-  @volatile private[this] var len: Int = 0
+  private[this] var len: Int = 0
 
   /**
    * Enqueues a fiber for later execution at the back of the queue.
@@ -77,9 +77,6 @@ private final class ExternalQueue {
       // Set the tail to point to the new fiber.
       tail = fiber
 
-      // Should be changed for a `plain` get and `release` set.
-      // Requires the use of `VarHandles` (Java 9+) or Unsafe
-      // (not as portable and being phased out).
       len += 1
     }
   }
@@ -100,9 +97,6 @@ private final class ExternalQueue {
 
       tail = tl
 
-      // Should be changed for a `plain` get and `release` set.
-      // Requires the use of `VarHandles` (Java 9+) or Unsafe
-      // (not as portable and being phased out).
       len += BatchLength
     }
   }
@@ -138,9 +132,6 @@ private final class ExternalQueue {
       // Unlink the fiber from the linked queue before returning.
       fiber.next = null
 
-      // Should be changed for a `plain` get and `release` set.
-      // Requires the use of `VarHandles` (Java 9+) or Unsafe
-      // (not as portable and being phased out).
       len -= 1
 
       fiber
@@ -150,8 +141,11 @@ private final class ExternalQueue {
   /**
    * Returns true if there are no enqueued fibers.
    */
-  def isEmpty(): Boolean =
-    len == 0
+  def isEmpty(): Boolean = {
+    val l = len
+    Unsafe.acquireFence()
+    l == 0
+  }
 
   /**
    * Shutdown, drain and unlink the queue. No more fibers can be enqueued after
