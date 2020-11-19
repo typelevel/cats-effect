@@ -17,12 +17,12 @@ jobs:
           submodules: true
 
       - name: Install Java and Scala
-        uses: olafurpg/setup-scala@v5
+        uses: olafurpg/setup-scala@v10
         with:
           java-version: adopt@1.8
 
       - name: Install NodeJS 12
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2.1.2
         with:
           node-version: '12'
 
