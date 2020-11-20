@@ -41,6 +41,14 @@ final class Unsafe {
     return UNSAFE.compareAndSwapInt(object, offset, expected, value);
   }
 
+  static int getAndAddInt(Object object, long offset, int delta) {
+    return UNSAFE.getAndAddInt(object, offset, delta);
+  }
+
+  static int getIntVolatile(Object object, long offset) {
+    return UNSAFE.getIntVolatile(object, offset);
+  }
+
   static long objectFieldOffset(Field field) {
     return UNSAFE.objectFieldOffset(field);
   }

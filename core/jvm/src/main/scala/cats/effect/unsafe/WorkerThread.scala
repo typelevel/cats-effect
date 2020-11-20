@@ -60,6 +60,8 @@ private final class WorkerThread(
   // guard against spurious wakeups.
   private[unsafe] var sleeping: Boolean = false
 
+  private[unsafe] var next: WorkerThread = _
+
   /**
    * Enqueues a fiber to the local work stealing queue. This method always
    * notifies another thread that a steal should be attempted from this queue.
