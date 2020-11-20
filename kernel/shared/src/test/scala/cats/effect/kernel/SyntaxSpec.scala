@@ -17,6 +17,7 @@
 package cats.effect.kernel
 
 import org.specs2.mutable.Specification
+import cats.implicits._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
@@ -27,6 +28,36 @@ class SyntaxSpec extends Specification {
 
   def concurrentForwarder[F[_]: Concurrent] =
     Concurrent[F]
+
+  def genConcurrentSyntax[F[_], E, A](target: F[A])(implicit F: GenConcurrent[F, E]) = {
+    import syntax.concurrent._
+
+    GenConcurrent[F]: F.type
+    GenConcurrent[F, E]: F.type
+
+    {
+      val result = target.memoize
+      result: F[F[A]]
+    }
+
+  }
+
+  def concurrentSyntax[F[_], A](target: F[A])(implicit F: Concurrent[F]) = {
+    import syntax.concurrent._
+    import instances.all._
+
+    Concurrent[F]: F.type
+
+    {
+      val result = List(1).parTraverseN(3)(F.pure(_))
+      result: F[List[Int]]
+    }
+
+    {
+      val result = List(target).parSequenceN(3)
+      result: F[List[A]]
+    }
+  }
 
   def monadCancelSyntax[F[_], A, E](target: F[A])(implicit F: MonadCancel[F, E]) = {
     import syntax.monadCancel._

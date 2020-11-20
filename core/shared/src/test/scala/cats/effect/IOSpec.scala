@@ -21,6 +21,7 @@ import cats.laws.discipline.SemigroupKTests
 import cats.effect.laws.AsyncTests
 import cats.effect.testkit.{SyncTypeGenerators, TestContext}
 import cats.syntax.all._
+import cats.effect.implicits._
 
 import org.scalacheck.Prop, Prop.forAll
 import org.scalacheck.Arbitrary.arbitrary
@@ -953,20 +954,13 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     }
 
-    "miscellaneous" should {
+    "parTraverseN" should {
 
-      "round trip through s.c.Future" in ticked { implicit ticker =>
-        forAll { (ioa: IO[Int]) => ioa eqv IO.fromFuture(IO(ioa.unsafeToFuture())) }
-      }
-
-      "run parallel actually in parallel" in real {
-        val x = IO.sleep(2.seconds) >> IO.pure(1)
-        val y = IO.sleep(2.seconds) >> IO.pure(2)
-
-        List(x, y).parSequence.timeout(3.seconds).flatMap { res =>
-          IO {
-            res mustEqual List(1, 2)
-          }
+      "should reject n < 1" in real {
+        List.empty[Int].parTraverseN(0)((n: Int) => IO.pure(n + 1)).attempt.flatMap { res =>
+          IO(res must beLike {
+            case Left(e) => e must haveClass[IllegalArgumentException]
+          })
         }
       }
 
@@ -990,6 +984,26 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
             res <- IO(actual mustEqual expected)
           } yield res
       }
+
+    }
+
+    "miscellaneous" should {
+
+      "round trip through s.c.Future" in ticked { implicit ticker =>
+        forAll { (ioa: IO[Int]) => ioa eqv IO.fromFuture(IO(ioa.unsafeToFuture())) }
+      }
+
+      "run parallel actually in parallel" in real {
+        val x = IO.sleep(2.seconds) >> IO.pure(1)
+        val y = IO.sleep(2.seconds) >> IO.pure(2)
+
+        List(x, y).parSequence.timeout(3.seconds).flatMap { res =>
+          IO {
+            res mustEqual List(1, 2)
+          }
+        }
+      }
+
     }
 
     "temporal" should {
