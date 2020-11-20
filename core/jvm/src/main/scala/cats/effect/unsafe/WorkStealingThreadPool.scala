@@ -48,9 +48,8 @@ private[effect] final class WorkStealingThreadPool(
     threadCount: Int, // number of worker threads
     threadPrefix: String, // prefix for the name of worker threads
     self0: => IORuntime
-) extends ExecutionContext {
-
-  import WorkStealingThreadPoolConstants._
+) extends WorkStealingThreadPool.UnparkedPadding(threadCount)
+    with ExecutionContext {
 
   // Used to implement the `scala.concurrent.ExecutionContext` interface, for suspending
   // `java.lang.Runnable` instances into `IOFiber`s.
@@ -63,14 +62,19 @@ private[effect] final class WorkStealingThreadPool(
   // as a place where spillover work from other local queues can go.
   private[this] val externalQueue: ExternalQueue = new ExternalQueue()
 
-  // Represents two unsigned 16 bit integers.
-  // The 16 most significant bits track the number of active (unparked) worker threads.
-  // The 16 least significant bits track the number of worker threads that are searching
-  // for work to steal from other worker threads.
-  @volatile private[this] var state: Int = (threadCount << UnparkShift)
-  private[this] val stateOffset: Long = {
+  private[this] val searchingOffset: Long = {
     try {
-      val field = classOf[WorkStealingThreadPool].getDeclaredField("state")
+      val field = classOf[WorkStealingThreadPool.Searching].getDeclaredField("searchingThreads")
+      Unsafe.objectFieldOffset(field)
+    } catch {
+      case t: Throwable =>
+        throw new ExceptionInInitializerError(t)
+    }
+  }
+
+  private[this] val unparkedOffset: Long = {
+    try {
+      val field = classOf[WorkStealingThreadPool.Unparked].getDeclaredField("unparkedThreads")
       Unsafe.objectFieldOffset(field)
     } catch {
       case t: Throwable =>
@@ -144,7 +148,7 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[unsafe] def transitionWorkerFromSearching(): Unit = {
     // Decrement the number of searching worker threads.
-    val prev = Unsafe.getAndAddInt(this, stateOffset, -1)
+    val prev = Unsafe.getAndAddInt(this, searchingOffset, -1)
     if (prev == 1) {
       // If this was the only searching thread, wake a thread up to potentially help out
       // with the local work queue.
@@ -177,7 +181,8 @@ private[effect] final class WorkStealingThreadPool(
       // Update the state so that a thread can be unparked.
       // Here we are updating the 16 most significant bits, which hold the
       // number of active threads.
-      Unsafe.getAndAddInt(this, stateOffset, 1 | (1 << UnparkShift))
+      Unsafe.getAndAddInt(this, searchingOffset, 1)
+      Unsafe.getAndAddInt(this, unparkedOffset, 1)
       popped.sleeping = false
     }
     popped
@@ -191,8 +196,10 @@ private[effect] final class WorkStealingThreadPool(
    * fewer than `threadCount` active threads.
    */
   private[this] def notifyShouldWakeup(): Boolean = {
-    val st = state
-    (st & SearchMask) == 0 && ((st & UnparkMask) >>> UnparkShift) < threadCount
+    val srch = searchingThreads
+    val unpk = unparkedThreads
+    Unsafe.acquireFence()
+    srch == 0 && unpk < threadCount
   }
 
   /**
@@ -218,7 +225,7 @@ private[effect] final class WorkStealingThreadPool(
   private[this] def decrementNumberUnparked(searching: Boolean): Boolean = {
     // Prepare for decrementing the 16 most significant bits that hold
     // the number of unparked threads.
-    var dec = 1 << UnparkShift
+    var dec = 0
 
     if (searching) {
       // Also decrement the 16 least significant bits that hold
@@ -227,10 +234,11 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // Atomically change the state.
-    val prev = Unsafe.getAndAddInt(this, stateOffset, -dec)
+    Unsafe.getAndAddInt(this, unparkedOffset, -1)
+    val prev = Unsafe.getAndAddInt(this, searchingOffset, -dec)
 
     // Was this thread the last searching thread?
-    searching && (prev & SearchMask) == 1
+    searching && prev == 1
   }
 
   /**
@@ -258,17 +266,18 @@ private[effect] final class WorkStealingThreadPool(
    * state where it can look for work to steal from other worker threads.
    */
   private[unsafe] def transitionWorkerToSearching(): Boolean = {
-    val st = state
+    val srch = searchingThreads
+    Unsafe.acquireFence()
 
     // Try to keep at most around 50% threads that are searching for work, to reduce unnecessary contention.
     // It is not exactly 50%, but it is a good enough approximation.
-    if (2 * (st & SearchMask) >= threadCount) {
+    if (2 * srch >= threadCount) {
       // There are enough searching worker threads. Do not allow this thread to enter the searching state.
       return false
     }
 
     // Allow this thread to enter the searching state.
-    Unsafe.getAndAddInt(this, stateOffset, 1)
+    Unsafe.getAndAddInt(this, searchingOffset, 1)
     true
   }
 
@@ -349,5 +358,72 @@ private[effect] final class WorkStealingThreadPool(
     for (i <- 0 until workerThreads.length) {
       workerThreads(i) = null
     }
+  }
+}
+
+private[effect] object WorkStealingThreadPool {
+  abstract class InitPadding {
+    protected var pinit00: Long = _
+    protected var pinit01: Long = _
+    protected var pinit02: Long = _
+    protected var pinit03: Long = _
+    protected var pinit04: Long = _
+    protected var pinit05: Long = _
+    protected var pinit06: Long = _
+    protected var pinit07: Long = _
+    protected var pinit08: Long = _
+    protected var pinit09: Long = _
+    protected var pinit10: Long = _
+    protected var pinit11: Long = _
+    protected var pinit12: Long = _
+    protected var pinit13: Long = _
+    protected var pinit14: Long = _
+    protected var pinit15: Long = _
+  }
+
+  abstract class Searching extends InitPadding {
+    protected var searchingThreads: Int = 0
+  }
+
+  abstract class SearchingPadding extends Searching {
+    protected var psrch00: Long = _
+    protected var psrch01: Long = _
+    protected var psrch02: Long = _
+    protected var psrch03: Long = _
+    protected var psrch04: Long = _
+    protected var psrch05: Long = _
+    protected var psrch06: Long = _
+    protected var psrch07: Long = _
+    protected var psrch08: Long = _
+    protected var psrch09: Long = _
+    protected var psrch10: Long = _
+    protected var psrch11: Long = _
+    protected var psrch12: Long = _
+    protected var psrch13: Long = _
+    protected var psrch14: Long = _
+    protected var psrch15: Long = _
+  }
+
+  abstract class Unparked(threadCount: Int) extends SearchingPadding {
+    protected var unparkedThreads: Int = threadCount
+  }
+
+  abstract class UnparkedPadding(threadCount: Int) extends Unparked(threadCount) {
+    protected var punpk00: Long = _
+    protected var punpk01: Long = _
+    protected var punpk02: Long = _
+    protected var punpk03: Long = _
+    protected var punpk04: Long = _
+    protected var punpk05: Long = _
+    protected var punpk06: Long = _
+    protected var punpk07: Long = _
+    protected var punpk08: Long = _
+    protected var punpk09: Long = _
+    protected var punpk10: Long = _
+    protected var punpk11: Long = _
+    protected var punpk12: Long = _
+    protected var punpk13: Long = _
+    protected var punpk14: Long = _
+    protected var punpk15: Long = _
   }
 }

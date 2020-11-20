@@ -19,7 +19,7 @@ package cats.effect.unsafe
 import java.util.concurrent.atomic.AtomicReference
 
 private final class TreiberStack {
-  
+
   private[this] val top: AtomicReference[WorkerThread] = new AtomicReference()
 
   def push(thread: WorkerThread): Unit = {
