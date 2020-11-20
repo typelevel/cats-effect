@@ -956,7 +956,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     "parTraverseN" should {
 
-      "should reject n < 1" in real {
+      "should raise error when n < 1" in real {
         List.empty[Int].parTraverseN(0)((n: Int) => IO.pure(n + 1)).attempt.flatMap { res =>
           IO(res must beLike {
             case Left(e) => e must haveClass[IllegalArgumentException]
@@ -964,7 +964,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         }
       }
 
-      "parTraverseN should give the same result as parTraverse" in realProp(
+      "should give the same result as parTraverse" in realProp(
         Gen.posNum[Int].flatMap(n => arbitrary[List[Int]].map(n -> _))) {
         case (n, l) =>
           val f: Int => IO[Int] = n => IO.pure(n + 1)
@@ -975,7 +975,22 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           } yield res
       }
 
-      "parSequenceN should give the same result as parSequence" in realProp(
+      "should be cancelable" in real {
+        for {
+          c <- IO.ref(0)
+          f <- List(1,2,3).parTraverseN(1)(_ => IO.sleep(1.second) >> c.update(_ + 1)).start
+          _ <- IO.sleep(10.millis)
+          _ <- f.cancel
+          r <- c.get
+          res <- IO(r must beEqualTo(0))
+        } yield res
+      }
+
+    }
+
+    "parSequenceN" should {
+
+      "should give the same result as parSequence" in realProp(
         Gen.posNum[Int].flatMap(n => arbitrary[List[Int]].map(n -> _))) {
         case (n, l) =>
           for {
