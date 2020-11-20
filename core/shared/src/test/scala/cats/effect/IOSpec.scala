@@ -975,10 +975,36 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           } yield res
       }
 
+      "should propagate errors" in real {
+        List(1, 2, 3)
+          .parTraverseN(2)((n: Int) =>
+            if (n == 2) IO.raiseError(new RuntimeException) else IO.pure(n))
+          .attempt
+          .flatMap { res =>
+            IO(res must beLike {
+              case Left(e) => e must haveClass[RuntimeException]
+            })
+          }
+      }
+
+      "should cleanup on error" in real {
+        for {
+          c <- IO.ref(0)
+          f <- List(1, 2, 3)
+            .parTraverseN(1)((n: Int) =>
+              IO.sleep(1.second) >> (if (n == 2) IO.raiseError(new RuntimeException)
+                                     else IO.pure(n)) >> c.update(_ + 1))
+            .start
+          _ <- f.join
+          r <- c.get
+          res <- IO(r must beEqualTo(1))
+        } yield res
+      }
+
       "should be cancelable" in real {
         for {
           c <- IO.ref(0)
-          f <- List(1,2,3).parTraverseN(1)(_ => IO.sleep(1.second) >> c.update(_ + 1)).start
+          f <- List(1, 2, 3).parTraverseN(1)(_ => IO.sleep(1.second) >> c.update(_ + 1)).start
           _ <- IO.sleep(10.millis)
           _ <- f.cancel
           r <- c.get

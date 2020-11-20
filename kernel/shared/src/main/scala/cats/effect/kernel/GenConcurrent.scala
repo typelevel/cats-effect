@@ -96,7 +96,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
     implicit val F: GenConcurrent[F, Throwable] = this.asInstanceOf[GenConcurrent[F, Throwable]]
 
-    def worker(state: Ref[F, Queue[(A, Deferred[F, B])]]): F[Unit] =
+    def worker(state: Ref[F, Queue[(A, Deferred[F, Either[Throwable, B]])]]): F[Unit] =
       for {
         po <- state.modify { q =>
           q.dequeueOption match {
@@ -108,8 +108,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
           case None => unit
           case Some(p) =>
             (for {
-              //TODO what if this throws?
-              b <- f(p._1)
+              b <- f(p._1).attempt
               _ <- p._2.complete(b)
             } yield ()) >> worker(state)
         }
@@ -120,16 +119,16 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
     else
       uncancelable { poll =>
         for {
-          state <- ref(Queue.empty[(A, Deferred[F, B])])
+          state <- ref(Queue.empty[(A, Deferred[F, Either[Throwable, B]])])
           r <- poll(ta.traverse { a =>
             for {
-              d <- deferred[B]
+              d <- deferred[Either[Throwable, B]]
               _ <- state.update(_.enqueue(a -> d))
             } yield d
           })
           workers = List.fill(n)(worker(state).start)
           ws <- workers.parSequence
-          res <- poll(r.traverse(_.get)).onCancel(ws.parTraverse_(_.cancel))
+          res <- poll(r.traverse(_.get.rethrow)).guarantee(ws.parTraverse_(_.cancel))
         } yield res
       }
   }
