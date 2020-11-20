@@ -29,7 +29,6 @@ import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.concurrent.duration._
 
 class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
-  sequential
 
   "BoundedQueue" should {
     boundedQueueTests("BoundedQueue", Queue.bounded)
@@ -168,7 +167,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       name: String,
       constructor: Int => IO[Q[IO, Int]]
   ): Fragments = {
-    s"$name - raise an exception when constructed with zero capacity" in real {
+    s"$name - should raise an exception when constructed with zero capacity" in real {
       val test = IO.defer(constructor(0)).attempt
       test.flatMap { res =>
         IO {
@@ -184,7 +183,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       name: String,
       constructor: Int => IO[Q[IO, Int]]
   ): Fragments = {
-    s"$name - raise an exception when constructed with a negative capacity" in real {
+    s"$name - should raise an exception when constructed with a negative capacity" in real {
       val test = IO.defer(constructor(-1)).attempt
       test.flatMap { res =>
         IO {
@@ -202,7 +201,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       offer: (Q[IO, Int], Int) => IO[Unit],
       tryOffer: (Q[IO, Int], Int) => IO[Boolean],
       expected: Boolean): Fragments = {
-    s"$name - return false on tryOffer when the queue is full" in real {
+    s"$name - should return false on tryOffer when the queue is full" in real {
       for {
         q <- constructor(1)
         _ <- offer(q, 0)
@@ -314,7 +313,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       tryOffer: (Q[IO, Int], Int) => IO[Boolean],
       take: Q[IO, Int] => IO[Int],
       tryTake: Q[IO, Int] => IO[Option[Int]]): Fragments = {
-    s"$name - return None on tryTake when the queue is empty" in real {
+    s"$name - should return None on tryTake when the queue is empty" in real {
       for {
         q <- constructor(1)
         v <- tryTake(q)
