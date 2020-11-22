@@ -34,7 +34,7 @@
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 
 <span class="k">val</span> <span class="nv">ioa</span><span class="k">:</span> <span class="kt">SyncIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">SyncIO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Hello world!"</span><span class="o">))</span>
-<span class="c1">// ioa: SyncIO[Unit] = SyncIO$2081122137</span>
+<span class="c1">// ioa: SyncIO[Unit] = SyncIO$1752872285</span>
 <span class="k">val</span> <span class="nv">iob</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nv">ioa</span><span class="o">.</span><span class="py">to</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span>
 <span class="c1">// iob: IO[Unit] = Delay(thunk = &lt;function0&gt;)</span>
 
