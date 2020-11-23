@@ -20,7 +20,6 @@ import cats.{Monoid, Parallel, Semigroup, Traverse}
 import cats.syntax.all._
 import cats.effect.kernel.syntax.all._
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
-import scala.collection.immutable.Queue
 
 trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
@@ -96,39 +95,25 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
     implicit val F: GenConcurrent[F, Throwable] = this.asInstanceOf[GenConcurrent[F, Throwable]]
 
-    def worker(state: Ref[F, Queue[(A, Deferred[F, Either[Throwable, B]])]]): F[Unit] =
-      for {
-        po <- state.modify { q =>
-          q.dequeueOption match {
-            case None => q -> None
-            case Some((p, q2)) => q2 -> Some(p)
-          }
-        }
-        _ <- po match {
-          case None => unit
-          case Some(p) =>
-            (for {
-              b <- f(p._1).attempt
-              _ <- p._2.complete(b)
-            } yield ()) >> worker(state)
-        }
-      } yield ()
+    def worker(
+        semaphore: MiniSemaphore[F],
+        task: F[B],
+        d: Deferred[F, Either[Throwable, B]]): F[Unit] =
+      semaphore.withPermit(task.attempt.flatMap { r => d.complete(r).void })
 
     if (n < 1)
       F.raiseError(new IllegalArgumentException(s"parTraverseN requires n >= 1. Was given $n"))
     else
       uncancelable { poll =>
         for {
-          state <- ref(Queue.empty[(A, Deferred[F, Either[Throwable, B]])])
-          r <- poll(ta.traverse { a =>
+          sem <- MiniSemaphore[F](n)
+          r <- ta.traverse { a =>
             for {
               d <- deferred[Either[Throwable, B]]
-              _ <- state.update(_.enqueue(a -> d))
-            } yield d
-          })
-          workers = List.fill(n)(worker(state).start)
-          ws <- workers.parSequence
-          res <- poll(r.traverse(_.get.rethrow)).guarantee(ws.parTraverse_(_.cancel))
+              f <- worker(sem, f(a), d).start
+            } yield d -> f
+          }
+          res <- poll(r.traverse(_._1.get.rethrow)).guarantee(r.parTraverse_(_._2.cancel))
         } yield res
       }
   }
