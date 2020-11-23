@@ -652,12 +652,8 @@ thread that can be either joined (via <code class="language-plaintext highlighte
 <span class="o">}</span> <span class="k">yield</span> <span class="n">aftermath</span>
 </code></pre></div></div>
 
-<p>Implementation notes:</p>
-
-<ul>
-  <li>the <code class="language-plaintext highlighter-rouge">*&gt;</code> operator is defined in Cats and you can treat it as an
-alias for <code class="language-plaintext highlighter-rouge">lh.flatMap(_ =&gt; rh)</code></li>
-</ul>
+<p><code class="language-plaintext highlighter-rouge">start</code> is defined on IO with overloads accepting an implicit <code class="language-plaintext highlighter-rouge">ContextShift</code> or an explicit <code class="language-plaintext highlighter-rouge">ExecutionContext</code>,
+but it’s also available via the <code class="language-plaintext highlighter-rouge">Concurrent</code> type class. To get an instance of <code class="language-plaintext highlighter-rouge">Concurrent[IO]</code>, you need a <code class="language-plaintext highlighter-rouge">ContextShift[IO]</code> in implicit scope.</p>
 
 <h3 id="runcancelable--unsaferuncancelable">runCancelable &amp; unsafeRunCancelable</h3>
 
@@ -1188,8 +1184,9 @@ so there might not be anybody available to release it.</p>
 
 <p>Please use the former by default and use the latter only for fine-grained control over the thread pool in use.</p>
 
-<p>By default, <code class="language-plaintext highlighter-rouge">Cats Effect</code> can provide instance of <code class="language-plaintext highlighter-rouge">ContextShift[IO]</code> that manages thread-pools,
-but only if there’s an <code class="language-plaintext highlighter-rouge">ExecutionContext</code> in scope or if <a href="/cats-effect/datatypes/ioapp.html">IOApp</a> is used:</p>
+<p>By default, <code class="language-plaintext highlighter-rouge">Cats Effect</code> provides an instance of <code class="language-plaintext highlighter-rouge">ContextShift[IO]</code> that manages thread-pools,
+but only inside an implementation of <a href="/cats-effect/datatypes/ioapp.html">IOApp</a>.
+Custom instances of <code class="language-plaintext highlighter-rouge">ContextShift[IO]</code> can be created using an <code class="language-plaintext highlighter-rouge">ExecutionContext</code>:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext.Implicits.global</span>
@@ -1451,7 +1448,7 @@ but only if there’s an <code class="language-plaintext highlighter-rouge">Exec
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Potentially cancelable!"</span><span class="o">)).</span><span class="py">unsafeRunCancelable</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Potentially cancelable!</span>
 <span class="c1">// res59: cats.effect.package.CancelToken[IO] = Suspend(</span>
-<span class="c1">//   thunk = cats.effect.internals.IOConnection$Impl$$Lambda$10122/0x0000000802c17040@30764534</span>
+<span class="c1">//   thunk = cats.effect.internals.IOConnection$Impl$$Lambda$11686/0x000000080311fc40@2d483df5</span>
 <span class="c1">// )</span>
 </code></pre></div></div>
 
