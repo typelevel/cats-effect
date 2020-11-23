@@ -652,10 +652,8 @@ for {
 } yield aftermath
 ```
 
-Implementation notes:
-
-- the `*>` operator is defined in Cats and you can treat it as an
-  alias for `lh.flatMap(_ => rh)`
+`start` is defined on IO with overloads accepting an implicit `ContextShift` or an explicit `ExecutionContext`,
+but it's also available via the `Concurrent` type class. To get an instance of `Concurrent[IO]`, you need a `ContextShift[IO]` in implicit scope.
   
 ### runCancelable & unsafeRunCancelable
 
@@ -1199,8 +1197,9 @@ Note there are 2 overloads of the `IO.shift` function:
 
 Please use the former by default and use the latter only for fine-grained control over the thread pool in use.
 
-By default, `Cats Effect` can provide instance of `ContextShift[IO]` that manages thread-pools,
-but only if there's an `ExecutionContext` in scope or if [IOApp](./ioapp.md) is used:
+By default, `Cats Effect` provides an instance of `ContextShift[IO]` that manages thread-pools,
+but only inside an implementation of [IOApp](./ioapp.md).
+Custom instances of `ContextShift[IO]` can be created using an `ExecutionContext`:
 
 ```scala mdoc:reset:silent
 import cats.effect.{ContextShift, IO}
