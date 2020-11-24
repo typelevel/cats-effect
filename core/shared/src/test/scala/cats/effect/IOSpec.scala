@@ -997,7 +997,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
             .start
           _ <- f.join
           r <- c.get
-          res <- IO(r must beEqualTo(1))
+          res <- IO(r must beLessThanOrEqualTo(2))
         } yield res
       }
 
@@ -1007,6 +1007,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           f <- List(1, 2, 3).parTraverseN(1)(_ => IO.sleep(1.second) >> c.update(_ + 1)).start
           _ <- IO.sleep(10.millis)
           _ <- f.cancel
+          _ <- IO.sleep(1.second)
           r <- c.get
           res <- IO(r must beEqualTo(0))
         } yield res

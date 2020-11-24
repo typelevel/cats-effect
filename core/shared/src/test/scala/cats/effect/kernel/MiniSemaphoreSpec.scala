@@ -18,8 +18,6 @@ package cats
 package effect
 package kernel
 
-import cats.syntax.all._
-
 import scala.concurrent.duration._
 import java.util.concurrent.TimeoutException
 
