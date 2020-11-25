@@ -633,11 +633,14 @@ object Resource extends ResourceInstances with ResourcePlatform {
    *
    * The types of exit signals are:
    *
-   *  - [[ExitCase$.Succeeded Succeeded]]: for successful completion
-   *  - [[ExitCase$.Error Error]]: for termination in failure
-   *  - [[ExitCase$.Canceled Canceled]]: for abortion
+   *  - [[ExitCase.Succeeded Succeeded]]: for successful completion
+   *  - [[ExitCase.Errored Errored]]: for termination in failure
+   *  - [[ExitCase.Canceled Canceled]]: for abortion
    */
-  sealed trait ExitCase extends Product with Serializable
+  sealed trait ExitCase extends Product with Serializable {
+    def toOutcome[F[_]: Applicative]: Outcome[F, Throwable, Unit]
+  }
+
   object ExitCase {
 
     /**
@@ -651,12 +654,18 @@ object Resource extends ResourceInstances with ResourcePlatform {
      * outcome for the user, but it does for the purposes of the
      * `bracket` operation. <-- TODO still true?
      */
-    case object Succeeded extends ExitCase
+    case object Succeeded extends ExitCase {
+      def toOutcome[F[_]](implicit F: Applicative[F]): Outcome.Succeeded[F, Throwable, Unit] =
+        Outcome.Succeeded(F.unit)
+    }
 
     /**
      * An [[ExitCase]] signaling completion in failure.
      */
-    final case class Errored(e: Throwable) extends ExitCase
+    final case class Errored(e: Throwable) extends ExitCase {
+      def toOutcome[F[_]: Applicative]: Outcome.Errored[F, Throwable, Unit] =
+        Outcome.Errored(e)
+    }
 
     /**
      * An [[ExitCase]] signaling that the action was aborted.
@@ -665,7 +674,10 @@ object Resource extends ResourceInstances with ResourcePlatform {
      * like [[IO]] and the task yielded by `bracket` gets canceled
      * when it's at its `use` phase.
      */
-    case object Canceled extends ExitCase
+    case object Canceled extends ExitCase {
+      def toOutcome[F[_]: Applicative]: Outcome.Canceled[F, Throwable, Unit] =
+        Outcome.Canceled()
+    }
 
     def fromOutcome[F[_], A](outcome: Outcome[F, Throwable, A]): ExitCase =
       outcome match {
