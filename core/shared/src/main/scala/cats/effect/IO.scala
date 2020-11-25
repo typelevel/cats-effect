@@ -25,11 +25,12 @@ import cats.{
   Semigroup,
   SemigroupK,
   Show,
-  StackSafeMonad
+  StackSafeMonad,
+  Traverse
 }
 import cats.syntax.all._
+import cats.effect.instances.spawn
 import cats.effect.std.Console
-import cats.effect.implicits._
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
@@ -289,6 +290,18 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def monotonic: IO[FiniteDuration] = Monotonic
 
   def never[A]: IO[A] = _never
+
+  /**
+   * Like `Parallel.parTraverse`, but limits the degree of parallelism.
+   */
+  def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(f: A => IO[B]): IO[T[B]] =
+    _asyncForIO.parTraverseN(n)(ta)(f)
+
+  /**
+   * Like `Parallel.parSequence`, but limits the degree of parallelism.
+   */
+  def parSequenceN[T[_]: Traverse, A](n: Int)(tma: T[IO[A]]): IO[T[A]] =
+    _asyncForIO.parSequenceN(n)(tma)
 
   def pure[A](value: A): IO[A] = Pure(value)
 
@@ -563,7 +576,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   implicit def asyncForIO: kernel.Async[IO] = _asyncForIO
 
   private[this] val _parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] =
-    parallelForGenSpawn[IO, Throwable]
+    spawn.parallelForGenSpawn[IO, Throwable]
 
   implicit def parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = _parallelForIO
 

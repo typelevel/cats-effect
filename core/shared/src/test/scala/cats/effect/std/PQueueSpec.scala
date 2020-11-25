@@ -138,17 +138,13 @@ trait PQueueTests extends QueueTests[PQueue] { self: BaseSpec =>
     /**
      * Hand-rolled scalacheck effect as we don't have that for CE3 yet
      */
-    s"$name - should dequeue in priority order" in real {
-      val gen = arbitrary[List[Int]]
-      List.range(1, 100).traverse { _ =>
-        val in = gen.sample.get
-        for {
-          q <- constructor(Int.MaxValue)
-          _ <- in.traverse_(q.offer(_))
-          out <- List.fill(in.length)(q.take).sequence
-          res <- IO(out must beEqualTo(in.sorted))
-        } yield res
-      }
+    s"$name - should dequeue in priority order" in realProp(arbitrary[List[Int]]) { in =>
+      for {
+        q <- constructor(Int.MaxValue)
+        _ <- in.traverse_(q.offer(_))
+        out <- List.fill(in.length)(q.take).sequence
+        res <- IO(out must beEqualTo(in.sorted))
+      } yield res
     }
 
   }

@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.{Monoid, Semigroup}
+import cats.{Monoid, Parallel, Semigroup, Traverse}
 import cats.syntax.all._
 import cats.effect.kernel.syntax.all._
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
@@ -78,6 +78,44 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
           }.rethrow
       }
     }
+  }
+
+  /**
+   * Like `Parallel.parSequence`, but limits the degree of parallelism.
+   */
+  def parSequenceN[T[_]: Traverse, A](n: Int)(
+      tma: T[F[A]])(implicit P: Parallel[F], ev: E <:< Throwable): F[T[A]] =
+    parTraverseN(n)(tma)(identity)
+
+  /**
+   * Like `Parallel.parTraverse`, but limits the degree of parallelism.
+   */
+  def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(
+      f: A => F[B])(implicit P: Parallel[F], ev: E <:< Throwable): F[T[B]] = {
+
+    implicit val F: GenConcurrent[F, Throwable] = this.asInstanceOf[GenConcurrent[F, Throwable]]
+
+    def worker(
+        semaphore: MiniSemaphore[F],
+        task: F[B],
+        d: Deferred[F, Either[Throwable, B]]): F[Unit] =
+      semaphore.withPermit(task.attempt.flatMap { r => d.complete(r).void })
+
+    if (n < 1)
+      F.raiseError(new IllegalArgumentException(s"parTraverseN requires n >= 1. Was given $n"))
+    else
+      uncancelable { poll =>
+        for {
+          sem <- MiniSemaphore[F](n)
+          r <- ta.traverse { a =>
+            for {
+              d <- deferred[Either[Throwable, B]]
+              f <- worker(sem, f(a), d).start
+            } yield d -> f
+          }
+          res <- poll(r.traverse(_._1.get.rethrow)).guarantee(r.parTraverse_(_._2.cancel))
+        } yield res
+      }
   }
 
   override def racePair[A, B](fa: F[A], fb: F[B])
