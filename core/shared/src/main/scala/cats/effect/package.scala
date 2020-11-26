@@ -38,7 +38,7 @@ package object effect {
    */
   type CancelToken[F[_]] = F[Unit]
 
-  type ApplicativeThrow[F[_], A] = ApplicativeError[F, Throwable]
+  type ApplicativeThrow[F[_]] = ApplicativeError[F, Throwable]
 
   type MonadThrow[F[_]] = MonadError[F, Throwable]
 
