@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 import scala.scalajs.js.{|, defined, Function1, JavaScriptException, Promise, Thenable}
 
-private[kernel] abstract class AsyncPlatform[F[_]] { this: Async[F] =>
+private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
 
   def fromPromise[A](iop: F[Promise[A]]): F[A] =
     flatMap(iop) { p =>

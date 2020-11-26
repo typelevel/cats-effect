@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 import java.util.concurrent.CompletableFuture
 
-private[kernel] abstract class AsyncPlatform[F[_]] { this: Async[F] =>
+private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
 
   def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] =
     flatMap(fut) { cf =>
