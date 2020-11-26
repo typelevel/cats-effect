@@ -220,7 +220,7 @@ lazy val scalaJSSettings = Seq(
       if (isDotty.value) s.startsWith("-P:scalajs:mapSourceURI")
       else false
     }
-  },
+  }
 )
 
 lazy val sharedSourcesSettings = Seq(
