@@ -22,10 +22,10 @@ import scala.sys.process._
 ThisBuild / baseVersion := "2.3"
 
 val OldScala = "2.12.12"
-val OldDotty = "0.27.0-RC1"
-val NewDotty = "3.0.0-M1"
+val OldDotty = "3.0.0-M1"
+val NewDotty = "3.0.0-M2"
 
-ThisBuild / crossScalaVersions := Seq(OldDotty, NewDotty, OldScala, "2.13.3")
+ThisBuild / crossScalaVersions := Seq(OldDotty, NewDotty, OldScala, "2.13.4")
 ThisBuild / scalaVersion := (ThisBuild / crossScalaVersions).value.last
 
 ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11")
@@ -57,8 +57,8 @@ ThisBuild / scmInfo := Some(
   ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")
 )
 
-val CatsVersion = "2.3.0-M2"
-val DisciplineMunitVersion = "1.0.2"
+val CatsVersion = "2.3.0"
+val DisciplineMunitVersion = "1.0.3"
 val SilencerVersion = "1.7.1"
 
 replaceCommandAlias(
@@ -191,7 +191,6 @@ val mimaSettings = Seq(
 )
 
 lazy val scalaJSSettings = Seq(
-  crossScalaVersions := (ThisBuild / crossScalaVersions).value.filter(_.startsWith("2.")),
   // Use globally accessible (rather than local) source paths in JS source maps
   scalacOptions ++= {
     val hasVersion = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.nonEmpty
@@ -221,8 +220,7 @@ lazy val scalaJSSettings = Seq(
       if (isDotty.value) s.startsWith("-P:scalajs:mapSourceURI")
       else false
     }
-  },
-  crossScalaVersions := crossScalaVersions.value.filter(_.startsWith("2."))
+  }
 )
 
 lazy val sharedSourcesSettings = Seq(
@@ -236,9 +234,8 @@ lazy val sharedSourcesSettings = Seq(
 
 lazy val root = project
   .in(file("."))
-  .disablePlugins(MimaPlugin)
+  .enablePlugins(NoPublishPlugin)
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS, runtimeTests)
-  .settings(noPublishSettings)
   .settings(crossScalaVersions := Seq(), scalaVersion := OldScala)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform)
@@ -305,8 +302,9 @@ lazy val FullTracingTest = config("fulltracing").extend(Test)
 
 lazy val runtimeTests = project
   .in(file("runtime-tests"))
+  .enablePlugins(NoPublishPlugin)
   .dependsOn(coreJVM % "compile->compile;test->test")
-  .settings(commonSettings ++ noPublishSettings)
+  .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
@@ -334,15 +332,17 @@ lazy val runtimeTests = project
 
 lazy val benchmarksPrev = project
   .in(file("benchmarks/vPrev"))
-  .settings(commonSettings ++ noPublishSettings ++ sharedSourcesSettings)
+  .enablePlugins(NoPublishPlugin)
+  .settings(commonSettings ++ sharedSourcesSettings)
   .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "2.2.0")
   .settings(scalacOptions ~= (_.filterNot(Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)))
   .enablePlugins(JmhPlugin)
 
 lazy val benchmarksNext = project
   .in(file("benchmarks/vNext"))
+  .enablePlugins(NoPublishPlugin)
   .dependsOn(coreJVM)
-  .settings(commonSettings ++ noPublishSettings ++ sharedSourcesSettings)
+  .settings(commonSettings ++ sharedSourcesSettings)
   .settings(scalacOptions ~= (_.filterNot(Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)))
   .enablePlugins(JmhPlugin)
 
@@ -402,8 +402,8 @@ lazy val siteSettings = Seq(
 
 lazy val microsite = project
   .in(file("site"))
-  .enablePlugins(MicrositesPlugin, SiteScaladocPlugin, MdocPlugin)
-  .settings(commonSettings ++ noPublishSettings)
+  .enablePlugins(MicrositesPlugin, SiteScaladocPlugin, MdocPlugin, NoPublishPlugin)
+  .settings(commonSettings)
   .settings(siteSettings)
   .dependsOn(coreJVM, lawsJVM)
 
