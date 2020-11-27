@@ -16,9 +16,11 @@
 
 package cats.effect.kernel
 
-import cats.{Monoid, Parallel, Semigroup, Traverse}
+import cats.{Monoid, Semigroup, Traverse}
 import cats.syntax.all._
 import cats.effect.kernel.syntax.all._
+import  cats.effect.kernel.instances.spawn._
+
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
 
 trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
@@ -84,14 +86,14 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
    * Like `Parallel.parSequence`, but limits the degree of parallelism.
    */
   def parSequenceN[T[_]: Traverse, A](n: Int)(
-      tma: T[F[A]])(implicit P: Parallel[F], ev: E <:< Throwable): F[T[A]] =
+      tma: T[F[A]])(implicit ev: E <:< Throwable): F[T[A]] =
     parTraverseN(n)(tma)(identity)
 
   /**
    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
    */
   def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(
-      f: A => F[B])(implicit P: Parallel[F], ev: E <:< Throwable): F[T[B]] = {
+      f: A => F[B])(implicit ev: E <:< Throwable): F[T[B]] = {
 
     implicit val F: GenConcurrent[F, Throwable] = this.asInstanceOf[GenConcurrent[F, Throwable]]
 
