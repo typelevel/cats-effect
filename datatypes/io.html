@@ -1448,7 +1448,7 @@ Custom instances of <code class="highlighter-rouge">ContextShift[IO]</code> can 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Potentially cancelable!"</span><span class="o">)).</span><span class="py">unsafeRunCancelable</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Potentially cancelable!</span>
 <span class="c1">// res59: cats.effect.package.CancelToken[IO] = Suspend(</span>
-<span class="c1">//   thunk = cats.effect.internals.IOConnection$Impl$$Lambda$9264/565018142@6c3e901d</span>
+<span class="c1">//   thunk = cats.effect.internals.IOConnection$Impl$$Lambda$12249/530441167@7ea5566d</span>
 <span class="c1">// )</span>
 </code></pre></div></div>
 
