@@ -955,32 +955,26 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     "parTraverseN" should {
 
       "throw when n < 1" in real {
-        IO.defer(List.empty[Int].parTraverseN(0)((n: Int) => IO.pure(n + 1))).attempt.flatMap { res =>
-          IO(res must beLike {
-            case Left(e) => e must haveClass[IllegalArgumentException]
-          })
-        }
+        IO.defer {
+          List.empty[Int].parTraverseN(0)(_.pure[IO])
+        }.mustFailWith[IllegalArgumentException]
       }
 
       "should propagate errors" in real {
         List(1, 2, 3)
-          .parTraverseN(2)((n: Int) =>
-            if (n == 2) IO.raiseError(new RuntimeException) else IO.pure(n))
-          .attempt
-          .flatMap { res =>
-            IO(res must beLike {
-              case Left(e) => e must haveClass[RuntimeException]
-            })
-          }
+          .parTraverseN(2) { (n: Int) =>
+            if (n == 2) IO.raiseError(new RuntimeException) else n.pure[IO]
+          }.mustFailWith[RuntimeException]
       }
 
       "should cleanup on error" in real {
         for {
           c <- IO.ref(0)
           f <- List(1, 2, 3)
-            .parTraverseN(1)((n: Int) =>
+            .parTraverseN(1) { (n: Int) =>
               IO.sleep(1.second) >> (if (n == 2) IO.raiseError(new RuntimeException)
-                                     else IO.pure(n)) >> c.update(_ + 1))
+              else IO.pure(n)) >> c.update(_ + 1)
+            }
             .start
           _ <- f.join
           r <- c.get
@@ -995,9 +989,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           _ <- IO.sleep(10.millis)
           _ <- f.cancel
           _ <- IO.sleep(1.second)
-          r <- c.get
-          res <- IO(r must beEqualTo(0))
-        } yield res
+          r <- c.get.mustEqual(0)
+         } yield r
       }
 
     }
