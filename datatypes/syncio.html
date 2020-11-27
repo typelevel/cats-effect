@@ -2,7 +2,7 @@
 
 <p>A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously.</p>
 
-<p><code class="language-plaintext highlighter-rouge">SyncIO</code> is similar to <a href="/cats-effect/datatypes/io.html">IO</a>, but does not support asynchronous computations. Consequently, a <code class="language-plaintext highlighter-rouge">SyncIO</code> can be run synchronously to obtain a result via <code class="language-plaintext highlighter-rouge">unsafeRunSync</code>. This is unlike <code class="language-plaintext highlighter-rouge">IO#unsafeRunSync</code>, which cannot be safely called in general. Doing so on the JVM blocks the calling thread while the async part of the computation is run and doing so on Scala.js throws an exception upon encountering an async boundary.</p>
+<p><code class="highlighter-rouge">SyncIO</code> is similar to <a href="/cats-effect/datatypes/io.html">IO</a>, but does not support asynchronous computations. Consequently, a <code class="highlighter-rouge">SyncIO</code> can be run synchronously to obtain a result via <code class="highlighter-rouge">unsafeRunSync</code>. This is unlike <code class="highlighter-rouge">IO#unsafeRunSync</code>, which cannot be safely called in general. Doing so on the JVM blocks the calling thread while the async part of the computation is run and doing so on Scala.js throws an exception upon encountering an async boundary.</p>
 
 <h2 id="constructing-syncio-values">Constructing SyncIO values</h2>
 
@@ -14,11 +14,11 @@
 <span class="c1">// Cats!</span>
 </code></pre></div></div>
 
-<p>There’s also <code class="language-plaintext highlighter-rouge">suspend</code> and <code class="language-plaintext highlighter-rouge">unit</code>, equivalent to the same operations defined in <code class="language-plaintext highlighter-rouge">IO</code> but with synchronicity guarantees.</p>
+<p>There’s also <code class="highlighter-rouge">suspend</code> and <code class="highlighter-rouge">unit</code>, equivalent to the same operations defined in <code class="highlighter-rouge">IO</code> but with synchronicity guarantees.</p>
 
 <h2 id="interoperation-with-eval-and-io">Interoperation with Eval and IO</h2>
 
-<p><code class="language-plaintext highlighter-rouge">SyncIO</code> defines an <code class="language-plaintext highlighter-rouge">eval</code> method in its companion object to lift any <code class="language-plaintext highlighter-rouge">cats.Eval</code> value.</p>
+<p><code class="highlighter-rouge">SyncIO</code> defines an <code class="highlighter-rouge">eval</code> method in its companion object to lift any <code class="highlighter-rouge">cats.Eval</code> value.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.Eval</span>
 
@@ -29,12 +29,12 @@
 <span class="c1">// res1: String = "hey!"</span>
 </code></pre></div></div>
 
-<p><code class="language-plaintext highlighter-rouge">SyncIO</code> also defines a <code class="language-plaintext highlighter-rouge">to[F]</code> method at the class level to lift your value into any <code class="language-plaintext highlighter-rouge">F</code> with a <code class="language-plaintext highlighter-rouge">LiftIO</code> instance available.</p>
+<p><code class="highlighter-rouge">SyncIO</code> also defines a <code class="highlighter-rouge">to[F]</code> method at the class level to lift your value into any <code class="highlighter-rouge">F</code> with a <code class="highlighter-rouge">LiftIO</code> instance available.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 
 <span class="k">val</span> <span class="nv">ioa</span><span class="k">:</span> <span class="kt">SyncIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">SyncIO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Hello world!"</span><span class="o">))</span>
-<span class="c1">// ioa: SyncIO[Unit] = SyncIO$1243827712</span>
+<span class="c1">// ioa: SyncIO[Unit] = SyncIO$317277508</span>
 <span class="k">val</span> <span class="nv">iob</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nv">ioa</span><span class="o">.</span><span class="py">to</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span>
 <span class="c1">// iob: IO[Unit] = Delay(thunk = &lt;function0&gt;)</span>
 

@@ -40,13 +40,13 @@ e.g. waiting for disk operation to finish or external service to answer your req
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">IO</span><span class="o">.</span><span class="py">never</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"done"</span><span class="o">))</span>
 </code></pre></div></div>
 
-<p>The above will never print “done”, block a thread (unless <code class="language-plaintext highlighter-rouge">.unsafeRunSync</code> is run on it), or consume CPU after its creation.</p>
+<p>The above will never print “done”, block a thread (unless <code class="highlighter-rouge">.unsafeRunSync</code> is run on it), or consume CPU after its creation.</p>
 
 <h2 id="threads">Threads</h2>
 
 <h3 id="threading-on-jvm">Threading (on JVM)</h3>
 
-<p>Threads in JVM map 1:1 to the operating system’s native threads. Calling <code class="language-plaintext highlighter-rouge">new Thread()</code> also creates an operating system thread.
+<p>Threads in JVM map 1:1 to the operating system’s native threads. Calling <code class="highlighter-rouge">new Thread()</code> also creates an operating system thread.
 We can create many of them (as long as we can fit them in the memory) but we can only execute 1 per core at the given time. 
 Others have to wait for their turn.</p>
 
@@ -70,11 +70,11 @@ It may turn out that process of creating thread and possible context switches ha
 Furthermore, having too many threads means that we can eventually run out of memory and that they are
 competing for CPU, slowing down the entire application.</p>
 
-<p>It is advised to use <strong>thread pools</strong> created from <code class="language-plaintext highlighter-rouge">java.util.concurrent.Executor</code>.
-A thread pool consists of work queue and a pool of running threads. Every task (<code class="language-plaintext highlighter-rouge">Runnable</code>) to execute is
+<p>It is advised to use <strong>thread pools</strong> created from <code class="highlighter-rouge">java.util.concurrent.Executor</code>.
+A thread pool consists of work queue and a pool of running threads. Every task (<code class="highlighter-rouge">Runnable</code>) to execute is
 placed in the work queue and the threads that are governed by the pool take it from there to do their work.
-In Scala, we avoid explicitly working with <code class="language-plaintext highlighter-rouge">Runnable</code> and use abstractions that do that under the hood
-(<code class="language-plaintext highlighter-rouge">Future</code> and <code class="language-plaintext highlighter-rouge">IO</code> implementations). Thread pools can reuse and cache threads to prevent some of the problems
+In Scala, we avoid explicitly working with <code class="highlighter-rouge">Runnable</code> and use abstractions that do that under the hood
+(<code class="highlighter-rouge">Future</code> and <code class="highlighter-rouge">IO</code> implementations). Thread pools can reuse and cache threads to prevent some of the problems
 mentioned earlier.</p>
 
 <h3 id="choosing-thread-pool">Choosing Thread Pool</h3>
@@ -85,13 +85,13 @@ mentioned earlier.</p>
 
 <h4 id="bounded">Bounded</h4>
 
-<p>Limiting number of available threads to certain amount. Example could be <code class="language-plaintext highlighter-rouge">newSingleThreadExecutor</code> to execute
+<p>Limiting number of available threads to certain amount. Example could be <code class="highlighter-rouge">newSingleThreadExecutor</code> to execute
 only one task at the time or limiting number of threads to number of processor cores for CPU-bound tasks.</p>
 
 <h4 id="unbounded">Unbounded</h4>
 
 <p>No maximum limit of available threads. Note that this is dangerous because we could run out of memory by creating
-too many threads, so it’s important to use cached pool (allowing to reuse existing threads) with <code class="language-plaintext highlighter-rouge">keepalive</code> time
+too many threads, so it’s important to use cached pool (allowing to reuse existing threads) with <code class="highlighter-rouge">keepalive</code> time
 (to remove useless threads) and control number of tasks to execute by other means (backpressure, rate limiters).</p>
 
 <p>Despite those dangers it is still very useful for blocking tasks. In limited thread pool if we block
@@ -107,7 +107,7 @@ Blocking a thread means that it is being wasted and nothing else can be schedule
 As mentioned, this can be very dangerous and it’s best to use dedicated thread
 pool for blocking operations. This way they won’t interfere with CPU-bound part of application.</p>
 
-<p><a href="https://typelevel.org/cats-effect/api/cats/effect/Blocker.html"><code class="language-plaintext highlighter-rouge">Blocker[IO]</code></a> can be used to safely handle blocking operations
+<p><a href="https://typelevel.org/cats-effect/api/cats/effect/Blocker.html"><code class="highlighter-rouge">Blocker[IO]</code></a> can be used to safely handle blocking operations
 in an explicit way.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">Blocker</span><span class="o">,</span> <span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
@@ -126,7 +126,7 @@ in an explicit way.</p>
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>In most circumstances use a shared <code class="language-plaintext highlighter-rouge">Blocker</code> when carrying out blocking operations.</p>
+<p>In most circumstances use a shared <code class="highlighter-rouge">Blocker</code> when carrying out blocking operations.</p>
 
 <p>Other resource with good practices regarding working with blocked threads
 <a href="https://monix.io/docs/3x/best-practices/blocking.html">is this section of Monix documentation.</a></p>
@@ -140,39 +140,39 @@ much more lightweight, which allows starting a lot of them without many issues.<
 
 <p>They are often characterized by <a href="https://en.wikipedia.org/wiki/Cooperative_multitasking">cooperative multitasking</a>
 which means the thread decides when it’s giving up control instead of being forcefully preempted, as happens on the JVM.
-This term is important for Cats Effect, whose <code class="language-plaintext highlighter-rouge">Fiber</code> and <code class="language-plaintext highlighter-rouge">shift</code> design have a lot of similarities
+This term is important for Cats Effect, whose <code class="highlighter-rouge">Fiber</code> and <code class="highlighter-rouge">shift</code> design have a lot of similarities
 with this model.</p>
 
 <h2 id="thread-scheduling">Thread Scheduling</h2>
-<p>Working with <code class="language-plaintext highlighter-rouge">cats.effect.IO</code> you should notice a lot of calls to <code class="language-plaintext highlighter-rouge">IO.shift</code>, described
-in <a href="/cats-effect/datatypes/io.html#thread-shifting">Thread Shifting section in <code class="language-plaintext highlighter-rouge">IO</code> documentation</a></p>
+<p>Working with <code class="highlighter-rouge">cats.effect.IO</code> you should notice a lot of calls to <code class="highlighter-rouge">IO.shift</code>, described
+in <a href="/cats-effect/datatypes/io.html#thread-shifting">Thread Shifting section in <code class="highlighter-rouge">IO</code> documentation</a></p>
 
-<p>This function allows to shift computation to different thread pool or simply send it to current <code class="language-plaintext highlighter-rouge">ExecutionContext</code>
+<p>This function allows to shift computation to different thread pool or simply send it to current <code class="highlighter-rouge">ExecutionContext</code>
 to schedule it again. This is often called introducing <strong>asynchronous boundary</strong>.</p>
 
 <p>While the first use case is probably easy to imagine, the second one might be more confusing.
-It is helpful to actually understand what is happening behind the scenes during <code class="language-plaintext highlighter-rouge">shift</code>.</p>
+It is helpful to actually understand what is happening behind the scenes during <code class="highlighter-rouge">shift</code>.</p>
 
 <p>The Essential term is <strong>thread scheduling</strong>. Since we can’t run all our threads in parallel all the time, they
 each get their own slice of time to execute, interleaving with the rest of them so every thread has a chance to run.
 When it is time to change threads, the currently running thread is <strong>preempted</strong>. It saves its state and the context switch happens.</p>
 
-<p>This is a bit different when using thread pools (<code class="language-plaintext highlighter-rouge">ExecutionContext</code>s), because they are in charge of
+<p>This is a bit different when using thread pools (<code class="highlighter-rouge">ExecutionContext</code>s), because they are in charge of
 scheduling threads from their own pool. If there is one thread running, it won’t change until it terminates or
-higher priority thread is ready to start doing work. Note that <code class="language-plaintext highlighter-rouge">IO</code> without any shifts is considered one task,
-so if it’s infinite <code class="language-plaintext highlighter-rouge">IO</code>, it could hog the thread forever and if we use single threaded pool, nothing else
+higher priority thread is ready to start doing work. Note that <code class="highlighter-rouge">IO</code> without any shifts is considered one task,
+so if it’s infinite <code class="highlighter-rouge">IO</code>, it could hog the thread forever and if we use single threaded pool, nothing else
 will ever run on it!</p>
 
-<p>In other words, <code class="language-plaintext highlighter-rouge">IO</code> is executing synchronously until we call <code class="language-plaintext highlighter-rouge">IO.shift</code> or use function like <code class="language-plaintext highlighter-rouge">parSequence</code>. 
-In terms of individual thread pools, we can actually treat <code class="language-plaintext highlighter-rouge">IO</code> like <strong>green thread</strong> with
+<p>In other words, <code class="highlighter-rouge">IO</code> is executing synchronously until we call <code class="highlighter-rouge">IO.shift</code> or use function like <code class="highlighter-rouge">parSequence</code>. 
+In terms of individual thread pools, we can actually treat <code class="highlighter-rouge">IO</code> like <strong>green thread</strong> with
 <a href="https://en.wikipedia.org/wiki/Cooperative_multitasking">cooperative multitasking</a>.  Instead of
 <a href="https://en.wikipedia.org/wiki/Preemption_(computing)#PREEMPTIVE">preemption</a>,
-we can decide when we yield to other pending fibers from the same pool by calling <code class="language-plaintext highlighter-rouge">shift</code>. 
-Calling <code class="language-plaintext highlighter-rouge">IO.shift</code> schedules the work again, so if there are other <code class="language-plaintext highlighter-rouge">IO</code>s waiting to execute, they can have their chance.</p>
+we can decide when we yield to other pending fibers from the same pool by calling <code class="highlighter-rouge">shift</code>. 
+Calling <code class="highlighter-rouge">IO.shift</code> schedules the work again, so if there are other <code class="highlighter-rouge">IO</code>s waiting to execute, they can have their chance.</p>
 
 <p>From the thread pool’s point of view, the process of yielding to other fibers can be described like this:</p>
 <ul>
-  <li>When <code class="language-plaintext highlighter-rouge">shift</code> is called on some fiber:
+  <li>When <code class="highlighter-rouge">shift</code> is called on some fiber:
     <ul>
       <li>Remove that fiber from its current thread and put it in the pool of pending fibers</li>
       <li>For each available thread (including the one from the previous step), assign it one of the pending fibers from the pool</li>
@@ -199,10 +199,10 @@ Calling <code class="language-plaintext highlighter-rouge">IO.shift</code> sched
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>We have two single threaded <code class="language-plaintext highlighter-rouge">ExecutionContexts</code> (wrapped in <a href="/cats-effect/datatypes/contextshift.html">ContextShift</a>)
-and a function that will run <code class="language-plaintext highlighter-rouge">IO</code>, forever printing its identifier.
-Note <code class="language-plaintext highlighter-rouge">repeat.start</code> and return type of <code class="language-plaintext highlighter-rouge">IO[Fiber[IO, Unit]]</code> which means that we run this computation in the background.
-It will run on thread pool provided by <code class="language-plaintext highlighter-rouge">cs</code>, which we will pass explicitly:</p>
+<p>We have two single threaded <code class="highlighter-rouge">ExecutionContexts</code> (wrapped in <a href="/cats-effect/datatypes/contextshift.html">ContextShift</a>)
+and a function that will run <code class="highlighter-rouge">IO</code>, forever printing its identifier.
+Note <code class="highlighter-rouge">repeat.start</code> and return type of <code class="highlighter-rouge">IO[Fiber[IO, Unit]]</code> which means that we run this computation in the background.
+It will run on thread pool provided by <code class="highlighter-rouge">cs</code>, which we will pass explicitly:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="nv">prog</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
@@ -212,8 +212,8 @@ It will run on thread pool provided by <code class="language-plaintext highlight
 
 <span class="nv">prog</span><span class="o">.</span><span class="py">unsafeRunSync</span><span class="o">()</span>
 </code></pre></div></div>
-<p>It will never print <code class="language-plaintext highlighter-rouge">11</code> despite using <code class="language-plaintext highlighter-rouge">.start</code>!
-Why? The <code class="language-plaintext highlighter-rouge">ecOne</code> execution context executes its <code class="language-plaintext highlighter-rouge">IO</code> on the only thread it has, but needs to wait for its
+<p>It will never print <code class="highlighter-rouge">11</code> despite using <code class="highlighter-rouge">.start</code>!
+Why? The <code class="highlighter-rouge">ecOne</code> execution context executes its <code class="highlighter-rouge">IO</code> on the only thread it has, but needs to wait for its
 completion before it can schedule the other one.</p>
 
 <p>How about two thread pools?</p>
@@ -229,7 +229,7 @@ completion before it can schedule the other one.</p>
 <span class="nv">program</span><span class="o">.</span><span class="py">unsafeRunSync</span><span class="o">()</span>
 </code></pre></div></div>
 
-<p>Now it will keep printing both <code class="language-plaintext highlighter-rouge">1</code> and <code class="language-plaintext highlighter-rouge">2</code> but neither <code class="language-plaintext highlighter-rouge">11</code> nor <code class="language-plaintext highlighter-rouge">22</code>. What changed?
+<p>Now it will keep printing both <code class="highlighter-rouge">1</code> and <code class="highlighter-rouge">2</code> but neither <code class="highlighter-rouge">11</code> nor <code class="highlighter-rouge">22</code>. What changed?
 Those thread pools are independent and interleave because of thread scheduling done by the operating system.
 Basically, the thread pool decides which task gets a thread to run but the OS decides what is actually evaluating on the CPU.</p>
 
@@ -262,34 +262,34 @@ Basically, the thread pool decides which task gets a thread to run but the OS de
 <span class="nv">prog</span><span class="o">.</span><span class="py">unsafeRunSync</span><span class="o">()</span>
 </code></pre></div></div>
 
-<p>Notice the <code class="language-plaintext highlighter-rouge">IO.shift *&gt; repeat</code> call. <code class="language-plaintext highlighter-rouge">*&gt;</code> means that we execute first operation, ignore its result and then call <code class="language-plaintext highlighter-rouge">repeat</code>.
+<p>Notice the <code class="highlighter-rouge">IO.shift *&gt; repeat</code> call. <code class="highlighter-rouge">*&gt;</code> means that we execute first operation, ignore its result and then call <code class="highlighter-rouge">repeat</code>.
 Now everything is fair, as we can see each of those numbers printed on the screen.
-Calling <code class="language-plaintext highlighter-rouge">IO.shift</code> fixed the problem because when the currently running <code class="language-plaintext highlighter-rouge">IO</code> was rescheduled, it gave an opportunity
+Calling <code class="highlighter-rouge">IO.shift</code> fixed the problem because when the currently running <code class="highlighter-rouge">IO</code> was rescheduled, it gave an opportunity
 to execute the other one.</p>
 
 <p>It probably sounds quite complex and cumbersome to keep track of it yourself but once you understand fundamentals
-this explicity can be a great virtue of <code class="language-plaintext highlighter-rouge">cats.effect.IO</code>. Knowing what exactly happens in concurrent scenarios
+this explicity can be a great virtue of <code class="highlighter-rouge">cats.effect.IO</code>. Knowing what exactly happens in concurrent scenarios
 in your application just by reading the piece of code can really speedup debugging process or even allow to
 get it right the first time.</p>
 
-<p>Fortunately <code class="language-plaintext highlighter-rouge">cats.effect.IO</code> doesn’t always require to do it manually. Operations like <code class="language-plaintext highlighter-rouge">race</code>, <code class="language-plaintext highlighter-rouge">parMapN</code>
-or <code class="language-plaintext highlighter-rouge">parTraverse</code> introduce asynchronous boundary at the beginning, but if you have limited thread pool and long
+<p>Fortunately <code class="highlighter-rouge">cats.effect.IO</code> doesn’t always require to do it manually. Operations like <code class="highlighter-rouge">race</code>, <code class="highlighter-rouge">parMapN</code>
+or <code class="highlighter-rouge">parTraverse</code> introduce asynchronous boundary at the beginning, but if you have limited thread pool and long
 running tasks, keep fairness in mind.</p>
 
-<p>Scala’s <code class="language-plaintext highlighter-rouge">Future</code> is optimized for fairness, doing <code class="language-plaintext highlighter-rouge">shift</code> equivalent after each <code class="language-plaintext highlighter-rouge">map</code> or <code class="language-plaintext highlighter-rouge">flatMap</code>.
+<p>Scala’s <code class="highlighter-rouge">Future</code> is optimized for fairness, doing <code class="highlighter-rouge">shift</code> equivalent after each <code class="highlighter-rouge">map</code> or <code class="highlighter-rouge">flatMap</code>.
 We wouldn’t have the problem described above but doing it too much results in putting a lot of pressure on
-scheduler causing low throughput. In typical purely functional programs we have many <code class="language-plaintext highlighter-rouge">flatMaps</code> because our
-entire application is just one big <code class="language-plaintext highlighter-rouge">IO</code> composed of many smaller ones. Constant shifting is not feasible
+scheduler causing low throughput. In typical purely functional programs we have many <code class="highlighter-rouge">flatMaps</code> because our
+entire application is just one big <code class="highlighter-rouge">IO</code> composed of many smaller ones. Constant shifting is not feasible
 but there’s always the option to do it if our application has strict latency requirements.</p>
 
-<p>If you are looking for less manual work - <code class="language-plaintext highlighter-rouge">monix.eval.Task</code> is great middleground which by default shifts tasks
+<p>If you are looking for less manual work - <code class="highlighter-rouge">monix.eval.Task</code> is great middleground which by default shifts tasks
 automatically in batches preserving both great throughput and decent latency off the shelf and exposes
 very rich configuration options if you have more advanced use case.</p>
 
 <h2 id="asynchronous--semantic-blocking">Asynchronous / Semantic blocking</h2>
 <p>Sometimes we use term <strong>semantic blocking</strong> or <strong>asynchronous blocking</strong> which is different than blocking thread.
-It means that we suspend our IO/Task waiting for some action to happen (e.g. <code class="language-plaintext highlighter-rouge">Deferred.get</code> waits until the
-result is available) without blocking a threads.  Other <code class="language-plaintext highlighter-rouge">IO</code>s are free to execute on the thread in the meantime.
+It means that we suspend our IO/Task waiting for some action to happen (e.g. <code class="highlighter-rouge">Deferred.get</code> waits until the
+result is available) without blocking a threads.  Other <code class="highlighter-rouge">IO</code>s are free to execute on the thread in the meantime.
 This is further explained in <a href="https://github.com/typelevel/cats-effect/issues/243#issuecomment-392002124">Fabio Labella’s comment.</a></p>
 
 <p>It is important to recognize that not all I/O operations are blocking and need to execute on dedicated thread pool.

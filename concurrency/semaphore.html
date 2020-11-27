@@ -20,19 +20,19 @@ being blocked while waiting to acquire a permit.</p>
 <p>Behavior on cancellation:</p>
 
 <ul>
-  <li>Blocking acquires are cancelable if the semaphore is created with <code class="language-plaintext highlighter-rouge">Semaphore.apply</code> (and hence, with a <code class="language-plaintext highlighter-rouge">Concurrent[F]</code> instance).</li>
-  <li>Blocking acquires are non-cancelable if the semaphore is created with <code class="language-plaintext highlighter-rouge">Semaphore.uncancelable</code> (and hence, with an <code class="language-plaintext highlighter-rouge">Async[F]</code> instance).</li>
+  <li>Blocking acquires are cancelable if the semaphore is created with <code class="highlighter-rouge">Semaphore.apply</code> (and hence, with a <code class="highlighter-rouge">Concurrent[F]</code> instance).</li>
+  <li>Blocking acquires are non-cancelable if the semaphore is created with <code class="highlighter-rouge">Semaphore.uncancelable</code> (and hence, with an <code class="highlighter-rouge">Async[F]</code> instance).</li>
 </ul>
 
 <h2 id="shared-resource">Shared Resource</h2>
 
-<p>When multiple processes try to access a precious resource you might want to constraint the number of accesses. Here is where <code class="language-plaintext highlighter-rouge">Semaphore[F]</code> is useful.</p>
+<p>When multiple processes try to access a precious resource you might want to constraint the number of accesses. Here is where <code class="highlighter-rouge">Semaphore[F]</code> is useful.</p>
 
 <p>Three processes are trying to access a shared resource at the same time but only one at a time will be granted access and the next process have to wait until the resource gets available again (availability is one as indicated by the semaphore counter).</p>
 
-<p><code class="language-plaintext highlighter-rouge">R1</code>, <code class="language-plaintext highlighter-rouge">R2</code> &amp; <code class="language-plaintext highlighter-rouge">R3</code> will request access of the precious resource concurrently so this could be one possible outcome:</p>
+<p><code class="highlighter-rouge">R1</code>, <code class="highlighter-rouge">R2</code> &amp; <code class="highlighter-rouge">R3</code> will request access of the precious resource concurrently so this could be one possible outcome:</p>
 
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>R1 &gt;&gt; Availability: 1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>R1 &gt;&gt; Availability: 1
 R2 &gt;&gt; Availability: 1
 R2 &gt;&gt; Started | Availability: 0
 R3 &gt;&gt; Availability: 0
@@ -46,9 +46,9 @@ R1 &gt;&gt; Done | Availability: 0
 R3 &gt;&gt; Done | Availability: 1
 </code></pre></div></div>
 
-<p>This means when <code class="language-plaintext highlighter-rouge">R1</code> and <code class="language-plaintext highlighter-rouge">R2</code> requested the availability it was one and <code class="language-plaintext highlighter-rouge">R2</code> was faster in getting access to the resource so it started processing. <code class="language-plaintext highlighter-rouge">R3</code> was the slowest and saw that there was no availability from the beginning.</p>
+<p>This means when <code class="highlighter-rouge">R1</code> and <code class="highlighter-rouge">R2</code> requested the availability it was one and <code class="highlighter-rouge">R2</code> was faster in getting access to the resource so it started processing. <code class="highlighter-rouge">R3</code> was the slowest and saw that there was no availability from the beginning.</p>
 
-<p>Once <code class="language-plaintext highlighter-rouge">R2</code> was done <code class="language-plaintext highlighter-rouge">R1</code> started processing immediately showing no availability. Once <code class="language-plaintext highlighter-rouge">R1</code> was done <code class="language-plaintext highlighter-rouge">R3</code> started processing immediately showing no availability. Finally, <code class="language-plaintext highlighter-rouge">R3</code> was done showing an availability of one once again.</p>
+<p>Once <code class="highlighter-rouge">R2</code> was done <code class="highlighter-rouge">R1</code> started processing immediately showing no availability. Once <code class="highlighter-rouge">R1</code> was done <code class="highlighter-rouge">R3</code> started processing immediately showing no availability. Finally, <code class="highlighter-rouge">R3</code> was done showing an availability of one once again.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">Concurrent</span><span class="o">,</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">Timer</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.Semaphore</span>

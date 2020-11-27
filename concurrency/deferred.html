@@ -4,7 +4,7 @@
 
 <p>A purely functional synchronization primitive which represents a single value which may not yet be available.</p>
 
-<p>When created, a <code class="language-plaintext highlighter-rouge">Deferred</code> is empty. It can then be completed exactly once, and never be made empty again.</p>
+<p>When created, a <code class="highlighter-rouge">Deferred</code> is empty. It can then be completed exactly once, and never be made empty again.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">abstract</span> <span class="k">class</span> <span class="nc">Deferred</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
   <span class="k">def</span> <span class="nf">get</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
@@ -12,33 +12,33 @@
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>Expected behavior of <code class="language-plaintext highlighter-rouge">get</code></p>
+<p>Expected behavior of <code class="highlighter-rouge">get</code></p>
 
 <ul>
-  <li><code class="language-plaintext highlighter-rouge">get</code> on an empty <code class="language-plaintext highlighter-rouge">Deferred</code> will block until the <code class="language-plaintext highlighter-rouge">Deferred</code> is completed</li>
-  <li><code class="language-plaintext highlighter-rouge">get</code> on a completed <code class="language-plaintext highlighter-rouge">Deferred</code> will always immediately return its content</li>
-  <li><code class="language-plaintext highlighter-rouge">get</code> is cancelable if <code class="language-plaintext highlighter-rouge">F[_]</code> implements <code class="language-plaintext highlighter-rouge">Concurrent</code> and if the <code class="language-plaintext highlighter-rouge">Deferred</code>
-value was built via the normal <code class="language-plaintext highlighter-rouge">apply</code> (and not via <code class="language-plaintext highlighter-rouge">uncancelable</code>); and on
+  <li><code class="highlighter-rouge">get</code> on an empty <code class="highlighter-rouge">Deferred</code> will block until the <code class="highlighter-rouge">Deferred</code> is completed</li>
+  <li><code class="highlighter-rouge">get</code> on a completed <code class="highlighter-rouge">Deferred</code> will always immediately return its content</li>
+  <li><code class="highlighter-rouge">get</code> is cancelable if <code class="highlighter-rouge">F[_]</code> implements <code class="highlighter-rouge">Concurrent</code> and if the <code class="highlighter-rouge">Deferred</code>
+value was built via the normal <code class="highlighter-rouge">apply</code> (and not via <code class="highlighter-rouge">uncancelable</code>); and on
 cancellation it will unsubscribe the registered listener, an operation that’s
-possible for as long as the <code class="language-plaintext highlighter-rouge">Deferred</code> value isn’t complete</li>
+possible for as long as the <code class="highlighter-rouge">Deferred</code> value isn’t complete</li>
 </ul>
 
-<p>Expected behavior of <code class="language-plaintext highlighter-rouge">complete</code></p>
+<p>Expected behavior of <code class="highlighter-rouge">complete</code></p>
 
 <ul>
-  <li><code class="language-plaintext highlighter-rouge">complete(a)</code> on an empty <code class="language-plaintext highlighter-rouge">Deferred</code> will set it to <code class="language-plaintext highlighter-rouge">a</code>, and notify any and all readers currently blocked on a call to <code class="language-plaintext highlighter-rouge">get</code>.</li>
-  <li><code class="language-plaintext highlighter-rouge">complete(a)</code> on a <code class="language-plaintext highlighter-rouge">Deferred</code> that has already been completed will not modify its content, and result in a failed <code class="language-plaintext highlighter-rouge">F</code>.</li>
+  <li><code class="highlighter-rouge">complete(a)</code> on an empty <code class="highlighter-rouge">Deferred</code> will set it to <code class="highlighter-rouge">a</code>, and notify any and all readers currently blocked on a call to <code class="highlighter-rouge">get</code>.</li>
+  <li><code class="highlighter-rouge">complete(a)</code> on a <code class="highlighter-rouge">Deferred</code> that has already been completed will not modify its content, and result in a failed <code class="highlighter-rouge">F</code>.</li>
 </ul>
 
-<p>Albeit simple, <code class="language-plaintext highlighter-rouge">Deferred</code> can be used in conjunction with <code class="language-plaintext highlighter-rouge">Ref</code> to build complex concurrent behaviour and data structures like queues and semaphores.</p>
+<p>Albeit simple, <code class="highlighter-rouge">Deferred</code> can be used in conjunction with <code class="highlighter-rouge">Ref</code> to build complex concurrent behaviour and data structures like queues and semaphores.</p>
 
 <p>Finally, the blocking mentioned above is semantic only, no actual threads are blocked by the implementation.</p>
 
 <h3 id="only-once">Only Once</h3>
 
-<p>Whenever you are in a scenario when many processes can modify the same value but you only care about the first one in doing so and stop processing, then this is a great use case of <code class="language-plaintext highlighter-rouge">Deferred[F, A]</code>.</p>
+<p>Whenever you are in a scenario when many processes can modify the same value but you only care about the first one in doing so and stop processing, then this is a great use case of <code class="highlighter-rouge">Deferred[F, A]</code>.</p>
 
-<p>Two processes will try to complete at the same time but only one will succeed, completing the deferred primitive exactly once. The loser one will raise an error when trying to complete a deferred already completed and automatically be canceled by the <code class="language-plaintext highlighter-rouge">IO.race</code> mechanism, that’s why we call attempt on the evaluation.</p>
+<p>Two processes will try to complete at the same time but only one will succeed, completing the deferred primitive exactly once. The loser one will raise an error when trying to complete a deferred already completed and automatically be canceled by the <code class="highlighter-rouge">IO.race</code> mechanism, that’s why we call attempt on the evaluation.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.Deferred</span>
@@ -66,19 +66,19 @@ possible for as long as the <code class="language-plaintext highlighter-rouge">D
 
 <h2 id="cancellation">Cancellation</h2>
 
-<p><code class="language-plaintext highlighter-rouge">Deferred</code> is a cancelable data type, if the underlying <code class="language-plaintext highlighter-rouge">F[_]</code> is
-capable of it. This means that cancelling a <code class="language-plaintext highlighter-rouge">get</code> will unsubscribe the 
+<p><code class="highlighter-rouge">Deferred</code> is a cancelable data type, if the underlying <code class="highlighter-rouge">F[_]</code> is
+capable of it. This means that cancelling a <code class="highlighter-rouge">get</code> will unsubscribe the 
 registered listener and can thus avoid memory leaks.</p>
 
-<p>However <code class="language-plaintext highlighter-rouge">Deferred</code> can also work with <code class="language-plaintext highlighter-rouge">Async</code> data types, or
+<p>However <code class="highlighter-rouge">Deferred</code> can also work with <code class="highlighter-rouge">Async</code> data types, or
 in situations where the cancelable behavior isn’t desirable.
-To do so you can use the <code class="language-plaintext highlighter-rouge">uncancelable</code> builder:</p>
+To do so you can use the <code class="highlighter-rouge">uncancelable</code> builder:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">Deferred</span><span class="o">.</span><span class="py">uncancelable</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">]</span>
 </code></pre></div></div>
 
-<p>The restriction on the <code class="language-plaintext highlighter-rouge">uncancelable</code> builder is just <code class="language-plaintext highlighter-rouge">Async</code>,
-whereas the restriction on the normal <code class="language-plaintext highlighter-rouge">apply</code> builder is <code class="language-plaintext highlighter-rouge">Concurrent</code>.</p>
+<p>The restriction on the <code class="highlighter-rouge">uncancelable</code> builder is just <code class="highlighter-rouge">Async</code>,
+whereas the restriction on the normal <code class="highlighter-rouge">apply</code> builder is <code class="highlighter-rouge">Concurrent</code>.</p>
 
 
 <link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>

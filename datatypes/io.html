@@ -7,21 +7,21 @@ expressing both synchronous and asynchronous computations.</p>
 
 <h2 id="introduction">Introduction</h2>
 
-<p>A value of type <code class="language-plaintext highlighter-rouge">IO[A]</code> is a computation which, when evaluated, can
-perform effects before returning a value of type <code class="language-plaintext highlighter-rouge">A</code>.</p>
+<p>A value of type <code class="highlighter-rouge">IO[A]</code> is a computation which, when evaluated, can
+perform effects before returning a value of type <code class="highlighter-rouge">A</code>.</p>
 
-<p><code class="language-plaintext highlighter-rouge">IO</code> values are pure, immutable values and thus preserves referential
-transparency, being usable in functional programming. An <code class="language-plaintext highlighter-rouge">IO</code> is a
+<p><code class="highlighter-rouge">IO</code> values are pure, immutable values and thus preserves referential
+transparency, being usable in functional programming. An <code class="highlighter-rouge">IO</code> is a
 data structure that represents just a description of a side effectful
 computation.</p>
 
-<p><code class="language-plaintext highlighter-rouge">IO</code> can describe synchronous or asynchronous computations that:</p>
+<p><code class="highlighter-rouge">IO</code> can describe synchronous or asynchronous computations that:</p>
 
 <ol>
   <li>on evaluation yield exactly one result</li>
   <li>can end in either success or failure and in case of failure
-<code class="language-plaintext highlighter-rouge">flatMap</code> chains get short-circuited (<code class="language-plaintext highlighter-rouge">IO</code> implementing the algebra
-of <code class="language-plaintext highlighter-rouge">MonadError</code>)</li>
+<code class="highlighter-rouge">flatMap</code> chains get short-circuited (<code class="highlighter-rouge">IO</code> implementing the algebra
+of <code class="highlighter-rouge">MonadError</code>)</li>
   <li>can be canceled, but note this capability relies on the
 user to provide cancellation logic</li>
 </ol>
@@ -54,7 +54,7 @@ it is sequenced in the monadic chain.</p>
 
 <h3 id="on-referential-transparency-and-lazy-evaluation">On Referential Transparency and Lazy Evaluation</h3>
 
-<p><code class="language-plaintext highlighter-rouge">IO</code> can suspend side effects and is thus a lazily evaluated data type, being many times compared with <code class="language-plaintext highlighter-rouge">Future</code> from the standard library and to understand the landscape in terms of the evaluation model (in Scala), consider this classification:</p>
+<p><code class="highlighter-rouge">IO</code> can suspend side effects and is thus a lazily evaluated data type, being many times compared with <code class="highlighter-rouge">Future</code> from the standard library and to understand the landscape in terms of the evaluation model (in Scala), consider this classification:</p>
 
 <table>
   <thead>
@@ -88,9 +88,9 @@ it is sequenced in the monadic chain.</p>
   </tbody>
 </table>
 
-<p>In comparison with Scala’s <code class="language-plaintext highlighter-rouge">Future</code>, the <code class="language-plaintext highlighter-rouge">IO</code> data type preserves <em>referential transparency</em> even when dealing with side effects and is lazily evaluated. In an eager language like Scala, this is the difference between a result and the function producing it.</p>
+<p>In comparison with Scala’s <code class="highlighter-rouge">Future</code>, the <code class="highlighter-rouge">IO</code> data type preserves <em>referential transparency</em> even when dealing with side effects and is lazily evaluated. In an eager language like Scala, this is the difference between a result and the function producing it.</p>
 
-<p>Similar with <code class="language-plaintext highlighter-rouge">Future</code>, with <code class="language-plaintext highlighter-rouge">IO</code> you can reason about the results of asynchronous processes, but due to its purity and laziness <code class="language-plaintext highlighter-rouge">IO</code> can be thought of as a specification (to be evaluated at the “<em>end of the world</em>”), yielding more control over the evaluation model and being more predictable, for example when dealing with sequencing vs parallelism, when composing multiple IOs or when dealing with failure.</p>
+<p>Similar with <code class="highlighter-rouge">Future</code>, with <code class="highlighter-rouge">IO</code> you can reason about the results of asynchronous processes, but due to its purity and laziness <code class="highlighter-rouge">IO</code> can be thought of as a specification (to be evaluated at the “<em>end of the world</em>”), yielding more control over the evaluation model and being more predictable, for example when dealing with sequencing vs parallelism, when composing multiple IOs or when dealing with failure.</p>
 
 <p>Note laziness goes hand in hand with referential transparency. Consider this example:</p>
 
@@ -110,12 +110,12 @@ it is sequenced in the monadic chain.</p>
 <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
 </code></pre></div></div>
 
-<p>This doesn’t work with <code class="language-plaintext highlighter-rouge">Future</code>, but works with <code class="language-plaintext highlighter-rouge">IO</code> and this ability is essential for <em>functional programming</em>.</p>
+<p>This doesn’t work with <code class="highlighter-rouge">Future</code>, but works with <code class="highlighter-rouge">IO</code> and this ability is essential for <em>functional programming</em>.</p>
 
 <h3 id="stack-safety">Stack Safety</h3>
 
-<p><code class="language-plaintext highlighter-rouge">IO</code> is trampolined in its <code class="language-plaintext highlighter-rouge">flatMap</code> evaluation. This means that you
-can safely call <code class="language-plaintext highlighter-rouge">flatMap</code> in a recursive function of arbitrary depth,
+<p><code class="highlighter-rouge">IO</code> is trampolined in its <code class="highlighter-rouge">flatMap</code> evaluation. This means that you
+can safely call <code class="highlighter-rouge">flatMap</code> in a recursive function of arbitrary depth,
 without fear of blowing the stack:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">fib</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">a</span><span class="k">:</span> <span class="kt">Long</span> <span class="o">=</span> <span class="mi">0</span><span class="o">,</span> <span class="n">b</span><span class="k">:</span> <span class="kt">Long</span> <span class="o">=</span> <span class="mi">1</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span>
@@ -127,18 +127,18 @@ without fear of blowing the stack:</p>
   <span class="o">}</span>
 </code></pre></div></div>
 
-<p><code class="language-plaintext highlighter-rouge">IO</code> implements all the typeclasses shown in the <a href="/cats-effect/typeclasses/">hierarchy</a>. Therefore
-all those operations are available for <code class="language-plaintext highlighter-rouge">IO</code>, in addition to some
+<p><code class="highlighter-rouge">IO</code> implements all the typeclasses shown in the <a href="/cats-effect/typeclasses/">hierarchy</a>. Therefore
+all those operations are available for <code class="highlighter-rouge">IO</code>, in addition to some
 others.</p>
 
 <h2 id="describing-effects">Describing Effects</h2>
 
-<p><code class="language-plaintext highlighter-rouge">IO</code> is a potent abstraction that can efficiently describe multiple
+<p><code class="highlighter-rouge">IO</code> is a potent abstraction that can efficiently describe multiple
 kinds of effects:</p>
 
 <h3 id="pure-values--iopure--iounit">Pure Values — IO.pure &amp; IO.unit</h3>
 
-<p>You can lift pure values into <code class="language-plaintext highlighter-rouge">IO</code>, yielding <code class="language-plaintext highlighter-rouge">IO</code> values that are
+<p>You can lift pure values into <code class="highlighter-rouge">IO</code>, yielding <code class="highlighter-rouge">IO</code> values that are
 “already evaluated”, the following function being defined on IO’s 
 companion:</p>
 
@@ -147,32 +147,32 @@ companion:</p>
 
 <p>Note that the given parameter is passed by value, not by name.</p>
 
-<p>For example we can lift a number (pure value) into <code class="language-plaintext highlighter-rouge">IO</code> and compose it
-with another <code class="language-plaintext highlighter-rouge">IO</code> that wraps a side a effect in a safe manner, as
+<p>For example we can lift a number (pure value) into <code class="highlighter-rouge">IO</code> and compose it
+with another <code class="highlighter-rouge">IO</code> that wraps a side a effect in a safe manner, as
 nothing is going to be executed:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">IO</span><span class="o">.</span><span class="py">pure</span><span class="o">(</span><span class="mi">25</span><span class="o">).</span><span class="py">flatMap</span><span class="o">(</span><span class="n">n</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Number is: $n"</span><span class="o">)))</span>
 </code></pre></div></div>
 
-<p>It should be obvious that <code class="language-plaintext highlighter-rouge">IO.pure</code> cannot suspend side effects, because
-<code class="language-plaintext highlighter-rouge">IO.pure</code> is eagerly evaluated, with the given parameter being passed
+<p>It should be obvious that <code class="highlighter-rouge">IO.pure</code> cannot suspend side effects, because
+<code class="highlighter-rouge">IO.pure</code> is eagerly evaluated, with the given parameter being passed
 by value, so don’t do this:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">IO</span><span class="o">.</span><span class="py">pure</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"THIS IS WRONG!"</span><span class="o">))</span>
 </code></pre></div></div>
 
-<p>In this case the <code class="language-plaintext highlighter-rouge">println</code> will trigger a side effect that is not
-suspended in <code class="language-plaintext highlighter-rouge">IO</code> and given this code that probably is not our
+<p>In this case the <code class="highlighter-rouge">println</code> will trigger a side effect that is not
+suspended in <code class="highlighter-rouge">IO</code> and given this code that probably is not our
 intention.</p>
 
-<p><code class="language-plaintext highlighter-rouge">IO.unit</code> is simply an alias for <code class="language-plaintext highlighter-rouge">IO.pure(())</code>, being a reusable
-reference that you can use when an <code class="language-plaintext highlighter-rouge">IO[Unit]</code> value is required, but
+<p><code class="highlighter-rouge">IO.unit</code> is simply an alias for <code class="highlighter-rouge">IO.pure(())</code>, being a reusable
+reference that you can use when an <code class="highlighter-rouge">IO[Unit]</code> value is required, but
 you don’t need to trigger any other side effects:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="nv">unit</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">pure</span><span class="o">(())</span>
 </code></pre></div></div>
 
-<p>Given <code class="language-plaintext highlighter-rouge">IO[Unit]</code> is so prevalent in Scala code, the <code class="language-plaintext highlighter-rouge">Unit</code> type itself
+<p>Given <code class="highlighter-rouge">IO[Unit]</code> is so prevalent in Scala code, the <code class="highlighter-rouge">Unit</code> type itself
 being meant to signal completion of side effectful routines, this
 proves useful as a shortcut and as an optimization, since the same
 reference is returned.</p>
@@ -180,14 +180,14 @@ reference is returned.</p>
 <h3 id="synchronous-effects--ioapply">Synchronous Effects — IO.apply</h3>
 
 <p>It’s probably the most used builder and the equivalent of
-<code class="language-plaintext highlighter-rouge">Sync[IO].delay</code>, describing <code class="language-plaintext highlighter-rouge">IO</code> operations that can be evaluated
+<code class="highlighter-rouge">Sync[IO].delay</code>, describing <code class="highlighter-rouge">IO</code> operations that can be evaluated
 immediately, on the current thread and call-stack:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">apply</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">body</span><span class="k">:</span> <span class="o">=&gt;</span> <span class="n">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
 </code></pre></div></div>
 
 <p>Note the given parameter is passed ‘‘by name’’, its execution being
-“suspended” in the <code class="language-plaintext highlighter-rouge">IO</code> context.</p>
+“suspended” in the <code class="highlighter-rouge">IO</code> context.</p>
 
 <p>An example would be reading / writing from / to the console, which on
 top of the JVM uses blocking I/O, so their execution is immediate:</p>
@@ -208,11 +208,11 @@ purely functional way:</p>
 
 <h3 id="asynchronous-effects--ioasync--iocancelable">Asynchronous Effects — IO.async &amp; IO.cancelable</h3>
 
-<p><code class="language-plaintext highlighter-rouge">IO</code> can describe asynchronous processes via the <code class="language-plaintext highlighter-rouge">IO.async</code> and
-<code class="language-plaintext highlighter-rouge">IO.cancelable</code> builders.</p>
+<p><code class="highlighter-rouge">IO</code> can describe asynchronous processes via the <code class="highlighter-rouge">IO.async</code> and
+<code class="highlighter-rouge">IO.cancelable</code> builders.</p>
 
-<p><code class="language-plaintext highlighter-rouge">IO.async</code> is the operation that complies with the laws of
-<code class="language-plaintext highlighter-rouge">Async#async</code> (see <a href="/cats-effect/typeclasses/async.html">Async</a>) and can
+<p><code class="highlighter-rouge">IO.async</code> is the operation that complies with the laws of
+<code class="highlighter-rouge">Async#async</code> (see <a href="/cats-effect/typeclasses/async.html">Async</a>) and can
 describe simple asynchronous processes that cannot be canceled,
 its signature being:</p>
 
@@ -220,14 +220,14 @@ its signature being:</p>
 </code></pre></div></div>
 
 <p>The provided registration function injects a callback that you can use
-to signal either successful results (with <code class="language-plaintext highlighter-rouge">Right(a)</code>), or failures
-(with <code class="language-plaintext highlighter-rouge">Left(error)</code>). Users can trigger whatever asynchronous side
+to signal either successful results (with <code class="highlighter-rouge">Right(a)</code>), or failures
+(with <code class="highlighter-rouge">Left(error)</code>). Users can trigger whatever asynchronous side
 effects are required, then use the injected callback to signal
 completion.</p>
 
-<p>For example, you don’t need to convert Scala’s <code class="language-plaintext highlighter-rouge">Future</code>, because you
-already have a conversion operation defined in <code class="language-plaintext highlighter-rouge">IO.fromFuture</code>,
-however the code for converting a <code class="language-plaintext highlighter-rouge">Future</code> would be straightforward:</p>
+<p>For example, you don’t need to convert Scala’s <code class="highlighter-rouge">Future</code>, because you
+already have a conversion operation defined in <code class="highlighter-rouge">IO.fromFuture</code>,
+however the code for converting a <code class="highlighter-rouge">Future</code> would be straightforward:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scala.concurrent.</span><span class="o">{</span><span class="nc">Future</span><span class="o">,</span> <span class="nc">ExecutionContext</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">scala.util.</span><span class="o">{</span><span class="nc">Success</span><span class="o">,</span> <span class="nc">Failure</span><span class="o">}</span>
@@ -245,24 +245,24 @@ however the code for converting a <code class="language-plaintext highlighter-ro
 
 <h4 id="cancelable-processes">Cancelable Processes</h4>
 
-<p>For building cancelable <code class="language-plaintext highlighter-rouge">IO</code> tasks you need to use the
-<code class="language-plaintext highlighter-rouge">IO.cancelable</code> builder, this being compliant with
-<code class="language-plaintext highlighter-rouge">Concurrent#cancelable</code> (see <a href="/cats-effect/typeclasses/concurrent.html">Concurrent</a>) 
+<p>For building cancelable <code class="highlighter-rouge">IO</code> tasks you need to use the
+<code class="highlighter-rouge">IO.cancelable</code> builder, this being compliant with
+<code class="highlighter-rouge">Concurrent#cancelable</code> (see <a href="/cats-effect/typeclasses/concurrent.html">Concurrent</a>) 
 and has this signature:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">cancelable</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">k</span><span class="k">:</span> <span class="o">(</span><span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
 </code></pre></div></div>
 
-<p>So it is similar with <code class="language-plaintext highlighter-rouge">IO.async</code>, but in that registration function
-the user is expected to provide an <code class="language-plaintext highlighter-rouge">IO[Unit]</code> that captures the
+<p>So it is similar with <code class="highlighter-rouge">IO.async</code>, but in that registration function
+the user is expected to provide an <code class="highlighter-rouge">IO[Unit]</code> that captures the
 required cancellation logic.</p>
 
-<p>Important: cancellation is the ability to interrupt an <code class="language-plaintext highlighter-rouge">IO</code> task before
+<p>Important: cancellation is the ability to interrupt an <code class="highlighter-rouge">IO</code> task before
 completion, possibly releasing any acquired resources, useful in race
 conditions to prevent leaks.</p>
 
-<p>As example suppose we want to describe a <code class="language-plaintext highlighter-rouge">sleep</code> operation that
-depends on Java’s <code class="language-plaintext highlighter-rouge">ScheduledExecutorService</code>, delaying a tick for a
+<p>As example suppose we want to describe a <code class="highlighter-rouge">sleep</code> operation that
+depends on Java’s <code class="highlighter-rouge">ScheduledExecutorService</code>, delaying a tick for a
 certain time duration:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.util.concurrent.ScheduledExecutorService</span>
@@ -282,21 +282,21 @@ certain time duration:</p>
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>Note this delayed tick is already described by <code class="language-plaintext highlighter-rouge">IO.sleep</code> (via
-<code class="language-plaintext highlighter-rouge">Timer</code>), so you don’t need to do it.</p>
+<p>Note this delayed tick is already described by <code class="highlighter-rouge">IO.sleep</code> (via
+<code class="highlighter-rouge">Timer</code>), so you don’t need to do it.</p>
 
 <p>More on dealing with ‘‘cancellation’’ below.</p>
 
 <h4 id="ionever">IO.never</h4>
 
-<p><code class="language-plaintext highlighter-rouge">IO.never</code> represents a non-terminating <code class="language-plaintext highlighter-rouge">IO</code> defined in terms of
-<code class="language-plaintext highlighter-rouge">async</code>, useful as shortcut and as a reusable reference:</p>
+<p><code class="highlighter-rouge">IO.never</code> represents a non-terminating <code class="highlighter-rouge">IO</code> defined in terms of
+<code class="highlighter-rouge">async</code>, useful as shortcut and as a reusable reference:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="nv">never</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Nothing</span><span class="o">]</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">async</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 </code></pre></div></div>
 
 <p>This is useful in order to use non-termination in certain cases, like
-race conditions. For example, given <code class="language-plaintext highlighter-rouge">IO.race</code>, we have these
+race conditions. For example, given <code class="highlighter-rouge">IO.race</code>, we have these
 equivalences:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">IO</span><span class="o">.</span><span class="py">race</span><span class="o">(</span><span class="n">lh</span><span class="o">,</span> <span class="nv">IO</span><span class="o">.</span><span class="py">never</span><span class="o">)</span> <span class="o">&lt;-&gt;</span> <span class="nv">lh</span><span class="o">.</span><span class="py">map</span><span class="o">(</span><span class="nc">Left</span><span class="o">(</span><span class="k">_</span><span class="o">))</span>
@@ -306,13 +306,13 @@ equivalences:</p>
 
 <h3 id="deferred-execution--iosuspend">Deferred Execution — IO.suspend</h3>
 
-<p>The <code class="language-plaintext highlighter-rouge">IO.suspend</code> builder has this equivalence:</p>
+<p>The <code class="highlighter-rouge">IO.suspend</code> builder has this equivalence:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">IO</span><span class="o">.</span><span class="py">suspend</span><span class="o">(</span><span class="n">f</span><span class="o">)</span> <span class="o">&lt;-&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">f</span><span class="o">).</span><span class="py">flatten</span>
 </code></pre></div></div>
 
 <p>So it is useful for suspending effects, but that defers the completion
-of the returned <code class="language-plaintext highlighter-rouge">IO</code> to some other reference. It’s also useful for
+of the returned <code class="highlighter-rouge">IO</code> to some other reference. It’s also useful for
 modeling stack safe, tail recursive loops:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
@@ -327,13 +327,13 @@ modeling stack safe, tail recursive loops:</p>
 </code></pre></div></div>
 
 <p>Normally a function like this would eventually yield a stack overflow
-error on top of the JVM. By using <code class="language-plaintext highlighter-rouge">IO.suspend</code> and doing all of those
-cycles using <code class="language-plaintext highlighter-rouge">IO</code>’s run-loop, its evaluation is lazy and it’s going to
-use constant memory. This would work with <code class="language-plaintext highlighter-rouge">flatMap</code> as well, of
-course, <code class="language-plaintext highlighter-rouge">suspend</code> being just nicer in this example.</p>
+error on top of the JVM. By using <code class="highlighter-rouge">IO.suspend</code> and doing all of those
+cycles using <code class="highlighter-rouge">IO</code>’s run-loop, its evaluation is lazy and it’s going to
+use constant memory. This would work with <code class="highlighter-rouge">flatMap</code> as well, of
+course, <code class="highlighter-rouge">suspend</code> being just nicer in this example.</p>
 
-<p>We could describe this function using Scala’s <code class="language-plaintext highlighter-rouge">@tailrec</code> mechanism,
-however by using <code class="language-plaintext highlighter-rouge">IO</code> we can also preserve fairness by inserting
+<p>We could describe this function using Scala’s <code class="highlighter-rouge">@tailrec</code> mechanism,
+however by using <code class="highlighter-rouge">IO</code> we can also preserve fairness by inserting
 asynchronous boundaries:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
@@ -351,32 +351,32 @@ asynchronous boundaries:</p>
   <span class="o">}</span>
 </code></pre></div></div>
 
-<p>And now we have something more interesting than a <code class="language-plaintext highlighter-rouge">@tailrec</code> loop. As
-can be seen, <code class="language-plaintext highlighter-rouge">IO</code> allows very precise control over the evaluation.</p>
+<p>And now we have something more interesting than a <code class="highlighter-rouge">@tailrec</code> loop. As
+can be seen, <code class="highlighter-rouge">IO</code> allows very precise control over the evaluation.</p>
 
 <h2 id="concurrency-and-cancellation">Concurrency and Cancellation</h2>
 
-<p><code class="language-plaintext highlighter-rouge">IO</code> can describe interruptible asynchronous processes. As an
+<p><code class="highlighter-rouge">IO</code> can describe interruptible asynchronous processes. As an
 implementation detail:</p>
 
 <ol>
-  <li>not all <code class="language-plaintext highlighter-rouge">IO</code> tasks are cancelable. Cancellation status is only checked <em>after</em>
+  <li>not all <code class="highlighter-rouge">IO</code> tasks are cancelable. Cancellation status is only checked <em>after</em>
 asynchronous boundaries. It can be achieved in the following way:
     <ul>
-      <li>Building it with <code class="language-plaintext highlighter-rouge">IO.cancelable</code>, <code class="language-plaintext highlighter-rouge">IO.async</code>, <code class="language-plaintext highlighter-rouge">IO.asyncF</code> or <code class="language-plaintext highlighter-rouge">IO.bracket</code></li>
-      <li>Using <code class="language-plaintext highlighter-rouge">IO.cancelBoundary</code> or <code class="language-plaintext highlighter-rouge">IO.shift</code></li>
+      <li>Building it with <code class="highlighter-rouge">IO.cancelable</code>, <code class="highlighter-rouge">IO.async</code>, <code class="highlighter-rouge">IO.asyncF</code> or <code class="highlighter-rouge">IO.bracket</code></li>
+      <li>Using <code class="highlighter-rouge">IO.cancelBoundary</code> or <code class="highlighter-rouge">IO.shift</code></li>
     </ul>
   </li>
 </ol>
 
 <p>Note that the second point is the consequence of the first one and anything that involves
   those operations is also possible to cancel. It includes, but is not limited to
-  waiting on <code class="language-plaintext highlighter-rouge">Mvar.take</code>, <code class="language-plaintext highlighter-rouge">Mvar.put</code> and <code class="language-plaintext highlighter-rouge">Deferred.get</code>.</p>
+  waiting on <code class="highlighter-rouge">Mvar.take</code>, <code class="highlighter-rouge">Mvar.put</code> and <code class="highlighter-rouge">Deferred.get</code>.</p>
 
-<p>We should also note that <code class="language-plaintext highlighter-rouge">flatMap</code> chains are only cancelable only if
+<p>We should also note that <code class="highlighter-rouge">flatMap</code> chains are only cancelable only if
   the chain happens <em>after</em> an asynchronous boundary.
-  After an asynchronous boundary, cancellation checks are performed on every N <code class="language-plaintext highlighter-rouge">flatMap</code>.
-  The value of <code class="language-plaintext highlighter-rouge">N</code> is hardcoded to 512.</p>
+  After an asynchronous boundary, cancellation checks are performed on every N <code class="highlighter-rouge">flatMap</code>.
+  The value of <code class="highlighter-rouge">N</code> is hardcoded to 512.</p>
 
 <p>Here is an example,</p>
 
@@ -401,24 +401,24 @@ asynchronous boundaries. It can be achieved in the following way:
 </code></pre></div></div>
 
 <ol>
-  <li><code class="language-plaintext highlighter-rouge">IO</code> tasks that are cancelable, usually become non-terminating on
-<code class="language-plaintext highlighter-rouge">cancel</code></li>
+  <li><code class="highlighter-rouge">IO</code> tasks that are cancelable, usually become non-terminating on
+<code class="highlighter-rouge">cancel</code></li>
 </ol>
 
 <p>Also this might be a point of confusion for folks coming from Java and
-that expect the features of <code class="language-plaintext highlighter-rouge">Thread.interrupt</code> or of the old and
-deprecated <code class="language-plaintext highlighter-rouge">Thread.stop</code>:</p>
+that expect the features of <code class="highlighter-rouge">Thread.interrupt</code> or of the old and
+deprecated <code class="highlighter-rouge">Thread.stop</code>:</p>
 
-<p><code class="language-plaintext highlighter-rouge">IO</code> cancellation does NOT work like that, as thread interruption in
+<p><code class="highlighter-rouge">IO</code> cancellation does NOT work like that, as thread interruption in
 Java is inherently <em>unsafe, unreliable and not portable</em>!</p>
 
 <p>Next subsections describe cancellation-related operations in more depth.</p>
 
 <h3 id="building-cancelable-io-tasks">Building cancelable IO tasks</h3>
 
-<p>Cancelable <code class="language-plaintext highlighter-rouge">IO</code> tasks can be described via the <code class="language-plaintext highlighter-rouge">IO.cancelable</code>
-builder. The <code class="language-plaintext highlighter-rouge">delayedTick</code> example making use of the Java’s
-<code class="language-plaintext highlighter-rouge">ScheduledExecutorService</code> was already given above, but to recap:</p>
+<p>Cancelable <code class="highlighter-rouge">IO</code> tasks can be described via the <code class="highlighter-rouge">IO.cancelable</code>
+builder. The <code class="highlighter-rouge">delayedTick</code> example making use of the Java’s
+<code class="highlighter-rouge">ScheduledExecutorService</code> was already given above, but to recap:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.util.concurrent.ScheduledExecutorService</span>
 
@@ -485,15 +485,15 @@ is NOT cancelable. So for example, using Java’s blocking I/O still:</p>
   <span class="o">}</span>
 </code></pre></div></div>
 
-<p>This is obviously not cancelable and there’s no magic that the <code class="language-plaintext highlighter-rouge">IO</code>
+<p>This is obviously not cancelable and there’s no magic that the <code class="highlighter-rouge">IO</code>
 implementation does to make that loop cancelable. No, we are not going
-to use Java’s <code class="language-plaintext highlighter-rouge">Thread.interrupt</code>, because that would be unsafe and
-unreliable and besides, whatever the <code class="language-plaintext highlighter-rouge">IO</code> does has to be portable
+to use Java’s <code class="highlighter-rouge">Thread.interrupt</code>, because that would be unsafe and
+unreliable and besides, whatever the <code class="highlighter-rouge">IO</code> does has to be portable
 between platforms.</p>
 
 <p>But there’s a lot of flexibility in what can be done, including here.
-We could simply introduce a variable that changes to <code class="language-plaintext highlighter-rouge">false</code>, to be
-observed in that <code class="language-plaintext highlighter-rouge">while</code> loop:</p>
+We could simply introduce a variable that changes to <code class="highlighter-rouge">false</code>, to be
+observed in that <code class="highlighter-rouge">while</code> loop:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io.File</span>
 <span class="k">import</span> <span class="nn">java.util.concurrent.atomic.AtomicBoolean</span>
@@ -557,12 +557,12 @@ be tempted to do something like this:</p>
 </code></pre></div></div>
 
 <p>An operation like this might be useful in streaming abstractions that
-stream I/O chunks via <code class="language-plaintext highlighter-rouge">IO</code> (via libraries like FS2, Monix, or others).</p>
+stream I/O chunks via <code class="highlighter-rouge">IO</code> (via libraries like FS2, Monix, or others).</p>
 
-<p>But the described operation is incorrect, because <code class="language-plaintext highlighter-rouge">in.close()</code> is
-<em>concurrent</em> with <code class="language-plaintext highlighter-rouge">in.readLine</code>, which can lead to thrown exceptions
+<p>But the described operation is incorrect, because <code class="highlighter-rouge">in.close()</code> is
+<em>concurrent</em> with <code class="highlighter-rouge">in.readLine</code>, which can lead to thrown exceptions
 and in many cases it can lead to data <em>corruption</em>. This is a big
-no-no. We want to interrupt whatever it is that the <code class="language-plaintext highlighter-rouge">IO</code> is doing, but
+no-no. We want to interrupt whatever it is that the <code class="highlighter-rouge">IO</code> is doing, but
 not at the cost of data corruption.</p>
 
 <p>Therefore the user needs to handle thread safety concerns. So here’s
@@ -598,16 +598,16 @@ one way of doing it:</p>
 </code></pre></div></div>
 
 <p>In this example it is the cancellation logic itself that calls
-<code class="language-plaintext highlighter-rouge">in.close()</code>, but the call is safe due to the thread-safe guard that
-we’re creating by usage of an atomic <code class="language-plaintext highlighter-rouge">getAndSet</code>.</p>
+<code class="highlighter-rouge">in.close()</code>, but the call is safe due to the thread-safe guard that
+we’re creating by usage of an atomic <code class="highlighter-rouge">getAndSet</code>.</p>
 
-<p>This is using an <code class="language-plaintext highlighter-rouge">AtomicBoolean</code> for thread-safety, but don’t shy away
-from using intrinsic locks / mutexes via <code class="language-plaintext highlighter-rouge">synchronize</code> blocks or
+<p>This is using an <code class="highlighter-rouge">AtomicBoolean</code> for thread-safety, but don’t shy away
+from using intrinsic locks / mutexes via <code class="highlighter-rouge">synchronize</code> blocks or
 whatever else concurrency primitives the JVM provides, whatever is
 needed in these side effectful functions. And don’t worry, this is
-usually needed only in <code class="language-plaintext highlighter-rouge">IO.cancelable</code>, <code class="language-plaintext highlighter-rouge">IO.async</code> or <code class="language-plaintext highlighter-rouge">IO.apply</code>, as
+usually needed only in <code class="highlighter-rouge">IO.cancelable</code>, <code class="highlighter-rouge">IO.async</code> or <code class="highlighter-rouge">IO.apply</code>, as
 these builders represents the FFI for interacting with the impure
-world, aka the dark side, otherwise once you’re in <code class="language-plaintext highlighter-rouge">IO</code>’s context, you
+world, aka the dark side, otherwise once you’re in <code class="highlighter-rouge">IO</code>’s context, you
 can compose concurrent tasks using higher level tools.</p>
 
 <p>Shared memory concurrency is unfortunately both the blessing and the
@@ -617,17 +617,17 @@ parallelism either. Such is life, a big trail of tradeoffs.</p>
 
 <h3 id="concurrent-start--cancel">Concurrent start + cancel</h3>
 
-<p>You can use <code class="language-plaintext highlighter-rouge">IO</code> as a green-threads system, with the “fork” operation
-being available via <code class="language-plaintext highlighter-rouge">IO#start</code>, the operation that’s compliant with
-<code class="language-plaintext highlighter-rouge">Concurrent#start</code>. This is a method with the following signature:</p>
+<p>You can use <code class="highlighter-rouge">IO</code> as a green-threads system, with the “fork” operation
+being available via <code class="highlighter-rouge">IO#start</code>, the operation that’s compliant with
+<code class="highlighter-rouge">Concurrent#start</code>. This is a method with the following signature:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">start</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Fiber</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">A</span><span class="o">]]</span>
 </code></pre></div></div>
 
 <p>Returned is a <a href="/cats-effect/datatypes/fiber.html">Fiber</a>. You can think of fibers as being
 lightweight threads, a fiber being the pure and light equivalent of a
-thread that can be either joined (via <code class="language-plaintext highlighter-rouge">join</code>) or interrupted (via
-<code class="language-plaintext highlighter-rouge">cancel</code>).</p>
+thread that can be either joined (via <code class="highlighter-rouge">join</code>) or interrupted (via
+<code class="highlighter-rouge">cancel</code>).</p>
 
 <p>Example:</p>
 
@@ -652,17 +652,17 @@ thread that can be either joined (via <code class="language-plaintext highlighte
 <span class="o">}</span> <span class="k">yield</span> <span class="n">aftermath</span>
 </code></pre></div></div>
 
-<p><code class="language-plaintext highlighter-rouge">start</code> is defined on IO with overloads accepting an implicit <code class="language-plaintext highlighter-rouge">ContextShift</code> or an explicit <code class="language-plaintext highlighter-rouge">ExecutionContext</code>,
-but it’s also available via the <code class="language-plaintext highlighter-rouge">Concurrent</code> type class. To get an instance of <code class="language-plaintext highlighter-rouge">Concurrent[IO]</code>, you need a <code class="language-plaintext highlighter-rouge">ContextShift[IO]</code> in implicit scope.</p>
+<p><code class="highlighter-rouge">start</code> is defined on IO with overloads accepting an implicit <code class="highlighter-rouge">ContextShift</code> or an explicit <code class="highlighter-rouge">ExecutionContext</code>,
+but it’s also available via the <code class="highlighter-rouge">Concurrent</code> type class. To get an instance of <code class="highlighter-rouge">Concurrent[IO]</code>, you need a <code class="highlighter-rouge">ContextShift[IO]</code> in implicit scope.</p>
 
 <h3 id="runcancelable--unsaferuncancelable">runCancelable &amp; unsafeRunCancelable</h3>
 
-<p>The above is the pure <code class="language-plaintext highlighter-rouge">cancel</code>, accessible via <code class="language-plaintext highlighter-rouge">Fiber</code>. However the
+<p>The above is the pure <code class="highlighter-rouge">cancel</code>, accessible via <code class="highlighter-rouge">Fiber</code>. However the
 second way to access cancellation token and thus interrupt tasks is via
-<code class="language-plaintext highlighter-rouge">runCancelable</code> (the pure version) and <code class="language-plaintext highlighter-rouge">unsafeRunCancelable</code> (the
+<code class="highlighter-rouge">runCancelable</code> (the pure version) and <code class="highlighter-rouge">unsafeRunCancelable</code> (the
 unsafe version).</p>
 
-<p>Example relying on the side-effecting <code class="language-plaintext highlighter-rouge">unsafeRunCancelable</code> and note
+<p>Example relying on the side-effecting <code class="highlighter-rouge">unsafeRunCancelable</code> and note
 this kind of code is impure and should be used with care:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
@@ -684,9 +684,9 @@ this kind of code is impure and should be used with care:</p>
 <span class="nv">cancel</span><span class="o">.</span><span class="py">unsafeRunSync</span><span class="o">()</span>
 </code></pre></div></div>
 
-<p>The <code class="language-plaintext highlighter-rouge">runCancelable</code> alternative is the operation that’s compliant with
+<p>The <code class="highlighter-rouge">runCancelable</code> alternative is the operation that’s compliant with
 the laws of <a href="/cats-effect/typeclasses/concurrent-effect.html">ConcurrentEffect</a>.
-Same idea, only the actual execution is suspended in <code class="language-plaintext highlighter-rouge">SyncIO</code>:</p>
+Same idea, only the actual execution is suspended in <code class="highlighter-rouge">SyncIO</code>:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.SyncIO</span>
 <span class="k">import</span> <span class="nn">cats.syntax.flatMap._</span>
@@ -702,7 +702,7 @@ Same idea, only the actual execution is suspended in <code class="language-plain
 
 <h3 id="uncancelable-marker">uncancelable marker</h3>
 
-<p>Given a cancelable <code class="language-plaintext highlighter-rouge">IO</code>, we can turn it into an <code class="language-plaintext highlighter-rouge">IO</code> that cannot be
+<p>Given a cancelable <code class="highlighter-rouge">IO</code>, we can turn it into an <code class="highlighter-rouge">IO</code> that cannot be
 canceled:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
@@ -720,22 +720,22 @@ canceled:</p>
 <span class="nv">io</span><span class="o">.</span><span class="py">uncancelable</span>
 </code></pre></div></div>
 
-<p>Sometimes you need to ensure that an <code class="language-plaintext highlighter-rouge">IO</code>’s execution is <em>atomic</em>, or
+<p>Sometimes you need to ensure that an <code class="highlighter-rouge">IO</code>’s execution is <em>atomic</em>, or
 in other words, either all of it executes, or none of it. And this is
 what this operation does — cancelable IOs are by definition not atomic
 and in certain cases we need to make them atomic.</p>
 
-<p>This law is compliant with the laws of <code class="language-plaintext highlighter-rouge">Concurrent#uncancelable</code> (see
+<p>This law is compliant with the laws of <code class="highlighter-rouge">Concurrent#uncancelable</code> (see
 <a href="/cats-effect/typeclasses/concurrent.html">Concurrent</a>).</p>
 
 <h3 id="iocancelboundary">IO.cancelBoundary</h3>
 
-<p>Returns a cancelable boundary — an <code class="language-plaintext highlighter-rouge">IO</code> task that checks for the
+<p>Returns a cancelable boundary — an <code class="highlighter-rouge">IO</code> task that checks for the
 cancellation status of the run-loop and does not allow for the bind
 continuation to keep executing in case cancellation happened.</p>
 
-<p>This operation is very similar to <code class="language-plaintext highlighter-rouge">IO.shift</code>, as it can be dropped in
-<code class="language-plaintext highlighter-rouge">flatMap</code> chains in order to make such long loops cancelable:</p>
+<p>This operation is very similar to <code class="highlighter-rouge">IO.shift</code>, as it can be dropped in
+<code class="highlighter-rouge">flatMap</code> chains in order to make such long loops cancelable:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 
@@ -758,7 +758,7 @@ the protocol being easy to follow and predictable in a WYSIWYG fashion.</p>
 
 <h4 id="comparison-to-ioshift">Comparison to IO.shift</h4>
 
-<p><code class="language-plaintext highlighter-rouge">IO.cancelBoundary</code> is essentially lighter version of <code class="language-plaintext highlighter-rouge">IO.shift</code> without 
+<p><code class="highlighter-rouge">IO.cancelBoundary</code> is essentially lighter version of <code class="highlighter-rouge">IO.shift</code> without 
 ability to shift into different thread pool. It is lighter in the sense that
 it will avoid doing logical fork.</p>
 
@@ -768,7 +768,7 @@ it will avoid doing logical fork.</p>
 or more tasks, with the winner being signaled immediately, with the
 losers being usually canceled.</p>
 
-<p><code class="language-plaintext highlighter-rouge">IO</code> provides two operations for races in its companion:</p>
+<p><code class="highlighter-rouge">IO</code> provides two operations for races in its companion:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// simple version</span>
 <span class="k">def</span> <span class="nf">race</span><span class="o">[</span><span class="kt">A</span>, <span class="kt">B</span><span class="o">](</span><span class="n">lh</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">],</span> <span class="n">rh</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">B</span><span class="o">])</span>
@@ -779,11 +779,11 @@ losers being usually canceled.</p>
   <span class="o">(</span><span class="k">implicit</span> <span class="n">cs</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Either</span><span class="o">[(</span><span class="kt">A</span>, <span class="kt">Fiber</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">B</span><span class="o">])</span>, <span class="o">(</span><span class="kt">Fiber</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">A</span><span class="o">]</span>, <span class="kt">B</span><span class="o">)]]</span>
 </code></pre></div></div>
 
-<p>The simple version, <code class="language-plaintext highlighter-rouge">IO.race</code>, will cancel the loser immediately,
+<p>The simple version, <code class="highlighter-rouge">IO.race</code>, will cancel the loser immediately,
 whereas the second version gives you a <a href="/cats-effect/datatypes/fiber.html">Fiber</a>, letting
 you decide what to do next.</p>
 
-<p>So <code class="language-plaintext highlighter-rouge">race</code> can be derived with <code class="language-plaintext highlighter-rouge">racePair</code> like so:</p>
+<p>So <code class="highlighter-rouge">race</code> can be derived with <code class="highlighter-rouge">racePair</code> like so:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
 
@@ -799,7 +799,7 @@ you decide what to do next.</p>
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>Using <code class="language-plaintext highlighter-rouge">race</code> we could implement a “timeout” operation:</p>
+<p>Using <code class="highlighter-rouge">race</code> we could implement a “timeout” operation:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">Timer</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
 
@@ -823,7 +823,7 @@ you decide what to do next.</p>
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>See <em>Parallelism</em> section above for how to obtain a <code class="language-plaintext highlighter-rouge">Timer[IO]</code></p>
+<p>See <em>Parallelism</em> section above for how to obtain a <code class="highlighter-rouge">Timer[IO]</code></p>
 
 <h3 id="comparison-with-haskells-async-interruption">Comparison with Haskell’s “async interruption”</h3>
 
@@ -831,29 +831,29 @@ you decide what to do next.</p>
 exceptions”, providing the ability to interrupt a running task by 
 throwing an exception from another thread (concurrently).</p>
 
-<p>For <code class="language-plaintext highlighter-rouge">cats.effect</code>, for the “cancel” action, what happens is that
-whatever you specify in the <code class="language-plaintext highlighter-rouge">IO.cancelable</code> builder gets executed. And
-depending on the implementation of an <code class="language-plaintext highlighter-rouge">IO.cancelable</code> task, it can
-become non-terminating. If we’d need to describe our <code class="language-plaintext highlighter-rouge">cancel</code>
+<p>For <code class="highlighter-rouge">cats.effect</code>, for the “cancel” action, what happens is that
+whatever you specify in the <code class="highlighter-rouge">IO.cancelable</code> builder gets executed. And
+depending on the implementation of an <code class="highlighter-rouge">IO.cancelable</code> task, it can
+become non-terminating. If we’d need to describe our <code class="highlighter-rouge">cancel</code>
 operation with an impure signature, it would be:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">()</span> <span class="k">=&gt;</span> <span class="nc">Unit</span>
 </code></pre></div></div>
 
-<p>By comparison Haskell (and possibly the upcoming Scalaz 8 <code class="language-plaintext highlighter-rouge">IO</code>), sends
-an error, a <code class="language-plaintext highlighter-rouge">Throwable</code> on interruption and canceled tasks get
-completed with that <code class="language-plaintext highlighter-rouge">Throwable</code>. Their impure cancel is:</p>
+<p>By comparison Haskell (and possibly the upcoming Scalaz 8 <code class="highlighter-rouge">IO</code>), sends
+an error, a <code class="highlighter-rouge">Throwable</code> on interruption and canceled tasks get
+completed with that <code class="highlighter-rouge">Throwable</code>. Their impure cancel is:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">Throwable</span> <span class="k">=&gt;</span> <span class="nc">Unit</span>
 </code></pre></div></div>
 
-<p><code class="language-plaintext highlighter-rouge">Throwable =&gt; Unit</code> allows the task’s logic to know the cancellation
+<p><code class="highlighter-rouge">Throwable =&gt; Unit</code> allows the task’s logic to know the cancellation
 reason, however cancellation is about cutting the connection to the
 producer, closing all resources as soon as possible, because you’re no
 longer interested in the result, due to some race condition that
 happened.</p>
 
-<p><code class="language-plaintext highlighter-rouge">Throwable =&gt; Unit</code> is also a little confusing, being too broad in
+<p><code class="highlighter-rouge">Throwable =&gt; Unit</code> is also a little confusing, being too broad in
 scope. Users might be tricked into sending messages back to the
 producer via this channel, in order to steer it, to change its
 outcome - however cancellation is cancellation, we’re doing it for the
@@ -870,7 +870,7 @@ complexity.</p>
 
 <h3 id="status-quo">Status Quo</h3>
 
-<p>In mainstream imperative languages you usually have <code class="language-plaintext highlighter-rouge">try / finally</code>
+<p>In mainstream imperative languages you usually have <code class="highlighter-rouge">try / finally</code>
 statements at disposal for acquisition and safe release of resources.
 Pattern goes like this:</p>
 
@@ -893,19 +893,19 @@ Pattern goes like this:</p>
 and can’t be used by FP abstractions</li>
   <li>it’s only meant for synchronous execution, so we can’t use it
 when working with abstractions capable of asynchrony
-(e.g. <code class="language-plaintext highlighter-rouge">IO</code>, <code class="language-plaintext highlighter-rouge">Task</code>, <code class="language-plaintext highlighter-rouge">Future</code>)</li>
-  <li><code class="language-plaintext highlighter-rouge">finally</code> executes regardless of the exception type,
+(e.g. <code class="highlighter-rouge">IO</code>, <code class="highlighter-rouge">Task</code>, <code class="highlighter-rouge">Future</code>)</li>
+  <li><code class="highlighter-rouge">finally</code> executes regardless of the exception type,
 indiscriminately, so if you get an out of memory error it still
 tries to close the file handle, unnecessarily delaying a process
 crash</li>
-  <li>if the body of <code class="language-plaintext highlighter-rouge">try</code> throws an exception, then followed by
-the body of <code class="language-plaintext highlighter-rouge">finally</code> also throwing an exception, then the
-exception of <code class="language-plaintext highlighter-rouge">finally</code> gets rethrown, hiding the original problem</li>
+  <li>if the body of <code class="highlighter-rouge">try</code> throws an exception, then followed by
+the body of <code class="highlighter-rouge">finally</code> also throwing an exception, then the
+exception of <code class="highlighter-rouge">finally</code> gets rethrown, hiding the original problem</li>
 </ol>
 
 <h3 id="bracket">bracket</h3>
 
-<p>Via the <code class="language-plaintext highlighter-rouge">bracket</code> operation we can easily describe the above:</p>
+<p>Via the <code class="highlighter-rouge">bracket</code> operation we can easily describe the above:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io._</span>
 
@@ -925,17 +925,17 @@ exception of <code class="language-plaintext highlighter-rouge">finally</code> g
 
 <ol>
   <li>this is pure, so it can be used for FP</li>
-  <li>this works with asynchronous <code class="language-plaintext highlighter-rouge">IO</code> actions</li>
-  <li>the <code class="language-plaintext highlighter-rouge">release</code> action will happen regardless of the exit status 
-of the <code class="language-plaintext highlighter-rouge">use</code> action, so it will execute for successful completion,
+  <li>this works with asynchronous <code class="highlighter-rouge">IO</code> actions</li>
+  <li>the <code class="highlighter-rouge">release</code> action will happen regardless of the exit status 
+of the <code class="highlighter-rouge">use</code> action, so it will execute for successful completion,
 for thrown errors or for canceled execution</li>
-  <li>if the <code class="language-plaintext highlighter-rouge">use</code> action throws an error and then the <code class="language-plaintext highlighter-rouge">release</code> action
+  <li>if the <code class="highlighter-rouge">use</code> action throws an error and then the <code class="highlighter-rouge">release</code> action
 throws an error as well, the reported error will be that of
-<code class="language-plaintext highlighter-rouge">use</code>, whereas the error thrown by <code class="language-plaintext highlighter-rouge">release</code> will just get logged
-(via <code class="language-plaintext highlighter-rouge">System.err</code>)</li>
+<code class="highlighter-rouge">use</code>, whereas the error thrown by <code class="highlighter-rouge">release</code> will just get logged
+(via <code class="highlighter-rouge">System.err</code>)</li>
 </ol>
 
-<p>Of special consideration is that <code class="language-plaintext highlighter-rouge">bracket</code> calls the <code class="language-plaintext highlighter-rouge">release</code> action
+<p>Of special consideration is that <code class="highlighter-rouge">bracket</code> calls the <code class="highlighter-rouge">release</code> action
 on cancellation as well. Consider this sample:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io._</span>
@@ -974,10 +974,10 @@ on cancellation as well. Consider this sample:</p>
 
 <p>That loop can be slow, we could be talking about a big file and
 as described in the “<em>Concurrency and Cancellation</em>” section,
-cancellation is a concurrent action with whatever goes on in <code class="language-plaintext highlighter-rouge">use</code>.</p>
+cancellation is a concurrent action with whatever goes on in <code class="highlighter-rouge">use</code>.</p>
 
 <p>And in this case, on top of the JVM that is capable of multi-threading, 
-calling <code class="language-plaintext highlighter-rouge">io.close()</code> concurrently with that loop
+calling <code class="highlighter-rouge">io.close()</code> concurrently with that loop
 can lead to data corruption. Depending on use-case synchronization
 might be needed to prevent it:</p>
 
@@ -1031,8 +1031,8 @@ might be needed to prevent it:</p>
 
 <h3 id="bracketcase">bracketCase</h3>
 
-<p>The <code class="language-plaintext highlighter-rouge">bracketCase</code> operation is the generalized <code class="language-plaintext highlighter-rouge">bracket</code>, also receiving
-an <code class="language-plaintext highlighter-rouge">ExitCase</code> in <code class="language-plaintext highlighter-rouge">release</code> in order to distinguish between:</p>
+<p>The <code class="highlighter-rouge">bracketCase</code> operation is the generalized <code class="highlighter-rouge">bracket</code>, also receiving
+an <code class="highlighter-rouge">ExitCase</code> in <code class="highlighter-rouge">release</code> in order to distinguish between:</p>
 
 <ol>
   <li>successful completion</li>
@@ -1060,9 +1060,9 @@ an <code class="language-plaintext highlighter-rouge">ExitCase</code> in <code c
 
 <p>In this example we are only closing the passed resource in case
 cancellation occurred. As to why we’re doing this — consider that 
-the <code class="language-plaintext highlighter-rouge">BufferedReader</code> reference was given to us and usually the 
+the <code class="highlighter-rouge">BufferedReader</code> reference was given to us and usually the 
 producer of such a resource should also be in charge of releasing 
-it. If this function would release the given <code class="language-plaintext highlighter-rouge">BufferedReader</code> on
+it. If this function would release the given <code class="highlighter-rouge">BufferedReader</code> on
 a successful result, then this would be a flawed implementation.</p>
 
 <p>Remember the age old C++ idiom of “<em>resource acquisition is 
@@ -1071,16 +1071,16 @@ should be tied to the lifetime of its parent.</p>
 
 <p>But in case we detect cancellation, we might want to close that 
 resource, because in the case of a cancellation event, we might
-not have a “run-loop” active after this <code class="language-plaintext highlighter-rouge">IO</code> returns its result,
+not have a “run-loop” active after this <code class="highlighter-rouge">IO</code> returns its result,
 so there might not be anybody available to release it.</p>
 
 <h2 id="conversions">Conversions</h2>
 
-<p>There are two useful operations defined in the <code class="language-plaintext highlighter-rouge">IO</code> companion object to lift both a scala <code class="language-plaintext highlighter-rouge">Future</code> and an <code class="language-plaintext highlighter-rouge">Either</code> into <code class="language-plaintext highlighter-rouge">IO</code>.</p>
+<p>There are two useful operations defined in the <code class="highlighter-rouge">IO</code> companion object to lift both a scala <code class="highlighter-rouge">Future</code> and an <code class="highlighter-rouge">Either</code> into <code class="highlighter-rouge">IO</code>.</p>
 
 <h3 id="fromfuture">fromFuture</h3>
 
-<p>Constructs an <code class="language-plaintext highlighter-rouge">IO</code> which evaluates the given <code class="language-plaintext highlighter-rouge">Future</code> and produces either a result or a failure. It is defined as follow:</p>
+<p>Constructs an <code class="highlighter-rouge">IO</code> which evaluates the given <code class="highlighter-rouge">Future</code> and produces either a result or a failure. It is defined as follow:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.Future</span>
@@ -1088,7 +1088,7 @@ so there might not be anybody available to release it.</p>
 <span class="k">def</span> <span class="nf">fromFuture</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">iof</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Future</span><span class="o">[</span><span class="kt">A</span><span class="o">]])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
 </code></pre></div></div>
 
-<p>Because <code class="language-plaintext highlighter-rouge">Future</code> eagerly evaluates, as well as because it memoizes, this function takes its parameter as an <code class="language-plaintext highlighter-rouge">IO</code>, which could be lazily evaluated. If this laziness is appropriately threaded back to the definition site of the <code class="language-plaintext highlighter-rouge">Future</code>, it ensures that the computation is fully managed by <code class="language-plaintext highlighter-rouge">IO</code> and thus referentially transparent.</p>
+<p>Because <code class="highlighter-rouge">Future</code> eagerly evaluates, as well as because it memoizes, this function takes its parameter as an <code class="highlighter-rouge">IO</code>, which could be lazily evaluated. If this laziness is appropriately threaded back to the definition site of the <code class="highlighter-rouge">Future</code>, it ensures that the computation is fully managed by <code class="highlighter-rouge">IO</code> and thus referentially transparent.</p>
 
 <p>Lazy evaluation, equivalent with by-name parameters:</p>
 
@@ -1114,7 +1114,7 @@ so there might not be anybody available to release it.</p>
 
 <h3 id="fromeither">fromEither</h3>
 
-<p>Lifts an <code class="language-plaintext highlighter-rouge">Either[Throwable, A]</code> into the <code class="language-plaintext highlighter-rouge">IO[A]</code> context raising the throwable if it exists.</p>
+<p>Lifts an <code class="highlighter-rouge">Either[Throwable, A]</code> into the <code class="highlighter-rouge">IO[A]</code> context raising the throwable if it exists.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 
@@ -1123,11 +1123,11 @@ so there might not be anybody available to release it.</p>
 
 <h2 id="error-handling">Error Handling</h2>
 
-<p>Since there is an instance of <code class="language-plaintext highlighter-rouge">MonadError[IO, Throwable]</code> available in Cats Effect, all the error handling is done through it. This means you can use all the operations available for <code class="language-plaintext highlighter-rouge">MonadError</code> and thus for <code class="language-plaintext highlighter-rouge">ApplicativeError</code> on <code class="language-plaintext highlighter-rouge">IO</code> as long as the error type is a <code class="language-plaintext highlighter-rouge">Throwable</code>. Operations such as <code class="language-plaintext highlighter-rouge">raiseError</code>, <code class="language-plaintext highlighter-rouge">attempt</code>, <code class="language-plaintext highlighter-rouge">handleErrorWith</code>, <code class="language-plaintext highlighter-rouge">recoverWith</code>, etc. Just make sure you have the syntax import in scope such as <code class="language-plaintext highlighter-rouge">cats.syntax.all._</code>.</p>
+<p>Since there is an instance of <code class="highlighter-rouge">MonadError[IO, Throwable]</code> available in Cats Effect, all the error handling is done through it. This means you can use all the operations available for <code class="highlighter-rouge">MonadError</code> and thus for <code class="highlighter-rouge">ApplicativeError</code> on <code class="highlighter-rouge">IO</code> as long as the error type is a <code class="highlighter-rouge">Throwable</code>. Operations such as <code class="highlighter-rouge">raiseError</code>, <code class="highlighter-rouge">attempt</code>, <code class="highlighter-rouge">handleErrorWith</code>, <code class="highlighter-rouge">recoverWith</code>, etc. Just make sure you have the syntax import in scope such as <code class="highlighter-rouge">cats.syntax.all._</code>.</p>
 
 <h3 id="raiseerror">raiseError</h3>
 
-<p>Constructs an <code class="language-plaintext highlighter-rouge">IO</code> which sequences the specified exception.</p>
+<p>Constructs an <code class="highlighter-rouge">IO</code> which sequences the specified exception.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 
@@ -1137,7 +1137,7 @@ so there might not be anybody available to release it.</p>
 
 <h3 id="attempt">attempt</h3>
 
-<p>Materializes any sequenced exceptions into value space, where they may be handled. This is analogous to the <code class="language-plaintext highlighter-rouge">catch</code> clause in <code class="language-plaintext highlighter-rouge">try</code>/<code class="language-plaintext highlighter-rouge">catch</code>, being the inverse of <code class="language-plaintext highlighter-rouge">IO.raiseError</code>. Example:</p>
+<p>Materializes any sequenced exceptions into value space, where they may be handled. This is analogous to the <code class="highlighter-rouge">catch</code> clause in <code class="highlighter-rouge">try</code>/<code class="highlighter-rouge">catch</code>, being the inverse of <code class="highlighter-rouge">IO.raiseError</code>. Example:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 
@@ -1149,7 +1149,7 @@ so there might not be anybody available to release it.</p>
 
 <h3 id="example-retrying-with-exponential-backoff">Example: Retrying with Exponential Backoff</h3>
 
-<p>With <code class="language-plaintext highlighter-rouge">IO</code> you can easily model a loop that retries evaluation until success or some other condition is met.</p>
+<p>With <code class="highlighter-rouge">IO</code> you can easily model a loop that retries evaluation until success or some other condition is met.</p>
 
 <p>For example here’s a way to implement retries with exponential back-off:</p>
 
@@ -1171,22 +1171,22 @@ so there might not be anybody available to release it.</p>
 
 <h2 id="thread-shifting">Thread Shifting</h2>
 
-<p><code class="language-plaintext highlighter-rouge">IO</code> provides a function <code class="language-plaintext highlighter-rouge">shift</code> to give you more control over the execution of your operations.</p>
+<p><code class="highlighter-rouge">IO</code> provides a function <code class="highlighter-rouge">shift</code> to give you more control over the execution of your operations.</p>
 
 <h3 id="shift">shift</h3>
 
-<p>Note there are 2 overloads of the <code class="language-plaintext highlighter-rouge">IO.shift</code> function:</p>
+<p>Note there are 2 overloads of the <code class="highlighter-rouge">IO.shift</code> function:</p>
 
 <ul>
   <li>One that takes a <a href="/cats-effect/datatypes/contextshift.html">ContextShift</a> that manages the thread-pool used to trigger async boundaries.</li>
-  <li>Another that takes a Scala <code class="language-plaintext highlighter-rouge">ExecutionContext</code> as the thread-pool.</li>
+  <li>Another that takes a Scala <code class="highlighter-rouge">ExecutionContext</code> as the thread-pool.</li>
 </ul>
 
 <p>Please use the former by default and use the latter only for fine-grained control over the thread pool in use.</p>
 
-<p>By default, <code class="language-plaintext highlighter-rouge">Cats Effect</code> provides an instance of <code class="language-plaintext highlighter-rouge">ContextShift[IO]</code> that manages thread-pools,
+<p>By default, <code class="highlighter-rouge">Cats Effect</code> provides an instance of <code class="highlighter-rouge">ContextShift[IO]</code> that manages thread-pools,
 but only inside an implementation of <a href="/cats-effect/datatypes/ioapp.html">IOApp</a>.
-Custom instances of <code class="language-plaintext highlighter-rouge">ContextShift[IO]</code> can be created using an <code class="language-plaintext highlighter-rouge">ExecutionContext</code>:</p>
+Custom instances of <code class="highlighter-rouge">ContextShift[IO]</code> can be created using an <code class="highlighter-rouge">ExecutionContext</code>:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext.Implicits.global</span>
@@ -1194,19 +1194,19 @@ Custom instances of <code class="language-plaintext highlighter-rouge">ContextSh
 <span class="k">implicit</span> <span class="k">val</span> <span class="nv">contextShift</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">contextShift</span><span class="o">(</span><span class="n">global</span><span class="o">)</span>
 </code></pre></div></div>
 
-<p>We can introduce an asynchronous boundary in the <code class="language-plaintext highlighter-rouge">flatMap</code> chain before a certain task:</p>
+<p>We can introduce an asynchronous boundary in the <code class="highlighter-rouge">flatMap</code> chain before a certain task:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="nv">task</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"task"</span><span class="o">))</span>
 
 <span class="nv">IO</span><span class="o">.</span><span class="py">shift</span><span class="o">(</span><span class="n">contextShift</span><span class="o">).</span><span class="py">flatMap</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="n">task</span><span class="o">)</span>
 </code></pre></div></div>
 
-<p>Note that the <code class="language-plaintext highlighter-rouge">ContextShift</code> value is taken implicitly from the context so you can just do this:</p>
+<p>Note that the <code class="highlighter-rouge">ContextShift</code> value is taken implicitly from the context so you can just do this:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">IO</span><span class="o">.</span><span class="py">shift</span><span class="o">.</span><span class="py">flatMap</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="n">task</span><span class="o">)</span>
 </code></pre></div></div>
 
-<p>Or using <code class="language-plaintext highlighter-rouge">Cats</code> syntax:</p>
+<p>Or using <code class="highlighter-rouge">Cats</code> syntax:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 <span class="nv">IO</span><span class="o">.</span><span class="py">shift</span> <span class="o">*&gt;</span> <span class="n">task</span>
@@ -1219,7 +1219,7 @@ Custom instances of <code class="language-plaintext highlighter-rouge">ContextSh
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">task</span><span class="o">.</span><span class="py">flatMap</span><span class="o">(</span><span class="n">a</span> <span class="k">=&gt;</span> <span class="nv">IO</span><span class="o">.</span><span class="py">shift</span><span class="o">.</span><span class="py">map</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="n">a</span><span class="o">))</span>
 </code></pre></div></div>
 
-<p>Or using <code class="language-plaintext highlighter-rouge">Cats</code> syntax:</p>
+<p>Or using <code class="highlighter-rouge">Cats</code> syntax:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">task</span> <span class="o">&lt;*</span> <span class="nv">IO</span><span class="o">.</span><span class="py">shift</span>
 <span class="c1">// equivalent to</span>
@@ -1248,9 +1248,9 @@ Custom instances of <code class="language-plaintext highlighter-rouge">ContextSh
   <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
 </code></pre></div></div>
 
-<p>We start by asking the user to enter its name and next we thread-shift to the <code class="language-plaintext highlighter-rouge">BlockingFileIO</code> execution context because we expect the following action to block on the thread for a long time and we don’t want that to happen in the main thread of execution. After the <code class="language-plaintext highlighter-rouge">expensive IO operation</code> (readLine) gets back with a response we thread-shift back to the main execution context defined as an implicit value, and finally the program ends by showing a message in the console and shutting down a thread pool, all actions run in the main execution context.</p>
+<p>We start by asking the user to enter its name and next we thread-shift to the <code class="highlighter-rouge">BlockingFileIO</code> execution context because we expect the following action to block on the thread for a long time and we don’t want that to happen in the main thread of execution. After the <code class="highlighter-rouge">expensive IO operation</code> (readLine) gets back with a response we thread-shift back to the main execution context defined as an implicit value, and finally the program ends by showing a message in the console and shutting down a thread pool, all actions run in the main execution context.</p>
 
-<p>Another somewhat less common application of <code class="language-plaintext highlighter-rouge">shift</code> is to reset the thread stack and yield control back to the underlying pool. For example:</p>
+<p>Another somewhat less common application of <code class="highlighter-rouge">shift</code> is to reset the thread stack and yield control back to the underlying pool. For example:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
@@ -1267,17 +1267,17 @@ Custom instances of <code class="language-plaintext highlighter-rouge">ContextSh
 <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
 </code></pre></div></div>
 
-<p>In this example, <code class="language-plaintext highlighter-rouge">repeat</code> is a very long running <code class="language-plaintext highlighter-rouge">IO</code> (infinite, in fact!) which will just hog the underlying thread resource for as long as it continues running.  This can be a bit of a problem, and so we inject the <code class="language-plaintext highlighter-rouge">IO.shift</code> which yields control back to the underlying thread pool, giving it a chance to reschedule things and provide better fairness. This shifting also “bounces” the thread stack, popping all the way back to the thread pool and effectively trampolining the remainder of the computation. Although the thread-shifting is not completely necessary, it might help in some cases to alleviate the use of the main thread pool.</p>
+<p>In this example, <code class="highlighter-rouge">repeat</code> is a very long running <code class="highlighter-rouge">IO</code> (infinite, in fact!) which will just hog the underlying thread resource for as long as it continues running.  This can be a bit of a problem, and so we inject the <code class="highlighter-rouge">IO.shift</code> which yields control back to the underlying thread pool, giving it a chance to reschedule things and provide better fairness. This shifting also “bounces” the thread stack, popping all the way back to the thread pool and effectively trampolining the remainder of the computation. Although the thread-shifting is not completely necessary, it might help in some cases to alleviate the use of the main thread pool.</p>
 
 <p>Thus, this function has four important use cases:</p>
 <ul>
   <li>Shifting blocking actions off of the main compute pool.</li>
   <li>Defensively re-shifting asynchronous continuations back to the main compute pool.</li>
   <li>Yielding control to some underlying pool for fairness reasons.</li>
-  <li>Preventing an overflow of the call stack in the case of improperly constructed <code class="language-plaintext highlighter-rouge">async</code> actions.</li>
+  <li>Preventing an overflow of the call stack in the case of improperly constructed <code class="highlighter-rouge">async</code> actions.</li>
 </ul>
 
-<p><code class="language-plaintext highlighter-rouge">IO</code> is trampolined for all <code class="language-plaintext highlighter-rouge">synchronous</code> and <code class="language-plaintext highlighter-rouge">asynchronous</code> joins. This means that you can safely call <code class="language-plaintext highlighter-rouge">flatMap</code> in a recursive function of arbitrary depth, without fear of blowing the stack. So you can do this for example:</p>
+<p><code class="highlighter-rouge">IO</code> is trampolined for all <code class="highlighter-rouge">synchronous</code> and <code class="highlighter-rouge">asynchronous</code> joins. This means that you can safely call <code class="highlighter-rouge">flatMap</code> in a recursive function of arbitrary depth, without fear of blowing the stack. So you can do this for example:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 
@@ -1291,19 +1291,19 @@ Custom instances of <code class="language-plaintext highlighter-rouge">ContextSh
 
 <h2 id="parallelism">Parallelism</h2>
 
-<p>Since the introduction of the <a href="https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/Parallel.scala">Parallel</a> typeclasss in the Cats library and its <code class="language-plaintext highlighter-rouge">IO</code> instance, it became possible to execute two or more given <code class="language-plaintext highlighter-rouge">IO</code>s in parallel.</p>
+<p>Since the introduction of the <a href="https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/Parallel.scala">Parallel</a> typeclasss in the Cats library and its <code class="highlighter-rouge">IO</code> instance, it became possible to execute two or more given <code class="highlighter-rouge">IO</code>s in parallel.</p>
 
-<p>Note: all parallel operations require an implicit <code class="language-plaintext highlighter-rouge">ContextShift[IO]</code> in scope
-(see <a href="/cats-effect/datatypes/contextshift.html">ContextShift</a>). You have a <code class="language-plaintext highlighter-rouge">ContextShift</code> in scope if:</p>
+<p>Note: all parallel operations require an implicit <code class="highlighter-rouge">ContextShift[IO]</code> in scope
+(see <a href="/cats-effect/datatypes/contextshift.html">ContextShift</a>). You have a <code class="highlighter-rouge">ContextShift</code> in scope if:</p>
 
 <ol>
-  <li>via usage of <a href="/cats-effect/datatypes/ioapp.html">IOApp</a> that gives you a <code class="language-plaintext highlighter-rouge">ContextShift</code> by default</li>
-  <li>the user provides a custom <code class="language-plaintext highlighter-rouge">ContextShift</code>, which can be created using <code class="language-plaintext highlighter-rouge">IO.contextShift(executionContext)</code></li>
+  <li>via usage of <a href="/cats-effect/datatypes/ioapp.html">IOApp</a> that gives you a <code class="highlighter-rouge">ContextShift</code> by default</li>
+  <li>the user provides a custom <code class="highlighter-rouge">ContextShift</code>, which can be created using <code class="highlighter-rouge">IO.contextShift(executionContext)</code></li>
 </ol>
 
 <h3 id="parmapn">parMapN</h3>
 
-<p>It has the potential to run an arbitrary number of <code class="language-plaintext highlighter-rouge">IO</code>s in parallel, and it allows you to apply a function to the result (as in <code class="language-plaintext highlighter-rouge">map</code>). It finishes processing when all the <code class="language-plaintext highlighter-rouge">IO</code>s are completed, either successfully or with a failure. For example:</p>
+<p>It has the potential to run an arbitrary number of <code class="highlighter-rouge">IO</code>s in parallel, and it allows you to apply a function to the result (as in <code class="highlighter-rouge">map</code>). It finishes processing when all the <code class="highlighter-rouge">IO</code>s are completed, either successfully or with a failure. For example:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">cats.syntax.all._</span>
@@ -1326,7 +1326,7 @@ Custom instances of <code class="language-plaintext highlighter-rouge">ContextSh
 <span class="o">()</span>
 </code></pre></div></div>
 
-<p>If any of the <code class="language-plaintext highlighter-rouge">IO</code>s completes with a failure then the result of the whole computation will be failed, while the unfinished tasks get cancelled. Example:</p>
+<p>If any of the <code class="highlighter-rouge">IO</code>s completes with a failure then the result of the whole computation will be failed, while the unfinished tasks get cancelled. Example:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">ExitCase</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">cats.syntax.all._</span>
@@ -1353,7 +1353,7 @@ Custom instances of <code class="language-plaintext highlighter-rouge">ContextSh
 <span class="o">()</span>
 </code></pre></div></div>
 
-<p>If one of the tasks fails immediately, then the other gets canceled and the computation completes immediately, so in this example the pairing via <code class="language-plaintext highlighter-rouge">parMapN</code> will not wait for 10 seconds before emitting the error:</p>
+<p>If one of the tasks fails immediately, then the other gets canceled and the computation completes immediately, so in this example the pairing via <code class="highlighter-rouge">parMapN</code> will not wait for 10 seconds before emitting the error:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">Timer</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">cats.syntax.all._</span>
@@ -1372,7 +1372,7 @@ Custom instances of <code class="language-plaintext highlighter-rouge">ContextSh
 
 <h3 id="parsequence">parSequence</h3>
 
-<p>If you have a list of IO, and you want a single IO with the result list you can use <code class="language-plaintext highlighter-rouge">parSequence</code> which executes the IO tasks in parallel.</p>
+<p>If you have a list of IO, and you want a single IO with the result list you can use <code class="highlighter-rouge">parSequence</code> which executes the IO tasks in parallel.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.data.NonEmptyList</span>
 <span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">Timer</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
@@ -1392,11 +1392,11 @@ Custom instances of <code class="language-plaintext highlighter-rouge">ContextSh
 <span class="k">val</span> <span class="nv">ioOfList</span> <span class="k">=</span> <span class="nv">aLotOfIOs</span><span class="o">.</span><span class="py">parSequence</span>
 </code></pre></div></div>
 
-<p>There is also <code class="language-plaintext highlighter-rouge">cats.Traverse.sequence</code> which does this synchronously.</p>
+<p>There is also <code class="highlighter-rouge">cats.Traverse.sequence</code> which does this synchronously.</p>
 
 <h3 id="partraverse">parTraverse</h3>
 
-<p>If you have a list of data and a way of turning each item into an IO, but you want a single IO for the results you can use <code class="language-plaintext highlighter-rouge">parTraverse</code> to run the steps in parallel.</p>
+<p>If you have a list of data and a way of turning each item into an IO, but you want a single IO for the results you can use <code class="highlighter-rouge">parTraverse</code> to run the steps in parallel.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.data.NonEmptyList</span>
 <span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">Timer</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
@@ -1413,17 +1413,17 @@ Custom instances of <code class="language-plaintext highlighter-rouge">ContextSh
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>There is also <code class="language-plaintext highlighter-rouge">cats.Traverse.traverse</code> which will run each step synchronously.</p>
+<p>There is also <code class="highlighter-rouge">cats.Traverse.traverse</code> which will run each step synchronously.</p>
 
 <h2 id="unsafe-operations">“Unsafe” Operations</h2>
 
-<p>We have been using some “unsafe” operations pretty much everywhere in the previous examples but we never explained any of them, so here it goes. All of the operations prefixed with <code class="language-plaintext highlighter-rouge">unsafe</code> are impure functions and perform side effects (for example Haskell has <code class="language-plaintext highlighter-rouge">unsafePerformIO</code>). But don’t be scared by the name! You should write your programs in a monadic way using functions such as <code class="language-plaintext highlighter-rouge">map</code> and <code class="language-plaintext highlighter-rouge">flatMap</code> to compose other functions and ideally you should just call one of these unsafe operations only <strong>once</strong>, at the very end of your program.</p>
+<p>We have been using some “unsafe” operations pretty much everywhere in the previous examples but we never explained any of them, so here it goes. All of the operations prefixed with <code class="highlighter-rouge">unsafe</code> are impure functions and perform side effects (for example Haskell has <code class="highlighter-rouge">unsafePerformIO</code>). But don’t be scared by the name! You should write your programs in a monadic way using functions such as <code class="highlighter-rouge">map</code> and <code class="highlighter-rouge">flatMap</code> to compose other functions and ideally you should just call one of these unsafe operations only <strong>once</strong>, at the very end of your program.</p>
 
 <h3 id="unsaferunsync">unsafeRunSync</h3>
 
 <p>Produces the result by running the encapsulated effects as impure side effects.</p>
 
-<p>If any component of the computation is asynchronous, the current thread will block awaiting the results of the async computation. On JavaScript, an exception will be thrown instead to avoid generating a deadlock. By default, this blocking will be unbounded. To limit the thread block to some fixed time, use <code class="language-plaintext highlighter-rouge">unsafeRunTimed</code> instead.</p>
+<p>If any component of the computation is asynchronous, the current thread will block awaiting the results of the async computation. On JavaScript, an exception will be thrown instead to avoid generating a deadlock. By default, this blocking will be unbounded. To limit the thread block to some fixed time, use <code class="highlighter-rouge">unsafeRunTimed</code> instead.</p>
 
 <p>Any exceptions raised within the effect will be re-thrown during evaluation.</p>
 
@@ -1435,7 +1435,7 @@ Custom instances of <code class="language-plaintext highlighter-rouge">ContextSh
 
 <p>Passes the result of the encapsulated effects to the given callback by running them as impure side effects.</p>
 
-<p>Any exceptions raised within the effect will be passed to the callback in the <code class="language-plaintext highlighter-rouge">Either</code>. The callback will be invoked at most <em>once</em>. Note that it is very possible to construct an <code class="language-plaintext highlighter-rouge">IO</code> which never returns while still never blocking a thread, and attempting to evaluate that <code class="language-plaintext highlighter-rouge">IO</code> with this method will result in a situation where the callback is <em>never</em> invoked.</p>
+<p>Any exceptions raised within the effect will be passed to the callback in the <code class="highlighter-rouge">Either</code>. The callback will be invoked at most <em>once</em>. Note that it is very possible to construct an <code class="highlighter-rouge">IO</code> which never returns while still never blocking a thread, and attempting to evaluate that <code class="highlighter-rouge">IO</code> with this method will result in a situation where the callback is <em>never</em> invoked.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Async!"</span><span class="o">)).</span><span class="py">unsafeRunAsync</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Async!</span>
@@ -1443,24 +1443,24 @@ Custom instances of <code class="language-plaintext highlighter-rouge">ContextSh
 
 <h3 id="unsaferuncancelable">unsafeRunCancelable</h3>
 
-<p>Evaluates the source <code class="language-plaintext highlighter-rouge">IO</code>, passing the result of the encapsulated effects to the given callback. Note that this has the potential to be interrupted.</p>
+<p>Evaluates the source <code class="highlighter-rouge">IO</code>, passing the result of the encapsulated effects to the given callback. Note that this has the potential to be interrupted.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Potentially cancelable!"</span><span class="o">)).</span><span class="py">unsafeRunCancelable</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Potentially cancelable!</span>
 <span class="c1">// res59: cats.effect.package.CancelToken[IO] = Suspend(</span>
-<span class="c1">//   thunk = cats.effect.internals.IOConnection$Impl$$Lambda$11515/0x0000000803097c40@3107a8f2</span>
+<span class="c1">//   thunk = cats.effect.internals.IOConnection$Impl$$Lambda$9264/565018142@6c3e901d</span>
 <span class="c1">// )</span>
 </code></pre></div></div>
 
 <h3 id="unsaferuntimed">unsafeRunTimed</h3>
 
-<p>Similar to <code class="language-plaintext highlighter-rouge">unsafeRunSync</code>, except with a bounded blocking duration when awaiting asynchronous results.</p>
+<p>Similar to <code class="highlighter-rouge">unsafeRunSync</code>, except with a bounded blocking duration when awaiting asynchronous results.</p>
 
-<p>Please note that the <code class="language-plaintext highlighter-rouge">limit</code> parameter does not limit the time of the total computation, but rather acts as an upper bound on any <em>individual</em> asynchronous block.  Thus, if you pass a limit of <code class="language-plaintext highlighter-rouge">5 seconds</code> to an <code class="language-plaintext highlighter-rouge">IO</code> consisting solely of synchronous actions, the evaluation may take considerably longer than 5 seconds!</p>
+<p>Please note that the <code class="highlighter-rouge">limit</code> parameter does not limit the time of the total computation, but rather acts as an upper bound on any <em>individual</em> asynchronous block.  Thus, if you pass a limit of <code class="highlighter-rouge">5 seconds</code> to an <code class="highlighter-rouge">IO</code> consisting solely of synchronous actions, the evaluation may take considerably longer than 5 seconds!</p>
 
-<p>Furthermore, if you pass a limit of <code class="language-plaintext highlighter-rouge">5 seconds</code> to an <code class="language-plaintext highlighter-rouge">IO</code> consisting of several asynchronous actions joined together, evaluation may take up to <code class="language-plaintext highlighter-rouge">n * 5 seconds</code>, where <code class="language-plaintext highlighter-rouge">n</code> is the number of joined async actions.</p>
+<p>Furthermore, if you pass a limit of <code class="highlighter-rouge">5 seconds</code> to an <code class="highlighter-rouge">IO</code> consisting of several asynchronous actions joined together, evaluation may take up to <code class="highlighter-rouge">n * 5 seconds</code>, where <code class="highlighter-rouge">n</code> is the number of joined async actions.</p>
 
-<p>As soon as an async blocking limit is hit, evaluation “immediately” aborts and <code class="language-plaintext highlighter-rouge">None</code> is returned.</p>
+<p>As soon as an async blocking limit is hit, evaluation “immediately” aborts and <code class="highlighter-rouge">None</code> is returned.</p>
 
 <p>Please note that this function is intended for <strong>testing</strong> purposes; it should never appear in your mainline production code!  It is absolutely not an appropriate function to use if you want to implement timeouts, or anything similar. If you need that sort of functionality, you should be using a streaming library (like <a href="https://fs2.io/">fs2</a> or <a href="https://monix.io/">Monix</a>).</p>
 
@@ -1471,16 +1471,16 @@ Custom instances of <code class="language-plaintext highlighter-rouge">ContextSh
 
 <h3 id="unsafetofuture">unsafeToFuture</h3>
 
-<p>Evaluates the effect and produces the result in a <code class="language-plaintext highlighter-rouge">Future</code>.</p>
+<p>Evaluates the effect and produces the result in a <code class="highlighter-rouge">Future</code>.</p>
 
-<p>This is similar to <code class="language-plaintext highlighter-rouge">unsafeRunAsync</code> in that it evaluates the <code class="language-plaintext highlighter-rouge">IO</code> as a side effect in a non-blocking fashion, but uses a <code class="language-plaintext highlighter-rouge">Future</code> rather than an explicit callback.  This function should really only be used if interoperating with legacy code which uses Scala futures.</p>
+<p>This is similar to <code class="highlighter-rouge">unsafeRunAsync</code> in that it evaluates the <code class="highlighter-rouge">IO</code> as a side effect in a non-blocking fashion, but uses a <code class="highlighter-rouge">Future</code> rather than an explicit callback.  This function should really only be used if interoperating with legacy code which uses Scala futures.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="s">"Gimme a Future!"</span><span class="o">).</span><span class="py">unsafeToFuture</span><span class="o">()</span>
 </code></pre></div></div>
 
 <h2 id="best-practices">Best Practices</h2>
 
-<p>This section presents some best practices for working with <code class="language-plaintext highlighter-rouge">IO</code>:</p>
+<p>This section presents some best practices for working with <code class="highlighter-rouge">IO</code>:</p>
 
 <h3 id="keep-granularity">Keep Granularity</h3>
 
@@ -1494,7 +1494,7 @@ Custom instances of <code class="language-plaintext highlighter-rouge">ContextSh
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>In FP we embrace reasoning about our programs and since <code class="language-plaintext highlighter-rouge">IO</code> is a <code class="language-plaintext highlighter-rouge">Monad</code> you can compose bigger programs from small ones in a <code class="language-plaintext highlighter-rouge">for-comprehension</code>.
+<p>In FP we embrace reasoning about our programs and since <code class="highlighter-rouge">IO</code> is a <code class="highlighter-rouge">Monad</code> you can compose bigger programs from small ones in a <code class="highlighter-rouge">for-comprehension</code>.
 For example:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="nv">program</span> <span class="k">=</span>
@@ -1506,18 +1506,18 @@ For example:</p>
   <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
 </code></pre></div></div>
 
-<p>Each step of the comprehension is a small program, and the resulting <code class="language-plaintext highlighter-rouge">program</code> is a composition of all those small steps,
-which is compositional with other programs. <code class="language-plaintext highlighter-rouge">IO</code> values compose.</p>
+<p>Each step of the comprehension is a small program, and the resulting <code class="highlighter-rouge">program</code> is a composition of all those small steps,
+which is compositional with other programs. <code class="highlighter-rouge">IO</code> values compose.</p>
 
 <h3 id="use-pure-functions-in-map--flatmap">Use pure functions in map / flatMap</h3>
 
-<p>When using <code class="language-plaintext highlighter-rouge">map</code> or <code class="language-plaintext highlighter-rouge">flatMap</code> it is not recommended to pass a side effectful function, as mapping functions should also be pure.
+<p>When using <code class="highlighter-rouge">map</code> or <code class="highlighter-rouge">flatMap</code> it is not recommended to pass a side effectful function, as mapping functions should also be pure.
 So this should be avoided:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">IO</span><span class="o">.</span><span class="py">pure</span><span class="o">(</span><span class="mi">123</span><span class="o">).</span><span class="py">map</span><span class="o">(</span><span class="n">n</span> <span class="k">=&gt;</span> <span class="nf">println</span><span class="o">(</span><span class="n">s</span><span class="s">"NOT RECOMMENDED! $n"</span><span class="o">))</span>
 </code></pre></div></div>
 
-<p>This too should be avoided, because the side effect is not suspended in the returned <code class="language-plaintext highlighter-rouge">IO</code> value:</p>
+<p>This too should be avoided, because the side effect is not suspended in the returned <code class="highlighter-rouge">IO</code> value:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">IO</span><span class="o">.</span><span class="py">pure</span><span class="o">(</span><span class="mi">123</span><span class="o">).</span><span class="py">flatMap</span> <span class="o">{</span> <span class="n">n</span> <span class="k">=&gt;</span>
   <span class="nf">println</span><span class="o">(</span><span class="n">s</span><span class="s">"NOT RECOMMENDED! $n"</span><span class="o">)</span>
@@ -1533,9 +1533,9 @@ So this should be avoided:</p>
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>Note that as far as the actual behavior of <code class="language-plaintext highlighter-rouge">IO</code> is concerned, something like <code class="language-plaintext highlighter-rouge">IO.pure(x).map(f)</code> is equivalent with <code class="language-plaintext highlighter-rouge">IO(f(x))</code> and <code class="language-plaintext highlighter-rouge">IO.pure(x).flatMap(f)</code> is equivalent with <code class="language-plaintext highlighter-rouge">IO.suspend(f(x))</code>.</p>
+<p>Note that as far as the actual behavior of <code class="highlighter-rouge">IO</code> is concerned, something like <code class="highlighter-rouge">IO.pure(x).map(f)</code> is equivalent with <code class="highlighter-rouge">IO(f(x))</code> and <code class="highlighter-rouge">IO.pure(x).flatMap(f)</code> is equivalent with <code class="highlighter-rouge">IO.suspend(f(x))</code>.</p>
 
-<p>But you should not rely on this behavior, because it is NOT described by the laws required by the <code class="language-plaintext highlighter-rouge">Sync</code> type class and those laws are the only guarantees of behavior that you get. For example the above equivalence might be broken in the future in regards to error handling. So this behavior is currently there for safety reasons, but you should regard it as an implementation detail that could change in the future.</p>
+<p>But you should not rely on this behavior, because it is NOT described by the laws required by the <code class="highlighter-rouge">Sync</code> type class and those laws are the only guarantees of behavior that you get. For example the above equivalence might be broken in the future in regards to error handling. So this behavior is currently there for safety reasons, but you should regard it as an implementation detail that could change in the future.</p>
 
 <p>Stick with pure functions.</p>
 
