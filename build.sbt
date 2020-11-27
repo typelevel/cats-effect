@@ -170,7 +170,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
     libraryDependencies ++= Seq(
       "org.typelevel"  %%% "cats-free"  % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      "org.typelevel"  %%% "coop"       % "1.0.0-M1"))
+      "org.typelevel"  %%% "coop"       % "1.0.0-M2"))
 
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid
