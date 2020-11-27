@@ -954,8 +954,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     "parTraverseN" should {
 
-      "should raise error when n < 1" in real {
-        List.empty[Int].parTraverseN(0)((n: Int) => IO.pure(n + 1)).attempt.flatMap { res =>
+      "throw when n < 1" in real {
+        IO.defer(List.empty[Int].parTraverseN(0)((n: Int) => IO.pure(n + 1))).attempt.flatMap { res =>
           IO(res must beLike {
             case Left(e) => e must haveClass[IllegalArgumentException]
           })
