@@ -122,7 +122,7 @@ ThisBuild / scmInfo := Some(
 val CatsVersion = "2.3.0"
 val Specs2Version = "4.10.5"
 val ScalaCheckVersion = "1.15.1"
-val DisciplineVersion = "1.1.1"
+val DisciplineVersion = "1.1.2"
 
 replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; testIfRelevant; coreJVM/mimaReportBinaryIssues; set Global / useFirefoxEnv := true; coreJS/test; set Global / useFirefoxEnv := false")
 addCommandAlias("ciAll", "; project /; +headerCheck; +scalafmtCheck; +clean; +testIfRelevant; +coreJVM/mimaReportBinaryIssues; set Global / useFirefoxEnv := true; +coreJS/test; set Global / useFirefoxEnv := false")
