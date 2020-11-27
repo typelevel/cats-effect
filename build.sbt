@@ -217,7 +217,10 @@ lazy val std = crossProject(JSPlatform, JVMPlatform).in(file("std"))
 
     libraryDependencies += {
       if (isDotty.value)
-        ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test).withDottyCompat(scalaVersion.value).exclude("org.scalacheck", "scalacheck_2.13")
+        ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
+          .withDottyCompat(scalaVersion.value)
+          .exclude("org.scalacheck", "scalacheck_2.13")
+          .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
       else
         "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     },
