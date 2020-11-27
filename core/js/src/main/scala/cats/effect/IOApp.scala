@@ -42,7 +42,8 @@ trait IOApp {
       else
         args.toList
 
-    Spawn[IO].raceOutcome[ExitCode, Nothing](run(argList), keepAlive)
+    Spawn[IO]
+      .raceOutcome[ExitCode, Nothing](run(argList), keepAlive)
       .flatMap {
         case Left(Outcome.Canceled()) =>
           IO.raiseError(new RuntimeException("IOApp main fiber canceled"))

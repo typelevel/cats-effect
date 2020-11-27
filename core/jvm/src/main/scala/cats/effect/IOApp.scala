@@ -35,20 +35,20 @@ trait IOApp {
     val ioa = run(args.toList)
 
     val fiber =
-      ioa.onCancel(
-        IO {
+      ioa
+        .onCancel(IO {
           error = new RuntimeException("IOApp main fiber canceled")
           latch.countDown()
         })
-      .unsafeRunFiber(
-        { t =>
-          error = t
-          latch.countDown()
-        },
-        { a =>
-          result = a
-          latch.countDown()
-        })(runtime)
+        .unsafeRunFiber(
+          { t =>
+            error = t
+            latch.countDown()
+          },
+          { a =>
+            result = a
+            latch.countDown()
+          })(runtime)
 
     def handleShutdown(): Unit = {
       if (latch.getCount() > 0) {
