@@ -42,11 +42,18 @@ trait IOApp {
       else
         args.toList
 
-    IO.race(run(argList), keepAlive)
+    Spawn[IO].raceOutcome[ExitCode, Nothing](run(argList), keepAlive)
+      .flatMap {
+        case Left(Outcome.Canceled()) =>
+          IO.raiseError(new RuntimeException("IOApp main fiber canceled"))
+        case Left(Outcome.Errored(t)) => IO.raiseError(t)
+        case Left(Outcome.Succeeded(code)) => code
+        case Right(Outcome.Errored(t)) => IO.raiseError(t)
+        case Right(_) => sys.error("impossible")
+      }
       .unsafeRunAsync({
         case Left(t) => throw t
-        case Right(Left(code)) => reportExitCode(code)
-        case Right(Right(_)) => sys.error("impossible")
+        case Right(code) => reportExitCode(code)
       })(unsafe.IORuntime.global)
   }
 
