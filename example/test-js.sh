@@ -12,7 +12,7 @@ sbt ++$1 exampleJS/fastOptJS
 output=$(mktemp)
 expected=$(mktemp)
 
-cd example/js/target/scala-${1:0:4}/
+cd example/js/target/scala-$(echo $1 | sed -E 's/\.[0-9]+$//')/
 
 set +e
 node cats-effect-example-fastopt.js left right > $output
