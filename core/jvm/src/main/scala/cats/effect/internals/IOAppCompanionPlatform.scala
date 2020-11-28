@@ -83,7 +83,7 @@ private[effect] trait IOAppCompanionPlatform {
      * [[executionContextResource]].  Outside `run`, this context will
      * reject all tasks.
      */
-    final protected def executionContext: ExecutionContext =
+    final override protected def executionContext: ExecutionContext =
       currentContext.get().executionContext
 
     /**

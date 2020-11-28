@@ -18,6 +18,7 @@ package cats
 package effect
 
 import cats.effect.internals.{IOAppCompanionPlatform, IOAppPlatform}
+import scala.concurrent.ExecutionContext
 
 /**
  * `App` type that runs a [[cats.effect.IO]].  Shutdown occurs after
@@ -100,6 +101,24 @@ trait IOApp {
    */
   implicit protected def timer: Timer[IO] =
     IOAppPlatform.defaultTimer
+
+  /**
+   * Provides a default `ExecutionContext` for the app.
+   *
+   * The default on top of the JVM is lazily constructed as a fixed
+   * thread pool based on number available of available CPUs (see
+   * `PoolUtils`).
+   *
+   * On top of JavaScript, this will use the standard
+   * [[https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout setTimeout]].
+   *
+   * @note This is the same ExecutionContext that backs the default implicit `ContextShift`
+   *
+   * @note To use a different `ExecutionContext`, consider extending `IOApp.WithContext`,
+   *       which will do it more comprehensively.
+   */
+  protected def executionContext: ExecutionContext =
+    IOAppPlatform.defaultExecutionContext
 }
 
 object IOApp extends IOAppCompanionPlatform
