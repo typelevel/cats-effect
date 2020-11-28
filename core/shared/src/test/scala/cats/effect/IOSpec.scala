@@ -964,7 +964,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         List(1, 2, 3)
           .parTraverseN(2) { (n: Int) =>
             if (n == 2) IO.raiseError(new RuntimeException) else n.pure[IO]
-          }.mustFailWith[RuntimeException]
+          }
+          .mustFailWith[RuntimeException]
       }
 
       "be cancelable" in ticked { implicit ticker =>

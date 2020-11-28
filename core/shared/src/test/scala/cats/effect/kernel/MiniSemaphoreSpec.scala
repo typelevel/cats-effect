@@ -29,15 +29,11 @@ class MiniSemaphoreSpec extends BaseSpec { outer =>
     }
 
     "block if no permits available" in ticked { implicit ticker =>
-      MiniSemaphore[IO](0).flatMap { sem =>
-        sem.withPermit(IO.unit)
-      } must nonTerminate
+      MiniSemaphore[IO](0).flatMap { sem => sem.withPermit(IO.unit) } must nonTerminate
     }
 
     "execute action if permit is available for it" in real {
-      MiniSemaphore[IO](1).flatMap { sem =>
-        sem.withPermit(IO.unit).mustEqual(())
-      }
+      MiniSemaphore[IO](1).flatMap { sem => sem.withPermit(IO.unit).mustEqual(()) }
     }
 
     "unblock when permit is released" in ticked { implicit ticker =>
