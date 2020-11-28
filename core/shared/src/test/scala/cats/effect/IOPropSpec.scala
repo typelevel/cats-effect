@@ -38,30 +38,24 @@ class IOPropSpec extends IOPlatformSpecification with Discipline with ScalaCheck
   "io monad" should {
 
     "parTraverseN" should {
-
-      "should give the same result as parTraverse" in realProp(
+      "give the same result as parTraverse" in realProp(
         Gen.posNum[Int].flatMap(n => arbitrary[List[Int]].map(n -> _))) {
         case (n, l) =>
           val f: Int => IO[Int] = n => IO.pure(n + 1)
-          for {
-            actual <- IO.parTraverseN(n)(l)(f)
-            expected <- l.parTraverse(f)
-            res <- IO(actual mustEqual expected)
-          } yield res
-      }
 
+          l.parTraverse(f).flatMap { expected =>
+            l.parTraverseN(n)(f).mustEqual(expected)
+          }
+      }
     }
 
     "parSequenceN" should {
-
-      "should give the same result as parSequence" in realProp(
+      "give the same result as parSequence" in realProp(
         Gen.posNum[Int].flatMap(n => arbitrary[List[Int]].map(n -> _))) {
         case (n, l) =>
-          for {
-            actual <- IO.parSequenceN(n)(l.map(IO.pure(_)))
-            expected <- l.map(IO.pure(_)).parSequence
-            res <- IO(actual mustEqual expected)
-          } yield res
+          l.map(IO.pure(_)).parSequence.flatMap { expected =>
+            l.map(IO.pure(_)).parSequenceN(n).mustEqual(expected)
+          }
       }
 
     }
