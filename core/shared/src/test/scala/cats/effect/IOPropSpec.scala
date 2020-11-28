@@ -18,6 +18,7 @@ package cats.effect
 
 import cats.syntax.all._
 import cats.effect.implicits._
+import cats.effect.std.Queue
 
 import org.scalacheck.Arbitrary.arbitrary
 
@@ -38,30 +39,46 @@ class IOPropSpec extends IOPlatformSpecification with Discipline with ScalaCheck
   "io monad" should {
 
     "parTraverseN" should {
-
-      "should give the same result as parTraverse" in realProp(
+      "give the same result as parTraverse" in realProp(
         Gen.posNum[Int].flatMap(n => arbitrary[List[Int]].map(n -> _))) {
         case (n, l) =>
           val f: Int => IO[Int] = n => IO.pure(n + 1)
-          for {
-            actual <- IO.parTraverseN(n)(l)(f)
-            expected <- l.parTraverse(f)
-            res <- IO(actual mustEqual expected)
-          } yield res
+
+          l.parTraverse(f).flatMap { expected => l.parTraverseN(n)(f).mustEqual(expected) }
       }
 
+      "never exceed the maximum bound of concurrent tasks" in realProp {
+        for {
+          length <- Gen.chooseNum(0, 50)
+          limit <- Gen.chooseNum(1, 15, 2, 5)
+        } yield length -> limit
+      } {
+        case (length, limit) =>
+          Queue.unbounded[IO, Int].flatMap { q =>
+            val task = q.offer(1) >> IO.sleep(7.millis) >> q.offer(-1)
+            val testRun = List.fill(length)(task).parSequenceN(limit)
+            def check(acc: Int = 0): IO[Unit] =
+              q.tryTake.flatMap {
+                case None => IO.unit
+                case Some(n) =>
+                  val newAcc = acc + n
+                  if (newAcc > limit)
+                    IO.raiseError(new Exception(s"Limit of $limit exceeded, was $newAcc"))
+                  else check(newAcc)
+              }
+
+            testRun >> check().mustEqual(())
+          }
+      }
     }
 
     "parSequenceN" should {
-
-      "should give the same result as parSequence" in realProp(
+      "give the same result as parSequence" in realProp(
         Gen.posNum[Int].flatMap(n => arbitrary[List[Int]].map(n -> _))) {
         case (n, l) =>
-          for {
-            actual <- IO.parSequenceN(n)(l.map(IO.pure(_)))
-            expected <- l.map(IO.pure(_)).parSequence
-            res <- IO(actual mustEqual expected)
-          } yield res
+          l.map(IO.pure(_)).parSequence.flatMap { expected =>
+            l.map(IO.pure(_)).parSequenceN(n).mustEqual(expected)
+          }
       }
 
     }

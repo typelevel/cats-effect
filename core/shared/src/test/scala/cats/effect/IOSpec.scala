@@ -954,50 +954,28 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     "parTraverseN" should {
 
-      "should raise error when n < 1" in real {
-        List.empty[Int].parTraverseN(0)((n: Int) => IO.pure(n + 1)).attempt.flatMap { res =>
-          IO(res must beLike {
-            case Left(e) => e must haveClass[IllegalArgumentException]
-          })
-        }
+      "throw when n < 1" in real {
+        IO.defer {
+          List.empty[Int].parTraverseN(0)(_.pure[IO])
+        }.mustFailWith[IllegalArgumentException]
       }
 
-      "should propagate errors" in real {
+      "propagate errors" in real {
         List(1, 2, 3)
-          .parTraverseN(2)((n: Int) =>
-            if (n == 2) IO.raiseError(new RuntimeException) else IO.pure(n))
-          .attempt
-          .flatMap { res =>
-            IO(res must beLike {
-              case Left(e) => e must haveClass[RuntimeException]
-            })
+          .parTraverseN(2) { (n: Int) =>
+            if (n == 2) IO.raiseError(new RuntimeException) else n.pure[IO]
           }
+          .mustFailWith[RuntimeException]
       }
 
-      "should cleanup on error" in real {
-        for {
-          c <- IO.ref(0)
-          f <- List(1, 2, 3)
-            .parTraverseN(1)((n: Int) =>
-              IO.sleep(1.second) >> (if (n == 2) IO.raiseError(new RuntimeException)
-                                     else IO.pure(n)) >> c.update(_ + 1))
-            .start
-          _ <- f.join
-          r <- c.get
-          res <- IO(r must beLessThanOrEqualTo(2))
-        } yield res
-      }
-
-      "should be cancelable" in real {
-        for {
-          c <- IO.ref(0)
-          f <- List(1, 2, 3).parTraverseN(1)(_ => IO.sleep(1.second) >> c.update(_ + 1)).start
-          _ <- IO.sleep(10.millis)
+      "be cancelable" in ticked { implicit ticker =>
+        val p = for {
+          f <- List(1, 2, 3).parTraverseN(2)(_ => IO.never).start
+          _ <- IO.sleep(100.millis)
           _ <- f.cancel
-          _ <- IO.sleep(1.second)
-          r <- c.get
-          res <- IO(r must beEqualTo(0))
-        } yield res
+        } yield true
+
+        p must completeAs(true)
       }
 
     }

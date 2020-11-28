@@ -44,7 +44,6 @@ class SyntaxSpec extends Specification {
 
   def concurrentSyntax[F[_], A](target: F[A])(implicit F: Concurrent[F]) = {
     import syntax.concurrent._
-    import instances.all._
 
     Concurrent[F]: F.type
 
