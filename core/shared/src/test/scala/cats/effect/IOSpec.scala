@@ -967,15 +967,14 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           }.mustFailWith[RuntimeException]
       }
 
-      "should be cancelable" in real {
-        for {
-          c <- IO.ref(0)
-          f <- List(1, 2, 3).parTraverseN(1)(_ => IO.sleep(1.second) >> c.update(_ + 1)).start
-          _ <- IO.sleep(10.millis)
+      "should be cancelable" in ticked { implicit ticker =>
+        val p = for {
+          f <- List(1, 2, 3).parTraverseN(2)(_ => IO.never).start
+          _ <- IO.sleep(100.millis)
           _ <- f.cancel
-          _ <- IO.sleep(1.second)
-          r <- c.get.mustEqual(0)
-         } yield r
+        } yield true
+
+        p must completeAs(true)
       }
 
     }
