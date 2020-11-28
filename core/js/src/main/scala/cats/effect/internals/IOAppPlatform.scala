@@ -21,6 +21,7 @@ package internals
 import cats.syntax.all._
 import scala.concurrent.duration._
 import scala.scalajs.js
+import scala.concurrent.ExecutionContext
 
 private[effect] object IOAppPlatform {
   def main(args: Array[String], cs: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(
@@ -41,8 +42,8 @@ private[effect] object IOAppPlatform {
   /**
    * Sets the exit code with `process.exitCode = code` for runtimes
    * that support it.  This allows a graceful shutdown with a specific
-   * exit code.	
-   *	
+   * exit code.
+   *
    * If the call is not supported and the exit code is not Success,
    * then it is logged.
    *
@@ -82,6 +83,7 @@ private[effect] object IOAppPlatform {
 
   val defaultTimer: Timer[IO] = IOTimer.global
   val defaultContextShift: ContextShift[IO] = IOContextShift.global
+  val defaultExecutionContext: ExecutionContext = ExecutionContext.Implicits.global
 
   private def installHandler(fiber: Fiber[IO, Int]): IO[Unit] = {
     def handler(code: Int) =
