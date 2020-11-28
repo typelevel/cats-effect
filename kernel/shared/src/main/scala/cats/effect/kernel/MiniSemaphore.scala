@@ -46,9 +46,12 @@ private[kernel] abstract class MiniSemaphore[F[_]] {
 }
 
 private[kernel] object MiniSemaphore {
-
-  def mini[F[_]](n: Int)(implicit F: GenConcurrent[F, _]): F[MiniSemaphore[F]] = {
-
+  /**
+   * Creates a new `Semaphore`, initialized with `n` available permits.
+   * `n` must be > 0
+   */
+  def apply[F[_]](n: Int)(implicit F: GenConcurrent[F, _]): F[MiniSemaphore[F]] = {
+     require(n >= 0, s"n must be nonnegative, was: $n")
     // this representation appears more intuitive at first, but it's
     // actually weird, since a semaphore at zero permits is Right(0)
     // in `acquire`, but Left(empty) in `release`
@@ -98,78 +101,4 @@ private[kernel] object MiniSemaphore {
       }
     }
   }
-
-
-  /**
-   * Creates a new `Semaphore`, initialized with `n` available permits.
-   */
-  def apply[F[_]](n: Int)(implicit F: GenConcurrent[F, _]): F[MiniSemaphore[F]] = {
-    requireNonNegative(n)
-    F.ref[State[F]](Right(n)).map(stateRef => new ConcurrentMiniSemaphore[F](stateRef))
-  }
-
-  private def requireNonNegative(n: Int): Unit =
-    require(n >= 0, s"n must be nonnegative, was: $n")
-
-  // A semaphore is either empty, and there are number of outstanding acquires (Left)
-  // or it is non-empty, and there are n permits available (Right)
-  private type State[F[_]] = Either[ScalaQueue[Deferred[F, Unit]], Int]
-
-  private final case class Permit[F[_]](await: F[Unit], release: F[Unit])
-
-  private class ConcurrentMiniSemaphore[F[_]](state: Ref[F, State[F]])(
-      implicit F: GenConcurrent[F, _])
-      extends MiniSemaphore[F] {
-
-    def acquire: F[Unit] =
-      F.bracketCase(acquireInternal)(_.await) {
-        case (promise, Outcome.Canceled()) => promise.release
-        case _ => F.unit
-      }
-
-    private def acquireInternal: F[Permit[F]] = {
-      F.deferred[Unit].flatMap { gate =>
-        state
-          .updateAndGet {
-            case Left(waiting) =>
-              Left(waiting :+ gate)
-            case Right(m) =>
-              if (m > 0)
-                Right(m - 1)
-              else
-                Left(ScalaQueue(gate))
-          }
-          .map {
-            case Left(_) =>
-              val cleanup = state.update {
-                case Left(waiting) => Left(waiting.filterNot(_ eq gate))
-                case Right(m) => Right(m)
-              }
-
-              Permit(gate.get, cleanup)
-
-            case Right(_) => Permit(F.unit, release)
-          }
-      }
-    }
-
-    def release: F[Unit] =
-      F.uncancelable { _ =>
-        state.modify { st =>
-          st match {
-            case Left(waiting) =>
-              if (waiting.isEmpty)
-                (Right(1), F.unit)
-              else
-                (Left(waiting.tail), waiting.head.complete(()).void)
-            case Right(m) =>
-              (Right(m + 1), F.unit)
-          }
-        }.flatten
-      }
-
-    def withPermit[A](fa: F[A]): F[A] =
-      F.bracket(acquire)(_ => fa)(_ => release)
-  }
-
 }
