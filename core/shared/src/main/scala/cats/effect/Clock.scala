@@ -17,12 +17,12 @@
 package cats.effect
 
 import cats.effect.internals.ClockPlatform
-
+import cats.effect.internals.DefaultClock
 import cats.{~>, Applicative, Functor, Monoid}
 import cats.data._
 
 import scala.annotation.implicitNotFound
-import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
+import scala.concurrent.duration.{NANOSECONDS, TimeUnit}
 
 /**
  * Clock provides the current time, as a pure alternative to:
@@ -132,14 +132,10 @@ object Clock extends LowPriorityImplicits with ClockPlatform {
   /**
    * Provides Clock instance for any `F` that has `Sync` defined
    */
-  def create[F[_]](implicit F: Sync[F]): Clock[F] =
-    new Clock[F] {
-      override def realTime(unit: TimeUnit): F[Long] =
-        F.delay(unit.convert(System.currentTimeMillis(), MILLISECONDS))
-
-      override def monotonic(unit: TimeUnit): F[Long] =
-        F.delay(unit.convert(System.nanoTime(), NANOSECONDS))
-    }
+  def create[F[_]](implicit F: Sync[F]): Clock[F] = new DefaultClock[F] {
+    def monotonic(unit: TimeUnit): F[Long] =
+      F.delay(unit.convert(System.nanoTime(), NANOSECONDS))
+  }
 
   implicit class ClockOps[F[_]](val self: Clock[F]) extends AnyVal {
 

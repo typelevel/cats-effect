@@ -18,21 +18,13 @@ package cats.effect.internals
 
 import java.time.Instant
 
-import cats.Functor
-import cats.effect.Clock
+import cats.effect.{Clock, Sync}
 
-import scala.concurrent.duration.NANOSECONDS
+import scala.concurrent.duration.{NANOSECONDS, SECONDS, TimeUnit}
 
-private[effect] trait ClockPlatform {
-  implicit class JvmClockOps[F[_]](val self: Clock[F]) {
-
-    /**
-     * Creates a `java.time.Instant` derived from the clock's `realTime` in milliseconds
-     * for any `F` that has `Functor` defined.
-     */
-    def instantNow(implicit F: Functor[F]): F[Instant] =
-      F.map(self.realTime(NANOSECONDS)) { ns =>
-        Instant.EPOCH.plusNanos(ns)
-      }
+abstract private[effect] class DefaultClock[F[_]](implicit F: Sync[F]) extends Clock[F] {
+  def realTime(unit: TimeUnit): F[Long] = F.delay {
+    val now = Instant.now()
+    unit.convert(now.getEpochSecond, SECONDS) + unit.convert(now.getNano.toLong, NANOSECONDS)
   }
 }
