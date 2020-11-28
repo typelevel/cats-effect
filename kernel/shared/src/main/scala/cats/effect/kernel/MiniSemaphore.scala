@@ -31,7 +31,6 @@ private[kernel] abstract class MiniSemaphore[F[_]] {
    * Sequence an action while holding a permit
    */
   def withPermit[A](fa: F[A]): F[A]
-
 }
 
 private[kernel] object MiniSemaphore {

@@ -967,21 +967,6 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           }.mustFailWith[RuntimeException]
       }
 
-      "should cleanup on error" in real {
-        for {
-          c <- IO.ref(0)
-          f <- List(1, 2, 3)
-            .parTraverseN(1) { (n: Int) =>
-              IO.sleep(1.second) >> (if (n == 2) IO.raiseError(new RuntimeException)
-              else IO.pure(n)) >> c.update(_ + 1)
-            }
-            .start
-          _ <- f.join
-          r <- c.get
-          res <- IO(r must beLessThanOrEqualTo(2))
-        } yield res
-      }
-
       "should be cancelable" in real {
         for {
           c <- IO.ref(0)
