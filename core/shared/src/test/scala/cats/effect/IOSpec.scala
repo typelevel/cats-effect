@@ -960,14 +960,14 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         }.mustFailWith[IllegalArgumentException]
       }
 
-      "should propagate errors" in real {
+      "propagate errors" in real {
         List(1, 2, 3)
           .parTraverseN(2) { (n: Int) =>
             if (n == 2) IO.raiseError(new RuntimeException) else n.pure[IO]
           }.mustFailWith[RuntimeException]
       }
 
-      "should be cancelable" in ticked { implicit ticker =>
+      "be cancelable" in ticked { implicit ticker =>
         val p = for {
           f <- List(1, 2, 3).parTraverseN(2)(_ => IO.never).start
           _ <- IO.sleep(100.millis)
