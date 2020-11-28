@@ -19,6 +19,7 @@ package effect
 package kernel
 
 import scala.concurrent.duration._
+import cats.syntax.all._
 
 class MiniSemaphoreSpec extends BaseSpec { outer =>
 
@@ -43,14 +44,14 @@ class MiniSemaphoreSpec extends BaseSpec { outer =>
       val p =
         for {
           sem <- MiniSemaphore[IO](1)
-          ref <- IO.ref(0)
-          _ <- sem.withPermit { IO.sleep(1.second) >> ref.set(1) }.start
+          ref <- IO.ref(false)
+          _ <- sem.withPermit { IO.sleep(1.second) >> ref.set(true) }.start
           _ <- IO.sleep(500.millis)
           _ <- sem.withPermit(IO.unit)
           v <- ref.get
         } yield v
 
-      p must completeAs(1)
+      p must completeAs(true)
     }
 
     "release permit if withPermit errors" in real {
@@ -61,34 +62,41 @@ class MiniSemaphoreSpec extends BaseSpec { outer =>
       } yield res
     }
 
-    // // TODO falsify this test
-    // "release permit if action gets canceled" in ticked { implicit ticker =>
-    //   val p =
-    //     for {
-    //       sem <- MiniSemaphore[IO](1)
-    //       fiber <- sem.withPermit(IO.never).start
-    //       _ <- IO.sleep(1.second)
-    //       _ <- fiber.cancel
-    //       _ <- sem.withPermit(IO.unit)
-    //     } yield ()
+    "release permit if action gets canceled" in ticked { implicit ticker =>
+      val p =
+        for {
+          sem <- MiniSemaphore[IO](1)
+          fiber <- sem.withPermit(IO.never).start
+          _ <- IO.sleep(1.second)
+          _ <- fiber.cancel
+          _ <- sem.withPermit(IO.unit)
+        } yield ()
 
-    //   p must completeAs(())
-    // }
+      p must completeAs(())
+    }
 
-    // "allow cancelation if blocked waiting for permit" in ticked { implicit ticker =>
-    //   for {
-    //     sem <- MiniSemaphore[IO](1)
-    //     _ <- sem.acquire
-    //     f <- sem.acquire.start
-    //     _ <- IO.sleep(100.millis)
-    //     _ <- f.cancel
-    //     _ <- sem.release
-    //     //The fiber that was cancelled should not have acquired the permit
-    //     r <- sem.acquire.timeout(10.millis).attempt
-    //     res <- IO { r must beEqualTo(Right(())) }
-    //   } yield res
+    "allow cancelation if blocked waiting for permit" in ticked { implicit ticker =>
+      val p = for {
+        sem <- MiniSemaphore[IO](0)
+        ref <- IO.ref(false)
+        f <- sem.withPermit(IO.unit).onCancel(ref.set(true)).start
+        _ <- IO.sleep(1.second)
+        _ <- f.cancel
+        v <- ref.get
+      } yield v
 
-   // }
+      p must completeAs(true)
+    }
+
+    "not release permit when an acquire gets canceled" in ticked { implicit ticker =>
+      val p = for {
+        sem <- MiniSemaphore[IO](0)
+        _ <- sem.withPermit(IO.unit).timeout(1.second).attempt
+        _ <- sem.withPermit(IO.unit)
+      } yield ()
+
+      p must nonTerminate
+    }
   }
 
 }
