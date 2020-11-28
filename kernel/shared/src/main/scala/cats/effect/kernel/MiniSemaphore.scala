@@ -27,6 +27,7 @@ import scala.collection.immutable.{Queue => ScalaQueue}
  * parTraverseN
  */
 private[kernel] abstract class MiniSemaphore[F[_]] {
+
   /**
    * Sequence an action while holding a permit
    */
@@ -34,12 +35,13 @@ private[kernel] abstract class MiniSemaphore[F[_]] {
 }
 
 private[kernel] object MiniSemaphore {
+
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
    * `n` must be > 0
    */
   def apply[F[_]](n: Int)(implicit F: GenConcurrent[F, _]): F[MiniSemaphore[F]] = {
-     require(n >= 0, s"n must be nonnegative, was: $n")
+    require(n >= 0, s"n must be nonnegative, was: $n")
 
     /*
      * Invariant:
@@ -53,8 +55,8 @@ private[kernel] object MiniSemaphore {
      * be Left(empty) or Right(0)
      */
     case class State(
-      waiting: ScalaQueue[Deferred[F, Unit]],
-      permits: Int
+        waiting: ScalaQueue[Deferred[F, Unit]],
+        permits: Int
     )
 
     F.ref(State(ScalaQueue(), n)).map { state =>
@@ -63,7 +65,7 @@ private[kernel] object MiniSemaphore {
           F.uncancelable { poll =>
             F.deferred[Unit].flatMap { wait =>
               val cleanup = state.update {
-                case s@ State(waiting, permits) =>
+                case s @ State(waiting, permits) =>
                   if (waiting.nonEmpty)
                     State(waiting.filterNot(_ eq wait), permits)
                   else s
@@ -80,19 +82,19 @@ private[kernel] object MiniSemaphore {
           }
 
         def release: F[Unit] =
-          state.modify {
-            case State(waiting, permits) =>
-              if (waiting.nonEmpty)
-                State(waiting.tail, permits) -> waiting.head.complete(()).void
-              else
-                State(waiting, permits + 1) -> ().pure[F]
-          }.flatten
+          state
+            .modify {
+              case State(waiting, permits) =>
+                if (waiting.nonEmpty)
+                  State(waiting.tail, permits) -> waiting.head.complete(()).void
+                else
+                  State(waiting, permits + 1) -> ().pure[F]
+            }
+            .flatten
             .uncancelable
 
         def withPermit[A](fa: F[A]): F[A] =
-          F.uncancelable { poll =>
-            poll(acquire) >> poll(fa).guarantee(release)
-          }
+          F.uncancelable { poll => poll(acquire) >> poll(fa).guarantee(release) }
       }
     }
   }

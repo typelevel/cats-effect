@@ -41,8 +41,7 @@ final class GenConcurrentOps[F[_], E, A] private[syntax] (private[syntax] val wr
 final class ConcurrentParTraverseNOps[F[_], T[_], A, B] private[syntax] (
     private[syntax] val wrapped: T[A])
     extends AnyVal {
-  def parTraverseN(n: Int)(
-      f: A => F[B])(implicit F: Concurrent[F], T: Traverse[T]): F[T[B]] =
+  def parTraverseN(n: Int)(f: A => F[B])(implicit F: Concurrent[F], T: Traverse[T]): F[T[B]] =
     F.parTraverseN(n)(wrapped)(f)
 }
 

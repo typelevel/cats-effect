@@ -85,8 +85,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
   /**
    * Like `Parallel.parSequence`, but limits the degree of parallelism.
    */
-  def parSequenceN[T[_]: Traverse, A](n: Int)(
-      tma: T[F[A]]): F[T[A]] =
+  def parSequenceN[T[_]: Traverse, A](n: Int)(tma: T[F[A]]): F[T[A]] =
     parTraverseN(n)(tma)(identity)
 
   /**
@@ -95,17 +94,12 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
    * fairness: when a spot to execute becomes available, every task
    * has a chance to claim it, and not only the next `n` tasks in `ta`
    */
-  def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(
-    f: A => F[B]): F[T[B]] = {
+  def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(f: A => F[B]): F[T[B]] = {
     require(n >= 1, s"Concurrency limit should be at least 1, was: $n")
 
     implicit val F: GenConcurrent[F, E] = this
 
-    MiniSemaphore[F](n).flatMap { sem =>
-      ta.parTraverse { a =>
-        sem.withPermit(f(a))
-      }
-    }
+    MiniSemaphore[F](n).flatMap { sem => ta.parTraverse { a => sem.withPermit(f(a)) } }
   }
 
   override def racePair[A, B](fa: F[A], fb: F[B])
