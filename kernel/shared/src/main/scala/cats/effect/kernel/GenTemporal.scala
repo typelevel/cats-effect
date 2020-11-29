@@ -16,20 +16,22 @@
 
 package cats.effect.kernel
 
-import cats.{MonadError, Monoid, Semigroup}
-import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
+import cats.data._
+import cats.{Applicative, MonadError, Monoid, Semigroup}
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
 
 trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
+  override def applicative: Applicative[F] = this
+
   // (sleep(n) *> now) <-> now.map(_ + n + d) forSome { val d: Double }
   def sleep(time: FiniteDuration): F[Unit]
 
   def delayBy[A](fa: F[A], time: FiniteDuration): F[A] =
     productR(sleep(time))(fa)
 
-  def andWait[A](fa: F[A], time: FiniteDuration) =
+  def andWait[A](fa: F[A], time: FiniteDuration): F[A] =
     productL(fa)(sleep(time))
 
   /**
@@ -119,7 +121,6 @@ object GenTemporal {
 
     implicit protected def F: GenTemporal[F, E]
     protected def C = F
-    def applicative = this
 
     override protected def delegate: MonadError[OptionT[F, *], E] =
       OptionT.catsDataMonadErrorForOptionT[F, E]
@@ -135,7 +136,6 @@ object GenTemporal {
 
     implicit protected def F: GenTemporal[F, E]
     protected def C = F
-    def applicative = this
 
     override protected def delegate: MonadError[EitherT[F, E0, *], E] =
       EitherT.catsDataMonadErrorFForEitherT[F, E, E0]
@@ -150,7 +150,6 @@ object GenTemporal {
 
     implicit protected def F: GenTemporal[F, E]
     protected def C = F
-    def applicative = this
 
     override protected def delegate: MonadError[IorT[F, L, *], E] =
       IorT.catsDataMonadErrorFForIorT[F, L, E]
@@ -165,7 +164,6 @@ object GenTemporal {
 
     implicit protected def F: GenTemporal[F, E]
     protected def C = F
-    def applicative = this
 
     implicit protected def L: Monoid[L]
 
@@ -182,7 +180,6 @@ object GenTemporal {
 
     implicit protected def F: GenTemporal[F, E]
     protected def C = F
-    def applicative = this
 
     override protected def delegate: MonadError[Kleisli[F, R, *], E] =
       Kleisli.catsDataMonadErrorForKleisli[F, R, E]

@@ -35,8 +35,6 @@ object freeEval extends FreeSyncEq {
       private[this] val M: MonadError[FreeT[Eval, F, *], Throwable] =
         FreeT.catsFreeMonadErrorForFreeT2
 
-      final def applicative = this
-
       def pure[A](x: A): FreeT[Eval, F, A] =
         M.pure(x)
 

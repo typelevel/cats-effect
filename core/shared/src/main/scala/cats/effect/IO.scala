@@ -81,9 +81,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO uncancelable { poll =>
       flatMap { a =>
         val finalized = poll(use(a)).onCancel(release(a, Outcome.Canceled()))
-        val handled = finalized onError {
-          case e => doRelease(a, Outcome.Errored(e))
-        }
+        val handled = finalized.onError(e => doRelease(a, Outcome.Errored(e)))
         handled.flatMap(b => doRelease(a, Outcome.Succeeded(IO.pure(b))).as(b))
       }
     }
@@ -118,7 +116,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
     IO uncancelable { poll =>
       val base = poll(this)
-      val finalized = pf.lift(Outcome.Canceled()).map(base.onCancel(_)).getOrElse(base)
+      val finalized = pf.lift(Outcome.Canceled()).map(base.onCancel).getOrElse(base)
 
       finalized.attempt flatMap {
         case Left(e) =>
@@ -481,8 +479,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[this] val _asyncForIO: kernel.Async[IO] = new kernel.Async[IO]
     with StackSafeMonad[IO] {
-
-    val applicative = this
 
     override def as[A, B](ioa: IO[A], b: B): IO[B] =
       ioa.as(b)

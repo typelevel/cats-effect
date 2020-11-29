@@ -177,7 +177,6 @@ object Async {
 
     override protected final def delegate = super.delegate
     override protected final def C = F
-    override final def applicative = this
 
     def cont[A](body: Cont[OptionT[F, *], A]): OptionT[F, A] =
       OptionT(
@@ -238,7 +237,6 @@ object Async {
 
     override protected final def delegate = super.delegate
     override protected final def C = F
-    override final def applicative = this
 
     def cont[A](body: Cont[EitherT[F, E, *], A]): EitherT[F, E, A] =
       EitherT(
@@ -302,7 +300,6 @@ object Async {
 
     override protected final def delegate = super.delegate
     override protected final def C = F
-    override final def applicative = this
 
     def cont[A](body: Cont[IorT[F, L, *], A]): IorT[F, L, A] =
       IorT(
@@ -363,7 +360,6 @@ object Async {
 
     override protected final def delegate = super.delegate
     override protected final def C = F
-    override final def applicative = this
 
     def cont[A](body: Cont[WriterT[F, L, *], A]): WriterT[F, L, A] =
       WriterT(
@@ -427,7 +423,6 @@ object Async {
 
     override protected final def delegate = super.delegate
     override protected final def C = F
-    override final def applicative = this
 
     def cont[A](body: Cont[Kleisli[F, R, *], A]): Kleisli[F, R, A] =
       Kleisli(r =>
