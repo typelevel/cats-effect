@@ -107,20 +107,6 @@ class RefSpec extends BaseSpec { outer =>
       op must completeAs(true)
     }
 
-    "access - setter should fail if called twice" in ticked { implicit ticker =>
-      val op = for {
-        r <- Ref[IO].of(0)
-        valueAndSetter <- r.access
-        (value, setter) = valueAndSetter
-        cond1 <- setter(value + 1)
-        _ <- r.set(value)
-        cond2 <- setter(value + 1)
-        result <- r.get
-      } yield cond1 && !cond2 && result == 0
-
-      op must completeAs(true)
-    }
-
     "tryUpdate - modification occurs successfully" in ticked { implicit ticker =>
       val op = for {
         r <- Ref[IO].of(0)
