@@ -403,7 +403,7 @@ private[effect] object IORunLoop {
 
   private[this] val runLoopFilter = List(
     "cats.effect.",
-    "scala."
+    "scala.runtime."
   )
 
   /**
