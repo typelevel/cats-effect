@@ -85,7 +85,7 @@ object TimeT {
     }
 
   implicit def orderTimeT[F[_], A](implicit FA: Order[F[A]]): Order[TimeT[F, A]] =
-    Order.by(TimeT.run(_))
+    Order.by(TimeT.run)
 
   implicit def genTemporalForTimeT[F[_], E](
       implicit F: GenConcurrent[F, E]): GenTemporal[TimeT[F, *], E] =
@@ -93,8 +93,6 @@ object TimeT {
 
   private[this] class TimeTGenTemporal[F[_], E](implicit F: GenConcurrent[F, E])
       extends GenTemporal[TimeT[F, *], E] {
-
-    final def applicative = this
 
     def pure[A](x: A): TimeT[F, A] =
       Kleisli.pure(x)
