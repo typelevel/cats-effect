@@ -70,11 +70,9 @@ private[effect] final class WorkStealingThreadPool(
   // for work to steal from other worker threads.
   private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
 
-  // Lock that ensures exclusive access to the references of sleeping threads.
-  private[this] val lock: AnyRef = new Object()
-
   // LIFO access to references of sleeping worker threads.
-  private[this] val sleepers: ArrayStack[WorkerThread] = new ArrayStack(threadCount)
+  private[this] val sleepers: ConcurrentCircularBuffer = new ConcurrentCircularBuffer(
+    threadCount)
 
   // Shutdown signal for the worker threads.
   @volatile private[unsafe] var done: Boolean = false
@@ -166,23 +164,16 @@ private[effect] final class WorkStealingThreadPool(
       return null
     }
 
-    lock.synchronized {
-      if (!notifyShouldWakeup()) {
-        // Again, there are enough searching and/or running worker threads.
-        // No need to wake up more. Return.
-        return null
-      }
-
+    // Obtain the most recently parked thread.
+    val worker = sleepers.dequeue()
+    if (worker != null) {
       // Update the state so that a thread can be unparked.
       // Here we are updating the 16 most significant bits, which hold the
       // number of active threads.
       state.getAndAdd(1 | (1 << UnparkShift))
-
-      // Obtain the most recently parked thread.
-      val popped = sleepers.pop()
-      popped.sleeping = false
-      popped
+      worker.sleeping = false
     }
+    worker
   }
 
   /**
@@ -201,14 +192,11 @@ private[effect] final class WorkStealingThreadPool(
    * Updates the internal state to mark the given worker thread as parked.
    */
   private[unsafe] def transitionWorkerToParked(thread: WorkerThread): Boolean = {
-    lock.synchronized {
-      // Decrement the number of unparked threads since we are parking.
-      val ret = decrementNumberUnparked(thread.isSearching())
-      // Mark the thread as parked.
-      sleepers.push(thread)
-      thread.sleeping = true
-      ret
-    }
+    // Mark the thread as parked.
+    thread.sleeping = true
+    sleepers.enqueue(thread)
+    // Decrement the number of unparked threads since we are parking.
+    decrementNumberUnparked(thread.isSearching())
   }
 
   /**
