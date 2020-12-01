@@ -94,8 +94,10 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   }
 }
 
-ThisBuild / githubWorkflowBuildMatrixExclusions +=
-  MatrixExclude(Map("java" -> LatestJava, "scala" -> "3.0.0-M1"))
+ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
+  MatrixExclude(Map("java" -> LatestJava, "scala" -> "3.0.0-M1")),
+  MatrixExclude(Map("java" -> LatestJava, "os" -> Windows))
+)
 
 lazy val useFirefoxEnv = settingKey[Boolean]("Use headless Firefox (via geckodriver) for running tests")
 Global / useFirefoxEnv := false

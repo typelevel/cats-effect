@@ -60,6 +60,8 @@ jobs:
             ci: ciFirefox
           - java: adopt@1.15
             scala: 3.0.0-M1
+          - java: adopt@1.15
+            os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
       - name: Ignore line ending differences in git
