@@ -124,9 +124,17 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       }
     }
 
-    // "attempt on Resource after mapK" in real {
-    //   Resource.eval
-    // }
+    "attempt on Resource after mapK" in real {
+      class Err extends Exception
+
+      Resource
+        .liftF(IO.raiseError[Int](new Err))
+        .mapK(Kleisli.liftK[IO, Int])
+        .attempt
+        .use(_ => 3.pure[Kleisli[IO, Int, *]])
+        .run(0)
+        .mustEqual(3)
+    }
 
     "mapK should preserve ExitCode-specific behaviour" in ticked { implicit ticker =>
       def sideEffectyResource: (AtomicBoolean, Resource[IO, Unit]) = {
