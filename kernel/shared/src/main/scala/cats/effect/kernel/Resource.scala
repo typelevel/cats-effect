@@ -120,7 +120,7 @@ sealed abstract class Resource[+F[_], +A] {
     // Interpreter that knows how to evaluate a Resource data structure;
     // Maintains its own stack for dealing with Bind chains
     @tailrec def loop[C](current: Resource[G, C], stack: Stack[C]): G[B] =
-      current.preinterpret match {
+      current.pre match {
         case Allocate(resource) =>
           G.bracketCase(resource) {
             case (a, _) =>
@@ -139,6 +139,8 @@ sealed abstract class Resource[+F[_], +A] {
       }
     loop(this, Nil)
   }
+
+  def pre[G[x] >: F[x]]: Resource[G, A] = this
 
   /**
    * Compiles this down to the three primitive types:
