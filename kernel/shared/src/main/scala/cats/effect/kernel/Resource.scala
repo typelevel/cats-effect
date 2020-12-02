@@ -137,7 +137,7 @@ sealed abstract class Resource[+F[_], +A] {
         case Suspend(resource) =>
           G.flatMap(resource)(continue(_, stack))
         case x @ LiftF(_)  => loop(x.preinterpret, stack)
-        case x @ MapK(_, _) => loop(x.preinterpret, stack)
+        case x @ MapK(_, _) => loop(x.translate, stack)
         case x @ OnFinalizeCase(_, _) => loop(x.preinterpret, stack)
         case x @ Pure(_) => loop(x.preinterpret, stack)
       }
@@ -155,7 +155,7 @@ sealed abstract class Resource[+F[_], +A] {
    * recursively, this will need to be done repeatedly.
    */
   def preinterpret[G[x] >: F[x]](implicit G: Applicative[G]): Resource.Primitive[G, A] = {
-    @tailrec def loop(current: Resource[G, A]): Resource.Primitive[G, A] =
+    def loop(current: Resource[G, A]): Resource.Primitive[G, A] =
       current.covary match {
         case pr: Resource.Primitive[G, A] => pr
         case Pure(a) => Allocate((a, (_: ExitCase) => G.unit).pure[G])
@@ -165,35 +165,6 @@ sealed abstract class Resource[+F[_], +A] {
           Bind(
             Allocate[G, Unit](G.pure[(Unit, ExitCase => G[Unit])](() -> finalizer)),
             (_: Unit) => resource)
-        case MapK(rea, fk0) =>
-          // this would be easier if we could call `rea.preinterpret` but we don't have
-          // the right `Applicative` instance available.
-          val fk = fk0.asInstanceOf[rea.F0 ~> G] // scala 2 infers this as `Any ~> G`
-          rea.invariant match {
-            case Allocate(resource) =>
-              Allocate(fk(resource).map {
-                case (a, r) => (a, r.andThen(fk(_)))
-              })
-            case Bind(source, f0) =>
-              Bind(source.mapK(fk), f0.andThen(_.mapK(fk)))
-            case Suspend(resource) =>
-              Suspend(fk(resource).map(_.mapK(fk)))
-            case OnFinalizeCase(resource, finalizer) =>
-              Bind(
-                Allocate[G, Unit](
-                  G.pure[(Unit, ExitCase => G[Unit])](() -> finalizer.andThen(fk.apply))),
-                (_: Unit) => resource.mapK(fk))
-            case Pure(a) => Allocate((a, (_: ExitCase) => G.unit).pure[G])
-            case LiftF(rea) =>
-              Suspend(fk(rea).map[Resource[G, A]](a =>
-                Allocate((a, (_: ExitCase) => G.unit).pure[G])))
-            case MapK(ea0, ek) =>
-              loop(ea0.invariant.mapK {
-                new FunctionK[ea0.F0, G] {
-                  def apply[A0](fa: ea0.F0[A0]): G[A0] = fk(ek(fa))
-                }
-              })
-          }
       }
     loop(this)
   }
@@ -394,7 +365,7 @@ sealed abstract class Resource[+F[_], +A] {
         case Suspend(resource) =>
           resource.flatMap(continue(_, stack, release))
         case x @ LiftF(_)  => loop(x.preinterpret, stack, release)
-        case x @ MapK(_, _) => loop(x.preinterpret, stack, release)
+        case x @ MapK(_, _) => loop(x.translate, stack, release)
         case x @ OnFinalizeCase(_, _) => loop(x.preinterpret, stack, release)
         case x @ Pure(_) => loop(x.preinterpret, stack, release)
       }
@@ -656,6 +627,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
               Suspend(f(rea).map[Resource[F, A]](a =>
                 Allocate((a, (_: ExitCase) => F.unit).pure[F])))
             case MapK(ea0, ek) =>
+              // TODO lack of recursion might be wrong here, it was recursive in preinterpret
                 ea0.invariant.mapK {
                   new FunctionK[ea0.F0, F] {
                     def apply[A0](fa: ea0.F0[A0]): F[A0] = f(ek(fa))
