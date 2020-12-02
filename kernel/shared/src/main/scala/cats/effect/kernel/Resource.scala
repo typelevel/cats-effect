@@ -156,7 +156,7 @@ sealed abstract class Resource[+F[_], +A] {
    */
   def preinterpret[G[x] >: F[x]](implicit G: Applicative[G]): Resource.Primitive[G, A] = {
     @tailrec def loop(current: Resource[G, A]): Resource.Primitive[G, A] =
-      current.invariant.widen[G] match {
+      current.covary match {
         case pr: Resource.Primitive[G, A] => pr
         case Pure(a) => Allocate((a, (_: ExitCase) => G.unit).pure[G])
         case LiftF(fa) =>
