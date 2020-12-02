@@ -124,11 +124,11 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       }
     }
 
-    "mapK should preserve ExitCode-specific behaviour" in ticked { implicit ticker =>
-      val takeAnInteger = new ~>[IO, Kleisli[IO, Int, *]] {
-        override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli.liftF(fa)
-      }
+    // "attempt on Resource after mapK" in real {
+    //   Resource.eval
+    // }
 
+    "mapK should preserve ExitCode-specific behaviour" in ticked { implicit ticker =>
       def sideEffectyResource: (AtomicBoolean, Resource[IO, Unit]) = {
         val cleanExit = new java.util.concurrent.atomic.AtomicBoolean(false)
         val res = Resource.makeCase(IO.unit) {
@@ -151,7 +151,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
       val (clean2, res2) = sideEffectyResource
       res2
-        .mapK(takeAnInteger)
+        .mapK(Kleisli.liftK[IO, Int])
         .use(_ => ().pure[Kleisli[IO, Int, *]])
         .run(0)
         .attempt
@@ -160,7 +160,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
       val (clean3, res3) = sideEffectyResource
       res3
-        .mapK(takeAnInteger)
+        .mapK(Kleisli.liftK[IO, Int])
         .use(_ => Kleisli.liftF(IO.raiseError[Unit](new Throwable("oh no"))))
         .run(0)
         .attempt
