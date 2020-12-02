@@ -771,12 +771,12 @@ abstract private[effect] class ResourceInstances0 {
 abstract private[effect] class ResourceMonadError[F[_], E]
     extends ResourceMonad[F]
     with MonadError[Resource[F, *], E] {
-  import Resource.{Allocate, Bind, Suspend}
+  import Resource._
 
   implicit protected def F: MonadError[F, E]
 
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
-    fa.preinterpret[F] match {
+    fa match {
       case Allocate(fa) =>
         Allocate[F, Either[E, A]](F.attempt(fa).map {
           case Left(error) => (Left(error), (_: ExitCase) => F.unit)
@@ -797,6 +797,10 @@ abstract private[effect] class ResourceMonadError[F[_], E]
           case Left(error) => Resource.pure[F, Either[E, A]](Left(error))
           case Right(fa: Resource[F, A]) => attempt(fa)
         })
+      case x @ LiftF(_)  => attempt(x.preinterpret)
+      case x @ MapK(_, _) => attempt(x.preinterpret)
+      case x @ OnFinalizeCase(_, _) => attempt(x.preinterpret)
+      case x @ Pure(_) => attempt(x.preinterpret)
     }
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
