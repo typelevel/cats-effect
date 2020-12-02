@@ -814,7 +814,7 @@ abstract private[effect] class ResourceMonadError[F[_], E]
 }
 
 abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]] {
-  import Resource.{Allocate, Bind, Suspend}
+  import Resource._
 
   implicit protected def F: Monad[F]
 
@@ -829,7 +829,7 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
 
   def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] = {
     def continue(r: Resource[F, Either[A, B]]): Resource[F, B] =
-      r.preinterpret[F] match {
+      r match {
         case Allocate(resource) =>
           Suspend(F.flatMap(resource) {
             case (eab, release) =>
@@ -844,6 +844,10 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
           Suspend(F.map(resource)(continue))
         case b: Bind[F, s, Either[A, B]] =>
           Bind(b.source, AndThen(b.fs).andThen(continue))
+        case x @ LiftF(_)  => continue(x.preinterpret)
+        case x @ MapK(_, _) => continue(x.preinterpret)
+        case x @ OnFinalizeCase(_, _) => continue(x.preinterpret)
+        case x @ Pure(_) => continue(x.preinterpret)
       }
 
     continue(f(a))
