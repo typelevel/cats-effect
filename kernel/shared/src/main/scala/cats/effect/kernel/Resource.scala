@@ -140,8 +140,6 @@ sealed abstract class Resource[+F[_], +A] {
         case x @ MapK(_, _) => loop(x.preinterpret, stack)
         case x @ OnFinalizeCase(_, _) => loop(x.preinterpret, stack)
         case x @ Pure(_) => loop(x.preinterpret, stack)
-
-
       }
     loop(this, Nil)
   }
@@ -377,7 +375,7 @@ sealed abstract class Resource[+F[_], +A] {
         current: Resource[G, C],
         stack: Stack[C],
         release: G[Unit]): G[(B, G[Unit])] =
-      current.preinterpret match {
+      current.pre match {
         case Allocate(resource) =>
           G.bracketCase(resource) {
             case (a, rel) =>
@@ -397,6 +395,10 @@ sealed abstract class Resource[+F[_], +A] {
           loop(source, Frame(fs, stack), release)
         case Suspend(resource) =>
           resource.flatMap(continue(_, stack, release))
+        case x @ LiftF(_)  => loop(x.preinterpret, stack, release)
+        case x @ MapK(_, _) => loop(x.preinterpret, stack, release)
+        case x @ OnFinalizeCase(_, _) => loop(x.preinterpret, stack, release)
+        case x @ Pure(_) => loop(x.preinterpret, stack, release)
       }
 
     loop(this, Nil, G.unit)
