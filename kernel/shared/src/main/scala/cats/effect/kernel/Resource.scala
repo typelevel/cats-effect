@@ -136,6 +136,12 @@ sealed abstract class Resource[+F[_], +A] {
           loop(source, Frame(fs, stack))
         case Suspend(resource) =>
           G.flatMap(resource)(continue(_, stack))
+        case x @ LiftF(_)  => loop(x.preinterpret, stack)
+        case x @ MapK(_, _) => loop(x.preinterpret, stack)
+        case x @ OnFinalizeCase(_, _) => loop(x.preinterpret, stack)
+        case x @ Pure(_) => loop(x.preinterpret, stack)
+
+
       }
     loop(this, Nil)
   }
