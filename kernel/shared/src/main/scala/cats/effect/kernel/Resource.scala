@@ -293,14 +293,14 @@ sealed abstract class Resource[+F[_], +A] {
    * Runs `finalizer` when this resource is closed. Unlike the release action passed to `Resource.make`, this will
    * run even if resource acquisition fails or is canceled.
    */
-  def onFinalize[G[x] >: F[x]](finalizer: G[Unit]): Resource[G, A] =
+  def onFinalize[G[x] >: F[x]: Applicative](finalizer: G[Unit]): Resource[G, A] =
     onFinalizeCase(_ => finalizer)
 
   /**
    * Like `onFinalize`, but the action performed depends on the exit case.
    */
-  def onFinalizeCase[G[x] >: F[x]](f: ExitCase => G[Unit]): Resource[G, A] =
-    OnFinalizeCase(this, f)
+  def onFinalizeCase[G[x] >: F[x]](f: ExitCase => G[Unit])(implicit G: Applicative[G]): Resource[G, A] =
+    Resource.makeCase(G.unit)((_, ec) => f(ec)).flatMap(_ => this)
 
   /**
    * Given a `Resource`, possibly built by composing multiple
@@ -507,14 +507,14 @@ object Resource extends ResourceInstances with ResourcePlatform {
   /**
    * Lifts a finalizer into a resource. The resource has a no-op allocation.
    */
-  def onFinalize[F[_]](release: F[Unit]): Resource[F, Unit] =
+  def onFinalize[F[_]: Applicative](release: F[Unit]): Resource[F, Unit] =
     unit.onFinalize(release)
 
   /**
    * Creates a resource that allocates immediately without any effects,
    * but calls `release` when closing, providing the [[ExitCase the usage completed with]].
    */
-  def onFinalizeCase[F[_]](release: ExitCase => F[Unit]): Resource[F, Unit] =
+  def onFinalizeCase[F[_]: Applicative](release: ExitCase => F[Unit]): Resource[F, Unit] =
     unit.onFinalizeCase(release)
 
   /**
