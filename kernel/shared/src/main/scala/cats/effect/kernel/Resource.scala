@@ -632,7 +632,39 @@ object Resource extends ResourceInstances with ResourcePlatform {
   private[effect] final case class LiftF[F[_], A](fa: F[A]) extends InvariantResource[F, A]
 
   private[effect] final case class MapK[E[_], F[_], A](source: Resource[E, A], f: E ~> F)
-      extends InvariantResource[F, A]
+      extends InvariantResource[F, A] {
+
+    def translate(implicit F: MonadCancelThrow[F]): Resource[F, A] = {
+          // this would be easier if we could call `rea.preinterpret` but we don't have
+          // the right `Applicative` instance available.
+          source.invariant match {
+            case Allocate(resource) =>
+              Allocate(f(resource).map {
+                case (a, r) => (a, r.andThen(f(_)))
+              })
+            case Bind(source, f0) =>
+              Bind(source.mapK(f), f0.andThen(_.mapK(f)))
+            case Suspend(resource) =>
+              Suspend(f(resource).map(_.mapK(f)))
+            case OnFinalizeCase(resource, finalizer) =>
+              Bind(
+                Allocate[F, Unit](
+                  F.pure[(Unit, ExitCase => F[Unit])](() -> finalizer.andThen(f.apply))),
+                (_: Unit) => resource.mapK(f))
+            case Pure(a) => Allocate((a, (_: ExitCase) => F.unit).pure[F])
+            case LiftF(rea) =>
+              Suspend(f(rea).map[Resource[F, A]](a =>
+                Allocate((a, (_: ExitCase) => F.unit).pure[F])))
+            case MapK(ea0, ek) =>
+                ea0.invariant.mapK {
+                  new FunctionK[ea0.F0, F] {
+                    def apply[A0](fa: ea0.F0[A0]): F[A0] = f(ek(fa))
+                  }
+                }
+          }
+    }
+
+  }
 
   /**
    * Type for signaling the exit condition of an effectful
