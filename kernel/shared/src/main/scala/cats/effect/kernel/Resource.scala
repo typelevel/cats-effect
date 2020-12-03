@@ -733,18 +733,17 @@ abstract private[effect] class ResourceMonadError[F[_], E]
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
     fa match {
       case Allocate(fa) =>
-        Allocate[F, Either[E, A]](F.attempt(fa).map {
-          case Left(error) => (Left(error), (_: ExitCase) => F.unit)
-          case Right((a, release)) => (Right(a), release)
-        })
-      case Bind(source: Resource[F, s], fs) =>
-          Bind(
-            attempt(source),
-            (r: Either[E, s]) =>
-              r match {
-                case Left(error) => Resource.pure[F, Either[E, A]](Left(error))
-                case Right(s) => attempt(fs(s))
-              })
+        Resource.applyCase {
+          fa.attempt.map {
+            case Left(error) => (Left(error), (_: ExitCase) => F.unit)
+            case Right((a, release)) => (Right(a), release)
+          }
+        }
+      case Bind(source, fs) =>
+        source.attempt.flatMap {
+          case Left(error) => Resource.pure(error.asLeft)
+          case Right(s) => attempt(fs(s))
+        }
       case Pure(v) =>
         Resource.pure(v.asRight)
       case Eval(fa)  =>
