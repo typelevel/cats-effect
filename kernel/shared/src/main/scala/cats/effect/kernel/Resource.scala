@@ -133,15 +133,11 @@ sealed abstract class Resource[+F[_], +A] {
         case Bind(source, fs) =>
           loop(source, Frame(fs, stack))
         case Pure(v) =>
-          // TODO this breaks stack safety for tailRecM
           stack match {
             case Nil => onOutput(v)
             case Frame(head, tail) =>
-              continue(head(v), tail)
+              G.unit >> continue(head(v), tail)
           }
-          // probably needs checking for allocated too
-
-//          loop(Resource.make(v.pure[G])(_ => G.unit), stack)
         case Suspend(resource) =>
           resource.flatMap(continue(_, stack))
         case x @ Eval(_)  => loop(x.preinterpret, stack)
@@ -367,7 +363,7 @@ sealed abstract class Resource[+F[_], +A] {
             case Nil =>
               G.pure((v: B) -> release)
             case Frame(head, tail) =>
-              continue(head(v), tail, release)
+              G.unit >> continue(head(v), tail, release)
           }
         case Suspend(resource) =>
           resource.flatMap(continue(_, stack, release))
