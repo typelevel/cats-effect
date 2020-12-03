@@ -808,9 +808,6 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
 
   implicit protected def F: Monad[F]
 
-  override def map[A, B](fa: Resource[F, A])(f: A => B): Resource[F, B] =
-    fa.map(f)
-
   def pure[A](a: A): Resource[F, A] =
     Resource.pure(a)
 
