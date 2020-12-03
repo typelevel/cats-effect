@@ -139,9 +139,12 @@ sealed abstract class Resource[+F[_], +A] {
               // we insert a flatMap to guarantee stack safety
               G.unit >> continue(head(v), tail)
           }
+        case Eval(fa)  =>
+          fa.flatMap { a =>
+            continue(Resource.pure(a), stack)
+          }
         case Suspend(resource) =>
           resource.flatMap(continue(_, stack))
-        case x @ Eval(_)  => loop(x.preinterpret, stack)
         case x @ MapK(_, _) => loop(x.translate, stack)
       }
     loop(this, Nil)
@@ -367,9 +370,12 @@ sealed abstract class Resource[+F[_], +A] {
               // we insert a flatMap to guarantee stack safety
               G.unit >> continue(head(v), tail, release)
           }
+        case Eval(fa)  =>
+          fa.flatMap { a =>
+            continue(Resource.pure(a), stack, release)
+          }
         case Suspend(resource) =>
           resource.flatMap(continue(_, stack, release))
-        case x @ Eval(_)  => loop(x.preinterpret, stack, release)
         case x @ MapK(_, _) => loop(x.translate, stack, release)
       }
 
@@ -789,9 +795,10 @@ abstract private[effect] class ResourceMonadError[F[_], E]
           case Left(error) => Resource.pure[F, Either[E, A]](Left(error))
           case Right(fa: Resource[F, A]) => attempt(fa)
         })
+      case Eval(fa)  =>
+        Resource.liftF(fa.attempt)
       case x @ MapK(_, _) =>
         attempt(x.translate)
-      case x @ Eval(_)  => attempt(x.preinterpret)
     }
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
