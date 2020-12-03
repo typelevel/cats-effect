@@ -195,6 +195,20 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       r eqv IO.unit
     }
 
+    "use is stack-safe over binds - 2" in real {
+      val n = 50000
+      def p(i: Int = 0, n: Int = 50000): Resource[IO, Int] =
+        Resource.pure {
+          if (i < n) Left(i + 1)
+          else Right(i)
+        }.flatMap {
+          case Left(a) => p(a)
+          case Right(b) => Resource.pure(b)
+        }
+
+      p(n = n).use(IO.pure).mustEqual(n)
+    }
+
     "mapK is stack-safe over binds" in ticked { implicit ticker =>
       val r = (1 to 10000)
         .foldLeft(Resource.liftF(IO.unit)) {
