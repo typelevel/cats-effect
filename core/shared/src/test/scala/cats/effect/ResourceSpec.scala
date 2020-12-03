@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.{~>, SemigroupK}
-import cats.data.Kleisli
+import cats.data.{Kleisli, OptionT}
 import cats.effect.testkit.TestContext
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
@@ -470,14 +470,14 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         }
     }
 
-    // "combinek - should behave like underlying effect" in ticked { implicit ticker =>
-    //   forAll { (ot1: OptionT[IO, Int], ot2: OptionT[IO, Int]) =>
-    //     val lhs = Resource.liftF(ot1 <+> ot2).use(OptionT.pure[IO](_)).value
-    //     val rhs = (Resource.liftF(ot1) <+> Resource.liftF(ot2)).use(OptionT.pure[IO](_)).value
+    "combineK - should behave like underlying effect" in ticked { implicit ticker =>
+      forAll { (ot1: OptionT[IO, Int], ot2: OptionT[IO, Int]) =>
+        val lhs = Resource.liftF(ot1 <+> ot2).use(OptionT.pure[IO](_)).value
+        val rhs = (Resource.liftF(ot1) <+> Resource.liftF(ot2)).use(OptionT.pure[IO](_)).value
 
-    //     lhs eqv rhs
-    //   }
-    // }
+        lhs eqv rhs
+      }
+    }
 
     "surround - should wrap an effect in a usage and ignore the value produced by resource" in ticked {
       implicit ticker =>
