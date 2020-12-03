@@ -26,7 +26,7 @@ final class Unique private extends Serializable {
   override def toString: String = s"Unique(${hashCode.toHexString})"
 }
 object Unique {
-  def apply[F[_]: Concurrent]: F[Unique] = Concurrent[F].unit.as(new Unique)
+  def apply[F[_]: Concurrent]: F[Unique] = Concurrent[F].unit.map(_ => new Unique)
 
   def sync[F[_]: Sync]: F[Unique] = Sync[F].delay(new Unique)
 
