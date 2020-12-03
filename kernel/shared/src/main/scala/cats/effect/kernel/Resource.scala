@@ -17,7 +17,6 @@
 package cats.effect.kernel
 
 import cats._
-import cats.data.AndThen
 import cats.arrow.FunctionK
 import cats.syntax.all._
 import cats.effect.kernel.implicits._
@@ -134,10 +133,14 @@ sealed abstract class Resource[+F[_], +A] {
         case Bind(source, fs) =>
           loop(source, Frame(fs, stack))
         case Pure(v) =>
-          stack match {
-            case Nil => onOutput(v)
-            case Frame(head, tail) => continue(head(v), tail)
-          }
+          // TODO this breaks stack safety for tailRecM
+          // stack match {
+          //   case Nil => onOutput(v)
+          //   case Frame(head, tail) => continue(head(v), tail)
+          // }
+          // probably needs checking for allocated too
+
+          loop(Resource.make(v.pure[G])(_ => G.unit), stack)
         case Suspend(resource) =>
           resource.flatMap(continue(_, stack))
         case x @ Eval(_)  => loop(x.preinterpret, stack)
@@ -802,8 +805,7 @@ abstract private[effect] class ResourceMonadError[F[_], E]
     Resource.liftF(F.raiseError[A](e))
 }
 
-abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]] {
-  import Resource._
+abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]] with StackSafeMonad[Resource[F, *]] {
 
   implicit protected def F: Monad[F]
 
@@ -815,32 +817,6 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
 
   def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
     fa.flatMap(f)
-
-  def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] = {
-    def continue(r: Resource[F, Either[A, B]]): Resource[F, B] =
-      r match {
-        case Allocate(resource) =>
-          Suspend(F.flatMap(resource) {
-            case (eab, release) =>
-              (eab: Either[A, B]) match {
-                case Left(a) =>
-                  F.map(release(ExitCase.Succeeded))(_ => tailRecM(a)(f))
-                case Right(b) =>
-                  F.pure[Resource[F, B]](Allocate[F, B](F.pure((b, release))))
-              }
-          })
-        case Suspend(resource) =>
-          Suspend(F.map(resource)(continue))
-        case b: Bind[F, s, Either[A, B]] =>
-          Bind(b.source, AndThen(b.fs).andThen(continue))
-        case Pure(v) =>
-          continue(Resource.make(v.pure[F])(_ => F.unit))
-        case x @ Eval(_)  => continue(x.preinterpret)
-        case x @ MapK(_, _) => continue(x.translate)
-      }
-
-    continue(f(a))
-  }
 }
 
 abstract private[effect] class ResourceMonoid[F[_], A]
