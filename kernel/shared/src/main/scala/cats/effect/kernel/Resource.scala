@@ -102,7 +102,7 @@ import cats.data.Kleisli
 sealed abstract class Resource[+F[_], +A] {
   private[effect] type F0[x] <: F[x]
 
-  import Resource.{Allocate, Bind, LiftF, MapK, OnFinalizeCase, Pure, Suspend}
+  import Resource._
 
   private[effect] def fold[G[x] >: F[x], B](
       onOutput: A => G[B],
@@ -143,8 +143,6 @@ sealed abstract class Resource[+F[_], +A] {
           G.flatMap(resource)(continue(_, stack))
         case x @ LiftF(_)  => loop(x.preinterpret, stack)
         case x @ MapK(_, _) => loop(x.translate, stack)
-        case x @ OnFinalizeCase(_, _) => loop(x.preinterpret, stack)
-
       }
     loop(this, Nil)
   }
@@ -165,10 +163,6 @@ sealed abstract class Resource[+F[_], +A] {
         case pr: Resource.Primitive[G, A] => pr
         case LiftF(fa) =>
           Suspend(fa.map[Resource[G, A]](a => Allocate((a, (_: ExitCase) => G.unit).pure[G])))
-        case OnFinalizeCase(resource, finalizer) =>
-          Bind(
-            Allocate[G, Unit](G.pure[(Unit, ExitCase => G[Unit])](() -> finalizer)),
-            (_: Unit) => resource)
       }
     loop(this)
   }
@@ -377,7 +371,6 @@ sealed abstract class Resource[+F[_], +A] {
           resource.flatMap(continue(_, stack, release))
         case x @ LiftF(_)  => loop(x.preinterpret, stack, release)
         case x @ MapK(_, _) => loop(x.translate, stack, release)
-        case x @ OnFinalizeCase(_, _) => loop(x.preinterpret, stack, release)
       }
 
     loop(this, Nil, G.unit)
@@ -603,11 +596,6 @@ object Resource extends ResourceInstances with ResourcePlatform {
    */
   final case class Suspend[F[_], A](resource: F[Resource[F, A]]) extends Primitive[F, A]
 
-  private[effect] final case class OnFinalizeCase[F[_], A](
-      resource: Resource[F, A],
-      finalizer: ExitCase => F[Unit])
-      extends InvariantResource[F, A]
-
   private[effect] final case class Pure[F[_], +A](a: A) extends InvariantResource[F, A]
 
   private[effect] final case class LiftF[F[_], A](fa: F[A]) extends InvariantResource[F, A]
@@ -627,11 +615,6 @@ object Resource extends ResourceInstances with ResourcePlatform {
               Bind(source.mapK(f), f0.andThen(_.mapK(f)))
             case Suspend(resource) =>
               Suspend(f(resource).map(_.mapK(f)))
-            case OnFinalizeCase(resource, finalizer) =>
-              Bind(
-                Allocate[F, Unit](
-                  F.pure[(Unit, ExitCase => F[Unit])](() -> finalizer.andThen(f.apply))),
-                (_: Unit) => resource.mapK(f))
             case Pure(a) => Pure(a)
             case LiftF(rea) =>
               Suspend(f(rea).map[Resource[F, A]](a =>
@@ -813,7 +796,6 @@ abstract private[effect] class ResourceMonadError[F[_], E]
       case x @ MapK(_, _) =>
         attempt(x.translate)
       case x @ LiftF(_)  => attempt(x.preinterpret)
-      case x @ OnFinalizeCase(_, _) => attempt(x.preinterpret)
     }
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
@@ -861,7 +843,6 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
           continue(Resource.make(v.pure[F])(_ => F.unit))
         case x @ LiftF(_)  => continue(x.preinterpret)
         case x @ MapK(_, _) => continue(x.preinterpret)
-        case x @ OnFinalizeCase(_, _) => continue(x.preinterpret)
       }
 
     continue(f(a))
