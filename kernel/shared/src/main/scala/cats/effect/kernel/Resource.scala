@@ -793,13 +793,13 @@ abstract private[effect] class ResourceMonadError[F[_], E]
     }
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
-    flatMap(attempt(fa)) {
-      case Right(a) => Resource.pure[F, A](a)
+    attempt(fa).flatMap {
+      case Right(a) => Resource.pure(a)
       case Left(e) => f(e)
     }
 
   def raiseError[A](e: E): Resource[F, A] =
-    Resource.applyCase[F, A](F.raiseError(e))
+    Resource.liftF(F.raiseError[A](e))
 }
 
 abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]] {
