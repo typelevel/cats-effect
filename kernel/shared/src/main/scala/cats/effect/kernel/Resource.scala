@@ -136,6 +136,7 @@ sealed abstract class Resource[+F[_], +A] {
           stack match {
             case Nil => onOutput(v)
             case Frame(head, tail) =>
+              // we insert a flatMap to guarantee stack safety
               G.unit >> continue(head(v), tail)
           }
         case Suspend(resource) =>
@@ -363,6 +364,7 @@ sealed abstract class Resource[+F[_], +A] {
             case Nil =>
               G.pure((v: B) -> release)
             case Frame(head, tail) =>
+              // we insert a flatMap to guarantee stack safety
               G.unit >> continue(head(v), tail, release)
           }
         case Suspend(resource) =>
