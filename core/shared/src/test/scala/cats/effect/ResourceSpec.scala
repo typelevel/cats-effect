@@ -186,13 +186,13 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     }
 
     "use is stack-safe over binds" in ticked { implicit ticker =>
-      val r = (1 to 10000)
-        .foldLeft(Resource.liftF(IO.unit)) {
-          case (r, _) =>
-            r.flatMap(_ => Resource.liftF(IO.unit))
-        }
-        .use(IO.pure)
-      r eqv IO.unit
+      forAll { (res: Resource[IO, Unit]) =>
+        val r =
+          List.fill(10000)(res).reduce(_ >> _)
+            .use(IO.pure)
+
+        r eqv IO.unit
+      }
     }
 
     "mapK is stack-safe over binds" in ticked { implicit ticker =>
