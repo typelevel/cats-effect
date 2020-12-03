@@ -19,7 +19,7 @@ package effect
 package std
 
 import cats._
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.kernel._
 import scala.util.{Random => SRandom}
 
