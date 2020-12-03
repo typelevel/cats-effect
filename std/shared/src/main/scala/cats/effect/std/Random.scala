@@ -23,6 +23,12 @@ import cats.syntax.all._
 import cats.effect.kernel._
 import scala.util.{Random => SRandom}
 
+/**
+  * Random is the ability to get random information, each time getting
+  * a different result.
+  * 
+  * Alumnus of the Davenverse.
+  */
 trait Random[F[_]] {
 
   /**
@@ -151,7 +157,7 @@ object Random {
       ref <- Ref[F].of(0)
       array <- Sync[F].delay(Array.fill(n)(new SRandom()))
     } yield {
-      def incrGet = ref.modify(i => (if (i < n) i + 1 else 0, i))
+      def incrGet = ref.modify(i => (if (i < (n - 1)) i + 1 else 0, i))
       def selectRandom = incrGet.map(array(_))
       new ScalaRandom[F](selectRandom) {}
     }
@@ -194,7 +200,7 @@ object Random {
       ref <- Ref[F].of(0)
       array <- Sync[F].delay(Array.fill(n)(new SRandom(new java.security.SecureRandom)))
     } yield {
-      def incrGet = ref.modify(i => (if (i < n) i + 1 else 0, i))
+      def incrGet = ref.modify(i => (if (i < (n - 1)) i + 1 else 0, i))
       def selectRandom = incrGet.map(array(_))
       new ScalaRandom[F](selectRandom) {}
     }
