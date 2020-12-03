@@ -140,7 +140,7 @@ sealed abstract class Resource[+F[_], +A] {
           }
         case Suspend(resource) =>
           G.flatMap(resource)(continue(_, stack))
-        case x @ LiftF(_)  => loop(x.preinterpret, stack)
+        case x @ Eval(_)  => loop(x.preinterpret, stack)
         case x @ MapK(_, _) => loop(x.translate, stack)
       }
     loop(this, Nil)
@@ -159,7 +159,7 @@ sealed abstract class Resource[+F[_], +A] {
   def preinterpret[G[x] >: F[x]](implicit G: Applicative[G]): Resource.Primitive[G, A] = {
     def loop(current: Resource[G, A]): Resource.Primitive[G, A] =
       current.covary match {
-        case LiftF(fa) =>
+        case Eval(fa) =>
           Suspend(fa.map[Resource[G, A]](a => Allocate((a, (_: ExitCase) => G.unit).pure[G])))
       }
     loop(this)
@@ -367,7 +367,7 @@ sealed abstract class Resource[+F[_], +A] {
           }
         case Suspend(resource) =>
           resource.flatMap(continue(_, stack, release))
-        case x @ LiftF(_)  => loop(x.preinterpret, stack, release)
+        case x @ Eval(_)  => loop(x.preinterpret, stack, release)
         case x @ MapK(_, _) => loop(x.translate, stack, release)
       }
 
@@ -503,7 +503,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * @param fa the value to lift into a resource
    */
   def liftF[F[_], A](fa: F[A]): Resource[F, A] =
-    Resource.LiftF(fa)
+    Resource.Eval(fa)
 
   /**
    * Lifts a finalizer into a resource. The resource has a no-op allocation.
@@ -596,7 +596,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
 
   private[effect] final case class Pure[F[_], +A](a: A) extends InvariantResource[F, A]
 
-  private[effect] final case class LiftF[F[_], A](fa: F[A]) extends InvariantResource[F, A]
+  private[effect] final case class Eval[F[_], A](fa: F[A]) extends InvariantResource[F, A]
 
   private[effect] final case class MapK[E[_], F[_], A](source: Resource[E, A], f: E ~> F)
       extends InvariantResource[F, A] {
@@ -614,7 +614,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
         case Suspend(resource) =>
           Resource.suspend(f(resource).map(_.mapK(f)))
         case Pure(a) => Resource.pure(a)
-        case LiftF(fea) => Resource.liftF(f(fea))
+        case Eval(fea) => Resource.liftF(f(fea))
         case MapK(ea0, ek) =>
           ea0.invariant.mapK {
             new FunctionK[ea0.F0, F] {
@@ -789,7 +789,7 @@ abstract private[effect] class ResourceMonadError[F[_], E]
         })
       case x @ MapK(_, _) =>
         attempt(x.translate)
-      case x @ LiftF(_)  => attempt(x.preinterpret)
+      case x @ Eval(_)  => attempt(x.preinterpret)
     }
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
@@ -835,7 +835,7 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
           Bind(b.source, AndThen(b.fs).andThen(continue))
         case Pure(v) =>
           continue(Resource.make(v.pure[F])(_ => F.unit))
-        case x @ LiftF(_)  => continue(x.preinterpret)
+        case x @ Eval(_)  => continue(x.preinterpret)
         case x @ MapK(_, _) => continue(x.translate)
       }
 
