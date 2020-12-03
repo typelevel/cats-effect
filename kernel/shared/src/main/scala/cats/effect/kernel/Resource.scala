@@ -23,7 +23,6 @@ import cats.syntax.all._
 import cats.effect.kernel.implicits._
 
 import scala.annotation.tailrec
-import Resource.ExitCase
 import cats.data.Kleisli
 
 /**
