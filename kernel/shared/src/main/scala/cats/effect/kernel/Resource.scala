@@ -804,15 +804,15 @@ abstract private[effect] class ResourceMonadError[F[_], E]
               })
         })
       case Pure(v) =>
-        attempt(Resource.make(v.pure[F])(_ => F.unit))
+        Resource.pure(v.asRight)
       case Suspend(resource) =>
         Suspend(F.attempt(resource) map {
           case Left(error) => Resource.pure[F, Either[E, A]](Left(error))
           case Right(fa: Resource[F, A]) => attempt(fa)
         })
-      case x @ LiftF(_)  => attempt(x.preinterpret)
       case x @ MapK(_, _) =>
         attempt(x.translate)
+      case x @ LiftF(_)  => attempt(x.preinterpret)
       case x @ OnFinalizeCase(_, _) => attempt(x.preinterpret)
     }
 
