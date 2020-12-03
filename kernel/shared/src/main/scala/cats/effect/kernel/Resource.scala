@@ -551,29 +551,23 @@ object Resource extends ResourceInstances with ResourcePlatform {
     Resource.make(acquire)(autoCloseable => F.blocking(autoCloseable.close()))
 
   /**
-   * Public supertype for the three node types that constitute the public API
-   * for interpreting a [[Resource]].
-   */
-  sealed trait Primitive[F[_], +A] extends InvariantResource[F, A]
-
-  /**
    * `Resource` data constructor that wraps an effect allocating a resource,
    * along with its finalizers.
    */
   final case class Allocate[F[_], A](resource: F[(A, ExitCase => F[Unit])])
-      extends Primitive[F, A]
+      extends InvariantResource[F, A]
 
   /**
    * `Resource` data constructor that encodes the `flatMap` operation.
    */
   final case class Bind[F[_], S, +A](source: Resource[F, S], fs: S => Resource[F, A])
-      extends Primitive[F, A]
+      extends InvariantResource[F, A]
 
-  private[effect] final case class Pure[F[_], +A](a: A) extends InvariantResource[F, A]
+  final case class Pure[F[_], +A](a: A) extends InvariantResource[F, A]
 
-  private[effect] final case class Eval[F[_], A](fa: F[A]) extends InvariantResource[F, A]
+  final case class Eval[F[_], A](fa: F[A]) extends InvariantResource[F, A]
 
-  private[effect] final case class MapK[E[_], F[_], A](source: Resource[E, A], f: E ~> F)
+  final case class MapK[E[_], F[_], A](source: Resource[E, A], f: E ~> F)
       extends InvariantResource[F, A] {
 
     def translate(implicit F: Applicative[F]): Resource[F, A] =
