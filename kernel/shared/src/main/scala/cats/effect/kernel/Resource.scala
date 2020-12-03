@@ -160,7 +160,6 @@ sealed abstract class Resource[+F[_], +A] {
   def preinterpret[G[x] >: F[x]](implicit G: Applicative[G]): Resource.Primitive[G, A] = {
     def loop(current: Resource[G, A]): Resource.Primitive[G, A] =
       current.covary match {
-        case pr: Resource.Primitive[G, A] => pr
         case LiftF(fa) =>
           Suspend(fa.map[Resource[G, A]](a => Allocate((a, (_: ExitCase) => G.unit).pure[G])))
       }
@@ -842,7 +841,7 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
         case Pure(v) =>
           continue(Resource.make(v.pure[F])(_ => F.unit))
         case x @ LiftF(_)  => continue(x.preinterpret)
-        case x @ MapK(_, _) => continue(x.preinterpret)
+        case x @ MapK(_, _) => continue(x.translate)
       }
 
     continue(f(a))
