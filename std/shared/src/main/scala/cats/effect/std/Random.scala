@@ -24,11 +24,11 @@ import cats.effect.kernel._
 import scala.util.{Random => SRandom}
 
 /**
-  * Random is the ability to get random information, each time getting
-  * a different result.
-  * 
-  * Alumnus of the Davenverse.
-  */
+ * Random is the ability to get random information, each time getting
+ * a different result.
+ *
+ * Alumnus of the Davenverse.
+ */
 trait Random[F[_]] {
 
   /**
