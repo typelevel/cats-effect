@@ -28,6 +28,6 @@ final class Unique private extends Serializable {
 object Unique {
   def apply[F[_]: Concurrent]: F[Unique] = Concurrent[F].unit.as(new Unique)
 
-  implicit val uniqueInstances : Hash[Unique] =
+  implicit val uniqueInstances: Hash[Unique] =
     Hash.fromUniversalHashCode[Unique]
 }
