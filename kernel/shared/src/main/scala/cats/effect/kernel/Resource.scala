@@ -856,7 +856,6 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
         case x @ LiftF(_)  => continue(x.preinterpret)
         case x @ MapK(_, _) => continue(x.preinterpret)
         case x @ OnFinalizeCase(_, _) => continue(x.preinterpret)
-        case x @ Pure(_) => continue(x.preinterpret)
       }
 
     continue(f(a))
