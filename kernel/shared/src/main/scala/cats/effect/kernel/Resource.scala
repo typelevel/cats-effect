@@ -601,31 +601,27 @@ object Resource extends ResourceInstances with ResourcePlatform {
   private[effect] final case class MapK[E[_], F[_], A](source: Resource[E, A], f: E ~> F)
       extends InvariantResource[F, A] {
 
-    def translate(implicit F: Applicative[F]): Resource[F, A] = {
-          // this would be easier if we could call `rea.preinterpret` but we don't have
-          // the right `Applicative` instance available.
-          source.invariant match {
-            case Allocate(resource) =>
-              Allocate(f(resource).map {
-                case (a, r) => (a, r.andThen(f(_)))
-              })
-            case Bind(source, f0) =>
-              Bind(source.mapK(f), f0.andThen(_.mapK(f)))
-            case Suspend(resource) =>
-              Suspend(f(resource).map(_.mapK(f)))
-            case Pure(a) => Pure(a)
-            case LiftF(rea) =>
-              Suspend(f(rea).map[Resource[F, A]](a =>
-                Allocate((a, (_: ExitCase) => F.unit).pure[F])))
-            case MapK(ea0, ek) =>
-              ea0.invariant.mapK {
-                new FunctionK[ea0.F0, F] {
-                  def apply[A0](fa: ea0.F0[A0]): F[A0] = f(ek(fa))
-                }
-              }
+    def translate(implicit F: Applicative[F]): Resource[F, A] =
+      source.invariant match {
+        case Allocate(resource) =>
+          Resource.applyCase {
+            f(resource).map {
+              case (a, r) => (a, r.andThen(f(_)))
+            }
           }
-    }
-
+        case Bind(source, f0) =>
+          source.mapK(f).flatMap(x => f0(x).mapK(f))
+        case Suspend(resource) =>
+          Resource.suspend(f(resource).map(_.mapK(f)))
+        case Pure(a) => Resource.pure(a)
+        case LiftF(fea) => Resource.liftF(f(fea))
+        case MapK(ea0, ek) =>
+          ea0.invariant.mapK {
+            new FunctionK[ea0.F0, F] {
+              def apply[A0](fa: ea0.F0[A0]): F[A0] = f(ek(fa))
+            }
+          }
+      }
   }
 
   /**
