@@ -22,6 +22,15 @@ import cats.Hash
 import cats.effect.kernel._
 import cats.syntax.all._
 
+/**
+ * Unique is a unique identifier.
+ *
+ * The default constructor takes [[Concurrent]], so it can be used
+ * alongside Ref+Deferred, and is safe due to lazy map on anything
+ * with a concurrent instance.
+ *
+ * Alumnus of the Davenverse
+ */
 final class Unique private extends Serializable {
   override def toString: String = s"Unique(${hashCode.toHexString})"
 }
