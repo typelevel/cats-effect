@@ -140,11 +140,7 @@ sealed abstract class Resource[+F[_], +A] {
               G.unit >> continue(head(v), tail)
           }
         case Eval(fa)  =>
-          fa.flatMap { a =>
-            continue(Resource.pure(a), stack)
-          }
-        case Suspend(resource) =>
-          resource.flatMap(continue(_, stack))
+          fa.flatMap(a => continue(Resource.pure(a), stack))
         case x @ MapK(_, _) => loop(x.translate, stack)
       }
     loop(this, Nil)
@@ -352,9 +348,7 @@ sealed abstract class Resource[+F[_], +A] {
               G.unit >> continue(head(v), tail, release)
           }
         case Eval(fa)  =>
-          fa.flatMap { a =>
-            continue(Resource.pure(a), stack, release)
-          }
+          fa.flatMap(a => continue(Resource.pure(a), stack, release))
         case Suspend(resource) =>
           resource.flatMap(continue(_, stack, release))
         case x @ MapK(_, _) => loop(x.translate, stack, release)
