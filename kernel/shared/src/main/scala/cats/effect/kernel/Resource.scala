@@ -632,7 +632,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
                 Allocate[F, Unit](
                   F.pure[(Unit, ExitCase => F[Unit])](() -> finalizer.andThen(f.apply))),
                 (_: Unit) => resource.mapK(f))
-            case Pure(a) => Allocate((a, (_: ExitCase) => F.unit).pure[F])
+            case Pure(a) => Pure(a)
             case LiftF(rea) =>
               Suspend(f(rea).map[Resource[F, A]](a =>
                 Allocate((a, (_: ExitCase) => F.unit).pure[F])))
