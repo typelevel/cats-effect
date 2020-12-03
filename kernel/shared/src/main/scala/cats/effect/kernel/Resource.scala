@@ -151,25 +151,6 @@ sealed abstract class Resource[+F[_], +A] {
   }
 
   /**
-   * Compiles this down to the three primitive types:
-   *
-   *  - [[cats.effect.Resource.Allocate Allocate]]
-   *  - [[cats.effect.Resource.Suspend Suspend]]
-   *  - [[cats.effect.Resource.Bind Bind]]
-   *
-   * Note that this is done in a "shallow" fashion - when traversing a [[Resource]]
-   * recursively, this will need to be done repeatedly.
-   */
-  def preinterpret[G[x] >: F[x]](implicit G: Applicative[G]): Resource.Primitive[G, A] = {
-    def loop(current: Resource[G, A]): Resource.Primitive[G, A] =
-      current.covary match {
-        case Eval(fa) =>
-          Suspend(fa.map[Resource[G, A]](a => Allocate((a, (_: ExitCase) => G.unit).pure[G])))
-      }
-    loop(this)
-  }
-
-  /**
    * Allocates a resource and supplies it to the given function.
    * The resource is released as soon as the resulting `F[B]` is
    * completed, whether normally or as a raised error.
