@@ -349,8 +349,6 @@ sealed abstract class Resource[+F[_], +A] {
           }
         case Eval(fa)  =>
           fa.flatMap(a => continue(Resource.pure(a), stack, release))
-        case Suspend(resource) =>
-          resource.flatMap(continue(_, stack, release))
         case x @ MapK(_, _) => loop(x.translate, stack, release)
       }
 
@@ -438,7 +436,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * Given a `Resource` suspended in `F[_]`, lifts it in the `Resource` context.
    */
   def suspend[F[_], A](fr: F[Resource[F, A]]): Resource[F, A] =
-    Resource.Suspend(fr)
+    Resource.liftF(fr).flatMap(x => x)
 
   /**
    * Creates a resource from an acquiring effect and a release function.
@@ -571,12 +569,6 @@ object Resource extends ResourceInstances with ResourcePlatform {
   final case class Bind[F[_], S, +A](source: Resource[F, S], fs: S => Resource[F, A])
       extends Primitive[F, A]
 
-  /**
-   * `Resource` data constructor that suspends the evaluation of another
-   * resource value.
-   */
-  final case class Suspend[F[_], A](resource: F[Resource[F, A]]) extends Primitive[F, A]
-
   private[effect] final case class Pure[F[_], +A](a: A) extends InvariantResource[F, A]
 
   private[effect] final case class Eval[F[_], A](fa: F[A]) extends InvariantResource[F, A]
@@ -594,8 +586,6 @@ object Resource extends ResourceInstances with ResourcePlatform {
           }
         case Bind(source, f0) =>
           source.mapK(f).flatMap(x => f0(x).mapK(f))
-        case Suspend(resource) =>
-          Resource.suspend(f(resource).map(_.mapK(f)))
         case Pure(a) => Resource.pure(a)
         case Eval(fea) => Resource.liftF(f(fea))
         case MapK(ea0, ek) =>
@@ -754,7 +744,6 @@ abstract private[effect] class ResourceMonadError[F[_], E]
           case Right((a, release)) => (Right(a), release)
         })
       case Bind(source: Resource[F, s], fs) =>
-        Suspend(F.pure(source).map[Resource[F, Either[E, A]]] { source =>
           Bind(
             attempt(source),
             (r: Either[E, s]) =>
@@ -762,14 +751,8 @@ abstract private[effect] class ResourceMonadError[F[_], E]
                 case Left(error) => Resource.pure[F, Either[E, A]](Left(error))
                 case Right(s) => attempt(fs(s))
               })
-        })
       case Pure(v) =>
         Resource.pure(v.asRight)
-      case Suspend(resource) =>
-        Suspend(F.attempt(resource) map {
-          case Left(error) => Resource.pure[F, Either[E, A]](Left(error))
-          case Right(fa: Resource[F, A]) => attempt(fa)
-        })
       case Eval(fa)  =>
         Resource.liftF(fa.attempt)
       case x @ MapK(_, _) =>
