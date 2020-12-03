@@ -139,7 +139,7 @@ sealed abstract class Resource[+F[_], +A] {
             case Frame(head, tail) => continue(head(v), tail)
           }
         case Suspend(resource) =>
-          G.flatMap(resource)(continue(_, stack))
+          resource.flatMap(continue(_, stack))
         case x @ Eval(_)  => loop(x.preinterpret, stack)
         case x @ MapK(_, _) => loop(x.translate, stack)
       }
