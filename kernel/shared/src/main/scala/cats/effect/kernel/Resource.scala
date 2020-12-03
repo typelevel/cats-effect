@@ -327,9 +327,12 @@ sealed abstract class Resource[+F[_], +A] {
             case (a, rel) =>
               stack match {
                 case Nil =>
-                  G.pure((a: B) -> G.guarantee(rel(ExitCase.Succeeded), release))
+                  (
+                    a: B,
+                    rel(ExitCase.Succeeded).guarantee(release)
+                  ).pure[G]
                 case Frame(head, tail) =>
-                  continue(head(a), tail, G.guarantee(rel(ExitCase.Succeeded), release))
+                  continue(head(a), tail, rel(ExitCase.Succeeded).guarantee(release))
               }
           } {
             case (_, Outcome.Succeeded(_)) =>
@@ -342,7 +345,7 @@ sealed abstract class Resource[+F[_], +A] {
         case Pure(v) =>
           stack match {
             case Nil =>
-              G.pure((v: B) -> release)
+              (v: B, release).pure[G]
             case Frame(head, tail) =>
               // we insert a flatMap to guarantee stack safety
               G.unit >> continue(head(v), tail, release)
