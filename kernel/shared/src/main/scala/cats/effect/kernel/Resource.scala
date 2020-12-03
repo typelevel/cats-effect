@@ -135,8 +135,10 @@ sealed abstract class Resource[+F[_], +A] {
         case Bind(source, fs) =>
           loop(source, Frame(fs, stack))
         case Pure(v) =>
-          val r = Resource.make(v.pure[G])(_ => G.unit)
-          loop(r, stack)
+          stack match {
+            case Nil => onOutput(v)
+            case Frame(head, tail) => continue(head(v), tail)
+          }
         case Suspend(resource) =>
           G.flatMap(resource)(continue(_, stack))
         case x @ LiftF(_)  => loop(x.preinterpret, stack)
