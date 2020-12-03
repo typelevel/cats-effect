@@ -186,12 +186,14 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     }
 
     "use is stack-safe over binds" in ticked { implicit ticker =>
-      forAll { (res: Resource[IO, Unit]) =>
-        val r =
-          List.fill(10000)(res).reduce(_ >> _)
-            .use(IO.pure)
+      skipped {
+        forAll { (res: Resource[IO, Unit]) =>
+          val r =
+            List.fill(10000)(res).reduce(_ >> _)
+              .use(IO.pure)
 
-        r eqv IO.unit
+          r eqv IO.unit
+        }
       }
     }
 
