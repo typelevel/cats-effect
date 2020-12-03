@@ -134,12 +134,15 @@ sealed abstract class Resource[+F[_], +A] {
           }
         case Bind(source, fs) =>
           loop(source, Frame(fs, stack))
+        case Pure(v) =>
+          val r = Resource.make(v.pure[G])(_ => G.unit)
+          loop(r, stack)
         case Suspend(resource) =>
           G.flatMap(resource)(continue(_, stack))
         case x @ LiftF(_)  => loop(x.preinterpret, stack)
         case x @ MapK(_, _) => loop(x.translate, stack)
         case x @ OnFinalizeCase(_, _) => loop(x.preinterpret, stack)
-        case x @ Pure(_) => loop(x.preinterpret, stack)
+
       }
     loop(this, Nil)
   }
@@ -158,7 +161,6 @@ sealed abstract class Resource[+F[_], +A] {
     def loop(current: Resource[G, A]): Resource.Primitive[G, A] =
       current.covary match {
         case pr: Resource.Primitive[G, A] => pr
-        case Pure(a) => Allocate((a, (_: ExitCase) => G.unit).pure[G])
         case LiftF(fa) =>
           Suspend(fa.map[Resource[G, A]](a => Allocate((a, (_: ExitCase) => G.unit).pure[G])))
         case OnFinalizeCase(resource, finalizer) =>
@@ -362,12 +364,14 @@ sealed abstract class Resource[+F[_], +A] {
           }
         case Bind(source, fs) =>
           loop(source, Frame(fs, stack), release)
+        case Pure(v) =>
+          val r = Resource.make(v.pure[G])(_ => G.unit)
+          loop(r, stack, release)
         case Suspend(resource) =>
           resource.flatMap(continue(_, stack, release))
         case x @ LiftF(_)  => loop(x.preinterpret, stack, release)
         case x @ MapK(_, _) => loop(x.translate, stack, release)
         case x @ OnFinalizeCase(_, _) => loop(x.preinterpret, stack, release)
-        case x @ Pure(_) => loop(x.preinterpret, stack, release)
       }
 
     loop(this, Nil, G.unit)
@@ -793,6 +797,8 @@ abstract private[effect] class ResourceMonadError[F[_], E]
                 case Right(s) => attempt(fs(s))
               })
         })
+      case Pure(v) =>
+        attempt(Resource.make(v.pure[F])(_ => F.unit))
       case Suspend(resource) =>
         Suspend(F.attempt(resource) map {
           case Left(error) => Resource.pure[F, Either[E, A]](Left(error))
@@ -802,7 +808,6 @@ abstract private[effect] class ResourceMonadError[F[_], E]
       case x @ MapK(_, _) =>
         attempt(x.translate)
       case x @ OnFinalizeCase(_, _) => attempt(x.preinterpret)
-      case x @ Pure(_) => attempt(x.preinterpret)
     }
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
@@ -846,6 +851,8 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
           Suspend(F.map(resource)(continue))
         case b: Bind[F, s, Either[A, B]] =>
           Bind(b.source, AndThen(b.fs).andThen(continue))
+        case Pure(v) =>
+          continue(Resource.make(v.pure[F])(_ => F.unit))
         case x @ LiftF(_)  => continue(x.preinterpret)
         case x @ MapK(_, _) => continue(x.preinterpret)
         case x @ OnFinalizeCase(_, _) => continue(x.preinterpret)
