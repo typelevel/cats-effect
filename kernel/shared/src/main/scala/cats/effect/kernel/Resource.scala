@@ -605,7 +605,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
   private[effect] final case class MapK[E[_], F[_], A](source: Resource[E, A], f: E ~> F)
       extends InvariantResource[F, A] {
 
-    def translate(implicit F: MonadCancelThrow[F]): Resource[F, A] = {
+    def translate(implicit F: Applicative[F]): Resource[F, A] = {
           // this would be easier if we could call `rea.preinterpret` but we don't have
           // the right `Applicative` instance available.
           source.invariant match {
@@ -627,12 +627,11 @@ object Resource extends ResourceInstances with ResourcePlatform {
               Suspend(f(rea).map[Resource[F, A]](a =>
                 Allocate((a, (_: ExitCase) => F.unit).pure[F])))
             case MapK(ea0, ek) =>
-              // TODO lack of recursion might be wrong here, it was recursive in preinterpret
-                ea0.invariant.mapK {
-                  new FunctionK[ea0.F0, F] {
-                    def apply[A0](fa: ea0.F0[A0]): F[A0] = f(ek(fa))
-                  }
+              ea0.invariant.mapK {
+                new FunctionK[ea0.F0, F] {
+                  def apply[A0](fa: ea0.F0[A0]): F[A0] = f(ek(fa))
                 }
+              }
           }
     }
 
@@ -800,7 +799,8 @@ abstract private[effect] class ResourceMonadError[F[_], E]
           case Right(fa: Resource[F, A]) => attempt(fa)
         })
       case x @ LiftF(_)  => attempt(x.preinterpret)
-      case x @ MapK(_, _) => attempt(x.preinterpret)
+      case x @ MapK(_, _) =>
+        attempt(x.translate)
       case x @ OnFinalizeCase(_, _) => attempt(x.preinterpret)
       case x @ Pure(_) => attempt(x.preinterpret)
     }
