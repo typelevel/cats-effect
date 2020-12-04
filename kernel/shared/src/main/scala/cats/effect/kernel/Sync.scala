@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.{Defer, MonadError, Monoid, Semigroup}
+import cats.{Applicative, Defer, MonadError, Monoid, Semigroup}
 import cats.data.{
   EitherT,
   IndexedReaderWriterStateT,
@@ -35,6 +35,8 @@ trait Sync[F[_]] extends MonadError[F, Throwable] with Clock[F] with Defer[F] {
   private[this] val Blocking = Sync.Type.Blocking
   private[this] val InterruptibleOnce = Sync.Type.InterruptibleOnce
   private[this] val InterruptibleMany = Sync.Type.InterruptibleMany
+
+  override def applicative: Applicative[F] = this
 
   def delay[A](thunk: => A): F[A] =
     suspend(Delay)(thunk)
@@ -107,9 +109,12 @@ object Sync {
       with Clock.OptionTClock[F] {
 
     implicit protected def F: Sync[F]
+    protected def C = F
 
-    override protected def delegate: MonadError[OptionT[F, *], Throwable] =
+    protected def delegate: MonadError[OptionT[F, *], Throwable] =
       OptionT.catsDataMonadErrorForOptionT[F, Throwable]
+
+    def pure[A](a: A): OptionT[F, A] = delegate.pure(a)
 
     def handleErrorWith[A](fa: OptionT[F, A])(f: Throwable => OptionT[F, A]): OptionT[F, A] =
       delegate.handleErrorWith(fa)(f)
@@ -131,9 +136,12 @@ object Sync {
       extends Sync[EitherT[F, E, *]]
       with Clock.EitherTClock[F, E] {
     implicit protected def F: Sync[F]
+    protected def C = F
 
-    override protected def delegate: MonadError[EitherT[F, E, *], Throwable] =
+    protected def delegate: MonadError[EitherT[F, E, *], Throwable] =
       EitherT.catsDataMonadErrorFForEitherT[F, Throwable, E]
+
+    def pure[A](a: A): EitherT[F, E, A] = delegate.pure(a)
 
     def handleErrorWith[A](fa: EitherT[F, E, A])(
         f: Throwable => EitherT[F, E, A]): EitherT[F, E, A] =
@@ -156,9 +164,12 @@ object Sync {
       extends Sync[StateT[F, S, *]]
       with Clock.StateTClock[F, S] {
     implicit protected def F: Sync[F]
+    protected def C = F
 
-    override protected def delegate: MonadError[StateT[F, S, *], Throwable] =
+    protected def delegate: MonadError[StateT[F, S, *], Throwable] =
       IndexedStateT.catsDataMonadErrorForIndexedStateT[F, S, Throwable]
+
+    def pure[A](a: A): StateT[F, S, A] = delegate.pure(a)
 
     def handleErrorWith[A](fa: StateT[F, S, A])(
         f: Throwable => StateT[F, S, A]): StateT[F, S, A] =
@@ -181,9 +192,12 @@ object Sync {
       extends Sync[WriterT[F, S, *]]
       with Clock.WriterTClock[F, S] {
     implicit protected def F: Sync[F]
+    protected def C = F
 
-    override protected def delegate: MonadError[WriterT[F, S, *], Throwable] =
+    protected def delegate: MonadError[WriterT[F, S, *], Throwable] =
       WriterT.catsDataMonadErrorForWriterT[F, S, Throwable]
+
+    def pure[A](a: A): WriterT[F, S, A] = delegate.pure(a)
 
     def handleErrorWith[A](fa: WriterT[F, S, A])(
         f: Throwable => WriterT[F, S, A]): WriterT[F, S, A] =
@@ -206,9 +220,12 @@ object Sync {
       extends Sync[IorT[F, L, *]]
       with Clock.IorTClock[F, L] {
     implicit protected def F: Sync[F]
+    protected def C = F
 
-    override protected def delegate: MonadError[IorT[F, L, *], Throwable] =
+    protected def delegate: MonadError[IorT[F, L, *], Throwable] =
       IorT.catsDataMonadErrorFForIorT[F, L, Throwable]
+
+    def pure[A](a: A): IorT[F, L, A] = delegate.pure(a)
 
     def handleErrorWith[A](fa: IorT[F, L, A])(f: Throwable => IorT[F, L, A]): IorT[F, L, A] =
       delegate.handleErrorWith(fa)(f)
@@ -230,9 +247,12 @@ object Sync {
       extends Sync[Kleisli[F, R, *]]
       with Clock.KleisliClock[F, R] {
     implicit protected def F: Sync[F]
+    protected def C = F
 
-    override protected def delegate: MonadError[Kleisli[F, R, *], Throwable] =
+    protected def delegate: MonadError[Kleisli[F, R, *], Throwable] =
       Kleisli.catsDataMonadErrorForKleisli[F, R, Throwable]
+
+    def pure[A](a: A): Kleisli[F, R, A] = delegate.pure(a)
 
     def handleErrorWith[A](fa: Kleisli[F, R, A])(
         f: Throwable => Kleisli[F, R, A]): Kleisli[F, R, A] =
@@ -255,9 +275,12 @@ object Sync {
       extends Sync[ReaderWriterStateT[F, R, L, S, *]]
       with Clock.ReaderWriterStateTClock[F, R, L, S] {
     implicit protected def F: Sync[F]
+    protected def C = F
 
-    override protected def delegate: MonadError[ReaderWriterStateT[F, R, L, S, *], Throwable] =
+    protected def delegate: MonadError[ReaderWriterStateT[F, R, L, S, *], Throwable] =
       IndexedReaderWriterStateT.catsDataMonadErrorForIRWST[F, R, L, S, Throwable]
+
+    def pure[A](a: A): ReaderWriterStateT[F, R, L, S, A] = delegate.pure(a)
 
     def handleErrorWith[A](fa: ReaderWriterStateT[F, R, L, S, A])(
         f: Throwable => ReaderWriterStateT[F, R, L, S, A]): ReaderWriterStateT[F, R, L, S, A] =

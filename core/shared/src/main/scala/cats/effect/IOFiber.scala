@@ -607,7 +607,7 @@ private final class IOFiber[A](
 
           // println(s"<$name> spawning <$childName>")
 
-          reschedule(ec)(fiber)
+          rescheduleAndNotify(ec)(fiber)
 
           runLoop(succeeded(fiber, 0), nextIteration)
 
@@ -766,8 +766,18 @@ private final class IOFiber[A](
   private[this] def isUnmasked(): Boolean =
     masks == initMask
 
+  /*
+   * You should probably just read this as `suspended.compareAndSet(true, false)`.
+   * This implementation has the same semantics as the above, except that it guarantees
+   * a write memory barrier in all cases, even when resumption fails. This in turn
+   * makes it suitable as a publication mechanism (as we're using it).
+   *
+   * On x86, this should have almost exactly the same performance as a CAS even taking
+   * into account the extra barrier (which x86 doesn't need anyway). On ARM without LSE
+   * it should actually be *faster* because CAS isn't primitive but get-and-set is.
+   */
   private[this] def resume(): Boolean =
-    suspended.compareAndSet(true, false)
+    suspended.getAndSet(false)
 
   private[this] def suspend(): Unit =
     suspended.set(true)
@@ -873,18 +883,26 @@ private final class IOFiber[A](
     }
 
   private[this] def reschedule(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
-    if (ec.isInstanceOf[WorkStealingThreadPool]) {
+    if (ec.isInstanceOf[WorkStealingThreadPool])
       ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiber(fiber)
-    } else {
-      try {
-        ec.execute(fiber)
-      } catch {
-        case _: RejectedExecutionException =>
-        /*
-         * swallow this exception, since it means we're being externally murdered,
-         * so we should just... drop the runloop
-         */
-      }
+    else
+      scheduleOnForeignEC(ec)(fiber)
+
+  private[this] def rescheduleAndNotify(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
+    if (ec.isInstanceOf[WorkStealingThreadPool])
+      ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiberAndNotify(fiber)
+    else
+      scheduleOnForeignEC(ec)(fiber)
+
+  private[this] def scheduleOnForeignEC(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
+    try {
+      ec.execute(fiber)
+    } catch {
+      case _: RejectedExecutionException =>
+      /*
+       * swallow this exception, since it means we're being externally murdered,
+       * so we should just... drop the runloop
+       */
     }
 
   // TODO figure out if the JVM ever optimizes this away

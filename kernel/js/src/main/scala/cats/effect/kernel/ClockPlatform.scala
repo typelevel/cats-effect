@@ -16,21 +16,10 @@
 
 package cats.effect.kernel
 
-import java.util.concurrent.CompletableFuture
+import scalajs.js
 
-private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
+private[effect] trait ClockPlatform[F[_]] { self: Clock[F] =>
 
-  def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] =
-    flatMap(fut) { cf =>
-      async[A] { cb =>
-        delay {
-          val stage = cf.handle[Unit] {
-            case (a, null) => cb(Right(a))
-            case (_, t) => cb(Left(t))
-          }
-
-          Some(void(delay(stage.cancel(false))))
-        }
-      }
-    }
+  def realTimeDate: F[js.Date] =
+    self.applicative.map(self.realTime)(d => new js.Date(d.toMillis.toDouble))
 }

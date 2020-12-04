@@ -17,9 +17,4 @@
 package cats.effect
 package syntax
 
-trait AllSyntax
-    extends kernel.syntax.MonadCancelSyntax
-    with kernel.syntax.GenSpawnSyntax
-    with kernel.syntax.GenConcurrentSyntax
-    with kernel.syntax.GenTemporalSyntax
-    with kernel.syntax.AsyncSyntax
+trait AllSyntax extends kernel.syntax.AllSyntax

@@ -43,6 +43,7 @@ import scala.concurrent.{
   TimeoutException
 }
 import scala.concurrent.duration._
+import scala.reflect.ClassTag
 import scala.util.Try
 
 import java.io.{ByteArrayOutputStream, PrintStream}
@@ -58,6 +59,16 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
 
   def real[A: AsResult](test: => IO[A]): Execution =
     Execution.withEnvAsync(_ => timeout(test.unsafeToFuture()(runtime()), executionTimeout))
+
+  /*
+   * Hacky implementation of effectful property testing
+   */
+  def realProp[A, B: AsResult](gen: Gen[A])(f: A => IO[B])(
+      implicit R: AsResult[List[B]]): Execution =
+    real(List.range(1, 100).traverse { _ =>
+      val a = gen.sample.get
+      f(a)
+    })
 
   def realWithRuntime[A: AsResult](test: IORuntime => IO[A]): Execution =
     Execution.withEnvAsync { _ =>
@@ -270,6 +281,20 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
       implicit ticker: Ticker): Matcher[IO[A]] = { (ioa: IO[A]) =>
     val oc = unsafeRun(ioa)
     (oc eqv expected, s"${oc.show} !== ${expected.show}")
+  }
+
+  // useful for tests in the `real` context
+  implicit class Assertions[A](fa: IO[A]) {
+    def mustFailWith[E <: Throwable: ClassTag] =
+      fa.attempt.flatMap { res =>
+        IO {
+          res must beLike {
+            case Left(e) => e must haveClass[E]
+          }
+        }
+      }
+
+    def mustEqual(a: A) = fa.flatMap { res => IO(res must beEqualTo(a)) }
   }
 
   def unsafeRun[A](ioa: IO[A])(implicit ticker: Ticker): Outcome[Option, Throwable, A] =

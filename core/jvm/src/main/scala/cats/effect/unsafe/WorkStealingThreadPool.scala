@@ -282,7 +282,7 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[effect] def executeFiber(fiber: IOFiber[_]): Unit = {
     if (Thread.currentThread().isInstanceOf[WorkerThread]) {
-      rescheduleFiber(fiber)
+      rescheduleFiberAndNotify(fiber)
     } else {
       externalQueue.enqueue(fiber)
       notifyParked()
@@ -290,13 +290,23 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
+   * Reschedules the given fiber directly on the local work stealing queue on the same thread,
+   * but with the possibility to skip notifying other fibers of a potential steal target, which
+   * reduces contention in workloads running on fewer worker threads. This method executes an
+   * unchecked cast to a `WorkerThread` and should only ever be called directly from a
+   * `WorkerThread`.
+   */
+  private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit = {
+    Thread.currentThread().asInstanceOf[WorkerThread].smartEnqueue(fiber, externalQueue)
+  }
+
+  /**
    * Reschedules the given fiber directly on the local work stealing queue on the same thread.
    * This method executes an unchecked cast to a `WorkerThread` and should only ever be called
    * directly from a `WorkerThread`.
    */
-  private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit = {
-    Thread.currentThread().asInstanceOf[WorkerThread].enqueue(fiber, externalQueue)
-    notifyParked()
+  private[effect] def rescheduleFiberAndNotify(fiber: IOFiber[_]): Unit = {
+    Thread.currentThread().asInstanceOf[WorkerThread].enqueueAndNotify(fiber, externalQueue)
   }
 
   /**

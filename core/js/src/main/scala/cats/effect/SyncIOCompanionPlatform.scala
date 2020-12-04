@@ -14,23 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.kernel
+package cats.effect
 
-import java.util.concurrent.CompletableFuture
+import scalajs.js
 
-private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
-
-  def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] =
-    flatMap(fut) { cf =>
-      async[A] { cb =>
-        delay {
-          val stage = cf.handle[Unit] {
-            case (a, null) => cb(Right(a))
-            case (_, t) => cb(Left(t))
-          }
-
-          Some(void(delay(stage.cancel(false))))
-        }
-      }
-    }
+private[effect] trait SyncIOCompanionPlatform { this: SyncIO.type =>
+  final def realTimeDate: SyncIO[js.Date] = realTime.map(d => new js.Date(d.toMillis.toDouble))
 }

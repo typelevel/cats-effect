@@ -311,9 +311,6 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * `release` is uncancelable.
    * `use` is cancelable by default, but can be masked.
    *
-   * `acquire` and `release` are both uncancelable, whereas `use` is cancelable
-   * by default.
-   *
    * @param acquire the lifecycle acquisition action
    * @param use the effect to which the lifecycle is scoped, whose result
    *            is the return value of this function

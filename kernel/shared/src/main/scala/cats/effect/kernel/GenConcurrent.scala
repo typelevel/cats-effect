@@ -16,9 +16,11 @@
 
 package cats.effect.kernel
 
-import cats.{Monoid, Semigroup}
+import cats.{Monoid, Semigroup, Traverse}
 import cats.syntax.all._
 import cats.effect.kernel.syntax.all._
+import cats.effect.kernel.instances.spawn._
+
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
 
 trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
@@ -78,6 +80,26 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
           }.rethrow
       }
     }
+  }
+
+  /**
+   * Like `Parallel.parSequence`, but limits the degree of parallelism.
+   */
+  def parSequenceN[T[_]: Traverse, A](n: Int)(tma: T[F[A]]): F[T[A]] =
+    parTraverseN(n)(tma)(identity)
+
+  /**
+   * Like `Parallel.parTraverse`, but limits the degree of parallelism.
+   * Note that the semantics of this operation aim to maximise
+   * fairness: when a spot to execute becomes available, every task
+   * has a chance to claim it, and not only the next `n` tasks in `ta`
+   */
+  def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(f: A => F[B]): F[T[B]] = {
+    require(n >= 1, s"Concurrency limit should be at least 1, was: $n")
+
+    implicit val F: GenConcurrent[F, E] = this
+
+    MiniSemaphore[F](n).flatMap { sem => ta.parTraverse { a => sem.withPermit(f(a)) } }
   }
 
   override def racePair[A, B](fa: F[A], fb: F[B])

@@ -28,8 +28,7 @@ import org.specs2.specification.core.Fragments
 import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.concurrent.duration._
 
-class BoundedQueueSpec extends BaseSpec with QueueTests {
-  sequential
+class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
 
   "BoundedQueue" should {
     boundedQueueTests("BoundedQueue", Queue.bounded)
@@ -94,14 +93,14 @@ class BoundedQueueSpec extends BaseSpec with QueueTests {
     }
 
     negativeCapacityConstructionTests(name, constructor)
-    tryOfferOnFullTests(name, constructor, false)
-    cancelableOfferTests(name, constructor)
-    tryOfferTryTakeTests(name, constructor)
-    commonTests(name, constructor)
+    tryOfferOnFullTests(name, constructor, _.offer(_), _.tryOffer(_), false)
+    cancelableOfferTests(name, constructor, _.offer(_), _.take, _.tryTake)
+    tryOfferTryTakeTests(name, constructor, _.tryOffer(_), _.tryTake)
+    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake)
   }
 }
 
-class UnboundedQueueSpec extends BaseSpec with QueueTests {
+class UnboundedQueueSpec extends BaseSpec with QueueTests[Queue] {
   sequential
 
   "UnboundedQueue" should {
@@ -112,13 +111,13 @@ class UnboundedQueueSpec extends BaseSpec with QueueTests {
   }
 
   private def unboundedQueueTests(name: String, constructor: IO[Queue[IO, Int]]): Fragments = {
-    tryOfferOnFullTests(name, _ => constructor, true)
-    tryOfferTryTakeTests(name, _ => constructor)
-    commonTests(name, _ => constructor)
+    tryOfferOnFullTests(name, _ => constructor, _.offer(_), _.tryOffer(_), true)
+    tryOfferTryTakeTests(name, _ => constructor, _.tryOffer(_), _.tryTake)
+    commonTests(name, _ => constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake)
   }
 }
 
-class DroppingQueueSpec extends BaseSpec with QueueTests {
+class DroppingQueueSpec extends BaseSpec with QueueTests[Queue] {
   sequential
 
   "DroppingQueue" should {
@@ -134,14 +133,14 @@ class DroppingQueueSpec extends BaseSpec with QueueTests {
   ): Fragments = {
     negativeCapacityConstructionTests(name, constructor)
     zeroCapacityConstructionTests(name, constructor)
-    tryOfferOnFullTests(name, constructor, false)
-    cancelableOfferTests(name, constructor)
-    tryOfferTryTakeTests(name, constructor)
-    commonTests(name, constructor)
+    tryOfferOnFullTests(name, constructor, _.offer(_), _.tryOffer(_), false)
+    cancelableOfferTests(name, constructor, _.offer(_), _.take, _.tryTake)
+    tryOfferTryTakeTests(name, constructor, _.tryOffer(_), _.tryTake)
+    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake)
   }
 }
 
-class CircularBufferQueueSpec extends BaseSpec with QueueTests {
+class CircularBufferQueueSpec extends BaseSpec with QueueTests[Queue] {
   sequential
 
   "CircularBuffer" should {
@@ -157,18 +156,18 @@ class CircularBufferQueueSpec extends BaseSpec with QueueTests {
   ): Fragments = {
     negativeCapacityConstructionTests(name, constructor)
     zeroCapacityConstructionTests(name, constructor)
-    tryOfferOnFullTests(name, constructor, true)
-    commonTests(name, constructor)
+    tryOfferOnFullTests(name, constructor, _.offer(_), _.tryOffer(_), true)
+    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake)
   }
 }
 
-trait QueueTests { self: BaseSpec =>
+trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
   def zeroCapacityConstructionTests(
       name: String,
-      constructor: Int => IO[Queue[IO, Int]]
+      constructor: Int => IO[Q[IO, Int]]
   ): Fragments = {
-    s"$name - raise an exception when constructed with zero capacity" in real {
+    s"$name - should raise an exception when constructed with zero capacity" in real {
       val test = IO.defer(constructor(0)).attempt
       test.flatMap { res =>
         IO {
@@ -182,9 +181,9 @@ trait QueueTests { self: BaseSpec =>
 
   def negativeCapacityConstructionTests(
       name: String,
-      constructor: Int => IO[Queue[IO, Int]]
+      constructor: Int => IO[Q[IO, Int]]
   ): Fragments = {
-    s"$name - raise an exception when constructed with a negative capacity" in real {
+    s"$name - should raise an exception when constructed with a negative capacity" in real {
       val test = IO.defer(constructor(-1)).attempt
       test.flatMap { res =>
         IO {
@@ -198,13 +197,15 @@ trait QueueTests { self: BaseSpec =>
 
   def tryOfferOnFullTests(
       name: String,
-      constructor: Int => IO[Queue[IO, Int]],
+      constructor: Int => IO[Q[IO, Int]],
+      offer: (Q[IO, Int], Int) => IO[Unit],
+      tryOffer: (Q[IO, Int], Int) => IO[Boolean],
       expected: Boolean): Fragments = {
-    s"$name - return false on tryOffer when the queue is full" in real {
+    s"$name - should return false on tryOffer when the queue is full" in real {
       for {
         q <- constructor(1)
-        _ <- q.offer(0)
-        v <- q.tryOffer(1)
+        _ <- offer(q, 0)
+        v <- tryOffer(q, 1)
         r <- IO(v must beEqualTo(expected))
       } yield r
     }
@@ -212,22 +213,24 @@ trait QueueTests { self: BaseSpec =>
 
   def offerTakeOverCapacityTests(
       name: String,
-      constructor: Int => IO[Queue[IO, Int]]
+      constructor: Int => IO[Q[IO, Int]],
+      offer: (Q[IO, Int], Int) => IO[Unit],
+      take: Q[IO, Int] => IO[Int]
   ): Fragments = {
     s"$name - offer/take over capacity" in real {
       val count = 1000
 
-      def producer(q: Queue[IO, Int], n: Int): IO[Unit] =
-        if (n > 0) q.offer(count - n).flatMap(_ => producer(q, n - 1))
+      def producer(q: Q[IO, Int], n: Int): IO[Unit] =
+        if (n > 0) offer(q, count - n).flatMap(_ => producer(q, n - 1))
         else IO.unit
 
       def consumer(
-          q: Queue[IO, Int],
+          q: Q[IO, Int],
           n: Int,
           acc: ScalaQueue[Int] = ScalaQueue.empty
       ): IO[Long] =
         if (n > 0)
-          q.take.flatMap { a => consumer(q, n - 1, acc.enqueue(a)) }
+          take(q).flatMap { a => consumer(q, n - 1, acc.enqueue(a)) }
         else
           IO.pure(acc.foldLeft(0L)(_ + _))
 
@@ -242,27 +245,36 @@ trait QueueTests { self: BaseSpec =>
     }
   }
 
-  def cancelableOfferTests(name: String, constructor: Int => IO[Queue[IO, Int]]): Fragments = {
+  def cancelableOfferTests(
+      name: String,
+      constructor: Int => IO[Q[IO, Int]],
+      offer: (Q[IO, Int], Int) => IO[Unit],
+      take: Q[IO, Int] => IO[Int],
+      tryTake: Q[IO, Int] => IO[Option[Int]]): Fragments = {
     s"$name - demonstrate cancelable offer" in real {
       for {
         q <- constructor(1)
-        _ <- q.offer(1)
-        f <- q.offer(2).start
+        _ <- offer(q, 1)
+        f <- offer(q, 2).start
         _ <- IO.sleep(10.millis)
         _ <- f.cancel
-        v1 <- q.take
-        v2 <- q.tryTake
+        v1 <- take(q)
+        v2 <- tryTake(q)
         r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(None)))
       } yield r
     }
   }
 
-  def tryOfferTryTakeTests(name: String, constructor: Int => IO[Queue[IO, Int]]): Fragments = {
+  def tryOfferTryTakeTests(
+      name: String,
+      constructor: Int => IO[Q[IO, Int]],
+      tryOffer: (Q[IO, Int], Int) => IO[Boolean],
+      tryTake: Q[IO, Int] => IO[Option[Int]]): Fragments = {
     s"$name - tryOffer/tryTake" in real {
       val count = 1000
 
-      def producer(q: Queue[IO, Int], n: Int): IO[Unit] =
-        if (n > 0) q.tryOffer(count - n).flatMap {
+      def producer(q: Q[IO, Int], n: Int): IO[Unit] =
+        if (n > 0) tryOffer(q, count - n).flatMap {
           case true =>
             producer(q, n - 1)
           case false =>
@@ -271,12 +283,12 @@ trait QueueTests { self: BaseSpec =>
         else IO.unit
 
       def consumer(
-          q: Queue[IO, Int],
+          q: Q[IO, Int],
           n: Int,
           acc: ScalaQueue[Int] = ScalaQueue.empty
       ): IO[Long] =
         if (n > 0)
-          q.tryTake.flatMap {
+          tryTake(q).flatMap {
             case Some(a) => consumer(q, n - 1, acc.enqueue(a))
             case None => IO.cede *> consumer(q, n, acc)
           }
@@ -294,11 +306,17 @@ trait QueueTests { self: BaseSpec =>
     }
   }
 
-  def commonTests(name: String, constructor: Int => IO[Queue[IO, Int]]): Fragments = {
-    s"$name - return None on tryTake when the queue is empty" in real {
+  def commonTests(
+      name: String,
+      constructor: Int => IO[Q[IO, Int]],
+      offer: (Q[IO, Int], Int) => IO[Unit],
+      tryOffer: (Q[IO, Int], Int) => IO[Boolean],
+      take: Q[IO, Int] => IO[Int],
+      tryTake: Q[IO, Int] => IO[Option[Int]]): Fragments = {
+    s"$name - should return None on tryTake when the queue is empty" in real {
       for {
         q <- constructor(1)
-        v <- q.tryTake
+        v <- tryTake(q)
         r <- IO(v must beNone)
       } yield r
     }
@@ -306,10 +324,10 @@ trait QueueTests { self: BaseSpec =>
     s"$name - demonstrate sequential offer and take" in real {
       for {
         q <- constructor(1)
-        _ <- q.offer(1)
-        v1 <- q.take
-        _ <- q.offer(2)
-        v2 <- q.take
+        _ <- offer(q, 1)
+        v1 <- take(q)
+        _ <- offer(q, 2)
+        v2 <- take(q)
         r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(2)))
       } yield r
     }
@@ -317,10 +335,10 @@ trait QueueTests { self: BaseSpec =>
     s"$name - demonstrate cancelable take" in real {
       for {
         q <- constructor(1)
-        f <- q.take.start
+        f <- take(q).start
         _ <- IO.sleep(10.millis)
         _ <- f.cancel
-        v <- q.tryOffer(1)
+        v <- tryOffer(q, 1)
         r <- IO(v must beTrue)
       } yield r
     }
@@ -328,12 +346,12 @@ trait QueueTests { self: BaseSpec =>
     s"$name - async take" in realWithRuntime { implicit rt =>
       for {
         q <- constructor(10)
-        _ <- q.offer(1)
-        v1 <- q.take
+        _ <- offer(q, 1)
+        v1 <- take(q)
         _ <- IO(v1 must beEqualTo(1))
-        f <- IO(q.take.unsafeToFuture())
+        f <- IO(take(q).unsafeToFuture())
         _ <- IO(f.value must beEqualTo(None))
-        _ <- q.offer(2)
+        _ <- offer(q, 2)
         v2 <- IO.fromFuture(IO.pure(f))
         r <- IO(v2 must beEqualTo(2))
       } yield r

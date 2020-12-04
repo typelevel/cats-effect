@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import scalajs.js
+
 import scala.scalajs.js.Promise
 
 private[effect] abstract class IOCompanionPlatform { this: IO.type =>
@@ -35,4 +37,6 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
 
   def fromPromise[A](iop: IO[Promise[A]]): IO[A] =
     asyncForIO.fromPromise(iop)
+
+  def realTimeDate: IO[js.Date] = asyncForIO.realTimeDate
 }

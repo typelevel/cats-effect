@@ -18,7 +18,7 @@ package cats.effect.testkit
 
 import scala.collection.immutable.SortedSet
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration._
 import scala.util.Random
 import scala.util.control.NonFatal
 
@@ -126,7 +126,8 @@ final class TestContext private () extends ExecutionContext { self =>
 
   private[this] var stateRef = State(
     lastID = 0,
-    clock = Duration.Zero,
+    // our epoch is negative! this is just to give us an extra 263 years of space for Prop shrinking to play
+    clock = (Long.MinValue + 1).nanos,
     tasks = SortedSet.empty[Task],
     lastReportedFailure = None
   )

@@ -16,21 +16,10 @@
 
 package cats.effect.kernel
 
-import java.util.concurrent.CompletableFuture
+import java.time.Instant
 
-private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
-
-  def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] =
-    flatMap(fut) { cf =>
-      async[A] { cb =>
-        delay {
-          val stage = cf.handle[Unit] {
-            case (a, null) => cb(Right(a))
-            case (_, t) => cb(Left(t))
-          }
-
-          Some(void(delay(stage.cancel(false))))
-        }
-      }
-    }
+private[effect] trait ClockPlatform[F[_]] { self: Clock[F] =>
+  def realTimeInstant: F[Instant] = {
+    self.applicative.map(self.realTime)(d => Instant.ofEpochMilli(d.toMillis))
+  }
 }

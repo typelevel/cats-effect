@@ -466,7 +466,7 @@ private[effect] trait SyncIOLowPriorityImplicits {
   }
 }
 
-object SyncIO extends SyncIOLowPriorityImplicits {
+object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
 
   // constructors
 

@@ -14,23 +14,24 @@
  * limitations under the License.
  */
 
-package cats.effect.kernel
+package cats.effect
 
-import java.util.concurrent.CompletableFuture
+import org.specs2.mutable.Specification
 
-private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
+abstract class SyncIOPlatformSpecification extends Specification with Runners {
+  def platformSpecs = {
+    "platform" should {
+      "realTimeDate should return an Instant constructed from realTime" in {
+        // Unfortunately since SyncIO doesn't rely on a controllable
+        // time source, this is the best I can do
+        val op = for {
+          realTime <- SyncIO.realTime
+          jsDate <- SyncIO.realTimeDate
+        } yield (jsDate.getTime().toLong - realTime.toMillis) <= 30
 
-  def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] =
-    flatMap(fut) { cf =>
-      async[A] { cb =>
-        delay {
-          val stage = cf.handle[Unit] {
-            case (a, null) => cb(Right(a))
-            case (_, t) => cb(Left(t))
-          }
-
-          Some(void(delay(stage.cancel(false))))
-        }
+        op must completeAsSync(true)
       }
     }
+  }
+
 }

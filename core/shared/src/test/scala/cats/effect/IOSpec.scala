@@ -21,6 +21,7 @@ import cats.laws.discipline.SemigroupKTests
 import cats.effect.laws.AsyncTests
 import cats.effect.testkit.{SyncTypeGenerators, TestContext}
 import cats.syntax.all._
+import cats.effect.implicits._
 
 import org.scalacheck.Prop, Prop.forAll
 
@@ -947,6 +948,34 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         }
 
         acc.void must completeAs(())
+      }
+
+    }
+
+    "parTraverseN" should {
+
+      "throw when n < 1" in real {
+        IO.defer {
+          List.empty[Int].parTraverseN(0)(_.pure[IO])
+        }.mustFailWith[IllegalArgumentException]
+      }
+
+      "propagate errors" in real {
+        List(1, 2, 3)
+          .parTraverseN(2) { (n: Int) =>
+            if (n == 2) IO.raiseError(new RuntimeException) else n.pure[IO]
+          }
+          .mustFailWith[RuntimeException]
+      }
+
+      "be cancelable" in ticked { implicit ticker =>
+        val p = for {
+          f <- List(1, 2, 3).parTraverseN(2)(_ => IO.never).start
+          _ <- IO.sleep(100.millis)
+          _ <- f.cancel
+        } yield true
+
+        p must completeAs(true)
       }
 
     }
