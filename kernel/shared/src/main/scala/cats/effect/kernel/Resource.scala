@@ -120,7 +120,7 @@ sealed abstract class Resource[+F[_], +A] {
     @tailrec def loop[C](current: Resource[G, C], stack: Stack[C]): G[B] =
       current.covary match {
         case Allocate(resource) =>
-          G.bracketCase(resource) {
+          G.bracketFull(resource) {
             case (a, _) =>
               stack match {
                 case Nil => onOutput(a)
@@ -322,7 +322,7 @@ sealed abstract class Resource[+F[_], +A] {
         release: G[Unit]): G[(B, G[Unit])] =
       current.covary match {
         case Allocate(resource) =>
-          G.bracketCase(resource) {
+          G.bracketFull(resource) {
             case (a, rel) =>
               stack match {
                 case Nil =>
@@ -411,7 +411,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    *        an effect to release it
    */
   def apply[F[_], A](resource: F[(A, F[Unit])])(implicit F: Functor[F]): Resource[F, A] =
-    Allocate[F, A] {
+    applyCase[F, A] {
       resource.map {
         case (a, release) =>
           (a, (_: ExitCase) => release)
@@ -431,7 +431,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    *        an effectful function to release it
    */
   def applyCase[F[_], A](resource: F[(A, ExitCase => F[Unit])]): Resource[F, A] =
-    Allocate(resource)
+    Allocate((_: Poll[F]) => resource)
 
   /**
    * Given a `Resource` suspended in `F[_]`, lifts it in the `Resource` context.
@@ -555,7 +555,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * `Resource` data constructor that wraps an effect allocating a resource,
    * along with its finalizers.
    */
-  final case class Allocate[F[_], A](resource: F[(A, ExitCase => F[Unit])])
+  final case class Allocate[F[_], A](resource: Poll[F] => F[(A, ExitCase => F[Unit])])
       extends InvariantResource[F, A]
 
   /**
@@ -573,12 +573,19 @@ object Resource extends ResourceInstances with ResourcePlatform {
 
     def translate(implicit F: Applicative[F]): Resource[F, A] =
       source.invariant match {
-        case Allocate(resource) =>
-          Resource.applyCase {
-            f(resource).map {
-              case (a, r) => (a, r.andThen(f(_)))
-            }
-          }
+         case Allocate(resource) =>
+      //           Allocate[F, A] { (gpoll: Poll[F]) =>
+      //   gpoll {
+      //     f {
+      //       E.uncancelable { (fpoll: Poll[E]) => resource(fpoll) }
+      //     }
+      //   }.map { case (a, release) =>
+      //       a -> ((r: ExitCase) => f(release(r)))
+      //   }
+      // }
+
+          // TODO move into method, add bounds to semaphore?
+          ???
         case Bind(source, f0) =>
           source.mapK(f).flatMap(x => f0(x).mapK(f))
         case Pure(a) => Resource.pure(a)
@@ -734,8 +741,9 @@ abstract private[effect] class ResourceMonadError[F[_], E]
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
     fa match {
       case Allocate(fa) =>
-        Resource.applyCase {
-          fa.attempt.map {
+        // TODO replace with applyFull
+        Allocate { (poll: Poll[F]) =>
+          fa(poll).attempt.map {
             case Left(error) => (Left(error), (_: ExitCase) => F.unit)
             case Right((a, release)) => (Right(a), release)
           }
