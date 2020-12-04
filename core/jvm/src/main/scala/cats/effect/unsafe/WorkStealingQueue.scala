@@ -26,6 +26,8 @@
 package cats.effect
 package unsafe
 
+import java.util.ArrayList
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -99,7 +101,7 @@ private final class WorkStealingQueue {
    *    including the new fiber will be spilled over and enqueued on
    *    the `external` queue as a linked batch of fibers.
    */
-  def enqueue(fiber: IOFiber[_], external: ExternalQueue): Unit = {
+  def enqueue(fiber: IOFiber[_], external: ConcurrentLinkedQueue[IOFiber[_]]): Unit = {
     // Should be a `plain` get.
     // Requires the use of `VarHandles` (Java 9+) or Unsafe
     // (not as portable and being phased out).
@@ -121,7 +123,7 @@ private final class WorkStealingQueue {
       } else if (steal != real) {
         // Another thread is concurrently stealing, so push the new
         // fiber onto the external queue and return.
-        external.enqueue(fiber)
+        external.offer(fiber)
         return
       } else {
         // There is no free capacity for the fiber and no one else is stealing from this queue.
@@ -151,7 +153,7 @@ private final class WorkStealingQueue {
   private[this] def overflowToExternal(
       fiber: IOFiber[_],
       hd: Int,
-      external: ExternalQueue): Boolean = {
+      external: ConcurrentLinkedQueue[IOFiber[_]]): Boolean = {
     val prev = pack(hd, hd)
 
     // Claim half of the fibers.
@@ -170,41 +172,20 @@ private final class WorkStealingQueue {
     // and moving them to the external queue.
 
     var i = 0 // loop counter
-    var j = 0 // one after the loop counter
     var iIdx = 0 // mapped index
-    var jIdx = 0 // mapped next index
-    var next: IOFiber[_] = null // mutable fiber variable used for linking fibers in a batch
+    val list = new ArrayList[IOFiber[_]](HalfLocalQueueCapacity + 1)
     while (i < HalfLocalQueueCapacity) {
-      j = i + 1
-
-      // Map the loop counters to indices.
+      // Map the loop counter to an index.
       iIdx = unsignedShortAddition(i, hd) & CapacityMask
-      jIdx = unsignedShortAddition(j, hd) & CapacityMask
 
-      // Determine the next fiber to be linked in the batch.
-      next = if (j == HalfLocalQueueCapacity) {
-        // The last fiber in the local queue is being moved.
-        // Therefore, we should attach the new fiber after it.
-        fiber
-      } else {
-        // A fiber in the middle of the local queue is being moved.
-        buffer(jIdx)
-      }
-
-      // Create a linked list of fibers.
-      buffer(iIdx).next = next
+      list.add(buffer(iIdx))
       i += 1
     }
-
-    // Map the new head of the queue to an index in the queue.
-    val hdIdx = hd & CapacityMask
-
-    // Claim the head fiber of the linked batch.
-    val hdFiber = buffer(hdIdx)
+    list.add(fiber)
 
     // Push the fibers onto the external queue starting from the head fiber
     // and ending with the new fiber.
-    external.enqueueBatch(hdFiber, fiber)
+    external.addAll(list)
     true
   }
 

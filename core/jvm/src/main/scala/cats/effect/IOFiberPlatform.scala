@@ -26,10 +26,6 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
 
   private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
 
-  // Allocation free linked queue nodes of `IOFiber[_]` objects.
-  // Represents the external work stealing thread pool queue.
-  private[effect] var next: IOFiber[_] = _
-
   protected final def interruptibleImpl(
       cur: IO.Blocking[Any],
       blockingEc: ExecutionContext): IO[Any] = {

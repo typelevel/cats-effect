@@ -27,6 +27,7 @@ package cats.effect
 package unsafe
 
 import java.util.Random
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -64,7 +65,7 @@ private final class WorkerThread(
    * Enqueues a fiber to the local work stealing queue. This method always
    * notifies another thread that a steal should be attempted from this queue.
    */
-  def enqueueAndNotify(fiber: IOFiber[_], external: ExternalQueue): Unit = {
+  def enqueueAndNotify(fiber: IOFiber[_], external: ConcurrentLinkedQueue[IOFiber[_]]): Unit = {
     queue.enqueue(fiber, external)
     pool.notifyParked()
   }
@@ -74,7 +75,7 @@ private final class WorkerThread(
    * notifying another thread about potential work to be stolen if it can be
    * determined that this is a mostly single fiber workload.
    */
-  def smartEnqueue(fiber: IOFiber[_], external: ExternalQueue): Unit = {
+  def smartEnqueue(fiber: IOFiber[_], external: ConcurrentLinkedQueue[IOFiber[_]]): Unit = {
     // Check if the local queue is empty **before** enqueueing the given fiber.
     val empty = queue.isEmpty()
     queue.enqueue(fiber, external)
