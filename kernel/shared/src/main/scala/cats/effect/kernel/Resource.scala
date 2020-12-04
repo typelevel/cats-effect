@@ -119,11 +119,11 @@ sealed abstract class Resource[+F[_], +A] {
     // Maintains its own stack for dealing with Bind chains
     @tailrec def loop[C](current: Resource[G, C], stack: Stack[C]): G[B] =
       current.covary match {
-        case Allocate(resource) =>
-          G.bracketFull(resource) {
+        case alloc: Allocate[G, r] @unchecked =>
+          G.bracketFull(alloc.resource) {
             case (a, _) =>
               stack match {
-                case Nil => onOutput(a)
+                case Nil => onOutput(a: A)
                 case Frame(head, tail) => continue(head(a), tail)
               }
           } {
@@ -140,7 +140,8 @@ sealed abstract class Resource[+F[_], +A] {
           }
         case Eval(fa)  =>
           fa.flatMap(a => continue(Resource.pure(a), stack))
-        case x @ MapK(_, _) => loop(x.translate, stack)
+        case x: MapK[_, G, _] @unchecked =>
+          continue(x.translate, stack)
       }
     loop(this, Nil)
   }
@@ -321,8 +322,8 @@ sealed abstract class Resource[+F[_], +A] {
         stack: Stack[C],
         release: G[Unit]): G[(B, G[Unit])] =
       current.covary match {
-        case Allocate(resource) =>
-          G.bracketFull(resource) {
+        case alloc: Allocate[G, _] @unchecked =>
+          G.bracketFull(alloc.resource) {
             case (a, rel) =>
               stack match {
                 case Nil =>
@@ -350,7 +351,7 @@ sealed abstract class Resource[+F[_], +A] {
           }
         case Eval(fa)  =>
           fa.flatMap(a => continue(Resource.pure(a), stack, release))
-        case x @ MapK(_, _) => loop(x.translate, stack, release)
+        case x : MapK[_, G, _] @unchecked => loop(x.translate, stack, release)
       }
 
     loop(this, Nil, G.unit)
@@ -740,25 +741,25 @@ abstract private[effect] class ResourceMonadError[F[_], E]
 
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
     fa match {
-      case Allocate(fa) =>
+      case alloc: Allocate[F, _] @unchecked =>
         // TODO replace with applyFull
         Allocate { (poll: Poll[F]) =>
-          fa(poll).attempt.map {
+          alloc.resource(poll).attempt.map {
             case Left(error) => (Left(error), (_: ExitCase) => F.unit)
             case Right((a, release)) => (Right(a), release)
           }
         }
-      case Bind(source, fs) =>
-        source.attempt.flatMap {
+      case bind: Bind[F, _, _] @unchecked => 
+        bind.source.attempt.flatMap {
           case Left(error) => Resource.pure(error.asLeft)
-          case Right(s) => attempt(fs(s))
+          case Right(s) => bind.fs(s).attempt
         }
-      case Pure(v) =>
-        Resource.pure(v.asRight)
-      case Eval(fa)  =>
-        Resource.liftF(fa.attempt)
-      case x @ MapK(_, _) =>
-        attempt(x.translate)
+      case p: Pure[F, _] @unchecked => 
+        Resource.pure(p.a.asRight)
+      case e: Eval[F, _] @unchecked =>
+        Resource.liftF(e.fa.attempt)
+      case mk: MapK[_, F, _] @unchecked =>
+        mk.translate.attempt
     }
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
