@@ -45,11 +45,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
         s.acquireN(2L).timeout(1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
       }
 
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo(2L)
-        }
-      }
+      op.mustEqual(2L)
     }
 
     "permit.use does not leak fibers or permits upon cancelation" in real {
@@ -62,26 +58,16 @@ class SemaphoreSpec extends BaseSpec { outer =>
           10.millis) *> s.count
       }
 
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo(1L)
-        }
-      }
+      op.mustEqual(1L)
     }
   }
 
 
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Fragments = {
     s"$label - throw on negative n" in real {
-      val op = IO(sc(-42)).attempt
+      val op = IO(sc(-42))
 
-      op.flatMap { res =>
-        IO {
-          res must beLike {
-            case Left(e) => e must haveClass[IllegalArgumentException]
-          }
-        }
-      }
+      op.mustFailWith[IllegalArgumentException]
     }
 
     s"$label - acquire n synchronously" in real {
@@ -90,11 +76,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
         (0 until n).toList.traverse(_ => s.acquire).void *> s.available
       }
 
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo(0L)
-        }
-      }
+      op.mustEqual(0L)
     }
 
     def withLock[T](n: Long, s: Semaphore[IO], check: IO[T]): IO[(Long, T)] =
@@ -141,11 +123,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
         } yield t
       }
 
-      op.flatMap { res =>
-        IO {
-          res must beTrue
-        }
-      }
+      op.mustEqual(true)
     }
 
     s"$label - tryAcquire with no available permits" in real {
@@ -157,11 +135,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
         } yield t
       }
 
-      op.flatMap { res =>
-        IO {
-          res must beFalse
-        }
-      }
+      op.mustEqual(false)
     }
 
     s"$label - tryAcquireN all available permits" in real {
@@ -172,24 +146,9 @@ class SemaphoreSpec extends BaseSpec { outer =>
         } yield t
       }
 
-      op.flatMap { res =>
-        IO {
-          res must beTrue
-        }
-      }
+      op.mustEqual(true)
     }
 
-  //TODO requires NonEmptyParallel for IO
-    // def testOffsettingReleasesAcquires(sc: Long => IO[Semaphore[IO]],
-    //   acquires: (Semaphore[IO], Vector[Long]) => IO[Unit],
-    //   releases: (Semaphore[IO], Vector[Long]) => IO[Unit]): MatchResult[IO[Long]] = {
-    //   val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
-
-    //   op must completeAs(0L)
-    // }
-
-
-    //TODO requires NonEmptyParallel for IO
     s"$label - offsetting acquires/releases - acquires parallel with releases" in real {
       val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
       val op = sc(0)
@@ -203,7 +162,6 @@ class SemaphoreSpec extends BaseSpec { outer =>
       op.mustEqual(0L)
     }
 
-    //TODO requires NonEmptyParallel for IO
     s"$label - offsetting acquires/releases - individual acquires/increment in parallel" in real {
       val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
       val op = sc(0)
@@ -225,11 +183,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
         } yield t
       }
 
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo(1L)
-        }
-      }
+      op.mustEqual(1L)
     }
 
     s"$label - available with 0 available permits" in real {
@@ -240,11 +194,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
         } yield t
       }
 
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo(0L)
-        }
-      }
+      op.mustEqual(0L)
     }
 
     s"$label - count with available permits" in real {
@@ -257,12 +207,8 @@ class SemaphoreSpec extends BaseSpec { outer =>
         } yield (a, t)
       }
 
-      op.flatMap { res =>
-        IO {
-          res must beLike {
-            case (available, count) => available must beEqualTo(count)
-          }
-        }
+      op.flatMap { case (available, count) =>
+        IO(available mustEqual count)
       }
     }
 
@@ -281,23 +227,10 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
     s"$label - count with 0 available permits" in real {
       val op = sc(20).flatMap { s =>
-        for {
-          _ <- s.acquireN(20).void
-          x <- (IO.cede *> s.count).start
-          t <- x.join
-        } yield t
+        s.acquireN(20) >> s.count
       }
 
-      op.flatMap {
-        case Outcome.Succeeded(ioa) =>
-          ioa.flatMap { res =>
-            IO {
-              res must beEqualTo(0L)
-            }
-          }
-        case _ => IO.pure(false must beTrue) // TODO Is there a not a `const failure` matcher?
-      }
+      op.mustEqual(0L)
     }
-
   }
 }
