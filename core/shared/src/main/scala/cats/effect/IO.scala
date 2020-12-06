@@ -34,7 +34,13 @@ import cats.effect.instances.spawn
 import cats.effect.std.Console
 
 import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.{CancellationException, ExecutionContext, Future, Promise, TimeoutException}
+import scala.concurrent.{
+  CancellationException,
+  ExecutionContext,
+  Future,
+  Promise,
+  TimeoutException
+}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -195,13 +201,19 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def unsafeRunAsync(cb: Either[Throwable, A] => Unit)(
       implicit runtime: unsafe.IORuntime): Unit = {
-    unsafeRunFiber(cb(Left(new CancellationException("Root fiber was canceled"))), t => cb(Left(t)), a => cb(Right(a)))
+    unsafeRunFiber(
+      cb(Left(new CancellationException("Root fiber was canceled"))),
+      t => cb(Left(t)),
+      a => cb(Right(a)))
     ()
   }
 
   def unsafeRunAsyncOutcome(cb: Outcome[Id, Throwable, A @uncheckedVariance] => Unit)(
       implicit runtime: unsafe.IORuntime): Unit = {
-    unsafeRunFiber(cb(Outcome.canceled), t => cb(Outcome.errored(t)), a => cb(Outcome.succeeded(a: Id[A])))
+    unsafeRunFiber(
+      cb(Outcome.canceled),
+      t => cb(Outcome.errored(t)),
+      a => cb(Outcome.succeeded(a: Id[A])))
     ()
   }
 
@@ -219,8 +231,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     p.future
   }
 
-  private[effect] def unsafeRunFiber(canceled: => Unit, failure: Throwable => Unit, success: A => Unit)(
-      implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
+  private[effect] def unsafeRunFiber(
+      canceled: => Unit,
+      failure: Throwable => Unit,
+      success: A => Unit)(implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber[A](
       0,

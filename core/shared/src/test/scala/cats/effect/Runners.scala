@@ -307,9 +307,8 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     try {
       var results: Outcome[Option, Throwable, A] = Outcome.Succeeded(None)
 
-      ioa.unsafeRunAsyncOutcome { oc =>
-        results = oc.mapK(someK)
-      }(unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => ()))
+      ioa.unsafeRunAsyncOutcome { oc => results = oc.mapK(someK) }(
+        unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => ()))
 
       ticker.ctx.tickAll(1.days)
 
