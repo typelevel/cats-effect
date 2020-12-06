@@ -70,12 +70,6 @@ class SemaphoreSpec extends BaseSpec { outer =>
     }
   }
 
-  //TODO this requires background, which in turn requires Resource
-  // private def withLock[T](n: Long, s: Semaphore[IO], check: IO[T]): IO[(Long, T)] =
-  //   s.acquireN(n).background.use { _ =>
-  //     //w/o cs.shift this hangs for coreJS
-  //     s.count.iterateUntil(_ < 0).flatMap(t => check.tupleLeft(t))
-  //   }
 
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Fragments = {
     s"$label - throw on negative n" in real {
@@ -103,35 +97,40 @@ class SemaphoreSpec extends BaseSpec { outer =>
       }
     }
 
-    //TODO this requires background, which in turn requires Resource
-    // s"$label - available with no available permits" in {
-    //   val n = 20L
-    //   val op = sc(n)
-    //     .flatMap { s =>
-    //       for {
-    //         _ <- s.acquire.replicateA(n.toInt)
-    //         res <- withLock(1, s, s.available)
-    //       } yield res
+    def withLock[T](n: Long, s: Semaphore[IO], check: IO[T]): IO[(Long, T)] =
+      s.acquireN(n).background.use { _ =>
+        //w/o cs.shift this hangs for coreJS
+        s.count.iterateUntil(_ < 0).flatMap(t => check.tupleLeft(t))
+      }
 
-    //     }
 
-    //   op must completeAs((-1, 0))
-    // }
+    s"$label - available with no available permits" in real {
+      val n = 20L
+      val op = sc(n)
+        .flatMap { s =>
+          for {
+            _ <- s.acquire.replicateA(n.toInt)
+            res <- withLock(1, s, s.available)
+          } yield res
 
-    //TODO this requires background, which in turn requires Resource
-    // test(s"$label - available with no available permits") {
-    //   val n = 20L
-    //   sc(n)
-    //     .flatMap { s =>
-    //       for {
-    //         _ <- s.acquire.replicateA(n.toInt)
-    //         res <- withLock(1, s, s.available)
-    //       } yield res
+        }
 
-    //     }
-    //     .unsafeToFuture()
-    //     .map(_ shouldBe ((-1, 0)))
-    // }
+      op.mustEqual(-1L -> 0L)
+    }
+
+    // TODO duplicate?
+    s"$label - available with no available permits" in real {
+      val n = 20L
+      sc(n)
+        .flatMap { s =>
+          for {
+            _ <- s.acquire.replicateA(n.toInt)
+            res <- withLock(1, s, s.available)
+          } yield res
+
+        }
+        .mustEqual(-1L -> 0L)
+    }
 
     s"$label - tryAcquire with available permits" in real {
       val n = 20
@@ -180,17 +179,43 @@ class SemaphoreSpec extends BaseSpec { outer =>
       }
     }
 
-    //TODO requires NonEmptyParallel for IO
-    // test(s"$label - offsetting acquires/releases - acquires parallel with releases") {
-    //   testOffsettingReleasesAcquires((s, permits) => permits.traverse(s.acquireN).void,
-    //                                  (s, permits) => permits.reverse.traverse(s.releaseN).void)
+  //TODO requires NonEmptyParallel for IO
+    // def testOffsettingReleasesAcquires(sc: Long => IO[Semaphore[IO]],
+    //   acquires: (Semaphore[IO], Vector[Long]) => IO[Unit],
+    //   releases: (Semaphore[IO], Vector[Long]) => IO[Unit]): MatchResult[IO[Long]] = {
+    //   val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
+
+    //   op must completeAs(0L)
     // }
 
+
     //TODO requires NonEmptyParallel for IO
-    // test(s"$label - offsetting acquires/releases - individual acquires/increment in parallel") {
-    //   testOffsettingReleasesAcquires((s, permits) => permits.parTraverse(s.acquireN).void,
-    //                                  (s, permits) => permits.reverse.parTraverse(s.releaseN).void)
-    // }
+    s"$label - offsetting acquires/releases - acquires parallel with releases" in real {
+      val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
+      val op = sc(0)
+        .flatMap { s =>
+          (
+            permits.traverse(s.acquireN).void,
+            permits.reverse.traverse(s.releaseN).void
+          ).parTupled *> s.count
+        }
+
+      op.mustEqual(0L)
+    }
+
+    //TODO requires NonEmptyParallel for IO
+    s"$label - offsetting acquires/releases - individual acquires/increment in parallel" in real {
+      val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
+      val op = sc(0)
+        .flatMap { s =>
+          (
+           permits.parTraverse(s.acquireN).void,
+           permits.reverse.parTraverse(s.releaseN).void
+          ).parTupled *> s.count
+        }
+
+      op.mustEqual(0L)
+    }
 
     s"$label - available with available permits" in real {
       val op = sc(20).flatMap { s =>
@@ -241,19 +266,18 @@ class SemaphoreSpec extends BaseSpec { outer =>
       }
     }
 
-    //TODO this requires background, which in turn requires Resource
-    // s"$label - count with no available permits" in {
-    //   val n: Long = 8
-    //   val op = sc(n)
-    //     .flatMap { s =>
-    //       for {
-    //         _ <- s.acquireN(n).void
-    //         res <- withLock(n, s, s.count)
-    //       } yield res
-    //     }
+    s"$label - count with no available permits" in real {
+      val n: Long = 8
+      val op =
+        sc(n).flatMap { s =>
+          s.acquireN(n) >>
+          s.acquireN(n).background.use { _ =>
+            s.count.iterateUntil(_ < 0)
+          }
+       }
 
-    //   op must completeAs((-n, n))
-    // }
+      op.mustEqual(-n)
+    }
 
     s"$label - count with 0 available permits" in real {
       val op = sc(20).flatMap { s =>
@@ -271,23 +295,9 @@ class SemaphoreSpec extends BaseSpec { outer =>
               res must beEqualTo(0L)
             }
           }
-        case _ => IO.pure(false must beTrue) //Is there a not a `const failure` matcher?
+        case _ => IO.pure(false must beTrue) // TODO Is there a not a `const failure` matcher?
       }
     }
 
   }
-
-  //TODO requires NonEmptyParallel for IO
-  // def testOffsettingReleasesAcquires(sc: Long => IO[Semaphore[IO]],
-  //                                    acquires: (Semaphore[IO], Vector[Long]) => IO[Unit],
-  //                                    releases: (Semaphore[IO], Vector[Long]) => IO[Unit]): MatchResult[IO[Long]] = {
-  //   val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
-  //   val op = sc(0)
-  //     .flatMap { s =>
-  //       (acquires(s, permits), releases(s, permits)).parTupled *> s.count
-  //     }
-
-  //   op must completeAs(0L)
-  // }
-
 }
