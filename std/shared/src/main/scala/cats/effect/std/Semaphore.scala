@@ -19,7 +19,7 @@ package effect
 package std
 
 import cats.effect.kernel._
-import cats.effect.std.Semaphore.TransformedSemaphore
+// import cats.effect.std.Semaphore.TransformedSemaphore TODO
 import cats.syntax.all._
 
 import scala.collection.immutable.{Queue => ScalaQueue}
@@ -101,9 +101,10 @@ abstract class Semaphore[F[_]] {
 
   /**
    * Modify the context `F` using natural transformation `f`.
-   */
-  def mapK[G[_]: Applicative](f: F ~> G): Semaphore[G] =
-    new TransformedSemaphore(this, f)
+    */
+  // TODO
+  // def mapK[G[_]: Applicative](f: F ~> G): Semaphore[G] =
+  //   new TransformedSemaphore(this, f)
 }
 
 object Semaphore {
@@ -259,15 +260,16 @@ object Semaphore {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
   }
 
-  final private[std] class TransformedSemaphore[F[_], G[_]](
-      underlying: Semaphore[F],
-      trans: F ~> G
-  ) extends Semaphore[G] {
-    override def available: G[Long] = trans(underlying.available)
-    override def count: G[Long] = trans(underlying.count)
-    override def acquireN(n: Long): G[Unit] = trans(underlying.acquireN(n))
-    override def tryAcquireN(n: Long): G[Boolean] = trans(underlying.tryAcquireN(n))
-    override def releaseN(n: Long): G[Unit] = trans(underlying.releaseN(n))
-    override def permit: Resource[G, Unit] = underlying.permit.mapK(trans)
-  }
+  // TODO
+  // final private[std] class TransformedSemaphore[F[_], G[_]](
+  //     underlying: Semaphore[F],
+  //     trans: F ~> G
+  // ) extends Semaphore[G] {
+  //   override def available: G[Long] = trans(underlying.available)
+  //   override def count: G[Long] = trans(underlying.count)
+  //   override def acquireN(n: Long): G[Unit] = trans(underlying.acquireN(n))
+  //   override def tryAcquireN(n: Long): G[Boolean] = trans(underlying.tryAcquireN(n))
+  //   override def releaseN(n: Long): G[Unit] = trans(underlying.releaseN(n))
+  //   override def permit: Resource[G, Unit] = underlying.permit.mapK(trans)
+  // }
 }
