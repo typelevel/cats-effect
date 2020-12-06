@@ -140,8 +140,6 @@ sealed abstract class Resource[+F[_], +A] {
           }
         case Eval(fa)  =>
           fa.flatMap(a => continue(Resource.pure(a), stack))
-        case x: MapK[_, G, _] @unchecked =>
-          continue(x.translate, stack)
       }
     loop(this, Nil)
   }
@@ -261,6 +259,7 @@ sealed abstract class Resource[+F[_], +A] {
   )(implicit G: MonadCancelThrow[G], H: MonadCancelThrow[H]): Resource[H, A] =
     this.invariant.widen[G] match {
       case Allocate(resource) =>
+        // TODO replace with applyFull
         Allocate[H, A] { (hpoll: Poll[H]) =>
             hpoll {
               f {
@@ -372,7 +371,6 @@ sealed abstract class Resource[+F[_], +A] {
           }
         case Eval(fa)  =>
           fa.flatMap(a => continue(Resource.pure(a), stack, release))
-        case x : MapK[_, G, _] @unchecked => loop(x.translate, stack, release)
       }
 
     loop(this, Nil, G.unit)
@@ -590,41 +588,6 @@ object Resource extends ResourceInstances with ResourcePlatform {
 
   final case class Eval[F[_], A](fa: F[A]) extends InvariantResource[F, A]
 
-  final case class MapK[E[_], F[_], A](source: Resource[E, A], f: E ~> F)(implicit E: MonadCancelThrow[E])
-      extends InvariantResource[F, A] {
-
-    implicit val F0: MonadCancelThrow[source.F0] = E.asInstanceOf[MonadCancelThrow[source.F0]]
-
-    def translate(implicit F: MonadCancelThrow[F]): Resource[F, A] =
-      // source.invariant match {
-      //   case Allocate(resource) =>
-      //     Allocate[F, A] { (fpoll: Poll[F]) =>
-      //       fpoll {
-      //         f {
-      //           F0.uncancelable { poll =>
-      //             resource(poll)
-      //           }
-      //         }
-      //       }.map { case (a, release) =>
-      //           a -> ((r: ExitCase) => f(release(r)))
-      //       }
-      //     }
-      //   case Bind(source, f0) =>
-      //     source.mapK(f).flatMap(x => f0(x).mapK(f))
-      //   case Pure(a) => Resource.pure(a)
-      //   case Eval(fea) => Resource.liftF(f(fea))
-      //   case mk@ MapK(ea0, ek) =>
-      //     implicit val ea0F0: MonadCancelThrow[ea0.F0] = ???
-      //     // mk.F0 this is for the source, but we need it for the destination
-      //     // so mapK needs to take both, so the whole node is pointless
-      //     ea0.invariant.mapK {
-      //       new FunctionK[ea0.F0, F] {
-      //         def apply[A0](fa: ea0.F0[A0]): F[A0] = f(ek(fa))
-      //       }
-      //     }{???}
-      // }
-    ???
-  }
 
   /**
    * Type for signaling the exit condition of an effectful
@@ -784,8 +747,6 @@ abstract private[effect] class ResourceMonadError[F[_], E]
         Resource.pure(p.a.asRight)
       case e: Eval[F, _] @unchecked =>
         Resource.liftF(e.fa.attempt)
-      case mk: MapK[_, F, _] @unchecked =>
-        ??? // TODO mk.translate.attempt
     }
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
