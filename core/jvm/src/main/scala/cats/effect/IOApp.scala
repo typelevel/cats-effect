@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import scala.concurrent.CancellationException
+
 import java.util.concurrent.CountDownLatch
 
 trait IOApp {
@@ -36,11 +38,11 @@ trait IOApp {
 
     val fiber =
       ioa
-        .onCancel(IO {
-          error = new RuntimeException("IOApp main fiber canceled")
-          latch.countDown()
-        })
         .unsafeRunFiber(
+          {
+            error = new CancellationException("IOApp main fiber was canceled")
+            latch.countDown()
+          },
           { t =>
             error = t
             latch.countDown()
