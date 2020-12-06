@@ -17,7 +17,6 @@
 package cats.effect.kernel
 
 import cats._
-import cats.arrow.FunctionK
 import cats.syntax.all._
 import cats.effect.kernel.implicits._
 
@@ -118,12 +117,12 @@ sealed abstract class Resource[+F[_], +A] {
     // Interpreter that knows how to evaluate a Resource data structure;
     // Maintains its own stack for dealing with Bind chains
     @tailrec def loop[C](current: Resource[G, C], stack: Stack[C]): G[B] =
-      current.covary match {
-        case alloc: Allocate[G, r] @unchecked =>
-          G.bracketFull(alloc.resource) {
+      current.invariant.widen[G] match {
+        case Allocate(resource) =>
+          G.bracketFull(resource) {
             case (a, _) =>
               stack match {
-                case Nil => onOutput(a: A)
+                case Nil => onOutput(a)
                 case Frame(head, tail) => continue(head(a), tail)
               }
           } {
@@ -341,18 +340,18 @@ sealed abstract class Resource[+F[_], +A] {
         current: Resource[G, C],
         stack: Stack[C],
         release: G[Unit]): G[(B, G[Unit])] =
-      current.covary match {
-        case alloc: Allocate[G, _] @unchecked =>
-          G.bracketFull(alloc.resource) {
-            case (a, rel) =>
+      current.invariant.widen[G] match {
+        case Allocate(resource) =>
+          G.bracketFull(resource) {
+            case (b, rel) =>
               stack match {
                 case Nil =>
                   (
-                    a: B,
+                    b: B,
                     rel(ExitCase.Succeeded).guarantee(release)
                   ).pure[G]
                 case Frame(head, tail) =>
-                  continue(head(a), tail, rel(ExitCase.Succeeded).guarantee(release))
+                  continue(head(b), tail, rel(ExitCase.Succeeded).guarantee(release))
               }
           } {
             case (_, Outcome.Succeeded(_)) =>
@@ -729,23 +728,23 @@ abstract private[effect] class ResourceMonadError[F[_], E]
   implicit protected def F: MonadError[F, E]
 
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
-    fa match {
-      case alloc: Allocate[F, _] @unchecked =>
+    fa.invariant.widen[F] match {
+      case Allocate(resource) =>
         // TODO replace with applyFull
         Allocate { (poll: Poll[F]) =>
-          alloc.resource(poll).attempt.map {
+          resource(poll).attempt.map {
             case Left(error) => (Left(error), (_: ExitCase) => F.unit)
             case Right((a, release)) => (Right(a), release)
           }
         }
-      case bind: Bind[F, _, _] @unchecked => 
-        bind.source.attempt.flatMap {
+      case Bind(source, f) =>
+        source.attempt.flatMap {
           case Left(error) => Resource.pure(error.asLeft)
-          case Right(s) => bind.fs(s).attempt
+          case Right(s) => f(s).attempt
         }
-      case p: Pure[F, _] @unchecked => 
+      case p@ Pure(_) =>
         Resource.pure(p.a.asRight)
-      case e: Eval[F, _] @unchecked =>
+      case e@ Eval(_) =>
         Resource.liftF(e.fa.attempt)
     }
 
