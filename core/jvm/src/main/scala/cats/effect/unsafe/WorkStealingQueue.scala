@@ -28,7 +28,6 @@ package unsafe
 
 import java.util.ArrayList
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Fixed length, double ended, singe producer, multiple consumer queue local to a
@@ -36,47 +35,43 @@ import java.util.concurrent.atomic.AtomicInteger
  * queue (to be executed **only** by the owner worker thread) and multi threaded
  * updates to the head (local dequeueing or inter thread work stealing).
  */
-private final class WorkStealingQueue {
+private final class WorkStealingQueue extends WorkStealingQueue.TailPadding {
 
   import WorkStealingQueueConstants._
-
-  /**
-   * Concurrently updated by many threads.
-   *
-   * Contains two unsigned 16 bit values. The LSB bytes are the "real" head of the queue.
-   * The unsigned 16 bytes in the MSB are set by a stealer in process of stealing values.
-   * It represents the first value being stolen in the batch. Unsigned 16 bit integer is
-   * used in order to distinguish between `head == tail` and `head == tail - capacity`.
-   *
-   * When both unsigned 16 bit balues are the same, there is no active stealer.
-   *
-   * Tracking an in-progress stealer prevents a wrapping scenario.
-   */
-  private val head: AtomicInteger = new AtomicInteger()
-
-  /**
-   * Only updated by the owner worker thread, but read by many threads.
-   *
-   * Represents an unsigned 16 bit value.
-   */
-  @volatile private var tail: Int = 0
 
   /**
    * Holds the scheduled fibers.
    */
   private val buffer: Array[IOFiber[_]] = new Array(LocalQueueCapacity)
 
+  private[this] val headOffset: Long = {
+    try {
+      val field = classOf[WorkStealingQueue.Head].getDeclaredField("head")
+      Unsafe.objectFieldOffset(field)
+    } catch {
+      case t: Throwable =>
+        throw new ExceptionInInitializerError(t)
+    }
+  }
+
+  private[this] val tailOffset: Long = {
+    try {
+      val field = classOf[WorkStealingQueue.Tail].getDeclaredField("tail")
+      Unsafe.objectFieldOffset(field)
+    } catch {
+      case t: Throwable =>
+        throw new ExceptionInInitializerError(t)
+    }
+  }
+
   /**
    * Returns true if there are no enqueued fibers.
    */
   def isEmpty(): Boolean = {
-    // Should be changed for `acquire` get operations.
-    // Requires the use of `VarHandles` (Java 9+) or Unsafe
-    // (not as portable and being phased out). Cannot use
-    // `getAcquire` and `setAcquire` either (also Java 9+).
-    val hd = lsb(head.get())
-    val tl = tail
-    hd == tl
+    val hd = Unsafe.getInt(this, headOffset)
+    val tl = Unsafe.getInt(this, tailOffset)
+    Unsafe.acquireFence()
+    lsb(hd) == tl
   }
 
   /**
@@ -102,17 +97,13 @@ private final class WorkStealingQueue {
    *    the `external` queue as a linked batch of fibers.
    */
   def enqueue(fiber: IOFiber[_], external: ConcurrentLinkedQueue[IOFiber[_]]): Unit = {
-    // Should be a `plain` get.
-    // Requires the use of `VarHandles` (Java 9+) or Unsafe
-    // (not as portable and being phased out).
-    val tl = tail
+    var hd = 0
+    val tl = Unsafe.getInt(this, tailOffset)
 
     var cont = true
     while (cont) {
-      // Should be an `acquire` get.
-      // Requires the use of `VarHandles` (Java 9+) or Unsafe
-      // (not as portable and being phased out).
-      val hd = head.get()
+      hd = Unsafe.getInt(this, headOffset)
+      Unsafe.acquireFence()
 
       val steal = msb(hd) // Check if a thread is concurrently stealing from this queue.
       val real = lsb(hd) // Obtain the real head of the queue.
@@ -144,10 +135,9 @@ private final class WorkStealingQueue {
     buffer(idx) = fiber
     // Make the fiber available.
 
-    // Should be a `release` set.
-    // Requires the use of `VarHandles` (Java 9+) or Unsafe
-    // (not as portable and being phased out).
-    tail = unsignedShortAddition(tl, 1)
+    val next = unsignedShortAddition(tl, 1)
+    Unsafe.releaseFence()
+    Unsafe.putInt(this, tailOffset, next)
   }
 
   private[this] def overflowToExternal(
@@ -161,7 +151,7 @@ private final class WorkStealingQueue {
     // This is safe because only the **current** thread is able to push new
     // fibers.
     val headPlusHalf = unsignedShortAddition(hd, HalfLocalQueueCapacity)
-    if (!head.compareAndSet(prev, pack(headPlusHalf, headPlusHalf))) {
+    if (!Unsafe.compareAndSwapInt(this, headOffset, prev, pack(headPlusHalf, headPlusHalf))) {
       // We failed to claim the fibers, losing the race. Return out of
       // this function and try the full `enqueue` method again. The queue
       // may not be full anymore.
@@ -194,23 +184,20 @@ private final class WorkStealingQueue {
    * Should **only** be called by the owner worker thread.
    */
   def dequeueLocally(): IOFiber[_] = {
-    // Should be an `acquire` get.
-    // Requires the use of `VarHandles` (Java 9+) or Unsafe
-    // (not as portable and being phased out).
-    var hd = head.get()
+    var hd = 0
     var idx = 0 // will contain the index of the fiber to be dequeued
     var steal = 0 // will contain a concurrent stealer
     var real = 0 // will contain the real head of the queue
     var nextReal = 0 // one after the real head of the queue
     var nextHead = 0 // will contain the next full head
 
-    // Should be a `plain` get.
-    // Requires the use of `VarHandles` (Java 9+) or Unsafe
-    // (not as portable and being phased out).
-    val tl = tail
+    val tl = Unsafe.getInt(this, tailOffset)
 
     var cont = true
     while (cont) {
+      hd = Unsafe.getInt(this, headOffset)
+      Unsafe.acquireFence()
+
       steal = msb(hd) // Check if a thread is concurrently stealing from this queue.
       real = lsb(hd) // Obtain the real head of the queue.
 
@@ -232,18 +219,13 @@ private final class WorkStealingQueue {
       }
 
       // Attempt to claim a fiber.
-      if (head.compareAndSet(hd, nextHead)) {
+      if (Unsafe.compareAndSwapInt(this, headOffset, hd, nextHead)) {
         // Successfully claimed the fiber to be dequeued.
         // Map to its index and break out of the loop.
         idx = real & CapacityMask
         cont = false
       } else {
         // Failed to claim the fiber to be dequeued. Retry.
-
-        // Should be an `acquire` get.
-        // Requires the use of `VarHandles` (Java 9+) or Unsafe
-        // (not as portable and being phased out).
-        hd = head.get()
       }
     }
 
@@ -262,18 +244,13 @@ private final class WorkStealingQueue {
    * which owns `dst`. Returns the first fiber to be executed.
    */
   def stealInto(dst: WorkStealingQueue): IOFiber[_] = {
-    // Should be a `plain` get.
-    // Requires the use of `VarHandles` (Java 9+) or Unsafe
-    // (not as portable and being phased out).
-    val dstTail = dst.tail
+    val dstTail = Unsafe.getInt(dst, tailOffset)
 
     // To the caller, `dst` may **look** empty but still have values
     // contained in the buffer. If another thread is concurrently stealing
     // from `dst` there may not be enough capacity to steal.
-    // Should be `acquire` get.
-    // Requires the use of `VarHandles` (Java 9+) or Unsafe
-    // (not as portable and being phased out).
-    val dstHead = dst.head.get()
+    val dstHead = Unsafe.getInt(dst, headOffset)
+    Unsafe.acquireFence()
 
     // Check if a thread is concurrently stealing from the destination queue.
     val steal = msb(dstHead)
@@ -312,11 +289,9 @@ private final class WorkStealingQueue {
       return ret
     }
 
-    // Publish the stolen fibers.
-    // Should be `release` set.
-    // Requires the use of `VarHandles` (Java 9+) or Unsafe
-    // (not as portable and being phased out).
-    dst.tail = unsignedShortAddition(dstTail, n)
+    val tl = unsignedShortAddition(dstTail, n)
+    Unsafe.releaseFence()
+    Unsafe.putInt(dst, tailOffset, tl)
     ret
   }
 
@@ -326,10 +301,7 @@ private final class WorkStealingQueue {
    * which owns `dst`. Returns the number of moved fibers.
    */
   private[this] def internalStealInto(dst: WorkStealingQueue, dstTail: Int): Int = {
-    // Should be an `acquire` get.
-    // Requires the use of `VarHandles` (Java 9+) or Unsafe
-    // (not as portable and being phased out).
-    var prevPacked = head.get()
+    var prevPacked = 0
     var nextPacked = 0
     var prevPackedSteal =
       0 // will hold information on a thread that concurrently steals from the source queue
@@ -340,13 +312,12 @@ private final class WorkStealingQueue {
 
     var cont = true
     while (cont) {
+      prevPacked = Unsafe.getInt(this, headOffset)
+      srcTail = Unsafe.getInt(this, tailOffset)
+      Unsafe.acquireFence()
+
       prevPackedSteal = msb(prevPacked)
       prevPackedReal = lsb(prevPacked)
-
-      // Should be an `acquire` get.
-      // Requires the use of `VarHandles` (Java 9+) or Unsafe
-      // (not as portable and being phased out).
-      srcTail = tail
 
       if (prevPackedSteal != prevPackedReal) {
         // Another thread is concurrently stealing from the source queue. Do not proceed.
@@ -373,16 +344,11 @@ private final class WorkStealingQueue {
       // steal from this queue until the current thread completes.
       // Will update the "steal" after moving the fibers, when the steal
       // is fully complete.
-      if (head.compareAndSet(prevPacked, nextPacked)) {
+      if (Unsafe.compareAndSwapInt(this, headOffset, prevPacked, nextPacked)) {
         // Successfully claimed the fibers. Breaking out of the loop.
         cont = false
       } else {
         // Failed to claim the fibers. Retrying.
-
-        // Should be an `acquire` get.
-        // Requires the use of `VarHandles` (Java 9+) or Unsafe
-        // (not as portable and being phased out).
-        prevPacked = head.get()
       }
     }
 
@@ -425,20 +391,18 @@ private final class WorkStealingQueue {
     // thread as the stealer of this queue.
     cont = true
     while (cont) {
+      prevPacked = Unsafe.getInt(this, headOffset)
+      Unsafe.acquireFence()
+
       // Compute the new head.
       val hd = lsb(prevPacked)
       nextPacked = pack(hd, hd)
 
-      if (head.compareAndSet(prevPacked, nextPacked)) {
+      if (Unsafe.compareAndSwapInt(this, headOffset, prevPacked, nextPacked)) {
         // Successfully published the new head of the source queue. Done.
         cont = false
       } else {
         // Failed to publish the new head of the source queue. Retry.
-
-        // Should be `acquire` get.
-        // Requires the use of `VarHandles` (Java 9+) or Unsafe
-        // (not as portable and being phased out).
-        prevPacked = head.get()
       }
     }
 
@@ -474,4 +438,90 @@ private final class WorkStealingQueue {
    */
   private[this] def unsignedShortSubtraction(x: Int, y: Int): Int =
     lsb(x - y)
+}
+
+private object WorkStealingQueue {
+  abstract class InitPadding {
+    protected var pinit00: Long = _
+    protected var pinit01: Long = _
+    protected var pinit02: Long = _
+    protected var pinit03: Long = _
+    protected var pinit04: Long = _
+    protected var pinit05: Long = _
+    protected var pinit06: Long = _
+    protected var pinit07: Long = _
+    protected var pinit08: Long = _
+    protected var pinit09: Long = _
+    protected var pinit10: Long = _
+    protected var pinit11: Long = _
+    protected var pinit12: Long = _
+    protected var pinit13: Long = _
+    protected var pinit14: Long = _
+    protected var pinit15: Long = _
+  }
+
+  abstract class Head extends InitPadding {
+
+    /**
+     * Concurrently updated by many threads.
+     *
+     * Contains two unsigned 16 bit values. The LSB bytes are the "real" head of the queue.
+     * The unsigned 16 bytes in the MSB are set by a stealer in process of stealing values.
+     * It represents the first value being stolen in the batch. Unsigned 16 bit integer is
+     * used in order to distinguish between `head == tail` and `head == tail - capacity`.
+     *
+     * When both unsigned 16 bit balues are the same, there is no active stealer.
+     *
+     * Tracking an in-progress stealer prevents a wrapping scenario.
+     */
+    @volatile protected var head: Int = 0
+  }
+
+  abstract class HeadPadding extends Head {
+    protected var phead00: Long = _
+    protected var phead01: Long = _
+    protected var phead02: Long = _
+    protected var phead03: Long = _
+    protected var phead04: Long = _
+    protected var phead05: Long = _
+    protected var phead06: Long = _
+    protected var phead07: Long = _
+    protected var phead08: Long = _
+    protected var phead09: Long = _
+    protected var phead10: Long = _
+    protected var phead11: Long = _
+    protected var phead12: Long = _
+    protected var phead13: Long = _
+    protected var phead14: Long = _
+    protected var phead15: Long = _
+  }
+
+  abstract class Tail extends HeadPadding {
+
+    /**
+     * Only updated by the owner worker thread, but read by many threads.
+     *
+     * Represents an unsigned 16 bit value.
+     */
+    @volatile protected var tail: Int = 0
+  }
+
+  abstract class TailPadding extends Tail {
+    protected var ptail00: Long = _
+    protected var ptail01: Long = _
+    protected var ptail02: Long = _
+    protected var ptail03: Long = _
+    protected var ptail04: Long = _
+    protected var ptail05: Long = _
+    protected var ptail06: Long = _
+    protected var ptail07: Long = _
+    protected var ptail08: Long = _
+    protected var ptail09: Long = _
+    protected var ptail10: Long = _
+    protected var ptail11: Long = _
+    protected var ptail12: Long = _
+    protected var ptail13: Long = _
+    protected var ptail14: Long = _
+    protected var ptail15: Long = _
+  }
 }

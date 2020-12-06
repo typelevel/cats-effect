@@ -40,7 +40,7 @@ import java.util.concurrent.locks.LockSupport
 private final class WorkerThread(
     private[this] val index: Int, // index assigned by the thread pool in which this thread operates
     private[this] val pool: WorkStealingThreadPool // reference to the thread pool in which this thread operates
-) extends Thread {
+) extends WorkerThread.SleepingPadding {
 
   import WorkStealingThreadPoolConstants._
 
@@ -56,10 +56,6 @@ private final class WorkerThread(
 
   // Source of randomness.
   private[this] val random: Random = new Random()
-
-  // Flag that indicates that this worker thread is currently sleeping, in order to
-  // guard against spurious wakeups.
-  @volatile private[unsafe] var sleeping: Boolean = false
 
   /**
    * Enqueues a fiber to the local work stealing queue. This method always
@@ -298,5 +294,51 @@ private final class WorkerThread(
         fiber = null
       }
     }
+  }
+}
+
+private object WorkerThread {
+  abstract class InitPadding extends Thread {
+    protected var pinit00: Long = _
+    protected var pinit01: Long = _
+    protected var pinit02: Long = _
+    protected var pinit03: Long = _
+    protected var pinit04: Long = _
+    protected var pinit05: Long = _
+    protected var pinit06: Long = _
+    protected var pinit07: Long = _
+    protected var pinit08: Long = _
+    protected var pinit09: Long = _
+    protected var pinit10: Long = _
+    protected var pinit11: Long = _
+    protected var pinit12: Long = _
+    protected var pinit13: Long = _
+    protected var pinit14: Long = _
+    protected var pinit15: Long = _
+  }
+
+  abstract class Sleeping extends InitPadding {
+    // Flag that indicates that this worker thread is currently sleeping, in order to
+    // guard against spurious wakeups.
+    @volatile private[unsafe] var sleeping: Boolean = false
+  }
+
+  abstract class SleepingPadding extends Sleeping {
+    protected var pslp00: Long = _
+    protected var pslp01: Long = _
+    protected var pslp02: Long = _
+    protected var pslp03: Long = _
+    protected var pslp04: Long = _
+    protected var pslp05: Long = _
+    protected var pslp06: Long = _
+    protected var pslp07: Long = _
+    protected var pslp08: Long = _
+    protected var pslp09: Long = _
+    protected var pslp10: Long = _
+    protected var pslp11: Long = _
+    protected var pslp12: Long = _
+    protected var pslp13: Long = _
+    protected var pslp14: Long = _
+    protected var pslp15: Long = _
   }
 }

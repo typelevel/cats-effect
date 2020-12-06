@@ -204,7 +204,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
       "org.typelevel" %%% "cats-kernel-laws"  % CatsVersion       % Test))
   .jvmSettings(
     Test / fork := true,
-    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
+    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}",
+    javacOptions := javacOptions.value.filterNot(_ == "-Werror")
+  )
 
 /**
  * Implementations lof standard functionality (e.g. Semaphore, Console, Queue)

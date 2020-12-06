@@ -30,7 +30,6 @@ package unsafe
 import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -50,7 +49,8 @@ private[effect] final class WorkStealingThreadPool(
     threadCount: Int, // number of worker threads
     threadPrefix: String, // prefix for the name of worker threads
     self0: => IORuntime
-) extends ExecutionContext {
+) extends WorkStealingThreadPool.StatePadding
+    with ExecutionContext {
 
   import WorkStealingThreadPoolConstants._
 
@@ -66,12 +66,6 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val externalQueue: ConcurrentLinkedQueue[IOFiber[_]] =
     new ConcurrentLinkedQueue()
 
-  // Represents two unsigned 16 bit integers.
-  // The 16 most significant bits track the number of active (unparked) worker threads.
-  // The 16 least significant bits track the number of worker threads that are searching
-  // for work to steal from other worker threads.
-  private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
-
   // LIFO access to references of sleeping worker threads.
   private[this] val sleepers: ConcurrentCircularBuffer = new ConcurrentCircularBuffer(
     threadCount)
@@ -79,8 +73,19 @@ private[effect] final class WorkStealingThreadPool(
   // Shutdown signal for the worker threads.
   @volatile private[unsafe] var done: Boolean = false
 
+  private[this] val stateOffset: Long = {
+    try {
+      val field = classOf[WorkStealingThreadPool.State].getDeclaredField("state")
+      Unsafe.objectFieldOffset(field)
+    } catch {
+      case t: Throwable =>
+        throw new ExceptionInInitializerError(t)
+    }
+  }
+
   // Initialization block.
   {
+    state = threadCount << UnparkShift
     // Set up the worker threads.
     var i = 0
     while (i < threadCount) {
@@ -139,7 +144,7 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[unsafe] def transitionWorkerFromSearching(): Unit = {
     // Decrement the number of searching worker threads.
-    val prev = state.getAndDecrement()
+    val prev = Unsafe.getAndAddInt(this, stateOffset, -1)
     if (prev == 1) {
       // If this was the only searching thread, wake a thread up to potentially help out
       // with the local work queue.
@@ -172,7 +177,8 @@ private[effect] final class WorkStealingThreadPool(
       // Update the state so that a thread can be unparked.
       // Here we are updating the 16 most significant bits, which hold the
       // number of active threads.
-      state.getAndAdd(1 | (1 << UnparkShift))
+      val delta = 1 | (1 << UnparkShift)
+      Unsafe.getAndAddInt(this, stateOffset, delta)
       worker.sleeping = false
     }
     worker
@@ -186,7 +192,8 @@ private[effect] final class WorkStealingThreadPool(
    * fewer than `threadCount` active threads.
    */
   private[this] def notifyShouldWakeup(): Boolean = {
-    val st = state.get()
+    val st = Unsafe.getInt(this, stateOffset)
+    Unsafe.acquireFence()
     (st & SearchMask) == 0 && ((st & UnparkMask) >>> UnparkShift) < threadCount
   }
 
@@ -221,7 +228,7 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // Atomically change the state.
-    val prev = state.getAndAdd(-dec)
+    val prev = Unsafe.getAndAddInt(this, stateOffset, -dec)
 
     // Was this thread the last searching thread?
     searching && (prev & SearchMask) == 1
@@ -252,7 +259,8 @@ private[effect] final class WorkStealingThreadPool(
    * state where it can look for work to steal from other worker threads.
    */
   private[unsafe] def transitionWorkerToSearching(): Boolean = {
-    val st = state.get()
+    val st = Unsafe.getInt(this, stateOffset)
+    Unsafe.acquireFence()
 
     // Try to keep at most around 50% threads that are searching for work, to reduce unnecessary contention.
     // It is not exactly 50%, but it is a good enough approximation.
@@ -262,7 +270,7 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // Allow this thread to enter the searching state.
-    state.getAndIncrement()
+    Unsafe.getAndAddInt(this, stateOffset, 1)
     true
   }
 
@@ -343,5 +351,53 @@ private[effect] final class WorkStealingThreadPool(
     for (i <- 0 until workerThreads.length) {
       workerThreads(i) = null
     }
+  }
+}
+
+private[effect] object WorkStealingThreadPool {
+  abstract class InitPadding extends Thread {
+    protected var pinit00: Long = _
+    protected var pinit01: Long = _
+    protected var pinit02: Long = _
+    protected var pinit03: Long = _
+    protected var pinit04: Long = _
+    protected var pinit05: Long = _
+    protected var pinit06: Long = _
+    protected var pinit07: Long = _
+    protected var pinit08: Long = _
+    protected var pinit09: Long = _
+    protected var pinit10: Long = _
+    protected var pinit11: Long = _
+    protected var pinit12: Long = _
+    protected var pinit13: Long = _
+    protected var pinit14: Long = _
+    protected var pinit15: Long = _
+  }
+
+  abstract class State extends InitPadding {
+    // Represents two unsigned 16 bit integers.
+    // The 16 most significant bits track the number of active (unparked) worker threads.
+    // The 16 least significant bits track the number of worker threads that are searching
+    // for work to steal from other worker threads.
+    @volatile protected var state: Int = _
+  }
+
+  abstract class StatePadding extends State {
+    protected var pstt00: Long = _
+    protected var pstt01: Long = _
+    protected var pstt02: Long = _
+    protected var pstt03: Long = _
+    protected var pstt04: Long = _
+    protected var pstt05: Long = _
+    protected var pstt06: Long = _
+    protected var pstt07: Long = _
+    protected var pstt08: Long = _
+    protected var pstt09: Long = _
+    protected var pstt10: Long = _
+    protected var pstt11: Long = _
+    protected var pstt12: Long = _
+    protected var pstt13: Long = _
+    protected var pstt14: Long = _
+    protected var pstt15: Long = _
   }
 }
