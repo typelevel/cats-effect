@@ -70,6 +70,72 @@ class SemaphoreSpec extends BaseSpec { outer =>
       op.mustFailWith[IllegalArgumentException]
     }
 
+    s"$label - block if no permits available" in ticked { implicit ticker =>
+      sc(0).flatMap { sem => sem.permit.surround(IO.unit) } must nonTerminate
+    }
+
+    s"$label - execute action if permit is available for it" in real {
+      sc(1).flatMap { sem => sem.permit.surround(IO.unit).mustEqual(()) }
+    }
+
+    s"$label - unblock when permit is released" in ticked { implicit ticker =>
+      val p =
+        for {
+          sem <- sc(1)
+          ref <- IO.ref(false)
+          _ <- sem.permit.surround { IO.sleep(1.second) >> ref.set(true) }.start
+          _ <- IO.sleep(500.millis)
+          _ <- sem.permit.surround(IO.unit)
+          v <- ref.get
+        } yield v
+
+      p must completeAs(true)
+    }
+
+    s"$label - release permit if withPermit errors" in real {
+      for {
+        sem <- sc(1)
+        _ <- sem.permit.surround(IO.raiseError(new Exception)).attempt
+        res <- sem.permit.surround(IO.unit).mustEqual(())
+      } yield res
+    }
+
+    s"$label - release permit if action gets canceled" in ticked { implicit ticker =>
+      val p =
+        for {
+          sem <- sc(1)
+          fiber <- sem.permit.surround(IO.never).start
+          _ <- IO.sleep(1.second)
+          _ <- fiber.cancel
+          _ <- sem.permit.surround(IO.unit)
+        } yield ()
+
+      p must completeAs(())
+    }
+
+    s"$label - allow cancelation if blocked waiting for permit" in ticked { implicit ticker =>
+      val p = for {
+        sem <- sc(0)
+        ref <- IO.ref(false)
+        f <- sem.permit.surround(IO.unit).onCancel(ref.set(true)).start
+        _ <- IO.sleep(1.second)
+        _ <- f.cancel
+        v <- ref.get
+      } yield v
+
+      p must completeAs(true)
+    }
+
+    s"$label - not release permit when an acquire gets canceled" in ticked { implicit ticker =>
+      val p = for {
+        sem <- sc(0)
+        _ <- sem.permit.surround(IO.unit).timeout(1.second).attempt
+        _ <- sem.permit.surround(IO.unit)
+      } yield ()
+
+      p must nonTerminate
+    }
+
     s"$label - acquire n synchronously" in real {
       val n = 20
       val op = sc(20).flatMap { s =>
@@ -80,7 +146,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
     }
 
     def withLock[T](n: Long, s: Semaphore[IO], check: IO[T]): IO[(Long, T)] =
-      s.acquireN(n).background.use { _ =>
+      s.acquireN(n).background.surround {
         //w/o cs.shift this hangs for coreJS
         s.count.iterateUntil(_ < 0).flatMap(t => check.tupleLeft(t))
       }
