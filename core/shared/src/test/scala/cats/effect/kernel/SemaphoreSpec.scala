@@ -85,7 +85,6 @@ class SemaphoreSpec extends BaseSpec { outer =>
         s.count.iterateUntil(_ < 0).flatMap(t => check.tupleLeft(t))
       }
 
-
     s"$label - available with no available permits" in real {
       val n = 20L
       val op = sc(n)
@@ -98,20 +97,6 @@ class SemaphoreSpec extends BaseSpec { outer =>
         }
 
       op.mustEqual(-1L -> 0L)
-    }
-
-    // TODO duplicate?
-    s"$label - available with no available permits" in real {
-      val n = 20L
-      sc(n)
-        .flatMap { s =>
-          for {
-            _ <- s.acquire.replicateA(n.toInt)
-            res <- withLock(1, s, s.available)
-          } yield res
-
-        }
-        .mustEqual(-1L -> 0L)
     }
 
     s"$label - tryAcquire with available permits" in real {
