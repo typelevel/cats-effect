@@ -31,35 +31,9 @@ class SemaphoreSpec extends BaseSpec { outer =>
   sequential
 
   "semaphore" should {
-
     tests("async", n => Semaphore[IO](n))
     tests("async in", n => Semaphore.in[IO, IO](n))
 //    tests("async mapK", n => Semaphore[IO](n).map(_.mapK[IO](FunctionK.id))) TODO
-
-    "acquire does not leak permits upon cancelation" in real {
-      val op = Semaphore[IO](1L).flatMap { s =>
-        // acquireN(2) will get 1 permit and then timeout waiting for another,
-        // which should restore the semaphore count to 1. We then release a permit
-        // bringing the count to 2. Since the old acquireN(2) is canceled, the final
-        // count stays at 2.
-        s.acquireN(2L).timeout(1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
-      }
-
-      op.mustEqual(2L)
-    }
-
-    "permit.use does not leak fibers or permits upon cancelation" in real {
-      val op = Semaphore[IO](0L).flatMap { s =>
-        // The inner s.release should never be run b/c the timeout will be reached before a permit
-        // is available. After the timeout and hence cancelation of s.permit.use(_ => ...), we release
-        // a permit and then sleep a bit, then check the permit count. If permit.use doesn't properly
-        // cancel, the permit count will be 2, otherwise 1
-        s.permit.use(_ => s.release).timeout(1.milli).attempt *> s.release *> IO.sleep(
-          10.millis) *> s.count
-      }
-
-      op.mustEqual(1L)
-    }
   }
 
 
@@ -143,6 +117,17 @@ class SemaphoreSpec extends BaseSpec { outer =>
       }
 
       op.mustEqual(0L)
+    }
+
+    "acquireN does not leak permits upon cancelation" in ticked { implicit ticker =>
+      val op = Semaphore[IO](1L).flatMap { s =>
+        // acquireN(2L) gets one permit, then blocks waiting for another one
+        // upon timeout, if it leaked and didn't release the permit it had,
+        // the second acquire would block forever
+        s.acquireN(2L).timeout(1.second).attempt *> s.acquire
+      }
+
+      op must completeAs(())
     }
 
     def withLock[T](n: Long, s: Semaphore[IO], check: IO[T]): IO[(Long, T)] =
