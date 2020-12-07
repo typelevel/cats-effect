@@ -62,15 +62,15 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       closed must beTrue
     }
 
-    "liftF" in ticked { implicit ticker =>
-      forAll { (fa: IO[String]) => Resource.liftF(fa).use(IO.pure) eqv fa }
+    "eval" in ticked { implicit ticker =>
+      forAll { (fa: IO[String]) => Resource.eval(fa).use(IO.pure) eqv fa }
     }
 
-    "liftF - interruption" in ticked { implicit ticker =>
+    "eval - interruption" in ticked { implicit ticker =>
       def resource(d: Deferred[IO, Int]): Resource[IO, Unit] =
         for {
           _ <- Resource.make(IO.unit)(_ => d.complete(1).void)
-          _ <- Resource.liftF(IO.never[Unit])
+          _ <- Resource.eval(IO.never[Unit])
         } yield ()
 
       def p =
@@ -86,33 +86,33 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       p must completeAs(1)
     }
 
-    "liftF(fa) <-> liftK.apply(fa)" in ticked { implicit ticker =>
+    "eval(fa) <-> liftK.apply(fa)" in ticked { implicit ticker =>
       forAll { (fa: IO[String], f: String => IO[Int]) =>
-        Resource.liftF(fa).use(f) eqv Resource.liftK[IO].apply(fa).use(f)
+        Resource.eval(fa).use(f) eqv Resource.liftK[IO].apply(fa).use(f)
       }
     }
 
     "evalMap" in ticked { implicit ticker =>
-      forAll { (f: Int => IO[Int]) => Resource.liftF(IO(0)).evalMap(f).use(IO.pure) eqv f(0) }
+      forAll { (f: Int => IO[Int]) => Resource.eval(IO(0)).evalMap(f).use(IO.pure) eqv f(0) }
     }
 
     "evalMap with error fails during use" in ticked { implicit ticker =>
       case object Foo extends Exception
 
-      Resource.liftF(IO.unit).evalMap(_ => IO.raiseError[Unit](Foo)).use(IO.pure) must failAs(
+      Resource.eval(IO.unit).evalMap(_ => IO.raiseError[Unit](Foo)).use(IO.pure) must failAs(
         Foo)
     }
 
     "evalTap" in ticked { implicit ticker =>
       forAll { (f: Int => IO[Int]) =>
-        Resource.liftF(IO(0)).evalTap(f).use(IO.pure) eqv f(0).as(0)
+        Resource.eval(IO(0)).evalTap(f).use(IO.pure) eqv f(0).as(0)
       }
     }
 
     "evalTap with error fails during use" in ticked { implicit ticker =>
       case object Foo extends Exception
 
-      Resource.liftF(IO(0)).evalTap(_ => IO.raiseError(Foo)).void.use(IO.pure) must failAs(Foo)
+      Resource.eval(IO(0)).evalTap(_ => IO.raiseError(Foo)).void.use(IO.pure) must failAs(Foo)
     }
 
     "mapK" in ticked { implicit ticker =>
@@ -120,7 +120,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         val runWithTwo = new ~>[Kleisli[IO, Int, *], IO] {
           override def apply[A](fa: Kleisli[IO, Int, A]): IO[A] = fa(2)
         }
-        Resource.liftF(fa).mapK(runWithTwo).use(IO.pure) eqv fa(2)
+        Resource.eval(fa).mapK(runWithTwo).use(IO.pure) eqv fa(2)
       }
     }
 
@@ -128,7 +128,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       class Err extends Exception
 
       Resource
-        .liftF(IO.raiseError[Int](new Err))
+        .eval(IO.raiseError[Int](new Err))
         .mapK(Kleisli.liftK[IO, Int])
         .attempt
         .use(_ => 3.pure[Kleisli[IO, Int, *]])
@@ -187,9 +187,9 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
     "use is stack-safe over binds" in ticked { implicit ticker =>
       val r = (1 to 10000)
-        .foldLeft(Resource.liftF(IO.unit)) {
+        .foldLeft(Resource.eval(IO.unit)) {
           case (r, _) =>
-            r.flatMap(_ => Resource.liftF(IO.unit))
+            r.flatMap(_ => Resource.eval(IO.unit))
         }
         .use(IO.pure)
       r eqv IO.unit
@@ -211,9 +211,9 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
     "mapK is stack-safe over binds" in ticked { implicit ticker =>
       val r = (1 to 10000)
-        .foldLeft(Resource.liftF(IO.unit)) {
+        .foldLeft(Resource.eval(IO.unit)) {
           case (r, _) =>
-            r.flatMap(_ => Resource.liftF(IO.unit))
+            r.flatMap(_ => Resource.eval(IO.unit))
         }
         .mapK(new ~>[IO, IO] {
           def apply[A](a: IO[A]): IO[A] = a
@@ -225,7 +225,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     "allocate does not release until close is invoked" in ticked { implicit ticker =>
       val released = new java.util.concurrent.atomic.AtomicBoolean(false)
       val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
-      val resource = Resource.liftF(IO.unit)
+      val resource = Resource.eval(IO.unit)
 
       // do not inline: it confuses Dotty
       val ioa = (release *> resource).allocated
@@ -252,10 +252,10 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli.liftF(fa)
         }
         val plusOne = Kleisli { (i: Int) => IO(i + 1) }
-        val plusOneResource = Resource.liftF(plusOne)
+        val plusOneResource = Resource.eval(plusOne)
 
         val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
-        val resource = Resource.liftF(IO.unit)
+        val resource = Resource.eval(IO.unit)
 
         // do not inline: it confuses Dotty
         val ioa = ((release *> resource).mapK(takeAnInteger) *> plusOneResource)
@@ -352,14 +352,14 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         _ <- Resource.make(wait(1) >> IO { leftAllocated = true }) { _ =>
           IO { leftReleasing = true } >> wait(1) >> IO { leftReleased = true }
         }
-        _ <- Resource.liftF(wait(1) >> IO.raiseError[Unit](new Exception))
+        _ <- Resource.eval(wait(1) >> IO.raiseError[Unit](new Exception))
       } yield ()
 
       val rhs = for {
         _ <- Resource.make(wait(1) >> IO { rightAllocated = true }) { _ =>
           IO { rightReleasing = true } >> wait(1) >> IO { rightReleased = true }
         }
-        _ <- Resource.liftF(wait(2))
+        _ <- Resource.eval(wait(2))
       } yield ()
 
       (lhs, rhs).parTupled.use(_ => IO.unit).handleError(_ => ()).unsafeToFuture()
@@ -484,8 +484,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
     "combineK - should behave like underlying effect" in ticked { implicit ticker =>
       forAll { (ot1: OptionT[IO, Int], ot2: OptionT[IO, Int]) =>
-        val lhs = Resource.liftF(ot1 <+> ot2).use(OptionT.pure[IO](_)).value
-        val rhs = (Resource.liftF(ot1) <+> Resource.liftF(ot2)).use(OptionT.pure[IO](_)).value
+        val lhs = Resource.eval(ot1 <+> ot2).use(OptionT.pure[IO](_)).value
+        val rhs = (Resource.eval(ot1) <+> Resource.eval(ot2)).use(OptionT.pure[IO](_)).value
 
         lhs eqv rhs
       }
@@ -493,7 +493,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
     "surround - should wrap an effect in a usage and ignore the value produced by resource" in ticked {
       implicit ticker =>
-        val r = Resource.liftF(IO.pure(0))
+        val r = Resource.eval(IO.pure(0))
         val surroundee = IO("hello")
         val surrounded = r.surround(surroundee)
 
@@ -502,7 +502,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
     "surroundK - should wrap an effect in a usage, ignore the value produced by resource and return FunctionK" in ticked {
       implicit ticker =>
-        val r = Resource.liftF(IO.pure(0))
+        val r = Resource.eval(IO.pure(0))
         val surroundee = IO("hello")
         val surround = r.surroundK
         val surrounded = surround(surroundee)

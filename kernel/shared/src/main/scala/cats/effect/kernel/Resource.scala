@@ -274,14 +274,14 @@ sealed abstract class Resource[F[_], +A] {
           .flatMap(x => f0(x).mapK(f))
       case Pure(a) =>
         Resource.pure(a)
-      case Eval(fea) => Resource.liftF(f(fea))
+      case Eval(fea) => Resource.eval(f(fea))
     }
 
   /**
    * Runs `precede` before this resource is allocated.
    */
   def preAllocate(precede: F[Unit]): Resource[F, A] =
-    Resource.liftF(precede).flatMap(_ => this)
+    Resource.eval(precede).flatMap(_ => this)
 
   /**
    * Runs `finalizer` when this resource is closed. Unlike the release action passed to `Resource.make`, this will
@@ -378,14 +378,14 @@ sealed abstract class Resource[F[_], +A] {
    * `flatMap` on `F[A]` while maintaining the resource context
    */
   def evalMap[B](f: A => F[B]): Resource[F, B] =
-    this.flatMap(a => Resource.liftF(f(a)))
+    this.flatMap(a => Resource.eval(f(a)))
 
   /**
    * Applies an effectful transformation to the allocated resource. Like a
    * `flatTap` on `F[A]` while maintaining the resource context
    */
   def evalTap[B](f: A => F[B]): Resource[F, A] =
-    this.flatMap(a => Resource.liftF(f(a)).map(_ => a))
+    this.flatMap(a => Resource.eval(f(a)).map(_ => a))
 
   // /**
   //  * Widens the effect type of this resource.
@@ -447,7 +447,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * Given a `Resource` suspended in `F[_]`, lifts it in the `Resource` context.
    */
   def suspend[F[_], A](fr: F[Resource[F, A]]): Resource[F, A] =
-    Resource.liftF(fr).flatMap(x => x)
+    Resource.eval(fr).flatMap(x => x)
 
   /**
    * Creates a resource from an acquiring effect and a release function.
@@ -494,7 +494,11 @@ object Resource extends ResourceInstances with ResourcePlatform {
    *
    * @param fa the value to lift into a resource
    */
+  @deprecated("please use `eval` instead.")
   def liftF[F[_], A](fa: F[A]): Resource[F, A] =
+    Resource.Eval(fa)
+
+  def eval[F[_], A](fa: F[A]): Resource[F, A] =
     Resource.Eval(fa)
 
   /**
@@ -515,7 +519,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    */
   def liftK[F[_]]: F ~> Resource[F, *] =
     new (F ~> Resource[F, *]) {
-      def apply[A](fa: F[A]): Resource[F, A] = Resource.liftF(fa)
+      def apply[A](fa: F[A]): Resource[F, A] = Resource.eval(fa)
     }
 
   /**
@@ -721,7 +725,7 @@ abstract private[effect] class ResourceMonadError[F[_], E]
       case p@ Pure(_) =>
         Resource.pure(p.a.asRight)
       case e@ Eval(_) =>
-        Resource.liftF(e.fa.attempt)
+        Resource.eval(e.fa.attempt)
     }
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
@@ -731,7 +735,7 @@ abstract private[effect] class ResourceMonadError[F[_], E]
     }
 
   def raiseError[A](e: E): Resource[F, A] =
-    Resource.liftF(F.raiseError[A](e))
+    Resource.eval(F.raiseError[A](e))
 }
 
 abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]] with StackSafeMonad[Resource[F, *]] {

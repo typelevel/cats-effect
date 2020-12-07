@@ -50,7 +50,7 @@ class ConsoleSpec extends BaseSpec {
 
   private def standardOutTest(io: => IO[Unit]): IO[String] = {
     val test = for {
-      out <- Resource.liftF(IO(new ByteArrayOutputStream()))
+      out <- Resource.eval(IO(new ByteArrayOutputStream()))
       ps <- printStream(out)
       _ <- replaceStandardOut(ps)
     } yield out
@@ -63,7 +63,7 @@ class ConsoleSpec extends BaseSpec {
 
   private def standardErrTest(io: => IO[Unit]): IO[String] = {
     val test = for {
-      out <- Resource.liftF(IO(new ByteArrayOutputStream()))
+      out <- Resource.eval(IO(new ByteArrayOutputStream()))
       ps <- printStream(out)
       _ <- replaceStandardErr(ps)
     } yield out

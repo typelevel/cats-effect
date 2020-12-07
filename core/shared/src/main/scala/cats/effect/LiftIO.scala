@@ -152,6 +152,6 @@ object LiftIO {
     implicit protected def F1: Applicative[F]
 
     def liftIO[A](ioa: IO[A]): Resource[F, A] =
-      Resource.liftF(F0.liftIO(ioa))
+      Resource.eval(F0.liftIO(ioa))
   }
 }

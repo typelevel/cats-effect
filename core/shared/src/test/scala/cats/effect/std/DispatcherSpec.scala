@@ -28,14 +28,14 @@ class DispatcherSpec extends BaseSpec {
     "run a synchronous IO" in real {
       val ioa = IO(1).map(_ + 2)
       val rec = Dispatcher[IO].flatMap(runner =>
-        Resource.liftF(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
+        Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
       rec.use(i => IO(i mustEqual 3))
     }
 
     "run an asynchronous IO" in real {
       val ioa = (IO(1) <* IO.cede).map(_ + 2)
       val rec = Dispatcher[IO].flatMap(runner =>
-        Resource.liftF(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
+        Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
       rec.use(i => IO(i mustEqual 3))
     }
 
@@ -47,7 +47,7 @@ class DispatcherSpec extends BaseSpec {
       val num = 10
 
       val rec = Dispatcher[IO] flatMap { runner =>
-        Resource.liftF(IO.fromFuture(IO(runner.unsafeToFuture(increment))).replicateA(num).void)
+        Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(increment))).replicateA(num).void)
       }
 
       rec.use(_ => IO(counter mustEqual num))
@@ -65,7 +65,7 @@ class DispatcherSpec extends BaseSpec {
 
         _ <- {
           val rec = Dispatcher[IO] flatMap { runner =>
-            Resource.liftF(subjects.parTraverse_(act => IO(runner.unsafeRunAndForget(act))))
+            Resource.eval(subjects.parTraverse_(act => IO(runner.unsafeRunAndForget(act))))
           }
 
           rec.use(_ => IO.unit)
