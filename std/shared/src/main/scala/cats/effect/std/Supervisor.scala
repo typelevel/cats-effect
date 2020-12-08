@@ -27,27 +27,27 @@ trait Supervisor[F[_], E] {
 object Supervisor {
   def apply[F[_], E](implicit F: GenConcurrent[F, E]): Resource[F, Supervisor[F, E]] = {
     // TODO: s.c.i.Queue might be more appropriate for biased spawning
-    final case class State(unblock: Deferred[F, Unit], registrations: List[(F[Any], Deferred[F, F[Outcome[F, E, Any]]])])
+    final case class State(
+        unblock: Deferred[F, Unit],
+        registrations: List[(F[Any], Deferred[F, F[Outcome[F, E, Any]]])])
 
-    def newState: F[State] = 
-      F.deferred[Unit].map { unblock =>
-        State(unblock, List())
-      }
+    def newState: F[State] =
+      F.deferred[Unit].map { unblock => State(unblock, List()) }
 
     for {
       initial <- Resource.liftF(newState)
       stateRef <- Resource.liftF(F.ref[State](initial))
       activeRef <- Resource.make(F.ref(Set[Fiber[F, E, _]]())) { ref =>
-        ref.get.flatMap { fibers =>
-          fibers.toList.parTraverse_(_.cancel)
-        }
+        ref.get.flatMap { fibers => fibers.toList.parTraverse_(_.cancel) }
       }
-      aliveRef <- Resource.make(F.ref(true)) { ref => 
+      aliveRef <- Resource.make(F.ref(true)) { ref =>
         for {
           _ <- ref.set(false)
           state <- stateRef.get
           // report canceled back for effects that weren't started
-          _ <- state.registrations.traverse_ { case (_, join) => join.complete(F.pure(Outcome.canceled)) }
+          _ <- state.registrations.traverse_ {
+            case (_, join) => join.complete(F.pure(Outcome.canceled))
+          }
         } yield ()
       }
 
@@ -59,25 +59,27 @@ object Supervisor {
             for {
               nextState <- newState
               state <- stateRef.getAndSet(nextState)
-              _ <- state.registrations.traverse_ { case (action, join) =>
-                // TODO: more performance with long tokens
-                F.deferred[Fiber[F, E, Any]].flatMap { fiberDef =>
-                  val enriched = fiberDef.get.flatMap { fiber =>
-                    activeRef.update(_ + fiber) >> action.guarantee(activeRef.update(_ - fiber))
-                  }
+              _ <- state.registrations.traverse_ {
+                case (action, join) =>
+                  // TODO: more performance with long tokens
+                  F.deferred[Fiber[F, E, Any]].flatMap { fiberDef =>
+                    val enriched = fiberDef.get.flatMap { fiber =>
+                      activeRef.update(_ + fiber) >> action.guarantee(
+                        activeRef.update(_ - fiber))
+                    }
 
-                  for {
-                    fiber <- enriched.start
-                    _ <- fiberDef.complete(fiber)
-                    _ <- join.complete(fiber.join)
-                  } yield ()
-                }
+                    for {
+                      fiber <- enriched.start
+                      _ <- fiberDef.complete(fiber)
+                      _ <- join.complete(fiber.join)
+                    } yield ()
+                  }
               }
             } yield ()
           }
         }
       }
-      
+
       _ <- F.background(supervisor.foreverM[Unit])
     } yield {
       new Supervisor[F, E] {
@@ -86,8 +88,8 @@ object Supervisor {
             if (alive) {
               Deferred[F, F[Outcome[F, E, Any]]].flatMap { join =>
                 val reg = (fa.asInstanceOf[F[Any]], join)
-                stateRef.modify { 
-                  case state @ State(unblock, regs) => 
+                stateRef.modify {
+                  case state @ State(unblock, regs) =>
                     (state.copy(registrations = reg :: regs), unblock.complete(()).void)
                 }.flatten >> join.get.map(_.map(_.asInstanceOf[Outcome[F, E, A]]))
               }
@@ -97,7 +99,7 @@ object Supervisor {
               throw new IllegalStateException("supervisor has shutdown")
             }
           }
-        }
+      }
     }
   }
 }
