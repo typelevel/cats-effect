@@ -26,9 +26,8 @@ trait Supervisor[F[_], E] {
 
 object Supervisor {
   def apply[F[_], E](implicit F: GenConcurrent[F, E]): Resource[F, Supervisor[F, E]] = {
-    final case class State(
-        unblock: Deferred[F, Unit],
-        registrations: List[(F[Any], Deferred[F, F[Outcome[F, E, Any]]])])
+    final case class State(unblock: Deferred[F, Unit], registrations: List[Registration[_]])
+    final case class Registration[A](action: F[A], join: Deferred[F, F[Outcome[F, E, A]]])
 
     def newState: F[State] =
       F.deferred[Unit].map { unblock => State(unblock, List()) }
@@ -46,7 +45,7 @@ object Supervisor {
           state <- stateRef.get
           // report canceled back for effects that weren't started
           _ <- state.registrations.parTraverse_ {
-            case (_, join) => join.complete(F.pure(Outcome.canceled))
+            case reg => reg.join.complete(F.pure(Outcome.canceled))
           }
         } yield ()
       }
@@ -60,17 +59,17 @@ object Supervisor {
               nextState <- newState
               state <- stateRef.getAndSet(nextState)
               _ <- state.registrations.traverse_ {
-                case (action, join) =>
+                case reg: Registration[i] =>
                   // TODO: more performance with long tokens
                   for {
-                    fiberDef <- F.deferred[Fiber[F, E, Any]]
+                    fiberDef <- F.deferred[Fiber[F, E, i]]
                     enriched = fiberDef.get.flatMap { fiber =>
-                      activeRef.update(_ + fiber) >> action.guarantee(
-                        activeRef.update(_ - fiber))
+                      activeRef
+                        .update(_ + fiber) >> reg.action.guarantee(activeRef.update(_ - fiber))
                     }
                     fiber <- enriched.start
                     _ <- fiberDef.complete(fiber)
-                    _ <- join.complete(fiber.join)
+                    _ <- reg.join.complete(fiber.join)
                   } yield ()
               }
             } yield ()
@@ -84,12 +83,12 @@ object Supervisor {
         override def supervise[A](fa: F[A]): F[F[Outcome[F, E, A]]] =
           aliveRef.get.flatMap { alive =>
             if (alive) {
-              Deferred[F, F[Outcome[F, E, Any]]].flatMap { join =>
-                val reg = (fa.asInstanceOf[F[Any]], join)
+              Deferred[F, F[Outcome[F, E, A]]].flatMap { join =>
+                val reg = Registration(fa, join)
                 stateRef.modify {
                   case state @ State(unblock, regs) =>
                     (state.copy(registrations = reg :: regs), unblock.complete(()).void)
-                }.flatten >> join.get.map(_.map(_.asInstanceOf[Outcome[F, E, A]]))
+                }.flatten >> join.get
               }
             } else {
               // TODO: Should we just Async?
