@@ -81,7 +81,7 @@ class DispatcherSpec extends BaseSpec {
           runner.unsafeToFutureCancelable(IO.never.onCancel(IO { canceled = true }))._2
         }
 
-        Resource liftF {
+        Resource eval {
           run.flatMap(ct => IO.sleep(500.millis) >> IO.fromFuture(IO(ct())))
         }
       }
@@ -98,7 +98,7 @@ class DispatcherSpec extends BaseSpec {
         _ <- gate2.acquireN(2)
 
         rec = Dispatcher[IO] flatMap { runner =>
-          Resource liftF {
+          Resource eval {
             IO {
               // these finalizers never return, so this test is intentionally designed to hang
               // they flip their gates first though; this is just testing that both run in parallel
