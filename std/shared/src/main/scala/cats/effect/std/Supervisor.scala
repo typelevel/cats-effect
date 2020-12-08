@@ -26,7 +26,6 @@ trait Supervisor[F[_], E] {
 
 object Supervisor {
   def apply[F[_], E](implicit F: GenConcurrent[F, E]): Resource[F, Supervisor[F, E]] = {
-    // TODO: s.c.i.Queue might be more appropriate for biased spawning
     final case class State(
         unblock: Deferred[F, Unit],
         registrations: List[(F[Any], Deferred[F, F[Outcome[F, E, Any]]])])
@@ -36,6 +35,7 @@ object Supervisor {
 
     for {
       initial <- Resource.liftF(newState)
+      // TODO: Queue may be more appropriate but need to add takeAll that blocks on empty
       stateRef <- Resource.liftF(F.ref[State](initial))
       activeRef <- Resource.make(F.ref(Set[Fiber[F, E, _]]())) { ref =>
         ref.get.flatMap { fibers => fibers.toList.parTraverse_(_.cancel) }
