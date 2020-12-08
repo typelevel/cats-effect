@@ -28,31 +28,34 @@ import scala.concurrent.duration._
 
 class SemaphoreSpec extends BaseSpec { outer =>
 
-  sequential
-
-  "semaphore" should {
-    tests("async", n => Semaphore[IO](n))
-    tests("async in", n => Semaphore.in[IO, IO](n))
-//    tests("async mapK", n => Semaphore[IO](n).map(_.mapK[IO](FunctionK.id))) TODO
+  "Semaphore" should {
+    tests(n => Semaphore[IO](n))
   }
 
+  "Semaphore with dual constructors" should {
+    tests(n => Semaphore.in[IO, IO](n))
+  }
 
-  def tests(label: String, sc: Long => IO[Semaphore[IO]]): Fragments = {
-    s"$label - throw on negative n" in real {
+  // "MapK'd semaphore should" {
+  //   tests("async mapK", n => Semaphore[IO](n).map(_.mapK[IO](FunctionK.id))) // TODO
+  // }
+
+  def tests(sc: Long => IO[Semaphore[IO]]): Fragments = {
+    "throw on negative n" in real {
       val op = IO(sc(-42))
 
       op.mustFailWith[IllegalArgumentException]
     }
 
-    s"$label - block if no permits available" in ticked { implicit ticker =>
+    "block if no permits available" in ticked { implicit ticker =>
       sc(0).flatMap { sem => sem.permit.surround(IO.unit) } must nonTerminate
     }
 
-    s"$label - execute action if permit is available for it" in real {
+    "execute action if permit is available for it" in real {
       sc(1).flatMap { sem => sem.permit.surround(IO.unit).mustEqual(()) }
     }
 
-    s"$label - unblock when permit is released" in ticked { implicit ticker =>
+    "unblock when permit is released" in ticked { implicit ticker =>
       val p =
         for {
           sem <- sc(1)
@@ -66,7 +69,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       p must completeAs(true)
     }
 
-    s"$label - release permit if withPermit errors" in real {
+    "release permit if withPermit errors" in real {
       for {
         sem <- sc(1)
         _ <- sem.permit.surround(IO.raiseError(new Exception)).attempt
@@ -74,7 +77,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       } yield res
     }
 
-    s"$label - release permit if action gets canceled" in ticked { implicit ticker =>
+    "release permit if action gets canceled" in ticked { implicit ticker =>
       val p =
         for {
           sem <- sc(1)
@@ -87,7 +90,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       p must completeAs(())
     }
 
-    s"$label - allow cancelation if blocked waiting for permit" in ticked { implicit ticker =>
+    "allow cancelation if blocked waiting for permit" in ticked { implicit ticker =>
       val p = for {
         sem <- sc(0)
         ref <- IO.ref(false)
@@ -100,7 +103,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       p must completeAs(true)
     }
 
-    s"$label - not release permit when an acquire gets canceled" in ticked { implicit ticker =>
+    "not release permit when an acquire gets canceled" in ticked { implicit ticker =>
       val p = for {
         sem <- sc(0)
         _ <- sem.permit.surround(IO.unit).timeout(1.second).attempt
@@ -110,7 +113,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       p must nonTerminate
     }
 
-    s"$label - acquire n synchronously" in real {
+    "acquire n synchronously" in real {
       val n = 20
       val op = sc(20).flatMap { s =>
         (0 until n).toList.traverse(_ => s.acquire).void *> s.available
@@ -136,7 +139,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
         s.count.iterateUntil(_ < 0).flatMap(t => check.tupleLeft(t))
       }
 
-    s"$label - available with no available permits" in real {
+    "available with no available permits" in real {
       val n = 20L
       val op = sc(n)
         .flatMap { s =>
@@ -150,7 +153,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       op.mustEqual(-1L -> 0L)
     }
 
-    s"$label - tryAcquire with available permits" in real {
+    "tryAcquire with available permits" in real {
       val n = 20
       val op = sc(30).flatMap { s =>
         for {
@@ -162,7 +165,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       op.mustEqual(true)
     }
 
-    s"$label - tryAcquire with no available permits" in real {
+    "tryAcquire with no available permits" in real {
       val n = 20
       val op = sc(20).flatMap { s =>
         for {
@@ -174,7 +177,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       op.mustEqual(false)
     }
 
-    s"$label - tryAcquireN all available permits" in real {
+    "tryAcquireN all available permits" in real {
       val n = 20
       val op = sc(20).flatMap { s =>
         for {
@@ -185,7 +188,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       op.mustEqual(true)
     }
 
-    s"$label - offsetting acquires/releases - acquires parallel with releases" in real {
+    "offsetting acquires/releases - acquires parallel with releases" in real {
       val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
       val op = sc(0)
         .flatMap { s =>
@@ -198,7 +201,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       op.mustEqual(0L)
     }
 
-    s"$label - offsetting acquires/releases - individual acquires/increment in parallel" in real {
+    "offsetting acquires/releases - individual acquires/increment in parallel" in real {
       val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
       val op = sc(0)
         .flatMap { s =>
@@ -211,7 +214,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       op.mustEqual(0L)
     }
 
-    s"$label - available with available permits" in real {
+    "available with available permits" in real {
       val op = sc(20).flatMap { s =>
         for {
           _ <- s.acquireN(19)
@@ -222,7 +225,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       op.mustEqual(1L)
     }
 
-    s"$label - available with 0 available permits" in real {
+    "available with 0 available permits" in real {
       val op = sc(20).flatMap { s =>
         for {
           _ <- s.acquireN(20).void
@@ -233,7 +236,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       op.mustEqual(0L)
     }
 
-    s"$label - count with available permits" in real {
+    "count with available permits" in real {
       val n = 18
       val op = sc(20).flatMap { s =>
         for {
@@ -248,7 +251,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       }
     }
 
-    s"$label - count with no available permits" in real {
+    "count with no available permits" in real {
       val n: Long = 8
       val op =
         sc(n).flatMap { s =>
@@ -261,7 +264,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       op.mustEqual(-n)
     }
 
-    s"$label - count with 0 available permits" in real {
+    "count with 0 available permits" in real {
       val op = sc(20).flatMap { s =>
         s.acquireN(20) >> s.count
       }
