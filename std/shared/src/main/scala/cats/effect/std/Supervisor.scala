@@ -62,18 +62,16 @@ object Supervisor {
               _ <- state.registrations.traverse_ {
                 case (action, join) =>
                   // TODO: more performance with long tokens
-                  F.deferred[Fiber[F, E, Any]].flatMap { fiberDef =>
-                    val enriched = fiberDef.get.flatMap { fiber =>
+                  for {
+                    fiberDef <- F.deferred[Fiber[F, E, Any]]
+                    enriched = fiberDef.get.flatMap { fiber =>
                       activeRef.update(_ + fiber) >> action.guarantee(
                         activeRef.update(_ - fiber))
                     }
-
-                    for {
-                      fiber <- enriched.start
-                      _ <- fiberDef.complete(fiber)
-                      _ <- join.complete(fiber.join)
-                    } yield ()
-                  }
+                    fiber <- enriched.start
+                    _ <- fiberDef.complete(fiber)
+                    _ <- join.complete(fiber.join)
+                  } yield ()
               }
             } yield ()
           }
