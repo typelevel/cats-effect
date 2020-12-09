@@ -28,17 +28,17 @@ import scala.concurrent.duration._
 
 class SemaphoreSpec extends BaseSpec { outer =>
 
-  "Semaphore" should {
-    tests(n => Semaphore[IO](n))
-  }
+  // "Semaphore" should {
+  //   tests(n => Semaphore[IO](n))
+  // }
 
   "New Semaphore" should {
     tests(n => Semaphore.applyNew[IO](n))
   }
 
-  "Semaphore with dual constructors" should {
-    tests(n => Semaphore.in[IO, IO](n))
-  }
+  // "Semaphore with dual constructors" should {
+  //   tests(n => Semaphore.in[IO, IO](n))
+  // }
 
   // "MapK'd semaphore should" {
   //   tests("async mapK", n => Semaphore[IO](n).map(_.mapK[IO](FunctionK.id))) // TODO
@@ -140,7 +140,8 @@ class SemaphoreSpec extends BaseSpec { outer =>
     def withLock[T](n: Long, s: Semaphore[IO], check: IO[T]): IO[(Long, T)] =
       s.acquireN(n).background.surround {
         //w/o cs.shift this hangs for coreJS
-        s.count.iterateUntil(_ < 0).flatMap(t => check.tupleLeft(t))
+        s.count// .flatTap(x => IO.println(s"count is $x"))
+          .iterateUntil(_ < 0).flatMap(t => check.tupleLeft(t))
       }
 
     "available with no available permits" in real {
@@ -210,13 +211,36 @@ class SemaphoreSpec extends BaseSpec { outer =>
       val op = sc(0)
         .flatMap { s =>
           (
-           permits.parTraverse(s.acquireN).void,
-           permits.reverse.parTraverse(s.releaseN).void
-          ).parTupled *> s.count
-        }
+           permits.parTraverse(n => IO.println(s"pre-acq $n") >> s.acquireN(n)).void,
+           permits.reverse.parTraverse(n => IO.println(s"preRel $n") >> s.releaseN(n)).void
+          ).parTupled *> IO.println("done") *> s.count
+        }.timeout(5.seconds)
 
       op.mustEqual(0L)
     }
+
+//    "repro" in real {
+    //   preRel 3
+    //   preRel 2
+    //   preRel 1
+    //   pre-acq 0
+    //   preRel 0
+    //   preRel 20
+    //   pre-acq 4
+    //   pre-acq 20
+    //   pre-acq 2
+    //   preRel 0
+    //   pre-acq 0
+    //   pre-acq 1
+    //   pre-acq 1
+    //   preRel 1
+    //   preRel 5
+    //   preRel 1
+    //   pre-acq 5
+    //   preRel 4
+    //   pre-acq 1
+    //   pre-acq 3
+    //}
 
     "available with available permits" in real {
       val op = sc(20).flatMap { s =>

@@ -119,6 +119,7 @@ object Semaphore {
 
   def applyNew[F[_]](n: Long)(implicit F: GenConcurrent[F, _]): F[Semaphore[F]] = {
     import scala.collection.immutable.{Queue => Q}
+    requireNonNegative(n)
 
     case class Request(n: Long, gate: Deferred[F, Unit]) {
       // the number of permits can change if the request is partially fulfilled
@@ -155,7 +156,7 @@ object Semaphore {
                   else {
                     val diff = permits - n
                     if (diff >= 0) State(diff, Q()) -> Done
-                    else State(0, req.of(diff).pure[Q]) -> Wait
+                    else State(0, req.of(diff.abs).pure[Q]) -> Wait
                   }
 
                 val cleanup = state.modify {
@@ -211,9 +212,9 @@ object Semaphore {
         def available: F[Long] = state.get.map(_.permits)
 
         def count: F[Long] = state.get.map {
-          case State(permits, waiting) =>
-            if (waiting.nonEmpty) permits
-            else -waiting.foldMap(_.n)
+          case s @ State(permits, waiting) =>
+            if (waiting.nonEmpty) -waiting.foldMap(_.n)
+            else permits
         }
 
         def permit: Resource[F, Unit] =
