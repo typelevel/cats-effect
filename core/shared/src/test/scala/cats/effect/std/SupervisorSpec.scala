@@ -39,6 +39,20 @@ class SupervisorSpec extends BaseSpec {
 
       test must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
+
+    "raise an error if starting a fiber after supervisor exits" in real {
+      val test = for {
+        // never do this...
+        supervisorDef <- Deferred[IO, Supervisor[IO]]
+        _ <- Supervisor[IO].use { supervisor =>
+          supervisorDef.complete(supervisor)
+        }
+        supervisor <- supervisorDef.get
+        _ <- supervisor.supervise(IO.pure(1))
+      } yield ()
+
+      test.mustFailWith[IllegalStateException]
+    }
   }
 
 }
