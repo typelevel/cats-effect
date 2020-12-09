@@ -210,9 +210,19 @@ object Semaphore {
         }.flatten
       }
 
-        def available: F[Long] = 0L.pure[F]
-        def count: F[Long] = 0L.pure[F]
-        def permit: Resource[F, Unit] = Resource.eval(F.unit)
+        def available: F[Long] = state.get.map(_.permits)
+
+        def count: F[Long] = state.get.map {
+          case State(permits, waiting) =>
+            if (waiting.nonEmpty) permits
+            else -waiting.foldMap(_.n)
+        }
+
+        def permit: Resource[F, Unit] =
+          Resource.makeFull { (poll: Poll[F]) =>
+            poll(acquire)
+          }{_ => release}
+
         def tryAcquireN(n: Long): F[Boolean] = false.pure[F]
       }
     }
