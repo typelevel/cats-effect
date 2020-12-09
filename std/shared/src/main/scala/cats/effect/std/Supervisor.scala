@@ -21,14 +21,17 @@ import cats.effect.kernel.implicits._
 import cats.syntax.all._
 import scala.collection.immutable.LongMap
 
-trait Supervisor[F[_], E] {
-  def supervise[A](fa: F[A]): F[F[Outcome[F, E, A]]]
+trait Supervisor[F[_]] {
+  def supervise[A](fa: F[A]): F[F[Outcome[F, Throwable, A]]]
 }
 
 object Supervisor {
-  def apply[F[_], E](implicit F: GenConcurrent[F, E]): Resource[F, Supervisor[F, E]] = {
+  def apply[F[_]](implicit F: Async[F]): Resource[F, Supervisor[F]] = {
     final case class State(unblock: Deferred[F, Unit], registrations: List[Registration[_]])
-    final case class Registration[A](token: Long, action: F[A], join: Deferred[F, F[Outcome[F, E, A]]])
+    final case class Registration[A](
+        token: Long,
+        action: F[A],
+        join: Deferred[F, F[Outcome[F, Throwable, A]]])
 
     def newState: F[State] =
       F.deferred[Unit].map { unblock => State(unblock, List()) }
@@ -38,7 +41,7 @@ object Supervisor {
       // TODO: Queue may be more appropriate but need to add takeAll that blocks on empty
       stateRef <- Resource.liftF(F.ref[State](initial))
       counterRef <- Resource.liftF(F.ref[Long](0))
-      activeRef <- Resource.make(F.ref(LongMap[Fiber[F, E, _]]())) { ref =>
+      activeRef <- Resource.make(F.ref(LongMap[Fiber[F, Throwable, _]]())) { ref =>
         ref.get.flatMap { fibers => fibers.values.toList.parTraverse_(_.cancel) }
       }
       aliveRef <- Resource.make(F.ref(true)) { ref =>
@@ -62,12 +65,17 @@ object Supervisor {
               state <- stateRef.getAndSet(nextState)
 
               completedRef <- F.ref[Set[Long]](Set())
-              started <- state.registrations.traverse[F, (Long, Fiber[F, E, _])] {
+              started <- state.registrations.traverse[F, (Long, Fiber[F, Throwable, _])] {
                 case reg: Registration[i] =>
                   for {
-                    fiber <- reg.action.guarantee(completedRef.update(_ + reg.token) >> activeRef.update(_.removed(reg.token))).start
+                    fiber <-
+                      reg
+                        .action
+                        .guarantee(
+                          completedRef.update(_ + reg.token) >> activeRef.update(_ - reg.token))
+                        .start
                     _ <- reg.join.complete(fiber.join)
-                  } yield (reg.token -> fiber)
+                  } yield reg.token -> fiber
               }
 
               _ <- activeRef.update(_ ++ started)
@@ -80,20 +88,16 @@ object Supervisor {
 
       _ <- F.background(supervisor.foreverM[Unit])
     } yield {
-      new Supervisor[F, E] {
-        override def supervise[A](fa: F[A]): F[F[Outcome[F, E, A]]] =
+      new Supervisor[F] {
+        override def supervise[A](fa: F[A]): F[F[Outcome[F, Throwable, A]]] =
           for {
             alive <- aliveRef.get
-            _ <- if (alive) {
-              F.unit
-            } else {
-              // TODO: Should we just Async?
-              // F.raiseError(???)
-              throw new IllegalStateException("supervisor has shutdown")
-            }
+            _ <-
+              if (alive) F.unit
+              else F.raiseError(new IllegalStateException("supervisor has shutdown"))
 
             token <- counterRef.updateAndGet(_ + 1)
-            joinDef <- Deferred[F, F[Outcome[F, E, A]]]
+            joinDef <- Deferred[F, F[Outcome[F, Throwable, A]]]
             reg = Registration(token, fa, joinDef)
 
             _ <- stateRef.modify {
