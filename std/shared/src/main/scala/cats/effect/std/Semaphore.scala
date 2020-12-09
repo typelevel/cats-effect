@@ -21,7 +21,7 @@ package std
 import cats.effect.kernel._
 // import cats.effect.std.Semaphore.TransformedSemaphore TODO
 import cats.syntax.all._
-
+import cats.effect.kernel.syntax.all._
 import scala.collection.immutable.{Queue => ScalaQueue}
 
 /**
@@ -117,6 +117,106 @@ object Semaphore {
     F.ref[State[F]](Right(n)).map(stateRef => new AsyncSemaphore[F](stateRef))
   }
 
+  def applyNew[F[_]](n: Long)(implicit F: GenConcurrent[F, _]): F[Semaphore[F]] = {
+    import scala.collection.immutable.{Queue => Q}
+
+    case class Request(n: Long, gate: Deferred[F, Unit]) {
+      // the number of permits can change if the request is partially fulfilled
+      def sameAs(r: Request) = r.gate eq gate
+      def of(newN: Long) = Request(newN, gate)
+      def wait_ = gate.get
+      def complete = gate.complete(())
+    }
+    object Request {
+      def mk = F.deferred[Unit].map(Request(0, _))
+    }
+    /*
+     * Invariant:
+     *    (waiting.empty && permits >= 0) || (permits.nonEmpty && permits == 0)
+     */
+    case class State(permits: Long, waiters: Q[Request])
+
+    sealed trait Action
+    case object Wait extends Action
+    case object Done extends Action
+
+    F.ref(State(n, Q())).map { state =>
+      new Semaphore[F] {
+              def acquireN(n: Long): F[Unit] = {
+        requireNonNegative(n)
+
+        if(n == 0) F.unit
+        else F.uncancelable { poll =>
+          Request.mk.flatMap { req =>
+            state.modify {
+              case State(permits, waiters) =>
+                val (newState, decision) =
+                  if (waiters.nonEmpty) State(0, waiters :+ req.of(n)) -> Wait
+                  else {
+                    val diff = permits - n
+                    if (diff >= 0) State(diff, Q()) -> Done
+                    else State(0, req.of(diff).pure[Q]) -> Wait
+                  }
+
+                val cleanup = state.modify {
+                  case State(permits, waiters) =>
+                    // both hold correctly even if the Request gets canceled
+                    // after having been fulfilled
+                    val permitsAcquiredSoFar = n - waiters.find(_ sameAs req).foldMap(_.n)
+                    val newWaiters = waiters.filterNot(_ sameAs req)
+
+                    // releaseN is commutative, so it doesn't matter that it accesses the Ref again
+                    State(permits, newWaiters) -> releaseN(permitsAcquiredSoFar)
+                  }.flatten
+
+                val action = decision match {
+                  case Done => F.unit
+                  case Wait => poll(req.wait_).onCancel(cleanup)
+                }
+
+                newState -> action
+            }.flatten
+          }
+        }
+      }
+
+      def releaseN(n: Long): F[Unit] = {
+        requireNonNegative(n)
+
+        if (n == 0) F.unit
+        else state.modify {
+          case State(permits, waiting) =>
+            if (waiting.isEmpty) State(permits + n, waiting) -> F.unit
+            else {
+
+              def fulfil(n: Long, requests: Q[Request], wakeup: Q[Request]): (Long, Q[Request], Q[Request]) = {
+                val (req, tail) = requests.dequeue
+                if (n < req.n) // partially fulfil one request
+                  (0, req.of(req.n - n) +: tail, Q())
+                else { // fulfil as many requests as `n` allows
+                  val newN = n - req.n
+                  val newWakeup = wakeup.enqueue(req)
+
+                  if (tail.isEmpty || newN == 0) (newN, tail, newWakeup)
+                  else fulfil(newN, tail, newWakeup)
+                }
+
+              }
+
+              val (newN, waitingNow, wakeup) = fulfil(n, waiting, Q())
+
+              State(newN, waitingNow) -> wakeup.traverse_(_.complete)
+            }
+        }.flatten
+      }
+
+        def available: F[Long] = 0L.pure[F]
+        def count: F[Long] = 0L.pure[F]
+        def permit: Resource[F, Unit] = Resource.eval(F.unit)
+        def tryAcquireN(n: Long): F[Boolean] = false.pure[F]
+      }
+    }
+  }
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
    * like `apply` but initializes state using another effect constructor
@@ -180,6 +280,9 @@ object Semaphore {
                     waiting.find(_.gate eq gate).map(_.n) match {
                       case None => (Left(waiting), releaseN(n))
                       case Some(m) =>
+                        // releaseN can modify this to indicate partial fullfilment
+                        // which is why the filter is on the gate, and releaseN needs
+                        // to subtract
                         (Left(waiting.filterNot(_.gate eq gate)), releaseN(n - m))
                     }
                   case Right(m) => (Right(m + n), F.unit)

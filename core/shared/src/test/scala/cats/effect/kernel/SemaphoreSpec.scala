@@ -32,6 +32,10 @@ class SemaphoreSpec extends BaseSpec { outer =>
     tests(n => Semaphore[IO](n))
   }
 
+  "New Semaphore" should {
+    tests(n => Semaphore.applyNew[IO](n))
+  }
+
   "Semaphore with dual constructors" should {
     tests(n => Semaphore.in[IO, IO](n))
   }
