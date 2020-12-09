@@ -19,6 +19,7 @@ package cats.effect.std
 import cats.effect.kernel._
 import cats.effect.kernel.implicits._
 import cats.syntax.all._
+import scala.collection.immutable.LongMap
 
 trait Supervisor[F[_], E] {
   def supervise[A](fa: F[A]): F[F[Outcome[F, E, A]]]
@@ -27,7 +28,7 @@ trait Supervisor[F[_], E] {
 object Supervisor {
   def apply[F[_], E](implicit F: GenConcurrent[F, E]): Resource[F, Supervisor[F, E]] = {
     final case class State(unblock: Deferred[F, Unit], registrations: List[Registration[_]])
-    final case class Registration[A](action: F[A], join: Deferred[F, F[Outcome[F, E, A]]])
+    final case class Registration[A](token: Long, action: F[A], join: Deferred[F, F[Outcome[F, E, A]]])
 
     def newState: F[State] =
       F.deferred[Unit].map { unblock => State(unblock, List()) }
@@ -36,8 +37,9 @@ object Supervisor {
       initial <- Resource.liftF(newState)
       // TODO: Queue may be more appropriate but need to add takeAll that blocks on empty
       stateRef <- Resource.liftF(F.ref[State](initial))
-      activeRef <- Resource.make(F.ref(Set[Fiber[F, E, _]]())) { ref =>
-        ref.get.flatMap { fibers => fibers.toList.parTraverse_(_.cancel) }
+      counterRef <- Resource.liftF(F.ref[Long](0))
+      activeRef <- Resource.make(F.ref(LongMap[Fiber[F, E, _]]())) { ref =>
+        ref.get.flatMap { fibers => fibers.values.toList.parTraverse_(_.cancel) }
       }
       aliveRef <- Resource.make(F.ref(true)) { ref =>
         for {
@@ -58,20 +60,19 @@ object Supervisor {
             for {
               nextState <- newState
               state <- stateRef.getAndSet(nextState)
-              _ <- state.registrations.traverse_ {
+
+              completedRef <- F.ref[Set[Long]](Set())
+              started <- state.registrations.traverse[F, (Long, Fiber[F, E, _])] {
                 case reg: Registration[i] =>
-                  // TODO: more performance with long tokens
                   for {
-                    fiberDef <- F.deferred[Fiber[F, E, i]]
-                    enriched = fiberDef.get.flatMap { fiber =>
-                      activeRef
-                        .update(_ + fiber) >> reg.action.guarantee(activeRef.update(_ - fiber))
-                    }
-                    fiber <- enriched.start
-                    _ <- fiberDef.complete(fiber)
+                    fiber <- reg.action.guarantee(completedRef.update(_ + reg.token) >> activeRef.update(_.removed(reg.token))).start
                     _ <- reg.join.complete(fiber.join)
-                  } yield ()
+                  } yield (reg.token -> fiber)
               }
+
+              _ <- activeRef.update(_ ++ started)
+              completed <- completedRef.get
+              _ <- activeRef.update(_ -- completed)
             } yield ()
           }
         }
@@ -81,21 +82,26 @@ object Supervisor {
     } yield {
       new Supervisor[F, E] {
         override def supervise[A](fa: F[A]): F[F[Outcome[F, E, A]]] =
-          aliveRef.get.flatMap { alive =>
-            if (alive) {
-              Deferred[F, F[Outcome[F, E, A]]].flatMap { join =>
-                val reg = Registration(fa, join)
-                stateRef.modify {
-                  case state @ State(unblock, regs) =>
-                    (state.copy(registrations = reg :: regs), unblock.complete(()).void)
-                }.flatten >> join.get
-              }
+          for {
+            alive <- aliveRef.get
+            _ <- if (alive) {
+              F.unit
             } else {
               // TODO: Should we just Async?
               // F.raiseError(???)
               throw new IllegalStateException("supervisor has shutdown")
             }
-          }
+
+            token <- counterRef.updateAndGet(_ + 1)
+            joinDef <- Deferred[F, F[Outcome[F, E, A]]]
+            reg = Registration(token, fa, joinDef)
+
+            _ <- stateRef.modify {
+              case state @ State(unblock, regs) =>
+                (state.copy(registrations = reg :: regs), unblock.complete(()).void)
+            }.flatten
+            join <- joinDef.get
+          } yield join
       }
     }
   }
