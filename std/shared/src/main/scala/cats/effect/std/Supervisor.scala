@@ -21,11 +21,39 @@ import cats.effect.kernel.implicits._
 import cats.syntax.all._
 import scala.collection.immutable.LongMap
 
+/**
+ * A safe, fiber-based supervisor that monitors the lifecycle of all fibers
+ * that are started via its interface. The supervisor is managed by a singular
+ * fiber which is responsible for starting fibers.
+ *
+ * Whereas [[GenSpawn.background]] links the lifecycle of the spawned fiber to
+ * the calling fiber, starting a fiber via a [[Supervisor]] will link the
+ * lifecycle of the spawned fiber to the supervisor fiber. This is useful when
+ * the scope of some fiber must survive the spawner, but should still be
+ * confined within some scope to prevent leaks.
+ *
+ * The fibers started via the supervisor are guaranteed to be terminated when
+ * the supervisor fiber is terminated. When a supervisor fiber is canceled, all
+ * active and queued fibers will be safely finalized before finalization of
+ * the supervisor is complete.
+ */
 trait Supervisor[F[_]] {
+
+  /**
+   * Starts the supplied effect `fa` on the supervisor.
+   *
+   * @return an effect that can be used to wait on the outcome of the fiber,
+   * consistent with [[Fiber.join]].
+   */
   def supervise[A](fa: F[A]): F[F[Outcome[F, Throwable, A]]]
 }
 
 object Supervisor {
+
+  /**
+   * Creates a [[Resource]] scope within which fibers can be monitored. When
+   * this scope exits, all supervised fibers will be finalized.
+   */
   def apply[F[_]](implicit F: Async[F]): Resource[F, Supervisor[F]] = {
     final case class State(unblock: Deferred[F, Unit], registrations: List[Registration[_]])
     final case class Registration[A](
