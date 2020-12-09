@@ -134,7 +134,7 @@ object Semaphore {
      * Invariant:
      *    (waiting.empty && permits >= 0) || (permits.nonEmpty && permits == 0)
      */
-    case class State(permits: Long, waiters: Q[Request])
+    case class State(permits: Long, waiting: Q[Request])
 
     sealed trait Action
     case object Wait extends Action
@@ -149,9 +149,9 @@ object Semaphore {
         else F.uncancelable { poll =>
           Request.mk.flatMap { req =>
             state.modify {
-              case State(permits, waiters) =>
+              case State(permits, waiting) =>
                 val (newState, decision) =
-                  if (waiters.nonEmpty) State(0, waiters :+ req.of(n)) -> Wait
+                  if (waiting.nonEmpty) State(0, waiting :+ req.of(n)) -> Wait
                   else {
                     val diff = permits - n
                     if (diff >= 0) State(diff, Q()) -> Done
@@ -159,14 +159,14 @@ object Semaphore {
                   }
 
                 val cleanup = state.modify {
-                  case State(permits, waiters) =>
+                  case State(permits, waiting) =>
                     // both hold correctly even if the Request gets canceled
                     // after having been fulfilled
-                    val permitsAcquiredSoFar = n - waiters.find(_ sameAs req).foldMap(_.n)
-                    val newWaiters = waiters.filterNot(_ sameAs req)
+                    val permitsAcquiredSoFar = n - waiting.find(_ sameAs req).foldMap(_.n)
+                    val waitingNow = waiting.filterNot(_ sameAs req)
 
                     // releaseN is commutative, so it doesn't matter that it accesses the Ref again
-                    State(permits, newWaiters) -> releaseN(permitsAcquiredSoFar)
+                    State(permits, waitingNow) -> releaseN(permitsAcquiredSoFar)
                   }.flatten
 
                 val action = decision match {
@@ -188,7 +188,6 @@ object Semaphore {
           case State(permits, waiting) =>
             if (waiting.isEmpty) State(permits + n, waiting) -> F.unit
             else {
-
               def fulfil(n: Long, requests: Q[Request], wakeup: Q[Request]): (Long, Q[Request], Q[Request]) = {
                 val (req, tail) = requests.dequeue
                 if (n < req.n) // partially fulfil one request
@@ -204,7 +203,6 @@ object Semaphore {
               }
 
               val (newN, waitingNow, wakeup) = fulfil(n, waiting, Q())
-
               State(newN, waitingNow) -> wakeup.traverse_(_.complete)
             }
         }.flatten
@@ -223,7 +221,15 @@ object Semaphore {
             poll(acquire)
           }{_ => release}
 
-        def tryAcquireN(n: Long): F[Boolean] = false.pure[F]
+        def tryAcquireN(n: Long): F[Boolean] = {
+          requireNonNegative(n)
+          if (n == 0) F.pure(true)
+          else state.modify {
+            case s @ State(permits, waiting) =>
+              if (waiting.nonEmpty || permits < n) s -> false
+              else State(permits - n, waiting) -> true
+          }
+        }
       }
     }
   }
