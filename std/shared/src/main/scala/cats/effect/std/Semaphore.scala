@@ -251,7 +251,9 @@ object Semaphore {
       }
 
     val permit: Resource[F, Unit] =
-      Resource.make(acquireNInternal(1))(_.release).evalMap(_.await)
+      Resource.makeFull { (poll: Poll[F]) =>
+        acquireNInternal(1).flatTap(x => poll(x.await))
+      }{ _.release }.void
   }
 
   final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(

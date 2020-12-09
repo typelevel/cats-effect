@@ -527,7 +527,32 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * @param acquire an effect to acquire a resource, possibly interruptibly
    * @param release a function to effectfully release the resource returned by `acquire`
    */
-  def makeFull[F[_], A](acquire: Poll[F] => F[A])(release: (A, ExitCase) => F[Unit])(
+  def makeFull[F[_], A](acquire: Poll[F] => F[A])(release: A => F[Unit])(
+    implicit F: Functor[F]): Resource[F, A] =
+    applyFull[F, A](poll => acquire(poll).map(a => (a, _ => release(a))))
+
+  /**
+   * Creates a resource from an acquiring effect and a release
+   * function that can discriminate between different [[ExitCase exit
+   * cases]].
+   *
+   * The acquiring effect takes a `Poll[F]` to allow for interruptible
+   * acquires, which is most often useful when acquiring lock-like
+   * structures: it should be possible to interrupt a fiber waiting on
+   * a lock, but if it does get acquired, release need to be
+   * guaranteed.
+   *
+   * Note that in this case the acquire action should know how to cleanup
+   * after itself in case it gets canceled, since Resource will only
+   * guarantee release when acquire succeeds and fails (and when the
+   * actions in `use` or `flatMap` fail, succeed, or get canceled)
+   *
+   * @tparam F the effect type in which the resource is acquired and released
+   * @tparam A the type of the resource
+   * @param acquire an effect to acquire a resource, possibly interruptibly
+   * @param release a function to effectfully release the resource returned by `acquire`
+   */
+  def makeCaseFull[F[_], A](acquire: Poll[F] => F[A])(release: (A, ExitCase) => F[Unit])(
     implicit F: Functor[F]): Resource[F, A] =
     applyFull[F, A](poll => acquire(poll).map(a => (a, e => release(a, e))))
 
