@@ -198,6 +198,12 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    */
   def uncancelable[A](body: Poll[F] => F[A]): F[A]
 
+  /*
+   * Masks cancellation on the current fiber. A convenience method for when
+   * we don't want to unmask at any point within `body`
+   */
+  def uncancelable_[A](body: F[A]): F[A] = uncancelable(_ => body)
+
   /**
    * An effect that requests self-cancellation on the current fiber.
    *
