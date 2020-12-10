@@ -256,8 +256,7 @@ sealed abstract class Resource[F[_], +A] {
   )(implicit F: MonadCancelThrow[F], G: MonadCancelThrow[G]): Resource[G, A] =
     this match {
       case Allocate(resource) =>
-        // TODO replace with applyFull
-        Allocate[G, A] { (gpoll: Poll[G]) =>
+        Resource.applyFull { (gpoll: Poll[G]) =>
             gpoll {
               f {
                 F.uncancelable { (fpoll: Poll[F]) =>
@@ -441,7 +440,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    *        an effectful function to release it
    */
   def applyCase[F[_], A](resource: F[(A, ExitCase => F[Unit])]): Resource[F, A] =
-    Allocate((_: Poll[F]) => resource)
+    applyFull(_ => resource)
 
   /**
    * Creates a resource from an allocating effect, with a finalizer
@@ -791,8 +790,7 @@ abstract private[effect] class ResourceMonadError[F[_], E]
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
     fa match {
       case Allocate(resource) =>
-        // TODO replace with applyFull
-        Allocate { (poll: Poll[F]) =>
+       Resource.applyFull { poll =>
           resource(poll).attempt.map {
             case Left(error) => (Left(error), (_: ExitCase) => F.unit)
             case Right((a, release)) => (Right(a), release)
