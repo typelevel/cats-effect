@@ -386,11 +386,6 @@ sealed abstract class Resource[F[_], +A] {
   def evalTap[B](f: A => F[B]): Resource[F, A] =
     this.flatMap(a => Resource.eval(f(a)).map(_ => a))
 
-  // /**
-  //  * Widens the effect type of this resource.
-  //  */
-  // def covary[F[x] >: F[x]]: Resource[F, A] = this
-
   /**
    * Acquires the resource, runs `gb` and closes the resource once `gb` terminates, fails or gets interrupted
    */
