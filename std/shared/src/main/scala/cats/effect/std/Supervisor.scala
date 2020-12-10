@@ -77,8 +77,8 @@ object Supervisor {
           _ <- ref.set(false)
           state <- stateRef.get
           // report canceled back for effects that weren't started
-          _ <- state.registrations.parTraverse_ {
-            case reg => reg.joinDef.complete(F.pure(Outcome.canceled))
+          _ <- state.registrations.parTraverse_ { reg =>
+            reg.joinDef.complete(F.pure(Outcome.canceled))
           }
         } yield ()
       }
