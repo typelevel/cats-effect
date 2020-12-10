@@ -62,6 +62,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       closed must beTrue
     }
 
+
     "eval" in ticked { implicit ticker =>
       forAll { (fa: IO[String]) => Resource.eval(fa).use(IO.pure) eqv fa }
     }
@@ -113,6 +114,37 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       case object Foo extends Exception
 
       Resource.eval(IO(0)).evalTap(_ => IO.raiseError(Foo)).void.use(IO.pure) must failAs(Foo)
+    }
+
+    "allocated releases resources in reverse order of acquisition" in ticked { implicit ticker =>
+      forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
+        var released: List[Int] = Nil
+        val r = as.traverse {
+          case (a, e) =>
+            Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+        }
+        r.allocated.flatMap(_._2).attempt.void must completeAs(())
+        released mustEqual as.map(_._1)
+      }
+    }
+
+    "allocated does not release until close is invoked" in ticked { implicit ticker =>
+      val released = new java.util.concurrent.atomic.AtomicBoolean(false)
+      val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
+      val resource = Resource.eval(IO.unit)
+
+      // do not inline: it confuses Dotty
+      val ioa = (release *> resource).allocated
+
+      val prog = for {
+        res <- ioa
+        (_, close) = res
+        _ <- IO(released.get() must beFalse)
+        _ <- close
+        _ <- IO(released.get() must beTrue)
+      } yield ()
+
+      prog must completeAs(())
     }
 
     "mapK" in ticked { implicit ticker =>
@@ -185,18 +217,37 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       }
     }
 
-    "allocated releases resources in reverse order of acquisition" in ticked { implicit ticker =>
-      forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
-        var released: List[Int] = Nil
-        val r = as.traverse {
-          case (a, e) =>
-            Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
-        }
-        r.allocated.flatMap(_._2).attempt.void must completeAs(())
-        released mustEqual as.map(_._1)
-      }
-    }
+    "allocated does not release until close is invoked on mapK'd Resources" in ticked {
+      implicit ticker =>
+        val released = new java.util.concurrent.atomic.AtomicBoolean(false)
 
+        val runWithTwo = new ~>[Kleisli[IO, Int, *], IO] {
+          override def apply[A](fa: Kleisli[IO, Int, A]): IO[A] = fa(2)
+        }
+        val takeAnInteger = new ~>[IO, Kleisli[IO, Int, *]] {
+          override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli.liftF(fa)
+        }
+        val plusOne = Kleisli { (i: Int) => IO(i + 1) }
+        val plusOneResource = Resource.eval(plusOne)
+
+        val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
+        val resource = Resource.eval(IO.unit)
+
+        // do not inline: it confuses Dotty
+        val ioa = ((release *> resource).mapK(takeAnInteger) *> plusOneResource)
+          .mapK(runWithTwo)
+          .allocated
+
+        val prog = for {
+          res <- ioa
+          (_, close) = res
+          _ <- IO(released.get() must beFalse)
+          _ <- close
+          _ <- IO(released.get() must beTrue)
+        } yield ()
+
+        prog must completeAs(())
+    }
 
     "use is stack-safe over binds" in ticked { implicit ticker =>
       val r = (1 to 10000)
@@ -235,56 +286,6 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       r eqv IO.unit
     }
 
-    "allocated does not release until close is invoked" in ticked { implicit ticker =>
-      val released = new java.util.concurrent.atomic.AtomicBoolean(false)
-      val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
-      val resource = Resource.eval(IO.unit)
-
-      // do not inline: it confuses Dotty
-      val ioa = (release *> resource).allocated
-
-      val prog = for {
-        res <- ioa
-        (_, close) = res
-        _ <- IO(released.get() must beFalse)
-        _ <- close
-        _ <- IO(released.get() must beTrue)
-      } yield ()
-
-      prog must completeAs(())
-    }
-
-    "allocated does not release until close is invoked on mapK'd Resources" in ticked {
-      implicit ticker =>
-        val released = new java.util.concurrent.atomic.AtomicBoolean(false)
-
-        val runWithTwo = new ~>[Kleisli[IO, Int, *], IO] {
-          override def apply[A](fa: Kleisli[IO, Int, A]): IO[A] = fa(2)
-        }
-        val takeAnInteger = new ~>[IO, Kleisli[IO, Int, *]] {
-          override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli.liftF(fa)
-        }
-        val plusOne = Kleisli { (i: Int) => IO(i + 1) }
-        val plusOneResource = Resource.eval(plusOne)
-
-        val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
-        val resource = Resource.eval(IO.unit)
-
-        // do not inline: it confuses Dotty
-        val ioa = ((release *> resource).mapK(takeAnInteger) *> plusOneResource)
-          .mapK(runWithTwo)
-          .allocated
-
-        val prog = for {
-          res <- ioa
-          (_, close) = res
-          _ <- IO(released.get() must beFalse)
-          _ <- close
-          _ <- IO(released.get() must beTrue)
-        } yield ()
-
-        prog must completeAs(())
-    }
 
     "safe attempt suspended resource" in ticked { implicit ticker =>
       val exception = new Exception("boom!")
