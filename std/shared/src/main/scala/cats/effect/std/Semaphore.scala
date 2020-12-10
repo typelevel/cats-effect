@@ -222,7 +222,7 @@ object Semaphore {
       def available: F[Long] = state.get.map(_.permits)
 
       def count: F[Long] = state.get.map {
-        case s @ State(permits, waiting) =>
+        case State(permits, waiting) =>
           if (waiting.nonEmpty) -waiting.foldMap(_.n)
           else permits
       }
@@ -243,7 +243,6 @@ object Semaphore {
       }
     }
   }
-
 
 
   // TODO

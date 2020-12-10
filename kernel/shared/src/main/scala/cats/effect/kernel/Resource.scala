@@ -569,7 +569,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    *
    * @param fa the value to lift into a resource
    */
-  @deprecated("please use `eval` instead.")
+  @deprecated("please use `eval` instead.", since = "3.0")
   def liftF[F[_], A](fa: F[A]): Resource[F, A] =
     Resource.Eval(fa)
 

@@ -235,7 +235,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       r eqv IO.unit
     }
 
-    "allocate does not release until close is invoked" in ticked { implicit ticker =>
+    "allocated does not release until close is invoked" in ticked { implicit ticker =>
       val released = new java.util.concurrent.atomic.AtomicBoolean(false)
       val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
       val resource = Resource.eval(IO.unit)
@@ -254,7 +254,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       prog must completeAs(())
     }
 
-    "allocate does not release until close is invoked on mapK'd Resources" in ticked {
+    "allocated does not release until close is invoked on mapK'd Resources" in ticked {
       implicit ticker =>
         val released = new java.util.concurrent.atomic.AtomicBoolean(false)
 
