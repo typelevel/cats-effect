@@ -223,13 +223,27 @@ class SemaphoreSpec extends BaseSpec { outer =>
       // reproducible even with Vector(3), n = 1000000
       // but Vector(2, 3) n = 100 is way faster
       val permits: Vector[Long] = Vector(2, 3)
-      val op = sc(0)
-        .flatMap { s =>
+
+      val op = IO.ref(Vector.empty[String]).flatMap { out =>
+        sc(0)
+          .flatMap { s =>
+
+            def p(s: String) = out.update(_ :+ s)
+            def a(n: Long) =
+              p(s"Acquiring $n") >> s.acquireN(n) >> p(s"Acquired $n")
+
+            def r(n: Long) =
+              p(s"Releasing $n") >> s.releaseN(n) >> p(s"released $n")
+
+
           (
-            permits.parTraverse(n => s.acquireN(n)).void,
-            permits.reverse.parTraverse(n => s.releaseN(n)).void
-          ).parTupled *> s.count // IO.println("done") *> s.count
-        }.timeout(5.seconds)
+            permits.parTraverse(a),
+            permits.reverse.parTraverse(r)
+          ).parTupled *> s.count <* IO.println("done")
+          }.timeout(5.seconds).onError {
+            case e => out.get.map(_.mkString("\n")).flatMap(IO.println)
+          }
+      }
 
       val n = 100
 
