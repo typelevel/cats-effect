@@ -192,7 +192,7 @@ object Semaphore {
               def fulfil(n: Long, requests: Q[Request], wakeup: Q[Request]): (Long, Q[Request], Q[Request]) = {
                 val (req, tail) = requests.dequeue
                 if (n < req.n) // partially fulfil one request
-                  (0, req.of(req.n - n) +: tail, Q())
+                  (0, req.of(req.n - n) +: tail, wakeup)
                 else { // fulfil as many requests as `n` allows
                   val newN = n - req.n
                   val newWakeup = wakeup.enqueue(req)

@@ -211,17 +211,21 @@ class SemaphoreSpec extends BaseSpec { outer =>
       val op = sc(0)
         .flatMap { s =>
           (
-           permits.parTraverse(n => IO.println(s"pre acquire $n") >> s.acquireN(n) >> IO.println(s"acquired $n")).void,
-           permits.reverse.parTraverse(n => IO.println(s"pre release $n") >> s.releaseN(n) >> IO.println(s"released $n")).void
-          ).parTupled *> IO.println("done") *> s.count
+           permits.parTraverse(n => // IO.println(s"pre acquire $n") >>
+             s.acquireN(n) // >> IO.println(s"acquired $n")
+           ).void,
+           permits.reverse.parTraverse(n => // IO.println(s"pre release $n") >>
+             s.releaseN(n) // >> IO.println(s"released $n")
+           ).void
+          ).parTupled // *> IO.println("done")
+          *> s.count
         }.timeout(5.seconds)
 
       op.mustEqual(0L)
     }
 
     "repro" in real {
-      // reproducible even with Vector(3), n = 1000000
-      // but Vector(2, 3) n = 100 is way faster
+      //repro: Vector(2, 3) n = 100
       val permits: Vector[Long] = Vector(2, 3)
 
       val op = IO.ref(Vector.empty[String]).flatMap { out =>
@@ -231,21 +235,19 @@ class SemaphoreSpec extends BaseSpec { outer =>
             def p(s: String) = out.update(_ :+ s)
             def a(n: Long) =
               p(s"Acquiring $n") >> s.acquireN(n) >> p(s"Acquired $n")
-
             def r(n: Long) =
               p(s"Releasing $n") >> s.releaseN(n) >> p(s"released $n")
 
-
-          (
-            permits.parTraverse(a),
-            permits.reverse.parTraverse(r)
-          ).parTupled *> s.count <* IO.println("done")
-          }.timeout(5.seconds).onError {
+            (
+              permits.parTraverse(a),
+              permits.reverse.parTraverse(r)
+            ).parTupled *> s.count// <* IO.println("done")
+          }.timeout(500.millis).onError {
             case e => out.get.map(_.mkString("\n")).flatMap(IO.println)
-          }
+          }//.handleError(_ => 0)
       }
 
-      val n = 100
+      val n = 1000
 
       op
         .replicateA(n)
