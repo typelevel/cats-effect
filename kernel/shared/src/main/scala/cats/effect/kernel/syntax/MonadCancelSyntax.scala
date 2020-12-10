@@ -36,7 +36,7 @@ final class MonadCancelOps[F[_], A, E] private[syntax] (private[syntax] val wrap
     forceR(fb)
 
   def uncancelable(implicit F: MonadCancel[F, E]): F[A] =
-    F.uncancelable(_ => wrapped)
+    F.uncancelable_(wrapped)
 
   def onCancel(fin: F[Unit])(implicit F: MonadCancel[F, E]): F[A] =
     F.onCancel(wrapped, fin)
