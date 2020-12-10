@@ -211,36 +211,34 @@ class SemaphoreSpec extends BaseSpec { outer =>
       val op = sc(0)
         .flatMap { s =>
           (
-           permits.parTraverse(n => IO.println(s"pre-acq $n") >> s.acquireN(n)).void,
-           permits.reverse.parTraverse(n => IO.println(s"preRel $n") >> s.releaseN(n)).void
+           permits.parTraverse(n => IO.println(s"pre acquire $n") >> s.acquireN(n) >> IO.println(s"acquired $n")).void,
+           permits.reverse.parTraverse(n => IO.println(s"pre release $n") >> s.releaseN(n) >> IO.println(s"released $n")).void
           ).parTupled *> IO.println("done") *> s.count
         }.timeout(5.seconds)
 
       op.mustEqual(0L)
     }
 
-//    "repro" in real {
-    //   preRel 3
-    //   preRel 2
-    //   preRel 1
-    //   pre-acq 0
-    //   preRel 0
-    //   preRel 20
-    //   pre-acq 4
-    //   pre-acq 20
-    //   pre-acq 2
-    //   preRel 0
-    //   pre-acq 0
-    //   pre-acq 1
-    //   pre-acq 1
-    //   preRel 1
-    //   preRel 5
-    //   preRel 1
-    //   pre-acq 5
-    //   preRel 4
-    //   pre-acq 1
-    //   pre-acq 3
-    //}
+    "repro" in real {
+      // reproducible even with Vector(3), n = 1000000
+      // but Vector(2, 3) n = 100 is way faster
+      val permits: Vector[Long] = Vector(2, 3)
+      val op = sc(0)
+        .flatMap { s =>
+          (
+            permits.parTraverse(n => s.acquireN(n)).void,
+            permits.reverse.parTraverse(n => s.releaseN(n)).void
+          ).parTupled *> s.count // IO.println("done") *> s.count
+        }.timeout(5.seconds)
+
+      val n = 100
+
+      op
+        .replicateA(n)
+        .map(_.forall(_ == 0L))
+        .mustEqual(true)
+    }
+    
 
     "available with available permits" in real {
       val op = sc(20).flatMap { s =>
