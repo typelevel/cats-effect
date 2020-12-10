@@ -19,7 +19,6 @@ package cats.effect.std
 import cats.effect.kernel._
 import cats.effect.kernel.implicits._
 import cats.syntax.all._
-import scala.collection.immutable.LongMap
 
 /**
  * A safe, fiber-based supervisor that monitors the lifecycle of all fibers
@@ -42,10 +41,9 @@ trait Supervisor[F[_]] {
   /**
    * Starts the supplied effect `fa` on the supervisor.
    *
-   * @return an effect that can be used to wait on the outcome of the fiber,
-   * consistent with [[Fiber.join]].
+   * @return a [[Fiber]] that represents a handle to the started fiber.
    */
-  def supervise[A](fa: F[A]): F[F[Outcome[F, Throwable, A]]]
+  def supervise[A](fa: F[A]): F[Fiber[F, Throwable, A]]
 }
 
 object Supervisor {
@@ -55,84 +53,28 @@ object Supervisor {
    * this scope exits, all supervised fibers will be finalized.
    */
   def apply[F[_]](implicit F: Async[F]): Resource[F, Supervisor[F]] = {
-    final case class State(unblock: Deferred[F, Unit], registrations: List[Registration[_]])
-    final case class Registration[A](
-        token: Long,
-        action: F[A],
-        joinDef: Deferred[F, F[Outcome[F, Throwable, A]]])
-
-    def newState: F[State] =
-      F.deferred[Unit].map { unblock => State(unblock, List()) }
+    class Token
 
     for {
-      initial <- Resource.liftF(newState)
-      // TODO: Queue may be more appropriate but need to add takeAll that blocks on empty
-      stateRef <- Resource.liftF(F.ref[State](initial))
-      counterRef <- Resource.liftF(F.ref[Long](0))
-      activeRef <- Resource.make(F.ref(LongMap[Fiber[F, Throwable, _]]())) { ref =>
-        ref.get.flatMap { fibers => fibers.values.toList.parTraverse_(_.cancel) }
-      }
-      aliveRef <- Resource.make(F.ref(true)) { ref =>
-        for {
-          _ <- ref.set(false)
-          state <- stateRef.get
-          // report canceled back for effects that weren't started
-          _ <- state.registrations.parTraverse_ { reg =>
-            reg.joinDef.complete(F.pure(Outcome.canceled))
+      stateRef <- Resource.make(F.ref[Map[Token, F[Unit]]](Map())) { state =>
+        state
+          .get
+          .flatMap { fibers =>
+            // run all the finalizers
+            fibers.values.toList.parSequence
           }
-        } yield ()
+          .void
       }
-
-      supervisor = F.uncancelable { poll =>
-        stateRef.get.flatMap { st =>
-          if (st.registrations.isEmpty) {
-            poll(st.unblock.get)
-          } else {
-            for {
-              nextState <- newState
-              state <- stateRef.getAndSet(nextState)
-
-              completedRef <- F.ref[Set[Long]](Set())
-              started <- state.registrations.traverse[F, (Long, Fiber[F, Throwable, _])] {
-                case reg: Registration[i] =>
-                  for {
-                    fiber <-
-                      reg
-                        .action
-                        .guarantee(
-                          completedRef.update(_ + reg.token) >> activeRef.update(_ - reg.token))
-                        .start
-                    _ <- reg.joinDef.complete(fiber.join)
-                  } yield reg.token -> fiber
-              }
-
-              _ <- activeRef.update(_ ++ started)
-              completed <- completedRef.get
-              _ <- activeRef.update(_ -- completed)
-            } yield ()
-          }
-        }
-      }
-
-      _ <- F.background(supervisor.foreverM[Unit])
     } yield {
       new Supervisor[F] {
-        override def supervise[A](fa: F[A]): F[F[Outcome[F, Throwable, A]]] =
-          for {
-            alive <- aliveRef.get
-            _ <-
-              if (alive) F.unit
-              else F.raiseError(new IllegalStateException("supervisor has shutdown"))
-
-            token <- counterRef.updateAndGet(_ + 1)
-            joinDef <- Deferred[F, F[Outcome[F, Throwable, A]]]
-            reg = Registration(token, fa, joinDef)
-
-            _ <- stateRef.modify {
-              case state @ State(unblock, regs) =>
-                (state.copy(registrations = reg :: regs), unblock.complete(()).void)
-            }.flatten
-          } yield joinDef.get.flatten
+        override def supervise[A](fa: F[A]): F[Fiber[F, Throwable, A]] =
+          F.uncancelable { _ =>
+            val token = new Token
+            val action = fa.guarantee(stateRef.update(_ - token))
+            F.start(action).flatMap { fiber =>
+              stateRef.update(_ + (token -> fiber.cancel)).as(fiber)
+            }
+          }
       }
     }
   }

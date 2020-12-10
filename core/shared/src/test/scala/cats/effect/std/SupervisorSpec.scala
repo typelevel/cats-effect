@@ -17,13 +17,13 @@
 package cats.effect
 package std
 
-import cats.effect.kernel.{Deferred, Outcome}
-
 class SupervisorSpec extends BaseSpec {
 
   "Supervisor" should {
     "start a fiber that completes successfully" in ticked { implicit ticker =>
-      val test = Supervisor[IO].use { supervisor => supervisor.supervise(IO(1)).flatten }
+      val test = Supervisor[IO].use { supervisor =>
+        supervisor.supervise(IO(1)).flatMap(_.join)
+      }
 
       test must completeAs(Outcome.succeeded[IO, Throwable, Int](IO.pure(1)))
     }
@@ -31,38 +31,27 @@ class SupervisorSpec extends BaseSpec {
     "start a fiber that raises an error" in ticked { implicit ticker =>
       val t = new Throwable("failed")
       val test = Supervisor[IO].use { supervisor =>
-        supervisor.supervise(IO.raiseError[Unit](t)).flatten
+        supervisor.supervise(IO.raiseError[Unit](t)).flatMap(_.join)
       }
 
       test must completeAs(Outcome.errored[IO, Throwable, Unit](t))
     }
 
     "start a fiber that self-cancels" in ticked { implicit ticker =>
-      val test = Supervisor[IO].use { supervisor => supervisor.supervise(IO.canceled).flatten }
+      val test = Supervisor[IO].use { supervisor =>
+        supervisor.supervise(IO.canceled).flatMap(_.join)
+      }
 
       test must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
     "cancel active fibers when supervisor exits" in ticked { implicit ticker =>
       val test = for {
-        joinDef <- Deferred[IO, IO[Outcome[IO, Throwable, Unit]]]
-        _ <- Supervisor[IO].use { supervisor =>
-          supervisor.supervise(IO.never[Unit]).flatMap(joinDef.complete(_))
-        }
-        outcome <- joinDef.get.flatten
+        fiber <- Supervisor[IO].use { supervisor => supervisor.supervise(IO.never[Unit]) }
+        outcome <- fiber.join
       } yield outcome
 
       test must completeAs(Outcome.canceled[IO, Throwable, Unit])
-    }
-
-    "raise an error if starting a fiber after supervisor exits" in real {
-      val test = for {
-        // never do this...
-        supervisor <- Supervisor[IO].use { supervisor => IO.pure(supervisor) }
-        _ <- supervisor.supervise(IO.pure(1))
-      } yield ()
-
-      test.mustFailWith[IllegalStateException]
     }
   }
 
