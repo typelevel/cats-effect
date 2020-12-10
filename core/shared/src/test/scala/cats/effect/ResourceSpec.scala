@@ -62,6 +62,31 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       closed must beTrue
     }
 
+    "supports interruptible acquires" in ticked { implicit ticker =>
+      val flag = IO.ref(false)
+
+      (flag, flag).tupled.flatMap { case (acquireFin, resourceFin) =>
+        val action = IO.sleep(5.seconds).onCancel(acquireFin.set(true))
+        val fin = resourceFin.set(true)
+        val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
+
+        res.use(IO.pure).timeout(1.second).attempt >>
+          (acquireFin.get, resourceFin.get).tupled
+      } must completeAs (true -> false)
+    }
+
+    "releases resource if interruption happens during use" in ticked { implicit ticker =>
+      val flag = IO.ref(false)
+
+      (flag, flag).tupled.flatMap { case (acquireFin, resourceFin) =>
+        val action = IO.sleep(1.second).onCancel(acquireFin.set(true))
+        val fin = resourceFin.set(true)
+        val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
+
+        res.use(_ => IO.sleep(5.seconds)).timeout(3.seconds).attempt >>
+          (acquireFin.get, resourceFin.get).tupled
+      } must completeAs (false -> true)
+    }
 
     "eval" in ticked { implicit ticker =>
       forAll { (fa: IO[String]) => Resource.eval(fa).use(IO.pure) eqv fa }
