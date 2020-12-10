@@ -28,17 +28,13 @@ import scala.concurrent.duration._
 
 class SemaphoreSpec extends BaseSpec { outer =>
 
-  // "Semaphore" should {
-  //   tests(n => Semaphore[IO](n))
-  // }
-
-  "New Semaphore" should {
-    tests(n => Semaphore.applyNew[IO](n))
+  "Semaphore" should {
+    tests(n => Semaphore[IO](n))
   }
 
-  // "Semaphore with dual constructors" should {
-  //   tests(n => Semaphore.in[IO, IO](n))
-  // }
+  "Semaphore with dual constructors" should {
+    tests(n => Semaphore.in[IO, IO](n))
+  }
 
   // "MapK'd semaphore should" {
   //   tests("async mapK", n => Semaphore[IO](n).map(_.mapK[IO](FunctionK.id))) // TODO
@@ -211,50 +207,13 @@ class SemaphoreSpec extends BaseSpec { outer =>
       val op = sc(0)
         .flatMap { s =>
           (
-           permits.parTraverse(n => // IO.println(s"pre acquire $n") >>
-             s.acquireN(n) // >> IO.println(s"acquired $n")
-           ).void,
-           permits.reverse.parTraverse(n => // IO.println(s"pre release $n") >>
-             s.releaseN(n) // >> IO.println(s"released $n")
-           ).void
-          ).parTupled // *> IO.println("done")
-          *> s.count
-        }.timeout(5.seconds)
+           permits.parTraverse(n => s.acquireN(n)),
+           permits.reverse.parTraverse(n => s.releaseN(n))
+          ).parTupled *> s.count
+        }
 
       op.mustEqual(0L)
     }
-
-    "repro" in real {
-      //repro: Vector(2, 3) n = 100
-      val permits: Vector[Long] = Vector(2, 3)
-
-      val op = IO.ref(Vector.empty[String]).flatMap { out =>
-        sc(0)
-          .flatMap { s =>
-
-            def p(s: String) = out.update(_ :+ s)
-            def a(n: Long) =
-              p(s"Acquiring $n") >> s.acquireN(n) >> p(s"Acquired $n")
-            def r(n: Long) =
-              p(s"Releasing $n") >> s.releaseN(n) >> p(s"released $n")
-
-            (
-              permits.parTraverse(a),
-              permits.reverse.parTraverse(r)
-            ).parTupled *> s.count// <* IO.println("done")
-          }.timeout(500.millis).onError {
-            case e => out.get.map(_.mkString("\n")).flatMap(IO.println)
-          }//.handleError(_ => 0)
-      }
-
-      val n = 1000
-
-      op
-        .replicateA(n)
-        .map(_.forall(_ == 0L))
-        .mustEqual(true)
-    }
-    
 
     "available with available permits" in real {
       val op = sc(20).flatMap { s =>
