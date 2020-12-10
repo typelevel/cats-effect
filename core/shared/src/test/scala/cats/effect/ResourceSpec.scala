@@ -185,6 +185,19 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       }
     }
 
+    "allocated releases resources in reverse order of acquisition" in ticked { implicit ticker =>
+      forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
+        var released: List[Int] = Nil
+        val r = as.traverse {
+          case (a, e) =>
+            Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+        }
+        r.allocated.flatMap(_._2).attempt.void must completeAs(())
+        released mustEqual as.map(_._1)
+      }
+    }
+
+
     "use is stack-safe over binds" in ticked { implicit ticker =>
       val r = (1 to 10000)
         .foldLeft(Resource.eval(IO.unit)) {
