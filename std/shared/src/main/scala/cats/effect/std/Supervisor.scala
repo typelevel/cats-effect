@@ -59,7 +59,7 @@ object Supervisor {
     final case class Registration[A](
         token: Long,
         action: F[A],
-        join: Deferred[F, F[Outcome[F, Throwable, A]]])
+        joinDef: Deferred[F, F[Outcome[F, Throwable, A]]])
 
     def newState: F[State] =
       F.deferred[Unit].map { unblock => State(unblock, List()) }
@@ -78,7 +78,7 @@ object Supervisor {
           state <- stateRef.get
           // report canceled back for effects that weren't started
           _ <- state.registrations.parTraverse_ {
-            case reg => reg.join.complete(F.pure(Outcome.canceled))
+            case reg => reg.joinDef.complete(F.pure(Outcome.canceled))
           }
         } yield ()
       }
@@ -102,7 +102,7 @@ object Supervisor {
                         .guarantee(
                           completedRef.update(_ + reg.token) >> activeRef.update(_ - reg.token))
                         .start
-                    _ <- reg.join.complete(fiber.join)
+                    _ <- reg.joinDef.complete(fiber.join)
                   } yield reg.token -> fiber
               }
 
@@ -132,8 +132,7 @@ object Supervisor {
               case state @ State(unblock, regs) =>
                 (state.copy(registrations = reg :: regs), unblock.complete(()).void)
             }.flatten
-            join <- joinDef.get
-          } yield join
+          } yield joinDef.get.flatten
       }
     }
   }

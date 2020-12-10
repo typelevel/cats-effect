@@ -22,10 +22,25 @@ import cats.effect.kernel.{Deferred, Outcome}
 class SupervisorSpec extends BaseSpec {
 
   "Supervisor" should {
-    "start a fiber" in ticked { implicit ticker =>
+    "start a fiber that completes successfully" in ticked { implicit ticker =>
       val test = Supervisor[IO].use { supervisor => supervisor.supervise(IO(1)).flatten }
 
       test must completeAs(Outcome.succeeded[IO, Throwable, Int](IO.pure(1)))
+    }
+
+    "start a fiber that raises an error" in ticked { implicit ticker =>
+      val t = new Throwable("failed")
+      val test = Supervisor[IO].use { supervisor =>
+        supervisor.supervise(IO.raiseError[Unit](t)).flatten
+      }
+
+      test must completeAs(Outcome.errored[IO, Throwable, Unit](t))
+    }
+
+    "start a fiber that self-cancels" in ticked { implicit ticker =>
+      val test = Supervisor[IO].use { supervisor => supervisor.supervise(IO.canceled).flatten }
+
+      test must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
     "cancel active fibers when supervisor exits" in ticked { implicit ticker =>
@@ -43,11 +58,7 @@ class SupervisorSpec extends BaseSpec {
     "raise an error if starting a fiber after supervisor exits" in real {
       val test = for {
         // never do this...
-        supervisorDef <- Deferred[IO, Supervisor[IO]]
-        _ <- Supervisor[IO].use { supervisor =>
-          supervisorDef.complete(supervisor)
-        }
-        supervisor <- supervisorDef.get
+        supervisor <- Supervisor[IO].use { supervisor => IO.pure(supervisor) }
         _ <- supervisor.supervise(IO.pure(1))
       } yield ()
 
