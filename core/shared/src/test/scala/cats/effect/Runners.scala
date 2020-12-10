@@ -132,7 +132,9 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   implicit def arbitraryResource[F[_], A](
       implicit F: Applicative[F],
       AFA: Arbitrary[F[A]],
-      AFU: Arbitrary[F[Unit]]): Arbitrary[Resource[F, A]] =
+      AFU: Arbitrary[F[Unit]],
+      AA: Arbitrary[A]
+  ): Arbitrary[Resource[F, A]] =
     Arbitrary(Gen.delay(genResource[F, A]))
 
   implicit def arbitraryResourceParallel[F[_], A](
@@ -141,10 +143,13 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     Arbitrary(A.arbitrary.map(Resource.Par.apply))
 
   // Consider improving this a strategy similar to Generators.
+  // Doesn't include interruptible resources
   def genResource[F[_], A](
       implicit F: Applicative[F],
       AFA: Arbitrary[F[A]],
-      AFU: Arbitrary[F[Unit]]): Gen[Resource[F, A]] = {
+      AFU: Arbitrary[F[Unit]],
+      AA: Arbitrary[A]
+  ): Gen[Resource[F, A]] = {
     def genAllocate: Gen[Resource[F, A]] =
       for {
         alloc <- arbitrary[F[A]]
@@ -154,13 +159,17 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     def genBind: Gen[Resource[F, A]] =
       genAllocate.map(_.flatMap(a => Resource.pure[F, A](a)))
 
-    def genSuspend: Gen[Resource[F, A]] =
-      genAllocate.map(r => Resource.suspend(r.pure[F]))
+    def genEval: Gen[Resource[F, A]] =
+      arbitrary[F[A]].map(Resource.eval)
+
+    def genPure: Gen[Resource[F, A]] =
+      arbitrary[A].map(Resource.pure)
 
     Gen.frequency(
       5 -> genAllocate,
       1 -> genBind,
-      1 -> genSuspend
+      1 -> genEval,
+      1 -> genPure,
     )
   }
 

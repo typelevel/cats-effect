@@ -55,7 +55,7 @@ class BankersQueueSpec extends Specification with ScalaCheck {
       toListFromBack(queue) must beEqualTo(elems.reverse)
     }
 
-    "reverse" in prop { elems: List[Int] =>
+    "reverse" in prop { (elems: List[Int]) =>
       val queue = buildQueue(elems)
 
       toListFromFront(queue.reverse) must beEqualTo(elems.reverse)
