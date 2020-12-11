@@ -313,6 +313,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
     Uncancelable(body)
 
+  def uncancelable_[A](body: => IO[A]): IO[A] =
+    uncancelable(_ => body)
+
   private[this] val _unit: IO[Unit] = Pure(())
   def unit: IO[Unit] = _unit
 
@@ -537,8 +540,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def start[A](fa: IO[A]): IO[FiberIO[A]] =
       fa.start
 
-    def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
+    override def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
       IO.uncancelable(body)
+
+    override def uncancelable_[A](body: => IO[A]): IO[A] = IO.uncancelable_(body)
 
     override def map[A, B](fa: IO[A])(f: A => B): IO[B] =
       fa.map(f)
