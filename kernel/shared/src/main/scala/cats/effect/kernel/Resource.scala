@@ -24,20 +24,69 @@ import scala.annotation.tailrec
 import cats.data.Kleisli
 
 /**
- * The `Resource` is a data structure that captures the effectful
- * allocation of a resource, along with its finalizer.
+ * `Resource` is a data structure which encodes the idea of executing
+ * an action which has an associated finalizer that needs to be run
+ * when the action completes.
  *
- * This can be used to wrap expensive resources. Example:
+ * Examples include scarce resources like files, which need to be
+ * closed after use, or concurrent abstractions like locks, which need
+ * to be released after having been acquired.
+ *
+ * There are several constructors to allocate a resource, the most
+ * common is [[Resource.make make]]:
  *
  * {{{
- *   def open(file: File): Resource[IO, BufferedReader] =
- *     Resource(IO {
- *       val in = new BufferedReader(new FileReader(file))
- *       (in, IO(in.close()))
- *     })
+ *  def open(file: File): Resource[IO, BufferedReader] = {
+ *     val openFile = IO(new BufferedReader(new FileReader(file)))
+ *     Resource.make(acquire = openFile)(release = f => IO(f.close))
+ *  }
  * }}}
  *
- * Usage is done via [[Resource!.use use]] and note that resource usage nests.
+ * and several methods to consume a resource, the most common is
+ * [[Resource!.use use]]:
+ *
+ * {{{
+ *   def readFile(file: BufferedReader): IO[Content]
+ *
+ *   open(file1).use(readFile)
+ * }}}
+ *
+ * Finalisation (in this case file closure) happens when the action
+ * passed to `use` terminates. Therefore, the code above is _not_
+ * equivalent to:
+ *
+ * {{{
+ *   open(file1).use(IO.pure).flatMap(readFile)
+ * }}}
+ *
+ * which will instead result in an error, since the file gets closed after
+ * `pure`, meaning that `.readFile` will then fail.
+ *
+ * Also note that a _new_ resource is allocated every time `use` is called,
+ * so the following code opens and closes the resource twice:
+ *
+ * {{{
+ *   val file: Resource[IO, File]
+ *   file.use(read) >> file.use(read)
+ * }}}
+ *
+ * If you want sharing, pass the result of allocating the resource
+ * around, and call `use` once.
+ * {{{
+ *  file.use { file => read(file) >> read(file) }
+ * }}}
+ *
+ * The acquire and release actions passed to `make` are not
+ * interruptible, and release will run when the action passed to `use`
+ * succeeds, fails, or is interrupted. You can use [[Resource.makeCase makeCase]]
+ * to specify a different release logic depending on each of the three
+ * outcomes above.
+ *
+ * It is also possible to specify an interruptible acquire though
+ * [[Resource.makeFull makeFull]] but be warned that this is an
+ * advanced concurrency operation, which requires some care.
+ *
+ * Resource usage nests:
  *
  * {{{
  *   open(file1).use { in1 =>
@@ -47,10 +96,12 @@ import cats.data.Kleisli
  *   }
  * }}}
  *
- * `Resource` forms a `MonadError` on the resource type when the
- * effect type has a `cats.MonadError` instance. Nested resources are
- * released in reverse order of acquisition. Outer resources are
- * released even if an inner use or release fails.
+ * However, it is more idiomatic to compose multiple resources
+ * together before `use`, exploiting the fact that `Resource` forms a
+ * `Monad`, and therefore that resources can be nested through
+ * `flatMap`.
+ * Nested resources are released in reverse order of acquisition.
+ * Outer resources are released even if an inner use or release fails.
  *
  * {{{
  *   def mkResource(s: String) = {
@@ -79,19 +130,27 @@ import cats.data.Kleisli
  *   Releasing outer
  * }}}
  *
- * A `Resource` is nothing more than a data structure, an ADT, described by
- * the following node types and that can be interpreted if needed:
+ * A `Resource` can also lift arbitrary actions that don't require
+ * finalisation through [[Resource.eval eval]]. Actions passed to
+ * `eval` preserve their interruptibility.
  *
- *  - [[cats.effect.Resource.Allocate Allocate]]
- *  - [[cats.effect.Resource.Suspend Suspend]]
- *  - [[cats.effect.Resource.Bind Bind]]
+ * Finally, `Resource` partakes in other abstractions such as
+ * `MonadError`, `Parallel`, and `Monoid`, so make sure to explore
+ * those instances as well as the other methods not covered here.
  *
- * Normally users don't need to care about these node types, unless conversions
- * from `Resource` into something else is needed (e.g. conversion from `Resource`
- * into a streaming data type).
+ * `Resource` is encoded as a data structure, an ADT, described by the
+ * following node types:
  *
- * Further node types are used internally. To compile a resource down to the
- * above three types, call [[Resource#preinterpret]].
+ *  - [[Resource.Allocate Allocate]]
+ *  - [[Resource.Bind Bind]]
+ *  - [[Resource.Pure Pure]]
+ *  - [[Resource.Eval Eval]]
+ *
+ *
+ * Normally users don't need to care about these node types, unless
+ * conversions from `Resource` into something else is needed (e.g.
+ * conversion from `Resource` into a streaming data type), in which
+ * case they can be interpreted through pattern matching.
  *
  * @tparam F the effect type in which the resource is allocated and released
  * @tparam A the type of resource
@@ -642,7 +701,6 @@ object Resource extends ResourceInstances with ResourcePlatform {
 
   final case class Eval[F[_], A](fa: F[A]) extends Resource[F, A]
 
-
   /**
    * Type for signaling the exit condition of an effectful
    * computation, that may either succeed, fail with an error or
@@ -651,7 +709,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * The types of exit signals are:
    *
    *  - [[ExitCase$.Succeeded Succeeded]]: for successful completion
-   *  - [[ExitCase$.Error Error]]: for termination in failure
+   *  - [[ExitCase$.Errored Errored]]: for termination in failure
    *  - [[ExitCase$.Canceled Canceled]]: for abortion
    */
   sealed trait ExitCase extends Product with Serializable
@@ -679,7 +737,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
      * An [[ExitCase]] signaling that the action was aborted.
      *
      * As an example this can happen when we have a cancelable data type,
-     * like [[IO]] and the task yielded by `bracket` gets canceled
+     * like IO and the task yielded by `bracket` gets canceled
      * when it's at its `use` phase.
      */
     case object Canceled extends ExitCase
