@@ -146,7 +146,6 @@ import cats.data.Kleisli
  *  - [[Resource.Pure Pure]]
  *  - [[Resource.Eval Eval]]
  *
- *
  * Normally users don't need to care about these node types, unless
  * conversions from `Resource` into something else is needed (e.g.
  * conversion from `Resource` into a streaming data type), in which
@@ -194,7 +193,7 @@ sealed abstract class Resource[F[_], +A] {
             case Frame(head, tail) =>
               loop(head(v), tail)
           }
-        case Eval(fa)  =>
+        case Eval(fa) =>
           fa.flatMap(a => continue(Resource.pure(a), stack))
       }
     loop(this, Nil)
@@ -235,8 +234,7 @@ sealed abstract class Resource[F[_], +A] {
   /**
    * Creates a FunctionK that, when applied, will allocate the resource and use it to run the given Kleisli.
    */
-  def useKleisliK[B >: A](
-      implicit F: MonadCancel[F, Throwable]): Kleisli[F, B, *] ~> F =
+  def useKleisliK[B >: A](implicit F: MonadCancel[F, Throwable]): Kleisli[F, B, *] ~> F =
     new (Kleisli[F, B, *] ~> F) {
       def apply[C](fa: Kleisli[F, B, C]): F[C] = useKleisli(fa)
     }
@@ -316,20 +314,18 @@ sealed abstract class Resource[F[_], +A] {
     this match {
       case Allocate(resource) =>
         Resource.applyFull { (gpoll: Poll[G]) =>
-            gpoll {
-              f {
-                F.uncancelable { (fpoll: Poll[F]) =>
-                  resource(fpoll)
-                }
-              }
-            }.map { case (a, release) =>
-                a -> ((r: ExitCase) => f(release(r)))
+          gpoll {
+            f {
+              F.uncancelable { (fpoll: Poll[F]) => resource(fpoll) }
             }
+          }.map {
+            case (a, release) =>
+              a -> ((r: ExitCase) => f(release(r)))
+          }
         }
       case Bind(source, f0) =>
         // we insert a bind to get stack safety
-        suspend(G.unit >> source.mapK(f).pure[G])
-          .flatMap(x => f0(x).mapK(f))
+        suspend(G.unit >> source.mapK(f).pure[G]).flatMap(x => f0(x).mapK(f))
       case Pure(a) =>
         Resource.pure(a)
       case Eval(fea) => Resource.eval(f(fea))
@@ -376,8 +372,7 @@ sealed abstract class Resource[F[_], +A] {
    * code that needs to modify or move the finalizer for an existing
    * resource.
    */
-  def allocated[B >: A](
-      implicit F: MonadCancel[F, Throwable]): F[(B, F[Unit])] = {
+  def allocated[B >: A](implicit F: MonadCancel[F, Throwable]): F[(B, F[Unit])] = {
     sealed trait Stack[AA]
     case object Nil extends Stack[B]
     final case class Frame[AA, BB](head: AA => Resource[F, BB], tail: Stack[BB])
@@ -424,7 +419,7 @@ sealed abstract class Resource[F[_], +A] {
             case Frame(head, tail) =>
               loop(head(v), tail, release)
           }
-        case Eval(fa)  =>
+        case Eval(fa) =>
           fa.flatMap(a => continue(Resource.pure(a), stack, release))
       }
 
@@ -513,7 +508,6 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * TODO make sure this api, which is more general than makeFull, doesn't allow
    *      for interruptible releases
    *
-   *
    * @see [[makeFull]] for a version that separates the needed resource
    *      with its finalizer tuple in two parameters
    *
@@ -523,7 +517,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    *        an effectful function to release it, where acquisition can
    *        potentially be interrupted
    */
-  def applyFull[F[_], A](resource:  Poll[F] => F[(A, ExitCase => F[Unit])]): Resource[F, A] =
+  def applyFull[F[_], A](resource: Poll[F] => F[(A, ExitCase => F[Unit])]): Resource[F, A] =
     Allocate(resource)
 
   /**
@@ -554,10 +548,9 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * @param release a function to effectfully release the resource returned by `acquire`
    */
   def makeCase[F[_], A](
-    acquire: F[A]
+      acquire: F[A]
   )(release: (A, ExitCase) => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
     applyCase[F, A](acquire.map(a => (a, e => release(a, e))))
-
 
   /**
    * Creates a resource from an acquiring effect and a release
@@ -581,7 +574,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * @param release a function to effectfully release the resource returned by `acquire`
    */
   def makeFull[F[_], A](acquire: Poll[F] => F[A])(release: A => F[Unit])(
-    implicit F: Functor[F]): Resource[F, A] =
+      implicit F: Functor[F]): Resource[F, A] =
     applyFull[F, A](poll => acquire(poll).map(a => (a, _ => release(a))))
 
   /**
@@ -606,7 +599,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * @param release a function to effectfully release the resource returned by `acquire`
    */
   def makeCaseFull[F[_], A](acquire: Poll[F] => F[A])(release: (A, ExitCase) => F[Unit])(
-    implicit F: Functor[F]): Resource[F, A] =
+      implicit F: Functor[F]): Resource[F, A] =
     applyFull[F, A](poll => acquire(poll).map(a => (a, e => release(a, e))))
 
   /**
@@ -843,7 +836,7 @@ abstract private[effect] class ResourceMonadError[F[_], E]
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
     fa match {
       case Allocate(resource) =>
-       Resource.applyFull { poll =>
+        Resource.applyFull { poll =>
           resource(poll).attempt.map {
             case Left(error) => (Left(error), (_: ExitCase) => F.unit)
             case Right((a, release)) => (Right(a), release)
@@ -854,9 +847,9 @@ abstract private[effect] class ResourceMonadError[F[_], E]
           case Left(error) => Resource.pure(error.asLeft)
           case Right(s) => f(s).attempt
         }
-      case p@ Pure(_) =>
+      case p @ Pure(_) =>
         Resource.pure(p.a.asRight)
-      case e@ Eval(_) =>
+      case e @ Eval(_) =>
         Resource.eval(e.fa.attempt)
     }
 
@@ -870,7 +863,9 @@ abstract private[effect] class ResourceMonadError[F[_], E]
     Resource.eval(F.raiseError[A](e))
 }
 
-abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]] with StackSafeMonad[Resource[F, *]] {
+abstract private[effect] class ResourceMonad[F[_]]
+    extends Monad[Resource[F, *]]
+    with StackSafeMonad[Resource[F, *]] {
 
   implicit protected def F: Monad[F]
 

@@ -136,20 +136,20 @@ class SemaphoreSpec extends BaseSpec { outer =>
     def withLock[T](n: Long, s: Semaphore[IO], check: IO[T]): IO[(Long, T)] =
       s.acquireN(n).background.surround {
         //w/o cs.shift this hangs for coreJS
-        s.count// .flatTap(x => IO.println(s"count is $x"))
-          .iterateUntil(_ < 0).flatMap(t => check.tupleLeft(t))
+        s.count // .flatTap(x => IO.println(s"count is $x"))
+          .iterateUntil(_ < 0)
+          .flatMap(t => check.tupleLeft(t))
       }
 
     "available with no available permits" in real {
       val n = 20L
-      val op = sc(n)
-        .flatMap { s =>
-          for {
-            _ <- s.acquire.replicateA(n.toInt)
-            res <- withLock(1, s, s.available)
-          } yield res
+      val op = sc(n).flatMap { s =>
+        for {
+          _ <- s.acquire.replicateA(n.toInt)
+          res <- withLock(1, s, s.available)
+        } yield res
 
-        }
+      }
 
       op.mustEqual(-1L -> 0L)
     }
@@ -191,26 +191,24 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
     "offsetting acquires/releases - acquires parallel with releases" in real {
       val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
-      val op = sc(0)
-        .flatMap { s =>
-          (
-            permits.traverse(s.acquireN).void,
-            permits.reverse.traverse(s.releaseN).void
-          ).parTupled *> s.count
-        }
+      val op = sc(0).flatMap { s =>
+        (
+          permits.traverse(s.acquireN).void,
+          permits.reverse.traverse(s.releaseN).void
+        ).parTupled *> s.count
+      }
 
       op.mustEqual(0L)
     }
 
     "offsetting acquires/releases - individual acquires/increment in parallel" in real {
       val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
-      val op = sc(0)
-        .flatMap { s =>
-          (
-           permits.parTraverse(n => s.acquireN(n)),
-           permits.reverse.parTraverse(n => s.releaseN(n))
-          ).parTupled *> s.count
-        }
+      val op = sc(0).flatMap { s =>
+        (
+          permits.parTraverse(n => s.acquireN(n)),
+          permits.reverse.parTraverse(n => s.releaseN(n))
+        ).parTupled *> s.count
+      }
 
       op.mustEqual(0L)
     }
@@ -247,8 +245,9 @@ class SemaphoreSpec extends BaseSpec { outer =>
         } yield (a, t)
       }
 
-      op.flatMap { case (available, count) =>
-        IO(available mustEqual count)
+      op.flatMap {
+        case (available, count) =>
+          IO(available mustEqual count)
       }
     }
 
@@ -257,18 +256,14 @@ class SemaphoreSpec extends BaseSpec { outer =>
       val op =
         sc(n).flatMap { s =>
           s.acquireN(n) >>
-          s.acquireN(n).background.use { _ =>
-            s.count.iterateUntil(_ < 0)
-          }
-       }
+            s.acquireN(n).background.use { _ => s.count.iterateUntil(_ < 0) }
+        }
 
       op.mustEqual(-n)
     }
 
     "count with 0 available permits" in real {
-      val op = sc(20).flatMap { s =>
-        s.acquireN(20) >> s.count
-      }
+      val op = sc(20).flatMap { s => s.acquireN(20) >> s.count }
 
       op.mustEqual(0L)
     }

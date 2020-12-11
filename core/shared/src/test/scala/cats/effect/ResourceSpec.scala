@@ -65,27 +65,29 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     "supports interruptible acquires" in ticked { implicit ticker =>
       val flag = IO.ref(false)
 
-      (flag, flag).tupled.flatMap { case (acquireFin, resourceFin) =>
-        val action = IO.sleep(5.seconds).onCancel(acquireFin.set(true))
-        val fin = resourceFin.set(true)
-        val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
+      (flag, flag).tupled.flatMap {
+        case (acquireFin, resourceFin) =>
+          val action = IO.sleep(5.seconds).onCancel(acquireFin.set(true))
+          val fin = resourceFin.set(true)
+          val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
 
-        res.use(IO.pure).timeout(1.second).attempt >>
-          (acquireFin.get, resourceFin.get).tupled
-      } must completeAs (true -> false)
+          res.use(IO.pure).timeout(1.second).attempt >>
+            (acquireFin.get, resourceFin.get).tupled
+      } must completeAs(true -> false)
     }
 
     "releases resource if interruption happens during use" in ticked { implicit ticker =>
       val flag = IO.ref(false)
 
-      (flag, flag).tupled.flatMap { case (acquireFin, resourceFin) =>
-        val action = IO.sleep(1.second).onCancel(acquireFin.set(true))
-        val fin = resourceFin.set(true)
-        val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
+      (flag, flag).tupled.flatMap {
+        case (acquireFin, resourceFin) =>
+          val action = IO.sleep(1.second).onCancel(acquireFin.set(true))
+          val fin = resourceFin.set(true)
+          val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
 
-        res.use(_ => IO.sleep(5.seconds)).timeout(3.seconds).attempt >>
-          (acquireFin.get, resourceFin.get).tupled
-      } must completeAs (false -> true)
+          res.use(_ => IO.sleep(5.seconds)).timeout(3.seconds).attempt >>
+            (acquireFin.get, resourceFin.get).tupled
+      } must completeAs(false -> true)
     }
 
     "eval" in ticked { implicit ticker =>
@@ -141,16 +143,17 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       Resource.eval(IO(0)).evalTap(_ => IO.raiseError(Foo)).void.use(IO.pure) must failAs(Foo)
     }
 
-    "allocated releases resources in reverse order of acquisition" in ticked { implicit ticker =>
-      forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
-        var released: List[Int] = Nil
-        val r = as.traverse {
-          case (a, e) =>
-            Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+    "allocated releases resources in reverse order of acquisition" in ticked {
+      implicit ticker =>
+        forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
+          var released: List[Int] = Nil
+          val r = as.traverse {
+            case (a, e) =>
+              Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+          }
+          r.allocated.flatMap(_._2).attempt.void must completeAs(())
+          released mustEqual as.map(_._1)
         }
-        r.allocated.flatMap(_._2).attempt.void must completeAs(())
-        released mustEqual as.map(_._1)
-      }
     }
 
     "allocated does not release until close is invoked" in ticked { implicit ticker =>
@@ -287,13 +290,15 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     "use is stack-safe over binds - 2" in real {
       val n = 50000
       def p(i: Int = 0, n: Int = 50000): Resource[IO, Int] =
-        Resource.pure {
-          if (i < n) Left(i + 1)
-          else Right(i)
-        }.flatMap {
-          case Left(a) => p(a)
-          case Right(b) => Resource.pure(b)
-        }
+        Resource
+          .pure {
+            if (i < n) Left(i + 1)
+            else Right(i)
+          }
+          .flatMap {
+            case Left(a) => p(a)
+            case Right(b) => Resource.pure(b)
+          }
 
       p(n = n).use(IO.pure).mustEqual(n)
     }
@@ -310,7 +315,6 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         .use(IO.pure)
       r eqv IO.unit
     }
-
 
     "safe attempt suspended resource" in ticked { implicit ticker =>
       val exception = new Exception("boom!")

@@ -169,7 +169,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
       5 -> genAllocate,
       1 -> genBind,
       1 -> genEval,
-      1 -> genPure,
+      1 -> genPure
     )
   }
 
