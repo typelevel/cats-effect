@@ -21,7 +21,7 @@ import cats.effect.kernel.implicits._
 import cats.syntax.all._
 
 /**
- * A safe, fiber-based supervisor that monitors the lifecycle of all fibers
+ * A fiber-based supervisor that monitors the lifecycle of all fibers
  * that are started via its interface. The supervisor is managed by a singular
  * fiber which is responsible for starting fibers.
  *
@@ -48,13 +48,15 @@ trait Supervisor[F[_]] {
 
 object Supervisor {
 
+  private class Token
+
   /**
    * Creates a [[Resource]] scope within which fibers can be monitored. When
    * this scope exits, all supervised fibers will be finalized.
    */
   def apply[F[_]](implicit F: Async[F]): Resource[F, Supervisor[F]] = {
-    class Token
-
+    // It would have preferable to use Scope here but explicit cancellation is
+    // intertwined with resource management
     for {
       stateRef <- Resource.make(F.ref[Map[Token, F[Unit]]](Map())) { state =>
         state
