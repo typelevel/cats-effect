@@ -17,7 +17,6 @@
 package cats.effect.std
 
 import cats.syntax.all._
-import cats.effect.kernel.implicits._
 import cats.effect.kernel.{Async, Resource}
 
 /**
