@@ -256,6 +256,8 @@ private[effect] trait IOLowPriorityImplicits {
 
 object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
+  type Par[A] = ParallelF[IO, A]
+
   // constructors
 
   def apply[A](thunk: => A): IO[A] = Delay(() => thunk)
@@ -571,10 +573,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   implicit def asyncForIO: kernel.Async[IO] = _asyncForIO
 
-  private[this] val _parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] =
+  private[this] val _parallelForIO: Parallel.Aux[IO, Par] =
     spawn.parallelForGenSpawn[IO, Throwable]
 
-  implicit def parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = _parallelForIO
+  implicit def parallelForIO: Parallel.Aux[IO, Par] = _parallelForIO
 
   implicit val consoleForIO: Console[IO] =
     Console.make
