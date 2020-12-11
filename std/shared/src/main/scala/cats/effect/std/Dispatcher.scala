@@ -91,13 +91,16 @@ object Dispatcher {
               }
             }
           } else {
-            registry.toList.traverse {
-              case (id, Registration(action, prepareCancel)) =>
-                for {
-                  fiber <- supervisor.supervise(action)
-                  _ <- F.delay(prepareCancel(fiber.cancel))
-                } yield id -> fiber
-            }.uncancelable
+            registry
+              .toList
+              .traverse {
+                case (id, Registration(action, prepareCancel)) =>
+                  for {
+                    fiber <- supervisor.supervise(action)
+                    _ <- F.delay(prepareCancel(fiber.cancel))
+                  } yield id -> fiber
+              }
+              .uncancelable
           }
       } yield ()
 
