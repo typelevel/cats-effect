@@ -16,7 +16,7 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.{Async, Fiber, Resource}
+import cats.effect.kernel.{Async, Resource}
 import cats.effect.kernel.implicits._
 import cats.syntax.all._
 
@@ -57,17 +57,12 @@ object Dispatcher {
     val Empty = State(0, LongMap())
 
     for {
+      supervisor <- Supervisor[F]
       latch <- Resource.liftF(F.delay(new AtomicReference[() => Unit]))
       state <- Resource.liftF(F.delay(new AtomicReference[State](Empty)))
       ec <- Resource.liftF(F.executionContext)
 
       alive <- Resource.make(F.delay(new AtomicBoolean(true)))(ref => F.delay(ref.set(false)))
-      active <- Resource.make(F.ref(LongMap[Fiber[F, Throwable, Unit]]())) { active =>
-        for {
-          fibers <- active.get
-          _ <- fibers.values.toList.parTraverse_(_.cancel)
-        } yield ()
-      }
 
       dispatcher = for {
         _ <- F.delay(latch.set(null)) // reset to null
@@ -96,30 +91,13 @@ object Dispatcher {
               }
             }
           } else {
-            F uncancelable { _ =>
-              for {
-                // for catching race conditions where we finished before we were in the map
-                completed <- F.ref(LongMap[Unit]())
-
-                identifiedFibers <- registry.toList traverse {
-                  case (id, Registration(action, prepareCancel)) =>
-                    val enriched = action guarantee {
-                      completed.update(_.updated(id, ())) *> active.update(_ - id)
-                    }
-
-                    for {
-                      fiber <- enriched.start
-                      _ <- F.delay(prepareCancel(fiber.cancel))
-                    } yield (id, fiber)
-                }
-
-                _ <- active.update(_ ++ identifiedFibers)
-
-                // some actions ran too fast, so we need to remove their fibers from the map
-                winners <- completed.get
-                _ <- active.update(_ -- winners.keys)
-              } yield ()
-            }
+            registry.toList.traverse {
+              case (id, Registration(action, prepareCancel)) =>
+                for {
+                  fiber <- supervisor.supervise(action)
+                  _ <- F.delay(prepareCancel(fiber.cancel))
+                } yield id -> fiber
+            }.uncancelable
           }
       } yield ()
 
