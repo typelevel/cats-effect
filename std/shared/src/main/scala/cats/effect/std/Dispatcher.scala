@@ -93,7 +93,7 @@ object Dispatcher {
           } else {
             registry
               .toList
-              .traverse {
+              .traverse_ {
                 case (id, Registration(action, prepareCancel)) =>
                   for {
                     fiber <- supervisor.supervise(action)
