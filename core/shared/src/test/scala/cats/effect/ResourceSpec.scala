@@ -44,7 +44,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           case (a, e) =>
             Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
         }
-        r.use(IO.pure).attempt.void must completeAs(())
+        r.use_.attempt.void must completeAs(())
         released mustEqual as.map(_._1)
       }
     }
@@ -57,7 +57,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
       Resource
         .fromAutoCloseable(IO(autoCloseable))
-        .use(_ => IO.pure("Hello world")) must completeAs("Hello world")
+        .surround("Hello world".pure[IO]) must completeAs("Hello world")
 
       closed must beTrue
     }
@@ -71,7 +71,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           val fin = resourceFin.set(true)
           val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
 
-          res.use(IO.pure).timeout(1.second).attempt >>
+          res.use_.timeout(1.second).attempt >>
             (acquireFin.get, resourceFin.get).tupled
       } must completeAs(true -> false)
     }
@@ -85,7 +85,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           val fin = resourceFin.set(true)
           val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
 
-          res.use(_ => IO.sleep(5.seconds)).timeout(3.seconds).attempt >>
+          res.surround(IO.sleep(5.seconds)).timeout(3.seconds).attempt >>
             (acquireFin.get, resourceFin.get).tupled
       } must completeAs(false -> true)
     }
@@ -104,7 +104,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       def p =
         for {
           d <- Deferred[IO, Int]
-          r = resource(d).use(IO.pure)
+          r = resource(d).use_
           fiber <- r.start
           _ <- IO.sleep(200.millis)
           _ <- fiber.cancel
@@ -191,7 +191,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         .eval(IO.raiseError[Int](new Err))
         .mapK(Kleisli.liftK[IO, Int])
         .attempt
-        .use(_ => 3.pure[Kleisli[IO, Int, *]])
+        .surround(3.pure[Kleisli[IO, Int, *]])
         .run(0)
         .mustEqual(3)
     }
@@ -220,7 +220,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       val (clean2, res2) = sideEffectyResource
       res2
         .mapK(Kleisli.liftK[IO, Int])
-        .use(_ => ().pure[Kleisli[IO, Int, *]])
+        .use_
         .run(0)
         .attempt
         .void must completeAs(())
@@ -283,7 +283,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           case (r, _) =>
             r.flatMap(_ => Resource.eval(IO.unit))
         }
-        .use(IO.pure)
+        .use_
       r eqv IO.unit
     }
 
@@ -309,17 +309,20 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           case (r, _) =>
             r.flatMap(_ => Resource.eval(IO.unit))
         }
-        .mapK(new ~>[IO, IO] {
-          def apply[A](a: IO[A]): IO[A] = a
-        })
-        .use(IO.pure)
+        .mapK {
+          new ~>[IO, IO] {
+            def apply[A](a: IO[A]): IO[A] = a
+          }
+        }
+        .use_
+
       r eqv IO.unit
     }
 
     "safe attempt suspended resource" in ticked { implicit ticker =>
       val exception = new Exception("boom!")
       val suspend = Resource.suspend[IO, Unit](IO.raiseError(exception))
-      suspend.use(IO.pure) must failAs(exception)
+      suspend.use_ must failAs(exception)
     }
 
     "parZip - releases resources in reverse order of acquisition" in ticked { implicit ticker =>
@@ -335,7 +338,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         val unit = ().pure[Resource[IO, *]]
         val p = if (rhs) r.parZip(unit) else unit.parZip(r)
 
-        p.use(IO.pure).attempt.void must completeAs(())
+        p.use_.attempt.void must completeAs(())
         released mustEqual as.map(_._1)
       }
     }
@@ -497,7 +500,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       def observe(a: Int) =
         Resource.make(IO(acquired += a).as(a))(a => IO(released += a))
 
-      observe(1).combineK(observe(2)).use(_ => IO.unit).attempt.void must completeAs(())
+      observe(1).combineK(observe(2)).use_.attempt.void must completeAs(())
       released mustEqual acquired
     }
 
@@ -511,7 +514,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         def observe(a: Int) =
           Resource.make(IO(acquired += a) *> IO.pure(a))(a => IO(released += a))
 
-        observe(1).combineK(observe(2)).use(_ => IO.unit).attempt.void must completeAs(())
+        observe(1).combineK(observe(2)).use_.attempt.void must completeAs(())
         released mustEqual acquired
     }
 
