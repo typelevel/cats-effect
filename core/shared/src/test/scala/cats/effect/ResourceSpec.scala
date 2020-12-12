@@ -124,6 +124,22 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       } must completeAs(List(false, true, true, false))
     }
 
+    "release is always uninterruptible" in ticked { implicit ticker =>
+      val flag = IO.ref(false)
+      val sleep = IO.sleep(1.second)
+      val timeout = 500.millis
+
+      flag.flatMap { releaseComplete =>
+        val release = sleep >> releaseComplete.set(true)
+
+        val resource = Resource.applyFull[IO, Unit] { poll =>
+          IO(() -> (_ => poll(release)))
+        }
+
+        resource.use_.timeout(timeout).attempt >> releaseComplete.get
+      } must completeAs(true)
+    }
+
     "eval" in ticked { implicit ticker =>
       forAll { (fa: IO[String]) => Resource.eval(fa).use(IO.pure) eqv fa }
     }
