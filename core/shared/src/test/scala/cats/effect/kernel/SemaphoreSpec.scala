@@ -18,11 +18,11 @@ package cats
 package effect
 package std
 
+import cats.arrow.FunctionK
 import cats.syntax.all._
+import scala.concurrent.duration._
 
 import org.specs2.specification.core.Fragments
-
-import scala.concurrent.duration._
 
 class SemaphoreSpec extends BaseSpec { outer =>
 
@@ -34,9 +34,9 @@ class SemaphoreSpec extends BaseSpec { outer =>
     tests(n => Semaphore.in[IO, IO](n))
   }
 
-  // "MapK'd semaphore should" {
-  //   tests("async mapK", n => Semaphore[IO](n).map(_.mapK[IO](FunctionK.id))) // TODO
-  // }
+  "MapK'd semaphore" should {
+    tests(n => Semaphore[IO](n).map(_.mapK[IO](FunctionK.id)))
+  }
 
   def tests(sc: Long => IO[Semaphore[IO]]): Fragments = {
     "throw on negative n" in real {
