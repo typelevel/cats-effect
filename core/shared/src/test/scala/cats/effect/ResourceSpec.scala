@@ -23,6 +23,7 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
+import cats.effect.implicits._
 
 import org.scalacheck.Prop, Prop.forAll
 import org.specs2.ScalaCheck
@@ -295,7 +296,9 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
           val resource = Resource.makeFull[IO, Unit](poll => poll(io))(_ => IO.unit)
 
-          resource.use_.timeout(timeout).attempt >> (a.get, b.get).tupled
+          val mapKd = resource.mapK(Kleisli.liftK[IO, Int])
+
+          mapKd.use_.timeout(timeout).run(0).attempt >> (a.get, b.get).tupled
       }
 
       fa must completeAs(false -> true)
