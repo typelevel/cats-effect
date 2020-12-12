@@ -153,7 +153,6 @@ object Semaphore {
 
     def semaphore(state: Ref[F, State]) =
       new Semaphore[F] { self =>
-
         def acquireN(n: Long): F[Unit] = {
           requireNonNegative(n)
 
@@ -255,14 +254,17 @@ object Semaphore {
   final private[std] class MapKSemaphore[F[_], G[_]](
       underlying: Semaphore[F],
       f: F ~> G
-  )(implicit F: MonadCancel[F, _], G: MonadCancel[G, _]) extends Semaphore[G] {
-     def available: G[Long] = f(underlying.available)
-     def count: G[Long] = f(underlying.count)
-     def acquireN(n: Long): G[Unit] = f(underlying.acquireN(n))
-     def tryAcquireN(n: Long): G[Boolean] = f(underlying.tryAcquireN(n))
-     def releaseN(n: Long): G[Unit] = f(underlying.releaseN(n))
-     def permit: Resource[G, Unit] = underlying.permit.mapK(f)
-     def mapK[H[_]](f: G ~> H)(implicit H: MonadCancel[H, _]): Semaphore[H] =
+  )(
+      implicit F: MonadCancel[F, _],
+      G: MonadCancel[G, _])
+      extends Semaphore[G] {
+    def available: G[Long] = f(underlying.available)
+    def count: G[Long] = f(underlying.count)
+    def acquireN(n: Long): G[Unit] = f(underlying.acquireN(n))
+    def tryAcquireN(n: Long): G[Boolean] = f(underlying.tryAcquireN(n))
+    def releaseN(n: Long): G[Unit] = f(underlying.releaseN(n))
+    def permit: Resource[G, Unit] = underlying.permit.mapK(f)
+    def mapK[H[_]](f: G ~> H)(implicit H: MonadCancel[H, _]): Semaphore[H] =
       new MapKSemaphore(this, f)
   }
 }
