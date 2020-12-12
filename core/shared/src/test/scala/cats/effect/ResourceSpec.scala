@@ -49,17 +49,44 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       }
     }
 
-    "releases resources that implement AutoCloseable" in ticked { implicit ticker =>
-      var closed = false
-      val autoCloseable = new AutoCloseable {
-        override def close(): Unit = closed = true
-      }
+    "makes acquires non interruptible" in ticked { implicit ticker =>
+       IO.ref(false).flatMap { interrupted =>
+         val fa = IO.sleep(5.seconds).onCancel(interrupted.set(true))
 
-      Resource
-        .fromAutoCloseable(IO(autoCloseable))
-        .surround("Hello world".pure[IO]) must completeAs("Hello world")
+         Resource
+           .make(fa)(_ => IO.unit)
+           .use_
+           .timeout(1.second)
+           .attempt >> interrupted.get
+      } must completeAs(false)
+    }
 
-      closed must beTrue
+    "makes acquires non interruptible, overriding uncancelable" in ticked { implicit ticker =>
+      IO.ref(false).flatMap { interrupted =>
+        val fa = IO.uncancelable { poll =>
+          poll(IO.sleep(5.seconds)).onCancel(interrupted.set(true))
+        }
+
+        Resource
+          .make(fa)(_ => IO.unit)
+          .use_
+          .timeout(1.second)
+          .attempt >> interrupted.get
+      } must completeAs(false)
+    }
+
+    "releases resource if interruption happens during use" in ticked { implicit ticker =>
+      val flag = IO.ref(false)
+
+      (flag, flag).tupled.flatMap {
+        case (acquireFin, resourceFin) =>
+          val action = IO.sleep(1.second).onCancel(acquireFin.set(true))
+          val fin = resourceFin.set(true)
+          val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
+
+          res.surround(IO.sleep(5.seconds)).timeout(3.seconds).attempt >>
+            (acquireFin.get, resourceFin.get).tupled
+      } must completeAs(false -> true)
     }
 
     "supports interruptible acquires" in ticked { implicit ticker =>
@@ -76,18 +103,24 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       } must completeAs(true -> false)
     }
 
-    "releases resource if interruption happens during use" in ticked { implicit ticker =>
+    "supports interruptible acquires, respecting uncancelable" in ticked { implicit ticker =>
       val flag = IO.ref(false)
+      val sleep = IO.sleep(1.second)
+      val timeout = 500.millis
 
-      (flag, flag).tupled.flatMap {
-        case (acquireFin, resourceFin) =>
-          val action = IO.sleep(1.second).onCancel(acquireFin.set(true))
-          val fin = resourceFin.set(true)
-          val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
+      (flag, flag, flag, flag).tupled.flatMap {
+        case (acquireFin, resourceFin, a, b) =>
+          val io = IO.uncancelable { poll =>
+            sleep.onCancel(a.set(true)) >> poll(sleep).onCancel(b.set(true))
+          }
 
-          res.surround(IO.sleep(5.seconds)).timeout(3.seconds).attempt >>
-            (acquireFin.get, resourceFin.get).tupled
-      } must completeAs(false -> true)
+          val resource = Resource.makeFull[IO, Unit] { poll =>
+            poll(io).onCancel(acquireFin.set(true))
+          }(_ => resourceFin.set(true))
+
+          resource.use_.timeout(timeout).attempt >>
+           List(a.get, b.get, acquireFin.get, resourceFin.get).sequence
+      } must completeAs(List(false, true, true, false))
     }
 
     "eval" in ticked { implicit ticker =>
@@ -141,6 +174,19 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       case object Foo extends Exception
 
       Resource.eval(IO(0)).evalTap(_ => IO.raiseError(Foo)).void.use(IO.pure) must failAs(Foo)
+    }
+
+    "releases resources that implement AutoCloseable" in ticked { implicit ticker =>
+      var closed = false
+      val autoCloseable = new AutoCloseable {
+        override def close(): Unit = closed = true
+      }
+
+      Resource
+        .fromAutoCloseable(IO(autoCloseable))
+        .surround("Hello world".pure[IO]) must completeAs("Hello world")
+
+      closed must beTrue
     }
 
     "allocated releases resources in reverse order of acquisition" in ticked {
@@ -234,6 +280,25 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         .attempt
         .void must completeAs(())
       clean3.get() must beFalse
+    }
+
+    "mapK respects interruptible acquires" in ticked { implicit ticker =>
+      val flag = IO.ref(false)
+      val sleep = IO.sleep(1.second)
+      val timeout = 500.millis
+
+      def fa = (flag, flag).tupled.flatMap {
+        case (a, b) =>
+          val io = IO.uncancelable { poll =>
+            sleep.onCancel(a.set(true)) >> poll(sleep).onCancel(b.set(true))
+          }
+
+          val resource = Resource.makeFull[IO, Unit](poll => poll(io))(_ => IO.unit)
+
+          resource.use_.timeout(timeout).attempt >> (a.get, b.get).tupled
+      }
+
+      fa must completeAs(false -> true)
     }
 
     "allocated produces the same value as the resource" in ticked { implicit ticker =>
