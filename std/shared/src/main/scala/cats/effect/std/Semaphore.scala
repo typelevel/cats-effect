@@ -60,6 +60,13 @@ abstract class Semaphore[F[_]] {
    * `s: Semaphore[F]` with 2 permits available, an `acquireN(3)` will
    * always be satisfied before a later call to `acquireN(1)`.
    *
+   * This method is interruptible, and in case of interruption it will
+   * take care of restoring any permits it has acquired. If it does
+   * succeed however, managing permits correctly is the user's
+   * responsibility.
+   * Use `[[permit]]` for a safer but less flexible alternative, when
+   * you are using Semaphore merely as a lock.
+   *
    * @param n number of permits to acquire - must be >= 0
    */
   def acquireN(n: Long): F[Unit]
