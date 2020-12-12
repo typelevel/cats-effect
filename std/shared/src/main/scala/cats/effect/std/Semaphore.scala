@@ -22,6 +22,7 @@ import cats.effect.kernel._
 // import cats.effect.std.Semaphore.TransformedSemaphore TODO
 import cats.syntax.all._
 import cats.effect.kernel.syntax.all._
+import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => Q}
 
 /**
@@ -196,6 +197,7 @@ object Semaphore {
         def releaseN(n: Long): F[Unit] = {
           requireNonNegative(n)
 
+          @tailrec
           def fulfil(
               n: Long,
               requests: Q[Request],
