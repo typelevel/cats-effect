@@ -19,7 +19,6 @@ package effect
 package std
 
 import cats.effect.kernel._
-// import cats.effect.std.Semaphore.TransformedSemaphore TODO
 import cats.syntax.all._
 import cats.effect.kernel.syntax.all._
 import scala.annotation.tailrec
@@ -103,9 +102,7 @@ abstract class Semaphore[F[_]] {
   /**
    * Modify the context `F` using natural transformation `f`.
    */
-  // TODO
-  // def mapK[G[_]: Applicative](f: F ~> G): Semaphore[G] =
-  //   new TransformedSemaphore(this, f)
+  def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Semaphore[G]
 }
 
 object Semaphore {
@@ -155,7 +152,8 @@ object Semaphore {
     case object Done extends Action
 
     def semaphore(state: Ref[F, State]) =
-      new Semaphore[F] {
+      new Semaphore[F] { self =>
+
         def acquireN(n: Long): F[Unit] = {
           requireNonNegative(n)
 
@@ -248,19 +246,23 @@ object Semaphore {
               else state -> false
             }
         }
+
+        def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Semaphore[G] =
+          new MapKSemaphore[F, G](this, f)
       }
   }
 
-  // TODO
-  // final private[std] class TransformedSemaphore[F[_], G[_]](
-  //     underlying: Semaphore[F],
-  //     trans: F ~> G
-  // ) extends Semaphore[G] {
-  //   override def available: G[Long] = trans(underlying.available)
-  //   override def count: G[Long] = trans(underlying.count)
-  //   override def acquireN(n: Long): G[Unit] = trans(underlying.acquireN(n))
-  //   override def tryAcquireN(n: Long): G[Boolean] = trans(underlying.tryAcquireN(n))
-  //   override def releaseN(n: Long): G[Unit] = trans(underlying.releaseN(n))
-  //   override def permit: Resource[G, Unit] = underlying.permit.mapK(trans)
-  // }
+  final private[std] class MapKSemaphore[F[_], G[_]](
+      underlying: Semaphore[F],
+      f: F ~> G
+  )(implicit F: MonadCancel[F, _], G: MonadCancel[G, _]) extends Semaphore[G] {
+     def available: G[Long] = f(underlying.available)
+     def count: G[Long] = f(underlying.count)
+     def acquireN(n: Long): G[Unit] = f(underlying.acquireN(n))
+     def tryAcquireN(n: Long): G[Boolean] = f(underlying.tryAcquireN(n))
+     def releaseN(n: Long): G[Unit] = f(underlying.releaseN(n))
+     def permit: Resource[G, Unit] = underlying.permit.mapK(f)
+     def mapK[H[_]](f: G ~> H)(implicit H: MonadCancel[H, _]): Semaphore[H] =
+      new MapKSemaphore(this, f)
+  }
 }

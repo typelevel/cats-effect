@@ -307,10 +307,12 @@ sealed abstract class Resource[F[_], +A] {
   /**
    * Given a natural transformation from `F` to `G`, transforms this
    * Resource from effect `F` to effect `G`.
+   * The F and G constraint can also be satisfied by requiring a
+   * MonadCancelThrow[F] and MonadCancelThrow[G].
    */
   def mapK[G[_]](
       f: F ~> G
-  )(implicit F: MonadCancelThrow[F], G: MonadCancelThrow[G]): Resource[G, A] =
+  )(implicit F: MonadCancel[F, _], G: MonadCancel[G, _]): Resource[G, A] =
     this match {
       case Allocate(resource) =>
         Resource.applyFull { (gpoll: Poll[G]) =>
@@ -456,7 +458,6 @@ sealed abstract class Resource[F[_], +A] {
 }
 
 object Resource extends ResourceInstances with ResourcePlatform {
-
   /**
    * Creates a resource from an allocating effect.
    *
