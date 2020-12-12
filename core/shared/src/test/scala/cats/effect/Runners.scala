@@ -35,13 +35,7 @@ import org.specs2.mutable.SpecificationLike
 import org.specs2.specification.core.Execution
 
 import scala.annotation.implicitNotFound
-import scala.concurrent.{
-  CancellationException,
-  ExecutionContext,
-  Future,
-  Promise,
-  TimeoutException
-}
+import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
 import scala.util.Try
@@ -274,9 +268,6 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   def nonTerminate(implicit ticker: Ticker): Matcher[IO[Unit]] =
     tickTo[Unit](Outcome.Succeeded(None))
 
-  def beCanceledSync: Matcher[SyncIO[Unit]] =
-    (ioa: SyncIO[Unit]) => unsafeRunSync(ioa) eqv Outcome.canceled
-
   def tickTo[A: Eq: Show](expected: Outcome[Option, Throwable, A])(
       implicit ticker: Ticker): Matcher[IO[A]] = { (ioa: IO[A]) =>
     val oc = unsafeRun(ioa)
@@ -322,7 +313,6 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   def unsafeRunSync[A](ioa: SyncIO[A]): Outcome[Id, Throwable, A] =
     try Outcome.succeeded[Id, Throwable, A](ioa.unsafeRunSync())
     catch {
-      case _: CancellationException => Outcome.canceled
       case t: Throwable => Outcome.errored(t)
     }
 
