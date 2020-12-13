@@ -86,7 +86,7 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] {
         "fiber never is never" -> laws.fiberNeverIsNever,
         "fiber start of never is unit" -> laws.fiberStartOfNeverIsUnit,
         "never dominates over flatMap" -> forAll(laws.neverDominatesOverFlatMap[A] _),
-        "uncancelable race displaces canceled" -> laws.uncancelableRaceDisplacesCanceled,
+        "uncancelable race not inherited" -> laws.uncancelableRaceNotInherited,
         "uncancelable race poll canceled identity (left)" -> forAll(
           laws.uncancelableRacePollCanceledIdentityLeft[A] _),
         "uncancelable race poll canceled identity (right)" -> forAll(
