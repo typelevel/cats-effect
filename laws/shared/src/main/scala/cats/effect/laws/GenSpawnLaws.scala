@@ -87,9 +87,11 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] {
     F.race(F.never[A], fb) <-> results
   }
 
+  // FIXME fails when fa is IO.Uncancelable(...)
   def raceCanceledIdentityLeft[A](fa: F[A]) =
     F.race(F.canceled, fa) <-> fa.map(_.asRight[Unit])
 
+  // FIXME fails when fa is IO.Uncancelable(...)
   def raceCanceledIdentityRight[A](fa: F[A]) =
     F.race(fa, F.canceled) <-> fa.map(_.asLeft[Unit])
 
