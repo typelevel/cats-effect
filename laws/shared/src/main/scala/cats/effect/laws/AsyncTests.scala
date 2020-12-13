@@ -55,8 +55,8 @@ trait AsyncTests[F[_]] extends GenTemporalTests[F, Throwable] with SyncTests[F] 
       EqFAB: Eq[F[Either[A, B]]],
       EqFEitherEU: Eq[F[Either[Throwable, Unit]]],
       EqFEitherEA: Eq[F[Either[Throwable, A]]],
-      EqFEitherUA: Eq[F[Either[Unit, A]]],
-      EqFEitherAU: Eq[F[Either[A, Unit]]],
+//    EqFEitherUA: Eq[F[Either[Unit, A]]],
+//    EqFEitherAU: Eq[F[Either[A, Unit]]],
       EqFOutcomeEA: Eq[F[Outcome[F, Throwable, A]]],
       EqFOutcomeEU: Eq[F[Outcome[F, Throwable, Unit]]],
       EqFABC: Eq[F[(A, B, C)]],
@@ -70,8 +70,8 @@ trait AsyncTests[F[_]] extends GenTemporalTests[F, Throwable] with SyncTests[F] 
       aFUPP: (A => F[Unit]) => Pretty,
       ePP: Throwable => Pretty,
       foaPP: F[Outcome[F, Throwable, A]] => Pretty,
-      feauPP: F[Either[A, Unit]] => Pretty,
-      feuaPP: F[Either[Unit, A]] => Pretty,
+//    feauPP: F[Either[A, Unit]] => Pretty,
+//    feuaPP: F[Either[Unit, A]] => Pretty,
       fouPP: F[Outcome[F, Throwable, Unit]] => Pretty): RuleSet = {
 
     new RuleSet {

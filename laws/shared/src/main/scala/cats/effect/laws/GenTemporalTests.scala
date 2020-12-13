@@ -51,8 +51,8 @@ trait GenTemporalTests[F[_], E] extends GenSpawnTests[F, E] with ClockTests[F] {
       EqFAB: Eq[F[Either[A, B]]],
       EqFEitherEU: Eq[F[Either[E, Unit]]],
       EqFEitherEA: Eq[F[Either[E, A]]],
-      EqFEitherUA: Eq[F[Either[Unit, A]]],
-      EqFEitherAU: Eq[F[Either[A, Unit]]],
+//    EqFEitherUA: Eq[F[Either[Unit, A]]],
+//    EqFEitherAU: Eq[F[Either[A, Unit]]],
       EqFOutcomeEA: Eq[F[Outcome[F, E, A]]],
       EqFOutcomeEU: Eq[F[Outcome[F, E, Unit]]],
       EqFABC: Eq[F[(A, B, C)]],
@@ -66,8 +66,8 @@ trait GenTemporalTests[F[_], E] extends GenSpawnTests[F, E] with ClockTests[F] {
       aFUPP: (A => F[Unit]) => Pretty,
       ePP: E => Pretty,
       foaPP: F[Outcome[F, E, A]] => Pretty,
-      feauPP: F[Either[A, Unit]] => Pretty,
-      feuaPP: F[Either[Unit, A]] => Pretty,
+//    feauPP: F[Either[A, Unit]] => Pretty,
+//    feuaPP: F[Either[Unit, A]] => Pretty,
       fouPP: F[Outcome[F, E, Unit]] => Pretty): RuleSet = {
 
     import laws.F
