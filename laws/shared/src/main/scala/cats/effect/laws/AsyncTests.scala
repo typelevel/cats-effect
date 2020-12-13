@@ -80,9 +80,10 @@ trait AsyncTests[F[_]] extends GenTemporalTests[F, Throwable] with SyncTests[F] 
       val parents = Seq(temporal[A, B, C](tolerance), sync[A, B, C])
 
       val props = Seq(
-        "async right is sequenced pure" -> forAll(laws.asyncRightIsSequencedPure[A] _),
-        "async left is sequenced raiseError" -> forAll(
-          laws.asyncLeftIsSequencedRaiseError[A] _),
+        "async right is uncancelable sequenced pure" -> forAll(
+          laws.asyncRightIsUncancelableSequencedPure[A] _),
+        "async left is uncancelable sequenced raiseError" -> forAll(
+          laws.asyncLeftIsUncancelableSequencedRaiseError[A] _),
         "async repeated callback is ignored" -> forAll(laws.asyncRepeatedCallbackIgnored[A] _),
         "async cancel token is unsequenced on complete" -> forAll(
           laws.asyncCancelTokenIsUnsequencedOnCompletion[A] _),
