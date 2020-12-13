@@ -93,12 +93,6 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] {
   def raceCanceledIdentityRight[A](fa: F[A]) =
     F.race(fa, F.canceled) <-> fa.map(_.asLeft[Unit])
 
-  def raceNeverIdentityLeft[A](fa: F[A]) =
-    F.race(F.never[Unit], fa) <-> fa.map(_.asRight[Unit])
-
-  def raceNeverIdentityRight[A](fa: F[A]) =
-    F.race(fa, F.never[Unit]) <-> fa.map(_.asLeft[Unit])
-
   // I really like these laws, since they relate cede to timing, but they're definitely nondeterministic
   /*def raceLeftCedeYields[A](a: A) =
     F.race(F.cede, F.pure(a)) <-> F.pure(Right(a))*/
