@@ -76,7 +76,7 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] {
         "race canceled identity (left)" -> forAll(laws.raceCanceledIdentityLeft[A] _),
         "race canceled identity (right)" -> forAll(laws.raceCanceledIdentityRight[A] _),
         "race never identity attempt (left)" -> forAll(laws.raceNeverIdentityLeft[A] _),
-        "race never identity attempt (right)" -> forAll(laws.raceNeverIdentityLeft[A] _),
+        "race never identity attempt (right)" -> forAll(laws.raceNeverIdentityRight[A] _),
         // "race left cede yields" -> forAll(laws.raceLeftCedeYields[A] _),
         // "race right cede yields" -> forAll(laws.raceRightCedeYields[A] _),
         "fiber pure is completed pure" -> forAll(laws.fiberPureIsOutcomeCompletedPure[A] _),
