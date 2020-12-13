@@ -130,14 +130,6 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] {
   def uncancelableRaceNotInherited =
     F.uncancelable(_ => F.race(F.never[Unit], F.canceled)).void <-> F.never[Unit]
 
-  def uncancelableRacePollCanceledIdentityLeft[A](fa: F[A]) =
-    F.uncancelable(p => F.race(p(F.canceled), fa)) <-> F.uncancelable(_ =>
-      fa.map(_.asRight[Unit]))
-
-  def uncancelableRacePollCanceledIdentityRight[A](fa: F[A]) =
-    F.uncancelable(p => F.race(fa, p(F.canceled))) <-> F.uncancelable(_ =>
-      fa.map(_.asLeft[Unit]))
-
   def uncancelableCancelCancels =
     F.start(F.never[Unit]).flatMap(f => F.uncancelable(_ => f.cancel) >> f.join) <-> F.pure(
       Outcome.Canceled())
