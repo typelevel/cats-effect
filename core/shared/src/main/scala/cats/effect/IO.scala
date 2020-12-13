@@ -202,7 +202,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def unsafeRunAsync(cb: Either[Throwable, A] => Unit)(
       implicit runtime: unsafe.IORuntime): Unit = {
     unsafeRunFiber(
-      cb(Left(new CancellationException("Root fiber was canceled"))),
+      cb(Left(new CancellationException("Main fiber was canceled"))),
       t => cb(Left(t)),
       a => cb(Right(a)))
     ()
