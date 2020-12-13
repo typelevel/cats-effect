@@ -19,7 +19,7 @@ package effect
 
 import cats.syntax.all._
 
-import org.scalacheck.Prop, Prop.forAll
+//import org.scalacheck.Prop, Prop.forAll
 
 import org.specs2.ScalaCheck
 
