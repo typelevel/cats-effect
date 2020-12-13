@@ -34,7 +34,6 @@ const users = [
   ['Software Mill', 'https://softwaremill.com'],
   ['SpotX', 'https://www.spotx.tv/'],
   ['Standard Chartered', 'https://www.sc.com'],
-  ['Stripe', 'https://stripe.com/'],
   ['Tapad', 'https://www.tapad.com/'],
   ['Tenable', 'https://www.tenable.com'],
   ['Tinkoff', 'https://www.tinkoff.ru/eng/'],
@@ -61,7 +60,7 @@ function Users(props) {
           <p>
             Cats Effect has been deployed at scale for years by countless companies covering nearly
             every segment of the industry. If your company is using Cats Effect and you don't see it
-            listed here, feel free to open an issue (or a pull request!) to add it!
+            listed here, feel free to <a href="https://github.com/typelevel/cats-effect/edit/docs/website/pages/en/users.js">add it!</a>
           </p>
 
           <ul>

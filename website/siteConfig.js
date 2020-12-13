@@ -103,24 +103,17 @@ const siteConfig = {
       pinned: true
     },
     {
-      image: 'img/adopters/inner-product.png',
-      caption: 'Inner Product',
-      title: 'Inner Product',
-      infoLink: 'https://www.inner-product.com/',
-      pinned: true
-    },
-    {
-      image: 'img/adopters/stripe.svg',
-      caption: 'Stripe',
-      title: 'Stripe',
-      infoLink: 'https://stripe.com/',
-      pinned: true
-    },
-    {
       image: 'img/adopters/comcast.png',
       caption: 'Comcast',
       title: 'Comcast',
       infoLink: 'https://comcast.com/',
+      pinned: true
+    },
+    {
+      image: 'img/adopters/inner-product.png',
+      caption: 'Inner Product',
+      title: 'Inner Product',
+      infoLink: 'https://www.inner-product.com/',
       pinned: true
     }
   ]
