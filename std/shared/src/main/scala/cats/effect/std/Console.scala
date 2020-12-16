@@ -95,7 +95,7 @@ trait Console[F[_]] { self =>
    * @param a value to be printed to the standard output
    * @param S implicit `cats.Show[A]` instance, defaults to `cats.Show.fromToString`
    */
-  def print[A](a: A)(implicit S: Show[A] = Show.fromToString): F[Unit]
+  def print[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit]
 
   /**
    * Prints a value to the standard output followed by a new line using the
@@ -104,7 +104,7 @@ trait Console[F[_]] { self =>
    * @param a value to be printed to the standard output
    * @param S implicit `cats.Show[A]` instance, defaults to `cats.Show.fromToString`
    */
-  def println[A](a: A)(implicit S: Show[A] = Show.fromToString): F[Unit]
+  def println[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit]
 
   /**
    * Prints a value to the standard error output using the implicit `cats.Show`
@@ -113,7 +113,7 @@ trait Console[F[_]] { self =>
    * @param a value to be printed to the standard error output
    * @param S implicit `cats.Show[A]` instance, defaults to `cats.Show.fromToString`
    */
-  def error[A](a: A)(implicit S: Show[A] = Show.fromToString): F[Unit]
+  def error[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit]
 
   /**
    * Prints a value to the standard error output followed by a new line using
@@ -122,7 +122,7 @@ trait Console[F[_]] { self =>
    * @param a value to be printed to the standard error output
    * @param S implicit `cats.Show[A]` instance, defaults to `cats.Show.fromToString`
    */
-  def errorln[A](a: A)(implicit S: Show[A] = Show.fromToString): F[Unit]
+  def errorln[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit]
 
   /**
    * Modifies the context in which this console operates using the natural
@@ -301,22 +301,22 @@ object Console {
         loop()
       }
 
-    def print[A](a: A)(implicit S: Show[A] = Show.fromToString): F[Unit] = {
+    def print[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = {
       val text = a.show
       F.blocking(System.out.print(text))
     }
 
-    def println[A](a: A)(implicit S: Show[A] = Show.fromToString): F[Unit] = {
+    def println[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = {
       val text = a.show
       F.blocking(System.out.println(text))
     }
 
-    def error[A](a: A)(implicit S: Show[A] = Show.fromToString): F[Unit] = {
+    def error[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = {
       val text = a.show
       F.blocking(System.err.print(text))
     }
 
-    def errorln[A](a: A)(implicit S: Show[A] = Show.fromToString): F[Unit] = {
+    def errorln[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = {
       val text = a.show
       F.blocking(System.err.println(text))
     }
