@@ -73,8 +73,8 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
 
   // LIFO access to references of sleeping worker threads.
-  private[this] val sleepers: ConcurrentCircularBuffer = new ConcurrentCircularBuffer(
-    threadCount)
+  private[this] val sleepers: ConcurrentLinkedQueue[WorkerThread] =
+    new ConcurrentLinkedQueue()
 
   // Shutdown signal for the worker threads.
   @volatile private[unsafe] var done: Boolean = false
@@ -167,7 +167,7 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // Obtain the most recently parked thread.
-    val worker = sleepers.dequeue()
+    val worker = sleepers.poll()
     if (worker != null) {
       // Update the state so that a thread can be unparked.
       // Here we are updating the 16 most significant bits, which hold the
@@ -196,7 +196,7 @@ private[effect] final class WorkStealingThreadPool(
   private[unsafe] def transitionWorkerToParked(thread: WorkerThread): Boolean = {
     // Mark the thread as parked.
     thread.sleeping = true
-    sleepers.enqueue(thread)
+    sleepers.offer(thread)
     // Decrement the number of unparked threads since we are parking.
     decrementNumberUnparked(thread.isSearching())
   }
