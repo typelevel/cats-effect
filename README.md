@@ -10,19 +10,19 @@ Even more importantly, Cats Effect defines a set of typeclasses which define wha
 
 Versions of Cats Effect:
 
-- Stable: `2.3.0`
+- Stable: `2.3.1`
 
 See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/series/2.x/versioning.md) for more information on our compatibility and semantic versioning policies.
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect" % "2.3.0"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "2.3.1"
 ```
 
 Cats Effect relies on improved type inference and needs partial unification enabled as described in the Cats [Getting Started](https://github.com/typelevel/cats#getting-started) documentation.
 
 If your project uses ScalaJS, replace the double-`%` with a triple. Note that **cats-effect** has an upstream dependency on **cats-core** version 2.x.
 
-Cross-builds are available for Scala 2.12.x, 2.13.x, 3.0.x, with ScalaJS builds targeting 1.x (note that, prior to 2.3.0, Cats Effect was available for ScalaJS 0.6).
+Cross-builds are available for Scala 2.12.x, 2.13.x, 3.0.x, with ScalaJS builds targeting 1.x.
 
 The most current snapshot (or major release) can be found in the maven badge at the top of this readme. If you are a very brave sort, you are free to depend on snapshots; they are stable versions, as they are derived from the git hash rather than an unstable `-SNAPSHOT` suffix, but they do not come with any particular confidence or compatibility guarantees.
 
@@ -33,7 +33,7 @@ Please see [this document](https://github.com/typelevel/cats-effect/blob/series/
 The **cats-effect-laws** artifact provides [Discipline-style](https://github.com/typelevel/discipline) laws for the `Sync`, `Async`, `Concurrent`, `Effect` and `ConcurrentEffect` typeclasses (`LiftIO` is lawless, but highly parametric). It is relatively easy to use these laws to test your own implementations of these typeclasses. Take a look [here](https://github.com/typelevel/cats-effect/tree/series/2.x/laws/shared/src/main/scala/cats/effect/laws) for more.
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "2.3.0" % "test"
+libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "2.3.1" % "test"
 ```
 
 These laws are compatible with both Specs2 and ScalaTest.
