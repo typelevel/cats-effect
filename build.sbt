@@ -42,7 +42,7 @@ val Windows = "windows-latest"
 val ScalaJSJava = "adopt@1.8"
 val Scala213 = "2.13.3"
 
-ThisBuild / crossScalaVersions := Seq("3.0.0-M1", "3.0.0-M2", "2.12.12", Scala213)
+ThisBuild / crossScalaVersions := Seq("3.0.0-M2", "3.0.0-M3", "2.12.12", Scala213)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
@@ -95,7 +95,6 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
 }
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
-  MatrixExclude(Map("java" -> LatestJava, "scala" -> "3.0.0-M1")),
   MatrixExclude(Map("java" -> LatestJava, "os" -> Windows))
 )
 
@@ -121,10 +120,10 @@ ThisBuild / scmInfo := Some(
     url("https://github.com/typelevel/cats-effect"),
     "git@github.com:typelevel/cats-effect.git"))
 
-val CatsVersion = "2.3.0"
+val CatsVersion = "2.3.1"
 val Specs2Version = "4.10.5"
-val ScalaCheckVersion = "1.15.1"
-val DisciplineVersion = "1.1.2"
+val ScalaCheckVersion = "1.15.2"
+val DisciplineVersion = "1.1.3"
 
 replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; testIfRelevant; coreJVM/mimaReportBinaryIssues; set Global / useFirefoxEnv := true; coreJS/test; set Global / useFirefoxEnv := false")
 addCommandAlias("ciAll", "; project /; +headerCheck; +scalafmtCheck; +clean; +testIfRelevant; +coreJVM/mimaReportBinaryIssues; set Global / useFirefoxEnv := true; +coreJS/test; set Global / useFirefoxEnv := false")
@@ -172,7 +171,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
     libraryDependencies ++= Seq(
       "org.typelevel"  %%% "cats-free"  % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      "org.typelevel"  %%% "coop"       % "1.0.0-M2"))
+      "org.typelevel"  %%% "coop"       % "1.0.0-M3"))
 
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid
