@@ -108,11 +108,6 @@ private final class IOFiber[A](
 
   /* mutable state for resuming the fiber in different states */
   private[this] var resumeTag: Byte = ExecR
-  private[this] var asyncContinueEither: Either[Throwable, Any] = _
-  private[this] var blockingCur: Blocking[Any] = _
-  private[this] var afterBlockingSuccessfulResult: Any = _
-  private[this] var afterBlockingFailedError: Throwable = _
-  private[this] var evalOnIOA: IO[Any] = _
 
   /* prefetch for ContState */
   private[this] val ContStateInitial = ContState.Initial
@@ -152,7 +147,7 @@ private final class IOFiber[A](
         runtime.shutdown()
         Thread.interrupted()
         currentCtx.reportFailure(t)
-        runtime.fiberErrorCbs.lock.synchronized {
+        runtime.fiberErrorCbs.synchronized {
           var idx = 0
           val len = runtime.fiberErrorCbs.hashtable.length
           while (idx < len) {
@@ -644,7 +639,7 @@ private final class IOFiber[A](
             conts.push(EvalOnK)
 
             resumeTag = EvalOnR
-            evalOnIOA = cur.ioa
+            objectState.push(cur.ioa)
             execute(ec)(this)
           }
 
@@ -654,7 +649,7 @@ private final class IOFiber[A](
 
           if (cur.hint eq TypeBlocking) {
             resumeTag = BlockingR
-            blockingCur = cur
+            objectState.push(cur)
             runtime.blocking.execute(this)
           } else {
             runLoop(interruptibleImpl(cur, runtime.blocking), nextIteration)
@@ -701,18 +696,13 @@ private final class IOFiber[A](
 
     finalizers.invalidate()
 
-    asyncContinueEither = null
-    blockingCur = null
-    afterBlockingSuccessfulResult = null
-    afterBlockingFailedError = null
-    evalOnIOA = null
     resumeTag = DoneR
   }
 
   private[this] def asyncContinue(e: Either[Throwable, Any]): Unit = {
     val ec = currentCtx
     resumeTag = AsyncContinueR
-    asyncContinueEither = e
+    objectState.push(e)
     execute(ec)(this)
   }
 
@@ -920,8 +910,7 @@ private final class IOFiber[A](
   }
 
   private[this] def asyncContinueR(): Unit = {
-    val e = asyncContinueEither
-    asyncContinueEither = null
+    val e = objectState.pop().asInstanceOf[Either[Throwable, Any]]
     val next = e match {
       case Left(t) => failed(t, 0)
       case Right(a) => succeeded(a, 0)
@@ -932,8 +921,7 @@ private final class IOFiber[A](
 
   private[this] def blockingR(): Unit = {
     var error: Throwable = null
-    val cur = blockingCur
-    blockingCur = null
+    val cur = objectState.pop().asInstanceOf[Blocking[Any]]
     val r =
       try cur.thunk()
       catch {
@@ -942,29 +930,26 @@ private final class IOFiber[A](
 
     if (error == null) {
       resumeTag = AfterBlockingSuccessfulR
-      afterBlockingSuccessfulResult = r
+      objectState.push(r.asInstanceOf[Object])
     } else {
       resumeTag = AfterBlockingFailedR
-      afterBlockingFailedError = error
+      objectState.push(error)
     }
     currentCtx.execute(this)
   }
 
   private[this] def afterBlockingSuccessfulR(): Unit = {
-    val result = afterBlockingSuccessfulResult
-    afterBlockingSuccessfulResult = null
+    val result = objectState.pop()
     runLoop(succeeded(result, 0), 1)
   }
 
   private[this] def afterBlockingFailedR(): Unit = {
-    val error = afterBlockingFailedError
-    afterBlockingFailedError = null
+    val error = objectState.pop().asInstanceOf[Throwable]
     runLoop(failed(error, 0), 1)
   }
 
   private[this] def evalOnR(): Unit = {
-    val ioa = evalOnIOA
-    evalOnIOA = null
+    val ioa = objectState.pop().asInstanceOf[IO[Any]]
     runLoop(ioa, 0)
   }
 
@@ -1057,7 +1042,7 @@ private final class IOFiber[A](
 
     if (!shouldFinalize()) {
       resumeTag = AfterBlockingSuccessfulR
-      afterBlockingSuccessfulResult = result
+      objectState.push(result.asInstanceOf[Object])
       execute(ec)(this)
     } else {
       asyncCancel(null)
@@ -1071,7 +1056,7 @@ private final class IOFiber[A](
 
     if (!shouldFinalize()) {
       resumeTag = AfterBlockingFailedR
-      afterBlockingFailedError = t
+      objectState.push(t)
       execute(ec)(this)
     } else {
       asyncCancel(null)

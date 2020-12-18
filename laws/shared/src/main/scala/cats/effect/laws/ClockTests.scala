@@ -35,7 +35,7 @@ trait ClockTests[F[_]] extends Laws {
       val bases = Nil
       val parents = Seq()
 
-      val props = Seq("monotonicity" -> laws.monotonicity)
+      val props = Seq("monotonicity" -> exec(laws.monotonicity))
     }
   }
 }

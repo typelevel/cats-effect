@@ -117,7 +117,7 @@ object Hotswap {
 
         override def swap(next: Resource[F, R]): F[R] =
           F.uncancelable { poll =>
-            poll(next.allocated[F, R]).flatMap {
+            poll(next.allocated).flatMap {
               case (r, finalizer) =>
                 swapFinalizer(finalizer).as(r)
             }

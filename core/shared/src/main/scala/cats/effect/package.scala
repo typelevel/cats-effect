@@ -64,7 +64,7 @@ package object effect {
   type ParallelF[F[_], A] = cekernel.Par.ParallelF[F, A]
   val ParallelF = cekernel.Par.ParallelF
 
-  type Resource[+F[_], +A] = cekernel.Resource[F, A]
+  type Resource[F[_], +A] = cekernel.Resource[F, A]
   val Resource = cekernel.Resource
 
   type OutcomeIO[A] = Outcome[IO, Throwable, A]

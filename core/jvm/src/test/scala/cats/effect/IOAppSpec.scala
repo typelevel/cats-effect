@@ -108,6 +108,12 @@ class IOAppSpec extends Specification {
         h.awaitStatus() mustEqual 1
         h.stderr() must contain("Boom!")
       }
+
+      "exit on canceled" in {
+        val h = java(Canceled, List.empty)
+        h.awaitStatus() mustEqual 1
+        h.stderr() must contain("canceled")
+      }
     }
   }
 
@@ -178,5 +184,10 @@ package examples {
         _ <- IO.blocking(IO(throw new OutOfMemoryError("Boom!")).start.unsafeRunSync())
         _ <- IO.never[Unit]
       } yield ExitCode.Success
+  }
+
+  object Canceled extends IOApp {
+    def run(args: List[String]): IO[ExitCode] =
+      IO.canceled.as(ExitCode.Success)
   }
 }

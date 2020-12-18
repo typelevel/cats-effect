@@ -19,10 +19,10 @@ package effect
 package std
 
 import cats.effect.kernel._
-import cats.effect.std.Semaphore.TransformedSemaphore
 import cats.syntax.all._
-
-import scala.collection.immutable.{Queue => ScalaQueue}
+import cats.effect.kernel.syntax.all._
+import scala.annotation.tailrec
+import scala.collection.immutable.{Queue => Q}
 
 /**
  * A purely functional semaphore.
@@ -59,6 +59,13 @@ abstract class Semaphore[F[_]] {
    * available. Note that acquires are statisfied in strict FIFO order, so given
    * `s: Semaphore[F]` with 2 permits available, an `acquireN(3)` will
    * always be satisfied before a later call to `acquireN(1)`.
+   *
+   * This method is interruptible, and in case of interruption it will
+   * take care of restoring any permits it has acquired. If it does
+   * succeed however, managing permits correctly is the user's
+   * responsibility.
+   * Use `[[permit]]` for a safer but less flexible alternative, when
+   * you are using Semaphore merely as a lock.
    *
    * @param n number of permits to acquire - must be >= 0
    */
@@ -102,8 +109,7 @@ abstract class Semaphore[F[_]] {
   /**
    * Modify the context `F` using natural transformation `f`.
    */
-  def mapK[G[_]: Applicative](f: F ~> G): Semaphore[G] =
-    new TransformedSemaphore(this, f)
+  def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Semaphore[G]
 }
 
 object Semaphore {
@@ -112,8 +118,8 @@ object Semaphore {
    * Creates a new `Semaphore`, initialized with `n` available permits.
    */
   def apply[F[_]](n: Long)(implicit F: GenConcurrent[F, _]): F[Semaphore[F]] = {
-    requireNonNegative(n)
-    F.ref[State[F]](Right(n)).map(stateRef => new AsyncSemaphore[F](stateRef))
+    val impl = new impl[F](n)
+    F.ref(impl.initialState).map(impl.semaphore)
   }
 
   /**
@@ -121,153 +127,151 @@ object Semaphore {
    * like `apply` but initializes state using another effect constructor
    */
   def in[F[_], G[_]](n: Long)(implicit F: Sync[F], G: Async[G]): F[Semaphore[G]] = {
+    val impl = new impl[G](n)
+    Ref.in[F, G, impl.State](impl.initialState).map(impl.semaphore)
+
+  }
+
+  private class impl[F[_]](n: Long)(implicit F: GenConcurrent[F, _]) {
     requireNonNegative(n)
-    Ref.in[F, G, State[G]](Right(n)).map(stateRef => new AsyncSemaphore[G](stateRef))
-  }
 
-  private def requireNonNegative(n: Long): Unit =
-    require(n >= 0, s"n must be nonnegative, was: $n")
+    def requireNonNegative(n: Long): Unit =
+      require(n >= 0, s"n must be nonnegative, was: $n")
 
-  private final case class Request[F[_]](n: Long, gate: Deferred[F, Unit])
+    case class Request(n: Long, gate: Deferred[F, Unit]) {
+      // the number of permits can change if the request is partially fulfilled
+      def sameAs(r: Request) = r.gate eq gate
+      def of(newN: Long) = Request(newN, gate)
+      def wait_ = gate.get
+      def complete = gate.complete(())
+    }
+    def newRequest = F.deferred[Unit].map(Request(0, _))
 
-  // A semaphore is either empty, and there are number of outstanding acquires (Left)
-  // or it is non-empty, and there are n permits available (Right)
-  private type State[F[_]] = Either[ScalaQueue[Request[F]], Long]
+    /*
+     * Invariant:
+     *    (waiting.empty && permits >= 0) || (permits.nonEmpty && permits == 0)
+     */
+    case class State(permits: Long, waiting: Q[Request])
+    def initialState = State(n, Q())
 
-  private final case class Permit[F[_]](await: F[Unit], release: F[Unit])
+    sealed trait Action
+    case object Wait extends Action
+    case object Done extends Action
 
-  abstract private class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(
-      implicit F: GenSpawn[F, _])
-      extends Semaphore[F] {
-    protected def mkGate: F[Deferred[F, Unit]]
+    def semaphore(state: Ref[F, State]) =
+      new Semaphore[F] { self =>
+        def acquireN(n: Long): F[Unit] = {
+          requireNonNegative(n)
 
-    private def open(gate: Deferred[F, Unit]): F[Unit] = gate.complete(()).void
+          if (n == 0) F.unit
+          else
+            F.uncancelable { poll =>
+              newRequest.flatMap { req =>
+                state.modify {
+                  case State(permits, waiting) =>
+                    val (newState, decision) =
+                      if (waiting.nonEmpty) State(0, waiting enqueue req.of(n)) -> Wait
+                      else {
+                        val diff = permits - n
+                        if (diff >= 0) State(diff, Q()) -> Done
+                        else State(0, req.of(diff.abs).pure[Q]) -> Wait
+                      }
 
-    def count: F[Long] = state.get.map(count_)
+                    val cleanup = state.modify {
+                      case State(permits, waiting) =>
+                        // both hold correctly even if the Request gets canceled
+                        // after having been fulfilled
+                        val permitsAcquiredSoFar = n - waiting.find(_ sameAs req).foldMap(_.n)
+                        val waitingNow = waiting.filterNot(_ sameAs req)
+                        // releaseN is commutative, the separate Ref access is ok
+                        State(permits, waitingNow) -> releaseN(permitsAcquiredSoFar)
+                    }.flatten
 
-    private def count_(s: State[F]): Long =
-      s match {
-        case Left(waiting) => -waiting.map(_.n).sum
-        case Right(available) => available
-      }
-
-    def acquireN(n: Long): F[Unit] =
-      F.bracketCase(acquireNInternal(n))(_.await) {
-        case (promise, Outcome.Canceled()) => promise.release
-        case _ => F.unit
-      }
-
-    def acquireNInternal(n: Long): F[Permit[F]] = {
-      requireNonNegative(n)
-      if (n == 0) F.pure(Permit(F.unit, F.unit))
-      else {
-        mkGate.flatMap { gate =>
-          state
-            .updateAndGet {
-              case Left(waiting) => Left(waiting :+ Request(n, gate))
-              case Right(m) =>
-                if (n <= m) {
-                  Right(m - n)
-                } else {
-                  Left(ScalaQueue(Request(n - m, gate)))
-                }
-            }
-            .map {
-              case Left(_) =>
-                val cleanup = state.modify {
-                  case Left(waiting) =>
-                    waiting.find(_.gate eq gate).map(_.n) match {
-                      case None => (Left(waiting), releaseN(n))
-                      case Some(m) =>
-                        (Left(waiting.filterNot(_.gate eq gate)), releaseN(n - m))
+                    val action = decision match {
+                      case Done => F.unit
+                      case Wait => poll(req.wait_).onCancel(cleanup)
                     }
-                  case Right(m) => (Right(m + n), F.unit)
+
+                    newState -> action
                 }.flatten
-
-                Permit(gate.get, cleanup)
-
-              case Right(_) => Permit(F.unit, releaseN(n))
-            }
-        }
-      }
-    }
-
-    def tryAcquireN(n: Long): F[Boolean] = {
-      requireNonNegative(n)
-      if (n == 0) F.pure(true)
-      else
-        state.modify {
-          case Right(m) if m >= n => (Right(m - n), true)
-          case other => (other, false)
-        }
-    }
-
-    def releaseN(n: Long): F[Unit] = {
-      requireNonNegative(n)
-      if (n == 0) F.unit
-      else
-        state
-          .modify { old =>
-            val u = old match {
-              case Left(waiting) =>
-                // just figure out how many to strip from waiting queue,
-                // but don't run anything here inside the modify
-                var m = n
-                var waiting2 = waiting
-                while (waiting2.nonEmpty && m > 0) {
-                  val Request(k, gate) = waiting2.head
-                  if (k > m) {
-                    waiting2 = Request(k - m, gate) +: waiting2.tail
-                    m = 0
-                  } else {
-                    m -= k
-                    waiting2 = waiting2.tail
-                  }
-                }
-                if (waiting2.nonEmpty) Left(waiting2)
-                else Right(m)
-              case Right(m) => Right(m + n)
-            }
-            (u, (old, u))
-          }
-          .flatMap {
-            case (Left(waiting), now) =>
-              // invariant: count_(now) == count_(previous) + n
-              // now compare old and new sizes to figure out which actions to run
-              val newSize = now match {
-                case Left(w) => w.size
-                case Right(_) => 0
               }
-              waiting.dropRight(newSize).traverse(request => open(request.gate)).void
-            case (Right(_), _) => F.unit
+            }
+        }
+
+        def releaseN(n: Long): F[Unit] = {
+          requireNonNegative(n)
+
+          @tailrec
+          def fulfil(
+              n: Long,
+              requests: Q[Request],
+              wakeup: Q[Request]): (Long, Q[Request], Q[Request]) = {
+            val (req, tail) = requests.dequeue
+            if (n < req.n) // partially fulfil one request
+              (0, req.of(req.n - n) +: tail, wakeup)
+            else { // fulfil as many requests as `n` allows
+              val newN = n - req.n
+              val newWakeup = wakeup.enqueue(req)
+
+              if (tail.isEmpty || newN == 0) (newN, tail, newWakeup)
+              else fulfil(newN, tail, newWakeup)
+            }
           }
-    }
 
-    def available: F[Long] =
-      state.get.map {
-        case Left(_) => 0
-        case Right(n) => n
+          if (n == 0) F.unit
+          else
+            state.modify {
+              case State(permits, waiting) =>
+                if (waiting.isEmpty) State(permits + n, waiting) -> F.unit
+                else {
+                  val (newN, waitingNow, wakeup) = fulfil(n, waiting, Q())
+                  State(newN, waitingNow) -> wakeup.traverse_(_.complete)
+                }
+            }.flatten
+        }
+
+        def available: F[Long] = state.get.map(_.permits)
+
+        def count: F[Long] =
+          state.get.map {
+            case State(permits, waiting) =>
+              if (waiting.nonEmpty) -waiting.foldMap(_.n)
+              else permits
+          }
+
+        def permit: Resource[F, Unit] =
+          Resource.makeFull { (poll: Poll[F]) => poll(acquire) } { _ => release }
+
+        def tryAcquireN(n: Long): F[Boolean] = {
+          requireNonNegative(n)
+          if (n == 0) F.pure(true)
+          else
+            state.modify { state =>
+              val permits = state.permits
+              if (permits >= n) state.copy(permits = permits - n) -> true
+              else state -> false
+            }
+        }
+
+        def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Semaphore[G] =
+          new MapKSemaphore[F, G](this, f)
       }
-
-    val permit: Resource[F, Unit] =
-      Resource.make(acquireNInternal(1))(_.release).evalMap(_.await)
   }
 
-  final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(
-      implicit F: GenConcurrent[F, _])
-      extends AbstractSemaphore(state) {
-    protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
-  }
-
-  final private[std] class TransformedSemaphore[F[_], G[_]](
+  final private[std] class MapKSemaphore[F[_], G[_]](
       underlying: Semaphore[F],
-      trans: F ~> G
-  ) extends Semaphore[G] {
-    override def available: G[Long] = trans(underlying.available)
-    override def count: G[Long] = trans(underlying.count)
-    override def acquireN(n: Long): G[Unit] = trans(underlying.acquireN(n))
-    override def tryAcquireN(n: Long): G[Boolean] = trans(underlying.tryAcquireN(n))
-    override def releaseN(n: Long): G[Unit] = trans(underlying.releaseN(n))
-    override def permit: Resource[G, Unit] = underlying.permit.mapK(trans)
+      f: F ~> G
+  )(
+      implicit F: MonadCancel[F, _],
+      G: MonadCancel[G, _])
+      extends Semaphore[G] {
+    def available: G[Long] = f(underlying.available)
+    def count: G[Long] = f(underlying.count)
+    def acquireN(n: Long): G[Unit] = f(underlying.acquireN(n))
+    def tryAcquireN(n: Long): G[Boolean] = f(underlying.tryAcquireN(n))
+    def releaseN(n: Long): G[Unit] = f(underlying.releaseN(n))
+    def permit: Resource[G, Unit] = underlying.permit.mapK(f)
+    def mapK[H[_]](f: G ~> H)(implicit H: MonadCancel[H, _]): Semaphore[H] =
+      new MapKSemaphore(this, f)
   }
 }

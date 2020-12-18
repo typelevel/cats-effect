@@ -132,9 +132,9 @@ import cats.syntax.all._
  *   def bracket[A, B](acquire: F[A])(use: A => F[B])(release: A => F[Unit]): F[B] =
  *     uncancelable { poll =>
  *       flatMap(acquire) { a =>
- *         val finalized = onCancel(poll(use(a)), release(a))
- *         val handled = onError(finalized) { case e => void(attempt(release(a))) }
- *         flatMap(handled)(b => as(attempt(release(a)), b))
+ *         val finalized = onCancel(poll(use(a)), release(a).uncancelable)
+ *         val handled = onError(finalized) { case e => void(attempt(release(a).uncancelable)) }
+ *         flatMap(handled)(b => as(attempt(release(a).uncancelable), b))
  *       }
  *     }
  *
@@ -345,12 +345,15 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
   def bracketFull[A, B](acquire: Poll[F] => F[A])(use: A => F[B])(
       release: (A, Outcome[F, E, B]) => F[Unit]): F[B] =
     uncancelable { poll =>
+      val safeRelease: (A, Outcome[F, E, B]) => F[Unit] =
+        (a, out) => uncancelable(_ => release(a, out))
+
       acquire(poll).flatMap { a =>
-        val finalized = onCancel(poll(use(a)), release(a, Outcome.Canceled()))
+        val finalized = onCancel(poll(use(a)), safeRelease(a, Outcome.Canceled()))
         val handled = finalized.onError {
-          case e => void(attempt(release(a, Outcome.Errored(e))))
+          case e => void(attempt(safeRelease(a, Outcome.Errored(e))))
         }
-        handled.flatTap { b => release(a, Outcome.Succeeded(b.pure)).attempt }
+        handled.flatTap { b => safeRelease(a, Outcome.Succeeded(b.pure)).attempt }
       }
     }
 }

@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.{Defer, MonadError, Monoid, Semigroup}
+import cats.{Applicative, Defer, MonadError, Monoid, Semigroup}
 import cats.data.{
   EitherT,
   IndexedReaderWriterStateT,
@@ -35,6 +35,8 @@ trait Sync[F[_]] extends MonadError[F, Throwable] with Clock[F] with Defer[F] {
   private[this] val Blocking = Sync.Type.Blocking
   private[this] val InterruptibleOnce = Sync.Type.InterruptibleOnce
   private[this] val InterruptibleMany = Sync.Type.InterruptibleMany
+
+  override def applicative: Applicative[F] = this
 
   def delay[A](thunk: => A): F[A] =
     suspend(Delay)(thunk)
@@ -112,8 +114,6 @@ object Sync {
     protected def delegate: MonadError[OptionT[F, *], Throwable] =
       OptionT.catsDataMonadErrorForOptionT[F, Throwable]
 
-    def applicative = this
-
     def pure[A](a: A): OptionT[F, A] = delegate.pure(a)
 
     def handleErrorWith[A](fa: OptionT[F, A])(f: Throwable => OptionT[F, A]): OptionT[F, A] =
@@ -140,8 +140,6 @@ object Sync {
 
     protected def delegate: MonadError[EitherT[F, E, *], Throwable] =
       EitherT.catsDataMonadErrorFForEitherT[F, Throwable, E]
-
-    def applicative = this
 
     def pure[A](a: A): EitherT[F, E, A] = delegate.pure(a)
 
@@ -171,8 +169,6 @@ object Sync {
     protected def delegate: MonadError[StateT[F, S, *], Throwable] =
       IndexedStateT.catsDataMonadErrorForIndexedStateT[F, S, Throwable]
 
-    def applicative = this
-
     def pure[A](a: A): StateT[F, S, A] = delegate.pure(a)
 
     def handleErrorWith[A](fa: StateT[F, S, A])(
@@ -200,8 +196,6 @@ object Sync {
 
     protected def delegate: MonadError[WriterT[F, S, *], Throwable] =
       WriterT.catsDataMonadErrorForWriterT[F, S, Throwable]
-
-    def applicative = this
 
     def pure[A](a: A): WriterT[F, S, A] = delegate.pure(a)
 
@@ -231,8 +225,6 @@ object Sync {
     protected def delegate: MonadError[IorT[F, L, *], Throwable] =
       IorT.catsDataMonadErrorFForIorT[F, L, Throwable]
 
-    def applicative = this
-
     def pure[A](a: A): IorT[F, L, A] = delegate.pure(a)
 
     def handleErrorWith[A](fa: IorT[F, L, A])(f: Throwable => IorT[F, L, A]): IorT[F, L, A] =
@@ -259,8 +251,6 @@ object Sync {
 
     protected def delegate: MonadError[Kleisli[F, R, *], Throwable] =
       Kleisli.catsDataMonadErrorForKleisli[F, R, Throwable]
-
-    def applicative = this
 
     def pure[A](a: A): Kleisli[F, R, A] = delegate.pure(a)
 
@@ -289,8 +279,6 @@ object Sync {
 
     protected def delegate: MonadError[ReaderWriterStateT[F, R, L, S, *], Throwable] =
       IndexedReaderWriterStateT.catsDataMonadErrorForIRWST[F, R, L, S, Throwable]
-
-    def applicative = this
 
     def pure[A](a: A): ReaderWriterStateT[F, R, L, S, A] = delegate.pure(a)
 

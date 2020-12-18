@@ -29,6 +29,7 @@ package unsafe
 
 import scala.concurrent.ExecutionContext
 
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.LockSupport
 
@@ -62,7 +63,8 @@ private[effect] final class WorkStealingThreadPool(
 
   // The external queue on which fibers coming from outside the pool are enqueued, or acts
   // as a place where spillover work from other local queues can go.
-  private[this] val externalQueue: ExternalQueue = new ExternalQueue()
+  private[this] val externalQueue: ConcurrentLinkedQueue[IOFiber[_]] =
+    new ConcurrentLinkedQueue()
 
   // Represents two unsigned 16 bit integers.
   // The 16 most significant bits track the number of active (unparked) worker threads.
@@ -70,11 +72,9 @@ private[effect] final class WorkStealingThreadPool(
   // for work to steal from other worker threads.
   private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
 
-  // Lock that ensures exclusive access to the references of sleeping threads.
-  private[this] val lock: AnyRef = new Object()
-
   // LIFO access to references of sleeping worker threads.
-  private[this] val sleepers: ArrayStack[WorkerThread] = new ArrayStack(threadCount)
+  private[this] val sleepers: ConcurrentLinkedQueue[WorkerThread] =
+    new ConcurrentLinkedQueue()
 
   // Shutdown signal for the worker threads.
   @volatile private[unsafe] var done: Boolean = false
@@ -131,7 +131,7 @@ private[effect] final class WorkStealingThreadPool(
    * Checks the external queue for a fiber to execute next.
    */
   private[unsafe] def externalDequeue(): IOFiber[_] =
-    externalQueue.dequeue()
+    externalQueue.poll()
 
   /**
    * Deregisters the current worker thread from the set of searching threads and asks for
@@ -166,23 +166,16 @@ private[effect] final class WorkStealingThreadPool(
       return null
     }
 
-    lock.synchronized {
-      if (!notifyShouldWakeup()) {
-        // Again, there are enough searching and/or running worker threads.
-        // No need to wake up more. Return.
-        return null
-      }
-
+    // Obtain the most recently parked thread.
+    val worker = sleepers.poll()
+    if (worker != null) {
       // Update the state so that a thread can be unparked.
       // Here we are updating the 16 most significant bits, which hold the
       // number of active threads.
       state.getAndAdd(1 | (1 << UnparkShift))
-
-      // Obtain the most recently parked thread.
-      val popped = sleepers.pop()
-      popped.sleeping = false
-      popped
+      worker.sleeping = false
     }
+    worker
   }
 
   /**
@@ -201,14 +194,11 @@ private[effect] final class WorkStealingThreadPool(
    * Updates the internal state to mark the given worker thread as parked.
    */
   private[unsafe] def transitionWorkerToParked(thread: WorkerThread): Boolean = {
-    lock.synchronized {
-      // Decrement the number of unparked threads since we are parking.
-      val ret = decrementNumberUnparked(thread.isSearching())
-      // Mark the thread as parked.
-      sleepers.push(thread)
-      thread.sleeping = true
-      ret
-    }
+    // Mark the thread as parked.
+    thread.sleeping = true
+    sleepers.offer(thread)
+    // Decrement the number of unparked threads since we are parking.
+    decrementNumberUnparked(thread.isSearching())
   }
 
   /**
@@ -284,7 +274,7 @@ private[effect] final class WorkStealingThreadPool(
     if (Thread.currentThread().isInstanceOf[WorkerThread]) {
       rescheduleFiberAndNotify(fiber)
     } else {
-      externalQueue.enqueue(fiber)
+      externalQueue.offer(fiber)
       notifyParked()
     }
   }
@@ -346,7 +336,7 @@ private[effect] final class WorkStealingThreadPool(
     // Set the worker thread shutdown flag.
     done = true
     // Shutdown and drain the external queue.
-    externalQueue.shutdown()
+    externalQueue.clear()
     // Send an interrupt signal to each of the worker threads.
     workerThreads.foreach(_.interrupt())
     // Remove the references to the worker threads so that they can be cleaned up, including their worker queues.
