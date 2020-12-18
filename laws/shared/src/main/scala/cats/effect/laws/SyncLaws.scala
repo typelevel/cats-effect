@@ -19,9 +19,9 @@ package laws
 
 import cats.effect.kernel.Sync
 import cats.syntax.all._
-import cats.laws.MonadErrorLaws
+import cats.laws.{DeferLaws, MonadErrorLaws}
 
-trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] with ClockLaws[F] {
+trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] with ClockLaws[F] with DeferLaws[F] {
 
   implicit val F: Sync[F]
 

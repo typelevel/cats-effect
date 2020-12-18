@@ -18,9 +18,10 @@ package cats.effect
 package laws
 
 import cats.effect.kernel.{GenSpawn, Outcome}
+import cats.laws.DeferLaws
 import cats.syntax.all._
 
-trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] {
+trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with DeferLaws[F] {
 
   implicit val F: GenSpawn[F, E]
 
