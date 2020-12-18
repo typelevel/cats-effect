@@ -16,7 +16,7 @@
 </code></pre></div></div>
 
 <h3 id="resource"><a href="/cats-effect/datatypes/resource.html">Resource</a></h3>
-<p>A resource management data type that complements the <code class="language-plaintext highlighter-rouge">Bracket</code> typeclass</p>
+<p>A resource management data type that complements the <code class="highlighter-rouge">Bracket</code> typeclass</p>
 
 <h3 id="clock"><a href="/cats-effect/datatypes/clock.html">Clock</a></h3>
 <p>Provides the current time, used for time measurements and getting the current clock</p>
@@ -26,9 +26,9 @@
 </code></pre></div></div>
 
 <h3 id="contextshift"><a href="/cats-effect/datatypes/contextshift.html">ContextShift</a></h3>
-<p>A pure equivalent of an <code class="language-plaintext highlighter-rouge">ExecutionContext</code>. Provides support for cooperative yielding and shifting execution, e.g. to execute blocking code on a dedicated execution context.</p>
+<p>A pure equivalent of an <code class="highlighter-rouge">ExecutionContext</code>. Provides support for cooperative yielding and shifting execution, e.g. to execute blocking code on a dedicated execution context.</p>
 
-<p>Instance for <code class="language-plaintext highlighter-rouge">IO</code> is required by <code class="language-plaintext highlighter-rouge">Concurrent[IO]</code></p>
+<p>Instance for <code class="highlighter-rouge">IO</code> is required by <code class="highlighter-rouge">Concurrent[IO]</code></p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">shift</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
 <span class="k">def</span> <span class="nf">evalOn</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)(</span><span class="n">f</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
@@ -37,7 +37,7 @@
 <h3 id="timer"><a href="/cats-effect/datatypes/timer.html">Timer</a></h3>
 <p>A pure scheduler. Provides the ability to get the current time and delay the execution of a task with a specified time duration.</p>
 
-<p>Instance for <code class="language-plaintext highlighter-rouge">IO</code> is required by <code class="language-plaintext highlighter-rouge">IO.sleep</code>, <code class="language-plaintext highlighter-rouge">timeout</code>, etc.</p>
+<p>Instance for <code class="highlighter-rouge">IO</code> is required by <code class="highlighter-rouge">IO.sleep</code>, <code class="highlighter-rouge">timeout</code>, etc.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">clock</span><span class="k">:</span> <span class="kt">Clock</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span>
 <span class="k">def</span> <span class="nf">sleep</span><span class="o">(</span><span class="n">duration</span><span class="k">:</span> <span class="kt">FiniteDuration</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>

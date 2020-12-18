@@ -15,7 +15,7 @@ the producer-consumer problem to introduce cats-effect <em>fibers</em>.</p>
 <p>This tutorial assumes certain familiarity with functional programming. It is
 also a good idea to read cats-effect documentation prior to starting this
 tutorial, at least the 
-<a href="/cats-effect/datatypes/io.html">excellent documentation about <code class="language-plaintext highlighter-rouge">IO</code> data type</a>.</p>
+<a href="/cats-effect/datatypes/io.html">excellent documentation about <code class="highlighter-rouge">IO</code> data type</a>.</p>
 
 <p>Please read this tutorial as training material, not as a best-practices
 document. As you gain more experience with cats-effect, probably you will find
@@ -33,9 +33,9 @@ cats-effect.</p>
 <h2 id="setting-things-up">Setting things up</h2>
 
 <p>This <a href="https://github.com/lrodero/cats-effect-tutorial">Github repo</a> includes all
-the software that will be developed during this tutorial. It uses <code class="language-plaintext highlighter-rouge">sbt</code> as the
+the software that will be developed during this tutorial. It uses <code class="highlighter-rouge">sbt</code> as the
 build tool. To ease coding, compiling and running the code snippets in this
-tutorial it is recommended to use the same <code class="language-plaintext highlighter-rouge">build.sbt</code>, or at least one with the
+tutorial it is recommended to use the same <code class="highlighter-rouge">build.sbt</code>, or at least one with the
 same dependencies and compilation options:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">name</span> <span class="o">:=</span> <span class="s">"cats-effect-tutorial"</span>
@@ -67,16 +67,16 @@ invoked from the shell and uses that function.</p>
 <p>First of all we must code the function that copies the content from a file to
 another file. The function takes the source and destination files as parameters.
 But this is functional programming! So invoking the function shall not copy
-anything, instead it will return an <a href="/cats-effect/datatypes/io.html"><code class="language-plaintext highlighter-rouge">IO</code></a> instance that
+anything, instead it will return an <a href="/cats-effect/datatypes/io.html"><code class="highlighter-rouge">IO</code></a> instance that
 encapsulates all the side effects involved (opening/closing files,
-reading/writing content), that way <em>purity</em> is kept.  Only when that <code class="language-plaintext highlighter-rouge">IO</code>
+reading/writing content), that way <em>purity</em> is kept.  Only when that <code class="highlighter-rouge">IO</code>
 instance is evaluated all those side-effectful actions will be run. In our
-implementation the <code class="language-plaintext highlighter-rouge">IO</code> instance will return the amount of bytes copied upon
+implementation the <code class="highlighter-rouge">IO</code> instance will return the amount of bytes copied upon
 execution, but this is just a design decision. Of course errors can occur, but
-when working with any <code class="language-plaintext highlighter-rouge">IO</code> those should be embedded in the <code class="language-plaintext highlighter-rouge">IO</code> instance. That
-is, no exception is raised outside the <code class="language-plaintext highlighter-rouge">IO</code> and so no <code class="language-plaintext highlighter-rouge">try</code> (or the like) needs
-to be used when using the function, instead the <code class="language-plaintext highlighter-rouge">IO</code> evaluation will fail and
-the <code class="language-plaintext highlighter-rouge">IO</code> instance will carry the error raised.</p>
+when working with any <code class="highlighter-rouge">IO</code> those should be embedded in the <code class="highlighter-rouge">IO</code> instance. That
+is, no exception is raised outside the <code class="highlighter-rouge">IO</code> and so no <code class="highlighter-rouge">try</code> (or the like) needs
+to be used when using the function, instead the <code class="highlighter-rouge">IO</code> evaluation will fail and
+the <code class="highlighter-rouge">IO</code> instance will carry the error raised.</p>
 
 <p>Now, the signature of our function looks like this:</p>
 
@@ -86,16 +86,16 @@ the <code class="language-plaintext highlighter-rouge">IO</code> instance will c
 <span class="k">def</span> <span class="nf">copy</span><span class="o">(</span><span class="n">origin</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
 </code></pre></div></div>
 
-<p>Nothing scary, uh? As we said before, the function just returns an <code class="language-plaintext highlighter-rouge">IO</code>
-instance. When run, all side-effects will be actually executed and the <code class="language-plaintext highlighter-rouge">IO</code>
-instance will return the bytes copied in a <code class="language-plaintext highlighter-rouge">Long</code> (note that <code class="language-plaintext highlighter-rouge">IO</code> is
+<p>Nothing scary, uh? As we said before, the function just returns an <code class="highlighter-rouge">IO</code>
+instance. When run, all side-effects will be actually executed and the <code class="highlighter-rouge">IO</code>
+instance will return the bytes copied in a <code class="highlighter-rouge">Long</code> (note that <code class="highlighter-rouge">IO</code> is
 parameterized by the return type). Now, let’s start implementing our function.
 First, we need to open two streams that will read and write file contents.</p>
 
-<h3 id="acquiring-and-releasing-resources">Acquiring and releasing <code class="language-plaintext highlighter-rouge">Resource</code>s</h3>
+<h3 id="acquiring-and-releasing-resources">Acquiring and releasing <code class="highlighter-rouge">Resource</code>s</h3>
 <p>We consider opening a stream to be a side-effect action, so we have to
-encapsulate those actions in their own <code class="language-plaintext highlighter-rouge">IO</code> instances. For this, we will make
-use of cats-effect <a href="/cats-effect/datatypes/resource.html"><code class="language-plaintext highlighter-rouge">Resource</code></a>, that allows to
+encapsulate those actions in their own <code class="highlighter-rouge">IO</code> instances. For this, we will make
+use of cats-effect <a href="/cats-effect/datatypes/resource.html"><code class="highlighter-rouge">Resource</code></a>, that allows to
 orderly create, use and then release resources. See this code:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
@@ -124,22 +124,22 @@ orderly create, use and then release resources. See this code:</p>
 </code></pre></div></div>
 
 <p>We want to ensure that streams are closed once we are done using them, no matter
-what. That is precisely why we use <code class="language-plaintext highlighter-rouge">Resource</code> in both <code class="language-plaintext highlighter-rouge">inputStream</code> and
-<code class="language-plaintext highlighter-rouge">outputStream</code> functions, each one returning one <code class="language-plaintext highlighter-rouge">Resource</code> that encapsulates
-the actions for opening and then closing each stream.  <code class="language-plaintext highlighter-rouge">inputOutputStreams</code>
-encapsulates both resources in a single <code class="language-plaintext highlighter-rouge">Resource</code> instance that will be
+what. That is precisely why we use <code class="highlighter-rouge">Resource</code> in both <code class="highlighter-rouge">inputStream</code> and
+<code class="highlighter-rouge">outputStream</code> functions, each one returning one <code class="highlighter-rouge">Resource</code> that encapsulates
+the actions for opening and then closing each stream.  <code class="highlighter-rouge">inputOutputStreams</code>
+encapsulates both resources in a single <code class="highlighter-rouge">Resource</code> instance that will be
 available once the creation of both streams has been successful, and only in
-that case. As seen in the code above <code class="language-plaintext highlighter-rouge">Resource</code> instances can be combined in
-for-comprehensions as they implement <code class="language-plaintext highlighter-rouge">flatMap</code>. Note also that when releasing
+that case. As seen in the code above <code class="highlighter-rouge">Resource</code> instances can be combined in
+for-comprehensions as they implement <code class="highlighter-rouge">flatMap</code>. Note also that when releasing
 resources we must also take care of any possible error during the release
-itself, for example with the <code class="language-plaintext highlighter-rouge">.handleErrorWith</code> call as we do in the code above.
+itself, for example with the <code class="highlighter-rouge">.handleErrorWith</code> call as we do in the code above.
 In this case we just swallow the error, but normally it should be at least
 logged.</p>
 
-<p>Optionally we could have used <code class="language-plaintext highlighter-rouge">Resource.fromAutoCloseable</code> to define our
-resources, that method creates <code class="language-plaintext highlighter-rouge">Resource</code> instances over objects that implement
-<code class="language-plaintext highlighter-rouge">java.lang.AutoCloseable</code> interface without having to define how the resource is
-released. So our <code class="language-plaintext highlighter-rouge">inputStream</code> function would look like this:</p>
+<p>Optionally we could have used <code class="highlighter-rouge">Resource.fromAutoCloseable</code> to define our
+resources, that method creates <code class="highlighter-rouge">Resource</code> instances over objects that implement
+<code class="highlighter-rouge">java.lang.AutoCloseable</code> interface without having to define how the resource is
+released. So our <code class="highlighter-rouge">inputStream</code> function would look like this:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">java.io.</span><span class="o">{</span><span class="nc">File</span><span class="o">,</span> <span class="nc">FileInputStream</span><span class="o">}</span>
@@ -151,10 +151,10 @@ released. So our <code class="language-plaintext highlighter-rouge">inputStream<
 <p>That code is way simpler, but with that code we would not have control over what
 would happen if the closing operation throws an exception. Also it could be that
 we want to be aware when closing operations are being run, for example using
-logs. In contrast, using <code class="language-plaintext highlighter-rouge">Resource.make</code> allows to easily control the actions
+logs. In contrast, using <code class="highlighter-rouge">Resource.make</code> allows to easily control the actions
 of the release phase.</p>
 
-<p>Let’s go back to our <code class="language-plaintext highlighter-rouge">copy</code> function, which now looks like this:</p>
+<p>Let’s go back to our <code class="highlighter-rouge">copy</code> function, which now looks like this:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">java.io._</span>
@@ -171,28 +171,28 @@ of the release phase.</p>
   <span class="o">}</span>
 </code></pre></div></div>
 
-<p>The new method <code class="language-plaintext highlighter-rouge">transfer</code> will perform the actual copying of data, once the
+<p>The new method <code class="highlighter-rouge">transfer</code> will perform the actual copying of data, once the
 resources (the streams) are obtained. When they are not needed anymore, whatever
-the outcome of <code class="language-plaintext highlighter-rouge">transfer</code> (success or failure) both streams will be closed. If
-any of the streams could not be obtained, then <code class="language-plaintext highlighter-rouge">transfer</code> will not be run. Even
-better, because of <code class="language-plaintext highlighter-rouge">Resource</code> semantics, if there is any problem opening the
+the outcome of <code class="highlighter-rouge">transfer</code> (success or failure) both streams will be closed. If
+any of the streams could not be obtained, then <code class="highlighter-rouge">transfer</code> will not be run. Even
+better, because of <code class="highlighter-rouge">Resource</code> semantics, if there is any problem opening the
 input file then the output file will not be opened.  On the other hand, if there
 is any issue opening the output file, then the input stream will be closed.</p>
 
-<h3 id="what-about-bracket">What about <code class="language-plaintext highlighter-rouge">bracket</code>?</h3>
+<h3 id="what-about-bracket">What about <code class="highlighter-rouge">bracket</code>?</h3>
 <p>Now, if you are familiar with cats-effect’s
-<a href="/cats-effect/typeclasses/bracket.html"><code class="language-plaintext highlighter-rouge">Bracket</code></a> you may be wondering why we are not using
-it as it looks so similar to <code class="language-plaintext highlighter-rouge">Resource</code> (and there is a good reason for that:
-<code class="language-plaintext highlighter-rouge">Resource</code> is based on <code class="language-plaintext highlighter-rouge">bracket</code>). Ok, before moving forward it is worth to take
-a look to <code class="language-plaintext highlighter-rouge">bracket</code>.</p>
+<a href="/cats-effect/typeclasses/bracket.html"><code class="highlighter-rouge">Bracket</code></a> you may be wondering why we are not using
+it as it looks so similar to <code class="highlighter-rouge">Resource</code> (and there is a good reason for that:
+<code class="highlighter-rouge">Resource</code> is based on <code class="highlighter-rouge">bracket</code>). Ok, before moving forward it is worth to take
+a look to <code class="highlighter-rouge">bracket</code>.</p>
 
-<p>There are three stages when using <code class="language-plaintext highlighter-rouge">bracket</code>: <em>resource acquisition</em>, <em>usage</em>,
-and <em>release</em>. Each stage is defined by an <code class="language-plaintext highlighter-rouge">IO</code> instance.  A fundamental
+<p>There are three stages when using <code class="highlighter-rouge">bracket</code>: <em>resource acquisition</em>, <em>usage</em>,
+and <em>release</em>. Each stage is defined by an <code class="highlighter-rouge">IO</code> instance.  A fundamental
 property is that the <em>release</em> stage will always be run regardless whether the
 <em>usage</em> stage finished correctly or an exception was thrown during its
 execution. In our case, in the <em>acquisition</em> stage we would create the streams,
 then in the <em>usage</em> stage we will copy the contents, and finally in the release
-stage we will close the streams.  Thus we could define our <code class="language-plaintext highlighter-rouge">copy</code> function as
+stage we will close the streams.  Thus we could define our <code class="highlighter-rouge">copy</code> function as
 follows:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
@@ -222,30 +222,30 @@ follows:</p>
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>New <code class="language-plaintext highlighter-rouge">copy</code> definition is more complex, even though the code as a whole is way
-shorter as we do not need the <code class="language-plaintext highlighter-rouge">inputOutputStreams</code> function. But there is a
-catch in the code above.  When using <code class="language-plaintext highlighter-rouge">bracket</code>, if there is a problem when
+<p>New <code class="highlighter-rouge">copy</code> definition is more complex, even though the code as a whole is way
+shorter as we do not need the <code class="highlighter-rouge">inputOutputStreams</code> function. But there is a
+catch in the code above.  When using <code class="highlighter-rouge">bracket</code>, if there is a problem when
 getting resources in the first stage, then the release stage will not be run.
 Now, in the code above, first the origin file and then the destination file are
-opened (<code class="language-plaintext highlighter-rouge">tupled</code> just reorganizes both <code class="language-plaintext highlighter-rouge">IO</code> instances into a single one). So
+opened (<code class="highlighter-rouge">tupled</code> just reorganizes both <code class="highlighter-rouge">IO</code> instances into a single one). So
 what would happen if we successfully open the origin file (<em>i.e.</em> when
-evaluating <code class="language-plaintext highlighter-rouge">inIO</code>) but then an exception is raised when opening the destination
-file (<em>i.e.</em> when evaluating <code class="language-plaintext highlighter-rouge">outIO</code>)? In that case the origin stream will not
-be closed! To solve this we should first get the first stream with one <code class="language-plaintext highlighter-rouge">bracket</code>
-call, and then the second stream with another <code class="language-plaintext highlighter-rouge">bracket</code> call inside the first.
-But, in a way, that’s precisely what we do when we <code class="language-plaintext highlighter-rouge">flatMap</code> instances of
-<code class="language-plaintext highlighter-rouge">Resource</code>. And the code looks cleaner too. So, while using <code class="language-plaintext highlighter-rouge">bracket</code> directly
-has its place, <code class="language-plaintext highlighter-rouge">Resource</code> is likely to be a better choice when dealing with
+evaluating <code class="highlighter-rouge">inIO</code>) but then an exception is raised when opening the destination
+file (<em>i.e.</em> when evaluating <code class="highlighter-rouge">outIO</code>)? In that case the origin stream will not
+be closed! To solve this we should first get the first stream with one <code class="highlighter-rouge">bracket</code>
+call, and then the second stream with another <code class="highlighter-rouge">bracket</code> call inside the first.
+But, in a way, that’s precisely what we do when we <code class="highlighter-rouge">flatMap</code> instances of
+<code class="highlighter-rouge">Resource</code>. And the code looks cleaner too. So, while using <code class="highlighter-rouge">bracket</code> directly
+has its place, <code class="highlighter-rouge">Resource</code> is likely to be a better choice when dealing with
 multiple resources at once.</p>
 
 <h3 id="copying-data">Copying data</h3>
 <p>Finally we have our streams ready to go! We have to focus now on coding
-<code class="language-plaintext highlighter-rouge">transfer</code>. That function will have to define a loop that at each iteration
+<code class="highlighter-rouge">transfer</code>. That function will have to define a loop that at each iteration
 reads data from the input stream into a buffer, and then writes the buffer
 contents into the output stream. At the same time, the loop will keep a counter
 of the bytes transferred. To reuse the same buffer we should define it outside
 the main loop, and leave the actual transmission of data to another function
-<code class="language-plaintext highlighter-rouge">transmit</code> that uses that loop. Something like:</p>
+<code class="highlighter-rouge">transmit</code> that uses that loop. Something like:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 <span class="k">import</span> <span class="nn">cats.syntax.all._</span> 
@@ -265,33 +265,33 @@ the main loop, and leave the actual transmission of data to another function
   <span class="o">}</span> <span class="k">yield</span> <span class="n">total</span>
 </code></pre></div></div>
 
-<p>Take a look at <code class="language-plaintext highlighter-rouge">transmit</code>, observe that both input and output actions are
-encapsulated in (suspended in) <code class="language-plaintext highlighter-rouge">IO</code>. <code class="language-plaintext highlighter-rouge">IO</code> being a monad, we can sequence them
-using a for-comprehension to create another <code class="language-plaintext highlighter-rouge">IO</code>. The for-comprehension loops as
-long as the call to <code class="language-plaintext highlighter-rouge">read()</code> does not return a negative value that would signal
-that the end of the stream has been reached. <code class="language-plaintext highlighter-rouge">&gt;&gt;</code> is a Cats operator to sequence
+<p>Take a look at <code class="highlighter-rouge">transmit</code>, observe that both input and output actions are
+encapsulated in (suspended in) <code class="highlighter-rouge">IO</code>. <code class="highlighter-rouge">IO</code> being a monad, we can sequence them
+using a for-comprehension to create another <code class="highlighter-rouge">IO</code>. The for-comprehension loops as
+long as the call to <code class="highlighter-rouge">read()</code> does not return a negative value that would signal
+that the end of the stream has been reached. <code class="highlighter-rouge">&gt;&gt;</code> is a Cats operator to sequence
 two operations where the output of the first is not needed by the second (<em>i.e.</em>
-it is equivalent to <code class="language-plaintext highlighter-rouge">first.flatMap(_ =&gt; second)</code>). In the code above that means
-that after each write operation we recursively call <code class="language-plaintext highlighter-rouge">transmit</code> again, but as
-<code class="language-plaintext highlighter-rouge">IO</code> is stack safe we are not concerned about stack overflow issues. At each
-iteration we increase the counter <code class="language-plaintext highlighter-rouge">acc</code> with the amount of bytes read at that
+it is equivalent to <code class="highlighter-rouge">first.flatMap(_ =&gt; second)</code>). In the code above that means
+that after each write operation we recursively call <code class="highlighter-rouge">transmit</code> again, but as
+<code class="highlighter-rouge">IO</code> is stack safe we are not concerned about stack overflow issues. At each
+iteration we increase the counter <code class="highlighter-rouge">acc</code> with the amount of bytes read at that
 iteration.</p>
 
-<p>We are making progress, and already have a version of <code class="language-plaintext highlighter-rouge">copy</code> that can be used.
-If any exception is raised when <code class="language-plaintext highlighter-rouge">transfer</code> is running, then the streams will be
-automatically closed by <code class="language-plaintext highlighter-rouge">Resource</code>. But there is something else we have to take
-into account: <code class="language-plaintext highlighter-rouge">IO</code> instances execution can be <strong><em>canceled!</em></strong>. And cancellation
+<p>We are making progress, and already have a version of <code class="highlighter-rouge">copy</code> that can be used.
+If any exception is raised when <code class="highlighter-rouge">transfer</code> is running, then the streams will be
+automatically closed by <code class="highlighter-rouge">Resource</code>. But there is something else we have to take
+into account: <code class="highlighter-rouge">IO</code> instances execution can be <strong><em>canceled!</em></strong>. And cancellation
 should not be ignored, as it is a key feature of cats-effect. We will discuss
 cancellation in the next section.</p>
 
 <h3 id="dealing-with-cancellation">Dealing with cancellation</h3>
 <p>Cancellation is a powerful but non-trivial cats-effect feature. In cats-effect,
-some <code class="language-plaintext highlighter-rouge">IO</code> instances can be canceled ( <em>e.g.</em> by other <code class="language-plaintext highlighter-rouge">IO</code> instaces running
+some <code class="highlighter-rouge">IO</code> instances can be canceled ( <em>e.g.</em> by other <code class="highlighter-rouge">IO</code> instaces running
 concurrently) meaning that their evaluation will be aborted. If the programmer is
-careful, an alternative <code class="language-plaintext highlighter-rouge">IO</code> task will be run under cancellation, for example to
+careful, an alternative <code class="highlighter-rouge">IO</code> task will be run under cancellation, for example to
 deal with potential cleaning up activities.</p>
 
-<p>Now, <code class="language-plaintext highlighter-rouge">IO</code>s created with <code class="language-plaintext highlighter-rouge">Resource.use</code> can be canceled. The cancellation will
+<p>Now, <code class="highlighter-rouge">IO</code>s created with <code class="highlighter-rouge">Resource.use</code> can be canceled. The cancellation will
 trigger the execution of the code that handles the closing of the resource. In
 our case, that would close both streams. So far so good! But what happens if
 cancellation happens <em>while</em> the streams are being used? This could lead to data
@@ -301,21 +301,21 @@ closed by another thread. For more info about this problem see
 in cats-effect site.</p>
 
 <p>To prevent such data corruption we must use some concurrency control mechanism
-that ensures that no stream will be closed while the <code class="language-plaintext highlighter-rouge">IO</code> returned by <code class="language-plaintext highlighter-rouge">transfer</code>
+that ensures that no stream will be closed while the <code class="highlighter-rouge">IO</code> returned by <code class="highlighter-rouge">transfer</code>
 is being evaluated.  Cats-effect provides several constructs for controlling
 concurrency, for this case we will use a
 <a href="/cats-effect/concurrency/semaphore.html"><em>semaphore</em></a>. A semaphore has a number of permits,
-its method <code class="language-plaintext highlighter-rouge">.acquire</code> ‘blocks’ if no permit is available until <code class="language-plaintext highlighter-rouge">release</code> is
+its method <code class="highlighter-rouge">.acquire</code> ‘blocks’ if no permit is available until <code class="highlighter-rouge">release</code> is
 called on the same semaphore. It is important to remark that <em>there is no actual
-thread being really blocked</em>, the thread that finds the <code class="language-plaintext highlighter-rouge">.acquire</code> call will be
-immediately recycled by cats-effect. When the <code class="language-plaintext highlighter-rouge">release</code> method is invoked then
+thread being really blocked</em>, the thread that finds the <code class="highlighter-rouge">.acquire</code> call will be
+immediately recycled by cats-effect. When the <code class="highlighter-rouge">release</code> method is invoked then
 cats-effect will look for some available thread to resume the execution of the
-code after <code class="language-plaintext highlighter-rouge">.acquire</code>.</p>
+code after <code class="highlighter-rouge">.acquire</code>.</p>
 
-<p>We will use a semaphore with a single permit. The <code class="language-plaintext highlighter-rouge">.withPermit</code> method acquires
-one permit, runs the <code class="language-plaintext highlighter-rouge">IO</code> given and then releases the permit.  We could also
-use <code class="language-plaintext highlighter-rouge">.acquire</code> and then <code class="language-plaintext highlighter-rouge">.release</code> on the semaphore explicitly, but
-<code class="language-plaintext highlighter-rouge">.withPermit</code> is more idiomatic and ensures that the permit is released even if
+<p>We will use a semaphore with a single permit. The <code class="highlighter-rouge">.withPermit</code> method acquires
+one permit, runs the <code class="highlighter-rouge">IO</code> given and then releases the permit.  We could also
+use <code class="highlighter-rouge">.acquire</code> and then <code class="highlighter-rouge">.release</code> on the semaphore explicitly, but
+<code class="highlighter-rouge">.withPermit</code> is more idiomatic and ensures that the permit is released even if
 the effect run fails.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.syntax.all._</span>
@@ -360,46 +360,46 @@ the effect run fails.</p>
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>Before calling to <code class="language-plaintext highlighter-rouge">transfer</code> we acquire the semaphore, which is not released
-until <code class="language-plaintext highlighter-rouge">transfer</code> is done. The <code class="language-plaintext highlighter-rouge">use</code> call ensures that the semaphore will be
-released under any circumstances, whatever the result of <code class="language-plaintext highlighter-rouge">transfer</code> (success,
-error, or cancellation). As the ‘release’ parts in the <code class="language-plaintext highlighter-rouge">Resource</code> instances are
+<p>Before calling to <code class="highlighter-rouge">transfer</code> we acquire the semaphore, which is not released
+until <code class="highlighter-rouge">transfer</code> is done. The <code class="highlighter-rouge">use</code> call ensures that the semaphore will be
+released under any circumstances, whatever the result of <code class="highlighter-rouge">transfer</code> (success,
+error, or cancellation). As the ‘release’ parts in the <code class="highlighter-rouge">Resource</code> instances are
 now blocked on the same semaphore, we can be sure that streams are closed only
-after <code class="language-plaintext highlighter-rouge">transfer</code> is over, <em>i.e.</em> we have implemented mutual exclusion of
-<code class="language-plaintext highlighter-rouge">transfer</code> execution and resources releasing. An implicit <code class="language-plaintext highlighter-rouge">Concurrent</code> instance
+after <code class="highlighter-rouge">transfer</code> is over, <em>i.e.</em> we have implemented mutual exclusion of
+<code class="highlighter-rouge">transfer</code> execution and resources releasing. An implicit <code class="highlighter-rouge">Concurrent</code> instance
 is required to create the semaphore instance, which is included in the function
 signature.</p>
 
-<p>Mark that while the <code class="language-plaintext highlighter-rouge">IO</code> returned by <code class="language-plaintext highlighter-rouge">copy</code> is cancelable (because so are <code class="language-plaintext highlighter-rouge">IO</code>
-instances returned by <code class="language-plaintext highlighter-rouge">Resource.use</code>), the <code class="language-plaintext highlighter-rouge">IO</code> returned by <code class="language-plaintext highlighter-rouge">transfer</code> is not.
-Trying to cancel it will not have any effect and that <code class="language-plaintext highlighter-rouge">IO</code> will run until the
+<p>Mark that while the <code class="highlighter-rouge">IO</code> returned by <code class="highlighter-rouge">copy</code> is cancelable (because so are <code class="highlighter-rouge">IO</code>
+instances returned by <code class="highlighter-rouge">Resource.use</code>), the <code class="highlighter-rouge">IO</code> returned by <code class="highlighter-rouge">transfer</code> is not.
+Trying to cancel it will not have any effect and that <code class="highlighter-rouge">IO</code> will run until the
 whole file is copied! In real world code you will probably want to make your
 functions cancelable, section 
 <a href="/cats-effect/datatypes/io.html#building-cancelable-io-tasks">Building cancelable IO tasks</a> 
-of <code class="language-plaintext highlighter-rouge">IO</code> documentation explains how to create such cancelable <code class="language-plaintext highlighter-rouge">IO</code> instances
-(besides calling <code class="language-plaintext highlighter-rouge">Resource.use</code>, as we have done for our code).</p>
+of <code class="highlighter-rouge">IO</code> documentation explains how to create such cancelable <code class="highlighter-rouge">IO</code> instances
+(besides calling <code class="highlighter-rouge">Resource.use</code>, as we have done for our code).</p>
 
 <p>And that is it! We are done, now we can create a program that uses this
-<code class="language-plaintext highlighter-rouge">copy</code> function.</p>
+<code class="highlighter-rouge">copy</code> function.</p>
 
-<h3 id="ioapp-for-our-final-program"><code class="language-plaintext highlighter-rouge">IOApp</code> for our final program</h3>
+<h3 id="ioapp-for-our-final-program"><code class="highlighter-rouge">IOApp</code> for our final program</h3>
 
 <p>We will create a program that copies files, this program only takes two
 parameters: the name of the origin and destination files. For coding this
-program we will use <a href="/cats-effect/datatypes/ioapp.html"><code class="language-plaintext highlighter-rouge">IOApp</code></a> as it allows to maintain
+program we will use <a href="/cats-effect/datatypes/ioapp.html"><code class="highlighter-rouge">IOApp</code></a> as it allows to maintain
 purity in our definitions up to the program main function.</p>
 
-<p><code class="language-plaintext highlighter-rouge">IOApp</code> is a kind of ‘functional’ equivalent to Scala’s <code class="language-plaintext highlighter-rouge">App</code>, where instead of
-coding an effectful <code class="language-plaintext highlighter-rouge">main</code> method we code a pure <code class="language-plaintext highlighter-rouge">run</code> function. When executing
-the class a <code class="language-plaintext highlighter-rouge">main</code> method defined in <code class="language-plaintext highlighter-rouge">IOApp</code> will call the <code class="language-plaintext highlighter-rouge">run</code> function we
-have coded. Any interruption (like pressing <code class="language-plaintext highlighter-rouge">Ctrl-c</code>) will be treated as a
-cancellation of the running <code class="language-plaintext highlighter-rouge">IO</code>. Also <code class="language-plaintext highlighter-rouge">IOApp</code> provides implicit instances of
-<code class="language-plaintext highlighter-rouge">Timer[IO]</code> and <code class="language-plaintext highlighter-rouge">ContextShift[IO]</code> (not discussed yet in this tutorial).
-<code class="language-plaintext highlighter-rouge">ContextShift[IO]</code> allows for having a <code class="language-plaintext highlighter-rouge">Concurrent[IO]</code> in scope, as the one
-required by the <code class="language-plaintext highlighter-rouge">copy</code> function.</p>
+<p><code class="highlighter-rouge">IOApp</code> is a kind of ‘functional’ equivalent to Scala’s <code class="highlighter-rouge">App</code>, where instead of
+coding an effectful <code class="highlighter-rouge">main</code> method we code a pure <code class="highlighter-rouge">run</code> function. When executing
+the class a <code class="highlighter-rouge">main</code> method defined in <code class="highlighter-rouge">IOApp</code> will call the <code class="highlighter-rouge">run</code> function we
+have coded. Any interruption (like pressing <code class="highlighter-rouge">Ctrl-c</code>) will be treated as a
+cancellation of the running <code class="highlighter-rouge">IO</code>. Also <code class="highlighter-rouge">IOApp</code> provides implicit instances of
+<code class="highlighter-rouge">Timer[IO]</code> and <code class="highlighter-rouge">ContextShift[IO]</code> (not discussed yet in this tutorial).
+<code class="highlighter-rouge">ContextShift[IO]</code> allows for having a <code class="highlighter-rouge">Concurrent[IO]</code> in scope, as the one
+required by the <code class="highlighter-rouge">copy</code> function.</p>
 
-<p>When coding <code class="language-plaintext highlighter-rouge">IOApp</code>, instead of a <code class="language-plaintext highlighter-rouge">main</code> function we have a <code class="language-plaintext highlighter-rouge">run</code> function,
-which creates the <code class="language-plaintext highlighter-rouge">IO</code> instance that forms the program. In our case, our <code class="language-plaintext highlighter-rouge">run</code>
+<p>When coding <code class="highlighter-rouge">IOApp</code>, instead of a <code class="highlighter-rouge">main</code> function we have a <code class="highlighter-rouge">run</code> function,
+which creates the <code class="highlighter-rouge">IO</code> instance that forms the program. In our case, our <code class="highlighter-rouge">run</code>
 method can look like this:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
@@ -423,55 +423,55 @@ method can look like this:</p>
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>Heed how <code class="language-plaintext highlighter-rouge">run</code> verifies the <code class="language-plaintext highlighter-rouge">args</code> list passed. If there are fewer than two
-arguments, an error is raised. As <code class="language-plaintext highlighter-rouge">IO</code> implements <code class="language-plaintext highlighter-rouge">MonadError</code> we can at any
-moment call to <code class="language-plaintext highlighter-rouge">IO.raiseError</code> to interrupt a sequence of <code class="language-plaintext highlighter-rouge">IO</code> operations.</p>
+<p>Heed how <code class="highlighter-rouge">run</code> verifies the <code class="highlighter-rouge">args</code> list passed. If there are fewer than two
+arguments, an error is raised. As <code class="highlighter-rouge">IO</code> implements <code class="highlighter-rouge">MonadError</code> we can at any
+moment call to <code class="highlighter-rouge">IO.raiseError</code> to interrupt a sequence of <code class="highlighter-rouge">IO</code> operations.</p>
 
 <h4 id="copy-program-code">Copy program code</h4>
 <p>You can check the <a href="https://github.com/lrodero/cats-effect-tutorial/blob/replace_tcp_section_with_prodcons/src/main/scala/catseffecttutorial/copyfile/CopyFile.scala">final version of our copy program
 here</a>.</p>
 
-<p>The program can be run from <code class="language-plaintext highlighter-rouge">sbt</code> just by issuing this call:</p>
+<p>The program can be run from <code class="highlighter-rouge">sbt</code> just by issuing this call:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&gt;</span> <span class="n">runMain</span> <span class="nv">catseffecttutorial</span><span class="o">.</span><span class="py">CopyFile</span> <span class="nv">origin</span><span class="o">.</span><span class="py">txt</span> <span class="nv">destination</span><span class="o">.</span><span class="py">txt</span>
 </code></pre></div></div>
 
-<p>It can be argued that using <code class="language-plaintext highlighter-rouge">IO{java.nio.file.Files.copy(...)}</code> would get an
-<code class="language-plaintext highlighter-rouge">IO</code> with the same characteristics of purity as our function. But there is a
-difference: our <code class="language-plaintext highlighter-rouge">IO</code> is safely cancelable! So the user can stop the running code
-at any time for example by pressing <code class="language-plaintext highlighter-rouge">Ctrl-c</code>, our code will deal with safe
+<p>It can be argued that using <code class="highlighter-rouge">IO{java.nio.file.Files.copy(...)}</code> would get an
+<code class="highlighter-rouge">IO</code> with the same characteristics of purity as our function. But there is a
+difference: our <code class="highlighter-rouge">IO</code> is safely cancelable! So the user can stop the running code
+at any time for example by pressing <code class="highlighter-rouge">Ctrl-c</code>, our code will deal with safe
 resource release (streams closing) even under such circumstances. The same will
-apply if the <code class="language-plaintext highlighter-rouge">copy</code> function is run from other modules that require its
-functionality. If the <code class="language-plaintext highlighter-rouge">IO</code> returned by this function is canceled while being
+apply if the <code class="highlighter-rouge">copy</code> function is run from other modules that require its
+functionality. If the <code class="highlighter-rouge">IO</code> returned by this function is canceled while being
 run, still resources will be properly released. But recall what we commented
-before: this is because <code class="language-plaintext highlighter-rouge">use</code> returns <code class="language-plaintext highlighter-rouge">IO</code> instances that are cancelable, in
-contrast our <code class="language-plaintext highlighter-rouge">transfer</code> function is not cancelable.</p>
+before: this is because <code class="highlighter-rouge">use</code> returns <code class="highlighter-rouge">IO</code> instances that are cancelable, in
+contrast our <code class="highlighter-rouge">transfer</code> function is not cancelable.</p>
 
 <p>WARNING: To properly test cancelation, You should also ensure that
-<code class="language-plaintext highlighter-rouge">fork := true</code> is set in the sbt configuration, otherwise sbt will
+<code class="highlighter-rouge">fork := true</code> is set in the sbt configuration, otherwise sbt will
 intercept the cancelation because it will be running the program
 in the same JVM as itself.</p>
 
 <h3 id="polymorphic-cats-effect-code">Polymorphic cats-effect code</h3>
-<p>There is an important characteristic of <code class="language-plaintext highlighter-rouge">IO</code> that we shall be aware of. <code class="language-plaintext highlighter-rouge">IO</code> is
+<p>There is an important characteristic of <code class="highlighter-rouge">IO</code> that we shall be aware of. <code class="highlighter-rouge">IO</code> is
 able to encapsulate side-effects, but the capacity to define concurrent and/or
-async and/or cancelable <code class="language-plaintext highlighter-rouge">IO</code> instances comes from the existence of a
-<code class="language-plaintext highlighter-rouge">Concurrent[IO]</code> instance. <a href="/cats-effect/typeclasses/concurrent.html"><code class="language-plaintext highlighter-rouge">Concurrent</code></a> is a
-type class that, for an <code class="language-plaintext highlighter-rouge">F[_]</code> carrying a side-effect, brings the ability to
-cancel or start concurrently the side-effect in <code class="language-plaintext highlighter-rouge">F</code>. <code class="language-plaintext highlighter-rouge">Concurrent</code> also extends
-type class <a href="/cats-effect/typeclasses/async.html"><code class="language-plaintext highlighter-rouge">Async</code></a>, that allows to define
-synchronous/asynchronous computations. <code class="language-plaintext highlighter-rouge">Async</code>, in turn, extends type class
-<a href="/cats-effect/typeclasses/sync.html"><code class="language-plaintext highlighter-rouge">Sync</code></a>, which can suspend the execution of side
-effects in <code class="language-plaintext highlighter-rouge">F</code>.</p>
+async and/or cancelable <code class="highlighter-rouge">IO</code> instances comes from the existence of a
+<code class="highlighter-rouge">Concurrent[IO]</code> instance. <a href="/cats-effect/typeclasses/concurrent.html"><code class="highlighter-rouge">Concurrent</code></a> is a
+type class that, for an <code class="highlighter-rouge">F[_]</code> carrying a side-effect, brings the ability to
+cancel or start concurrently the side-effect in <code class="highlighter-rouge">F</code>. <code class="highlighter-rouge">Concurrent</code> also extends
+type class <a href="/cats-effect/typeclasses/async.html"><code class="highlighter-rouge">Async</code></a>, that allows to define
+synchronous/asynchronous computations. <code class="highlighter-rouge">Async</code>, in turn, extends type class
+<a href="/cats-effect/typeclasses/sync.html"><code class="highlighter-rouge">Sync</code></a>, which can suspend the execution of side
+effects in <code class="highlighter-rouge">F</code>.</p>
 
-<p>So well, <code class="language-plaintext highlighter-rouge">Sync</code> can suspend side effects (and so can <code class="language-plaintext highlighter-rouge">Async</code> and <code class="language-plaintext highlighter-rouge">Concurrent</code> as
-they extend <code class="language-plaintext highlighter-rouge">Sync</code>). We have used <code class="language-plaintext highlighter-rouge">IO</code> so far mostly for that purpose. Now,
+<p>So well, <code class="highlighter-rouge">Sync</code> can suspend side effects (and so can <code class="highlighter-rouge">Async</code> and <code class="highlighter-rouge">Concurrent</code> as
+they extend <code class="highlighter-rouge">Sync</code>). We have used <code class="highlighter-rouge">IO</code> so far mostly for that purpose. Now,
 going back to the code we created to copy files, could have we coded its
-functions in terms of some <code class="language-plaintext highlighter-rouge">F[_]: Sync</code> instead of <code class="language-plaintext highlighter-rouge">IO</code>? Truth is we could and
+functions in terms of some <code class="highlighter-rouge">F[_]: Sync</code> instead of <code class="highlighter-rouge">IO</code>? Truth is we could and
 <strong>in fact it is recommendable</strong> in real world programs.  See for example how we
-would define a polymorphic version of our <code class="language-plaintext highlighter-rouge">transfer</code> function with this
-approach, just by replacing any use of <code class="language-plaintext highlighter-rouge">IO</code> by calls to the <code class="language-plaintext highlighter-rouge">delay</code> and <code class="language-plaintext highlighter-rouge">pure</code>
-methods of the <code class="language-plaintext highlighter-rouge">Sync[F[_]]</code> instance!</p>
+would define a polymorphic version of our <code class="highlighter-rouge">transfer</code> function with this
+approach, just by replacing any use of <code class="highlighter-rouge">IO</code> by calls to the <code class="highlighter-rouge">delay</code> and <code class="highlighter-rouge">pure</code>
+methods of the <code class="highlighter-rouge">Sync[F[_]]</code> instance!</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.Sync</span>
 <span class="k">import</span> <span class="nn">cats.syntax.all._</span>
@@ -485,12 +485,12 @@ methods of the <code class="language-plaintext highlighter-rouge">Sync[F[_]]</co
   <span class="o">}</span> <span class="k">yield</span> <span class="n">count</span> <span class="c1">// Returns the actual amount of bytes transmitted</span>
 </code></pre></div></div>
 
-<p>We leave as an exercise to code the polymorphic versions of <code class="language-plaintext highlighter-rouge">inputStream</code>,
-<code class="language-plaintext highlighter-rouge">outputStream</code>, <code class="language-plaintext highlighter-rouge">inputOutputStreams</code> and <code class="language-plaintext highlighter-rouge">transfer</code> functions. You will
-find that transformation similar to the one shown for <code class="language-plaintext highlighter-rouge">transfer</code> in the snippet
-above. Function <code class="language-plaintext highlighter-rouge">copy</code> is different however. If you try to implement that
+<p>We leave as an exercise to code the polymorphic versions of <code class="highlighter-rouge">inputStream</code>,
+<code class="highlighter-rouge">outputStream</code>, <code class="highlighter-rouge">inputOutputStreams</code> and <code class="highlighter-rouge">transfer</code> functions. You will
+find that transformation similar to the one shown for <code class="highlighter-rouge">transfer</code> in the snippet
+above. Function <code class="highlighter-rouge">copy</code> is different however. If you try to implement that
 function as well you will realize that we need a full instance of
-<code class="language-plaintext highlighter-rouge">Concurrent[F]</code> in scope, this is because it is required by the <code class="language-plaintext highlighter-rouge">Semaphore</code>
+<code class="highlighter-rouge">Concurrent[F]</code> in scope, this is because it is required by the <code class="highlighter-rouge">Semaphore</code>
 instantiation:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
@@ -513,39 +513,39 @@ instantiation:</p>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">count</span>
 </code></pre></div></div>
 
-<p>Only in our <code class="language-plaintext highlighter-rouge">main</code> function we will set <code class="language-plaintext highlighter-rouge">IO</code> as the final <code class="language-plaintext highlighter-rouge">F</code> for
-our program. To do so, of course, a <code class="language-plaintext highlighter-rouge">Concurrent[IO]</code> instance must be in scope,
-but that instance is brought transparently by <code class="language-plaintext highlighter-rouge">IOApp</code> so we do not need to be
+<p>Only in our <code class="highlighter-rouge">main</code> function we will set <code class="highlighter-rouge">IO</code> as the final <code class="highlighter-rouge">F</code> for
+our program. To do so, of course, a <code class="highlighter-rouge">Concurrent[IO]</code> instance must be in scope,
+but that instance is brought transparently by <code class="highlighter-rouge">IOApp</code> so we do not need to be
 concerned about it.</p>
 
 <p>During the remaining of this tutorial we will use polymorphic code, only falling
-to <code class="language-plaintext highlighter-rouge">IO</code> in the <code class="language-plaintext highlighter-rouge">run</code> method of our <code class="language-plaintext highlighter-rouge">IOApp</code>s. Polymorphic code is less
-restrictive, as functions are not tied to <code class="language-plaintext highlighter-rouge">IO</code> but are applicable to any <code class="language-plaintext highlighter-rouge">F[_]</code>
-as long as there is an instance of the type class required (<code class="language-plaintext highlighter-rouge">Sync[F[_]]</code> ,
-<code class="language-plaintext highlighter-rouge">Concurrent[F[_]]</code>…) in scope. The type class to use will depend on the
+to <code class="highlighter-rouge">IO</code> in the <code class="highlighter-rouge">run</code> method of our <code class="highlighter-rouge">IOApp</code>s. Polymorphic code is less
+restrictive, as functions are not tied to <code class="highlighter-rouge">IO</code> but are applicable to any <code class="highlighter-rouge">F[_]</code>
+as long as there is an instance of the type class required (<code class="highlighter-rouge">Sync[F[_]]</code> ,
+<code class="highlighter-rouge">Concurrent[F[_]]</code>…) in scope. The type class to use will depend on the
 requirements of our code. For example, if the execution of the side-effect
-should be cancelable, then we must stick to <code class="language-plaintext highlighter-rouge">Concurrent[F[_]]</code>. Also, it is
-actually easier to work on <code class="language-plaintext highlighter-rouge">F</code> than on any specific type.</p>
+should be cancelable, then we must stick to <code class="highlighter-rouge">Concurrent[F[_]]</code>. Also, it is
+actually easier to work on <code class="highlighter-rouge">F</code> than on any specific type.</p>
 
 <h4 id="copy-program-code-polymorphic-version">Copy program code, polymorphic version</h4>
 <p>The polymorphic version of our copy program in full is available
 <a href="https://github.com/lrodero/cats-effect-tutorial/blob/replace_tcp_section_with_prodcons/src/main/scala/catseffecttutorial/copyfile/CopyFilePolymorphic.scala">here</a>.</p>
 
-<h3 id="exercises-improving-our-small-io-program">Exercises: improving our small <code class="language-plaintext highlighter-rouge">IO</code> program</h3>
+<h3 id="exercises-improving-our-small-io-program">Exercises: improving our small <code class="highlighter-rouge">IO</code> program</h3>
 
 <p>To finalize we propose you some exercises that will help you to keep improving
 your IO-kungfu:</p>
 
 <ol>
-  <li>Modify the <code class="language-plaintext highlighter-rouge">IOApp</code> so it shows an error and abort the execution if the origin
+  <li>Modify the <code class="highlighter-rouge">IOApp</code> so it shows an error and abort the execution if the origin
 and destination files are the same, the origin file cannot be open for
 reading or the destination file cannot be opened for writing. Also, if the
 destination file already exists, the program should ask for confirmation
 before overwriting that file.</li>
-  <li>Modify <code class="language-plaintext highlighter-rouge">transmit</code> so the buffer size is not hardcoded but passed as
+  <li>Modify <code class="highlighter-rouge">transmit</code> so the buffer size is not hardcoded but passed as
 parameter.</li>
-  <li>Use some other concurrency tool of cats-effect instead of <code class="language-plaintext highlighter-rouge">semaphore</code> to
-ensure mutual exclusion of <code class="language-plaintext highlighter-rouge">transfer</code> execution and streams closing.</li>
+  <li>Use some other concurrency tool of cats-effect instead of <code class="highlighter-rouge">semaphore</code> to
+ensure mutual exclusion of <code class="highlighter-rouge">transfer</code> execution and streams closing.</li>
   <li>Create a new program able to copy folders. If the origin folder has
 subfolders, then their contents must be recursively copied too. Of course the
 copying must be safely cancelable at any moment.</li>
@@ -572,19 +572,19 @@ bounded one.</p>
 which are the basic building block of cats-effect concurrency.</p>
 
 <h3 id="intro-to-fibers">Intro to fibers</h3>
-<p>A fiber carries an <code class="language-plaintext highlighter-rouge">F</code> action to execute (typically an <code class="language-plaintext highlighter-rouge">IO</code> instance). Fibers
+<p>A fiber carries an <code class="highlighter-rouge">F</code> action to execute (typically an <code class="highlighter-rouge">IO</code> instance). Fibers
 are like ‘light’ threads, meaning they can be used in a similar way than threads
 to create concurrent code. However, they are <em>not</em> threads. Spawning new fibers
-does not guarantee that the action described in the <code class="language-plaintext highlighter-rouge">F</code> associated to it will be
+does not guarantee that the action described in the <code class="highlighter-rouge">F</code> associated to it will be
 run if there is a shortage of threads. Internally cats-effect uses thread pools
 to run fibers. So if there is no thread available in the pool then the fiber
 execution will ‘wait’ until some thread is free again. On the other hand fibers
 are, unlike threads, very cheap entities. We can spawn millions of them at ease
 without impacting the performance.</p>
 
-<p><code class="language-plaintext highlighter-rouge">ContextShift[F]</code> is in charge of assigning threads to the fibers waiting to be
-run. When using <code class="language-plaintext highlighter-rouge">IOApp</code> we get also the <code class="language-plaintext highlighter-rouge">ContextShift[IO]</code> that we need to run
-the fibers in our code.  But the developer can also create new <code class="language-plaintext highlighter-rouge">ContextShift[F]</code>
+<p><code class="highlighter-rouge">ContextShift[F]</code> is in charge of assigning threads to the fibers waiting to be
+run. When using <code class="highlighter-rouge">IOApp</code> we get also the <code class="highlighter-rouge">ContextShift[IO]</code> that we need to run
+the fibers in our code.  But the developer can also create new <code class="highlighter-rouge">ContextShift[F]</code>
 instances using custom thread pools.</p>
 
 <p>Cats-effect implements some concurrency primitives to coordinate concurrent
@@ -615,20 +615,20 @@ producer-consumer problem.</p>
 <p>We need an intermediate structure where producer(s) can insert data to and
 consumer(s) extracts data from. Let’s assume a simple queue. Initially there
 will be only one producer and one consumer. Producer will generate a sequence of
-integers (<code class="language-plaintext highlighter-rouge">1</code>, <code class="language-plaintext highlighter-rouge">2</code>, <code class="language-plaintext highlighter-rouge">3</code>…), consumer will just read that sequence.  Our shared
-queue will be an instance of an immutable <code class="language-plaintext highlighter-rouge">Queue[Int]</code>.</p>
+integers (<code class="highlighter-rouge">1</code>, <code class="highlighter-rouge">2</code>, <code class="highlighter-rouge">3</code>…), consumer will just read that sequence.  Our shared
+queue will be an instance of an immutable <code class="highlighter-rouge">Queue[Int]</code>.</p>
 
 <p>As accesses to the queue can (and will!) be concurrent, we need some way to
 protect the queue so only one fiber at a time is handling it. The best way to
 ensure an ordered access to some shared data is 
-<a href="/cats-effect/concurrency/ref.html">Ref</a>. A <code class="language-plaintext highlighter-rouge">Ref</code> instance
+<a href="/cats-effect/concurrency/ref.html">Ref</a>. A <code class="highlighter-rouge">Ref</code> instance
 wraps some given data and implements methods to manipulate that data in a safe
 manner. When some fiber is runnning one of those methods, any other call to any
-method of the <code class="language-plaintext highlighter-rouge">Ref</code> instance will be blocked.</p>
+method of the <code class="highlighter-rouge">Ref</code> instance will be blocked.</p>
 
-<p>The <code class="language-plaintext highlighter-rouge">Ref</code> wrapping our queue will be <code class="language-plaintext highlighter-rouge">Ref[F, Queue[Int]]</code> (for some <code class="language-plaintext highlighter-rouge">F[_]</code>).</p>
+<p>The <code class="highlighter-rouge">Ref</code> wrapping our queue will be <code class="highlighter-rouge">Ref[F, Queue[Int]]</code> (for some <code class="highlighter-rouge">F[_]</code>).</p>
 
-<p>Now, our <code class="language-plaintext highlighter-rouge">producer</code> method will be:</p>
+<p>Now, our <code class="highlighter-rouge">producer</code> method will be:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.Ref</span>
@@ -643,28 +643,28 @@ method of the <code class="language-plaintext highlighter-rouge">Ref</code> inst
   <span class="o">}</span> <span class="nf">yield</span> <span class="o">())</span> <span class="o">&gt;&gt;</span> <span class="nf">producer</span><span class="o">(</span><span class="n">queueR</span><span class="o">,</span> <span class="n">counter</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span>
 </code></pre></div></div>
 
-<p>First line just prints some log message every <code class="language-plaintext highlighter-rouge">10000</code> items, so we know if it is
-‘alive’. Then it calls <code class="language-plaintext highlighter-rouge">queueR.getAndUpdate</code> to add data into the queue. Note
-that <code class="language-plaintext highlighter-rouge">.getAndUpdate</code> provides the current queue, then we use <code class="language-plaintext highlighter-rouge">.enqueue</code> to
-insert the next value <code class="language-plaintext highlighter-rouge">counter+1</code>. This call returns a new queue with the value
+<p>First line just prints some log message every <code class="highlighter-rouge">10000</code> items, so we know if it is
+‘alive’. Then it calls <code class="highlighter-rouge">queueR.getAndUpdate</code> to add data into the queue. Note
+that <code class="highlighter-rouge">.getAndUpdate</code> provides the current queue, then we use <code class="highlighter-rouge">.enqueue</code> to
+insert the next value <code class="highlighter-rouge">counter+1</code>. This call returns a new queue with the value
 added that is stored by the ref instance. If some other fiber is accessing to
-<code class="language-plaintext highlighter-rouge">queueR</code> then the fiber is blocked.</p>
+<code class="highlighter-rouge">queueR</code> then the fiber is blocked.</p>
 
-<p>Finally we run <code class="language-plaintext highlighter-rouge">ContextShift[F].shift</code> before calling again to the producer
-recursively with the next counter value. In fact, the call to <code class="language-plaintext highlighter-rouge">.shift</code> is not
+<p>Finally we run <code class="highlighter-rouge">ContextShift[F].shift</code> before calling again to the producer
+recursively with the next counter value. In fact, the call to <code class="highlighter-rouge">.shift</code> is not
 strictly needed but it is a good policy to include it in recursive functions.
 Why is that? Well, internally cats-effect tries to assign fibers so all tasks
 are given the chance to be executed. But in a recursive function that
 potentially never ends it can be that the fiber is always running and
 cats-effect has no change to recover the thread being used by it. By calling to
-<code class="language-plaintext highlighter-rouge">.shift</code> the programmer explicitly tells cats-effect that the current thread
+<code class="highlighter-rouge">.shift</code> the programmer explicitly tells cats-effect that the current thread
 can be re-assigned to other fiber if so decides. Strictly speaking, maybe our
-<code class="language-plaintext highlighter-rouge">producer</code> does not need such call as the access to <code class="language-plaintext highlighter-rouge">queueR.getAndUpdate</code> will
-get the fiber blocked if some other fiber is using <code class="language-plaintext highlighter-rouge">queueR</code> at that moment, and
+<code class="highlighter-rouge">producer</code> does not need such call as the access to <code class="highlighter-rouge">queueR.getAndUpdate</code> will
+get the fiber blocked if some other fiber is using <code class="highlighter-rouge">queueR</code> at that moment, and
 cats-effect can recycle blocked fibers for other tasks. Still, we keep it there
 as good practice.</p>
 
-<p>The <code class="language-plaintext highlighter-rouge">consumer</code> method is a bit different. It will try to read data from the
+<p>The <code class="highlighter-rouge">consumer</code> method is a bit different. It will try to read data from the
 queue but it must be aware that the queue must be empty:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
@@ -683,14 +683,14 @@ queue but it must be aware that the queue must be empty:</p>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">iO</span><span class="o">)</span> <span class="o">&gt;&gt;</span> <span class="nf">consumer</span><span class="o">(</span><span class="n">queueR</span><span class="o">)</span>
 </code></pre></div></div>
 
-<p>The call to <code class="language-plaintext highlighter-rouge">queueR.modify</code> allows to modify the wrapped data (our queue) and
+<p>The call to <code class="highlighter-rouge">queueR.modify</code> allows to modify the wrapped data (our queue) and
 return a value that is computed from that data. In our case, it returns an
-<code class="language-plaintext highlighter-rouge">Option[Int]</code> that will be <code class="language-plaintext highlighter-rouge">None</code> if queue was empty. Next line is used to log
-a message in console every <code class="language-plaintext highlighter-rouge">10000</code> read items. Finally <code class="language-plaintext highlighter-rouge">consumer</code> is called
+<code class="highlighter-rouge">Option[Int]</code> that will be <code class="highlighter-rouge">None</code> if queue was empty. Next line is used to log
+a message in console every <code class="highlighter-rouge">10000</code> read items. Finally <code class="highlighter-rouge">consumer</code> is called
 recursively to start again.</p>
 
-<p>We can now create a program that instantiates our <code class="language-plaintext highlighter-rouge">queueR</code> and runs both
-<code class="language-plaintext highlighter-rouge">producer</code> and <code class="language-plaintext highlighter-rouge">consumer</code> in parallel:</p>
+<p>We can now create a program that instantiates our <code class="highlighter-rouge">queueR</code> and runs both
+<code class="highlighter-rouge">producer</code> and <code class="highlighter-rouge">consumer</code> in parallel:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.Ref</span>
@@ -718,15 +718,15 @@ recursively to start again.</p>
 <p>The full implementation of this naive producer consumer is available
 <a href="https://github.com/lrodero/cats-effect-tutorial/blob/replace_tcp_section_with_prodcons/src/main/scala/catseffecttutorial/producerconsumer/InefficientProducerConsumer.scala">here</a>.</p>
 
-<p>Our <code class="language-plaintext highlighter-rouge">run</code> function instantiates the shared queue wrapped in a <code class="language-plaintext highlighter-rouge">Ref</code> and boots
-the producer and consumer in parallel. To do to it uses <code class="language-plaintext highlighter-rouge">parMapN</code>, that creates
-and runs the fibers that will run the <code class="language-plaintext highlighter-rouge">IO</code>s passed as paremeter. Then it takes
+<p>Our <code class="highlighter-rouge">run</code> function instantiates the shared queue wrapped in a <code class="highlighter-rouge">Ref</code> and boots
+the producer and consumer in parallel. To do to it uses <code class="highlighter-rouge">parMapN</code>, that creates
+and runs the fibers that will run the <code class="highlighter-rouge">IO</code>s passed as paremeter. Then it takes
 the output of each fiber and and applies a given function to them. In our case
 both producer and consumer shall run forever until user presses CTRL-C which
 will trigger a cancellation.</p>
 
-<p>Alternatively we could have used <code class="language-plaintext highlighter-rouge">start</code> method to explicitely create new
-<code class="language-plaintext highlighter-rouge">Fiber</code> instances that will run the producer and consumer, then use <code class="language-plaintext highlighter-rouge">join</code> to
+<p>Alternatively we could have used <code class="highlighter-rouge">start</code> method to explicitely create new
+<code class="highlighter-rouge">Fiber</code> instances that will run the producer and consumer, then use <code class="highlighter-rouge">join</code> to
 wait for them to finish, something like:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">ExitCode</span><span class="o">]</span> <span class="k">=</span>
@@ -739,12 +739,12 @@ wait for them to finish, something like:</p>
   <span class="o">}</span> <span class="k">yield</span> <span class="nv">ExitCode</span><span class="o">.</span><span class="py">Error</span>
 </code></pre></div></div>
 
-<p>Problem is, if there is an error in any of the fibers the <code class="language-plaintext highlighter-rouge">join</code> call will not
-hint it, nor it will return. In contrast <code class="language-plaintext highlighter-rouge">parMapN</code> does promote the error it
+<p>Problem is, if there is an error in any of the fibers the <code class="highlighter-rouge">join</code> call will not
+hint it, nor it will return. In contrast <code class="highlighter-rouge">parMapN</code> does promote the error it
 finds to the caller. <em>In general, if possible, programmers should prefer to use
-higher level commands such as <code class="language-plaintext highlighter-rouge">parMapN</code> or <code class="language-plaintext highlighter-rouge">parSequence</code> to deal with fibers</em>.</p>
+higher level commands such as <code class="highlighter-rouge">parMapN</code> or <code class="highlighter-rouge">parSequence</code> to deal with fibers</em>.</p>
 
-<p>Ok, we stick to our implementation based on <code class="language-plaintext highlighter-rouge">.parMapN</code>. Are we done? Does it
+<p>Ok, we stick to our implementation based on <code class="highlighter-rouge">.parMapN</code>. Are we done? Does it
 Work? Well, it works… but it is far from ideal. If we run it we will find that
 the producer runs faster than the consumer so the queue is constantly growing.
 And, even if that was not the case, we must realize that the consumer will be
@@ -761,12 +761,12 @@ that represents <em>permits</em>. To access a critical section permits have to b
 obtained, later to be released when the critical section is left.</p>
 
 <p>In our producer/consumer code we already protect access to the queue (our shared
-resource) using a <code class="language-plaintext highlighter-rouge">Ref</code>. But we can use semaphores on top of that to signal
+resource) using a <code class="highlighter-rouge">Ref</code>. But we can use semaphores on top of that to signal
 whether there are elements in the queue or not. This can be done by keeping in
-the semaphore a counter of <code class="language-plaintext highlighter-rouge">filled</code> buckets, which will be increased when adding
+the semaphore a counter of <code class="highlighter-rouge">filled</code> buckets, which will be increased when adding
 elements to the queue, and decreased when elements are removed. Consumer code
 will be changed so it blocks when there are no elements to be retrieved
-(<code class="language-plaintext highlighter-rouge">filled</code> has zero permits).</p>
+(<code class="highlighter-rouge">filled</code> has zero permits).</p>
 
 <p>So now our producer and consumer look like this:</p>
 
@@ -793,9 +793,9 @@ will be changed so it blocks when there are no elements to be retrieved
   <span class="o">}</span> <span class="nf">yield</span> <span class="o">())</span> <span class="o">&gt;&gt;</span> <span class="nf">consumer</span><span class="o">(</span><span class="n">id</span><span class="o">,</span> <span class="n">queueR</span><span class="o">,</span> <span class="n">filled</span><span class="o">)</span>
 </code></pre></div></div>
 
-<p>Note how the producer uses <code class="language-plaintext highlighter-rouge">filled.release</code> to signal that a new item is
+<p>Note how the producer uses <code class="highlighter-rouge">filled.release</code> to signal that a new item is
 available in the queue by increasing the number of permits in the semaphore.
-Likewise, consumer uses <code class="language-plaintext highlighter-rouge">filled.acquire</code> which block if <code class="language-plaintext highlighter-rouge">filled</code> is zero (no
+Likewise, consumer uses <code class="highlighter-rouge">filled.acquire</code> which block if <code class="highlighter-rouge">filled</code> is zero (no
 elements in queue). If it is not zero (or as soon as it becomes &gt; 0) the call is
 unblocked and the number of permits in the semaphore is decreased. Now our consumer
 is not concerned about trying to read from an empty queue. If it got a ‘permit’
@@ -837,8 +837,8 @@ and producers, 10 of each, and will start all of them in parallel:</p>
 <p>The full implementation of this producer consumer with unbounded queue is available
 <a href="https://github.com/lrodero/cats-effect-tutorial/blob/replace_tcp_section_with_prodcons/src/main/scala/catseffecttutorial/producerconsumer/ProducerConsumer.scala">here</a>.</p>
 
-<p>Producers and consumers are created as two list of <code class="language-plaintext highlighter-rouge">IO</code> instances. All of them
-are started in their own fiber by the call to <code class="language-plaintext highlighter-rouge">parSequence</code>, which will wait for
+<p>Producers and consumers are created as two list of <code class="highlighter-rouge">IO</code> instances. All of them
+are started in their own fiber by the call to <code class="highlighter-rouge">parSequence</code>, which will wait for
 all of them to finish and then return the value passed as parameter. As in the
 previous example it shall run forever until the user presses CTRL-C.</p>
 
@@ -849,11 +849,11 @@ size is reached producers will block as they consumers do when the queue is
 empty.</p>
 
 <h3 id="producer-consumer-with-bounded-queue">Producer consumer with bounded queue</h3>
-<p>We will use another semaphore <code class="language-plaintext highlighter-rouge">empty</code> to represent the amount of empty ‘buckets’
-in the queue. It will mirror the behavior of <code class="language-plaintext highlighter-rouge">filled</code>. When a new item is
-enqueued a call to <code class="language-plaintext highlighter-rouge">empty.release</code> will signal that there is a new empty bucket
+<p>We will use another semaphore <code class="highlighter-rouge">empty</code> to represent the amount of empty ‘buckets’
+in the queue. It will mirror the behavior of <code class="highlighter-rouge">filled</code>. When a new item is
+enqueued a call to <code class="highlighter-rouge">empty.release</code> will signal that there is a new empty bucket
 in the queue. Likewise, the producers will request an empty bucket by calling
-<code class="language-plaintext highlighter-rouge">empty.acquire</code> prior to add new elements, blocking when <code class="language-plaintext highlighter-rouge">empty</code> number of
+<code class="highlighter-rouge">empty.acquire</code> prior to add new elements, blocking when <code class="highlighter-rouge">empty</code> number of
 permits is zero.</p>
 
 <p>Producer and consumer code now becomes:</p>
@@ -883,8 +883,8 @@ permits is zero.</p>
   <span class="o">}</span> <span class="nf">yield</span> <span class="o">())</span> <span class="o">&gt;&gt;</span> <span class="nf">consumer</span><span class="o">(</span><span class="n">id</span><span class="o">,</span> <span class="n">queueR</span><span class="o">,</span> <span class="n">empty</span><span class="o">,</span> <span class="n">filled</span><span class="o">)</span>
 </code></pre></div></div>
 
-<p>The main program is almost the same, we only add the creation of the <code class="language-plaintext highlighter-rouge">empty</code>
-semaphore setting as value the max size of the queue. So for a max size of <code class="language-plaintext highlighter-rouge">100</code>
+<p>The main program is almost the same, we only add the creation of the <code class="highlighter-rouge">empty</code>
+semaphore setting as value the max size of the queue. So for a max size of <code class="highlighter-rouge">100</code>
 we would have:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.concurrent.</span><span class="o">{</span><span class="nc">Ref</span><span class="o">,</span> <span class="nc">Semaphore</span><span class="o">}</span>
@@ -928,14 +928,14 @@ complex settings we have to be careful as consumers and producers fibers can be
 cancelled at any time. And which will then be the consequences? Well, basically
 we would not be able to trust our semaphores to represent the amount of items
 and free buckets in the queue. See for example the code of a consumer in our
-bounded queue setting. It must make sure that whenever a <code class="language-plaintext highlighter-rouge">filled</code> permit is
-acquired then a) a new element is added and b) <code class="language-plaintext highlighter-rouge">empty.release</code> is called. A
+bounded queue setting. It must make sure that whenever a <code class="highlighter-rouge">filled</code> permit is
+acquired then a) a new element is added and b) <code class="highlighter-rouge">empty.release</code> is called. A
 cancellation right before those actions will leave the semaphores with values
 that do not represent the internal state of the queue.</p>
 
 <p>To prevent this we must make sure that a call to a producer and a consumer is
-fully run without being cancelled. This can be done with <code class="language-plaintext highlighter-rouge">Sync[F].uncancelable</code>,
-which ensures that the <code class="language-plaintext highlighter-rouge">F</code> instance passed as parameter cannot be cancelled. So,
+fully run without being cancelled. This can be done with <code class="highlighter-rouge">Sync[F].uncancelable</code>,
+which ensures that the <code class="highlighter-rouge">F</code> instance passed as parameter cannot be cancelled. So,
 for example, our consumer in the bounded queue example will look like:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.concurrent.</span><span class="o">{</span><span class="nc">Ref</span><span class="o">,</span> <span class="nc">Semaphore</span><span class="o">}</span>
@@ -955,7 +955,7 @@ for example, our consumer in the bounded queue example will look like:</p>
   <span class="o">)</span> <span class="o">&gt;&gt;</span> <span class="nf">consumer</span><span class="o">(</span><span class="n">id</span><span class="o">,</span> <span class="n">queueR</span><span class="o">,</span> <span class="n">empty</span><span class="o">,</span> <span class="n">filled</span><span class="o">)</span>
 </code></pre></div></div>
 
-<p>Making the <code class="language-plaintext highlighter-rouge">producer</code> function uncancelable is similar, we leave that as a small
+<p>Making the <code class="highlighter-rouge">producer</code> function uncancelable is similar, we leave that as a small
 exercise.</p>
 
 <h3 id="exercise-build-a-concurrent-queue">Exercise: build a concurrent queue</h3>
@@ -963,7 +963,7 @@ exercise.</p>
 concurrent access. That is, several concurrent processes can safely add and
 retrieve data from the queue. It is easy to realize that during the previous
 sections we already implemented that kind of functionality, it was
-embedded in our <code class="language-plaintext highlighter-rouge">producer</code> and <code class="language-plaintext highlighter-rouge">consumer</code> functions. To build a concurrent queue
+embedded in our <code class="highlighter-rouge">producer</code> and <code class="highlighter-rouge">consumer</code> functions. To build a concurrent queue
 we only need to extract from those methods the part that handles the concurrent
 access.</p>
 
@@ -986,7 +986,7 @@ access.</p>
 </code></pre></div></div>
 
 <p>The exercise is to implement the missing constructor methods we have included in
-<code class="language-plaintext highlighter-rouge">SimpleConcurrentQueue</code> companion object. A possible implementation is given
+<code class="highlighter-rouge">SimpleConcurrentQueue</code> companion object. A possible implementation is given
 <a href="https://github.com/lrodero/cats-effect-tutorial/blob/replace_tcp_section_with_prodcons/src/main/scala/catseffecttutorial/producerconsumer/exerciseconcurrentqueue/SimpleConcurrentQueue.scala">here</a> for reference.</p>
 
 <p>Finally, we propose you to write a more complete concurrent queue
@@ -1050,10 +1050,10 @@ implementation with these definitions:</p>
 </code></pre></div></div>
 
 <p>Note that now bounded concurrent queues have their own type
-<code class="language-plaintext highlighter-rouge">BoundedConcurrentQueue</code> which extends <code class="language-plaintext highlighter-rouge">ConcurrentQueue</code> with some functions
+<code class="highlighter-rouge">BoundedConcurrentQueue</code> which extends <code class="highlighter-rouge">ConcurrentQueue</code> with some functions
 specific to them. As before, you should try to implement the builder methods in
-companion object <code class="language-plaintext highlighter-rouge">ConcurrentQueue</code>. <strong>TIP</strong>: we have not reviewed all methods
-that cats-effect’s <code class="language-plaintext highlighter-rouge">Semaphore</code> has to offer. Take a look to <code class="language-plaintext highlighter-rouge">Semaphore</code>
+companion object <code class="highlighter-rouge">ConcurrentQueue</code>. <strong>TIP</strong>: we have not reviewed all methods
+that cats-effect’s <code class="highlighter-rouge">Semaphore</code> has to offer. Take a look to <code class="highlighter-rouge">Semaphore</code>
 <a href="https://typelevel.org/cats-effect/api/cats/effect/concurrent/Semaphore.html">API</a>
 as you will find some new useful methods there.</p>
 
