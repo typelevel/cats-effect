@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, Eq, Id, Order, Show}
+import cats.{~>, Applicative, Eq, Id, Order, Show}
 import cats.effect.testkit.{
   AsyncGenerators,
   GenK,
@@ -283,6 +283,9 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   def nonTerminate(implicit ticker: Ticker): Matcher[IO[Unit]] =
     tickTo[Unit](Outcome.Succeeded(None))
 
+  def selfCancel(implicit ticker: Ticker): Matcher[IO[Unit]] =
+    tickTo[Unit](Outcome.Canceled())
+
   def beCanceledSync: Matcher[SyncIO[Unit]] =
     (ioa: SyncIO[Unit]) => unsafeRunSync(ioa) eqv Outcome.canceled
 
@@ -306,14 +309,15 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     def mustEqual(a: A) = fa.flatMap { res => IO(res must beEqualTo(a)) }
   }
 
+  private val someK: Id ~> Option =
+    new ~>[Id, Option] { def apply[A](a: A) = a.some }
+
   def unsafeRun[A](ioa: IO[A])(implicit ticker: Ticker): Outcome[Option, Throwable, A] =
     try {
       var results: Outcome[Option, Throwable, A] = Outcome.Succeeded(None)
 
-      ioa.unsafeRunAsync {
-        case Left(t) => results = Outcome.Errored(t)
-        case Right(a) => results = Outcome.Succeeded(Some(a))
-      }(unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => ()))
+      ioa.unsafeRunAsyncOutcome { oc => results = oc.mapK(someK) }(
+        unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => ()))
 
       ticker.ctx.tickAll(1.days)
 

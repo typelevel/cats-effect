@@ -55,8 +55,8 @@ trait AsyncTests[F[_]] extends GenTemporalTests[F, Throwable] with SyncTests[F] 
       EqFAB: Eq[F[Either[A, B]]],
       EqFEitherEU: Eq[F[Either[Throwable, Unit]]],
       EqFEitherEA: Eq[F[Either[Throwable, A]]],
-      EqFEitherUA: Eq[F[Either[Unit, A]]],
-      EqFEitherAU: Eq[F[Either[A, Unit]]],
+//    EqFEitherUA: Eq[F[Either[Unit, A]]],
+//    EqFEitherAU: Eq[F[Either[A, Unit]]],
       EqFOutcomeEA: Eq[F[Outcome[F, Throwable, A]]],
       EqFOutcomeEU: Eq[F[Outcome[F, Throwable, Unit]]],
       EqFABC: Eq[F[(A, B, C)]],
@@ -70,8 +70,8 @@ trait AsyncTests[F[_]] extends GenTemporalTests[F, Throwable] with SyncTests[F] 
       aFUPP: (A => F[Unit]) => Pretty,
       ePP: Throwable => Pretty,
       foaPP: F[Outcome[F, Throwable, A]] => Pretty,
-      feauPP: F[Either[A, Unit]] => Pretty,
-      feuaPP: F[Either[Unit, A]] => Pretty,
+//    feauPP: F[Either[A, Unit]] => Pretty,
+//    feuaPP: F[Either[Unit, A]] => Pretty,
       fouPP: F[Outcome[F, Throwable, Unit]] => Pretty): RuleSet = {
 
     new RuleSet {
@@ -80,9 +80,10 @@ trait AsyncTests[F[_]] extends GenTemporalTests[F, Throwable] with SyncTests[F] 
       val parents = Seq(temporal[A, B, C](tolerance), sync[A, B, C])
 
       val props = Seq(
-        "async right is sequenced pure" -> forAll(laws.asyncRightIsSequencedPure[A] _),
-        "async left is sequenced raiseError" -> forAll(
-          laws.asyncLeftIsSequencedRaiseError[A] _),
+        "async right is uncancelable sequenced pure" -> forAll(
+          laws.asyncRightIsUncancelableSequencedPure[A] _),
+        "async left is uncancelable sequenced raiseError" -> forAll(
+          laws.asyncLeftIsUncancelableSequencedRaiseError[A] _),
         "async repeated callback is ignored" -> forAll(laws.asyncRepeatedCallbackIgnored[A] _),
         "async cancel token is unsequenced on complete" -> forAll(
           laws.asyncCancelTokenIsUnsequencedOnCompletion[A] _),

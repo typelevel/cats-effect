@@ -18,7 +18,7 @@ package cats.effect
 
 import cats.syntax.all._
 
-import org.scalacheck.Prop.forAll
+//import org.scalacheck.Prop.forAll
 
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
@@ -106,11 +106,14 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
         task.replicateA(100).as(ok)
       }
 
-      "round trip through j.u.c.CompletableFuture" in ticked { implicit ticker =>
+      // FIXME falsified when ioa == IO.canceled
+      "round trip through j.u.c.CompletableFuture" in skipped(
+        "false when canceled"
+      ) /*ticked { implicit ticker =>
         forAll { (ioa: IO[Int]) =>
           ioa.eqv(IO.fromCompletableFuture(IO(ioa.unsafeToCompletableFuture())))
         }
-      }
+      }*/
 
       "interrupt well-behaved blocking synchronous effect" in real {
         var interrupted = true

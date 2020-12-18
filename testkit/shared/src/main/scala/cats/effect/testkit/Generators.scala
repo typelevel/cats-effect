@@ -37,10 +37,14 @@ trait Generators1[F[_]] {
   //todo: uniqueness based on... names, I guess. Have to solve the diamond problem somehow
 
   //Generators of base cases, with no recursion
-  protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])]
+  protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] = Nil
 
   //Only recursive generators - the argument is a generator of the next level of depth
-  protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[(String, Gen[F[A]])]
+  protected def recursiveGen[A: Arbitrary: Cogen](
+      deeper: GenK[F]): List[(String, Gen[F[A]])] = {
+    val _ = deeper // prevent unused param warning
+    Nil
+  }
 
   //All generators possible at depth [[depth]]
   private def gen[A: Arbitrary: Cogen](depth: Int): Gen[F[A]] = {
@@ -63,14 +67,15 @@ trait Generators1[F[_]] {
 trait ApplicativeGenerators[F[_]] extends Generators1[F] {
   implicit val F: Applicative[F]
 
-  protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] =
-    List("pure" -> genPure[A])
+  override protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] =
+    List("pure" -> genPure[A]) ++ super.baseGen[A]
 
-  protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[(String, Gen[F[A]])] =
+  override protected def recursiveGen[A: Arbitrary: Cogen](
+      deeper: GenK[F]): List[(String, Gen[F[A]])] =
     List(
       "map" -> genMap[A](deeper),
       "ap" -> genAp[A](deeper)
-    )
+    ) ++ super.recursiveGen(deeper)
 
   private def genPure[A: Arbitrary]: Gen[F[A]] =
     arbitrary[A].map(_.pure[F])
@@ -138,13 +143,13 @@ trait MonadErrorGenerators[F[_], E]
   implicit val F: MonadError[F, E]
 }
 
-trait ClockGenerators[F[_]] {
+trait ClockGenerators[F[_]] extends Generators1[F] {
   implicit val F: Clock[F]
 
   implicit protected val arbitraryFD: Arbitrary[FiniteDuration]
 
-  protected def baseGen[A: Arbitrary: Cogen] =
-    List("monotonic" -> genMonotonic[A], "realTime" -> genRealTime[A])
+  override protected def baseGen[A: Arbitrary: Cogen] =
+    List("monotonic" -> genMonotonic[A], "realTime" -> genRealTime[A]) ++ super.baseGen[A]
 
   private def genMonotonic[A: Arbitrary] =
     arbitrary[A].map(F.applicative.as(F.monotonic, _))
@@ -194,7 +199,7 @@ trait MonadCancelGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
     } yield F.onCancel(fa, fin)
 }
 
-trait GenSpawnGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
+trait GenSpawnGenerators[F[_], E] extends MonadCancelGenerators[F, E] {
   implicit val F: GenSpawn[F, E]
 
   override protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] =
