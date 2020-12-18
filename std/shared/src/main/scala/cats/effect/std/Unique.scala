@@ -29,6 +29,11 @@ import cats.syntax.all._
  * alongside Ref+Deferred, and is safe due to lazy map on anything
  * with a concurrent instance.
  *
+ * The `toString` includes the object hash code as a hex string.
+ * Note: the hash code is not unique, so it is possible for two
+ * `Unique` instances to be different yet have the same string
+ * representation.
+ *
  * Alumnus of the Davenverse
  */
 final class Unique private extends Serializable {
