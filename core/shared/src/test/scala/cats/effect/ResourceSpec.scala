@@ -322,8 +322,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
     "allocated produces the same value as the resource" in ticked { implicit ticker =>
       forAll { (resource: Resource[IO, Int]) =>
-        val a0 = Resource(resource.allocated).use(IO.pure).attempt
-        val a1 = resource.use(IO.pure).attempt
+        val a0 = IO.uncancelable(p => p(resource.allocated).flatTap(_._2.attempt)).map(_._1)
+        val a1 = resource.use(IO.pure)
 
         a0 eqv a1
       }
