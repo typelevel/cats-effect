@@ -19,13 +19,12 @@ package laws
 
 import cats.Eq
 import cats.effect.kernel.{GenSpawn, Outcome}
-import cats.laws.discipline.DeferTests
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 import org.scalacheck.util.Pretty
 
-trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] with DeferTests[F] {
+trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] {
 
   val laws: GenSpawnLaws[F, E]
 
@@ -68,7 +67,7 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] with DeferTests[F] {
     new RuleSet {
       val name = "concurrent"
       val bases = Nil
-      val parents = Seq(monadCancel[A, B, C], defer[A])
+      val parents = Seq(monadCancel[A, B, C])
 
       val props = Seq(
         "race derives from racePair (left)" -> forAll(laws.raceDerivesFromRacePairLeft[A, B] _),

@@ -26,7 +26,6 @@ import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 
 trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
-
   // returns an optional cancelation token
   def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
     val body = new Cont[F, A] {
@@ -69,9 +68,6 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * Note that if you use `defaultCont` you _have_ to override `async`.
    */
   def cont[A](body: Cont[F, A]): F[A]
-
-  override def defer[A](fa: => F[A]): F[A] =
-    flatten(delay(fa))
 }
 
 object Async {

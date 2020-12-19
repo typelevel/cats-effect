@@ -14,16 +14,20 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats
+package effect
+package std
 
-import cats.{Applicative, Defer, Hash}
+import cats.Hash
+import cats.effect.kernel._
+import cats.syntax.all._
 
 /**
  * Unique is a unique identifier.
  *
- * The default constructor takes [[Defer]] and an [[Applicative]],
- * meaning that it can be safely used in any effect context which
- * has a lazy suspension semantic (including [[Spawn]] and [[Sync]]).
+ * The default constructor takes [[Concurrent]], so it can be used
+ * alongside Ref+Deferred, and is safe due to lazy map on anything
+ * with a concurrent instance.
  *
  * The `toString` includes the object hash code as a hex string.
  * Note: the hash code is not unique, so it is possible for two
@@ -35,11 +39,10 @@ import cats.{Applicative, Defer, Hash}
 final class Unique private extends Serializable {
   override def toString: String = s"Unique(${hashCode.toHexString})"
 }
-
 object Unique {
+  def apply[F[_]: Concurrent]: F[Unique] = Concurrent[F].unit.map(_ => new Unique)
 
-  def apply[F[_]: Applicative: Defer]: F[Unique] =
-    Defer[F].defer(Applicative[F].pure(new Unique()))
+  def sync[F[_]: Sync]: F[Unique] = Sync[F].delay(new Unique)
 
   implicit val uniqueInstances: Hash[Unique] =
     Hash.fromUniversalHashCode[Unique]
