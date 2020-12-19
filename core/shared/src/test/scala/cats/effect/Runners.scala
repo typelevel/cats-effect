@@ -184,7 +184,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   }
 
   implicit lazy val arbitraryThrowable: Arbitrary[Throwable] =
-    Arbitrary(Arbitrary.arbitrary[Int].map(TestException))
+    Arbitrary(Arbitrary.arbitrary[Int].map(TestException(_)))
 
   implicit def arbitraryEC(implicit ticker: Ticker): Arbitrary[ExecutionContext] =
     Arbitrary(Gen.const(ticker.ctx.derive()))
