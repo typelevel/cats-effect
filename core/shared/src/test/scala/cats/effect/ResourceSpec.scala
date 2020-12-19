@@ -51,14 +51,10 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     }
 
     "makes acquires non interruptible" in ticked { implicit ticker =>
-       IO.ref(false).flatMap { interrupted =>
-         val fa = IO.sleep(5.seconds).onCancel(interrupted.set(true))
+      IO.ref(false).flatMap { interrupted =>
+        val fa = IO.sleep(5.seconds).onCancel(interrupted.set(true))
 
-         Resource
-           .make(fa)(_ => IO.unit)
-           .use_
-           .timeout(1.second)
-           .attempt >> interrupted.get
+        Resource.make(fa)(_ => IO.unit).use_.timeout(1.second).attempt >> interrupted.get
       } must completeAs(false)
     }
 
@@ -68,11 +64,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           poll(IO.sleep(5.seconds)).onCancel(interrupted.set(true))
         }
 
-        Resource
-          .make(fa)(_ => IO.unit)
-          .use_
-          .timeout(1.second)
-          .attempt >> interrupted.get
+        Resource.make(fa)(_ => IO.unit).use_.timeout(1.second).attempt >> interrupted.get
       } must completeAs(false)
     }
 
@@ -120,7 +112,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           }(_ => resourceFin.set(true))
 
           resource.use_.timeout(timeout).attempt >>
-           List(a.get, b.get, acquireFin.get, resourceFin.get).sequence
+            List(a.get, b.get, acquireFin.get, resourceFin.get).sequence
       } must completeAs(List(false, true, true, false))
     }
 
@@ -132,9 +124,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       flag.flatMap { releaseComplete =>
         val release = sleep >> releaseComplete.set(true)
 
-        val resource = Resource.applyFull[IO, Unit] { poll =>
-          IO(() -> (_ => poll(release)))
-        }
+        val resource = Resource.applyFull[IO, Unit] { poll => IO(() -> (_ => poll(release))) }
 
         resource.use_.timeout(timeout).attempt >> releaseComplete.get
       } must completeAs(true)
@@ -281,12 +271,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       clean1.get() must beFalse
 
       val (clean2, res2) = sideEffectyResource
-      res2
-        .mapK(Kleisli.liftK[IO, Int])
-        .use_
-        .run(0)
-        .attempt
-        .void must completeAs(())
+      res2.mapK(Kleisli.liftK[IO, Int]).use_.run(0).attempt.void must completeAs(())
       clean2.get() must beTrue
 
       val (clean3, res3) = sideEffectyResource
@@ -304,26 +289,27 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       val sleep = IO.sleep(1.second)
       val timeout = 500.millis
 
-      def fa = (flag, flag).tupled.flatMap {
-        case (a, b) =>
-          val io = IO.uncancelable { poll =>
-            sleep.onCancel(a.set(true)) >> poll(sleep).onCancel(b.set(true))
-          }
+      def fa =
+        (flag, flag).tupled.flatMap {
+          case (a, b) =>
+            val io = IO.uncancelable { poll =>
+              sleep.onCancel(a.set(true)) >> poll(sleep).onCancel(b.set(true))
+            }
 
-          val resource = Resource.makeFull[IO, Unit](poll => poll(io))(_ => IO.unit)
+            val resource = Resource.makeFull[IO, Unit](poll => poll(io))(_ => IO.unit)
 
-          val mapKd = resource.mapK(Kleisli.liftK[IO, Int])
+            val mapKd = resource.mapK(Kleisli.liftK[IO, Int])
 
-          mapKd.use_.timeout(timeout).run(0).attempt >> (a.get, b.get).tupled
-      }
+            mapKd.use_.timeout(timeout).run(0).attempt >> (a.get, b.get).tupled
+        }
 
       fa must completeAs(false -> true)
     }
 
     "allocated produces the same value as the resource" in ticked { implicit ticker =>
       forAll { (resource: Resource[IO, Int]) =>
-        val a0 = Resource(resource.allocated).use(IO.pure).attempt
-        val a1 = resource.use(IO.pure).attempt
+        val a0 = IO.uncancelable(p => p(resource.allocated).flatTap(_._2.attempt)).map(_._1)
+        val a1 = resource.use(IO.pure)
 
         a0 eqv a1
       }

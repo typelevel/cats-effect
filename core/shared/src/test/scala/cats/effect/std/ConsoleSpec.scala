@@ -76,7 +76,7 @@ class ConsoleSpec extends BaseSpec {
     case class Foo(n: Int, b: Boolean)
 
     "select default Show.fromToString (IO)" in {
-      IO.print(Foo(1, true))   // compilation test
+      IO.print(Foo(1, true)) // compilation test
       IO.println(Foo(1, true)) // compilation test
       true
     }
@@ -100,9 +100,9 @@ class ConsoleSpec extends BaseSpec {
     }
 
     "select default Show.fromToString (Console[IO])" in {
-      Console[IO].print(Foo(1, true))   // compilation test
+      Console[IO].print(Foo(1, true)) // compilation test
       Console[IO].println(Foo(1, true)) // compilation test
-      Console[IO].error(Foo(1, true))   // compilation test
+      Console[IO].error(Foo(1, true)) // compilation test
       Console[IO].errorln(Foo(1, true)) // compilation test
       true
     }
