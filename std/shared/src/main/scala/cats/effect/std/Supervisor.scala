@@ -54,7 +54,7 @@ object Supervisor {
    * Creates a [[Resource]] scope within which fibers can be monitored. When
    * this scope exits, all supervised fibers will be finalized.
    */
-  def apply[F[_]](implicit F: Async[F]): Resource[F, Supervisor[F]] = {
+  def apply[F[_]](implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     // It would have preferable to use Scope here but explicit cancellation is
     // intertwined with resource management
     for {
