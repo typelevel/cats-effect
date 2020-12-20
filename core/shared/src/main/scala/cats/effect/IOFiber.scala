@@ -1014,26 +1014,12 @@ private final class IOFiber[A](
   }
 
   private[this] def runTerminusSuccessK(result: Any): IO[Any] = {
-    val outcome: OutcomeIO[A] =
-      if (canceled)
-        /* this can happen if we don't check the canceled flag before completion */
-        OutcomeCanceled
-      else
-        Outcome.Succeeded(IO.pure(result.asInstanceOf[A]))
-
-    done(outcome)
+    done(Outcome.Succeeded(IO.pure(result.asInstanceOf[A])))
     IOEndFiber
   }
 
   private[this] def runTerminusFailureK(t: Throwable): IO[Any] = {
-    val outcome: OutcomeIO[A] =
-      if (canceled)
-        /* this can happen if we don't check the canceled flag before completion */
-        OutcomeCanceled
-      else
-        Outcome.Errored(t)
-
-    done(outcome)
+    done(Outcome.Errored(t))
     IOEndFiber
   }
 
@@ -1086,12 +1072,24 @@ private final class IOFiber[A](
 
   private[this] def uncancelableSuccessK(result: Any, depth: Int): IO[Any] = {
     masks -= 1
-    succeeded(result, depth + 1)
+
+    if (shouldFinalize()) {
+      asyncCancel(null)
+      IOEndFiber
+    } else {
+      succeeded(result, depth + 1)
+    }
   }
 
   private[this] def uncancelableFailureK(t: Throwable, depth: Int): IO[Any] = {
     masks -= 1
-    failed(t, depth + 1)
+
+    if (shouldFinalize()) {
+      asyncCancel(null)
+      IOEndFiber
+    } else {
+      failed(t, depth + 1)
+    }
   }
 
   private[this] def unmaskSuccessK(result: Any, depth: Int): IO[Any] = {
