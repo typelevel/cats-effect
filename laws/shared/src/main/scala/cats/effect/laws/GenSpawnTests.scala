@@ -48,8 +48,8 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] {
       EqFAB: Eq[F[Either[A, B]]],
       EqFEitherEU: Eq[F[Either[E, Unit]]],
       EqFEitherEA: Eq[F[Either[E, A]]],
-//    EqFEitherUA: Eq[F[Either[Unit, A]]],
-//    EqFEitherAU: Eq[F[Either[A, Unit]]],
+      EqFEitherUA: Eq[F[Either[Unit, A]]],
+      EqFEitherAU: Eq[F[Either[A, Unit]]],
       EqFOutcomeEA: Eq[F[Outcome[F, E, A]]],
       EqFOutcomeEU: Eq[F[Outcome[F, E, Unit]]],
       EqFABC: Eq[F[(A, B, C)]],
@@ -60,8 +60,8 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] {
       aFUPP: (A => F[Unit]) => Pretty,
       ePP: E => Pretty,
       foaPP: F[Outcome[F, E, A]] => Pretty,
-//    feauPP: F[Either[A, Unit]] => Pretty,
-//    feuaPP: F[Either[Unit, A]] => Pretty,
+      feauPP: F[Either[A, Unit]] => Pretty,
+      feuaPP: F[Either[Unit, A]] => Pretty,
       fouPP: F[Outcome[F, E, Unit]] => Pretty): RuleSet = {
 
     new RuleSet {
@@ -73,10 +73,12 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] {
         "race derives from racePair (left)" -> forAll(laws.raceDerivesFromRacePairLeft[A, B] _),
         "race derives from racePair (right)" -> forAll(
           laws.raceDerivesFromRacePairRight[A, B] _),
-        /* FIXME falsified when fa == IO.Uncancelable(...)
         "race canceled identity (left)" -> forAll(laws.raceCanceledIdentityLeft[A] _),
         "race canceled identity (right)" -> forAll(laws.raceCanceledIdentityRight[A] _),
-         */
+        "race never non-canceled identity (left)" -> forAll(
+          laws.raceNeverNoncanceledIdentityLeft[A] _),
+        "race never non-canceled identity (right)" -> forAll(
+          laws.raceNeverNoncanceledIdentityRight[A] _),
         // "race left cede yields" -> forAll(laws.raceLeftCedeYields[A] _),
         // "race right cede yields" -> forAll(laws.raceRightCedeYields[A] _),
         "fiber pure is completed pure" -> forAll(laws.fiberPureIsOutcomeCompletedPure[A] _),

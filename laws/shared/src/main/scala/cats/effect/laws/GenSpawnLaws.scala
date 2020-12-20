@@ -87,13 +87,17 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] {
     F.race(F.never[A], fb) <-> results
   }
 
-  // FIXME fails when fa is IO.Uncancelable(...)
   def raceCanceledIdentityLeft[A](fa: F[A]) =
     F.race(F.canceled, fa) <-> fa.map(_.asRight[Unit])
 
-  // FIXME fails when fa is IO.Uncancelable(...)
   def raceCanceledIdentityRight[A](fa: F[A]) =
     F.race(fa, F.canceled) <-> fa.map(_.asLeft[Unit])
+
+  def raceNeverNoncanceledIdentityLeft[A](fa: F[A]) =
+    F.race(F.never[Unit], fa) <-> F.onCancel(fa.map(_.asRight[Unit]), F.never)
+
+  def raceNeverNoncanceledIdentityRight[A](fa: F[A]) =
+    F.race(fa, F.never[Unit]) <-> F.onCancel(fa.map(_.asLeft[Unit]), F.never)
 
   // I really like these laws, since they relate cede to timing, but they're definitely nondeterministic
   /*def raceLeftCedeYields[A](a: A) =

@@ -316,7 +316,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           .flatMap(_ => IO.raiseError(TestException)))
           .void must failAs(TestException)
       }
-    // format: on
+      // format: on
 
       "repeated async callback" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
@@ -913,6 +913,36 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         test must completeAs(())
         success must beTrue
       }
+
+      // format: off
+      "finalize after uncancelable with suppressed cancellation (succeeded)" in ticked { implicit ticker =>
+        var finalized = false
+
+        val test =
+          IO.uncancelable(_ => IO.canceled >> IO.pure(42))
+            .onCancel(IO { finalized = true })
+            .void
+
+        test must selfCancel
+        finalized must beTrue
+      }
+      // format: on
+
+      // format: off
+      "finalize after uncancelable with suppressed cancellation (errored)" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        var finalized = false
+
+        val test =
+          IO.uncancelable(_ => IO.canceled >> IO.raiseError(TestException))
+            .onCancel(IO { finalized = true })
+            .void
+
+        test must selfCancel
+        finalized must beTrue
+      }
+      // format: on
 
     }
 
