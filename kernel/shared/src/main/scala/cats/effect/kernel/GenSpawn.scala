@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.~>
+import cats.{~>, Defer}
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{Monoid, Semigroup}
 import cats.syntax.all._
@@ -189,7 +189,7 @@ import cats.effect.kernel.syntax.monadCancel._
  *   1. https://gist.github.com/djspiewak/3ac3f3f55a780e8ab6fa2ca87160ca40
  *   1. https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c
  */
-trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
+trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Defer[F] {
   implicit private[this] def F: MonadCancel[F, E] = this
 
   /**
@@ -430,6 +430,9 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
           }
       }
     }
+
+  def defer[A](fa: => F[A]): F[A] =
+    unit.flatMap(_ => fa)
 }
 
 object GenSpawn {

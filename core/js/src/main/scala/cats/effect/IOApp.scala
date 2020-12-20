@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import scala.concurrent.CancellationException
 import scala.concurrent.duration._
 import scala.scalajs.js
 
@@ -46,7 +47,7 @@ trait IOApp {
       .raceOutcome[ExitCode, Nothing](run(argList), keepAlive)
       .flatMap {
         case Left(Outcome.Canceled()) =>
-          IO.raiseError(new RuntimeException("IOApp main fiber canceled"))
+          IO.raiseError(new CancellationException("IOApp main fiber was canceled"))
         case Left(Outcome.Errored(t)) => IO.raiseError(t)
         case Left(Outcome.Succeeded(code)) => code
         case Right(Outcome.Errored(t)) => IO.raiseError(t)

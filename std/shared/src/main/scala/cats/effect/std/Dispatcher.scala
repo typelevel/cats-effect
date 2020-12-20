@@ -58,10 +58,9 @@ object Dispatcher {
 
     for {
       supervisor <- Supervisor[F]
-      latch <- Resource.liftF(F.delay(new AtomicReference[() => Unit]))
-      state <- Resource.liftF(F.delay(new AtomicReference[State](Empty)))
-      ec <- Resource.liftF(F.executionContext)
-
+      latch <- Resource.eval(F.delay(new AtomicReference[() => Unit]))
+      state <- Resource.eval(F.delay(new AtomicReference[State](Empty)))
+      ec <- Resource.eval(F.executionContext)
       alive <- Resource.make(F.delay(new AtomicBoolean(true)))(ref => F.delay(ref.set(false)))
 
       dispatcher = for {

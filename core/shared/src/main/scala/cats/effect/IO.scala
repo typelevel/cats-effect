@@ -19,6 +19,7 @@ package cats.effect
 import cats.{
   Applicative,
   Eval,
+  Id,
   Monoid,
   Now,
   Parallel,
@@ -33,7 +34,13 @@ import cats.effect.instances.spawn
 import cats.effect.std.Console
 
 import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
+import scala.concurrent.{
+  CancellationException,
+  ExecutionContext,
+  Future,
+  Promise,
+  TimeoutException
+}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -194,7 +201,19 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def unsafeRunAsync(cb: Either[Throwable, A] => Unit)(
       implicit runtime: unsafe.IORuntime): Unit = {
-    unsafeRunFiber(t => cb(Left(t)), a => cb(Right(a)))
+    unsafeRunFiber(
+      cb(Left(new CancellationException("Main fiber was canceled"))),
+      t => cb(Left(t)),
+      a => cb(Right(a)))
+    ()
+  }
+
+  def unsafeRunAsyncOutcome(cb: Outcome[Id, Throwable, A @uncheckedVariance] => Unit)(
+      implicit runtime: unsafe.IORuntime): Unit = {
+    unsafeRunFiber(
+      cb(Outcome.canceled),
+      t => cb(Outcome.errored(t)),
+      a => cb(Outcome.succeeded(a: Id[A])))
     ()
   }
 
@@ -212,14 +231,16 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     p.future
   }
 
-  private[effect] def unsafeRunFiber(failure: Throwable => Unit, success: A => Unit)(
-      implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
+  private[effect] def unsafeRunFiber(
+      canceled: => Unit,
+      failure: Throwable => Unit,
+      success: A => Unit)(implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber[A](
       0,
       oc =>
         oc.fold(
-          (),
+          canceled,
           { t =>
             runtime.fiberErrorCbs.remove(failure)
             failure(t)
@@ -255,6 +276,8 @@ private[effect] trait IOLowPriorityImplicits {
 }
 
 object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
+
+  type Par[A] = ParallelF[IO, A]
 
   // constructors
 
@@ -413,7 +436,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    * @param a value to be printed to the standard output
    */
-  def print[A](a: A)(implicit S: Show[A] = Show.fromToString): IO[Unit] =
+  def print[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): IO[Unit] =
     Console[IO].print(a)
 
   /**
@@ -425,7 +448,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    * @param a value to be printed to the standard output
    */
-  def println[A](a: A)(implicit S: Show[A] = Show.fromToString): IO[Unit] =
+  def println[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): IO[Unit] =
     Console[IO].println(a)
 
   def eval[A](fa: Eval[A]): IO[A] =
@@ -571,10 +594,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   implicit def asyncForIO: kernel.Async[IO] = _asyncForIO
 
-  private[this] val _parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] =
+  private[this] val _parallelForIO: Parallel.Aux[IO, Par] =
     spawn.parallelForGenSpawn[IO, Throwable]
 
-  implicit def parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = _parallelForIO
+  implicit def parallelForIO: Parallel.Aux[IO, Par] = _parallelForIO
 
   implicit val consoleForIO: Console[IO] =
     Console.make

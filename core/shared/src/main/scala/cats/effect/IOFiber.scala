@@ -147,7 +147,7 @@ private final class IOFiber[A](
         runtime.shutdown()
         Thread.interrupted()
         currentCtx.reportFailure(t)
-        runtime.fiberErrorCbs.lock.synchronized {
+        runtime.fiberErrorCbs.synchronized {
           var idx = 0
           val len = runtime.fiberErrorCbs.hashtable.length
           while (idx < len) {
