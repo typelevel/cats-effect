@@ -1012,12 +1012,19 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     "miscellaneous" should {
 
-      // FIXME falsified when ioa == IO.canceled
-      "round trip through s.c.Future" in skipped(
-        "false when canceled"
-      ) /*ticked { implicit ticker =>
-        forAll { (ioa: IO[Int]) => ioa eqv IO.fromFuture(IO(ioa.unsafeToFuture())) }
-      }*/
+      "round trip non-canceled through s.c.Future" in ticked { implicit ticker =>
+        forAll { (ioa: IO[Int]) =>
+          val normalized = ioa.onCancel(IO.never)
+          normalized eqv IO.fromFuture(IO(normalized.unsafeToFuture()))
+        }
+      }
+
+      "canceled through s.c.Future is errored" in ticked { implicit ticker =>
+        val test =
+          IO.fromFuture(IO(IO.canceled.as(-1).unsafeToFuture())).handleError(_ => 42)
+
+        test must completeAs(42)
+      }
 
       "run parallel actually in parallel" in real {
         val x = IO.sleep(2.seconds) >> IO.pure(1)

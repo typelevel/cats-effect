@@ -26,13 +26,15 @@ import scala.util.{Left, Right}
 trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
   implicit val F: Async[F]
 
+  // format: off
   def asyncRightIsUncancelableSequencedPure[A](a: A, fu: F[Unit]) =
-    F.async[A](k => F.delay(k(Right(a))) >> fu.as(None)) <-> F.uncancelable(_ =>
-      fu >> F.pure(a))
+    F.async[A](k => F.delay(k(Right(a))) >> fu.as(None)) <-> (F.uncancelable(_ => fu) >> F.pure(a))
+  // format: on
 
+  // format: off
   def asyncLeftIsUncancelableSequencedRaiseError[A](e: Throwable, fu: F[Unit]) =
-    F.async[A](k => F.delay(k(Left(e))) >> fu.as(None)) <-> F.uncancelable(_ =>
-      fu >> F.raiseError(e))
+    F.async[A](k => F.delay(k(Left(e))) >> fu.as(None)) <-> (F.uncancelable(_ => fu) >> F.raiseError(e))
+  // format: on
 
   def asyncRepeatedCallbackIgnored[A](a: A) =
     F.async[A](k => F.delay(k(Right(a))) >> F.delay(k(Right(a))).as(None)) <-> F.pure(a)
