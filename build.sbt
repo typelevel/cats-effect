@@ -67,6 +67,14 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("docs/mdoc"),
     cond = Some(s"matrix.scala == '$Scala213' && matrix.ci == 'ciJVM'")),
 
+  WorkflowStep.Sbt(
+    List("exampleJVM/compile"),
+    cond = Some(s"matrix.ci == 'ciJVM' && matrix.os == '$PrimaryOS'")),
+
+  WorkflowStep.Sbt(
+    List("exampleJS/compile"),
+    cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")),
+
   WorkflowStep.Run(
     List("example/test-jvm.sh ${{ matrix.scala }}"),
     name = Some("Test Example JVM App Within Sbt"),

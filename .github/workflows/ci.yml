@@ -106,6 +106,14 @@ jobs:
         shell: bash
         run: sbt ++${{ matrix.scala }} docs/mdoc
 
+      - if: matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: sbt ++${{ matrix.scala }} exampleJVM/compile
+
+      - if: matrix.ci == 'ciJS' && matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: sbt ++${{ matrix.scala }} exampleJS/compile
+
       - name: Test Example JVM App Within Sbt
         if: matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
         shell: bash
