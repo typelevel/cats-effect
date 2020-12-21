@@ -11,7 +11,7 @@ output=$(mktemp)
 
 await-output() {
   local c=0
-  until (cat $output | grep "$1" > /dev/null) || [[ $c -gt 20 ]]; do
+  until (cat $output | grep "$1" > /dev/null) || [[ $c -gt 30 ]]; do
     sleep 1
     c=$(($c+1))
   done
