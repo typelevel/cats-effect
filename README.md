@@ -44,7 +44,7 @@ At the present time, ce3 is cross-built for Scala 2.12, 2.13, 3.0.0-M2, and 3.0.
 import cats.effect._
 
 object Main extends IOApp.Simple {
-  val run = IO(println("Hello, World!"))
+  val run = IO.println("Hello, World!")
 }
 ```
 
@@ -56,9 +56,9 @@ import cats.effect._
 object Main extends IOApp {
   def run(args: List[String]): IO[ExitCode] =
     if (args.headOption.map(_ == "--do-it").getOrElse(false))
-      IO(println("I did it!")).as(ExitCode.Success)
+      IO.println("I did it!").as(ExitCode.Success)
     else
-      IO(println("Didn't do it")).as(ExitCode(-1))
+      IO.println("Didn't do it").as(ExitCode(-1))
 }
 ```
 
