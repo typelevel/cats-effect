@@ -32,29 +32,29 @@ import scala.util.{Failure, Success}
  * boundary. This is useful when working with reactive interfaces that produce
  * potentially many values (as opposed to one), and for each value, some effect
  * in `F` must be performed (like inserting it into a queue).
- * 
- * [[Dispatcher]] is a kind of [[Supervisor]] and accordingly follows the same 
+ *
+ * [[Dispatcher]] is a kind of [[Supervisor]] and accordingly follows the same
  * scoping and lifecycle rules with respect to submitted effects.
- * 
- * Performance note: all clients of a single [[Dispatcher]] instance will 
- * contend with each other when submitting effects. However, [[Dispatcher]] 
- * instances are cheap to create and have minimal overhead (a single fiber), 
+ *
+ * Performance note: all clients of a single [[Dispatcher]] instance will
+ * contend with each other when submitting effects. However, [[Dispatcher]]
+ * instances are cheap to create and have minimal overhead (a single fiber),
  * so they can be allocated on-demand if necessary.
- * 
- * Notably, [[Dispatcher]] replaces Effect and ConcurrentEffect from Cats 
+ *
+ * Notably, [[Dispatcher]] replaces Effect and ConcurrentEffect from Cats
  * Effect 2 while only a requiring an [[Async]] constraint.
  */
 trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 
   /**
-    * Submits an effect to be executed, returning a `Future` that holds the 
-    * result of its evaluation, along with a cancellation token that can be 
-    * used to cancel the original effect.
-    */
+   * Submits an effect to be executed, returning a `Future` that holds the
+   * result of its evaluation, along with a cancellation token that can be
+   * used to cancel the original effect.
+   */
   def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit])
 
   /**
-   * Submits an effect to be executed, returning a `Future` that holds the 
+   * Submits an effect to be executed, returning a `Future` that holds the
    * result of its evaluation.
    */
   def unsafeToFuture[A](fa: F[A]): Future[A] =
