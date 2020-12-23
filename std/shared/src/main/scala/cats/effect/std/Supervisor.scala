@@ -23,18 +23,72 @@ import cats.syntax.all._
 /**
  * A fiber-based supervisor that monitors the lifecycle of all fibers
  * that are started via its interface. The supervisor is managed by a singular
- * fiber which is responsible for starting fibers.
+ * fiber to which the lifecycles of all spawned fibers are bound.
  *
  * Whereas [[GenSpawn.background]] links the lifecycle of the spawned fiber to
- * the calling fiber, starting a fiber via a [[Supervisor]] will link the
- * lifecycle of the spawned fiber to the supervisor fiber. This is useful when
- * the scope of some fiber must survive the spawner, but should still be
- * confined within some scope to prevent leaks.
+ * the calling fiber, starting a fiber via a [[Supervisor]] links the lifecycle
+ * of the spawned fiber to the supervisor fiber. This is useful when the scope
+ * of some fiber must survive the spawner, but should still be confined within 
+ * some "larger" scope.
  *
  * The fibers started via the supervisor are guaranteed to be terminated when
  * the supervisor fiber is terminated. When a supervisor fiber is canceled, all
  * active and queued fibers will be safely finalized before finalization of
  * the supervisor is complete.
+ * 
+ * The following diagrams illustrate the lifecycle of a fiber spawned via 
+ * [[GenSpawn.start]], [[GenSpawn.background]], and [[Supervisor]]. In each
+ * example, some fiber A is spawning another fiber B. Each box represents the 
+ * lifecycle of a fiber. If a box is enclosed within another box, it means that 
+ * the lifecycle of the former is confined within the lifecycle of the latter.
+ * In other words, if an outer fiber terminates, the inner fibers are 
+ * guaranteed to be terminated as well.
+ * 
+ * start:
+ * {{{
+ * Fiber A lifecycle                                      
+ * +---------------------+                                
+ * |                 |   |                                
+ * +-----------------|---+                                
+ *                   |                                    
+ *                   |A starts B                          
+ * Fiber B lifecycle |                                    
+ * +-----------------|---+                                
+ * |                 +   |                                
+ * +---------------------+
+ * }}}
+ * 
+ * background:
+ * {{{
+ * Fiber A lifecycle                                     
+ * +------------------------+                            
+ * |                    |   |                            
+ * | Fiber B lifecycle  |A starts B                      
+ * | +------------------|-+ |                            
+ * | |                  | | |                            
+ * | +--------------------+ |                            
+ * +------------------------+ 
+ * }}}
+ * 
+ * Supervisor:
+ * {{{
+ * Supervisor lifecycle                                   
+ * +---------------------+                                
+ * | Fiber B lifecycle   |                                
+ * | +-----------------+ |                                
+ * | |               + | |                                
+ * | +---------------|-+ |                                
+ * +-----------------|---+                                
+ *                   |                                    
+ *                   | A starts B                          
+ * Fiber A lifecycle |                                    
+ * +-----------------|---+                                
+ * |                 |   |                                
+ * +---------------------+      
+ * }}}
+ * 
+ * [[Supervisor]] should be used when fire-and-forget semantics are desired. 
+ * 
  */
 trait Supervisor[F[_]] {
 
