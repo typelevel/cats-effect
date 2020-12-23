@@ -188,7 +188,6 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           .handleErrorWith(_ => (throw TestException): IO[Unit])
           .attempt must completeAs(Left(TestException))
       }
-
     }
 
     "suspension of side effects" should {
@@ -944,6 +943,20 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       }
       // format: on
 
+      "finalize on uncaught errors in bracket use clauses" in ticked { implicit ticker =>
+        val test = for {
+          ref <- Ref[IO].of(false)
+          _ <-
+            IO.asyncForIO
+              .bracketFull[Unit, Unit](_ => IO.unit)(_ => sys.error("borked!")) {
+                case _ => ref.set(true)
+              }
+              .attempt
+          flag <- ref.get
+        } yield flag
+
+        test must completeAs(true)
+      }
     }
 
     "stack-safety" should {
