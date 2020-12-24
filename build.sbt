@@ -380,7 +380,6 @@ lazy val siteSettings = Seq(
   micrositeConfigYaml := ConfigYml(
     yamlPath = Some((resourceDirectory in Compile).value / "microsite" / "_config.yml")
   ),
-  micrositeCompilingDocsTool := WithMdoc,
   mdocIn := (sourceDirectory in Compile).value / "mdoc",
   Compile / scalacOptions ~= (_.filterNot(
     Set(
