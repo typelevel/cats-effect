@@ -45,7 +45,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
         v1 <- q.take
         f <- q.take.start
         _ <- q.offer(2)
-        v2 <- f.joinAndEmbedNever
+        v2 <- f.joinWithNever
         r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(2)))
       } yield r
     }
@@ -57,7 +57,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
         v1 <- q.take
         _ <- IO(v1 must beEqualTo(1))
         ff <- IO(q.take.unsafeToFuture()).start
-        f <- ff.joinAndEmbedNever
+        f <- ff.joinWithNever
         _ <- IO(f.value must beEqualTo(None))
         _ <- q.offer(2)
         v2 <- IO.fromFuture(IO.pure(f))
@@ -87,7 +87,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
         p <- producer(q, count).start
         c <- consumer(q, count).start
         _ <- p.join
-        v <- c.joinAndEmbedNever
+        v <- c.joinWithNever
         r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
       } yield r
     }
@@ -239,7 +239,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         p <- producer(q, count).start
         c <- consumer(q, count).start
         _ <- p.join
-        v <- c.joinAndEmbedNever
+        v <- c.joinWithNever
         r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
       } yield r
     }
@@ -300,7 +300,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         p <- producer(q, count).start
         c <- consumer(q, count).start
         _ <- p.join
-        v <- c.joinAndEmbedNever
+        v <- c.joinWithNever
         r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
       } yield r
     }

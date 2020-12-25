@@ -60,7 +60,7 @@ trait Fiber[F[_], E, A] {
    * returned. If the fiber completes with [[Errored]], the error is raised.
    * If the fiber completes with [[Cancelled]], `onCancel` is run.
    */
-  def joinAndEmbed(onCancel: F[A])(implicit F: MonadCancel[F, E]): F[A] =
+  def joinWith(onCancel: F[A])(implicit F: MonadCancel[F, E]): F[A] =
     join.flatMap(_.embed(onCancel))
 
   /**
@@ -72,6 +72,6 @@ trait Fiber[F[_], E, A] {
    * If the fiber completes with [[Cancelled]], the caller is indefinitely
    * suspended without termination.
    */
-  def joinAndEmbedNever(implicit F: GenSpawn[F, E]): F[A] =
-    joinAndEmbed(F.never)
+  def joinWithNever(implicit F: GenSpawn[F, E]): F[A] =
+    joinWith(F.never)
 }
