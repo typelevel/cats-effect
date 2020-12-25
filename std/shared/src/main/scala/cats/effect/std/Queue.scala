@@ -159,10 +159,12 @@ object Queue {
   }
 
   private def assertNonNegative(capacity: Int): Unit =
-    require(capacity >= 0, s"Bounded queue capacity must be non-negative, was: $capacity")
+    if (capacity < 0) throw new IllegalArgumentException(s"Bounded queue capacity must be non-negative, was: $capacity")
+    else ()
 
   private def assertPositive(capacity: Int, name: String): Unit =
-    require(capacity > 0, s"$name queue capacity must be positive, was: $capacity")
+    if (capacity <= 0) throw new IllegalArgumentException(s"$name queue capacity must be positive, was: $capacity")
+    else ()
 
   private sealed abstract class AbstractQueue[F[_], A](
       capacity: Int,

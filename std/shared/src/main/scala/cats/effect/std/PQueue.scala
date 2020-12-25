@@ -217,6 +217,6 @@ object PQueue {
   }
 
   private def assertNonNegative(capacity: Int): Unit =
-    require(capacity >= 0, s"Bounded queue capacity must be non-negative, was: $capacity")
-
+    if (capacity < 0) throw new IllegalArgumentException(s"Bounded queue capacity must be non-negative, was: $capacity")
+    else ()
 }
