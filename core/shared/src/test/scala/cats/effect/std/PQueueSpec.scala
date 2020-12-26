@@ -43,58 +43,60 @@ class BoundedPQueueSpec extends BaseSpec with PQueueTests {
       name: String,
       constructor: Int => IO[PQueue[IO, Int]]): Fragments = {
 
-    s"$name - demonstrate offer and take with zero capacity" in real {
-      for {
-        q <- constructor(0)
-        _ <- q.offer(1).start
-        v1 <- q.take
-        f <- q.take.start
-        _ <- q.offer(2)
-        v2 <- f.joinAndEmbedNever
-        r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(2)))
-      } yield r
-    }
+    name >> {
 
-    s"$name - async take with zero capacity" in realWithRuntime { implicit rt =>
-      for {
-        q <- constructor(0)
-        _ <- q.offer(1).start
-        v1 <- q.take
-        _ <- IO(v1 must beEqualTo(1))
-        ff <- IO(q.take.unsafeToFuture()).start
-        f <- ff.joinAndEmbedNever
-        _ <- IO(f.value must beEqualTo(None))
-        _ <- q.offer(2)
-        v2 <- IO.fromFuture(IO.pure(f))
-        r <- IO(v2 must beEqualTo(2))
-      } yield r
-    }
+      "demonstrate offer and take with zero capacity" in real {
+        for {
+          q <- constructor(0)
+          _ <- q.offer(1).start
+          v1 <- q.take
+          f <- q.take.start
+          _ <- q.offer(2)
+          v2 <- f.joinAndEmbedNever
+          r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(2)))
+        } yield r
+      }
 
-    s"$name - offer/take with zero capacity" in real {
-      val count = 1000
+      "async take with zero capacity" in realWithRuntime { implicit rt =>
+        for {
+          q <- constructor(0)
+          _ <- q.offer(1).start
+          v1 <- q.take
+          _ <- IO(v1 must beEqualTo(1))
+          ff <- IO(q.take.unsafeToFuture()).start
+          f <- ff.joinAndEmbedNever
+          _ <- IO(f.value must beEqualTo(None))
+          _ <- q.offer(2)
+          v2 <- IO.fromFuture(IO.pure(f))
+          r <- IO(v2 must beEqualTo(2))
+        } yield r
+      }
 
-      def producer(q: PQueue[IO, Int], n: Int): IO[Unit] =
-        if (n > 0) q.offer(count - n).flatMap(_ => producer(q, n - 1))
-        else IO.unit
+      "offer/take with zero capacity" in real {
+        val count = 1000
+        def producer(q: PQueue[IO, Int], n: Int): IO[Unit] =
+          if (n > 0) q.offer(count - n).flatMap(_ => producer(q, n - 1))
+          else IO.unit
 
-      def consumer(
-          q: PQueue[IO, Int],
-          n: Int,
-          acc: ScalaQueue[Int] = ScalaQueue.empty
-      ): IO[Long] =
-        if (n > 0)
-          q.take.flatMap { a => consumer(q, n - 1, acc.enqueue(a)) }
-        else
-          IO.pure(acc.foldLeft(0L)(_ + _))
+        def consumer(
+            q: PQueue[IO, Int],
+            n: Int,
+            acc: ScalaQueue[Int] = ScalaQueue.empty
+        ): IO[Long] =
+          if (n > 0)
+            q.take.flatMap { a => consumer(q, n - 1, acc.enqueue(a)) }
+          else
+            IO.pure(acc.foldLeft(0L)(_ + _))
 
-      for {
-        q <- constructor(0)
-        p <- producer(q, count).start
-        c <- consumer(q, count).start
-        _ <- p.join
-        v <- c.joinAndEmbedNever
-        r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
-      } yield r
+        for {
+          q <- constructor(0)
+          p <- producer(q, count).start
+          c <- consumer(q, count).start
+          _ <- p.join
+          v <- c.joinAndEmbedNever
+          r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
+        } yield r
+      }
     }
 
     negativeCapacityConstructionTests(name, constructor)
