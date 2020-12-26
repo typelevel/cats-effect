@@ -21,9 +21,19 @@ import scala.concurrent.duration.Duration
 
 private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] =>
 
+  /**
+   * Submits an effect to be executed and indefinitely blocks until a result is
+   * produced. This function will throw an exception if the submitted effect
+   * terminates with an error.
+   */
   def unsafeRunSync[A](fa: F[A]): A =
     unsafeRunTimed(fa, Duration.Inf)
 
+  /**
+   * Submits an effect to be executed and blocks for at most the specified
+   * timeout for a result to be produced. This function will throw an exception
+   * if the submitted effect terminates with an error.
+   */
   def unsafeRunTimed[A](fa: F[A], timeout: Duration): A = {
     val (fut, cancel) = unsafeToFutureCancelable(fa)
     try Await.result(fut, timeout)
