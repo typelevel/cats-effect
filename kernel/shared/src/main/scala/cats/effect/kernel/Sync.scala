@@ -16,18 +16,8 @@
 
 package cats.effect.kernel
 
-import cats.{Applicative, Defer, MonadError, Monoid, Semigroup}
-import cats.data.{
-  EitherT,
-  IndexedReaderWriterStateT,
-  IndexedStateT,
-  IorT,
-  Kleisli,
-  OptionT,
-  ReaderWriterStateT,
-  StateT,
-  WriterT
-}
+import cats.{Applicative, Defer, Monoid, Semigroup}
+import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 
 trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Defer[F] {
 
