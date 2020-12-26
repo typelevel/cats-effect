@@ -262,7 +262,6 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
           r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
         } yield r
       }
-    }
   }
 
   def cancelableOfferTests(
@@ -322,15 +321,14 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
           else
             IO.pure(acc.foldLeft(0L)(_ + _))
 
-        for {
-          q <- constructor(10)
-          p <- producer(q, count).start
-          c <- consumer(q, count).start
-          _ <- p.join
-          v <- c.joinAndEmbedNever
-          r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
-        } yield r
-      }
+      for {
+        q <- constructor(10)
+        p <- producer(q, count).start
+        c <- consumer(q, count).start
+        _ <- p.join
+        v <- c.joinWithNever
+        r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
+      } yield r
     }
   }
 
