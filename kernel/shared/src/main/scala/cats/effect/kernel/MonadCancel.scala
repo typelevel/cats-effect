@@ -149,6 +149,15 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
   implicit private[this] def F: MonadError[F, E] = this
 
   /**
+   * Indicates the default "root scope" semantics of the `F` in question.
+   * For types which do ''not'' implement auto-cancelation, this value may
+   * be set to `CancelScope.Uncancelable`, which behaves as if all values
+   * `F[A]` are wrapped in an implicit "outer" `uncancelable` which cannot
+   * be polled. Most `IO`-like types will define this to be `Cancelable`.
+   */
+  def rootCancelScope: CancelScope
+
+  /**
    * Analogous to [[productR]], but suppresses short-circuiting behavior
    * except for cancellation.
    */
@@ -367,12 +376,16 @@ object MonadCancel {
       implicit F0: MonadCancel[F, E]): MonadCancel[OptionT[F, *], E] =
     new OptionTMonadCancel[F, E] {
 
+      def rootCancelScope = F0.rootCancelScope
+
       override implicit protected def F: MonadCancel[F, E] = F0
     }
 
   implicit def monadCancelForEitherT[F[_], E0, E](
       implicit F0: MonadCancel[F, E]): MonadCancel[EitherT[F, E0, *], E] =
     new EitherTMonadCancel[F, E0, E] {
+
+      def rootCancelScope = F0.rootCancelScope
 
       override implicit protected def F: MonadCancel[F, E] = F0
     }
@@ -381,6 +394,8 @@ object MonadCancel {
       implicit F0: MonadCancel[F, E]): MonadCancel[Kleisli[F, R, *], E] =
     new KleisliMonadCancel[F, R, E] {
 
+      def rootCancelScope = F0.rootCancelScope
+
       override implicit protected def F: MonadCancel[F, E] = F0
     }
 
@@ -388,6 +403,8 @@ object MonadCancel {
       implicit F0: MonadCancel[F, E],
       L0: Semigroup[L]): MonadCancel[IorT[F, L, *], E] =
     new IorTMonadCancel[F, L, E] {
+
+      def rootCancelScope = F0.rootCancelScope
 
       override implicit protected def F: MonadCancel[F, E] = F0
 
@@ -399,6 +416,8 @@ object MonadCancel {
       L0: Monoid[L]): MonadCancel[WriterT[F, L, *], E] =
     new WriterTMonadCancel[F, L, E] {
 
+      def rootCancelScope = F0.rootCancelScope
+
       override implicit protected def F: MonadCancel[F, E] = F0
 
       override implicit protected def L: Monoid[L] = L0
@@ -407,6 +426,9 @@ object MonadCancel {
   implicit def monadCancelForStateT[F[_], S, E](
       implicit F0: MonadCancel[F, E]): MonadCancel[StateT[F, S, *], E] =
     new StateTMonadCancel[F, S, E] {
+
+      def rootCancelScope = F0.rootCancelScope
+
       override implicit protected def F = F0
     }
 
@@ -414,11 +436,34 @@ object MonadCancel {
       implicit F0: MonadCancel[F, E],
       L0: Monoid[L]): MonadCancel[ReaderWriterStateT[F, E0, L, S, *], E] =
     new ReaderWriterStateTMonadCancel[F, E0, L, S, E] {
+
+      def rootCancelScope = F0.rootCancelScope
+
       override implicit protected def F = F0
       override implicit protected def L = L0
     }
 
+  trait Uncancelable[F[_], E] { this: MonadCancel[F, E] =>
+
+    private[this] val IdPoll = new Poll[F] {
+      def apply[A](fa: F[A]) = fa
+    }
+
+    def rootCancelScope: CancelScope = CancelScope.Uncancelable
+
+    def canceled: F[Unit] = unit
+
+    def onCancel[A](fa: F[A], fin: F[Unit]): F[A] = {
+      val _ = fin
+      fa
+    }
+
+    def uncancelable[A](body: Poll[F] => F[A]): F[A] =
+      body(IdPoll)
+  }
+
   private[kernel] trait OptionTMonadCancel[F[_], E] extends MonadCancel[OptionT[F, *], E] {
+
     implicit protected def F: MonadCancel[F, E]
 
     protected def delegate: MonadError[OptionT[F, *], E] =
