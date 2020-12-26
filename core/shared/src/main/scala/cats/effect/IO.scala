@@ -83,7 +83,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.uncancelable { poll =>
       flatMap { a =>
         val finalized = poll(use(a)).onCancel(release(a, Outcome.Canceled()))
-        val handled = finalized.onError { e => 
+        val handled = finalized.onError { e =>
           release(a, Outcome.Errored(e)).handleErrorWith { t =>
             IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
           }

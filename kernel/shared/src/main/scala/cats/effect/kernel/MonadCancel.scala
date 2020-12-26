@@ -355,9 +355,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
         val handled = finalized.onError {
           case e => safeRelease(a, Outcome.Errored(e)).attempt.void
         }
-        handled.flatMap { b => 
-          safeRelease(a, Outcome.Succeeded(b.pure)).as(b)
-        }
+        handled.flatMap { b => safeRelease(a, Outcome.Succeeded(b.pure)).as(b) }
       }
     }
 }
