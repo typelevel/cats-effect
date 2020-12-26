@@ -67,7 +67,13 @@ trait IOApp {
     val hook = new Thread(() => handleShutdown())
     hook.setName("io-cancel-hook")
 
-    rt.addShutdownHook(hook)
+    try {
+      rt.addShutdownHook(hook)
+    } catch {
+      case _: IllegalStateException =>
+        // we're already being shut down
+        handleShutdown()
+    }
 
     try {
       latch.await()
