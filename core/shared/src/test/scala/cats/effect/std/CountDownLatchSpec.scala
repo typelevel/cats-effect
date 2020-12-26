@@ -81,7 +81,7 @@ class CountDownLatchSpec extends BaseSpec {
         f <- l.await.start
         _ <- IO.sleep(1.milli)
         _ <- l.release
-        r <- f.joinAndEmbedNever
+        r <- f.joinWithNever
         res <- IO(r must beEqualTo(()))
       } yield res
     }
@@ -104,7 +104,7 @@ class CountDownLatchSpec extends BaseSpec {
         f2 <- l.await.start
         _ <- IO.sleep(1.milli)
         _ <- l.release
-        r <- (f1.joinAndEmbedNever, f2.joinAndEmbedNever).tupled
+        r <- (f1.joinWithNever, f2.joinWithNever).tupled
         res <- IO(r must beEqualTo(((), ())))
       } yield res
     }

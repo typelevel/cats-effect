@@ -274,12 +274,12 @@ def both[F[_]: Spawn, A, B](fa: F[A], fb: F[B]): F[(A, B)] =
     fiberA <- fa.start
     fiberB <- fb.start
 
-    a <- fiberA.joinAndEmbedNever
-    b <- fiberB.joinAndEmbedNever
+    a <- fiberA.joinWithNever
+    b <- fiberB.joinWithNever
   } yield (a, b)
 ```
 
-The `joinAndEmbedNever` function is a convenience method built on top of `join`, which is much more general. Specifically, the `Fiber#join` method returns `F[Outcome[F, E, A]]` (where `E` is the error type for `F`). This is a much more complex signature, but it gives us a lot of power when we need it.
+The `joinWithNever` function is a convenience method built on top of `join`, which is much more general. Specifically, the `Fiber#join` method returns `F[Outcome[F, E, A]]` (where `E` is the error type for `F`). This is a much more complex signature, but it gives us a lot of power when we need it.
 
 `Outcome` has the following shape:
 
@@ -377,6 +377,6 @@ In English, the semantics of this are as follows:
 - If it errored, re-raise the error within the current fiber
 - If it canceled, attempt to self-cancel, and if the self-cancelation fails, **deadlock**
 
-Sometimes this is an appropriate semantic, and the cautiously-verbose `joinAndEmbedNever` function implements it for you. It is worth noting that this semantic was the *default* in Cats Effect 2 (and in fact, no other semantic was possible).
+Sometimes this is an appropriate semantic, and the cautiously-verbose `joinWithNever` function implements it for you. It is worth noting that this semantic was the *default* in Cats Effect 2 (and in fact, no other semantic was possible).
 
 Regardless of all of the above, `join` and `Outcome` give you enough flexibility to choose the appropriate response, regardless of your use-case.

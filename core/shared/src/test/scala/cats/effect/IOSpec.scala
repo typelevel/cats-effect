@@ -246,26 +246,26 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         } must completeAs(42)
       }
 
-      "joinAndEmbedNever on a cancelled fiber" in ticked { implicit ticker =>
+      "joinWithNever on a cancelled fiber" in ticked { implicit ticker =>
         (for {
           fib <- IO.sleep(2.seconds).start
           _ <- fib.cancel
-          _ <- fib.joinAndEmbedNever
+          _ <- fib.joinWithNever
         } yield ()) must nonTerminate
       }
 
-      "joinAndEmbedNever on a successful fiber" in ticked { implicit ticker =>
+      "joinWithNever on a successful fiber" in ticked { implicit ticker =>
         (for {
           fib <- IO.pure(1).start
-          res <- fib.joinAndEmbedNever
+          res <- fib.joinWithNever
         } yield res) must completeAs(1)
       }
 
-      "joinAndEmbedNever on a failed fiber" in ticked { implicit ticker =>
+      "joinWithNever on a failed fiber" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
         (for {
           fib <- IO.raiseError[Unit](TestException).start
-          res <- fib.joinAndEmbedNever
+          res <- fib.joinWithNever
         } yield res) must failAs(TestException)
       }
 
@@ -334,7 +334,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           _ <- IO(ticker.ctx.tickAll())
           _ <- IO(cb(Left(TestException)))
           _ <- IO(ticker.ctx.tickAll())
-          value <- fiber.joinAndEmbedNever
+          value <- fiber.joinWithNever
         } yield value
 
         test must completeAs(42)

@@ -78,7 +78,7 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
         v1 <- take(q)
         f <- take(q).start
         _ <- offer(q, 2)
-        v2 <- f.joinAndEmbedNever
+        v2 <- f.joinWithNever
         r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(2)))
       } yield r
     }
@@ -90,7 +90,7 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
         v1 <- take(q)
         _ <- IO(v1 must beEqualTo(1))
         ff <- IO(take(q).unsafeToFuture()).start
-        f <- ff.joinAndEmbedNever
+        f <- ff.joinWithNever
         _ <- IO(f.value must beEqualTo(None))
         _ <- offer(q, 2)
         v2 <- IO.fromFuture(IO.pure(f))
@@ -120,7 +120,7 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
         p <- producer(q, count).start
         c <- consumer(q, count).start
         _ <- p.join
-        v <- c.joinAndEmbedNever
+        v <- c.joinWithNever
         r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
       } yield r
     }

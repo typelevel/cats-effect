@@ -65,7 +65,7 @@ class WorkStealingBenchmark {
     List
       .range(0, size)
       .traverse(fiber(_).start)
-      .flatMap(_.traverse(_.joinAndEmbedNever))
+      .flatMap(_.traverse(_.joinWithNever))
       .map(_.sum)
       .unsafeRunSync()
   }
