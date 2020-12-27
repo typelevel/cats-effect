@@ -353,9 +353,9 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
         // runtime, otherwise we'll throw here and the error handler will never be registered
         val finalized = onCancel(poll(F.unit >> use(a)), safeRelease(a, Outcome.Canceled()))
         val handled = finalized.onError {
-          case e => void(attempt(safeRelease(a, Outcome.Errored(e))))
+          case e => safeRelease(a, Outcome.Errored(e)).attempt.void
         }
-        handled.flatTap { b => safeRelease(a, Outcome.Succeeded(b.pure)).attempt }
+        handled.flatMap { b => safeRelease(a, Outcome.Succeeded(b.pure)).as(b) }
       }
     }
 }

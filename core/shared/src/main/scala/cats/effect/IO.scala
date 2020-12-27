@@ -80,16 +80,18 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     bracketCase(use)((a, _) => release(a))
 
   def bracketCase[B](use: A => IO[B])(release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] = {
-    def doRelease(a: A, outcome: OutcomeIO[B]): IO[Unit] =
-      release(a, outcome).handleErrorWith { t =>
-        IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
-      }
+    val safeRelease: (A, OutcomeIO[B]) => IO[Unit] =
+      (a, out) => IO.uncancelable(_ => release(a, out))
 
-    IO uncancelable { poll =>
+    IO.uncancelable { poll =>
       flatMap { a =>
-        val finalized = poll(use(a)).onCancel(release(a, Outcome.Canceled()))
-        val handled = finalized.onError(e => doRelease(a, Outcome.Errored(e)))
-        handled.flatMap(b => doRelease(a, Outcome.Succeeded(IO.pure(b))).as(b))
+        val finalized = poll(use(a)).onCancel(safeRelease(a, Outcome.Canceled()))
+        val handled = finalized.onError { e =>
+          safeRelease(a, Outcome.Errored(e)).handleErrorWith { t =>
+            IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
+          }
+        }
+        handled.flatMap(b => safeRelease(a, Outcome.Succeeded(IO.pure(b))).as(b))
       }
     }
   }
