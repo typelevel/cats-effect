@@ -106,6 +106,47 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
   MatrixExclude(Map("java" -> LatestJava, "os" -> Windows))
 )
 
+ThisBuild / githubWorkflowArtifactUpload := false
+
+ThisBuild / githubWorkflowAddedJobs +=
+  WorkflowJob(
+    "build-arm",
+    "Build and Test (ARM)",
+    WorkflowStep.CheckoutFull ::
+      WorkflowStep.Use(
+        "uraimo", "run-on-arch-action", "v2.0.8",
+        name = Some("Run build on ${{ matrix.arch }}"),
+        params = Map(
+          "arch" -> "${{ matrix.arch }}",
+          "distro" -> "stretch",
+          "shell" -> "/bin/bash",
+
+          "run" -> """
+            | set -e
+            |
+            | apt-get update -q -y
+            | apt-get install -q -y git curl
+            |
+            | curl -sL https://github.com/shyiko/jabba/raw/master/install.sh | bash
+            | source ~/.bashrc
+            |
+            | jabba ls-remote
+            | jabba install $(jabba ls-remote | grep ${{ matrix.java }} | head -n 1)
+            | java -version
+            |
+            | ln -s ${JAVA_HOME%*/}/bin/java /usr/bin/java
+            | ln -s ${JAVA_HOME%*/}/bin/javac /usr/bin/javac
+            |
+            | curl -sL https://raw.githubusercontent.com/paulp/sbt-extras/master/sbt > /usr/local/bin/sbt
+            | chmod +x /usr/local/bin/sbt
+            |
+            | rm .jvmopts
+            | sbt ++${{ matrix.scala }} coreJVM/test""".stripMargin)) ::
+      Nil,
+    scalas = crossScalaVersions.value.toList,
+    javas = List("zulu@1.8"),    // there is no GraalVM or JDK 15 for ARM32 yet (and sbt-extras doesn't work with Azul's VM >= 10.0)
+    matrixAdds = Map("arch" -> List("armv7", "aarch64")))
+
 lazy val useFirefoxEnv = settingKey[Boolean]("Use headless Firefox (via geckodriver) for running tests")
 Global / useFirefoxEnv := false
 

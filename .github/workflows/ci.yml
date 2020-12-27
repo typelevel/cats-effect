@@ -123,3 +123,47 @@ jobs:
         if: matrix.ci == 'ciJS' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: example/test-js.sh ${{ matrix.scala }}
+
+  build-arm:
+    name: Build and Test (ARM)
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        scala: [3.0.0-M2, 3.0.0-M3, 2.12.12, 2.13.3]
+        java: [zulu@1.8]
+        arch: [armv7, aarch64]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout current branch (full)
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Run build on ${{ matrix.arch }}
+        uses: uraimo/run-on-arch-action@v2.0.8
+        with:
+          arch: ${{ matrix.arch }}
+          distro: stretch
+          shell: /bin/bash
+          run: |
+
+             set -e
+
+             apt-get update -q -y
+             apt-get install -q -y git curl
+
+             curl -sL https://github.com/shyiko/jabba/raw/master/install.sh | bash
+             source ~/.bashrc
+
+             jabba ls-remote
+             jabba install $(jabba ls-remote | grep ${{ matrix.java }} | head -n 1)
+             java -version
+
+             ln -s ${JAVA_HOME%*/}/bin/java /usr/bin/java
+             ln -s ${JAVA_HOME%*/}/bin/javac /usr/bin/javac
+
+             curl -sL https://raw.githubusercontent.com/paulp/sbt-extras/master/sbt > /usr/local/bin/sbt
+             chmod +x /usr/local/bin/sbt
+
+             rm .jvmopts
+             sbt ++${{ matrix.scala }} coreJVM/test
