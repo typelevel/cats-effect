@@ -756,7 +756,7 @@ private final class IOFiber[A](
    * it should actually be *faster* because CAS isn't primitive but get-and-set is.
    */
   private[this] def resume(): Boolean =
-    suspended.getAndSet(false)
+    suspended.compareAndSet(true, false)
 
   private[this] def suspend(): Unit =
     suspended.set(true)
