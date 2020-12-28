@@ -19,7 +19,7 @@ package effect
 
 import cats.syntax.all._
 
-//import org.scalacheck.Prop, Prop.forAll
+import org.scalacheck.Prop, Prop.forAll
 
 import org.specs2.ScalaCheck
 
@@ -90,12 +90,9 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
         result.value mustEqual Some(Success((1, 1)))
     }
 
-    // FIXME memoize(F.canceled) doesn't terminate
-    "Concurrent.memoize and then flatten is identity" in skipped(
-      "memoized(F.canceled) doesn't terminate"
-    ) /*ticked { implicit ticker =>
+    "Concurrent.memoize and then flatten is identity" in ticked { implicit ticker =>
       forAll { (fa: IO[Int]) => Concurrent[IO].memoize(fa).flatten eqv fa }
-    }*/
+    }
 
     "Memoized effects can be canceled when there are no other active subscribers (1)" in ticked {
       implicit ticker =>
