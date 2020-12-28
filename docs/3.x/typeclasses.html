@@ -230,9 +230,9 @@ def guarded[F[_], R, A, E](
 <span class="hljs-comment">//     ioa = FlatMap(</span>
 <span class="hljs-comment">//       ioe = Map(</span>
 <span class="hljs-comment">//         ioe = Delay(thunk = &lt;function0&gt;),</span>
-<span class="hljs-comment">//         f = cats.effect.IO$$Lambda$10397/226976536@4271981b</span>
+<span class="hljs-comment">//         f = cats.effect.IO$$Lambda$10418/1629818157@3d011c45</span>
 <span class="hljs-comment">//       ),</span>
-<span class="hljs-comment">//       f = cats.StackSafeMonad$$Lambda$10399/1672122903@3859167c</span>
+<span class="hljs-comment">//       f = cats.StackSafeMonad$$Lambda$10420/158037627@671862cc</span>
 <span class="hljs-comment">//     )</span>
 <span class="hljs-comment">//   ),</span>
 <span class="hljs-comment">//   f = &lt;function1&gt;</span>
@@ -259,11 +259,11 @@ def guarded[F[_], R, A, E](
     fiberA &lt;- fa.start
     fiberB &lt;- fb.start
 
-    a &lt;- fiberA.joinAndEmbedNever
-    b &lt;- fiberB.joinAndEmbedNever
+    a &lt;- fiberA.joinWithNever
+    b &lt;- fiberB.joinWithNever
   } <span class="hljs-keyword">yield</span> (a, b)
 </code></pre>
-<p>The <code>joinAndEmbedNever</code> function is a convenience method built on top of <code>join</code>, which is much more general. Specifically, the <code>Fiber#join</code> method returns <code>F[Outcome[F, E, A]]</code> (where <code>E</code> is the error type for <code>F</code>). This is a much more complex signature, but it gives us a lot of power when we need it.</p>
+<p>The <code>joinWithNever</code> function is a convenience method built on top of <code>join</code>, which is much more general. Specifically, the <code>Fiber#join</code> method returns <code>F[Outcome[F, E, A]]</code> (where <code>E</code> is the error type for <code>F</code>). This is a much more complex signature, but it gives us a lot of power when we need it.</p>
 <p><code>Outcome</code> has the following shape:</p>
 <ul>
 <li><code>Succeeded</code> (containing a value of type <code>F[A]</code>)</li>
@@ -338,6 +338,6 @@ fiber.join flatMap {
 <li>If it errored, re-raise the error within the current fiber</li>
 <li>If it canceled, attempt to self-cancel, and if the self-cancelation fails, <strong>deadlock</strong></li>
 </ul>
-<p>Sometimes this is an appropriate semantic, and the cautiously-verbose <code>joinAndEmbedNever</code> function implements it for you. It is worth noting that this semantic was the <em>default</em> in Cats Effect 2 (and in fact, no other semantic was possible).</p>
+<p>Sometimes this is an appropriate semantic, and the cautiously-verbose <code>joinWithNever</code> function implements it for you. It is worth noting that this semantic was the <em>default</em> in Cats Effect 2 (and in fact, no other semantic was possible).</p>
 <p>Regardless of all of the above, <code>join</code> and <code>Outcome</code> give you enough flexibility to choose the appropriate response, regardless of your use-case.</p>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/3.x/installation"><span class="arrow-prev">← </span><span>Installation</span></a><a class="docs-next button" href="/cats-effect/docs/3.x/schedulers"><span>Next</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#monadcancel"><code>MonadCancel</code></a><ul class="toc-headings"><li><a href="#self-cancelation">Self-Cancelation</a></li></ul></li><li><a href="#spawn"><code>Spawn</code></a><ul class="toc-headings"><li><a href="#cancelation">Cancelation</a></li><li><a href="#joining">Joining</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/en/installation">Getting Started</a><a href="/cats-effect/docs/en/guides/tutorial">Tutorial</a><a href="/cats-effect/docs/en/datatypes/io">IO Monad</a><a href="/cats-effect/docs/en/concurrency/overview">Concurrency</a></div><div><h5>Community</h5><a href="https://typelevel.org/blog/">Blog</a><a href="https://gitter.im/typelevel/cats-effect">Gitter</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2020 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
