@@ -47,30 +47,7 @@ import scala.collection.immutable.LongMap
  * Finally, the blocking mentioned above is semantic only, no actual threads are
  * blocked by the implementation.
  */
-abstract class Deferred[F[_], A] {
-
-  /**
-   * Obtains the value of the `Deferred`, or waits until it has been completed.
-   * The returned value may be canceled.
-   */
-  def get: F[A]
-
-  /**
-   * If this `Deferred` is empty, sets the current value to `a`, and notifies
-   * any and all readers currently blocked on a `get`. Returns true.
-   *
-   * If this `Deferred` has already been completed, returns false.
-   *
-   * Satisfies:
-   *   `Deferred[F, A].flatMap(r => r.complete(a) *> r.get) == a.pure[F]`
-   */
-  def complete(a: A): F[Boolean]
-
-  /**
-   * Obtains the current value of the `Deferred`, or None if it hasn't completed.
-   */
-  def tryGet: F[Option[A]]
-
+abstract class Deferred[F[_], A] extends DeferredSource[F, A] with DeferredSink[F, A] {
   /**
    * Modify the context `F` using transformation `f`.
    */
@@ -235,5 +212,53 @@ object Deferred {
     override def get: G[A] = trans(underlying.get)
     override def tryGet: G[Option[A]] = trans(underlying.tryGet)
     override def complete(a: A): G[Boolean] = trans(underlying.complete(a))
+  }
+}
+
+trait DeferredSource[F[_], A] {
+  /**
+   * Obtains the value of the `Deferred`, or waits until it has been completed.
+   * The returned value may be canceled.
+   */
+  def get: F[A]
+
+  /**
+   * Obtains the current value of the `Deferred`, or None if it hasn't completed.
+   */
+  def tryGet: F[Option[A]]
+}
+
+object DeferredSource {
+  implicit def catsFunctorForDeferredSource[F[_]: Functor]: Functor[DeferredSource[F, *]] = new Functor[DeferredSource[F, *]] {
+    override def map[A, B](fa: DeferredSource[F, A])(f: A => B): DeferredSource[F, B] =
+      new DeferredSource[F, B] {
+        override def get: F[B] =
+          fa.get.map(f)
+        override def tryGet: F[Option[B]] =
+          fa.tryGet.map(_.map(f))
+      }
+  }
+}
+
+trait DeferredSink[F[_], A] {
+  /**
+   * If this `Deferred` is empty, sets the current value to `a`, and notifies
+   * any and all readers currently blocked on a `get`. Returns true.
+   *
+   * If this `Deferred` has already been completed, returns false.
+   *
+   * Satisfies:
+   *   `Deferred[F, A].flatMap(r => r.complete(a) *> r.get) == a.pure[F]`
+   */
+  def complete(a: A): F[Boolean]
+}
+
+object DeferredSink {
+  implicit def catsContravariantForDeferredSink[F[_]: Functor]: Contravariant[DeferredSink[F, *]] = new Contravariant[DeferredSink[F, *]] {
+    override def contramap[A, B](fa: DeferredSink[F, A])(f: B => A): DeferredSink[F, B] =
+      new DeferredSink[F, B] {
+        override def complete(b: B): F[Boolean] =
+          fa.complete(f(b))
+      }
   }
 }

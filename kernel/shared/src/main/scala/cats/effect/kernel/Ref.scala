@@ -39,25 +39,7 @@ import scala.annotation.tailrec
  * The default implementation is nonblocking and lightweight, consisting essentially
  * of a purely functional wrapper over an `AtomicReference`.
  */
-abstract class Ref[F[_], A] {
-
-  /**
-   * Obtains the current value.
-   *
-   * Since `Ref` is always guaranteed to have a value, the returned action
-   * completes immediately after being bound.
-   */
-  def get: F[A]
-
-  /**
-   * Sets the current value to `a`.
-   *
-   * The returned action completes after the reference has been successfully set.
-   *
-   * Satisfies:
-   *   `r.set(fa) *> r.get == fa`
-   */
-  def set(a: A): F[Unit]
+abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
 
   /**
    * Updates the current value using `f` and returns the previous value.
@@ -481,4 +463,46 @@ object Ref {
             fa.modifyState(state.dimap(f)(g))
         }
     }
+}
+
+trait RefSource[F[_], A] {
+  /**
+   * Obtains the current value.
+   *
+   * Since `Ref` is always guaranteed to have a value, the returned action
+   * completes immediately after being bound.
+   */
+  def get: F[A]
+}
+
+object RefSource {
+  implicit def catsFunctorForRefSource[F[_]: Functor]: Functor[RefSource[F, *]] = new Functor[RefSource[F, *]] {
+    override def map[A, B](fa: RefSource[F, A])(f: A => B): RefSource[F, B] =
+      new RefSource[F, B] {
+        override def get: F[B] =
+          fa.get.map(f)
+      }
+  }
+}
+
+trait RefSink[F[_], A] {
+  /**
+   * Sets the current value to `a`.
+   *
+   * The returned action completes after the reference has been successfully set.
+   *
+   * Satisfies:
+   *   `r.set(fa) *> r.get == fa`
+   */
+  def set(a: A): F[Unit]
+}
+
+object RefSink {
+  implicit def catsContravariantForRefSink[F[_]: Functor]: Contravariant[RefSink[F, *]] = new Contravariant[RefSink[F, *]] {
+    override def contramap[A, B](fa: RefSink[F, A])(f: B => A): RefSink[F, B] =
+      new RefSink[F, B] {
+        override def set(b: B): F[Unit] =
+          fa.set(f(b))
+      }
+  }
 }
