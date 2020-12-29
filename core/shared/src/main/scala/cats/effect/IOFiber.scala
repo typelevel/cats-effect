@@ -364,7 +364,7 @@ private final class IOFiber[A](
           runLoop(cur.ioa, nextIteration)
 
         case 11 =>
-          val cur = cur0.asInstanceOf[IOCont[Any]]
+          val cur = cur0.asInstanceOf[IOCont[Any, Any]]
 
           /*
            * Takes `cb` (callback) and `get` and returns an IO that

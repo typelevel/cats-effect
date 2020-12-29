@@ -28,7 +28,7 @@ import scala.concurrent.{ExecutionContext, Future}
 trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   // returns an optional cancelation token
   def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
-    val body = new Cont[F, A] {
+    val body = new Cont[F, A, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
         G.uncancelable { poll =>
           lift(k(resume)) flatMap {
@@ -67,13 +67,13 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * provides an implementation of `cont` in terms of `async`.
    * Note that if you use `defaultCont` you _have_ to override `async`.
    */
-  def cont[A](body: Cont[F, A]): F[A]
+  def cont[K, R](body: Cont[F, K, R]): F[R]
 }
 
 object Async {
   def apply[F[_]](implicit F: Async[F]): F.type = F
 
-  def defaultCont[F[_], A](body: Cont[F, A])(implicit F: Async[F]): F[A] = {
+  def defaultCont[F[_], A](body: Cont[F, A, A])(implicit F: Async[F]): F[A] = {
     sealed trait State
     case class Initial() extends State
     case class Value(v: Either[Throwable, A]) extends State
@@ -178,23 +178,23 @@ object Async {
     override protected final def delegate = super.delegate
     override protected final def C = F
 
-    def cont[A](body: Cont[OptionT[F, *], A]): OptionT[F, A] =
+    def cont[K, R](body: Cont[OptionT[F, *], K, R]): OptionT[F, R] =
       OptionT(
         F.cont(
-          new Cont[F, Option[A]] {
+          new Cont[F, K, Option[R]] {
 
             override def apply[G[_]](implicit G: MonadCancel[G, Throwable])
-                : (Either[Throwable, Option[A]] => Unit, G[Option[A]], F ~> G) => G[Option[A]] =
+                : (Either[Throwable, K] => Unit, G[K], F ~> G) => G[Option[R]] =
               (cb, ga, nat) => {
                 val natT: OptionT[F, *] ~> OptionT[G, *] =
                   new ~>[OptionT[F, *], OptionT[G, *]] {
 
-                    override def apply[B](fa: OptionT[F, B]): OptionT[G, B] =
+                    override def apply[A](fa: OptionT[F, A]): OptionT[G, A] =
                       OptionT(nat(fa.value))
 
                   }
 
-                body[OptionT[G, *]].apply(e => cb(e.map(Some(_))), OptionT(ga), natT).value
+                body[OptionT[G, *]].apply(cb, OptionT.liftF(ga), natT).value
               }
           }
         )
@@ -238,25 +238,25 @@ object Async {
     override protected final def delegate = super.delegate
     override protected final def C = F
 
-    def cont[A](body: Cont[EitherT[F, E, *], A]): EitherT[F, E, A] =
+    def cont[K, R](body: Cont[EitherT[F, E, *], K, R]): EitherT[F, E, R] =
       EitherT(
         F.cont(
-          new Cont[F, Either[E, A]] {
+          new Cont[F, K, Either[E, R]] {
 
             override def apply[G[_]](implicit G: MonadCancel[G, Throwable]): (
-                Either[Throwable, Either[E, A]] => Unit,
-                G[Either[E, A]],
-                F ~> G) => G[Either[E, A]] =
+                Either[Throwable, K] => Unit,
+                G[K],
+                F ~> G) => G[Either[E, R]] =
               (cb, ga, nat) => {
                 val natT: EitherT[F, E, *] ~> EitherT[G, E, *] =
                   new ~>[EitherT[F, E, *], EitherT[G, E, *]] {
 
-                    override def apply[B](fa: EitherT[F, E, B]): EitherT[G, E, B] =
+                    override def apply[A](fa: EitherT[F, E, A]): EitherT[G, E, A] =
                       EitherT(nat(fa.value))
 
                   }
 
-                body[EitherT[G, E, *]].apply(e => cb(e.map(Right(_))), EitherT(ga), natT).value
+                body[EitherT[G, E, *]].apply(cb, EitherT.liftF(ga), natT).value
               }
           }
         )
@@ -301,23 +301,23 @@ object Async {
     override protected final def delegate = super.delegate
     override protected final def C = F
 
-    def cont[A](body: Cont[IorT[F, L, *], A]): IorT[F, L, A] =
+    def cont[K, R](body: Cont[IorT[F, L, *], K, R]): IorT[F, L, R] =
       IorT(
         F.cont(
-          new Cont[F, Ior[L, A]] {
+          new Cont[F, K, Ior[L, R]] {
 
             override def apply[G[_]](implicit G: MonadCancel[G, Throwable])
-                : (Either[Throwable, Ior[L, A]] => Unit, G[Ior[L, A]], F ~> G) => G[Ior[L, A]] =
+                : (Either[Throwable, K] => Unit, G[K], F ~> G) => G[Ior[L, R]] =
               (cb, ga, nat) => {
                 val natT: IorT[F, L, *] ~> IorT[G, L, *] =
                   new ~>[IorT[F, L, *], IorT[G, L, *]] {
 
-                    override def apply[B](fa: IorT[F, L, B]): IorT[G, L, B] =
+                    override def apply[A](fa: IorT[F, L, A]): IorT[G, L, A] =
                       IorT(nat(fa.value))
 
                   }
 
-                body[IorT[G, L, *]].apply(e => cb(e.map(Ior.Right(_))), IorT(ga), natT).value
+                body[IorT[G, L, *]].apply(cb, IorT.liftF(ga), natT).value
               }
           }
         )
@@ -361,24 +361,24 @@ object Async {
     override protected final def delegate = super.delegate
     override protected final def C = F
 
-    def cont[A](body: Cont[WriterT[F, L, *], A]): WriterT[F, L, A] =
+    def cont[K, R](body: Cont[WriterT[F, L, *], K, R]): WriterT[F, L, R] =
       WriterT(
         F.cont(
-          new Cont[F, (L, A)] {
+          new Cont[F, K, (L, R)] {
 
             override def apply[G[_]](implicit G: MonadCancel[G, Throwable])
-                : (Either[Throwable, (L, A)] => Unit, G[(L, A)], F ~> G) => G[(L, A)] =
+                : (Either[Throwable, K] => Unit, G[K], F ~> G) => G[(L, R)] =
               (cb, ga, nat) => {
                 val natT: WriterT[F, L, *] ~> WriterT[G, L, *] =
                   new ~>[WriterT[F, L, *], WriterT[G, L, *]] {
 
-                    override def apply[B](fa: WriterT[F, L, B]): WriterT[G, L, B] =
+                    override def apply[A](fa: WriterT[F, L, A]): WriterT[G, L, A] =
                       WriterT(nat(fa.run))
 
                   }
 
                 body[WriterT[G, L, *]]
-                  .apply(e => cb(e.map((L.empty, _))), WriterT(ga), natT)
+                  .apply(cb, WriterT.liftF(ga), natT)
                   .run
               }
           }
@@ -424,18 +424,18 @@ object Async {
     override protected final def delegate = super.delegate
     override protected final def C = F
 
-    def cont[A](body: Cont[Kleisli[F, R, *], A]): Kleisli[F, R, A] =
+    def cont[K, R2](body: Cont[Kleisli[F, R, *], K, R2]): Kleisli[F, R, R2] =
       Kleisli(r =>
         F.cont(
-          new Cont[F, A] {
+          new Cont[F, K, R2] {
 
             override def apply[G[_]](implicit G: MonadCancel[G, Throwable])
-                : (Either[Throwable, A] => Unit, G[A], F ~> G) => G[A] =
+                : (Either[Throwable, K] => Unit, G[K], F ~> G) => G[R2] =
               (cb, ga, nat) => {
                 val natT: Kleisli[F, R, *] ~> Kleisli[G, R, *] =
                   new ~>[Kleisli[F, R, *], Kleisli[G, R, *]] {
 
-                    override def apply[B](fa: Kleisli[F, R, B]): Kleisli[G, R, B] =
+                    override def apply[A](fa: Kleisli[F, R, A]): Kleisli[G, R, A] =
                       Kleisli(r => nat(fa.run(r)))
 
                   }

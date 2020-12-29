@@ -305,8 +305,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * please use `background`, `start`, `async`, or `Deferred` instead,
    * depending on the use case
    */
-  def cont[A](body: Cont[IO, A]): IO[A] =
-    IOCont[A](body)
+  def cont[K, R](body: Cont[IO, K, R]): IO[R] =
+    IOCont[K, R](body)
 
   def executionContext: IO[ExecutionContext] = ReadEC
 
@@ -523,7 +523,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def raiseError[A](e: Throwable): IO[A] =
       IO.raiseError(e)
 
-    def cont[A](body: Cont[IO, A]): IO[A] = IO.cont(body)
+    def cont[K, R](body: Cont[IO, K, R]): IO[R] = IO.cont(body)
 
     def evalOn[A](fa: IO[A], ec: ExecutionContext): IO[A] =
       fa.evalOn(ec)
@@ -655,7 +655,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
 
   // Low level construction that powers `async`
-  private[effect] final case class IOCont[A](body: Cont[IO, A]) extends IO[A] {
+  private[effect] final case class IOCont[K, R](body: Cont[IO, K, R]) extends IO[R] {
     def tag = 11
   }
   private[effect] object IOCont {
