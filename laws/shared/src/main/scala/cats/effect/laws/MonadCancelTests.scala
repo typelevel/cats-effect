@@ -18,7 +18,7 @@ package cats.effect
 package laws
 
 import cats.Eq
-import cats.effect.kernel.MonadCancel
+import cats.effect.kernel.{CancelScope, MonadCancel}
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
@@ -61,24 +61,40 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
       val bases = Nil
       val parents = Seq(monadError[A, B, C])
 
-      val props = Seq(
-        "uncancelable poll is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
-        "uncancelable ignored poll eliminates nesting" -> forAll(
-          laws.uncancelableIgnoredPollEliminatesNesting[A] _),
-        "uncancelable poll inverse nest is uncancelable" -> forAll(
-          laws.uncancelablePollInverseNestIsUncancelable[A] _),
-        "uncancelable canceled associates right over flatMap" -> forAll(
-          laws.uncancelableCanceledAssociatesRightOverFlatMap[A] _),
-        "canceled associates left over flatMap" -> forAll(
-          laws.canceledAssociatesLeftOverFlatMap[A] _),
-        "canceled sequences onCancel in order" -> forAll(
-          laws.canceledSequencesOnCancelInOrder _),
-        "uncancelable eliminates onCancel" -> forAll(laws.uncancelableEliminatesOnCancel[A] _),
-        "forceR discards pure" -> forAll(laws.forceRDiscardsPure[A, B] _),
-        "forceR discards error" -> forAll(laws.forceRDiscardsError[A] _),
-        "forceR canceled short-circuits" -> forAll(laws.forceRCanceledShortCircuits[A] _),
-        "uncancelable finalizers" -> forAll(laws.uncancelableFinalizers[A] _)
-      )
+      val props = {
+        val common: Seq[(String, Prop)] = Seq(
+          "uncancelable poll is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
+          "uncancelable ignored poll eliminates nesting" -> forAll(
+            laws.uncancelableIgnoredPollEliminatesNesting[A] _),
+          "uncancelable poll inverse nest is uncancelable" -> forAll(
+            laws.uncancelablePollInverseNestIsUncancelable[A] _),
+          "canceled sequences onCancel in order" -> forAll(
+            laws.canceledSequencesOnCancelInOrder _),
+          "uncancelable eliminates onCancel" -> forAll(
+            laws.uncancelableEliminatesOnCancel[A] _),
+          "forceR discards pure" -> forAll(laws.forceRDiscardsPure[A, B] _),
+          "forceR discards error" -> forAll(laws.forceRDiscardsError[A] _),
+          "forceR canceled short-circuits" -> forAll(laws.forceRCanceledShortCircuits[A] _),
+          "uncancelable finalizers" -> forAll(laws.uncancelableFinalizers[A] _)
+        )
+
+        val suffix: Seq[(String, Prop)] = laws.F.rootCancelScope match {
+          case CancelScope.Cancelable =>
+            Seq(
+              "uncancelable canceled associates right over flatMap" -> forAll(
+                laws.uncancelableCanceledAssociatesRightOverFlatMap[A] _),
+              "canceled associates left over flatMap" -> forAll(
+                laws.canceledAssociatesLeftOverFlatMap[A] _)
+            )
+
+          case CancelScope.Uncancelable =>
+            Seq(
+              "uncancelable identity" -> forAll(laws.uncancelableIdentity[A] _),
+              "canceled is unit" -> laws.canceledUnitIdentity)
+        }
+
+        common ++ suffix
+      }
     }
   }
 }

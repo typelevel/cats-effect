@@ -16,20 +16,10 @@
 
 package cats.effect.kernel
 
-import cats.{Applicative, Defer, MonadError, Monoid, Semigroup}
-import cats.data.{
-  EitherT,
-  IndexedReaderWriterStateT,
-  IndexedStateT,
-  IorT,
-  Kleisli,
-  OptionT,
-  ReaderWriterStateT,
-  StateT,
-  WriterT
-}
+import cats.{Applicative, Defer, Monoid, Semigroup}
+import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 
-trait Sync[F[_]] extends MonadError[F, Throwable] with Clock[F] with Defer[F] {
+trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Defer[F] {
 
   private[this] val Delay = Sync.Type.Delay
   private[this] val Blocking = Sync.Type.Blocking
@@ -59,16 +49,25 @@ object Sync {
 
   implicit def syncForOptionT[F[_]](implicit F0: Sync[F]): Sync[OptionT[F, *]] =
     new OptionTSync[F] {
+
+      def rootCancelScope = F0.rootCancelScope
+
       implicit def F: Sync[F] = F0
     }
 
   implicit def syncForEitherT[F[_], E](implicit F0: Sync[F]): Sync[EitherT[F, E, *]] =
     new EitherTSync[F, E] {
+
+      def rootCancelScope = F0.rootCancelScope
+
       implicit def F: Sync[F] = F0
     }
 
   implicit def syncForStateT[F[_], S](implicit F0: Sync[F]): Sync[StateT[F, S, *]] =
     new StateTSync[F, S] {
+
+      def rootCancelScope = F0.rootCancelScope
+
       implicit def F: Sync[F] = F0
     }
 
@@ -76,6 +75,9 @@ object Sync {
       implicit F0: Sync[F],
       L0: Monoid[L]): Sync[WriterT[F, L, *]] =
     new WriterTSync[F, L] {
+
+      def rootCancelScope = F0.rootCancelScope
+
       implicit def F: Sync[F] = F0
 
       implicit def L: Monoid[L] = L0
@@ -85,6 +87,9 @@ object Sync {
       implicit F0: Sync[F],
       L0: Semigroup[L]): Sync[IorT[F, L, *]] =
     new IorTSync[F, L] {
+
+      def rootCancelScope = F0.rootCancelScope
+
       implicit def F: Sync[F] = F0
 
       implicit def L: Semigroup[L] = L0
@@ -92,6 +97,9 @@ object Sync {
 
   implicit def syncForKleisli[F[_], R](implicit F0: Sync[F]): Sync[Kleisli[F, R, *]] =
     new KleisliSync[F, R] {
+
+      def rootCancelScope = F0.rootCancelScope
+
       implicit def F: Sync[F] = F0
     }
 
@@ -99,6 +107,9 @@ object Sync {
       implicit F0: Sync[F],
       L0: Monoid[L]): Sync[ReaderWriterStateT[F, R, L, S, *]] =
     new ReaderWriterStateTSync[F, R, L, S] {
+
+      def rootCancelScope = F0.rootCancelScope
+
       implicit override def F: Sync[F] = F0
 
       implicit override def L: Monoid[L] = L0
@@ -106,27 +117,11 @@ object Sync {
 
   private[effect] trait OptionTSync[F[_]]
       extends Sync[OptionT[F, *]]
+      with MonadCancel.OptionTMonadCancel[F, Throwable]
       with Clock.OptionTClock[F] {
 
     implicit protected def F: Sync[F]
     protected def C = F
-
-    protected def delegate: MonadError[OptionT[F, *], Throwable] =
-      OptionT.catsDataMonadErrorForOptionT[F, Throwable]
-
-    def pure[A](a: A): OptionT[F, A] = delegate.pure(a)
-
-    def handleErrorWith[A](fa: OptionT[F, A])(f: Throwable => OptionT[F, A]): OptionT[F, A] =
-      delegate.handleErrorWith(fa)(f)
-
-    def raiseError[A](e: Throwable): OptionT[F, A] =
-      delegate.raiseError(e)
-
-    def flatMap[A, B](fa: OptionT[F, A])(f: A => OptionT[F, B]): OptionT[F, B] =
-      delegate.flatMap(fa)(f)
-
-    def tailRecM[A, B](a: A)(f: A => OptionT[F, Either[A, B]]): OptionT[F, B] =
-      delegate.tailRecM(a)(f)
 
     def suspend[A](hint: Type)(thunk: => A): OptionT[F, A] =
       OptionT.liftF(F.suspend(hint)(thunk))
@@ -134,27 +129,10 @@ object Sync {
 
   private[effect] trait EitherTSync[F[_], E]
       extends Sync[EitherT[F, E, *]]
+      with MonadCancel.EitherTMonadCancel[F, E, Throwable]
       with Clock.EitherTClock[F, E] {
     implicit protected def F: Sync[F]
     protected def C = F
-
-    protected def delegate: MonadError[EitherT[F, E, *], Throwable] =
-      EitherT.catsDataMonadErrorFForEitherT[F, Throwable, E]
-
-    def pure[A](a: A): EitherT[F, E, A] = delegate.pure(a)
-
-    def handleErrorWith[A](fa: EitherT[F, E, A])(
-        f: Throwable => EitherT[F, E, A]): EitherT[F, E, A] =
-      delegate.handleErrorWith(fa)(f)
-
-    def raiseError[A](e: Throwable): EitherT[F, E, A] =
-      delegate.raiseError(e)
-
-    def flatMap[A, B](fa: EitherT[F, E, A])(f: A => EitherT[F, E, B]): EitherT[F, E, B] =
-      delegate.flatMap(fa)(f)
-
-    def tailRecM[A, B](a: A)(f: A => EitherT[F, E, Either[A, B]]): EitherT[F, E, B] =
-      delegate.tailRecM(a)(f)
 
     def suspend[A](hint: Type)(thunk: => A): EitherT[F, E, A] =
       EitherT.liftF(F.suspend(hint)(thunk))
@@ -162,27 +140,10 @@ object Sync {
 
   private[effect] trait StateTSync[F[_], S]
       extends Sync[StateT[F, S, *]]
+      with MonadCancel.StateTMonadCancel[F, S, Throwable]
       with Clock.StateTClock[F, S] {
     implicit protected def F: Sync[F]
     protected def C = F
-
-    protected def delegate: MonadError[StateT[F, S, *], Throwable] =
-      IndexedStateT.catsDataMonadErrorForIndexedStateT[F, S, Throwable]
-
-    def pure[A](a: A): StateT[F, S, A] = delegate.pure(a)
-
-    def handleErrorWith[A](fa: StateT[F, S, A])(
-        f: Throwable => StateT[F, S, A]): StateT[F, S, A] =
-      delegate.handleErrorWith(fa)(f)
-
-    def raiseError[A](e: Throwable): StateT[F, S, A] =
-      delegate.raiseError(e)
-
-    def flatMap[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]): StateT[F, S, B] =
-      delegate.flatMap(fa)(f)
-
-    def tailRecM[A, B](a: A)(f: A => StateT[F, S, Either[A, B]]): StateT[F, S, B] =
-      delegate.tailRecM(a)(f)
 
     def suspend[A](hint: Type)(thunk: => A): StateT[F, S, A] =
       StateT.liftF(F.suspend(hint)(thunk))
@@ -190,27 +151,10 @@ object Sync {
 
   private[effect] trait WriterTSync[F[_], S]
       extends Sync[WriterT[F, S, *]]
+      with MonadCancel.WriterTMonadCancel[F, S, Throwable]
       with Clock.WriterTClock[F, S] {
     implicit protected def F: Sync[F]
     protected def C = F
-
-    protected def delegate: MonadError[WriterT[F, S, *], Throwable] =
-      WriterT.catsDataMonadErrorForWriterT[F, S, Throwable]
-
-    def pure[A](a: A): WriterT[F, S, A] = delegate.pure(a)
-
-    def handleErrorWith[A](fa: WriterT[F, S, A])(
-        f: Throwable => WriterT[F, S, A]): WriterT[F, S, A] =
-      delegate.handleErrorWith(fa)(f)
-
-    def raiseError[A](e: Throwable): WriterT[F, S, A] =
-      delegate.raiseError(e)
-
-    def flatMap[A, B](fa: WriterT[F, S, A])(f: A => WriterT[F, S, B]): WriterT[F, S, B] =
-      delegate.flatMap(fa)(f)
-
-    def tailRecM[A, B](a: A)(f: A => WriterT[F, S, Either[A, B]]): WriterT[F, S, B] =
-      delegate.tailRecM(a)(f)
 
     def suspend[A](hint: Type)(thunk: => A): WriterT[F, S, A] =
       WriterT.liftF(F.suspend(hint)(thunk))
@@ -218,26 +162,10 @@ object Sync {
 
   private[effect] trait IorTSync[F[_], L]
       extends Sync[IorT[F, L, *]]
+      with MonadCancel.IorTMonadCancel[F, L, Throwable]
       with Clock.IorTClock[F, L] {
     implicit protected def F: Sync[F]
     protected def C = F
-
-    protected def delegate: MonadError[IorT[F, L, *], Throwable] =
-      IorT.catsDataMonadErrorFForIorT[F, L, Throwable]
-
-    def pure[A](a: A): IorT[F, L, A] = delegate.pure(a)
-
-    def handleErrorWith[A](fa: IorT[F, L, A])(f: Throwable => IorT[F, L, A]): IorT[F, L, A] =
-      delegate.handleErrorWith(fa)(f)
-
-    def raiseError[A](e: Throwable): IorT[F, L, A] =
-      delegate.raiseError(e)
-
-    def flatMap[A, B](fa: IorT[F, L, A])(f: A => IorT[F, L, B]): IorT[F, L, B] =
-      delegate.flatMap(fa)(f)
-
-    def tailRecM[A, B](a: A)(f: A => IorT[F, L, Either[A, B]]): IorT[F, L, B] =
-      delegate.tailRecM(a)(f)
 
     def suspend[A](hint: Type)(thunk: => A): IorT[F, L, A] =
       IorT.liftF(F.suspend(hint)(thunk))
@@ -245,27 +173,10 @@ object Sync {
 
   private[effect] trait KleisliSync[F[_], R]
       extends Sync[Kleisli[F, R, *]]
+      with MonadCancel.KleisliMonadCancel[F, R, Throwable]
       with Clock.KleisliClock[F, R] {
     implicit protected def F: Sync[F]
     protected def C = F
-
-    protected def delegate: MonadError[Kleisli[F, R, *], Throwable] =
-      Kleisli.catsDataMonadErrorForKleisli[F, R, Throwable]
-
-    def pure[A](a: A): Kleisli[F, R, A] = delegate.pure(a)
-
-    def handleErrorWith[A](fa: Kleisli[F, R, A])(
-        f: Throwable => Kleisli[F, R, A]): Kleisli[F, R, A] =
-      delegate.handleErrorWith(fa)(f)
-
-    def raiseError[A](e: Throwable): Kleisli[F, R, A] =
-      delegate.raiseError(e)
-
-    def flatMap[A, B](fa: Kleisli[F, R, A])(f: A => Kleisli[F, R, B]): Kleisli[F, R, B] =
-      delegate.flatMap(fa)(f)
-
-    def tailRecM[A, B](a: A)(f: A => Kleisli[F, R, Either[A, B]]): Kleisli[F, R, B] =
-      delegate.tailRecM(a)(f)
 
     def suspend[A](hint: Type)(thunk: => A): Kleisli[F, R, A] =
       Kleisli.liftF(F.suspend(hint)(thunk))
@@ -273,29 +184,10 @@ object Sync {
 
   private[effect] trait ReaderWriterStateTSync[F[_], R, L, S]
       extends Sync[ReaderWriterStateT[F, R, L, S, *]]
+      with MonadCancel.ReaderWriterStateTMonadCancel[F, R, L, S, Throwable]
       with Clock.ReaderWriterStateTClock[F, R, L, S] {
     implicit protected def F: Sync[F]
     protected def C = F
-
-    protected def delegate: MonadError[ReaderWriterStateT[F, R, L, S, *], Throwable] =
-      IndexedReaderWriterStateT.catsDataMonadErrorForIRWST[F, R, L, S, Throwable]
-
-    def pure[A](a: A): ReaderWriterStateT[F, R, L, S, A] = delegate.pure(a)
-
-    def handleErrorWith[A](fa: ReaderWriterStateT[F, R, L, S, A])(
-        f: Throwable => ReaderWriterStateT[F, R, L, S, A]): ReaderWriterStateT[F, R, L, S, A] =
-      delegate.handleErrorWith(fa)(f)
-
-    def raiseError[A](e: Throwable): ReaderWriterStateT[F, R, L, S, A] =
-      delegate.raiseError(e)
-
-    def flatMap[A, B](fa: ReaderWriterStateT[F, R, L, S, A])(
-        f: A => ReaderWriterStateT[F, R, L, S, B]): ReaderWriterStateT[F, R, L, S, B] =
-      delegate.flatMap(fa)(f)
-
-    def tailRecM[A, B](a: A)(f: A => ReaderWriterStateT[F, R, L, S, Either[A, B]])
-        : ReaderWriterStateT[F, R, L, S, B] =
-      delegate.tailRecM(a)(f)
 
     def suspend[A](hint: Type)(thunk: => A): ReaderWriterStateT[F, R, L, S, A] =
       ReaderWriterStateT.liftF(F.suspend(hint)(thunk))

@@ -30,10 +30,13 @@ object freeEval extends FreeSyncEq {
 
   implicit def syncForFreeT[F[_]](
       implicit F: MonadError[F, Throwable]): Sync[FreeT[Eval, F, *]] =
-    new Sync[FreeT[Eval, F, *]] {
+    new Sync[FreeT[Eval, F, *]] with MonadCancel.Uncancelable[FreeT[Eval, F, *], Throwable] {
 
       private[this] val M: MonadError[FreeT[Eval, F, *], Throwable] =
         FreeT.catsFreeMonadErrorForFreeT2
+
+      def forceR[A, B](left: FreeT[Eval, F, A])(right: FreeT[Eval, F, B]) =
+        left.attempt.productR(right)
 
       def pure[A](x: A): FreeT[Eval, F, A] =
         M.pure(x)
