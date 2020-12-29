@@ -216,6 +216,18 @@ object Deferred {
     }
   }
 
+  implicit def catsInvariantForDeferred[F[_]: Functor]: Invariant[Deferred[F, *]] = new Invariant[Deferred[F, *]] {
+    override def imap[A, B](fa: Deferred[F, A])(f: A => B)(g: B => A): Deferred[F, B] =
+      new Deferred[F, B] {
+        override def get: F[B] =
+          fa.get.map(f)
+        override def complete(b: B): F[Boolean] =
+          fa.complete(g(b))
+        override def tryGet: F[Option[B]] =
+          fa.tryGet.map(_.map(f))
+      }
+  }
+
   final private[kernel] class TransformedDeferred[F[_], G[_], A](
       underlying: Deferred[F, A],
       trans: F ~> G)

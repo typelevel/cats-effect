@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats
+package effect
+package std
 
-import cats.~>
 import cats.effect.kernel.{Deferred, GenConcurrent, Poll, Ref}
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
@@ -334,5 +335,19 @@ object Queue {
   private object State {
     def empty[F[_], A]: State[F, A] =
       State(ScalaQueue.empty, 0, ScalaQueue.empty, ScalaQueue.empty)
+  }
+
+  implicit def catsInvariantForQueue[F[_]: Functor]: Invariant[Queue[F, *]] = new Invariant[Queue[F, *]] {
+    override def imap[A, B](fa: Queue[F, A])(f: A => B)(g: B => A): Queue[F, B] = 
+      new Queue[F, B] {
+        override def offer(b: B): F[Unit] =
+          fa.offer(g(b))
+        override def tryOffer(b: B): F[Boolean] =
+          fa.tryOffer(g(b))
+        override def take: F[B] =
+          fa.take.map(f)
+        override def tryTake: F[Option[B]] =
+          fa.tryTake.map(_.map(f))
+      }
   }
 }

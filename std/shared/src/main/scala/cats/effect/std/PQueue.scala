@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats
+package effect
+package std
 
-import cats.{~>, Order}
 import cats.implicits._
 import cats.effect.kernel.syntax.all._
 import cats.effect.kernel.{Concurrent, Deferred, Ref}
@@ -214,6 +215,20 @@ object PQueue {
         ScalaQueue.empty,
         ScalaQueue.empty
       )
+  }
+
+  implicit def catsInvariantForPQueue[F[_]: Functor]: Invariant[PQueue[F, *]] = new Invariant[PQueue[F, *]] {
+    override def imap[A, B](fa: PQueue[F, A])(f: A => B)(g: B => A): PQueue[F, B] = 
+      new PQueue[F, B] {
+        override def offer(b: B): F[Unit] =
+          fa.offer(g(b))
+        override def tryOffer(b: B): F[Boolean] =
+          fa.tryOffer(g(b))
+        override def take: F[B] =
+          fa.take.map(f)
+        override def tryTake: F[Option[B]] =
+          fa.tryTake.map(_.map(f))
+      }
   }
 
   private def assertNonNegative(capacity: Int): Unit =
