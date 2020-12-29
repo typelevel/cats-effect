@@ -232,12 +232,5 @@ class SyncIOSpec
     )
   }
 
-  {
-    checkAll(
-      "SyncIO MonadCancel",
-      MonadCancelTests[SyncIO, Throwable].monadCancel[Int, Int, Int]
-    )
-  }
-
   platformSpecs
 }
