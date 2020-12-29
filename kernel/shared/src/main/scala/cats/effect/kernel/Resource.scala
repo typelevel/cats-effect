@@ -906,33 +906,71 @@ abstract private[effect] class ResourceAsync[F[_]] extends ResourceMonadCancel[F
   def cede: Resource[F, Unit] =
     Resource.eval(F.cede)
 
-  def start[A](fa: Resource[F, A]): Resource[F, Fiber[Resource[F, *], Throwable, A]] =
-    Resource eval {
-      F.ref(F.unit) flatMap { finalizers =>
-        F.start(fa.fold(_.pure[F], release => finalizers.update(_ !> release))) map { outer =>
-          new Fiber[Resource[F, *], Throwable, A] {
-            import Outcome._
+  /*
+   * 1. If the scope containing the *fiber* terminates:
+   *   a) if the fiber is incomplete, run its inner finalizers when it complets
+   *   b) if the fiber is succeeded, run its finalizers
+   * 2. If the fiber is canceled or errored, finalize
+   * 3. If the fiber succeeds, await joining and extend finalizers into joining scope
+   * 4. Joining repeatedly is an error(????)
+   */
+  def start[A](fa: Resource[F, A]): Resource[F, Fiber[Resource[F, *], Throwable, A]] = {
+    final case class State(
+        fin: F[Unit] = F.unit,
+        runOnComplete: Boolean = false,
+        completed: Boolean = false)
+
+    Resource {
+      import Outcome._
+
+      F.ref[State](State()) flatMap { state =>
+        val folded = fa.fold(
+          _.pure[F],
+          release => state.update(s => s.copy(fin = s.fin !> release)))
+
+        val finalized = F.guaranteeCase(folded) {
+          case Canceled() | Errored(_) =>
+            state.get.flatMap(_.fin)
+
+          case Succeeded(_) =>
+            val maybeFins = state modify { s =>
+              (s.copy(completed = true), Some(s.fin).filter(_ => s.runOnComplete))
+            }
+
+            maybeFins.flatMap(_.getOrElse(F.unit))
+        }
+
+        F.start(finalized) map { outer =>
+          val fiber = new Fiber[Resource[F, *], Throwable, A] {
 
             def cancel =
               Resource.eval(outer.cancel)
 
             def join =
               Resource eval {
-                outer.join.flatMap[Outcome[Resource[F, *], Throwable, A]] {
-                  case Canceled() =>
-                    F.uncancelable(_ => finalizers.get.flatten).as(Canceled())
-
-                  case Errored(e) =>
-                    F.uncancelable(_ => finalizers.get.flatten).as(Errored(e))
+                outer.join.map[Outcome[Resource[F, *], Throwable, A]] {
+                  case Canceled() => Canceled()
+                  case Errored(e) => Errored(e)
 
                   case Succeeded(fp) =>
-                    succeeded[Resource[F, *], Throwable, A](Resource.make(fp)(_ => finalizers.get.flatten)).pure[F]
+                    Succeeded(Resource.make(fp)(_ => state.get.flatMap(_.fin)))
                 }
               }
           }
+
+          val finalizeEarly = {
+            val maybeFins = state modify { s =>
+              (s.copy(runOnComplete = true), Some(s.fin).filter(_ => s.completed))
+            }
+
+            maybeFins.flatMap(_.getOrElse(F.unit))
+          }
+
+          (fiber, finalizeEarly)
         }
       }
     }
+  }
 
   def sleep(time: FiniteDuration): Resource[F, Unit] =
     Resource.eval(F.sleep(time))
