@@ -19,7 +19,6 @@ package laws
 
 import cats.effect.kernel.Sync
 import cats.syntax.all._
-import cats.laws.MonadErrorLaws
 
 trait SyncLaws[F[_]] extends MonadCancelLaws[F, Throwable] with ClockLaws[F] {
 
