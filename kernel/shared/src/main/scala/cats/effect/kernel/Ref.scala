@@ -466,6 +466,7 @@ object Ref {
 }
 
 trait RefSource[F[_], A] {
+
   /**
    * Obtains the current value.
    *
@@ -476,16 +477,18 @@ trait RefSource[F[_], A] {
 }
 
 object RefSource {
-  implicit def catsFunctorForRefSource[F[_]: Functor]: Functor[RefSource[F, *]] = new Functor[RefSource[F, *]] {
-    override def map[A, B](fa: RefSource[F, A])(f: A => B): RefSource[F, B] =
-      new RefSource[F, B] {
-        override def get: F[B] =
-          fa.get.map(f)
-      }
-  }
+  implicit def catsFunctorForRefSource[F[_]: Functor]: Functor[RefSource[F, *]] =
+    new Functor[RefSource[F, *]] {
+      override def map[A, B](fa: RefSource[F, A])(f: A => B): RefSource[F, B] =
+        new RefSource[F, B] {
+          override def get: F[B] =
+            fa.get.map(f)
+        }
+    }
 }
 
 trait RefSink[F[_], A] {
+
   /**
    * Sets the current value to `a`.
    *
@@ -498,11 +501,12 @@ trait RefSink[F[_], A] {
 }
 
 object RefSink {
-  implicit def catsContravariantForRefSink[F[_]: Functor]: Contravariant[RefSink[F, *]] = new Contravariant[RefSink[F, *]] {
-    override def contramap[A, B](fa: RefSink[F, A])(f: B => A): RefSink[F, B] =
-      new RefSink[F, B] {
-        override def set(b: B): F[Unit] =
-          fa.set(f(b))
-      }
-  }
+  implicit def catsContravariantForRefSink[F[_]: Functor]: Contravariant[RefSink[F, *]] =
+    new Contravariant[RefSink[F, *]] {
+      override def contramap[A, B](fa: RefSink[F, A])(f: B => A): RefSink[F, B] =
+        new RefSink[F, B] {
+          override def set(b: B): F[Unit] =
+            fa.set(f(b))
+        }
+    }
 }

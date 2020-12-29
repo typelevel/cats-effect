@@ -303,22 +303,24 @@ object Queue {
       State(ScalaQueue.empty, 0, ScalaQueue.empty, ScalaQueue.empty)
   }
 
-  implicit def catsInvariantForQueue[F[_]: Functor]: Invariant[Queue[F, *]] = new Invariant[Queue[F, *]] {
-    override def imap[A, B](fa: Queue[F, A])(f: A => B)(g: B => A): Queue[F, B] = 
-      new Queue[F, B] {
-        override def offer(b: B): F[Unit] =
-          fa.offer(g(b))
-        override def tryOffer(b: B): F[Boolean] =
-          fa.tryOffer(g(b))
-        override def take: F[B] =
-          fa.take.map(f)
-        override def tryTake: F[Option[B]] =
-          fa.tryTake.map(_.map(f))
-      }
-  }
+  implicit def catsInvariantForQueue[F[_]: Functor]: Invariant[Queue[F, *]] =
+    new Invariant[Queue[F, *]] {
+      override def imap[A, B](fa: Queue[F, A])(f: A => B)(g: B => A): Queue[F, B] =
+        new Queue[F, B] {
+          override def offer(b: B): F[Unit] =
+            fa.offer(g(b))
+          override def tryOffer(b: B): F[Boolean] =
+            fa.tryOffer(g(b))
+          override def take: F[B] =
+            fa.take.map(f)
+          override def tryTake: F[Option[B]] =
+            fa.tryTake.map(_.map(f))
+        }
+    }
 }
 
 trait QueueSource[F[_], A] {
+
   /**
    * Dequeues an element from the front of the queue, possibly semantically
    * blocking until an element becomes available.
@@ -337,18 +339,20 @@ trait QueueSource[F[_], A] {
 }
 
 object QueueSource {
-  implicit def catsFunctorForQueueSource[F[_]: Functor]: Functor[QueueSource[F, *]] = new Functor[QueueSource[F, *]] {
-    override def map[A, B](fa: QueueSource[F, A])(f: A => B): QueueSource[F, B] =
-      new QueueSource[F, B] {
-        override def take: F[B] =
-          fa.take.map(f)
-        override def tryTake: F[Option[B]] =
-          fa.tryTake.map(_.map(f))
-      }
-  }
+  implicit def catsFunctorForQueueSource[F[_]: Functor]: Functor[QueueSource[F, *]] =
+    new Functor[QueueSource[F, *]] {
+      override def map[A, B](fa: QueueSource[F, A])(f: A => B): QueueSource[F, B] =
+        new QueueSource[F, B] {
+          override def take: F[B] =
+            fa.take.map(f)
+          override def tryTake: F[Option[B]] =
+            fa.tryTake.map(_.map(f))
+        }
+    }
 }
 
 trait QueueSink[F[_], A] {
+
   /**
    * Enqueues the given element at the back of the queue, possibly semantically
    * blocking until sufficient capacity becomes available.
@@ -369,13 +373,14 @@ trait QueueSink[F[_], A] {
 }
 
 object QueueSink {
-  implicit def catsContravariantForQueueSink[F[_]: Functor]: Contravariant[QueueSink[F, *]] = new Contravariant[QueueSink[F, *]] {
-    override def contramap[A, B](fa: QueueSink[F, A])(f: B => A): QueueSink[F, B] =
-      new QueueSink[F, B] {
-        override def offer(b: B): F[Unit] =
-          fa.offer(f(b))
-        override def tryOffer(b: B): F[Boolean] =
-          fa.tryOffer(f(b))
-      }
-  }
+  implicit def catsContravariantForQueueSink[F[_]: Functor]: Contravariant[QueueSink[F, *]] =
+    new Contravariant[QueueSink[F, *]] {
+      override def contramap[A, B](fa: QueueSink[F, A])(f: B => A): QueueSink[F, B] =
+        new QueueSink[F, B] {
+          override def offer(b: B): F[Unit] =
+            fa.offer(f(b))
+          override def tryOffer(b: B): F[Boolean] =
+            fa.tryOffer(f(b))
+        }
+    }
 }

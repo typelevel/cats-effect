@@ -33,6 +33,7 @@ import scala.collection.immutable.{Queue => ScalaQueue}
  */
 
 abstract class PQueue[F[_], A] extends PQueueSource[F, A] with PQueueSink[F, A] { self =>
+
   /**
    * Modifies the context in which this PQueue is executed using the natural
    * transformation `f`.
@@ -174,19 +175,20 @@ object PQueue {
       )
   }
 
-  implicit def catsInvariantForPQueue[F[_]: Functor]: Invariant[PQueue[F, *]] = new Invariant[PQueue[F, *]] {
-    override def imap[A, B](fa: PQueue[F, A])(f: A => B)(g: B => A): PQueue[F, B] = 
-      new PQueue[F, B] {
-        override def offer(b: B): F[Unit] =
-          fa.offer(g(b))
-        override def tryOffer(b: B): F[Boolean] =
-          fa.tryOffer(g(b))
-        override def take: F[B] =
-          fa.take.map(f)
-        override def tryTake: F[Option[B]] =
-          fa.tryTake.map(_.map(f))
-      }
-  }
+  implicit def catsInvariantForPQueue[F[_]: Functor]: Invariant[PQueue[F, *]] =
+    new Invariant[PQueue[F, *]] {
+      override def imap[A, B](fa: PQueue[F, A])(f: A => B)(g: B => A): PQueue[F, B] =
+        new PQueue[F, B] {
+          override def offer(b: B): F[Unit] =
+            fa.offer(g(b))
+          override def tryOffer(b: B): F[Boolean] =
+            fa.tryOffer(g(b))
+          override def take: F[B] =
+            fa.take.map(f)
+          override def tryTake: F[Option[B]] =
+            fa.tryTake.map(_.map(f))
+        }
+    }
 
   private def assertNonNegative(capacity: Int): Unit =
     if (capacity < 0)
@@ -196,6 +198,7 @@ object PQueue {
 }
 
 trait PQueueSource[F[_], A] {
+
   /**
    * Dequeues the least element from the PQueue, possibly semantically
    * blocking until an element becomes available.
@@ -218,18 +221,20 @@ trait PQueueSource[F[_], A] {
 }
 
 object PQueueSource {
-  implicit def catsFunctorForPQueueSource[F[_]: Functor]: Functor[PQueueSource[F, *]] = new Functor[PQueueSource[F, *]] {
-    override def map[A, B](fa: PQueueSource[F, A])(f: A => B): PQueueSource[F, B] =
-      new PQueueSource[F, B] {
-        override def take: F[B] =
-          fa.take.map(f)
-        override def tryTake: F[Option[B]] =
-          fa.tryTake.map(_.map(f))
-      }
-  }
+  implicit def catsFunctorForPQueueSource[F[_]: Functor]: Functor[PQueueSource[F, *]] =
+    new Functor[PQueueSource[F, *]] {
+      override def map[A, B](fa: PQueueSource[F, A])(f: A => B): PQueueSource[F, B] =
+        new PQueueSource[F, B] {
+          override def take: F[B] =
+            fa.take.map(f)
+          override def tryTake: F[Option[B]] =
+            fa.tryTake.map(_.map(f))
+        }
+    }
 }
 
 trait PQueueSink[F[_], A] {
+
   /**
    * Enqueues the given element, possibly semantically
    * blocking until sufficient capacity becomes available.
@@ -254,14 +259,14 @@ trait PQueueSink[F[_], A] {
 }
 
 object PQueueSink {
-  implicit def catsContravariantForPQueueSink[F[_]: Functor]: Contravariant[PQueueSink[F, *]] = new Contravariant[PQueueSink[F, *]] {
-    override def contramap[A, B](fa: PQueueSink[F, A])(f: B => A): PQueueSink[F, B] =
-      new PQueueSink[F, B] {
-        override def offer(b: B): F[Unit] =
-          fa.offer(f(b))
-        override def tryOffer(b: B): F[Boolean] =
-          fa.tryOffer(f(b))
-      }
-  }
+  implicit def catsContravariantForPQueueSink[F[_]: Functor]: Contravariant[PQueueSink[F, *]] =
+    new Contravariant[PQueueSink[F, *]] {
+      override def contramap[A, B](fa: PQueueSink[F, A])(f: B => A): PQueueSink[F, B] =
+        new PQueueSink[F, B] {
+          override def offer(b: B): F[Unit] =
+            fa.offer(f(b))
+          override def tryOffer(b: B): F[Boolean] =
+            fa.tryOffer(f(b))
+        }
+    }
 }
-
