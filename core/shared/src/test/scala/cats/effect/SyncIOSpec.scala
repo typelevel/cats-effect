@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.kernel.laws.discipline.MonoidTests
-import cats.effect.laws.{MonadCancelTests, SyncTests}
+import cats.effect.laws.SyncTests
 import cats.effect.testkit.SyncTypeGenerators
 import cats.syntax.all._
 import org.scalacheck.Prop
