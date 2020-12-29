@@ -865,21 +865,25 @@ abstract private[effect] class ResourceAsync[F[_]] extends ResourceMonadCancel[F
   implicit protected def F: Async[F]
 
   def cont[K, R](body: Cont[Resource[F, *], K, R]): Resource[F, R] =
-    Resource {
-      F cont {
-        implicit val fum: Monoid[F[Unit]] = Applicative.monoid[F, Unit]
+    Resource applyFull { poll =>
+      val unlifted = poll {
+        F cont {
+          implicit val fum: Monoid[F[Unit]] = Applicative.monoid[F, Unit]
 
-        new Cont[F, K, (R, F[Unit])] {
-          def apply[G[_]](implicit G: MonadCancel[G, Throwable]): (Either[Throwable, K] => Unit, G[K], F ~> G) => G[(R, F[Unit])] = { (cb, ga, nt) =>
-            val nt2 = new (Resource[F, *] ~> WriterT[G, F[Unit], *]) {
-              def apply[A](rfa: Resource[F, A]) =
-                WriterT(nt(rfa.allocated.map(_.swap)))
+          new Cont[F, K, (R, F[Unit])] {
+            def apply[G[_]](implicit G: MonadCancel[G, Throwable]): (Either[Throwable, K] => Unit, G[K], F ~> G) => G[(R, F[Unit])] = { (cb, ga, nt) =>
+              val nt2 = new (Resource[F, *] ~> WriterT[G, F[Unit], *]) {
+                def apply[A](rfa: Resource[F, A]) =
+                  WriterT(nt(rfa.allocated.map(_.swap)))
+              }
+
+              body[WriterT[G, F[Unit], *]].apply(cb, WriterT.liftF(ga), nt2).run.map(_.swap)
             }
-
-            body[WriterT[G, F[Unit], *]].apply(cb, WriterT.liftF(ga), nt2).run.map(_.swap)
           }
         }
       }
+
+      unlifted.map(_.map(fin => (_: Resource.ExitCase) => fin))
     }
 
   def evalOn[A](fa: Resource[F, A], ec: ExecutionContext): Resource[F, A] = ???
