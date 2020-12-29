@@ -17,11 +17,13 @@
 package cats.effect.kernel
 
 import cats._
+import cats.data.{Kleisli, WriterT}
 import cats.syntax.all._
 import cats.effect.kernel.implicits._
 
 import scala.annotation.tailrec
-import cats.data.Kleisli
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 
 /**
  * `Resource` is a data structure which encodes the idea of executing
@@ -785,12 +787,10 @@ object Resource extends ResourceInstances with ResourcePlatform {
   }
 }
 
-abstract private[effect] class ResourceInstances extends ResourceInstances0 {
-  implicit def catsEffectMonadErrorForResource[F[_], E](
-      implicit F0: MonadError[F, E]): MonadError[Resource[F, *], E] =
-    new ResourceMonadError[F, E] {
-      def F = F0
-    }
+abstract private[effect] class ResourceInstances extends ResourceInstances1 {
+  implicit def catsEffectAsyncForResource[F[_]](implicit F0: Async[F]): Async[Resource[F, *]] = new ResourceAsync[F] {
+    def F = F0
+  }
 
   implicit def catsEffectMonoidForResource[F[_], A](
       implicit F0: Monad[F],
@@ -815,9 +815,10 @@ abstract private[effect] class ResourceInstances extends ResourceInstances0 {
     }
 }
 
-abstract private[effect] class ResourceInstances0 {
-  implicit def catsEffectMonadForResource[F[_]](implicit F0: Monad[F]): Monad[Resource[F, *]] =
-    new ResourceMonad[F] {
+abstract private[effect] class ResourceInstances1 extends ResourceInstances0 {
+  implicit def catsEffectMonadErrorForResource[F[_], E](
+      implicit F0: MonadError[F, E]): MonadError[Resource[F, *], E] =
+    new ResourceMonadError[F, E] {
       def F = F0
     }
 
@@ -838,6 +839,102 @@ abstract private[effect] class ResourceInstances0 {
       def K = K0
       def G = G0
     }
+}
+
+abstract private[effect] class ResourceInstances0 {
+  implicit def catsEffectMonadForResource[F[_]](implicit F0: Monad[F]): Monad[Resource[F, *]] =
+    new ResourceMonad[F] {
+      def F = F0
+    }
+}
+
+// TODO the rest of the instances
+abstract private[effect] class ResourceMonadCancel[F[_], E] extends ResourceMonadError[F, E] with MonadCancel[Resource[F, *], E] {
+  implicit protected def F: MonadCancel[F, E]
+
+  def canceled: Resource[F, Unit] =
+    Resource.eval(F.canceled)
+
+  def forceR[A, B](fa: Resource[F, A])(fb: Resource[F, B]): Resource[F, B] = ???
+
+  def onCancel[A](fa: Resource[F, A], fin: Resource[F, Unit]): Resource[F, A] = ???
+  def uncancelable[A](body: Poll[Resource[F, *]] => Resource[F, A]): Resource[F, A] = ???
+}
+
+abstract private[effect] class ResourceAsync[F[_]] extends ResourceMonadCancel[F, Throwable] with Async[Resource[F, *]] { self =>
+  implicit protected def F: Async[F]
+
+  def cont[K, R](body: Cont[Resource[F, *], K, R]): Resource[F, R] =
+    Resource {
+      F cont {
+        implicit val fum: Monoid[F[Unit]] = Applicative.monoid[F, Unit]
+
+        new Cont[F, K, (R, F[Unit])] {
+          def apply[G[_]](implicit G: MonadCancel[G, Throwable]): (Either[Throwable, K] => Unit, G[K], F ~> G) => G[(R, F[Unit])] = { (cb, ga, nt) =>
+            val nt2 = new (Resource[F, *] ~> WriterT[G, F[Unit], *]) {
+              def apply[A](rfa: Resource[F, A]) =
+                WriterT(nt(rfa.allocated.map(_.swap)))
+            }
+
+            body[WriterT[G, F[Unit], *]].apply(cb, WriterT.liftF(ga), nt2).run.map(_.swap)
+          }
+        }
+      }
+    }
+
+  def evalOn[A](fa: Resource[F, A], ec: ExecutionContext): Resource[F, A] = ???
+
+  def executionContext: Resource[F, ExecutionContext] =
+    Resource.eval(F.executionContext)
+
+  def monotonic: Resource[F, FiniteDuration] =
+    Resource.eval(F.monotonic)
+
+  def realTime: Resource[F, FiniteDuration] =
+    Resource.eval(F.realTime)
+
+  def deferred[A]: Resource[F, Deferred[Resource[F, *], A]] =
+    Resource.eval(F.deferred[A]).map(_.mapK(Resource.liftK[F]))
+
+  def ref[A](a: A): Resource[F, Ref[Resource[F, *], A]] =
+    Resource.eval(F.ref(a)).map(_.mapK(Resource.liftK[F]))
+
+  def cede: Resource[F, Unit] =
+    Resource.eval(F.cede)
+
+  def start[A](fa: Resource[F, A]): Resource[F, Fiber[Resource[F, *], Throwable, A]] =
+    Resource eval {
+      F.ref(F.unit) flatMap { finalizers =>
+        F.start(fa.fold(_.pure[F], release => finalizers.update(_ !> release))) map { outer =>
+          new Fiber[Resource[F, *], Throwable, A] {
+            import Outcome._
+
+            def cancel =
+              Resource.eval(outer.cancel)
+
+            def join =
+              Resource eval {
+                outer.join.flatMap[Outcome[Resource[F, *], Throwable, A]] {
+                  case Canceled() =>
+                    F.uncancelable(_ => finalizers.get.flatten).as(Canceled())
+
+                  case Errored(e) =>
+                    F.uncancelable(_ => finalizers.get.flatten).as(Errored(e))
+
+                  case Succeeded(fp) =>
+                    succeeded[Resource[F, *], Throwable, A](Resource.make(fp)(_ => finalizers.get.flatten)).pure[F]
+                }
+              }
+          }
+        }
+      }
+    }
+
+  def sleep(time: FiniteDuration): Resource[F, Unit] =
+    Resource.eval(F.sleep(time))
+
+  def suspend[A](hint: Sync.Type)(thunk: => A): Resource[F, A] =
+    Resource.eval(F.suspend(hint)(thunk))
 }
 
 abstract private[effect] class ResourceMonadError[F[_], E]
