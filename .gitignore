@@ -16,3 +16,4 @@ tags
 .bsp/
 .bloop/
 metals.sbt
+.vscode

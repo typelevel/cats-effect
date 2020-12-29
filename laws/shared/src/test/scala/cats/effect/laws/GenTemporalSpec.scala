@@ -20,8 +20,8 @@ package laws
 
 import cats.syntax.all._
 import cats.effect.kernel.{/*Outcome,*/ Temporal} // , Outcome._
-import cats.effect.testkit.pure._
-import cats.effect.testkit.TimeT
+import cats.effect.kernel.testkit.pure._
+import cats.effect.kernel.testkit.TimeT
 
 import org.specs2.mutable.Specification
 

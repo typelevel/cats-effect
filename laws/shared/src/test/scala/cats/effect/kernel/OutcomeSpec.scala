@@ -18,7 +18,7 @@ package cats.effect
 package kernel
 
 import cats.{Eq, Eval, Id, MonadError}
-import cats.effect.testkit.OutcomeGenerators
+import cats.effect.kernel.testkit.OutcomeGenerators
 import cats.laws.discipline.{ApplicativeErrorTests, MonadErrorTests}
 
 import org.scalacheck.{Arbitrary, Cogen}

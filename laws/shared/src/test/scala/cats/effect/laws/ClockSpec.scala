@@ -18,7 +18,7 @@ package cats.effect
 package laws
 
 import cats.data.ContT
-import cats.effect.testkit.freeEval, freeEval._
+import cats.effect.kernel.testkit.freeEval, freeEval._
 
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification

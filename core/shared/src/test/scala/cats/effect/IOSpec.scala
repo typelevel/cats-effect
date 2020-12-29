@@ -19,7 +19,7 @@ package cats.effect
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.SemigroupKTests
 import cats.effect.laws.AsyncTests
-import cats.effect.testkit.{SyncTypeGenerators, TestContext}
+import cats.effect.kernel.testkit.{SyncTypeGenerators, TestContext}
 import cats.syntax.all._
 import cats.effect.implicits._
 

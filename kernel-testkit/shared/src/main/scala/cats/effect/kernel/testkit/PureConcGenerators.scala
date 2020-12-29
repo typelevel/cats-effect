@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.testkit
+package cats.effect.kernel
+package testkit
 
-import cats.effect.kernel.{GenSpawn, Outcome}
-import cats.effect.testkit.pure._
+import cats.effect.kernel.testkit.pure._
 
 import org.scalacheck.{Arbitrary, Cogen}
 

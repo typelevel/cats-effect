@@ -19,7 +19,7 @@ package laws
 
 import cats.{Eq, Monad}
 import cats.data.ReaderWriterStateT
-import cats.effect.testkit.{pure, PureConcGenerators}, pure._
+import cats.effect.kernel.testkit.{pure, PureConcGenerators}, pure._
 import cats.laws.discipline.{arbitrary, eq, MiniInt}, arbitrary._, eq._
 
 import org.specs2.ScalaCheck

@@ -19,7 +19,7 @@ package laws
 
 import cats.Order
 import cats.data.Kleisli
-import cats.effect.testkit.{pure, PureConcGenerators, Time, TimeT}, pure._, TimeT._
+import cats.effect.kernel.testkit.{pure, PureConcGenerators, Time, TimeT}, pure._, TimeT._
 import cats.laws.discipline.{arbitrary, MiniInt}
 
 import org.scalacheck.{Arbitrary, Cogen, Prop}

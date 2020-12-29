@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.testkit
+package cats.effect.kernel.testkit
 
 import cats.{Eq, Order}
 import cats.data.Kleisli

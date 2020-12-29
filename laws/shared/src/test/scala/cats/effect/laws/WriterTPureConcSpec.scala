@@ -19,9 +19,9 @@ package laws
 
 import cats.data.WriterT
 import cats.laws.discipline.arbitrary._
-import cats.effect.testkit._
-import cats.effect.testkit.TimeT._
-import cats.effect.testkit.{pure, PureConcGenerators}, pure._
+import cats.effect.kernel.testkit._
+import cats.effect.kernel.testkit.TimeT._
+import cats.effect.kernel.testkit.{pure, PureConcGenerators}, pure._
 
 import org.scalacheck.Prop
 

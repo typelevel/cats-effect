@@ -149,11 +149,11 @@ lazy val root = project.in(file("."))
   .enablePlugins(NoPublishPlugin)
 
 lazy val rootJVM = project
-  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm, std.jvm, example.jvm, benchmarks)
+  .aggregate(kernel.jvm, ktestkit.jvm, laws.jvm, core.jvm, std.jvm, example.jvm, benchmarks)
   .enablePlugins(NoPublishPlugin)
 
 lazy val rootJS = project
-  .aggregate(kernel.js, testkit.js, laws.js, core.js, std.js, example.js)
+  .aggregate(kernel.js, ktestkit.js, laws.js, core.js, std.js, example.js)
   .enablePlugins(NoPublishPlugin)
 
 /**
@@ -171,10 +171,10 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform).in(file("kernel"))
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
  * generators, and useful tools for testing code written against Cats Effect.
  */
-lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
+lazy val ktestkit = crossProject(JSPlatform, JVMPlatform).in(file("kernel-testkit"))
   .dependsOn(kernel)
   .settings(
-    name := "cats-effect-testkit",
+    name := "cats-effect-kernel-testkit",
 
     libraryDependencies ++= Seq(
       "org.typelevel"  %%% "cats-free"  % CatsVersion,
@@ -184,10 +184,10 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid
  * jar file and dependency issues. As a consequence of this split, some things
- * which are defined in testkit are *tested* in the Test scope of this project.
+ * which are defined in ktestkit are *tested* in the Test scope of this project.
  */
 lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
-  .dependsOn(kernel, testkit % Test)
+  .dependsOn(kernel, ktestkit % Test)
   .settings(
     name := "cats-effect-laws",
 
@@ -202,7 +202,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
  * (such as IOApp). This is the "batteries included" dependency.
  */
 lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
-  .dependsOn(kernel, std, laws % Test, testkit % Test)
+  .dependsOn(kernel, std, laws % Test, ktestkit % Test)
   .settings(
     name := "cats-effect",
 

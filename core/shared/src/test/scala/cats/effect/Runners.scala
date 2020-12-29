@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.{~>, Applicative, Eq, Id, Order, Show}
-import cats.effect.testkit.{
+import cats.effect.kernel.testkit.{
   AsyncGenerators,
   GenK,
   OutcomeGenerators,

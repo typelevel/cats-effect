@@ -20,7 +20,7 @@ import cats.data.EitherT
 import cats.Order
 import cats.laws.discipline.arbitrary._
 import cats.effect.laws.AsyncTests
-import cats.effect.testkit.{SyncTypeGenerators, TestContext}
+import cats.effect.kernel.testkit.{SyncTypeGenerators, TestContext}
 import cats.implicits._
 
 import org.scalacheck.Prop
