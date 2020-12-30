@@ -148,7 +148,8 @@ trait CatsEffectInstances { outer =>
     }
   }
 
-  implicit lazy val arbitraryThrowable: Arbitrary[Throwable] =
+  // Note: do not make this implicit as it is not necessary and pollutes implicit scope of downstream projects
+  lazy val arbitraryThrowable: Arbitrary[Throwable] =
     Arbitrary(Arbitrary.arbitrary[Int].map(TestException(_)))
 
   implicit def arbitraryExecutionContext(implicit ticker: Ticker): Arbitrary[ExecutionContext] =
