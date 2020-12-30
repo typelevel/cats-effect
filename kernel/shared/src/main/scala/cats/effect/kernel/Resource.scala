@@ -932,7 +932,8 @@ abstract private[effect] class ResourceAsync[F[_]] extends ResourceMonadCancel[F
    *   b) if the fiber is succeeded, run its finalizers
    * 2. If the fiber is canceled or errored, finalize
    * 3. If the fiber succeeds, await joining and extend finalizers into joining scope
-   * 4. Joining repeatedly is an error(????)
+   * 4. If a fiber is canceled *after* it completes, we explicitly snag the finalizers and run them, setting the result to Canceled()
+   *   a) Note that we are missing a check here! We need to disable this behavior if someone has already joined
    */
   def start[A](fa: Resource[F, A]): Resource[F, Fiber[Resource[F, *], Throwable, A]] = {
     final case class State(
