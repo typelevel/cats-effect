@@ -17,7 +17,7 @@
 package cats.effect.kernel
 
 import cats._
-import cats.data.{Kleisli, WriterT}
+import cats.data.Kleisli
 import cats.syntax.all._
 import cats.effect.kernel.implicits._
 
@@ -852,26 +852,35 @@ abstract private[effect] class ResourceAsync[F[_]]
 
   def cont[K, R](body: Cont[Resource[F, *], K, R]): Resource[F, R] =
     Resource applyFull { poll =>
-      val unlifted = poll {
+      poll {
         F cont {
-          implicit val fum: Monoid[F[Unit]] = Applicative.monoid[F, Unit]
+          new Cont[F, K, (R, Resource.ExitCase => F[Unit])] {
+            def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (cb, ga, nt) =>
+              type D[A] = Kleisli[G, Ref[G, F[Unit]], A]
 
-          new Cont[F, K, (R, F[Unit])] {
-            def apply[G[_]](implicit G: MonadCancel[G, Throwable])
-                : (Either[Throwable, K] => Unit, G[K], F ~> G) => G[(R, F[Unit])] = {
-              (cb, ga, nt) =>
-                val nt2 = new (Resource[F, *] ~> WriterT[G, F[Unit], *]) {
-                  def apply[A](rfa: Resource[F, A]) =
-                    WriterT(nt(rfa.allocated.map(_.swap)))
+              val nt2 = new (Resource[F, *] ~> D) {
+                def apply[A](rfa: Resource[F, A]) =
+                  Kleisli { r =>
+                    nt(rfa.allocated) flatMap {
+                      case (a, fin) => r.update(_ !> fin).as(a)
+                    }
+                  }
+              }
+
+              for {
+                r <- nt(F.ref(F.unit).map(_.mapK(nt)))
+
+                a <- G.guaranteeCase(body[D].apply(cb, Kleisli.liftF(ga), nt2).run(r)) {
+                  case Outcome.Canceled() | Outcome.Errored(_) => r.get.flatMap(nt(_))
+                  case Outcome.Succeeded(_) => G.unit
                 }
 
-                body[WriterT[G, F[Unit], *]].apply(cb, WriterT.liftF(ga), nt2).run.map(_.swap)
+                fin <- r.get
+              } yield (a, (_: Resource.ExitCase) => fin)    // partial errors are getting messed up here; need to be more explicit with success/failure cases in body
             }
           }
         }
       }
-
-      unlifted.map(_.map(fin => (_: Resource.ExitCase) => fin))
     }
 
   def evalOn[A](fa: Resource[F, A], ec: ExecutionContext): Resource[F, A] =
