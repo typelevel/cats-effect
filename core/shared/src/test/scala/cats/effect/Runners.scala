@@ -219,7 +219,9 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
         E.eqv(x.use(F.pure), y.use(F.pure))
     }
 
-  implicit def ordResourceFFD[F[_]](implicit ordF: Order[F[FiniteDuration]], F: MonadCancel[F, Throwable]): Order[Resource[F, FiniteDuration]] =
+  implicit def ordResourceFFD[F[_]](
+      implicit ordF: Order[F[FiniteDuration]],
+      F: MonadCancel[F, Throwable]): Order[Resource[F, FiniteDuration]] =
     Order.by(_.use(_.pure[F]))
 
   def unsafeRunSyncIOEither[A](io: SyncIO[A]): Either[Throwable, A] =
@@ -240,7 +242,9 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
       }
     }
 
-  implicit def boolRunningsResource[F[_]](r: Resource[F, Boolean])(implicit view: F[Boolean] => Prop, F: MonadCancel[F, Throwable]): Prop =
+  implicit def boolRunningsResource[F[_]](r: Resource[F, Boolean])(
+      implicit view: F[Boolean] => Prop,
+      F: MonadCancel[F, Throwable]): Prop =
     view(r.use(_.pure[F]))
 
   def completeAs[A: Eq: Show](expected: A)(implicit ticker: Ticker): Matcher[IO[A]] =
