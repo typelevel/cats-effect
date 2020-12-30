@@ -935,7 +935,8 @@ abstract private[effect] class ResourceAsync[F[_]] extends ResourceMonadCancel[F
     final case class State(
         fin: F[Unit] = F.unit,
         runOnComplete: Boolean = false,
-        completed: Boolean = false)
+        completed: Boolean = false,
+        canceled: Boolean = false)
 
     Resource {
       import Outcome._
@@ -951,7 +952,7 @@ abstract private[effect] class ResourceAsync[F[_]] extends ResourceMonadCancel[F
 
           case Succeeded(_) =>
             val maybeFins = state modify { s =>
-              (s.copy(completed = true), Some(s.fin).filter(_ => s.runOnComplete))
+              (s.copy(completed = true), Some(s.fin).filter(_ => s.runOnComplete && !s.canceled))
             }
 
             maybeFins.flatMap(_.getOrElse(F.unit))
@@ -961,23 +962,41 @@ abstract private[effect] class ResourceAsync[F[_]] extends ResourceMonadCancel[F
           val fiber = new Fiber[Resource[F, *], Throwable, A] {
 
             def cancel =
-              Resource.eval(outer.cancel)
+              Resource eval {
+                F uncancelable { poll =>
+                  // technically cancel is uncancelable, but separation of concerns and what not
+                  val maybeFins = poll(outer.cancel) *> {
+                    state modify { s =>
+                      (s.copy(canceled = true), Some(s.fin).filter(_ => s.completed))
+                    }
+                  }
+
+                  maybeFins.flatMap(_.getOrElse(F.unit))
+                }
+              }
 
             def join =
               Resource eval {
-                outer.join.map[Outcome[Resource[F, *], Throwable, A]] {
+                val results = outer.join.map[Outcome[Resource[F, *], Throwable, A]] {
                   case Canceled() => Canceled()
                   case Errored(e) => Errored(e)
 
                   case Succeeded(fp) =>
                     Succeeded(Resource.make(fp)(_ => state.get.flatMap(_.fin)))
                 }
+
+                // we do this after rather than before to avoid breaking backpressure
+                results flatMap { oc =>
+                  F.ifF(state.get.map(_.canceled))(
+                    Outcome.Canceled[Resource[F, *], Throwable, A](),
+                    oc)
+                }
               }
           }
 
           val finalizeEarly = {
             val maybeFins = state modify { s =>
-              (s.copy(runOnComplete = true), Some(s.fin).filter(_ => s.completed))
+              (s.copy(runOnComplete = true), Some(s.fin).filter(_ => s.completed && !s.canceled))
             }
 
             maybeFins.flatMap(_.getOrElse(F.unit))
