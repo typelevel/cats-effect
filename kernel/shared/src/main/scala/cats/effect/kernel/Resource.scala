@@ -841,7 +841,7 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
             _(poll(rfb.allocated)).map(_.map(fin => (_: Resource.ExitCase) => fin)))
       }
 
-      poll(body(inner).allocated).map(_.map(fin => (_: Resource.ExitCase) => fin))
+      body(inner).allocated.map(_.map(fin => (_: Resource.ExitCase) => fin))
     }
 }
 
