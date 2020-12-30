@@ -149,11 +149,11 @@ lazy val root = project.in(file("."))
   .enablePlugins(NoPublishPlugin)
 
 lazy val rootJVM = project
-  .aggregate(kernel.jvm, ktestkit.jvm, laws.jvm, core.jvm, testkit.jvm, tests.jvm, std.jvm, example.jvm, benchmarks)
+  .aggregate(kernel.jvm, kernelTestkit.jvm, laws.jvm, core.jvm, testkit.jvm, tests.jvm, std.jvm, example.jvm, benchmarks)
   .enablePlugins(NoPublishPlugin)
 
 lazy val rootJS = project
-  .aggregate(kernel.js, ktestkit.js, laws.js, core.js, testkit.js, tests.jvm, std.js, example.js)
+  .aggregate(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.jvm, std.js, example.js)
   .enablePlugins(NoPublishPlugin)
 
 /**
@@ -171,7 +171,7 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform).in(file("kernel"))
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
  * generators, and useful tools for testing code written against Cats Effect.
  */
-lazy val ktestkit = crossProject(JSPlatform, JVMPlatform).in(file("kernel-testkit"))
+lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform).in(file("kernel-testkit"))
   .dependsOn(kernel)
   .settings(
     name := "cats-effect-kernel-testkit",
@@ -184,10 +184,10 @@ lazy val ktestkit = crossProject(JSPlatform, JVMPlatform).in(file("kernel-testki
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid
  * jar file and dependency issues. As a consequence of this split, some things
- * which are defined in ktestkit are *tested* in the Test scope of this project.
+ * which are defined in kernelTestkit are *tested* in the Test scope of this project.
  */
 lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
-  .dependsOn(kernel, ktestkit % Test)
+  .dependsOn(kernel, kernelTestkit % Test)
   .settings(
     name := "cats-effect-laws",
 
@@ -212,7 +212,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
  * like ScalaCheck generators for IO and SyncIO.
  */
 lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
-  .dependsOn(core, ktestkit)
+  .dependsOn(core, kernelTestkit)
   .settings(
     name := "cats-effect-testkit",
     libraryDependencies ++= Seq(
@@ -222,7 +222,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
  * Unit tests for the core project, utilizing the support provided by testkit.
  */
 lazy val tests = crossProject(JSPlatform, JVMPlatform).in(file("tests"))
-  .dependsOn(laws % Test, ktestkit % Test, testkit % Test)
+  .dependsOn(laws % Test, kernelTestkit % Test, testkit % Test)
   .enablePlugins(NoPublishPlugin)
   .settings(
     name := "cats-effect-tests",
