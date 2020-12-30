@@ -131,11 +131,6 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   ): Arbitrary[Resource[F, A]] =
     Arbitrary(Gen.delay(genResource[F, A]))
 
-  implicit def arbitraryResourceParallel[F[_], A](
-      implicit A: Arbitrary[Resource[F, A]]
-  ): Arbitrary[Resource.Par[F, A]] =
-    Arbitrary(A.arbitrary.map(Resource.Par.apply))
-
   // Consider improving this a strategy similar to Generators.
   // Doesn't include interruptible resources
   def genResource[F[_], A](
@@ -224,17 +219,8 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
         E.eqv(x.use(F.pure), y.use(F.pure))
     }
 
-  /**
-   * Defines equality for `Resource.Par`.  Two resources are deemed
-   * equivalent if they allocate an equivalent resource.  Cleanup,
-   * which is run purely for effect, is not considered.
-   */
-  implicit def eqResourcePar[F[_], A](implicit E: Eq[Resource[F, A]]): Eq[Resource.Par[F, A]] =
-    new Eq[Resource.Par[F, A]] {
-      import Resource.Par.unwrap
-      def eqv(x: Resource.Par[F, A], y: Resource.Par[F, A]): Boolean =
-        E.eqv(unwrap(x), unwrap(y))
-    }
+  implicit def ordResourceFFD[F[_]](implicit ordF: Order[F[FiniteDuration]], F: MonadCancel[F, Throwable]): Order[Resource[F, FiniteDuration]] =
+    Order.by(_.use(_.pure[F]))
 
   def unsafeRunSyncIOEither[A](io: SyncIO[A]): Either[Throwable, A] =
     Try(io.unsafeRunSync()).toEither
@@ -253,6 +239,9 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
         case _: Throwable => false
       }
     }
+
+  implicit def boolRunningsResource[F[_]](r: Resource[F, Boolean])(implicit view: F[Boolean] => Prop, F: MonadCancel[F, Throwable]): Prop =
+    view(r.use(_.pure[F]))
 
   def completeAs[A: Eq: Show](expected: A)(implicit ticker: Ticker): Matcher[IO[A]] =
     tickTo(Outcome.Succeeded(Some(expected)))

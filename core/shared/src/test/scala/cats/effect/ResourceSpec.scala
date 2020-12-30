@@ -18,7 +18,8 @@ package cats.effect
 
 import cats.{~>, SemigroupK}
 import cats.data.{Kleisli, OptionT}
-import cats.effect.testkit.TestContext
+import cats.effect.laws.AsyncTests
+import cats.effect.testkit.{SyncTypeGenerators, TestContext}
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
@@ -635,9 +636,11 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   {
     implicit val ticker = Ticker(TestContext())
 
+    import SyncTypeGenerators._
+
     checkAll(
       "Resource[IO, *]",
-      MonadErrorTests[Resource[IO, *], Throwable].monadError[Int, Int, Int]
+      AsyncTests[Resource[IO, *]].async[Int, Int, Int](10.millis)
     )
   }
 
@@ -659,16 +662,12 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     )
   }
 
-  {
+  /*{
     implicit val ticker = Ticker(TestContext())
-
-    // do NOT inline this val; it causes the 2.13.0 compiler to crash for... reasons (see: scala/bug#11732)
-    val module: ParallelTests.Aux[Resource[IO, *], Resource.Par[IO, *]] =
-      ParallelTests[Resource[IO, *]]
 
     checkAll(
       "Resource[IO, *]",
-      module.parallel[Int, Int]
+      ParallelTests[Resource[IO, *]].parallel[Int, Int]
     )
-  }
+  }*/
 }
