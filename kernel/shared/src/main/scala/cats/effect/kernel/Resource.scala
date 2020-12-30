@@ -865,7 +865,10 @@ abstract private[effect] class ResourceMonadCancel[F[_]] extends ResourceMonadEr
    * themselves must be extended by flatMap, despite the closure of the onCancel
    * scope.
    */
-  def onCancel[A](fa: Resource[F, A], fin: Resource[F, Unit]): Resource[F, A] = ???
+  def onCancel[A](fa: Resource[F, A], fin: Resource[F, Unit]): Resource[F, A] =
+    Resource applyFull { poll =>
+      poll(fa.allocated).onCancel(fin.use_).map(_.map(fin => (_: Resource.ExitCase) => fin))
+    }
 
   def uncancelable[A](body: Poll[Resource[F, *]] => Resource[F, A]): Resource[F, A] =
     Resource applyFull { poll =>
