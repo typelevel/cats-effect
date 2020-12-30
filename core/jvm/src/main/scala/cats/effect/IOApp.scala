@@ -85,7 +85,14 @@ trait IOApp {
         // otherwise scheduler threads will accumulate over time.
         runtime.internalShutdown()
         runtime.shutdown()
-        System.exit(result.code)
+        if (result == ExitCode.Success) {
+          // Return naturally from main. This allows any non-daemon
+          // threads to gracefully complete their work, and managed
+          // environments to execute their own shutdown hooks.
+          ()
+        } else {
+          System.exit(result.code)
+        }
       }
     } catch {
       // this handles sbt when fork := false
