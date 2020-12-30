@@ -223,6 +223,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
  */
 lazy val tests = crossProject(JSPlatform, JVMPlatform).in(file("tests"))
   .dependsOn(laws % Test, ktestkit % Test, testkit % Test)
+  .enablePlugins(NoPublishPlugin)
   .settings(
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
