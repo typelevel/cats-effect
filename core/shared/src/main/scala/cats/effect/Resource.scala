@@ -100,10 +100,10 @@ sealed abstract class Resource[+F[_], +A] extends ResourceLike[F, A] {
 
   private[effect] type F0[x] <: F[x]
 
-  private def fold[G[x] >: F[x], B](
+  private def fold[G[x] >: F[x], B, E](
     onOutput: A => G[B],
     onRelease: G[Unit] => G[Unit]
-  )(implicit F: BracketThrow[G]): G[B] = {
+  )(implicit F: Bracket[G, E]): G[B] = {
     sealed trait Stack[AA]
     case object Nil extends Stack[A]
     final case class Frame[AA, BB](head: AA => Resource[G, BB], tail: Stack[BB]) extends Stack[AA]
@@ -138,8 +138,8 @@ sealed abstract class Resource[+F[_], +A] extends ResourceLike[F, A] {
   /**
    * Implementation of `use`, which is declared in `ResourceLike`
    */
-  protected def use_[G[x] >: F[x], B](f: A => G[B])(implicit F: BracketThrow[G]): G[B] =
-    fold[G, B](f, identity)
+  protected def use_[G[x] >: F[x], B, E](f: A => G[B])(implicit F: Bracket[G, E]): G[B] =
+    fold[G, B, E](f, identity)
 
   /**
    * Implementation of `parZip`, which is declared in `ResourceLike`
@@ -150,7 +150,7 @@ sealed abstract class Resource[+F[_], +A] extends ResourceLike[F, A] {
     type Update = (G[Unit] => G[Unit]) => G[Unit]
 
     def allocate[C](r: Resource[G, C], storeFinalizer: Update): G[C] =
-      r.fold[G, C](_.pure[G], release => storeFinalizer(_.guarantee(release)))
+      r.fold[G, C, Throwable](_.pure[G], release => storeFinalizer(_.guarantee(release)))
 
     val bothFinalizers = Ref[G].of(Sync[G].unit -> Sync[G].unit)
 
@@ -274,7 +274,7 @@ sealed abstract class Resource[+F[_], +A] extends ResourceLike[F, A] {
       .make(Ref[G].of(F.unit))(_.get.flatten)
       .evalMap { finalizers =>
         def allocate(r: Resource[G, B]): G[B] =
-          r.fold[G, B](_.pure[G], (release: G[Unit]) => finalizers.update(_.guarantee(release)))
+          r.fold[G, B, Throwable](_.pure[G], (release: G[Unit]) => finalizers.update(_.guarantee(release)))
 
         K.combineK(allocate(this), allocate(that))
       }
@@ -299,11 +299,11 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * @param resource an effect that returns a tuple of a resource and
    *        an effect to release it
    */
-  def apply[F[_], A](resource: F[(A, F[Unit])])(implicit F: Functor[F]): Resource[F, A] =
-    Allocate[F, A] {
+  def apply[F[_], A, E](resource: F[(A, F[Unit])])(implicit F: Functor[F]): Resource[F, A] =
+    Allocate[F, A, E] {
       resource.map {
         case (a, release) =>
-          (a, (_: ExitCase[Throwable]) => release)
+          (a, (_: ExitCase[E]) => release)
       }
     }
 
@@ -338,8 +338,8 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * @param acquire a function to effectfully acquire a resource
    * @param release a function to effectfully release the resource returned by `acquire`
    */
-  def make[F[_], A](acquire: F[A])(release: A => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
-    apply[F, A](acquire.map(a => a -> release(a)))
+  def make[F[_], A, E](acquire: F[A])(release: A => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
+    apply[F, A, E](acquire.map(a => a -> release(a)))
 
   /**
    * Creates a resource from an acquiring effect and a release function that can
@@ -445,7 +445,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * Implementation for the `tailRecM` operation, as described via
    * the `cats.Monad` type class.
    */
-  def tailRecM[F[_], A, B](a: A)(f: A => Resource[F, Either[A, B]])(implicit F: Monad[F]): Resource[F, B] = {
+  def tailRecM[F[_], A, B, E](a: A)(f: A => Resource[F, Either[A, B]])(implicit F: Monad[F]): Resource[F, B] = {
     def continue(r: Resource[F, Either[A, B]]): Resource[F, B] =
       r.invariant match {
         case Allocate(resource) =>
@@ -455,7 +455,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
                 case Left(a) =>
                   F.map(release(ExitCase.Completed))(_ => tailRecM(a)(f))
                 case Right(b) =>
-                  F.pure[Resource[F, B]](Allocate[F, B](F.pure((b, release))))
+                  F.pure[Resource[F, B]](Allocate[F, B, E](F.pure((b, release))))
               }
           })
         case Suspend(resource) =>
@@ -471,7 +471,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * `Resource` data constructor that wraps an effect allocating a resource,
    * along with its finalizers.
    */
-  final case class Allocate[F[_], A](resource: F[(A, ExitCase[Throwable] => F[Unit])]) extends InvariantResource[F, A]
+  final case class Allocate[F[_], A, E](resource: F[(A, ExitCase[E] => F[Unit])]) extends InvariantResource[F, A]
 
   /**
    * `Resource` data constructor that encodes the `flatMap` operation.
@@ -598,7 +598,7 @@ abstract private[effect] class ResourceMonadError[F[_], E] extends ResourceMonad
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
     fa match {
       case Allocate(fa) =>
-        Allocate[F, Either[E, A]](F.attempt(fa).map {
+        Allocate[F, Either[E, A], Throwable](F.attempt(fa).map {
           case Left(error)         => (Left(error), (_: ExitCase[Throwable]) => F.unit)
           case Right((a, release)) => (Right(a), release)
         })
