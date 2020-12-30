@@ -17,6 +17,6 @@
 package cats.effect
 
 package object testkit {
-  type TestContext = cats.effect.kernel.testkit.TestContext 
-  val TestContext = cats.effect.kernel.testkit.TestContext 
+  type TestContext = cats.effect.kernel.testkit.TestContext
+  val TestContext = cats.effect.kernel.testkit.TestContext
 }

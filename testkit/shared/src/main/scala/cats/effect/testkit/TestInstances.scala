@@ -21,8 +21,8 @@ import cats.{~>, Applicative, Eq, Id, Order, Show}
 import cats.effect.kernel.testkit.{
   AsyncGenerators,
   GenK,
-  ParallelFGenerators,
   OutcomeGenerators,
+  ParallelFGenerators,
   SyncGenerators,
   SyncTypeGenerators,
   TestContext
@@ -38,7 +38,8 @@ import scala.concurrent.duration._
 import java.io.{ByteArrayOutputStream, PrintStream}
 import java.util.concurrent.TimeUnit
 
-trait TestInstances extends ParallelFGenerators with OutcomeGenerators with SyncTypeGenerators { outer =>
+trait TestInstances extends ParallelFGenerators with OutcomeGenerators with SyncTypeGenerators {
+  outer =>
 
   implicit def cogenIO[A: Cogen](implicit ticker: Ticker): Cogen[IO[A]] =
     Cogen[Outcome[Option, Throwable, A]].contramap(unsafeRun(_))
