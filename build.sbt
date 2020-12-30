@@ -212,7 +212,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
  * like ScalaCheck generators for IO and SyncIO.
  */
 lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
-  .dependsOn(core)
+  .dependsOn(core, ktestkit)
   .settings(
     name := "cats-effect-testkit",
     libraryDependencies ++= Seq(

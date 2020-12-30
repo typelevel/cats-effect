@@ -1168,5 +1168,3 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
   }
 
 }
-
-final case class TestException(i: Int) extends RuntimeException
