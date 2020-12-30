@@ -20,7 +20,6 @@ import cats.data.EitherT
 import cats.Order
 import cats.laws.discipline.arbitrary._
 import cats.effect.laws.AsyncTests
-import cats.effect.kernel.testkit.{SyncTypeGenerators, TestContext}
 import cats.implicits._
 
 import org.scalacheck.Prop
@@ -38,8 +37,6 @@ class EitherTIOSpec
     with BaseSpec {
   outer =>
 
-  import SyncTypeGenerators._
-
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
 
@@ -56,7 +53,7 @@ class EitherTIOSpec
       ))
 
   {
-    implicit val ticker = Ticker(TestContext())
+    implicit val ticker = Ticker()
 
     checkAll(
       "EitherT[IO]",

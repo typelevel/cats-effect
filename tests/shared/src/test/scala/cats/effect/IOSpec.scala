@@ -19,7 +19,7 @@ package cats.effect
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.SemigroupKTests
 import cats.effect.laws.AsyncTests
-import cats.effect.kernel.testkit.{SyncTypeGenerators, TestContext}
+import cats.effect.testkit.TestContext
 import cats.syntax.all._
 import cats.effect.implicits._
 
@@ -34,8 +34,6 @@ import scala.concurrent.duration._
 
 class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
   outer =>
-
-  import SyncTypeGenerators._
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
@@ -1141,7 +1139,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
   }
 
   {
-    implicit val ticker = Ticker(TestContext())
+    implicit val ticker = Ticker()
 
     checkAll(
       "IO",
@@ -1150,7 +1148,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
   }
 
   {
-    implicit val ticker = Ticker(TestContext())
+    implicit val ticker = Ticker()
 
     checkAll(
       "IO[Int]",
@@ -1159,7 +1157,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
   }
 
   {
-    implicit val ticker = Ticker(TestContext())
+    implicit val ticker = Ticker()
 
     checkAll(
       "IO[Int]",

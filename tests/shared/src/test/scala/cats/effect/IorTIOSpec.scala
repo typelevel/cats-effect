@@ -20,7 +20,6 @@ import cats.data.{Ior, IorT}
 import cats.Order
 import cats.laws.discipline.arbitrary._
 import cats.effect.laws.AsyncTests
-import cats.effect.kernel.testkit.{SyncTypeGenerators, TestContext}
 import cats.implicits._
 
 import org.scalacheck.Prop
@@ -33,8 +32,6 @@ import scala.concurrent.duration._
 
 class IorTIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
   outer =>
-
-  import SyncTypeGenerators._
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
@@ -75,7 +72,7 @@ class IorTIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck
     )
 
   {
-    implicit val ticker = Ticker(TestContext())
+    implicit val ticker = Ticker()
 
     checkAll(
       "IorT[IO]",

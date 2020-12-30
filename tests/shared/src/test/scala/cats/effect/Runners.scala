@@ -17,8 +17,7 @@
 package cats.effect
 
 import cats.{Eq, Show}
-import cats.effect.kernel.testkit.TestContext
-import cats.effect.testkit.CatsEffectInstances
+import cats.effect.testkit.{TestContext, TestInstances}
 import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
@@ -33,7 +32,7 @@ import scala.concurrent.{Future, Promise, TimeoutException}
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
 
-trait Runners extends SpecificationLike with CatsEffectInstances with RunnersPlatform { outer =>
+trait Runners extends SpecificationLike with TestInstances with RunnersPlatform { outer =>
 
   def executionTimeout = 10.seconds
 
