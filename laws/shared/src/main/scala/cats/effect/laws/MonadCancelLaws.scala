@@ -38,10 +38,6 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   // TODO F.uncancelable(p => F.canceled >> p(fa) >> fb) <-> F.uncancelable(p => p(F.canceled >> fa) >> fb)
 
-  def canceledSequencesOnCancelInOrder(fin1: F[Unit], fin2: F[Unit]) =
-    F.onCancel(F.onCancel(F.canceled, fin1), fin2) <->
-      F.forceR(F.uncancelable(_ => F.forceR(fin1)(fin2)))(F.canceled)
-
   def uncancelableEliminatesOnCancel[A](fa: F[A], fin: F[Unit]) =
     F.uncancelable(_ => F.onCancel(fa, fin)) <-> F.uncancelable(_ => fa)
 
@@ -58,6 +54,10 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
     F.onCancel(F.canceled, F.uncancelable(_ => fin)) <-> F.onCancel(F.canceled, fin)
 
   // only for root = Cancelable
+
+  def canceledSequencesOnCancelInOrder(fin1: F[Unit], fin2: F[Unit]) =
+    F.onCancel(F.onCancel(F.canceled, fin1), fin2) <->
+      F.forceR(F.uncancelable(_ => F.forceR(fin1)(fin2)))(F.canceled)
 
   def uncancelableCanceledAssociatesRightOverFlatMap[A](a: A, f: A => F[Unit]) =
     F.uncancelable(_ => F.canceled.as(a).flatMap(f)) <->
