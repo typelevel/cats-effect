@@ -243,10 +243,8 @@ object Async {
         F.cont(
           new Cont[F, K, Either[E, R]] {
 
-            override def apply[G[_]](implicit G: MonadCancel[G, Throwable]): (
-                Either[Throwable, K] => Unit,
-                G[K],
-                F ~> G) => G[Either[E, R]] =
+            override def apply[G[_]](implicit G: MonadCancel[G, Throwable])
+                : (Either[Throwable, K] => Unit, G[K], F ~> G) => G[Either[E, R]] =
               (cb, ga, nat) => {
                 val natT: EitherT[F, E, *] ~> EitherT[G, E, *] =
                   new ~>[EitherT[F, E, *], EitherT[G, E, *]] {
@@ -377,9 +375,7 @@ object Async {
 
                   }
 
-                body[WriterT[G, L, *]]
-                  .apply(cb, WriterT.liftF(ga), natT)
-                  .run
+                body[WriterT[G, L, *]].apply(cb, WriterT.liftF(ga), natT).run
               }
           }
         )

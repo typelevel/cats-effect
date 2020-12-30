@@ -788,9 +788,10 @@ object Resource extends ResourceInstances with ResourcePlatform {
 }
 
 abstract private[effect] class ResourceInstances extends ResourceInstances1 {
-  implicit def catsEffectAsyncForResource[F[_]](implicit F0: Async[F]): Async[Resource[F, *]] = new ResourceAsync[F] {
-    def F = F0
-  }
+  implicit def catsEffectAsyncForResource[F[_]](implicit F0: Async[F]): Async[Resource[F, *]] =
+    new ResourceAsync[F] {
+      def F = F0
+    }
 
   implicit def catsEffectMonoidForResource[F[_], A](
       implicit F0: Monad[F],
@@ -849,14 +850,17 @@ abstract private[effect] class ResourceInstances0 {
 }
 
 // TODO the rest of the instances
-abstract private[effect] class ResourceMonadCancel[F[_]] extends ResourceMonadError[F, Throwable] with MonadCancel[Resource[F, *], Throwable] {
+abstract private[effect] class ResourceMonadCancel[F[_]]
+    extends ResourceMonadError[F, Throwable]
+    with MonadCancel[Resource[F, *], Throwable] {
   implicit protected def F: MonadCancel[F, Throwable]
 
   def canceled: Resource[F, Unit] =
     Resource.eval(F.canceled)
 
   def forceR[A, B](fa: Resource[F, A])(fb: Resource[F, B]): Resource[F, B] =
-    Resource.applyFull(_(fa.use_ !> fb.allocated).map(_.map(fin => (_: Resource.ExitCase) => fin)))
+    Resource.applyFull(
+      _(fa.use_ !> fb.allocated).map(_.map(fin => (_: Resource.ExitCase) => fin)))
 
   /*
    * The problem is the scoping. I really need to be able to wrap a scope around
@@ -874,14 +878,17 @@ abstract private[effect] class ResourceMonadCancel[F[_]] extends ResourceMonadEr
     Resource applyFull { poll =>
       val inner = new Poll[Resource[F, *]] {
         def apply[B](rfb: Resource[F, B]): Resource[F, B] =
-          Resource.applyFull(_(poll(rfb.allocated)).map(_.map(fin => (_: Resource.ExitCase) => fin)))
+          Resource.applyFull(
+            _(poll(rfb.allocated)).map(_.map(fin => (_: Resource.ExitCase) => fin)))
       }
 
       poll(body(inner).allocated).map(_.map(fin => (_: Resource.ExitCase) => fin))
     }
 }
 
-abstract private[effect] class ResourceAsync[F[_]] extends ResourceMonadCancel[F] with Async[Resource[F, *]] { self =>
+abstract private[effect] class ResourceAsync[F[_]]
+    extends ResourceMonadCancel[F]
+    with Async[Resource[F, *]] { self =>
   implicit protected def F: Async[F]
 
   def cont[K, R](body: Cont[Resource[F, *], K, R]): Resource[F, R] =
@@ -891,13 +898,15 @@ abstract private[effect] class ResourceAsync[F[_]] extends ResourceMonadCancel[F
           implicit val fum: Monoid[F[Unit]] = Applicative.monoid[F, Unit]
 
           new Cont[F, K, (R, F[Unit])] {
-            def apply[G[_]](implicit G: MonadCancel[G, Throwable]): (Either[Throwable, K] => Unit, G[K], F ~> G) => G[(R, F[Unit])] = { (cb, ga, nt) =>
-              val nt2 = new (Resource[F, *] ~> WriterT[G, F[Unit], *]) {
-                def apply[A](rfa: Resource[F, A]) =
-                  WriterT(nt(rfa.allocated.map(_.swap)))
-              }
+            def apply[G[_]](implicit G: MonadCancel[G, Throwable])
+                : (Either[Throwable, K] => Unit, G[K], F ~> G) => G[(R, F[Unit])] = {
+              (cb, ga, nt) =>
+                val nt2 = new (Resource[F, *] ~> WriterT[G, F[Unit], *]) {
+                  def apply[A](rfa: Resource[F, A]) =
+                    WriterT(nt(rfa.allocated.map(_.swap)))
+                }
 
-              body[WriterT[G, F[Unit], *]].apply(cb, WriterT.liftF(ga), nt2).run.map(_.swap)
+                body[WriterT[G, F[Unit], *]].apply(cb, WriterT.liftF(ga), nt2).run.map(_.swap)
             }
           }
         }
@@ -946,9 +955,8 @@ abstract private[effect] class ResourceAsync[F[_]] extends ResourceMonadCancel[F
       import Outcome._
 
       F.ref[State](State()) flatMap { state =>
-        val folded = fa.fold(
-          _.pure[F],
-          release => state.update(s => s.copy(fin = s.fin !> release)))
+        val folded =
+          fa.fold(_.pure[F], release => state.update(s => s.copy(fin = s.fin !> release)))
 
         val finalized = F.guaranteeCase(folded) {
           case Canceled() | Errored(_) =>
@@ -956,7 +964,9 @@ abstract private[effect] class ResourceAsync[F[_]] extends ResourceMonadCancel[F
 
           case Succeeded(_) =>
             val maybeFins = state modify { s =>
-              (s.copy(completed = true), Some(s.fin).filter(_ => s.runOnComplete && !s.canceled))
+              (
+                s.copy(completed = true),
+                Some(s.fin).filter(_ => s.runOnComplete && !s.canceled))
             }
 
             maybeFins.flatMap(_.getOrElse(F.unit))
@@ -1000,7 +1010,9 @@ abstract private[effect] class ResourceAsync[F[_]] extends ResourceMonadCancel[F
 
           val finalizeEarly = {
             val maybeFins = state modify { s =>
-              (s.copy(runOnComplete = true), Some(s.fin).filter(_ => s.completed && !s.canceled))
+              (
+                s.copy(runOnComplete = true),
+                Some(s.fin).filter(_ => s.completed && !s.canceled))
             }
 
             maybeFins.flatMap(_.getOrElse(F.unit))
