@@ -24,8 +24,7 @@ import cats.effect.kernel.testkit.{
   OutcomeGenerators,
   ParallelFGenerators,
   SyncGenerators,
-  SyncTypeGenerators,
-  TestContext
+  SyncTypeGenerators
 }
 import cats.syntax.all._
 
