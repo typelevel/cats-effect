@@ -915,7 +915,10 @@ abstract private[effect] class ResourceAsync[F[_]]
       unlifted.map(_.map(fin => (_: Resource.ExitCase) => fin))
     }
 
-  def evalOn[A](fa: Resource[F, A], ec: ExecutionContext): Resource[F, A] = ???
+  def evalOn[A](fa: Resource[F, A], ec: ExecutionContext): Resource[F, A] =
+    Resource applyFull { poll =>
+      poll(fa.allocated).evalOn(ec).map(_.map(fin => (_: Resource.ExitCase) => fin))
+    }
 
   def executionContext: Resource[F, ExecutionContext] =
     Resource.eval(F.executionContext)
