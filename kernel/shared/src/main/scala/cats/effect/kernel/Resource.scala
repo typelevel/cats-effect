@@ -849,19 +849,36 @@ abstract private[effect] class ResourceInstances0 {
 }
 
 // TODO the rest of the instances
-abstract private[effect] class ResourceMonadCancel[F[_], E] extends ResourceMonadError[F, E] with MonadCancel[Resource[F, *], E] {
-  implicit protected def F: MonadCancel[F, E]
+abstract private[effect] class ResourceMonadCancel[F[_]] extends ResourceMonadError[F, Throwable] with MonadCancel[Resource[F, *], Throwable] {
+  implicit protected def F: MonadCancel[F, Throwable]
 
   def canceled: Resource[F, Unit] =
     Resource.eval(F.canceled)
 
-  def forceR[A, B](fa: Resource[F, A])(fb: Resource[F, B]): Resource[F, B] = ???
+  def forceR[A, B](fa: Resource[F, A])(fb: Resource[F, B]): Resource[F, B] =
+    Resource.applyFull(_(fa.use_ !> fb.allocated).map(_.map(fin => (_: Resource.ExitCase) => fin)))
 
+  /*
+   * The problem is the scoping. I really need to be able to wrap a scope around
+   * a given Resource which is not extended by flatMap. This would be easy except
+   * for the fact that the existing resource itself defines scopes which
+   * themselves must be extended by flatMap, despite the closure of the onCancel
+   * scope.
+   */
   def onCancel[A](fa: Resource[F, A], fin: Resource[F, Unit]): Resource[F, A] = ???
-  def uncancelable[A](body: Poll[Resource[F, *]] => Resource[F, A]): Resource[F, A] = ???
+
+  def uncancelable[A](body: Poll[Resource[F, *]] => Resource[F, A]): Resource[F, A] =
+    Resource applyFull { poll =>
+      val inner = new Poll[Resource[F, *]] {
+        def apply[B](rfb: Resource[F, B]): Resource[F, B] =
+          Resource.applyFull(_(poll(rfb.allocated)).map(_.map(fin => (_: Resource.ExitCase) => fin)))
+      }
+
+      poll(body(inner).allocated).map(_.map(fin => (_: Resource.ExitCase) => fin))
+    }
 }
 
-abstract private[effect] class ResourceAsync[F[_]] extends ResourceMonadCancel[F, Throwable] with Async[Resource[F, *]] { self =>
+abstract private[effect] class ResourceAsync[F[_]] extends ResourceMonadCancel[F] with Async[Resource[F, *]] { self =>
   implicit protected def F: Async[F]
 
   def cont[K, R](body: Cont[Resource[F, *], K, R]): Resource[F, R] =
