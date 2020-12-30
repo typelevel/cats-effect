@@ -293,7 +293,7 @@ trait AsyncGenerators[F[_]] extends GenTemporalGenerators[F, Throwable] with Syn
     } yield F.evalOn(fa, ec)
 }
 
-object ParallelFGenerators {
+trait ParallelFGenerators {
   implicit def arbitraryParallelF[F[_], A](
       implicit ArbF: Arbitrary[F[A]]): Arbitrary[ParallelF[F, A]] =
     Arbitrary {
@@ -303,8 +303,9 @@ object ParallelFGenerators {
   implicit def eqParallelF[F[_], A](implicit EqF: Eq[F[A]]): Eq[ParallelF[F, A]] =
     EqF.imap(ParallelF.apply)(ParallelF.value)
 }
+object ParallelFGenerators extends ParallelFGenerators
 
-object OutcomeGenerators {
+trait OutcomeGenerators {
   def outcomeGenerators[F[_]: Applicative, E: Arbitrary: Cogen] =
     new ApplicativeErrorGenerators[Outcome[F, E, *], E] {
       val arbitraryE: Arbitrary[E] = implicitly
@@ -332,8 +333,9 @@ object OutcomeGenerators {
       case Outcome.Errored(e) => Some(Left(e))
     }
 }
+object OutcomeGenerators extends OutcomeGenerators
 
-object SyncTypeGenerators {
+trait SyncTypeGenerators {
 
   implicit val arbitrarySyncType: Arbitrary[Sync.Type] = {
     import Sync.Type._
@@ -352,3 +354,4 @@ object SyncTypeGenerators {
     }
   }
 }
+object SyncTypeGenerators extends SyncTypeGenerators

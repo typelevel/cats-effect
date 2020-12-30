@@ -21,8 +21,10 @@ import cats.{~>, Applicative, Eq, Id, Order, Show}
 import cats.effect.kernel.testkit.{
   AsyncGenerators,
   GenK,
+  ParallelFGenerators,
   OutcomeGenerators,
   SyncGenerators,
+  SyncTypeGenerators,
   TestContext
 }
 import cats.syntax.all._
@@ -32,14 +34,11 @@ import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}, Arbitrary.arbitrary
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.util.Try
 
 import java.io.{ByteArrayOutputStream, PrintStream}
 import java.util.concurrent.TimeUnit
 
-trait CatsEffectInstances { outer =>
-
-  import OutcomeGenerators._
+trait TestInstances extends ParallelFGenerators with OutcomeGenerators with SyncTypeGenerators { outer =>
 
   implicit def cogenIO[A: Cogen](implicit ticker: Ticker): Cogen[IO[A]] =
     Cogen[Outcome[Option, Throwable, A]].contramap(unsafeRun(_))
@@ -208,9 +207,6 @@ trait CatsEffectInstances { outer =>
         E.eqv(unwrap(x), unwrap(y))
     }
 
-  def unsafeRunSyncIOEither[A](io: SyncIO[A]): Either[Throwable, A] =
-    Try(io.unsafeRunSync()).toEither
-
   implicit def eqSyncIOA[A: Eq]: Eq[SyncIO[A]] =
     Eq.by(unsafeRunSyncSupressedError)
 
@@ -283,5 +279,5 @@ trait CatsEffectInstances { outer =>
 
   @implicitNotFound(
     "could not find an instance of Ticker; try using `in ticked { implicit ticker =>`")
-  case class Ticker(ctx: TestContext)
+  case class Ticker(ctx: TestContext = TestContext())
 }
