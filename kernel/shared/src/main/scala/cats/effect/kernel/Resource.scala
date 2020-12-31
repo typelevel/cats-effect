@@ -279,7 +279,7 @@ sealed abstract class Resource[F[_], +A] {
         release => storeFinalizer(MonadCancel[F, Throwable].guarantee(_, release))
       )
 
-    val bothFinalizers = Ref.of(().pure[F] -> ().pure[F])
+    val bothFinalizers = Ref.of[F, (F[Unit], F[Unit])](().pure[F] -> ().pure[F])
 
     Resource.make(bothFinalizers)(_.get.flatMap(_.parTupled).void).evalMap { store =>
       val leftStore: Update = f => store.update(_.leftMap(f))
@@ -867,8 +867,12 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
     Resource.eval(F.canceled)
 
   def forceR[A, B](fa: Resource[F, A])(fb: Resource[F, B]): Resource[F, B] =
-    Resource.applyFull(
-      _(fa.use_ !> fb.allocated).map(_.map(fin => (_: Resource.ExitCase) => fin)))
+    Resource applyFull { poll =>
+      poll(fa.use_ !> fb.allocated) map { p =>
+        // map exists on tuple in Scala 3 and has the wrong type
+        Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+      }
+    }
 
   /*
    * The problem is the scoping. I really need to be able to wrap a scope around
@@ -879,18 +883,25 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
    */
   def onCancel[A](fa: Resource[F, A], fin: Resource[F, Unit]): Resource[F, A] =
     Resource applyFull { poll =>
-      poll(fa.allocated).onCancel(fin.use_).map(_.map(fin => (_: Resource.ExitCase) => fin))
+      poll(fa.allocated).onCancel(fin.use_) map { p =>
+        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+      }
     }
 
   def uncancelable[A](body: Poll[Resource[F, *]] => Resource[F, A]): Resource[F, A] =
     Resource applyFull { poll =>
       val inner = new Poll[Resource[F, *]] {
         def apply[B](rfb: Resource[F, B]): Resource[F, B] =
-          Resource.applyFull(
-            _(poll(rfb.allocated)).map(_.map(fin => (_: Resource.ExitCase) => fin)))
+          Resource applyFull { innerPoll =>
+            innerPoll(poll(rfb.allocated)) map { p =>
+              Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+            }
+          }
       }
 
-      body(inner).allocated.map(_.map(fin => (_: Resource.ExitCase) => fin))
+      body(inner).allocated map { p =>
+        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+      }
     }
 }
 
@@ -1076,7 +1087,9 @@ abstract private[effect] class ResourceAsync[F[_]]
 
   def evalOn[A](fa: Resource[F, A], ec: ExecutionContext): Resource[F, A] =
     Resource applyFull { poll =>
-      poll(fa.allocated).evalOn(ec).map(_.map(fin => (_: Resource.ExitCase) => fin))
+      poll(fa.allocated).evalOn(ec) map { p =>
+        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+      }
     }
 
   def executionContext: Resource[F, ExecutionContext] =
