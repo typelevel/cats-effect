@@ -19,6 +19,7 @@ package cats.effect.kernel
 import cats._
 import cats.data.Kleisli
 import cats.syntax.all._
+import cats.effect.kernel.instances.spawn
 import cats.effect.kernel.implicits._
 
 import scala.annotation.tailrec
@@ -758,6 +759,11 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
         case Outcome.Canceled() => Canceled
       }
   }
+
+  type Par[F[_], A] = ParallelF[Resource[F, *], A]
+
+  implicit def parallelForResource[F[_]: Concurrent]: Parallel.Aux[Resource[F, *], Par[F, *]] =
+    spawn.parallelForGenSpawn[Resource[F, *], Throwable]
 }
 
 private[effect] trait ResourceHOInstances0 extends ResourceHOInstances1 {
