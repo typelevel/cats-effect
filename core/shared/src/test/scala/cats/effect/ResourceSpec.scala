@@ -400,117 +400,117 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       suspend.use_ must failAs(exception)
     }
 
-    "parZip - releases resources in reverse order of acquisition" in ticked { implicit ticker =>
-      // conceptually asserts that:
-      //   forAll (r: Resource[F, A]) then r <-> r.parZip(Resource.unit) <-> Resource.unit.parZip(r)
-      // needs to be tested manually to assert the equivalence during cleanup as well
-      forAll { (as: List[(Int, Either[Throwable, Unit])], rhs: Boolean) =>
-        var released: List[Int] = Nil
-        val r = as.traverse {
-          case (a, e) =>
-            Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+    "parZip" >> {
+      "releases resources in reverse order of acquisition" in ticked { implicit ticker =>
+        // conceptually asserts that:
+        //   forAll (r: Resource[F, A]) then r <-> r.parZip(Resource.unit) <-> Resource.unit.parZip(r)
+        // needs to be tested manually to assert the equivalence during cleanup as well
+        forAll { (as: List[(Int, Either[Throwable, Unit])], rhs: Boolean) =>
+          var released: List[Int] = Nil
+          val r = as.traverse {
+            case (a, e) =>
+              Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+          }
+          val unit = ().pure[Resource[IO, *]]
+          val p = if (rhs) r.parZip(unit) else unit.parZip(r)
+
+          p.use_.attempt.void must completeAs(())
+          released mustEqual as.map(_._1)
         }
-        val unit = ().pure[Resource[IO, *]]
-        val p = if (rhs) r.parZip(unit) else unit.parZip(r)
-
-        p.use_.attempt.void must completeAs(())
-        released mustEqual as.map(_._1)
-      }
-    }
-
-    "parZip - parallel acquisition and release" in ticked { implicit ticker =>
-      var leftAllocated = false
-      var rightAllocated = false
-      var leftReleasing = false
-      var rightReleasing = false
-      var leftReleased = false
-      var rightReleased = false
-
-      val wait = IO.sleep(1.second)
-      val lhs = Resource.make(wait >> IO { leftAllocated = true }) { _ =>
-        IO { leftReleasing = true } >> wait >> IO { leftReleased = true }
-      }
-      val rhs = Resource.make(wait >> IO { rightAllocated = true }) { _ =>
-        IO { rightReleasing = true } >> wait >> IO { rightReleased = true }
       }
 
-      (lhs, rhs).parTupled.use(_ => wait).unsafeToFuture()
+      "parallel acquisition and release" in ticked { implicit ticker =>
+        var leftAllocated = false
+        var rightAllocated = false
+        var leftReleasing = false
+        var rightReleasing = false
+        var leftReleased = false
+        var rightReleased = false
 
-      // after 1 second:
-      //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
-      //  resources are still open during `use` (correctness)
-      ticker.ctx.tick(1.second)
-      leftAllocated must beTrue
-      rightAllocated must beTrue
-      leftReleasing must beFalse
-      rightReleasing must beFalse
-
-      // after 2 seconds:
-      //  both resources have started cleanup (correctness)
-      ticker.ctx.tick(1.second)
-      leftReleasing must beTrue
-      rightReleasing must beTrue
-      leftReleased must beFalse
-      rightReleased must beFalse
-
-      // after 3 seconds:
-      //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
-      ticker.ctx.tick(1.second)
-      leftReleased must beTrue
-      rightReleased must beTrue
-    }
-
-    "parZip - safety: lhs error during rhs interruptible region" in ticked { implicit ticker =>
-      var leftAllocated = false
-      var rightAllocated = false
-      var leftReleasing = false
-      var rightReleasing = false
-      var leftReleased = false
-      var rightReleased = false
-
-      def wait(n: Int) = IO.sleep(n.seconds)
-      val lhs = for {
-        _ <- Resource.make(wait(1) >> IO { leftAllocated = true }) { _ =>
-          IO { leftReleasing = true } >> wait(1) >> IO { leftReleased = true }
+        val wait = IO.sleep(1.second)
+        val lhs = Resource.make(wait >> IO { leftAllocated = true }) { _ =>
+          IO { leftReleasing = true } >> wait >> IO { leftReleased = true }
         }
-        _ <- Resource.eval(wait(1) >> IO.raiseError[Unit](new Exception))
-      } yield ()
-
-      val rhs = for {
-        _ <- Resource.make(wait(1) >> IO { rightAllocated = true }) { _ =>
-          IO { rightReleasing = true } >> wait(1) >> IO { rightReleased = true }
+        val rhs = Resource.make(wait >> IO { rightAllocated = true }) { _ =>
+          IO { rightReleasing = true } >> wait >> IO { rightReleased = true }
         }
-        _ <- Resource.eval(wait(2))
-      } yield ()
 
-      (lhs, rhs).parTupled.use(_ => IO.unit).handleError(_ => ()).unsafeToFuture()
+        lhs.parZip(rhs).use(_ => wait).unsafeToFuture()
 
-      // after 1 second:
-      //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
-      //  resources are still open during `flatMap` (correctness)
-      ticker.ctx.tick(1.second)
-      leftAllocated must beTrue
-      rightAllocated must beTrue
-      leftReleasing must beFalse
-      rightReleasing must beFalse
+        // after 1 second:
+        //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
+        //  resources are still open during `use` (correctness)
+        ticker.ctx.tick(1.second)
+        leftAllocated must beTrue
+        rightAllocated must beTrue
+        leftReleasing must beFalse
+        rightReleasing must beFalse
 
-      // after 2 seconds:
-      //  both resources have started cleanup (interruption, or rhs would start releasing after 3 seconds)
-      ticker.ctx.tick(1.second)
-      leftReleasing must beTrue
-      rightReleasing must beTrue
-      leftReleased must beFalse
-      rightReleased must beFalse
+        // after 2 seconds:
+        //  both resources have started cleanup (correctness)
+        ticker.ctx.tick(1.second)
+        leftReleasing must beTrue
+        rightReleasing must beTrue
+        leftReleased must beFalse
+        rightReleased must beFalse
 
-      // after 3 seconds:
-      //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
-      ticker.ctx.tick(1.second)
-      leftReleased must beTrue
-      rightReleased must beTrue
-    }
+        // after 3 seconds:
+        //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
+        ticker.ctx.tick(1.second)
+        leftReleased must beTrue
+        rightReleased must beTrue
+      }
 
-    "parZip - safety: rhs error during lhs uninterruptible region" in ticked {
-      implicit ticker =>
+      "safety: lhs error during rhs interruptible region" in ticked { implicit ticker =>
+        var leftAllocated = false
+        var rightAllocated = false
+        var leftReleasing = false
+        var rightReleasing = false
+        var leftReleased = false
+        var rightReleased = false
+
+        def wait(n: Int) = IO.sleep(n.seconds)
+        val lhs = for {
+          _ <- Resource.make(wait(1) >> IO { leftAllocated = true }) { _ =>
+            IO { leftReleasing = true } >> wait(1) >> IO { leftReleased = true }
+          }
+          _ <- Resource.eval(wait(1) >> IO.raiseError[Unit](new Exception))
+        } yield ()
+
+        val rhs = for {
+          _ <- Resource.make(wait(1) >> IO { rightAllocated = true }) { _ =>
+            IO { rightReleasing = true } >> wait(1) >> IO { rightReleased = true }
+          }
+          _ <- Resource.eval(wait(2))
+        } yield ()
+
+        lhs.parZip(rhs).use(_ => IO.unit).handleError(_ => ()).unsafeToFuture()
+
+        // after 1 second:
+        //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
+        //  resources are still open during `flatMap` (correctness)
+        ticker.ctx.tick(1.second)
+        leftAllocated must beTrue
+        rightAllocated must beTrue
+        leftReleasing must beFalse
+        rightReleasing must beFalse
+
+        // after 2 seconds:
+        //  both resources have started cleanup (interruption, or rhs would start releasing after 3 seconds)
+        ticker.ctx.tick(1.second)
+        leftReleasing must beTrue
+        rightReleasing must beTrue
+        leftReleased must beFalse
+        rightReleased must beFalse
+
+        // after 3 seconds:
+        //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
+        ticker.ctx.tick(1.second)
+        leftReleased must beTrue
+        rightReleased must beTrue
+      }
+
+      "safety: rhs error during lhs uninterruptible region" in ticked { implicit ticker =>
         var leftAllocated = false
         var rightAllocated = false
         var rightErrored = false
@@ -532,7 +532,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
             IO.unit)
         } yield ()
 
-        (lhs, rhs).parTupled.use(_ => wait(1)).handleError(_ => ()).unsafeToFuture()
+        lhs.parZip(rhs).use(_ => wait(1)).handleError(_ => ()).unsafeToFuture()
 
         // after 1 second:
         //  rhs has partially allocated, lhs executing
@@ -567,6 +567,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         ticker.ctx.tick(1.second)
         leftReleased must beTrue
         rightReleased must beTrue
+      }
     }
 
     "releases both resources on combineK" in ticked { implicit ticker =>
