@@ -857,7 +857,6 @@ abstract private[effect] class ResourceFOInstances1 {
     }
 }
 
-// TODO the rest of the instances
 abstract private[effect] class ResourceMonadCancel[F[_]]
     extends ResourceMonadError[F, Throwable]
     with MonadCancel[Resource[F, *], Throwable] {
@@ -874,13 +873,6 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
       }
     }
 
-  /*
-   * The problem is the scoping. I really need to be able to wrap a scope around
-   * a given Resource which is not extended by flatMap. This would be easy except
-   * for the fact that the existing resource itself defines scopes which
-   * themselves must be extended by flatMap, despite the closure of the onCancel
-   * scope.
-   */
   def onCancel[A](fa: Resource[F, A], fin: Resource[F, Unit]): Resource[F, A] =
     Resource applyFull { poll =>
       poll(fa.allocated).onCancel(fin.use_) map { p =>
