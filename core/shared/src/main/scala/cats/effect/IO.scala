@@ -538,6 +538,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
         release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
       acquire.bracketCase(use)(release)
 
+    override def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
+        release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] = 
+      IO.uncancelable { poll => 
+        acquire(poll).bracketCase(use)(release)
+      }
+
     val monotonic: IO[FiniteDuration] = IO.monotonic
 
     val realTime: IO[FiniteDuration] = IO.realTime
