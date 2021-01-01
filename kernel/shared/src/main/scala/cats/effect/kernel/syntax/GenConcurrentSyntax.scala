@@ -16,38 +16,43 @@
 
 package cats.effect.kernel.syntax
 
-import cats.effect.kernel.{Concurrent, GenConcurrent}
 import cats.Traverse
+import cats.effect.kernel.GenConcurrent
 
 trait GenConcurrentSyntax {
-  implicit def genConcurrentOps[F[_], E, A](wrapped: F[A]): GenConcurrentOps[F, E, A] =
-    new GenConcurrentOps(wrapped)
 
-  implicit def concurrentParTraverseOps[F[_], T[_], A, B](
-      wrapped: T[A]): ConcurrentParTraverseNOps[F, T, A, B] =
+  implicit def genConcurrentOps_[F[_], A](wrapped: F[A]): GenConcurrentOps_[F, A] =
+    new GenConcurrentOps_(wrapped)
+
+  implicit def concurrentParTraverseOps[T[_], A](
+      wrapped: T[A]
+  ): ConcurrentParTraverseNOps[T, A] =
     new ConcurrentParTraverseNOps(wrapped)
 
-  implicit def concurrentParSequenceOps[F[_], T[_], A](
-      wrapped: T[F[A]]): ConcurrentParSequenceNOps[F, T, A] =
+  implicit def concurrentParSequenceOps[T[_], F[_], A](
+      wrapped: T[F[A]]
+  ): ConcurrentParSequenceNOps[T, F, A] =
     new ConcurrentParSequenceNOps(wrapped)
 }
 
-final class GenConcurrentOps[F[_], E, A] private[syntax] (private[syntax] val wrapped: F[A])
+final class GenConcurrentOps_[F[_], A] private[syntax] (private val wrapped: F[A])
     extends AnyVal {
-  def memoize(implicit F: GenConcurrent[F, E]): F[F[A]] =
+  def memoize(implicit F: GenConcurrent[F, _]): F[F[A]] =
     F.memoize(wrapped)
 }
 
-final class ConcurrentParTraverseNOps[F[_], T[_], A, B] private[syntax] (
-    private[syntax] val wrapped: T[A])
-    extends AnyVal {
-  def parTraverseN(n: Int)(f: A => F[B])(implicit F: Concurrent[F], T: Traverse[T]): F[T[B]] =
+final class ConcurrentParTraverseNOps[T[_], A] private[syntax] (
+    private val wrapped: T[A]
+) extends AnyVal {
+  def parTraverseN[F[_], B](n: Int)(
+      f: A => F[B]
+  )(implicit T: Traverse[T], F: GenConcurrent[F, _]): F[T[B]] =
     F.parTraverseN(n)(wrapped)(f)
 }
 
-final class ConcurrentParSequenceNOps[F[_], T[_], A] private[syntax] (
-    private[syntax] val wrapped: T[F[A]])
-    extends AnyVal {
-  def parSequenceN(n: Int)(implicit F: Concurrent[F], T: Traverse[T]): F[T[A]] =
+final class ConcurrentParSequenceNOps[T[_], F[_], A] private[syntax] (
+    private val wrapped: T[F[A]]
+) extends AnyVal {
+  def parSequenceN(n: Int)(implicit T: Traverse[T], F: GenConcurrent[F, _]): F[T[A]] =
     F.parSequenceN(n)(wrapped)
 }
