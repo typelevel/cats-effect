@@ -931,15 +931,16 @@ abstract private[effect] class ResourceConcurrent[F[_]]
 
       F.ref[State](State()) flatMap { state =>
         val finalized: F[Option[A]] = F uncancelable { poll =>
-          val ff: F[F[Option[A]]] = poll(fa.allocated) flatMap {    // intentionally short-circuits in case of cancelation or error
-            case (a, rel) =>
-              state modify { s =>
-                if (s.runOnComplete || s.canceled)
-                  (s, rel.attempt.as(None))
-                else
-                  (s.copy(fin = Some(rel)), F.pure(Some(a)))
-              }
-          }
+          val ff: F[F[Option[A]]] =
+            poll(fa.allocated) flatMap { // intentionally short-circuits in case of cancelation or error
+              case (a, rel) =>
+                state modify { s =>
+                  if (s.runOnComplete || s.canceled)
+                    (s, rel.attempt.as(None))
+                  else
+                    (s.copy(fin = Some(rel)), F.pure(Some(a)))
+                }
+            }
 
           ff.flatten
         }
@@ -977,10 +978,12 @@ abstract private[effect] class ResourceConcurrent[F[_]]
                     fp flatMap {
                       case Some(a) =>
                         state modify { s =>
-                          val results = if (s.canceled && !s.joined)
-                            Outcome.canceled[Resource[F, *], Throwable, A]
-                          else
-                            Outcome.succeeded[Resource[F, *], Throwable, A](Resource.make(a.pure[F])(_ => s.fin.traverse_(x => x)))
+                          val results =
+                            if (s.canceled && !s.joined)
+                              Outcome.canceled[Resource[F, *], Throwable, A]
+                            else
+                              Outcome.succeeded[Resource[F, *], Throwable, A](
+                                Resource.make(a.pure[F])(_ => s.fin.traverse_(x => x)))
 
                           (s.copy(joined = true, fin = None), results)
                         }
