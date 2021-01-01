@@ -16,7 +16,7 @@ await-output() {
     c=$(($c+1))
   done
 
-  if [[ $c -gt 20 ]]; then
+  if [[ $c -gt 60 ]]; then
     echo -e "\e[31mTimed out waiting for '$1' in output\e[0m"
     return -1
   else
