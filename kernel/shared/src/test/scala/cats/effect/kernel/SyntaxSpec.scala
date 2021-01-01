@@ -40,15 +40,8 @@ class SyntaxSpec extends Specification {
       result: F[F[A]]
     }
 
-  }
-
-  def concurrentSyntax[F[_], A](target: F[A])(implicit F: Concurrent[F]) = {
-    import syntax.concurrent._
-
-    Concurrent[F]: F.type
-
     {
-      val result = List(1).parTraverseN(3)(F.pure(_))
+      val result = List(1).parTraverseN(3)(F.pure)
       result: F[List[Int]]
     }
 
@@ -65,26 +58,43 @@ class SyntaxSpec extends Specification {
     MonadCancel[F, E]: F.type
 
     {
+      val result = target.forceR(F.unit)
+      result: F[Unit]
+    }
+
+    {
+      val result = target !> F.unit
+      result: F[Unit]
+    }
+
+    {
       val result = target.uncancelable
       result: F[A]
     }
 
     {
-      val param: F[Unit] = null.asInstanceOf[F[Unit]]
-      val result = target.onCancel(param)
+      val result = target.onCancel(F.unit)
       result: F[A]
     }
 
     {
-      val param: F[Unit] = null.asInstanceOf[F[Unit]]
-      val result = target.guarantee(param)
+      val result = target.guarantee(F.unit)
       result: F[A]
     }
 
     {
-      val param: Outcome[F, E, A] => F[Unit] = null.asInstanceOf[Outcome[F, E, A] => F[Unit]]
-      val result = target.guaranteeCase(param)
+      val result = target.bracket(_ => F.unit)(_ => F.unit)
+      result: F[Unit]
+    }
+
+    {
+      val result = target.guaranteeCase(_ => F.unit)
       result: F[A]
+    }
+
+    {
+      val result = target.bracketCase(_ => F.unit)((_, _) => F.unit)
+      result: F[Unit]
     }
   }
 
@@ -123,7 +133,6 @@ class SyntaxSpec extends Specification {
       val result = target.bothOutcome(another)
       result: F[(Outcome[F, E, A], Outcome[F, E, B])]
     }
-
   }
 
   def spawnForwarder[F[_]: Spawn] =
@@ -141,27 +150,28 @@ class SyntaxSpec extends Specification {
       val result = target.timeoutTo(param1, param2)
       result: F[A]
     }
-  }
 
-  def temporalForwarder[F[_]: Temporal] =
-    Temporal[F]
-
-  def temporalSyntax[F[_], A](target: F[A])(implicit F: Temporal[F]) = {
-    import syntax.temporal._
-
-    {
-      val param: FiniteDuration = null.asInstanceOf[FiniteDuration]
-      val result = target.timeout(param)
-      result: F[A]
-    }
     {
       val param: FiniteDuration = null.asInstanceOf[FiniteDuration]
       val result = target.delayBy(param)
       result: F[A]
     }
+
     {
       val param: FiniteDuration = null.asInstanceOf[FiniteDuration]
       val result = target.andWait(param)
+      result: F[A]
+    }
+  }
+
+  def temporalSyntax[F[_], A](target: F[A])(implicit F: Temporal[F]) = {
+    import syntax.temporal._
+
+    Temporal[F]: F.type
+
+    {
+      val param: FiniteDuration = null.asInstanceOf[FiniteDuration]
+      val result = target.timeout(param)
       result: F[A]
     }
   }

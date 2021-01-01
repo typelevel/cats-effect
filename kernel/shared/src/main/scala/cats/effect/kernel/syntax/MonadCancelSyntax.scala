@@ -20,35 +20,46 @@ import cats.effect.kernel.{MonadCancel, Outcome}
 
 trait MonadCancelSyntax {
 
+  implicit def monadCancelOps_[F[_], A](
+      wrapped: F[A]
+  ): MonadCancelOps_[F, A] =
+    new MonadCancelOps_(wrapped)
+
   implicit def monadCancelOps[F[_], A, E](
       wrapped: F[A]
-  ): MonadCancelOps[F, A, E] =
+  )(implicit F: MonadCancel[F, E]): MonadCancelOps[F, A, E] = {
+    val _ = F
     new MonadCancelOps(wrapped)
+  }
 }
 
-final class MonadCancelOps[F[_], A, E] private[syntax] (private[syntax] val wrapped: F[A])
+final class MonadCancelOps_[F[_], A] private[syntax] (private val wrapped: F[A])
     extends AnyVal {
 
-  def forceR[B](fb: F[B])(implicit F: MonadCancel[F, E]): F[B] =
+  def forceR[B](fb: F[B])(implicit F: MonadCancel[F, _]): F[B] =
     F.forceR(wrapped)(fb)
 
-  def !>[B](fb: F[B])(implicit F: MonadCancel[F, E]): F[B] =
+  def !>[B](fb: F[B])(implicit F: MonadCancel[F, _]): F[B] =
     forceR(fb)
 
-  def uncancelable(implicit F: MonadCancel[F, E]): F[A] =
+  def uncancelable(implicit F: MonadCancel[F, _]): F[A] =
     F.uncancelable(_ => wrapped)
 
-  def onCancel(fin: F[Unit])(implicit F: MonadCancel[F, E]): F[A] =
+  def onCancel(fin: F[Unit])(implicit F: MonadCancel[F, _]): F[A] =
     F.onCancel(wrapped, fin)
 
-  def guarantee(fin: F[Unit])(implicit F: MonadCancel[F, E]): F[A] =
+  def guarantee(fin: F[Unit])(implicit F: MonadCancel[F, _]): F[A] =
     F.guarantee(wrapped, fin)
+
+  def bracket[B](use: A => F[B])(release: A => F[Unit])(implicit F: MonadCancel[F, _]): F[B] =
+    F.bracket(wrapped)(use)(release)
+}
+
+final class MonadCancelOps[F[_], A, E] private[syntax] (private val wrapped: F[A])
+    extends AnyVal {
 
   def guaranteeCase(fin: Outcome[F, E, A] => F[Unit])(implicit F: MonadCancel[F, E]): F[A] =
     F.guaranteeCase(wrapped)(fin)
-
-  def bracket[B](use: A => F[B])(release: A => F[Unit])(implicit F: MonadCancel[F, E]): F[B] =
-    F.bracket(wrapped)(use)(release)
 
   def bracketCase[B](use: A => F[B])(release: (A, Outcome[F, E, B]) => F[Unit])(
       implicit F: MonadCancel[F, E]): F[B] =

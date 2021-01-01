@@ -20,31 +20,43 @@ import cats.effect.kernel.{Fiber, GenSpawn, Outcome, Resource}
 
 trait GenSpawnSyntax {
 
+  implicit def genSpawnOps_[F[_], A](
+      wrapped: F[A]
+  ): GenSpawnOps_[F, A] =
+    new GenSpawnOps_(wrapped)
+
   implicit def genSpawnOps[F[_], A, E](
       wrapped: F[A]
-  ): GenSpawnOps[F, A, E] =
+  )(implicit F: GenSpawn[F, E]): GenSpawnOps[F, A, E] = {
+    val _ = F
     new GenSpawnOps(wrapped)
+  }
 }
 
-final class GenSpawnOps[F[_], A, E] private[syntax] (private[syntax] val wrapped: F[A])
-    extends AnyVal {
+final class GenSpawnOps_[F[_], A] private[syntax] (private val wrapped: F[A]) extends AnyVal {
 
-  def start(implicit F: GenSpawn[F, E]): F[Fiber[F, E, A]] = F.start(wrapped)
+  def race[B](another: F[B])(implicit F: GenSpawn[F, _]) =
+    F.race(wrapped, another)
+
+  def both[B](another: F[B])(implicit F: GenSpawn[F, _]): F[(A, B)] =
+    F.both(wrapped, another)
+}
+
+final class GenSpawnOps[F[_], A, E] private[syntax] (private val wrapped: F[A]) extends AnyVal {
+
+  def start(implicit F: GenSpawn[F, E]): F[Fiber[F, E, A]] =
+    F.start(wrapped)
 
   def background(implicit F: GenSpawn[F, E]): Resource[F, F[Outcome[F, E, A]]] =
     F.background(wrapped)
 
-  def race[B](another: F[B])(implicit F: GenSpawn[F, E]) =
-    F.race(wrapped, another)
-
   def raceOutcome[B](another: F[B])(
-      implicit F: GenSpawn[F, E]): F[Either[Outcome[F, E, A], Outcome[F, E, B]]] =
+      implicit F: GenSpawn[F, E]
+  ): F[Either[Outcome[F, E, A], Outcome[F, E, B]]] =
     F.raceOutcome(wrapped, another)
 
-  def both[B](another: F[B])(implicit F: GenSpawn[F, E]): F[(A, B)] =
-    F.both(wrapped, another)
-
   def bothOutcome[B](another: F[B])(
-      implicit F: GenSpawn[F, E]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
+      implicit F: GenSpawn[F, E]
+  ): F[(Outcome[F, E, A], Outcome[F, E, B])] =
     F.bothOutcome(wrapped, another)
 }

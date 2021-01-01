@@ -68,8 +68,6 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
             laws.uncancelableIgnoredPollEliminatesNesting[A] _),
           "uncancelable poll inverse nest is uncancelable" -> forAll(
             laws.uncancelablePollInverseNestIsUncancelable[A] _),
-          "canceled sequences onCancel in order" -> forAll(
-            laws.canceledSequencesOnCancelInOrder _),
           "uncancelable eliminates onCancel" -> forAll(
             laws.uncancelableEliminatesOnCancel[A] _),
           "forceR discards pure" -> forAll(laws.forceRDiscardsPure[A, B] _),
@@ -81,6 +79,8 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
         val suffix: Seq[(String, Prop)] = laws.F.rootCancelScope match {
           case CancelScope.Cancelable =>
             Seq(
+              "canceled sequences onCancel in order" -> forAll(
+                laws.canceledSequencesOnCancelInOrder _),
               "uncancelable canceled associates right over flatMap" -> forAll(
                 laws.uncancelableCanceledAssociatesRightOverFlatMap[A] _),
               "canceled associates left over flatMap" -> forAll(

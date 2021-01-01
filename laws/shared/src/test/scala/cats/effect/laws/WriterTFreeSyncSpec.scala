@@ -19,7 +19,7 @@ package laws
 
 import cats.{Eq, Eval}
 import cats.data.WriterT
-import cats.effect.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}
+import cats.effect.kernel.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}
 import cats.free.FreeT
 import cats.laws.discipline.arbitrary._
 import freeEval.{syncForFreeT, FreeEitherSync}

@@ -23,26 +23,37 @@ import java.util.concurrent.TimeoutException
 
 trait GenTemporalSyntax {
 
+  implicit def genTemporalOps_[F[_], A](
+      wrapped: F[A]
+  ): GenTemporalOps_[F, A] =
+    new GenTemporalOps_(wrapped)
+
   implicit def genTemporalOps[F[_], A, E](
       wrapped: F[A]
-  ): GenTemporalOps[F, A, E] =
+  )(implicit F: GenTemporal[F, E]): GenTemporalOps[F, A, E] = {
+    val _ = F
     new GenTemporalOps(wrapped)
+  }
 }
 
-final class GenTemporalOps[F[_], A, E] private[syntax] (private[syntax] val wrapped: F[A])
+final class GenTemporalOps_[F[_], A] private[syntax] (private val wrapped: F[A])
     extends AnyVal {
 
-  def timeoutTo(duration: FiniteDuration, fallback: F[A])(implicit F: GenTemporal[F, E]): F[A] =
+  def timeoutTo(duration: FiniteDuration, fallback: F[A])(implicit F: GenTemporal[F, _]): F[A] =
     F.timeoutTo(wrapped, duration, fallback)
+
+  def delayBy(time: FiniteDuration)(implicit F: GenTemporal[F, _]): F[A] =
+    F.delayBy(wrapped, time)
+
+  def andWait(time: FiniteDuration)(implicit F: GenTemporal[F, _]): F[A] =
+    F.andWait(wrapped, time)
+}
+
+final class GenTemporalOps[F[_], A, E] private[syntax] (private val wrapped: F[A])
+    extends AnyVal {
 
   def timeout(duration: FiniteDuration)(
       implicit F: GenTemporal[F, E],
-      timeoutToE: TimeoutException <:< E): F[A] =
-    F.timeout(wrapped, duration)
-
-  def delayBy(time: FiniteDuration)(implicit F: GenTemporal[F, E]): F[A] =
-    F.delayBy(wrapped, time)
-
-  def andWait(time: FiniteDuration)(implicit F: GenTemporal[F, E]): F[A] =
-    F.andWait(wrapped, time)
+      timeoutToE: TimeoutException <:< E
+  ): F[A] = F.timeout(wrapped, duration)
 }

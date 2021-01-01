@@ -15,11 +15,11 @@
  */
 
 package cats.effect
+package kernel
 package testkit
 
 import cats.{~>, Group, Monad, Monoid, Order}
 import cats.data.Kleisli
-import cats.effect.kernel.{Deferred, Fiber, GenConcurrent, GenTemporal, Outcome, Poll, Ref}
 import cats.syntax.all._
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 

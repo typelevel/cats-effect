@@ -15,60 +15,30 @@
  */
 
 package cats.effect
+package testkit
 
 import cats.{~>, Applicative, Eq, Id, Order, Show}
-import cats.effect.testkit.{
+import cats.effect.kernel.testkit.{
   AsyncGenerators,
   GenK,
   OutcomeGenerators,
+  ParallelFGenerators,
   SyncGenerators,
-  TestContext
+  SyncTypeGenerators
 }
-import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}, Arbitrary.arbitrary
 
-import org.specs2.execute.AsResult
-import org.specs2.matcher.Matcher
-import org.specs2.mutable.SpecificationLike
-import org.specs2.specification.core.Execution
-
 import scala.annotation.implicitNotFound
-import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.reflect.ClassTag
-import scala.util.Try
 
 import java.io.{ByteArrayOutputStream, PrintStream}
 import java.util.concurrent.TimeUnit
 
-trait Runners extends SpecificationLike with RunnersPlatform { outer =>
-  import OutcomeGenerators._
-
-  def executionTimeout = 10.seconds
-
-  def ticked[A: AsResult](test: Ticker => A): Execution =
-    Execution.result(test(Ticker(TestContext())))
-
-  def real[A: AsResult](test: => IO[A]): Execution =
-    Execution.withEnvAsync(_ => timeout(test.unsafeToFuture()(runtime()), executionTimeout))
-
-  /*
-   * Hacky implementation of effectful property testing
-   */
-  def realProp[A, B: AsResult](gen: Gen[A])(f: A => IO[B])(
-      implicit R: AsResult[List[B]]): Execution =
-    real(List.range(1, 100).traverse { _ =>
-      val a = gen.sample.get
-      f(a)
-    })
-
-  def realWithRuntime[A: AsResult](test: IORuntime => IO[A]): Execution =
-    Execution.withEnvAsync { _ =>
-      val rt = runtime()
-      timeout(test(rt).unsafeToFuture()(rt), executionTimeout)
-    }
+trait TestInstances extends ParallelFGenerators with OutcomeGenerators with SyncTypeGenerators {
+  outer =>
 
   implicit def cogenIO[A: Cogen](implicit ticker: Ticker): Cogen[IO[A]] =
     Cogen[Outcome[Option, Throwable, A]].contramap(unsafeRun(_))
@@ -87,12 +57,12 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
         def cogenCase[B: Cogen]: Cogen[OutcomeIO[B]] =
           OutcomeGenerators.cogenOutcome[IO, Throwable, B]
 
-        val arbitraryEC: Arbitrary[ExecutionContext] = outer.arbitraryEC
+        val arbitraryEC: Arbitrary[ExecutionContext] = outer.arbitraryExecutionContext
 
         val cogenFU: Cogen[IO[Unit]] = cogenIO[Unit]
 
         // TODO dedup with FreeSyncGenerators
-        val arbitraryFD: Arbitrary[FiniteDuration] = outer.arbitraryFD
+        val arbitraryFD: Arbitrary[FiniteDuration] = outer.arbitraryFiniteDuration
 
         override def recursiveGen[B: Arbitrary: Cogen](deeper: GenK[IO]) =
           super
@@ -114,7 +84,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
         Cogen[Throwable]
 
       protected val arbitraryFD: Arbitrary[FiniteDuration] =
-        outer.arbitraryFD
+        outer.arbitraryFiniteDuration
 
       val F: Sync[SyncIO] =
         SyncIO.syncForSyncIO
@@ -162,7 +132,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     )
   }
 
-  implicit lazy val arbitraryFD: Arbitrary[FiniteDuration] = {
+  implicit lazy val arbitraryFiniteDuration: Arbitrary[FiniteDuration] = {
     import TimeUnit._
 
     val genTU = Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS)
@@ -172,22 +142,23 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     }
   }
 
-  implicit lazy val arbitraryThrowable: Arbitrary[Throwable] =
+  // Note: do not make this implicit as it is not necessary and pollutes implicit scope of downstream projects
+  lazy val arbitraryThrowable: Arbitrary[Throwable] =
     Arbitrary(Arbitrary.arbitrary[Int].map(TestException(_)))
 
-  implicit def arbitraryEC(implicit ticker: Ticker): Arbitrary[ExecutionContext] =
+  implicit def arbitraryExecutionContext(implicit ticker: Ticker): Arbitrary[ExecutionContext] =
     Arbitrary(Gen.const(ticker.ctx.derive()))
 
   implicit lazy val eqThrowable: Eq[Throwable] =
     Eq.fromUniversalEquals[Throwable]
 
-  implicit lazy val shThrowable: Show[Throwable] =
+  implicit lazy val showThrowable: Show[Throwable] =
     Show.fromToString[Throwable]
 
-  implicit lazy val eqEC: Eq[ExecutionContext] =
+  implicit lazy val eqExecutionContext: Eq[ExecutionContext] =
     Eq.fromUniversalEquals[ExecutionContext]
 
-  implicit def ordIOFD(implicit ticker: Ticker): Order[IO[FiniteDuration]] =
+  implicit def orderIoFiniteDuration(implicit ticker: Ticker): Order[IO[FiniteDuration]] =
     Order by { ioa => unsafeRun(ioa).fold(None, _ => None, fa => fa) }
 
   implicit def eqIOA[A: Eq](implicit ticker: Ticker): Eq[IO[A]] =
@@ -224,17 +195,13 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
       F: MonadCancel[F, Throwable]): Order[Resource[F, FiniteDuration]] =
     Order.by(_.use(_.pure[F]))
 
-  def unsafeRunSyncIOEither[A](io: SyncIO[A]): Either[Throwable, A] =
-    Try(io.unsafeRunSync()).toEither
-
   implicit def eqSyncIOA[A: Eq]: Eq[SyncIO[A]] =
     Eq.by(unsafeRunSyncSupressedError)
 
-  // feel the rhythm, feel the rhyme...
-  implicit def boolRunnings(iob: IO[Boolean])(implicit ticker: Ticker): Prop =
+  implicit def ioBooleanToProp(iob: IO[Boolean])(implicit ticker: Ticker): Prop =
     Prop(unsafeRun(iob).fold(false, _ => false, _.getOrElse(false)))
 
-  implicit def boolRunningsSync(iob: SyncIO[Boolean]): Prop =
+  implicit def syncIoBooleanToProp(iob: SyncIO[Boolean]): Prop =
     Prop {
       try iob.unsafeRunSync()
       catch {
@@ -242,56 +209,10 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
       }
     }
 
-  implicit def boolRunningsResource[F[_]](r: Resource[F, Boolean])(
+  implicit def resourceFBooleanToProp[F[_]](r: Resource[F, Boolean])(
       implicit view: F[Boolean] => Prop,
       F: MonadCancel[F, Throwable]): Prop =
     view(r.use(_.pure[F]))
-
-  def completeAs[A: Eq: Show](expected: A)(implicit ticker: Ticker): Matcher[IO[A]] =
-    tickTo(Outcome.Succeeded(Some(expected)))
-
-  def completeAsSync[A: Eq: Show](expected: A): Matcher[SyncIO[A]] = { (ioa: SyncIO[A]) =>
-    val a = ioa.unsafeRunSync()
-    (a eqv expected, s"${a.show} !== ${expected.show}")
-  }
-
-  def failAs(expected: Throwable)(implicit ticker: Ticker): Matcher[IO[Unit]] =
-    tickTo[Unit](Outcome.Errored(expected))
-
-  def failAsSync[A](expected: Throwable): Matcher[SyncIO[A]] = { (ioa: SyncIO[A]) =>
-    val t =
-      (try ioa.unsafeRunSync()
-      catch {
-        case t: Throwable => t
-      }).asInstanceOf[Throwable]
-    (t eqv expected, s"${t.show} !== ${expected.show}")
-  }
-
-  def nonTerminate(implicit ticker: Ticker): Matcher[IO[Unit]] =
-    tickTo[Unit](Outcome.Succeeded(None))
-
-  def selfCancel(implicit ticker: Ticker): Matcher[IO[Unit]] =
-    tickTo[Unit](Outcome.Canceled())
-
-  def tickTo[A: Eq: Show](expected: Outcome[Option, Throwable, A])(
-      implicit ticker: Ticker): Matcher[IO[A]] = { (ioa: IO[A]) =>
-    val oc = unsafeRun(ioa)
-    (oc eqv expected, s"${oc.show} !== ${expected.show}")
-  }
-
-  // useful for tests in the `real` context
-  implicit class Assertions[A](fa: IO[A]) {
-    def mustFailWith[E <: Throwable: ClassTag] =
-      fa.attempt.flatMap { res =>
-        IO {
-          res must beLike {
-            case Left(e) => e must haveClass[E]
-          }
-        }
-      }
-
-    def mustEqual(a: A) = fa.flatMap { res => IO(res must beEqualTo(a)) }
-  }
 
   private val someK: Id ~> Option =
     new ~>[Id, Option] { def apply[A](a: A) = a.some }
@@ -349,22 +270,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
       def monotonicNanos() = ctx.now().toNanos
     }
 
-  private def timeout[A](f: Future[A], duration: FiniteDuration): Future[A] = {
-    val p = Promise[A]()
-    val r = runtime()
-    implicit val ec = r.compute
-
-    val cancel = r.scheduler.sleep(duration, { () => p.tryFailure(new TimeoutException); () })
-
-    f.onComplete { result =>
-      p.tryComplete(result)
-      cancel.run()
-    }
-
-    p.future
-  }
-
   @implicitNotFound(
     "could not find an instance of Ticker; try using `in ticked { implicit ticker =>`")
-  case class Ticker(ctx: TestContext)
+  case class Ticker(ctx: TestContext = TestContext())
 }
