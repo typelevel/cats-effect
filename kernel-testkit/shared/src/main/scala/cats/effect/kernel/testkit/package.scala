@@ -14,21 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect
-package laws
+package cats.effect.kernel
 
-import cats.data.ContT
-import cats.effect.kernel.testkit.freeEval, freeEval._
+import cats.data.Kleisli
 
-import org.specs2.ScalaCheck
-import org.specs2.mutable.Specification
-
-import org.typelevel.discipline.specs2.mutable.Discipline
-
-class ClockSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
-
-  // we only need to test the ones that *aren't* also Sync
-  checkAll(
-    "ContT[FreeEitherSync, Int, *]",
-    ClockTests[ContT[FreeEitherSync, Int, *]].clock[Int, Int, Int])
+package object testkit {
+  type TimeT[F[_], A] = Kleisli[F, Time, A]
 }

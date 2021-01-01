@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.testkit
+package cats.effect.kernel
+package testkit
 
 import cats.{Eq, Eval, Monad, MonadError}
-import cats.effect.kernel._
 import cats.free.FreeT
 import cats.syntax.all._
 

@@ -16,11 +16,10 @@
 
 package cats.effect
 
-import cats.data.OptionT
+import cats.data.EitherT
 import cats.Order
 import cats.laws.discipline.arbitrary._
 import cats.effect.laws.AsyncTests
-import cats.effect.testkit.{SyncTypeGenerators, TestContext}
 import cats.implicits._
 
 import org.scalacheck.Prop
@@ -31,35 +30,34 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class OptionTIOSpec
+class EitherTIOSpec
     extends IOPlatformSpecification
     with Discipline
     with ScalaCheck
     with BaseSpec {
   outer =>
 
-  import SyncTypeGenerators._
-
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
 
-  implicit def ordOptionTIOFD(implicit ticker: Ticker): Order[OptionT[IO, FiniteDuration]] =
+  implicit def ordEitherTIOFD(
+      implicit ticker: Ticker): Order[EitherT[IO, Int, FiniteDuration]] =
     Order by { ioaO => unsafeRun(ioaO.value).fold(None, _ => None, fa => fa) }
 
-  implicit def execOptionT(sbool: OptionT[IO, Boolean])(implicit ticker: Ticker): Prop =
+  implicit def execEitherT(sbool: EitherT[IO, Int, Boolean])(implicit ticker: Ticker): Prop =
     Prop(
       unsafeRun(sbool.value).fold(
         false,
         _ => false,
-        bO => bO.flatten.fold(false)(b => b)
+        bO => bO.fold(false)(e => e.fold(_ => false, _ => true))
       ))
 
   {
-    implicit val ticker = Ticker(TestContext())
+    implicit val ticker = Ticker()
 
     checkAll(
-      "OptionT[IO]",
-      AsyncTests[OptionT[IO, *]].async[Int, Int, Int](10.millis)
+      "EitherT[IO]",
+      AsyncTests[EitherT[IO, Int, *]].async[Int, Int, Int](10.millis)
     ) /*(Parameters(seed = Some(Seed.fromBase64("XidlR_tu11X7_v51XojzZJsm6EaeU99RAEL9vzbkWBD=").get)))*/
   }
 

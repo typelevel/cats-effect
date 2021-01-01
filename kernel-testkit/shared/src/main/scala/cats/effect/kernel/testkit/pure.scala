@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-package cats.effect.testkit
+package cats.effect.kernel
+package testkit
 
 import cats.{~>, Eq, Functor, Id, Monad, MonadError, Order, Show}
 import cats.data.{Kleisli, State, WriterT}

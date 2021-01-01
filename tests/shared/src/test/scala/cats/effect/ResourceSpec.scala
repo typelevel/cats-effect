@@ -18,7 +18,7 @@ package cats.effect
 
 import cats.{~>, SemigroupK}
 import cats.data.{Kleisli, OptionT}
-import cats.effect.testkit.TestContext
+import cats.effect.kernel.testkit.TestContext
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._

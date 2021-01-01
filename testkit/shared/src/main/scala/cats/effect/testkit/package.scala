@@ -16,8 +16,7 @@
 
 package cats.effect
 
-import cats.data.Kleisli
-
 package object testkit {
-  type TimeT[F[_], A] = Kleisli[F, Time, A]
+  type TestContext = cats.effect.kernel.testkit.TestContext
+  val TestContext = cats.effect.kernel.testkit.TestContext
 }

@@ -17,7 +17,7 @@
 package cats.effect
 package laws
 
-import cats.effect.testkit.{pure, PureConcGenerators, TimeT}, pure._, TimeT._
+import cats.effect.kernel.testkit.{pure, PureConcGenerators, TimeT}, pure._, TimeT._
 import cats.laws.discipline.arbitrary._
 
 import org.scalacheck.Prop

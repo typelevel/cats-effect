@@ -19,7 +19,7 @@ package laws
 
 import cats.{Eq, Eval}
 import cats.data.Kleisli
-import cats.effect.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}
+import cats.effect.kernel.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}
 import cats.free.FreeT
 import cats.laws.discipline.{arbitrary, eq, MiniInt}, arbitrary._, eq._
 import freeEval.{syncForFreeT, FreeEitherSync}
