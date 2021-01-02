@@ -79,22 +79,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
     bracketCase(use)((a, _) => release(a))
 
-  def bracketCase[B](use: A => IO[B])(release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] = {
-    val safeRelease: (A, OutcomeIO[B]) => IO[Unit] =
-      (a, out) => IO.uncancelable(_ => release(a, out))
-
-    IO.uncancelable { poll =>
-      flatMap { a =>
-        val finalized = poll(use(a)).onCancel(safeRelease(a, Outcome.Canceled()))
-        val handled = finalized.onError { e =>
-          safeRelease(a, Outcome.Errored(e)).handleErrorWith { t =>
-            IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
-          }
-        }
-        handled.flatMap(b => safeRelease(a, Outcome.Succeeded(IO.pure(b))).as(b))
-      }
-    }
-  }
+  def bracketCase[B](use: A => IO[B])(release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
+    IO.bracketFull(_ => this)(use)(release)
 
   def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
 
@@ -369,6 +355,24 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def deferred[A]: IO[Deferred[IO, A]] = IO(Deferred.unsafe)
 
+  def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
+      release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] = {
+    val safeRelease: (A, OutcomeIO[B]) => IO[Unit] =
+      (a, out) => IO.uncancelable(_ => release(a, out))
+
+    IO.uncancelable { poll =>
+      acquire(poll).flatMap { a =>
+        val finalized = poll(IO.unit >> use(a)).onCancel(safeRelease(a, Outcome.Canceled()))
+        val handled = finalized.onError { e =>
+          safeRelease(a, Outcome.Errored(e)).handleErrorWith { t =>
+            IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
+          }
+        }
+        handled.flatMap(b => safeRelease(a, Outcome.Succeeded(IO.pure(b))).as(b))
+      }
+    }
+  }
+
   /**
    * Returns the given argument if `cond` is true, otherwise `IO.Unit`
    *
@@ -534,9 +538,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def onCancel[A](ioa: IO[A], fin: IO[Unit]): IO[A] =
       ioa.onCancel(fin)
 
-    override def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(
-        release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
-      acquire.bracketCase(use)(release)
+    override def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
+        release: (A, Outcome[IO, Throwable, B]) => IO[Unit]): IO[B] =
+      IO.bracketFull(acquire)(use)(release)
 
     val monotonic: IO[FiniteDuration] = IO.monotonic
 
