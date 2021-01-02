@@ -594,44 +594,259 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         released mustEqual acquired
     }
 
-    "combineK - should behave like orElse when underlying effect does" in ticked {
-      implicit ticker =>
+    "combineK" should {
+      "behave like orElse when underlying effect does" in ticked { implicit ticker =>
         forAll { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
           val lhs = r1.orElse(r2).use(IO.pure)
           val rhs = (r1 <+> r2).use(IO.pure)
 
           lhs eqv rhs
         }
-    }
+      }
 
-    "combineK - should behave like underlying effect" in ticked { implicit ticker =>
-      forAll { (ot1: OptionT[IO, Int], ot2: OptionT[IO, Int]) =>
-        val lhs = Resource.eval(ot1 <+> ot2).use(OptionT.pure[IO](_)).value
-        val rhs = (Resource.eval(ot1) <+> Resource.eval(ot2)).use(OptionT.pure[IO](_)).value
+      "behave like underlying effect" in ticked { implicit ticker =>
+        forAll { (ot1: OptionT[IO, Int], ot2: OptionT[IO, Int]) =>
+          val lhs = Resource.eval(ot1 <+> ot2).use(OptionT.pure[IO](_)).value
+          val rhs = (Resource.eval(ot1) <+> Resource.eval(ot2)).use(OptionT.pure[IO](_)).value
 
-        lhs eqv rhs
+          lhs eqv rhs
+        }
       }
     }
 
-    "surround - should wrap an effect in a usage and ignore the value produced by resource" in ticked {
-      implicit ticker =>
-        val r = Resource.eval(IO.pure(0))
-        val surroundee = IO("hello")
-        val surrounded = r.surround(surroundee)
+    "surround" should {
+      "wrap an effect in a usage and ignore the value produced by resource" in ticked {
+        implicit ticker =>
+          val r = Resource.eval(IO.pure(0))
+          val surroundee = IO("hello")
+          val surrounded = r.surround(surroundee)
 
-        surrounded eqv surroundee
+          surrounded eqv surroundee
+      }
     }
 
-    "surroundK - should wrap an effect in a usage, ignore the value produced by resource and return FunctionK" in ticked {
-      implicit ticker =>
-        val r = Resource.eval(IO.pure(0))
-        val surroundee = IO("hello")
-        val surround = r.surroundK
-        val surrounded = surround(surroundee)
+    "surroundK" should {
+      "wrap an effect in a usage, ignore the value produced by resource and return FunctionK" in ticked {
+        implicit ticker =>
+          val r = Resource.eval(IO.pure(0))
+          val surroundee = IO("hello")
+          val surround = r.surroundK
+          val surrounded = surround(surroundee)
 
-        surrounded eqv surroundee
+          surrounded eqv surroundee
+      }
+    }
+  }
+
+  "Async[Resource]" >> {
+    val wait = IO.sleep(1.second)
+    val waitR = Resource.eval(wait)
+
+    "async" should {
+      "forward inner finalizers into outer scope" in ticked { implicit ticker =>
+        var innerClosed = false
+        var outerClosed = false
+
+        val inner = Resource.make(wait)(_ => IO { innerClosed = true })
+        val outerInit = Resource.make(IO.unit)(_ => IO { outerClosed = true })
+
+        val async = Async[Resource[IO, *]].async[Unit] { cb =>
+          (inner *> Resource.eval(IO(cb(Right(()))))).as(None)
+        }
+
+        (outerInit *> async *> waitR).use_.unsafeToFuture()
+
+        ticker.ctx.tick(1.second)
+        innerClosed must beFalse
+        outerClosed must beFalse
+
+        ticker.ctx.tick(1.second)
+        innerClosed must beTrue
+        outerClosed must beTrue
+      }
     }
 
+    "forceR" >> {
+      "closes left scope" in ticked { implicit ticker =>
+        var leftClosed = false
+        var rightClosed = false
+
+        val target =
+          Resource.make(wait)(_ => IO { leftClosed = true }) !>
+            Resource.make(wait)(_ => IO { rightClosed = true })
+
+        target.use_.unsafeToFuture()
+
+        ticker.ctx.tick(1.second)
+        leftClosed must beTrue
+        rightClosed must beFalse
+
+        ticker.ctx.tick(1.second)
+        rightClosed must beTrue
+      }
+    }
+
+    "onCancel" >> {
+      "catches inner cancelation" in ticked { implicit ticker =>
+        var innerClosed = false
+        var outerClosed = false
+        var canceled = false
+
+        val inner =
+          Resource.make(IO.unit)(_ => IO { innerClosed = true }) *> Resource.eval(IO.canceled)
+        val outer = Resource.make(IO.unit)(_ => IO { outerClosed = true })
+
+        val target = inner.onCancel(Resource.eval(IO { canceled = true })) *> outer
+
+        target.use_ must selfCancel
+        innerClosed must beTrue
+        outerClosed must beFalse
+        canceled must beTrue
+      }
+
+      "does not extend across the region" in ticked { implicit ticker =>
+        var innerClosed = false
+        var outerClosed = false
+        var canceled = false
+
+        val inner = Resource.make(IO.unit)(_ => IO { innerClosed = true })
+        val outer =
+          Resource.make(IO.unit)(_ => IO { outerClosed = true }) *> Resource.eval(IO.canceled)
+
+        val target = inner.onCancel(Resource.eval(IO { canceled = true })) *> outer
+
+        target.use_ must selfCancel
+        innerClosed must beTrue
+        outerClosed must beTrue
+        canceled must beFalse // if this is true, it means the scope was extended rather than being closed!
+      }
+    }
+
+    "race" >> {
+      "two acquisitions, closing the loser and maintaining the winner" in ticked {
+        implicit ticker =>
+          var winnerClosed = false
+          var loserClosed = false
+          var completed = false
+
+          var results: Either[String, String] = null
+
+          val winner = Resource
+            .make(IO.unit)(_ => IO { winnerClosed = true })
+            .evalMap(_ => IO.sleep(100.millis))
+            .as("winner")
+          val loser = Resource
+            .make(IO.unit)(_ => IO { loserClosed = true })
+            .evalMap(_ => IO.sleep(200.millis))
+            .as("loser")
+
+          val target =
+            winner.race(loser).evalMap(e => IO { results = e }) *> waitR *> Resource.eval(IO {
+              completed = true
+            })
+
+          target.use_.unsafeToFuture()
+
+          ticker.ctx.tick(50.millis)
+          winnerClosed must beFalse
+          loserClosed must beFalse
+          completed must beFalse
+          results must beNull
+
+          ticker.ctx.tick(50.millis)
+          winnerClosed must beFalse
+          loserClosed must beTrue
+          completed must beFalse
+          results must beLeft("winner")
+
+          ticker.ctx.tick(50.millis)
+          winnerClosed must beFalse
+          loserClosed must beTrue
+          completed must beFalse
+          results must beLeft("winner")
+
+          ticker.ctx.tick(1.second)
+          winnerClosed must beTrue
+          completed must beTrue
+      }
+    }
+
+    "start" >> {
+      "runs fibers in parallel" in ticked { implicit ticker =>
+        var completed = false
+        val target = waitR.start *> waitR *> Resource.eval(IO { completed = true })
+
+        target.use_.unsafeToFuture()
+        ticker.ctx.tick(1.second)
+        completed must beTrue
+      }
+
+      "run finalizers when completed and outer scope is closed" in ticked { implicit ticker =>
+        var i = 0
+        var completed = false
+        val target = Resource.make(IO { completed = true })(_ => IO(i += 1)).start *> waitR
+
+        target.use_ must completeAs(())
+        completed must beTrue
+        i mustEqual 1
+      }
+
+      "run finalizers after completion when outer scope is closed" in ticked {
+        implicit ticker =>
+          var i = 0
+          var completed = false
+
+          val finish = Resource.eval(IO { completed = true })
+          val target = Resource.make(wait)(_ => IO(i += 1)).start *> finish
+
+          target.use_.unsafeToFuture()
+          ticker.ctx.tick(50.millis)
+
+          completed must beTrue
+          i mustEqual 0
+
+          ticker.ctx.tick(1.second)
+          i mustEqual 1
+      }
+
+      "run finalizers once when canceled" in ticked { implicit ticker =>
+        var i = 0
+
+        val fork = Resource.make(IO.unit)(_ => IO(i += 1)) *> waitR *> waitR
+        val target = fork.start flatMap { f => waitR *> f.cancel }
+
+        target.use_.unsafeToFuture()
+
+        ticker.ctx.tick(1.second)
+        i mustEqual 1
+
+        ticker.ctx.tick(1.second)
+        i mustEqual 1
+      }
+
+      "extends finalizers into join scope" in ticked { implicit ticker =>
+        var i = 0
+        var completed = false
+
+        val fork = Resource.make(IO.unit)(_ => IO(i += 1))
+
+        val target = fork.start.evalMap(f => (f.joinWithNever *> waitR).use_) *>
+          waitR *>
+          Resource.eval(IO { completed = true })
+
+        target.use_.unsafeToFuture()
+
+        ticker.ctx.tick(100.millis)
+        i mustEqual 0
+
+        ticker.ctx.tick(900.millis)
+        i mustEqual 1
+        completed must beFalse
+
+        ticker.ctx.tick(1.second)
+        completed must beTrue
+      }
+    }
   }
 
   {
