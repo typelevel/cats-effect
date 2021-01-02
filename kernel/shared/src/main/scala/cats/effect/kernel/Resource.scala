@@ -159,7 +159,6 @@ import scala.concurrent.duration.FiniteDuration
  */
 sealed abstract class Resource[F[_], +A] {
   import Resource._
-  import Skolem.τ
 
   private[effect] def fold[B](
       onOutput: A => F[B],
@@ -291,18 +290,6 @@ sealed abstract class Resource[F[_], +A] {
       (allocate(this, leftStore), allocate(that, rightStore)).parTupled
     }
   }
-
-  def flattenK[G[_]](implicit F: MonadCancel[F, Throwable], ev: F[τ] <:< Resource[G, τ], G: MonadCancel[G, Throwable]): Resource[G, A] =
-    Resource applyFull { poll =>
-      // cast is safe because of ev
-      val casted = allocated.asInstanceOf[Resource[G, (A, Resource[G, Unit])]].allocated
-
-      poll(casted) map {
-        case ((a, rfin), fin) =>
-          val composedFinalizers = fin !> rfin.allocated.flatMap(_._2)
-          (a, (_: ExitCase) => composedFinalizers)
-      }
-    }
 
   /**
    * Implementation for the `flatMap` operation, as described via the
@@ -773,14 +760,24 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
       }
   }
 
+  implicit final class NestedSyntax[F[_], A](val self: Resource[Resource[F, *], A])
+      extends AnyVal {
+    def flattenK(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
+      Resource applyFull { poll =>
+        val alloc = self.allocated.allocated
+
+        poll(alloc) map {
+          case ((a, rfin), fin) =>
+            val composedFinalizers = fin !> rfin.allocated.flatMap(_._2)
+            (a, (_: Resource.ExitCase) => composedFinalizers)
+        }
+      }
+  }
+
   type Par[F[_], A] = ParallelF[Resource[F, *], A]
 
   implicit def parallelForResource[F[_]: Concurrent]: Parallel.Aux[Resource[F, *], Par[F, *]] =
     spawn.parallelForGenSpawn[Resource[F, *], Throwable]
-}
-
-private[effect] object Skolem {
-  type τ
 }
 
 private[effect] trait ResourceHOInstances0 extends ResourceHOInstances1 {
