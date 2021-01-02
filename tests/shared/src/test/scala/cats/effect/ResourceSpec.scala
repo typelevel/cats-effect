@@ -639,9 +639,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       var results = ""
 
       val r: Resource[Resource[IO, *], Int] =
-        Resource.make(
-          Resource.make(IO.pure(42))(_ => IO(results += "a")))(
-          _ => Resource.eval(IO(results += "b")))
+        Resource.make(Resource.make(IO.pure(42))(_ => IO(results += "a")))(_ =>
+          Resource.eval(IO(results += "b")))
 
       r.flattenK.use(IO.pure(_)) must completeAs(42)
       results mustEqual "ab"
