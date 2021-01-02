@@ -291,6 +291,18 @@ sealed abstract class Resource[F[_], +A] {
     }
   }
 
+  def flattenK[G[_]](implicit F: MonadCancel[F, Throwable], ev: F[τ] <:< Resource[G, τ], G: MonadCancel[G, Throwable]): Resource[G, A] =
+    Resource applyFull { poll =>
+      // cast is safe because of ev
+      val casted = allocated.asInstanceOf[Resource[G, (A, Resource[G, Unit])]].allocated
+
+      poll(casted) map {
+        case ((a, rfin), fin) =>
+          val composedFinalizers = fin !> rfin.allocated.flatMap(_._2)
+          (a, (_: ExitCase) => composedFinalizers)
+      }
+    }
+
   /**
    * Implementation for the `flatMap` operation, as described via the
    * `cats.Monad` type class.
@@ -461,6 +473,7 @@ sealed abstract class Resource[F[_], +A] {
 }
 
 object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with ResourcePlatform {
+  type τ
 
   /**
    * Creates a resource from an allocating effect.
