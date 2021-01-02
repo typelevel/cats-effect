@@ -159,6 +159,7 @@ import scala.concurrent.duration.FiniteDuration
  */
 sealed abstract class Resource[F[_], +A] {
   import Resource._
+  import Skolem.τ
 
   private[effect] def fold[B](
       onOutput: A => F[B],
@@ -473,7 +474,6 @@ sealed abstract class Resource[F[_], +A] {
 }
 
 object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with ResourcePlatform {
-  type τ
 
   /**
    * Creates a resource from an allocating effect.
@@ -777,6 +777,10 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
 
   implicit def parallelForResource[F[_]: Concurrent]: Parallel.Aux[Resource[F, *], Par[F, *]] =
     spawn.parallelForGenSpawn[Resource[F, *], Throwable]
+}
+
+private[effect] object Skolem {
+  type τ
 }
 
 private[effect] trait ResourceHOInstances0 extends ResourceHOInstances1 {
