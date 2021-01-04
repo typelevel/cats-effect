@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats
+package effect
+package std
 
-import cats.{~>, Order}
 import cats.implicits._
 import cats.effect.kernel.syntax.all._
 import cats.effect.kernel.{Concurrent, Deferred, Ref}
@@ -31,49 +32,7 @@ import scala.collection.immutable.{Queue => ScalaQueue}
  * Assumes an `Order` instance is in scope for `A`
  */
 
-abstract class PQueue[F[_], A] { self =>
-
-  /**
-   * Enqueues the given element, possibly semantically
-   * blocking until sufficient capacity becomes available.
-   *
-   * O(log(n))
-   *
-   * @param a the element to be put in the PQueue
-   */
-  def offer(a: A): F[Unit]
-
-  /**
-   * Attempts to enqueue the given element without
-   * semantically blocking.
-   *
-   * O(log(n))
-   *
-   * @param a the element to be put in the PQueue
-   * @return an effect that describes whether the enqueuing of the given
-   *         element succeeded without blocking
-   */
-  def tryOffer(a: A): F[Boolean]
-
-  /**
-   * Dequeues the least element from the PQueue, possibly semantically
-   * blocking until an element becomes available.
-   *
-   * O(log(n))
-   */
-  def take: F[A]
-
-  /**
-   * Attempts to dequeue the least element from the PQueue, if one is
-   * available without semantically blocking.
-   *
-   * O(log(n))
-   *
-   * @return an effect that describes whether the dequeueing of an element from
-   *         the PQueue succeeded without blocking, with `None` denoting that no
-   *         element was available
-   */
-  def tryTake: F[Option[A]]
+abstract class PQueue[F[_], A] extends PQueueSource[F, A] with PQueueSink[F, A] { self =>
 
   /**
    * Modifies the context in which this PQueue is executed using the natural
@@ -216,9 +175,98 @@ object PQueue {
       )
   }
 
+  implicit def catsInvariantForPQueue[F[_]: Functor]: Invariant[PQueue[F, *]] =
+    new Invariant[PQueue[F, *]] {
+      override def imap[A, B](fa: PQueue[F, A])(f: A => B)(g: B => A): PQueue[F, B] =
+        new PQueue[F, B] {
+          override def offer(b: B): F[Unit] =
+            fa.offer(g(b))
+          override def tryOffer(b: B): F[Boolean] =
+            fa.tryOffer(g(b))
+          override def take: F[B] =
+            fa.take.map(f)
+          override def tryTake: F[Option[B]] =
+            fa.tryTake.map(_.map(f))
+        }
+    }
+
   private def assertNonNegative(capacity: Int): Unit =
     if (capacity < 0)
       throw new IllegalArgumentException(
         s"Bounded queue capacity must be non-negative, was: $capacity")
     else ()
+}
+
+trait PQueueSource[F[_], A] {
+
+  /**
+   * Dequeues the least element from the PQueue, possibly semantically
+   * blocking until an element becomes available.
+   *
+   * O(log(n))
+   */
+  def take: F[A]
+
+  /**
+   * Attempts to dequeue the least element from the PQueue, if one is
+   * available without semantically blocking.
+   *
+   * O(log(n))
+   *
+   * @return an effect that describes whether the dequeueing of an element from
+   *         the PQueue succeeded without blocking, with `None` denoting that no
+   *         element was available
+   */
+  def tryTake: F[Option[A]]
+}
+
+object PQueueSource {
+  implicit def catsFunctorForPQueueSource[F[_]: Functor]: Functor[PQueueSource[F, *]] =
+    new Functor[PQueueSource[F, *]] {
+      override def map[A, B](fa: PQueueSource[F, A])(f: A => B): PQueueSource[F, B] =
+        new PQueueSource[F, B] {
+          override def take: F[B] =
+            fa.take.map(f)
+          override def tryTake: F[Option[B]] =
+            fa.tryTake.map(_.map(f))
+        }
+    }
+}
+
+trait PQueueSink[F[_], A] {
+
+  /**
+   * Enqueues the given element, possibly semantically
+   * blocking until sufficient capacity becomes available.
+   *
+   * O(log(n))
+   *
+   * @param a the element to be put in the PQueue
+   */
+  def offer(a: A): F[Unit]
+
+  /**
+   * Attempts to enqueue the given element without
+   * semantically blocking.
+   *
+   * O(log(n))
+   *
+   * @param a the element to be put in the PQueue
+   * @return an effect that describes whether the enqueuing of the given
+   *         element succeeded without blocking
+   */
+  def tryOffer(a: A): F[Boolean]
+}
+
+object PQueueSink {
+  implicit def catsContravariantForPQueueSink[F[_]: Functor]: Contravariant[PQueueSink[F, *]] =
+    new Contravariant[PQueueSink[F, *]] {
+      override def contramap[A, B](fa: PQueueSink[F, A])(f: B => A): PQueueSink[F, B] =
+        new PQueueSink[F, B] {
+          override def offer(b: B): F[Unit] =
+            fa.offer(f(b))
+          override def tryOffer(b: B): F[Boolean] =
+            fa.tryOffer(f(b))
+        }
+    }
 }

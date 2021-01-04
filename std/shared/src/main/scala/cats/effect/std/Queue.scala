@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats
+package effect
+package std
 
-import cats.~>
 import cats.effect.kernel.{Deferred, GenConcurrent, Poll, Ref}
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
@@ -35,41 +36,7 @@ import scala.collection.immutable.{Queue => ScalaQueue}
  * The [[Queue#tryOffer]] and [[Queue#tryTake]] allow for usecases which want to
  * avoid semantically blocking a fiber.
  */
-abstract class Queue[F[_], A] { self =>
-
-  /**
-   * Enqueues the given element at the back of the queue, possibly semantically
-   * blocking until sufficient capacity becomes available.
-   *
-   * @param a the element to be put at the back of the queue
-   */
-  def offer(a: A): F[Unit]
-
-  /**
-   * Attempts to enqueue the given element at the back of the queue without
-   * semantically blocking.
-   *
-   * @param a the element to be put at the back of the queue
-   * @return an effect that describes whether the enqueuing of the given
-   *         element succeeded without blocking
-   */
-  def tryOffer(a: A): F[Boolean]
-
-  /**
-   * Dequeues an element from the front of the queue, possibly semantically
-   * blocking until an element becomes available.
-   */
-  def take: F[A]
-
-  /**
-   * Attempts to dequeue an element from the front of the queue, if one is
-   * available without semantically blocking.
-   *
-   * @return an effect that describes whether the dequeueing of an element from
-   *         the queue succeeded without blocking, with `None` denoting that no
-   *         element was available
-   */
-  def tryTake: F[Option[A]]
+abstract class Queue[F[_], A] extends QueueSource[F, A] with QueueSink[F, A] { self =>
 
   /**
    * Modifies the context in which this queue is executed using the natural
@@ -335,4 +302,85 @@ object Queue {
     def empty[F[_], A]: State[F, A] =
       State(ScalaQueue.empty, 0, ScalaQueue.empty, ScalaQueue.empty)
   }
+
+  implicit def catsInvariantForQueue[F[_]: Functor]: Invariant[Queue[F, *]] =
+    new Invariant[Queue[F, *]] {
+      override def imap[A, B](fa: Queue[F, A])(f: A => B)(g: B => A): Queue[F, B] =
+        new Queue[F, B] {
+          override def offer(b: B): F[Unit] =
+            fa.offer(g(b))
+          override def tryOffer(b: B): F[Boolean] =
+            fa.tryOffer(g(b))
+          override def take: F[B] =
+            fa.take.map(f)
+          override def tryTake: F[Option[B]] =
+            fa.tryTake.map(_.map(f))
+        }
+    }
+}
+
+trait QueueSource[F[_], A] {
+
+  /**
+   * Dequeues an element from the front of the queue, possibly semantically
+   * blocking until an element becomes available.
+   */
+  def take: F[A]
+
+  /**
+   * Attempts to dequeue an element from the front of the queue, if one is
+   * available without semantically blocking.
+   *
+   * @return an effect that describes whether the dequeueing of an element from
+   *         the queue succeeded without blocking, with `None` denoting that no
+   *         element was available
+   */
+  def tryTake: F[Option[A]]
+}
+
+object QueueSource {
+  implicit def catsFunctorForQueueSource[F[_]: Functor]: Functor[QueueSource[F, *]] =
+    new Functor[QueueSource[F, *]] {
+      override def map[A, B](fa: QueueSource[F, A])(f: A => B): QueueSource[F, B] =
+        new QueueSource[F, B] {
+          override def take: F[B] =
+            fa.take.map(f)
+          override def tryTake: F[Option[B]] =
+            fa.tryTake.map(_.map(f))
+        }
+    }
+}
+
+trait QueueSink[F[_], A] {
+
+  /**
+   * Enqueues the given element at the back of the queue, possibly semantically
+   * blocking until sufficient capacity becomes available.
+   *
+   * @param a the element to be put at the back of the queue
+   */
+  def offer(a: A): F[Unit]
+
+  /**
+   * Attempts to enqueue the given element at the back of the queue without
+   * semantically blocking.
+   *
+   * @param a the element to be put at the back of the queue
+   * @return an effect that describes whether the enqueuing of the given
+   *         element succeeded without blocking
+   */
+  def tryOffer(a: A): F[Boolean]
+}
+
+object QueueSink {
+  implicit def catsContravariantForQueueSink[F[_]: Functor]: Contravariant[QueueSink[F, *]] =
+    new Contravariant[QueueSink[F, *]] {
+      override def contramap[A, B](fa: QueueSink[F, A])(f: B => A): QueueSink[F, B] =
+        new QueueSink[F, B] {
+          override def offer(b: B): F[Unit] =
+            fa.offer(f(b))
+          override def tryOffer(b: B): F[Boolean] =
+            fa.tryOffer(f(b))
+        }
+    }
 }
