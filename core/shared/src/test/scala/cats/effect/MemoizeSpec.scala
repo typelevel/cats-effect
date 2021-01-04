@@ -34,7 +34,7 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
 
   "Concurrent.memoize" >> {
 
-    "Concurrent.memoize does not evaluates the effect if the inner `F[A]` isn't bound" in ticked {
+    "Concurrent.memoize does not evaluate the effect if the inner `F[A]` isn't bound" in ticked {
       implicit ticker =>
         val op = for {
           ref <- Ref.of[IO, Int](0)
@@ -49,7 +49,7 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
         result.value mustEqual Some(Success(0))
     }
 
-    "Concurrent.memoize evalutes effect once if inner `F[A]` is bound twice" in ticked {
+    "Concurrent.memoize evaluates effect once if inner `F[A]` is bound twice" in ticked {
       implicit ticker =>
         val op = for {
           ref <- Ref.of[IO, Int](0)

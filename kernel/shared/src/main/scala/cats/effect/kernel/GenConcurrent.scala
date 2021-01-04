@@ -32,65 +32,48 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
   def deferred[A]: F[Deferred[F, A]]
 
   /**
-   * Caches the outcome of `fa`.
+   * Caches the result of `fa`.
    *
    * The returned inner effect, hence referred to as `get`, when sequenced, will
-   * evaluate `fa` and cache the outcome. If `get` is sequenced multiple times
+   * evaluate `fa` and cache the result. If `get` is sequenced multiple times
    * `fa` will only be evaluated once.
    *
    * If all `get`s are canceled prior to `fa` completing, it will be canceled
    * and evaluated again the next time `get` is sequenced.
-   *
-   * If `get` is masked and the outcome of `fa` is cancellation, the result
-   * will block indefinitely.
    */
   def memoize[A](fa: F[A]): F[F[A]] = {
     import Memoize._
     implicit val F: GenConcurrent[F, E] = this
 
-    ref[Memoize[F, E, A]](Start()).map { state =>
-      def removeSubscriber: F[Unit] =
-        state.modify {
-          case Start() =>
-            throw new AssertionError("unreachable")
-          case Running(subs, value, stop) =>
-            if (subs > 1) {
-              Running(subs - 1, value, stop) -> F.unit
-            } else {
-              Start() -> stop.get.flatten
-            }
-          case st @ Done(_) =>
-            st -> F.unit
-        }.flatten
-
-      def fetch: F[A] =
-        F.guaranteeCase(fa) { result =>
-          state.modify {
-            // All awaiting the fetched value canceled
-            case Start() =>
-              Start() -> F.unit
-            case Running(_, value, _) =>
-              Done(result) -> value.complete(result).void
-            case Done(_) =>
-              throw new AssertionError("unreachable")
-          }.flatten
-        }
-
-      deferred[Outcome[F, E, A]].product(F.deferred[F[Unit]]).flatMap {
-        case (value, stop) =>
+    ref[Memoize[F, E, A]](Unevaluated()) map { state =>
+      def eval: F[A] =
+        deferred[Unit] flatMap { latch =>
           uncancelable { poll =>
             state.modify {
-              case Start() => {
-                val start = fetch.start.flatMap(fiber => stop.complete(fiber.cancel))
-                Running(1, value, stop) -> start *> poll(value.get).onCancel(removeSubscriber)
-              }
-              case Running(subs, value, stop) =>
-                Running(subs + 1, value, stop) -> poll(value.get).onCancel(removeSubscriber)
-              case st @ Done(value) =>
-                st -> F.pure(value)
+              case Unevaluated() =>
+                val go =
+                  poll(fa).attempt
+                    .onCancel(state.set(Unevaluated()))
+                    .flatMap(ea => state.set(Finished(ea)).as(ea))
+                    .guarantee(latch.complete(()).void)
+                    .rethrow
+
+                Evaluating(latch.get) -> go
+
+              case other =>
+                other -> poll(get)
             }.flatten
-          }.flatMap(_.embed(F.canceled *> F.never))
-      }
+          }
+        }
+
+      def get: F[A] =
+        state.get flatMap {
+          case Unevaluated() => eval
+          case Evaluating(await) => await *> get
+          case Finished(ea) => fromEither(ea)
+        }
+
+      get
     }
   }
 
@@ -163,13 +146,9 @@ object GenConcurrent {
 
   private sealed abstract class Memoize[F[_], E, A]
   private object Memoize {
-    final case class Start[F[_], E, A]() extends Memoize[F, E, A]
-    final case class Running[F[_], E, A](
-        subs: Int,
-        value: Deferred[F, Outcome[F, E, A]],
-        stop: Deferred[F, F[Unit]])
-        extends Memoize[F, E, A]
-    final case class Done[F[_], E, A](value: Outcome[F, E, A]) extends Memoize[F, E, A]
+    final case class Unevaluated[F[_], E, A]() extends Memoize[F, E, A]
+    final case class Evaluating[F[_], E, A](await: F[Unit]) extends Memoize[F, E, A]
+    final case class Finished[F[_], E, A](result: Either[E, A]) extends Memoize[F, E, A]
   }
 
   implicit def genConcurrentForOptionT[F[_], E](
