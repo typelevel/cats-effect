@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,9 @@ ThisBuild / baseVersion := "3.0"
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
+
+ThisBuild / startYear := Some(2020)
+ThisBuild / endYear := Some(2021)
 
 ThisBuild / developers := List(
   Developer("djspiewak", "Daniel Spiewak", "@djspiewak", url("https://github.com/djspiewak")),
@@ -149,11 +152,11 @@ lazy val root = project.in(file("."))
   .enablePlugins(NoPublishPlugin)
 
 lazy val rootJVM = project
-  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm, std.jvm, example.jvm, benchmarks)
+  .aggregate(kernel.jvm, kernelTestkit.jvm, laws.jvm, core.jvm, testkit.jvm, tests.jvm, std.jvm, example.jvm, benchmarks)
   .enablePlugins(NoPublishPlugin)
 
 lazy val rootJS = project
-  .aggregate(kernel.js, testkit.js, laws.js, core.js, std.js, example.js)
+  .aggregate(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.jvm, std.js, example.js)
   .enablePlugins(NoPublishPlugin)
 
 /**
@@ -171,10 +174,10 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform).in(file("kernel"))
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
  * generators, and useful tools for testing code written against Cats Effect.
  */
-lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
+lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform).in(file("kernel-testkit"))
   .dependsOn(kernel)
   .settings(
-    name := "cats-effect-testkit",
+    name := "cats-effect-kernel-testkit",
 
     libraryDependencies ++= Seq(
       "org.typelevel"  %%% "cats-free"  % CatsVersion,
@@ -184,10 +187,10 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid
  * jar file and dependency issues. As a consequence of this split, some things
- * which are defined in testkit are *tested* in the Test scope of this project.
+ * which are defined in kernelTestkit are *tested* in the Test scope of this project.
  */
 lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
-  .dependsOn(kernel, testkit % Test)
+  .dependsOn(kernel, kernelTestkit % Test)
   .settings(
     name := "cats-effect-laws",
 
@@ -202,10 +205,30 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
  * (such as IOApp). This is the "batteries included" dependency.
  */
 lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
-  .dependsOn(kernel, std, laws % Test, testkit % Test)
+  .dependsOn(kernel, std)
   .settings(
-    name := "cats-effect",
+    name := "cats-effect"
+  )
 
+/**
+ * Test support for the core project, providing various helpful instances
+ * like ScalaCheck generators for IO and SyncIO.
+ */
+lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
+  .dependsOn(core, kernelTestkit)
+  .settings(
+    name := "cats-effect-testkit",
+    libraryDependencies ++= Seq(
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion))
+
+/**
+ * Unit tests for the core project, utilizing the support provided by testkit.
+ */
+lazy val tests = crossProject(JSPlatform, JVMPlatform).in(file("tests"))
+  .dependsOn(laws % Test, kernelTestkit % Test, testkit % Test)
+  .enablePlugins(NoPublishPlugin)
+  .settings(
+    name := "cats-effect-tests",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.typelevel" %%% "cats-kernel-laws"  % CatsVersion       % Test))

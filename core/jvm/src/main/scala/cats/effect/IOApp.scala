@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,7 +67,13 @@ trait IOApp {
     val hook = new Thread(() => handleShutdown())
     hook.setName("io-cancel-hook")
 
-    rt.addShutdownHook(hook)
+    try {
+      rt.addShutdownHook(hook)
+    } catch {
+      case _: IllegalStateException =>
+        // we're already being shut down
+        handleShutdown()
+    }
 
     try {
       latch.await()
@@ -79,7 +85,14 @@ trait IOApp {
         // otherwise scheduler threads will accumulate over time.
         runtime.internalShutdown()
         runtime.shutdown()
-        System.exit(result.code)
+        if (result == ExitCode.Success) {
+          // Return naturally from main. This allows any non-daemon
+          // threads to gracefully complete their work, and managed
+          // environments to execute their own shutdown hooks.
+          ()
+        } else {
+          System.exit(result.code)
+        }
       }
     } catch {
       // this handles sbt when fork := false

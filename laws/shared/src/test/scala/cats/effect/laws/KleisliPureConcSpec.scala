@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package laws
 
 import cats.Order
 import cats.data.Kleisli
-import cats.effect.testkit.{pure, PureConcGenerators, Time, TimeT}, pure._, TimeT._
+import cats.effect.kernel.testkit.{pure, PureConcGenerators, Time, TimeT}, pure._, TimeT._
 import cats.laws.discipline.{arbitrary, MiniInt}
 
 import org.scalacheck.{Arbitrary, Cogen, Prop}

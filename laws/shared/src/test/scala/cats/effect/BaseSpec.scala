@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package cats.effect
 
 import cats.{Eq, FlatMap, Monad, MonadError, Show}
 import cats.data._
-import cats.effect.testkit.freeEval._
+import cats.effect.kernel.testkit.freeEval._
 import cats.laws.discipline.{eq, ExhaustiveCheck, MiniInt}, eq._
 import cats.syntax.all._
 

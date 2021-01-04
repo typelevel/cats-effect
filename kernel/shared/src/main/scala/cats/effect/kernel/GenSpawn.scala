@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -191,6 +191,8 @@ import cats.effect.kernel.syntax.monadCancel._
  */
 trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
   implicit private[this] def F: MonadCancel[F, E] = this
+
+  final def rootCancelScope: CancelScope = CancelScope.Cancelable
 
   /**
    * A low-level primitive for starting the concurrent evaluation of a fiber.

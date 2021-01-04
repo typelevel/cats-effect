@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,6 +59,13 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
    */
   def unsafeToFuture[A](fa: F[A]): Future[A] =
     unsafeToFutureCancelable(fa)._1
+
+  /**
+   * Submits an effect to be executed, returning a cancellation token that
+   * can be used to cancel it.
+   */
+  def unsafeRunCancelable[A](fa: F[A]): () => Future[Unit] =
+    unsafeToFutureCancelable(fa)._2
 
   /**
    * Submits an effect to be executed with fire-and-forget semantics.

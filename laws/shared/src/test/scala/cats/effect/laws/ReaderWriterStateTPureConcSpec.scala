@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package laws
 
 import cats.{Eq, Monad}
 import cats.data.ReaderWriterStateT
-import cats.effect.testkit.{pure, PureConcGenerators}, pure._
+import cats.effect.kernel.testkit.{pure, PureConcGenerators}, pure._
 import cats.laws.discipline.{arbitrary, eq, MiniInt}, arbitrary._, eq._
 
 import org.specs2.ScalaCheck
