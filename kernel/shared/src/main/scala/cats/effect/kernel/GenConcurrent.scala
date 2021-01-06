@@ -52,7 +52,8 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
             state.modify {
               case Unevaluated() =>
                 val go =
-                  poll(fa).attempt
+                  poll(fa)
+                    .attempt
                     .onCancel(state.set(Unevaluated()))
                     .flatMap(ea => state.set(Finished(ea)).as(ea))
                     .guarantee(latch.complete(()).void)
