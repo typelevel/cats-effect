@@ -33,6 +33,9 @@ package object kernel {
   type Concurrent[F[_]] = GenConcurrent[F, Throwable]
   val Concurrent = GenConcurrent
 
+  type Deferred[F[_], A] = Deferred2[F, F, A]
+  val Deferred = Deferred2
+
   type ParallelF[F[_], A] = Par.ParallelF[F, A]
   val ParallelF = Par.ParallelF
 }

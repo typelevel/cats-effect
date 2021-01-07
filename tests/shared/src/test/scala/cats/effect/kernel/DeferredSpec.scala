@@ -147,5 +147,77 @@ class DeferredSpec extends BaseSpec { outer =>
       }
     }
 
+    "invariant functor" in real {
+      import cats.syntax.invariant._
+      final case class Wrap(i: Int)
+      val op = for {
+        d <- Deferred[IO, Int]
+        dd = d.imap(Wrap(_))(_.i)
+        ok <- dd.complete(Wrap(42))
+        r <- d.get
+      } yield (ok, r)
+
+      op.flatMap { r =>
+        IO {
+          r must beEqualTo((true, 42))
+        }
+      }
+    }
+  }
+
+  "Deferred2" >> {
+
+    def lift[A](s: SyncIO[A]): IO[A] =
+      IO { s.unsafeRunSync() }
+
+    "source and sink" in real {
+      val mk: SyncIO[(DeferredSource[IO, Int], DeferredSink[SyncIO, Int])] =
+        Deferred[IO, SyncIO, Int].map { d => (d, d) }
+      val op = for {
+        sourceSink <- lift(mk)
+        (source, sink) = sourceSink
+        fib <- source.get.start
+        ok <- lift(sink.complete(42))
+        res <- fib.joinWithNever
+      } yield (ok, res)
+
+      op.flatMap { res =>
+        IO {
+          res must beEqualTo((true, 42))
+        }
+      }
+    }
+
+    "tryGetG" in real {
+      val op = for {
+        d <- Deferred[IO, SyncIO, Int]
+        r1 <- d.tryGetG
+        ok <- d.complete(42)
+        r2 <- d.tryGetG
+      } yield (r1, ok, r2)
+
+      lift(op).flatMap { res =>
+        IO {
+          res must beEqualTo((None, true, Some(42)))
+        }
+      }
+    }
+
+    "invariant functor" in real {
+      import cats.syntax.invariant._
+      final case class Wrap(i: Int)
+      val op = for {
+        d <- lift(Deferred[IO, SyncIO, Int])
+        dd = d.imap(Wrap(_))(_.i)
+        ok <- lift(dd.complete(Wrap(42)))
+        r <- d.get
+      } yield (ok, r)
+
+      op.flatMap { r =>
+        IO {
+          r must beEqualTo((true, 42))
+        }
+      }
+    }
   }
 }

@@ -278,6 +278,8 @@ object pure {
           override def complete(a: A): PureConc[E, Boolean] = mVar.tryPut[PureConc[E, *]](a)
 
           override def tryGet: PureConc[E, Option[A]] = mVar.tryRead[PureConc[E, *]]
+
+          override def tryGetG: PureConc[E, Option[A]] = tryGet
         }
 
       def start[A](fa: PureConc[E, A]): PureConc[E, Fiber[PureConc[E, *], E, A]] =
