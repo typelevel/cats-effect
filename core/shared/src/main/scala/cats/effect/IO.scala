@@ -17,9 +17,11 @@
 package cats.effect
 
 import cats.{
+  Alternative,
   Applicative,
   Eval,
   Id,
+  Monad,
   Monoid,
   Now,
   Parallel,
@@ -245,6 +247,22 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     runtime.compute.execute(fiber)
     fiber
   }
+
+  def foreverM: IO[A] = Monad[IO].foreverM(this)
+
+  def whileM[G[_]: Alternative, B >: A](p: IO[Boolean]): IO[G[B]] =
+    Monad[IO].whileM[G, B](p)(this)
+
+  def whileM_(p: IO[Boolean]): IO[Unit] = Monad[IO].whileM_(p)(this)
+
+  def untilM[G[_]: Alternative, B >: A](cond: => IO[Boolean]): IO[G[B]] =
+    Monad[IO].untilM[G, B](this)(cond)
+
+  def untilM_(cond: => IO[Boolean]): IO[Unit] = Monad[IO].untilM_(this)(cond)
+
+  def iterateWhile(p: A => Boolean): IO[A] = Monad[IO].iterateWhile(this)(p)
+
+  def iterateUntil(p: A => Boolean): IO[A] = Monad[IO].iterateUntil(this)(p)
 }
 
 private[effect] trait IOLowPriorityImplicits {
