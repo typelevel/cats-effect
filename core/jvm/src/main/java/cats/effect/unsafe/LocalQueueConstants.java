@@ -16,7 +16,7 @@
 
 package cats.effect.unsafe;
 
-final class WorkStealingQueueConstants {
+final class LocalQueueConstants {
   
   // Fixed capacity of the local work queue (power of 2).
   public static final int LocalQueueCapacity = 256;

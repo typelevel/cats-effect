@@ -32,7 +32,7 @@ import java.util.concurrent.locks.LockSupport
 
 /**
  * Worker thread implementation used in `WorkStealingThreadPool`.
- * Each worker thread has its own `WorkStealingQueue` where
+ * Each worker thread has its own `LocalQueue` where
  * `IOFiber`s are scheduled for execution. This is the main
  * difference to a fixed thread executor, in which all threads
  * contend for work from a single shared queue.
@@ -45,7 +45,7 @@ private final class WorkerThread(
   import WorkStealingThreadPoolConstants._
 
   // The local work stealing queue where tasks are scheduled without contention.
-  private[this] val queue: WorkStealingQueue = new WorkStealingQueue()
+  private[this] val queue: LocalQueue = new LocalQueue()
 
   // Counter for periodically checking for any fibers coming from the external queue.
   private[this] var tick: Int = 0
@@ -94,8 +94,8 @@ private final class WorkerThread(
    * A forwarder method for stealing work from the local work stealing queue in
    * this thread into the `into` queue that belongs to another thread.
    */
-  def stealInto(into: WorkStealingQueue): IOFiber[_] =
-    queue.stealInto(into)
+  def stealInto(into: LocalQueue): IOFiber[_] =
+    queue.steal(into)
 
   /**
    * A forwarder method for checking if the local work stealing queue contains
@@ -120,7 +120,7 @@ private final class WorkerThread(
   /**
    * Returns the local work stealing queue of this worker thread.
    */
-  def getQueue(): WorkStealingQueue =
+  def getQueue(): LocalQueue =
     queue
 
   /**
@@ -137,11 +137,11 @@ private final class WorkerThread(
       fiber = pool.externalDequeue()
       if (fiber == null) {
         // Fall back to checking the local queue.
-        fiber = queue.dequeueLocally()
+        fiber = queue.dequeue()
       }
     } else {
       // Normal case, look for work in the local queue.
-      fiber = queue.dequeueLocally()
+      fiber = queue.dequeue()
       if (fiber == null) {
         // Fall back to checking the external queue.
         fiber = pool.externalDequeue()
@@ -191,7 +191,7 @@ private final class WorkerThread(
 
       // Spurious wakeup check.
       if (transitionFromParked()) {
-        if (queue.isStealable()) {
+        if (queue.nonEmpty()) {
           // The local queue can be potentially stolen from. Notify a worker thread.
           pool.notifyParked()
         }
