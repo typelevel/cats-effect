@@ -112,7 +112,7 @@ This is a rather dangerous operation, when you think about it, since there is no
 
 In a very real sense, `Sync` and `Async` are the most powerful classes in the entire hierarchy. They are the FFI which connects purely functional code together with imperative side-effecting code. Thus, it's rather odd that these *extremely* powerful typeclasses are *implied by* the most semantically-oriented class in the hierarchy: `Concurrent`.
 
-`Concurrent` is really very nice in a lot of ways. It gives us the ability to talk about independent fibers (lightweight threads) and parallel execution in a sane and convenient fashion. In a sense, it's really just a control-flow typeclass not unlike `Monad` (which describes dependent sequential computation). However, due to the fact that `Sync` sits *above* `Concurrent` (meaning that all `Concurrent`s are also `Sync`s), the following doesn't make very much sense:
+`Concurrent` is really very nice in a lot of ways. It gives us the ability to talk about independent fibers (lightweight threads) and parallel execution in a sane and convenient fashion. In a sense, it's really just a control-flow typeclass like `Monad` (which describes dependent sequential computation). However, due to the fact that `Sync` sits *above* `Concurrent` (meaning that all `Concurrent`s are also `Sync`s), the following doesn't make very much sense:
 
 ```scala
 def foo[F[_]: Concurrent]: F[Unit] = ???
