@@ -248,7 +248,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     fiber
   }
 
-  def foreverM: IO[A] = Monad[IO].foreverM(this)
+  def foreverM[B]: IO[B] = Monad[IO].foreverM[A, B](this)
 
   def whileM[G[_]: Alternative, B >: A](p: IO[Boolean]): IO[G[B]] =
     Monad[IO].whileM[G, B](p)(this)
