@@ -273,7 +273,7 @@ We can demonstrate this property relatively easily using the `IO` monad:
 import scala.concurrent.duration._
 
 for {
-  target <- IO(println("Catch me if you can!")).foreverM.start
+  target <- IO(println("Catch me if you can!")).foreverM[Unit].start
   _ <- IO.sleep(1.second)
   _ <- target.cancel
 } yield ()
