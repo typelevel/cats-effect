@@ -397,11 +397,11 @@ concurrent state, including `memoize` and `parTraverseN`.
 
 ### `Ref`
 
-TODO copy doc from CE2?
+TODO copy doc from CE2? Or link to separate docs?
 
 ### `Deferred`
 
-TODO  copy doc from CE2?
+TODO  copy doc from CE2? Or link to separate docs?
 
 ### Memoization
 
