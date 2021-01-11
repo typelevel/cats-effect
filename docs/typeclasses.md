@@ -139,7 +139,15 @@ The above will result in a canceled evaluation, and `fa` will never be run, *pro
 
 Self-cancellation is somewhat similar to raising an error with `raiseError` in that it will short-circuit evaluation and begin "popping" back up the stack until it hits a handler. Just as `raiseError` can be observed using the `onError` method, `canceled` can be observed using `onCancel`.
 
-The primary differences between self-cancellation and `raiseError` are two-fold. First, `uncancelable` suppresses `canceled` within its body (unless `poll`ed!), turning it into something equivalent to just `().pure[F]`. There is no analogue for this kind of functionality with errors. Second, if you sequence an error with `raiseError`, it's always possible to use `attempt` or `handleError` to *handle* the error and resume normal execution. No such functionality is available for cancellation.
+The primary differences between self-cancellation and `raiseError` are two-fold. First, `uncancelable` suppresses `canceled` *within its body* (unless `poll`ed!), turning it into something equivalent to just `().pure[F]`. Note however that cancelation will be observed as soon as `uncancelable` terminates ie `uncancelable` only suppresses the cancelation until the end of its body, not indefinitely.
+
+```scala
+for {
+  fib <- (IO.uncancelable(_ => IO.canceled) >> IO.println("this will never be called as we are canceled as soon as the uncancelable block finishes")).start
+  res <- fib.join
+} yield res //Canceled()
+```
+There is no analogue for this kind of functionality with errors. Second, if you sequence an error with `raiseError`, it's always possible to use `attempt` or `handleError` to *handle* the error and resume normal execution. No such functionality is available for cancellation. 
 
 In other words, cancellation is effective; it cannot be undone. It can be suppressed, but once it is observed, it must be respected by the canceled fiber. This feature is exceptionally important for ensuring deterministic evaluation and avoiding deadlocks.
 
@@ -380,3 +388,86 @@ In English, the semantics of this are as follows:
 Sometimes this is an appropriate semantic, and the cautiously-verbose `joinWithNever` function implements it for you. It is worth noting that this semantic was the *default* in Cats Effect 2 (and in fact, no other semantic was possible).
 
 Regardless of all of the above, `join` and `Outcome` give you enough flexibility to choose the appropriate response, regardless of your use-case.
+
+## `Concurrent`
+
+This typeclass extends `Spawn` with the capability to allocate concurrent state in the form of
+`Ref` and `Deferred` and to perform various operations which require the allocation of
+concurrent state, including `memoize` and `parTraverseN`.
+
+### `Ref`
+
+TODO copy doc from CE2?
+
+### `Deferred`
+
+TODO  copy doc from CE2?
+
+### Memoization
+
+TODO  copy doc from CE2?
+
+### Why `Ref` and `Deferred`?
+
+https://typelevel.org/blog/2020/10/30/concurrency-in-ce3.html
+
+It is worth considering why `Ref` and `Deferred` are the primitives exposed by `Concurrent`.
+Generally when implementing concurrent data structures we need access to the following:
+- A way of allocating and atomically modifying state
+- A means of waiting on a condition
+
+Well this is precisely `Ref` and `Deferred` respectively! Consider for example,
+implementing a `CountDownLatch`, which is instantiated with `n > 0` latches and
+allows fibers to semantically block until all `n` latches are released. We can
+model this situation with the following state
+
+```scala
+sealed trait State[F[_]]
+case class Awaiting[F[_]](latches: Int, signal: Deferred[F, Unit]) extends State[F]
+case class Done[F[_]]() extends State[F]
+```
+
+representing the fact that the countdown latch either has latches which have yet to be released
+and so fibers should block on it using the `signal` (more on this in a minute) or all the
+latches have been released and the countdown latch is done.
+
+We can store this state in a `state: Ref[F, State[F]]` to allow for concurrent
+modification. Then the implementation of await looks like this:
+```scala
+def await: F[Unit] =
+  state.get.flatMap {
+    case Awaiting(_, signal) => signal.get
+    case Done() => F.unit
+  }
+```
+As you can see, if we're still waiting for some of the latches to be released then we 
+use `signal` to block. Otherwise we just pass through with `F.unit`.
+
+Similarly the implementation of `release` is:
+```scala
+def release: F[Unit] =
+  F.uncancelable { _ =>
+    state.modify {
+      case Awaiting(n, signal) =>
+        if (n > 1) (Awaiting(n - 1, signal), F.unit) else (Done(), signal.complete(()).void)
+      case d @ Done() => (d, F.unit)
+    }.flatten
+  }
+```
+
+Ignoring subtleties around cancellation, the implementation is straightforward. If there is more
+than 1 latch remaining then we simply decrement the count. If we are already done then we do nothing. The interesting case is when there is precisely 1 latch remaining, in which case we
+transition to the `Done` state and we also `complete` the signal which unblocks all the
+fibers waiting on the countdown latch.
+
+There has been plenty of excellent material written on this subject. See [here](https://typelevel.org/blog/2020/10/30/concurrency-in-ce3.html) and [here](https://systemfw.org/writings.html).
+
+## `Temporal`
+
+`Temporal` extends `Concurrent` with the ability to suspend a fiber by sleeping for
+a specified duration. This enables us to define powerful time-dependent
+derived combinators like `timeoutTo`
+
+```scala
+val data = fetchFromRemoteService.timeoutTo(2.seconds, cachedValue)
+```
