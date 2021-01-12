@@ -55,7 +55,7 @@ class Worker[F[_]](number: Int, ref: Ref[F, Int])(implicit F: Sync[F]) {
 
 val program: IO[Unit] =
   for {
-    ref <- Ref[F].of(0)
+    ref <- Ref[IO].of(0)
     w1  = new Worker[IO](1, ref)
     w2  = new Worker[IO](2, ref)
     w3  = new Worker[IO](3, ref)
