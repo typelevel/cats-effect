@@ -3,9 +3,6 @@ id: ref
 title: ref
 ---
 
-{:.responsive-pic}
-![concurrency ref](../img/concurrency-ref.png)
-
 An asynchronous, concurrent mutable reference.
 
 ```scala mdoc:silent
@@ -17,7 +14,7 @@ abstract class Ref[F[_], A] {
 }
 ```
 
-Provides safe concurrent access and modification of its content, but no functionality for synchronisation, which is instead handled by `Deferred`.
+Provides safe concurrent access and modification of its content, but no functionality for synchronisation, which is instead handled by [Deferred](./deferred.md).
 
 For this reason, a `Ref` is always initialised to a value.
 
@@ -39,13 +36,8 @@ The workers will concurrently run and modify the value of the Ref so this is one
 ```
 
 ```scala mdoc:reset:silent
-import cats.effect.{IO, Sync}
-import cats.effect.concurrent.Ref
+import cats.effect.{IO, Sync, Ref}
 import cats.syntax.all._
-import scala.concurrent.ExecutionContext
-
-// Needed for triggering evaluation in parallel
-implicit val ctx = IO.contextShift(ExecutionContext.global)
 
 class Worker[F[_]](number: Int, ref: Ref[F, Int])(implicit F: Sync[F]) {
 
@@ -63,7 +55,7 @@ class Worker[F[_]](number: Int, ref: Ref[F, Int])(implicit F: Sync[F]) {
 
 val program: IO[Unit] =
   for {
-    ref <- Ref.of[IO, Int](0)
+    ref <- Ref[F].of(0)
     w1  = new Worker[IO](1, ref)
     w2  = new Worker[IO](2, ref)
     w3  = new Worker[IO](3, ref)
