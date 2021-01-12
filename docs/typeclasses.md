@@ -425,16 +425,34 @@ including `memoize` and `parTraverseN`.
 
 ### Memoization
 
-TODO  copy doc from CE2?
+We can memoize an effect so that it's only run once and the result used repeatedly.
+
+```scala
+def memoize[A](fa: F[A]): F[F[A]]
+```
+
+Usage looks like this:
+
+```scala mdoc
+import cats.effect.unsafe.implicits.global
+ 
+val action: IO[String] = IO.println("This is only printed once").as("action")
+
+val x: IO[String] = for {
+  memoized <- action.memoize
+  res1 <- memoized
+  res2 <- memoized
+} yield res1 ++ res2
+
+x.unsafeRunSync()
+```
 
 ### Why `Ref` and `Deferred`?
-
-https://typelevel.org/blog/2020/10/30/concurrency-in-ce3.html
 
 It is worth considering why `Ref` and `Deferred` are the primitives exposed by `Concurrent`.
 Generally when implementing concurrent data structures we need access to the following:
 - A way of allocating and atomically modifying state
-- A means of waiting on a condition
+- A means of waiting on a condition (semantic blocking)
 
 Well this is precisely `Ref` and `Deferred` respectively! Consider for example,
 implementing a `CountDownLatch`, which is instantiated with `n > 0` latches and
@@ -480,7 +498,7 @@ than 1 latch remaining then we simply decrement the count. If we are already don
 transition to the `Done` state and we also `complete` the signal which unblocks all the
 fibers waiting on the countdown latch.
 
-There has been plenty of excellent material written on this subject. See [here](https://typelevel.org/blog/2020/10/30/concurrency-in-ce3.html) and [here](https://systemfw.org/writings.html).
+There has been plenty of excellent material written on this subject. See [here](https://typelevel.org/blog/2020/10/30/concurrency-in-ce3.html) and [here](https://systemfw.org/writings.html) for example.
 
 ## `Temporal`
 
@@ -495,13 +513,8 @@ Note that this should *always* be used instead of `IO(Thread.sleep(duration))`. 
 link to appropriate section on `Sync`, blocking operations and underlying threads
 
 This enables us to define powerful time-dependent
-derived combinators like `timeoutTo`
+derived combinators like `timeoutTo`:
 
 ```scala
 val data = fetchFromRemoteService.timeoutTo(2.seconds, cachedValue)
 ```
-
-## `Sync`
-
-This typeclass encodes the ability to suspend synchronous side effects in a referentially
-transparent manner.
