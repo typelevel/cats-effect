@@ -93,7 +93,32 @@ MonadCancel[F] uncancelable { outer =>
 }
 ```
 
-The `inner` poll eliminates the inner `uncancelable`, but the *outer* `uncancelable` still applies, meaning that this whole thing is equivalent to `MonadCancel[F].uncancelable(_ => fa)`.
+The `inner` poll eliminates the inner `uncancelable`, but the *outer* `uncancelable` still applies, meaning that this whole thing is equivalent to `MonadCancel[F].uncancelable(_ => fa)`. Indeed these
+must be the semantics to preserve local reasoning about cancelation. Suppose `poll` had the effect
+of making its interior cancelable. Then if we had
+```scala
+def foo[A](inner: IO[A]) = IO.uncancelable( _ =>
+  // Relies on inner being uncancelable so we can clean up the resource after
+  inner <* cleanupImportantResource
+)
+
+def bar: IO[String] = IO.uncancelable( poll =>
+  poll(IO.pure("bar"))
+)
+
+val x: IO[String] = foo(bar)
+```
+
+If we inline the execution we see that we have:
+```scala
+val x: IO[String] = IO.uncancelable( _ =>
+  IO.uncancelable( poll =>
+    //Oh dear! If poll makes us cancelable then we could be canceled here
+    //and never clean up the resource
+    poll(IO.pure("bar"))
+  ) <* cleanupImportantResource
+)
+```
 
 Note that polling for an *outer* block within an inner one has no effect whatsoever. For example:
 
@@ -143,8 +168,10 @@ The primary differences between self-cancellation and `raiseError` are two-fold.
 
 ```scala
 for {
-  fib <- (IO.uncancelable(_ => IO.canceled) >> IO.println("this will never be called as we are canceled as soon as the uncancelable block finishes")).start
-  res <- fib.join
+  fib <- (IO.uncancelable(_ =>
+      IO.canceled >> IO.println("This will print")
+    ) >> IO.println(
+    "This will never be called as we are canceled as soon as the uncancelable block finishes")).start res <- fib.join
 } yield res //Canceled()
 ```
 There is no analogue for this kind of functionality with errors. Second, if you sequence an error with `raiseError`, it's always possible to use `attempt` or `handleError` to *handle* the error and resume normal execution. No such functionality is available for cancellation. 
@@ -391,17 +418,10 @@ Regardless of all of the above, `join` and `Outcome` give you enough flexibility
 
 ## `Concurrent`
 
-This typeclass extends `Spawn` with the capability to allocate concurrent state in the form of
-`Ref` and `Deferred` and to perform various operations which require the allocation of
-concurrent state, including `memoize` and `parTraverseN`.
-
-### `Ref`
-
-TODO copy doc from CE2? Or link to separate docs?
-
-### `Deferred`
-
-TODO  copy doc from CE2? Or link to separate docs?
+This typeclass extends `Spawn` with the capability to allocate concurrent state
+in the form of [Ref](datatypes/ref.md) and [Deferred](datatypes/deferred.md) and
+to perform various operations which require the allocation of concurrent state,
+including `memoize` and `parTraverseN`.
 
 ### Memoization
 
