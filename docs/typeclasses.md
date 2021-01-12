@@ -166,14 +166,19 @@ Self-cancellation is somewhat similar to raising an error with `raiseError` in t
 
 The primary differences between self-cancellation and `raiseError` are two-fold. First, `uncancelable` suppresses `canceled` *within its body* (unless `poll`ed!), turning it into something equivalent to just `().pure[F]`. Note however that cancelation will be observed as soon as `uncancelable` terminates ie `uncancelable` only suppresses the cancelation until the end of its body, not indefinitely.
 
-```scala
-for {
+```scala mdoc
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+
+val run = for {
   fib <- (IO.uncancelable(_ =>
       IO.canceled >> IO.println("This will print as cancelation is suppressed")
     ) >> IO.println(
     "This will never be called as we are canceled as soon as the uncancelable block finishes")).start
   res <- fib.join
-} yield res //Canceled()
+} yield res
+
+run.unsafeRunSync()
 ```
 There is no analogue for this kind of functionality with errors. Second, if you sequence an error with `raiseError`, it's always possible to use `attempt` or `handleError` to *handle* the error and resume normal execution. No such functionality is available for cancellation. 
 
@@ -265,7 +270,6 @@ Probably the most significant benefit that fibers provide, above and beyond thei
 We can demonstrate this property relatively easily using the `IO` monad:
 
 ```scala mdoc
-import cats.effect._
 import scala.concurrent.duration._
 
 for {
@@ -435,7 +439,6 @@ def memoize[A](fa: F[A]): F[F[A]]
 Usage looks like this:
 
 ```scala mdoc
-import cats.effect.unsafe.implicits.global
  
 val action: IO[String] = IO.println("This is only printed once").as("action")
 
