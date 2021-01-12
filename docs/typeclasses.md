@@ -169,9 +169,10 @@ The primary differences between self-cancellation and `raiseError` are two-fold.
 ```scala
 for {
   fib <- (IO.uncancelable(_ =>
-      IO.canceled >> IO.println("This will print")
+      IO.canceled >> IO.println("This will print as cancelation is suppressed")
     ) >> IO.println(
-    "This will never be called as we are canceled as soon as the uncancelable block finishes")).start res <- fib.join
+    "This will never be called as we are canceled as soon as the uncancelable block finishes")).start
+  res <- fib.join
 } yield res //Canceled()
 ```
 There is no analogue for this kind of functionality with errors. Second, if you sequence an error with `raiseError`, it's always possible to use `attempt` or `handleError` to *handle* the error and resume normal execution. No such functionality is available for cancellation. 
