@@ -680,6 +680,8 @@ private final class IOFiber[A](
      * in `cont` busy spinning in `loop` on the `!shouldFinalize` check.
      */
     masks = initMask
+
+    resumeTag = DoneR
     /* write barrier to publish masks */
     suspended.set(false)
 
@@ -695,8 +697,6 @@ private final class IOFiber[A](
     objectState.invalidate()
 
     finalizers.invalidate()
-
-    resumeTag = DoneR
   }
 
   private[this] def asyncContinue(e: Either[Throwable, Any]): Unit = {
