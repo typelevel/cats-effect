@@ -187,8 +187,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           .attempt must completeAs(Left(TestException))
       }
 
-      "raise first bracket release exception if use effect succeeded" in ticked {
-        implicit ticker =>
+      "raise first bracket release exception if use effect succeeded" in ticked(
+        implicit ticker => {
           case object TestException extends RuntimeException
           case object WrongException extends RuntimeException
           val io =
@@ -197,7 +197,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
                 IO.unit.bracket(_ => IO.unit)(_ => IO.raiseError(TestException))
               }(_ => IO.raiseError(WrongException))
           io.attempt must completeAs(Left(TestException))
-      }
+        })
     }
 
     "suspension of side effects" should {
