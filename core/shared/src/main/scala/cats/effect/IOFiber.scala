@@ -32,6 +32,12 @@ import scala.util.control.NoStackTrace
 /*
  * Rationale on memory barrier exploitation in this class...
  *
+ * This class extends `java.util.concurrent.atomic.AtomicBoolean`
+ * (through `IOFiberPlatform`) in order to forego the allocation
+ * of a separate `AtomicBoolean` object. All credit goes to
+ * Viktor Klang.
+ * https://viktorklang.com/blog/Futures-in-Scala-2.12-part-8.html
+ *
  * The runloop is held by a single thread at any moment in
  * time. This is ensured by the `suspended` AtomicBoolean,
  * which is set to `true` when evaluation of an `Async` causes
@@ -68,6 +74,8 @@ private final class IOFiber[A](
 ) extends IOFiberPlatform[A]
     with FiberIO[A]
     with Runnable {
+  /* true when semantically blocking (ensures that we only unblock *once*) */
+  suspended: AtomicBoolean =>
 
   import IO._
   import IOFiberConstants._
@@ -97,9 +105,6 @@ private final class IOFiber[A](
   private[this] val finalizers = new ArrayStack[IO[Unit]](16)
 
   private[this] val callbacks = new CallbackStack[A](cb)
-
-  /* true when semantically blocking (ensures that we only unblock *once*) */
-  private[this] val suspended: AtomicBoolean = new AtomicBoolean(true)
 
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
@@ -520,12 +525,13 @@ private final class IOFiber[A](
             wasFinalizing.set(finalizing)
 
             /*
+             * You should probably just read this as `suspended.compareAndSet(false, true)`.
              * This CAS should always succeed since we own the runloop,
              * but we need it in order to introduce a full memory barrier
              * which ensures we will always see the most up-to-date value
              * for `canceled` in `shouldFinalize`, ensuring no finalisation leaks
              */
-            suspended.compareAndSet(false, true)
+            suspended.getAndSet(true)
 
             /*
              * race condition check: we may have been cancelled
@@ -682,8 +688,15 @@ private final class IOFiber[A](
     masks = initMask
 
     resumeTag = DoneR
-    /* write barrier to publish masks */
-    suspended.set(false)
+    /*
+     * Write barrier to publish masks. The thread which owns the runloop is
+     * effectively a single writer, so lazy set can be utilized for relaxed
+     * memory barriers (equivalent to a `release` set), while still keeping
+     * the same memory publishing semantics as `set(false)`.
+     *
+     * http://psy-lob-saw.blogspot.com/2012/12/atomiclazyset-is-performance-win-for.html
+     */
+    suspended.lazySet(false)
 
     /* clear out literally everything to avoid any possible memory leaks */
 
@@ -758,8 +771,15 @@ private final class IOFiber[A](
   private[this] def resume(): Boolean =
     suspended.getAndSet(false)
 
+  /*
+   * The thread which owns the runloop is effectively a single writer, so lazy set
+   * can be utilized for relaxed memory barriers (equivalent to a `release` set),
+   * while still keeping the same memory publishing semantics as `set(true)`.
+   *
+   * http://psy-lob-saw.blogspot.com/2012/12/atomiclazyset-is-performance-win-for.html
+   */
   private[this] def suspend(): Unit =
-    suspended.set(true)
+    suspended.lazySet(true)
 
   /* returns the *new* context, not the old */
   private[this] def popContext(): ExecutionContext = {
