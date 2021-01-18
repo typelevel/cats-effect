@@ -15,6 +15,7 @@
  */
 
 import microsites.{ConfigYml, ExtraMdFileConfig}
+import sbtghactions.UseRef
 
 import scala.util.Try
 import scala.sys.process._
@@ -33,7 +34,7 @@ ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11")
 ThisBuild / githubWorkflowTargetBranches := Seq("series/2.x")
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
-  WorkflowStep.Use("ruby", "setup-ruby", "v1", params = Map("ruby-version" -> "2.7")),
+  WorkflowStep.Use(UseRef.Public("ruby", "setup-ruby", "v1"), Map("ruby-version" -> "2.7")),
   WorkflowStep.Run(List("gem install bundler")),
   WorkflowStep.Run(List("bundle install --gemfile=site/Gemfile"))
 )
