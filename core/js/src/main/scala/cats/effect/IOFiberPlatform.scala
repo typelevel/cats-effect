@@ -18,7 +18,10 @@ package cats.effect
 
 import scala.concurrent.ExecutionContext
 
-private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
+import java.util.concurrent.atomic.AtomicBoolean
+
+private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(true) {
+  this: IOFiber[A] =>
 
   // in theory this code should never be hit due to the override in IOCompanionPlatform
   def interruptibleImpl(cur: IO.Blocking[Any], blockingEc: ExecutionContext): IO[Any] = {
