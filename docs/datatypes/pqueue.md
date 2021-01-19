@@ -50,8 +50,8 @@ absurdlyOverengineeredSort(list).flatMap(IO.println(_)).unsafeRunSync()
 
 `PQueue` is split into a `PQueueSource` with a `Functor` instance and a
 `PQueueSink` with a `Contravariant` functor instance. This allows us to
-treat a `PQueue[F, A]` as a `PSource[F, B]` by mapping with `A => B` 
-or as a `PSink[F, B]` by contramapping with `B => A`.
+treat a `PQueue[F, A]` as a `PQueueSource[F, B]` by mapping with `A => B` 
+or as a `PQueueSink[F, B]` by contramapping with `B => A`.
 
 ```scala mdoc:reset
 import cats.Order

@@ -35,8 +35,8 @@ capacity:
 
 `Queue` is split into a `QueueSource` with a `Functor` instance and a
 `QueueSink` with a `Contravariant` functor instance. This allows us to
-treat a `Queue[F, A]` as a `Source[F, B]` by mapping with `A => B` 
-or as a `Sink[F, B]` by contramapping with `B => A`.
+treat a `Queue[F, A]` as a `QueueSource[F, B]` by mapping with `A => B` 
+or as a `QueueSink[F, B]` by contramapping with `B => A`.
 
 ```scala mdoc:reset
 import cats.{Contravariant, Functor}
