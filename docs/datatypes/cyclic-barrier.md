@@ -20,6 +20,9 @@ fibers which call `await` are semantically blocked until `n` of
 them have invoked `await`, at which point all of them are unblocked
 and the cyclic barrier is reset.
 
+`await` cancellation is supported, in which case the number of
+fibers required to unblock the cyclic barrier is incremented again.
+
 ```scala mdoc
 import cats.implicits._
 import cats.effect._
