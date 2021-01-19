@@ -49,7 +49,7 @@ absurdlyOverengineeredSort(list).flatMap(IO.println(_)).unsafeRunSync()
 ## Variance
 
 `PQueue` is split into a `PQueueSource` with a `Functor` instance and a
-`PQueueSink` with a contravariant functor instance. This allows us to
+`PQueueSink` with a `Contravariant` functor instance. This allows us to
 treat a `PQueue[F, A]` as a `PSource[F, B]` by mapping with `A => B` 
 or as a `PSink[F, B]` by contramapping with `B => A`.
 
