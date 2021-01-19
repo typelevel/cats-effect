@@ -19,7 +19,7 @@ trait Queue[F[_], A] {
 }
 ```
 
-`take` is semantically blocking when the queue is empty. It may be constructed
+`take` is semantically blocking when the queue is empty. A `Queue` may be constructed
 with different policies for the behaviour of `offer` when the queue has reached
 capacity:
 - `bounded(capacity: Int)`: `offer` is semantically when the queue is full
