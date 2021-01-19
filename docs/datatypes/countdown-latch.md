@@ -25,7 +25,6 @@ import cats.implicits._
 import cats.effect._
 import cats.effect.std.CountDownLatch
 import cats.effect.unsafe.implicits.global
-import scala.concurrent.duration._
 
 val run = (
   for {
