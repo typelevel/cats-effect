@@ -125,7 +125,29 @@ def guarded[F[_], R, A, E](
   }
 }
 </code></pre>
-<p>The <code>inner</code> poll eliminates the inner <code>uncancelable</code>, but the <em>outer</em> <code>uncancelable</code> still applies, meaning that this whole thing is equivalent to <code>MonadCancel[F].uncancelable(_ =&gt; fa)</code>.</p>
+<p>The <code>inner</code> poll eliminates the inner <code>uncancelable</code>, but the <em>outer</em> <code>uncancelable</code> still applies, meaning that this whole thing is equivalent to <code>MonadCancel[F].uncancelable(_ =&gt; fa)</code>. Indeed these
+must be the semantics to preserve local reasoning about cancelation. Suppose <code>poll</code> had the effect
+of making its interior cancelable. Then if we had</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">foo</span></span>[<span class="hljs-type">A</span>](inner: <span class="hljs-type">IO</span>[<span class="hljs-type">A</span>]) = <span class="hljs-type">IO</span>.uncancelable( _ =&gt;
+  <span class="hljs-comment">// Relies on inner being uncancelable so we can clean up the resource after</span>
+  inner &lt;* cleanupImportantResource
+)
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">bar</span></span>: <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = <span class="hljs-type">IO</span>.uncancelable( poll =&gt;
+  poll(<span class="hljs-type">IO</span>.pure(<span class="hljs-string">"bar"</span>))
+)
+
+<span class="hljs-keyword">val</span> x: <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = foo(bar)
+</code></pre>
+<p>If we inline the execution we see that we have:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> x: <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = <span class="hljs-type">IO</span>.uncancelable( _ =&gt;
+  <span class="hljs-type">IO</span>.uncancelable( poll =&gt;
+    <span class="hljs-comment">//Oh dear! If poll makes us cancelable then we could be canceled here</span>
+    <span class="hljs-comment">//and never clean up the resource</span>
+    poll(<span class="hljs-type">IO</span>.pure(<span class="hljs-string">"bar"</span>))
+  ) &lt;* cleanupImportantResource
+)
+</code></pre>
 <p>Note that polling for an <em>outer</em> block within an inner one has no effect whatsoever. For example:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { outer =&gt;
   <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { _ =&gt;
@@ -154,7 +176,31 @@ def guarded[F[_], R, A, E](
 </code></pre>
 <p>The above will result in a canceled evaluation, and <code>fa</code> will never be run, <em>provided</em> that it isn't wrapped in an <code>uncancelable</code> block. If the above is wrapped in <code>uncancelable</code>, then the <code>canceled</code> effect will be ignored.</p>
 <p>Self-cancellation is somewhat similar to raising an error with <code>raiseError</code> in that it will short-circuit evaluation and begin &quot;popping&quot; back up the stack until it hits a handler. Just as <code>raiseError</code> can be observed using the <code>onError</code> method, <code>canceled</code> can be observed using <code>onCancel</code>.</p>
-<p>The primary differences between self-cancellation and <code>raiseError</code> are two-fold. First, <code>uncancelable</code> suppresses <code>canceled</code> within its body (unless <code>poll</code>ed!), turning it into something equivalent to just <code>().pure[F]</code>. There is no analogue for this kind of functionality with errors. Second, if you sequence an error with <code>raiseError</code>, it's always possible to use <code>attempt</code> or <code>handleError</code> to <em>handle</em> the error and resume normal execution. No such functionality is available for cancellation.</p>
+<p>The primary differences between self-cancellation and <code>raiseError</code> are two-fold. First, <code>uncancelable</code> suppresses <code>canceled</code> <em>within its body</em> (unless <code>poll</code>ed!), turning it into something equivalent to just <code>().pure[F]</code>. Note however that cancelation will be observed as soon as <code>uncancelable</code> terminates ie <code>uncancelable</code> only suppresses the cancelation until the end of its body, not indefinitely.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
+<span class="hljs-keyword">import</span> cats.effect.unsafe.implicits.global
+
+<span class="hljs-keyword">val</span> run = <span class="hljs-keyword">for</span> {
+  fib &lt;- (<span class="hljs-type">IO</span>.uncancelable(_ =&gt;
+      <span class="hljs-type">IO</span>.canceled &gt;&gt; <span class="hljs-type">IO</span>.println(<span class="hljs-string">"This will print as cancelation is suppressed"</span>)
+    ) &gt;&gt; <span class="hljs-type">IO</span>.println(
+    <span class="hljs-string">"This will never be called as we are canceled as soon as the uncancelable block finishes"</span>)).start
+  res &lt;- fib.join
+} <span class="hljs-keyword">yield</span> res
+<span class="hljs-comment">// run: IO[cats.effect.kernel.Outcome[IO, Throwable, Unit]] = FlatMap(</span>
+<span class="hljs-comment">//   ioe = Start(</span>
+<span class="hljs-comment">//     ioa = FlatMap(</span>
+<span class="hljs-comment">//       ioe = Uncancelable(body = &lt;function1&gt;),</span>
+<span class="hljs-comment">//       f = cats.effect.IO$$Lambda$11343/924330881@525c72b1</span>
+<span class="hljs-comment">//     )</span>
+<span class="hljs-comment">//   ),</span>
+<span class="hljs-comment">//   f = &lt;function1&gt;</span>
+<span class="hljs-comment">// )</span>
+
+run.unsafeRunSync()
+<span class="hljs-comment">// res0: cats.effect.kernel.Outcome[IO, Throwable, Unit] = Canceled()</span>
+</code></pre>
+<p>There is no analogue for this kind of functionality with errors. Second, if you sequence an error with <code>raiseError</code>, it's always possible to use <code>attempt</code> or <code>handleError</code> to <em>handle</em> the error and resume normal execution. No such functionality is available for cancellation.</p>
 <p>In other words, cancellation is effective; it cannot be undone. It can be suppressed, but once it is observed, it must be respected by the canceled fiber. This feature is exceptionally important for ensuring deterministic evaluation and avoiding deadlocks.</p>
 <p>Self-cancellation is intended for use-cases such as <a href="https://erlang.org/doc/man/supervisor.html">supervisor nets</a> and other complex constructs which require the ability to manipulate their own evaluation in this fashion. It isn't something that will be found often in application code.</p>
 <h2><a class="anchor" aria-hidden="true" id="spawn"></a><a href="#spawn" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>Spawn</code></h2>
@@ -217,22 +263,21 @@ def guarded[F[_], R, A, E](
 <h3><a class="anchor" aria-hidden="true" id="cancelation"></a><a href="#cancelation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cancelation</h3>
 <p>Probably the most significant benefit that fibers provide, above and beyond their extremely low overhead and optimized runtime mapping, is the fact that, unlike JVM <code>Thread</code>s, they are <em>cancelable</em>. This means that you can safely <code>cancel</code> a running fiber and it will clean up whatever resources it has allocated and bring itself to a halt in short order, ensuring that you don't have errant processes running in the background, eating up resources that could have otherwise been released.</p>
 <p>We can demonstrate this property relatively easily using the <code>IO</code> monad:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
-<span class="hljs-keyword">import</span> scala.concurrent.duration._
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scala.concurrent.duration._
 
 <span class="hljs-keyword">for</span> {
   target &lt;- <span class="hljs-type">IO</span>(println(<span class="hljs-string">"Catch me if you can!"</span>)).foreverM.start
   _ &lt;- <span class="hljs-type">IO</span>.sleep(<span class="hljs-number">1.</span>second)
   _ &lt;- target.cancel
 } <span class="hljs-keyword">yield</span> ()
-<span class="hljs-comment">// res0: IO[Unit] = FlatMap(</span>
+<span class="hljs-comment">// res1: IO[Unit] = FlatMap(</span>
 <span class="hljs-comment">//   ioe = Start(</span>
 <span class="hljs-comment">//     ioa = FlatMap(</span>
 <span class="hljs-comment">//       ioe = Map(</span>
 <span class="hljs-comment">//         ioe = Delay(thunk = &lt;function0&gt;),</span>
-<span class="hljs-comment">//         f = cats.effect.IO$$Lambda$10388/1349724031@39abcd3c</span>
+<span class="hljs-comment">//         f = cats.effect.IO$$Lambda$11372/924005002@39def24c</span>
 <span class="hljs-comment">//       ),</span>
-<span class="hljs-comment">//       f = cats.StackSafeMonad$$Lambda$10390/2106432677@7f9f3705</span>
+<span class="hljs-comment">//       f = cats.StackSafeMonad$$Lambda$11374/199098636@5b454f98</span>
 <span class="hljs-comment">//     )</span>
 <span class="hljs-comment">//   ),</span>
 <span class="hljs-comment">//   f = &lt;function1&gt;</span>
@@ -340,4 +385,93 @@ fiber.join flatMap {
 </ul>
 <p>Sometimes this is an appropriate semantic, and the cautiously-verbose <code>joinWithNever</code> function implements it for you. It is worth noting that this semantic was the <em>default</em> in Cats Effect 2 (and in fact, no other semantic was possible).</p>
 <p>Regardless of all of the above, <code>join</code> and <code>Outcome</code> give you enough flexibility to choose the appropriate response, regardless of your use-case.</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/3.x/installation"><span class="arrow-prev">← </span><span>Installation</span></a><a class="docs-next button" href="/cats-effect/docs/3.x/schedulers"><span>Next</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#monadcancel"><code>MonadCancel</code></a><ul class="toc-headings"><li><a href="#self-cancelation">Self-Cancelation</a></li></ul></li><li><a href="#spawn"><code>Spawn</code></a><ul class="toc-headings"><li><a href="#cancelation">Cancelation</a></li><li><a href="#joining">Joining</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/en/installation">Getting Started</a><a href="/cats-effect/docs/en/guides/tutorial">Tutorial</a><a href="/cats-effect/docs/en/datatypes/io">IO Monad</a><a href="/cats-effect/docs/en/concurrency/overview">Concurrency</a></div><div><h5>Community</h5><a href="https://typelevel.org/blog/">Blog</a><a href="https://gitter.im/typelevel/cats-effect">Gitter</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2020 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
+<h2><a class="anchor" aria-hidden="true" id="concurrent"></a><a href="#concurrent" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>Concurrent</code></h2>
+<p>This typeclass extends <code>Spawn</code> with the capability to allocate concurrent state
+in the form of <a href="datatypes/ref.md">Ref</a> and <a href="datatypes/deferred.md">Deferred</a> and
+to perform various operations which require the allocation of concurrent state,
+including <code>memoize</code> and <code>parTraverseN</code>.</p>
+<h3><a class="anchor" aria-hidden="true" id="memoization"></a><a href="#memoization" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Memoization</h3>
+<p>We can memoize an effect so that it's only run once and the result used repeatedly.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">memoize</span></span>[<span class="hljs-type">A</span>](fa: <span class="hljs-type">F</span>[<span class="hljs-type">A</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">F</span>[<span class="hljs-type">A</span>]]
+</code></pre>
+<p>Usage looks like this:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> action: <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = <span class="hljs-type">IO</span>.println(<span class="hljs-string">"This is only printed once"</span>).as(<span class="hljs-string">"action"</span>)
+<span class="hljs-comment">// action: IO[String] = Map(</span>
+<span class="hljs-comment">//   ioe = Blocking(</span>
+<span class="hljs-comment">//     hint = Blocking,</span>
+<span class="hljs-comment">//     thunk = cats.effect.std.Console$SyncConsole$$Lambda$11364/696167666@5e98310d</span>
+<span class="hljs-comment">//   ),</span>
+<span class="hljs-comment">//   f = cats.effect.IO$$Lambda$11372/924005002@3c92c3de</span>
+<span class="hljs-comment">// )</span>
+
+<span class="hljs-keyword">val</span> x: <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = <span class="hljs-keyword">for</span> {
+  memoized &lt;- action.memoize
+  res1 &lt;- memoized
+  res2 &lt;- memoized
+} <span class="hljs-keyword">yield</span> res1 ++ res2
+<span class="hljs-comment">// x: IO[String] = FlatMap(</span>
+<span class="hljs-comment">//   ioe = Map(</span>
+<span class="hljs-comment">//     ioe = Delay(thunk = cats.effect.IO$$$Lambda$11263/1814926355@72901a92),</span>
+<span class="hljs-comment">//     f = cats.effect.kernel.GenConcurrent$$Lambda$11375/1207829116@358a2d7</span>
+<span class="hljs-comment">//   ),</span>
+<span class="hljs-comment">//   f = &lt;function1&gt;</span>
+<span class="hljs-comment">// )</span>
+
+x.unsafeRunSync()
+<span class="hljs-comment">// res2: String = "actionaction"</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="why-ref-and-deferred"></a><a href="#why-ref-and-deferred" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Why <code>Ref</code> and <code>Deferred</code>?</h3>
+<p>It is worth considering why <code>Ref</code> and <code>Deferred</code> are the primitives exposed by <code>Concurrent</code>.
+Generally when implementing concurrent data structures we need access to the following:</p>
+<ul>
+<li>A way of allocating and atomically modifying state</li>
+<li>A means of waiting on a condition (semantic blocking)</li>
+</ul>
+<p>Well this is precisely <code>Ref</code> and <code>Deferred</code> respectively! Consider for example,
+implementing a <code>CountDownLatch</code>, which is instantiated with <code>n &gt; 0</code> latches and
+allows fibers to semantically block until all <code>n</code> latches are released. We can
+model this situation with the following state</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">sealed</span> <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">State</span>[<span class="hljs-type">F</span>[_]]</span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Awaiting</span>[<span class="hljs-type">F</span>[_]](<span class="hljs-params">latches: <span class="hljs-type">Int</span>, signal: <span class="hljs-type">Deferred</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>]</span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">State</span>[<span class="hljs-type">F</span>]</span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Done</span>[<span class="hljs-type">F</span>[_]](<span class="hljs-params"></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">State</span>[<span class="hljs-type">F</span>]</span>
+</code></pre>
+<p>representing the fact that the countdown latch either has latches which have yet to be released
+and so fibers should block on it using the <code>signal</code> (more on this in a minute) or all the
+latches have been released and the countdown latch is done.</p>
+<p>We can store this state in a <code>state: Ref[F, State[F]]</code> to allow for concurrent
+modification. Then the implementation of await looks like this:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">await</span></span>: <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
+  state.get.flatMap {
+    <span class="hljs-keyword">case</span> <span class="hljs-type">Awaiting</span>(_, signal) =&gt; signal.get
+    <span class="hljs-keyword">case</span> <span class="hljs-type">Done</span>() =&gt; <span class="hljs-type">F</span>.unit
+  }
+</code></pre>
+<p>As you can see, if we're still waiting for some of the latches to be released then we
+use <code>signal</code> to block. Otherwise we just pass through with <code>F.unit</code>.</p>
+<p>Similarly the implementation of <code>release</code> is:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">release</span></span>: <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
+  <span class="hljs-type">F</span>.uncancelable { _ =&gt;
+    state.modify {
+      <span class="hljs-keyword">case</span> <span class="hljs-type">Awaiting</span>(n, signal) =&gt;
+        <span class="hljs-keyword">if</span> (n &gt; <span class="hljs-number">1</span>) (<span class="hljs-type">Awaiting</span>(n - <span class="hljs-number">1</span>, signal), <span class="hljs-type">F</span>.unit) <span class="hljs-keyword">else</span> (<span class="hljs-type">Done</span>(), signal.complete(()).void)
+      <span class="hljs-keyword">case</span> d @ <span class="hljs-type">Done</span>() =&gt; (d, <span class="hljs-type">F</span>.unit)
+    }.flatten
+  }
+</code></pre>
+<p>Ignoring subtleties around cancellation, the implementation is straightforward. If there is more
+than 1 latch remaining then we simply decrement the count. If we are already done then we do nothing. The interesting case is when there is precisely 1 latch remaining, in which case we
+transition to the <code>Done</code> state and we also <code>complete</code> the signal which unblocks all the
+fibers waiting on the countdown latch.</p>
+<p>There has been plenty of excellent material written on this subject. See <a href="https://typelevel.org/blog/2020/10/30/concurrency-in-ce3.html">here</a> and <a href="https://systemfw.org/writings.html">here</a> for example.</p>
+<h2><a class="anchor" aria-hidden="true" id="temporal"></a><a href="#temporal" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>Temporal</code></h2>
+<p><code>Temporal</code> extends <code>Concurrent</code> with the ability to suspend a fiber by sleeping for
+a specified duration.</p>
+<pre><code class="hljs css language-scala">firstThing &gt;&gt; <span class="hljs-type">IO</span>.sleep(<span class="hljs-number">5.</span>seconds) &gt;&gt; secondThing
+</code></pre>
+<p>Note that this should <em>always</em> be used instead of <code>IO(Thread.sleep(duration))</code>. TODO
+link to appropriate section on <code>Sync</code>, blocking operations and underlying threads</p>
+<p>This enables us to define powerful time-dependent
+derived combinators like <code>timeoutTo</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> data = fetchFromRemoteService.timeoutTo(<span class="hljs-number">2.</span>seconds, cachedValue)
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/3.x/installation"><span class="arrow-prev">← </span><span>Installation</span></a><a class="docs-next button" href="/cats-effect/docs/3.x/schedulers"><span>Next</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#monadcancel"><code>MonadCancel</code></a><ul class="toc-headings"><li><a href="#self-cancelation">Self-Cancelation</a></li></ul></li><li><a href="#spawn"><code>Spawn</code></a><ul class="toc-headings"><li><a href="#cancelation">Cancelation</a></li><li><a href="#joining">Joining</a></li></ul></li><li><a href="#concurrent"><code>Concurrent</code></a><ul class="toc-headings"><li><a href="#memoization">Memoization</a></li><li><a href="#why-ref-and-deferred">Why <code>Ref</code> and <code>Deferred</code>?</a></li></ul></li><li><a href="#temporal"><code>Temporal</code></a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/en/installation">Getting Started</a><a href="/cats-effect/docs/en/guides/tutorial">Tutorial</a><a href="/cats-effect/docs/en/datatypes/io">IO Monad</a><a href="/cats-effect/docs/en/concurrency/overview">Concurrency</a></div><div><h5>Community</h5><a href="https://typelevel.org/blog/">Blog</a><a href="https://gitter.im/typelevel/cats-effect">Gitter</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2020 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
