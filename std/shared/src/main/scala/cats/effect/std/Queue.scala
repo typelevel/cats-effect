@@ -234,9 +234,20 @@ object Queue {
         .flatten
         .uncancelable
 
-    override val takeAll: F[ScalaQueue[A]] = ???
-    
-    override val tryTakeAll: F[ScalaQueue[A]] = ???
+    override val takeAll: F[ScalaQueue[A]] = 
+      take.flatMap { a =>
+        tryTakeAll.map(_.prepended(a))
+      }
+
+    override val tryTakeAll: F[ScalaQueue[A]] = {
+      def go(acc: ScalaQueue[A]): F[ScalaQueue[A]] =
+        tryTake.flatMap {
+          case Some(a) => go(acc.appended(a))
+          case None => F.pure(acc)
+        }
+
+      go(ScalaQueue())
+    }
   }
 
   private final class BoundedQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
