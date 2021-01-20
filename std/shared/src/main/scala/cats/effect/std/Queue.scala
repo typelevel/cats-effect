@@ -50,7 +50,7 @@ abstract class Queue[F[_], A] extends QueueSource[F, A] with QueueSink[F, A] { s
       override def offer(a: A): G[Unit] = f(self.offer(a))
       override def tryOffer(a: A): G[Boolean] = f(self.tryOffer(a))
       override def offerAll(as: ScalaQueue[A]): G[Unit] = f(self.offerAll(as))
-      override def tryOfferAll(as: ScalaQueue[A]): G[Boolean] = f(self.tryOffer(as))
+      override def tryOfferAll(as: ScalaQueue[A]): G[Boolean] = f(self.tryOfferAll(as))
       override val take: G[A] = f(self.take)
       override val tryTake: G[Option[A]] = f(self.tryTake)
       override val takeAll: G[ScalaQueue[A]] = f(self.takeAll)
@@ -189,11 +189,19 @@ object Queue {
         .flatten
         .uncancelable
 
-    override def offerAll(as: ScalaQueue[A]): F[Unit] = 
-      ???
+    override def offerAll(as: ScalaQueue[A]): F[Unit] =
+      as.map(offer(_)).sequence_
 
-    override def tryOfferAll(as: ScalaQueue[A]): F[Boolean] = 
-      ???
+    override def tryOfferAll(as: ScalaQueue[A]): F[Boolean] = {
+      def go(rest: ScalaQueue[A]): F[Boolean] =
+        rest.dequeueOption match {
+          case Some((a, tail)) => 
+            tryOffer(a).ifM(go(tail), F.pure(false))
+          case None => F.pure(true)
+        }
+      
+      go(as)
+    }
 
     override val take: F[A] =
       F.deferred[A].flatMap { taker =>
