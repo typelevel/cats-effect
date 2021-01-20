@@ -195,11 +195,11 @@ object Queue {
     override def tryOfferAll(as: ScalaQueue[A]): F[Boolean] = {
       def go(rest: ScalaQueue[A]): F[Boolean] =
         rest.dequeueOption match {
-          case Some((a, tail)) => 
+          case Some((a, tail)) =>
             tryOffer(a).ifM(go(tail), F.pure(false))
           case None => F.pure(true)
         }
-      
+
       go(as)
     }
 
@@ -250,10 +250,8 @@ object Queue {
         .flatten
         .uncancelable
 
-    override val takeAll: F[ScalaQueue[A]] = 
-      take.flatMap { a =>
-        tryTakeAll.map(_.prepended(a))
-      }
+    override val takeAll: F[ScalaQueue[A]] =
+      take.flatMap { a => tryTakeAll.map(_.prepended(a)) }
 
     override val tryTakeAll: F[ScalaQueue[A]] = {
       def go(acc: ScalaQueue[A]): F[ScalaQueue[A]] =
@@ -344,9 +342,9 @@ object Queue {
             fa.offer(g(b))
           override def tryOffer(b: B): F[Boolean] =
             fa.tryOffer(g(b))
-          override def offerAll(as: ScalaQueue[B]): F[Unit] = 
+          override def offerAll(as: ScalaQueue[B]): F[Unit] =
             fa.offerAll(as.map(g))
-          override def tryOfferAll(as: ScalaQueue[B]): F[Boolean] = 
+          override def tryOfferAll(as: ScalaQueue[B]): F[Boolean] =
             fa.tryOfferAll(as.map(g))
           override def take: F[B] =
             fa.take.map(f)
@@ -452,7 +450,7 @@ object QueueSink {
             fa.tryOffer(f(b))
           override def offerAll(as: ScalaQueue[B]): F[Unit] =
             fa.offerAll(as.map(f))
-          override def tryOfferAll(as: ScalaQueue[B]): F[Boolean] = 
+          override def tryOfferAll(as: ScalaQueue[B]): F[Boolean] =
             fa.tryOfferAll(as.map(f))
         }
     }
