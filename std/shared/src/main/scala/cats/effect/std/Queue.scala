@@ -234,9 +234,9 @@ object Queue {
         .flatten
         .uncancelable
 
-    override val tryTakeAll: F[ScalaQueue[A]] = ???
-
     override val takeAll: F[ScalaQueue[A]] = ???
+    
+    override val tryTakeAll: F[ScalaQueue[A]] = ???
   }
 
   private final class BoundedQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
@@ -321,10 +321,10 @@ object Queue {
             fa.take.map(f)
           override def tryTake: F[Option[B]] =
             fa.tryTake.map(_.map(f))
-          override def tryTakeAll: F[ScalaQueue[B]] =
-            fa.tryTakeAll.map(_.map(f))
           override def takeAll: F[ScalaQueue[B]] =
             fa.takeAll.map(_.map(f))
+          override def tryTakeAll: F[ScalaQueue[B]] =
+            fa.tryTakeAll.map(_.map(f))
         }
     }
 }
@@ -348,16 +348,16 @@ trait QueueSource[F[_], A] {
   def tryTake: F[Option[A]]
 
   /**
-   * Drains all elements held in the queue. Returns an empty list if there are
-   * no elements available.
-   */
-  def tryTakeAll: F[ScalaQueue[A]]
-
-  /**
    * Drains all elements held in the queue, possibly semantically blocking
    * until an element is available. Returns at least one element.
    */
   def takeAll: F[ScalaQueue[A]]
+
+  /**
+   * Drains all elements held in the queue. Returns an empty list if there are
+   * no elements available.
+   */
+  def tryTakeAll: F[ScalaQueue[A]]
 }
 
 object QueueSource {
@@ -369,10 +369,10 @@ object QueueSource {
             fa.take.map(f)
           override def tryTake: F[Option[B]] =
             fa.tryTake.map(_.map(f))
-          override def tryTakeAll: F[ScalaQueue[B]] =
-            fa.tryTakeAll.map(_.map(f))
           override def takeAll: F[ScalaQueue[B]] =
             fa.takeAll.map(_.map(f))
+          override def tryTakeAll: F[ScalaQueue[B]] =
+            fa.tryTakeAll.map(_.map(f))
         }
     }
 }
