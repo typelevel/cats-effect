@@ -156,7 +156,7 @@ lazy val rootJVM = project
   .enablePlugins(NoPublishPlugin)
 
 lazy val rootJS = project
-  .aggregate(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.jvm, std.js, example.js)
+  .aggregate(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.js, std.js, example.js)
   .enablePlugins(NoPublishPlugin)
 
 /**
