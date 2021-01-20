@@ -49,6 +49,8 @@ abstract class Queue[F[_], A] extends QueueSource[F, A] with QueueSink[F, A] { s
     new Queue[G, A] {
       override def offer(a: A): G[Unit] = f(self.offer(a))
       override def tryOffer(a: A): G[Boolean] = f(self.tryOffer(a))
+      override def offerAll(as: ScalaQueue[A]): G[Unit] = f(self.offerAll(as))
+      override def tryOfferAll(as: ScalaQueue[A]): G[Boolean] = f(self.tryOffer(as))
       override val take: G[A] = f(self.take)
       override val tryTake: G[Option[A]] = f(self.tryTake)
       override val takeAll: G[ScalaQueue[A]] = f(self.takeAll)
@@ -186,6 +188,12 @@ object Queue {
         }
         .flatten
         .uncancelable
+
+    override def offerAll(as: ScalaQueue[A]): F[Unit] = 
+      ???
+
+    override def tryOfferAll(as: ScalaQueue[A]): F[Boolean] = 
+      ???
 
     override val take: F[A] =
       F.deferred[A].flatMap { taker =>
@@ -328,6 +336,10 @@ object Queue {
             fa.offer(g(b))
           override def tryOffer(b: B): F[Boolean] =
             fa.tryOffer(g(b))
+          override def offerAll(as: ScalaQueue[B]): F[Unit] = 
+            fa.offerAll(as.map(g))
+          override def tryOfferAll(as: ScalaQueue[B]): F[Boolean] = 
+            fa.tryOfferAll(as.map(g))
           override def take: F[B] =
             fa.take.map(f)
           override def tryTake: F[Option[B]] =
@@ -407,6 +419,18 @@ trait QueueSink[F[_], A] {
    *         element succeeded without blocking
    */
   def tryOffer(a: A): F[Boolean]
+
+  /**
+   * Enqueues all the given elements, possibly semantically blocking until
+   * sufficient capacity becomes available.
+   */
+  def offerAll(as: ScalaQueue[A]): F[Unit]
+
+  /**
+   * Attempts to enqueue all the given elements. Returns when either all
+   * elements have been queued or there is no available capacity.
+   */
+  def tryOfferAll(as: ScalaQueue[A]): F[Boolean]
 }
 
 object QueueSink {
@@ -418,6 +442,10 @@ object QueueSink {
             fa.offer(f(b))
           override def tryOffer(b: B): F[Boolean] =
             fa.tryOffer(f(b))
+          override def offerAll(as: ScalaQueue[B]): F[Unit] =
+            fa.offerAll(as.map(f))
+          override def tryOfferAll(as: ScalaQueue[B]): F[Boolean] = 
+            fa.tryOfferAll(as.map(f))
         }
     }
 }
