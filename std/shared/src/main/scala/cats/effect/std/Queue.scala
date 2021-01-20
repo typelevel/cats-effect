@@ -47,10 +47,12 @@ abstract class Queue[F[_], A] extends QueueSource[F, A] with QueueSink[F, A] { s
    */
   def mapK[G[_]](f: F ~> G): Queue[G, A] =
     new Queue[G, A] {
-      def offer(a: A): G[Unit] = f(self.offer(a))
-      def tryOffer(a: A): G[Boolean] = f(self.tryOffer(a))
-      val take: G[A] = f(self.take)
-      val tryTake: G[Option[A]] = f(self.tryTake)
+      override def offer(a: A): G[Unit] = f(self.offer(a))
+      override def tryOffer(a: A): G[Boolean] = f(self.tryOffer(a))
+      override val take: G[A] = f(self.take)
+      override val tryTake: G[Option[A]] = f(self.tryTake)
+      override val takeAll: G[ScalaQueue[A]] = f(self.takeAll)
+      override val tryTakeAll: G[ScalaQueue[A]] = f(self.tryTakeAll)
     }
 }
 
@@ -152,7 +154,7 @@ object Queue {
 
     protected def onTryOfferNoCapacity(s: State[F, A], a: A): (State[F, A], F[Boolean])
 
-    def offer(a: A): F[Unit] =
+    override def offer(a: A): F[Unit] =
       F.deferred[Unit].flatMap { offerer =>
         F.uncancelable { poll =>
           state.modify {
@@ -169,7 +171,7 @@ object Queue {
         }
       }
 
-    def tryOffer(a: A): F[Boolean] =
+    override def tryOffer(a: A): F[Boolean] =
       state
         .modify {
           case State(queue, size, takers, offerers) if takers.nonEmpty =>
@@ -185,7 +187,7 @@ object Queue {
         .flatten
         .uncancelable
 
-    val take: F[A] =
+    override val take: F[A] =
       F.deferred[A].flatMap { taker =>
         F.uncancelable { poll =>
           state.modify {
@@ -210,7 +212,7 @@ object Queue {
         }
       }
 
-    val tryTake: F[Option[A]] =
+    override val tryTake: F[Option[A]] =
       state
         .modify {
           case State(queue, size, takers, offerers) if queue.nonEmpty && offerers.isEmpty =>
@@ -231,6 +233,10 @@ object Queue {
         }
         .flatten
         .uncancelable
+
+    override val tryTakeAll: F[ScalaQueue[A]] = ???
+
+    override val takeAll: F[ScalaQueue[A]] = ???
   }
 
   private final class BoundedQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
@@ -315,6 +321,10 @@ object Queue {
             fa.take.map(f)
           override def tryTake: F[Option[B]] =
             fa.tryTake.map(_.map(f))
+          override def tryTakeAll: F[ScalaQueue[B]] =
+            fa.tryTakeAll.map(_.map(f))
+          override def takeAll: F[ScalaQueue[B]] =
+            fa.takeAll.map(_.map(f))
         }
     }
 }
@@ -336,6 +346,18 @@ trait QueueSource[F[_], A] {
    *         element was available
    */
   def tryTake: F[Option[A]]
+
+  /**
+   * Drains all elements held in the queue. Returns an empty list if there are
+   * no elements available.
+   */
+  def tryTakeAll: F[ScalaQueue[A]]
+
+  /**
+   * Drains all elements held in the queue, possibly semantically blocking
+   * until an element is available. Returns at least one element.
+   */
+  def takeAll: F[ScalaQueue[A]]
 }
 
 object QueueSource {
@@ -347,6 +369,10 @@ object QueueSource {
             fa.take.map(f)
           override def tryTake: F[Option[B]] =
             fa.tryTake.map(_.map(f))
+          override def tryTakeAll: F[ScalaQueue[B]] =
+            fa.tryTakeAll.map(_.map(f))
+          override def takeAll: F[ScalaQueue[B]] =
+            fa.takeAll.map(_.map(f))
         }
     }
 }
