@@ -135,7 +135,7 @@ of making its interior cancelable. Then if we had</p>
 <span class="hljs-comment">//   ioe = Start(</span>
 <span class="hljs-comment">//     ioa = FlatMap(</span>
 <span class="hljs-comment">//       ioe = Uncancelable(body = &lt;function1&gt;),</span>
-<span class="hljs-comment">//       f = cats.effect.IO$$Lambda$11343/924330881@525c72b1</span>
+<span class="hljs-comment">//       f = cats.effect.IO$$Lambda$11327/1004741669@311d2bf8</span>
 <span class="hljs-comment">//     )</span>
 <span class="hljs-comment">//   ),</span>
 <span class="hljs-comment">//   f = &lt;function1&gt;</span>
@@ -219,9 +219,9 @@ run.unsafeRunSync()
 <span class="hljs-comment">//     ioa = FlatMap(</span>
 <span class="hljs-comment">//       ioe = Map(</span>
 <span class="hljs-comment">//         ioe = Delay(thunk = &lt;function0&gt;),</span>
-<span class="hljs-comment">//         f = cats.effect.IO$$Lambda$11372/924005002@39def24c</span>
+<span class="hljs-comment">//         f = cats.effect.IO$$Lambda$11356/517610343@cb9bcad</span>
 <span class="hljs-comment">//       ),</span>
-<span class="hljs-comment">//       f = cats.StackSafeMonad$$Lambda$11374/199098636@5b454f98</span>
+<span class="hljs-comment">//       f = cats.StackSafeMonad$$Lambda$11358/1292652593@c447f47</span>
 <span class="hljs-comment">//     )</span>
 <span class="hljs-comment">//   ),</span>
 <span class="hljs-comment">//   f = &lt;function1&gt;</span>
@@ -343,9 +343,9 @@ including <code>memoize</code> and <code>parTraverseN</code>.</p>
 <span class="hljs-comment">// action: IO[String] = Map(</span>
 <span class="hljs-comment">//   ioe = Blocking(</span>
 <span class="hljs-comment">//     hint = Blocking,</span>
-<span class="hljs-comment">//     thunk = cats.effect.std.Console$SyncConsole$$Lambda$11364/696167666@5e98310d</span>
+<span class="hljs-comment">//     thunk = cats.effect.std.Console$SyncConsole$$Lambda$11348/1048071562@1b01ca82</span>
 <span class="hljs-comment">//   ),</span>
-<span class="hljs-comment">//   f = cats.effect.IO$$Lambda$11372/924005002@3c92c3de</span>
+<span class="hljs-comment">//   f = cats.effect.IO$$Lambda$11356/517610343@62d25ad0</span>
 <span class="hljs-comment">// )</span>
 
 <span class="hljs-keyword">val</span> x: <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = <span class="hljs-keyword">for</span> {
@@ -355,8 +355,8 @@ including <code>memoize</code> and <code>parTraverseN</code>.</p>
 } <span class="hljs-keyword">yield</span> res1 ++ res2
 <span class="hljs-comment">// x: IO[String] = FlatMap(</span>
 <span class="hljs-comment">//   ioe = Map(</span>
-<span class="hljs-comment">//     ioe = Delay(thunk = cats.effect.IO$$$Lambda$11263/1814926355@72901a92),</span>
-<span class="hljs-comment">//     f = cats.effect.kernel.GenConcurrent$$Lambda$11375/1207829116@358a2d7</span>
+<span class="hljs-comment">//     ioe = Delay(thunk = cats.effect.IO$$$Lambda$11247/744275793@23cfdef3),</span>
+<span class="hljs-comment">//     f = cats.effect.kernel.GenConcurrent$$Lambda$11359/335702653@c5e238a</span>
 <span class="hljs-comment">//   ),</span>
 <span class="hljs-comment">//   f = &lt;function1&gt;</span>
 <span class="hljs-comment">// )</span>
