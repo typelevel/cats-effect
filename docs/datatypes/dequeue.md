@@ -43,4 +43,38 @@ semantically blocking if the pqueue is empty.
 
 ## Variance
 
-TODO once we have `Source` and `Sink` for `Dequeue`
+`Dequeue` is split into a `DequeueSource` with a `Functor` instance and a
+`DequeueSink` with a `Contravariant` functor instance. This allows us to treat a
+`Dequeue[F, A]` as a `DequeueSource[F, B]` by mapping with `A => B`  or as a
+`DequeueSink[F, B]` by contramapping with `B => A`.
+
+```scala mdoc:reset
+import cats.{Contravariant, Functor}
+import cats.implicits._
+import cats.effect._
+import cats.effect.std.{Dequeue, DequeueSource, DequeueSink}
+import cats.effect.unsafe.implicits.global
+
+def covariant(list: List[Int]): IO[List[Long]] = (
+  for {
+    q <- Dequeue.bounded[IO, Int](10)
+    qOfLongs: DequeueSource[IO, Long] = Functor[DequeueSource[IO, *]].map(q)(_.toLong)
+    _ <- list.traverse(q.offer(_))
+    l <- List.fill(list.length)(()).traverse(_ => qOfLongs.take)
+  } yield l
+)
+
+covariant(List(1,4,2,3)).flatMap(IO.println(_)).unsafeRunSync()
+
+def contravariant(list: List[Boolean]): IO[List[Int]] = (
+  for {
+    q <- Dequeue.bounded[IO, Int](10)
+    qOfBools: DequeueSink[IO, Boolean] =
+      Contravariant[DequeueSink[IO, *]].contramap(q)(b => if (b) 1 else 0)
+    _ <- list.traverse(qOfBools.offer(_))
+    l <- List.fill(list.length)(()).traverse(_ => q.take)
+  } yield l
+)
+
+contravariant(List(true, false)).flatMap(IO.println(_)).unsafeRunSync()
+```
