@@ -16,7 +16,7 @@
 
 package cats.effect.std
 
-import cats.{~>, Contravariant, Functor}
+import cats.{~>, Contravariant, Functor, Invariant}
 import cats.effect.kernel.{Deferred, GenConcurrent, Ref}
 import cats.effect.kernel.syntax.all._
 import cats.effect.std.internal.BankersQueue
@@ -79,6 +79,38 @@ object Dequeue {
    */
   def unbounded[F[_], A](implicit F: GenConcurrent[F, _]): F[Dequeue[F, A]] =
     bounded(Int.MaxValue)
+
+  implicit def catsInvariantForDequeue[F[_]: Functor]: Invariant[Dequeue[F, *]] =
+    new Invariant[Dequeue[F, *]] {
+      override def imap[A, B](fa: Dequeue[F, A])(f: A => B)(g: B => A): Dequeue[F, B] =
+        new Dequeue[F, B] {
+          override def takeBack: F[B] =
+            fa.takeBack.map(f)
+
+          override def tryTakeBack: F[Option[B]] =
+            fa.tryTakeBack.map(_.map(f))
+
+          override def takeFront: F[B] =
+            fa.takeFront.map(f)
+
+          override def tryTakeFront: F[Option[B]] =
+            fa.tryTakeFront.map(_.map(f))
+
+          override def offerBack(b: B): F[Unit] =
+            fa.offerBack(g(b))
+
+          override def tryOfferBack(b: B): F[Boolean] =
+            fa.tryOfferBack(g(b))
+
+          override def offerFront(b: B): F[Unit] =
+            fa.offerFront(g(b))
+
+          override def tryOfferFront(b: B): F[Boolean] =
+            fa.tryOfferFront(g(b))
+
+          override def reverse: F[Unit] = fa.reverse
+        }
+    }
 
   private[std] class BoundedDequeue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
       implicit F: GenConcurrent[F, _])
