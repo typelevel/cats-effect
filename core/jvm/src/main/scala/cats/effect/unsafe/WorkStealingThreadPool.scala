@@ -114,7 +114,7 @@ private[effect] final class WorkStealingThreadPool(
 
       if (index != thread.getIndex()) {
         // Do not steal from yourself.
-        val res = workerThreads(index).stealInto(thread.getQueue())
+        val res = workerThreads(index).steal(thread.getQueue())
         if (res != null) {
           // Successful steal. Return the next fiber to be executed.
           return res

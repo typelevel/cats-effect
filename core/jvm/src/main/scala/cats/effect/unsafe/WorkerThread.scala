@@ -46,10 +46,10 @@ private final class WorkerThread(
   import WorkStealingThreadPoolConstants._
 
   // The local work stealing queue where tasks are scheduled without contention.
-  private[this] val queue: WorkStealingQueue = new WorkStealingQueue()
+  private[this] val queue: LocalQueue = new LocalQueue()
 
   // Counter for periodically checking for any fibers coming from the external queue.
-  private[this] var tick: Int = 0
+  private[this] var ticks: Int = 0
 
   // Flag that indicates that this worker thread is actively searching for work and
   // trying to steal some from the other threads.
@@ -57,6 +57,8 @@ private final class WorkerThread(
 
   // Source of randomness.
   private[this] var random: ThreadLocalRandom = _
+
+  private[this] var bypass: IOFiber[_] = null
 
   /**
    * Enqueues a fiber to the local work stealing queue. This method always
@@ -76,7 +78,7 @@ private final class WorkerThread(
     // Check if the local queue is empty **before** enqueueing the given fiber.
     val empty = queue.isEmpty()
     queue.enqueue(fiber, external)
-    if (tick == ExternalCheckIterationsMask || !empty) {
+    if (ticks == ExternalCheckIterationsMask || !empty) {
       // On the next iteration, this worker thread will check for new work from
       // the external queue, which means that another thread should be woken up
       // to contend for the enqueued fiber.
@@ -91,8 +93,8 @@ private final class WorkerThread(
    * A forwarder method for stealing work from the local work stealing queue in
    * this thread into the `into` queue that belongs to another thread.
    */
-  def stealInto(into: WorkStealingQueue): IOFiber[_] =
-    queue.stealInto(into)
+  def steal(into: LocalQueue): IOFiber[_] =
+    queue.steal(into)
 
   /**
    * A forwarder method for checking if the local work stealing queue contains
@@ -117,7 +119,7 @@ private final class WorkerThread(
   /**
    * Returns the local work stealing queue of this worker thread.
    */
-  def getQueue(): WorkStealingQueue =
+  def getQueue(): LocalQueue =
     queue
 
   /**
@@ -126,27 +128,20 @@ private final class WorkerThread(
    * when no fiber is available.
    */
   private[this] def nextFiber(): IOFiber[_] = {
-    var fiber: IOFiber[_] = null
-
-    // Decide whether it's time to look for work in the external queue.
-    if ((tick & ExternalCheckIterationsMask) == 0) {
-      // It is time to check the external queue.
-      fiber = pool.externalDequeue()
-      if (fiber == null) {
-        // Fall back to checking the local queue.
-        fiber = queue.dequeueLocally()
-      }
+    if (bypass != null) {
+      val f = bypass
+      bypass = null
+      ticks -= 1
+      f
     } else {
-      // Normal case, look for work in the local queue.
-      fiber = queue.dequeueLocally()
-      if (fiber == null) {
-        // Fall back to checking the external queue.
-        fiber = pool.externalDequeue()
+      if ((ticks & ExternalCheckIterationsMask) == 0) {
+        val f = pool.externalDequeue()
+        if (f == null) queue.dequeue() else f
+      } else {
+        val f = queue.dequeue()
+        if (f == null) pool.externalDequeue() else f
       }
     }
-
-    // Return the fiber if any has been found.
-    fiber
   }
 
   /**
@@ -188,7 +183,7 @@ private final class WorkerThread(
 
       // Spurious wakeup check.
       if (transitionFromParked()) {
-        if (queue.isStealable()) {
+        if (queue.nonEmpty()) {
           // The local queue can be potentially stolen from. Notify a worker thread.
           pool.notifyParked(randomIndex(), index)
         }
@@ -271,8 +266,6 @@ private final class WorkerThread(
 
     // Loop until the pool has been shutdown.
     while (!pool.done && !isInterrupted()) {
-      tick += 1 // Count each iteration.
-
       // Try to obtain a fiber from the local queue or the external
       // queue, depending on the number of passed iterations.
       fiber = nextFiber()
@@ -289,13 +282,18 @@ private final class WorkerThread(
         // the pool. It's time to park and await a notification
         // when new work is submitted to the pool.
         park()
-      } else {
+        fiber = stealWork()
+      }
+
+      if (fiber != null) {
         // There is a fiber that can be executed, so do it.
         runFiber(fiber)
         // Do not forget to null out the reference, so the fiber
         // can be garbage collected.
         fiber = null
       }
+
+      ticks += 1 // Count each iteration.
     }
   }
 }
