@@ -71,7 +71,7 @@ class WorkStealingBenchmark {
   }
 
   @Benchmark
-  def async(): Int = {
+  def sched(): Int = {
     import cats.effect.unsafe.implicits.global
     benchmark
   }

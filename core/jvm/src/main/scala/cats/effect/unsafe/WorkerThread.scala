@@ -26,7 +26,7 @@
 package cats.effect
 package unsafe
 
-import java.util.Random
+import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.locks.LockSupport
 
@@ -39,6 +39,7 @@ import java.util.concurrent.locks.LockSupport
  */
 private final class WorkerThread(
     private[this] val index: Int, // index assigned by the thread pool in which this thread operates
+    private[this] val threadCount: Int,
     private[this] val pool: WorkStealingThreadPool // reference to the thread pool in which this thread operates
 ) extends Thread {
 
@@ -55,11 +56,7 @@ private final class WorkerThread(
   private[this] var searching: Boolean = false
 
   // Source of randomness.
-  private[this] val random: Random = new Random()
-
-  // Flag that indicates that this worker thread is currently sleeping, in order to
-  // guard against spurious wakeups.
-  @volatile private[unsafe] var sleeping: Boolean = false
+  private[this] var random: ThreadLocalRandom = _
 
   /**
    * Enqueues a fiber to the local work stealing queue. This method always
@@ -67,7 +64,7 @@ private final class WorkerThread(
    */
   def enqueueAndNotify(fiber: IOFiber[_], external: ConcurrentLinkedQueue[IOFiber[_]]): Unit = {
     queue.enqueue(fiber, external)
-    pool.notifyParked()
+    pool.notifyParked(randomIndex(), index)
   }
 
   /**
@@ -86,7 +83,7 @@ private final class WorkerThread(
       // It could also be the case that the current queue was not empty before
       // the fiber was enqueued, in which case another thread should wake up
       // to help out.
-      pool.notifyParked()
+      pool.notifyParked(randomIndex(), index)
     }
   }
 
@@ -173,7 +170,7 @@ private final class WorkerThread(
     // Update the local state.
     searching = false
     // Update the global state.
-    pool.transitionWorkerFromSearching()
+    pool.transitionWorkerFromSearching(this)
   }
 
   /**
@@ -193,7 +190,7 @@ private final class WorkerThread(
       if (transitionFromParked()) {
         if (queue.isStealable()) {
           // The local queue can be potentially stolen from. Notify a worker thread.
-          pool.notifyParked()
+          pool.notifyParked(randomIndex(), index)
         }
         // The thread has been notified to unpark.
         // Break out of the parking loop.
@@ -208,7 +205,7 @@ private final class WorkerThread(
     val isLastSearcher = pool.transitionWorkerToParked(this)
     searching = false
     if (isLastSearcher) {
-      pool.notifyIfWorkPending()
+      pool.notifyIfWorkPending(this)
     }
   }
 
@@ -217,13 +214,14 @@ private final class WorkerThread(
    * between an actual wakeup notification and an unplanned wakeup.
    */
   private[this] def transitionFromParked(): Boolean = {
-    if (sleeping) {
+    if (pool.getSleepers().get(index) != 0) {
       // Should remain parked.
       false
     } else {
       // Actual notification. When unparked, a worker thread goes directly into
       // the searching state.
       searching = true
+      pool.transitionWorkerFromParked()
       true
     }
   }
@@ -259,13 +257,14 @@ private final class WorkerThread(
   /**
    * Generates a random worker thread index.
    */
-  private[unsafe] def randomIndex(bound: Int): Int =
-    random.nextInt(bound)
+  private[unsafe] def randomIndex(): Int =
+    random.nextInt(threadCount)
 
   /**
    * The main run loop of this worker thread.
    */
   override def run(): Unit = {
+    random = ThreadLocalRandom.current()
     // A mutable reference to the next fiber to be executed.
     // Do not forget to null out at the end of each iteration.
     var fiber: IOFiber[_] = null

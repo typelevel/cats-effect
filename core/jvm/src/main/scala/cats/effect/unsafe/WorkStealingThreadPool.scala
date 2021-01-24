@@ -30,7 +30,7 @@ package unsafe
 import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicInteger, AtomicIntegerArray}
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -72,9 +72,10 @@ private[effect] final class WorkStealingThreadPool(
   // for work to steal from other worker threads.
   private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
 
-  // LIFO access to references of sleeping worker threads.
-  private[this] val sleepers: ConcurrentLinkedQueue[WorkerThread] =
-    new ConcurrentLinkedQueue()
+  private[this] val sleepers: AtomicIntegerArray =
+    new AtomicIntegerArray(threadCount)
+
+  private[unsafe] def getSleepers(): AtomicIntegerArray = sleepers
 
   // Shutdown signal for the worker threads.
   @volatile private[unsafe] var done: Boolean = false
@@ -85,7 +86,7 @@ private[effect] final class WorkStealingThreadPool(
     var i = 0
     while (i < threadCount) {
       val index = i
-      val thread = new WorkerThread(index, this)
+      val thread = new WorkerThread(index, threadCount, this)
       thread.setName(s"$threadPrefix-$index")
       thread.setDaemon(true)
       workerThreads(i) = thread
@@ -105,7 +106,7 @@ private[effect] final class WorkStealingThreadPool(
    * worker threads starting at a random index.
    */
   private[unsafe] def stealFromOtherWorkerThread(thread: WorkerThread): IOFiber[_] = {
-    val from = thread.randomIndex(threadCount)
+    val from = thread.randomIndex()
     var i = 0
     while (i < threadCount) {
       // Compute the index of the thread to steal from.
@@ -137,45 +138,44 @@ private[effect] final class WorkStealingThreadPool(
    * Deregisters the current worker thread from the set of searching threads and asks for
    * help with the local work stealing queue.
    */
-  private[unsafe] def transitionWorkerFromSearching(): Unit = {
+  private[unsafe] def transitionWorkerFromSearching(thread: WorkerThread): Unit = {
     // Decrement the number of searching worker threads.
     val prev = state.getAndDecrement()
     if (prev == 1) {
       // If this was the only searching thread, wake a thread up to potentially help out
       // with the local work queue.
-      notifyParked()
+      notifyParked(thread.randomIndex(), thread.getIndex())
     }
   }
 
   /**
    * Potentially unparks a worker thread.
    */
-  private[unsafe] def notifyParked(): Unit = {
-    // Find a worker thead to unpark.
-    val worker = workerToNotify()
-    LockSupport.unpark(worker)
-  }
-
-  /**
-   * Searches for a parked thread to notify of arrived work.
-   */
-  private[this] def workerToNotify(): WorkerThread = {
+  private[unsafe] def notifyParked(from: Int, workerIndex: Int): Unit = {
     if (!notifyShouldWakeup()) {
       // Fast path, no locking, there are enough searching and/or running worker threads.
       // No need to wake up more. Return.
-      return null
+      return
     }
 
-    // Obtain the most recently parked thread.
-    val worker = sleepers.poll()
-    if (worker != null) {
-      // Update the state so that a thread can be unparked.
-      // Here we are updating the 16 most significant bits, which hold the
-      // number of active threads.
-      state.getAndAdd(1 | (1 << UnparkShift))
-      worker.sleeping = false
+    val helper = new Array[Int](threadCount)
+    var i = 0
+    while (i < threadCount) {
+      helper(i) = sleepers.get(i)
+      i += 1
     }
-    worker
+
+    i = 0
+    while (i < threadCount) {
+      val idx = (from + i) % threadCount
+      if (idx != workerIndex && helper(idx) != 0) {
+        if (sleepers.compareAndSet(idx, 1, 0)) {
+          val worker = workerThreads(idx)
+          LockSupport.unpark(worker)
+        }
+      }
+      i += 1
+    }
   }
 
   /**
@@ -195,10 +195,14 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[unsafe] def transitionWorkerToParked(thread: WorkerThread): Boolean = {
     // Mark the thread as parked.
-    thread.sleeping = true
-    sleepers.offer(thread)
+    sleepers.lazySet(thread.getIndex(), 1)
     // Decrement the number of unparked threads since we are parking.
     decrementNumberUnparked(thread.isSearching())
+  }
+
+  private[unsafe] def transitionWorkerFromParked(): Unit = {
+    state.getAndAdd(1 | (1 << UnparkShift))
+    ()
   }
 
   /**
@@ -230,12 +234,12 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * Unparks a thread if there is pending work available.
    */
-  private[unsafe] def notifyIfWorkPending(): Unit = {
+  private[unsafe] def notifyIfWorkPending(thread: WorkerThread): Unit = {
     var i = 0
     while (i < threadCount) {
       // Check each worker thread for available work that can be stolen.
       if (!workerThreads(i).isEmpty()) {
-        notifyParked()
+        notifyParked(thread.randomIndex(), thread.getIndex())
         return
       }
       i += 1
@@ -243,7 +247,7 @@ private[effect] final class WorkStealingThreadPool(
 
     if (!externalQueue.isEmpty()) {
       // If no work was found in the local queues of the worker threads, look for work in the external queue.
-      notifyParked()
+      notifyParked(thread.randomIndex(), thread.getIndex())
     }
   }
 
@@ -275,7 +279,7 @@ private[effect] final class WorkStealingThreadPool(
       rescheduleFiberAndNotify(fiber)
     } else {
       externalQueue.offer(fiber)
-      notifyParked()
+      notifyParked(scala.util.Random.nextInt(threadCount), -1)
     }
   }
 
