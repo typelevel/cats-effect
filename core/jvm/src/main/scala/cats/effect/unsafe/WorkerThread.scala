@@ -167,6 +167,7 @@ private final class WorkerThread(
           val worker = workers(idx)
           if (Unsafe.getIntVolatile(worker, sleepingOffset) != 0
             && Unsafe.compareAndSwapInt(worker, sleepingOffset, 1, 0)) {
+            Unsafe.getAndAddInt(pool, stateOffset, (1 << UnparkShift) | 1)
             LockSupport.unpark(worker)
             return
           }
@@ -255,7 +256,7 @@ private final class WorkerThread(
       // Actual notification. When unparked, a worker thread goes directly into
       // the searching state.
       searching = true
-      Unsafe.getAndAddInt(pool, stateOffset, (1 << UnparkShift) | 1)
+      // Unsafe.getAndAddInt(pool, stateOffset, (1 << UnparkShift) | 1)
       true
     }
   }

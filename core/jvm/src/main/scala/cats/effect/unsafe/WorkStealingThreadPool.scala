@@ -119,6 +119,7 @@ private[effect] final class WorkStealingThreadPool(
           val idx = (from + i) % threadCount
           val worker = workers(idx)
           if (worker.isSleeping() && worker.tryWakeUp()) {
+            Unsafe.getAndAddInt(this, stateOffset, (1 << UnparkShift) | 1)
             LockSupport.unpark(worker)
             return
           }
