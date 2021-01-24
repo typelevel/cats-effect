@@ -177,7 +177,7 @@ private final class WorkerThread(
 
     // Only actually park if the pool has not been shut down. Otherwise, this
     // will break out of the run loop and end the thread.
-    while (!pool.done && !isInterrupted()) {
+    while (!pool.done) {
       // Park the thread until further notice.
       LockSupport.park(pool)
 
@@ -265,7 +265,7 @@ private final class WorkerThread(
     var fiber: IOFiber[_] = null
 
     // Loop until the pool has been shutdown.
-    while (!pool.done && !isInterrupted()) {
+    while (!pool.done) {
       // Try to obtain a fiber from the local queue or the external
       // queue, depending on the number of passed iterations.
       fiber = nextFiber()
