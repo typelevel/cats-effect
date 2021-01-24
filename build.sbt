@@ -206,9 +206,8 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
  */
 lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
   .dependsOn(kernel, std)
-  .settings(
-    name := "cats-effect"
-  )
+  .settings(name := "cats-effect")
+  .jvmSettings(javacOptions := javacOptions.value.filterNot(_ == "-Werror"))
 
 /**
  * Test support for the core project, providing various helpful instances
