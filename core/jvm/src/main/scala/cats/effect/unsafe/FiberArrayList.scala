@@ -25,10 +25,10 @@ private final class FiberArrayList(capacity: Int) extends Collection[IOFiber[_]]
 
   private[this] val list: Array[IOFiber[_]] = new Array(capacity)
 
-  private[this] val listSize: Int =
-    FiberArrayBaseOffset + (capacity << ReferencePointerShift)
-
   private[this] var offset: Int = FiberArrayBaseOffset
+
+  private[this] var listSize: Int = FiberArrayBaseOffset
+
   private[this] val it: Iterator[IOFiber[_]] =
     new Iterator[IOFiber[_]] {
       def hasNext(): Boolean = offset < listSize
@@ -42,10 +42,12 @@ private final class FiberArrayList(capacity: Int) extends Collection[IOFiber[_]]
   def +=(fiber: IOFiber[_]): Unit = {
     Unsafe.putObject(list, offset, fiber)
     offset += ReferencePointerSize
+    listSize += ReferencePointerSize
   }
 
   def reset(): Unit = {
     offset = FiberArrayBaseOffset
+    listSize = FiberArrayBaseOffset
     System.arraycopy(NullArray, 0, list, 0, capacity)
   }
 
