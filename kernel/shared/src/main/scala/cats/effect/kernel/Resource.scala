@@ -760,6 +760,32 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
       }
   }
 
+  implicit final class NestedSyntax[F[_], A](val self: Resource[Resource[F, *], A])
+      extends AnyVal {
+
+    /**
+     * Flattens the outer [[Resource]] scope with the inner, mirroring the semantics
+     * of [[flatMap]].
+     *
+     * This function is useful in cases where some generic combinator (such as
+     * [[background]]) explicitly returns a value within a [[Resource]] effect,
+     * and that generic combinator is itself used within an outer [[Resource]].
+     * In this case, it is often desirable to flatten the inner and outer
+     * [[Resource]] together. [[flattenK]] implements this flattening operation
+     * with the same semantics as [[flatMap]].
+     */
+    def flattenK(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
+      Resource applyFull { poll =>
+        val alloc = self.allocated.allocated
+
+        poll(alloc) map {
+          case ((a, rfin), fin) =>
+            val composedFinalizers = fin !> rfin.allocated.flatMap(_._2)
+            (a, (_: Resource.ExitCase) => composedFinalizers)
+        }
+      }
+  }
+
   type Par[F[_], A] = ParallelF[Resource[F, *], A]
 
   implicit def parallelForResource[F[_]: Concurrent]: Parallel.Aux[Resource[F, *], Par[F, *]] =
