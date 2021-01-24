@@ -28,7 +28,6 @@ package unsafe
 
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -41,18 +40,13 @@ import java.util.concurrent.locks.LockSupport
 private final class WorkerThread(
     private[this] val index: Int, // index assigned by the thread pool in which this thread operates
     private[this] val threadCount: Int,
+    private[this] val workers: Array[WorkerThread],
     private[this] val external: ConcurrentLinkedQueue[IOFiber[_]],
+    private[this] val stateOffset: Long,
     private[this] val pool: WorkStealingThreadPool // reference to the thread pool in which this thread operates
-) extends Thread {
+) extends WorkerThread.Padding {
 
   import WorkStealingThreadPoolConstants._
-
-  // The local work stealing queue where tasks are scheduled without contention.
-  private[this] val queue: LocalQueue = new LocalQueue()
-
-  private[this] val sleeping: AtomicBoolean = new AtomicBoolean()
-
-  private[unsafe] def getSleeping(): AtomicBoolean = sleeping
 
   // Counter for periodically checking for any fibers coming from the external queue.
   private[this] var ticks: Int = 0
@@ -66,13 +60,31 @@ private final class WorkerThread(
 
   private[this] var bypass: IOFiber[_] = null
 
+  private[this] val sleepingOffset: Long = {
+    try {
+      val field = classOf[WorkerThread.Sleeping].getDeclaredField("sleeping")
+      Unsafe.objectFieldOffset(field)
+    } catch {
+      case t: Throwable =>
+        throw new ExceptionInInitializerError(t)
+    }
+  }
+
+  def isSleeping(): Boolean = {
+    Unsafe.getIntVolatile(this, sleepingOffset) != 0
+  }
+
+  def tryWakeUp(): Boolean = {
+    Unsafe.compareAndSwapInt(this, sleepingOffset, 1, 0)
+  }
+
   /**
    * Enqueues a fiber to the local work stealing queue. This method always
    * notifies another thread that a steal should be attempted from this queue.
    */
   def schedule(fiber: IOFiber[_]): Unit = {
-    queue.enqueue(fiber, external)
-    pool.notifyParked(randomIndex(), index)
+    enqueue(fiber, external)
+    notifyParked()
   }
 
   /**
@@ -81,46 +93,13 @@ private final class WorkerThread(
    * determined that this is a mostly single fiber workload.
    */
   def reschedule(fiber: IOFiber[_]): Unit = {
-    if (queue.isEmpty()) {
+    if (isEmpty()) {
       bypass = fiber
     } else {
-      queue.enqueue(fiber, external)
-      pool.notifyParked(randomIndex(), index)
+      enqueue(fiber, external)
+      notifyParked()
     }
   }
-
-  /**
-   * A forwarder method for stealing work from the local work stealing queue in
-   * this thread into the `into` queue that belongs to another thread.
-   */
-  def steal(into: LocalQueue): IOFiber[_] =
-    queue.steal(into)
-
-  /**
-   * A forwarder method for checking if the local work stealing queue contains
-   * any fibers.
-   */
-  def isEmpty(): Boolean =
-    queue.isEmpty()
-
-  /**
-   * Returns true if this worker thread is actively searching for work and
-   * looking to steal some from other worker threads.
-   */
-  def isSearching(): Boolean =
-    searching
-
-  /**
-   * Returns the work stealing thread pool index of this worker thread.
-   */
-  def getIndex(): Int =
-    index
-
-  /**
-   * Returns the local work stealing queue of this worker thread.
-   */
-  def getQueue(): LocalQueue =
-    queue
 
   /**
    * Obtain a fiber either from the local queue or the external queue,
@@ -136,9 +115,9 @@ private final class WorkerThread(
     } else {
       if ((ticks & ExternalCheckIterationsMask) == 0) {
         val f = external.poll()
-        if (f == null) queue.dequeue() else f
+        if (f == null) dequeue() else f
       } else {
-        val f = queue.dequeue()
+        val f = dequeue()
         if (f == null) external.poll() else f
       }
     }
@@ -165,7 +144,36 @@ private final class WorkerThread(
     // Update the local state.
     searching = false
     // Update the global state.
-    pool.transitionWorkerFromSearching(this)
+    // Decrement the number of searching worker threads.
+    val prev = Unsafe.getAndAddInt(pool, stateOffset, -1)
+    if (prev == 1) {
+      // If this was the only searching thread, wake a thread up to potentially help out
+      // with the local work queue.
+      notifyParked()
+    }
+  }
+
+  /**
+   * Potentially unparks a worker thread.
+   */
+  private[this] def notifyParked(): Unit = {
+    val st = Unsafe.getIntVolatile(pool, stateOffset)
+    if ((st & SearchMask) == 0 && ((st & UnparkMask) >>> UnparkShift) < threadCount) {
+      val from = randomIndex()
+      var i = 0
+      while (i < threadCount) {
+        val idx = (from + i) % threadCount
+        if (idx != index) {
+          val worker = workers(idx)
+          if (Unsafe.getIntVolatile(worker, sleepingOffset) != 0
+            && Unsafe.compareAndSwapInt(worker, sleepingOffset, 1, 0)) {
+            LockSupport.unpark(worker)
+            return
+          }
+        }
+        i += 1
+      }
+    }
   }
 
   /**
@@ -183,9 +191,9 @@ private final class WorkerThread(
 
       // Spurious wakeup check.
       if (transitionFromParked()) {
-        if (queue.nonEmpty()) {
+        if (nonEmpty()) {
           // The local queue can be potentially stolen from. Notify a worker thread.
-          pool.notifyParked(randomIndex(), index)
+          notifyParked()
         }
         // The thread has been notified to unpark.
         // Break out of the parking loop.
@@ -197,10 +205,41 @@ private final class WorkerThread(
   }
 
   private[this] def transitionToParked(): Unit = {
-    val isLastSearcher = pool.transitionWorkerToParked(this)
+    // Mark the thread as parked.
+    Unsafe.putOrderedInt(this, sleepingOffset, 1)
+
+    // Decrement the number of unparked threads since we are parking.
+    // Prepare for decrementing the 16 most significant bits that hold
+    // the number of unparked threads.
+    var dec = 1 << UnparkShift
+
+    if (searching) {
+      // Also decrement the 16 least significant bits that hold
+      // the number of searching threads if the thread was in the searching state.
+      dec += 1
+    }
+
+    // Atomically change the state.
+    val prev = Unsafe.getAndAddInt(pool, stateOffset, -dec)
+
+    // Was this thread the last searching thread?
+    val isLastSearcher = searching && (prev & SearchMask) == 1
     searching = false
     if (isLastSearcher) {
-      pool.notifyIfWorkPending(this)
+      var i = 0
+      while (i < threadCount) {
+        // Check each worker thread for available work that can be stolen.
+        if (workers(i).nonEmpty()) {
+          notifyParked()
+          return
+        }
+        i += 1
+      }
+
+      if (!external.isEmpty()) {
+        // If no work was found in the local queues of the worker threads, look for work in the external queue.
+        notifyParked()
+      }
     }
   }
 
@@ -209,14 +248,14 @@ private final class WorkerThread(
    * between an actual wakeup notification and an unplanned wakeup.
    */
   private[this] def transitionFromParked(): Boolean = {
-    if (sleeping.get()) {
+    if (Unsafe.getIntVolatile(this, sleepingOffset) != 0) {
       // Should remain parked.
       false
     } else {
       // Actual notification. When unparked, a worker thread goes directly into
       // the searching state.
       searching = true
-      pool.transitionWorkerFromParked()
+      Unsafe.getAndAddInt(pool, stateOffset, (1 << UnparkShift) | 1)
       true
     }
   }
@@ -234,7 +273,26 @@ private final class WorkerThread(
     }
 
     // This thread has been allowed to steal work from other worker threads.
-    pool.stealFromOtherWorkerThread(this)
+    val from = randomIndex()
+    var i = 0
+    while (i < threadCount) {
+      // Compute the index of the thread to steal from.
+      val idx = (from + i) % threadCount
+
+      if (idx != index) {
+        // Do not steal from yourself.
+        val res = workers(idx).steal(this)
+        if (res != null) {
+          // Successful steal. Return the next fiber to be executed.
+          return res
+        }
+      }
+
+      i += 1
+    }
+
+    // The worker thread could not steal any work. Fall back to checking the external queue.
+    external.poll()
   }
 
   /**
@@ -243,7 +301,18 @@ private final class WorkerThread(
   private[this] def transitionToSearching(): Boolean = {
     if (!searching) {
       // If this thread is not currently searching for work, ask the pool for permission.
-      searching = pool.transitionWorkerToSearching()
+      val st = Unsafe.getIntVolatile(pool, stateOffset)
+
+      // Try to keep at most around 50% threads that are searching for work, to reduce unnecessary contention.
+      // It is not exactly 50%, but it is a good enough approximation.
+      if (2 * (st & SearchMask) >= threadCount) {
+        // There are enough searching worker threads. Do not allow this thread to enter the searching state.
+        searching = false
+      } else {
+        // Allow this thread to enter the searching state.
+        Unsafe.getAndAddInt(pool, stateOffset, 1)
+        searching = true
+      }
     }
     // Return the decision by the pool.
     searching
@@ -252,7 +321,7 @@ private final class WorkerThread(
   /**
    * Generates a random worker thread index.
    */
-  private[unsafe] def randomIndex(): Int =
+  private[this] def randomIndex(): Int =
     random.nextInt(threadCount)
 
   /**
@@ -295,5 +364,49 @@ private final class WorkerThread(
 
       ticks += 1 // Count each iteration.
     }
+  }
+}
+
+private object WorkerThread {
+  abstract class InitPadding extends LocalQueue {
+    protected val pinit00: Long = 0
+    protected val pinit01: Long = 0
+    protected val pinit02: Long = 0
+    protected val pinit03: Long = 0
+    protected val pinit04: Long = 0
+    protected val pinit05: Long = 0
+    protected val pinit06: Long = 0
+    protected val pinit07: Long = 0
+    protected val pinit08: Long = 0
+    protected val pinit09: Long = 0
+    protected val pinit10: Long = 0
+    protected val pinit11: Long = 0
+    protected val pinit12: Long = 0
+    protected val pinit13: Long = 0
+    protected val pinit14: Long = 0
+    protected val pinit15: Long = 0
+  }
+
+  abstract class Sleeping extends InitPadding {
+    @volatile protected var sleeping: Int = 0
+  }
+
+  abstract class Padding extends Sleeping {
+    protected val pwkth00: Long = 0
+    protected val pwkth01: Long = 0
+    protected val pwkth02: Long = 0
+    protected val pwkth03: Long = 0
+    protected val pwkth04: Long = 0
+    protected val pwkth05: Long = 0
+    protected val pwkth06: Long = 0
+    protected val pwkth07: Long = 0
+    protected val pwkth08: Long = 0
+    protected val pwkth09: Long = 0
+    protected val pwkth10: Long = 0
+    protected val pwkth11: Long = 0
+    protected val pwkth12: Long = 0
+    protected val pwkth13: Long = 0
+    protected val pwkth14: Long = 0
+    protected val pwkth15: Long = 0
   }
 }

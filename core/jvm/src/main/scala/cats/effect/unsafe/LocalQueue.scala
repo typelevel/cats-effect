@@ -111,7 +111,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
  *
  * 5. Unsafe array access, for removing bounds check.
  */
-private final class LocalQueue extends LocalQueue.ClassPadding {
+private class LocalQueue extends LocalQueue.Padding {
   // Static constants used throughout the code defined in Java source code in
   // order to insure inlining by the runtime.
   import LocalQueueConstants._
@@ -608,7 +608,7 @@ private object LocalQueue {
    * These fields take up 16 * 8 = 128 bytes of contiguous memory, which is the
    * size of a single cache line of modern processors.
    */
-  abstract class HeadPadding {
+  abstract class HeadPadding extends Thread {
     protected val phead00: Long = 0
     protected val phead01: Long = 0
     protected val phead02: Long = 0
@@ -666,7 +666,7 @@ private object LocalQueue {
      * on the JVM, while still allowing for properly synchronized multi-threaded
      * updates to the value.
      */
-    protected var head: Int = 0
+    @volatile protected var head: Int = 0
   }
 
   /**
@@ -719,7 +719,7 @@ private object LocalQueue {
      * on the JVM, while still allowing for properly publishing the value of the
      * field for synchronized multi-threaded read access.
      */
-    protected var tail: Int = 0
+    @volatile protected var tail: Int = 0
   }
 
   /**
@@ -728,22 +728,22 @@ private object LocalQueue {
    * [[LocalQueue]]. This ensures that changes to the `tail` will not be falsely
    * shared with the fields of the queue and vice-versa.
    */
-  abstract class ClassPadding extends Tail {
-    protected val pclss00: Long = 0
-    protected val pclss01: Long = 0
-    protected val pclss02: Long = 0
-    protected val pclss03: Long = 0
-    protected val pclss04: Long = 0
-    protected val pclss05: Long = 0
-    protected val pclss06: Long = 0
-    protected val pclss07: Long = 0
-    protected val pclss08: Long = 0
-    protected val pclss09: Long = 0
-    protected val pclss10: Long = 0
-    protected val pclss11: Long = 0
-    protected val pclss12: Long = 0
-    protected val pclss13: Long = 0
-    protected val pclss14: Long = 0
-    protected val pclss15: Long = 0
+  abstract class Padding extends Tail {
+    protected val plclq00: Long = 0
+    protected val plclq01: Long = 0
+    protected val plclq02: Long = 0
+    protected val plclq03: Long = 0
+    protected val plclq04: Long = 0
+    protected val plclq05: Long = 0
+    protected val plclq06: Long = 0
+    protected val plclq07: Long = 0
+    protected val plclq08: Long = 0
+    protected val plclq09: Long = 0
+    protected val plclq10: Long = 0
+    protected val plclq11: Long = 0
+    protected val plclq12: Long = 0
+    protected val plclq13: Long = 0
+    protected val plclq14: Long = 0
+    protected val plclq15: Long = 0
   }
 }

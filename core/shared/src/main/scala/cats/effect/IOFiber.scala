@@ -887,7 +887,7 @@ private final class IOFiber[A](
 
   private[this] def rescheduleAndNotify(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
     if (ec.isInstanceOf[WorkStealingThreadPool])
-      ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiberAndNotify(fiber)
+      ec.asInstanceOf[WorkStealingThreadPool].scheduleFiber(fiber)
     else
       scheduleOnForeignEC(ec)(fiber)
 
