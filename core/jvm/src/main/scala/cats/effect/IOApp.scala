@@ -16,9 +16,8 @@
 
 package cats.effect
 
-import scala.concurrent.CancellationException
-
-import java.util.concurrent.CountDownLatch
+import scala.concurrent.{Await, CancellationException, Promise}
+import scala.concurrent.duration._
 
 trait IOApp {
 
@@ -30,7 +29,7 @@ trait IOApp {
 
     val rt = Runtime.getRuntime()
 
-    val latch = new CountDownLatch(1)
+    val latch = Promise[Unit]()
     @volatile var error: Throwable = null
     @volatile var result: ExitCode = null
 
@@ -40,22 +39,22 @@ trait IOApp {
       ioa.unsafeRunFiber(
         {
           error = new CancellationException("IOApp main fiber was canceled")
-          latch.countDown()
+          latch.success(())
         },
         { t =>
           error = t
-          latch.countDown()
+          latch.success(())
         },
         { a =>
           result = a
-          latch.countDown()
+          latch.success(())
         })(runtime)
 
     def handleShutdown(): Unit = {
-      if (latch.getCount() > 0) {
-        val cancelLatch = new CountDownLatch(1)
-        fiber.cancel.unsafeRunAsync(_ => cancelLatch.countDown())(runtime)
-        cancelLatch.await()
+      if (!latch.isCompleted) {
+        val cancelLatch = Promise[Unit]()
+        fiber.cancel.unsafeRunAsync(_ => cancelLatch.success(()))(runtime)
+        Await.result(cancelLatch.future, Duration.Inf)
       }
 
       // Clean up after ourselves, relevant for running IOApps in sbt,
@@ -76,7 +75,7 @@ trait IOApp {
     }
 
     try {
-      latch.await()
+      Await.result(latch.future, Duration.Inf)
       if (error != null) {
         // Runtime has already been shutdown in IOFiber.
         throw error

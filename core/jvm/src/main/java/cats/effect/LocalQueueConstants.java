@@ -24,6 +24,8 @@ final class LocalQueueConstants {
 
   static final int ReferencePointerShift;
 
+  static final int LocalQueueCapacityNumber = 256;
+
   // Fixed capacity of the local work queue (power of 2).
   static final int LocalQueueCapacity;
 
@@ -38,7 +40,7 @@ final class LocalQueueConstants {
     FiberArrayBaseOffset = cats.effect.unsafe.Unsafe.arrayBaseOffset(fiberArrayClass);
     ReferencePointerSize = cats.effect.unsafe.Unsafe.arrayIndexScale(fiberArrayClass);
     ReferencePointerShift = ReferencePointerSize == 8 ? 3 : 2;
-    LocalQueueCapacity = 256 << ReferencePointerShift;
+    LocalQueueCapacity = LocalQueueCapacityNumber << ReferencePointerShift;
     CapacityMask = LocalQueueCapacity - 1;
     HalfLocalQueueCapacity = LocalQueueCapacity >>> 1;
   }
@@ -51,5 +53,5 @@ final class LocalQueueConstants {
   // queue.
   static final int BatchLength = 128 + 1;
 
-  static final Object[] NullArray = new Object[BatchLength];
+  static final Object[] NullArray = new Object[LocalQueueCapacityNumber];
 }

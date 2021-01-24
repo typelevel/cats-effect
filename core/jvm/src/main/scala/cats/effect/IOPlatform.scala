@@ -17,9 +17,10 @@
 package cats.effect
 
 import scala.annotation.unchecked.uncheckedVariance
+import scala.concurrent.{Await, Promise, TimeoutException}
 import scala.concurrent.duration._
 
-import java.util.concurrent.{CompletableFuture, CountDownLatch, TimeUnit}
+import java.util.concurrent.CompletableFuture
 
 abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
 
@@ -30,17 +31,19 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
       implicit runtime: unsafe.IORuntime): Option[A] = {
     @volatile
     var results: Either[Throwable, A] = null
-    val latch = new CountDownLatch(1)
+    val latch = Promise[Unit]()
 
     unsafeRunAsync { r =>
       results = r
-      latch.countDown()
+      latch.success(())
     }
 
-    if (latch.await(limit.toNanos, TimeUnit.NANOSECONDS)) {
-      results.fold(throw _, a => Some(a))
-    } else {
-      None
+    try {
+      Await.result(latch.future, limit)
+      results.fold(throw _, Some(_))
+    } catch {
+      case _: TimeoutException =>
+        None
     }
   }
 

@@ -30,6 +30,7 @@ package unsafe
 import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -67,7 +68,9 @@ private[effect] final class WorkStealingThreadPool(
     new ConcurrentLinkedQueue()
 
   // Shutdown signal for the worker threads.
-  @volatile private[unsafe] var done: Boolean = false
+  @volatile var done: Boolean = false
+
+  private[this] val blockingThreadNameCounter: AtomicInteger = new AtomicInteger()
 
   private[this] val stateOffset: Long = {
     try {
@@ -87,7 +90,15 @@ private[effect] final class WorkStealingThreadPool(
     while (i < threadCount) {
       val index = i
       val thread =
-        new WorkerThread(index, threadCount, workers, externalQueue, stateOffset, this)
+        new WorkerThread(
+          index,
+          threadCount,
+          threadPrefix,
+          blockingThreadNameCounter,
+          workers,
+          externalQueue,
+          stateOffset,
+          this)
       thread.setName(s"$threadPrefix-$index")
       thread.setDaemon(true)
       workers(i) = thread
@@ -137,7 +148,11 @@ private[effect] final class WorkStealingThreadPool(
    * `WorkerThread`.
    */
   def rescheduleFiber(fiber: IOFiber[_]): Unit = {
-    Thread.currentThread().asInstanceOf[WorkerThread].reschedule(fiber)
+    if (Thread.currentThread().isInstanceOf[WorkerThread]) {
+      Thread.currentThread().asInstanceOf[WorkerThread].reschedule(fiber)
+    } else {
+      Thread.currentThread().asInstanceOf[BlockingThread].reschedule(fiber)
+    }
   }
 
   /**
@@ -146,7 +161,11 @@ private[effect] final class WorkStealingThreadPool(
    * directly from a `WorkerThread`.
    */
   def scheduleFiber(fiber: IOFiber[_]): Unit = {
-    Thread.currentThread().asInstanceOf[WorkerThread].schedule(fiber)
+    if (Thread.currentThread().isInstanceOf[WorkerThread]) {
+      Thread.currentThread().asInstanceOf[WorkerThread].schedule(fiber)
+    } else {
+      Thread.currentThread().asInstanceOf[BlockingThread].schedule(fiber)
+    }
   }
 
   /**

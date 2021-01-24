@@ -26,8 +26,11 @@
 package cats.effect
 package unsafe
 
+import scala.concurrent.{BlockContext, CanAwait}
+
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -40,13 +43,17 @@ import java.util.concurrent.locks.LockSupport
 private final class WorkerThread(
     private[this] val index: Int, // index assigned by the thread pool in which this thread operates
     private[this] val threadCount: Int,
+    private[this] val threadPrefix: String,
+    private[this] val blockingThreadNameCounter: AtomicInteger,
     private[this] val workers: Array[WorkerThread],
     private[this] val external: ConcurrentLinkedQueue[IOFiber[_]],
     private[this] val stateOffset: Long,
     private[this] val pool: WorkStealingThreadPool // reference to the thread pool in which this thread operates
-) extends WorkerThread.Padding {
+) extends WorkerThread.Padding
+    with BlockContext {
 
   import WorkStealingThreadPoolConstants._
+  import LocalQueueConstants._
 
   // Counter for periodically checking for any fibers coming from the external queue.
   private[this] var ticks: Int = 0
@@ -59,6 +66,10 @@ private final class WorkerThread(
   private[this] var random: ThreadLocalRandom = _
 
   private[this] var bypass: IOFiber[_] = null
+
+  private[this] var blocked: Boolean = false
+
+  private[this] val drainList: FiberArrayList = new FiberArrayList(LocalQueueCapacityNumber)
 
   private[this] val sleepingOffset: Long = {
     try {
@@ -364,6 +375,26 @@ private final class WorkerThread(
       }
 
       ticks += 1 // Count each iteration.
+    }
+  }
+
+  override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+    drain(drainList)
+    external.addAll(drainList)
+    drainList.reset()
+    if (blocked) {
+      thunk
+    } else {
+      blocked = true
+      val helper = new BlockingThread(threadPrefix, blockingThreadNameCounter, external, pool)
+      helper.setName(s"$threadPrefix-blocking-${blockingThreadNameCounter.incrementAndGet()}")
+      helper.setDaemon(true)
+      helper.start()
+      val result = thunk
+      helper.setSignal(1)
+      helper.join()
+      blocked = false
+      result
     }
   }
 }

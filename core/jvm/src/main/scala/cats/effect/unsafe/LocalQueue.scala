@@ -120,7 +120,7 @@ private class LocalQueue extends LocalQueue.Padding {
    * The array of [[cats.effect.IOFiber]] object references physically backing
    * the circular buffer queue.
    */
-  private val buffer: Array[IOFiber[_]] = new Array(LocalQueueCapacity)
+  private val buffer: Array[IOFiber[_]] = new Array(LocalQueueCapacityNumber)
 
   /**
    * Memory offset of the `head` field defined in [[LocalQueue$.Head]]
@@ -472,7 +472,7 @@ private class LocalQueue extends LocalQueue.Padding {
     null
   }
 
-  def drain(list: java.util.ArrayList[IOFiber[_]]): Unit = {
+  def drain(list: FiberArrayList): Unit = {
     val tl = tail
 
     while (true) {
@@ -503,7 +503,7 @@ private class LocalQueue extends LocalQueue.Padding {
           val srcOffset = FiberArrayBaseOffset + ((real + i) & CapacityMask)
           val fiber = Unsafe.getObject(buffer, srcOffset).asInstanceOf[IOFiber[_]]
           Unsafe.putObject(buffer, srcOffset, null)
-          list.add(fiber)
+          list += fiber
           i += ReferencePointerSize
         }
 

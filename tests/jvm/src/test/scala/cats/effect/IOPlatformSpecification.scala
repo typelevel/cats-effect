@@ -23,11 +23,10 @@ import org.scalacheck.Prop.forAll
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Await, ExecutionContext, Promise}
 import scala.concurrent.duration._
 
-import java.util.concurrent.{CountDownLatch, Executors}
-import java.util.concurrent.CompletableFuture
+import java.util.concurrent.{CompletableFuture, Executors}
 
 abstract class IOPlatformSpecification extends Specification with ScalaCheck with Runners {
 
@@ -137,17 +136,17 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
 
       "interrupt well-behaved blocking synchronous effect" in real {
         var interrupted = true
-        val latch = new CountDownLatch(1)
+        val latch = Promise[Unit]()
 
         val await = IO.interruptible(false) {
-          latch.countDown()
+          latch.success(())
           Thread.sleep(15000)
           interrupted = false
         }
 
         for {
           f <- await.start
-          _ <- IO.blocking(latch.await())
+          _ <- IO.blocking(Await.result(latch.future, Duration.Inf))
           _ <- f.cancel
           _ <- IO(interrupted must beTrue)
         } yield ok
@@ -155,10 +154,10 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
 
       "interrupt ill-behaved blocking synchronous effect" in real {
         var interrupted = true
-        val latch = new CountDownLatch(1)
+        val latch = Promise[Unit]()
 
         val await = IO.interruptible(true) {
-          latch.countDown()
+          latch.success(())
 
           try {
             Thread.sleep(15000)
@@ -181,7 +180,7 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
 
         for {
           f <- await.start
-          _ <- IO.blocking(latch.await())
+          _ <- IO.blocking(Await.result(latch.future, Duration.Inf))
           _ <- f.cancel
           _ <- IO(interrupted must beTrue)
         } yield ok
