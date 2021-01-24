@@ -30,7 +30,7 @@ package unsafe
 import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.{AtomicInteger, AtomicIntegerArray}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -72,11 +72,6 @@ private[effect] final class WorkStealingThreadPool(
   // for work to steal from other worker threads.
   private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
 
-  private[this] val sleepers: AtomicIntegerArray =
-    new AtomicIntegerArray(threadCount)
-
-  private[unsafe] def getSleepers(): AtomicIntegerArray = sleepers
-
   // Shutdown signal for the worker threads.
   @volatile private[unsafe] var done: Boolean = false
 
@@ -86,7 +81,7 @@ private[effect] final class WorkStealingThreadPool(
     var i = 0
     while (i < threadCount) {
       val index = i
-      val thread = new WorkerThread(index, threadCount, this)
+      val thread = new WorkerThread(index, threadCount, externalQueue, this)
       thread.setName(s"$threadPrefix-$index")
       thread.setDaemon(true)
       workerThreads(i) = thread
@@ -125,14 +120,8 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // The worker thread could not steal any work. Fall back to checking the external queue.
-    externalDequeue()
-  }
-
-  /**
-   * Checks the external queue for a fiber to execute next.
-   */
-  private[unsafe] def externalDequeue(): IOFiber[_] =
     externalQueue.poll()
+  }
 
   /**
    * Deregisters the current worker thread from the set of searching threads and asks for
@@ -158,18 +147,15 @@ private[effect] final class WorkStealingThreadPool(
       return
     }
 
-    val helper = new Array[Int](threadCount)
+    var worker: WorkerThread = null
+    var sleeping: AtomicBoolean = null
     var i = 0
     while (i < threadCount) {
-      helper(i) = sleepers.get(i)
-      i += 1
-    }
-
-    i = 0
-    while (i < threadCount) {
       val idx = (from + i) % threadCount
-      if (idx != workerIndex && helper(idx) != 0) {
-        if (sleepers.compareAndSet(idx, 1, 0)) {
+      if (idx != workerIndex) {
+        worker = workerThreads(idx)
+        sleeping = worker.getSleeping()
+        if (sleeping.get() && sleeping.compareAndSet(true, false)) {
           val worker = workerThreads(idx)
           LockSupport.unpark(worker)
         }
@@ -195,7 +181,7 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[unsafe] def transitionWorkerToParked(thread: WorkerThread): Boolean = {
     // Mark the thread as parked.
-    sleepers.lazySet(thread.getIndex(), 1)
+    thread.getSleeping().lazySet(true)
     // Decrement the number of unparked threads since we are parking.
     decrementNumberUnparked(thread.isSearching())
   }
@@ -291,7 +277,7 @@ private[effect] final class WorkStealingThreadPool(
    * `WorkerThread`.
    */
   private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit = {
-    Thread.currentThread().asInstanceOf[WorkerThread].smartEnqueue(fiber, externalQueue)
+    Thread.currentThread().asInstanceOf[WorkerThread].reschedule(fiber)
   }
 
   /**
@@ -300,7 +286,7 @@ private[effect] final class WorkStealingThreadPool(
    * directly from a `WorkerThread`.
    */
   private[effect] def rescheduleFiberAndNotify(fiber: IOFiber[_]): Unit = {
-    Thread.currentThread().asInstanceOf[WorkerThread].enqueueAndNotify(fiber, externalQueue)
+    Thread.currentThread().asInstanceOf[WorkerThread].schedule(fiber)
   }
 
   /**

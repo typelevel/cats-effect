@@ -28,6 +28,7 @@ package unsafe
 
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -40,6 +41,7 @@ import java.util.concurrent.locks.LockSupport
 private final class WorkerThread(
     private[this] val index: Int, // index assigned by the thread pool in which this thread operates
     private[this] val threadCount: Int,
+    private[this] val external: ConcurrentLinkedQueue[IOFiber[_]],
     private[this] val pool: WorkStealingThreadPool // reference to the thread pool in which this thread operates
 ) extends Thread {
 
@@ -47,6 +49,10 @@ private final class WorkerThread(
 
   // The local work stealing queue where tasks are scheduled without contention.
   private[this] val queue: LocalQueue = new LocalQueue()
+
+  private[this] val sleeping: AtomicBoolean = new AtomicBoolean()
+
+  private[unsafe] def getSleeping(): AtomicBoolean = sleeping
 
   // Counter for periodically checking for any fibers coming from the external queue.
   private[this] var ticks: Int = 0
@@ -64,7 +70,7 @@ private final class WorkerThread(
    * Enqueues a fiber to the local work stealing queue. This method always
    * notifies another thread that a steal should be attempted from this queue.
    */
-  def enqueueAndNotify(fiber: IOFiber[_], external: ConcurrentLinkedQueue[IOFiber[_]]): Unit = {
+  def schedule(fiber: IOFiber[_]): Unit = {
     queue.enqueue(fiber, external)
     pool.notifyParked(randomIndex(), index)
   }
@@ -74,17 +80,11 @@ private final class WorkerThread(
    * notifying another thread about potential work to be stolen if it can be
    * determined that this is a mostly single fiber workload.
    */
-  def smartEnqueue(fiber: IOFiber[_], external: ConcurrentLinkedQueue[IOFiber[_]]): Unit = {
-    // Check if the local queue is empty **before** enqueueing the given fiber.
-    val empty = queue.isEmpty()
-    queue.enqueue(fiber, external)
-    if (ticks == ExternalCheckIterationsMask || !empty) {
-      // On the next iteration, this worker thread will check for new work from
-      // the external queue, which means that another thread should be woken up
-      // to contend for the enqueued fiber.
-      // It could also be the case that the current queue was not empty before
-      // the fiber was enqueued, in which case another thread should wake up
-      // to help out.
+  def reschedule(fiber: IOFiber[_]): Unit = {
+    if (queue.isEmpty()) {
+      bypass = fiber
+    } else {
+      queue.enqueue(fiber, external)
       pool.notifyParked(randomIndex(), index)
     }
   }
@@ -135,11 +135,11 @@ private final class WorkerThread(
       f
     } else {
       if ((ticks & ExternalCheckIterationsMask) == 0) {
-        val f = pool.externalDequeue()
+        val f = external.poll()
         if (f == null) queue.dequeue() else f
       } else {
         val f = queue.dequeue()
-        if (f == null) pool.externalDequeue() else f
+        if (f == null) external.poll() else f
       }
     }
   }
@@ -209,7 +209,7 @@ private final class WorkerThread(
    * between an actual wakeup notification and an unplanned wakeup.
    */
   private[this] def transitionFromParked(): Boolean = {
-    if (pool.getSleepers().get(index) != 0) {
+    if (sleeping.get()) {
       // Should remain parked.
       false
     } else {
