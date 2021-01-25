@@ -375,6 +375,17 @@ private class LocalQueue extends LocalQueue.Padding {
     // by the executing thread.
     val dstTl = dst.tail
 
+    // A load of the head of the destination queue using `acquire` semantics.
+    val dstHd = Unsafe.getIntVolatile(dst, headOffset)
+
+    // Before a steal is attempted, make sure that the destination queue is not
+    // being stolen from. It can be argued that an attempt to steal fewer fibers
+    // can be made here, but it is simpler to give up completely.
+    val steal = msb(dstHd)
+    if (unsignedShortSubtraction(dstTl, steal) > HalfLocalQueueCapacity) {
+      return null
+    }
+
     // A CAS loop on the head of the queue (since it is a FIFO queue). The loop
     // can break out of the whole method only when it has successfully moved
     // the head by `size / 2` positions, securing the fibers to transfer in the

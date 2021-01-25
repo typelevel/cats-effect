@@ -174,14 +174,12 @@ private final class WorkerThread(
       var i = 0
       while (i < threadCount) {
         val idx = (from + i) % threadCount
-        if (idx != index) {
-          val worker = workers(idx)
-          if (Unsafe.getIntVolatile(worker, sleepingOffset) != 0
-            && Unsafe.compareAndSwapInt(worker, sleepingOffset, 1, 0)) {
-            Unsafe.getAndAddInt(pool, stateOffset, (1 << UnparkShift) | 1)
-            LockSupport.unpark(worker)
-            return
-          }
+        val worker = workers(idx)
+        if (Unsafe.getIntVolatile(worker, sleepingOffset) != 0
+          && Unsafe.compareAndSwapInt(worker, sleepingOffset, 1, 0)) {
+          Unsafe.getAndAddInt(pool, stateOffset, (1 << UnparkShift) | 1)
+          LockSupport.unpark(worker)
+          return
         }
         i += 1
       }
