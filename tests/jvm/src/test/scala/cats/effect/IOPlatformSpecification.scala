@@ -27,6 +27,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 import java.util.concurrent.{CountDownLatch, Executors}
+import java.util.concurrent.CompletableFuture
 
 abstract class IOPlatformSpecification extends Specification with ScalaCheck with Runners {
 
@@ -119,6 +120,19 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
             .handleError(_ => 42)
 
         test must completeAs(42)
+      }
+
+      "errors in j.u.c.CompletableFuture are not wrapped" in ticked { implicit ticker =>
+        val e = new RuntimeException("stuff happened")
+        val test = IO
+          .fromCompletableFuture(IO {
+            val root = new CompletableFuture[Int]
+            root.completeExceptionally(e)
+            root.thenApply(_ + 1)
+          })
+          .attempt
+
+        test must completeAs(Left(e))
       }
 
       "interrupt well-behaved blocking synchronous effect" in real {
