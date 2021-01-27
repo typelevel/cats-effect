@@ -38,20 +38,8 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
     else
       Blocking(hint, () => thunk)
 
-  // TODO deduplicate with AsyncPlatform#fromCompletableFuture (requires Dotty 0.26 or higher)
   def fromCompletableFuture[A](fut: IO[CompletableFuture[A]]): IO[A] =
-    fut flatMap { cf =>
-      async[A] { cb =>
-        IO {
-          val stage = cf.handle[Unit] {
-            case (a, null) => cb(Right(a))
-            case (_, t) => cb(Left(t))
-          }
-
-          Some(IO(stage.cancel(false)).void)
-        }
-      }
-    }
+    asyncForIO.fromCompletableFuture(fut)
 
   def realTimeInstant: IO[Instant] = asyncForIO.realTimeInstant
 }
