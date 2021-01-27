@@ -125,7 +125,7 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
       "errors in j.u.c.CompletableFuture are not wrapped" in ticked { implicit ticker =>
         val e = new RuntimeException("stuff happened")
         val test = IO
-          .fromCompletableFuture(IO {
+          .fromCompletableFuture[Int](IO {
             val root = new CompletableFuture[Int]
             root.completeExceptionally(e)
             root.thenApply(_ + 1)
