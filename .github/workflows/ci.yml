@@ -22,7 +22,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        scala: [3.0.0-M2, 3.0.0-M3, 2.12.12, 2.13.4]
+        scala: [3.0.0-M2, 3.0.0-M3, 2.12.13, 2.13.4]
         java: [adopt@1.8, adopt@1.11]
     runs-on: ${{ matrix.os }}
     steps:
@@ -61,5 +61,5 @@ jobs:
 
       - run: sbt ++${{ matrix.scala }} ci
 
-      - if: matrix.scala == '2.12.12'
+      - if: matrix.scala == '2.12.13'
         run: sbt ++${{ matrix.scala }} microsite/makeMicrosite
