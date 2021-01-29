@@ -50,6 +50,8 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   // evalOn(executionContext, ec) <-> pure(ec)
   def evalOn[A](fa: F[A], ec: ExecutionContext): F[A]
 
+  def startOn[A](fa: F[A], ec: ExecutionContext): F[Fiber[F, Throwable, A]]
+
   def executionContext: F[ExecutionContext]
 
   def fromFuture[A](fut: F[Future[A]]): F[A] =
@@ -203,6 +205,10 @@ object Async {
     def evalOn[A](fa: OptionT[F, A], ec: ExecutionContext): OptionT[F, A] =
       OptionT(F.evalOn(fa.value, ec))
 
+    override def startOn[A](fa: OptionT[F, A], ec: ExecutionContext): OptionT[F, Fiber[OptionT[F, *], Throwable, A]] =
+      start(evalOn(fa, ec))
+
+
     def executionContext: OptionT[F, ExecutionContext] = OptionT.liftF(F.executionContext)
 
     override def never[A]: OptionT[F, A] = OptionT.liftF(F.never)
@@ -262,6 +268,9 @@ object Async {
 
     def evalOn[A](fa: EitherT[F, E, A], ec: ExecutionContext): EitherT[F, E, A] =
       EitherT(F.evalOn(fa.value, ec))
+
+    override def startOn[A](fa: EitherT[F, E, A], ec: ExecutionContext): EitherT[F, E, Fiber[EitherT[F, E, *], Throwable, A]] =
+      start(evalOn(fa, ec))
 
     def executionContext: EitherT[F, E, ExecutionContext] = EitherT.liftF(F.executionContext)
 
@@ -384,6 +393,9 @@ object Async {
     def evalOn[A](fa: WriterT[F, L, A], ec: ExecutionContext): WriterT[F, L, A] =
       WriterT(F.evalOn(fa.run, ec))
 
+    override def startOn[A](fa: WriterT[F, L, A], ec: ExecutionContext): WriterT[F, L, Fiber[WriterT[F, L, *], Throwable, A]] =
+      start(evalOn(fa, ec))
+
     def executionContext: WriterT[F, L, ExecutionContext] = WriterT.liftF(F.executionContext)
 
     override def never[A]: WriterT[F, L, A] = WriterT.liftF(F.never)
@@ -443,6 +455,10 @@ object Async {
 
     def evalOn[A](fa: Kleisli[F, R, A], ec: ExecutionContext): Kleisli[F, R, A] =
       Kleisli(r => F.evalOn(fa.run(r), ec))
+
+
+    override def startOn[A](fa: Kleisli[F, R, A], ec: ExecutionContext): Kleisli[F, R, Fiber[Kleisli[F, R, *], Throwable, A]] =
+      start(evalOn(fa, ec))
 
     def executionContext: Kleisli[F, R, ExecutionContext] = Kleisli.liftF(F.executionContext)
 

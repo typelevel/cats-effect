@@ -1121,6 +1121,9 @@ abstract private[effect] class ResourceAsync[F[_]]
       }
     }
 
+  override def startOn[A](fa: Resource[F, A], ec: ExecutionContext): Resource[F, Fiber[Resource[F, *], Throwable, A]] =
+    start(evalOn(fa, ec))
+
   def executionContext: Resource[F, ExecutionContext] =
     Resource.eval(F.executionContext)
 }
