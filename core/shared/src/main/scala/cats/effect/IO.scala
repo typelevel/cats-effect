@@ -86,6 +86,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def startOn(ec: ExecutionContext): IO[FiberIO[A @uncheckedVariance]] = evalOn(ec).start
 
+  def backgroundOn(ec: ExecutionContext): ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
+    evalOn(ec).background
+
   def flatMap[B](f: A => IO[B]): IO[B] = IO.FlatMap(this, f)
 
   def flatten[B](implicit ev: A <:< IO[B]): IO[B] = flatMap(ev)
@@ -536,6 +539,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     def startOn[A](fa: IO[A], ec: ExecutionContext): IO[FiberIO[A]] =
       fa.startOn(ec)
+
+    override def backgroundOn[A](
+        fa: IO[A],
+        ec: ExecutionContext): Resource[IO, IO[Outcome[IO, Throwable, A]]] =
+      fa.backgroundOn(ec)
 
     val executionContext: IO[ExecutionContext] =
       IO.executionContext

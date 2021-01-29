@@ -52,6 +52,8 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
 
   def startOn[A](fa: F[A], ec: ExecutionContext): F[Fiber[F, Throwable, A]]
 
+  def backgroundOn[A](fa: F[A], ec: ExecutionContext): Resource[F, F[Outcome[F, Throwable, A]]]
+
   def executionContext: F[ExecutionContext]
 
   def fromFuture[A](fut: F[Future[A]]): F[A] =
@@ -205,9 +207,14 @@ object Async {
     def evalOn[A](fa: OptionT[F, A], ec: ExecutionContext): OptionT[F, A] =
       OptionT(F.evalOn(fa.value, ec))
 
-    override def startOn[A](fa: OptionT[F, A], ec: ExecutionContext): OptionT[F, Fiber[OptionT[F, *], Throwable, A]] =
+    override def startOn[A](
+        fa: OptionT[F, A],
+        ec: ExecutionContext): OptionT[F, Fiber[OptionT[F, *], Throwable, A]] =
       start(evalOn(fa, ec))
 
+    override def backgroundOn[A](fa: OptionT[F, A], ec: ExecutionContext)
+        : Resource[OptionT[F, *], OptionT[F, Outcome[OptionT[F, *], Throwable, A]]] =
+      background(evalOn(fa, ec))
 
     def executionContext: OptionT[F, ExecutionContext] = OptionT.liftF(F.executionContext)
 
@@ -269,8 +276,14 @@ object Async {
     def evalOn[A](fa: EitherT[F, E, A], ec: ExecutionContext): EitherT[F, E, A] =
       EitherT(F.evalOn(fa.value, ec))
 
-    override def startOn[A](fa: EitherT[F, E, A], ec: ExecutionContext): EitherT[F, E, Fiber[EitherT[F, E, *], Throwable, A]] =
+    override def startOn[A](
+        fa: EitherT[F, E, A],
+        ec: ExecutionContext): EitherT[F, E, Fiber[EitherT[F, E, *], Throwable, A]] =
       start(evalOn(fa, ec))
+
+    override def backgroundOn[A](fa: EitherT[F, E, A], ec: ExecutionContext)
+        : Resource[EitherT[F, E, *], EitherT[F, E, Outcome[EitherT[F, E, *], Throwable, A]]] =
+      background(evalOn(fa, ec))
 
     def executionContext: EitherT[F, E, ExecutionContext] = EitherT.liftF(F.executionContext)
 
@@ -333,6 +346,15 @@ object Async {
     def evalOn[A](fa: IorT[F, L, A], ec: ExecutionContext): IorT[F, L, A] =
       IorT(F.evalOn(fa.value, ec))
 
+    override def startOn[A](
+        fa: IorT[F, L, A],
+        ec: ExecutionContext): IorT[F, L, Fiber[IorT[F, L, *], Throwable, A]] =
+      start(evalOn(fa, ec))
+
+    override def backgroundOn[A](fa: IorT[F, L, A], ec: ExecutionContext)
+        : Resource[IorT[F, L, *], IorT[F, L, Outcome[IorT[F, L, *], Throwable, A]]] =
+      background(evalOn(fa, ec))
+
     def executionContext: IorT[F, L, ExecutionContext] = IorT.liftF(F.executionContext)
 
     override def never[A]: IorT[F, L, A] = IorT.liftF(F.never)
@@ -393,8 +415,14 @@ object Async {
     def evalOn[A](fa: WriterT[F, L, A], ec: ExecutionContext): WriterT[F, L, A] =
       WriterT(F.evalOn(fa.run, ec))
 
-    override def startOn[A](fa: WriterT[F, L, A], ec: ExecutionContext): WriterT[F, L, Fiber[WriterT[F, L, *], Throwable, A]] =
+    override def startOn[A](
+        fa: WriterT[F, L, A],
+        ec: ExecutionContext): WriterT[F, L, Fiber[WriterT[F, L, *], Throwable, A]] =
       start(evalOn(fa, ec))
+
+    override def backgroundOn[A](fa: WriterT[F, L, A], ec: ExecutionContext)
+        : Resource[WriterT[F, L, *], WriterT[F, L, Outcome[WriterT[F, L, *], Throwable, A]]] =
+      background(evalOn(fa, ec))
 
     def executionContext: WriterT[F, L, ExecutionContext] = WriterT.liftF(F.executionContext)
 
@@ -456,9 +484,14 @@ object Async {
     def evalOn[A](fa: Kleisli[F, R, A], ec: ExecutionContext): Kleisli[F, R, A] =
       Kleisli(r => F.evalOn(fa.run(r), ec))
 
-
-    override def startOn[A](fa: Kleisli[F, R, A], ec: ExecutionContext): Kleisli[F, R, Fiber[Kleisli[F, R, *], Throwable, A]] =
+    override def startOn[A](
+        fa: Kleisli[F, R, A],
+        ec: ExecutionContext): Kleisli[F, R, Fiber[Kleisli[F, R, *], Throwable, A]] =
       start(evalOn(fa, ec))
+
+    override def backgroundOn[A](fa: Kleisli[F, R, A], ec: ExecutionContext)
+        : Resource[Kleisli[F, R, *], Kleisli[F, R, Outcome[Kleisli[F, R, *], Throwable, A]]] =
+      background(evalOn(fa, ec))
 
     def executionContext: Kleisli[F, R, ExecutionContext] = Kleisli.liftF(F.executionContext)
 
