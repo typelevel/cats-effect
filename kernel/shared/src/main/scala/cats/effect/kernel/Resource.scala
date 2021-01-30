@@ -796,6 +796,7 @@ private[effect] trait ResourceHOInstances0 extends ResourceHOInstances1 {
   implicit def catsEffectAsyncForResource[F[_]](implicit F0: Async[F]): Async[Resource[F, *]] =
     new ResourceAsync[F] {
       def F = F0
+      override def applicative = this
     }
 
   implicit def catsEffectSemigroupKForResource[F[_], A](
@@ -814,6 +815,7 @@ private[effect] trait ResourceHOInstances1 extends ResourceHOInstances2 {
       implicit F0: Temporal[F]): Temporal[Resource[F, *]] =
     new ResourceTemporal[F] {
       def F = F0
+      override def applicative = this
     }
 
   implicit def catsEffectSyncForResource[F[_]](implicit F0: Sync[F]): Sync[Resource[F, *]] =
@@ -828,6 +830,7 @@ private[effect] trait ResourceHOInstances2 extends ResourceHOInstances3 {
       implicit F0: Concurrent[F]): Concurrent[Resource[F, *]] =
     new ResourceConcurrent[F] {
       def F = F0
+      override def applicative = this
     }
 
   implicit def catsEffectClockForResource[F[_]](
@@ -928,6 +931,9 @@ abstract private[effect] class ResourceConcurrent[F[_]]
     extends ResourceMonadCancel[F]
     with GenConcurrent[Resource[F, *], Throwable] {
   implicit protected def F: Concurrent[F]
+
+  def unique: Resource[F, Unique.Token] =
+    Resource.eval(F.unique)
 
   def never[A]: Resource[F, A] =
     Resource.eval(F.never[A])
@@ -1077,6 +1083,11 @@ abstract private[effect] class ResourceAsync[F[_]]
     with ResourceSync[F]
     with Async[Resource[F, *]] { self =>
   implicit protected def F: Async[F]
+
+  override def applicative = this
+
+  override def unique: Resource[F, Unique.Token] =
+    Resource.eval(F.unique)
 
   override def never[A]: Resource[F, A] =
     Resource.eval(F.never[A])

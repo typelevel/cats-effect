@@ -178,6 +178,9 @@ object Async {
     override protected final def delegate = super.delegate
     override protected final def C = F
 
+    override def unique: OptionT[F, Unique.Token] =
+      delay(new Unique.Token())
+
     def cont[K, R](body: Cont[OptionT[F, *], K, R]): OptionT[F, R] =
       OptionT(
         F.cont(
@@ -237,6 +240,9 @@ object Async {
 
     override protected final def delegate = super.delegate
     override protected final def C = F
+
+    override def unique: EitherT[F, E, Unique.Token] =
+      delay(new Unique.Token())
 
     def cont[K, R](body: Cont[EitherT[F, E, *], K, R]): EitherT[F, E, R] =
       EitherT(
@@ -299,6 +305,9 @@ object Async {
     override protected final def delegate = super.delegate
     override protected final def C = F
 
+    override def unique: IorT[F, L, Unique.Token] =
+      delay(new Unique.Token())
+
     def cont[K, R](body: Cont[IorT[F, L, *], K, R]): IorT[F, L, R] =
       IorT(
         F.cont(
@@ -358,6 +367,9 @@ object Async {
 
     override protected final def delegate = super.delegate
     override protected final def C = F
+
+    override def unique: WriterT[F, L, Unique.Token] =
+      delay(new Unique.Token())
 
     def cont[K, R](body: Cont[WriterT[F, L, *], K, R]): WriterT[F, L, R] =
       WriterT(
@@ -419,6 +431,9 @@ object Async {
 
     override protected final def delegate = super.delegate
     override protected final def C = F
+
+    override def unique: Kleisli[F, R, Unique.Token] =
+      delay(new Unique.Token())
 
     def cont[K, R2](body: Cont[Kleisli[F, R, *], K, R2]): Kleisli[F, R, R2] =
       Kleisli(r =>
