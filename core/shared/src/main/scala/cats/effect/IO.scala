@@ -44,8 +44,6 @@ import scala.concurrent.{
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
-
 sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   private[effect] def tag: Byte
@@ -664,8 +662,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
   private[effect] object IOCont {
     // INTERNAL, it's only created by the runloop itself during the execution of `IOCont`
-    final case class Get[A](state: AtomicReference[ContState], wasFinalizing: AtomicBoolean)
-        extends IO[A] {
+    final case class Get[A](state: ContState) extends IO[A] {
       def tag = 12
     }
   }

@@ -26,7 +26,7 @@ import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.atomic.AtomicBoolean
 import scala.util.control.NoStackTrace
 
 /*
@@ -113,11 +113,6 @@ private final class IOFiber[A](
 
   /* mutable state for resuming the fiber in different states */
   private[this] var resumeTag: Byte = ExecR
-
-  /* prefetch for ContState */
-  private[this] val ContStateInitial = ContState.Initial
-  private[this] val ContStateWaiting = ContState.Waiting
-  private[this] val ContStateResult = ContState.Result
 
   /* prefetch for Right(()) */
   private[this] val RightUnit = IOFiber.RightUnit
@@ -402,8 +397,7 @@ private final class IOFiber[A](
            * should run the finalisers (i.e. call `asyncCancel`).
            *
            */
-          val state = new AtomicReference[ContState](ContStateInitial)
-          val wasFinalizing = new AtomicBoolean(finalizing)
+          val state = new ContState(finalizing)
 
           val cb: Either[Throwable, Any] => Unit = { e =>
             /*
@@ -421,7 +415,9 @@ private final class IOFiber[A](
               // println(s"cb loop sees suspended ${suspended.get} on fiber $name")
               /* try to take ownership of the runloop */
               if (resume()) {
-                if (finalizing == wasFinalizing.get()) {
+                // `resume()` is a volatile read of `suspended` through which
+                // `wasFinalizing` is published
+                if (finalizing == state.wasFinalizing) {
                   if (!shouldFinalize()) {
                     /* we weren't cancelled, so resume the runloop */
                     asyncContinue(e)
@@ -451,8 +447,6 @@ private final class IOFiber[A](
                */
             }
 
-            val resultState = ContStateResult(e)
-
             /*
              * CAS loop to update the Cont state machine:
              * 0 - Initial
@@ -471,12 +465,11 @@ private final class IOFiber[A](
              */
             @tailrec
             def stateLoop(): Unit = {
-              val old = state.get
-              val tag = old.tag
-              if (tag <= 1) {
-                if (!state.compareAndSet(old, resultState)) stateLoop()
+              val tag = state.get()
+              if (tag <= ContStateWaiting) {
+                if (!state.compareAndSet(tag, ContStateResult)) stateLoop()
                 else {
-                  if (tag == 1) {
+                  if (tag == ContStateWaiting) {
                     /*
                      * `get` has been sequenced and is waiting
                      * reacquire runloop to continue
@@ -487,19 +480,22 @@ private final class IOFiber[A](
               }
             }
 
+            // The result will be published when the CAS on `state` succeeds.
+            state.result = e
             stateLoop()
           }
 
-          val get: IO[Any] = IOCont
-            .Get(state, wasFinalizing)
-            .onCancel(
-              /*
-               * If get gets canceled but the result hasn't been computed yet,
-               * restore the state to Initial to ensure a subsequent `Get` in
-               * a finalizer still works with the same logic.
-               */
-              IO(state.compareAndSet(ContStateWaiting, ContStateInitial)).void
-            )
+          val get: IO[Any] =
+            IOCont
+              .Get(state)
+              .onCancel(
+                /*
+                 * If get gets canceled but the result hasn't been computed yet,
+                 * restore the state to Initial to ensure a subsequent `Get` in
+                 * a finalizer still works with the same logic.
+                 */
+                IO(state.compareAndSet(ContStateWaiting, ContStateInitial)).void
+              )
 
           val next = body[IO].apply(cb, get, FunctionK.id)
 
@@ -509,7 +505,6 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[IOCont.Get[Any]]
 
           val state = cur.state
-          val wasFinalizing = cur.wasFinalizing
 
           if (state.compareAndSet(ContStateInitial, ContStateWaiting)) {
             /*
@@ -520,9 +515,10 @@ private final class IOFiber[A](
 
             /*
              * we set the finalizing check to the *suspension* point, which may
-             * be in a different finalizer scope than the cont itself
+             * be in a different finalizer scope than the cont itself.
+             * `wasFinalizing` is published by a volatile store on `suspended`.
              */
-            wasFinalizing.set(finalizing)
+            state.wasFinalizing = finalizing
 
             /*
              * You should probably just read this as `suspended.compareAndSet(false, true)`.
@@ -571,7 +567,7 @@ private final class IOFiber[A](
              *   which would have been caught by the previous branch unless the `cb` has
              *   completed and the state is `Result`
              */
-            val result = state.get().result
+            val result = state.result
 
             if (!shouldFinalize()) {
               /* we weren't cancelled, so resume the runloop */
