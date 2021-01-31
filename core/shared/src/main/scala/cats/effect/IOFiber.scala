@@ -485,17 +485,7 @@ private final class IOFiber[A](
             stateLoop()
           }
 
-          val get: IO[Any] =
-            IOCont
-              .Get(state)
-              .onCancel(
-                /*
-                 * If get gets canceled but the result hasn't been computed yet,
-                 * restore the state to Initial to ensure a subsequent `Get` in
-                 * a finalizer still works with the same logic.
-                 */
-                IO(state.compareAndSet(ContStateWaiting, ContStateInitial)).void
-              )
+          val get: IO[Any] = IOCont.Get(state)
 
           val next = body[IO].apply(cb, get, FunctionK.id)
 
@@ -505,6 +495,18 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[IOCont.Get[Any]]
 
           val state = cur.state
+
+          /*
+           * If get gets canceled but the result hasn't been computed yet,
+           * restore the state to Initial to ensure a subsequent `Get` in
+           * a finalizer still works with the same logic.
+           */
+          val fin = IO {
+            state.compareAndSet(ContStateWaiting, ContStateInitial)
+            ()
+          }
+          finalizers.push(EvalOn(fin, currentCtx))
+          conts.push(OnCancelK)
 
           if (state.compareAndSet(ContStateInitial, ContStateWaiting)) {
             /*
