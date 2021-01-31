@@ -77,7 +77,7 @@ trait GenTemporalTests[F[_], E] extends GenSpawnTests[F, E] with ClockTests[F] {
     new RuleSet {
       val name = "temporal"
       val bases = Nil
-      val parents = Seq(spawn[A, B, C], clock[A, B, C])
+      val parents = Seq(spawn[A, B, C], clock)
 
       val props = Seq(
         "monotonic sleep sum identity" -> forAll(laws.monotonicSleepSumIdentity _),

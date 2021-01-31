@@ -17,7 +17,7 @@
 package cats.effect.kernel
 package testkit
 
-import cats.{~>, Eq, Functor, Id, Monad, MonadError, Order, Show}
+import cats.{~>, Defer, Eq, Functor, Id, Monad, MonadError, Order, Show}
 import cats.data.{Kleisli, State, WriterT}
 import cats.effect.kernel._
 import cats.free.FreeT
@@ -309,6 +309,10 @@ object pure {
             localCtx(ctx2, body(poll))
           }
         }
+
+      // we happen to know this is non-memoizing, so we're just using it as a shortcut
+      def unique: PureConc[E, Unique.Token] =
+        Defer[PureConc[E, *]].defer(pure(new Unique.Token()))
 
       def forceR[A, B](fa: PureConc[E, A])(fb: PureConc[E, B]): PureConc[E, B] =
         Thread.annotate("forceR")(productR(attempt(fa))(fb))

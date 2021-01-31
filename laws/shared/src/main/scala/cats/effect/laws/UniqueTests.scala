@@ -17,30 +17,30 @@
 package cats.effect
 package laws
 
-import cats.effect.kernel.Clock
+import cats.effect.kernel.Unique
 
 import org.scalacheck._
 
 import org.typelevel.discipline.Laws
 
-trait ClockTests[F[_]] extends Laws {
+trait UniqueTests[F[_]] extends Laws {
 
-  val laws: ClockLaws[F]
+  val laws: UniqueLaws[F]
 
-  def clock(implicit exec: F[Boolean] => Prop): RuleSet = {
+  def unique(implicit exec: F[Boolean] => Prop): RuleSet = {
     new RuleSet {
-      val name = "clock"
+      val name = "unique"
       val bases = Nil
       val parents = Seq()
 
-      val props = Seq("monotonicity" -> exec(laws.monotonicity))
+      val props = Seq("uniqueness" -> exec(laws.uniqueness))
     }
   }
 }
 
-object ClockTests {
-  def apply[F[_]](implicit F0: Clock[F]): ClockTests[F] =
-    new ClockTests[F] {
-      val laws = ClockLaws[F]
+object UniqueTests {
+  def apply[F[_]](implicit F0: Unique[F]): UniqueTests[F] =
+    new UniqueTests[F] {
+      val laws = UniqueLaws[F]
     }
 }

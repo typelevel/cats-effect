@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.~>
+import cats.{~>, Applicative}
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{Monoid, Semigroup}
 import cats.syntax.all._
@@ -189,8 +189,10 @@ import cats.effect.kernel.syntax.monadCancel._
  *   1. https://gist.github.com/djspiewak/3ac3f3f55a780e8ab6fa2ca87160ca40
  *   1. https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c
  */
-trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
+trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
   implicit private[this] def F: MonadCancel[F, E] = this
+
+  def applicative: Applicative[F] = this
 
   final def rootCancelScope: CancelScope = CancelScope.Cancelable
 
@@ -493,6 +495,9 @@ object GenSpawn {
 
     implicit protected def F: GenSpawn[F, E]
 
+    def unique: OptionT[F, Unique.Token] =
+      OptionT.liftF(F.unique)
+
     def start[A](fa: OptionT[F, A]): OptionT[F, Fiber[OptionT[F, *], E, A]] =
       OptionT.liftF(F.start(fa.value).map(liftFiber))
 
@@ -548,6 +553,9 @@ object GenSpawn {
       with EitherTMonadCancel[F, E0, E] {
 
     implicit protected def F: GenSpawn[F, E]
+
+    def unique: EitherT[F, E0, Unique.Token] =
+      EitherT.liftF(F.unique)
 
     def start[A](fa: EitherT[F, E0, A]): EitherT[F, E0, Fiber[EitherT[F, E0, *], E, A]] =
       EitherT.liftF(F.start(fa.value).map(liftFiber))
@@ -615,6 +623,9 @@ object GenSpawn {
 
     implicit protected def L: Semigroup[L]
 
+    def unique: IorT[F, L, Unique.Token] =
+      IorT.liftF(F.unique)
+
     def start[A](fa: IorT[F, L, A]): IorT[F, L, Fiber[IorT[F, L, *], E, A]] =
       IorT.liftF(F.start(fa.value).map(liftFiber))
 
@@ -669,6 +680,9 @@ object GenSpawn {
       with KleisliMonadCancel[F, R, E] {
 
     implicit protected def F: GenSpawn[F, E]
+
+    def unique: Kleisli[F, R, Unique.Token] =
+      Kleisli.liftF(F.unique)
 
     def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[Kleisli[F, R, *], E, A]] =
       Kleisli { r => (F.start(fa.run(r)).map(liftFiber)) }
@@ -738,6 +752,9 @@ object GenSpawn {
     implicit protected def F: GenSpawn[F, E]
 
     implicit protected def L: Monoid[L]
+
+    def unique: WriterT[F, L, Unique.Token] =
+      WriterT.liftF(F.unique)
 
     def start[A](fa: WriterT[F, L, A]): WriterT[F, L, Fiber[WriterT[F, L, *], E, A]] =
       WriterT.liftF(F.start(fa.run).map(liftFiber))

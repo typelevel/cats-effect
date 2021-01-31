@@ -19,7 +19,7 @@ package cats.effect.kernel
 import cats.{Applicative, Defer, Monoid, Semigroup}
 import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 
-trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Defer[F] {
+trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Unique[F] with Defer[F] {
 
   private[this] val Delay = Sync.Type.Delay
   private[this] val Blocking = Sync.Type.Blocking
@@ -27,6 +27,9 @@ trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Defer[F] {
   private[this] val InterruptibleMany = Sync.Type.InterruptibleMany
 
   override def applicative: Applicative[F] = this
+
+  def unique: F[Unique.Token] =
+    delay(new Unique.Token())
 
   def delay[A](thunk: => A): F[A] =
     suspend(Delay)(thunk)

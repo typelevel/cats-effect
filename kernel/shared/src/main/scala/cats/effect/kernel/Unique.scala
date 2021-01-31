@@ -14,33 +14,23 @@
  * limitations under the License.
  */
 
-package cats.effect
-package laws
+package cats.effect.kernel
 
-import cats.effect.kernel.Clock
+import cats.{Applicative, Hash}
 
-import org.scalacheck._
-
-import org.typelevel.discipline.Laws
-
-trait ClockTests[F[_]] extends Laws {
-
-  val laws: ClockLaws[F]
-
-  def clock(implicit exec: F[Boolean] => Prop): RuleSet = {
-    new RuleSet {
-      val name = "clock"
-      val bases = Nil
-      val parents = Seq()
-
-      val props = Seq("monotonicity" -> exec(laws.monotonicity))
-    }
-  }
+trait Unique[F[_]] {
+  def applicative: Applicative[F]
+  def unique: F[Unique.Token]
 }
 
-object ClockTests {
-  def apply[F[_]](implicit F0: Clock[F]): ClockTests[F] =
-    new ClockTests[F] {
-      val laws = ClockLaws[F]
-    }
+object Unique {
+
+  def apply[F[_]](implicit F: Unique[F]): F.type = F
+
+  final class Token
+
+  object Token {
+    implicit val tokenHash: Hash[Token] =
+      Hash.fromUniversalHashCode[Token]
+  }
 }

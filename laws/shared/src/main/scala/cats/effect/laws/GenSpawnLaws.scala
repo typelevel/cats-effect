@@ -20,7 +20,7 @@ package laws
 import cats.effect.kernel.{GenSpawn, Outcome}
 import cats.syntax.all._
 
-trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] {
+trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
 
   implicit val F: GenSpawn[F, E]
 

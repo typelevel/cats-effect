@@ -94,6 +94,9 @@ object TimeT {
   private[this] class TimeTGenTemporal[F[_], E](implicit F: GenConcurrent[F, E])
       extends GenTemporal[TimeT[F, *], E] {
 
+    def unique: TimeT[F, Unique.Token] =
+      Kleisli.liftF(F.unique)
+
     def pure[A](x: A): TimeT[F, A] =
       Kleisli.pure(x)
 
