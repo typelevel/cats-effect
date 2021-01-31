@@ -43,4 +43,9 @@ private[effect] object IOFiberConstants {
   val EvalOnR: Byte = 5
   val CedeR: Byte = 6
   val DoneR: Byte = 7
+
+  // ContState tags
+  val ContStateInitial: Int = 0
+  val ContStateWaiting: Int = 1
+  val ContStateResult: Int = 2
 }
