@@ -23,7 +23,10 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait SyncTests[F[_]] extends MonadCancelTests[F, Throwable] with ClockTests[F] with UniqueTests[F] {
+trait SyncTests[F[_]]
+    extends MonadCancelTests[F, Throwable]
+    with ClockTests[F]
+    with UniqueTests[F] {
 
   val laws: SyncLaws[F]
 
