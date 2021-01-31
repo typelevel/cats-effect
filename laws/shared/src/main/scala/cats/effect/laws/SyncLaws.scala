@@ -20,7 +20,7 @@ package laws
 import cats.effect.kernel.Sync
 import cats.syntax.all._
 
-trait SyncLaws[F[_]] extends MonadCancelLaws[F, Throwable] with ClockLaws[F] {
+trait SyncLaws[F[_]] extends MonadCancelLaws[F, Throwable] with ClockLaws[F] with UniqueLaws[F] {
 
   implicit val F: Sync[F]
 

@@ -23,7 +23,7 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait SyncTests[F[_]] extends MonadCancelTests[F, Throwable] with ClockTests[F] {
+trait SyncTests[F[_]] extends MonadCancelTests[F, Throwable] with ClockTests[F] with UniqueTests[F] {
 
   val laws: SyncLaws[F]
 
@@ -55,7 +55,7 @@ trait SyncTests[F[_]] extends MonadCancelTests[F, Throwable] with ClockTests[F] 
     new RuleSet {
       val name = "sync"
       val bases = Nil
-      val parents = Seq(monadCancel[A, B, C], clock[A, B, C])
+      val parents = Seq(monadCancel[A, B, C], clock, unique)
 
       val props = Seq(
         "suspend value is pure" -> forAll(laws.suspendValueIsPure[A] _),

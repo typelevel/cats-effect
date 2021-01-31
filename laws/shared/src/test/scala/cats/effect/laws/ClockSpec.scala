@@ -30,5 +30,5 @@ class ClockSpec extends Specification with Discipline with ScalaCheck with BaseS
   // we only need to test the ones that *aren't* also Sync
   checkAll(
     "ContT[FreeEitherSync, Int, *]",
-    ClockTests[ContT[FreeEitherSync, Int, *]].clock[Int, Int, Int])
+    ClockTests[ContT[FreeEitherSync, Int, *]].clock)
 }
