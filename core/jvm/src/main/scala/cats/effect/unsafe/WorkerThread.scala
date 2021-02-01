@@ -361,10 +361,7 @@ private final class WorkerThread(
         // the pool. It's time to park and await a notification
         // when new work is submitted to the pool.
         park()
-        fiber = stealWork()
-      }
-
-      if (fiber != null) {
+      } else {
         // There is a fiber that can be executed, so do it.
         runFiber(fiber)
         // Do not forget to null out the reference, so the fiber
