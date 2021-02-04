@@ -3,10 +3,14 @@ id: hotswap
 title: hotswap
 ---
 
+## Motivation
+
 Constructing a new [`Resource`](./resource.md) inside the body of a
 `Resource#use` can lead to memory leaks as the outer resource is not finalized
 until after the inner resource is released. Consider for example writing a
 logger that will rotate log files every `n` bytes. 
+
+## Hotswap
 
 `Hotswap` addresses this by exposing a linear sequence of resources as a single
 `Resource`. We can run the finalizers for the current resource and advance to

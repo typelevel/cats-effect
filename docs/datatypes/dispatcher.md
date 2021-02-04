@@ -3,12 +3,16 @@ id: dispatcher
 title: dispatcher
 ---
 
+## Motivation
+
 Users of cats effect 2 may be familiar with the `Effect` and `ConcurrentEffect`
 typeclasses. These have been removed as they contrained implementations of the
 typeclasses too much by forcing them to be embeddable in `IO` via `def
 toIO[A](fa: F[A]): IO[A]`. However, these typeclasses also had a valid use-case
 for unsafe running of effects to interface with impure APIs (`Future`, `NIO`,
 etc).
+
+## Dispatcher
 
 `Dispatcher` addresses this use-case but can be constructed for any effect
 type with an `Async` instance, rather than requiring a primitive typeclass
@@ -30,6 +34,9 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
     unsafeToFutureCancelable(fa)
     ()
   }
+
+  //Only on the JVM
+  def unsafeRunSync[A](fa: F[A]): A
 }
 ```
 

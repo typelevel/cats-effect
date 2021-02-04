@@ -3,6 +3,8 @@ id: resource
 title: resource
 ---
 
+## Motivation
+
 A common pattern is to acquire a resource (eg a file or a socket), perform
 some action on it and then run a finalizer (eg closing the file handle),
 regardless of the outcome of the action.
@@ -36,6 +38,8 @@ the resource.
 to acquire and finalize a resource of type `A` and forms a `Monad`
 in `A` so that we can construct composite resources without the
 deep nesting of `bracket`.
+
+## Resource
 
 The simplest way to construct a `Resource` is with `Resource#make` and the simplest way to
 consume a resource is with `Resource#use`. Arbitrary actions can also be lifted to
