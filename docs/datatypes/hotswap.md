@@ -41,12 +41,13 @@ def rotating(n: Int): Resource[IO, Logger[IO]] =
         log <- Ref[IO].of(f)
       } yield new Logger[IO] {
         def log(msg: String): IO[Unit] =
-          if (msg.length < n - count)
+          if (msg.length() < n - count)
             log.get.flatMap { file => write(file, msg) } 
+            _ <- count.update(_ + msg.length())
           else
             for {
               //Reset the log length counter
-              _ <- count.set(msg.length)
+              _ <- count.set(msg.length())
               //Increment the counter for the log file name
               idx <- index.modify(n => (n+1, n))
               //Close the old log file and open the new one
