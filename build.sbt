@@ -147,16 +147,27 @@ addCommandAlias("ciFirefox", "; set Global / useFirefoxEnv := true; project root
 
 addCommandAlias("prePR", "; root/clean; +root/scalafmtAll; +root/headerCreate")
 
+val jsProjects: Seq[ProjectReference] = Seq(
+  kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.js, std.js, example.js)
+
+val undocumentedRefs =
+  jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
+
 lazy val root = project.in(file("."))
   .aggregate(rootJVM, rootJS)
   .enablePlugins(NoPublishPlugin)
+  .enablePlugins(ScalaUnidocPlugin)
+  .settings(
+    ScalaUnidoc / unidoc / unidocProjectFilter := {
+      undocumentedRefs.foldLeft(inAnyProject)((acc, a) => acc -- inProjects(a))
+    })
 
 lazy val rootJVM = project
   .aggregate(kernel.jvm, kernelTestkit.jvm, laws.jvm, core.jvm, testkit.jvm, tests.jvm, std.jvm, example.jvm, benchmarks)
   .enablePlugins(NoPublishPlugin)
 
 lazy val rootJS = project
-  .aggregate(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.js, std.js, example.js)
+  .aggregate(jsProjects: _*)
   .enablePlugins(NoPublishPlugin)
 
 /**
