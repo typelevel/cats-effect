@@ -109,6 +109,8 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
   MatrixExclude(Map("java" -> LatestJava, "os" -> Windows))
 )
 
+lazy val unidoc213 = taskKey[Seq[File]]("Run unidoc but only on Scala 2.13")
+
 lazy val useFirefoxEnv = settingKey[Boolean]("Use headless Firefox (via geckodriver) for running tests")
 Global / useFirefoxEnv := false
 
@@ -136,10 +138,9 @@ val Specs2Version = "4.10.5"
 val ScalaCheckVersion = "1.15.2"
 val DisciplineVersion = "1.1.3"
 
-replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; testIfRelevant; coreJVM/mimaReportBinaryIssues; set Global / useFirefoxEnv := true; coreJS/test; set Global / useFirefoxEnv := false")
-addCommandAlias("ciAll", "; project /; +headerCheck; +scalafmtCheck; +clean; +testIfRelevant; +coreJVM/mimaReportBinaryIssues; set Global / useFirefoxEnv := true; +coreJS/test; set Global / useFirefoxEnv := false")
+replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; test; coreJVM/mimaReportBinaryIssues; unidoc213 set Global / useFirefoxEnv := true; coreJS/test; set Global / useFirefoxEnv := false")
 
-addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues")
+addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues; unidoc213")
 addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; test")
 
 // we do the firefox ci *only* on core because we're only really interested in IO here
@@ -160,7 +161,17 @@ lazy val root = project.in(file("."))
   .settings(
     ScalaUnidoc / unidoc / unidocProjectFilter := {
       undocumentedRefs.foldLeft(inAnyProject)((acc, a) => acc -- inProjects(a))
-    })
+    },
+
+    Compile / unidoc213 := (Def.taskDyn {
+      if (scalaVersion.value.startsWith("2.13"))
+        Def.task((Compile / unidoc).value)
+      else
+        Def.task {
+          streams.value.log.warn(s"Skipping unidoc execution in Scala ${scalaVersion.value}")
+          Seq.empty[File]
+        }
+    }).value)
 
 lazy val rootJVM = project
   .aggregate(kernel.jvm, kernelTestkit.jvm, laws.jvm, core.jvm, testkit.jvm, tests.jvm, std.jvm, example.jvm, benchmarks)
