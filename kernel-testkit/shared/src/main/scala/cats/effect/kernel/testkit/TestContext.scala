@@ -215,14 +215,6 @@ final class TestContext private () extends ExecutionContext { self =>
    *   assert(f.value, Some(Success(2)))
    * }}}
    *
-   * The optional parameter can be used for simulating time, to be used in
-   * combination with `cats.effect.Timer`. See the
-   * [[TestContext.timer timer]] method.
-   *
-   * Example:
-   *
-   * $timerExample
-   *
    * @param time is an optional parameter for simulating time passing;
    */
   def tick(time: FiniteDuration = Duration.Zero): Unit = {

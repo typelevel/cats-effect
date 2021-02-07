@@ -34,8 +34,8 @@ import cats.syntax.all._
 /**
  * A typeclass that characterizes monads which support safe cancellation,
  * masking, and finalization. [[MonadCancel]] extends the capabilities of
- * [[MonadError]], so an instance of this typeclass must also provide a lawful
- * instance for [[MonadError]].
+ * [[cats.MonadError]], so an instance of this typeclass must also provide a lawful
+ * instance for [[cats.MonadError]].
  *
  * ==Fibers==
  *
@@ -43,9 +43,9 @@ import cats.syntax.all._
  * The execution of a fiber of an effect `F[E, A]` terminates with one of three
  * outcomes, which are encoded by the datatype [[Outcome]]:
  *
- *   1. [[Succeeded]]: indicates success with a value of type `A`
- *   1. [[Errored]]: indicates failure with a value of type `E`
- *   1. [[Canceled]]: indicates abnormal termination
+ *   1. [[Outcome.Succeeded]]: indicates success with a value of type `A`
+ *   1. [[Outcome.Errored]]: indicates failure with a value of type `E`
+ *   1. [[Outcome.Canceled]]: indicates abnormal termination
  *
  * Additionally, a fiber may never produce an outcome, in which case it is said
  * to be non-terminating.
@@ -59,10 +59,10 @@ import cats.syntax.all._
  * [[MonadCancel!.canceled canceled]].
  *
  * Cancellation is vaguely similar to the short-circuiting behavior introduced
- * by [[MonadError]], but there are several key differences:
+ * by [[cats.MonadError]], but there are several key differences:
  *
  *   1. Cancellation is effective; if it is observed it must be respected, and
- *      it cannot be reversed. In contrast, [[MonadError!handleError handleError]]
+ *      it cannot be reversed. In contrast, [[cats.MonadError.handleError handleError]]
  *      exposes the ability to catch and recover from errors, and then proceed
  *      with normal execution.
  *   1. Cancellation can be masked via [[MonadCancel!.uncancelable]]. Masking
@@ -256,7 +256,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * completes, regardless of the outcome.
    *
    * This function can be thought of as a combination of
-   * [[Monad!.flatTap flatTap]], [[MonadError!.onError onError]], and
+   * [[cats.Monad!.flatTap flatTap]], [[cats.MonadError!.onError onError]], and
    * [[MonadCancel!.onCancel onCancel]].
    *
    * @param fa The effect that is run after `fin` is registered.
@@ -274,7 +274,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * completes, but depends on the outcome.
    *
    * This function can be thought of as a combination of
-   * [[Monad!.flatTap flatTap]], [[MonadError!.onError onError]], and
+   * [[cats.Monad!.flatTap flatTap]], [[cats.MonadError!.onError onError]], and
    * [[MonadCancel!.onCancel onCancel]].
    *
    * @param fa The effect that is run after `fin` is registered.

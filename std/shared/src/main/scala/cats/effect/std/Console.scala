@@ -50,7 +50,7 @@ import java.nio.charset.{Charset, CodingErrorAction, MalformedInputException}
  *     for {
  *       _ <- Console[F].println("Please enter your name: ")
  *       n <- Console[F].readLine
- *       _ <- if (n.nonEmpty) Console[F].println(s"Hello $n!")
+ *       _ <- if (n.nonEmpty) Console[F].println("Hello, " + n)
  *            else Console[F].errorln("Name is empty!")
  *     } yield ()
  * }}}
