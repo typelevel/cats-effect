@@ -138,9 +138,9 @@ val Specs2Version = "4.10.5"
 val ScalaCheckVersion = "1.15.2"
 val DisciplineVersion = "1.1.3"
 
-replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; test; coreJVM/mimaReportBinaryIssues; unidoc213 set Global / useFirefoxEnv := true; coreJS/test; set Global / useFirefoxEnv := false")
+replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; test; coreJVM/mimaReportBinaryIssues; root/unidoc213; set Global / useFirefoxEnv := true; coreJS/test; set Global / useFirefoxEnv := false")
 
-addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues; unidoc213")
+addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues; root/unidoc213")
 addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; test")
 
 // we do the firefox ci *only* on core because we're only really interested in IO here
