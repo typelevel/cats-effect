@@ -56,9 +56,9 @@ trait Fiber[F[_], E, A] {
    * Awaits the completion of the bound fiber and returns its result once
    * it completes.
    *
-   * If the fiber completes with [[Succeeded]], the successful value is
-   * returned. If the fiber completes with [[Errored]], the error is raised.
-   * If the fiber completes with [[Cancelled]], `onCancel` is run.
+   * If the fiber completes with [[Outcome.Succeeded]], the successful value is
+   * returned. If the fiber completes with [[Outcome.Errored]], the error is raised.
+   * If the fiber completes with [[Outcome.Canceled]], `onCancel` is run.
    */
   def joinWith(onCancel: F[A])(implicit F: MonadCancel[F, E]): F[A] =
     join.flatMap(_.embed(onCancel))
@@ -67,9 +67,9 @@ trait Fiber[F[_], E, A] {
    * Awaits the completion of the bound fiber and returns its result once
    * it completes.
    *
-   * If the fiber completes with [[Succeeded]], the successful value is
-   * returned. If the fiber completes with [[Errored]], the error is raised.
-   * If the fiber completes with [[Cancelled]], the caller is indefinitely
+   * If the fiber completes with [[Outcome.Succeeded]], the successful value is
+   * returned. If the fiber completes with [[Outcome.Errored]], the error is raised.
+   * If the fiber completes with [[Outcome.Canceled]], the caller is indefinitely
    * suspended without termination.
    */
   def joinWithNever(implicit F: GenSpawn[F, E]): F[A] =

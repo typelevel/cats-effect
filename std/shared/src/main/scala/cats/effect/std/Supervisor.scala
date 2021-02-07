@@ -25,11 +25,11 @@ import cats.syntax.all._
  * that are started via its interface. The supervisor is managed by a singular
  * fiber to which the lifecycles of all spawned fibers are bound.
  *
- * Whereas [[GenSpawn.background]] links the lifecycle of the spawned fiber to
- * the calling fiber, starting a fiber via a [[Supervisor]] links the lifecycle
- * of the spawned fiber to the supervisor fiber. This is useful when the scope
- * of some fiber must survive the spawner, but should still be confined within
- * some "larger" scope.
+ * Whereas [[cats.effect.kernel.GenSpawn.background]] links the lifecycle of the
+ * spawned fiber to the calling fiber, starting a fiber via a [[Supervisor]]
+ * links the lifecycle of the spawned fiber to the supervisor fiber. This is
+ * useful when the scope of some fiber must survive the spawner, but should still
+ * be confined within some "larger" scope.
  *
  * The fibers started via the supervisor are guaranteed to be terminated when
  * the supervisor fiber is terminated. When a supervisor fiber is canceled, all
@@ -37,11 +37,11 @@ import cats.syntax.all._
  * the supervisor is complete.
  *
  * The following diagrams illustrate the lifecycle of a fiber spawned via
- * [[GenSpawn.start]], [[GenSpawn.background]], and [[Supervisor]]. In each
- * example, some fiber A is spawning another fiber B. Each box represents the
- * lifecycle of a fiber. If a box is enclosed within another box, it means that
- * the lifecycle of the former is confined within the lifecycle of the latter.
- * In other words, if an outer fiber terminates, the inner fibers are
+ * [[cats.effect.kernel.GenSpawn.start]], [[cats.effect.kernel.GenSpawn.background]],
+ * and [[Supervisor]]. In each example, some fiber A is spawning another fiber B.
+ * Each box represents the lifecycle of a fiber. If a box is enclosed within another
+ * box, it means that the lifecycle of the former is confined within the lifecycle of
+ * the latter. In other words, if an outer fiber terminates, the inner fibers are
  * guaranteed to be terminated as well.
  *
  * start:

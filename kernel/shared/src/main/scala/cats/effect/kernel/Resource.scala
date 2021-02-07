@@ -765,14 +765,14 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
 
     /**
      * Flattens the outer [[Resource]] scope with the inner, mirroring the semantics
-     * of [[flatMap]].
+     * of [[Resource.flatMap]].
      *
      * This function is useful in cases where some generic combinator (such as
-     * [[background]]) explicitly returns a value within a [[Resource]] effect,
+     * [[GenSpawn.background]]) explicitly returns a value within a [[Resource]] effect,
      * and that generic combinator is itself used within an outer [[Resource]].
      * In this case, it is often desirable to flatten the inner and outer
      * [[Resource]] together. [[flattenK]] implements this flattening operation
-     * with the same semantics as [[flatMap]].
+     * with the same semantics as [[Resource.flatMap]].
      */
     def flattenK(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
       Resource applyFull { poll =>

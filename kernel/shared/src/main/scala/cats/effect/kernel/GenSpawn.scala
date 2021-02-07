@@ -318,13 +318,13 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    *
    * The semantics of [[race]] are described by the following rules:
    *
-   *   1. If the winner completes with [[Succeeded]], the race returns the
+   *   1. If the winner completes with [[Outcome.Succeeded]], the race returns the
    *   successful value. The loser is canceled before returning.
-   *   2. If the winner completes with [[Errored]], the race raises the error.
+   *   2. If the winner completes with [[Outcome.Errored]], the race raises the error.
    *   The loser is canceled before returning.
-   *   3. If the winner completes with [[Canceled]], the race returns the
+   *   3. If the winner completes with [[Outcome.Canceled]], the race returns the
    *   result of the loser, consistent with the first two rules.
-   *   4. If both the winner and loser complete with [[Canceled]], the race
+   *   4. If both the winner and loser complete with [[Outcome.Canceled]], the race
    *   is canceled.
    *   8. If the race is masked and is canceled because both participants
    *   canceled, the fiber will block indefinitely.
@@ -386,16 +386,16 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    *
    * The following rules describe the semantics of [[both]]:
    *
-   *   1. If the winner completes with [[Succeeded]], the race waits for the
+   *   1. If the winner completes with [[Outcome.Succeeded]], the race waits for the
    *   loser to complete.
-   *   2. If the winner completes with [[Errored]], the race raises the error.
+   *   2. If the winner completes with [[Outcome.Errored]], the race raises the error.
    *   The loser is canceled.
-   *   3. If the winner completes with [[Canceled]], the loser and the race
+   *   3. If the winner completes with [[Outcome.Canceled]], the loser and the race
    *   are canceled as well.
-   *   4. If the loser completes with [[Succeeded]], the race returns the
+   *   4. If the loser completes with [[Outcome.Succeeded]], the race returns the
    *   successful value of both fibers.
-   *   5. If the loser completes with [[Errored]], the race returns the error.
-   *   6. If the loser completes with [[Canceled]], the race is canceled.
+   *   5. If the loser completes with [[Outcome.Errored]], the race returns the error.
+   *   6. If the loser completes with [[Outcome.Canceled]], the race is canceled.
    *   7. If the race is canceled before one or both participants complete,
    *   then whichever ones are incomplete are canceled.
    *   8. If the race is masked and is canceled because one or both
