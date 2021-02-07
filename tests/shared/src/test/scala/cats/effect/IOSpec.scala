@@ -764,11 +764,11 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       }
 
       "reliably cancel infinite IO.unit(s)" in real {
-        IO.unit.foreverM[Unit].start.flatMap(f => IO.sleep(50.millis) >> f.cancel).as(ok)
+        IO.unit.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel).as(ok)
       }
 
       "reliably cancel infinite IO.cede(s)" in real {
-        IO.cede.foreverM[Unit].start.flatMap(f => IO.sleep(50.millis) >> f.cancel).as(ok)
+        IO.cede.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel).as(ok)
       }
 
       "await uncancelable blocks in cancelation" in ticked { implicit ticker =>
