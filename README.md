@@ -2,7 +2,7 @@
 
 [![Gitter](https://img.shields.io/gitter/room/typelevel/cats-effect.svg)](https://gitter.im/typelevel/cats-effect) [![Latest version](https://index.scala-lang.org/typelevel/cats-effect/cats-effect/latest.svg?color=orange)](https://index.scala-lang.org/typelevel/cats-effect/cats-effect)
 
-<img align="right" width="256px" height="256px" src="cats-effect-logo.png"/>
+<img align="right" width="256px" height="256px" src="images/cats-effect-logo.png"/>
 
 <p>Cats Effect is a high-performance, asynchronous, composable framework for building real-world applications in a purely functional style within the Typelevel ecosystem. It provides a concrete tool, known as "the <code>IO</code> monad", for capturing and controlling actions, often referred to as "effects", that your program wishes to perform within a resource-safe, typed context with seamless support for concurrency and coordination. These effects may be asynchronous (callback-driven) or synchronous (directly returning values); they may return within microseconds or run infinitely.</p>
 
@@ -95,7 +95,7 @@ If you follow these rules, and you use libraries and frameworks which also follo
 
 ## Performance
 
-<img width="461px" height="356px" align="right" alt="a bar chart showing 'Fixed Thread Pool' and 'Cats Effect 3', with the latter being substantially taller than the former" src="contention.png"/>
+<img width="461px" height="356px" align="right" alt="a bar chart showing 'Fixed Thread Pool' and 'Cats Effect 3', with the latter being substantially taller than the former" src="images/contention.png"/>
 
 <p>Most functional and async frameworks will tout their performance on synthetic microbenchmarks, measuring things like how many <code>flatMap</code>s they can evaluate per microsecond and so on. However, most programs aren't just a bunch of <code>flatMap</code>s, and the true performance bottlenecks are usually in things like contention scaling under high load, memory and other resource management, backpressure, page faults, and such. In these areas, Cats Effect is truly unrivaled on the JVM, and in most cases, applications written in a purely functional style using Cats Effect will <em>exceed</em> the performance and elasticity of the same applications written in an imperative style.</p>
 
@@ -107,7 +107,7 @@ As always, benchmarks are one thing, and your application is its own special sno
 
 ## Abstraction
 
-![the cats effect hierarchy of typeclasses as of version 3.0](hierarchy.svg)
+![the cats effect hierarchy of typeclasses as of version 3.0](images/hierarchy.svg)
 
 Cats Effect isn't just designed to enable high performance applications with out-of-the-box safety and elasticity under load. It was intended first and foremost as a tool for implementing *composable* and *reasonable* software that is easy to write, easy to test, and easy to evolve as your team and requirements change over time. To achieve this goal, Cats Effect embraces and enables strong, typeful, purely-functional programming styles that are uniquely tailored for the Scala language.
 
