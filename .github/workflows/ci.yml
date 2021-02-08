@@ -39,10 +39,6 @@ jobs:
       - name: Cache sbt
         uses: actions/cache@v2
         with:
-<<<<<<< HEAD
-          path: ~/.sbt
-          key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
-=======
           path: |
             ~/.sbt
             ~/.ivy2/cache
@@ -59,16 +55,11 @@ jobs:
       - run: gem install bundler
 
       - run: bundle install --gemfile=site/Gemfile
->>>>>>> series/2.x
 
       - name: Check that workflows are up to date
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
-<<<<<<< HEAD
-      - run: sbt ++${{ matrix.scala }} ci
-=======
       - run: sbt ++${{ matrix.scala }} ci
 
       - if: matrix.scala == '2.12.13'
         run: sbt ++${{ matrix.scala }} microsite/makeMicrosite
->>>>>>> series/2.x
