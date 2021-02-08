@@ -168,7 +168,7 @@ The primary differences between self-cancellation and `raiseError` are two-fold.
 
 ```scala mdoc
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
+import cats.effect.unsafe.IORuntime.Implicits.global
 
 val run = for {
   fib <- (IO.uncancelable(_ =>

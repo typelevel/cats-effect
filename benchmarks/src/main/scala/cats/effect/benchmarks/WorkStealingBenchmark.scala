@@ -72,7 +72,7 @@ class WorkStealingBenchmark {
 
   @Benchmark
   def async(): Int = {
-    import cats.effect.unsafe.implicits.global
+    import cats.effect.unsafe.IORuntime.Implicits.global
     benchmark
   }
 

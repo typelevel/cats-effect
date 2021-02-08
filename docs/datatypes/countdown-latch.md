@@ -24,7 +24,7 @@ Cancellation of `await` is supported.
 import cats.implicits._
 import cats.effect._
 import cats.effect.std.CountDownLatch
-import cats.effect.unsafe.implicits.global
+import cats.effect.unsafe.IORuntime.Implicits.global
 
 val run = (
   for {

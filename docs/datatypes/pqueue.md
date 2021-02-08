@@ -29,7 +29,7 @@ import cats.Order
 import cats.implicits._
 import cats.effect._
 import cats.effect.std.PQueue
-import cats.effect.unsafe.implicits.global
+import cats.effect.unsafe.IORuntime.Implicits.global
 
 val list = List(1,4,3,7,5,2,6,9,8)
 
@@ -59,7 +59,7 @@ import cats.{Contravariant, Functor}
 import cats.implicits._
 import cats.effect._
 import cats.effect.std.{PQueue, PQueueSource, PQueueSink}
-import cats.effect.unsafe.implicits.global
+import cats.effect.unsafe.IORuntime.Implicits.global
 
 implicit val orderForInt: Order[Int] = Order.fromLessThan((x, y) => x < y)
 

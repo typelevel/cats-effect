@@ -43,7 +43,7 @@ import cats.{Contravariant, Functor}
 import cats.implicits._
 import cats.effect._
 import cats.effect.std.{Queue, QueueSource, QueueSink}
-import cats.effect.unsafe.implicits.global
+import cats.effect.unsafe.IORuntime.Implicits.global
 
 def covariant(list: List[Int]): IO[List[Long]] = (
   for {

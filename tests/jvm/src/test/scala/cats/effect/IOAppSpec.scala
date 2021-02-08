@@ -176,7 +176,7 @@ package examples {
   }
 
   object FatalErrorUnsafeRun extends IOApp {
-    import cats.effect.unsafe.implicits.global
+    import cats.effect.unsafe.IORuntime.Implicits.global
 
     def run(args: List[String]): IO[ExitCode] =
       for {

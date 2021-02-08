@@ -25,7 +25,7 @@ Instead of calling unsafe methods directly, consider using cats.effect.IOApp, wh
 runs your IO. If integrating with non-functional code or experimenting in a REPL / Worksheet,
 add the following import:
 
-import cats.effect.unsafe.implicits.global
+import cats.effect.unsafe.IORuntime.Implicits.global
 
 Alternatively, you can create an explicit IORuntime value and put it in implicit scope.
 This may be useful if you have a pre-existing fixed thread pool and/or scheduler which you
@@ -62,6 +62,7 @@ object IORuntimeConfig {
 }
 
 object IORuntime extends IORuntimeCompanionPlatform {
+
   def apply(
       compute: ExecutionContext,
       blocking: ExecutionContext,
@@ -76,4 +77,8 @@ object IORuntime extends IORuntimeCompanionPlatform {
       shutdown: () => Unit,
       config: IORuntimeConfig): IORuntime =
     new IORuntime(compute, blocking, scheduler, shutdown, config)
+
+  object Implicits {
+    implicit val global: IORuntime = IORuntime.global
+  }
 }

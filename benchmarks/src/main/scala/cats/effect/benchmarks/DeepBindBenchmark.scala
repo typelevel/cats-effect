@@ -17,7 +17,7 @@
 package cats.effect.benchmarks
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
+import cats.effect.unsafe.IORuntime.Implicits.global
 
 import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._

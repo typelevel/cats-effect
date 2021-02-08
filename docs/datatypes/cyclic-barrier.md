@@ -27,7 +27,7 @@ fibers required to unblock the cyclic barrier is incremented again.
 import cats.implicits._
 import cats.effect._
 import cats.effect.std.CyclicBarrier
-import cats.effect.unsafe.implicits.global
+import cats.effect.unsafe.IORuntime.Implicits.global
 import scala.concurrent.duration._
 
 val run = (for {
