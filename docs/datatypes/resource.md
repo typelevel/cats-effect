@@ -8,10 +8,10 @@ Effectfully allocates and releases a resource. Forms a `MonadError` on the resou
 The [Acquiring and releasing `Resource`s](../guides/tutorial.md#acquiring-and-releasing-resources) section of the tutorial provides some additional context and examples regarding `Resource`.
 
 ```scala mdoc:silent
-import cats.effect.Bracket
+import cats.effect.BracketThrow
 
 abstract class Resource[F[_], A] {
-  def use[B](f: A => F[B])(implicit F: Bracket[F, Throwable]): F[B]
+  def use[B](f: A => F[B])(implicit F: BracketThrow[F]): F[B]
 }
 ```
 

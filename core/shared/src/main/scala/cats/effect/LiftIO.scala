@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,10 @@ object LiftIO {
   /**
    * [[LiftIO.liftIO]] as a natural transformation.
    */
-  def liftK[F[_]: LiftIO]: IO ~> F = λ[IO ~> F](_.to[F])
+  def liftK[F[_]: LiftIO]: IO ~> F =
+    new (IO ~> F) {
+      def apply[A](fa: IO[A]): F[A] = fa.to[F]
+    }
 
   /**
    * [[LiftIO]] instance built for `cats.data.EitherT` values initialized

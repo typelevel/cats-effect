@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,9 @@ package cats
 package effect
 package concurrent
 
-import munit.ScalaCheckSuite
 import org.scalacheck.Prop.forAll
 
-class ExitCodeTests extends ScalaCheckSuite {
+class ExitCodeTests extends CatsEffectSuite {
   property("fromInt(i) == fromInt(i & 0xff)") {
     forAll { (i: Int) =>
       ExitCode(i) == ExitCode(i & 0xff)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,19 +17,17 @@
 package cats
 package effect
 
-import cats.effect.internals.{IOAppPlatform, TestUtils, TrampolineEC}
-import munit.FunSuite
+import cats.effect.internals.{IOAppPlatform, TrampolineEC}
 
 import scala.concurrent.ExecutionContext
 
-class IOAppTests extends FunSuite with TestUtils {
+class IOAppTests extends CatsEffectSuite {
   test("exits with specified code") {
     IOAppPlatform
       .mainFiber(Array.empty, Eval.now(implicitly[ContextShift[IO]]), Eval.now(implicitly[Timer[IO]]))(_ =>
         IO.pure(ExitCode(42))
       )
       .flatMap(_.join)
-      .unsafeToFuture()
       .map(assertEquals(_, 42))
   }
 
@@ -39,17 +37,16 @@ class IOAppTests extends FunSuite with TestUtils {
         IO.pure(ExitCode(args.mkString.toInt))
       )
       .flatMap(_.join)
-      .unsafeToFuture()
       .map(assertEquals(_, 123))
   }
 
   test("raised error exits with 1") {
-    silenceSystemErr {
+    silenceSystemErr { () =>
       IOAppPlatform
         .mainFiber(Array.empty, Eval.now(implicitly), Eval.now(implicitly))(_ => IO.raiseError(new Exception()))
         .flatMap(_.join)
-        .unsafeToFuture()
         .map(assertEquals(_, 1))
+        .unsafeRunSync()
     }
   }
 

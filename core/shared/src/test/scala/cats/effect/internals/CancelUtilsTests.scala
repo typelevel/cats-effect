@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
 import java.io.ByteArrayOutputStream
 
 import cats.effect.IO
-import munit.FunSuite
 
 import scala.util.control.NonFatal
 
-class CancelUtilsTests extends FunSuite with TestUtils {
+class CancelUtilsTests extends CatsEffectSuite {
   test("cancelAll works for zero references") {
     CancelUtils.cancelAll().unsafeRunSync()
   }

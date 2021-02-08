@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,32 @@
  * limitations under the License.
  */
 
+import sbtghactions.UseRef
+
 import scala.util.Try
 import scala.sys.process._
 
-ThisBuild / baseVersion := "2.2"
+ThisBuild / baseVersion := "2.3"
 
-val OldScala = "2.12.12"
-ThisBuild / crossScalaVersions := Seq(OldScala, "2.13.3")
-ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@11")
+val OldScala = "2.12.13"
+val OldDotty = "3.0.0-M2"
+val NewDotty = "3.0.0-M3"
+
+ThisBuild / crossScalaVersions := Seq(OldDotty, NewDotty, OldScala, "2.13.4")
+ThisBuild / scalaVersion := (ThisBuild / crossScalaVersions).value.last
+
+ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/2.x")
+
+ThisBuild / githubWorkflowBuildPreamble ++= Seq(
+  WorkflowStep.Use(UseRef.Public("ruby", "setup-ruby", "v1"), Map("ruby-version" -> "2.7")),
+  WorkflowStep.Run(List("gem install bundler")),
+  WorkflowStep.Run(List("bundle install --gemfile=site/Gemfile"))
+)
+
+ThisBuild / githubWorkflowBuild +=
+  WorkflowStep.Sbt(List("microsite/makeMicrosite"), cond = Some(s"matrix.scala == '$OldScala'"))
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
@@ -41,9 +57,9 @@ ThisBuild / scmInfo := Some(
   ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")
 )
 
-val CatsVersion = "2.2.0"
-val DisciplineMunitVersion = "0.3.0"
-val SilencerVersion = "1.7.1"
+val CatsVersion = "2.3.1"
+val DisciplineMunitVersion = "1.0.5"
+val SilencerVersion = "1.7.2"
 
 replaceCommandAlias(
   "ci",
@@ -54,6 +70,18 @@ replaceCommandAlias(
   "release",
   "; reload; project /; +mimaReportBinaryIssuesIfRelevant; +publishIfRelevant; sonatypeBundleRelease"
 )
+
+// Directly copied from typelevel/cats
+def scalaVersionSpecificFolders(srcName: String, srcBaseDir: java.io.File, scalaVersion: String) = {
+  def extraDirs(suffix: String) =
+    List(CrossType.Pure, CrossType.Full)
+      .flatMap(_.sharedSrcDir(srcBaseDir, srcName).toList.map(f => file(f.getPath + suffix)))
+  CrossVersion.partialVersion(scalaVersion) match {
+    case Some((2, y))     => extraDirs("-2.x") ++ (if (y >= 13) extraDirs("-2.13+") else Nil)
+    case Some((0 | 3, _)) => extraDirs("-2.13+") ++ extraDirs("-3.x")
+    case _                => Nil
+  }
+}
 
 val commonSettings = Seq(
   scalacOptions in (Compile, doc) ++= {
@@ -67,21 +95,21 @@ val commonSettings = Seq(
 
     Seq("-doc-source-url", path, "-sourcepath", baseDirectory.in(LocalRootProject).value.getAbsolutePath)
   },
+  Compile / unmanagedSourceDirectories ++= scalaVersionSpecificFolders("main", baseDirectory.value, scalaVersion.value),
+  Test / unmanagedSourceDirectories ++= scalaVersionSpecificFolders("test", baseDirectory.value, scalaVersion.value),
   sources in (Compile, doc) := (sources in (Compile, doc)).value,
   scalacOptions in (Compile, doc) ++=
     Seq("-doc-root-content", (baseDirectory.value.getParentFile / "shared" / "rootdoc.txt").getAbsolutePath),
   scalacOptions in (Compile, doc) ++=
     Opts.doc.title("cats-effect"),
-  scalacOptions in Test += "-Yrangepos",
+  scalacOptions in Test ++= { if (isDotty.value) Seq() else Seq("-Yrangepos") },
   scalacOptions in Test ~= (_.filterNot(Set("-Wvalue-discard", "-Ywarn-value-discard"))),
   // Disable parallel execution in tests; otherwise we cannot test System.err
   parallelExecution in Test := false,
-  parallelExecution in IntegrationTest := false,
   testForkedParallel in Test := false,
-  testForkedParallel in IntegrationTest := false,
   testFrameworks += new TestFramework("munit.Framework"),
   concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
-  headerLicense := Some(HeaderLicense.Custom("""|Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+  headerLicense := Some(HeaderLicense.Custom("""|Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
                                                 |
                                                 |Licensed under the Apache License, Version 2.0 (the "License");
                                                 |you may not use this file except in compliance with the License.
@@ -155,7 +183,9 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.Sync#ops.<clinit>"),
       exclude[DirectMissingMethodProblem]("cats.effect.Async#ops.<clinit>"),
       exclude[DirectMissingMethodProblem]("cats.effect.Effect#ops.<clinit>"),
-      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#ops.<clinit>")
+      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#ops.<clinit>"),
+      // abstract method defined in all subtypes of sealed abstract class
+      exclude[ReversedMissingMethodProblem]("cats.effect.Resource.invariant")
     )
   }
 )
@@ -183,7 +213,14 @@ lazy val scalaJSSettings = Seq(
   },
   // Work around "dropping dependency on node with no phase object: mixin"
   scalacOptions in (Compile, doc) -= "-Xfatal-warnings",
-  scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
+  scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule)),
+  // Dotty dislikes these -P flags, warns against them
+  scalacOptions := {
+    scalacOptions.value.filterNot { s =>
+      if (isDotty.value) s.startsWith("-P:scalajs:mapSourceURI")
+      else false
+    }
+  }
 )
 
 lazy val sharedSourcesSettings = Seq(
@@ -197,9 +234,9 @@ lazy val sharedSourcesSettings = Seq(
 
 lazy val root = project
   .in(file("."))
-  .disablePlugins(MimaPlugin)
+  .enablePlugins(NoPublishPlugin)
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS, runtimeTests)
-  .settings(noPublishSettings)
+  .settings(crossScalaVersions := Seq(), scalaVersion := OldScala)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
@@ -211,13 +248,28 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "cats-laws" % CatsVersion % Test,
       "org.typelevel" %%% "discipline-munit" % DisciplineMunitVersion % Test
     ),
-    libraryDependencies ++= Seq(
-      compilerPlugin(("com.github.ghik" % "silencer-plugin" % SilencerVersion).cross(CrossVersion.full)),
-      ("com.github.ghik" % "silencer-lib" % SilencerVersion % "provided").cross(CrossVersion.full),
-      ("com.github.ghik" % "silencer-lib" % SilencerVersion % Test).cross(CrossVersion.full)
-    )
+    libraryDependencies ++= {
+      if (isDotty.value)
+        Seq(
+          // Only way to properly resolve this library
+          ("com.github.ghik" % "silencer-lib_2.13.3" % SilencerVersion % Provided)
+        ).map(_.withDottyCompat(scalaVersion.value))
+      else
+        Seq(
+          compilerPlugin(("com.github.ghik" % "silencer-plugin" % SilencerVersion).cross(CrossVersion.full)),
+          ("com.github.ghik" % "silencer-lib" % SilencerVersion % "provided").cross(CrossVersion.full),
+          ("com.github.ghik" % "silencer-lib" % SilencerVersion % Test).cross(CrossVersion.full)
+        )
+    }
   )
   .jvmSettings(mimaSettings)
+  .jvmSettings(
+    mimaPreviousArtifacts := {
+      // disable mima check on dotty for now
+      if (isDotty.value) Set.empty else mimaPreviousArtifacts.value
+    },
+    mimaFailOnNoPrevious := !isDotty.value
+  )
   .jsSettings(scalaJSSettings)
 
 lazy val coreJVM = core.jvm
@@ -234,6 +286,13 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "discipline-munit" % DisciplineMunitVersion % Test
     )
   )
+  .jvmSettings(
+    mimaPreviousArtifacts := {
+      // disable mima check on dotty for now
+      if (isDotty.value) Set.empty else mimaPreviousArtifacts.value
+    },
+    mimaFailOnNoPrevious := !isDotty.value
+  )
   .jsSettings(scalaJSSettings)
 
 lazy val lawsJVM = laws.jvm
@@ -243,8 +302,9 @@ lazy val FullTracingTest = config("fulltracing").extend(Test)
 
 lazy val runtimeTests = project
   .in(file("runtime-tests"))
-  .dependsOn(coreJVM)
-  .settings(commonSettings ++ noPublishSettings)
+  .enablePlugins(NoPublishPlugin)
+  .dependsOn(coreJVM % "compile->compile;test->test")
+  .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
@@ -272,15 +332,17 @@ lazy val runtimeTests = project
 
 lazy val benchmarksPrev = project
   .in(file("benchmarks/vPrev"))
-  .settings(commonSettings ++ noPublishSettings ++ sharedSourcesSettings)
-  .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "2.0.0")
+  .enablePlugins(NoPublishPlugin)
+  .settings(commonSettings ++ sharedSourcesSettings)
+  .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "2.2.0")
   .settings(scalacOptions ~= (_.filterNot(Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)))
   .enablePlugins(JmhPlugin)
 
 lazy val benchmarksNext = project
   .in(file("benchmarks/vNext"))
+  .enablePlugins(NoPublishPlugin)
   .dependsOn(coreJVM)
-  .settings(commonSettings ++ noPublishSettings ++ sharedSourcesSettings)
+  .settings(commonSettings ++ sharedSourcesSettings)
   .settings(scalacOptions ~= (_.filterNot(Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)))
   .enablePlugins(JmhPlugin)
 

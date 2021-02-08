@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ object SyntaxTests extends AllCatsEffectSyntax {
     val _ = a
   }
 
-  def bracketSyntax[F[_], A, B](implicit F: Bracket[F, Throwable]) = {
+  def bracketSyntax[F[_], A, B](implicit F: BracketThrow[F]) = {
     val acquire = mock[F[A]]
     val use = mock[A => F[B]]
     val releaseCase = mock[(A, ExitCase[Throwable]) => F[Unit]]

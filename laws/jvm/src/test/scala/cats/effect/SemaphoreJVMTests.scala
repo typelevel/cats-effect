@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 import cats.effect.concurrent.{Deferred, Semaphore}
 import cats.syntax.all._
-import munit.FunSuite
 
 import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}
@@ -30,7 +29,7 @@ class SemaphoreJVMParallelism1Tests extends BaseSemaphoreJVMTests(1)
 class SemaphoreJVMParallelism2Tests extends BaseSemaphoreJVMTests(2)
 class SemaphoreJVMParallelism4Tests extends BaseSemaphoreJVMTests(4)
 
-abstract class BaseSemaphoreJVMTests(parallelism: Int) extends FunSuite {
+abstract class BaseSemaphoreJVMTests(parallelism: Int) extends CatsEffectSuite {
   var service: ExecutorService = _
 
   implicit val context: ExecutionContext = new ExecutionContext {

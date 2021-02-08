@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,7 +78,7 @@ import cats.effect.tracing.{IOEvent, IOTrace}
  *       if (n > 0)
  *         fib(n - 1, b, b2)
  *       else
- *         IO.pure(b2)
+ *         IO.pure(a)
  *     }
  * }}}
  */
@@ -976,9 +976,15 @@ abstract private[effect] class IOInstances extends IOLowPriorityInstances {
       final override val monad: Monad[IO] =
         ioConcurrentEffect(cs)
 
-      final override val sequential: IO.Par ~> IO = λ[IO.Par ~> IO](IO.Par.unwrap(_))
+      final override val sequential: IO.Par ~> IO =
+        new (IO.Par ~> IO) {
+          def apply[A](fa: IO.Par[A]): IO[A] = IO.Par.unwrap(fa)
+        }
 
-      final override val parallel: IO ~> IO.Par = λ[IO ~> IO.Par](IO.Par(_))
+      final override val parallel: IO ~> IO.Par =
+        new (IO ~> IO.Par) {
+          def apply[A](fa: IO[A]): IO.Par[A] = IO.Par(fa)
+        }
     }
 
   implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new IOSemigroup[A] with Monoid[IO[A]] {

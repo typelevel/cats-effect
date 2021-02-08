@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
-import munit.FunSuite
-
-class RingBufferTests extends FunSuite with TestUtils {
+class RingBufferTests extends CatsEffectSuite {
   test("empty ring buffer") {
     val buffer = new RingBuffer[Integer](2)
     assertEquals(buffer.isEmpty, true)

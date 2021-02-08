@@ -162,6 +162,58 @@ def program: IO[Unit] =
 Keep in mind that the scope and amount of information that traces hold will
 change over time as additional fiber tracing features are merged into master.
 
+## Enhanced exceptions
+The stack trace of an exception caught by the IO runloop looks similar to the
+following output:
+```
+java.lang.Throwable: A runtime exception has occurred
+	at org.simpleapp.examples.Main$.b(Main.scala:28)
+	at org.simpleapp.examples.Main$.a(Main.scala:25)
+	at org.simpleapp.examples.Main$.$anonfun$foo$11(Main.scala:37)
+	at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.scala:18)
+	at cats.effect.internals.IORunLoop$.cats$effect$internals$IORunLoop$$loop(IORunLoop.scala:103)
+	at cats.effect.internals.IORunLoop$RestartCallback.signal(IORunLoop.scala:440)
+	at cats.effect.internals.IORunLoop$RestartCallback.apply(IORunLoop.scala:461)
+	at cats.effect.internals.IORunLoop$RestartCallback.apply(IORunLoop.scala:399)
+	at cats.effect.internals.IOShift$Tick.run(IOShift.scala:36)
+	at cats.effect.internals.PoolUtils$$anon$2$$anon$3.run(PoolUtils.scala:52)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+```
+
+It includes stack frames that are part of the IO runloop, which are generally
+not of interest to users of the library. When asynchronous stack tracing is
+enabled, the IO runloop is capable of augmenting the stack traces of caught
+exceptions to include frames from the asynchronous stack traces. For example,
+the augmented version of the above stack trace looks like the following:
+```
+java.lang.Throwable: A runtime exception has occurred
+	at org.simpleapp.examples.Main$.b(Main.scala:28)
+	at org.simpleapp.examples.Main$.a(Main.scala:25)
+	at org.simpleapp.examples.Main$.$anonfun$foo$11(Main.scala:37)
+	at map @ org.simpleapp.examples.Main$.$anonfun$foo$10(Main.scala:37)
+	at flatMap @ org.simpleapp.examples.Main$.$anonfun$foo$8(Main.scala:36)
+	at flatMap @ org.simpleapp.examples.Main$.$anonfun$foo$6(Main.scala:35)
+	at flatMap @ org.simpleapp.examples.Main$.$anonfun$foo$4(Main.scala:34)
+	at flatMap @ org.simpleapp.examples.Main$.$anonfun$foo$2(Main.scala:33)
+	at flatMap @ org.simpleapp.examples.Main$.foo(Main.scala:32)
+	at flatMap @ org.simpleapp.examples.Main$.program(Main.scala:42)
+	at as @ org.simpleapp.examples.Main$.run(Main.scala:48)
+	at main$ @ org.simpleapp.examples.Main$.main(Main.scala:22)
+```
+
+Note that the relevant stack frames from the call-site of the user code
+is preserved, but all IO-related stack frames are replaced with async
+stack trace frames.
+
+This feature is controlled by the system property 
+`cats.effect.enhancedExceptions`. It is enabled by default.
+
+```
+-Dcats.effect.enhancedExceptions=false
+```
+
 ### Complete example
 Here is a sample program that demonstrates tracing in action.
 
@@ -170,7 +222,7 @@ Here is a sample program that demonstrates tracing in action.
 // -Dcats.effect.stackTracingMode=full
 
 import cats.effect.tracing.PrintingOptions
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.{ExitCode, IO, IOApp}
 
 import scala.util.Random

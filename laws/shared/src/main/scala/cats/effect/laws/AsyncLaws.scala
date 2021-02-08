@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,7 +84,8 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
   def neverIsDerivedFromAsync[A] =
     F.never[A] <-> F.async[A](_ => ())
 
-  def asyncCanBeDerivedFromAsyncF[A](k: (Either[Throwable, A] => Unit) => Unit) =
+  // Dotty incorrectly infers the return type as IsEq[F[Any]]
+  def asyncCanBeDerivedFromAsyncF[A](k: (Either[Throwable, A] => Unit) => Unit): IsEq[F[A]] =
     F.async(k) <-> F.asyncF(cb => F.delay(k(cb)))
 
   def bracketReleaseIsCalledOnCompletedOrError[A, B](fa: F[A], b: B) = {

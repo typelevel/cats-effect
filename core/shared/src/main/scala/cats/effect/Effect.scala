@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,7 +71,10 @@ object Effect {
   /**
    * [[Effect.toIO]] as a natural transformation.
    */
-  def toIOK[F[_]](implicit F: Effect[F]): F ~> IO = λ[F ~> IO](F.toIO(_))
+  def toIOK[F[_]](implicit F: Effect[F]): F ~> IO =
+    new (F ~> IO) {
+      def apply[A](fa: F[A]): IO[A] = F.toIO(fa)
+    }
 
   /**
    * [[Effect]] instance built for `cats.data.EitherT` values initialized

@@ -649,10 +649,8 @@ for {
 } yield aftermath
 ```
 
-Implementation notes:
-
-- the `*>` operator is defined in Cats and you can treat it as an
-  alias for `lh.flatMap(_ => rh)`
+`start` is defined on IO with overloads accepting an implicit `ContextShift` or an explicit `ExecutionContext`,
+but it's also available via the `Concurrent` type class. To get an instance of `Concurrent[IO]`, you need a `ContextShift[IO]` in implicit scope.
   
 ### runCancelable & unsafeRunCancelable
 
@@ -1134,7 +1132,7 @@ def fromEither[A](e: Either[Throwable, A]): IO[A] = e.fold(IO.raiseError, IO.pur
 
 ## Error Handling
 
-Since there is an instance of `MonadError[IO, Throwable]` available in Cats Effect, all the error handling is done through it. This means you can use all the operations available for `MonadError` and thus for `ApplicativeError` on `IO` as long as the error type is a `Throwable`. Operations such as `raiseError`, `attempt`, `handleErrorWith`, `recoverWith`, etc. Just make sure you have the syntax import in scope such as `cats.implicits._`.
+Since there is an instance of `MonadError[IO, Throwable]` available in Cats Effect, all the error handling is done through it. This means you can use all the operations available for `MonadError` and thus for `ApplicativeError` on `IO` as long as the error type is a `Throwable`. Operations such as `raiseError`, `attempt`, `handleErrorWith`, `recoverWith`, etc. Just make sure you have the syntax import in scope such as `cats.syntax.all._`.
 
 ### raiseError
 
@@ -1196,8 +1194,9 @@ Note there are 2 overloads of the `IO.shift` function:
 
 Please use the former by default and use the latter only for fine-grained control over the thread pool in use.
 
-By default, `Cats Effect` can provide instance of `ContextShift[IO]` that manages thread-pools,
-but only if there's an `ExecutionContext` in scope or if [IOApp](ioapp.md) is used:
+By default, `Cats Effect` provides an instance of `ContextShift[IO]` that manages thread-pools,
+but only inside an implementation of [IOApp](ioapp.md).
+Custom instances of `ContextShift[IO]` can be created using an `ExecutionContext`:
 
 ```scala mdoc:reset:silent
 import cats.effect.{ContextShift, IO}
@@ -1323,7 +1322,7 @@ It has the potential to run an arbitrary number of `IO`s in parallel, and it all
 
 ```scala mdoc:reset:silent
 import cats.effect.{ContextShift, IO}
-import cats.implicits._
+import cats.syntax.all._
 
 import scala.concurrent.ExecutionContext
 
@@ -1347,7 +1346,7 @@ If any of the `IO`s completes with a failure then the result of the whole comput
 
 ```scala mdoc:reset:silent
 import cats.effect.{ContextShift, ExitCase, IO}
-import cats.implicits._
+import cats.syntax.all._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -1375,7 +1374,7 @@ If one of the tasks fails immediately, then the other gets canceled and the comp
 
 ```scala mdoc:reset:silent
 import cats.effect.{ContextShift, Timer, IO}
-import cats.implicits._
+import cats.syntax.all._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._

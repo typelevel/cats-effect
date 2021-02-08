@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
 import cats.effect.IO
-import munit.FunSuite
 
-class IOConnectionTests extends FunSuite {
+class IOConnectionTests extends CatsEffectSuite {
   test("initial push") {
     var effect = 0
     val initial = IO(effect += 1)

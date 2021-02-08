@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,7 +83,7 @@ private[effect] trait IOAppCompanionPlatform {
      * [[executionContextResource]].  Outside `run`, this context will
      * reject all tasks.
      */
-    final protected def executionContext: ExecutionContext =
+    final override protected def executionContext: ExecutionContext =
       currentContext.get().executionContext
 
     /**

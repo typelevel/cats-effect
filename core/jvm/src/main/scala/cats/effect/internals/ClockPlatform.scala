@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import java.time.Instant
 import cats.Functor
 import cats.effect.Clock
 
-import scala.concurrent.duration.MILLISECONDS
+import scala.concurrent.duration.NANOSECONDS
 
 private[effect] trait ClockPlatform {
   implicit class JvmClockOps[F[_]](val self: Clock[F]) {
@@ -31,6 +31,8 @@ private[effect] trait ClockPlatform {
      * for any `F` that has `Functor` defined.
      */
     def instantNow(implicit F: Functor[F]): F[Instant] =
-      F.map(self.realTime(MILLISECONDS))(Instant.ofEpochMilli)
+      F.map(self.realTime(NANOSECONDS)) { ns =>
+        Instant.EPOCH.plusNanos(ns)
+      }
   }
 }

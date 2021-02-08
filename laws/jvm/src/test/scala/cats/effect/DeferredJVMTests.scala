@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit
 import concurrent.Deferred
 import cats.syntax.all._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
-import munit.FunSuite
 import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}
 
@@ -28,7 +27,7 @@ class DeferredJVMParallelism1Tests extends BaseDeferredJVMTests(1)
 class DeferredJVMParallelism2Tests extends BaseDeferredJVMTests(2)
 class DeferredJVMParallelism4Tests extends BaseDeferredJVMTests(4)
 
-abstract class BaseDeferredJVMTests(parallelism: Int) extends FunSuite {
+abstract class BaseDeferredJVMTests(parallelism: Int) extends CatsEffectSuite {
   var service: ExecutorService = _
 
   implicit val context: ExecutionContext = new ExecutionContext {

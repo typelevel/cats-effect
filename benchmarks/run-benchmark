@@ -19,7 +19,7 @@ date = Time.now.strftime("%Y-%m-%d")
 
 exec("mkdir -p benchmarks/results/#{date}")
 exec(
-    "sbt ++2.12.4 " +
+    "sbt ++2.12.12 " +
     "benchmarksPrev/clean benchmarksNext/clean " +
     "'benchmarksPrev/jmh:run -o ../results/#{date}/#{name}-Prev.txt  -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.#{name}' " +
     "'benchmarksNext/jmh:run -o ../results/#{date}/#{name}-Next.txt  -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.#{name}'"

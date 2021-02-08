@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,11 @@ package internals
 
 import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.isJVM
-import munit.FunSuite
 
 import scala.collection.immutable.Queue
 import scala.concurrent.ExecutionContext
 
-class TrampolineECTests extends FunSuite with TestUtils {
+class TrampolineECTests extends CatsEffectSuite {
   implicit val ec: ExecutionContext = immediate
 
   def executeImmediate(f: => Unit): Unit =

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,28 +19,24 @@ package cats.effect
 import cats.effect.concurrent.{Deferred, Ref}
 import cats.effect.implicits._
 import cats.syntax.all._
-import munit.FunSuite
 
 import scala.concurrent.ExecutionContext
 import scala.util.Success
 
-class ContinualHangingTest extends FunSuite {
+class ContinualHangingTest extends CatsEffectSuite {
   test("Concurrent.continual can be canceled immediately after starting") {
     implicit val executionContext = ExecutionContext.global
     implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
-    val task =
-      Deferred[IO, Unit]
-        .flatMap { started =>
-          (started.complete(()) *> IO.never: IO[Unit])
-            .continual(_ => IO.unit)
-            .start
-            .flatMap(started.get *> _.cancel)
-        }
-        .replicateA(10000)
-        .as(true)
-
-    task.unsafeToFuture().map(assertEquals(_, true))
+    Deferred[IO, Unit]
+      .flatMap { started =>
+        (started.complete(()) *> IO.never: IO[Unit])
+          .continual(_ => IO.unit)
+          .start
+          .flatMap(started.get *> _.cancel)
+      }
+      .replicateA(10000)
+      .as(assert(true))
   }
 }
 

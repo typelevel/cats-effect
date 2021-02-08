@@ -43,7 +43,7 @@ Example:
 
 ```scala mdoc:reset:silent
 import cats.effect._
-import cats.implicits._
+import cats.syntax.all._
 import scala.concurrent.duration.MILLISECONDS
 
 def measure[F[_], A](fa: F[A])

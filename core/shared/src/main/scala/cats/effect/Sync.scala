@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import scala.annotation.implicitNotFound
  * in the `F[_]` context.
  */
 @implicitNotFound("Could not find an instance of Sync for ${F}")
-trait Sync[F[_]] extends Bracket[F, Throwable] with Defer[F] {
+trait Sync[F[_]] extends BracketThrow[F] with Defer[F] {
 
   /**
    * Suspends the evaluation of an `F` reference.

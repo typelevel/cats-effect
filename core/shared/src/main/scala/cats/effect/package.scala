@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,12 @@ package object effect {
    * is a useful property to keep in mind when building such values.
    */
   type CancelToken[F[_]] = F[Unit]
+
+  type ApplicativeThrow[F[_]] = ApplicativeError[F, Throwable]
+
+  type MonadThrow[F[_]] = MonadError[F, Throwable]
+
+  type BracketThrow[F[_]] = Bracket[F, Throwable]
 
   /**
    * Provides missing methods on Scala 2.11's Either while allowing

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,12 @@ package cats.effect
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-import munit.FunSuite
 import cats.syntax.all._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
-class IOJVMTests extends FunSuite {
+class IOJVMTests extends CatsEffectSuite {
   val ThreadName = "test-thread"
 
   val TestEC = new ExecutionContext {

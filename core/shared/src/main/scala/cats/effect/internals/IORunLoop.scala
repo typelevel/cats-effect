@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError,
 import cats.effect.tracing.{IOEvent, IOTrace}
 import cats.effect.internals.TracingPlatform.{enhancedExceptions, isStackTracing}
 
+import scala.reflect.NameTransformer
 import scala.util.control.NonFatal
 
 private[effect] object IORunLoop {
@@ -162,7 +163,12 @@ private[effect] object IORunLoop {
           if (conn ne old) {
             if (rcb ne null) rcb.contextSwitch(conn)
             if (restore ne null)
-              currentIO = Bind(next, new RestoreContext(old, restore), null)
+              currentIO = Bind(
+                next,
+                new RestoreContext(old,
+                                   restore.asInstanceOf[(Any, Throwable, IOConnection, IOConnection) => IOConnection]),
+                null
+              )
           }
 
         case Trace(source, frame) =>
@@ -379,7 +385,9 @@ private[effect] object IORunLoop {
           .flatMap(t => IOTrace.getOpAndCallSite(t.stackTrace))
           .map {
             case (methodSite, callSite) =>
-              new StackTraceElement(methodSite.getMethodName + " @ " + callSite.getClassName,
+              val op = NameTransformer.decode(methodSite.getMethodName)
+
+              new StackTraceElement(op + " @ " + callSite.getClassName,
                                     callSite.getMethodName,
                                     callSite.getFileName,
                                     callSite.getLineNumber)
@@ -395,7 +403,7 @@ private[effect] object IORunLoop {
 
   private[this] val runLoopFilter = List(
     "cats.effect.",
-    "scala."
+    "scala.runtime."
   )
 
   /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
 
   def runAsyncRaiseErrorProducesLeftIO[A](e: Throwable) = {
     val lh = IO.async[Either[Throwable, A]] { cb =>
-      F.runAsync(F.raiseError(e))(r => IO(cb(Right(r))))
+      F.runAsync[A](F.raiseError(e))(r => IO(cb(Right(r))))
         .unsafeRunSync()
     }
     lh <-> IO.pure(Left(e))

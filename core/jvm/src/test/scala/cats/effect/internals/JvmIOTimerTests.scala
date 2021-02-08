@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,9 @@ package internals
 
 import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit}
 
-import munit.FunSuite
-
 import scala.util.control.NonFatal
 
-class JvmIOTimerTests extends FunSuite {
+class JvmIOTimerTests extends CatsEffectSuite {
   private def withScheduler(props: Map[String, String])(f: ScheduledThreadPoolExecutor => Unit): Unit = {
     val s = IOTimer.mkGlobalScheduler(props)
     try f(s)
