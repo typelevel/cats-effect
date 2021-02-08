@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.local
+package cats.effect
 
 import cats.effect.IO
 import cats.effect.kernel.Ref

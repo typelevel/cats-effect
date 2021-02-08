@@ -67,7 +67,7 @@ import scala.util.control.NoStackTrace
  */
 private final class IOFiber[A](
     initMask: Int,
-    initLocalState: scala.collection.immutable.Map[Int, Any],
+    initLocalState: IOLocalState,
     cb: OutcomeIO[A] => Unit,
     startIO: IO[A],
     startEC: ExecutionContext,
@@ -107,7 +107,7 @@ private final class IOFiber[A](
 
   private[this] val callbacks = new CallbackStack[A](cb)
 
-  private[this] var localState: scala.collection.immutable.Map[Int, Any] = initLocalState
+  private[this] var localState: IOLocalState = initLocalState
 
   @volatile
   private[this] var outcome: OutcomeIO[A] = _

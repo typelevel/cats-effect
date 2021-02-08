@@ -16,7 +16,6 @@
 
 package cats
 package effect
-package local
 
 class LocalRefSpec extends BaseSpec {
 
