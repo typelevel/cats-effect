@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,7 +53,7 @@ class LocalRefSpec extends BaseSpec {
         local <- LocalRef(0)
         _ <- local.set(10)
         f <- local.get.start
-        value <- f.joinAndEmbedNever
+        value <- f.joinWithNever
       } yield value
 
       io must completeAs(10)
@@ -77,7 +77,7 @@ class LocalRefSpec extends BaseSpec {
         f <- (d1.get *> local.get).start
         _ <- local.set(10)
         _ <- d1.complete(())
-        value <- f.joinAndEmbedNever
+        value <- f.joinWithNever
       } yield value
 
       io must completeAs(10)
