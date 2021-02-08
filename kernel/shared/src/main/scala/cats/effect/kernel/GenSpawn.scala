@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.~>
+import cats.{~>, Applicative}
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{Monoid, Semigroup}
 import cats.syntax.all._
@@ -189,8 +189,12 @@ import cats.effect.kernel.syntax.monadCancel._
  *   1. https://gist.github.com/djspiewak/3ac3f3f55a780e8ab6fa2ca87160ca40
  *   1. https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c
  */
-trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
+trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
   implicit private[this] def F: MonadCancel[F, E] = this
+
+  def applicative: Applicative[F] = this
+
+  final def rootCancelScope: CancelScope = CancelScope.Cancelable
 
   /**
    * A low-level primitive for starting the concurrent evaluation of a fiber.
@@ -314,13 +318,13 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
    *
    * The semantics of [[race]] are described by the following rules:
    *
-   *   1. If the winner completes with [[Succeeded]], the race returns the
+   *   1. If the winner completes with [[Outcome.Succeeded]], the race returns the
    *   successful value. The loser is canceled before returning.
-   *   2. If the winner completes with [[Errored]], the race raises the error.
+   *   2. If the winner completes with [[Outcome.Errored]], the race raises the error.
    *   The loser is canceled before returning.
-   *   3. If the winner completes with [[Canceled]], the race returns the
+   *   3. If the winner completes with [[Outcome.Canceled]], the race returns the
    *   result of the loser, consistent with the first two rules.
-   *   4. If both the winner and loser complete with [[Canceled]], the race
+   *   4. If both the winner and loser complete with [[Outcome.Canceled]], the race
    *   is canceled.
    *   8. If the race is masked and is canceled because both participants
    *   canceled, the fiber will block indefinitely.
@@ -382,16 +386,16 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
    *
    * The following rules describe the semantics of [[both]]:
    *
-   *   1. If the winner completes with [[Succeeded]], the race waits for the
+   *   1. If the winner completes with [[Outcome.Succeeded]], the race waits for the
    *   loser to complete.
-   *   2. If the winner completes with [[Errored]], the race raises the error.
+   *   2. If the winner completes with [[Outcome.Errored]], the race raises the error.
    *   The loser is canceled.
-   *   3. If the winner completes with [[Canceled]], the loser and the race
+   *   3. If the winner completes with [[Outcome.Canceled]], the loser and the race
    *   are canceled as well.
-   *   4. If the loser completes with [[Succeeded]], the race returns the
+   *   4. If the loser completes with [[Outcome.Succeeded]], the race returns the
    *   successful value of both fibers.
-   *   5. If the loser completes with [[Errored]], the race returns the error.
-   *   6. If the loser completes with [[Canceled]], the race is canceled.
+   *   5. If the loser completes with [[Outcome.Errored]], the race returns the error.
+   *   6. If the loser completes with [[Outcome.Canceled]], the race is canceled.
    *   7. If the race is canceled before one or both participants complete,
    *   then whichever ones are incomplete are canceled.
    *   8. If the race is masked and is canceled because one or both
@@ -491,6 +495,9 @@ object GenSpawn {
 
     implicit protected def F: GenSpawn[F, E]
 
+    def unique: OptionT[F, Unique.Token] =
+      OptionT.liftF(F.unique)
+
     def start[A](fa: OptionT[F, A]): OptionT[F, Fiber[OptionT[F, *], E, A]] =
       OptionT.liftF(F.start(fa.value).map(liftFiber))
 
@@ -546,6 +553,9 @@ object GenSpawn {
       with EitherTMonadCancel[F, E0, E] {
 
     implicit protected def F: GenSpawn[F, E]
+
+    def unique: EitherT[F, E0, Unique.Token] =
+      EitherT.liftF(F.unique)
 
     def start[A](fa: EitherT[F, E0, A]): EitherT[F, E0, Fiber[EitherT[F, E0, *], E, A]] =
       EitherT.liftF(F.start(fa.value).map(liftFiber))
@@ -613,6 +623,9 @@ object GenSpawn {
 
     implicit protected def L: Semigroup[L]
 
+    def unique: IorT[F, L, Unique.Token] =
+      IorT.liftF(F.unique)
+
     def start[A](fa: IorT[F, L, A]): IorT[F, L, Fiber[IorT[F, L, *], E, A]] =
       IorT.liftF(F.start(fa.value).map(liftFiber))
 
@@ -667,6 +680,9 @@ object GenSpawn {
       with KleisliMonadCancel[F, R, E] {
 
     implicit protected def F: GenSpawn[F, E]
+
+    def unique: Kleisli[F, R, Unique.Token] =
+      Kleisli.liftF(F.unique)
 
     def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[Kleisli[F, R, *], E, A]] =
       Kleisli { r => (F.start(fa.run(r)).map(liftFiber)) }
@@ -736,6 +752,9 @@ object GenSpawn {
     implicit protected def F: GenSpawn[F, E]
 
     implicit protected def L: Monoid[L]
+
+    def unique: WriterT[F, L, Unique.Token] =
+      WriterT.liftF(F.unique)
 
     def start[A](fa: WriterT[F, L, A]): WriterT[F, L, Fiber[WriterT[F, L, *], E, A]] =
       WriterT.liftF(F.start(fa.run).map(liftFiber))

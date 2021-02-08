@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,9 @@ ThisBuild / baseVersion := "3.0"
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
 
+ThisBuild / startYear := Some(2020)
+ThisBuild / endYear := Some(2021)
+
 ThisBuild / developers := List(
   Developer("djspiewak", "Daniel Spiewak", "@djspiewak", url("https://github.com/djspiewak")),
   Developer("SystemFw", "Fabio Labella", "", url("https://github.com/SystemFw")),
@@ -40,15 +43,15 @@ val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
 
 val ScalaJSJava = "adopt@1.8"
-val Scala213 = "2.13.3"
+val Scala213 = "2.13.4"
 
-ThisBuild / crossScalaVersions := Seq("3.0.0-M1", "3.0.0-M2", "2.12.12", Scala213)
+ThisBuild / crossScalaVersions := Seq("3.0.0-M2", "3.0.0-M3", "2.12.13", Scala213)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
 val LTSJava = "adopt@1.11"
 val LatestJava = "adopt@1.15"
-val GraalVM8 = "graalvm-ce-java8@20.2.0"
+val GraalVM8 = "graalvm-ce-java8@20.3.0"
 
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
@@ -66,6 +69,14 @@ ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(
     List("docs/mdoc"),
     cond = Some(s"matrix.scala == '$Scala213' && matrix.ci == 'ciJVM'")),
+
+  WorkflowStep.Sbt(
+    List("exampleJVM/compile"),
+    cond = Some(s"matrix.ci == 'ciJVM' && matrix.os == '$PrimaryOS'")),
+
+  WorkflowStep.Sbt(
+    List("exampleJS/compile"),
+    cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")),
 
   WorkflowStep.Run(
     List("example/test-jvm.sh ${{ matrix.scala }}"),
@@ -95,9 +106,10 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
 }
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
-  MatrixExclude(Map("java" -> LatestJava, "scala" -> "3.0.0-M1")),
   MatrixExclude(Map("java" -> LatestJava, "os" -> Windows))
 )
+
+lazy val unidoc213 = taskKey[Seq[File]]("Run unidoc but only on Scala 2.13")
 
 lazy val useFirefoxEnv = settingKey[Boolean]("Use headless Firefox (via geckodriver) for running tests")
 Global / useFirefoxEnv := false
@@ -121,15 +133,16 @@ ThisBuild / scmInfo := Some(
     url("https://github.com/typelevel/cats-effect"),
     "git@github.com:typelevel/cats-effect.git"))
 
-val CatsVersion = "2.3.0"
+ThisBuild / autoAPIMappings := true
+
+val CatsVersion = "2.3.1"
 val Specs2Version = "4.10.5"
-val ScalaCheckVersion = "1.15.1"
-val DisciplineVersion = "1.1.2"
+val ScalaCheckVersion = "1.15.2"
+val DisciplineVersion = "1.1.3"
 
-replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; testIfRelevant; coreJVM/mimaReportBinaryIssues; set Global / useFirefoxEnv := true; coreJS/test; set Global / useFirefoxEnv := false")
-addCommandAlias("ciAll", "; project /; +headerCheck; +scalafmtCheck; +clean; +testIfRelevant; +coreJVM/mimaReportBinaryIssues; set Global / useFirefoxEnv := true; +coreJS/test; set Global / useFirefoxEnv := false")
+replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; test; coreJVM/mimaReportBinaryIssues; root/unidoc213; set Global / useFirefoxEnv := true; coreJS/test; set Global / useFirefoxEnv := false")
 
-addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues")
+addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues; root/unidoc213")
 addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; test")
 
 // we do the firefox ci *only* on core because we're only really interested in IO here
@@ -137,16 +150,37 @@ addCommandAlias("ciFirefox", "; set Global / useFirefoxEnv := true; project root
 
 addCommandAlias("prePR", "; root/clean; +root/scalafmtAll; +root/headerCreate")
 
+val jsProjects: Seq[ProjectReference] = Seq(
+  kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.js, std.js, example.js)
+
+val undocumentedRefs =
+  jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
+
 lazy val root = project.in(file("."))
   .aggregate(rootJVM, rootJS)
   .enablePlugins(NoPublishPlugin)
+  .enablePlugins(ScalaUnidocPlugin)
+  .settings(
+    ScalaUnidoc / unidoc / unidocProjectFilter := {
+      undocumentedRefs.foldLeft(inAnyProject)((acc, a) => acc -- inProjects(a))
+    },
+
+    Compile / unidoc213 := (Def.taskDyn {
+      if (scalaVersion.value.startsWith("2.13"))
+        Def.task((Compile / unidoc).value)
+      else
+        Def.task {
+          streams.value.log.warn(s"Skipping unidoc execution in Scala ${scalaVersion.value}")
+          Seq.empty[File]
+        }
+    }).value)
 
 lazy val rootJVM = project
-  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm, std.jvm, example.jvm, benchmarks)
+  .aggregate(kernel.jvm, kernelTestkit.jvm, laws.jvm, core.jvm, testkit.jvm, tests.jvm, std.jvm, example.jvm, benchmarks)
   .enablePlugins(NoPublishPlugin)
 
 lazy val rootJS = project
-  .aggregate(kernel.js, testkit.js, laws.js, core.js, std.js, example.js)
+  .aggregate(jsProjects: _*)
   .enablePlugins(NoPublishPlugin)
 
 /**
@@ -164,23 +198,23 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform).in(file("kernel"))
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
  * generators, and useful tools for testing code written against Cats Effect.
  */
-lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
+lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform).in(file("kernel-testkit"))
   .dependsOn(kernel)
   .settings(
-    name := "cats-effect-testkit",
+    name := "cats-effect-kernel-testkit",
 
     libraryDependencies ++= Seq(
       "org.typelevel"  %%% "cats-free"  % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      "org.typelevel"  %%% "coop"       % "1.0.0-M2"))
+      "org.typelevel"  %%% "coop"       % "1.0.0-M3"))
 
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid
  * jar file and dependency issues. As a consequence of this split, some things
- * which are defined in testkit are *tested* in the Test scope of this project.
+ * which are defined in kernelTestkit are *tested* in the Test scope of this project.
  */
 lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
-  .dependsOn(kernel, testkit % Test)
+  .dependsOn(kernel, kernelTestkit % Test)
   .settings(
     name := "cats-effect-laws",
 
@@ -195,10 +229,30 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
  * (such as IOApp). This is the "batteries included" dependency.
  */
 lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
-  .dependsOn(kernel, std, laws % Test, testkit % Test)
+  .dependsOn(kernel, std)
   .settings(
-    name := "cats-effect",
+    name := "cats-effect"
+  )
 
+/**
+ * Test support for the core project, providing various helpful instances
+ * like ScalaCheck generators for IO and SyncIO.
+ */
+lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
+  .dependsOn(core, kernelTestkit)
+  .settings(
+    name := "cats-effect-testkit",
+    libraryDependencies ++= Seq(
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion))
+
+/**
+ * Unit tests for the core project, utilizing the support provided by testkit.
+ */
+lazy val tests = crossProject(JSPlatform, JVMPlatform).in(file("tests"))
+  .dependsOn(laws % Test, kernelTestkit % Test, testkit % Test)
+  .enablePlugins(NoPublishPlugin)
+  .settings(
+    name := "cats-effect-tests",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.typelevel" %%% "cats-kernel-laws"  % CatsVersion       % Test))

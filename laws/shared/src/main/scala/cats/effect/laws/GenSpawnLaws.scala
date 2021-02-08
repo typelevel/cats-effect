@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ package laws
 import cats.effect.kernel.{GenSpawn, Outcome}
 import cats.syntax.all._
 
-trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] {
+trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
 
   implicit val F: GenSpawn[F, E]
 
@@ -93,11 +93,11 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] {
   def raceCanceledIdentityRight[A](fa: F[A]) =
     F.race(fa, F.canceled) <-> fa.map(_.asLeft[Unit])
 
-  def raceNeverIdentityLeft[A](fa: F[A]) =
-    F.race(F.never[Unit], fa) <-> fa.map(_.asRight[Unit])
+  def raceNeverNoncanceledIdentityLeft[A](fa: F[A]) =
+    F.race(F.never[Unit], fa) <-> F.onCancel(fa.map(_.asRight[Unit]), F.never)
 
-  def raceNeverIdentityRight[A](fa: F[A]) =
-    F.race(fa, F.never[Unit]) <-> fa.map(_.asLeft[Unit])
+  def raceNeverNoncanceledIdentityRight[A](fa: F[A]) =
+    F.race(fa, F.never[Unit]) <-> F.onCancel(fa.map(_.asLeft[Unit]), F.never)
 
   // I really like these laws, since they relate cede to timing, but they're definitely nondeterministic
   /*def raceLeftCedeYields[A](a: A) =
@@ -127,16 +127,8 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] {
   def neverDominatesOverFlatMap[A](fa: F[A]) =
     F.never >> fa <-> F.never[A]
 
-  def uncancelableRaceDisplacesCanceled =
-    F.uncancelable(_ => F.race(F.never[Unit], F.canceled)).void <-> F.canceled
-
-  def uncancelableRacePollCanceledIdentityLeft[A](fa: F[A]) =
-    F.uncancelable(p => F.race(p(F.canceled), fa)) <-> F.uncancelable(_ =>
-      fa.map(_.asRight[Unit]))
-
-  def uncancelableRacePollCanceledIdentityRight[A](fa: F[A]) =
-    F.uncancelable(p => F.race(fa, p(F.canceled))) <-> F.uncancelable(_ =>
-      fa.map(_.asLeft[Unit]))
+  def uncancelableRaceNotInherited =
+    F.uncancelable(_ => F.race(F.never[Unit], F.canceled)).void <-> F.never[Unit]
 
   def uncancelableCancelCancels =
     F.start(F.never[Unit]).flatMap(f => F.uncancelable(_ => f.cancel) >> f.join) <-> F.pure(

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,15 @@ package cats.effect
 package laws
 
 import cats.Eq
-import cats.data.EitherT
 import cats.effect.kernel.Sync
-import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with ClockTests[F] {
+trait SyncTests[F[_]]
+    extends MonadCancelTests[F, Throwable]
+    with ClockTests[F]
+    with UniqueTests[F] {
 
   val laws: SyncLaws[F]
 
@@ -45,10 +46,10 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with ClockTests[F] {
       EqFA: Eq[F[A]],
       EqFB: Eq[F[B]],
       EqFC: Eq[F[C]],
+      EqFU: Eq[F[Unit]],
       EqE: Eq[Throwable],
       EqFEitherEU: Eq[F[Either[Throwable, Unit]]],
       EqFEitherEA: Eq[F[Either[Throwable, A]]],
-      EqEitherTFEA: Eq[EitherT[F, Throwable, A]],
       EqFABC: Eq[F[(A, B, C)]],
       EqFInt: Eq[F[Int]],
       exec: F[Boolean] => Prop,
@@ -57,7 +58,7 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with ClockTests[F] {
     new RuleSet {
       val name = "sync"
       val bases = Nil
-      val parents = Seq(monadError[A, B, C], clock[A, B, C])
+      val parents = Seq(monadCancel[A, B, C], clock, unique)
 
       val props = Seq(
         "suspend value is pure" -> forAll(laws.suspendValueIsPure[A] _),

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,4 +43,9 @@ private[effect] object IOFiberConstants {
   val EvalOnR: Byte = 5
   val CedeR: Byte = 6
   val DoneR: Byte = 7
+
+  // ContState tags
+  val ContStateInitial: Int = 0
+  val ContStateWaiting: Int = 1
+  val ContStateResult: Int = 2
 }

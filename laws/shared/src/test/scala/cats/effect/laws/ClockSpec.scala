@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package cats.effect
 package laws
 
 import cats.data.ContT
-import cats.effect.testkit.freeEval, freeEval._
+import cats.effect.kernel.testkit.freeEval, freeEval._
 
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
@@ -28,7 +28,5 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 class ClockSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
 
   // we only need to test the ones that *aren't* also Sync
-  checkAll(
-    "ContT[FreeEitherSync, Int, *]",
-    ClockTests[ContT[FreeEitherSync, Int, *]].clock[Int, Int, Int])
+  checkAll("ContT[FreeEitherSync, Int, *]", ClockTests[ContT[FreeEitherSync, Int, *]].clock)
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,13 +22,10 @@ import scala.util.control.NonFatal
 import java.util.{concurrent => juc}
 import juc.atomic.{AtomicBoolean, AtomicReference}
 
-private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
+private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(true) {
+  this: IOFiber[A] =>
 
   private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
-
-  // Allocation free linked queue nodes of `IOFiber[_]` objects.
-  // Represents the external work stealing thread pool queue.
-  private[effect] var next: IOFiber[_] = _
 
   protected final def interruptibleImpl(
       cur: IO.Blocking[Any],

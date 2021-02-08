@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -117,7 +117,7 @@ object Hotswap {
 
         override def swap(next: Resource[F, R]): F[R] =
           F.uncancelable { poll =>
-            poll(next.allocated[F, R]).flatMap {
+            poll(next.allocated).flatMap {
               case (r, finalizer) =>
                 swapFinalizer(finalizer).as(r)
             }

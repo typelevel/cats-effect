@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,11 @@ package laws
 
 import cats.effect.kernel.Sync
 import cats.syntax.all._
-import cats.laws.MonadErrorLaws
 
-trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] with ClockLaws[F] {
+trait SyncLaws[F[_]]
+    extends MonadCancelLaws[F, Throwable]
+    with ClockLaws[F]
+    with UniqueLaws[F] {
 
   implicit val F: Sync[F]
 

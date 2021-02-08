@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,23 +16,11 @@
 
 package cats.effect
 
+import java.util.concurrent.atomic.AtomicInteger
+
 // TODO rename
-sealed abstract private[effect] class ContState extends Product with Serializable {
-  def result: Either[Throwable, Any] = sys.error("impossible")
-  def tag: Byte
-}
-
-private[effect] object ContState {
-  // no one completed
-  case object Initial extends ContState {
-    def tag = 0
-  }
-
-  case object Waiting extends ContState {
-    def tag = 1
-  }
-
-  final case class Result(override val result: Either[Throwable, Any]) extends ContState {
-    def tag = 2
-  }
+// `result` is published by a volatile store on the atomic integer extended
+// by this class.
+private class ContState(var wasFinalizing: Boolean) extends AtomicInteger(0) {
+  var result: Either[Throwable, Any] = _
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 import org.scalacheck._, Prop.forAll
 import org.scalacheck.util.Pretty
 
-trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] {
+trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] with UniqueTests[F] {
 
   val laws: GenSpawnLaws[F, E]
 
@@ -75,8 +75,10 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] {
           laws.raceDerivesFromRacePairRight[A, B] _),
         "race canceled identity (left)" -> forAll(laws.raceCanceledIdentityLeft[A] _),
         "race canceled identity (right)" -> forAll(laws.raceCanceledIdentityRight[A] _),
-        "race never identity attempt (left)" -> forAll(laws.raceNeverIdentityLeft[A] _),
-        "race never identity attempt (right)" -> forAll(laws.raceNeverIdentityLeft[A] _),
+        "race never non-canceled identity (left)" -> forAll(
+          laws.raceNeverNoncanceledIdentityLeft[A] _),
+        "race never non-canceled identity (right)" -> forAll(
+          laws.raceNeverNoncanceledIdentityRight[A] _),
         // "race left cede yields" -> forAll(laws.raceLeftCedeYields[A] _),
         // "race right cede yields" -> forAll(laws.raceRightCedeYields[A] _),
         "fiber pure is completed pure" -> forAll(laws.fiberPureIsOutcomeCompletedPure[A] _),
@@ -86,11 +88,7 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] {
         "fiber never is never" -> laws.fiberNeverIsNever,
         "fiber start of never is unit" -> laws.fiberStartOfNeverIsUnit,
         "never dominates over flatMap" -> forAll(laws.neverDominatesOverFlatMap[A] _),
-        "uncancelable race displaces canceled" -> laws.uncancelableRaceDisplacesCanceled,
-        "uncancelable race poll canceled identity (left)" -> forAll(
-          laws.uncancelableRacePollCanceledIdentityLeft[A] _),
-        "uncancelable race poll canceled identity (right)" -> forAll(
-          laws.uncancelableRacePollCanceledIdentityRight[A] _),
+        "uncancelable race not inherited" -> laws.uncancelableRaceNotInherited,
         "uncancelable canceled is canceled" -> laws.uncancelableCancelCancels,
         "uncancelable start is cancelable" -> laws.uncancelableStartIsCancelable,
         "forceR never is never" -> forAll(laws.forceRNeverIsNever[A] _)

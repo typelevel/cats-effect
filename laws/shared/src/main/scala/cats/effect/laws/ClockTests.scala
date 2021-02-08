@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,15 +27,13 @@ trait ClockTests[F[_]] extends Laws {
 
   val laws: ClockLaws[F]
 
-  def clock[A: Arbitrary, B: Arbitrary, C: Arbitrary](
-      implicit exec: F[Boolean] => Prop): RuleSet = {
-
+  def clock(implicit exec: F[Boolean] => Prop): RuleSet = {
     new RuleSet {
       val name = "clock"
       val bases = Nil
       val parents = Seq()
 
-      val props = Seq("monotonicity" -> laws.monotonicity)
+      val props = Seq("monotonicity" -> exec(laws.monotonicity))
     }
   }
 }

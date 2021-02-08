@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package cats.effect.std
 
-import cats.~>
+import cats.{~>, Contravariant, Functor, Invariant}
 import cats.effect.kernel.{Deferred, GenConcurrent, Ref}
 import cats.effect.kernel.syntax.all._
 import cats.effect.std.internal.BankersQueue
@@ -24,100 +24,13 @@ import cats.syntax.all._
 
 import scala.collection.immutable.{Queue => ScalaQueue}
 
-trait Dequeue[F[_], A] extends Queue[F, A] { self =>
-
-  /**
-   * Enqueues the given element at the back of the dequeue, possibly semantically
-   * blocking until sufficient capacity becomes available.
-   *
-   * @param a the element to be put at the back of the dequeue
-   */
-  def offerBack(a: A): F[Unit]
-
-  /**
-   * Attempts to enqueue the given element at the back of the dequeue without
-   * semantically blocking.
-   *
-   * @param a the element to be put at the back of the dequeue
-   * @return an effect that describes whether the enqueuing of the given
-   *         element succeeded without blocking
-   */
-  def tryOfferBack(a: A): F[Boolean]
-
-  /**
-   * Dequeues an element from the back of the dequeue, possibly semantically
-   * blocking until an element becomes available.
-   */
-  def takeBack: F[A]
-
-  /**
-   * Attempts to dequeue an element from the back of the dequeue, if one is
-   * available without semantically blocking.
-   *
-   * @return an effect that describes whether the dequeueing of an element from
-   *         the dequeue succeeded without blocking, with `None` denoting that no
-   *         element was available
-   */
-  def tryTakeBack: F[Option[A]]
-
-  /**
-   * Enqueues the given element at the front of the dequeue, possibly semantically
-   * blocking until sufficient capacity becomes available.
-   *
-   * @param a the element to be put at the back of the dequeue
-   */
-  def offerFront(a: A): F[Unit]
-
-  /**
-   * Attempts to enqueue the given element at the front of the dequeue without
-   * semantically blocking.
-   *
-   * @param a the element to be put at the back of the dequeue
-   * @return an effect that describes whether the enqueuing of the given
-   *         element succeeded without blocking
-   */
-  def tryOfferFront(a: A): F[Boolean]
-
-  /**
-   * Dequeues an element from the front of the dequeue, possibly semantically
-   * blocking until an element becomes available.
-   */
-  def takeFront: F[A]
-
-  /**
-   * Attempts to dequeue an element from the front of the dequeue, if one is
-   * available without semantically blocking.
-   *
-   * @return an effect that describes whether the dequeueing of an element from
-   *         the dequeue succeeded without blocking, with `None` denoting that no
-   *         element was available
-   */
-  def tryTakeFront: F[Option[A]]
+trait Dequeue[F[_], A] extends Queue[F, A] with DequeueSource[F, A] with DequeueSink[F, A] {
+  self =>
 
   /**
    * Reverse the dequeue in constant time
    */
   def reverse: F[Unit]
-
-  /**
-   * Alias for offerBack in order to implement Queue
-   */
-  override def offer(a: A): F[Unit] = offerBack(a)
-
-  /**
-   * Alias for tryOfferBack in order to implement Queue
-   */
-  override def tryOffer(a: A): F[Boolean] = tryOfferBack(a)
-
-  /**
-   * Alias for takeFront in order to implement Queue
-   */
-  override def take: F[A] = takeFront
-
-  /**
-   * Alias for tryTakeFront in order to implement Queue
-   */
-  override def tryTake: F[Option[A]] = tryTakeFront
 
   /**
    * Modifies the context in which this dequeue is executed using the natural
@@ -166,6 +79,38 @@ object Dequeue {
    */
   def unbounded[F[_], A](implicit F: GenConcurrent[F, _]): F[Dequeue[F, A]] =
     bounded(Int.MaxValue)
+
+  implicit def catsInvariantForDequeue[F[_]: Functor]: Invariant[Dequeue[F, *]] =
+    new Invariant[Dequeue[F, *]] {
+      override def imap[A, B](fa: Dequeue[F, A])(f: A => B)(g: B => A): Dequeue[F, B] =
+        new Dequeue[F, B] {
+          override def takeBack: F[B] =
+            fa.takeBack.map(f)
+
+          override def tryTakeBack: F[Option[B]] =
+            fa.tryTakeBack.map(_.map(f))
+
+          override def takeFront: F[B] =
+            fa.takeFront.map(f)
+
+          override def tryTakeFront: F[Option[B]] =
+            fa.tryTakeFront.map(_.map(f))
+
+          override def offerBack(b: B): F[Unit] =
+            fa.offerBack(g(b))
+
+          override def tryOfferBack(b: B): F[Boolean] =
+            fa.tryOfferBack(g(b))
+
+          override def offerFront(b: B): F[Unit] =
+            fa.offerFront(g(b))
+
+          override def tryOfferFront(b: B): F[Boolean] =
+            fa.tryOfferFront(g(b))
+
+          override def reverse: F[Unit] = fa.reverse
+        }
+    }
 
   private[std] class BoundedDequeue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
       implicit F: GenConcurrent[F, _])
@@ -304,5 +249,143 @@ object Dequeue {
     def empty[F[_], A]: State[F, A] =
       State(BankersQueue.empty, 0, ScalaQueue.empty, ScalaQueue.empty)
   }
+
+}
+
+trait DequeueSource[F[_], A] extends QueueSource[F, A] {
+
+  /**
+   * Dequeues an element from the back of the dequeue, possibly semantically
+   * blocking until an element becomes available.
+   */
+  def takeBack: F[A]
+
+  /**
+   * Attempts to dequeue an element from the back of the dequeue, if one is
+   * available without semantically blocking.
+   *
+   * @return an effect that describes whether the dequeueing of an element from
+   *         the dequeue succeeded without blocking, with `None` denoting that no
+   *         element was available
+   */
+  def tryTakeBack: F[Option[A]]
+
+  /**
+   * Dequeues an element from the front of the dequeue, possibly semantically
+   * blocking until an element becomes available.
+   */
+  def takeFront: F[A]
+
+  /**
+   * Attempts to dequeue an element from the front of the dequeue, if one is
+   * available without semantically blocking.
+   *
+   * @return an effect that describes whether the dequeueing of an element from
+   *         the dequeue succeeded without blocking, with `None` denoting that no
+   *         element was available
+   */
+  def tryTakeFront: F[Option[A]]
+
+  /**
+   * Alias for takeFront in order to implement Queue
+   */
+  override def take: F[A] = takeFront
+
+  /**
+   * Alias for tryTakeFront in order to implement Queue
+   */
+  override def tryTake: F[Option[A]] = tryTakeFront
+
+}
+
+object DequeueSource {
+  implicit def catsFunctorForDequeueSource[F[_]: Functor]: Functor[DequeueSource[F, *]] =
+    new Functor[DequeueSource[F, *]] {
+      override def map[A, B](fa: DequeueSource[F, A])(f: A => B): DequeueSource[F, B] =
+        new DequeueSource[F, B] {
+          override def takeBack: F[B] =
+            fa.takeBack.map(f)
+
+          override def tryTakeBack: F[Option[B]] =
+            fa.tryTakeBack.map(_.map(f))
+
+          override def takeFront: F[B] =
+            fa.takeFront.map(f)
+
+          override def tryTakeFront: F[Option[B]] =
+            fa.tryTakeFront.map(_.map(f))
+        }
+    }
+}
+
+trait DequeueSink[F[_], A] extends QueueSink[F, A] {
+
+  /**
+   * Enqueues the given element at the back of the dequeue, possibly semantically
+   * blocking until sufficient capacity becomes available.
+   *
+   * @param a the element to be put at the back of the dequeue
+   */
+  def offerBack(a: A): F[Unit]
+
+  /**
+   * Attempts to enqueue the given element at the back of the dequeue without
+   * semantically blocking.
+   *
+   * @param a the element to be put at the back of the dequeue
+   * @return an effect that describes whether the enqueuing of the given
+   *         element succeeded without blocking
+   */
+  def tryOfferBack(a: A): F[Boolean]
+
+  /**
+   * Enqueues the given element at the front of the dequeue, possibly semantically
+   * blocking until sufficient capacity becomes available.
+   *
+   * @param a the element to be put at the back of the dequeue
+   */
+  def offerFront(a: A): F[Unit]
+
+  /**
+   * Attempts to enqueue the given element at the front of the dequeue without
+   * semantically blocking.
+   *
+   * @param a the element to be put at the back of the dequeue
+   * @return an effect that describes whether the enqueuing of the given
+   *         element succeeded without blocking
+   */
+  def tryOfferFront(a: A): F[Boolean]
+
+  /**
+   * Alias for offerBack in order to implement Queue
+   */
+  override def offer(a: A): F[Unit] = offerBack(a)
+
+  /**
+   * Alias for tryOfferBack in order to implement Queue
+   */
+  override def tryOffer(a: A): F[Boolean] = tryOfferBack(a)
+
+}
+
+object DequeueSink {
+  implicit def catsContravariantForDequeueSink[F[_]: Functor]
+      : Contravariant[DequeueSink[F, *]] =
+    new Contravariant[DequeueSink[F, *]] {
+      override def contramap[A, B](fa: DequeueSink[F, A])(f: B => A): DequeueSink[F, B] =
+        new DequeueSink[F, B] {
+          override def offerBack(b: B): F[Unit] =
+            fa.offerBack(f(b))
+
+          override def tryOfferBack(b: B): F[Boolean] =
+            fa.tryOfferBack(f(b))
+
+          override def offerFront(b: B): F[Unit] =
+            fa.offerFront(f(b))
+
+          override def tryOfferFront(b: B): F[Boolean] =
+            fa.tryOfferFront(f(b))
+        }
+    }
 
 }

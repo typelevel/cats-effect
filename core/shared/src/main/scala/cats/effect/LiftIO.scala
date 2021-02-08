@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -152,6 +152,6 @@ object LiftIO {
     implicit protected def F1: Applicative[F]
 
     def liftIO[A](ioa: IO[A]): Resource[F, A] =
-      Resource.liftF(F0.liftIO(ioa))
+      Resource.eval(F0.liftIO(ioa))
   }
 }

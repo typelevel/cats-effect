@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ package laws
 
 import cats.syntax.all._
 import cats.effect.kernel.{/*Outcome,*/ Temporal} // , Outcome._
-import cats.effect.testkit.pure._
-import cats.effect.testkit.TimeT
+import cats.effect.kernel.testkit.pure._
+import cats.effect.kernel.testkit.TimeT
 
 import org.specs2.mutable.Specification
 

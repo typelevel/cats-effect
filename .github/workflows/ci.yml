@@ -22,12 +22,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        scala: [3.0.0-M1, 3.0.0-M2, 2.12.12, 2.13.3]
+        scala: [3.0.0-M2, 3.0.0-M3, 2.12.13, 2.13.4]
         java:
           - adopt@1.8
           - adopt@1.11
           - adopt@1.15
-          - graalvm-ce-java8@20.2.0
+          - graalvm-ce-java8@20.3.0
         ci: [ciJVM, ciJS, ciFirefox]
         exclude:
           - ci: ciJS
@@ -35,13 +35,13 @@ jobs:
           - ci: ciJS
             java: adopt@1.15
           - ci: ciJS
-            java: graalvm-ce-java8@20.2.0
-          - os: windows-latest
-            scala: 3.0.0-M1
+            java: graalvm-ce-java8@20.3.0
           - os: windows-latest
             scala: 3.0.0-M2
           - os: windows-latest
-            scala: 2.12.12
+            scala: 3.0.0-M3
+          - os: windows-latest
+            scala: 2.12.13
           - os: windows-latest
             ci: ciJS
           - ci: ciFirefox
@@ -49,17 +49,15 @@ jobs:
           - ci: ciFirefox
             java: adopt@1.15
           - ci: ciFirefox
-            java: graalvm-ce-java8@20.2.0
-          - os: windows-latest
-            scala: 3.0.0-M1
+            java: graalvm-ce-java8@20.3.0
           - os: windows-latest
             scala: 3.0.0-M2
           - os: windows-latest
-            scala: 2.12.12
+            scala: 3.0.0-M3
+          - os: windows-latest
+            scala: 2.12.13
           - os: windows-latest
             ci: ciFirefox
-          - java: adopt@1.15
-            scala: 3.0.0-M1
           - java: adopt@1.15
             os: windows-latest
     runs-on: ${{ matrix.os }}
@@ -104,9 +102,17 @@ jobs:
       - shell: bash
         run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
 
-      - if: matrix.scala == '2.13.3' && matrix.ci == 'ciJVM'
+      - if: matrix.scala == '2.13.4' && matrix.ci == 'ciJVM'
         shell: bash
         run: sbt ++${{ matrix.scala }} docs/mdoc
+
+      - if: matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: sbt ++${{ matrix.scala }} exampleJVM/compile
+
+      - if: matrix.ci == 'ciJS' && matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: sbt ++${{ matrix.scala }} exampleJS/compile
 
       - name: Test Example JVM App Within Sbt
         if: matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'

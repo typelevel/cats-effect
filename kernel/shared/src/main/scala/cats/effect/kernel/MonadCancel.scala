@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,8 +34,8 @@ import cats.syntax.all._
 /**
  * A typeclass that characterizes monads which support safe cancellation,
  * masking, and finalization. [[MonadCancel]] extends the capabilities of
- * [[MonadError]], so an instance of this typeclass must also provide a lawful
- * instance for [[MonadError]].
+ * [[cats.MonadError]], so an instance of this typeclass must also provide a lawful
+ * instance for [[cats.MonadError]].
  *
  * ==Fibers==
  *
@@ -43,9 +43,9 @@ import cats.syntax.all._
  * The execution of a fiber of an effect `F[E, A]` terminates with one of three
  * outcomes, which are encoded by the datatype [[Outcome]]:
  *
- *   1. [[Succeeded]]: indicates success with a value of type `A`
- *   1. [[Errored]]: indicates failure with a value of type `E`
- *   1. [[Canceled]]: indicates abnormal termination
+ *   1. [[Outcome.Succeeded]]: indicates success with a value of type `A`
+ *   1. [[Outcome.Errored]]: indicates failure with a value of type `E`
+ *   1. [[Outcome.Canceled]]: indicates abnormal termination
  *
  * Additionally, a fiber may never produce an outcome, in which case it is said
  * to be non-terminating.
@@ -59,10 +59,10 @@ import cats.syntax.all._
  * [[MonadCancel!.canceled canceled]].
  *
  * Cancellation is vaguely similar to the short-circuiting behavior introduced
- * by [[MonadError]], but there are several key differences:
+ * by [[cats.MonadError]], but there are several key differences:
  *
  *   1. Cancellation is effective; if it is observed it must be respected, and
- *      it cannot be reversed. In contrast, [[MonadError!handleError handleError]]
+ *      it cannot be reversed. In contrast, [[cats.MonadError.handleError handleError]]
  *      exposes the ability to catch and recover from errors, and then proceed
  *      with normal execution.
  *   1. Cancellation can be masked via [[MonadCancel!.uncancelable]]. Masking
@@ -132,9 +132,9 @@ import cats.syntax.all._
  *   def bracket[A, B](acquire: F[A])(use: A => F[B])(release: A => F[Unit]): F[B] =
  *     uncancelable { poll =>
  *       flatMap(acquire) { a =>
- *         val finalized = onCancel(poll(use(a)), release(a))
- *         val handled = onError(finalized) { case e => void(attempt(release(a))) }
- *         flatMap(handled)(b => as(attempt(release(a)), b))
+ *         val finalized = onCancel(poll(use(a)), release(a).uncancelable)
+ *         val handled = onError(finalized) { case e => void(attempt(release(a).uncancelable)) }
+ *         flatMap(handled)(b => as(attempt(release(a).uncancelable), b))
  *       }
  *     }
  *
@@ -147,6 +147,15 @@ import cats.syntax.all._
  */
 trait MonadCancel[F[_], E] extends MonadError[F, E] {
   implicit private[this] def F: MonadError[F, E] = this
+
+  /**
+   * Indicates the default "root scope" semantics of the `F` in question.
+   * For types which do ''not'' implement auto-cancelation, this value may
+   * be set to `CancelScope.Uncancelable`, which behaves as if all values
+   * `F[A]` are wrapped in an implicit "outer" `uncancelable` which cannot
+   * be polled. Most `IO`-like types will define this to be `Cancelable`.
+   */
+  def rootCancelScope: CancelScope
 
   /**
    * Analogous to [[productR]], but suppresses short-circuiting behavior
@@ -247,7 +256,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * completes, regardless of the outcome.
    *
    * This function can be thought of as a combination of
-   * [[Monad!.flatTap flatTap]], [[MonadError!.onError onError]], and
+   * [[cats.Monad!.flatTap flatTap]], [[cats.MonadError!.onError onError]], and
    * [[MonadCancel!.onCancel onCancel]].
    *
    * @param fa The effect that is run after `fin` is registered.
@@ -265,7 +274,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * completes, but depends on the outcome.
    *
    * This function can be thought of as a combination of
-   * [[Monad!.flatTap flatTap]], [[MonadError!.onError onError]], and
+   * [[cats.Monad!.flatTap flatTap]], [[cats.MonadError!.onError onError]], and
    * [[MonadCancel!.onCancel onCancel]].
    *
    * @param fa The effect that is run after `fin` is registered.
@@ -345,12 +354,17 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
   def bracketFull[A, B](acquire: Poll[F] => F[A])(use: A => F[B])(
       release: (A, Outcome[F, E, B]) => F[Unit]): F[B] =
     uncancelable { poll =>
+      val safeRelease: (A, Outcome[F, E, B]) => F[Unit] =
+        (a, out) => uncancelable(_ => release(a, out))
+
       acquire(poll).flatMap { a =>
-        val finalized = onCancel(poll(use(a)), release(a, Outcome.Canceled()))
+        // we need to lazily evaluate `use` so that uncaught exceptions are caught within the effect
+        // runtime, otherwise we'll throw here and the error handler will never be registered
+        val finalized = onCancel(poll(F.unit >> use(a)), safeRelease(a, Outcome.Canceled()))
         val handled = finalized.onError {
-          case e => void(attempt(release(a, Outcome.Errored(e))))
+          case e => safeRelease(a, Outcome.Errored(e)).attempt.void
         }
-        handled.flatTap { b => release(a, Outcome.Succeeded(b.pure)).attempt }
+        handled.flatMap { b => safeRelease(a, Outcome.Succeeded(b.pure)).as(b) }
       }
     }
 }
@@ -364,12 +378,16 @@ object MonadCancel {
       implicit F0: MonadCancel[F, E]): MonadCancel[OptionT[F, *], E] =
     new OptionTMonadCancel[F, E] {
 
+      def rootCancelScope = F0.rootCancelScope
+
       override implicit protected def F: MonadCancel[F, E] = F0
     }
 
   implicit def monadCancelForEitherT[F[_], E0, E](
       implicit F0: MonadCancel[F, E]): MonadCancel[EitherT[F, E0, *], E] =
     new EitherTMonadCancel[F, E0, E] {
+
+      def rootCancelScope = F0.rootCancelScope
 
       override implicit protected def F: MonadCancel[F, E] = F0
     }
@@ -378,6 +396,8 @@ object MonadCancel {
       implicit F0: MonadCancel[F, E]): MonadCancel[Kleisli[F, R, *], E] =
     new KleisliMonadCancel[F, R, E] {
 
+      def rootCancelScope = F0.rootCancelScope
+
       override implicit protected def F: MonadCancel[F, E] = F0
     }
 
@@ -385,6 +405,8 @@ object MonadCancel {
       implicit F0: MonadCancel[F, E],
       L0: Semigroup[L]): MonadCancel[IorT[F, L, *], E] =
     new IorTMonadCancel[F, L, E] {
+
+      def rootCancelScope = F0.rootCancelScope
 
       override implicit protected def F: MonadCancel[F, E] = F0
 
@@ -396,6 +418,8 @@ object MonadCancel {
       L0: Monoid[L]): MonadCancel[WriterT[F, L, *], E] =
     new WriterTMonadCancel[F, L, E] {
 
+      def rootCancelScope = F0.rootCancelScope
+
       override implicit protected def F: MonadCancel[F, E] = F0
 
       override implicit protected def L: Monoid[L] = L0
@@ -404,6 +428,9 @@ object MonadCancel {
   implicit def monadCancelForStateT[F[_], S, E](
       implicit F0: MonadCancel[F, E]): MonadCancel[StateT[F, S, *], E] =
     new StateTMonadCancel[F, S, E] {
+
+      def rootCancelScope = F0.rootCancelScope
+
       override implicit protected def F = F0
     }
 
@@ -411,11 +438,34 @@ object MonadCancel {
       implicit F0: MonadCancel[F, E],
       L0: Monoid[L]): MonadCancel[ReaderWriterStateT[F, E0, L, S, *], E] =
     new ReaderWriterStateTMonadCancel[F, E0, L, S, E] {
+
+      def rootCancelScope = F0.rootCancelScope
+
       override implicit protected def F = F0
       override implicit protected def L = L0
     }
 
+  trait Uncancelable[F[_], E] { this: MonadCancel[F, E] =>
+
+    private[this] val IdPoll = new Poll[F] {
+      def apply[A](fa: F[A]) = fa
+    }
+
+    def rootCancelScope: CancelScope = CancelScope.Uncancelable
+
+    def canceled: F[Unit] = unit
+
+    def onCancel[A](fa: F[A], fin: F[Unit]): F[A] = {
+      val _ = fin
+      fa
+    }
+
+    def uncancelable[A](body: Poll[F] => F[A]): F[A] =
+      body(IdPoll)
+  }
+
   private[kernel] trait OptionTMonadCancel[F[_], E] extends MonadCancel[OptionT[F, *], E] {
+
     implicit protected def F: MonadCancel[F, E]
 
     protected def delegate: MonadError[OptionT[F, *], E] =

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,11 +26,15 @@ import scala.util.{Left, Right}
 trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
   implicit val F: Async[F]
 
-  def asyncRightIsSequencedPure[A](a: A, fu: F[Unit]) =
-    F.async[A](k => F.delay(k(Right(a))) >> fu.as(None)) <-> (fu >> F.pure(a))
+  // format: off
+  def asyncRightIsUncancelableSequencedPure[A](a: A, fu: F[Unit]) =
+    F.async[A](k => F.delay(k(Right(a))) >> fu.as(None)) <-> (F.uncancelable(_ => fu) >> F.pure(a))
+  // format: on
 
-  def asyncLeftIsSequencedRaiseError[A](e: Throwable, fu: F[Unit]) =
-    F.async[A](k => F.delay(k(Left(e))) >> fu.as(None)) <-> (fu >> F.raiseError(e))
+  // format: off
+  def asyncLeftIsUncancelableSequencedRaiseError[A](e: Throwable, fu: F[Unit]) =
+    F.async[A](k => F.delay(k(Left(e))) >> fu.as(None)) <-> (F.uncancelable(_ => fu) >> F.raiseError(e))
+  // format: on
 
   def asyncRepeatedCallbackIgnored[A](a: A) =
     F.async[A](k => F.delay(k(Right(a))) >> F.delay(k(Right(a))).as(None)) <-> F.pure(a)

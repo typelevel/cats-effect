@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,4 +43,9 @@ final class IOFiberConstants {
   public static final byte EvalOnR = 5;
   public static final byte CedeR = 6;
   public static final byte DoneR = 7;
+
+  // ContState tags
+  public static final int ContStateInitial = 0;
+  public static final int ContStateWaiting = 1;
+  public static final int ContStateResult = 2;
 }

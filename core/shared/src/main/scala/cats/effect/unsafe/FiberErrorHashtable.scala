@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,12 @@ package cats.effect
 package unsafe
 
 private[effect] final class FiberErrorHashtable(initialSize: Int) {
-  val lock: AnyRef = new Object()
   var hashtable: Array[Throwable => Unit] = new Array(initialSize)
   private[this] var capacity = 0
   private[this] var mask = initialSize - 1
 
   def put(cb: Throwable => Unit): Unit =
-    lock.synchronized {
+    this.synchronized {
       val len = hashtable.length
       if (capacity == len) {
         val newLen = len * 2
@@ -50,7 +49,7 @@ private[effect] final class FiberErrorHashtable(initialSize: Int) {
     }
 
   def remove(cb: Throwable => Unit): Unit =
-    lock.synchronized {
+    this.synchronized {
       val init = hash(cb)
       var idx = init
       var cont = true

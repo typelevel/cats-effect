@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package cats.effect.kernel
 
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 
 private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
 
@@ -26,7 +27,11 @@ private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
         delay {
           val stage = cf.handle[Unit] {
             case (a, null) => cb(Right(a))
-            case (_, t) => cb(Left(t))
+            case (_, t) =>
+              cb(Left(t match {
+                case e: CompletionException if e.getCause ne null => e.getCause
+                case _ => t
+              }))
           }
 
           Some(void(delay(stage.cancel(false))))

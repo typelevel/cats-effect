@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,4 @@ final class SyncIOConstants {
   public static final byte HandleErrorWithK = 2;
   public static final byte RunTerminusK = 3;
   public static final byte AttemptK = 4;
-  public static final byte CancelationLoopK = 5;
-  public static final byte OnCancelK = 6;
-  public static final byte UncancelableK = 7;
-  public static final byte UnmaskK = 8;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,8 +65,8 @@ import cats.~>
  * you can override `Async[F].async` with your implementation, and use `Async.defaultCont`
  * to implement `Async[F].cont`.
  */
-trait Cont[F[_], A] {
+trait Cont[F[_], K, R] {
   def apply[G[_]](
       implicit
-      G: MonadCancel[G, Throwable]): (Either[Throwable, A] => Unit, G[A], F ~> G) => G[A]
+      G: MonadCancel[G, Throwable]): (Either[Throwable, K] => Unit, G[K], F ~> G) => G[R]
 }

@@ -11,12 +11,12 @@ output=$(mktemp)
 
 await-output() {
   local c=0
-  until (cat $output | grep "$1" > /dev/null) || [[ $c -gt 20 ]]; do
+  until (cat $output | grep "$1" > /dev/null) || [[ $c -gt 30 ]]; do
     sleep 1
     c=$(($c+1))
   done
 
-  if [[ $c -gt 20 ]]; then
+  if [[ $c -gt 60 ]]; then
     echo -e "\e[31mTimed out waiting for '$1' in output\e[0m"
     return -1
   else

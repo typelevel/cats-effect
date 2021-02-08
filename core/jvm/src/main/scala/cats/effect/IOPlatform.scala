@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,15 +32,10 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
     var results: Either[Throwable, A] = null
     val latch = new CountDownLatch(1)
 
-    unsafeRunFiber(
-      { t =>
-        results = Left(t)
-        latch.countDown()
-      },
-      { a =>
-        results = Right(a)
-        latch.countDown()
-      })
+    unsafeRunAsync { r =>
+      results = r
+      latch.countDown()
+    }
 
     if (latch.await(limit.toNanos, TimeUnit.NANOSECONDS)) {
       results.fold(throw _, a => Some(a))

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,5 +25,5 @@ trait ResourceSyntax {
 
 final class EffectResourceOps[F[_], A] private[syntax] (private[syntax] val wrapped: F[A])
     extends AnyVal {
-  def toResource: Resource[F, A] = Resource.liftF(wrapped)
+  def toResource: Resource[F, A] = Resource.eval(wrapped)
 }

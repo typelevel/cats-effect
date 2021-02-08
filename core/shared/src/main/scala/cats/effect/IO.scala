@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package cats.effect
 import cats.{
   Applicative,
   Eval,
+  Id,
   Monoid,
   Now,
   Parallel,
@@ -33,11 +34,15 @@ import cats.effect.instances.spawn
 import cats.effect.std.Console
 
 import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
+import scala.concurrent.{
+  CancellationException,
+  ExecutionContext,
+  Future,
+  Promise,
+  TimeoutException
+}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
-
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
@@ -72,20 +77,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
     bracketCase(use)((a, _) => release(a))
 
-  def bracketCase[B](use: A => IO[B])(release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] = {
-    def doRelease(a: A, outcome: OutcomeIO[B]): IO[Unit] =
-      release(a, outcome).handleErrorWith { t =>
-        IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
-      }
-
-    IO uncancelable { poll =>
-      flatMap { a =>
-        val finalized = poll(use(a)).onCancel(release(a, Outcome.Canceled()))
-        val handled = finalized.onError(e => doRelease(a, Outcome.Errored(e)))
-        handled.flatMap(b => doRelease(a, Outcome.Succeeded(IO.pure(b))).as(b))
-      }
-    }
-  }
+  def bracketCase[B](use: A => IO[B])(release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
+    IO.bracketFull(_ => this)(use)(release)
 
   def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
 
@@ -194,7 +187,19 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def unsafeRunAsync(cb: Either[Throwable, A] => Unit)(
       implicit runtime: unsafe.IORuntime): Unit = {
-    unsafeRunFiber(t => cb(Left(t)), a => cb(Right(a)))
+    unsafeRunFiber(
+      cb(Left(new CancellationException("Main fiber was canceled"))),
+      t => cb(Left(t)),
+      a => cb(Right(a)))
+    ()
+  }
+
+  def unsafeRunAsyncOutcome(cb: Outcome[Id, Throwable, A @uncheckedVariance] => Unit)(
+      implicit runtime: unsafe.IORuntime): Unit = {
+    unsafeRunFiber(
+      cb(Outcome.canceled),
+      t => cb(Outcome.errored(t)),
+      a => cb(Outcome.succeeded(a: Id[A])))
     ()
   }
 
@@ -212,15 +217,17 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     p.future
   }
 
-  private[effect] def unsafeRunFiber(failure: Throwable => Unit, success: A => Unit)(
-      implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
+  private[effect] def unsafeRunFiber(
+      canceled: => Unit,
+      failure: Throwable => Unit,
+      success: A => Unit)(implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber[A](
       0,
       Map(),
       oc =>
         oc.fold(
-          (),
+          canceled,
           { t =>
             runtime.fiberErrorCbs.remove(failure)
             failure(t)
@@ -257,6 +264,8 @@ private[effect] trait IOLowPriorityImplicits {
 
 object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
+  type Par[A] = ParallelF[IO, A]
+
   // constructors
 
   def apply[A](thunk: => A): IO[A] = Delay(() => thunk)
@@ -281,8 +290,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * please use `background`, `start`, `async`, or `Deferred` instead,
    * depending on the use case
    */
-  def cont[A](body: Cont[IO, A]): IO[A] =
-    IOCont[A](body)
+  def cont[K, R](body: Cont[IO, K, R]): IO[R] =
+    IOCont[K, R](body)
 
   def executionContext: IO[ExecutionContext] = ReadEC
 
@@ -344,6 +353,24 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def ref[A](a: A): IO[Ref[IO, A]] = IO(Ref.unsafe(a))
 
   def deferred[A]: IO[Deferred[IO, A]] = IO(Deferred.unsafe)
+
+  def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
+      release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] = {
+    val safeRelease: (A, OutcomeIO[B]) => IO[Unit] =
+      (a, out) => IO.uncancelable(_ => release(a, out))
+
+    IO.uncancelable { poll =>
+      acquire(poll).flatMap { a =>
+        val finalized = poll(IO.unit >> use(a)).onCancel(safeRelease(a, Outcome.Canceled()))
+        val handled = finalized.onError { e =>
+          safeRelease(a, Outcome.Errored(e)).handleErrorWith { t =>
+            IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
+          }
+        }
+        handled.flatMap(b => safeRelease(a, Outcome.Succeeded(IO.pure(b))).as(b))
+      }
+    }
+  }
 
   /**
    * Returns the given argument if `cond` is true, otherwise `IO.Unit`
@@ -414,7 +441,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    * @param a value to be printed to the standard output
    */
-  def print[A](a: A)(implicit S: Show[A] = Show.fromToString): IO[Unit] =
+  def print[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): IO[Unit] =
     Console[IO].print(a)
 
   /**
@@ -426,7 +453,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    * @param a value to be printed to the standard output
    */
-  def println[A](a: A)(implicit S: Show[A] = Show.fromToString): IO[Unit] =
+  def println[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): IO[Unit] =
     Console[IO].println(a)
 
   def eval[A](fa: Eval[A]): IO[A] =
@@ -499,7 +526,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def raiseError[A](e: Throwable): IO[A] =
       IO.raiseError(e)
 
-    def cont[A](body: Cont[IO, A]): IO[A] = IO.cont(body)
+    def cont[K, R](body: Cont[IO, K, R]): IO[R] = IO.cont(body)
 
     def evalOn[A](fa: IO[A], ec: ExecutionContext): IO[A] =
       fa.evalOn(ec)
@@ -510,9 +537,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def onCancel[A](ioa: IO[A], fin: IO[Unit]): IO[A] =
       ioa.onCancel(fin)
 
-    override def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(
-        release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
-      acquire.bracketCase(use)(release)
+    override def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
+        release: (A, Outcome[IO, Throwable, B]) => IO[Unit]): IO[B] =
+      IO.bracketFull(acquire)(use)(release)
 
     val monotonic: IO[FiniteDuration] = IO.monotonic
 
@@ -572,10 +599,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   implicit def asyncForIO: kernel.Async[IO] = _asyncForIO
 
-  private[this] val _parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] =
+  private[this] val _parallelForIO: Parallel.Aux[IO, Par] =
     spawn.parallelForGenSpawn[IO, Throwable]
 
-  implicit def parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = _parallelForIO
+  implicit def parallelForIO: Parallel.Aux[IO, Par] = _parallelForIO
 
   implicit val consoleForIO: Console[IO] =
     Console.make
@@ -631,13 +658,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
 
   // Low level construction that powers `async`
-  private[effect] final case class IOCont[A](body: Cont[IO, A]) extends IO[A] {
+  private[effect] final case class IOCont[K, R](body: Cont[IO, K, R]) extends IO[R] {
     def tag = 11
   }
   private[effect] object IOCont {
     // INTERNAL, it's only created by the runloop itself during the execution of `IOCont`
-    final case class Get[A](state: AtomicReference[ContState], wasFinalizing: AtomicBoolean)
-        extends IO[A] {
+    final case class Get[A](state: ContState) extends IO[A] {
       def tag = 12
     }
   }

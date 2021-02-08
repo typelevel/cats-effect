@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@ package laws
 
 import cats.data.WriterT
 import cats.laws.discipline.arbitrary._
-import cats.effect.testkit._
-import cats.effect.testkit.TimeT._
-import cats.effect.testkit.{pure, PureConcGenerators}, pure._
+import cats.effect.kernel.testkit._
+import cats.effect.kernel.testkit.TimeT._
+import cats.effect.kernel.testkit.{pure, PureConcGenerators}, pure._
 
 import org.scalacheck.Prop
 

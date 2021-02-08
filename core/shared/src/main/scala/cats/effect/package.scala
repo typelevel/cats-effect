@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020-2021 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ package object effect {
 
   type Fiber[F[_], E, A] = cekernel.Fiber[F, E, A]
   type Poll[F[_]] = cekernel.Poll[F]
-  type Cont[F[_], A] = cekernel.Cont[F, A]
+  type Cont[F[_], K, R] = cekernel.Cont[F, K, R]
 
   type GenConcurrent[F[_], E] = cekernel.GenConcurrent[F, E]
   val GenConcurrent = cekernel.GenConcurrent
@@ -64,7 +64,7 @@ package object effect {
   type ParallelF[F[_], A] = cekernel.Par.ParallelF[F, A]
   val ParallelF = cekernel.Par.ParallelF
 
-  type Resource[+F[_], +A] = cekernel.Resource[F, A]
+  type Resource[F[_], +A] = cekernel.Resource[F, A]
   val Resource = cekernel.Resource
 
   type OutcomeIO[A] = Outcome[IO, Throwable, A]
