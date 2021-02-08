@@ -400,10 +400,10 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       suspend.use_ must failAs(exception)
     }
 
-    "parZip" >> {
+    "both" >> {
       "releases resources in reverse order of acquisition" in ticked { implicit ticker =>
         // conceptually asserts that:
-        //   forAll (r: Resource[F, A]) then r <-> r.parZip(Resource.unit) <-> Resource.unit.parZip(r)
+        //   forAll (r: Resource[F, A]) then r <-> r.both(Resource.unit) <-> Resource.unit.both(r)
         // needs to be tested manually to assert the equivalence during cleanup as well
         forAll { (as: List[(Int, Either[Throwable, Unit])], rhs: Boolean) =>
           var released: List[Int] = Nil
@@ -412,7 +412,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
               Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
           }
           val unit = ().pure[Resource[IO, *]]
-          val p = if (rhs) r.parZip(unit) else unit.parZip(r)
+          val p = if (rhs) r.both(unit) else unit.both(r)
 
           p.use_.attempt.void must completeAs(())
           released mustEqual as.map(_._1)
@@ -435,7 +435,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           IO { rightReleasing = true } >> wait >> IO { rightReleased = true }
         }
 
-        lhs.parZip(rhs).use(_ => wait).unsafeToFuture()
+        lhs.both(rhs).use(_ => wait).unsafeToFuture()
 
         // after 1 second:
         //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
@@ -484,7 +484,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           _ <- Resource.eval(wait(2))
         } yield ()
 
-        lhs.parZip(rhs).use(_ => IO.unit).handleError(_ => ()).unsafeToFuture()
+        lhs.both(rhs).use(_ => IO.unit).handleError(_ => ()).unsafeToFuture()
 
         // after 1 second:
         //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
@@ -532,7 +532,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
             IO.unit)
         } yield ()
 
-        lhs.parZip(rhs).use(_ => wait(1)).handleError(_ => ()).unsafeToFuture()
+        lhs.both(rhs).use(_ => wait(1)).handleError(_ => ()).unsafeToFuture()
 
         // after 1 second:
         //  rhs has partially allocated, lhs executing

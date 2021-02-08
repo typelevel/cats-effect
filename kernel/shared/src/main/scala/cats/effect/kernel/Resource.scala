@@ -251,7 +251,7 @@ sealed abstract class Resource[F[_], +A] {
    *
    * Note that `Resource` also comes with a `cats.Parallel` instance
    * that offers more convenient access to the same functionality as
-   * `parZip`, for example via `parMapN`:
+   * `both`, for example via `parMapN`:
    *
    * {{{
    *   def mkResource(name: String) = {
@@ -268,7 +268,7 @@ sealed abstract class Resource[F[_], +A] {
    *             .use(msg => IO(println(msg)))
    * }}}
    */
-  def parZip[B](
+  def both[B](
       that: Resource[F, B]
   )(implicit F: Concurrent[F]): Resource[F, (A, B)] = {
     type Update = (F[Unit] => F[Unit]) => F[Unit]
@@ -653,6 +653,11 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
     new (F ~> Resource[F, *]) {
       def apply[A](fa: F[A]): Resource[F, A] = Resource.eval(fa)
     }
+
+  def both[F[_]: Concurrent, A, B](
+      rfa: Resource[F, A],
+      rfb: Resource[F, B]): Resource[F, (A, B)] =
+    rfa.both(rfb)
 
   /**
    * Creates a [[Resource]] by wrapping a Java
