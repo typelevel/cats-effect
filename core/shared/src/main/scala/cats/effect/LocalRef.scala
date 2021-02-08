@@ -16,9 +16,6 @@
 
 package cats.effect
 
-import cats.effect.IO
-import cats.effect.kernel.Ref
-
 final class LocalRef[A] private (local: Local[Ref[IO, A]]) extends Ref[IO, A] {
 
   override def get: IO[A] =

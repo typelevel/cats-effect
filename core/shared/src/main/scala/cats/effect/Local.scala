@@ -16,8 +16,6 @@
 
 package cats.effect
 
-import cats.effect.{IO, IOFiber}
-
 final class Local[A] private (index: Int, default: A) {
 
   def get: IO[A] =
