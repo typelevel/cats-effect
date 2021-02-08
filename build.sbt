@@ -32,6 +32,9 @@ ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/2.x")
 
+ThisBuild / githubWorkflowBuild +=
+  WorkflowStep.Sbt(List("docs/mdoc"), cond = Some(s"matrix.scala == '$OldScala'"))
+
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
 ThisBuild / startYear := Some(2017)
@@ -54,7 +57,7 @@ val SilencerVersion = "1.7.2"
 
 replaceCommandAlias(
   "ci",
-  "; project /; headerCheck ;scalafmtSbtCheck ;scalafmtCheckAll; clean; testIfRelevant; mimaReportBinaryIssuesIfRelevant; doc; docs/mdoc"
+  "; project /; headerCheck ;scalafmtSbtCheck ;scalafmtCheckAll; clean; testIfRelevant; mimaReportBinaryIssuesIfRelevant; doc"
 )
 
 replaceCommandAlias(

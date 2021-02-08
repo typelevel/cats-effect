@@ -52,3 +52,6 @@ jobs:
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
       - run: sbt ++${{ matrix.scala }} ci
+
+      - if: matrix.scala == '2.12.13'
+        run: sbt ++${{ matrix.scala }} docs/mdoc
