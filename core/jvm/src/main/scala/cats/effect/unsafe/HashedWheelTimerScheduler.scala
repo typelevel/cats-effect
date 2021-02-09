@@ -30,19 +30,25 @@ import scala.util.control.NonFatal
  */
 class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) extends Scheduler {
 
-  def sleep(delay: FiniteDuration, task: Runnable): Runnable =
+  println(s"Init $wheelSize $resolution")
+
+  def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
+    println("sleep")
     if (delay.isFinite) {
       //The delay requested is less than the resolution we support
       //so run immediately
       if (delay < resolution) {
+        println("run immediately")
         task.run()
         noopCancel
       } else {
+        println("delay")
         val t = TaskState(task, delay.toMillis + System.currentTimeMillis())
 
         @tailrec
         def go(): Unit = {
           val op = pendingOps.get
+          println("spin")
           if (!pendingOps.compareAndSet(op, Register(t, op))) go()
         }
 
@@ -51,13 +57,18 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
       }
     }
     // Delay is infinite so task is never run
-    else noopCancel
+    else {
+      println("infinite delay")
+      noopCancel
+    }
+  }
 
   def nowMillis() = System.currentTimeMillis()
 
   def monotonicNanos() = System.nanoTime()
 
   def shutdown(): Unit = {
+    println("shutdown")
     canceled = true
   }
 
@@ -75,7 +86,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
   //Probably ok as Thread.sleep only allows millis
   //(or millis and nanos precision)
   private val increment: Long = resolution.toMillis
-  private val invIncrement: Double = 1.0 / resolution.toMillis.toDouble
+  private val invIncrement: Double = 1.0 / increment.toDouble
 
   private val wheel: Array[Bucket] = (0.until(wheelSize)).map(_ => new Bucket()).toArray
 
@@ -92,56 +103,57 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
   thread.start()
 
   private def loop(): Unit = {
-    //TODO is it nicer if this is just the last idx into the wheel?
     @tailrec
     def loop(previousIdx: Int): Unit = {
       //TODO should we only check this every n iterations?
-      if (canceled) {
-        return
+      if (!canceled) {
+        val start = System.currentTimeMillis()
+
+        val ops = pendingOps.getAndSet(Noop)
+        executeOps(ops)
+
+        val idx = toBucketIdx(start)
+
+        @tailrec
+        def go(i: Int): Unit = {
+          // println(s"Scheduling bucket $i")
+          wheel(i).schedule(start)
+          if (i != idx) go((i + 1) % wheelSize)
+        }
+
+        go((previousIdx + 1) % wheelSize)
+
+        val end = System.currentTimeMillis()
+        val diff = end - start
+        if (diff < increment) {
+          //TODO do we need to handle thread interrupted ex?
+          // println("sleeping")
+          Thread.sleep(increment - diff)
+        }
+        loop(idx)
       }
-      val start = System.currentTimeMillis()
-
-      val ops = pendingOps.getAndSet(Noop)
-      executeOps(start, ops)
-
-      val idx = toBucketIdx(start)
-
-      @tailrec
-      def go(i: Int): Unit = {
-        // println(s"Scheduling bucket $i")
-        wheel(i).schedule(start)
-        if (i != idx) go((i + 1) % wheelSize)
-      }
-
-      go((previousIdx + 1) % wheelSize)
-
-      val end = System.currentTimeMillis()
-      val diff = end - start
-      if (diff < increment) {
-        //TODO do we need to handle thread interrupted ex?
-        // println("sleeping")
-        Thread.sleep(increment - diff)
-      }
-      loop(idx)
     }
 
     //Make sure we don't miss the current bucket on startup
     loop(toBucketIdx(System.currentTimeMillis() - increment))
   }
 
-  @inline private def toBucketIdx(ts: Long): Int = ((ts * invIncrement).toInt % wheelSize).toInt
+  @inline private def toBucketIdx(ts: Long): Int =
+    ((ts * invIncrement).toLong % wheelSize).toInt
 
   @tailrec
-  private def executeOps(currentTime: Long, op: Op): Unit =
+  private def executeOps(op: Op): Unit =
     op match {
       case Noop => ()
       case Register(state, next) => {
+        println(s"Scheduling task to bucket ${toBucketIdx(state.scheduled)}")
         wheel(toBucketIdx(state.scheduled)).add(state)
-        executeOps(currentTime, next)
+        executeOps(next)
       }
       case Cancel(state, next) => {
+        println(s"Canceling task")
         state.unlink()
-        executeOps(currentTime, next)
+        executeOps(next)
       }
     }
 
