@@ -87,6 +87,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
   }
 
   thread.setDaemon(true)
+  thread.setPriority(Thread.MAX_PRIORITY)
   thread.start()
 
   private def loop(): Unit = {
@@ -106,22 +107,24 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
 
       @tailrec
       def go(i: Int): Unit = {
+        println(s"Scheduling bucket $i")
         wheel(i).schedule(start)
-        if (i < idx) go(i + 1)
+        if (i != idx) go((i + 1) % wheelSize)
       }
 
-      //Can we always start at previous + 1 or do we need to check we're not too early?
-      go(previousIdx + 1)
+      go((previousIdx + 1) % wheelSize)
 
       val end = System.currentTimeMillis()
       val diff = end - start
       if (diff < res) {
+        //TODO do we need to handle thread interrupted ex?
         Thread.sleep(res - diff)
       }
       loop(idx)
     }
 
-    loop(toBucketIdx(System.currentTimeMillis()) - 1)
+    //Make sure we don't miss the current bucket on startup
+    loop(toBucketIdx(System.currentTimeMillis() - res))
   }
 
   @inline private def toBucketIdx(ts: Long): Int = (ts % wheelSize).toInt
@@ -178,6 +181,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
           if (state.scheduled < ts) {
             state.unlink()
             try {
+              println("Running task")
               state.task.run()
             } catch {
               case NonFatal(e) => println(s"Caught error $e in io timer")

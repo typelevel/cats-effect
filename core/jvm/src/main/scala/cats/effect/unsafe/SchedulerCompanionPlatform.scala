@@ -17,20 +17,15 @@
 package cats.effect.unsafe
 
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.Executors
 
 private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
   def createDefaultScheduler(): (Scheduler, () => Unit) = {
-    val scheduler = Executors.newSingleThreadScheduledExecutor { r =>
-      val t = new Thread(r)
-      t.setName("io-scheduler")
-      t.setDaemon(true)
-      t.setPriority(Thread.MAX_PRIORITY)
-      t
-    }
-    (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
+    val scheduler = new HashedWheelTimerScheduler(512, 200.millis)
+    (scheduler, { () => scheduler.shutdown() })
   }
 
   def fromScheduledExecutor(scheduler: ScheduledExecutorService): Scheduler =
