@@ -83,7 +83,15 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
   @volatile private var canceled = false
 
   private val thread = new Thread("io-timer") {
+    loop()
+  }
+
+  thread.setDaemon(true)
+  thread.start()
+
+  private def loop(): Unit = {
     //TODO is it nicer if this is just the last idx into the wheel?
+    @tailrec
     def loop(previousIdx: Int): Unit = {
       //TODO should we only check this every n iterations?
       if (canceled) {
@@ -113,11 +121,8 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
       loop(idx)
     }
 
-    loop(toBucketIdx(System.currentTimeMillis()))
+    loop(toBucketIdx(System.currentTimeMillis()) - 1)
   }
-
-  thread.setDaemon(true)
-  thread.start()
 
   @inline private def toBucketIdx(ts: Long): Int = (ts % wheelSize).toInt
 
@@ -165,7 +170,6 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
       head = state
     }
 
-    //TODO we need to track previous as well so we can unlink
     def schedule(ts: Long): Unit = {
       @tailrec
       def go(state: TaskState): Unit = {
