@@ -74,7 +74,8 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
   //TODO is this safe if resolution is < 1ms
   //Probably ok as Thread.sleep only allows millis
   //(or millis and nanos precision)
-  private val res: Long = resolution.toMillis
+  private val increment: Long = resolution.toMillis
+  private val invIncrement: Double = 1.0 / resolution.toMillis.toDouble
 
   private val wheel: Array[Bucket] = (0.until(wheelSize)).map(_ => new Bucket()).toArray
 
@@ -107,7 +108,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
 
       @tailrec
       def go(i: Int): Unit = {
-        println(s"Scheduling bucket $i")
+        // println(s"Scheduling bucket $i")
         wheel(i).schedule(start)
         if (i != idx) go((i + 1) % wheelSize)
       }
@@ -116,18 +117,19 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
 
       val end = System.currentTimeMillis()
       val diff = end - start
-      if (diff < res) {
+      if (diff < increment) {
         //TODO do we need to handle thread interrupted ex?
-        Thread.sleep(res - diff)
+        // println("sleeping")
+        Thread.sleep(increment - diff)
       }
       loop(idx)
     }
 
     //Make sure we don't miss the current bucket on startup
-    loop(toBucketIdx(System.currentTimeMillis() - res))
+    loop(toBucketIdx(System.currentTimeMillis() - increment))
   }
 
-  @inline private def toBucketIdx(ts: Long): Int = (ts % wheelSize).toInt
+  @inline private def toBucketIdx(ts: Long): Int = ((ts * invIncrement).toInt % wheelSize).toInt
 
   @tailrec
   private def executeOps(currentTime: Long, op: Op): Unit =
