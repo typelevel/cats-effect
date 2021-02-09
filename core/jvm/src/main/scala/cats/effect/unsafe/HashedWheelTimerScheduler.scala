@@ -18,9 +18,16 @@ package cats.effect.unsafe
 
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.atomic.AtomicReference
-import cats.instances.tailRec
 import scala.annotation.tailrec
+import scala.util.control.NonFatal
 
+/*
+ * Hashed wheel timer based on George Varghese and Tony Lauck's paper <a
+ * href="http://cseweb.ucsd.edu/users/varghese/PAPERS/twheel.ps.Z"> 'Hashed and
+ * Hierarchical Timing Wheels: data structures to efficiently implement a timer
+ * facility' and the http4s implementation
+ * https://github.com/http4s/blaze/blob/b9305ccb2e04ee62bde6619d7e7e2d17ea645e37/core/src/main/scala/org/http4s/blaze/util/TickWheelExecutor.scala
+ */
 class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) extends Scheduler {
 
   def sleep(delay: FiniteDuration, task: Runnable): Runnable =
@@ -31,7 +38,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
         task.run()
         noopCancel
       } else {
-        val t = TaskState(task, delay)
+        val t = TaskState(task, delay.toMillis + System.currentTimeMillis())
 
         @tailrec
         def go(): Unit = {
@@ -76,43 +83,77 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
   @volatile private var canceled = false
 
   private val thread = new Thread("io-timer") {
-    def loop(previous: Long): Unit = {
+    //TODO is it nicer if this is just the last idx into the wheel?
+    def loop(previousIdx: Int): Unit = {
       //TODO should we only check this every n iterations?
       if (canceled) {
         return
       }
       val start = System.currentTimeMillis()
+
       val ops = pendingOps.getAndSet(Noop)
-      executeOps(ops)
+      executeOps(start, ops)
+
+      val idx = toBucketIdx(start)
+
+      @tailrec
+      def go(i: Int): Unit = {
+        wheel(i).schedule(start)
+        if (i < idx) go(i + 1)
+      }
+
+      //Can we always start at previous + 1 or do we need to check we're not too early?
+      go(previousIdx + 1)
+
       val end = System.currentTimeMillis()
       val diff = end - start
       if (diff < res) {
         Thread.sleep(res - diff)
       }
-      loop(end)
+      loop(idx)
     }
 
-    loop(System.currentTimeMillis())
+    loop(toBucketIdx(System.currentTimeMillis()))
   }
+
+  thread.setDaemon(true)
+  thread.start()
+
+  @inline private def toBucketIdx(ts: Long): Int = (ts % wheelSize).toInt
 
   @tailrec
-  private def executeOps(op: Op): Unit = op match {
-    case Noop => ()
-    //TODO insert into correct bucket
-    case Register(state, next) => executeOps(next)
-    case Cancel(state, next) => {
-      state.canceled = true
-      executeOps(next)
+  private def executeOps(currentTime: Long, op: Op): Unit =
+    op match {
+      case Noop => ()
+      case Register(state, next) => {
+        wheel(toBucketIdx(state.scheduled)).add(state)
+        executeOps(currentTime, next)
+      }
+      case Cancel(state, next) => {
+        state.unlink()
+        executeOps(currentTime, next)
+      }
     }
-  }
 
   private val noopCancel: Runnable = () => ()
 
   private case class TaskState(
       task: Runnable,
-      delay: FiniteDuration,
+      scheduled: Long,
       var next: TaskState = null,
-      var canceled: Boolean = false)
+      var previous: TaskState = null) {
+
+    def unlink(): Unit = {
+      if (previous != null) {
+        previous.next = next
+      }
+      if (next != null) {
+        next.previous = previous
+      }
+      next = null
+      previous = null
+    }
+  }
 
   private class Bucket {
 
@@ -120,7 +161,29 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
 
     def add(state: TaskState): Unit = {
       state.next = head
+      head.previous = state
       head = state
+    }
+
+    //TODO we need to track previous as well so we can unlink
+    def schedule(ts: Long): Unit = {
+      @tailrec
+      def go(state: TaskState): Unit = {
+        if (state != null) {
+          val next = state.next
+          if (state.scheduled < ts) {
+            state.unlink()
+            try {
+              state.task.run()
+            } catch {
+              case NonFatal(e) => println(s"Caught error $e in io timer")
+            }
+          }
+          go(next)
+        }
+      }
+
+      go(head)
     }
 
   }
