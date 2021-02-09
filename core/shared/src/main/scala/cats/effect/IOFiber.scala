@@ -139,7 +139,8 @@ private final class IOFiber[A](
         case 4 => afterBlockingFailedR()
         case 5 => evalOnR()
         case 6 => cedeR()
-        case 7 => ()
+        case 7 => autoCedeR()
+        case 8 => ()
       }
     } catch {
       case t: Throwable =>
@@ -243,8 +244,7 @@ private final class IOFiber[A](
       asyncCancel(null)
     } else if ((nextIteration % autoYieldThreshold) == 0) {
       objectState.push(cur0)
-      conts.push(AutoCedeK)
-      cede()
+      autoCede()
     } else {
       // println(s"<$name> looping on $cur0")
       /*
@@ -744,6 +744,11 @@ private final class IOFiber[A](
     reschedule(currentCtx)(this)
   }
 
+  private[this] def autoCede(): Unit = {
+    resumeTag = AutoCedeR
+    reschedule(currentCtx)(this)
+  }
+
   /*
    * We should attempt finalization if all of the following are true:
    * 1) We own the runloop
@@ -823,7 +828,6 @@ private final class IOFiber[A](
       case 7 => uncancelableSuccessK(result, depth)
       case 8 => unmaskSuccessK(result, depth)
       case 9 => succeeded(Right(result), depth)
-      case 10 => autoCedeK()
     }
 
   private[this] def failed(error: Throwable, depth: Int): IO[Any] = {
@@ -839,7 +843,7 @@ private final class IOFiber[A](
      * until we hit a continuation that needs to deal with errors.
      */
     while (i >= 0 && k < 0) {
-      if (buffer(i) == FlatMapK || buffer(i) == MapK || buffer(i) == AutoCedeK)
+      if (buffer(i) <= FlatMapK)
         i -= 1
       else
         k = buffer(i)
@@ -860,7 +864,6 @@ private final class IOFiber[A](
       case 7 => uncancelableFailureK(error, depth)
       case 8 => unmaskFailureK(error, depth)
       case 9 => succeeded(Left(error), depth) // attemptK
-      // (case 10) will never continue
     }
   }
 
@@ -973,6 +976,11 @@ private final class IOFiber[A](
 
   private[this] def cedeR(): Unit = {
     runLoop(succeeded((), 0), 1)
+  }
+
+  private[this] def autoCedeR(): Unit = {
+    val io = objectState.pop().asInstanceOf[IO[Any]]
+    runLoop(io, 1)
   }
 
   //////////////////////////////////////
@@ -1119,9 +1127,6 @@ private final class IOFiber[A](
     masks += 1
     failed(t, depth + 1)
   }
-
-  private[this] def autoCedeK(): IO[Any] =
-    objectState.pop().asInstanceOf[IO[Any]]
 }
 
 private object IOFiber {

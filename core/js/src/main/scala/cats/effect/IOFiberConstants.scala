@@ -32,7 +32,6 @@ private[effect] object IOFiberConstants {
   val UncancelableK: Byte = 7
   val UnmaskK: Byte = 8
   val AttemptK: Byte = 9
-  val AutoCedeK: Byte = 10
 
   // resume ids
   val ExecR: Byte = 0
@@ -42,7 +41,8 @@ private[effect] object IOFiberConstants {
   val AfterBlockingFailedR: Byte = 4
   val EvalOnR: Byte = 5
   val CedeR: Byte = 6
-  val DoneR: Byte = 7
+  val AutoCedeR: Byte = 7
+  val DoneR: Byte = 8
 
   // ContState tags
   val ContStateInitial: Int = 0
