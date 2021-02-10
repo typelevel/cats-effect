@@ -15,4 +15,6 @@ object BracketRewrites {
 
   private val x1 = MonadCancel[IO, Throwable]
   x1.guarantee(IO.unit, IO.unit)
+
+  trait MySync[F[_]] extends MonadCancel[F, Throwable]
 }

@@ -18,4 +18,6 @@ object BracketRewrites {
 
   private val x1 = Bracket[IO, Throwable]
   x1.guarantee(IO.unit)(IO.unit)
+
+  trait MySync[F[_]] extends Bracket[F, Throwable]
 }
