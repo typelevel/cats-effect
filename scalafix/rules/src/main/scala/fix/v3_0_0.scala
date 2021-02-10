@@ -6,18 +6,15 @@ import scala.meta._
 
 class v3_0_0 extends SemanticRule("v3_0_0") {
   override def fix(implicit doc: SemanticDocument): Patch = {
-    val bracketMatcher = SymbolMatcher.normalized("cats/effect/Bracket.")
     val guaranteeMatcher = SymbolMatcher.exact("cats/effect/Bracket#guarantee().")
 
     doc.tree.collect {
       case t @ q"import cats.effect.Bracket" =>
-       Patch.replaceTree(t, "import cats.effect.MonadCancel")
-
-      case t @ q"$x[$f, $e].guarantee($a)($b)" if bracketMatcher.matches(x) =>
-        Patch.replaceTree(t, s"MonadCancel[$f, $e].guarantee($a, $b)")
+        Patch.replaceTree(t, "import cats.effect.MonadCancel")
 
       case t @ q"${guaranteeMatcher(f)}($a)($b)" =>
-        Patch.replaceTree(t, s"$f($a, $b)")
+        val f1 = f.toString().replace("Bracket", "MonadCancel")
+        Patch.replaceTree(t, s"$f1($a, $b)")
     }.asPatch
   }
 }
