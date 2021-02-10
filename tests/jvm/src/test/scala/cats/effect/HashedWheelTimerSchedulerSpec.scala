@@ -16,15 +16,19 @@
 
 package cats.effect
 
+import cats.implicits._
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
 import unsafe.Scheduler
 
+import org.scalacheck.Gen
+import org.scalacheck.Arbitrary.arbitrary
+
 import scala.concurrent.duration._
 
-class HashedWheelTimerSpec extends Specification with ScalaCheck with Runners {
+class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with Runners {
 
-  val tolerance: FiniteDuration = 200.millis
+  val tolerance: FiniteDuration = 5.seconds
 
   val scheduler = Scheduler.createDefaultScheduler()._1
 
@@ -50,6 +54,23 @@ class HashedWheelTimerSpec extends Specification with ScalaCheck with Runners {
       }
 
     }
+
+  //   "complete many within allowed time period" in realProp(Gen.resize(5, arbitrary[List[FiniteDuration]])) { delays =>
+
+  //     delays.traverse_ { delay =>
+  //       IO.async((cb: Either[Throwable, Unit] => Unit) => {
+  //         // runtime().scheduler.sleep(delay, () => cb(Right(())))
+  //         scheduler.sleep(delay, () => cb(Right(())))
+  //         IO.pure(None)
+  //       }).timeout(delay + tolerance)
+  //     }
+  //         .attempt
+  //         .flatMap { result =>
+  //           IO {
+  //             result mustEqual(Right(()))
+  //           }
+  //         }
+  //   }
   }
 
 }

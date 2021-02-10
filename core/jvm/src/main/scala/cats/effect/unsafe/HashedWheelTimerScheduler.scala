@@ -33,22 +33,18 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
   println(s"Init $wheelSize $resolution")
 
   def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-    println("sleep")
     if (delay.isFinite) {
       //The delay requested is less than the resolution we support
       //so run immediately
       if (delay < resolution) {
-        println("run immediately")
         task.run()
         noopCancel
       } else {
-        println("delay")
         val t = TaskState(task, delay.toMillis + nowMillis())
 
         @tailrec
         def go(): Unit = {
           val op = pendingOps.get
-          println("spin")
           if (!pendingOps.compareAndSet(op, Register(t, op))) go()
         }
 
@@ -135,7 +131,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
     }
 
     //Make sure we don't miss the current bucket on startup
-    loop(toBucketIdx(nowMillis() - increment))
+    loop(toBucketIdx(nowMillis() - 5*increment))
   }
 
   @inline private def toBucketIdx(ts: Long): Int =
@@ -151,7 +147,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
         executeOps(next)
       }
       case Cancel(state, next) => {
-        println(s"Canceling task")
+        // println(s"Canceling task")
         state.unlink()
         executeOps(next)
       }

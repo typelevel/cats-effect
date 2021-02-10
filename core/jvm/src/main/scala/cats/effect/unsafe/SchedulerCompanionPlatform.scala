@@ -35,7 +35,7 @@ private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type
   }
 
   def createDefaultScheduler(): (Scheduler, () => Unit) = {
-    val scheduler = new HashedWheelTimerScheduler(512, 1000.millis)
+    val scheduler = new HashedWheelTimerScheduler(512, 200.millis)
     (scheduler, { () => scheduler.shutdown() })
   }
 
