@@ -43,7 +43,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
         noopCancel
       } else {
         println("delay")
-        val t = TaskState(task, delay.toMillis + System.currentTimeMillis())
+        val t = TaskState(task, delay.toMillis + nowMillis())
 
         @tailrec
         def go(): Unit = {
@@ -94,8 +94,8 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
 
   @volatile private var canceled = false
 
-  private val thread = new Thread("io-timer") {
-    loop()
+  private val thread = new Thread("io-scheduler") {
+    override def run(): Unit = loop()
   }
 
   thread.setDaemon(true)
@@ -107,7 +107,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
     def loop(previousIdx: Int): Unit = {
       //TODO should we only check this every n iterations?
       if (!canceled) {
-        val start = System.currentTimeMillis()
+        val start = nowMillis()
 
         val ops = pendingOps.getAndSet(Noop)
         executeOps(ops)
@@ -123,7 +123,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
 
         go((previousIdx + 1) % wheelSize)
 
-        val end = System.currentTimeMillis()
+        val end = nowMillis()
         val diff = end - start
         if (diff < increment) {
           //TODO do we need to handle thread interrupted ex?
@@ -135,7 +135,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
     }
 
     //Make sure we don't miss the current bucket on startup
-    loop(toBucketIdx(System.currentTimeMillis() - increment))
+    loop(toBucketIdx(nowMillis() - increment))
   }
 
   @inline private def toBucketIdx(ts: Long): Int =
@@ -183,7 +183,9 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
 
     def add(state: TaskState): Unit = {
       state.next = head
-      head.previous = state
+      if (head != null) {
+        head.previous = state
+      }
       head = state
     }
 

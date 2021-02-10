@@ -23,8 +23,19 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.Executors
 
 private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
+  def createOldScheduler(): (Scheduler, () => Unit) = {
+    val scheduler = Executors.newSingleThreadScheduledExecutor { r =>
+      val t = new Thread(r)
+      t.setName("io-scheduler")
+      t.setDaemon(true)
+      t.setPriority(Thread.MAX_PRIORITY)
+      t
+    }
+    (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
+  }
+
   def createDefaultScheduler(): (Scheduler, () => Unit) = {
-    val scheduler = new HashedWheelTimerScheduler(512, 200.millis)
+    val scheduler = new HashedWheelTimerScheduler(512, 1000.millis)
     (scheduler, { () => scheduler.shutdown() })
   }
 

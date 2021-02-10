@@ -45,16 +45,8 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     (ExecutionContext.fromExecutor(executor), { () => executor.shutdown() })
   }
 
-  def createDefaultScheduler(threadName: String = "io-scheduler"): (Scheduler, () => Unit) = {
-    val scheduler = Executors.newSingleThreadScheduledExecutor { r =>
-      val t = new Thread(r)
-      t.setName(threadName)
-      t.setDaemon(true)
-      t.setPriority(Thread.MAX_PRIORITY)
-      t
-    }
-    (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
-  }
+  def createDefaultScheduler(threadName: String = "io-scheduler"): (Scheduler, () => Unit) =
+    Scheduler.createDefaultScheduler()
 
   lazy val global: IORuntime = {
     val cancellationCheckThreshold =
