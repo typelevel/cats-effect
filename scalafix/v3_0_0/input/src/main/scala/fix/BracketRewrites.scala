@@ -15,4 +15,7 @@ object BracketRewrites {
   Sync[IO].guarantee(IO.unit)(IO.unit)
 
   def f1[F[_], E](implicit F: Bracket[F, E]): Unit = ()
+
+  private val x1 = Bracket[IO, Throwable]
+  x1.guarantee(IO.unit)(IO.unit)
 }

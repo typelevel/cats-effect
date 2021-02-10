@@ -12,4 +12,7 @@ object BracketRewrites {
   Sync[IO].guarantee(IO.unit, IO.unit)
 
   def f1[F[_], E](implicit F: MonadCancel[F, E]): Unit = ()
+
+  private val x1 = MonadCancel[IO, Throwable]
+  x1.guarantee(IO.unit, IO.unit)
 }
