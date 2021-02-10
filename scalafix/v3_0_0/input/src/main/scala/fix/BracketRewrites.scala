@@ -8,6 +8,11 @@ import cats.effect.Bracket
 import cats.effect.Sync
 
 object BracketRewrites {
+  Bracket.apply[IO, Throwable]
+
   Bracket[IO, Throwable].guarantee(IO.unit)(IO.unit)
+
   Sync[IO].guarantee(IO.unit)(IO.unit)
+
+  def f1[F[_], E](implicit F: Bracket[F, E]): Unit = ()
 }
