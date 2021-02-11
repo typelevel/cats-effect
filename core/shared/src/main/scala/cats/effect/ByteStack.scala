@@ -70,4 +70,15 @@ private[effect] final class ByteStack(
       System.arraycopy(buffer, 0, buffer2, 0, len)
       buffer = buffer2
     }
+
+  def reclaim(): Unit = {
+    val len = buffer.length
+    val quarter = len / 4
+    if (index < quarter) {
+      val half = len / 2
+      val buffer2 = new Array[Byte](half)
+      System.arraycopy(buffer, 0, buffer2, 0, index)
+      buffer = buffer2
+    }
+  }
 }

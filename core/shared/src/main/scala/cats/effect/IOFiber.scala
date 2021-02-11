@@ -867,7 +867,11 @@ private final class IOFiber[A](
     }
   }
 
-  private[this] def execute(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
+  private[this] def execute(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
+    conts.reclaim()
+    objectState.reclaim()
+    ctxs.reclaim()
+    finalizers.reclaim()
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
       ec.asInstanceOf[WorkStealingThreadPool].executeFiber(fiber)
     } else {
@@ -881,18 +885,29 @@ private final class IOFiber[A](
          */
       }
     }
+  }
 
-  private[this] def reschedule(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
+  private[this] def reschedule(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
+    conts.reclaim()
+    objectState.reclaim()
+    ctxs.reclaim()
+    finalizers.reclaim()
     if (ec.isInstanceOf[WorkStealingThreadPool])
       ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiber(fiber)
     else
       scheduleOnForeignEC(ec)(fiber)
+  }
 
-  private[this] def rescheduleAndNotify(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
+  private[this] def rescheduleAndNotify(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
+    conts.reclaim()
+    objectState.reclaim()
+    ctxs.reclaim()
+    finalizers.reclaim()
     if (ec.isInstanceOf[WorkStealingThreadPool])
       ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiberAndNotify(fiber)
     else
       scheduleOnForeignEC(ec)(fiber)
+  }
 
   private[this] def scheduleOnForeignEC(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
     try {
