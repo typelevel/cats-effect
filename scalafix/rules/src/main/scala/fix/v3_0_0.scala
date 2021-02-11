@@ -12,6 +12,8 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
     val uncancelableMatcher = SymbolMatcher.exact("cats/effect/Bracket#uncancelable().")
 
     Patch.replaceSymbols(
+      "cats/effect/Async#async()." -> "async_",
+      "cats/effect/IO.async()." -> "async_",
       "cats/effect/IO.suspend()." -> "defer",
       "cats/effect/Resource.liftF()." -> "eval",
       "cats/effect/concurrent/Deferred." -> "cats/effect/Deferred.",
