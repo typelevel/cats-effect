@@ -48,4 +48,10 @@ final class IOFiberConstants {
   public static final int ContStateInitial = 0;
   public static final int ContStateWaiting = 1;
   public static final int ContStateResult = 2;
+
+  // Initial sizes of fiber stacks
+  public static final int ContsStackInitSize = 16;
+  public static final int ObjectStateStackInitSize = 16;
+  public static final int FinalizersStackInitSize = 16;
+  public static final int ECStackInitSize = 2;
 }

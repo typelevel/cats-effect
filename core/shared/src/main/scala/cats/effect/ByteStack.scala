@@ -71,10 +71,14 @@ private[effect] final class ByteStack(
       buffer = buffer2
     }
 
-  def reclaim(): Unit = {
+  /**
+   * The lower bound is passed as an argument to avoid
+   * storing an extra integer in each stack instance.
+   */
+  def reclaim(bound: Int): Unit = {
     val len = buffer.length
     val quarter = len / 4
-    if (index < quarter) {
+    if (len > bound && index < quarter) {
       val half = len / 2
       val buffer2 = new Array[Byte](half)
       System.arraycopy(buffer, 0, buffer2, 0, index)

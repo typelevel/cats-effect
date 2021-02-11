@@ -48,4 +48,10 @@ private[effect] object IOFiberConstants {
   val ContStateInitial: Int = 0
   val ContStateWaiting: Int = 1
   val ContStateResult: Int = 2
+
+  // Initial sizes of fiber stacks
+  val ContsStackInitSize: Int = 16
+  val ObjectStateStackInitSize: Int = 16
+  val FinalizersStackInitSize: Int = 16
+  val ECStackInitSize: Int = 2
 }

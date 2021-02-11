@@ -85,7 +85,7 @@ private final class IOFiber[A](
    * relocate our runloop to another fiber.
    */
   private[this] var conts: ByteStack = _
-  private[this] val objectState = new ArrayStack[AnyRef](16)
+  private[this] val objectState = new ArrayStack[AnyRef](ObjectStateStackInitSize)
 
   /* fast-path to head */
   private[this] var currentCtx: ExecutionContext = _
@@ -102,7 +102,7 @@ private final class IOFiber[A](
    */
   private[this] val childMask: Int = initMask + 255
 
-  private[this] val finalizers = new ArrayStack[IO[Unit]](16)
+  private[this] val finalizers = new ArrayStack[IO[Unit]](FinalizersStackInitSize)
 
   private[this] val callbacks = new CallbackStack[A](cb)
 
@@ -724,7 +724,7 @@ private final class IOFiber[A](
     if (!finalizers.isEmpty()) {
       objectState.push(cb)
 
-      conts = new ByteStack(16)
+      conts = new ByteStack(ContsStackInitSize)
       conts.push(CancelationLoopK)
 
       /* suppress all subsequent cancelation on this fiber */
@@ -868,10 +868,10 @@ private final class IOFiber[A](
   }
 
   private[this] def execute(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
-    conts.reclaim()
-    objectState.reclaim()
-    ctxs.reclaim()
-    finalizers.reclaim()
+    conts.reclaim(ContsStackInitSize)
+    objectState.reclaim(ObjectStateStackInitSize)
+    ctxs.reclaim(ECStackInitSize)
+    finalizers.reclaim(FinalizersStackInitSize)
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
       ec.asInstanceOf[WorkStealingThreadPool].executeFiber(fiber)
     } else {
@@ -888,10 +888,10 @@ private final class IOFiber[A](
   }
 
   private[this] def reschedule(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
-    conts.reclaim()
-    objectState.reclaim()
-    ctxs.reclaim()
-    finalizers.reclaim()
+    conts.reclaim(ContsStackInitSize)
+    objectState.reclaim(ObjectStateStackInitSize)
+    ctxs.reclaim(ECStackInitSize)
+    finalizers.reclaim(FinalizersStackInitSize)
     if (ec.isInstanceOf[WorkStealingThreadPool])
       ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiber(fiber)
     else
@@ -899,10 +899,10 @@ private final class IOFiber[A](
   }
 
   private[this] def rescheduleAndNotify(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
-    conts.reclaim()
-    objectState.reclaim()
-    ctxs.reclaim()
-    finalizers.reclaim()
+    conts.reclaim(ContsStackInitSize)
+    objectState.reclaim(ObjectStateStackInitSize)
+    ctxs.reclaim(ECStackInitSize)
+    finalizers.reclaim(FinalizersStackInitSize)
     if (ec.isInstanceOf[WorkStealingThreadPool])
       ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiberAndNotify(fiber)
     else
@@ -934,10 +934,10 @@ private final class IOFiber[A](
     if (resume()) {
       // println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
 
-      conts = new ByteStack(16)
+      conts = new ByteStack(ContsStackInitSize)
       conts.push(RunTerminusK)
 
-      ctxs = new ArrayStack[ExecutionContext](2)
+      ctxs = new ArrayStack[ExecutionContext](ECStackInitSize)
       currentCtx = startEC
       ctxs.push(startEC)
 
