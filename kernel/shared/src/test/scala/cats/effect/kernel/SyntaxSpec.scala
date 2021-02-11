@@ -162,6 +162,11 @@ class SyntaxSpec extends Specification {
       val result = target.andWait(param)
       result: F[A]
     }
+
+    {
+      val result = target.timed
+      result: F[(FiniteDuration, A)]
+    }
   }
 
   def temporalSyntax[F[_], A](target: F[A])(implicit F: Temporal[F]) = {
