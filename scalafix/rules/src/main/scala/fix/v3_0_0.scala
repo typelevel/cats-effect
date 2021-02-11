@@ -13,7 +13,10 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
 
     Patch.replaceSymbols(
       "cats/effect/IO.suspend()." -> "defer",
-      "cats/effect/Resource.liftF()." -> "eval"
+      "cats/effect/Resource.liftF()." -> "eval",
+      "cats/effect/concurrent/Deferred." -> "cats/effect/Deferred.",
+      "cats/effect/concurrent/Ref." -> "cats/effect/Ref.",
+      "cats/effect/concurrent/Semaphore." -> "cats/effect/std/Semaphore."
     ) +
       collect(doc.tree) {
         case bracketMatcher(t @ Name(_)) =>
