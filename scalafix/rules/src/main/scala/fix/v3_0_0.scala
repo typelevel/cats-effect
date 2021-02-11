@@ -9,14 +9,19 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
   override def fix(implicit doc: SemanticDocument): Patch = {
     val bracketMatcher = SymbolMatcher.normalized("cats/effect/Bracket.")
     val guaranteeMatcher = SymbolMatcher.exact("cats/effect/Bracket#guarantee().")
+    val uncancelableMatcher = SymbolMatcher.exact("cats/effect/Bracket#uncancelable().")
 
-    collect(doc.tree) {
-      case bracketMatcher(t @ Name(_)) =>
-        Patch.replaceTree(t, toMonadCancel(t)) -> List.empty
+    Patch.replaceSymbols("cats/effect/IO.suspend()." -> "defer") +
+      collect(doc.tree) {
+        case bracketMatcher(t @ Name(_)) =>
+          Patch.replaceTree(t, toMonadCancel(t)) -> List.empty
 
-      case t @ q"${guaranteeMatcher(f)}($a)($b)" =>
-        Patch.replaceTree(t, s"${toMonadCancel(f)}($a, $b)") -> List(a, b)
-    }.asPatch
+        case t @ q"${guaranteeMatcher(f)}($a)($b)" =>
+          Patch.replaceTree(t, s"${toMonadCancel(f)}($a, $b)") -> List(a, b)
+
+        case t @ q"${uncancelableMatcher(f)}($a)" =>
+          Patch.replaceTree(t, s"${toMonadCancel(f)}(_ => $a)") -> List(a)
+      }.asPatch
   }
 
   private def toMonadCancel(tree: Tree): String =
