@@ -135,7 +135,7 @@ ThisBuild / scmInfo := Some(
 
 ThisBuild / autoAPIMappings := true
 
-val CatsVersion = "2.3.1"
+val CatsVersion = "2.4.1"
 val Specs2Version = "4.10.5"
 val ScalaCheckVersion = "1.15.2"
 val DisciplineVersion = "1.1.3"
