@@ -47,9 +47,6 @@ final class GenTemporalOps_[F[_], A] private[syntax] (private val wrapped: F[A])
 
   def andWait(time: FiniteDuration)(implicit F: GenTemporal[F, _]): F[A] =
     F.andWait(wrapped, time)
-
-  def timed(implicit F: GenTemporal[F, _]): F[(FiniteDuration, A)] =
-    F.timed(wrapped)
 }
 
 final class GenTemporalOps[F[_], A, E] private[syntax] (private val wrapped: F[A])

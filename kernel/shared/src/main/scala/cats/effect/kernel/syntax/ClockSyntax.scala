@@ -16,11 +16,17 @@
 
 package cats.effect.kernel.syntax
 
-trait AllSyntax
-    extends MonadCancelSyntax
-    with GenSpawnSyntax
-    with GenTemporalSyntax
-    with GenConcurrentSyntax
-    with AsyncSyntax
-    with ResourceSyntax
-    with ClockSyntax
+import cats.effect.kernel.Clock
+
+import scala.concurrent.duration.FiniteDuration
+
+trait ClockSyntax {
+  implicit def clockOps[F[_], A, E](wrapped: F[A]): ClockOps[F, A] =
+    new ClockOps(wrapped)
+}
+
+final class ClockOps[F[_], A] private[syntax] (private val wrapped: F[A]) extends AnyVal {
+
+  def timed(implicit F: Clock[F]): F[(FiniteDuration, A)] =
+    F.timed(wrapped)
+}

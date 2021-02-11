@@ -160,7 +160,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     }
 
   def timed: IO[(FiniteDuration, A)] =
-    GenTemporal[IO].timed(this)
+    Clock[IO].timed(this)
 
   def product[B](that: IO[B]): IO[(A, B)] =
     flatMap(a => that.map(b => (a, b)))

@@ -71,14 +71,6 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
     val timeoutException = raiseError[A](ev(new TimeoutException(duration.toString)))
     timeoutTo(fa, duration, timeoutException)
   }
-
-  /**
-   * Returns an effect that completes with the result of the source together
-   * with the duration that it took to complete.
-   */
-  def timed[A](fa: F[A]): F[(FiniteDuration, A)] =
-    map3(realTime, fa, realTime)((startTime, a, endTime) => (endTime.minus(startTime), a))
-
 }
 
 object GenTemporal {
