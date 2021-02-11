@@ -11,7 +11,10 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
     val guaranteeMatcher = SymbolMatcher.exact("cats/effect/Bracket#guarantee().")
     val uncancelableMatcher = SymbolMatcher.exact("cats/effect/Bracket#uncancelable().")
 
-    Patch.replaceSymbols("cats/effect/IO.suspend()." -> "defer") +
+    Patch.replaceSymbols(
+      "cats/effect/IO.suspend()." -> "defer",
+      "cats/effect/Resource.liftF()." -> "eval"
+    ) +
       collect(doc.tree) {
         case bracketMatcher(t @ Name(_)) =>
           Patch.replaceTree(t, toMonadCancel(t)) -> List.empty
