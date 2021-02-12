@@ -21,7 +21,7 @@ import cats.effect.kernel.Clock
 import scala.concurrent.duration.FiniteDuration
 
 trait ClockSyntax {
-  implicit def clockOps[F[_], A, E](wrapped: F[A]): ClockOps[F, A] =
+  implicit def clockOps[F[_], A](wrapped: F[A]): ClockOps[F, A] =
     new ClockOps(wrapped)
 }
 
