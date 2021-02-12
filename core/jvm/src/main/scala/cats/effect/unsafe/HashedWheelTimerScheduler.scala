@@ -30,32 +30,35 @@ import scala.util.control.NonFatal
  */
 class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) extends Scheduler {
 
-  println(s"Init $wheelSize $resolution")
-
   def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-    if (delay.isFinite) {
-      //The delay requested is less than the resolution we support
-      //so run immediately
-      if (delay < resolution) {
-        task.run()
-        noopCancel
-      } else {
-        val t = TaskState(task, delay.toMillis + nowMillis())
+    if (!canceled) {
+      if (delay.isFinite) {
+        //The delay requested is less than the resolution we support
+        //so run immediately
+        if (delay < resolution) {
+          task.run()
+          noopCancel
+        } else {
+          val t = TaskState(task, delay.toMillis + nowMillis())
+          println(s"Running task at ${t.scheduled}")
 
-        @tailrec
-        def go(): Unit = {
-          val op = pendingOps.get
-          if (!pendingOps.compareAndSet(op, Register(t, op))) go()
+          @tailrec
+          def go(): Unit = {
+            val op = pendingOps.get
+            if (!pendingOps.compareAndSet(op, Register(t, op))) go()
+          }
+
+          go()
+          cancelToken(t)
         }
-
-        go()
-        cancelToken(t)
       }
-    }
-    // Delay is infinite so task is never run
-    else {
-      println("infinite delay")
-      noopCancel
+      // Delay is infinite so task is never run
+      else {
+        println("infinite delay")
+        noopCancel
+      }
+    } else {
+      sys.error("Hashed wheel scheduler is shutdown")
     }
   }
 
@@ -81,13 +84,14 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
   //TODO is this safe if resolution is < 1ms
   //Probably ok as Thread.sleep only allows millis
   //(or millis and nanos precision)
-  private val increment: Long = resolution.toMillis
-  private val invIncrement: Double = 1.0 / increment.toDouble
+  private val resolutionMillis: Long = resolution.toMillis
+  private val invResolutionMillis: Double = 1.0 / resolutionMillis
 
   private val wheel: Array[Bucket] = (0.until(wheelSize)).map(_ => new Bucket()).toArray
 
   private val pendingOps: AtomicReference[Op] = new AtomicReference[Op](Noop)
 
+  //TODO would it be better if shutdown was another op to be inserted into the queue?
   @volatile private var canceled = false
 
   private val thread = new Thread("io-scheduler") {
@@ -100,50 +104,59 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
 
   private def loop(): Unit = {
     @tailrec
-    def loop(previousIdx: Int): Unit = {
+    def loop(previousTicks: Long): Unit = {
       //TODO should we only check this every n iterations?
+      //TODO null out wheel when finishes so we don't hold references
       if (!canceled) {
-        val start = nowMillis()
+        val startTime = nowMillis()
+        val ticks = (startTime * invResolutionMillis).toLong
+        val iters = Math.min(ticks - previousTicks, wheelSize).toInt
+        // println(s"Scheduling for $start")
 
         val ops = pendingOps.getAndSet(Noop)
         executeOps(ops)
 
-        val idx = toBucketIdx(start)
-
         @tailrec
         def go(i: Int): Unit = {
-          // println(s"Scheduling bucket $i")
-          wheel(i).schedule(start)
-          if (i != idx) go((i + 1) % wheelSize)
+          if (i < iters) {
+            //TODO seems to fail when it gets stuck always scheduling
+            //all the buckets at the same time repeatedly
+            println(s"scheduling bucket ${ticksToBucketIdx(previousTicks + i)} at $startTime")
+            wheel(ticksToBucketIdx(previousTicks + i)).schedule(startTime)
+            go(i + 1)
+          }
         }
 
-        go((previousIdx + 1) % wheelSize)
+        go(0)
 
-        val end = nowMillis()
-        val diff = end - start
-        if (diff < increment) {
+        val curr = nowMillis()
+        val target = (ticks + 1) * resolutionMillis
+        if (curr < target) {
           //TODO do we need to handle thread interrupted ex?
           // println("sleeping")
-          Thread.sleep(increment - diff)
+          Thread.sleep(target - curr)
         }
-        loop(idx)
+        loop(ticks)
       }
     }
 
     //Make sure we don't miss the current bucket on startup
-    loop(toBucketIdx(nowMillis() - 5*increment))
+    loop(((nowMillis() - resolutionMillis) * invResolutionMillis).toLong)
   }
 
-  @inline private def toBucketIdx(ts: Long): Int =
-    ((ts * invIncrement).toLong % wheelSize).toInt
+  @inline private def tsToBucketIdx(ts: Long): Int =
+    ((ts * invResolutionMillis).toLong % wheelSize).toInt
+
+  @inline private def ticksToBucketIdx(ticks: Long): Int =
+    (ticks % wheelSize).toInt
 
   @tailrec
   private def executeOps(op: Op): Unit =
     op match {
       case Noop => ()
       case Register(state, next) => {
-        println(s"Scheduling task to bucket ${toBucketIdx(state.scheduled)}")
-        wheel(toBucketIdx(state.scheduled)).add(state)
+        println(s"Scheduling task to bucket ${tsToBucketIdx(state.scheduled)}")
+        wheel(tsToBucketIdx(state.scheduled)).add(state)
         executeOps(next)
       }
       case Cancel(state, next) => {
@@ -190,14 +203,16 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
       def go(state: TaskState): Unit = {
         if (state != null) {
           val next = state.next
-          if (state.scheduled < ts) {
+          if (state.scheduled <= ts) {
             state.unlink()
             try {
-              println("Running task")
+              // println("Running task")
               state.task.run()
             } catch {
               case NonFatal(e) => println(s"Caught error $e in io timer")
             }
+          } else {
+            println(s"too early: current $ts scheduled: ${state.scheduled}")
           }
           go(next)
         }

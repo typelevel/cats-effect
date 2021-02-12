@@ -28,49 +28,67 @@ import scala.concurrent.duration._
 
 class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with Runners {
 
-  val tolerance: FiniteDuration = 5.seconds
+  val tolerance: FiniteDuration = 1.seconds
 
-  val scheduler = Scheduler.createDefaultScheduler()._1
+  var scheduler: Scheduler = null
+  var shutdown: () => Unit = null
 
   "hashed wheel timer" should {
 
     //TODO similar test but with lots of fibers concurrently
     //TODO property test where we gen different delays?
-    "complete within allowed time period" in real {
+    // "complete within allowed time period" in real {
 
-      val delay = 500.millis
+    //   val delay = 500.millis
 
-      IO.race(
+    //   IO.race(
+    //     IO.async((cb: Either[Throwable, Unit] => Unit) => {
+    //       // runtime().scheduler.sleep(delay, () => cb(Right(())))
+    //       scheduler.sleep(delay, () => cb(Right(())))
+    //       IO.pure(None)
+    //     }),
+    //     IO.sleep(delay + tolerance)
+    //   ).flatMap { result =>
+    //     IO {
+    //       result mustEqual (Left(()))
+    //     }
+    //   }
+
+    // }
+    //
+    def durationGen: Gen[FiniteDuration] = Gen.choose(0L, 1000L).map(n => n.millis)
+
+    "complete many within allowed time period" in realProp(Gen.listOfN(5, durationGen)) { delays =>
+
+      println("test run")
+
+      delays.parTraverse_ { delay =>
+        println(s"Submitting task with delay $delay")
         IO.async((cb: Either[Throwable, Unit] => Unit) => {
           // runtime().scheduler.sleep(delay, () => cb(Right(())))
           scheduler.sleep(delay, () => cb(Right(())))
           IO.pure(None)
-        }),
-        IO.sleep(delay + tolerance)
-      ).flatMap { result =>
-        IO {
-          result mustEqual (Left(()))
-        }
+        }).timeout(delay + tolerance)
       }
-
+          .attempt
+          .flatMap { result =>
+            IO {
+              result mustEqual(Right(()))
+            }
+          }
     }
+  }
 
-  //   "complete many within allowed time period" in realProp(Gen.resize(5, arbitrary[List[FiniteDuration]])) { delays =>
+  override def beforeAll(): Unit  = {
+    val (s, close) = Scheduler.createDefaultScheduler()
+    scheduler = s
+    shutdown = close
+    super.beforeAll()
+  }
 
-  //     delays.traverse_ { delay =>
-  //       IO.async((cb: Either[Throwable, Unit] => Unit) => {
-  //         // runtime().scheduler.sleep(delay, () => cb(Right(())))
-  //         scheduler.sleep(delay, () => cb(Right(())))
-  //         IO.pure(None)
-  //       }).timeout(delay + tolerance)
-  //     }
-  //         .attempt
-  //         .flatMap { result =>
-  //           IO {
-  //             result mustEqual(Right(()))
-  //           }
-  //         }
-  //   }
+  override def afterAll(): Unit = {
+    shutdown()
+    super.afterAll()
   }
 
 }
