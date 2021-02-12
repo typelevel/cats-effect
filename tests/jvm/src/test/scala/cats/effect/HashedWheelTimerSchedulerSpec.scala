@@ -28,7 +28,7 @@ import scala.concurrent.duration._
 
 class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with Runners {
 
-  val tolerance: FiniteDuration = 1.seconds
+  val tolerance: FiniteDuration = 400.millis
 
   var scheduler: Scheduler = null
   var shutdown: () => Unit = null
@@ -58,7 +58,7 @@ class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with R
     //
     def durationGen: Gen[FiniteDuration] = Gen.choose(0L, 1000L).map(n => n.millis)
 
-    "complete many within allowed time period" in realProp(Gen.listOfN(5, durationGen)) { delays =>
+    "complete many within allowed time period" in realProp(Gen.listOfN(10, durationGen)) { delays =>
 
       println("test run")
 

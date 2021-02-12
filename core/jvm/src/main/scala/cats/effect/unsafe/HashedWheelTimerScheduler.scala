@@ -106,7 +106,6 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
     @tailrec
     def loop(previousTicks: Long): Unit = {
       //TODO should we only check this every n iterations?
-      //TODO null out wheel when finishes so we don't hold references
       if (!canceled) {
         val startTime = nowMillis()
         val ticks = (startTime * invResolutionMillis).toLong
@@ -119,8 +118,6 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
         @tailrec
         def go(i: Int): Unit = {
           if (i < iters) {
-            //TODO seems to fail when it gets stuck always scheduling
-            //all the buckets at the same time repeatedly
             println(s"scheduling bucket ${ticksToBucketIdx(previousTicks + i)} at $startTime")
             wheel(ticksToBucketIdx(previousTicks + i)).schedule(startTime)
             go(i + 1)
@@ -133,10 +130,14 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
         val target = (ticks + 1) * resolutionMillis
         if (curr < target) {
           //TODO do we need to handle thread interrupted ex?
-          // println("sleeping")
           Thread.sleep(target - curr)
         }
         loop(ticks)
+      } else {
+        //null out to avoid leaks
+        (0.until(wheelSize)).foreach { n =>
+          wheel(n) = null
+        }
       }
     }
 
