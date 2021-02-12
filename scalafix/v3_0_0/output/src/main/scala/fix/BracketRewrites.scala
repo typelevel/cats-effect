@@ -1,8 +1,8 @@
 package fix
 
 import cats.effect.IO
-import cats.effect.MonadCancel
 import cats.effect.Sync
+import cats.effect.MonadCancel
 
 object BracketRewrites {
   MonadCancel.apply[IO, Throwable]
@@ -11,8 +11,11 @@ object BracketRewrites {
 
   Sync[IO].guarantee(IO.unit, IO.unit)
 
-  // TODO
-  //Sync[IO].guarantee(Sync[IO].guarantee(IO.unit)(IO.unit))(IO.unit)
+  Sync[IO].guarantee( /* comment */ IO.unit, IO.unit)
+
+  Sync[IO].guarantee(Sync[IO].guarantee(IO.unit, IO.unit), IO.unit)
+
+  Sync[IO].guarantee(IO.defer(Sync[IO].guarantee(IO.unit, IO.unit)), IO.unit)
 
   def f1[F[_], E](implicit F: MonadCancel[F, E]): Unit = ()
 
@@ -23,6 +26,5 @@ object BracketRewrites {
 
   MonadCancel[IO, Throwable].uncancelable(_ => IO.unit)
 
-  // TODO
-  // Bracket[IO, Throwable].uncancelable(Sync[IO].guarantee(IO.unit)(IO.unit))
+  MonadCancel[IO, Throwable].uncancelable(_ => Sync[IO].guarantee(IO.unit, IO.unit))
 }

@@ -3,18 +3,15 @@ package fix
 import scalafix.v1._
 
 import scala.meta._
-import scala.meta.transversers.SimpleTraverser
 
 class v3_0_0 extends SemanticRule("v3_0_0") {
   override def fix(implicit doc: SemanticDocument): Patch = {
-    val bracketMatcher = SymbolMatcher.normalized("cats/effect/Bracket.")
-    val guaranteeMatcher = SymbolMatcher.exact("cats/effect/Bracket#guarantee().")
-    val uncancelableMatcher = SymbolMatcher.exact("cats/effect/Bracket#uncancelable().")
+    val Bracket_guarantee_M = SymbolMatcher.exact("cats/effect/Bracket#guarantee().")
+    val Bracket_uncancelable_M = SymbolMatcher.exact("cats/effect/Bracket#uncancelable().")
 
     Patch.replaceSymbols(
       "cats/effect/Async#async()." -> "async_",
-      // Handled by patches below.
-      //"cats/effect/Bracket." -> "cats/effect/MonadCancel.",
+      "cats/effect/Bracket." -> "cats/effect/MonadCancel.",
       "cats/effect/IO.async()." -> "async_",
       "cats/effect/IO.suspend()." -> "defer",
       "cats/effect/Resource.liftF()." -> "eval",
@@ -22,44 +19,17 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
       "cats/effect/concurrent/Ref." -> "cats/effect/Ref.",
       "cats/effect/concurrent/Semaphore." -> "cats/effect/std/Semaphore."
     ) +
-      collect(doc.tree) {
-        case bracketMatcher(t @ Name(_)) =>
-          Patch.replaceTree(t, toMonadCancel(t)) -> List.empty
+      doc.tree.collect {
+        // Bracket#guarantee(a)(b) -> MonadCancel#guarantee(a, b)
+        case t @ q"${Bracket_guarantee_M(_)}($a)($_)" =>
+          a.tokens.lastOption.fold(Patch.empty) { tok =>
+            val parens = t.tokens.dropWhile(_ != tok).drop(1).take(2)
+            Patch.addRight(tok, ", ") + Patch.removeTokens(parens)
+          }
 
-        case t @ q"${guaranteeMatcher(f)}($a)($b)" =>
-          Patch.replaceTree(t, s"${toMonadCancel(f)}($a, $b)") -> List(a, b)
-
-        case t @ q"${uncancelableMatcher(f)}($a)" =>
-          Patch.replaceTree(t, s"${toMonadCancel(f)}(_ => $a)") -> List(a)
+        // Bracket#uncancelable(a) -> MonadCancel#uncancelable(_ => a)
+        case q"${Bracket_uncancelable_M(_)}($a)" =>
+          Patch.addLeft(a, "_ => ")
       }.asPatch
-  }
-
-  private def toMonadCancel(tree: Tree): String =
-    tree.toString().replace("Bracket", "MonadCancel")
-
-  // Allows the caller to control the traversal in case of a match.
-  // The traversal continues with the given list of trees on a match
-  // instead of all children of the current tree.
-  //
-  // The main purpose of this is to prevent the clash of 2 or more
-  // patches that target overlapping trees.
-  //
-  // Inspired by https://gitter.im/scalacenter/scalafix?at=5fe0b699ce40bd3cdbf3ca8a
-  def collect[T](tree: Tree)(fn: PartialFunction[Tree, (T, List[Tree])]): List[T] = {
-    val liftedFn = fn.lift
-    val buf = scala.collection.mutable.ListBuffer[T]()
-    object traverser extends SimpleTraverser {
-      override def apply(tree: Tree): Unit = {
-        liftedFn(tree) match {
-          case Some((t, children)) =>
-            buf += t
-            children.foreach(apply)
-          case None =>
-            super.apply(tree)
-        }
-      }
-    }
-    traverser(tree)
-    buf.toList
   }
 }
