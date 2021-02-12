@@ -11,6 +11,7 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
 
     Patch.replaceSymbols(
       "cats/effect/Async#async()." -> "async_",
+      "cats/effect/package.BracketThrow." -> "cats/effect/MonadCancelThrow.",
       "cats/effect/Bracket." -> "cats/effect/MonadCancel.",
       "cats/effect/IO.async()." -> "async_",
       "cats/effect/IO.suspend()." -> "defer",

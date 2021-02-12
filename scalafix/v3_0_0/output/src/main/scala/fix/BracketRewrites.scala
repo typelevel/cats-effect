@@ -2,7 +2,7 @@ package fix
 
 import cats.effect.IO
 import cats.effect.Sync
-import cats.effect.MonadCancel
+import cats.effect.{ MonadCancel, MonadCancelThrow }
 
 object BracketRewrites {
   MonadCancel.apply[IO, Throwable]
@@ -27,4 +27,6 @@ object BracketRewrites {
   MonadCancel[IO, Throwable].uncancelable(_ => IO.unit)
 
   MonadCancel[IO, Throwable].uncancelable(_ => Sync[IO].guarantee(IO.unit, IO.unit))
+
+  def f2(ev: MonadCancelThrow[IO]): Unit = ()
 }

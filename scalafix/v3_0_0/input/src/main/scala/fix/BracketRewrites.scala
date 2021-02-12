@@ -6,6 +6,7 @@ package fix
 import cats.effect.IO
 import cats.effect.Sync
 import cats.effect.Bracket
+import cats.effect.BracketThrow
 
 object BracketRewrites {
   Bracket.apply[IO, Throwable]
@@ -30,4 +31,6 @@ object BracketRewrites {
   Bracket[IO, Throwable].uncancelable(IO.unit)
 
   Bracket[IO, Throwable].uncancelable(Sync[IO].guarantee(IO.unit)(IO.unit))
+
+  def f2(ev: BracketThrow[IO]): Unit = ()
 }
