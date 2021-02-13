@@ -33,6 +33,14 @@ trait Clock[F[_]] extends ClockPlatform[F] {
 
   // lawless (unfortunately), but meant to represent current (when sequenced) system time
   def realTime: F[FiniteDuration]
+
+  /**
+   * Returns an effect that completes with the result of the source together
+   * with the duration that it took to complete.
+   */
+  def timed[A](fa: F[A]): F[(FiniteDuration, A)] =
+    applicative.map3(monotonic, fa, monotonic)((startTime, a, endTime) =>
+      (endTime.minus(startTime), a))
 }
 
 object Clock {

@@ -26,4 +26,5 @@ package object syntax {
   object temporal extends GenTemporalSyntax
   object async extends AsyncSyntax
   object resource extends ResourceSyntax
+  object clock extends ClockSyntax
 }
