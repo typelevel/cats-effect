@@ -15,7 +15,15 @@ object BracketRewrites {
 
   Sync[IO].guarantee(IO.unit)(IO.unit)
 
-  Sync[IO].guarantee( /* comment */ IO.unit)(IO.unit)
+  Sync[IO].guarantee( /* comment1 */ IO.unit)(IO.unit)
+
+  Sync[IO].guarantee(IO.unit) /* comment2 */ (IO.unit)
+
+  Sync[IO].guarantee(
+    IO.unit
+  )(
+    IO.unit
+  )
 
   Sync[IO].guarantee(Sync[IO].guarantee(IO.unit)(IO.unit))(IO.unit)
 

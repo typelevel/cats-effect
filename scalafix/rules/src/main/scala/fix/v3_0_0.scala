@@ -22,10 +22,20 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
     ) +
       doc.tree.collect {
         // Bracket#guarantee(a)(b) -> MonadCancel#guarantee(a, b)
-        case t @ q"${Bracket_guarantee_M(_)}($a)($_)" =>
-          a.tokens.lastOption.fold(Patch.empty) { tok =>
-            val parens = t.tokens.dropWhile(_ != tok).drop(1).take(2)
-            Patch.addRight(tok, ", ") + Patch.removeTokens(parens)
+        case t @ q"${Bracket_guarantee_M(_)}($a)($b)" =>
+          (a.tokens.lastOption, b.tokens.headOption) match {
+            case (Some(lastA), Some(firstB)) =>
+              val between =
+                t.tokens.dropWhile(_ != lastA).drop(1).dropRightWhile(_ != firstB).dropRight(1)
+              val maybeParen1 = between.find(_.is[Token.RightParen])
+              val maybeParen2 = between.findLast(_.is[Token.LeftParen])
+              (maybeParen1, maybeParen2) match {
+                case (Some(p1), Some(p2)) =>
+                  val toAdd = if (lastA.end == p1.start && p1.end == p2.start) ", " else ","
+                  Patch.replaceToken(p1, toAdd) + Patch.removeToken(p2)
+                case _ => Patch.empty
+              }
+            case _ => Patch.empty
           }
 
         // Bracket#uncancelable(a) -> MonadCancel#uncancelable(_ => a)
