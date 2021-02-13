@@ -270,8 +270,26 @@ sealed abstract class Resource[F[_], +A] {
    */
   def both[B](
       that: Resource[F, B]
-  )(implicit F: Concurrent[F]): Resource[F, (A, B)] =
-    Concurrent[Resource[F, *]].both(this, that)
+  )(implicit F: Concurrent[F]): Resource[F, (A, B)] = {
+    type Update = (F[Unit] => F[Unit]) => F[Unit]
+
+    def allocate[C](r: Resource[F, C], storeFinalizer: Update): F[C] =
+      r.fold(
+        _.pure[F],
+        release => storeFinalizer(MonadCancel[F, Throwable].guarantee(_, release))
+      )
+
+    val bothFinalizers = Ref.of[F, (F[Unit], F[Unit])](().pure[F] -> ().pure[F])
+
+    Resource.make(bothFinalizers)(_.get.flatMap(_.parTupled).void).evalMap { store =>
+      val leftStore: Update = f => store.update(_.leftMap(f))
+      val rightStore: Update =
+        f =>
+          store.update(t => (t._1, f(t._2))) // _.map(f) doesn't work on 0.25.0 for some reason
+
+      (allocate(this, leftStore), allocate(that, rightStore)).parTupled
+    }
+  }
 
   /**
    * Races the evaluation of two resource allocations and returns the result of the winner,
