@@ -43,6 +43,15 @@ libraryDependencies += "org.typelevel" %% "cats-effect-testkit" % "3.1.0" % Test
 
 Cats Effect provides backward binary compatibility within the 2.x and 3.x version lines, and both forward and backward compatibility within any major/minor line. This is analogous to the versioning scheme used by Cats itself, as well as other major projects such as ScalaJS. Thus, any project depending upon Cats Effect 2.2.1 can be used with libraries compiled against Cats Effect 2.0.0 or 2.2.3, but *not* with libraries compiled against 2.3.0 or higher.
 
+Binary compatibility for a given set of *release candidates* (e.g. **3.0.0-RC1**, **3.0.0-RC2**, etc) is provided on a best-effort basis. It is the intention that no breaking changes are introduced within a release candidate cycle, but exceptions may be made for high priority changes.
+
+
+### Moving from cats-effect 1.x / 2.x?
+
+<!-- this is probably a bad link -->
+Check out the [migration guide](./migration-guide.md)!
+
+
 ## Hello, World
 
 ```scala
