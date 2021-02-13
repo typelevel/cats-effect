@@ -5,6 +5,14 @@ import scalafix.v1._
 import scala.meta._
 
 class v3_0_0 extends SemanticRule("v3_0_0") {
+  /*
+  TODO:
+   - not found: type ContextShift
+   - not found: type Timer
+   - not found: type ConcurrentEffect
+   - not found: value Blocker
+   */
+
   override def fix(implicit doc: SemanticDocument): Patch = {
     val Bracket_guarantee_M = SymbolMatcher.exact("cats/effect/Bracket#guarantee().")
     val Bracket_uncancelable_M = SymbolMatcher.exact("cats/effect/Bracket#uncancelable().")
@@ -23,24 +31,28 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
       doc.tree.collect {
         // Bracket#guarantee(a)(b) -> MonadCancel#guarantee(a, b)
         case t @ q"${Bracket_guarantee_M(_)}($a)($b)" =>
-          (a.tokens.lastOption, b.tokens.headOption) match {
-            case (Some(lastA), Some(firstB)) =>
-              val between =
-                t.tokens.dropWhile(_ != lastA).drop(1).dropRightWhile(_ != firstB).dropRight(1)
-              val maybeParen1 = between.find(_.is[Token.RightParen])
-              val maybeParen2 = between.reverseIterator.find(_.is[Token.LeftParen])
-              (maybeParen1, maybeParen2) match {
-                case (Some(p1), Some(p2)) =>
-                  val toAdd = if (lastA.end == p1.start && p1.end == p2.start) ", " else ","
-                  Patch.replaceToken(p1, toAdd) + Patch.removeToken(p2)
-                case _ => Patch.empty
-              }
-            case _ => Patch.empty
-          }
+          fuseParameterLists(t, a, b)
 
         // Bracket#uncancelable(a) -> MonadCancel#uncancelable(_ => a)
         case q"${Bracket_uncancelable_M(_)}($a)" =>
           Patch.addLeft(a, "_ => ")
       }.asPatch
   }
+
+  // tree @ f(param1)(param2) -> f(param1, param2)
+  private def fuseParameterLists(tree: Tree, param1: Tree, param2: Tree): Patch =
+    (param1.tokens.lastOption, param2.tokens.headOption) match {
+      case (Some(lastA), Some(firstB)) =>
+        val between =
+          tree.tokens.dropWhile(_ != lastA).drop(1).dropRightWhile(_ != firstB).dropRight(1)
+        val maybeParen1 = between.find(_.is[Token.RightParen])
+        val maybeParen2 = between.reverseIterator.find(_.is[Token.LeftParen])
+        (maybeParen1, maybeParen2) match {
+          case (Some(p1), Some(p2)) =>
+            val toAdd = if (lastA.end == p1.start && p1.end == p2.start) ", " else ","
+            Patch.replaceToken(p1, toAdd) + Patch.removeToken(p2)
+          case _ => Patch.empty
+        }
+      case _ => Patch.empty
+    }
 }
