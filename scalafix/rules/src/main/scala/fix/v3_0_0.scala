@@ -28,7 +28,7 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
               val between =
                 t.tokens.dropWhile(_ != lastA).drop(1).dropRightWhile(_ != firstB).dropRight(1)
               val maybeParen1 = between.find(_.is[Token.RightParen])
-              val maybeParen2 = between.findLast(_.is[Token.LeftParen])
+              val maybeParen2 = between.reverseIterator.find(_.is[Token.LeftParen])
               (maybeParen1, maybeParen2) match {
                 case (Some(p1), Some(p2)) =>
                   val toAdd = if (lastA.end == p1.start && p1.end == p2.start) ", " else ","
