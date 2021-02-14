@@ -292,6 +292,15 @@ sealed abstract class Resource[F[_], +A] {
   }
 
   /**
+   * Races the evaluation of two resource allocations and returns the result of the winner,
+   * except in the case of cancellation.
+   */
+  def race[B](
+      that: Resource[F, B]
+  )(implicit F: Async[F]): Resource[F, Either[A, B]] =
+    Async[Resource[F, *]].race(this, that)
+
+  /**
    * Implementation for the `flatMap` operation, as described via the
    * `cats.Monad` type class.
    */
@@ -654,10 +663,23 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
       def apply[A](fa: F[A]): Resource[F, A] = Resource.eval(fa)
     }
 
+  /**
+   * Allocates two resources concurrently, and combines their results in a tuple.
+   */
   def both[F[_]: Concurrent, A, B](
       rfa: Resource[F, A],
       rfb: Resource[F, B]): Resource[F, (A, B)] =
     rfa.both(rfb)
+
+  /**
+   * Races the evaluation of two resource allocations and returns the result of the winner,
+   * except in the case of cancellation.
+   */
+  def race[F[_]: Async, A, B](
+      rfa: Resource[F, A],
+      rfb: Resource[F, B]
+  ): Resource[F, Either[A, B]] =
+    rfa.race(rfb)
 
   /**
    * Creates a [[Resource]] by wrapping a Java
