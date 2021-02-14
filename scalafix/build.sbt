@@ -21,7 +21,7 @@ lazy val v3_0_0_input = project.in(file("v3_0_0/input"))
 lazy val v3_0_0_output = project.in(file("v3_0_0/output"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.0.0-M5"
+      "org.typelevel" %% "cats-effect" % "3.0.0-RC1"
     )
   )
 

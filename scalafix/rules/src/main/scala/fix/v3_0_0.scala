@@ -23,6 +23,7 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
       "cats/effect/Bracket." -> "cats/effect/MonadCancel.",
       "cats/effect/IO.async()." -> "async_",
       "cats/effect/IO.suspend()." -> "defer",
+      "cats/effect/ResourceLike#parZip()." -> "both",
       "cats/effect/Resource.liftF()." -> "eval",
       "cats/effect/concurrent/Deferred." -> "cats/effect/Deferred.",
       "cats/effect/concurrent/Ref." -> "cats/effect/Ref.",

@@ -1,10 +1,13 @@
 package fix
 
+import cats.syntax.all._
+import cats.Parallel
 import cats.effect.IO
 import cats.effect.Resource
 
 object ResourceRewrites {
   Resource.eval(IO.unit)
 
-  // TODO: Resource#parZip -> Resource#both when 3.0.0-M6 is released
+  def f1(implicit p: Parallel[IO]): Resource[IO, Unit] =
+    Resource.eval(IO.unit).both(Resource.eval(IO.unit)).void
 }
