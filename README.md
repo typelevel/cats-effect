@@ -1,4 +1,4 @@
-# Cats Effect 
+# Cats Effect
 
 [![Gitter](https://img.shields.io/gitter/room/typelevel/cats-effect.svg)](https://gitter.im/typelevel/cats-effect) [![Latest version](https://index.scala-lang.org/typelevel/cats-effect/cats-effect/latest.svg?color=orange)](https://index.scala-lang.org/typelevel/cats-effect/cats-effect)
 
@@ -7,6 +7,14 @@
 <p>Cats Effect is a high-performance, asynchronous, composable framework for building real-world applications in a purely functional style within the Typelevel ecosystem. It provides a concrete tool, known as "the <code>IO</code> monad", for capturing and controlling actions, often referred to as "effects", that your program wishes to perform within a resource-safe, typed context with seamless support for concurrency and coordination. These effects may be asynchronous (callback-driven) or synchronous (directly returning values); they may return within microseconds or run infinitely.</p>
 
 <p>Even more importantly, Cats Effect defines a set of typeclasses which define what it means to be a purely functional runtime system. These abstractions power a thriving ecosystem consisting of streaming frameworks, JDBC database layers, HTTP servers and clients, asynchronous clients for systems like Redis and MongoDB, and so much more! Additionally, you can leverage these abstractions within your own application to unlock powerful capabilities with little-or-no code changes, for example solving problems such as dependency injection, multiple error channels, shared state across modules, tracing, and more.</p>
+
+## I just want to use the latest version!
+
+Use the sbt template to create a new project with Cats Effect 3!
+
+```shell
+sbt new typelevel/ce3.g8
+```
 
 ## Getting Started
 
@@ -123,7 +131,7 @@ There's always lots to do! This is an incredibly exciting project used by countl
 
 Cats Effect is built with [sbt](https://github.com/sbt/sbt), and you should be able to jump right in by running `sbt test`. I will note, however, that `sbt +test` takes about two hours on my laptop, so you probably *shouldn't* start there...
 
-We use a typical pull request workflow, with automated builds run within GitHub Actions. 
+We use a typical pull request workflow, with automated builds run within GitHub Actions.
 
 ## Tool Sponsorship
 
