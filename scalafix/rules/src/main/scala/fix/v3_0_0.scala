@@ -78,26 +78,53 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
     d.paramss.find(_.exists(_.decltpe.exists(symbolMatcher.matches))) match {
       case None => Patch.empty
       case Some(params) =>
-        val defTokens = d.tokens
         params match {
           // There is only one parameter, so we're removing the complete parameter list.
           case param :: Nil =>
-            val tokens = param.tokens
-            (tokens.headOption, tokens.lastOption) match {
-              case (Some(first), Some(last)) =>
-                val maybeParen1 =
-                  defTokens.takeWhile(_ != first).reverseIterator.find(_.is[Token.LeftParen])
-                val maybeParen2 =
-                  defTokens.takeRightWhile(_ != last).find(_.is[Token.RightParen])
-                (maybeParen1, maybeParen2) match {
-                  case (Some(p1), Some(p2)) =>
-                    Patch.removeTokens(defTokens.dropWhile(_ != p1).dropRightWhile(_ != p2))
-                  case _ => Patch.empty
+            cutUntilDelims(d, param, _.is[Token.LeftParen], _.is[Token.RightParen])
+          case _ =>
+            params.zipWithIndex.find { case (p, _) =>
+              p.decltpe.exists(symbolMatcher.matches)
+            } match {
+              case Some((param, idx)) =>
+                if (params.size == idx + 1)
+                  cutUntilDelims(d, param, _.is[Token.Comma], _.is[Token.RightParen], keepR = true)
+                else {
+                  val leftDelim = (t: Token) =>
+                    t.is[Token.LeftParen] || t.is[Token.KwImplicit] || t.is[Token.Comma]
+                  cutUntilDelims(d, param, leftDelim, _.is[Token.Comma], keepL = true)
                 }
-              case _ => Patch.empty
+              case None => Patch.empty
             }
-          case _ => ???
         }
+    }
+  }
+
+  private def cutUntilDelims(
+      outer: Tree,
+      inner: Tree,
+      leftDelim: Token => Boolean,
+      rightDelim: Token => Boolean,
+      keepL: Boolean = false,
+      keepR: Boolean = false
+  ): Patch = {
+    val innerTokens = inner.tokens
+    (innerTokens.headOption, innerTokens.lastOption) match {
+      case (Some(first), Some(last)) =>
+        val outerTokens = outer.tokens
+        val maybeDelimL = outerTokens.takeWhile(_ != first).reverseIterator.find(leftDelim)
+        val maybeDelimR = outerTokens.takeRightWhile(_ != last).find(rightDelim)
+        (maybeDelimL, maybeDelimR) match {
+          case (Some(delimL), Some(delimR)) =>
+            val toRemove = outerTokens
+              .dropWhile(_ != delimL)
+              .drop(if (keepL) 1 else 0)
+              .dropRightWhile(_ != delimR)
+              .dropRight(if (keepR) 1 else 0)
+            Patch.removeTokens(toRemove)
+          case _ => Patch.empty
+        }
+      case _ => Patch.empty
     }
   }
 }
