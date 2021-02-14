@@ -7,7 +7,6 @@ import scala.meta._
 class v3_0_0 extends SemanticRule("v3_0_0") {
   /*
   TODO:
-   - not found: type ContextShift
    - not found: type Timer
    - not found: type ConcurrentEffect
    - not found: value Blocker
@@ -16,6 +15,7 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
   override def fix(implicit doc: SemanticDocument): Patch = {
     val Bracket_guarantee_M = SymbolMatcher.exact("cats/effect/Bracket#guarantee().")
     val Bracket_uncancelable_M = SymbolMatcher.exact("cats/effect/Bracket#uncancelable().")
+    val ContextShift_M = SymbolMatcher.normalized("cats/effect/ContextShift.")
 
     Patch.replaceSymbols(
       "cats/effect/Async#async()." -> "async_",
@@ -36,7 +36,22 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
         // Bracket#uncancelable(a) -> MonadCancel#uncancelable(_ => a)
         case q"${Bracket_uncancelable_M(_)}($a)" =>
           Patch.addLeft(a, "_ => ")
+
+        case t @ ImporteeNameOrRename(ContextShift_M(_)) =>
+          Patch.removeImportee(t)
+
+        case d: Defn.Def =>
+          removeParam(d, ContextShift_M)
       }.asPatch
+  }
+
+  object ImporteeNameOrRename {
+    def unapply(importee: Importee): Option[Name] =
+      importee match {
+        case Importee.Name(x)      => Some(x)
+        case Importee.Rename(x, _) => Some(x)
+        case _                     => None
+      }
   }
 
   // tree @ f(param1)(param2) -> f(param1, param2)
@@ -55,4 +70,34 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
         }
       case _ => Patch.empty
     }
+
+  // f(p1, symbolMatcher(p2), p3) -> f(p1, p3)
+  private def removeParam(d: Defn.Def, symbolMatcher: SymbolMatcher)(implicit
+      doc: SemanticDocument
+  ): Patch = {
+    d.paramss.find(_.exists(_.decltpe.exists(symbolMatcher.matches))) match {
+      case None => Patch.empty
+      case Some(params) =>
+        val defTokens = d.tokens
+        params match {
+          // There is only one parameter, so we're removing the complete parameter list.
+          case param :: Nil =>
+            val tokens = param.tokens
+            (tokens.headOption, tokens.lastOption) match {
+              case (Some(first), Some(last)) =>
+                val maybeParen1 =
+                  defTokens.takeWhile(_ != first).reverseIterator.find(_.is[Token.LeftParen])
+                val maybeParen2 =
+                  defTokens.takeRightWhile(_ != last).find(_.is[Token.RightParen])
+                (maybeParen1, maybeParen2) match {
+                  case (Some(p1), Some(p2)) =>
+                    Patch.removeTokens(defTokens.dropWhile(_ != p1).dropRightWhile(_ != p2))
+                  case _ => Patch.empty
+                }
+              case _ => Patch.empty
+            }
+          case _ => ???
+        }
+    }
+  }
 }
