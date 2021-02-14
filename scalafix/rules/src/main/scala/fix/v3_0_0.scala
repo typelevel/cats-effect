@@ -18,11 +18,12 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
     val ContextShift_M = SymbolMatcher.normalized("cats/effect/ContextShift.")
 
     Patch.replaceSymbols(
-      "cats/effect/Async#async()." -> "async_",
       "cats/effect/package.BracketThrow." -> "cats/effect/MonadCancelThrow.",
       "cats/effect/Bracket." -> "cats/effect/MonadCancel.",
       "cats/effect/IO.async()." -> "async_",
+      "cats/effect/Async#async()." -> "async_",
       "cats/effect/IO.suspend()." -> "defer",
+      "cats/effect/Sync#suspend()." -> "defer",
       "cats/effect/ResourceLike#parZip()." -> "both",
       "cats/effect/Resource.liftF()." -> "eval",
       "cats/effect/concurrent/Deferred." -> "cats/effect/Deferred.",
@@ -46,7 +47,7 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
       }.asPatch
   }
 
-  object ImporteeNameOrRename {
+  private object ImporteeNameOrRename {
     def unapply(importee: Importee): Option[Name] =
       importee match {
         case Importee.Name(x)      => Some(x)

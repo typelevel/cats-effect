@@ -16,4 +16,6 @@ object IORewrites {
   IO.suspend(IO.async((_: Any) => ()))
 
   Async[IO].async((_: Any) => ())
+
+  Async[IO].suspend(IO.unit)
 }

@@ -13,4 +13,6 @@ object IORewrites {
   IO.defer(IO.async_((_: Any) => ()))
 
   Async[IO].async_((_: Any) => ())
+
+  Async[IO].defer(IO.unit)
 }
