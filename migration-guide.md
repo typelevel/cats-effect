@@ -99,21 +99,21 @@ Most of the following are handled by [the Scalafix migration](dead-link). If you
 
 Note: package name changes were skipped from the table. Most type classes are now in `cats.effect.kernel`.
 
-| Cats Effect 2.x                             | Cats Effect 3                           | Notes                                          |
-| ------------------------------------------- | --------------------------------------- | ---------------------------------------------- |
+| Cats Effect 2.x                             | Cats Effect 3                           | Notes                                             |
+| ------------------------------------------- | --------------------------------------- | ------------------------------------------------- |
 | `Async[F].async`                            | `Async[F].async_`                       |
 | `Async[F].asyncF(f)`                        | `Async[F].async(f).as(none)`            |
-| `Async.shift`                               | -                                       | See [below](#shifting)                         |
+| `Async.shift`                               | -                                       | See [below](#shifting)                            |
 | `Async.fromFuture`                          | `Async[F].fromFuture`                   |
 | `Async.memoize`                             | `Concurrent[F].memoize`                 |
 | `Async.parTraverseN`                        | `Concurrent[F].parTraverseN`            |
 | `Async.parSequenceN`                        | `Concurrent[F].parSequenceN`            |
-| `Async[F].liftIO`, `Async.liftIO`           | `LiftIO[F].liftIO`                      | `LiftIO` is in the `cats-effect` module        |
-| `Async <: LiftIO`                           | No subtyping relationship               | `LiftIO` is in the `cats-effect` module        |
-| `Blocker.apply`                             | -                                       | blocking pool is provided by runtime           |
-| `Blocker.delay`                             | `Sync[F].blocking`                      | `Blocker` was removed                          |
-| `Blocker(ec).blockOn(fa)`                   | `Async[F].evalOn(fa, ec)`               | You can probably use `Sync[F].blocking`        |
-| `Blocker.blockOnK`                          | -                                       | <!-- todo we should have this in Async -->     |
+| `Async[F].liftIO`, `Async.liftIO`           | `LiftIO[F].liftIO`                      | `LiftIO` is in the `cats-effect` module           |
+| `Async <: LiftIO`                           | No subtyping relationship               | `LiftIO` is in the `cats-effect` module           |
+| `Blocker.apply`                             | -                                       | blocking pool is provided by runtime              |
+| `Blocker.delay`                             | `Sync[F].blocking`                      | `Blocker` was removed                             |
+| `Blocker(ec).blockOn(fa)`                   | `Async[F].evalOn(fa, ec)`               | You can probably use `Sync[F].blocking`           |
+| `Blocker.blockOnK`                          | -                                       | <!-- todo we should have this in Async -->        |
 | `Bracket[F].bracket`                        | `MonadCancel[F].bracket`                |
 | `Bracket[F].bracketCase`                    | `MonadCancel[F].bracketCase`            |
 | `Bracket[F].uncancelable(fa)`               | `MonadCancel[F].uncancelable(_ => fa)`  |
@@ -124,29 +124,28 @@ Note: package name changes were skipped from the table. Most type classes are no
 | `Clock[F].realTime: TimeUnit => F[Long]`    | `Clock[F].realTime: F[FiniteDuration]`  |
 | `Clock[F].monotonic: TimeUnit => F[Long]`   | `Clock[F].monotonic: F[FiniteDuration]` |
 | `Clock.instantNow`                          | `Clock[F].realTimeInstant`              |
-| `Clock.create`, `Clock[F].mapK`             | -                                       | See [below](#clock-changes)                    |
+| `Clock.create`, `Clock[F].mapK`             | -                                       | See [below](#clock-changes)                       |
 | `Concurrent[F].start`                       | `Spawn[F].start`                        |
 | `Concurrent[F].background`                  | `Spawn[F].background`                   |
-| `Concurrent[F].liftIO`, `Concurrent.liftIO` | `LiftIO[F].liftIO`                      | `LiftIO` is in the `cats-effect` module        |
-| `Concurrent <: LiftIO`                      | No subtyping relationship               | `LiftIO` is in the `cats-effect` module        |
+| `Concurrent[F].liftIO`, `Concurrent.liftIO` | `LiftIO[F].liftIO`                      | `LiftIO` is in the `cats-effect` module           |
+| `Concurrent <: LiftIO`                      | No subtyping relationship               | `LiftIO` is in the `cats-effect` module           |
 | `Concurrent[F].race`                        | `Spawn[F].race`                         |
 | `Concurrent[F].racePair`                    | `Spawn[F].racePair`                     |
-| `Concurrent[F].cancelable`                  | `Async.async(f)`                        | Wrap side effects in F, cancel token in `Some` |
-| `Concurrent[F].cancelableF`                 | `Async.async(f(_).some)`                | `Some`                                         |
-| `Concurrent[F].continual`                   | see [below](#concurrent:-continual)     | <!-- <-------    todo deadlink  -->            |
-| `Concurrent.continual`                      | see [below](#concurrent:-continual)     | <!-- <-------    todo deadlink  -->            |
+| `Concurrent[F].cancelable`                  | `Async.async(f)`                        | Wrap side effects in F, cancel token in `Some`    |
+| `Concurrent[F].cancelableF`                 | `Async.async(f(_).some)`                | `Some`                                            |
+| `Concurrent[F].continual`                   | see [below](#concurrent:-continual)     | <!-- <-------    todo deadlink  -->               |
+| `Concurrent.continual`                      | see [below](#concurrent:-continual)     | <!-- <-------    todo deadlink  -->               |
 | `Concurrent.timeout`                        | `Temporal[F].timeout`                   |
 | `Concurrent.timeoutTo`                      | `Temporal[F].timeoutTo`                 |
 | `Concurrent.memoize`                        | `Concurrent[F].memoize`                 |
 | `Concurrent.parTraverseN`                   | `Concurrent[F].parTraverseN`            |
 | `Concurrent.parSequenceN`                   | `Concurrent[F].parSequenceN`            |
-| `ConcurrentEffect[F]`                       | `cats.effect.std.Dispatcher`            | See [below](#dispatcher)                       |
+| `ConcurrentEffect[F]`                       | `cats.effect.std.Dispatcher`            | See [below](#dispatcher)                          |
 | `ContextShift[F].shift`                     | See [below](#shifting)                  |
 | `ContextShift[F].evalOn`                    | `Async[F].evalOn`                       |
-| `ContextShift.evalOnK`                      | -                                       | <!-- todo we should have this -->              |
-| `Effect[F]`                                 | `cats.effect.std.Dispatcher`            | See [below](#dispatcher)                       |
-| `Effect.toIOK`                              | -                                       | <!-- todo hmm? -->                             |
-<!-- todo: we are here -->
+| `ContextShift.evalOnK`                      | -                                       | <!-- todo we should have this -->                 |
+| `Effect[F]`                                 | `cats.effect.std.Dispatcher`            | See [below](#dispatcher)                          |
+| `Effect.toIOK`                              | -                                       | <!-- todo we should have this? done up to here--> |
 | `Sync[F].suspend`                           | `Sync[F].defer`                         |
 | `IO.shift(ec)`                              | See [below](#shifting)                  |
 
