@@ -9,10 +9,10 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
   TODO:
    - not found: type Timer
    - not found: type ConcurrentEffect
-   - not found: value Blocker
    */
 
   override def fix(implicit doc: SemanticDocument): Patch = {
+    val Blocker_M = SymbolMatcher.normalized("cats/effect/Blocker.")
     val Bracket_guarantee_M = SymbolMatcher.exact("cats/effect/Bracket#guarantee().")
     val Bracket_uncancelable_M = SymbolMatcher.exact("cats/effect/Bracket#uncancelable().")
     val ContextShift_M = SymbolMatcher.normalized("cats/effect/ContextShift.")
@@ -39,11 +39,15 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
         case q"${Bracket_uncancelable_M(_)}($a)" =>
           Patch.addLeft(a, "_ => ")
 
+        case t @ ImporteeNameOrRename(Blocker_M(_)) =>
+          Patch.removeImportee(t)
+
         case t @ ImporteeNameOrRename(ContextShift_M(_)) =>
           Patch.removeImportee(t)
 
         case d: Defn.Def =>
-          removeParam(d, ContextShift_M)
+          removeParam(d, Blocker_M) +
+            removeParam(d, ContextShift_M)
       }.asPatch
   }
 
