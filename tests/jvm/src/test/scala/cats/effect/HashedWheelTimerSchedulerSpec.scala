@@ -83,7 +83,7 @@ class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with R
         }
     }
 
-    "complete many within allowed time period" in realProp(Gen.listOfN(100, durationGen)) {
+    "complete many within tolerance of scheduled time" in realProp(Gen.listOfN(100, durationGen)) {
       delays =>
         delays
           .parTraverse_ { delay =>
