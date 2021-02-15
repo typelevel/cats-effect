@@ -95,9 +95,78 @@ Here's the new type class hierarchy. It might be helpful in understanding some o
 <!-- todo make it just a link? -->
 [![hierarchy](https://raw.githubusercontent.com/typelevel/cats-effect/series/3.x/images/hierarchy.svg)](https://raw.githubusercontent.com/typelevel/cats-effect/series/3.x/images/hierarchy.svg)
 
-| Cats Effect 1.x/2.x | Cats Effect 3 | Notes |
-| ------------------- | ------------- | ----- |
+Most of the following are handled by [the Scalafix migration](dead-link). If you can, try that first!
 
+Note: package name changes were skipped from the table. Most type classes are now in `cats.effect.kernel`.
+
+| Cats Effect 2.x                             | Cats Effect 3                           | Notes                                          |
+| ------------------------------------------- | --------------------------------------- | ---------------------------------------------- |
+| `Async[F].async`                            | `Async[F].async_`                       |
+| `Async[F].asyncF(f)`                        | `Async[F].async(f).as(none)`            |
+| `Async.shift`                               | -                                       | See [below](#shifting)                         |
+| `Async.fromFuture`                          | `Async[F].fromFuture`                   |
+| `Async.memoize`                             | `Concurrent[F].memoize`                 |
+| `Async.parTraverseN`                        | `Concurrent[F].parTraverseN`            |
+| `Async.parSequenceN`                        | `Concurrent[F].parSequenceN`            |
+| `Async[F].liftIO`, `Async.liftIO`           | `LiftIO[F].liftIO`                      | `LiftIO` is in the `cats-effect` module        |
+| `Async <: LiftIO`                           | No subtyping relationship               | `LiftIO` is in the `cats-effect` module        |
+| `Blocker.apply`                             | -                                       | blocking pool is provided by runtime           |
+| `Blocker.delay`                             | `Sync[F].blocking`                      | `Blocker` was removed                          |
+| `Blocker(ec).blockOn(fa)`                   | `Async[F].evalOn(fa, ec)`               | You can probably use `Sync[F].blocking`        |
+| `Blocker.blockOnK`                          | -                                       | <!-- todo we should have this in Async -->     |
+| `Bracket[F].bracket`                        | `MonadCancel[F].bracket`                |
+| `Bracket[F].bracketCase`                    | `MonadCancel[F].bracketCase`            |
+| `Bracket[F].uncancelable(fa)`               | `MonadCancel[F].uncancelable(_ => fa)`  |
+| `Bracket[F].guarantee`                      | `MonadCancel[F].guarantee`              |
+| `Bracket[F].guaranteeCase`                  | `MonadCancel[F].guaranteeCase`          |
+| `Bracket[F].onCancel`                       | `MonadCancel[F].onCancel`               |
+| `CancelToken[F]`                            | `F[Unit]`                               |
+| `Clock[F].realTime: TimeUnit => F[Long]`    | `Clock[F].realTime: F[FiniteDuration]`  |
+| `Clock[F].monotonic: TimeUnit => F[Long]`   | `Clock[F].monotonic: F[FiniteDuration]` |
+| `Clock.instantNow`                          | `Clock[F].realTimeInstant`              |
+| `Clock.create`, `Clock[F].mapK`             | -                                       | See [below](#clock-changes)                    |
+| `Concurrent[F].start`                       | `Spawn[F].start`                        |
+| `Concurrent[F].background`                  | `Spawn[F].background`                   |
+| `Concurrent[F].liftIO`, `Concurrent.liftIO` | `LiftIO[F].liftIO`                      | `LiftIO` is in the `cats-effect` module        |
+| `Concurrent <: LiftIO`                      | No subtyping relationship               | `LiftIO` is in the `cats-effect` module        |
+| `Concurrent[F].race`                        | `Spawn[F].race`                         |
+| `Concurrent[F].racePair`                    | `Spawn[F].racePair`                     |
+| `Concurrent[F].cancelable`                  | `Async.async(f)`                        | Wrap side effects in F, cancel token in `Some` |
+| `Concurrent[F].cancelableF`                 | `Async.async(f(_).some)`                | `Some`                                         |
+| `Concurrent[F].continual`                   | see [below](#concurrent:-continual)     | <!-- <-------    todo deadlink  -->            |
+| `Concurrent.continual`                      | see [below](#concurrent:-continual)     | <!-- <-------    todo deadlink  -->            |
+| `Concurrent.timeout`                        | `Temporal[F].timeout`                   |
+| `Concurrent.timeoutTo`                      | `Temporal[F].timeoutTo`                 |
+| `Concurrent.memoize`                        | `Concurrent[F].memoize`                 |
+| `Concurrent.parTraverseN`                   | `Concurrent[F].parTraverseN`            |
+| `Concurrent.parSequenceN`                   | `Concurrent[F].parSequenceN`            |
+| `ConcurrentEffect[F]`                       | `cats.effect.std.Dispatcher`            | See [below](#dispatcher)                       |
+| `ContextShift[F].shift`                     | See [below](#shifting)                  |
+| `ContextShift[F].evalOn`                    | `Async[F].evalOn`                       |
+| `ContextShift.evalOnK`                      | -                                       | <!-- todo we should have this -->              |
+| `Effect[F]`                                 | `cats.effect.std.Dispatcher`            | See [below](#dispatcher)                       |
+| `Effect.toIOK`                              | -                                       | <!-- todo hmm? -->                             |
+<!-- todo: we are here -->
+| `Sync[F].suspend`                           | `Sync[F].defer`                         |
+| `IO.shift(ec)`                              | See [below](#shifting)                  |
+
+
+However, some changes will require more work than a simple search/replace.
+We will go through them here.
+
+### Concurrent: continual
+
+<!-- todo this should be correct but ask around -->
+
+```scala
+def continual[A, B](fa: F[A])(f: Either[Throwable, A] => F[B]): F[B] = MonadCancel[F].uncancelable { poll =>
+  poll(fa).attempt.flatMap(f)
+}
+```
+
+### Dispatcher
+
+todo - Gavin wrote about this
 
 ## Compatibility with Cats Effect 2
 
@@ -105,7 +174,7 @@ Here's the new type class hierarchy. It might be helpful in understanding some o
 
 There is none! The library was rewritten from scratch, and there was no goal of having binary compatibility with pre-3.0 releases.
 
-> Note: We will guarantee binary compatibility betweenall stable releases in the 3.x series, and a 2.x branch will be maintained for some time to allow a smoother transition.
+> Note: We will guarantee binary compatibility between all stable releases in the 3.x series, and a 2.x branch will be maintained for some time to allow a smoother transition.
 
 What this means for you: if you are an end user (an application developer),
 you will need to update **every library using cats-effect** to a CE3-compatible version before you can safely deploy your application.
@@ -154,3 +223,8 @@ In CE2, `shift` would ensure the rest of the fiber would be scheduled on the `Ex
 There is no longer a need for the former (shifting back), because interop with callback-based libraries is done through methods in `Async`, which now **switch back to the appropriate thread pool automatically**.
 
 The latter (yielding back to the scheduler) should now be done with `Spawn[F].cede`.
+
+#### Clock changes
+
+todo
+<!-- why `create` and mapK are gone (because it's a typeclass now)  -->
