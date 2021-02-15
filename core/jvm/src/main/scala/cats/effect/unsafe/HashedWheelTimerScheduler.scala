@@ -16,7 +16,7 @@
 
 package cats.effect.unsafe
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
@@ -40,7 +40,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
           noopCancel
         } else {
           val t = TaskState(task, delay.toMillis + nowMillis())
-          println(s"Running task at ${t.scheduled}")
+          // println(s"Running task at ${t.scheduled}")
 
           @tailrec
           def go(): Unit = {
@@ -118,7 +118,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
         @tailrec
         def go(i: Int): Unit = {
           if (i < iters) {
-            println(s"scheduling bucket ${ticksToBucketIdx(previousTicks + i)} at $startTime")
+            // println(s"scheduling bucket ${ticksToBucketIdx(previousTicks + i)} at $startTime")
             wheel(ticksToBucketIdx(previousTicks + i)).schedule(startTime)
             go(i + 1)
           }
@@ -135,9 +135,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
         loop(ticks)
       } else {
         //null out to avoid leaks
-        (0.until(wheelSize)).foreach { n =>
-          wheel(n) = null
-        }
+        (0.until(wheelSize)).foreach { n => wheel(n) = null }
       }
     }
 
@@ -156,7 +154,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
     op match {
       case Noop => ()
       case Register(state, next) => {
-        println(s"Scheduling task to bucket ${tsToBucketIdx(state.scheduled)}")
+        // println(s"Scheduling task to bucket ${tsToBucketIdx(state.scheduled)}")
         wheel(tsToBucketIdx(state.scheduled)).add(state)
         executeOps(next)
       }
@@ -213,7 +211,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
               case NonFatal(e) => println(s"Caught error $e in io timer")
             }
           } else {
-            println(s"too early: current $ts scheduled: ${state.scheduled}")
+            // println(s"too early: current $ts scheduled: ${state.scheduled}")
           }
           go(next)
         }
@@ -229,4 +227,10 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
   private case class Cancel(state: TaskState, next: Op) extends Op
   private case object Noop extends Op
 
+}
+
+object HashedWheelTimerScheduler {
+  val defaultResolution: FiniteDuration = 200.millis
+
+  val defaultWheelSize: Int = 512
 }
