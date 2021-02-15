@@ -1119,6 +1119,9 @@ abstract private[effect] class ResourceAsync[F[_]]
   override def never[A]: Resource[F, A] =
     Resource.eval(F.never[A])
 
+  override def both[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, (A, B)] =
+    Resource.both(fa, fb)
+
   def cont[K, R](body: Cont[Resource[F, *], K, R]): Resource[F, R] =
     Resource applyFull { poll =>
       poll {
