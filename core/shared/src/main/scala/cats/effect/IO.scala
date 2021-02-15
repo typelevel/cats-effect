@@ -87,7 +87,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def startOn(ec: ExecutionContext): IO[FiberIO[A @uncheckedVariance]] = start.evalOn(ec)
 
   def backgroundOn(ec: ExecutionContext): ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
-    background.map(f => f.evalOn(ec))
+    Resource.make(startOn(ec))(_.cancel).map(_.join)
 
   def flatMap[B](f: A => IO[B]): IO[B] = IO.FlatMap(this, f)
 
