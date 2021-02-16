@@ -38,6 +38,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
           noopCancel
         } else {
           val t = TaskState(task, delay.toMillis + nowMillis())
+          println(s"scheduled for ${t.scheduled}")
 
           @tailrec
           def go(): Unit = {
@@ -51,7 +52,6 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
       }
       // Delay is infinite so task is never run
       else {
-        println("infinite delay")
         noopCancel
       }
     } else {
@@ -102,12 +102,12 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
   private def loop(): Unit = {
     @tailrec
     def loop(previousTicks: Long): Unit = {
+      println(s"Loop $previousTicks")
       //TODO should we only check this every n iterations?
       if (!canceled) {
         val startTime = nowMillis()
         val ticks = (startTime * invResolutionMillis).toLong
         val iters = Math.min(ticks - previousTicks, wheelSize).toInt
-        // println(s"Scheduling for $start")
 
         val ops = pendingOps.getAndSet(Noop)
         executeOps(ops)
@@ -115,7 +115,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
         @tailrec
         def go(i: Int): Unit = {
           if (i < iters) {
-            // println(s"scheduling bucket ${ticksToBucketIdx(previousTicks + i)} at $startTime")
+            println(s"Running bucket ${ticksToBucketIdx(previousTicks + i)} at ${startTime}")
             wheel(ticksToBucketIdx(previousTicks + i)).schedule(startTime)
             go(i + 1)
           }
@@ -127,6 +127,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
         val target = (ticks + 1) * resolutionMillis
         if (curr < target) {
           //TODO do we need to handle thread interrupted ex?
+          println("sleeping")
           Thread.sleep(target - curr)
         }
         loop(ticks)
@@ -136,8 +137,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
       }
     }
 
-    //Make sure we don't miss the current bucket on startup
-    loop(((nowMillis() - resolutionMillis) * invResolutionMillis).toLong)
+    loop((nowMillis() * invResolutionMillis).toLong)
   }
 
   @inline private def tsToBucketIdx(ts: Long): Int =
@@ -151,12 +151,11 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
     op match {
       case Noop => ()
       case Register(state, next) => {
-        // println(s"Scheduling task to bucket ${tsToBucketIdx(state.scheduled)}")
+        println(s"Scheduling to bucket ${tsToBucketIdx(state.scheduled)}")
         wheel(tsToBucketIdx(state.scheduled)).add(state)
         executeOps(next)
       }
       case Cancel(state, next) => {
-        // println(s"Canceling task")
         state.unlink()
         executeOps(next)
       }
@@ -202,13 +201,12 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
           if (state.scheduled <= ts) {
             state.unlink()
             try {
-              // println("Running task")
+              println("running")
               state.task.run()
             } catch {
               case NonFatal(e) => println(s"Caught error $e in io timer")
             }
           } else {
-            // println(s"too early: current $ts scheduled: ${state.scheduled}")
           }
           go(next)
         }
