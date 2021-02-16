@@ -8,7 +8,6 @@ import scala.meta._
 class v3_0_0 extends SemanticRule("v3_0_0") {
   /*
   TODO:
-   - not found: type Timer
    - not found: type ConcurrentEffect
    */
 
@@ -31,6 +30,7 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
       "cats/effect/Sync#suspend()." -> "defer",
       "cats/effect/ResourceLike#parZip()." -> "both",
       "cats/effect/Resource.liftF()." -> "eval",
+      "cats/effect/Timer." -> "cats/effect/Temporal.",
       "cats/effect/concurrent/Deferred." -> "cats/effect/Deferred.",
       "cats/effect/concurrent/Ref." -> "cats/effect/Ref.",
       "cats/effect/concurrent/Semaphore." -> "cats/effect/std/Semaphore."
