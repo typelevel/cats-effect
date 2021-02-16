@@ -38,7 +38,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
           noopCancel
         } else {
           val t = TaskState(task, delay.toMillis + nowMillis())
-          println(s"scheduled for ${t.scheduled}")
+          // println(s"scheduled for ${t.scheduled}")
 
           @tailrec
           def go(): Unit = {
@@ -102,7 +102,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
   private def loop(): Unit = {
     @tailrec
     def loop(previousTicks: Long): Unit = {
-      println(s"Loop $previousTicks")
+      // println(s"Loop $previousTicks")
       //TODO should we only check this every n iterations?
       if (!canceled) {
         val startTime = nowMillis()
@@ -115,7 +115,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
         @tailrec
         def go(i: Int): Unit = {
           if (i < iters) {
-            println(s"Running bucket ${ticksToBucketIdx(previousTicks + i)} at ${startTime}")
+            // println(s"Running bucket ${ticksToBucketIdx(previousTicks + i)} at ${startTime}")
             wheel(ticksToBucketIdx(previousTicks + i)).schedule(startTime)
             go(i + 1)
           }
@@ -127,7 +127,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
         val target = (ticks + 1) * resolutionMillis
         if (curr < target) {
           //TODO do we need to handle thread interrupted ex?
-          println("sleeping")
+          // println("sleeping")
           Thread.sleep(target - curr)
         }
         loop(ticks)
@@ -151,7 +151,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
     op match {
       case Noop => ()
       case Register(state, next) => {
-        println(s"Scheduling to bucket ${tsToBucketIdx(state.scheduled)}")
+        // println(s"Scheduling to bucket ${tsToBucketIdx(state.scheduled)}")
         wheel(tsToBucketIdx(state.scheduled)).add(state)
         executeOps(next)
       }
@@ -201,7 +201,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
           if (state.scheduled <= ts) {
             state.unlink()
             try {
-              println("running")
+              // println("running")
               state.task.run()
             } catch {
               case NonFatal(e) => println(s"Caught error $e in io timer")
