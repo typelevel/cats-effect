@@ -20,7 +20,6 @@ import cats.effect._
 
 import scala.concurrent.ExecutionContext
 
-
 class SupervisorTests extends CatsEffectSuite {
 
   implicit val executionContext: ExecutionContext = ExecutionContext.Implicits.global
@@ -28,16 +27,21 @@ class SupervisorTests extends CatsEffectSuite {
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
   test("start a fiber that completes successfully") {
-    Supervisor[IO].use { supervisor =>
-      supervisor.supervise(IO(1)).flatMap(_.join)
-    }.map(x => assertEquals(x, 1))
+    Supervisor[IO]
+      .use { supervisor =>
+        supervisor.supervise(IO(1)).flatMap(_.join)
+      }
+      .map(x => assertEquals(x, 1))
   }
 
   test("start a fiber that raises an error") {
     val t = new Throwable("failed")
-    Supervisor[IO].use { supervisor =>
-      supervisor.supervise(IO.raiseError[Unit](t)).flatMap(_.join)
-    }.attempt.map(x => assertEquals(x, Left(t)))
+    Supervisor[IO]
+      .use { supervisor =>
+        supervisor.supervise(IO.raiseError[Unit](t)).flatMap(_.join)
+      }
+      .attempt
+      .map(x => assertEquals(x, Left(t)))
   }
 
   test("cancel active fibers when supervisor exits") {
