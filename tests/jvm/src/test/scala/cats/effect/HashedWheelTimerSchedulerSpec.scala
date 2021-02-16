@@ -53,25 +53,6 @@ class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with R
 
     }
 
-    "complete delay < resolution" in real {
-
-      val delay = defaultResolution / 2
-      println(delay)
-
-      for {
-        t1 <- IO(scheduler.monotonicNanos())
-        _ <- IO.async((cb: Either[Throwable, Unit] => Unit) => {
-          // runtime().scheduler.sleep(delay, () => cb(Right(())))
-          scheduler.sleep(delay, () => cb(Right(())))
-          IO.pure(None)
-        })
-        t2 <- IO(scheduler.monotonicNanos())
-        actual = (t2 - t1).nanos
-        res <- IO(actual must be_<(delay + tolerance))
-      } yield res
-
-    }
-
     "complete many not before scheduled time" in realProp(Gen.listOfN(100, durationGen)) {
       delays =>
         delays
@@ -108,7 +89,7 @@ class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with R
                 // runtime().scheduler.sleep(delay, () => cb(Right(())))
                 scheduler.sleep(delay, () => cb(Right(())))
                 IO.pure(None)
-              }).timeout(delay + tolerance)
+              })
             t2 <- IO(scheduler.monotonicNanos())
             actual = (t2 - t1).nanos
             res <- IO(actual must be_<(delay + tolerance))
