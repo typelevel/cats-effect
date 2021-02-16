@@ -13,9 +13,11 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
 
   override def fix(implicit doc: SemanticDocument): Patch = {
     val Blocker_M = SymbolMatcher.normalized("cats/effect/Blocker.")
+    val Blocker_delay_M = SymbolMatcher.exact("cats/effect/Blocker#delay().")
     val Bracket_guarantee_M = SymbolMatcher.exact("cats/effect/Bracket#guarantee().")
     val Bracket_uncancelable_M = SymbolMatcher.exact("cats/effect/Bracket#uncancelable().")
     val ContextShift_M = SymbolMatcher.normalized("cats/effect/ContextShift.")
+    val Sync_S = Symbol("cats/effect/Sync#")
 
     Patch.replaceSymbols(
       "cats/effect/package.BracketThrow." -> "cats/effect/MonadCancelThrow.",
@@ -38,6 +40,21 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
         // Bracket#uncancelable(a) -> MonadCancel#uncancelable(_ => a)
         case q"${Bracket_uncancelable_M(_)}($a)" =>
           Patch.addLeft(a, "_ => ")
+
+        // Blocker#delay[F, A] -> Sync[F].blocking
+        case t @ Term.ApplyType(Blocker_delay_M(_), List(typeF, _)) =>
+          Patch.addGlobalImport(Sync_S) +
+            Patch.replaceTree(t, s"${Sync_S.displayName}[$typeF].blocking")
+
+        // Blocker#delay -> Sync[F].blocking
+        case t @ Term.Select(_, Blocker_delay_M(_)) =>
+          t.synthetics match {
+            case TypeApplyTree(_, UniversalType(_, TypeRef(_, symbol, _)) :: _) :: _ =>
+              Patch.addGlobalImport(Sync_S) +
+                Patch.replaceTree(t, s"${Sync_S.displayName}[${symbol.displayName}].blocking")
+            case _ =>
+              Patch.empty
+          }
 
         case t @ ImporteeNameOrRename(Blocker_M(_)) =>
           Patch.removeImportee(t)

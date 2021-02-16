@@ -1,11 +1,17 @@
 package fix
 
+import cats.effect.IO
 import cats.effect.Sync
 
 object BlockerRewrites {
   def f1: Int = 0
 
-  // TODO
-  //def f2[F[_]](blocker: Blocker)(implicit cs: ContextShift[F], F: Sync[F]): F[Unit] =
-  //  blocker.delay(())
+  def f2: IO[Unit] =
+    Sync[IO].blocking(())
+
+  def f3[F[_]](implicit F: Sync[F]): F[Unit] =
+    Sync[F].blocking(())
+
+  def f4[F[_]](implicit F: Sync[F]): F[Unit] =
+    Sync[F].blocking(())
 }
