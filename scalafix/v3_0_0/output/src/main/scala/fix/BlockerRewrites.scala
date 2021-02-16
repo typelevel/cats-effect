@@ -2,6 +2,7 @@ package fix
 
 import cats.effect.IO
 import cats.effect.Sync
+import cats.effect.Resource
 
 object BlockerRewrites {
   def f1: Int = 0
@@ -16,4 +17,6 @@ object BlockerRewrites {
 
   def f4[F[_]](implicit F: Sync[F]): F[Unit] =
     Sync[F].blocking(())
+
+  private val b1 = Resource.unit[IO] /* TODO: Remove Blocker with Sync[F].blocking. */
 }

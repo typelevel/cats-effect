@@ -19,6 +19,7 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
     val Concurrent_M = SymbolMatcher.normalized("cats/effect/Concurrent.")
     val ContextShift_M = SymbolMatcher.normalized("cats/effect/ContextShift.")
     val IO_M = SymbolMatcher.normalized("cats/effect/IO.")
+    val Resource_S = Symbol("cats/effect/Resource#")
     val Sync_S = Symbol("cats/effect/Sync#")
 
     Patch.replaceSymbols(
@@ -43,6 +44,12 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
         // Bracket#uncancelable(a) -> MonadCancel#uncancelable(_ => a)
         case q"${Bracket_uncancelable_M(_)}($a)" =>
           Patch.addLeft(a, "_ => ")
+
+        // Blocker[F] -> Resource.unit[F]
+        case t @ Term.ApplyType(Blocker_M(_), List(typeF)) =>
+          val comment = "/* TODO: Remove Blocker with Sync[F].blocking. */"
+          Patch.addGlobalImport(Resource_S) +
+            Patch.replaceTree(t, s"${Resource_S.displayName}.unit[$typeF] $comment")
 
         // Blocker#delay[F, A] -> Sync[F].blocking
         case t @ Term.ApplyType(Blocker_delay_M(_), List(typeF, _)) =>

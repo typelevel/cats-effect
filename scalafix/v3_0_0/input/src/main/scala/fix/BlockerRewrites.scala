@@ -21,4 +21,6 @@ object BlockerRewrites {
 
   def f4[F[_]](blocker: Blocker)(implicit cs: ContextShift[F], F: Sync[F]): F[Unit] =
     blocker.delay(())
+
+  private val b1 = Blocker[IO]
 }
