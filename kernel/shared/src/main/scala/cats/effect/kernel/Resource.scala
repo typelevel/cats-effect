@@ -970,20 +970,17 @@ abstract private[effect] class ResourceConcurrent[F[_]]
 
   /*
    * 1. If the scope containing the *fiber* terminates:
-   *   a) if the fiber is incomplete, run its inner finalizers when it complets
+   *   a) if the fiber is incomplete, run its inner finalizers when it completes
    *   b) if the fiber is succeeded, run its finalizers
    * 2. If the fiber is canceled or errored, finalize
-   * 3. If the fiber succeeds, await joining and extend finalizers into joining scope
-   * 4. If a fiber is canceled *after* it completes, we explicitly snag the finalizers and run them, setting the result to Canceled()
-   *   a) ...but only if the fiber has not yet been joined! This catches the "tree fell in the forest but no one was around" case
-   * 5. If a fiber is joined multiple times, subsequent joins have access to the result but not the finalizers (mirroring memoization on a Resource)
+   * 3. If the fiber succeeds and .cancel won the race, finalize eagerly and
+   *    `join` results in `Canceled()`
+   * 4. If the fiber succeeds and .cancel lost the race or wasn't called,
+   *    finalize naturally when the containing scope ends, `join` returns
+   *    the value
    */
   def start[A](fa: Resource[F, A]): Resource[F, Fiber[Resource[F, *], Throwable, A]] = {
-    final case class State(
-        fin: Option[F[Unit]] = None,
-        runOnComplete: Boolean = false,
-        canceled: Boolean = false,
-        joined: Boolean = false)
+    final case class State(fin: F[Unit] = F.unit, finalizeOnComplete: Boolean = false)
 
     Resource {
       import Outcome._
@@ -994,10 +991,10 @@ abstract private[effect] class ResourceConcurrent[F[_]]
             poll(fa.allocated) flatMap { // intentionally short-circuits in case of cancelation or error
               case (a, rel) =>
                 state modify { s =>
-                  if (s.runOnComplete || s.canceled)
+                  if (s.finalizeOnComplete)
                     (s, rel.attempt.as(None))
                   else
-                    (s.copy(fin = Some(rel)), F.pure(Some(a)))
+                    (s.copy(fin = rel), F.pure(Some(a)))
                 }
             }
 
@@ -1011,16 +1008,7 @@ abstract private[effect] class ResourceConcurrent[F[_]]
               Resource eval {
                 F uncancelable { poll =>
                   // technically cancel is uncancelable, but separation of concerns and what not
-                  val maybeFins = poll(outer.cancel) *> {
-                    state modify { s =>
-                      if (!s.joined)
-                        (s.copy(canceled = true, fin = None), s.fin.traverse_(x => x))
-                      else
-                        (s.copy(canceled = true), F.unit)
-                    }
-                  }
-
-                  maybeFins.flatten
+                  poll(outer.cancel) *> state.update(_.copy(finalizeOnComplete = true))
                 }
               }
 
@@ -1034,35 +1022,21 @@ abstract private[effect] class ResourceConcurrent[F[_]]
                     Outcome.errored[Resource[F, *], Throwable, A](e).pure[F]
 
                   case Succeeded(fp) =>
-                    fp flatMap {
+                    fp map {
                       case Some(a) =>
-                        state modify { s =>
-                          val results =
-                            if (s.canceled && !s.joined)
-                              Outcome.canceled[Resource[F, *], Throwable, A]
-                            else
-                              Outcome.succeeded[Resource[F, *], Throwable, A](
-                                Resource.make(a.pure[F])(_ => s.fin.traverse_(x => x)))
-
-                          (s.copy(joined = true, fin = None), results)
-                        }
+                        a.pure[Outcome[Resource[F, *], Throwable, *]]
 
                       case None =>
-                        Outcome.canceled[Resource[F, *], Throwable, A].pure[F]
+                        Outcome.canceled[Resource[F, *], Throwable, A]
                     }
                 }
               }
           }
 
-          val finalizeEarly = {
-            val ff = state modify { s =>
-              (s.copy(runOnComplete = true), s.fin.traverse_(x => x))
-            }
+          val finalizeOuter =
+            state.modify(s => (s.copy(finalizeOnComplete = true), s.fin)).flatten
 
-            ff.flatten
-          }
-
-          (fiber, finalizeEarly)
+          (fiber, finalizeOuter)
         }
       }
     }
