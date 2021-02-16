@@ -33,14 +33,11 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
   def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
     if (!canceled) {
       if (delay.isFinite) {
-        //The delay requested is less than the resolution we support
-        //so run immediately
-        if (delay < resolution) {
+        if (delay.toMillis == 0) {
           task.run()
           noopCancel
         } else {
           val t = TaskState(task, delay.toMillis + nowMillis())
-          // println(s"Running task at ${t.scheduled}")
 
           @tailrec
           def go(): Unit = {

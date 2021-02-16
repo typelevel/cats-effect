@@ -19,11 +19,10 @@ package cats.effect
 import cats.implicits._
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
-import unsafe.{HashedWheelTimerScheduler, Scheduler}
+import unsafe.Scheduler
 import unsafe.HashedWheelTimerScheduler._
 
 import org.scalacheck.Gen
-import org.scalacheck.Arbitrary.arbitrary
 
 import scala.concurrent.duration._
 import java.util.concurrent.TimeUnit
@@ -38,66 +37,37 @@ class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with R
 
   "hashed wheel timer" should {
 
-    // "complete within allowed time period" in real {
+    "complete immediately" in real {
 
-    //   val delay = 500.millis
+      for {
+        t1 <- IO(scheduler.monotonicNanos())
+        _ <- IO.async((cb: Either[Throwable, Unit] => Unit) => {
+          // runtime().scheduler.sleep(delay, () => cb(Right(())))
+          scheduler.sleep(0.millis, () => cb(Right(())))
+          IO.pure(None)
+        })
+        t2 <- IO(scheduler.monotonicNanos())
+        actual = (t2 - t1).nanos
+        res <- IO(actual must be_<(defaultResolution))
+      } yield res
 
-    //   IO.race(
-    //     IO.async((cb: Either[Throwable, Unit] => Unit) => {
-    //       // runtime().scheduler.sleep(delay, () => cb(Right(())))
-    //       scheduler.sleep(delay, () => cb(Right(())))
-    //       IO.pure(None)
-    //     }),
-    //     IO.sleep(delay + tolerance)
-    //   ).flatMap { result =>
-    //     IO {
-    //       result mustEqual (Left(()))
-    //     }
-    //   }
-
-    // }
-    //
-
-    "complete many not before scheduled time" in realProp(
-      Gen.listOfN(100, durationGen.map(_ + defaultResolution))) { delays =>
-      delays
-        .parTraverse_ { delay =>
-          for {
-            t1 <- IO(scheduler.monotonicNanos())
-            _ <- IO.async((cb: Either[Throwable, Unit] => Unit) => {
-              // runtime().scheduler.sleep(delay, () => cb(Right(())))
-              scheduler.sleep(delay, () => cb(Right(())))
-              IO.pure(None)
-            })
-            t2 <- IO(scheduler.monotonicNanos())
-            actual = (t2 - t1).nanos
-            // _ <- IO.println(s"$actual $delay")
-            _ <- IO(assert(actual >= delay))
-          } yield ()
-        }
-        .attempt
-        .flatMap { result =>
-          IO {
-            result mustEqual (Right(()))
-          }
-        }
     }
 
-    "complete many within tolerance of scheduled time" in realProp(Gen.listOfN(100, durationGen)) {
+    "complete many not before scheduled time" in realProp(Gen.listOfN(100, durationGen)) {
       delays =>
         delays
           .parTraverse_ { delay =>
             for {
               t1 <- IO(scheduler.monotonicNanos())
-              _ <-
-                IO.async((cb: Either[Throwable, Unit] => Unit) => {
-                  // runtime().scheduler.sleep(delay, () => cb(Right(())))
-                  scheduler.sleep(delay, () => cb(Right(())))
-                  IO.pure(None)
-                }).timeout(delay + tolerance)
+              _ <- IO.async((cb: Either[Throwable, Unit] => Unit) => {
+                // runtime().scheduler.sleep(delay, () => cb(Right(())))
+                scheduler.sleep(delay, () => cb(Right(())))
+                IO.pure(None)
+              })
               t2 <- IO(scheduler.monotonicNanos())
               actual = (t2 - t1).nanos
-              _ <- IO(assert(actual <= delay + tolerance))
+              // _ <- IO.println(s"$actual $delay")
+              _ <- IO(assert(actual >= delay))
             } yield ()
           }
           .attempt
@@ -106,6 +76,31 @@ class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with R
               result mustEqual (Right(()))
             }
           }
+    }
+
+    "complete many within tolerance of scheduled time" in realProp(
+      Gen.listOfN(100, durationGen)) { delays =>
+      delays
+        .parTraverse_ { delay =>
+          for {
+            t1 <- IO(scheduler.monotonicNanos())
+            _ <-
+              IO.async((cb: Either[Throwable, Unit] => Unit) => {
+                // runtime().scheduler.sleep(delay, () => cb(Right(())))
+                scheduler.sleep(delay, () => cb(Right(())))
+                IO.pure(None)
+              }).timeout(delay + tolerance)
+            t2 <- IO(scheduler.monotonicNanos())
+            actual = (t2 - t1).nanos
+            _ <- IO(assert(actual <= delay + tolerance))
+          } yield ()
+        }
+        .attempt
+        .flatMap { result =>
+          IO {
+            result mustEqual (Right(()))
+          }
+        }
     }
 
   }
