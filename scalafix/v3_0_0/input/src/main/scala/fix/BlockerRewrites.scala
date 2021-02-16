@@ -11,6 +11,8 @@ import cats.effect.Sync
 object BlockerRewrites {
   def f1(blocker: Blocker): Int = 0
 
+  def f1_1(blocker: Blocker, i: Int): Int = i
+
   def f2(blocker: Blocker)(implicit cs: ContextShift[IO]): IO[Unit] =
     blocker.delay[IO, Unit](())
 

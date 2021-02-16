@@ -2,6 +2,7 @@ package fix
 
 import scalafix.v1._
 
+import scala.meta.Token._
 import scala.meta._
 
 class v3_0_0 extends SemanticRule("v3_0_0") {
@@ -83,8 +84,8 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
       case (Some(lastA), Some(firstB)) =>
         val between =
           tree.tokens.dropWhile(_ != lastA).drop(1).dropRightWhile(_ != firstB).dropRight(1)
-        val maybeParen1 = between.find(_.is[Token.RightParen])
-        val maybeParen2 = between.reverseIterator.find(_.is[Token.LeftParen])
+        val maybeParen1 = between.find(_.is[RightParen])
+        val maybeParen2 = between.reverseIterator.find(_.is[LeftParen])
         (maybeParen1, maybeParen2) match {
           case (Some(p1), Some(p2)) =>
             val toAdd = if (lastA.end == p1.start && p1.end == p2.start) ", " else ","
@@ -104,19 +105,25 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
         params match {
           // There is only one parameter, so we're removing the complete parameter list.
           case param :: Nil =>
-            cutUntilDelims(d, param, _.is[Token.LeftParen], _.is[Token.RightParen])
+            cutUntilDelims(d, param, _.is[LeftParen], _.is[RightParen])
           case _ =>
             params.zipWithIndex.find { case (p, _) =>
               p.decltpe.exists(symbolMatcher.matches)
             } match {
-              case Some((param, idx)) =>
-                if (params.size == idx + 1)
-                  cutUntilDelims(d, param, _.is[Token.Comma], _.is[Token.RightParen], keepR = true)
-                else {
-                  val leftDelim = (t: Token) =>
-                    t.is[Token.LeftParen] || t.is[Token.KwImplicit] || t.is[Token.Comma]
-                  cutUntilDelims(d, param, leftDelim, _.is[Token.Comma], keepL = true)
+              case Some((p, idx)) =>
+                // Remove the first parameter.
+                if (idx == 0) {
+                  if (p.mods.nonEmpty)
+                    cutUntilDelims(d, p, _.is[KwImplicit], _.is[Comma], keepL = true)
+                  else
+                    cutUntilDelims(d, p, _.is[LeftParen], _.is[Ident], keepL = true, keepR = true)
                 }
+                // Remove the last parameter.
+                else if (params.size == idx + 1)
+                  cutUntilDelims(d, p, _.is[Comma], _.is[RightParen], keepR = true)
+                // Remove inside the parameter list.
+                else
+                  cutUntilDelims(d, p, _.is[Comma], _.is[Comma], keepL = true)
               case None => Patch.empty
             }
         }

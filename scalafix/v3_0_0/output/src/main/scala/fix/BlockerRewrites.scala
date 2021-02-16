@@ -6,6 +6,8 @@ import cats.effect.Sync
 object BlockerRewrites {
   def f1: Int = 0
 
+  def f1_1(i: Int): Int = i
+
   def f2: IO[Unit] =
     Sync[IO].blocking(())
 

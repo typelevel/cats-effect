@@ -7,11 +7,12 @@
 
 ## Migration to Cats Effect 3.0.0
 
+First configure the SemanticDB compiler plugin to enable synthetics:
 ```
 ThisBuild / scalacOptions += "-P:semanticdb:synthetics:on"
 ```
 
-```
-scalafixEnable
-scalafixAll github:fthomas/cats-effect/v3_0_0?sha=topic/scalafix
+Then run Scalafix:
+```sh
+sbt ";scalafixEnable ;scalafixAll github:fthomas/cats-effect/v3_0_0?sha=topic/scalafix"
 ```
