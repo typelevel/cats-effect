@@ -4,6 +4,7 @@ rule = "scala:fix.v3_0_0"
 package fix
 
 import cats.effect.Async
+import cats.effect.Concurrent
 import cats.effect.IO
 
 object IORewrites {
@@ -18,4 +19,6 @@ object IORewrites {
   Async[IO].async((_: Any) => ())
 
   Async[IO].suspend(IO.unit)
+
+  def f1(implicit ev: Concurrent[IO]): IO[Unit] = IO.unit
 }

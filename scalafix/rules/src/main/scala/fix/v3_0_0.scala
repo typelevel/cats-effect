@@ -17,7 +17,9 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
     val Blocker_delay_M = SymbolMatcher.exact("cats/effect/Blocker#delay().")
     val Bracket_guarantee_M = SymbolMatcher.exact("cats/effect/Bracket#guarantee().")
     val Bracket_uncancelable_M = SymbolMatcher.exact("cats/effect/Bracket#uncancelable().")
+    val Concurrent_M = SymbolMatcher.normalized("cats/effect/Concurrent.")
     val ContextShift_M = SymbolMatcher.normalized("cats/effect/ContextShift.")
+    val IO_M = SymbolMatcher.normalized("cats/effect/IO.")
     val Sync_S = Symbol("cats/effect/Sync#")
 
     Patch.replaceSymbols(
@@ -64,8 +66,17 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
           Patch.removeImportee(t)
 
         case d: Defn.Def =>
-          removeParam(d, Blocker_M) +
-            removeParam(d, ContextShift_M)
+          removeParam(d, _.decltpe.exists(Blocker_M.matches)) +
+            removeParam(d, _.decltpe.exists(ContextShift_M.matches)) +
+            // implicit Concurrent[IO] ->
+            removeParam(
+              d,
+              p =>
+                p.mods.nonEmpty && p.decltpe.exists {
+                  case Type.Apply(Concurrent_M(_), List(IO_M(_))) => true
+                  case _                                          => false
+                }
+            )
       }.asPatch
   }
 
@@ -95,11 +106,11 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
       case _ => Patch.empty
     }
 
-  // f(p1, symbolMatcher(p2), p3) -> f(p1, p3)
-  private def removeParam(d: Defn.Def, symbolMatcher: SymbolMatcher)(implicit
+  // f(p1, p2, p3) -> f(p1, p3) if paramMatcher(p2)
+  private def removeParam(d: Defn.Def, paramMatcher: Term.Param => Boolean)(implicit
       doc: SemanticDocument
   ): Patch = {
-    d.paramss.find(_.exists(_.decltpe.exists(symbolMatcher.matches))) match {
+    d.paramss.find(_.exists(paramMatcher)) match {
       case None => Patch.empty
       case Some(params) =>
         params match {
@@ -107,9 +118,7 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
           case param :: Nil =>
             cutUntilDelims(d, param, _.is[LeftParen], _.is[RightParen])
           case _ =>
-            params.zipWithIndex.find { case (p, _) =>
-              p.decltpe.exists(symbolMatcher.matches)
-            } match {
+            params.zipWithIndex.find { case (p, _) => paramMatcher(p) } match {
               case Some((p, idx)) =>
                 // Remove the first parameter.
                 if (idx == 0) {

@@ -1,6 +1,7 @@
 package fix
 
 import cats.effect.Async
+import cats.effect.Concurrent
 import cats.effect.IO
 
 object IORewrites {
@@ -15,4 +16,6 @@ object IORewrites {
   Async[IO].async_((_: Any) => ())
 
   Async[IO].defer(IO.unit)
+
+  def f1: IO[Unit] = IO.unit
 }
