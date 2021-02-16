@@ -41,7 +41,8 @@ class BackpressureTests extends CatsEffectSuite {
       backpressure <- Backpressure[IO](Backpressure.Strategy.Lossless, 1)
       f1 <- backpressure.metered(IO.sleep(1.second) *> 1.pure[IO]).start
       f2 <- backpressure.metered(IO.sleep(1.second) *> 2.pure[IO]).start
-      (res1, res2) <- (f1, f2).tupled.join
+      tup <- (f1, f2).tupled.join
+      (res1, res2) = tup
     } yield assertEquals((res1, res2), (Some(1), Some(2)))
   }
 }
