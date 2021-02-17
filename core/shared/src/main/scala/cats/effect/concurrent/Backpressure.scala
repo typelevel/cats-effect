@@ -26,7 +26,7 @@ import cats.implicits._
  * execution where each strategy works as follows:
  *
  * [[Backpressure.Strategy.Lossy]] will mean that effects will not be run in
- * the presence of backpressure, meaning the result will be [[None]]
+ * the presence of backpressure, meaning the result will be None
  *
  * [[Backpressure.Strategy.Lossless]] will mean that effects will run in the
  * presence of backpressure, meaning the effect will semantically block until
@@ -38,7 +38,7 @@ trait Backpressure[F[_]] {
    * Applies rate limiting to an effect based on backpressure semantics
    *
    * @param f the effect that backpressure is applied to
-   * @return a [[F[Option[A]]]] where Option denotes if the effect was run or not
+   * @return an [[Option]] where [[Option]] denotes if the effect was run or not
    * according to backpressure semantics
    */
   def metered[A](f: F[A]): F[Option[A]]
@@ -50,7 +50,7 @@ object Backpressure {
    * Creates an instance of Backpressure that can be used to rate limit effects
    * @param strategy strategy to apply for this backpressure instance
    * @param bound depth of the queue that the backpressure instance should manage
-   * @return a [[F[Backpressure]]] instance
+   * @return a [[Backpressure]] instance
    */
   def apply[F[_]: Concurrent](
     strategy: Strategy,
