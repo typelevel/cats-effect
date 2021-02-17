@@ -59,6 +59,51 @@
       "installation": {
         "title": "Installation"
       },
+      "mdoc/datatypes/countdownlatch": {
+        "title": "countdown latch"
+      },
+      "mdoc/datatypes/cyclicbarrier": {
+        "title": "cyclic barrier"
+      },
+      "mdoc/datatypes/deferred": {
+        "title": "deferred"
+      },
+      "mdoc/datatypes/dequeue": {
+        "title": "dequeue"
+      },
+      "mdoc/datatypes/dispatcher": {
+        "title": "dispatcher"
+      },
+      "mdoc/datatypes/hotswap": {
+        "title": "hotswap"
+      },
+      "mdoc/datatypes/pqueue": {
+        "title": "priority queue"
+      },
+      "mdoc/datatypes/queue": {
+        "title": "queue"
+      },
+      "mdoc/datatypes/ref": {
+        "title": "ref"
+      },
+      "mdoc/datatypes/resource": {
+        "title": "resource"
+      },
+      "mdoc/datatypes/supervisor": {
+        "title": "supervisor"
+      },
+      "mdoc/installation": {
+        "title": "Installation"
+      },
+      "mdoc/schedulers": {
+        "title": "Schedulers"
+      },
+      "mdoc/threadmodel": {
+        "title": "thread model"
+      },
+      "mdoc/typeclasses": {
+        "title": "Typeclasses"
+      },
       "typeclasses/async": {
         "title": "Async"
       },
@@ -161,10 +206,49 @@
       "version-2.x/typeclasses/version-2.x-sync": {
         "title": "Sync"
       },
-      "version-3.x/version-3.x-installation": {
+      "version-3.x/mdoc/datatypes/version-3.x-countdownlatch": {
+        "title": "countdown latch"
+      },
+      "version-3.x/mdoc/datatypes/version-3.x-cyclicbarrier": {
+        "title": "cyclic barrier"
+      },
+      "version-3.x/mdoc/datatypes/version-3.x-deferred": {
+        "title": "deferred"
+      },
+      "version-3.x/mdoc/datatypes/version-3.x-dequeue": {
+        "title": "dequeue"
+      },
+      "version-3.x/mdoc/datatypes/version-3.x-dispatcher": {
+        "title": "dispatcher"
+      },
+      "version-3.x/mdoc/datatypes/version-3.x-hotswap": {
+        "title": "hotswap"
+      },
+      "version-3.x/mdoc/datatypes/version-3.x-pqueue": {
+        "title": "priority queue"
+      },
+      "version-3.x/mdoc/datatypes/version-3.x-queue": {
+        "title": "queue"
+      },
+      "version-3.x/mdoc/datatypes/version-3.x-ref": {
+        "title": "ref"
+      },
+      "version-3.x/mdoc/datatypes/version-3.x-resource": {
+        "title": "resource"
+      },
+      "version-3.x/mdoc/datatypes/version-3.x-supervisor": {
+        "title": "supervisor"
+      },
+      "version-3.x/mdoc/version-3.x-installation": {
         "title": "Installation"
       },
-      "version-3.x/version-3.x-typeclasses": {
+      "version-3.x/mdoc/version-3.x-schedulers": {
+        "title": "Schedulers"
+      },
+      "version-3.x/mdoc/version-3.x-threadmodel": {
+        "title": "thread model"
+      },
+      "version-3.x/mdoc/version-3.x-typeclasses": {
         "title": "Typeclasses"
       }
     },
@@ -175,11 +259,12 @@
     },
     "categories": {
       "Getting Started": "Getting Started",
+      "Typeclasses": "Typeclasses",
+      "Schedulers": "Schedulers",
       "Guides": "Guides",
       "Data Types": "Data Types",
       "Concurrency": "Concurrency",
-      "Type Classes": "Type Classes",
-      "Typeclasses": "Typeclasses"
+      "Type Classes": "Type Classes"
     }
   },
   "pages-strings": {

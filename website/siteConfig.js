@@ -18,7 +18,7 @@ const siteConfig = {
   headerLinks: [
     {doc: 'installation', label: 'Docs'},
     {href: 'https://github.com/typelevel/cats-effect', label: "GitHub", external: true},
-    {href: `/cats-effect/api/index.html`, label: 'API'},
+    {href: `/cats-effect/api/3.x`, label: 'API'},
     // {href: '/cats-effect/resources.html', label: 'Resources'}
   ],
 
@@ -48,7 +48,7 @@ const siteConfig = {
   */
 
   // This copyright info is used in /core/Footer.js and blog RSS/Atom feeds.
-  copyright: `Copyright (c) 2017-2020 Typelevel`,
+  copyright: `Copyright (c) 2017-2021 Typelevel`,
 
   highlight: {
     // Highlight.js theme to use for syntax highlighting in code blocks.

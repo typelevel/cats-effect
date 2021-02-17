@@ -32,19 +32,19 @@ function Versions(props) {
               <tr>
                 <th>2.x</th>
                 <td>
-                  <a href={baseUrl + 'installation'}>Documentation</a>
+                  <a href={baseUrl + 'docs/2.x/installation'}>Documentation</a>
                 </td>
                 <td>
-                  <a href={'/cats-effect/api/'}>Scaladoc</a>
+                  <a href={'/cats-effect/api/2.x'}>Scaladoc</a>
                 </td>
               </tr>
               <tr>
                 <th>3.x</th>
                 <td>
-                  <a href={siteConfig.baseUrl + 'docs/3.x/installation'}>Documentation</a>
+                  <a href={siteConfig.baseUrl + 'docs/installation'}>Documentation</a>
                 </td>
                 <td>
-                  <a href={'/cats-effect/3.x/api/'}>Scaladoc</a>
+                  <a href={'/cats-effect/api/3.x'}>Scaladoc</a>
                 </td>
               </tr>
             </tbody>
