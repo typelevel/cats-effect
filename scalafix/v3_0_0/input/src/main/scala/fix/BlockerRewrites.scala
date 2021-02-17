@@ -23,4 +23,6 @@ object BlockerRewrites {
     blocker.delay(())
 
   private val b1 = Blocker[IO]
+
+  for { blocker <- Blocker[IO] } yield ()
 }

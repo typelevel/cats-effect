@@ -123,3 +123,10 @@ jobs:
         if: matrix.ci == 'ciJS' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: example/test-js.sh ${{ matrix.scala }}
+
+      - name: Scalafix tests
+        if: matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          cd scalafix
+          sbt test

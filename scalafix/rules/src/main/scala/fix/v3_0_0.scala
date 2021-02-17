@@ -47,9 +47,8 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
 
         // Blocker[F] -> Resource.unit[F]
         case t @ Term.ApplyType(Blocker_M(_), List(typeF)) =>
-          val comment = "/* TODO: Remove Blocker with Sync[F].blocking. */"
           Patch.addGlobalImport(Resource_S) +
-            Patch.replaceTree(t, s"${Resource_S.displayName}.unit[$typeF] $comment")
+            Patch.replaceTree(t, s"${Resource_S.displayName}.unit[$typeF]")
 
         // Blocker#delay[F, A] -> Sync[F].blocking
         case t @ Term.ApplyType(Blocker_delay_M(_), List(typeF, _)) =>

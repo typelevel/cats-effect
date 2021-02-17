@@ -18,5 +18,7 @@ object BlockerRewrites {
   def f4[F[_]](implicit F: Sync[F]): F[Unit] =
     Sync[F].blocking(())
 
-  private val b1 = Resource.unit[IO] /* TODO: Remove Blocker with Sync[F].blocking. */
+  private val b1 = Resource.unit[IO]
+
+  for { blocker <- Resource.unit[IO] } yield ()
 }
