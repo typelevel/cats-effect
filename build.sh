@@ -31,6 +31,7 @@ mv ./versions/2.x/core/jvm/target/scala-2.13/api ./website/static/api/2.x
 mv ./versions/2.x/site-docs/target/mdoc ./docs
 cp ./versions/2.x/site-docs/sidebars.json ./website/sidebars.json
 (cd website && yarn run version 2.x)
+rm -rf ./docs
 
 rm -rf ./website/static/api/3.x
 mv ./versions/3.x/target/scala-2.13/unidoc ./website/static/api/3.x

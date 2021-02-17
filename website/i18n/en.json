@@ -5,128 +5,50 @@
     "previous": "Previous",
     "tagline": "The purely functional runtime for Scala",
     "docs": {
-      "concurrency/basics": {
-        "title": "Basics"
+      "datatypes/countdownlatch": {
+        "title": "countdown latch"
       },
-      "concurrency/deferred": {
-        "title": "Deferred"
+      "datatypes/cyclicbarrier": {
+        "title": "cyclic barrier"
       },
-      "concurrency/mvar": {
-        "title": "MVar"
+      "datatypes/deferred": {
+        "title": "deferred"
       },
-      "concurrency/overview": {
-        "title": "Overview"
+      "datatypes/dequeue": {
+        "title": "dequeue"
       },
-      "concurrency/ref": {
-        "title": "Ref"
+      "datatypes/dispatcher": {
+        "title": "dispatcher"
       },
-      "concurrency/semaphore": {
-        "title": "Semaphore"
+      "datatypes/hotswap": {
+        "title": "hotswap"
       },
-      "datatypes/clock": {
-        "title": "Clock"
+      "datatypes/pqueue": {
+        "title": "priority queue"
       },
-      "datatypes/contextshift": {
-        "title": "ContextShift"
+      "datatypes/queue": {
+        "title": "queue"
       },
-      "datatypes/fiber": {
-        "title": "Fiber"
-      },
-      "datatypes/index": {
-        "title": "Data Types"
-      },
-      "datatypes/io": {
-        "title": "IO"
-      },
-      "datatypes/ioapp": {
-        "title": "IOApp"
+      "datatypes/ref": {
+        "title": "ref"
       },
       "datatypes/resource": {
-        "title": "Resource"
+        "title": "resource"
       },
-      "datatypes/syncio": {
-        "title": "SyncIO"
-      },
-      "datatypes/timer": {
-        "title": "Timer"
-      },
-      "guides/tracing": {
-        "title": "Tracing"
-      },
-      "guides/tutorial": {
-        "title": "Tutorial"
+      "datatypes/supervisor": {
+        "title": "supervisor"
       },
       "installation": {
         "title": "Installation"
       },
-      "mdoc/datatypes/countdownlatch": {
-        "title": "countdown latch"
-      },
-      "mdoc/datatypes/cyclicbarrier": {
-        "title": "cyclic barrier"
-      },
-      "mdoc/datatypes/deferred": {
-        "title": "deferred"
-      },
-      "mdoc/datatypes/dequeue": {
-        "title": "dequeue"
-      },
-      "mdoc/datatypes/dispatcher": {
-        "title": "dispatcher"
-      },
-      "mdoc/datatypes/hotswap": {
-        "title": "hotswap"
-      },
-      "mdoc/datatypes/pqueue": {
-        "title": "priority queue"
-      },
-      "mdoc/datatypes/queue": {
-        "title": "queue"
-      },
-      "mdoc/datatypes/ref": {
-        "title": "ref"
-      },
-      "mdoc/datatypes/resource": {
-        "title": "resource"
-      },
-      "mdoc/datatypes/supervisor": {
-        "title": "supervisor"
-      },
-      "mdoc/installation": {
-        "title": "Installation"
-      },
-      "mdoc/schedulers": {
+      "schedulers": {
         "title": "Schedulers"
       },
-      "mdoc/threadmodel": {
+      "threadmodel": {
         "title": "thread model"
       },
-      "mdoc/typeclasses": {
+      "typeclasses": {
         "title": "Typeclasses"
-      },
-      "typeclasses/async": {
-        "title": "Async"
-      },
-      "typeclasses/bracket": {
-        "title": "Bracket"
-      },
-      "typeclasses/concurrenteffect": {
-        "title": "ConcurrentEffect"
-      },
-      "typeclasses/concurrent": {
-        "title": "Concurrent"
-      },
-      "typeclasses/effect": {
-        "title": "Effect"
-      },
-      "typeclasses/liftio": {
-        "title": "LiftIO"
-      },
-      "typeclasses/overview": {
-        "title": "Overview"
-      },
-      "typeclasses/sync": {
-        "title": "Sync"
       },
       "version-2.x/concurrency/version-2.x-basics": {
         "title": "Basics"
@@ -206,49 +128,49 @@
       "version-2.x/typeclasses/version-2.x-sync": {
         "title": "Sync"
       },
-      "version-3.x/mdoc/datatypes/version-3.x-countdownlatch": {
+      "version-3.x/datatypes/version-3.x-countdownlatch": {
         "title": "countdown latch"
       },
-      "version-3.x/mdoc/datatypes/version-3.x-cyclicbarrier": {
+      "version-3.x/datatypes/version-3.x-cyclicbarrier": {
         "title": "cyclic barrier"
       },
-      "version-3.x/mdoc/datatypes/version-3.x-deferred": {
+      "version-3.x/datatypes/version-3.x-deferred": {
         "title": "deferred"
       },
-      "version-3.x/mdoc/datatypes/version-3.x-dequeue": {
+      "version-3.x/datatypes/version-3.x-dequeue": {
         "title": "dequeue"
       },
-      "version-3.x/mdoc/datatypes/version-3.x-dispatcher": {
+      "version-3.x/datatypes/version-3.x-dispatcher": {
         "title": "dispatcher"
       },
-      "version-3.x/mdoc/datatypes/version-3.x-hotswap": {
+      "version-3.x/datatypes/version-3.x-hotswap": {
         "title": "hotswap"
       },
-      "version-3.x/mdoc/datatypes/version-3.x-pqueue": {
+      "version-3.x/datatypes/version-3.x-pqueue": {
         "title": "priority queue"
       },
-      "version-3.x/mdoc/datatypes/version-3.x-queue": {
+      "version-3.x/datatypes/version-3.x-queue": {
         "title": "queue"
       },
-      "version-3.x/mdoc/datatypes/version-3.x-ref": {
+      "version-3.x/datatypes/version-3.x-ref": {
         "title": "ref"
       },
-      "version-3.x/mdoc/datatypes/version-3.x-resource": {
+      "version-3.x/datatypes/version-3.x-resource": {
         "title": "resource"
       },
-      "version-3.x/mdoc/datatypes/version-3.x-supervisor": {
+      "version-3.x/datatypes/version-3.x-supervisor": {
         "title": "supervisor"
       },
-      "version-3.x/mdoc/version-3.x-installation": {
+      "version-3.x/version-3.x-installation": {
         "title": "Installation"
       },
-      "version-3.x/mdoc/version-3.x-schedulers": {
+      "version-3.x/version-3.x-schedulers": {
         "title": "Schedulers"
       },
-      "version-3.x/mdoc/version-3.x-threadmodel": {
+      "version-3.x/version-3.x-threadmodel": {
         "title": "thread model"
       },
-      "version-3.x/mdoc/version-3.x-typeclasses": {
+      "version-3.x/version-3.x-typeclasses": {
         "title": "Typeclasses"
       }
     },
