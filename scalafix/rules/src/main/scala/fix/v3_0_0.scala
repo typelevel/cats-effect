@@ -19,6 +19,8 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
     val Concurrent_M = SymbolMatcher.normalized("cats/effect/Concurrent.")
     val ContextShift_M = SymbolMatcher.normalized("cats/effect/ContextShift.")
     val IO_M = SymbolMatcher.normalized("cats/effect/IO.")
+    val Parallel_M = SymbolMatcher.normalized("cats/Parallel.")
+
     val Resource_S = Symbol("cats/effect/Resource#")
     val Sync_S = Symbol("cats/effect/Sync#")
 
@@ -72,8 +74,9 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
           Patch.removeImportee(t)
 
         case d: Defn.Def =>
-          removeParam(d, _.decltpe.exists(Blocker_M.matches)) +
-            removeParam(d, _.decltpe.exists(ContextShift_M.matches)) +
+          List(
+            removeParam(d, _.decltpe.exists(Blocker_M.matches)),
+            removeParam(d, _.decltpe.exists(ContextShift_M.matches)),
             // implicit Concurrent[IO] ->
             removeParam(
               d,
@@ -82,7 +85,16 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
                   case Type.Apply(Concurrent_M(_), List(IO_M(_))) => true
                   case _                                          => false
                 }
-            )
+            ),
+            // implicit Parallel[F] -> if implicit Concurrent[F] + import cats.effect.implicits._
+            removeParam(
+              d,
+              ps =>
+                ps.exists(p => p.mods.nonEmpty && p.decltpe.exists(Concurrent_M.matches)) &&
+                  ps.exists(p => p.mods.nonEmpty && p.decltpe.exists(Parallel_M.matches)),
+              p => p.mods.nonEmpty && p.decltpe.exists(Parallel_M.matches)
+            ).map(_ + Patch.addGlobalImport(wildcardImport(q"cats.effect.implicits")))
+          ).flatten.asPatch
       }.asPatch
   }
 
@@ -94,6 +106,9 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
         case _                     => None
       }
   }
+
+  private def wildcardImport(ref: Term.Ref): Importer =
+    Importer(ref, List(Importee.Wildcard()))
 
   // tree @ f(param1)(param2) -> f(param1, param2)
   private def fuseParameterLists(tree: Tree, param1: Tree, param2: Tree): Patch =
@@ -115,32 +130,32 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
   // f(p1, p2, p3) -> f(p1, p3) if paramMatcher(p2)
   private def removeParam(d: Defn.Def, paramMatcher: Term.Param => Boolean)(implicit
       doc: SemanticDocument
-  ): Patch = {
-    d.paramss.find(_.exists(paramMatcher)) match {
-      case None => Patch.empty
-      case Some(params) =>
-        params match {
-          // There is only one parameter, so we're removing the complete parameter list.
-          case param :: Nil =>
-            cutUntilDelims(d, param, _.is[LeftParen], _.is[RightParen])
-          case _ =>
-            params.zipWithIndex.find { case (p, _) => paramMatcher(p) } match {
-              case Some((p, idx)) =>
-                // Remove the first parameter.
-                if (idx == 0) {
-                  if (p.mods.nonEmpty)
-                    cutUntilDelims(d, p, _.is[KwImplicit], _.is[Comma], keepL = true)
-                  else
-                    cutUntilDelims(d, p, _.is[LeftParen], _.is[Ident], keepL = true, keepR = true)
-                }
-                // Remove the last parameter.
-                else if (params.size == idx + 1)
-                  cutUntilDelims(d, p, _.is[Comma], _.is[RightParen], keepR = true)
-                // Remove inside the parameter list.
-                else
-                  cutUntilDelims(d, p, _.is[Comma], _.is[Comma], keepL = true)
-              case None => Patch.empty
-            }
+  ): Option[Patch] = removeParam(d, _.exists(paramMatcher), paramMatcher)
+
+  private def removeParam(
+      d: Defn.Def,
+      paramsMatcher: List[Term.Param] => Boolean,
+      paramMatcher: Term.Param => Boolean
+  )(implicit doc: SemanticDocument): Option[Patch] = {
+    d.paramss.find(paramsMatcher).flatMap {
+      // There is only one parameter, so we're removing the complete parameter list.
+      case param :: Nil =>
+        cutUntilDelims(d, param, _.is[LeftParen], _.is[RightParen])
+      case params =>
+        params.zipWithIndex.find { case (p, _) => paramMatcher(p) } flatMap { case (p, idx) =>
+          // Remove the first parameter.
+          if (idx == 0) {
+            if (p.mods.nonEmpty)
+              cutUntilDelims(d, p, _.is[KwImplicit], _.is[Comma], keepL = true)
+            else
+              cutUntilDelims(d, p, _.is[LeftParen], _.is[Ident], keepL = true, keepR = true)
+          }
+          // Remove the last parameter.
+          else if (params.size == idx + 1)
+            cutUntilDelims(d, p, _.is[Comma], _.is[RightParen], keepR = true)
+          // Remove inside the parameter list.
+          else
+            cutUntilDelims(d, p, _.is[Comma], _.is[Comma], keepL = true)
         }
     }
   }
@@ -152,7 +167,7 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
       rightDelim: Token => Boolean,
       keepL: Boolean = false,
       keepR: Boolean = false
-  ): Patch = {
+  ): Option[Patch] = {
     val innerTokens = inner.tokens
     (innerTokens.headOption, innerTokens.lastOption) match {
       case (Some(first), Some(last)) =>
@@ -166,10 +181,10 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
               .drop(if (keepL) 1 else 0)
               .dropRightWhile(_ != delimR)
               .dropRight(if (keepR) 1 else 0)
-            Patch.removeTokens(toRemove)
-          case _ => Patch.empty
+            Some(Patch.removeTokens(toRemove))
+          case _ => None
         }
-      case _ => Patch.empty
+      case _ => None
     }
   }
 }
