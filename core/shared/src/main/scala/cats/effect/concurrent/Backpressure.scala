@@ -38,7 +38,7 @@ trait Backpressure[F[_]] {
    * Applies rate limiting to an effect based on backpressure semantics
    *
    * @param f the effect that backpressure is applied to
-   * @return an [[Option]] where [[Option]] denotes if the effect was run or not
+   * @return an Option where Option denotes if the effect was run or not
    * according to backpressure semantics
    */
   def metered[A](f: F[A]): F[Option[A]]
