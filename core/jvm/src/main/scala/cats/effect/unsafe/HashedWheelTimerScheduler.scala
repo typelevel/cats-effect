@@ -156,6 +156,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
       case Noop => ()
       case Register(state, next) => {
         // println(s"Scheduling to bucket ${tsToBucketIdx(state.scheduled)}")
+        //Can have Register and Cancel processed on the same cycle
         if (!state.canceled) {
           wheel(tsToBucketIdx(state.scheduled)).add(state)
         }

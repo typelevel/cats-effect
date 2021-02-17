@@ -109,7 +109,8 @@ class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with R
       for {
         cancel <- IO(scheduler.sleep(250.millis, () => latch.countDown()))
         _ <- IO(cancel.run())
-        r <- IO.interruptible(true)(latch.await()).timeout(500.millis).attempt
+        //Await should never complete as cancelation stops latch countdown
+        r <- IO.interruptible(true)(latch.await()).timeout(1.second).attempt
         res <- IO {
           r must beLike {
             case Left(e) => e must haveClass[TimeoutException]
