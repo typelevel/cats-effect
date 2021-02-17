@@ -125,7 +125,7 @@ jobs:
         run: example/test-js.sh ${{ matrix.scala }}
 
       - name: Scalafix tests
-        if: matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13.4' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           cd scalafix

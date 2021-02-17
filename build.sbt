@@ -91,7 +91,7 @@ ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Run(
     List("cd scalafix", "sbt test"),
     name = Some("Scalafix tests"),
-    cond = Some(s"matrix.ci == 'ciJVM' && matrix.os == '$PrimaryOS'")))
+    cond = Some(s"matrix.scala == '$Scala213' && matrix.ci == 'ciJVM' && matrix.os == '$PrimaryOS'")))
 
 val ciVariants = List("ciJVM", "ciJS", "ciFirefox")
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants

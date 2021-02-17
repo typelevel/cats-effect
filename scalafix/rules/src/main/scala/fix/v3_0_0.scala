@@ -90,9 +90,9 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
             removeParam(
               d,
               ps =>
-                ps.exists(p => p.mods.nonEmpty && p.decltpe.exists(Concurrent_M.matches)) &&
-                  ps.exists(p => p.mods.nonEmpty && p.decltpe.exists(Parallel_M.matches)),
-              p => p.mods.nonEmpty && p.decltpe.exists(Parallel_M.matches)
+                ps.exists(p => isImplicit(p) && p.decltpe.exists(Concurrent_M.matches)) &&
+                  ps.exists(p => isImplicit(p) && p.decltpe.exists(Parallel_M.matches)),
+              p => isImplicit(p) && p.decltpe.exists(Parallel_M.matches)
             ).map(_ + Patch.addGlobalImport(wildcardImport(q"cats.effect.implicits")))
           ).flatten.asPatch
       }.asPatch
@@ -106,6 +106,9 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
         case _                     => None
       }
   }
+
+  private def isImplicit(param: Term.Param): Boolean =
+    param.mods.exists(_.is[Mod.Implicit])
 
   private def wildcardImport(ref: Term.Ref): Importer =
     Importer(ref, List(Importee.Wildcard()))
@@ -145,7 +148,7 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
         params.zipWithIndex.find { case (p, _) => paramMatcher(p) } flatMap { case (p, idx) =>
           // Remove the first parameter.
           if (idx == 0) {
-            if (p.mods.nonEmpty)
+            if (isImplicit(p))
               cutUntilDelims(d, p, _.is[KwImplicit], _.is[Comma], keepL = true)
             else
               cutUntilDelims(d, p, _.is[LeftParen], _.is[Ident], keepL = true, keepR = true)
