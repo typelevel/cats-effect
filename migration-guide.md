@@ -19,6 +19,9 @@ start with modules: most people want core. library author / application develope
 
  -->
 
+ <!-- random note: there should be a clear sequence of steps for those who don't really want to read through the overview and whatnot -->
+ <!-- something like "letsdodissssss": update deps to compatible versions, run scalafix, use lookup table to update any outstanding method calls... -->
+
 ### Before you begin: this isn't a "quick start" guide
 
 This guide is meant for existing users of Cats Effect 2 who want to upgrade their applications
