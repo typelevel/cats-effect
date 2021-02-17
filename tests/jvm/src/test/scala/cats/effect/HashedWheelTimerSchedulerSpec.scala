@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import java.util.concurrent.{CountDownLatch, TimeoutException, TimeUnit}
+
 import cats.implicits._
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
@@ -25,7 +27,6 @@ import unsafe.HashedWheelTimerScheduler._
 import org.scalacheck.Gen
 
 import scala.concurrent.duration._
-import java.util.concurrent.TimeUnit
 
 class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with Runners {
 
@@ -103,6 +104,20 @@ class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with R
         }
     }
 
+    "cancel task" in real {
+      val latch = new CountDownLatch(1)
+      for {
+        cancel <- IO(scheduler.sleep(250.millis, () => latch.countDown()))
+        _ <- IO(cancel.run())
+        r <- IO.interruptible(true)(latch.await()).timeout(500.millis).attempt
+        res <- IO {
+          r must beLike {
+            case Left(e) => e must haveClass[TimeoutException]
+          }
+        }
+      } yield res
+    }
+
 
     "reject tasks once shutdown" in real {
       val (s, close) = Scheduler.createDefaultScheduler()
@@ -115,7 +130,6 @@ class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with R
           }
         }
       }
-
     }
 
   }

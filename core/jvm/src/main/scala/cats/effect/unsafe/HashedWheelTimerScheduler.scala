@@ -125,6 +125,10 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
 
         val curr = nowMillis()
         val target = (ticks + 1) * resolutionMillis
+        //We don't blindly sleep for resolutionMillis - (curr - start)
+        //as we want to be self-normalizing to awake at the
+        //start of each time interval as Thread.sleep accuracy
+        //isn't guaranteed
         if (curr < target) {
           //TODO do we need to handle thread interrupted ex?
           // println("sleeping")
@@ -152,11 +156,14 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
       case Noop => ()
       case Register(state, next) => {
         // println(s"Scheduling to bucket ${tsToBucketIdx(state.scheduled)}")
-        wheel(tsToBucketIdx(state.scheduled)).add(state)
+        if (!state.canceled) {
+          wheel(tsToBucketIdx(state.scheduled)).add(state)
+        }
         executeOps(next)
       }
       case Cancel(state, next) => {
         state.unlink()
+        state.canceled = true
         executeOps(next)
       }
     }
@@ -166,12 +173,15 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
   private case class TaskState(
       task: Runnable,
       scheduled: Long,
+      //It can happen that a Register and a Cancel are enqueued in the same
+      var canceled: Boolean = false,
       var next: TaskState = null,
       var previous: TaskState = null) {
 
     def unlink(): Unit = {
       if (previous != null) {
         previous.next = next
+      } else {
       }
       if (next != null) {
         next.previous = previous
@@ -183,14 +193,18 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
 
   private class Bucket {
 
-    var head: TaskState = null
+    //Sentinel so that we never have to cancel the head of
+    //the list, as TaskState#unlink() is unable to
+    //manipulate the head pointer
+    val head: TaskState = new TaskState(null, Long.MaxValue)
 
     def add(state: TaskState): Unit = {
-      state.next = head
-      if (head != null) {
-        head.previous = state
+      state.next = head.next
+      if (state.next != null) {
+        state.next.previous = state
       }
-      head = state
+      head.next = state
+      state.previous = head
     }
 
     def schedule(ts: Long): Unit = {
