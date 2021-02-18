@@ -46,7 +46,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   }
 
   def createDefaultScheduler(threadName: String = "io-scheduler"): (Scheduler, () => Unit) =
-    Scheduler.createOldScheduler()
+    Scheduler.createDefaultScheduler()
 
   lazy val global: IORuntime = {
     val cancellationCheckThreshold =
