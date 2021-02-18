@@ -15,7 +15,7 @@ lazy val v3_0_0_input = project
   .in(file("v3_0_0/input"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "2.3.1"
+      "org.typelevel" %% "cats-effect" % "2.3.3"
     ),
     scalacOptions += "-P:semanticdb:synthetics:on"
   )
@@ -24,7 +24,7 @@ lazy val v3_0_0_output = project
   .in(file("v3_0_0/output"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.0.0-RC1"
+      "org.typelevel" %% "cats-effect" % "3.0.0-RC2"
     )
   )
 
