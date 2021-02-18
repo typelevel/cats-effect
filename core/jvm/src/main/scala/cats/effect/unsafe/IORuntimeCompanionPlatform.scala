@@ -18,7 +18,7 @@ package cats.effect.unsafe
 
 import scala.concurrent.ExecutionContext
 
-import java.util.concurrent.Executors
+import java.util.concurrent.{Executors, ScheduledThreadPoolExecutor}
 import java.util.concurrent.atomic.AtomicInteger
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
@@ -46,13 +46,16 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   }
 
   def createDefaultScheduler(threadName: String = "io-scheduler"): (Scheduler, () => Unit) = {
-    val scheduler = Executors.newSingleThreadScheduledExecutor { r =>
-      val t = new Thread(r)
-      t.setName(threadName)
-      t.setDaemon(true)
-      t.setPriority(Thread.MAX_PRIORITY)
-      t
-    }
+    val scheduler = new ScheduledThreadPoolExecutor(
+      1,
+      { r =>
+        val t = new Thread(r)
+        t.setName(threadName)
+        t.setDaemon(true)
+        t.setPriority(Thread.MAX_PRIORITY)
+        t
+      })
+    scheduler.setRemoveOnCancelPolicy(true)
     (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
   }
 

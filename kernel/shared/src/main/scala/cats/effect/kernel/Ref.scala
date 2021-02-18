@@ -22,10 +22,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 import cats.data.State
 import cats.effect.kernel.Ref.TransformedRef
-import cats.instances.function._
-import cats.instances.tuple._
-import cats.syntax.bifunctor._
-import cats.syntax.functor._
+import cats.syntax.all._
 
 import scala.annotation.tailrec
 

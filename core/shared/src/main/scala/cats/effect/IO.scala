@@ -84,6 +84,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
 
+  def startOn(ec: ExecutionContext): IO[FiberIO[A @uncheckedVariance]] = start.evalOn(ec)
+
+  def backgroundOn(ec: ExecutionContext): ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
+    Resource.make(startOn(ec))(_.cancel).map(_.join)
+
   def flatMap[B](f: A => IO[B]): IO[B] = IO.FlatMap(this, f)
 
   def flatten[B](implicit ev: A <:< IO[B]): IO[B] = flatMap(ev)
@@ -96,6 +101,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def handleErrorWith[B >: A](f: Throwable => IO[B]): IO[B] =
     IO.HandleErrorWith(this, f)
+
+  def ifM[B](ifTrue: => IO[B], ifFalse: => IO[B])(implicit ev: A <:< Boolean): IO[B] =
+    flatMap(a => if (ev(a)) ifTrue else ifFalse)
 
   def map[B](f: A => B): IO[B] = IO.Map(this, f)
 
@@ -158,6 +166,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       case Right(_) => fallback
       case Left(value) => IO.pure(value)
     }
+
+  def timed: IO[(FiniteDuration, A)] =
+    Clock[IO].timed(this)
 
   def product[B](that: IO[B]): IO[(A, B)] =
     flatMap(a => that.map(b => (a, b)))

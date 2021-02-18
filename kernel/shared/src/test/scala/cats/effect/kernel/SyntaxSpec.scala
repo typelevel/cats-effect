@@ -195,4 +195,15 @@ class SyntaxSpec extends Specification {
       result: Resource[F, A]
     }
   }
+
+  def clockSyntax[F[_], A](target: F[A])(implicit F: Clock[F]) = {
+    import syntax.clock._
+
+    Clock[F]: F.type
+
+    {
+      val result = target.timed
+      result: F[(FiniteDuration, A)]
+    }
+  }
 }

@@ -1,0 +1,27 @@
+pull_request_rules:
+  - name: label scala-steward's PRs
+    conditions:
+      - author=scala-steward
+    actions:
+      label:
+        add: [dependencies]
+  - name: automatically merge scala-steward's patch PRs
+    conditions:
+      - author=scala-steward
+      - status-success=Build and Test (ubuntu-latest, 2.12.13, adopt@1.8, ciJVM)
+      - status-success=Build and Test (ubuntu-latest, 2.13.4, adopt@1.8, ciJVM)
+      - status-success=Build and Test (windows-latest, 2.13.4, adopt@1.8, ciJVM)
+      - status-success=Build and Test (ubuntu-latest, 3.0.0-M3, adopt@1.8, ciJVM)
+      - status-success=Build and Test (ubuntu-latest, 3.0.0-RC1, adopt@1.8, ciJVM)
+      - status-success=Build and Test (ubuntu-latest, 2.12.13, adopt@1.8, ciJS)
+      - status-success=Build and Test (ubuntu-latest, 2.13.4, adopt@1.8, ciJS)
+      - status-success=Build and Test (ubuntu-latest, 3.0.0-M3, adopt@1.8, ciJS)
+      - status-success=Build and Test (ubuntu-latest, 3.0.0-RC1, adopt@1.8, ciJS)
+      - status-success=Build and Test (ubuntu-latest, 2.12.13, adopt@1.8, ciFirefox)
+      - status-success=Build and Test (ubuntu-latest, 2.13.4, adopt@1.8, ciFirefox)
+      - status-success=Build and Test (ubuntu-latest, 3.0.0-M3, adopt@1.8, ciFirefox)
+      - status-success=Build and Test (ubuntu-latest, 3.0.0-RC1, adopt@1.8, ciFirefox)
+      - body~=labels:.*semver-patch
+    actions:
+      merge:
+        method: merge

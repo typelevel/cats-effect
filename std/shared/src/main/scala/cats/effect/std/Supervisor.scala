@@ -125,9 +125,15 @@ object Supervisor {
         override def supervise[A](fa: F[A]): F[Fiber[F, Throwable, A]] =
           F.uncancelable { _ =>
             val token = new Token
-            val action = fa.guarantee(stateRef.update(_ - token))
-            F.start(action).flatMap { fiber =>
-              stateRef.update(_ + (token -> fiber.cancel)).as(fiber)
+            Ref.of[F, Boolean](false).flatMap { done =>
+              val cleanup = stateRef.update(_ - token)
+              val action = fa.guarantee(done.set(true) >> cleanup)
+              F.start(action).flatMap { fiber =>
+                stateRef.update(_ + (token -> fiber.cancel)) >> done
+                  .get
+                  .ifM(cleanup, F.unit)
+                  .as(fiber)
+              }
             }
           }
       }

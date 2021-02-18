@@ -305,6 +305,7 @@ private final class WorkStealingQueue {
     // fiber has already been written by `internalStealInto` but the
     // tail has still not been published.
     val ret = dst.buffer(retIdx)
+    dst.buffer(retIdx) = null
 
     if (n == 0) {
       // No need for arithmetic and volatile updates. We are immediately

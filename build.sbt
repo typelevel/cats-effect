@@ -45,7 +45,7 @@ val Windows = "windows-latest"
 val ScalaJSJava = "adopt@1.8"
 val Scala213 = "2.13.4"
 
-ThisBuild / crossScalaVersions := Seq("3.0.0-M2", "3.0.0-M3", "2.12.13", Scala213)
+ThisBuild / crossScalaVersions := Seq("3.0.0-M3", "3.0.0-RC1", "2.12.13", Scala213)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
@@ -58,7 +58,7 @@ ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
 
 ThisBuild / githubWorkflowBuildPreamble +=
   WorkflowStep.Use(
-    "actions", "setup-node", "v2.1.2",
+    UseRef.Public("actions", "setup-node", "v2.1.2"),
     name = Some("Setup NodeJS v14 LTS"),
     params = Map("node-version" -> "14"),
     cond = Some("matrix.ci == 'ciJS'"))
@@ -140,18 +140,18 @@ ThisBuild / scmInfo := Some(
 
 ThisBuild / autoAPIMappings := true
 
-val CatsVersion = "2.3.1"
-val Specs2Version = "4.10.5"
-val ScalaCheckVersion = "1.15.2"
-val DisciplineVersion = "1.1.3"
+val CatsVersion = "2.4.2"
+val Specs2Version = "4.10.6"
+val ScalaCheckVersion = "1.15.3"
+val DisciplineVersion = "1.1.4"
 
-replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; test; coreJVM/mimaReportBinaryIssues; root/unidoc213; set Global / useFirefoxEnv := true; coreJS/test; set Global / useFirefoxEnv := false")
+replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; test; coreJVM/mimaReportBinaryIssues; root/unidoc213; set Global / useFirefoxEnv := true; testsJS/test; set Global / useFirefoxEnv := false")
 
 addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues; root/unidoc213")
 addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; test")
 
 // we do the firefox ci *only* on core because we're only really interested in IO here
-addCommandAlias("ciFirefox", "; set Global / useFirefoxEnv := true; project rootJS; headerCheck; scalafmtCheck; clean; coreJS/test; set Global / useFirefoxEnv := false")
+addCommandAlias("ciFirefox", "; set Global / useFirefoxEnv := true; project rootJS; headerCheck; scalafmtCheck; clean; testsJS/test; set Global / useFirefoxEnv := false")
 
 addCommandAlias("prePR", "; root/clean; +root/scalafmtAll; +root/headerCreate")
 
@@ -211,7 +211,7 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform).in(file("kernel-t
     libraryDependencies ++= Seq(
       "org.typelevel"  %%% "cats-free"  % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      "org.typelevel"  %%% "coop"       % "1.0.0-M3"))
+      "org.typelevel"  %%% "coop"       % "1.0.0-M4"))
 
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid
