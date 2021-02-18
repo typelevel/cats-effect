@@ -1,0 +1,8 @@
+pull_request_rules:
+  - name: automatically merge Dependabot's PRs
+    conditions:
+      - author=dependabot-preview
+      - status-success=Microsite
+    actions:
+      merge:
+        method: merge
