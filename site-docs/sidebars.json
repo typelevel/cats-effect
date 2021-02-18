@@ -2,11 +2,23 @@
   "docs": {
     "Overview": [
       "installation",
+      // TODO what is io?
       "thread-model",
       "typeclasses",
       "schedulers"
+      // TODO performance
+      // TODO tracing
     ],
-    "Data Types": [
+    /* TODO
+    "Getting Started": [
+      // we can probably just copy the tutorial from CE2
+    ],
+    "Leveling Up": [
+      // this is where we talk about patterns and best practices, tagless, etc
+    ],
+     */
+    "Standard Library": [
+      // TODO Console
       "countdown-latch",
       "cyclic-barrier",
       "deferred",
@@ -15,9 +27,18 @@
       "hotswap",
       "pqueue",
       "queue",
+      // TODO Random
       "ref",
       "resource",
       "supervisor"
     ]
+    /*
+     "Ecosystem": [
+       // let's throw some pages in here focused on use-cases, like HTTP clients, Redis things, etc
+     ],
+     "Scaling and Tuning": [
+       // some advanced advice for operating Cats Effect services at scale
+     ]
+     */
   }
 }
