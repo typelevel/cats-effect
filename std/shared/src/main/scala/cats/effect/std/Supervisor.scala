@@ -105,7 +105,7 @@ object Supervisor {
    * Creates a [[Resource]] scope within which fibers can be monitored. When
    * this scope exits, all supervised fibers will be finalized.
    */
-  def apply[F[_]](implicit F: Concurrent[F], U: Unique[F]): Resource[F, Supervisor[F]] = {
+  def apply[F[_]](implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     // It would have preferable to use Scope here but explicit cancellation is
     // intertwined with resource management
     for {
@@ -124,7 +124,7 @@ object Supervisor {
           F.uncancelable { _ =>
             for {
               done <- Ref.of[F, Boolean](false)
-              token <- U.unique
+              token <- F.unique
               cleanup = stateRef.update(_ - token)
               action = fa.guarantee(done.set(true) >> cleanup)
               fiber <- F.start(action)
