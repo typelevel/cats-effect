@@ -53,6 +53,7 @@ const siteConfig = {
   highlight: {
     // Highlight.js theme to use for syntax highlighting in code blocks.
     theme: 'github-gist',
+    defaultLang: 'plaintext'
   },
 
   // Add custom scripts here that would be placed in <script> tags.
@@ -79,6 +80,8 @@ const siteConfig = {
   // Show documentation's last update time.
   // enableUpdateTime: true,
   docsSideNavCollapsible: true,
+
+  separateCss: ['static/api'],
 
   users: [
     {
