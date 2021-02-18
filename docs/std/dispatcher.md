@@ -1,6 +1,6 @@
 ---
 id: dispatcher
-title: dispatcher
+title: Dispatcher
 ---
 
 ## Motivation

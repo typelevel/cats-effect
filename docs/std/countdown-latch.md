@@ -1,6 +1,6 @@
 ---
-id: countdownlatch
-title: countdown latch
+id: countdown-latch
+title: Count Down Latch
 ---
 
 A one-shot concurrency primitive that blocks any fibers that wait on

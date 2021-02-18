@@ -1,6 +1,6 @@
 ---
 id: resource
-title: resource
+title: Resource
 ---
 
 ## Motivation
