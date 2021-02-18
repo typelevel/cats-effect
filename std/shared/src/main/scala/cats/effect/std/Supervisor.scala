@@ -101,17 +101,15 @@ trait Supervisor[F[_]] {
 
 object Supervisor {
 
-  private class Token
-
   /**
    * Creates a [[Resource]] scope within which fibers can be monitored. When
    * this scope exits, all supervised fibers will be finalized.
    */
-  def apply[F[_]](implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
+  def apply[F[_]](implicit F: Concurrent[F], U: Unique[F]): Resource[F, Supervisor[F]] = {
     // It would have preferable to use Scope here but explicit cancellation is
     // intertwined with resource management
     for {
-      stateRef <- Resource.make(F.ref[Map[Token, F[Unit]]](Map())) { state =>
+      stateRef <- Resource.make(F.ref[Map[Unique.Token, F[Unit]]](Map())) { state =>
         state
           .get
           .flatMap { fibers =>
@@ -124,17 +122,15 @@ object Supervisor {
       new Supervisor[F] {
         override def supervise[A](fa: F[A]): F[Fiber[F, Throwable, A]] =
           F.uncancelable { _ =>
-            val token = new Token
-            Ref.of[F, Boolean](false).flatMap { done =>
-              val cleanup = stateRef.update(_ - token)
-              val action = fa.guarantee(done.set(true) >> cleanup)
-              F.start(action).flatMap { fiber =>
-                stateRef.update(_ + (token -> fiber.cancel)) >> done
-                  .get
-                  .ifM(cleanup, F.unit)
-                  .as(fiber)
-              }
-            }
+            for {
+              done <- Ref.of[F, Boolean](false)
+              token <- U.unique
+              cleanup = stateRef.update(_ - token)
+              action = fa.guarantee(done.set(true) >> cleanup)
+              fiber <- F.start(action)
+              _ <- stateRef.update(_ + (token -> fiber.cancel))
+              _ <- done.get.ifM(cleanup, F.unit)
+            } yield fiber
           }
       }
     }
