@@ -25,7 +25,7 @@ class HotswapSpec extends BaseSpec { outer =>
   sequential
 
   def logged(log: Ref[IO, List[String]], name: String): Resource[IO, Unit] =
-    Resource.make(log.update(_ :+ s"open $name"))(_ => log.update(_ :+ (s"close $name")))
+    Resource.make(log.update(_ :+ s"open $name"))(_ => log.update(_ :+ s"close $name"))
 
   "Hotswap" should {
     "run finalizer of target run when hotswap is finalized" in real {
@@ -45,9 +45,8 @@ class HotswapSpec extends BaseSpec { outer =>
     "acquire new resource and finalize old resource on swap" in real {
       val op = for {
         log <- Ref.of[IO, List[String]](List())
-        _ <- Hotswap[IO, Unit](logged(log, "a")).use {
-          case (hotswap, _) =>
-            hotswap.swap(logged(log, "b"))
+        _ <- Hotswap[IO, Unit](logged(log, "a")).use { case (hotswap, _) =>
+          hotswap.swap(logged(log, "b"))
         }
         value <- log.get
       } yield value
@@ -62,9 +61,8 @@ class HotswapSpec extends BaseSpec { outer =>
     "finalize old resource on clear" in real {
       val op = for {
         log <- Ref.of[IO, List[String]](List())
-        _ <- Hotswap[IO, Unit](logged(log, "a")).use {
-          case (hotswap, _) =>
-            hotswap.clear *> hotswap.swap(logged(log, "b"))
+        _ <- Hotswap[IO, Unit](logged(log, "a")).use { case (hotswap, _) =>
+          hotswap.clear *> hotswap.swap(logged(log, "b"))
         }
         value <- log.get
       } yield value

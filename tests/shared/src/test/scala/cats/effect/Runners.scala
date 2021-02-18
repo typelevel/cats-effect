@@ -95,9 +95,7 @@ trait Runners extends SpecificationLike with TestInstances with RunnersPlatform 
     def mustFailWith[E <: Throwable: ClassTag] =
       fa.attempt.flatMap { res =>
         IO {
-          res must beLike {
-            case Left(e) => e must haveClass[E]
-          }
+          res must beLike { case Left(e) => e must haveClass[E] }
         }
       }
 

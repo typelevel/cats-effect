@@ -178,15 +178,13 @@ sealed abstract class Resource[F[_], +A] {
     @tailrec def loop[C](current: Resource[F, C], stack: Stack[C]): F[B] =
       current match {
         case Allocate(resource) =>
-          F.bracketFull(resource) {
-            case (a, _) =>
-              stack match {
-                case Nil => onOutput(a)
-                case Frame(head, tail) => continue(head(a), tail)
-              }
-          } {
-            case ((_, release), outcome) =>
-              onRelease(release(ExitCase.fromOutcome(outcome)))
+          F.bracketFull(resource) { case (a, _) =>
+            stack match {
+              case Nil => onOutput(a)
+              case Frame(head, tail) => continue(head(a), tail)
+            }
+          } { case ((_, release), outcome) =>
+            onRelease(release(ExitCase.fromOutcome(outcome)))
           }
         case Bind(source, fs) =>
           loop(source, Frame(fs, stack))
@@ -332,9 +330,8 @@ sealed abstract class Resource[F[_], +A] {
             f {
               F.uncancelable { (fpoll: Poll[F]) => resource(fpoll) }
             }
-          }.map {
-            case (a, release) =>
-              a -> ((r: ExitCase) => f(release(r)))
+          }.map { case (a, release) =>
+            a -> ((r: ExitCase) => f(release(r)))
           }
         }
       case Bind(source, f0) =>
@@ -407,17 +404,16 @@ sealed abstract class Resource[F[_], +A] {
         release: F[Unit]): F[(B, F[Unit])] =
       current match {
         case Allocate(resource) =>
-          F.bracketFull(resource) {
-            case (b, rel) =>
-              stack match {
-                case Nil =>
-                  (
-                    b: B,
-                    rel(ExitCase.Succeeded).guarantee(release)
-                  ).pure[F]
-                case Frame(head, tail) =>
-                  continue(head(b), tail, rel(ExitCase.Succeeded).guarantee(release))
-              }
+          F.bracketFull(resource) { case (b, rel) =>
+            stack match {
+              case Nil =>
+                (
+                  b: B,
+                  rel(ExitCase.Succeeded).guarantee(release)
+                ).pure[F]
+              case Frame(head, tail) =>
+                continue(head(b), tail, rel(ExitCase.Succeeded).guarantee(release))
+            }
           } {
             case (_, Outcome.Succeeded(_)) =>
               F.unit
@@ -484,9 +480,8 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    */
   def apply[F[_], A](resource: F[(A, F[Unit])])(implicit F: Functor[F]): Resource[F, A] =
     applyCase[F, A] {
-      resource.map {
-        case (a, release) =>
-          (a, (_: ExitCase) => release)
+      resource.map { case (a, release) =>
+        (a, (_: ExitCase) => release)
       }
     }
 
@@ -805,10 +800,9 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
       Resource applyFull { poll =>
         val alloc = self.allocated.allocated
 
-        poll(alloc) map {
-          case ((a, rfin), fin) =>
-            val composedFinalizers = fin !> rfin.allocated.flatMap(_._2)
-            (a, (_: Resource.ExitCase) => composedFinalizers)
+        poll(alloc) map { case ((a, rfin), fin) =>
+          val composedFinalizers = fin !> rfin.allocated.flatMap(_._2)
+          (a, (_: Resource.ExitCase) => composedFinalizers)
         }
       }
   }
@@ -1130,9 +1124,7 @@ abstract private[effect] class ResourceAsync[F[_]]
               val nt2 = new (Resource[F, *] ~> D) {
                 def apply[A](rfa: Resource[F, A]) =
                   Kleisli { r =>
-                    nt(rfa.allocated) flatMap {
-                      case (a, fin) => r.update(_ !> fin).as(a)
-                    }
+                    nt(rfa.allocated) flatMap { case (a, fin) => r.update(_ !> fin).as(a) }
                   }
               }
 

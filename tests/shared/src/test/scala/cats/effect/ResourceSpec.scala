@@ -42,9 +42,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     "releases resources in reverse order of acquisition" in ticked { implicit ticker =>
       forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
         var released: List[Int] = Nil
-        val r = as.traverse {
-          case (a, e) =>
-            Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+        val r = as.traverse { case (a, e) =>
+          Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
         }
         r.use_.attempt.void must completeAs(())
         released mustEqual as.map(_._1)
@@ -72,28 +71,26 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     "releases resource if interruption happens during use" in ticked { implicit ticker =>
       val flag = IO.ref(false)
 
-      (flag, flag).tupled.flatMap {
-        case (acquireFin, resourceFin) =>
-          val action = IO.sleep(1.second).onCancel(acquireFin.set(true))
-          val fin = resourceFin.set(true)
-          val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
+      (flag, flag).tupled.flatMap { case (acquireFin, resourceFin) =>
+        val action = IO.sleep(1.second).onCancel(acquireFin.set(true))
+        val fin = resourceFin.set(true)
+        val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
 
-          res.surround(IO.sleep(5.seconds)).timeout(3.seconds).attempt >>
-            (acquireFin.get, resourceFin.get).tupled
+        res.surround(IO.sleep(5.seconds)).timeout(3.seconds).attempt >>
+          (acquireFin.get, resourceFin.get).tupled
       } must completeAs(false -> true)
     }
 
     "supports interruptible acquires" in ticked { implicit ticker =>
       val flag = IO.ref(false)
 
-      (flag, flag).tupled.flatMap {
-        case (acquireFin, resourceFin) =>
-          val action = IO.sleep(5.seconds).onCancel(acquireFin.set(true))
-          val fin = resourceFin.set(true)
-          val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
+      (flag, flag).tupled.flatMap { case (acquireFin, resourceFin) =>
+        val action = IO.sleep(5.seconds).onCancel(acquireFin.set(true))
+        val fin = resourceFin.set(true)
+        val res = Resource.makeFull[IO, Unit](poll => poll(action))(_ => fin)
 
-          res.use_.timeout(1.second).attempt >>
-            (acquireFin.get, resourceFin.get).tupled
+        res.use_.timeout(1.second).attempt >>
+          (acquireFin.get, resourceFin.get).tupled
       } must completeAs(true -> false)
     }
 
@@ -102,18 +99,17 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       val sleep = IO.sleep(1.second)
       val timeout = 500.millis
 
-      (flag, flag, flag, flag).tupled.flatMap {
-        case (acquireFin, resourceFin, a, b) =>
-          val io = IO.uncancelable { poll =>
-            sleep.onCancel(a.set(true)) >> poll(sleep).onCancel(b.set(true))
-          }
+      (flag, flag, flag, flag).tupled.flatMap { case (acquireFin, resourceFin, a, b) =>
+        val io = IO.uncancelable { poll =>
+          sleep.onCancel(a.set(true)) >> poll(sleep).onCancel(b.set(true))
+        }
 
-          val resource = Resource.makeFull[IO, Unit] { poll =>
-            poll(io).onCancel(acquireFin.set(true))
-          }(_ => resourceFin.set(true))
+        val resource = Resource.makeFull[IO, Unit] { poll =>
+          poll(io).onCancel(acquireFin.set(true))
+        }(_ => resourceFin.set(true))
 
-          resource.use_.timeout(timeout).attempt >>
-            List(a.get, b.get, acquireFin.get, resourceFin.get).sequence
+        resource.use_.timeout(timeout).attempt >>
+          List(a.get, b.get, acquireFin.get, resourceFin.get).sequence
       } must completeAs(List(false, true, true, false))
     }
 
@@ -201,9 +197,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       implicit ticker =>
         forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
           var released: List[Int] = Nil
-          val r = as.traverse {
-            case (a, e) =>
-              Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+          val r = as.traverse { case (a, e) =>
+            Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
           }
           r.allocated.flatMap(_._2).attempt.void must completeAs(())
           released mustEqual as.map(_._1)
@@ -291,17 +286,16 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       val timeout = 500.millis
 
       def fa =
-        (flag, flag).tupled.flatMap {
-          case (a, b) =>
-            val io = IO.uncancelable { poll =>
-              sleep.onCancel(a.set(true)) >> poll(sleep).onCancel(b.set(true))
-            }
+        (flag, flag).tupled.flatMap { case (a, b) =>
+          val io = IO.uncancelable { poll =>
+            sleep.onCancel(a.set(true)) >> poll(sleep).onCancel(b.set(true))
+          }
 
-            val resource = Resource.makeFull[IO, Unit](poll => poll(io))(_ => IO.unit)
+          val resource = Resource.makeFull[IO, Unit](poll => poll(io))(_ => IO.unit)
 
-            val mapKd = resource.mapK(Kleisli.liftK[IO, Int])
+          val mapKd = resource.mapK(Kleisli.liftK[IO, Int])
 
-            mapKd.use_.timeout(timeout).run(0).attempt >> (a.get, b.get).tupled
+          mapKd.use_.timeout(timeout).run(0).attempt >> (a.get, b.get).tupled
         }
 
       fa must completeAs(false -> true)
@@ -310,9 +304,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     "allocated produces the same value as the resource" in ticked { implicit ticker =>
       forAll { (resource: Resource[IO, Int]) =>
         val a0 = IO.uncancelable { p =>
-          p(resource.allocated).flatMap {
-            case (b, fin) => fin.as(b)
-          }
+          p(resource.allocated).flatMap { case (b, fin) => fin.as(b) }
         }
         val a1 = resource.use(IO.pure)
 
@@ -354,9 +346,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
     "use is stack-safe over binds" in ticked { implicit ticker =>
       val r = (1 to 10000)
-        .foldLeft(Resource.eval(IO.unit)) {
-          case (r, _) =>
-            r.flatMap(_ => Resource.eval(IO.unit))
+        .foldLeft(Resource.eval(IO.unit)) { case (r, _) =>
+          r.flatMap(_ => Resource.eval(IO.unit))
         }
         .use_
       r eqv IO.unit
@@ -380,9 +371,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
     "mapK is stack-safe over binds" in ticked { implicit ticker =>
       val r = (1 to 10000)
-        .foldLeft(Resource.eval(IO.unit)) {
-          case (r, _) =>
-            r.flatMap(_ => Resource.eval(IO.unit))
+        .foldLeft(Resource.eval(IO.unit)) { case (r, _) =>
+          r.flatMap(_ => Resource.eval(IO.unit))
         }
         .mapK {
           new ~>[IO, IO] {
@@ -407,9 +397,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         // needs to be tested manually to assert the equivalence during cleanup as well
         forAll { (as: List[(Int, Either[Throwable, Unit])], rhs: Boolean) =>
           var released: List[Int] = Nil
-          val r = as.traverse {
-            case (a, e) =>
-              Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+          val r = as.traverse { case (a, e) =>
+            Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
           }
           val unit = ().pure[Resource[IO, *]]
           val p = if (rhs) r.both(unit) else unit.both(r)

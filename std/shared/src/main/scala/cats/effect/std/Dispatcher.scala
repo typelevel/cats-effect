@@ -133,12 +133,11 @@ object Dispatcher {
           } else {
             registry
               .toList
-              .traverse_ {
-                case (id, Registration(action, prepareCancel)) =>
-                  for {
-                    fiber <- supervisor.supervise(action)
-                    _ <- F.delay(prepareCancel(fiber.cancel))
-                  } yield id -> fiber
+              .traverse_ { case (id, Registration(action, prepareCancel)) =>
+                for {
+                  fiber <- supervisor.supervise(action)
+                  _ <- F.delay(prepareCancel(fiber.cancel))
+                } yield id -> fiber
               }
               .uncancelable
           }

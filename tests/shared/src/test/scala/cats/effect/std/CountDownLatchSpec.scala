@@ -48,9 +48,7 @@ class CountDownLatchSpec extends BaseSpec {
       val test = IO.defer(constructor(-1)).attempt
       test.flatMap { res =>
         IO {
-          res must beLike {
-            case Left(e) => e must haveClass[IllegalArgumentException]
-          }
+          res must beLike { case Left(e) => e must haveClass[IllegalArgumentException] }
         }
       }
     }
@@ -59,9 +57,7 @@ class CountDownLatchSpec extends BaseSpec {
       val test = IO.defer(constructor(0)).attempt
       test.flatMap { res =>
         IO {
-          res must beLike {
-            case Left(e) => e must haveClass[IllegalArgumentException]
-          }
+          res must beLike { case Left(e) => e must haveClass[IllegalArgumentException] }
         }
       }
     }
@@ -91,9 +87,7 @@ class CountDownLatchSpec extends BaseSpec {
         l <- constructor(2)
         _ <- l.release
         r <- l.await.timeout(5.millis).attempt
-        res <- IO(r must beLike {
-          case Left(e) => e must haveClass[TimeoutException]
-        })
+        res <- IO(r must beLike { case Left(e) => e must haveClass[TimeoutException] })
       } yield res
     }
 

@@ -119,18 +119,17 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     val io =
       (flag, flag)
         .tupled
-        .flatMap {
-          case (start, end) =>
-            cont {
-              new Cont[IO, Unit, Unit] {
-                def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                  lift(IO(scheduler.sleep(1.second, () => resume(().asRight)))) >>
-                    get.onCancel {
-                      lift(start.set(true)) >> get >> lift(end.set(true))
-                    }
-                }
+        .flatMap { case (start, end) =>
+          cont {
+            new Cont[IO, Unit, Unit] {
+              def apply[F[_]: Cancelable] = { (resume, get, lift) =>
+                lift(IO(scheduler.sleep(1.second, () => resume(().asRight)))) >>
+                  get.onCancel {
+                    lift(start.set(true)) >> get >> lift(end.set(true))
+                  }
               }
-            }.timeoutTo(500.millis, ().pure[IO]) >> (start.get, end.get).tupled
+            }
+          }.timeoutTo(500.millis, ().pure[IO]) >> (start.get, end.get).tupled
         }
         .guarantee(IO(close()))
 
@@ -145,18 +144,17 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     val io =
       (flag, flag)
         .tupled
-        .flatMap {
-          case (start, end) =>
-            cont {
-              new Cont[IO, Unit, Unit] {
-                def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                  lift(IO(scheduler.sleep(1.second, () => resume(().asRight)))) >>
-                    get.onCancel {
-                      lift(start.set(true) >> IO.sleep(60.millis)) >> get >> lift(end.set(true))
-                    }
-                }
+        .flatMap { case (start, end) =>
+          cont {
+            new Cont[IO, Unit, Unit] {
+              def apply[F[_]: Cancelable] = { (resume, get, lift) =>
+                lift(IO(scheduler.sleep(1.second, () => resume(().asRight)))) >>
+                  get.onCancel {
+                    lift(start.set(true) >> IO.sleep(60.millis)) >> get >> lift(end.set(true))
+                  }
               }
-            }.timeoutTo(500.millis, ().pure[IO]) >> (start.get, end.get).tupled
+            }
+          }.timeoutTo(500.millis, ().pure[IO]) >> (start.get, end.get).tupled
         }
         .guarantee(IO(close()))
 

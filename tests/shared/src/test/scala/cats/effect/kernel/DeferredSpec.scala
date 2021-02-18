@@ -72,11 +72,11 @@ class DeferredSpec extends BaseSpec { outer =>
           fiber <- p.get.start
           _ <- fiber.cancel
           _ <- (fiber
-              .join
-              .flatMap {
-                case Outcome.Succeeded(ioi) => ioi.flatMap(i => r.set(Some(i)))
-                case _ => IO.raiseError(new RuntimeException)
-              })
+            .join
+            .flatMap {
+              case Outcome.Succeeded(ioi) => ioi.flatMap(i => r.set(Some(i)))
+              case _ => IO.raiseError(new RuntimeException)
+            })
             .start
           _ <- IO.sleep(100.millis)
           _ <- p.complete(42)

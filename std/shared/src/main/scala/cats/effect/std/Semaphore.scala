@@ -167,32 +167,30 @@ object Semaphore {
           else
             F.uncancelable { poll =>
               newRequest.flatMap { req =>
-                state.modify {
-                  case State(permits, waiting) =>
-                    val (newState, decision) =
-                      if (waiting.nonEmpty) State(0, waiting enqueue req.of(n)) -> Wait
-                      else {
-                        val diff = permits - n
-                        if (diff >= 0) State(diff, Q()) -> Done
-                        else State(0, req.of(diff.abs).pure[Q]) -> Wait
-                      }
-
-                    val cleanup = state.modify {
-                      case State(permits, waiting) =>
-                        // both hold correctly even if the Request gets canceled
-                        // after having been fulfilled
-                        val permitsAcquiredSoFar = n - waiting.find(_ sameAs req).foldMap(_.n)
-                        val waitingNow = waiting.filterNot(_ sameAs req)
-                        // releaseN is commutative, the separate Ref access is ok
-                        State(permits, waitingNow) -> releaseN(permitsAcquiredSoFar)
-                    }.flatten
-
-                    val action = decision match {
-                      case Done => F.unit
-                      case Wait => poll(req.wait_).onCancel(cleanup)
+                state.modify { case State(permits, waiting) =>
+                  val (newState, decision) =
+                    if (waiting.nonEmpty) State(0, waiting enqueue req.of(n)) -> Wait
+                    else {
+                      val diff = permits - n
+                      if (diff >= 0) State(diff, Q()) -> Done
+                      else State(0, req.of(diff.abs).pure[Q]) -> Wait
                     }
 
-                    newState -> action
+                  val cleanup = state.modify { case State(permits, waiting) =>
+                    // both hold correctly even if the Request gets canceled
+                    // after having been fulfilled
+                    val permitsAcquiredSoFar = n - waiting.find(_ sameAs req).foldMap(_.n)
+                    val waitingNow = waiting.filterNot(_ sameAs req)
+                    // releaseN is commutative, the separate Ref access is ok
+                    State(permits, waitingNow) -> releaseN(permitsAcquiredSoFar)
+                  }.flatten
+
+                  val action = decision match {
+                    case Done => F.unit
+                    case Wait => poll(req.wait_).onCancel(cleanup)
+                  }
+
+                  newState -> action
                 }.flatten
               }
             }
@@ -220,23 +218,21 @@ object Semaphore {
 
           if (n == 0) F.unit
           else
-            state.modify {
-              case State(permits, waiting) =>
-                if (waiting.isEmpty) State(permits + n, waiting) -> F.unit
-                else {
-                  val (newN, waitingNow, wakeup) = fulfil(n, waiting, Q())
-                  State(newN, waitingNow) -> wakeup.traverse_(_.complete)
-                }
+            state.modify { case State(permits, waiting) =>
+              if (waiting.isEmpty) State(permits + n, waiting) -> F.unit
+              else {
+                val (newN, waitingNow, wakeup) = fulfil(n, waiting, Q())
+                State(newN, waitingNow) -> wakeup.traverse_(_.complete)
+              }
             }.flatten
         }
 
         def available: F[Long] = state.get.map(_.permits)
 
         def count: F[Long] =
-          state.get.map {
-            case State(permits, waiting) =>
-              if (waiting.nonEmpty) -waiting.foldMap(_.n)
-              else permits
+          state.get.map { case State(permits, waiting) =>
+            if (waiting.nonEmpty) -waiting.foldMap(_.n)
+            else permits
           }
 
         def permit: Resource[F, Unit] =

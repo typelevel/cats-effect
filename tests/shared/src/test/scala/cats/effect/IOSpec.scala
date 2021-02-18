@@ -818,9 +818,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       "run an identity finalizer" in ticked { implicit ticker =>
         var affected = false
 
-        IO.unit.onCase {
-          case _ => IO { affected = true }
-        } must completeAs(())
+        IO.unit.onCase { case _ => IO { affected = true } } must completeAs(())
 
         affected must beTrue
       }
@@ -828,9 +826,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       "run an identity finalizer and continue" in ticked { implicit ticker =>
         var affected = false
 
-        val seed = IO.unit.onCase {
-          case _ => IO { affected = true }
-        }
+        val seed = IO.unit.onCase { case _ => IO { affected = true } }
 
         seed.as(42) must completeAs(42)
 
@@ -863,9 +859,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         var passed = false
 
         // convenient proxy for an async that returns a cancelToken
-        val test = IO.sleep(1.day).onCase {
-          case Outcome.Succeeded(_) => IO { passed = true }
-        }
+        val test = IO.sleep(1.day).onCase { case Outcome.Succeeded(_) => IO { passed = true } }
 
         test must completeAs(())
         passed must beTrue
@@ -958,8 +952,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           ref <- Ref[IO].of(false)
           _ <-
             IO.asyncForIO
-              .bracketFull[Unit, Unit](_ => IO.unit)(_ => sys.error("borked!")) {
-                case _ => ref.set(true)
+              .bracketFull[Unit, Unit](_ => IO.unit)(_ => sys.error("borked!")) { case _ =>
+                ref.set(true)
               }
               .attempt
           flag <- ref.get
@@ -1092,9 +1086,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
           op.flatMap { res =>
             IO {
-              res must beLike {
-                case Left(e) => e must haveClass[TimeoutException]
-              }
+              res must beLike { case Left(e) => e must haveClass[TimeoutException] }
             }
           }
         }
