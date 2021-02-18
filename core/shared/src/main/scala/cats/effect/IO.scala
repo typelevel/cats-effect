@@ -102,6 +102,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def handleErrorWith[B >: A](f: Throwable => IO[B]): IO[B] =
     IO.HandleErrorWith(this, f)
 
+  def ifM[B](ifTrue: => IO[B], ifFalse: => IO[B])(implicit ev: A <:< Boolean): IO[B] =
+    flatMap(a => if (ev(a)) ifTrue else ifFalse)
+
   def map[B](f: A => B): IO[B] = IO.Map(this, f)
 
   def onCancel(fin: IO[Unit]): IO[A] =
