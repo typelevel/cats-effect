@@ -1,9 +1,7 @@
 {
   "docs": {
-    "Getting Started": [
+    "Overview": [
       "installation",
-    ],
-    "Concepts": [
       "thread-model",
       "typeclasses",
       "schedulers"
