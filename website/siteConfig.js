@@ -16,7 +16,7 @@ const siteConfig = {
 
   // For no header links in the top nav bar -> headerLinks: [],
   headerLinks: [
-    {doc: 'installation', label: 'Docs'},
+    {doc: 'getting-started', label: 'Docs'},
     {href: 'https://github.com/typelevel/cats-effect', label: "GitHub", external: true},
     {href: `/cats-effect/api/3.x`, label: 'API'},
     // {href: '/cats-effect/resources.html', label: 'Resources'}

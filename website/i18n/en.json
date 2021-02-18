@@ -38,14 +38,53 @@
       "datatypes/supervisor": {
         "title": "supervisor"
       },
+      "getting-started": {
+        "title": "Getting Started"
+      },
       "installation": {
         "title": "Installation"
       },
       "schedulers": {
         "title": "Schedulers"
       },
+      "std/countdown-latch": {
+        "title": "Count Down Latch"
+      },
+      "std/cyclic-barrier": {
+        "title": "Cyclic Barrier"
+      },
+      "std/deferred": {
+        "title": "Deferred"
+      },
+      "std/dequeue": {
+        "title": "Dequeue"
+      },
+      "std/dispatcher": {
+        "title": "Dispatcher"
+      },
+      "std/hotswap": {
+        "title": "Hotswap"
+      },
+      "std/pqueue": {
+        "title": "Priority Queue"
+      },
+      "std/queue": {
+        "title": "Queue"
+      },
+      "std/ref": {
+        "title": "Ref"
+      },
+      "std/resource": {
+        "title": "Resource"
+      },
+      "std/supervisor": {
+        "title": "Supervisor"
+      },
       "threadmodel": {
         "title": "thread model"
+      },
+      "thread-model": {
+        "title": "Thread Model"
       },
       "typeclasses": {
         "title": "Typeclasses"
@@ -161,14 +200,53 @@
       "version-3.x/datatypes/version-3.x-supervisor": {
         "title": "supervisor"
       },
+      "version-3.x/version-3.x-getting-started": {
+        "title": "Getting Started"
+      },
       "version-3.x/version-3.x-installation": {
         "title": "Installation"
       },
       "version-3.x/version-3.x-schedulers": {
         "title": "Schedulers"
       },
+      "version-3.x/std/version-3.x-countdown-latch": {
+        "title": "Count Down Latch"
+      },
+      "version-3.x/std/version-3.x-cyclic-barrier": {
+        "title": "Cyclic Barrier"
+      },
+      "version-3.x/std/version-3.x-deferred": {
+        "title": "Deferred"
+      },
+      "version-3.x/std/version-3.x-dequeue": {
+        "title": "Dequeue"
+      },
+      "version-3.x/std/version-3.x-dispatcher": {
+        "title": "Dispatcher"
+      },
+      "version-3.x/std/version-3.x-hotswap": {
+        "title": "Hotswap"
+      },
+      "version-3.x/std/version-3.x-pqueue": {
+        "title": "Priority Queue"
+      },
+      "version-3.x/std/version-3.x-queue": {
+        "title": "Queue"
+      },
+      "version-3.x/std/version-3.x-ref": {
+        "title": "Ref"
+      },
+      "version-3.x/std/version-3.x-resource": {
+        "title": "Resource"
+      },
+      "version-3.x/std/version-3.x-supervisor": {
+        "title": "Supervisor"
+      },
       "version-3.x/version-3.x-threadmodel": {
         "title": "thread model"
+      },
+      "version-3.x/version-3.x-thread-model": {
+        "title": "Thread Model"
       },
       "version-3.x/version-3.x-typeclasses": {
         "title": "Typeclasses"
@@ -180,9 +258,9 @@
       "API": "API"
     },
     "categories": {
+      "Overview": "Overview",
+      "Standard Library": "Standard Library",
       "Getting Started": "Getting Started",
-      "Typeclasses": "Typeclasses",
-      "Schedulers": "Schedulers",
       "Guides": "Guides",
       "Data Types": "Data Types",
       "Concurrency": "Concurrency",
