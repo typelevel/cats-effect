@@ -44,7 +44,7 @@ object StupidFizzBuzz extends IOApp.Simple {
       _ <- poll.map(_ % 3 == 0).ifM(IO.println("fizz"), IO.unit).foreverM.start
       _ <- poll.map(_ % 5 == 0).ifM(IO.println("buzz"), IO.unit).foreverM.start
 
-      _ <- (wait *> ctr.update(_ + 1)).foreverM
+      _ <- (wait *> ctr.update(_ + 1)).foreverM.void
     } yield ()
 }
 ```
