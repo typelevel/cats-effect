@@ -242,5 +242,5 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
 object HashedWheelTimerScheduler {
   val defaultResolution: FiniteDuration = 200.millis
 
-  val defaultWheelSize: Int = 512
+  val defaultWheelSize: Int = 1024
 }

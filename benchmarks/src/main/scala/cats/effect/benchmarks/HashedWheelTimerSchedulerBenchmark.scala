@@ -18,7 +18,7 @@ package cats.effect.benchmarks
 
 import cats.implicits._
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
+import cats.effect.unsafe.{HashedWheelTimerScheduler, IORuntime, Scheduler}
 import scala.concurrent.duration._
 
 import org.openjdk.jmh.annotations._
@@ -46,28 +46,41 @@ import org.openjdk.jmh.infra.Blackhole
 @OutputTimeUnit(TimeUnit.SECONDS)
 class HashedWheelTimerSchedulerBenchmark {
 
-  val tokens: Int = 1000000
+  implicit lazy val runtime: IORuntime = {
+    val (compute, compDown) = IORuntime.createDefaultComputeThreadPool(runtime)
+    val (blocking, blockDown) = IORuntime.createDefaultBlockingExecutionContext()
+    val s = new HashedWheelTimerScheduler(
+      HashedWheelTimerScheduler.defaultWheelSize,
+      5.millis)
+    val (scheduler, schedDown) = (s, { () => s.shutdown() })
+    // val (scheduler, schedDown) = Scheduler.createOldScheduler()
 
-  @Param(Array("1000"))
+    IORuntime(
+      compute,
+      blocking,
+      scheduler,
+      () => {
+        compDown() //
+        blockDown()
+        schedDown()
+      }
+    )
+  }
+
+  val tokens: Int = 100
+
+  @Param(Array("1000000"))
   var size: Int = _
 
-  //Measure performance of scheduling by measuring its impact on a pure CPU workload
-  //This is necessary as different schedulers should always complete
-  //in the same amount of time but consume different amounts of CPU to achieve it
   @Benchmark
   def schedule() = {
-    val processors = Runtime.getRuntime().availableProcessors()
-    val compute = List.range(0, processors).traverse { _ => IO(Blackhole.consumeCPU(tokens)).start}
-    val timers = List.range(0, size).traverse { i => IO.sleep(i.millis).start }
 
     val run =
       for {
-        cs <- compute
-        ts <- timers
-        _ <- ts.traverse(_.join)
-        _ <- IO.println("timers done")
-        _ <- cs.traverse(_.join)
-        _ <- IO.println("compute  done")
+        fs <- List.range(0, size).traverse { i =>
+          (IO.sleep(i.micros) >> IO(Blackhole.consumeCPU(tokens))).start
+        }
+        _ <- fs.traverse(_.join)
       } yield ()
 
     run.unsafeRunSync()
