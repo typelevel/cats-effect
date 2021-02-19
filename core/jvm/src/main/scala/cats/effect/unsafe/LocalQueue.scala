@@ -115,6 +115,26 @@ import java.util.concurrent.atomic.AtomicInteger
  *      The post also contains more details on the fascinating history of
  *      [[java.util.concurrent.atomic.AtomicInteger#lazySet]], with comments and
  *      quotes from Doug Lea.
+ *
+ *   4. Even though usage of `sun.misc.Unsafe` in these classes was heavily
+ *      experimented with, it was decided to ultimately settle on standard Java
+ *      APIs. We believe that being a good JVM citizen (using official APIs),
+ *      making it easier for users to create GraalVM native images and having
+ *      generally more maintainable code vastly outweigh the marginal
+ *      improvements to performance that `Unsafe` would bring. The inherent
+ *      contention that arises under thread synchronization in the
+ *      multi-threaded cats-effect runtime is still much more costly such that
+ *      the performance gains with `Unsafe` pale in comparison. We have found
+ *      that algorithm improvements and smarter data structures bring much
+ *      larger performance gains.
+ *
+ *      Should a discovery be made which proves that direct usage of `Unsafe`
+ *      brings dramatic improvements in performance, this decision to not use it
+ *      might be reversed. This is however, very unlikely, as
+ *      [[java.util.concurrent.atomic.AtomicInteger]] is just a thin wrapper
+ *      around `Unsafe`. And `Unsafe` is only really needed on JVM 8. JVM 9+
+ *      introduce much richer and better APIs and tools for building
+ *      high-performance concurrent systems (e.g. `VarHandle`).
  */
 private final class LocalQueue {
 
