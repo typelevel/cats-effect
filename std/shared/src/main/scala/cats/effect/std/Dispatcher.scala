@@ -23,9 +23,10 @@ import cats.syntax.all._
 import scala.annotation.tailrec
 import scala.collection.immutable.LongMap
 import scala.concurrent.{Future, Promise}
-
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.util.{Failure, Success}
+
+import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 /**
  * A fiber-based supervisor utility for evaluating effects across an impure
@@ -80,12 +81,24 @@ object Dispatcher {
 
   private[this] val Open = () => ()
 
+  private[this] val Cpus: Int = Runtime.getRuntime().availableProcessors()
+
+  def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] =
+    for {
+      dispatchers <- (0 until Cpus).toList.traverse(_ => internal[F]).map(_.toArray)
+    } yield new Dispatcher[F] {
+      def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
+        val idx = ThreadLocalRandom.current().nextInt(Cpus)
+        dispatchers(idx).unsafeToFutureCancelable(fe)
+      }
+    }
+
   /**
    * Create a [[Dispatcher]] that can be used within a resource scope.
    * Once the resource scope exits, all active effects will be canceled, and
    * attempts to submit new effects will throw an exception.
    */
-  def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] = {
+  private[this] def internal[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] = {
     final case class Registration(action: F[Unit], prepareCancel: F[Unit] => Unit)
 
     final case class State(end: Long, registry: LongMap[Registration])
