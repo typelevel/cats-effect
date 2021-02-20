@@ -11,6 +11,7 @@ rm -rf docs/*
 
 rm -f website/versions.json
 rm -rf website/versioned_{docs,sidebars}
+mkdir website/versioned_{docs,sidebars}
 
 (cd website && yarn install)
 
