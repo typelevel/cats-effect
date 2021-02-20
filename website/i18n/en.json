@@ -5,44 +5,8 @@
     "previous": "Previous",
     "tagline": "The purely functional runtime for Scala",
     "docs": {
-      "datatypes/countdownlatch": {
-        "title": "countdown latch"
-      },
-      "datatypes/cyclicbarrier": {
-        "title": "cyclic barrier"
-      },
-      "datatypes/deferred": {
-        "title": "deferred"
-      },
-      "datatypes/dequeue": {
-        "title": "dequeue"
-      },
-      "datatypes/dispatcher": {
-        "title": "dispatcher"
-      },
-      "datatypes/hotswap": {
-        "title": "hotswap"
-      },
-      "datatypes/pqueue": {
-        "title": "priority queue"
-      },
-      "datatypes/queue": {
-        "title": "queue"
-      },
-      "datatypes/ref": {
-        "title": "ref"
-      },
-      "datatypes/resource": {
-        "title": "resource"
-      },
-      "datatypes/supervisor": {
-        "title": "supervisor"
-      },
       "getting-started": {
         "title": "Getting Started"
-      },
-      "installation": {
-        "title": "Installation"
       },
       "schedulers": {
         "title": "Schedulers"
@@ -79,9 +43,6 @@
       },
       "std/supervisor": {
         "title": "Supervisor"
-      },
-      "threadmodel": {
-        "title": "thread model"
       },
       "thread-model": {
         "title": "Thread Model"
@@ -140,8 +101,11 @@
       "version-2.x/guides/version-2.x-tutorial": {
         "title": "Tutorial"
       },
-      "version-2.x/version-2.x-installation": {
+      "version-2.x/version-2.x-getting-started": {
         "title": "Installation"
+      },
+      "version-2.x/testing/version-2.x-index": {
+        "title": "Testing with cats-effect"
       },
       "version-2.x/typeclasses/version-2.x-async": {
         "title": "Async"
@@ -167,44 +131,8 @@
       "version-2.x/typeclasses/version-2.x-sync": {
         "title": "Sync"
       },
-      "version-3.x/datatypes/version-3.x-countdownlatch": {
-        "title": "countdown latch"
-      },
-      "version-3.x/datatypes/version-3.x-cyclicbarrier": {
-        "title": "cyclic barrier"
-      },
-      "version-3.x/datatypes/version-3.x-deferred": {
-        "title": "deferred"
-      },
-      "version-3.x/datatypes/version-3.x-dequeue": {
-        "title": "dequeue"
-      },
-      "version-3.x/datatypes/version-3.x-dispatcher": {
-        "title": "dispatcher"
-      },
-      "version-3.x/datatypes/version-3.x-hotswap": {
-        "title": "hotswap"
-      },
-      "version-3.x/datatypes/version-3.x-pqueue": {
-        "title": "priority queue"
-      },
-      "version-3.x/datatypes/version-3.x-queue": {
-        "title": "queue"
-      },
-      "version-3.x/datatypes/version-3.x-ref": {
-        "title": "ref"
-      },
-      "version-3.x/datatypes/version-3.x-resource": {
-        "title": "resource"
-      },
-      "version-3.x/datatypes/version-3.x-supervisor": {
-        "title": "supervisor"
-      },
       "version-3.x/version-3.x-getting-started": {
         "title": "Getting Started"
-      },
-      "version-3.x/version-3.x-installation": {
-        "title": "Installation"
       },
       "version-3.x/version-3.x-schedulers": {
         "title": "Schedulers"
@@ -241,9 +169,6 @@
       },
       "version-3.x/std/version-3.x-supervisor": {
         "title": "Supervisor"
-      },
-      "version-3.x/version-3.x-threadmodel": {
-        "title": "thread model"
       },
       "version-3.x/version-3.x-thread-model": {
         "title": "Thread Model"
