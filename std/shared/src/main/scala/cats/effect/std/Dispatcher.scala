@@ -23,9 +23,10 @@ import cats.syntax.all._
 import scala.annotation.tailrec
 import scala.collection.immutable.LongMap
 import scala.concurrent.{Future, Promise}
-
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.util.{Failure, Success}
+
+import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 /**
  * A fiber-based supervisor utility for evaluating effects across an impure
@@ -78,7 +79,11 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 
 object Dispatcher {
 
+  private[this] val Noop: () => Unit = () => ()
   private[this] val Open = () => ()
+  private[this] val Completed: Either[Throwable, Unit] = Right(())
+
+  private[this] val Cpus: Int = Runtime.getRuntime().availableProcessors()
 
   /**
    * Create a [[Dispatcher]] that can be used within a resource scope.
@@ -99,52 +104,68 @@ object Dispatcher {
 
     for {
       supervisor <- Supervisor[F]
-      latch <- Resource.eval(F.delay(new AtomicReference[() => Unit]))
-      state <- Resource.eval(F.delay(new AtomicReference[State](Empty)))
+      latch <- Resource.eval(F.delay {
+        val latch = new Array[AtomicReference[() => Unit]](Cpus)
+        for (i <- 0 until Cpus) {
+          latch(i) = new AtomicReference(Noop)
+        }
+        latch
+      })
+      state <- Resource.eval(F.delay {
+        val state = new Array[AtomicReference[State]](Cpus)
+        for (i <- 0 until Cpus) {
+          state(i) = new AtomicReference(Empty)
+        }
+        state
+      })
       ec <- Resource.eval(F.executionContext)
       alive <- Resource.make(F.delay(new AtomicBoolean(true)))(ref => F.delay(ref.set(false)))
 
-      dispatcher = for {
-        _ <- F.delay(latch.set(null)) // reset to null
+      _ <- {
+        def dispatcher(idx: Int): F[Unit] =
+          for {
+            _ <- F.delay(latch(idx).set(Noop))
+            s <- F delay {
+              val st = state(idx)
 
-        s <- F delay {
-          @tailrec
-          def loop(): State = {
-            val s = state.get()
-            if (!state.compareAndSet(s, s.copy(registry = s.registry.empty)))
+              @tailrec
+              def loop(): State = {
+                val s = st.get()
+                if (!st.compareAndSet(s, s.copy(registry = s.registry.empty)))
+                  loop()
+                else
+                  s
+              }
+
               loop()
-            else
-              s
-          }
-
-          loop()
-        }
-
-        State(end, registry) = s
-
-        _ <-
-          if (registry.isEmpty) {
-            F.async_[Unit] { cb =>
-              if (!latch.compareAndSet(null, () => cb(Right(())))) {
-                // state was changed between when we last set the latch and now; complete the callback immediately
-                cb(Right(()))
-              }
             }
-          } else {
-            registry
-              .toList
-              .traverse_ {
-                case (id, Registration(action, prepareCancel)) =>
-                  for {
-                    fiber <- supervisor.supervise(action)
-                    _ <- F.delay(prepareCancel(fiber.cancel))
-                  } yield id -> fiber
-              }
-              .uncancelable
-          }
-      } yield ()
 
-      _ <- dispatcher.foreverM[Unit].background
+            State(end, registry) = s
+
+            _ <-
+              if (registry.isEmpty) {
+                F.async_[Unit] { cb =>
+                  if (!latch(idx).compareAndSet(null, () => cb(Completed))) {
+                    // state was changed between when we last set the latch and now; complete the callback immediately
+                    cb(Completed)
+                  }
+                }
+              } else {
+                registry
+                  .toList
+                  .traverse_ {
+                    case (id, Registration(action, prepareCancel)) =>
+                      for {
+                        fiber <- supervisor.supervise(action)
+                        _ <- F.delay(prepareCancel(fiber.cancel))
+                      } yield id -> fiber
+                  }
+                  .uncancelable
+              }
+          } yield ()
+
+        (0 until Cpus).toList.traverse_(n => dispatcher(n).foreverM[Unit].background)
+      }
     } yield {
       new Dispatcher[F] {
         def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
@@ -184,12 +205,16 @@ object Dispatcher {
             loop()
           }
 
+          val idx = ThreadLocalRandom.current().nextInt(Cpus)
+          val st = state(idx)
+          val lt = latch(idx)
+
           @tailrec
           def enqueue(): Long = {
-            val s @ State(end, registry) = state.get()
+            val s @ State(end, registry) = st.get()
             val registry2 = registry.updated(end, Registration(action, registerCancel _))
 
-            if (!state.compareAndSet(s, State(end + 1, registry2)))
+            if (!st.compareAndSet(s, State(end + 1, registry2)))
               enqueue()
             else
               end
@@ -197,10 +222,10 @@ object Dispatcher {
 
           @tailrec
           def dequeue(id: Long): Unit = {
-            val s @ State(_, registry) = state.get()
+            val s @ State(_, registry) = st.get()
             val registry2 = registry - id
 
-            if (!state.compareAndSet(s, s.copy(registry = registry2))) {
+            if (!st.compareAndSet(s, s.copy(registry = registry2))) {
               dequeue(id)
             }
           }
@@ -208,8 +233,8 @@ object Dispatcher {
           if (alive.get()) {
             val id = enqueue()
 
-            val f = latch.getAndSet(Open)
-            if (f != null) {
+            if (lt.get() ne Open) {
+              val f = lt.getAndSet(Open)
               f()
             }
 
