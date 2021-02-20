@@ -1,6 +1,6 @@
 {
   "docs": {
-    "Getting Started": ["installation"],
+    "Getting Started": ["getting-started"],
     "Guides": ["guides/tutorial", "guides/tracing"],
     "Data Types": ["datatypes/io", "datatypes/syncio", "datatypes/fiber", "datatypes/resource", "datatypes/clock", "datatypes/contextshift", "datatypes/timer", "datatypes/ioapp"],
     "Concurrency": ["concurrency/overview", "concurrency/basics", "concurrency/deferred", "concurrency/mvar", "concurrency/ref", "concurrency/semaphore"],
