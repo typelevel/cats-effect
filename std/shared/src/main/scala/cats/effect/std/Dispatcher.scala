@@ -85,22 +85,12 @@ object Dispatcher {
 
   private[this] val Cpus: Int = Runtime.getRuntime().availableProcessors()
 
-  def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] =
-    for {
-      dispatchers <- (0 until Cpus).toList.traverse(_ => internal[F]).map(_.toArray)
-    } yield new Dispatcher[F] {
-      def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
-        val idx = ThreadLocalRandom.current().nextInt(Cpus)
-        dispatchers(idx).unsafeToFutureCancelable(fe)
-      }
-    }
-
   /**
    * Create a [[Dispatcher]] that can be used within a resource scope.
    * Once the resource scope exits, all active effects will be canceled, and
    * attempts to submit new effects will throw an exception.
    */
-  private[this] def internal[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] = {
+  def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] = {
     final case class Registration(action: F[Unit], prepareCancel: F[Unit] => Unit)
 
     final case class State(end: Long, registry: LongMap[Registration])
