@@ -297,8 +297,8 @@ sealed abstract class Resource[F[_], +A] {
    */
   def race[B](
       that: Resource[F, B]
-  )(implicit F: Async[F]): Resource[F, Either[A, B]] =
-    Async[Resource[F, *]].race(this, that)
+  )(implicit F: Concurrent[F]): Resource[F, Either[A, B]] =
+    Concurrent[Resource[F, *]].race(this, that)
 
   /**
    * Implementation for the `flatMap` operation, as described via the
@@ -675,7 +675,7 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    * Races the evaluation of two resource allocations and returns the result of the winner,
    * except in the case of cancellation.
    */
-  def race[F[_]: Async, A, B](
+  def race[F[_]: Concurrent, A, B](
       rfa: Resource[F, A],
       rfb: Resource[F, B]
   ): Resource[F, Either[A, B]] =
@@ -1073,6 +1073,9 @@ abstract private[effect] class ResourceConcurrent[F[_]]
 
   def ref[A](a: A): Resource[F, Ref[Resource[F, *], A]] =
     Resource.eval(F.ref(a)).map(_.mapK(Resource.liftK[F]))
+
+  override def both[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, (A, B)] =
+    Resource.both(fa, fb)
 }
 
 private[effect] trait ResourceClock[F[_]] extends Clock[Resource[F, *]] {
