@@ -3,7 +3,7 @@
 [submodule "versions/2.x"]
 	path = versions/2.x
 	url = git@github.com:typelevel/cats-effect.git
-	branch = 2.x-docs
+	branch = 2.x-docs-migration
 
 [submodule "versions/3.x"]
 	path = versions/3.x
