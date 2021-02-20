@@ -57,7 +57,7 @@ class HomeSplash extends React.Component {
                 <div className="inner">
                     <ProjectTitle tagline={siteConfig.tagline} title={siteConfig.title} />
                     <code className="hljs css language-sbt">
-                        <span className="hljs-string">"org.typelevel"</span> %% <span className="hljs-string">"cats-effect"</span> % <span className="hljs-string">"2.3.0"</span>
+                        <span className="hljs-string">"org.typelevel"</span> %% <span className="hljs-string">"cats-effect"</span> % <span className="hljs-string">"3.0.0"</span>
                     </code>
                     <PromoSection>
                         <Button target="_blank" href="https://scastie.scala-lang.org/FMRL46KyQYKUElZEnaqKdQ">Try It!</Button>
@@ -87,6 +87,27 @@ class Index extends React.Component {
             </Container>
         );
 
+/*
+def sleepPrint(word: String, name: String, rand: Random[IO]) =
+  for {
+    delay <- rand.betweenInt(200, 700)
+    _     <- IO.sleep(delay.millis)
+    _     <- IO.println(s"$word, $name")
+  } yield ()
+
+for {
+  rand <- Random.scalaUtilRandom[IO]
+  _    <- IO.println("What is your name?")
+  name <- IO.readln
+
+  english <- sleepPrint("Hello", name, rand).foreverM.start
+  french  <- sleepPrint("Bonjour", name, rand).foreverM.start
+  spanish <- sleepPrint("Hola", name, rand).foreverM.start
+
+  _ <- IO.sleep(5.seconds)
+  _ <- english.cancel >> french.cancel >> spanish.cancel
+} yield ()
+ */
         const Hook = () => (
             <Block background="light" align="left">
                 {[
@@ -106,7 +127,7 @@ class Index extends React.Component {
                     {
                         content:
                             "Cats Effect uniquely defines what it means to be a functional effect. This gives it unmatched expressive and compositional power, unlocking an entirely ecosystem of extensibility and enriching your applications with the ability to re-mix the runtime system *itself*. This brings the full power of the Cats ecosystem to bear, enabling elegant answers to thorny problems like distributed tracing, dependency injection, error reporting along multiple channels, and much more!\n\n Cats Effect's system of abstractions are the culmination of years of research and experience in how to best apply functional programming concepts in real-world applications on the JVM and JavaScript, and particularly how to express such ideas within Scala.",
-                        image: `${baseUrl}img/cats-effect-1.0-hierarchy.svg`,
+                        image: `${baseUrl}img/cats-effect-3.0-hierarchy.svg`,
                         imageAlign: 'left',
                         title: 'Powerful Abstract Calculus',
                     },
@@ -193,7 +214,7 @@ class Index extends React.Component {
                     <div className="logos">{showcase}</div>
                     <div className="disclaimer">(nothing in this section should be construed as a partnership or endorsement, implied or otherwise)</div>
                     <div className="more-users">
-                        <a className="button" href={pageUrl('users.html')}>
+                        <a className="button" href={pageUrl('users')}>
                             More {siteConfig.title} Users
                         </a>
                     </div>
@@ -201,6 +222,87 @@ class Index extends React.Component {
             );
         };
 
+/*
+def read(socket: AsynchronousSocketChannel): IO[ByteBuffer] =
+  IO async { callback =>
+    IO {
+      val buf = ByteBuffer.allocate(1024)
+
+      // non-blocking read
+      val f = socket.read(buf, (), new CompletionHandler {
+
+        // invoke callback with result
+        def completed(len: Integer, u: Unit) = {
+          buf.flip()
+          buf.limit(len.toInt)
+          callback(Right(buf))
+        }
+
+        // invoke callback with error
+        def failed(t: Throwable, u: Unit) =
+          callback(Left(t))
+      })
+
+      Some(IO(f.cancel(true)))
+    }
+  }
+
+
+def fetchAllS3(
+    client: S3Client,
+    bucket: String,
+    names: List[String])
+    : IO[List[String]] =
+  names parTraverse { name =>
+    client.getObjectAsString(bucket, name)
+  }
+
+
+java.lang.Throwable: A runtime exception has occurred
+    at org.simpleapp.examples.Main$.b(Main.scala:28)
+    at org.simpleapp.examples.Main$.a(Main.scala:25)
+    at org.simpleapp.examples.Main$.$anonfun$foo$11(Main.scala:37)
+    at map @ org.simpleapp.examples.Main$.$anonfun$foo$10(Main.scala:37)
+    at flatMap @ org.simpleapp.examples.Main$.$anonfun$foo$8(Main.scala:36)
+    at flatMap @ org.simpleapp.examples.Main$.$anonfun$foo$6(Main.scala:35)
+    at flatMap @ org.simpleapp.examples.Main$.$anonfun$foo$4(Main.scala:34)
+    at flatMap @ org.simpleapp.examples.Main$.$anonfun$foo$2(Main.scala:33)
+    at flatMap @ org.simpleapp.examples.Main$.foo(Main.scala:32)
+    at flatMap @ org.simpleapp.examples.Main$.program(Main.scala:42)
+    at as @ org.simpleapp.examples.Main$.run(Main.scala:48)
+    at main$ @ org.simpleapp.examples.Main$.main(Main.scala:22)
+
+
+def endpoint[F[_]: Spawn](
+    server: Server[F],
+    body: Array[Byte] => F[Array[Byte]])
+    : F[Unit] = {
+
+  def handle(conn: Connection[F]): F[Unit] =
+    for {
+      request <- conn.read
+      response <- body(request)
+      _ <- conn.write(response)
+    } yield ()
+
+  MonadCancel[F] uncancelable { poll =>
+    poll(server.accept) flatMap { conn =>
+      poll(handle(conn)).guarantee(conn.close).start
+    }
+  }
+
+  handler.foreverM
+}
+
+
+val first = IO(computeFirst())
+val second = IO(computeSecond())
+
+for {
+  a <- first
+  b <- second
+} yield ()
+ */
         return (
             <div>
                 <HomeSplash siteConfig={siteConfig} language={language} />

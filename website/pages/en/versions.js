@@ -32,7 +32,7 @@ function Versions(props) {
               <tr>
                 <th>2.x</th>
                 <td>
-                  <a href={baseUrl + '2.x/installation'}>Documentation</a>
+                  <a href={baseUrl + '2.x/getting-started'}>Documentation</a>
                 </td>
                 <td>
                   <a href={'/cats-effect/api/2.x'}>Scaladoc</a>
@@ -41,7 +41,7 @@ function Versions(props) {
               <tr>
                 <th>3.x</th>
                 <td>
-                  <a href={baseUrl + 'installation'}>Documentation</a>
+                  <a href={baseUrl + 'getting-started'}>Documentation</a>
                 </td>
                 <td>
                   <a href={'/cats-effect/api/3.x'}>Scaladoc</a>
