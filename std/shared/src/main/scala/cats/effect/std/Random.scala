@@ -210,71 +210,69 @@ object Random {
 
   private abstract class ScalaRandom[F[_]: Sync](f: F[SRandom]) extends Random[F] {
 
-    def betweenLong(minInclusive: Long, maxExclusive: Long): F[Long] = {
-      require(minInclusive < maxExclusive, "Invalid bounds")
-      val difference = maxExclusive - minInclusive
-      for {
-        out <-
-          if (difference >= 0) {
-            nextLongBounded(difference).map(_ + minInclusive)
-          } else {
-            /* The interval size here is greater than Long.MaxValue,
-             * so the loop will exit with a probability of at least 1/2.
-             */
-            def loop(): F[Long] = {
-              nextLong.flatMap { n =>
-                if (n >= minInclusive && n < maxExclusive) n.pure[F]
-                else loop()
+    def betweenLong(minInclusive: Long, maxExclusive: Long): F[Long] =
+      require(minInclusive < maxExclusive, "Invalid bounds") *> {
+        val difference = maxExclusive - minInclusive
+        for {
+          out <-
+            if (difference >= 0) {
+              nextLongBounded(difference).map(_ + minInclusive)
+            } else {
+              /* The interval size here is greater than Long.MaxValue,
+               * so the loop will exit with a probability of at least 1/2.
+               */
+              def loop(): F[Long] = {
+                nextLong.flatMap { n =>
+                  if (n >= minInclusive && n < maxExclusive) n.pure[F]
+                  else loop()
+                }
               }
+              loop()
             }
-            loop()
-          }
-      } yield out
-    }
+        } yield out
+      }
 
-    def betweenInt(minInclusive: Int, maxExclusive: Int): F[Int] = {
-      require(minInclusive < maxExclusive, "Invalid bounds")
-      val difference = maxExclusive - minInclusive
-      for {
-        out <-
-          if (difference >= 0) {
-            nextIntBounded(difference).map(_ + minInclusive)
-          } else {
-            /* The interval size here is greater than Int.MaxValue,
-             * so the loop will exit with a probability of at least 1/2.
-             */
-            def loop(): F[Int] = {
-              nextInt.flatMap { n =>
-                if (n >= minInclusive && n < maxExclusive) n.pure[F]
-                else loop()
+    def betweenInt(minInclusive: Int, maxExclusive: Int): F[Int] =
+      require(minInclusive < maxExclusive, "Invalid bounds") *> {
+        val difference = maxExclusive - minInclusive
+        for {
+          out <-
+            if (difference >= 0) {
+              nextIntBounded(difference).map(_ + minInclusive)
+            } else {
+              /* The interval size here is greater than Int.MaxValue,
+               * so the loop will exit with a probability of at least 1/2.
+               */
+              def loop(): F[Int] = {
+                nextInt.flatMap { n =>
+                  if (n >= minInclusive && n < maxExclusive) n.pure[F]
+                  else loop()
+                }
               }
+              loop()
             }
-            loop()
-          }
-      } yield out
-    }
+        } yield out
+      }
 
-    def betweenFloat(minInclusive: Float, maxExclusive: Float): F[Float] = {
-      require(minInclusive < maxExclusive, "Invalid bounds")
+    def betweenFloat(minInclusive: Float, maxExclusive: Float): F[Float] =
       for {
+        _ <- require(minInclusive < maxExclusive, "Invalid bounds")
         f <- nextFloat
       } yield {
         val next = f * (maxExclusive - minInclusive) + minInclusive
         if (next < maxExclusive) next
         else Math.nextAfter(maxExclusive, Float.NegativeInfinity)
       }
-    }
 
-    def betweenDouble(minInclusive: Double, maxExclusive: Double): F[Double] = {
-      require(minInclusive < maxExclusive, "Invalid bounds")
+    def betweenDouble(minInclusive: Double, maxExclusive: Double): F[Double] =
       for {
+        _ <- require(minInclusive < maxExclusive, "Invalid bounds")
         d <- nextDouble
       } yield {
         val next = d * (maxExclusive - minInclusive) + minInclusive
         if (next < maxExclusive) next
         else Math.nextAfter(maxExclusive, Double.NegativeInfinity)
       }
-    }
 
     def nextAlphaNumeric: F[Char] = {
       val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
@@ -331,8 +329,6 @@ object Random {
       } yield out
 
     def nextLongBounded(n: Long): F[Long] = {
-      require(n > 0, "n must be positive")
-
       /*
        * Divide n by two until small enough for nextInt. On each
        * iteration (at most 31 of them but usually much less),
@@ -341,6 +337,7 @@ object Random {
        * half (which makes a difference only if odd).
        */
       for {
+        _ <- require(n > 0, s"n must be positive, but was $n")
         offset <- Ref[F].of(0L)
         _n <- Ref[F].of(n)
         _ <- Monad[F].whileM_(_n.get.map(_ >= Integer.MAX_VALUE))(
@@ -382,5 +379,8 @@ object Random {
         r <- f
         out <- Sync[F].delay(r.shuffle(v))
       } yield out
+
+    private def require(condition: Boolean, errorMessage: => String): F[Unit] =
+      new IllegalArgumentException(errorMessage).raiseError[F, Unit].unlessA(condition)
   }
 }
