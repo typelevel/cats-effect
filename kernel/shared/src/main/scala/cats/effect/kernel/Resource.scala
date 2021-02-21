@@ -1133,9 +1133,7 @@ abstract private[effect] class ResourceAsync[F[_]]
               val nt2 = new (Resource[F, *] ~> D) {
                 def apply[A](rfa: Resource[F, A]) =
                   Kleisli { r =>
-                    nt(rfa.allocated) flatMap {
-                      case (a, fin) => r.update(_ !> fin).as(a)
-                    }
+                    nt(rfa.allocated) flatMap { case (a, fin) => r.update(_ !> fin).as(a) }
                   }
               }
 

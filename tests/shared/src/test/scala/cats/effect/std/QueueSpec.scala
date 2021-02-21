@@ -178,9 +178,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         val test = IO.defer(constructor(0)).attempt
         test.flatMap { res =>
           IO {
-            res must beLike {
-              case Left(e) => e must haveClass[IllegalArgumentException]
-            }
+            res must beLike { case Left(e) => e must haveClass[IllegalArgumentException] }
           }
         }
       }
@@ -198,9 +196,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         val test = IO.defer(constructor(-1)).attempt
         test.flatMap { res =>
           IO {
-            res must beLike {
-              case Left(e) => e must haveClass[IllegalArgumentException]
-            }
+            res must beLike { case Left(e) => e must haveClass[IllegalArgumentException] }
           }
         }
       }
