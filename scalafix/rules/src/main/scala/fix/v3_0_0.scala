@@ -6,11 +6,6 @@ import scala.meta.Token._
 import scala.meta._
 
 class v3_0_0 extends SemanticRule("v3_0_0") {
-  /*
-  TODO:
-   - not found: type ConcurrentEffect
-   */
-
   override def fix(implicit doc: SemanticDocument): Patch = {
     val Blocker_M = SymbolMatcher.normalized("cats/effect/Blocker.")
     val Blocker_delay_M = SymbolMatcher.exact("cats/effect/Blocker#delay().")
@@ -18,10 +13,12 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
     val Bracket_uncancelable_M = SymbolMatcher.exact("cats/effect/Bracket#uncancelable().")
     val Concurrent_M = SymbolMatcher.normalized("cats/effect/Concurrent.")
     val ContextShift_M = SymbolMatcher.normalized("cats/effect/ContextShift.")
+    val ContextShift_shift_M = SymbolMatcher.exact("cats/effect/ContextShift#shift().")
     val IO_M = SymbolMatcher.normalized("cats/effect/IO.")
     val Parallel_M = SymbolMatcher.normalized("cats/Parallel.")
 
     val Resource_S = Symbol("cats/effect/Resource#")
+    val Spawn_S = Symbol("cats/effect/Spawn#")
     val Sync_S = Symbol("cats/effect/Sync#")
 
     Patch.replaceSymbols(
@@ -58,13 +55,21 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
             Patch.replaceTree(t, s"${Sync_S.displayName}[$typeF].blocking")
 
         // Blocker#delay -> Sync[F].blocking
-        case t @ Term.Select(_, Blocker_delay_M(_)) =>
+        case t @ Term.Select(blocker, Blocker_delay_M(_)) =>
           t.synthetics match {
             case TypeApplyTree(_, UniversalType(_, TypeRef(_, symbol, _)) :: _) :: _ =>
               Patch.addGlobalImport(Sync_S) +
                 Patch.replaceTree(t, s"${Sync_S.displayName}[${symbol.displayName}].blocking")
-            case _ =>
-              Patch.empty
+            case _ => Patch.empty
+          }
+
+        // ContextShift#shift -> Spawn[F].cede
+        case t @ Term.Select(cs, ContextShift_shift_M(_)) =>
+          cs.symbol.info.map(_.signature) match {
+            case Some(ValueSignature(TypeRef(_, _, TypeRef(_, symbol, _) :: _))) =>
+              Patch.addGlobalImport(Spawn_S) +
+                Patch.replaceTree(t, s"${Spawn_S.displayName}[${symbol.displayName}].cede")
+            case _ => Patch.empty
           }
 
         case t @ ImporteeNameOrRename(Blocker_M(_)) =>
