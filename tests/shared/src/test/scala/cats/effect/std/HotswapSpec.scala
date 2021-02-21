@@ -45,8 +45,9 @@ class HotswapSpec extends BaseSpec { outer =>
     "acquire new resource and finalize old resource on swap" in real {
       val op = for {
         log <- Ref.of[IO, List[String]](List())
-        _ <- Hotswap[IO, Unit](logged(log, "a")).use { case (hotswap, _) =>
-          hotswap.swap(logged(log, "b"))
+        _ <- Hotswap[IO, Unit](logged(log, "a")).use {
+          case (hotswap, _) =>
+            hotswap.swap(logged(log, "b"))
         }
         value <- log.get
       } yield value
@@ -61,8 +62,9 @@ class HotswapSpec extends BaseSpec { outer =>
     "finalize old resource on clear" in real {
       val op = for {
         log <- Ref.of[IO, List[String]](List())
-        _ <- Hotswap[IO, Unit](logged(log, "a")).use { case (hotswap, _) =>
-          hotswap.clear *> hotswap.swap(logged(log, "b"))
+        _ <- Hotswap[IO, Unit](logged(log, "a")).use {
+          case (hotswap, _) =>
+            hotswap.clear *> hotswap.swap(logged(log, "b"))
         }
         value <- log.get
       } yield value

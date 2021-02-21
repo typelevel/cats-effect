@@ -243,8 +243,9 @@ class SemaphoreSpec extends BaseSpec { outer =>
         } yield (a, t)
       }
 
-      op.flatMap { case (available, count) =>
-        IO(available mustEqual count)
+      op.flatMap {
+        case (available, count) =>
+          IO(available mustEqual count)
       }
     }
 

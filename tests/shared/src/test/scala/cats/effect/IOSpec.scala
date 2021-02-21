@@ -952,8 +952,9 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           ref <- Ref[IO].of(false)
           _ <-
             IO.asyncForIO
-              .bracketFull[Unit, Unit](_ => IO.unit)(_ => sys.error("borked!")) { case _ =>
-                ref.set(true)
+              .bracketFull[Unit, Unit](_ => IO.unit)(_ => sys.error("borked!")) {
+                case _ =>
+                  ref.set(true)
               }
               .attempt
           flag <- ref.get

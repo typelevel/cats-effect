@@ -64,28 +64,31 @@ private[kernel] object MiniSemaphore {
         def acquire: F[Unit] =
           F.uncancelable { poll =>
             F.deferred[Unit].flatMap { wait =>
-              val cleanup = state.update { case s @ State(waiting, permits) =>
-                if (waiting.nonEmpty)
-                  State(waiting.filterNot(_ eq wait), permits)
-                else s
+              val cleanup = state.update {
+                case s @ State(waiting, permits) =>
+                  if (waiting.nonEmpty)
+                    State(waiting.filterNot(_ eq wait), permits)
+                  else s
               }
 
-              state.modify { case State(waiting, permits) =>
-                if (permits == 0)
-                  State(waiting :+ wait, permits) -> poll(wait.get).onCancel(cleanup)
-                else
-                  State(waiting, permits - 1) -> ().pure[F]
+              state.modify {
+                case State(waiting, permits) =>
+                  if (permits == 0)
+                    State(waiting :+ wait, permits) -> poll(wait.get).onCancel(cleanup)
+                  else
+                    State(waiting, permits - 1) -> ().pure[F]
               }.flatten
             }
           }
 
         def release: F[Unit] =
           state
-            .modify { case State(waiting, permits) =>
-              if (waiting.nonEmpty)
-                State(waiting.tail, permits) -> waiting.head.complete(()).void
-              else
-                State(waiting, permits + 1) -> ().pure[F]
+            .modify {
+              case State(waiting, permits) =>
+                if (waiting.nonEmpty)
+                  State(waiting.tail, permits) -> waiting.head.complete(()).void
+                else
+                  State(waiting, permits + 1) -> ().pure[F]
             }
             .flatten
             .uncancelable

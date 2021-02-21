@@ -66,22 +66,23 @@ object CyclicBarrier {
         val await: F[Unit] =
           F.deferred[Unit].flatMap { gate =>
             F.uncancelable { poll =>
-              state.modify { case State(awaiting, epoch, unblock) =>
-                val awaitingNow = awaiting - 1
+              state.modify {
+                case State(awaiting, epoch, unblock) =>
+                  val awaitingNow = awaiting - 1
 
-                if (awaitingNow == 0)
-                  State(capacity, epoch + 1, gate) -> unblock.complete(()).void
-                else {
-                  val newState = State(awaitingNow, epoch, unblock)
-                  // reincrement count if this await gets canceled,
-                  // but only if the barrier hasn't reset in the meantime
-                  val cleanup = state.update { s =>
-                    if (s.epoch == epoch) s.copy(awaiting = s.awaiting + 1)
-                    else s
+                  if (awaitingNow == 0)
+                    State(capacity, epoch + 1, gate) -> unblock.complete(()).void
+                  else {
+                    val newState = State(awaitingNow, epoch, unblock)
+                    // reincrement count if this await gets canceled,
+                    // but only if the barrier hasn't reset in the meantime
+                    val cleanup = state.update { s =>
+                      if (s.epoch == epoch) s.copy(awaiting = s.awaiting + 1)
+                      else s
+                    }
+
+                    newState -> poll(unblock.get).onCancel(cleanup)
                   }
-
-                  newState -> poll(unblock.get).onCancel(cleanup)
-                }
 
               }.flatten
             }

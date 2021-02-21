@@ -141,8 +141,9 @@ object Dequeue {
       _tryTake(queue => queue.tryPopFront)
 
     override def reverse: F[Unit] =
-      state.update { case State(queue, size, takers, offerers) =>
-        State(queue.reverse, size, takers, offerers)
+      state.update {
+        case State(queue, size, takers, offerers) =>
+          State(queue.reverse, size, takers, offerers)
       }
 
     private def _offer(a: A, update: BankersQueue[A] => BankersQueue[A]): F[Unit] =
