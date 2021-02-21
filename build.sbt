@@ -134,6 +134,8 @@ ThisBuild / scmInfo := Some(
     url("https://github.com/typelevel/cats-effect"),
     "git@github.com:typelevel/cats-effect.git"))
 
+ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/"))
+
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.4.2"

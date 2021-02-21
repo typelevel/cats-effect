@@ -1,6 +1,6 @@
 ---
 id: supervisor
-title: supervisor
+title: Supervisor
 ---
 
 ## Motivation

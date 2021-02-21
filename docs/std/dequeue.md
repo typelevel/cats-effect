@@ -1,6 +1,6 @@
 ---
 id: dequeue
-title: dequeue
+title: Dequeue
 ---
 
 A purely-functional concurrent implementation of a double-ended queue.

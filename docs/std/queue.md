@@ -1,6 +1,6 @@
 ---
 id: queue
-title: queue
+title: Queue
 ---
 
 A purely-functional concurrent implementation of a queue.
