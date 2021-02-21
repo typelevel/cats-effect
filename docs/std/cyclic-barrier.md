@@ -1,6 +1,6 @@
 ---
-id: cyclicbarrier
-title: cyclic barrier
+id: cyclic-barrier
+title: Cyclic Barrier
 ---
 
 A re-usable synchronization primitive that allows a set of

@@ -1,6 +1,6 @@
 ---
 id: pqueue
-title: priority queue
+title: Priority Queue
 ---
 
 A purely-functional concurrent implementation of a priority queue, using

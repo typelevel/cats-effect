@@ -1,6 +1,6 @@
 ---
 id: ref
-title: ref
+title: Ref
 ---
 
 An asynchronous, concurrent mutable reference.

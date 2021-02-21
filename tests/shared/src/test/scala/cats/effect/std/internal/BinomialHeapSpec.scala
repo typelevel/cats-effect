@@ -112,9 +112,7 @@ class BinomialHeapSpec extends Specification with ScalaCheck {
     tree.children match {
       case Nil => rank == 1
       case cs =>
-        List.range(0, rank).reverse.zip(cs).forall {
-          case (r, t) => checkRank(r, t)
-        }
+        List.range(0, rank).reverse.zip(cs).forall { case (r, t) => checkRank(r, t) }
     }
 
   sealed trait Op[+A]

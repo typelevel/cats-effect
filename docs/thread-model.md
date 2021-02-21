@@ -1,6 +1,6 @@
 ---
-id: threadmodel
-title: thread model
+id: thread-model
+title: Thread Model
 ---
 
 Cats effect is a powerful tool for creating and reasoning about highly

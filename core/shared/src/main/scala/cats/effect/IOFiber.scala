@@ -419,8 +419,11 @@ private final class IOFiber[A](
                 // `wasFinalizing` is published
                 if (finalizing == state.wasFinalizing) {
                   if (!shouldFinalize()) {
-                    /* we weren't cancelled, so resume the runloop */
-                    asyncContinue(e)
+                    /* we weren't cancelled, so schedule the runloop for execution */
+                    val ec = currentCtx
+                    resumeTag = AsyncContinueR
+                    objectState.push(e)
+                    execute(ec)(this)
                   } else {
                     /*
                      * we were canceled, but since we have won the race on `suspended`
@@ -573,7 +576,12 @@ private final class IOFiber[A](
 
             if (!shouldFinalize()) {
               /* we weren't cancelled, so resume the runloop */
-              asyncContinue(result)
+              val next = result match {
+                case Left(t) => failed(t, 0)
+                case Right(a) => succeeded(a, 0)
+              }
+
+              runLoop(next, nextIteration)
             } else {
               /*
                * we were canceled, but `cancel` cannot run the finalisers
@@ -708,13 +716,6 @@ private final class IOFiber[A](
     objectState.invalidate()
 
     finalizers.invalidate()
-  }
-
-  private[this] def asyncContinue(e: Either[Throwable, Any]): Unit = {
-    val ec = currentCtx
-    resumeTag = AsyncContinueR
-    objectState.push(e)
-    execute(ec)(this)
   }
 
   private[this] def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
