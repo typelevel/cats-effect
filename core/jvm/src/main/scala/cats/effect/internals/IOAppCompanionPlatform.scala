@@ -131,7 +131,7 @@ private[effect] trait IOAppCompanionPlatform {
   }
 
   private[this] val defaultScheduler: Resource[SyncIO, ScheduledExecutorService] =
-    Resource.liftF(SyncIO(IOTimer.scheduler))
+    Resource.eval(SyncIO(IOTimer.scheduler))
 
   final private class Context(val executionContext: ExecutionContext, val scheduler: ScheduledExecutorService) {
     val timer: Timer[IO] = IO.timer(executionContext, scheduler)

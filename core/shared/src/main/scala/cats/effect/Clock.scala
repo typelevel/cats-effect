@@ -238,10 +238,10 @@ protected[effect] trait LowPriorityImplicits extends LowerPriorityImplicits {
   implicit def deriveResource[F[_]](implicit F: Applicative[F], clock: Clock[F]): Clock[Resource[F, *]] =
     new Clock[Resource[F, *]] {
       def realTime(unit: TimeUnit): Resource[F, Long] =
-        Resource.liftF(clock.realTime(unit))
+        Resource.eval(clock.realTime(unit))
 
       def monotonic(unit: TimeUnit): Resource[F, Long] =
-        Resource.liftF(clock.monotonic(unit))
+        Resource.eval(clock.monotonic(unit))
     }
 }
 

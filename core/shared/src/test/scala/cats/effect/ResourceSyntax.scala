@@ -34,14 +34,14 @@ object Test {
     // Dotty does not have +* kind projector syntax
     type PartiallyApplied[+A] = F[Throwable, A]
     Resource
-      .liftF[PartiallyApplied, Either[Base, Nothing]](f[PartiallyApplied])
+      .eval[PartiallyApplied, Either[Base, Nothing]](f[PartiallyApplied])
       .map(x => x)
   }
 
   // this one fails, but not the above
   def g[F[+_]](implicit F: Sync[F]): Resource[F, Either[Base, Nothing]] =
     Resource
-      .liftF[F, Either[Base, Nothing]](f[F])
+      .eval[F, Either[Base, Nothing]](f[F])
       .map(x => x)
       .flatMap(x => Resource.pure[F, Either[Base, Nothing]](x))
 

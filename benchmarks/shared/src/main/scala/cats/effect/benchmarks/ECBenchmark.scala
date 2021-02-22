@@ -40,7 +40,7 @@ class ECBenchmark {
   private val ioApp = new IOApp with Run
   private val ioAppCtx = new IOApp.WithContext with Run {
     protected def executionContextResource: Resource[SyncIO, ExecutionContext] =
-      Resource.liftF(SyncIO.pure(ExecutionContext.Implicits.global))
+      Resource.eval(SyncIO.pure(ExecutionContext.Implicits.global))
   }
 
   @Benchmark
