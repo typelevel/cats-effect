@@ -8,8 +8,6 @@ https://github.com/typelevel/cats-effect/issues/1048
 
 the proposal by Daniel https://github.com/typelevel/cats-effect/issues/634
 
-the scalafix suggestions https://github.com/typelevel/cats-effect/issues/1049
-
 https://scalacenter.github.io/scala-3-migration-guide/
 https://ionicframework.com/docs/reference/migration
 https://v3.vuejs.org/guide/migration/introduction.html#overview
@@ -168,6 +166,7 @@ Note: package name changes were skipped from the table. Most type classes are no
 | `IO.shift`                                  | See [below](#shifting)                  |
 | `IO.cancelBoundary`                         | `IO.cede`                               | Also [shifts](#shifting)                                               |
 | IO tracing                                  | Currently missing                       |
+| `Resource.parZip`                           | `Resource.both`                         |
 | `Resource.fromAutoCloseableBlocking`        | `Resource.fromAutoCloseable`            | The method always uses `blocking` for the cleanup action               |
 | `Timer[F].clock`                            | `Clock[F]`                              |
 | `Timer[F].sleep`                            | `Temporal[F].sleep`                     |
