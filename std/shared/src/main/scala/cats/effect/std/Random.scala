@@ -381,6 +381,7 @@ object Random {
       } yield out
 
     private def require(condition: Boolean, errorMessage: => String): F[Unit] =
-      new IllegalArgumentException(errorMessage).raiseError[F, Unit].unlessA(condition)
+      if (condition) ().pure[F]
+      else new IllegalArgumentException(errorMessage).raiseError[F, Unit]
   }
 }
