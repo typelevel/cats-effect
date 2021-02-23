@@ -269,7 +269,7 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[effect] def executeFiber(fiber: IOFiber[_]): Unit = {
     if (Thread.currentThread().isInstanceOf[WorkerThread]) {
-      rescheduleFiberAndNotify(fiber)
+      scheduleFiber(fiber)
     } else {
       externalQueue.offer(fiber)
       notifyParked()
@@ -292,7 +292,7 @@ private[effect] final class WorkStealingThreadPool(
    * This method executes an unchecked cast to a `WorkerThread` and should only ever be called
    * directly from a `WorkerThread`.
    */
-  private[effect] def rescheduleFiberAndNotify(fiber: IOFiber[_]): Unit = {
+  private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit = {
     Thread.currentThread().asInstanceOf[WorkerThread].enqueueAndNotify(fiber)
   }
 

@@ -610,7 +610,7 @@ private final class IOFiber[A](
 
           // println(s"<$name> spawning <$childName>")
 
-          rescheduleAndNotify(ec)(fiber)
+          scheduleFiber(ec)(fiber)
 
           runLoop(succeeded(fiber, 0), nextIteration)
 
@@ -742,12 +742,12 @@ private final class IOFiber[A](
 
   private[this] def cede(): Unit = {
     resumeTag = CedeR
-    reschedule(currentCtx)(this)
+    rescheduleFiber(currentCtx)(this)
   }
 
   private[this] def autoCede(): Unit = {
     resumeTag = AutoCedeR
-    reschedule(currentCtx)(this)
+    rescheduleFiber(currentCtx)(this)
   }
 
   /*
@@ -883,15 +883,15 @@ private final class IOFiber[A](
       }
     }
 
-  private[this] def reschedule(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
+  private[this] def rescheduleFiber(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
     if (ec.isInstanceOf[WorkStealingThreadPool])
       ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiber(fiber)
     else
       scheduleOnForeignEC(ec)(fiber)
 
-  private[this] def rescheduleAndNotify(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
+  private[this] def scheduleFiber(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
     if (ec.isInstanceOf[WorkStealingThreadPool])
-      ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiberAndNotify(fiber)
+      ec.asInstanceOf[WorkStealingThreadPool].scheduleFiber(fiber)
     else
       scheduleOnForeignEC(ec)(fiber)
 
