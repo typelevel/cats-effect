@@ -76,6 +76,8 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val sleepers: ConcurrentLinkedQueue[WorkerThread] =
     new ConcurrentLinkedQueue()
 
+  private[this] val blockingThreadCounter: AtomicInteger = new AtomicInteger(0)
+
   // Shutdown signal for the worker threads.
   @volatile private[unsafe] var done: Boolean = false
 
@@ -85,7 +87,8 @@ private[effect] final class WorkStealingThreadPool(
     var i = 0
     while (i < threadCount) {
       val index = i
-      val thread = new WorkerThread(index, this)
+      val thread =
+        new WorkerThread(index, threadPrefix, blockingThreadCounter, externalQueue, this)
       thread.setName(s"$threadPrefix-$index")
       thread.setDaemon(true)
       workerThreads(i) = thread
@@ -124,14 +127,8 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // The worker thread could not steal any work. Fall back to checking the external queue.
-    externalDequeue()
-  }
-
-  /**
-   * Checks the external queue for a fiber to execute next.
-   */
-  private[unsafe] def externalDequeue(): IOFiber[_] =
     externalQueue.poll()
+  }
 
   /**
    * Deregisters the current worker thread from the set of searching threads and asks for
@@ -287,7 +284,7 @@ private[effect] final class WorkStealingThreadPool(
    * `WorkerThread`.
    */
   private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit = {
-    Thread.currentThread().asInstanceOf[WorkerThread].smartEnqueue(fiber, externalQueue)
+    Thread.currentThread().asInstanceOf[WorkerThread].smartEnqueue(fiber)
   }
 
   /**
@@ -296,7 +293,7 @@ private[effect] final class WorkStealingThreadPool(
    * directly from a `WorkerThread`.
    */
   private[effect] def rescheduleFiberAndNotify(fiber: IOFiber[_]): Unit = {
-    Thread.currentThread().asInstanceOf[WorkerThread].enqueueAndNotify(fiber, externalQueue)
+    Thread.currentThread().asInstanceOf[WorkerThread].enqueueAndNotify(fiber)
   }
 
   /**

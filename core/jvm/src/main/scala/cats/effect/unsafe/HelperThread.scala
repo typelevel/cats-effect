@@ -71,7 +71,7 @@ private final class HelperThread(
   private[this] val signal: AtomicBoolean = new AtomicBoolean(false)
 
   /**
-   * Flag which is set whenever a blocking code region is entered. This is
+   * A flag which is set whenever a blocking code region is entered. This is
    * useful for detecting nested blocking regions, in order to avoid
    * unnecessarily spawning extra [[HelperThread]]s.
    */

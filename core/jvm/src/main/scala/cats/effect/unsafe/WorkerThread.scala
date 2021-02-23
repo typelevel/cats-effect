@@ -26,8 +26,11 @@
 package cats.effect
 package unsafe
 
-import java.util.Random
+import scala.concurrent.{BlockContext, CanAwait}
+
+import java.util.{ArrayList, Random}
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -39,10 +42,15 @@ import java.util.concurrent.locks.LockSupport
  */
 private final class WorkerThread(
     private[this] val index: Int, // index assigned by the thread pool in which this thread operates
+    private[this] val threadPrefix: String,
+    private[this] val blockingThreadCounter: AtomicInteger,
+    private[this] val overflow: ConcurrentLinkedQueue[IOFiber[_]],
     private[this] val pool: WorkStealingThreadPool // reference to the thread pool in which this thread operates
-) extends Thread {
+) extends Thread
+    with BlockContext {
 
   import WorkStealingThreadPoolConstants._
+  import LocalQueueConstants._
 
   // The local work stealing queue where tasks are scheduled without contention.
   private[this] val queue: LocalQueue = new LocalQueue()
@@ -62,11 +70,24 @@ private final class WorkerThread(
   @volatile private[unsafe] var sleeping: Boolean = false
 
   /**
+   * An array backed list for purposes of draining the local queue in
+   * anticipation of execution of blocking code.
+   */
+  private[this] val drain: ArrayList[IOFiber[_]] = new ArrayList(LocalQueueCapacity)
+
+  /**
+   * A flag which is set whenever a blocking code region is entered. This is
+   * useful for detecting nested blocking regions, in order to avoid
+   * unnecessarily spawning extra [[HelperThread]]s.
+   */
+  private[this] var blocking: Boolean = false
+
+  /**
    * Enqueues a fiber to the local work stealing queue. This method always
    * notifies another thread that a steal should be attempted from this queue.
    */
-  def enqueueAndNotify(fiber: IOFiber[_], external: ConcurrentLinkedQueue[IOFiber[_]]): Unit = {
-    queue.enqueue(fiber, external)
+  def enqueueAndNotify(fiber: IOFiber[_]): Unit = {
+    queue.enqueue(fiber, overflow)
     pool.notifyParked()
   }
 
@@ -75,10 +96,10 @@ private final class WorkerThread(
    * notifying another thread about potential work to be stolen if it can be
    * determined that this is a mostly single fiber workload.
    */
-  def smartEnqueue(fiber: IOFiber[_], external: ConcurrentLinkedQueue[IOFiber[_]]): Unit = {
+  def smartEnqueue(fiber: IOFiber[_]): Unit = {
     // Check if the local queue is empty **before** enqueueing the given fiber.
     val empty = queue.isEmpty()
-    queue.enqueue(fiber, external)
+    queue.enqueue(fiber, overflow)
     if (tick == ExternalCheckIterationsMask || !empty) {
       // On the next iteration, this worker thread will check for new work from
       // the external queue, which means that another thread should be woken up
@@ -134,7 +155,7 @@ private final class WorkerThread(
     // Decide whether it's time to look for work in the external queue.
     if ((tick & ExternalCheckIterationsMask) == 0) {
       // It is time to check the external queue.
-      fiber = pool.externalDequeue()
+      fiber = overflow.poll()
       if (fiber == null) {
         // Fall back to checking the local queue.
         fiber = queue.dequeue()
@@ -144,7 +165,7 @@ private final class WorkerThread(
       fiber = queue.dequeue()
       if (fiber == null) {
         // Fall back to checking the external queue.
-        fiber = pool.externalDequeue()
+        fiber = overflow.poll()
       }
     }
 
@@ -297,6 +318,73 @@ private final class WorkerThread(
         // can be garbage collected.
         fiber = null
       }
+    }
+  }
+
+  /**
+   * A mechanism for executing support code before executing a blocking action.
+   *
+   * This is a slightly more involved implementation of the support code in
+   * anticipation of running blocking code, also implemented in [[WorkerThread]].
+   *
+   * For a more detailed discussion on the design principles behind the support
+   * for running blocking actions on the [[WorkStealingThreadPool]], check the
+   * code comments for [[HelperThread]].
+   *
+   * The main difference between this and the implementation in [[HelperThread]]
+   * is that [[WorkerThread]]s need to take care of draining their
+   * [[LocalQueue]] to the `overflow` queue before entering the blocking region.
+   *
+   * The reason why this code is duplicated, instead of inherited is to keep the
+   * monomorphic callsites in the `IOFiber` runloop.
+   */
+  override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+    // Drain the local queue to the `overflow` queue.
+    queue.drain(drain)
+    overflow.addAll(drain)
+    drain.clear()
+
+    if (blocking) {
+      // This `WorkerThread` is already inside an enclosing blocking region.
+      // There is no need to spawn another `HelperThread`. Instead, directly
+      // execute the blocking action.
+      thunk
+    } else {
+      // Spawn a new `HelperThread` to take the place of this thread, as the
+      // current thread prepares to execute a blocking action.
+
+      // Logically enter the blocking region.
+      blocking = true
+
+      // Spawn a new `HelperThread`.
+      val helper = new HelperThread(threadPrefix, blockingThreadCounter, overflow, pool)
+      helper.setName(
+        s"$threadPrefix-blocking-helper-${blockingThreadCounter.incrementAndGet()}")
+      helper.setDaemon(true)
+      helper.start()
+
+      // With another `HelperThread` started, it is time to execute the blocking
+      // action.
+      val result = thunk
+
+      // Blocking is finished. Time to signal the spawned helper thread.
+      helper.setSignal()
+
+      // Do not proceed until the helper thread has fully died. This is terrible
+      // for performance, but it is justified in this case as the stability of
+      // the `WorkStealingThreadPool` is of utmost importance in the face of
+      // blocking, which in itself is **not** what the pool is optimized for.
+      // In practice however, unless looking at a completely pathological case
+      // of propagating blocking actions on every spawned helper thread, this is
+      // not an issue, as the `HelperThread`s are all executing `IOFiber[_]`
+      // instances, which mostly consist of non-blocking code.
+      helper.join()
+
+      // Logically exit the blocking region.
+      blocking = false
+
+      // Return the computed result from the blocking operation
+      result
     }
   }
 }
