@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import scala.concurrent.CancellationException
+import scala.concurrent.{blocking, CancellationException}
 
 import java.util.concurrent.CountDownLatch
 
@@ -55,7 +55,7 @@ trait IOApp {
       if (latch.getCount() > 0) {
         val cancelLatch = new CountDownLatch(1)
         fiber.cancel.unsafeRunAsync(_ => cancelLatch.countDown())(runtime)
-        cancelLatch.await()
+        blocking(cancelLatch.await())
       }
 
       // Clean up after ourselves, relevant for running IOApps in sbt,
@@ -76,7 +76,7 @@ trait IOApp {
     }
 
     try {
-      latch.await()
+      blocking(latch.await())
       if (error != null) {
         // Runtime has already been shutdown in IOFiber.
         throw error
