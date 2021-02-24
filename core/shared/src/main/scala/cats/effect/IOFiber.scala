@@ -868,34 +868,29 @@ private final class IOFiber[A](
     }
   }
 
-  private[this] def execute(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
+  private[this] def execute(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
       ec.asInstanceOf[WorkStealingThreadPool].executeFiber(fiber)
     } else {
-      try {
-        ec.execute(fiber)
-      } catch {
-        case _: RejectedExecutionException =>
-        /*
-         * swallow this exception, since it means we're being externally murdered,
-         * so we should just... drop the runloop
-         */
-      }
+      scheduleOnForeignEC(ec)(fiber)
     }
+  }
 
-  private[this] def rescheduleFiber(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
+  private[this] def rescheduleFiber(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
     if (ec.isInstanceOf[WorkStealingThreadPool])
       ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiber(fiber)
     else
       scheduleOnForeignEC(ec)(fiber)
+  }
 
-  private[this] def scheduleFiber(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
+  private[this] def scheduleFiber(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
     if (ec.isInstanceOf[WorkStealingThreadPool])
       ec.asInstanceOf[WorkStealingThreadPool].scheduleFiber(fiber)
     else
       scheduleOnForeignEC(ec)(fiber)
+  }
 
-  private[this] def scheduleOnForeignEC(ec: ExecutionContext)(fiber: IOFiber[_]): Unit =
+  private[this] def scheduleOnForeignEC(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
     try {
       ec.execute(fiber)
     } catch {
@@ -905,6 +900,7 @@ private final class IOFiber[A](
        * so we should just... drop the runloop
        */
     }
+  }
 
   // TODO figure out if the JVM ever optimizes this away
   private[this] def readBarrier(): Unit = {
