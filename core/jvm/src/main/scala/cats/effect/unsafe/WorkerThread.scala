@@ -40,7 +40,7 @@ import java.util.concurrent.locks.LockSupport
  * difference to a fixed thread executor, in which all threads
  * contend for work from a single shared queue.
  */
-private final class WorkerThread(
+private[effect] final class WorkerThread(
     private[this] val index: Int, // index assigned by the thread pool in which this thread operates
     private[this] val threadPrefix: String,
     private[this] val blockingThreadCounter: AtomicInteger,
@@ -115,33 +115,33 @@ private final class WorkerThread(
    * A forwarder method for stealing work from the local work stealing queue in
    * this thread into the `into` queue that belongs to another thread.
    */
-  def stealInto(into: LocalQueue): IOFiber[_] =
+  private[unsafe] def stealInto(into: LocalQueue): IOFiber[_] =
     queue.stealInto(into)
 
   /**
    * A forwarder method for checking if the local work stealing queue contains
    * any fibers.
    */
-  def isEmpty(): Boolean =
+  private[unsafe] def isEmpty(): Boolean =
     queue.isEmpty()
 
   /**
    * Returns true if this worker thread is actively searching for work and
    * looking to steal some from other worker threads.
    */
-  def isSearching(): Boolean =
+  private[unsafe] def isSearching(): Boolean =
     searching
 
   /**
    * Returns the work stealing thread pool index of this worker thread.
    */
-  def getIndex(): Int =
+  private[unsafe] def getIndex(): Int =
     index
 
   /**
    * Returns the local work stealing queue of this worker thread.
    */
-  def getQueue(): LocalQueue =
+  private[unsafe] def getQueue(): LocalQueue =
     queue
 
   /**

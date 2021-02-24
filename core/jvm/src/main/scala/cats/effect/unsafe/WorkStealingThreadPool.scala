@@ -280,40 +280,10 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Reschedules the given fiber directly on the local work stealing queue on the same thread,
-   * but with the possibility to skip notifying other fibers of a potential steal target, which
-   * reduces contention in workloads running on fewer worker threads. This method executes an
-   * unchecked cast to a `WorkerThread` and should only ever be called directly from a
-   * `WorkerThread`.
-   */
-  private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit = {
-    val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread]) {
-      thread.asInstanceOf[WorkerThread].reschedule(fiber)
-    } else {
-      thread.asInstanceOf[HelperThread].schedule(fiber)
-    }
-  }
-
-  /**
-   * Reschedules the given fiber directly on the local work stealing queue on the same thread.
-   * This method executes an unchecked cast to a `WorkerThread` and should only ever be called
-   * directly from a `WorkerThread`.
-   */
-  private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit = {
-    val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread]) {
-      thread.asInstanceOf[WorkerThread].schedule(fiber)
-    } else {
-      thread.asInstanceOf[HelperThread].schedule(fiber)
-    }
-  }
-
-  /**
    * Schedule a `java.lang.Runnable` for execution in this thread pool. The runnable
    * is suspended in an `IO` and executed as a fiber.
    */
-  def execute(runnable: Runnable): Unit = {
+  override def execute(runnable: Runnable): Unit = {
     if (runnable.isInstanceOf[IOFiber[_]]) {
       executeFiber(runnable.asInstanceOf[IOFiber[_]])
     } else {
@@ -330,7 +300,7 @@ private[effect] final class WorkStealingThreadPool(
     }
   }
 
-  def reportFailure(cause: Throwable): Unit = {
+  override def reportFailure(cause: Throwable): Unit = {
     cause.printStackTrace()
   }
 

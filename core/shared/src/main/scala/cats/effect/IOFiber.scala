@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.effect.unsafe.{IORuntime, WorkStealingThreadPool}
+import cats.effect.unsafe._
 
 import cats.arrow.FunctionK
 
@@ -877,17 +877,25 @@ private final class IOFiber[A](
   }
 
   private[this] def rescheduleFiber(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
-    if (ec.isInstanceOf[WorkStealingThreadPool])
-      ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiber(fiber)
-    else
+    val thread = Thread.currentThread()
+    if (thread.isInstanceOf[WorkerThread]) {
+      thread.asInstanceOf[WorkerThread].reschedule(fiber)
+    } else if (thread.isInstanceOf[HelperThread]) {
+      thread.asInstanceOf[HelperThread].schedule(fiber)
+    } else {
       scheduleOnForeignEC(ec)(fiber)
+    }
   }
 
   private[this] def scheduleFiber(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
-    if (ec.isInstanceOf[WorkStealingThreadPool])
-      ec.asInstanceOf[WorkStealingThreadPool].scheduleFiber(fiber)
-    else
+    val thread = Thread.currentThread()
+    if (thread.isInstanceOf[WorkerThread]) {
+      thread.asInstanceOf[WorkerThread].schedule(fiber)
+    } else if (thread.isInstanceOf[HelperThread]) {
+      thread.asInstanceOf[HelperThread].schedule(fiber)
+    } else {
       scheduleOnForeignEC(ec)(fiber)
+    }
   }
 
   private[this] def scheduleOnForeignEC(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {

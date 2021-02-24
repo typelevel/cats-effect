@@ -55,7 +55,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
  * [[WorkerThread]]s, and having a dynamic number of [[WorkerThread]] instances
  * introduces more logic on the hot path.
  */
-private final class HelperThread(
+private[effect] final class HelperThread(
     private[this] val threadPrefix: String,
     private[this] val blockingThreadCounter: AtomicInteger,
     private[this] val overflow: ConcurrentLinkedQueue[IOFiber[_]],
@@ -83,7 +83,7 @@ private final class HelperThread(
    * and is returning to normal operation. The [[HelperThread]] should finalize
    * and die.
    */
-  def setSignal(): Unit = {
+  private[unsafe] def setSignal(): Unit = {
     signal.lazySet(true)
   }
 
