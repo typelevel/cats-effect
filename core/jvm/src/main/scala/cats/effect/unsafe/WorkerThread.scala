@@ -86,7 +86,7 @@ private final class WorkerThread(
    * Enqueues a fiber to the local work stealing queue. This method always
    * notifies another thread that a steal should be attempted from this queue.
    */
-  def enqueueAndNotify(fiber: IOFiber[_]): Unit = {
+  def schedule(fiber: IOFiber[_]): Unit = {
     queue.enqueue(fiber, overflow)
     pool.notifyParked()
   }
@@ -96,7 +96,7 @@ private final class WorkerThread(
    * notifying another thread about potential work to be stolen if it can be
    * determined that this is a mostly single fiber workload.
    */
-  def smartEnqueue(fiber: IOFiber[_]): Unit = {
+  def reschedule(fiber: IOFiber[_]): Unit = {
     // Check if the local queue is empty **before** enqueueing the given fiber.
     val empty = queue.isEmpty()
     queue.enqueue(fiber, overflow)

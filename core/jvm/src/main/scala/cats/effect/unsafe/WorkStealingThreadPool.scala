@@ -284,7 +284,7 @@ private[effect] final class WorkStealingThreadPool(
    * `WorkerThread`.
    */
   private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit = {
-    Thread.currentThread().asInstanceOf[WorkerThread].smartEnqueue(fiber)
+    Thread.currentThread().asInstanceOf[WorkerThread].reschedule(fiber)
   }
 
   /**
@@ -293,7 +293,7 @@ private[effect] final class WorkStealingThreadPool(
    * directly from a `WorkerThread`.
    */
   private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit = {
-    Thread.currentThread().asInstanceOf[WorkerThread].enqueueAndNotify(fiber)
+    Thread.currentThread().asInstanceOf[WorkerThread].schedule(fiber)
   }
 
   /**
