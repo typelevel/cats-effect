@@ -268,8 +268,11 @@ private[effect] final class WorkStealingThreadPool(
    * a worker thread. Otherwise falls back to scheduling on the external queue.
    */
   private[effect] def executeFiber(fiber: IOFiber[_]): Unit = {
-    if (Thread.currentThread().isInstanceOf[WorkerThread]) {
-      scheduleFiber(fiber)
+    val thread = Thread.currentThread()
+    if (thread.isInstanceOf[WorkerThread]) {
+      thread.asInstanceOf[WorkerThread].schedule(fiber)
+    } else if (thread.isInstanceOf[HelperThread]) {
+      thread.asInstanceOf[HelperThread].schedule(fiber)
     } else {
       externalQueue.offer(fiber)
       notifyParked()
@@ -284,7 +287,12 @@ private[effect] final class WorkStealingThreadPool(
    * `WorkerThread`.
    */
   private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit = {
-    Thread.currentThread().asInstanceOf[WorkerThread].reschedule(fiber)
+    val thread = Thread.currentThread()
+    if (thread.isInstanceOf[WorkerThread]) {
+      thread.asInstanceOf[WorkerThread].reschedule(fiber)
+    } else {
+      thread.asInstanceOf[HelperThread].schedule(fiber)
+    }
   }
 
   /**
@@ -293,7 +301,12 @@ private[effect] final class WorkStealingThreadPool(
    * directly from a `WorkerThread`.
    */
   private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit = {
-    Thread.currentThread().asInstanceOf[WorkerThread].schedule(fiber)
+    val thread = Thread.currentThread()
+    if (thread.isInstanceOf[WorkerThread]) {
+      thread.asInstanceOf[WorkerThread].schedule(fiber)
+    } else {
+      thread.asInstanceOf[HelperThread].schedule(fiber)
+    }
   }
 
   /**
