@@ -40,19 +40,16 @@ trait Generators1[F[_]] {
   protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] = {
     // prevent unused implicit param warnings, the params need to stay because
     // this method is overriden in subtraits
-    val _ = implicitly[Arbitrary[A]]
-    val _ = implicitly[Cogen[A]]
+    val _ = (implicitly[Arbitrary[A]], implicitly[Cogen[A]])
     Nil
   }
 
   //Only recursive generators - the argument is a generator of the next level of depth
   protected def recursiveGen[A: Arbitrary: Cogen](
       deeper: GenK[F]): List[(String, Gen[F[A]])] = {
-    val _ = deeper // prevent unused param warning
-    // prevent unused implicit param warnings, the params need to stay because
+    // prevent unused params warnings, the params need to stay because
     // this method is overriden in subtraits
-    val _ = implicitly[Arbitrary[A]]
-    val _ = implicitly[Cogen[A]]
+    val _ = (deeper, implicitly[Arbitrary[A]], implicitly[Cogen[A]])
     Nil
   }
 
