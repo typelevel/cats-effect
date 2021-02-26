@@ -498,7 +498,7 @@ trait RefSink[F[_], A] {
 }
 
 object RefSink {
-  implicit def catsContravariantForRefSink[F[_]: Functor]: Contravariant[RefSink[F, *]] =
+  implicit def catsContravariantForRefSink[F[_]]: Contravariant[RefSink[F, *]] =
     new Contravariant[RefSink[F, *]] {
       override def contramap[A, B](fa: RefSink[F, A])(f: B => A): RefSink[F, B] =
         new RefSink[F, B] {

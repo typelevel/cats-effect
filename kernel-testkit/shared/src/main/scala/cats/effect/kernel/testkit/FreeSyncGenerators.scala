@@ -30,7 +30,7 @@ import freeEval._
 
 object FreeSyncGenerators {
 
-  implicit def cogenFreeSync[F[_]: Monad, A: Cogen](
+  implicit def cogenFreeSync[F[_]: Monad, A](
       implicit C: Cogen[F[A]]): Cogen[FreeT[Eval, F, A]] =
     C.contramap(run(_))
 

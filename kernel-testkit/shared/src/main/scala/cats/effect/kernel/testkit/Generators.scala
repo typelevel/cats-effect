@@ -37,12 +37,22 @@ trait Generators1[F[_]] {
   //todo: uniqueness based on... names, I guess. Have to solve the diamond problem somehow
 
   //Generators of base cases, with no recursion
-  protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] = Nil
+  protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] = {
+    // prevent unused implicit param warnings, the params need to stay because
+    // this method is overriden in subtraits
+    val _ = implicitly[Arbitrary[A]]
+    val _ = implicitly[Cogen[A]]
+    Nil
+  }
 
   //Only recursive generators - the argument is a generator of the next level of depth
   protected def recursiveGen[A: Arbitrary: Cogen](
       deeper: GenK[F]): List[(String, Gen[F[A]])] = {
     val _ = deeper // prevent unused param warning
+    // prevent unused implicit param warnings, the params need to stay because
+    // this method is overriden in subtraits
+    val _ = implicitly[Arbitrary[A]]
+    val _ = implicitly[Cogen[A]]
     Nil
   }
 
@@ -277,7 +287,7 @@ trait AsyncGenerators[F[_]] extends GenTemporalGenerators[F, Throwable] with Syn
     List("async" -> genAsync[A](deeper), "evalOn" -> genEvalOn[A](deeper)) ++ super
       .recursiveGen[A](deeper)
 
-  private def genAsync[A: Arbitrary: Cogen](deeper: GenK[F]) =
+  private def genAsync[A: Arbitrary](deeper: GenK[F]) =
     for {
       result <- arbitrary[Either[Throwable, A]]
 
