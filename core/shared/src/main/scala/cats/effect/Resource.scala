@@ -257,7 +257,7 @@ sealed abstract class Resource[+F[_], +A] extends ResourceLike[F, A] {
    * Implementation of `evalMap`, which is declared in `ResourceLike`
    */
   protected def evalMap_[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G]): Resource[G, B] =
-    this.flatMap(a => Resource.liftF(f(a)))
+    this.flatMap(a => Resource.eval(f(a)))
 
   /**
    * Implementation of `evalTap`, which is declared in `ResourceLike`
@@ -371,15 +371,19 @@ object Resource extends ResourceInstances with ResourcePlatform {
    *
    * @param fa the value to lift into a resource
    */
-  def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]): Resource[F, A] =
+  def eval[F[_], A](fa: F[A])(implicit F: Applicative[F]): Resource[F, A] =
     Resource.suspend(fa.map(a => Resource.pure[F, A](a)))
+
+  @deprecated("please use `eval` instead.", since = "2.4.0")
+  def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]): Resource[F, A] =
+    eval(fa)
 
   /**
    * Lifts an applicative into a resource as a `FunctionK`. The resource has a no-op release.
    */
   def liftK[F[_]](implicit F: Applicative[F]): F ~> Resource[F, *] =
     new (F ~> Resource[F, *]) {
-      def apply[A](fa: F[A]): Resource[F, A] = Resource.liftF(fa)
+      def apply[A](fa: F[A]): Resource[F, A] = Resource.eval(fa)
     }
 
   /**
@@ -586,7 +590,7 @@ abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resou
     for {
       x <- rx
       y <- ry
-      xy <- Resource.liftF(K.combineK(x.pure[F], y.pure[F]))
+      xy <- Resource.eval(K.combineK(x.pure[F], y.pure[F]))
     } yield xy
 }
 
@@ -668,7 +672,7 @@ abstract private[effect] class ResourceLiftIO[F[_]] extends LiftIO[Resource[F, *
   implicit protected def F1: Applicative[F]
 
   def liftIO[A](ioa: IO[A]): Resource[F, A] =
-    Resource.liftF(F0.liftIO(ioa))
+    Resource.eval(F0.liftIO(ioa))
 }
 
 abstract private[effect] class ResourceParCommutativeApplicative[F[_]]

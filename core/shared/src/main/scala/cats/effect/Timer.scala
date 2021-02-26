@@ -164,7 +164,7 @@ object Timer {
       val clock: Clock[Resource[F, *]] = Clock.deriveResource
 
       def sleep(duration: FiniteDuration): Resource[F, Unit] =
-        Resource.liftF(timer.sleep(duration))
+        Resource.eval(timer.sleep(duration))
     }
 
   implicit class TimerOps[F[_]](val self: Timer[F]) extends AnyVal {

@@ -166,13 +166,13 @@ class ResourceTests extends BaseTestsSuite {
     assertEquals(result.value, Some(Success("Hello world")))
   }
 
-  propertyAsync("liftF") { implicit ec =>
+  propertyAsync("eval") { implicit ec =>
     forAll { (fa: IO[String]) =>
-      Resource.liftF(fa).use(IO.pure) <-> fa
+      Resource.eval(fa).use(IO.pure) <-> fa
     }
   }
 
-  testAsync("liftF - interruption") { implicit ec =>
+  testAsync("eval - interruption") { implicit ec =>
     implicit val timer: Timer[IO] = ec.ioTimer
     implicit val ctx: ContextShift[IO] = ec.ioContextShift
 
@@ -180,7 +180,7 @@ class ResourceTests extends BaseTestsSuite {
       Deferred[IO, ExitCase[Throwable]]
         .flatMap { stop =>
           val r = Resource
-            .liftF(IO.never: IO[Int])
+            .eval(IO.never: IO[Int])
             .use(IO.pure)
             .guaranteeCase(stop.complete)
 
@@ -197,15 +197,15 @@ class ResourceTests extends BaseTestsSuite {
     assertEquals(res.value, Some(Success(ExitCase.Canceled)))
   }
 
-  propertyAsync("liftF(fa) <-> liftK.apply(fa)") { implicit ec =>
+  propertyAsync("eval(fa) <-> liftK.apply(fa)") { implicit ec =>
     forAll { (fa: IO[String], f: String => IO[Int]) =>
-      Resource.liftF(fa).use(f) <-> Resource.liftK[IO].apply(fa).use(f)
+      Resource.eval(fa).use(f) <-> Resource.liftK[IO].apply(fa).use(f)
     }
   }
 
   propertyAsync("evalMap") { implicit ec =>
     forAll { (f: Int => IO[Int]) =>
-      Resource.liftF(IO(0)).evalMap(f).use(IO.pure) <-> f(0)
+      Resource.eval(IO(0)).evalMap(f).use(IO.pure) <-> f(0)
     }
   }
 
@@ -215,13 +215,13 @@ class ResourceTests extends BaseTestsSuite {
 
     forAll { (g: Int => IO[Int]) =>
       val effect: Int => IO[Int] = a => (g(a) <* IO(throw Foo))
-      Resource.liftF(IO(0)).evalMap(effect).use(IO.pure) <-> IO.raiseError(Foo)
+      Resource.eval(IO(0)).evalMap(effect).use(IO.pure) <-> IO.raiseError(Foo)
     }
   }
 
   propertyAsync("evalTap") { implicit ec =>
     forAll { (f: Int => IO[Int]) =>
-      Resource.liftF(IO(0)).evalTap(f).use(IO.pure) <-> f(0).as(0)
+      Resource.eval(IO(0)).evalTap(f).use(IO.pure) <-> f(0).as(0)
     }
   }
 
@@ -236,7 +236,7 @@ class ResourceTests extends BaseTestsSuite {
           r <- f.join
         } yield r
 
-      Resource.liftF(IO(0)).evalTap(effect).use(IO.pure) <-> IO.never
+      Resource.eval(IO(0)).evalTap(effect).use(IO.pure) <-> IO.never
     }
   }
 
@@ -246,7 +246,7 @@ class ResourceTests extends BaseTestsSuite {
 
     forAll { (g: Int => IO[Int]) =>
       val effect: Int => IO[Int] = a => (g(a) <* IO(throw Foo))
-      Resource.liftF(IO(0)).evalTap(effect).use(IO.pure) <-> IO.raiseError(Foo)
+      Resource.eval(IO(0)).evalTap(effect).use(IO.pure) <-> IO.raiseError(Foo)
     }
   }
 
@@ -255,7 +255,7 @@ class ResourceTests extends BaseTestsSuite {
       val runWithTwo = new ~>[Kleisli[IO, Int, *], IO] {
         override def apply[A](fa: Kleisli[IO, Int, A]): IO[A] = fa(2)
       }
-      Resource.liftF(fa).mapK(runWithTwo).use(IO.pure) <-> fa(2)
+      Resource.eval(fa).mapK(runWithTwo).use(IO.pure) <-> fa(2)
     }
   }
 
@@ -306,7 +306,7 @@ class ResourceTests extends BaseTestsSuite {
   test("allocate does not release until close is invoked") {
     val released = new java.util.concurrent.atomic.AtomicBoolean(false)
     val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
-    val resource = Resource.liftF(IO.unit)
+    val resource = Resource.eval(IO.unit)
 
     // Dotty fails to infer functor syntax if this line is in the for comprehension
     val allocated = (release *> resource).allocated
@@ -334,10 +334,10 @@ class ResourceTests extends BaseTestsSuite {
     val plusOne = Kleisli { (i: Int) =>
       IO(i + 1)
     }
-    val plusOneResource = Resource.liftF(plusOne)
+    val plusOneResource = Resource.eval(plusOne)
 
     val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
-    val resource = Resource.liftF(IO.unit)
+    val resource = Resource.eval(IO.unit)
 
     // Dotty fails to infer functor syntax if this line is in the for comprehension
     val allocated = ((release *> resource).mapK(takeAnInteger) *> plusOneResource).mapK(runWithTwo).allocated
@@ -372,9 +372,9 @@ class ResourceTests extends BaseTestsSuite {
     import cats.data.OptionT
     forAll { (ot1: OptionT[IO, Int], ot2: OptionT[IO, Int]) =>
       val lhs: Either[Throwable, Option[Int]] =
-        Resource.liftF[OptionT[IO, *], Int](ot1 <+> ot2).use(OptionT.pure[IO](_)).value.attempt.unsafeRunSync()
+        Resource.eval[OptionT[IO, *], Int](ot1 <+> ot2).use(OptionT.pure[IO](_)).value.attempt.unsafeRunSync()
       val rhs: Either[Throwable, Option[Int]] =
-        (Resource.liftF[OptionT[IO, *], Int](ot1) <+> Resource.liftF[OptionT[IO, *], Int](ot2))
+        (Resource.eval[OptionT[IO, *], Int](ot1) <+> Resource.eval[OptionT[IO, *], Int](ot2))
           .use(OptionT.pure[IO](_))
           .value
           .attempt
@@ -466,14 +466,14 @@ class ResourceTests extends BaseTestsSuite {
       _ <- Resource.make(wait(1) >> IO { leftAllocated = true }) { _ =>
         IO { leftReleasing = true } >> wait(1) >> IO { leftReleased = true }
       }
-      _ <- Resource.liftF(wait(1) >> IO.raiseError[Unit](new Exception))
+      _ <- Resource.eval(wait(1) >> IO.raiseError[Unit](new Exception))
     } yield ()
 
     val rhs = for {
       _ <- Resource.make(wait(1) >> IO { rightAllocated = true }) { _ =>
         IO { rightReleasing = true } >> wait(1) >> IO { rightReleased = true }
       }
-      _ <- Resource.liftF(wait(2))
+      _ <- Resource.eval(wait(2))
     } yield ()
 
     (lhs, rhs).parTupled
@@ -576,7 +576,7 @@ class ResourceTests extends BaseTestsSuite {
       Deferred[IO, ExitCase[Throwable]]
         .flatMap { stop =>
           val r = Resource
-            .liftF(IO.never: IO[Int])
+            .eval(IO.never: IO[Int])
             .onFinalizeCase(stop.complete)
             .use(IO.pure)
 
