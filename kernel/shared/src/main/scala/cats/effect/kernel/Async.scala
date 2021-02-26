@@ -50,6 +50,11 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   // evalOn(executionContext, ec) <-> pure(ec)
   def evalOn[A](fa: F[A], ec: ExecutionContext): F[A]
 
+  def evalOnK(ec: ExecutionContext): F ~> F =
+    new (F ~> F) {
+      def apply[A](fa: F[A]): F[A] = evalOn(fa, ec)
+    }
+
   def startOn[A](fa: F[A], ec: ExecutionContext): F[Fiber[F, Throwable, A]] =
     evalOn(start(fa), ec)
 

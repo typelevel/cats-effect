@@ -65,6 +65,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def attempt: IO[Either[Throwable, A]] =
     IO.Attempt(this)
 
+  def option: IO[Option[A]] =
+    redeem(_ => None, Some(_))
+
   def bothOutcome[B](that: IO[B]): IO[(OutcomeIO[A @uncheckedVariance], OutcomeIO[B])] =
     IO.uncancelable { poll =>
       racePair(that).flatMap {
@@ -193,6 +196,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def void: IO[Unit] =
     map(_ => ())
+
+  def to[F[_]](implicit F: LiftIO[F]): F[A @uncheckedVariance] =
+    F.liftIO(this)
 
   override def toString: String = "IO(...)"
 
@@ -326,6 +332,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def monotonic: IO[FiniteDuration] = Monotonic
 
   def never[A]: IO[A] = _never
+
+  def none[A]: IO[Option[A]] = pure(None)
+
+  def some[A](a: A): IO[Option[A]] = pure(Some(a))
 
   /**
    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
