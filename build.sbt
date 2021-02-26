@@ -20,7 +20,7 @@ import sbtghactions.UseRef
 import scala.util.Try
 import scala.sys.process._
 
-ThisBuild / baseVersion := "2.3"
+ThisBuild / baseVersion := "2.4"
 
 val OldScala = "2.12.13"
 val OldDotty = "3.0.0-M3"
