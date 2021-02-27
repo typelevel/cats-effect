@@ -259,10 +259,63 @@ private final class IOFiber[A](
         case 1 =>
           val cur = cur0.asInstanceOf[Map[Any, Any]]
 
-          objectState.push(cur.f)
-          conts.push(MapK)
+          val ioe = cur.ioe
+          val f = cur.f
 
-          runLoop(cur.ioe, nextIteration)
+          def next(v: Any): IO[Any] = {
+            var error: Throwable = null
+            val result =
+              try f(v)
+              catch {
+                case NonFatal(t) => error = t
+              }
+
+            if (error == null) succeeded(result, 0) else failed(error, 0)
+          }
+
+          (ioe.tag: @switch) match {
+            case 0 =>
+              val pure = ioe.asInstanceOf[Pure[Any]]
+              runLoop(next(pure.value), nextIteration)
+
+            case 3 =>
+              val error = ioe.asInstanceOf[Error]
+              runLoop(failed(error.t, 0), nextIteration)
+
+            case 6 =>
+              val delay = ioe.asInstanceOf[Delay[Any]]
+
+              // this code is inlined in order to avoid two `try` blocks
+              var error: Throwable = null
+              val result =
+                try f(delay.thunk())
+                catch {
+                  case NonFatal(t) => error = t
+                }
+
+              if (error == null) {
+                runLoop(succeeded(result, 0), nextIteration)
+              } else {
+                runLoop(failed(error, 0), nextIteration)
+              }
+
+            case 16 =>
+              val realTime = runtime.scheduler.nowMillis().millis
+              runLoop(next(realTime), nextIteration)
+
+            case 17 =>
+              val monotonic = runtime.scheduler.monotonicNanos().nanos
+              runLoop(next(monotonic), nextIteration)
+
+            case 18 =>
+              val ec = currentCtx
+              runLoop(next(ec), nextIteration)
+
+            case _ =>
+              objectState.push(f)
+              conts.push(MapK)
+              runLoop(ioe, nextIteration)
+          }
 
         case 2 =>
           val cur = cur0.asInstanceOf[FlatMap[Any, Any]]
