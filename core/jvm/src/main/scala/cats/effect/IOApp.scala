@@ -22,11 +22,46 @@ import java.util.concurrent.CountDownLatch
 
 trait IOApp {
 
+  private[this] var _runtime: unsafe.IORuntime = null
+  protected def runtime: unsafe.IORuntime = _runtime
+
+  protected def config: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
+
+  protected def computeWorkerThreadCount: Int =
+    Math.max(2, Runtime.getRuntime().availableProcessors())
+
+  protected def schedulerWorkerThreadCount: Int = 1
+
   def run(args: List[String]): IO[ExitCode]
 
-  protected val runtime: unsafe.IORuntime = unsafe.IORuntime.global
-
   final def main(args: Array[String]): Unit = {
+    if (runtime == null) {
+      import unsafe.IORuntime
+
+      IORuntime installGlobal {
+        val (compute, compDown) =
+          IORuntime.createDefaultComputeThreadPool(runtime, threads = computeWorkerThreadCount)
+
+        val (blocking, blockDown) =
+          IORuntime.createDefaultBlockingExecutionContext()
+
+        val (scheduler, schedDown) =
+          IORuntime.createDefaultScheduler(threads = schedulerWorkerThreadCount)
+
+        IORuntime(
+          compute,
+          blocking,
+          scheduler,
+          { () =>
+            compDown()
+            blockDown()
+            schedDown()
+          },
+          config)
+      }
+
+      _runtime = IORuntime.global
+    }
 
     val rt = Runtime.getRuntime()
 
@@ -60,7 +95,6 @@ trait IOApp {
 
       // Clean up after ourselves, relevant for running IOApps in sbt,
       // otherwise scheduler threads will accumulate over time.
-      runtime.internalShutdown()
       runtime.shutdown()
     }
 
@@ -83,7 +117,6 @@ trait IOApp {
       } else {
         // Clean up after ourselves, relevant for running IOApps in sbt,
         // otherwise scheduler threads will accumulate over time.
-        runtime.internalShutdown()
         runtime.shutdown()
         if (result == ExitCode.Success) {
           // Return naturally from main. This allows any non-daemon

@@ -144,7 +144,6 @@ private final class IOFiber[A](
       }
     } catch {
       case t: Throwable =>
-        runtime.internalShutdown()
         runtime.shutdown()
         Thread.interrupted()
         currentCtx.reportFailure(t)
