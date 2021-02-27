@@ -375,8 +375,48 @@ private final class IOFiber[A](
         case 4 =>
           val cur = cur0.asInstanceOf[Attempt[Any]]
 
-          conts.push(AttemptK)
-          runLoop(cur.ioa, nextIteration)
+          val ioa = cur.ioa
+
+          (ioa.tag: @switch) match {
+            case 0 =>
+              val pure = ioa.asInstanceOf[Pure[Any]]
+              runLoop(succeeded(Right(pure.value), 0), nextIteration)
+
+            case 3 =>
+              val error = ioa.asInstanceOf[Error]
+              runLoop(succeeded(Left(error.t), 0), nextIteration)
+
+            case 6 =>
+              val delay = ioa.asInstanceOf[Delay[Any]]
+
+              // this code is inlined in order to avoid two `try` blocks
+              var error: Throwable = null
+              val result =
+                try delay.thunk()
+                catch {
+                  case NonFatal(t) => error = t
+                }
+
+              val next =
+                if (error == null) succeeded(Right(result), 0) else succeeded(Left(error), 0)
+              runLoop(next, nextIteration)
+
+            case 16 =>
+              val realTime = runtime.scheduler.nowMillis().millis
+              runLoop(succeeded(Right(realTime), 0), nextIteration)
+
+            case 17 =>
+              val monotonic = runtime.scheduler.monotonicNanos().nanos
+              runLoop(succeeded(Right(monotonic), 0), nextIteration)
+
+            case 18 =>
+              val ec = currentCtx
+              runLoop(succeeded(Right(ec), 0), nextIteration)
+
+            case _ =>
+              conts.push(AttemptK)
+              runLoop(ioa, nextIteration)
+          }
 
         case 5 =>
           val cur = cur0.asInstanceOf[HandleErrorWith[Any]]
