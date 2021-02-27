@@ -17,6 +17,7 @@
 package cats.effect
 
 import scala.annotation.unchecked.uncheckedVariance
+import scala.concurrent.blocking
 import scala.concurrent.duration._
 
 import java.util.concurrent.{CompletableFuture, CountDownLatch, TimeUnit}
@@ -37,7 +38,7 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
       latch.countDown()
     }
 
-    if (latch.await(limit.toNanos, TimeUnit.NANOSECONDS)) {
+    if (blocking(latch.await(limit.toNanos, TimeUnit.NANOSECONDS))) {
       results.fold(throw _, a => Some(a))
     } else {
       None
