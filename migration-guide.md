@@ -32,7 +32,16 @@ In this guide, we will not discuss the new features and additions in the library
 but focus on changes the users will need to make to get their projects to build with Cats Effect 3.
 For new features, please consult the [documentation](dead-link) instead.
 
-## Overview
+## Summary
+
+Here is a general view of the steps you should take to migrate your application to Cats Effect 3:
+
+1. Make sure your dependencies have upgraded
+3. Run the Scalafix migration (optional)
+4. Upgrade dependencies and Cats Effect itself
+5. Fix remaining compilation issues using [the lookup table of replacements](#notable-changes)
+
+## What's changed, what's the same?
 
 Cats Effect 3 (CE3 for short) is a complete redesign of the library.
 Some abstractions known from Cats Effect 2 (CE2) have been removed, others changed responsibilities, and finally, new abstractions were introduced.
@@ -94,80 +103,78 @@ todo. WIP in [Frank's PR](https://github.com/typelevel/cats-effect/pull/1686)
 Here's the new type class hierarchy. It might be helpful in understanding some of the changes:
 
 <!-- todo make it just a link? -->
-[![hierarchy](https://raw.githubusercontent.com/typelevel/cats-effect/series/3.x/images/hierarchy.svg)](https://raw.githubusercontent.com/typelevel/cats-effect/series/3.x/images/hierarchy.svg)
+[![hierarchy](https://raw.githubusercontent.com/typelevel/cats-effect/series/3.x/images/hierarchy.svg)][hierarchy-ce3]
 
 Most of the following are handled by [the Scalafix migration](dead-link). If you can, try that first!
 
 Note: package name changes were skipped from the table. Most type classes are now in `cats.effect.kernel`.
 
-| Cats Effect 2.x                             | Cats Effect 3                           | Notes                                                                  |
-| ------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------- |
+| Cats Effect 2.x                             | Cats Effect 3                           | Notes                                                    |
+| ------------------------------------------- | --------------------------------------- | -------------------------------------------------------- |
 | `Async[F].async`                            | `Async[F].async_`                       |
 | `Async[F].asyncF(f)`                        | `Async[F].async(f).as(none)`            |
-| `Async.shift`                               | -                                       | See [below](#shifting)                                                 |
+| `Async.shift`                               | -                                       | See [below](#shifting)                                   |
 | `Async.fromFuture`                          | `Async[F].fromFuture`                   |
 | `Async.memoize`                             | `Concurrent[F].memoize`                 |
 | `Async.parTraverseN`                        | `Concurrent[F].parTraverseN`            |
 | `Async.parSequenceN`                        | `Concurrent[F].parSequenceN`            |
-| `Async[F].liftIO`, `Async.liftIO`           | `LiftIO[F].liftIO`                      | `LiftIO` is in the `cats-effect` module                                |
-| `Async <: LiftIO`                           | No subtyping relationship               | `LiftIO` is in the `cats-effect` module                                |
-| `Blocker.apply`                             | -                                       | blocking pool is provided by runtime                                   |
-| `Blocker.delay`                             | `Sync[F].blocking`                      | `Blocker` was removed                                                  |
-| `Blocker(ec).blockOn(fa)`                   | `Async[F].evalOn(fa, ec)`               | You can probably use `Sync[F].blocking`                                |
-| `Blocker.blockOnK`                          | -                                       | <!-- todo we should have this in Async -->                             |
+| `Async[F].liftIO`, `Async.liftIO`           | `LiftIO[F].liftIO`                      | `LiftIO` is in the `cats-effect` module                  |
+| `Async <: LiftIO`                           | No subtyping relationship               | `LiftIO` is in the `cats-effect` module                  |
+| `Blocker.apply`                             | -                                       | blocking pool is provided by runtime                     |
+| `Blocker.delay`                             | `Sync[F].blocking`                      | `Blocker` was removed                                    |
+| `Blocker(ec).blockOn(fa)`                   | `Async[F].evalOn(fa, ec)`               | You can probably use `Sync[F].blocking`                  |
+| `Blocker.blockOnK`                          | -                                       | <!-- todo we should have this in Async -->               |
 | `Bracket[F].bracket`                        | `MonadCancel[F].bracket`                |
-| `Bracket[F].bracketCase`                    | `MonadCancel[F].bracketCase`            | `ExitCase` is now `Outcome`                                            |
+| `Bracket[F].bracketCase`                    | `MonadCancel[F].bracketCase`            | `ExitCase` is now `Outcome`                              |
 | `Bracket[F].uncancelable(fa)`               | `MonadCancel[F].uncancelable(_ => fa)`  |
 | `Bracket[F].guarantee`                      | `MonadCancel[F].guarantee`              |
-| `Bracket[F].guaranteeCase`                  | `MonadCancel[F].guaranteeCase`          | `ExitCase` is now `Outcome`                                            |
+| `Bracket[F].guaranteeCase`                  | `MonadCancel[F].guaranteeCase`          | `ExitCase` is now `Outcome`                              |
 | `Bracket[F].onCancel`                       | `MonadCancel[F].onCancel`               |
 | `CancelToken[F]`                            | `F[Unit]`                               |
 | `Clock[F].realTime: TimeUnit => F[Long]`    | `Clock[F].realTime: F[FiniteDuration]`  |
 | `Clock[F].monotonic: TimeUnit => F[Long]`   | `Clock[F].monotonic: F[FiniteDuration]` |
 | `Clock.instantNow`                          | `Clock[F].realTimeInstant`              |
-| `Clock.create`, `Clock[F].mapK`             | -                                       | See [below](#clock-changes)                                            |
+| `Clock.create`, `Clock[F].mapK`             | -                                       | See [below](#clock-changes)                              |
 | `Concurrent[F].start`                       | `Spawn[F].start`                        |
-| `Concurrent[F].background`                  | `Spawn[F].background`                   | Value in resource is now an `Outcome`                                  |
-| `Concurrent[F].liftIO`, `Concurrent.liftIO` | `LiftIO[F].liftIO`                      | `LiftIO` is in the `cats-effect` module                                |
-| `Concurrent <: LiftIO`                      | No subtyping relationship               | `LiftIO` is in the `cats-effect` module                                |
+| `Concurrent[F].background`                  | `Spawn[F].background`                   | Value in resource is now an `Outcome`                    |
+| `Concurrent[F].liftIO`, `Concurrent.liftIO` | `LiftIO[F].liftIO`                      | `LiftIO` is in the `cats-effect` module                  |
+| `Concurrent <: LiftIO`                      | No subtyping relationship               | `LiftIO` is in the `cats-effect` module                  |
 | `Concurrent[F].race`                        | `Spawn[F].race`                         |
 | `Concurrent[F].racePair`                    | `Spawn[F].racePair`                     |
-| `Concurrent[F].cancelable`                  | `Async.async(f)`                        | Wrap side effects in F, cancel token in `Some`                         |
-| `Concurrent[F].cancelableF`                 | `Async.async(f(_).some)`                | `Some`                                                                 |
-| `Concurrent[F].continual`                   | see [below](#concurrent:-continual)     | <!-- <-------    todo deadlink  -->                                    |
-| `Concurrent.continual`                      | see [below](#concurrent:-continual)     | <!-- <-------    todo deadlink  -->                                    |
+| `Concurrent[F].cancelable`                  | `Async.async(f)`                        | Wrap side effects in F, cancel token in `Some`           |
+| `Concurrent[F].cancelableF`                 | `Async.async(f(_).some)`                | `Some`                                                   |
+| `Concurrent[F].continual`                   | see [below](#concurrent:-continual)     | <!-- <-------    todo deadlink  -->                      |
+| `Concurrent.continual`                      | see [below](#concurrent:-continual)     | <!-- <-------    todo deadlink  -->                      |
 | `Concurrent.timeout`                        | `Temporal[F].timeout`                   |
 | `Concurrent.timeoutTo`                      | `Temporal[F].timeoutTo`                 |
 | `Concurrent.memoize`                        | `Concurrent[F].memoize`                 |
 | `Concurrent.parTraverseN`                   | `Concurrent[F].parTraverseN`            |
 | `Concurrent.parSequenceN`                   | `Concurrent[F].parSequenceN`            |
-| `ConcurrentEffect[F]`                       | `cats.effect.std.Dispatcher`            | See [below](#dispatcher)                                               |
+| `ConcurrentEffect[F]`                       | `cats.effect.std.Dispatcher`            | See [below](#dispatcher)                                 |
 | `ContextShift[F].shift`                     | See [below](#shifting)                  |
 | `ContextShift[F].evalOn`                    | `Async[F].evalOn`                       |
-| `ContextShift.evalOnK`                      | -                                       | <!-- https://github.com/typelevel/cats-effect/issues/1722 -->          |
-| `Effect[F]`                                 | `cats.effect.std.Dispatcher`            | See [below](#dispatcher)                                               |
-| `Effect.toIOK`                              | -                                       | See [below](#dispatcher)                                               |
-| `ExitCase[E]`                               | `Outcome[F, E, A]`                      | See [below](#outcome)                                                  |
-| `Fiber[F, A]`                               | `Fiber[F, E, A]`                        | See [below](#outcome)                                                  |
-| `Fiber[F, A].join: F[A]`                    | `Fiber[F, E, A].joinWithNever`          | See [below](#outcome)                                                  |
+| `Effect[F]`                                 | `cats.effect.std.Dispatcher`            | See [below](#dispatcher)                                 |
+| `Effect.toIOK`                              | -                                       | See [below](#dispatcher)                                 |
+| `ExitCase[E]`                               | `Outcome[F, E, A]`                      | See [below](#outcome)                                    |
+| `Fiber[F, A]`                               | `Fiber[F, E, A]`                        | See [below](#outcome)                                    |
+| `Fiber[F, A].join: F[A]`                    | `Fiber[F, E, A].joinWithNever`          | See [below](#outcome)                                    |
 | `Sync[F].suspend`                           | `Sync[F].defer`                         |
-| `SyncEffect`                                | -                                       | See [below](#dispatcher)                                               |
-| `IO#as`                                     | `IO.as` / `IO.map`                      | the argument isn't by-name anymore                                     |
-| `IO.runAsync`, `IO.runCancelable`           | -                                       | Use unsafe variants or [`Dispatcher`](#dispatcher)                     |
-| `IO.unsafe*`                                | The same or `Dispatcher`                | Methods that run an IO require an implicit `IORuntime`                 |
+| `SyncEffect`                                | -                                       | See [below](#dispatcher)                                 |
+| `IO#as`                                     | `IO.as` / `IO.map`                      | the argument isn't by-name anymore                       |
+| `IO.runAsync`, `IO.runCancelable`           | -                                       | Use unsafe variants or [`Dispatcher`](#dispatcher)       |
+| `IO.unsafe*`                                | The same or `Dispatcher`                | Methods that run an IO require an implicit `IORuntime`   |
 | `IO.unsafeRunAsyncAndForget`                | `IO.unsafeRunAndForget`                 |
 | `IO.unsafeRunCancelable`                    | `start.unsafeRunSync.cancel`            |
 | `IO.unsafeRunTimed`                         | -                                       |
-| `IO.background`                             | The same                                | Value in resource is now an `Outcome`                                  |
-| `IO.guaranteeCase`/`bracketCase`            | The same                                | `ExitCase` is now `Outcome`                                            |
+| `IO.background`                             | The same                                | Value in resource is now an `Outcome`                    |
+| `IO.guaranteeCase`/`bracketCase`            | The same                                | `ExitCase` is now `Outcome`                              |
 | `IO.parProduct`                             | `IO.both`                               |
 | `IO.suspend`                                | `IO.defer`                              |
-| `IO.none[A]`                                | IO.pure(none[A])`                       | [Might be added](https://github.com/typelevel/cats-effect/issues/1728) |
 | `IO.shift`                                  | See [below](#shifting)                  |
-| `IO.cancelBoundary`                         | `IO.cede`                               | Also [shifts](#shifting)                                               |
-| IO tracing                                  | Currently missing                       |
+| `IO.cancelBoundary`                         | `IO.cede`                               | Also [shifts](#shifting)                                 |
 | `Resource.parZip`                           | `Resource.both`                         |
-| `Resource.fromAutoCloseableBlocking`        | `Resource.fromAutoCloseable`            | The method always uses `blocking` for the cleanup action               |
+| `Resource.liftF`                            | `Resource.eval`                         |
+| `Resource.fromAutoCloseableBlocking`        | `Resource.fromAutoCloseable`            | The method always uses `blocking` for the cleanup action |
 | `Timer[F].clock`                            | `Clock[F]`                              |
 | `Timer[F].sleep`                            | `Temporal[F].sleep`                     |
 
@@ -204,9 +211,9 @@ you will need to update **every library using cats-effect** to a CE3-compatible 
 
 If you are a library author, you also should guarantee your dependencies are CE3-compatible before you publish a release.
 
-To get some aid in pinpointing problematic dependencies, <!-- todo this is just for sbt users --> we recommend using existing tooling like
-[`sbt`'s eviction mechanism](https://www.scala-sbt.org/1.x/docs/Library-Management.html#Eviction+warning) and
-[the dependency graph plugin included in `sbt` since 1.4.0](https://www.scala-sbt.org/1.x/docs/sbt-1.4-Release-Notes.html#sbt-dependency-graph+is+in-sourced). Using the `whatDependsOn` task, you will be able to quickly see the libraries that pull in the problematic version.
+To get some aid in pinpointing problematic dependencies, for [sbt][sbt] users we recommend using existing tooling like
+[`sbt`'s eviction mechanism][sbt-eviction] and
+[the dependency graph plugin included in `sbt` since 1.4.0][dependency-graph]. Using the `whatDependsOn` task, you will be able to quickly see the libraries that pull in the problematic version.
 
 You might also want to consider [sbt-missinglink](https://github.com/scalacenter/sbt-missinglink) to verify your classpath works with your code, or
 [follow the latest developments in sbt's eviction mechanism](https://github.com/sbt/sbt/pull/6221#issuecomment-777722540).
@@ -250,3 +257,12 @@ The latter (yielding back to the scheduler) should now be done with `Spawn[F].ce
 
 todo
 <!-- why `create` and mapK are gone (because it's a typeclass now)  -->
+
+#### Tracing
+
+Currently, improved stack traces are not implemented. <!-- todo link to some PRs for it? -->
+
+[hierarchy-ce3]: https://raw.githubusercontent.com/typelevel/cats-effect/series/3.x/images/hierarchy.svg
+[sbt]: https://scala-sbt.org
+[sbt-eviction]: https://www.scala-sbt.org/1.x/docs/Library-Management.html#Eviction+warning
+[dependency-graph]: https://www.scala-sbt.org/1.x/docs/sbt-1.4-Release-Notes.html#sbt-dependency-graph+is+in-sourced
