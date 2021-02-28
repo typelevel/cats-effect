@@ -58,7 +58,7 @@ object Queue {
 
   /**
    * Constructs an empty, bounded queue holding up to `capacity` elements for
-   * `F` data types that are [[Concurrent]]. When the queue is full (contains
+   * `F` data types that are [[cats.effect.kernel.GenConcurrent]]. When the queue is full (contains
    * exactly `capacity` elements), every next [[Queue#offer]] will be
    * backpressured (i.e. the [[Queue#offer]] blocks semantically).
    *
@@ -73,7 +73,7 @@ object Queue {
   /**
    * Constructs a queue through which a single element can pass only in the case
    * when there are at least one taking fiber and at least one offering fiber
-   * for `F` data types that are [[Concurrent]]. Both [[Queue#offer]] and
+   * for `F` data types that are [[cats.effect.kernel.GenConcurrent]]. Both [[Queue#offer]] and
    * [[Queue#take]] semantically block until there is a fiber executing the
    * opposite action, at which point both fibers are freed.
    *
@@ -84,7 +84,7 @@ object Queue {
 
   /**
    * Constructs an empty, unbounded queue for `F` data types that are
-   * [[Concurrent]]. [[Queue#offer]] never blocks semantically, as there is
+   * [[cats.effect.kernel.GenConcurrent]]. [[Queue#offer]] never blocks semantically, as there is
    * always spare capacity in the queue.
    *
    * @return an empty, unbounded queue
@@ -94,7 +94,7 @@ object Queue {
 
   /**
    * Constructs an empty, bounded, dropping queue holding up to `capacity`
-   * elements for `F` data types that are [[Concurrent]]. When the queue is full
+   * elements for `F` data types that are [[cats.effect.kernel.GenConcurrent]]. When the queue is full
    * (contains exactly `capacity` elements), every next [[Queue#offer]] will be
    * ignored, i.e. no other elements can be enqueued until there is sufficient
    * capacity in the queue, and the offer effect itself will not semantically
@@ -110,7 +110,7 @@ object Queue {
 
   /**
    * Constructs an empty, bounded, circular buffer queue holding up to
-   * `capacity` elements for `F` data types that are [[Concurrent]]. The queue
+   * `capacity` elements for `F` data types that are [[cats.effect.kernel.GenConcurrent]]. The queue
    * always keeps at most `capacity` number of elements, with the oldest
    * element in the queue always being dropped in favor of a new elements
    * arriving in the queue, and the offer effect itself will not semantically

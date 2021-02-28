@@ -24,9 +24,54 @@ import java.util.concurrent.{CompletableFuture, CountDownLatch, TimeUnit}
 
 abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
 
+  /**
+   * Produces the result by running the encapsulated effects as impure
+   * side effects.
+   *
+   * If any component of the computation is asynchronous, the current
+   * thread will block awaiting the results of the async computation.
+   * By default, this blocking will be unbounded.  To limit the thread
+   * block to some fixed time, use `unsafeRunTimed` instead.
+   *
+   * Any exceptions raised within the effect will be re-thrown during
+   * evaluation.
+   *
+   * As the name says, this is an UNSAFE function as it is impure and
+   * performs side effects, not to mention blocking, throwing
+   * exceptions, and doing other things that are at odds with
+   * reasonable software.  You should ideally only call this function
+   * *once*, at the very end of your program.
+   */
   final def unsafeRunSync()(implicit runtime: unsafe.IORuntime): A =
     unsafeRunTimed(Long.MaxValue.nanos).get
 
+  /**
+   * Similar to `unsafeRunSync`, except with a bounded blocking
+   * duration when awaiting asynchronous results. As soon as an
+   * async blocking limit is hit, evaluation ''immediately''
+   * aborts and `None` is returned. Note that this does not
+   * run finalizers, which makes it quite different (and less safe)
+   * than other mechanisms for limiting evaluation time.
+   *
+   * {{{
+   * val program: IO[A] = ...
+   *
+   * program.timeout(5.seconds).unsafeRunSync()
+   * program.unsafeRunTimed(5.seconds)
+   * }}}
+   *
+   * The first line will run `program` for at most five seconds, interrupt
+   * the calculation, and run the finalizers for as long as they need to
+   * complete. The second line will run `program` for at most five seconds
+   * and then immediately release the latch, without interrupting `program`'s
+   * ongoing execution.
+   *
+   * In other words, this function probably doesn't do what you think it
+   * does, and you probably don't want to use it outside of tests.
+   *
+   * @see [[unsafeRunSync]]
+   * @see [[timeout]] for pure and safe version
+   */
   final def unsafeRunTimed(limit: FiniteDuration)(
       implicit runtime: unsafe.IORuntime): Option[A] = {
     @volatile
