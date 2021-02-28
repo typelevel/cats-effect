@@ -305,11 +305,11 @@ private final class IOFiber[A](
           (ioe.tag: @switch) match {
             case 0 =>
               val pure = ioe.asInstanceOf[Pure[Any]]
-              runLoop(next(pure.value), nextIteration)
+              runLoop(next(pure.value), nextIteration + 1)
 
             case 1 =>
               val error = ioe.asInstanceOf[Error]
-              runLoop(failed(error.t, 0), nextIteration)
+              runLoop(failed(error.t, 0), nextIteration + 1)
 
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
@@ -322,23 +322,20 @@ private final class IOFiber[A](
                   case NonFatal(t) => error = t
                 }
 
-              if (error == null) {
-                runLoop(succeeded(result, 0), nextIteration)
-              } else {
-                runLoop(failed(error, 0), nextIteration)
-              }
+              val nextIO = if (error == null) succeeded(result, 0) else failed(error, 0)
+              runLoop(nextIO, nextIteration + 1)
 
             case 3 =>
               val realTime = runtime.scheduler.nowMillis().millis
-              runLoop(next(realTime), nextIteration)
+              runLoop(next(realTime), nextIteration + 1)
 
             case 4 =>
               val monotonic = runtime.scheduler.monotonicNanos().nanos
-              runLoop(next(monotonic), nextIteration)
+              runLoop(next(monotonic), nextIteration + 1)
 
             case 5 =>
               val ec = currentCtx
-              runLoop(next(ec), nextIteration)
+              runLoop(next(ec), nextIteration + 1)
 
             case _ =>
               objectState.push(f)
@@ -361,11 +358,11 @@ private final class IOFiber[A](
           (ioe.tag: @switch) match {
             case 0 =>
               val pure = ioe.asInstanceOf[Pure[Any]]
-              runLoop(next(pure.value), nextIteration)
+              runLoop(next(pure.value), nextIteration + 1)
 
             case 1 =>
               val error = ioe.asInstanceOf[Error]
-              runLoop(failed(error.t, 0), nextIteration)
+              runLoop(failed(error.t, 0), nextIteration + 1)
 
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
@@ -377,19 +374,19 @@ private final class IOFiber[A](
                   case NonFatal(t) => failed(t, 0)
                 }
 
-              runLoop(result, nextIteration)
+              runLoop(result, nextIteration + 1)
 
             case 3 =>
               val realTime = runtime.scheduler.nowMillis().millis
-              runLoop(next(realTime), nextIteration)
+              runLoop(next(realTime), nextIteration + 1)
 
             case 4 =>
               val monotonic = runtime.scheduler.monotonicNanos().nanos
-              runLoop(next(monotonic), nextIteration)
+              runLoop(next(monotonic), nextIteration + 1)
 
             case 5 =>
               val ec = currentCtx
-              runLoop(next(ec), nextIteration)
+              runLoop(next(ec), nextIteration + 1)
 
             case _ =>
               objectState.push(f)
@@ -405,11 +402,11 @@ private final class IOFiber[A](
           (ioa.tag: @switch) match {
             case 0 =>
               val pure = ioa.asInstanceOf[Pure[Any]]
-              runLoop(succeeded(Right(pure.value), 0), nextIteration)
+              runLoop(succeeded(Right(pure.value), 0), nextIteration + 1)
 
             case 1 =>
               val error = ioa.asInstanceOf[Error]
-              runLoop(succeeded(Left(error.t), 0), nextIteration)
+              runLoop(succeeded(Left(error.t), 0), nextIteration + 1)
 
             case 2 =>
               val delay = ioa.asInstanceOf[Delay[Any]]
@@ -424,19 +421,19 @@ private final class IOFiber[A](
 
               val next =
                 if (error == null) succeeded(Right(result), 0) else succeeded(Left(error), 0)
-              runLoop(next, nextIteration)
+              runLoop(next, nextIteration + 1)
 
             case 3 =>
               val realTime = runtime.scheduler.nowMillis().millis
-              runLoop(succeeded(Right(realTime), 0), nextIteration)
+              runLoop(succeeded(Right(realTime), 0), nextIteration + 1)
 
             case 4 =>
               val monotonic = runtime.scheduler.monotonicNanos().nanos
-              runLoop(succeeded(Right(monotonic), 0), nextIteration)
+              runLoop(succeeded(Right(monotonic), 0), nextIteration + 1)
 
             case 5 =>
               val ec = currentCtx
-              runLoop(succeeded(Right(ec), 0), nextIteration)
+              runLoop(succeeded(Right(ec), 0), nextIteration + 1)
 
             case _ =>
               conts.push(AttemptK)
