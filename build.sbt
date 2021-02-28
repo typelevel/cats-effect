@@ -23,10 +23,11 @@ import scala.sys.process._
 ThisBuild / baseVersion := "2.4"
 
 val OldScala = "2.12.13"
+val NewScala = "2.13.4"
 val OldDotty = "3.0.0-M3"
 val NewDotty = "3.0.0-RC1"
 
-ThisBuild / crossScalaVersions := Seq(OldDotty, NewDotty, OldScala, "2.13.4")
+ThisBuild / crossScalaVersions := Seq(OldDotty, NewDotty, OldScala, NewScala)
 ThisBuild / scalaVersion := (ThisBuild / crossScalaVersions).value.last
 
 ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11")
@@ -41,6 +42,13 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
 
 ThisBuild / githubWorkflowBuild +=
   WorkflowStep.Sbt(List("microsite/makeMicrosite"), cond = Some(s"matrix.scala == '$OldScala'"))
+
+ThisBuild / githubWorkflowBuild +=
+  WorkflowStep.Run(
+    List("cd scalafix", "sbt test"),
+    name = Some("Scalafix tests"),
+    cond = Some(s"matrix.scala == '$NewScala'")
+  )
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
