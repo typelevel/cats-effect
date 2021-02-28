@@ -63,3 +63,9 @@ jobs:
 
       - if: matrix.scala == '2.12.13'
         run: sbt ++${{ matrix.scala }} microsite/makeMicrosite
+
+      - name: Scalafix tests
+        if: matrix.scala == '2.13.4'
+        run: |
+          cd scalafix
+          sbt test
