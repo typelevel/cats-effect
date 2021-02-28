@@ -108,7 +108,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Like [[*>]], but keeps the result of the source.
    *
    * For a similar method that also runs the parameter in case of failure or interruption, see [[guarantee]].
-   * */
+   */
   def <*[B](that: IO[B]): IO[A] =
     productL(that)
 
@@ -116,7 +116,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Runs the current IO, then runs the parameter, keeping its result.
    * The result of the first action is ignored.
    * If the source fails, the other action won't run.
-   * */
+   */
   def *>[B](that: IO[B]): IO[B] =
     productR(that)
 
@@ -497,7 +497,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   /**
    * Returns an IO that will delay the execution of the source by the given duration.
-   * */
+   */
   def delayBy(duration: FiniteDuration): IO[A] =
     IO.sleep(duration) *> this
 
@@ -582,7 +582,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * In case the resource is closed while this IO is still running (e.g. due to a failure in `use`),
    * the background action will be canceled.
    *
-   * @see [[cats.effect.Concurrent#background]] for the generic version.
+   * @see [[cats.effect.kernel.GenSpawn#background]] for the generic version.
    */
   def background: ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
     Spawn[IO].background(this)
@@ -591,7 +591,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     Concurrent[IO].memoize(this)
 
   /**
-   * Makes the source `IO` uninterruptible such that a [[Fiber.cancel]]
+   * Makes the source `IO` uninterruptible such that a [[cats.effect.kernel.Fiber#cancel]]
    * signal has no effect.
    */
   def uncancelable: IO[A] =
@@ -928,7 +928,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[this] val _unit: IO[Unit] = Pure(())
 
-  /** Alias for `IO.pure(())`. */
+  /**
+   * Alias for `IO.pure(())`.
+   */
   def unit: IO[Unit] = _unit
 
   // utilities
@@ -986,8 +988,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * the winner being the first that signals a result.
    *
    * As an example see [[IO.timeout]] and [[IO.timeoutTo]]
-   *
-   * N.B. this is the implementation of [[Concurrent.race]].
    *
    * Also see [[racePair]] for a version that does not cancel
    * the loser automatically on successful results.
