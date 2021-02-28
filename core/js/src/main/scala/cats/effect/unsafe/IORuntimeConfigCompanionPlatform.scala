@@ -18,6 +18,6 @@ package cats.effect
 package unsafe
 
 abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
-  def apply(): IORuntimeConfig =
+  protected final val Default: IORuntimeConfig =
     apply(512, 1024)
 }

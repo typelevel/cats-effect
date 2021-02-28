@@ -18,7 +18,8 @@ package cats.effect
 package unsafe
 
 abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
-  def apply(): IORuntimeConfig = {
+
+  protected final val Default: IORuntimeConfig = {
     val cancellationCheckThreshold =
       System.getProperty("cats.effect.cancellation.check.threshold", "512").toInt
 

@@ -23,6 +23,8 @@ final case class IORuntimeConfig private (
 
 object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
 
+  def apply(): IORuntimeConfig = Default
+
   def apply(cancellationCheckThreshold: Int, autoYieldThreshold: Int): IORuntimeConfig = {
     if (autoYieldThreshold % cancellationCheckThreshold == 0)
       new IORuntimeConfig(cancellationCheckThreshold, autoYieldThreshold)
