@@ -373,7 +373,7 @@ trait QueueSink[F[_], A] {
 }
 
 object QueueSink {
-  implicit def catsContravariantForQueueSink[F[_]: Functor]: Contravariant[QueueSink[F, *]] =
+  implicit def catsContravariantForQueueSink[F[_]]: Contravariant[QueueSink[F, *]] =
     new Contravariant[QueueSink[F, *]] {
       override def contramap[A, B](fa: QueueSink[F, A])(f: B => A): QueueSink[F, B] =
         new QueueSink[F, B] {

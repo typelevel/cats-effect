@@ -259,7 +259,7 @@ trait PQueueSink[F[_], A] {
 }
 
 object PQueueSink {
-  implicit def catsContravariantForPQueueSink[F[_]: Functor]: Contravariant[PQueueSink[F, *]] =
+  implicit def catsContravariantForPQueueSink[F[_]]: Contravariant[PQueueSink[F, *]] =
     new Contravariant[PQueueSink[F, *]] {
       override def contramap[A, B](fa: PQueueSink[F, A])(f: B => A): PQueueSink[F, B] =
         new PQueueSink[F, B] {

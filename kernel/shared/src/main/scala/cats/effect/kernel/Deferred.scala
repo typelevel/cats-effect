@@ -259,8 +259,7 @@ trait DeferredSink[F[_], A] {
 }
 
 object DeferredSink {
-  implicit def catsContravariantForDeferredSink[F[_]: Functor]
-      : Contravariant[DeferredSink[F, *]] =
+  implicit def catsContravariantForDeferredSink[F[_]]: Contravariant[DeferredSink[F, *]] =
     new Contravariant[DeferredSink[F, *]] {
       override def contramap[A, B](fa: DeferredSink[F, A])(f: B => A): DeferredSink[F, B] =
         new DeferredSink[F, B] {
