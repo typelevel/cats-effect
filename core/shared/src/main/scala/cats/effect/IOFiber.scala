@@ -91,6 +91,7 @@ private final class IOFiber[A](
   private[this] var currentCtx: ExecutionContext = _
   private[this] var ctxs: ArrayStack[ExecutionContext] = _
 
+  @volatile
   private[this] var canceled: Boolean = false
   private[this] var masks: Int = initMask
   private[this] var finalizing: Boolean = false
@@ -123,7 +124,6 @@ private final class IOFiber[A](
   /* similar prefetch for EndFiber */
   private[this] val IOEndFiber = IO.EndFiber
 
-  private[this] val cancellationCheckThreshold = runtime.config.cancellationCheckThreshold
   private[this] val autoYieldThreshold = runtime.config.autoYieldThreshold
 
   override def run(): Unit = {
@@ -225,11 +225,6 @@ private final class IOFiber[A](
       IO.Error(new NullPointerException())
     } else {
       _cur0
-    }
-
-    if (iteration >= cancellationCheckThreshold) {
-      // Ensure that we see cancellation.
-      readBarrier()
     }
 
     if (shouldFinalize()) {
