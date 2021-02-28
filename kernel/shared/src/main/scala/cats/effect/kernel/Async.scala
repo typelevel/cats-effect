@@ -86,14 +86,14 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
 object Async {
   def apply[F[_]](implicit F: Async[F]): F.type = F
 
-  def defaultCont[F[_], A](body: Cont[F, A, A])(implicit F: Async[F]): F[A] = {
+  def defaultCont[F[_], K, R](body: Cont[F, K, R])(implicit F: Async[F]): F[R] = {
     sealed trait State
     case class Initial() extends State
-    case class Value(v: Either[Throwable, A]) extends State
-    case class Waiting(cb: Either[Throwable, A] => Unit) extends State
+    case class Value(v: Either[Throwable, K]) extends State
+    case class Waiting(cb: Either[Throwable, K] => Unit) extends State
 
     F.delay(new AtomicReference[State](Initial())).flatMap { state =>
-      def get: F[A] =
+      def get: F[K] =
         F.defer {
           state.get match {
             case Value(v) => F.fromEither(v)
@@ -128,7 +128,7 @@ object Async {
           }
         }
 
-      def resume(v: Either[Throwable, A]): Unit = {
+      def resume(v: Either[Throwable, K]): Unit = {
         @tailrec
         def loop(): Unit =
           state.get match {

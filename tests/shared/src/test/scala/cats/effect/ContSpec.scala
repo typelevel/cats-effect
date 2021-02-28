@@ -26,18 +26,18 @@ import org.specs2.execute._
 import scala.concurrent.duration._
 
 class ContSpec extends ContSpecBase {
-  def cont[A](body: Cont[IO, A, A]): IO[A] =
+  def cont[K, R](body: Cont[IO, K, R]): IO[R] =
     IO.cont(body)
 }
 
 class DefaultContSpec extends ContSpecBase {
-  def cont[A](body: Cont[IO, A, A]): IO[A] =
-    Async.defaultCont[IO, A](body)
+  def cont[K, R](body: Cont[IO, K, R]): IO[R] =
+    Async.defaultCont(body)
 }
 
 trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
 
-  def cont[A](body: Cont[IO, A, A]): IO[A]
+  def cont[K, R](body: Cont[IO, K, R]): IO[R]
 
   def execute(io: IO[_], times: Int, i: Int = 0): IO[Success] = {
     if (i == times) IO(success)
@@ -48,14 +48,14 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
 
   "get resumes" in real {
     val io = cont {
-      new Cont[IO, Int, Int] {
+      new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(resume(Right(42)))) >> get
+          lift(IO(resume(Right(42)))) >> get.map(_.toString)
         }
       }
     }
 
-    val test = io.flatMap(r => IO(r mustEqual 42))
+    val test = io.flatMap(r => IO(r mustEqual "42"))
 
     execute(test, iterations)
   }
@@ -64,15 +64,15 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     val (scheduler, close) = Scheduler.createDefaultScheduler()
 
     val io = cont {
-      new Cont[IO, Int, Int] {
+      new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(scheduler.sleep(10.millis, () => resume(Right(42))))) >> get
+          lift(IO(scheduler.sleep(10.millis, () => resume(Right(42))))) >> get.map(_.toString)
         }
 
       }
     }
 
-    val test = io.flatMap(r => IO(r mustEqual 42))
+    val test = io.flatMap(r => IO(r mustEqual "42"))
 
     execute(test, 100).guarantee(IO(close()))
   }
@@ -80,9 +80,9 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
   "get can be canceled" in real {
     def never =
       cont {
-        new Cont[IO, Int, Int] {
+        new Cont[IO, Int, String] {
           def apply[F[_]: Cancelable] =
-            (_, get, _) => get
+            (_, get, _) => get.map(_.toString)
         }
       }
 
@@ -179,14 +179,14 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
 
   "get is idempotent - 1" in real {
     val io = cont {
-      new Cont[IO, Int, Int] {
+      new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(resume(Right(42)))) >> get >> get
+          lift(IO(resume(Right(42)))) >> get >> get.map(_.toString)
         }
       }
     }
 
-    val test = io.flatMap(r => IO(r mustEqual 42))
+    val test = io.flatMap(r => IO(r mustEqual "42"))
 
     execute(test, iterations)
   }
@@ -195,15 +195,16 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
     val (scheduler, close) = Scheduler.createDefaultScheduler()
 
     val io = cont {
-      new Cont[IO, Int, Int] {
+      new Cont[IO, Int, String] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-          lift(IO(scheduler.sleep(10.millis, () => resume(Right(42))))) >> get >> get
+          lift(IO(scheduler.sleep(10.millis, () => resume(Right(42))))) >> get >>
+            get.map(_.toString)
         }
 
       }
     }
 
-    val test = io.flatMap(r => IO(r mustEqual 42))
+    val test = io.flatMap(r => IO(r mustEqual "42"))
 
     execute(test, 100).guarantee(IO(close()))
   }
