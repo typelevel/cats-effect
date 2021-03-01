@@ -307,7 +307,7 @@ object Async {
       case RaiseError(e) => F.raiseError(e)
       case Delay(thunk)  => F.delay(thunk())
       case _ =>
-        F.suspend {
+        F.defer {
           IORunLoop.step(io) match {
             case Pure(a)       => F.pure(a)
             case RaiseError(e) => F.raiseError(e)

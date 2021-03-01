@@ -1251,7 +1251,7 @@ object IOTests {
     def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): SyncIO[Unit] =
       ref.runAsync(fa)(cb)
     def suspend[A](thunk: => IO[A]): IO[A] =
-      ref.suspend(thunk)
+      ref.defer(thunk)
     def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
       ref.bracketCase(acquire)(use)(release)
   }
