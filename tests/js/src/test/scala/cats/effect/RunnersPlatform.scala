@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import scala.concurrent.duration._
+
 import cats.effect.unsafe.IORuntime
 
 trait RunnersPlatform {
