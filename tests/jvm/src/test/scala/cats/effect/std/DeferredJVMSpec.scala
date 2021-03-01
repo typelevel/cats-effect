@@ -19,7 +19,6 @@ package std
 
 import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit}
 import cats.effect.kernel.Deferred
-import cats.syntax.all._
 import java.util.concurrent.atomic.AtomicLong
 // import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import org.specs2.mutable.Specification
@@ -232,7 +231,12 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
 
     try {
       ioa.unsafeRunTimed(10.seconds)(
-        unsafe.IORuntime(ctx, ctx, unsafe.Scheduler.fromScheduledExecutor(scheduler), () => ()))
+        unsafe.IORuntime(
+          ctx,
+          ctx,
+          unsafe.Scheduler.fromScheduledExecutor(scheduler),
+          () => (),
+          unsafe.IORuntimeConfig()))
     } finally {
       executor.shutdown()
       scheduler.shutdown()

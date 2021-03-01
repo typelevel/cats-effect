@@ -45,10 +45,10 @@ trait Runners extends SpecificationLike with TestInstances with RunnersPlatform 
   /*
    * Hacky implementation of effectful property testing
    */
-  def realProp[A, B: AsResult](gen: Gen[A])(f: A => IO[B])(
-      implicit R: AsResult[List[B]]): Execution = realProp(100)(gen)(f)
+  def realProp[A, B](gen: Gen[A])(f: A => IO[B])(implicit R: AsResult[List[B]]): Execution =
+    realProp(100)(gen)(f)
 
-  def realProp[A, B: AsResult](iters: Int)(gen: Gen[A])(f: A => IO[B])(
+  def realProp[A, B](iters: Int)(gen: Gen[A])(f: A => IO[B])(
       implicit R: AsResult[List[B]]): Execution =
     real(List.range(0, iters).traverse { _ =>
       val a = gen.sample.get
@@ -98,9 +98,7 @@ trait Runners extends SpecificationLike with TestInstances with RunnersPlatform 
     def mustFailWith[E <: Throwable: ClassTag] =
       fa.attempt.flatMap { res =>
         IO {
-          res must beLike {
-            case Left(e) => e must haveClass[E]
-          }
+          res must beLike { case Left(e) => e must haveClass[E] }
         }
       }
 

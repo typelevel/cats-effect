@@ -39,36 +39,12 @@ final class IORuntime private[effect] (
     val scheduler: Scheduler,
     val shutdown: () => Unit,
     val config: IORuntimeConfig,
-    private[effect] val fiberErrorCbs: FiberErrorHashtable = new FiberErrorHashtable(16),
-    private[effect] val internalShutdown: () => Unit = () => ()
+    private[effect] val fiberErrorCbs: FiberErrorHashtable = new FiberErrorHashtable(16)
 ) {
   override def toString: String = s"IORuntime($compute, $scheduler, $config)"
 }
 
-final case class IORuntimeConfig private (
-    val cancellationCheckThreshold: Int,
-    val autoYieldThreshold: Int)
-
-object IORuntimeConfig {
-  def apply(): IORuntimeConfig = new IORuntimeConfig(512, 1024)
-
-  def apply(cancellationCheckThreshold: Int, autoYieldThreshold: Int): IORuntimeConfig = {
-    if (autoYieldThreshold % cancellationCheckThreshold == 0)
-      new IORuntimeConfig(cancellationCheckThreshold, autoYieldThreshold)
-    else
-      throw new AssertionError(
-        s"Auto yield threshold $autoYieldThreshold must be a multiple of cancellation check threshold $cancellationCheckThreshold")
-  }
-}
-
 object IORuntime extends IORuntimeCompanionPlatform {
-  def apply(
-      compute: ExecutionContext,
-      blocking: ExecutionContext,
-      scheduler: Scheduler,
-      shutdown: () => Unit): IORuntime =
-    new IORuntime(compute, blocking, scheduler, shutdown, IORuntimeConfig())
-
   def apply(
       compute: ExecutionContext,
       blocking: ExecutionContext,

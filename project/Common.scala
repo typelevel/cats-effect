@@ -29,13 +29,13 @@ object Common extends AutoPlugin {
         if (isDotty.value)
           Nil
         else
-          Seq(compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0"))
+          Seq(compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"))
       },
-
       scalacOptions ++= {
         if (isDotty.value)
           Nil
         else
           Seq("-Xcheckinit")
-      })
+      }
+    )
 }

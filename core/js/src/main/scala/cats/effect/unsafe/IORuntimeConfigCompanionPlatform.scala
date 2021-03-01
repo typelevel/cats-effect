@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.kernel.syntax
+package cats.effect
+package unsafe
 
-trait AllSyntax
-    extends MonadCancelSyntax
-    with GenSpawnSyntax
-    with GenTemporalSyntax
-    with GenConcurrentSyntax
-    with AsyncSyntax
-    with ResourceSyntax
-    with ClockSyntax
+abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
+  protected final val Default: IORuntimeConfig =
+    apply(512, 1024)
+}

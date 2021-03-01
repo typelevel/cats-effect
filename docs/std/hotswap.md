@@ -1,6 +1,6 @@
 ---
 id: hotswap
-title: hotswap
+title: Hotswap
 ---
 
 ## Motivation

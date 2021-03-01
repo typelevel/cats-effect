@@ -2,7 +2,7 @@
 
 [![Gitter](https://img.shields.io/gitter/room/typelevel/cats-effect.svg)](https://gitter.im/typelevel/cats-effect) [![Latest version](https://index.scala-lang.org/typelevel/cats-effect/cats-effect/latest.svg?color=orange)](https://index.scala-lang.org/typelevel/cats-effect/cats-effect)
 
-<img align="right" width="256px" height="256px" src="cats-effect-logo.png"/>
+<img align="right" width="256px" height="256px" src="images/cats-effect-logo.png"/>
 
 <p>Cats Effect is a high-performance, asynchronous, composable framework for building real-world applications in a purely functional style within the Typelevel ecosystem. It provides a concrete tool, known as "the <code>IO</code> monad", for capturing and controlling actions, often referred to as "effects", that your program wishes to perform within a resource-safe, typed context with seamless support for concurrency and coordination. These effects may be asynchronous (callback-driven) or synchronous (directly returning values); they may return within microseconds or run infinitely.</p>
 
@@ -10,11 +10,11 @@
 
 ## Getting Started
 
-- Tired: **2.3.1**
-- Wired: **3.0.0-RC1**
+- Tired: **2.3.3**
+- Wired: **3.0.0-RC2**
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect" % "2.3.1"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "2.3.3"
 ```
 
 The above represents the core, stable dependency which brings in the entirety of Cats Effect. This is *most likely* what you want. All current Cats Effect releases are published for Scala 2.12, 2.13, 3.0.0-M2 and M3, and ScalaJS 1.4.x.
@@ -23,22 +23,22 @@ If you are using Cats Effect 3, then you may want to consider one of the several
 
 ```scala
 libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-effect-kernel" % "3.0.0-RC1",
-  "org.typelevel" %% "cats-effect-laws"   % "3.0.0-RC1" % Test)
+  "org.typelevel" %% "cats-effect-kernel" % "3.0.0-RC2",
+  "org.typelevel" %% "cats-effect-laws"   % "3.0.0-RC2" % Test)
 ```
 
 If you're a middleware framework (like fs2), you probably want to depend on **std**, which gives you access to `Queue`, `Semaphore`, and much more without introducing a hard-dependency on `IO` outside of your tests:
 
 ```scala
 libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-effect-std" % "3.0.0-RC1",
-  "org.typelevel" %% "cats-effect"     % "3.0.0-RC1" % Test)
+  "org.typelevel" %% "cats-effect-std" % "3.0.0-RC2",
+  "org.typelevel" %% "cats-effect"     % "3.0.0-RC2" % Test)
 ```
 
 You may also find some utility in the **testkit** and **kernel-testkit** projects, which contain `TestContext`, `TimeT`, generators for `IO`, and a few other things:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect-testkit" % "3.0.0-RC1" % Test
+libraryDependencies += "org.typelevel" %% "cats-effect-testkit" % "3.0.0-RC2" % Test
 ```
 
 Cats Effect provides backward binary compatibility within the 2.x and 3.x version lines, and both forward and backward compatibility within any major/minor line. This is analogous to the versioning scheme used by Cats itself, as well as other  major projects such as ScalaJS. Thus, any project depending upon Cats Effect 2.2.1 can be used with libraries compiled against Cats Effect 2.0.0 or 2.2.3, but *not* with libraries compiled against 2.3.0 or higher.
@@ -95,19 +95,19 @@ If you follow these rules, and you use libraries and frameworks which also follo
 
 ## Performance
 
-<img width="461px" height="356px" align="right" alt="a bar chart showing 'Fixed Thread Pool' and 'Cats Effect 3', with the latter being substantially taller than the former" src="contention.png"/>
+<img width="461px" height="356px" align="right" alt="a bar chart showing 'Fixed Thread Pool' and 'Cats Effect 3', with the latter being substantially taller than the former" src="images/contention.png"/>
 
 <p>Most functional and async frameworks will tout their performance on synthetic microbenchmarks, measuring things like how many <code>flatMap</code>s they can evaluate per microsecond and so on. However, most programs aren't just a bunch of <code>flatMap</code>s, and the true performance bottlenecks are usually in things like contention scaling under high load, memory and other resource management, backpressure, page faults, and such. In these areas, Cats Effect is truly unrivaled on the JVM, and in most cases, applications written in a purely functional style using Cats Effect will <em>exceed</em> the performance and elasticity of the same applications written in an imperative style.</p>
 
 <p>The chart to the right shows the results of a synthetic benchmark simulating an extremely high-contention scheduling scenario. The scenario is typical of something like a microservice handling extremely high requests-per-second, with each request representing some sort of scatter/gather semantic in which many complex asynchronous actions must be taken in parallel to produce a timely response.</p>
 
-The benchmark measures the performance of a typical "disruptor pattern" application written using a fixed thread pool (from `java.util.concurrent.Executors`) compared to the same workflow implemented using Cats Effect (specifically version 3.0). The scores are not a typo: Cats Effect is *almost 55x faster* than the typical disruptor-style, hand-tuned implementation. Similarly dramatic results are consistently observed when comparing Cats Effect with other popular asynchronous and functional frameworks.
+[The benchmark](https://github.com/typelevel/cats-effect/blob/220d0106ca0ff6106746a41504b6ab07d8fc9199/benchmarks/src/main/scala/cats/effect/benchmarks/WorkStealingBenchmark.scala) measures the performance of a typical "disruptor pattern" application written using a fixed thread pool (from `java.util.concurrent.Executors`) compared to the same workflow implemented using Cats Effect (specifically version 3.0). The scores are not a typo: Cats Effect is *almost 55x faster* than the typical disruptor-style, hand-tuned implementation. Similarly dramatic results are consistently observed when comparing Cats Effect with other popular asynchronous and functional frameworks.
 
 As always, benchmarks are one thing, and your application is its own special snowflake with its own performance profile. Always measure and test *your application* before assuming that someone else's performance results apply in your use-case. When in doubt, [come talk with us](https://gitter.im/typelevel/cats-effect) and we'll give you an honest opinion!
 
 ## Abstraction
 
-![the cats effect hierarchy of typeclasses as of version 3.0](hierarchy.svg)
+![the cats effect hierarchy of typeclasses as of version 3.0](images/hierarchy.svg)
 
 Cats Effect isn't just designed to enable high performance applications with out-of-the-box safety and elasticity under load. It was intended first and foremost as a tool for implementing *composable* and *reasonable* software that is easy to write, easy to test, and easy to evolve as your team and requirements change over time. To achieve this goal, Cats Effect embraces and enables strong, typeful, purely-functional programming styles that are uniquely tailored for the Scala language.
 

@@ -111,9 +111,7 @@ class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with R
         //Await should never complete as cancelation stops latch countdown
         r <- IO.interruptible(true)(latch.await()).timeout(1.second).attempt
         res <- IO {
-          r must beLike {
-            case Left(e) => e must haveClass[TimeoutException]
-          }
+          r must beLike { case Left(e) => e must haveClass[TimeoutException] }
         }
       } yield res
     }
@@ -124,9 +122,7 @@ class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with R
 
       IO(s.sleep(10.millis, () => ())).attempt.flatMap { result =>
         IO {
-          result must beLike {
-            case Left(e) => e must haveClass[RuntimeException]
-          }
+          result must beLike { case Left(e) => e must haveClass[RuntimeException] }
         }
       }
     }

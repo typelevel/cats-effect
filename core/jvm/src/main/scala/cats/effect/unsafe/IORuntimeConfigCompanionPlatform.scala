@@ -14,13 +14,19 @@
  * limitations under the License.
  */
 
-package cats.effect.kernel.syntax
+package cats.effect
+package unsafe
 
-trait AllSyntax
-    extends MonadCancelSyntax
-    with GenSpawnSyntax
-    with GenTemporalSyntax
-    with GenConcurrentSyntax
-    with AsyncSyntax
-    with ResourceSyntax
-    with ClockSyntax
+abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
+
+  protected final val Default: IORuntimeConfig = {
+    val cancellationCheckThreshold =
+      System.getProperty("cats.effect.cancellation.check.threshold", "512").toInt
+
+    apply(
+      cancellationCheckThreshold,
+      System
+        .getProperty("cats.effect.auto.yield.threshold.multiplier", "2")
+        .toInt * cancellationCheckThreshold)
+  }
+}

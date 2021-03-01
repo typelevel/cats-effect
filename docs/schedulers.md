@@ -3,8 +3,6 @@ id: schedulers
 title: Schedulers
 ---
 
-# Schedulers
-
 As Cats Effect is a runtime system, it ultimately must deal with the problem of how best to *execute* the programs which are defined using its concrete implementation (`IO`). Fibers are an incredibly powerful model, but they don't map 1:1 or even 1:n with any JVM or JavaScript construct, which means that some interpretation is required. The fashion in which this is achieved has a profound impact on the performance and elasticity of programs written using `IO`.
 
 This is true across both the JVM and JavaScript, and while it seems intuitive that JavaScript scheduling would be a simpler problem (due to its single-threaded nature), there are still some significant subtleties which become relevant in real-world applications.

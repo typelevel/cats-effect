@@ -49,8 +49,22 @@ package object effect {
   val Async = cekernel.Async
 
   type ApplicativeThrow[F[_]] = cekernel.ApplicativeThrow[F]
+
+  object ApplicativeThrow {
+    def apply[F[_]](implicit F: ApplicativeThrow[F]): F.type = F
+  }
+
   type MonadThrow[F[_]] = cekernel.MonadThrow[F]
+
+  object MonadThrow {
+    def apply[F[_]](implicit F: MonadThrow[F]): F.type = F
+  }
+
   type MonadCancelThrow[F[_]] = cekernel.MonadCancelThrow[F]
+
+  object MonadCancelThrow {
+    def apply[F[_]](implicit F: MonadCancelThrow[F]): F.type = F
+  }
 
   type Spawn[F[_]] = cekernel.Spawn[F]
   val Spawn = cekernel.Spawn

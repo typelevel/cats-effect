@@ -76,6 +76,8 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val sleepers: ConcurrentLinkedQueue[WorkerThread] =
     new ConcurrentLinkedQueue()
 
+  private[this] val blockingThreadCounter: AtomicInteger = new AtomicInteger(0)
+
   // Shutdown signal for the worker threads.
   @volatile private[unsafe] var done: Boolean = false
 
@@ -85,7 +87,8 @@ private[effect] final class WorkStealingThreadPool(
     var i = 0
     while (i < threadCount) {
       val index = i
-      val thread = new WorkerThread(index, this)
+      val thread =
+        new WorkerThread(index, threadPrefix, blockingThreadCounter, externalQueue, this)
       thread.setName(s"$threadPrefix-$index")
       thread.setDaemon(true)
       workerThreads(i) = thread
@@ -124,14 +127,8 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // The worker thread could not steal any work. Fall back to checking the external queue.
-    externalDequeue()
-  }
-
-  /**
-   * Checks the external queue for a fiber to execute next.
-   */
-  private[unsafe] def externalDequeue(): IOFiber[_] =
     externalQueue.poll()
+  }
 
   /**
    * Deregisters the current worker thread from the set of searching threads and asks for
@@ -271,8 +268,11 @@ private[effect] final class WorkStealingThreadPool(
    * a worker thread. Otherwise falls back to scheduling on the external queue.
    */
   private[effect] def executeFiber(fiber: IOFiber[_]): Unit = {
-    if (Thread.currentThread().isInstanceOf[WorkerThread]) {
-      rescheduleFiberAndNotify(fiber)
+    val thread = Thread.currentThread()
+    if (thread.isInstanceOf[WorkerThread]) {
+      thread.asInstanceOf[WorkerThread].schedule(fiber)
+    } else if (thread.isInstanceOf[HelperThread]) {
+      thread.asInstanceOf[HelperThread].schedule(fiber)
     } else {
       externalQueue.offer(fiber)
       notifyParked()
@@ -280,30 +280,10 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Reschedules the given fiber directly on the local work stealing queue on the same thread,
-   * but with the possibility to skip notifying other fibers of a potential steal target, which
-   * reduces contention in workloads running on fewer worker threads. This method executes an
-   * unchecked cast to a `WorkerThread` and should only ever be called directly from a
-   * `WorkerThread`.
-   */
-  private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit = {
-    Thread.currentThread().asInstanceOf[WorkerThread].smartEnqueue(fiber, externalQueue)
-  }
-
-  /**
-   * Reschedules the given fiber directly on the local work stealing queue on the same thread.
-   * This method executes an unchecked cast to a `WorkerThread` and should only ever be called
-   * directly from a `WorkerThread`.
-   */
-  private[effect] def rescheduleFiberAndNotify(fiber: IOFiber[_]): Unit = {
-    Thread.currentThread().asInstanceOf[WorkerThread].enqueueAndNotify(fiber, externalQueue)
-  }
-
-  /**
    * Schedule a `java.lang.Runnable` for execution in this thread pool. The runnable
    * is suspended in an `IO` and executed as a fiber.
    */
-  def execute(runnable: Runnable): Unit = {
+  override def execute(runnable: Runnable): Unit = {
     if (runnable.isInstanceOf[IOFiber[_]]) {
       executeFiber(runnable.asInstanceOf[IOFiber[_]])
     } else {
@@ -320,7 +300,7 @@ private[effect] final class WorkStealingThreadPool(
     }
   }
 
-  def reportFailure(cause: Throwable): Unit = {
+  override def reportFailure(cause: Throwable): Unit = {
     cause.printStackTrace()
   }
 

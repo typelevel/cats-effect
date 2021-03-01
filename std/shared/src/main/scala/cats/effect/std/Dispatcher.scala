@@ -42,7 +42,7 @@ import scala.util.{Failure, Success}
  * so they can be allocated on-demand if necessary.
  *
  * Notably, [[Dispatcher]] replaces Effect and ConcurrentEffect from Cats
- * Effect 2 while only a requiring an [[Async]] constraint.
+ * Effect 2 while only a requiring an [[cats.effect.kernel.Async]] constraint.
  */
 trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 

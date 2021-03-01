@@ -22,12 +22,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        scala: [3.0.0-M2, 3.0.0-M3, 2.12.13, 2.13.4]
+        scala: [3.0.0-M3, 3.0.0-RC1, 2.12.13, 2.13.5]
         java:
           - adopt@1.8
           - adopt@1.11
           - adopt@1.15
-          - graalvm-ce-java8@20.3.0
+          - graalvm-ce-java8@21.0
         ci: [ciJVM, ciJS, ciFirefox]
         exclude:
           - ci: ciJS
@@ -35,11 +35,11 @@ jobs:
           - ci: ciJS
             java: adopt@1.15
           - ci: ciJS
-            java: graalvm-ce-java8@20.3.0
-          - os: windows-latest
-            scala: 3.0.0-M2
+            java: graalvm-ce-java8@21.0
           - os: windows-latest
             scala: 3.0.0-M3
+          - os: windows-latest
+            scala: 3.0.0-RC1
           - os: windows-latest
             scala: 2.12.13
           - os: windows-latest
@@ -49,11 +49,11 @@ jobs:
           - ci: ciFirefox
             java: adopt@1.15
           - ci: ciFirefox
-            java: graalvm-ce-java8@20.3.0
-          - os: windows-latest
-            scala: 3.0.0-M2
+            java: graalvm-ce-java8@21.0
           - os: windows-latest
             scala: 3.0.0-M3
+          - os: windows-latest
+            scala: 3.0.0-RC1
           - os: windows-latest
             scala: 2.12.13
           - os: windows-latest
@@ -102,7 +102,7 @@ jobs:
       - shell: bash
         run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
 
-      - if: matrix.scala == '2.13.4' && matrix.ci == 'ciJVM'
+      - if: matrix.scala == '2.13.5' && matrix.ci == 'ciJVM'
         shell: bash
         run: sbt ++${{ matrix.scala }} docs/mdoc
 

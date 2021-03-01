@@ -18,7 +18,7 @@ package cats.effect.unsafe
 
 import scala.concurrent.ExecutionContext
 
-import java.util.concurrent.Executors
+import java.util.concurrent.{Executors, ScheduledThreadPoolExecutor}
 import java.util.concurrent.atomic.AtomicInteger
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
@@ -26,8 +26,8 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   // The default compute thread pool on the JVM is now a work stealing thread pool.
   def createDefaultComputeThreadPool(
       self: => IORuntime,
+      threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
       threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) = {
-    val threads = math.max(2, Runtime.getRuntime().availableProcessors())
     val threadPool =
       new WorkStealingThreadPool(threads, threadPrefix, self)
     (threadPool, { () => threadPool.shutdown() })
@@ -48,30 +48,26 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   def createDefaultScheduler(threadName: String = "io-scheduler"): (Scheduler, () => Unit) =
     Scheduler.createDefaultScheduler()
 
+  private[this] var _global: IORuntime = null
+
+  // we don't need to synchronize this with IOApp, because we control the main thread
+  // so instead we just yolo it since the lazy val already synchronizes its own initialization
+  private[effect] def installGlobal(global: IORuntime): Unit = {
+    require(_global == null)
+    _global = global
+  }
+
   lazy val global: IORuntime = {
-    val cancellationCheckThreshold =
-      System.getProperty("cats.effect.cancellation.check.threshold", "512").toInt
+    if (_global == null) {
+      installGlobal {
+        val (compute, _) = createDefaultComputeThreadPool(global)
+        val (blocking, _) = createDefaultBlockingExecutionContext()
+        val (scheduler, _) = createDefaultScheduler()
 
-    val (compute, compDown) = createDefaultComputeThreadPool(global)
-    val (blocking, blockDown) = createDefaultBlockingExecutionContext()
-    val (scheduler, schedDown) = createDefaultScheduler()
-
-    new IORuntime(
-      compute,
-      blocking,
-      scheduler,
-      () => (),
-      IORuntimeConfig(
-        cancellationCheckThreshold,
-        System
-          .getProperty("cats.effect.auto.yield.threshold.multiplier", "2")
-          .toInt * cancellationCheckThreshold
-      ),
-      internalShutdown = () => {
-        compDown()
-        blockDown()
-        schedDown()
+        IORuntime(compute, blocking, scheduler, () => (), IORuntimeConfig())
       }
-    )
+    }
+
+    _global
   }
 }

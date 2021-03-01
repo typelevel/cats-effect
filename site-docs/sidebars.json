@@ -1,7 +1,23 @@
 {
   "docs": {
-    "Getting Started": ["installation"],
-    "Typeclasses": ["typeclasses"],
-    "Schedulers": ["schedulers"]
+    "Overview": [
+      "getting-started",
+      "thread-model",
+      "typeclasses",
+      "schedulers"
+    ],
+    "Standard Library": [
+      "std/countdown-latch",
+      "std/cyclic-barrier",
+      "std/deferred",
+      "std/dequeue",
+      "std/dispatcher",
+      "std/hotswap",
+      "std/pqueue",
+      "std/queue",
+      "std/ref",
+      "std/resource",
+      "std/supervisor"
+    ]
   }
 }

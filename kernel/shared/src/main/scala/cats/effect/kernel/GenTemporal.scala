@@ -71,7 +71,6 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
     val timeoutException = raiseError[A](ev(new TimeoutException(duration.toString)))
     timeoutTo(fa, duration, timeoutException)
   }
-
 }
 
 object GenTemporal {

@@ -1,6 +1,6 @@
 ---
 id: deferred
-title: deferred
+title: Deferred
 ---
 
 A purely functional synchronization primitive which represents a single value which may not yet be available.
