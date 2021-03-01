@@ -28,7 +28,10 @@ import scala.util.control.NonFatal
  * facility' and the http4s implementation
  * https://github.com/http4s/blaze/blob/b9305ccb2e04ee62bde6619d7e7e2d17ea645e37/core/src/main/scala/org/http4s/blaze/util/TickWheelExecutor.scala
  */
-class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) extends Scheduler {
+private[unsafe] final class HashedWheelTimerScheduler(
+    wheelSize: Int,
+    resolution: FiniteDuration)
+    extends Scheduler {
 
   def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
     if (!canceled) {
@@ -92,57 +95,60 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
   @volatile private var canceled = false
 
   private val thread = new Thread("io-scheduler") {
-    override def run(): Unit = loop()
+    override def run(): Unit = {
+      @tailrec
+      def loop(previousTicks: Long): Unit = {
+        // println(s"Loop $previousTicks")
+        //TODO should we only check this every n iterations?
+        if (!canceled) {
+          val startTime = nowMillis()
+          val ticks = (startTime * invResolutionMillis).toLong
+          val iters = Math.min(ticks - previousTicks, wheelSize).toInt
+
+          val ops = pendingOps.getAndSet(Noop)
+          executeOps(ops)
+
+          @tailrec
+          def go(i: Int): Unit = {
+            if (i < iters) {
+              // println(s"Running bucket ${ticksToBucketIdx(previousTicks + i)} at ${startTime}")
+              wheel(ticksToBucketIdx(previousTicks + i)).schedule(startTime)
+              go(i + 1)
+            }
+          }
+
+          go(0)
+
+          val curr = nowMillis()
+          val target = (ticks + 1) * resolutionMillis
+          //We don't blindly sleep for resolutionMillis - (curr - start)
+          //as we want to be self-normalizing to awake at the
+          //start of each time interval as Thread.sleep accuracy
+          //isn't guaranteed
+          if (curr < target) {
+            //TODO do we need to handle thread interrupted ex?
+            // println("sleeping")
+            Thread.sleep(target - curr)
+          }
+          loop(ticks)
+        } else {
+          var idx = 0
+          while (idx < wheelSize) {
+            //null out to avoid leaks
+            wheel(idx) = null
+            idx = idx + 1
+          }
+        }
+      }
+
+      loop((nowMillis() * invResolutionMillis).toLong)
+
+    }
   }
 
   thread.setDaemon(true)
   thread.setPriority(Thread.MAX_PRIORITY)
   thread.start()
-
-  private def loop(): Unit = {
-    @tailrec
-    def loop(previousTicks: Long): Unit = {
-      // println(s"Loop $previousTicks")
-      //TODO should we only check this every n iterations?
-      if (!canceled) {
-        val startTime = nowMillis()
-        val ticks = (startTime * invResolutionMillis).toLong
-        val iters = Math.min(ticks - previousTicks, wheelSize).toInt
-
-        val ops = pendingOps.getAndSet(Noop)
-        executeOps(ops)
-
-        @tailrec
-        def go(i: Int): Unit = {
-          if (i < iters) {
-            // println(s"Running bucket ${ticksToBucketIdx(previousTicks + i)} at ${startTime}")
-            wheel(ticksToBucketIdx(previousTicks + i)).schedule(startTime)
-            go(i + 1)
-          }
-        }
-
-        go(0)
-
-        val curr = nowMillis()
-        val target = (ticks + 1) * resolutionMillis
-        //We don't blindly sleep for resolutionMillis - (curr - start)
-        //as we want to be self-normalizing to awake at the
-        //start of each time interval as Thread.sleep accuracy
-        //isn't guaranteed
-        if (curr < target) {
-          //TODO do we need to handle thread interrupted ex?
-          // println("sleeping")
-          Thread.sleep(target - curr)
-        }
-        loop(ticks)
-      } else {
-        //null out to avoid leaks
-        (0.until(wheelSize)).foreach { n => wheel(n) = null }
-      }
-    }
-
-    loop((nowMillis() * invResolutionMillis).toLong)
-  }
 
   @inline private def tsToBucketIdx(ts: Long): Int =
     ((ts * invResolutionMillis).toLong % wheelSize).toInt
@@ -182,8 +188,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
     def unlink(): Unit = {
       if (previous != null) {
         previous.next = next
-      } else {
-      }
+      } else {}
       if (next != null) {
         next.previous = previous
       }
@@ -221,8 +226,7 @@ class HashedWheelTimerScheduler(wheelSize: Int, resolution: FiniteDuration) exte
             } catch {
               case NonFatal(e) => println(s"Caught error $e in io timer")
             }
-          } else {
-          }
+          } else {}
           go(next)
         }
       }
