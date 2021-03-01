@@ -76,6 +76,48 @@ class WorkStealingBenchmark {
     benchmark
   }
 
+  def allocBenchmark(implicit runtime: IORuntime): Int = {
+    def allocation(n: Int): IO[Array[AnyRef]] =
+      IO {
+        val size = math.max(100, math.min(n, 2000))
+        val array = new Array[AnyRef](size)
+        for (i <- (0 until size)) {
+          array(i) = new AnyRef()
+        }
+        array
+      }
+
+    def sum(array: Array[AnyRef]): IO[Int] =
+      IO {
+        array.map(_.hashCode()).sum
+      }
+
+    def fiber(i: Int): IO[Int] =
+      IO.cede.flatMap { _ =>
+        allocation(i).flatMap { arr =>
+          IO.cede.flatMap(_ => sum(arr)).flatMap { _ =>
+            if (i > 1000)
+              IO.cede.flatMap(_ => IO.pure(i))
+            else
+              IO.cede.flatMap(_ => fiber(i + 1))
+          }
+        }
+      }
+
+    List
+      .range(0, 2500)
+      .traverse(_ => fiber(0).start)
+      .flatMap(_.traverse(_.joinWithNever))
+      .map(_.sum)
+      .unsafeRunSync()
+  }
+
+  @Benchmark
+  def alloc(): Int = {
+    import cats.effect.unsafe.implicits.global
+    allocBenchmark
+  }
+
   @Benchmark
   def asyncTooManyThreads(): Int = {
     implicit lazy val runtime: IORuntime = {
