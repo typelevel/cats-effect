@@ -33,4 +33,7 @@ private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type
       },
       () => ())
 
+  def createDefaultScheduler(resolution: FiniteDuration): (Scheduler, () => Unit) =
+    createDefaultScheduler()
+
 }

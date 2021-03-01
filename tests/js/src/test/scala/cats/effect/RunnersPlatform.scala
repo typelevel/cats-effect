@@ -20,4 +20,6 @@ import cats.effect.unsafe.IORuntime
 
 trait RunnersPlatform {
   protected def runtime(): IORuntime = IORuntime.global
+
+  def schedulerResolution: FiniteDuration = 100.millis
 }
