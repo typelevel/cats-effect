@@ -121,4 +121,11 @@ trait IOApp {
     IOAppPlatform.defaultExecutionContext
 }
 
-object IOApp extends IOAppCompanionPlatform
+object IOApp extends IOAppCompanionPlatform {
+
+  trait Simple extends IOApp {
+    def run: IO[Unit]
+    final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
+  }
+
+}
