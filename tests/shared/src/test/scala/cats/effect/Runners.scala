@@ -46,8 +46,11 @@ trait Runners extends SpecificationLike with TestInstances with RunnersPlatform 
    * Hacky implementation of effectful property testing
    */
   def realProp[A, B: AsResult](gen: Gen[A])(f: A => IO[B])(
+      implicit R: AsResult[List[B]]): Execution = realProp(100)(gen)(f)
+
+  def realProp[A, B: AsResult](iters: Int)(gen: Gen[A])(f: A => IO[B])(
       implicit R: AsResult[List[B]]): Execution =
-    real(List.range(1, 100).traverse { _ =>
+    real(List.range(0, iters).traverse { _ =>
       val a = gen.sample.get
       f(a)
     })

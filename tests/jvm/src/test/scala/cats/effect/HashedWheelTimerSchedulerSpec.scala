@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import java.util.concurrent.{CountDownLatch, TimeoutException, TimeUnit}
+import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
 
 import cats.implicits._
 import org.specs2.ScalaCheck
@@ -54,7 +54,7 @@ class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with R
 
     }
 
-    "complete many not before scheduled time" in realProp(Gen.listOfN(100, durationGen)) {
+    "complete many not before scheduled time" in realProp(10)(Gen.listOfN(100, durationGen)) {
       delays =>
         delays
           .parTraverse_ { delay =>
@@ -79,18 +79,17 @@ class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with R
           }
     }
 
-    "complete many within tolerance of scheduled time" in realProp(
+    "complete many within tolerance of scheduled time" in realProp(10)(
       Gen.listOfN(100, durationGen)) { delays =>
       delays
         .parTraverse_ { delay =>
           for {
             t1 <- IO(scheduler.monotonicNanos())
-            _ <-
-              IO.async((cb: Either[Throwable, Unit] => Unit) => {
-                // runtime().scheduler.sleep(delay, () => cb(Right(())))
-                scheduler.sleep(delay, () => cb(Right(())))
-                IO.pure(None)
-              })
+            _ <- IO.async((cb: Either[Throwable, Unit] => Unit) => {
+              // runtime().scheduler.sleep(delay, () => cb(Right(())))
+              scheduler.sleep(delay, () => cb(Right(())))
+              IO.pure(None)
+            })
             t2 <- IO(scheduler.monotonicNanos())
             actual = (t2 - t1).nanos
             res <- IO(actual must be_<(delay + tolerance))
@@ -119,7 +118,6 @@ class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with R
       } yield res
     }
 
-
     "reject tasks once shutdown" in real {
       val (s, close) = Scheduler.createDefaultScheduler()
       close()
@@ -147,6 +145,6 @@ class HashedWheelTimerSchedulerSpec extends Specification with ScalaCheck with R
     super.afterAll()
   }
 
-  private def durationGen: Gen[FiniteDuration] = Gen.choose(0L, 1000L).map(n => n.millis)
+  private def durationGen: Gen[FiniteDuration] = Gen.choose(0L, 500L).map(n => n.millis)
 
 }

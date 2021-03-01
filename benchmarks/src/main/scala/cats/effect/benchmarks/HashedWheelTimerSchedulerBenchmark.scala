@@ -49,9 +49,7 @@ class HashedWheelTimerSchedulerBenchmark {
   implicit lazy val runtime: IORuntime = {
     val (compute, compDown) = IORuntime.createDefaultComputeThreadPool(runtime)
     val (blocking, blockDown) = IORuntime.createDefaultBlockingExecutionContext()
-    val s = new HashedWheelTimerScheduler(
-      HashedWheelTimerScheduler.defaultWheelSize,
-      5.millis)
+    val s = new HashedWheelTimerScheduler(HashedWheelTimerScheduler.defaultWheelSize, 5.millis)
     val (scheduler, schedDown) = (s, { () => s.shutdown() })
     // val (scheduler, schedDown) = Scheduler.createOldScheduler()
 

@@ -38,9 +38,8 @@ private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type
     createDefaultScheduler(HashedWheelTimerScheduler.defaultResolution)
 
   def createDefaultScheduler(resolution: FiniteDuration): (Scheduler, () => Unit) = {
-    val scheduler = new HashedWheelTimerScheduler(
-      HashedWheelTimerScheduler.defaultWheelSize,
-      resolution)
+    val scheduler =
+      new HashedWheelTimerScheduler(HashedWheelTimerScheduler.defaultWheelSize, resolution)
     (scheduler, { () => scheduler.shutdown() })
   }
 
