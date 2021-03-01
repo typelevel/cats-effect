@@ -21,6 +21,7 @@ import cats.data._
 import cats.effect.concurrent.Ref
 import cats.syntax.all._
 import scala.annotation.implicitNotFound
+import scala.annotation.nowarn
 
 /**
  * A monad that can suspend the execution of side effects
@@ -36,12 +37,14 @@ trait Sync[F[_]] extends BracketThrow[F] with Defer[F] {
    * the purpose of this function is to suspend side effects
    * in `F`.
    */
+  @deprecated("use defer", "2.4.0")
   def suspend[A](thunk: => F[A]): F[A]
 
   /**
    * Alias for `suspend` that suspends the evaluation of
    * an `F` reference and implements `cats.Defer` typeclass.
    */
+  @nowarn("cat=deprecation")
   final override def defer[A](fa: => F[A]): F[A] = suspend(fa)
 
   /**
@@ -51,7 +54,7 @@ trait Sync[F[_]] extends BracketThrow[F] with Defer[F] {
    * the purpose of this function is to suspend side effects
    * in `F`.
    */
-  def delay[A](thunk: => A): F[A] = suspend(pure(thunk))
+  def delay[A](thunk: => A): F[A] = defer(pure(thunk))
 }
 
 object Sync {
@@ -148,7 +151,7 @@ object Sync {
       EitherT.catsDataMonadErrorForEitherT[F, L].tailRecM(a)(f)
 
     def suspend[A](thunk: => EitherT[F, L, A]): EitherT[F, L, A] =
-      EitherT(F.suspend(thunk.value))
+      EitherT(F.defer(thunk.value))
 
     override def uncancelable[A](fa: EitherT[F, L, A]): EitherT[F, L, A] =
       EitherT(F.uncancelable(fa.value))
@@ -197,7 +200,7 @@ object Sync {
       OptionT.catsDataMonadErrorForOptionT[F, Throwable].tailRecM(a)(f)
 
     def suspend[A](thunk: => OptionT[F, A]): OptionT[F, A] =
-      OptionT(F.suspend(thunk.value))
+      OptionT(F.defer(thunk.value))
 
     override def uncancelable[A](fa: OptionT[F, A]): OptionT[F, A] =
       OptionT(F.uncancelable(fa.value))
@@ -246,7 +249,7 @@ object Sync {
       IndexedStateT.catsDataMonadForIndexedStateT[F, S].tailRecM(a)(f)
 
     def suspend[A](thunk: => StateT[F, S, A]): StateT[F, S, A] =
-      StateT.applyF(F.suspend(thunk.runF))
+      StateT.applyF(F.defer(thunk.runF))
   }
 
   private[effect] trait WriterTSync[F[_], L] extends Sync[WriterT[F, L, *]] {
@@ -292,7 +295,7 @@ object Sync {
       WriterT.catsDataMonadForWriterT[F, L].tailRecM(a)(f)
 
     def suspend[A](thunk: => WriterT[F, L, A]): WriterT[F, L, A] =
-      WriterT(F.suspend(thunk.run))
+      WriterT(F.defer(thunk.run))
   }
 
   abstract private[effect] class KleisliSync[F[_], R]
@@ -302,20 +305,20 @@ object Sync {
 
     override def handleErrorWith[A](fa: Kleisli[F, R, A])(f: Throwable => Kleisli[F, R, A]): Kleisli[F, R, A] =
       Kleisli { r =>
-        F.suspend(F.handleErrorWith(fa.run(r))(e => f(e).run(r)))
+        F.defer(F.handleErrorWith(fa.run(r))(e => f(e).run(r)))
       }
 
     override def flatMap[A, B](fa: Kleisli[F, R, A])(f: A => Kleisli[F, R, B]): Kleisli[F, R, B] =
       Kleisli { r =>
-        F.suspend(fa.run(r).flatMap(f.andThen(_.run(r))))
+        F.defer(fa.run(r).flatMap(f.andThen(_.run(r))))
       }
 
     def suspend[A](thunk: => Kleisli[F, R, A]): Kleisli[F, R, A] =
-      Kleisli(r => F.suspend(thunk.run(r)))
+      Kleisli(r => F.defer(thunk.run(r)))
 
     override def uncancelable[A](fa: Kleisli[F, R, A]): Kleisli[F, R, A] =
       Kleisli { r =>
-        F.suspend(F.uncancelable(fa.run(r)))
+        F.defer(F.uncancelable(fa.run(r)))
       }
   }
 
@@ -363,7 +366,7 @@ object Sync {
       IorT.catsDataMonadErrorForIorT[F, L].tailRecM(a)(f)
 
     def suspend[A](thunk: => IorT[F, L, A]): IorT[F, L, A] =
-      IorT(F.suspend(thunk.value))
+      IorT(F.defer(thunk.value))
 
     override def uncancelable[A](fa: IorT[F, L, A]): IorT[F, L, A] =
       IorT(F.uncancelable(fa.value))
@@ -419,7 +422,7 @@ object Sync {
       IndexedReaderWriterStateT.catsDataMonadForRWST[F, E, L, S].tailRecM(a)(f)
 
     def suspend[A](thunk: => ReaderWriterStateT[F, E, L, S, A]): ReaderWriterStateT[F, E, L, S, A] =
-      ReaderWriterStateT((e, s) => F.suspend(thunk.run(e, s)))
+      ReaderWriterStateT((e, s) => F.defer(thunk.run(e, s)))
 
     override def uncancelable[A](fa: ReaderWriterStateT[F, E, L, S, A]): ReaderWriterStateT[F, E, L, S, A] =
       ReaderWriterStateT((e, s) => F.uncancelable(fa.run(e, s)))

@@ -405,7 +405,7 @@ object Concurrent {
       case RaiseError(e) => F.raiseError(e)
       case Delay(thunk)  => F.delay(thunk())
       case _ =>
-        F.suspend {
+        F.defer {
           IORunLoop.step(ioa) match {
             case Pure(a)       => F.pure(a)
             case RaiseError(e) => F.raiseError(e)
@@ -512,7 +512,7 @@ object Concurrent {
    *        the source completing, a `TimeoutException` is raised
    */
   def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Concurrent[F], timer: Timer[F]): F[A] = {
-    val timeoutException = F.suspend(F.raiseError[A](new TimeoutException(duration.toString)))
+    val timeoutException = F.defer(F.raiseError[A](new TimeoutException(duration.toString)))
     timeoutTo(fa, duration, timeoutException)
   }
 

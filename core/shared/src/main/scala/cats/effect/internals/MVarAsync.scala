@@ -43,10 +43,10 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
     }
 
   def tryPut(a: A): F[Boolean] =
-    F.suspend(unsafeTryPut(a))
+    F.defer(unsafeTryPut(a))
 
   val tryTake: F[Option[A]] =
-    F.suspend(unsafeTryTake())
+    F.defer(unsafeTryTake())
 
   val take: F[A] =
     F.flatMap(tryTake) {

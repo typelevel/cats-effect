@@ -164,7 +164,7 @@ object Deferred {
   final private class ConcurrentDeferred[F[_], A](ref: AtomicReference[State[A]])(implicit F: Concurrent[F])
       extends TryableDeferred[F, A] {
     def get: F[A] =
-      F.suspend {
+      F.defer {
         ref.get match {
           case State.Set(a) =>
             F.pure(a)
@@ -214,7 +214,7 @@ object Deferred {
     }
 
     def complete(a: A): F[Unit] =
-      F.suspend(unsafeComplete(a))
+      F.defer(unsafeComplete(a))
 
     @tailrec
     private def unsafeComplete(a: A): F[Unit] =
