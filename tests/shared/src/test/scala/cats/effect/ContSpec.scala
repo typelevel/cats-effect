@@ -61,7 +61,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
   }
 
   "callback resumes" in real {
-    val (scheduler, close) = Scheduler.createDefaultScheduler()
+    val (scheduler, close) = Scheduler.createDefaultScheduler(10.millis)
 
     val io = cont {
       new Cont[IO, Int, Int] {
@@ -192,7 +192,7 @@ trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
   }
 
   "get is idempotent - 2" in real {
-    val (scheduler, close) = Scheduler.createDefaultScheduler()
+    val (scheduler, close) = Scheduler.createDefaultScheduler(10.millis)
 
     val io = cont {
       new Cont[IO, Int, Int] {

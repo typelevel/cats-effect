@@ -67,7 +67,7 @@ private[unsafe] final class HashedWheelTimerScheduler(
   def monotonicNanos() = System.nanoTime()
 
   def shutdown(): Unit = {
-    println("shutdown")
+    // println("shutdown")
     canceled = true
   }
 

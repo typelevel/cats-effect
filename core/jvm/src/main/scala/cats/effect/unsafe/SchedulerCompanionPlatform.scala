@@ -34,10 +34,13 @@ private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type
     (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
   }
 
-  def createDefaultScheduler(): (Scheduler, () => Unit) = {
+  def createDefaultScheduler(): (Scheduler, () => Unit) =
+    createDefaultScheduler(HashedWheelTimerScheduler.defaultResolution)
+
+  def createDefaultScheduler(resolution: FiniteDuration): (Scheduler, () => Unit) = {
     val scheduler = new HashedWheelTimerScheduler(
       HashedWheelTimerScheduler.defaultWheelSize,
-      HashedWheelTimerScheduler.defaultResolution)
+      resolution)
     (scheduler, { () => scheduler.shutdown() })
   }
 

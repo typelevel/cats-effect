@@ -34,7 +34,7 @@ import scala.reflect.ClassTag
 
 trait Runners extends SpecificationLike with TestInstances with RunnersPlatform { outer =>
 
-  def executionTimeout = 1000.seconds
+  def executionTimeout = 10.seconds
 
   def ticked[A: AsResult](test: Ticker => A): Execution =
     Execution.result(test(Ticker(TestContext())))

@@ -16,9 +16,12 @@
 
 package cats.effect
 
-import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
+import scala.concurrent.duration._
+
+import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 
 import org.specs2.specification.BeforeAfterAll
+import org.specs2.concurrent.Scheduler
 
 trait RunnersPlatform extends BeforeAfterAll {
 
@@ -32,8 +35,10 @@ trait RunnersPlatform extends BeforeAfterAll {
 
     val (blocking, blockDown) =
       IORuntime.createDefaultBlockingExecutionContext(s"io-blocking-${getClass.getName}")
+
     val (scheduler, schedDown) =
-      IORuntime.createDefaultScheduler(s"io-scheduler-${getClass.getName}")
+      Scheduler.createDefaultScheduler(10.millis)
+
     val (compute, compDown) =
       IORuntime.createDefaultComputeThreadPool(runtime0, s"io-compute-${getClass.getName}")
 
@@ -56,5 +61,5 @@ trait RunnersPlatform extends BeforeAfterAll {
     )
   }
 
-  def afterAll(): Unit = runtime().shutdown()
+  def afterAll(): Unit = runtime().internalShutdown()
 }
