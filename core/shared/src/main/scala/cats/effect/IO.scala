@@ -363,7 +363,14 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *      between termination conditions
    */
   def guarantee(finalizer: IO[Unit]): IO[A] =
-    guaranteeCase(_ => finalizer)
+    // this is a little faster than the default implementation, which helps Resource
+    IO uncancelable { poll =>
+      val handled = finalizer handleErrorWith { t =>
+        IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
+      }
+
+      poll(this).onCancel(finalizer).onError(_ => handled).flatTap(_ => finalizer)
+    }
 
   /**
    * Executes the given `finalizer` when the source is finished,
@@ -387,7 +394,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @see [[guarantee]] for the simpler version
    */
   def guaranteeCase(finalizer: OutcomeIO[A @uncheckedVariance] => IO[Unit]): IO[A] =
-    onCase { case oc => finalizer(oc) }
+    IO.unit.bracketCase(_ => this)((_, oc) => finalizer(oc))
 
   /**
    * Handle any error, potentially recovering from it, by mapping it to another
@@ -415,26 +422,6 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def onCancel(fin: IO[Unit]): IO[A] =
     IO.OnCancel(this, fin)
-
-  def onCase(pf: PartialFunction[OutcomeIO[A @uncheckedVariance], IO[Unit]]): IO[A] = {
-    def doOutcome(outcome: OutcomeIO[A]): IO[Unit] =
-      pf.lift(outcome)
-        .fold(IO.unit)(_.handleErrorWith { t =>
-          IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
-        })
-
-    IO uncancelable { poll =>
-      val base = poll(this)
-      val finalized = pf.lift(Outcome.Canceled()).map(base.onCancel).getOrElse(base)
-
-      finalized.attempt flatMap {
-        case Left(e) =>
-          doOutcome(Outcome.Errored(e)) *> IO.raiseError(e)
-        case Right(a) =>
-          doOutcome(Outcome.Succeeded(IO.pure(a))).as(a)
-      }
-    }
-  }
 
   def onError(f: Throwable => IO[Unit]): IO[A] =
     handleErrorWith(t => f(t).attempt *> IO.raiseError(t))
@@ -628,7 +615,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def to[F[_]](implicit F: LiftIO[F]): F[A @uncheckedVariance] =
     F.liftIO(this)
 
-  override def toString: String = "IO(...)"
+  // override def toString: String = "IO(...)"
 
   // unsafe stuff
 
@@ -1260,6 +1247,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def pure[A](x: A): IO[A] =
       IO.pure(x)
 
+    override def guarantee[A](fa: IO[A], fin: IO[Unit]): IO[A] =
+      fa.guarantee(fin)
+
+    override def guaranteeCase[A](fa: IO[A])(fin: OutcomeIO[A] => IO[Unit]): IO[A] =
+      fa.guaranteeCase(fin)
+
     def handleErrorWith[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
       fa.handleErrorWith(f)
 
@@ -1278,7 +1271,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       ioa.onCancel(fin)
 
     override def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
-        release: (A, Outcome[IO, Throwable, B]) => IO[Unit]): IO[B] =
+        release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
       IO.bracketFull(acquire)(use)(release)
 
     val monotonic: IO[FiniteDuration] = IO.monotonic

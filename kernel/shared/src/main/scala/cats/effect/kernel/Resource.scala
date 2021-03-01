@@ -407,25 +407,26 @@ sealed abstract class Resource[F[_], +A] {
         release: F[Unit]): F[(B, F[Unit])] =
       current match {
         case Allocate(resource) =>
-          F.bracketFull(resource) {
-            case (b, rel) =>
-              stack match {
-                case Nil =>
-                  (
-                    b: B,
-                    rel(ExitCase.Succeeded).guarantee(release)
-                  ).pure[F]
-                case Frame(head, tail) =>
-                  continue(head(b), tail, rel(ExitCase.Succeeded).guarantee(release))
-              }
-          } {
-            case (_, Outcome.Succeeded(_)) =>
-              F.unit
-            case ((_, release), outcome) =>
-              release(ExitCase.fromOutcome(outcome))
+          F uncancelable { poll =>
+            resource(poll) flatMap {
+              case (b, rel) =>
+                val rel2 = rel(ExitCase.Succeeded).guarantee(release)
+
+                stack match {
+                  case Nil =>
+                    F.pure((b, rel2))
+
+                  case Frame(head, tail) =>
+                    poll(continue(head(b), tail, rel2))
+                      .onCancel(rel(ExitCase.Canceled).handleError(_ => ()))
+                      .onError { case e => rel(ExitCase.Errored(e)).handleError(_ => ()) }
+                }
+            }
           }
+
         case Bind(source, fs) =>
           loop(source, Frame(fs, stack), release)
+
         case Pure(v) =>
           stack match {
             case Nil =>
@@ -433,6 +434,7 @@ sealed abstract class Resource[F[_], +A] {
             case Frame(head, tail) =>
               loop(head(v), tail, release)
           }
+
         case Eval(fa) =>
           fa.flatMap(a => continue(Resource.pure(a), stack, release))
       }
@@ -1215,10 +1217,7 @@ abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resou
   def combineK[A](ra: Resource[F, A], rb: Resource[F, A]): Resource[F, A] =
     Resource.make(Ref[F].of(F.unit))(_.get.flatten).evalMap { finalizers =>
       def allocate(r: Resource[F, A]): F[A] =
-        r.fold(
-          _.pure[F],
-          (release: F[Unit]) =>
-            finalizers.update(MonadCancel[F, Throwable].guarantee(_, release)))
+        r.fold(_.pure[F], (release: F[Unit]) => finalizers.update(_.guarantee(release)))
 
       K.combineK(allocate(ra), allocate(rb))
     }

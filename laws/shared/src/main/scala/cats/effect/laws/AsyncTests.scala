@@ -67,7 +67,6 @@ trait AsyncTests[F[_]] extends GenTemporalTests[F, Throwable] with SyncTests[F] 
       iso: Isomorphisms[F],
       faPP: F[A] => Pretty,
       fuPP: F[Unit] => Pretty,
-      aFUPP: (A => F[Unit]) => Pretty,
       ePP: Throwable => Pretty,
       foaPP: F[Outcome[F, Throwable, A]] => Pretty,
       feauPP: F[Either[A, Unit]] => Pretty,

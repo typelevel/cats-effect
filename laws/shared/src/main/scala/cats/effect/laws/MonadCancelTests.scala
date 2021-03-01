@@ -53,7 +53,6 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
       iso: Isomorphisms[F],
       faPP: F[A] => Pretty,
       fuPP: F[Unit] => Pretty,
-      aFUPP: (A => F[Unit]) => Pretty,
       ePP: E => Pretty): RuleSet = {
 
     new RuleSet {
@@ -70,6 +69,8 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
             laws.uncancelablePollInverseNestIsUncancelable[A] _),
           "uncancelable eliminates onCancel" -> forAll(
             laws.uncancelableEliminatesOnCancel[A] _),
+          "onCancel associates over uncancelable boundary" -> forAll(
+            laws.onCancelAssociatesOverUncancelableBoundary[A] _),
           "forceR discards pure" -> forAll(laws.forceRDiscardsPure[A, B] _),
           "forceR discards error" -> forAll(laws.forceRDiscardsError[A] _),
           "forceR canceled short-circuits" -> forAll(laws.forceRCanceledShortCircuits[A] _),
@@ -81,8 +82,8 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
             Seq(
               "canceled sequences onCancel in order" -> forAll(
                 laws.canceledSequencesOnCancelInOrder _),
-              "uncancelable canceled associates right over flatMap" -> forAll(
-                laws.uncancelableCanceledAssociatesRightOverFlatMap[A] _),
+              "uncancelable canceled associates right over flatMap attempt" -> forAll(
+                laws.uncancelableCanceledAssociatesRightOverFlatMapAttempt[A] _),
               "canceled associates left over flatMap" -> forAll(
                 laws.canceledAssociatesLeftOverFlatMap[A] _)
             )

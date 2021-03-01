@@ -246,7 +246,7 @@ private final class IOFiber[A](
       // iteration 0.
       val nextIteration = iteration + 1
 
-      // println(s"<$name> looping on $cur0")
+      // System.out.println(s"looping on $cur0")
       /*
        * The cases have to use continuous constants to generate a `tableswitch`.
        * Do not name or reorder them.
@@ -860,7 +860,7 @@ private final class IOFiber[A](
   }
 
   private[this] def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
-    // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
+    // System.out.println(s"running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
     finalizing = true
 
     if (!finalizers.isEmpty()) {
@@ -1238,24 +1238,14 @@ private final class IOFiber[A](
 
   private[this] def uncancelableSuccessK(result: Any, depth: Int): IO[Any] = {
     masks -= 1
-
-    if (shouldFinalize()) {
-      asyncCancel(null)
-      IOEndFiber
-    } else {
-      succeeded(result, depth + 1)
-    }
+    // System.out.println(s"unmasking after uncancelable (isUnmasked = ${isUnmasked()})")
+    succeeded(result, depth + 1)
   }
 
   private[this] def uncancelableFailureK(t: Throwable, depth: Int): IO[Any] = {
     masks -= 1
-
-    if (shouldFinalize()) {
-      asyncCancel(null)
-      IOEndFiber
-    } else {
-      failed(t, depth + 1)
-    }
+    // System.out.println(s"unmasking after uncancelable (isUnmasked = ${isUnmasked()})")
+    failed(t, depth + 1)
   }
 
   private[this] def unmaskSuccessK(result: Any, depth: Int): IO[Any] = {

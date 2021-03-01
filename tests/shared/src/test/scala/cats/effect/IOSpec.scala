@@ -16,17 +16,20 @@
 
 package cats.effect
 
-import cats.kernel.laws.discipline.{MonoidTests}
+import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{AlignTests, SemigroupKTests}
 import cats.laws.discipline.arbitrary._
+
 import cats.effect.laws.AsyncTests
 import cats.effect.testkit.TestContext
 import cats.syntax.all._
 import cats.effect.implicits._
 
 import org.scalacheck.Prop, Prop.forAll
+// import org.scalacheck.rng.Seed
 
 import org.specs2.ScalaCheck
+// import org.specs2.scalacheck.Parameters
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
@@ -62,13 +65,6 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         fa.flatMap(i => IO.pure(i)) must completeAs(42)
         fa must completeAs(42)
       }
-
-      "preserve monad right identity on uncancelable" in ticked { implicit ticker =>
-        val fa = IO.uncancelable(_ => IO.canceled)
-        fa.flatMap(IO.pure(_)) must selfCancel
-        fa must selfCancel
-      }
-
     }
 
     "error handling" should {
@@ -111,7 +107,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
       "redeem subsumes handleError" in ticked { implicit ticker =>
         forAll { (io: IO[Int], recover: Throwable => Int) =>
-          io.redeem(recover, identity) eqv io.handleError(recover)
+          // we have to workaround functor law weirdness here... again... sigh... because of self-cancellation
+          io.redeem(recover, identity).flatMap(IO.pure(_)) eqv io.handleError(recover)
         }
       }
 
@@ -634,10 +631,6 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           IO.uncancelable(_ => IO.canceled).flatMap(_ => IO.pure(())) must selfCancel
       }
 
-      "cancel map continuations following a canceled uncancelable block" in ticked {
-        implicit ticker => IO.uncancelable(_ => IO.canceled).map(_ => ()) must selfCancel
-      }
-
       "sequence onCancel when canceled before registration" in ticked { implicit ticker =>
         var passed = false
         val test = IO.uncancelable { poll =>
@@ -699,7 +692,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         implicit ticker =>
           val fab = IO.uncancelable(_ => IO.canceled.onCancel(IO.unit)).start.flatMap(_.join)
 
-          fab must completeAs(Outcome.canceled[IO, Throwable, Unit])
+          fab must completeAs(Outcome.succeeded[IO, Throwable, Unit](IO.unit))
       }
 
       "uncancelable canceled with finalizer within fiber should flatMap another day" in ticked {
@@ -819,7 +812,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       "run an identity finalizer" in ticked { implicit ticker =>
         var affected = false
 
-        IO.unit.onCase { case _ => IO { affected = true } } must completeAs(())
+        IO.unit.guaranteeCase { case _ => IO { affected = true } } must completeAs(())
 
         affected must beTrue
       }
@@ -827,7 +820,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       "run an identity finalizer and continue" in ticked { implicit ticker =>
         var affected = false
 
-        val seed = IO.unit.onCase { case _ => IO { affected = true } }
+        val seed = IO.unit.guaranteeCase { case _ => IO { affected = true } }
 
         seed.as(42) must completeAs(42)
 
@@ -860,7 +853,10 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         var passed = false
 
         // convenient proxy for an async that returns a cancelToken
-        val test = IO.sleep(1.day).onCase { case Outcome.Succeeded(_) => IO { passed = true } }
+        val test = IO.sleep(1.day) guaranteeCase {
+          case Outcome.Succeeded(_) => IO { passed = true }
+          case _ => IO.unit
+        }
 
         test must completeAs(())
         passed must beTrue
@@ -919,7 +915,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       }
 
       // format: off
-      "finalize after uncancelable with suppressed cancellation (succeeded)" in ticked { implicit ticker =>
+      "not finalize after uncancelable with suppressed cancellation (succeeded)" in ticked { implicit ticker =>
         var finalized = false
 
         val test =
@@ -928,12 +924,12 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
             .void
 
         test must selfCancel
-        finalized must beTrue
+        finalized must beFalse
       }
       // format: on
 
       // format: off
-      "finalize after uncancelable with suppressed cancellation (errored)" in ticked { implicit ticker =>
+      "not finalize after uncancelable with suppressed cancellation (errored)" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
 
         var finalized = false
@@ -944,7 +940,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
             .void
 
         test must selfCancel
-        finalized must beTrue
+        finalized must beFalse
       }
       // format: on
 
@@ -1138,7 +1134,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     checkAll(
       "IO",
       AsyncTests[IO].async[Int, Int, Int](10.millis)
-    ) /*(Parameters(seed = Some(Seed.fromBase64("XidlR_tu11X7_v51XojzZJsm6EaeU99RAEL9vzbkWBD=").get)))*/
+    ) /*(Parameters(seed = Some(Seed.fromBase64("ZxDXpm7_3Pdkl-Fvt8M90Cxfam9wKuzcifQ1QsIJxND=").get)))*/
   }
 
   {
