@@ -29,6 +29,8 @@ trait RunnersPlatform extends BeforeAfterAll {
 
   protected def runtime(): IORuntime = runtime0
 
+  def schedulerResolution: FiniteDuration = 100.millis
+
   def beforeAll(): Unit = {
     val cancellationCheckThreshold =
       System.getProperty("cats.effect.cancellation.check.threshold", "512").toInt
@@ -37,7 +39,7 @@ trait RunnersPlatform extends BeforeAfterAll {
       IORuntime.createDefaultBlockingExecutionContext(s"io-blocking-${getClass.getName}")
 
     val (scheduler, schedDown) =
-      Scheduler.createDefaultScheduler(10.millis)
+      Scheduler.createDefaultScheduler(schedulerResolution)
 
     val (compute, compDown) =
       IORuntime.createDefaultComputeThreadPool(runtime0, s"io-compute-${getClass.getName}")

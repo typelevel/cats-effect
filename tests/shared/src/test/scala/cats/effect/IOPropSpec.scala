@@ -34,7 +34,11 @@ import scala.concurrent.duration._
 class IOPropSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
   outer =>
 
-  override def executionTimeout: FiniteDuration = 30.second
+  override def executionTimeout: FiniteDuration = 30.seconds
+
+  //the parTraverse tests  does lots of very small sleeps and a non-zero sleep will always
+  //be at least the resolution of the scheduler so we need to reduce it here
+  override def schedulerResolution = 10.millis
 
   "io monad" should {
 
