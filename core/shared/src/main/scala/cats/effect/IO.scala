@@ -124,6 +124,21 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     flatMap(_ => that)
 
   /**
+   * Runs this IO and the parameter in parallel.
+   *
+   * Failure in either of the IOs will cancel the other one.
+   * If the whole computation is canceled, both actions are also canceled.
+   */
+  def &>[B](that: IO[B]): IO[B] =
+    both(that).map { case (_, b) => b }
+
+  /**
+   * Like [[&>]], but keeps the result of the source
+   */
+  def <&[B](that: IO[B]): IO[A] =
+    both(that).map { case (a, _) => a }
+
+  /**
    * Replaces the result of this IO with the given value.
    */
   def as[B](b: B): IO[B] =
