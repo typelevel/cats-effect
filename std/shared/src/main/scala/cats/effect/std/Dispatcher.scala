@@ -214,22 +214,22 @@ object Dispatcher {
           }
 
           @tailrec
-          def enqueue(idx: Int, rand: ThreadLocalRandom, reg: Registration): Unit = {
-            val inner = rand.nextInt(Cpus)
-            val st = states(idx)(inner)
-            val curr = st.get()
+          def enqueue(state: AtomicReference[List[Registration]], reg: Registration): Unit = {
+            val curr = state.get()
             val next = reg :: curr
 
-            if (!st.compareAndSet(curr, next)) enqueue(idx, rand, reg)
+            if (!state.compareAndSet(curr, next)) enqueue(state, reg)
           }
 
           if (alive.get()) {
             val rand = ThreadLocalRandom.current()
+            val dispatcher = rand.nextInt(Cpus)
+            val inner = rand.nextInt(Cpus)
+            val state = states(dispatcher)(inner)
             val reg = Registration(action, registerCancel _)
-            val idx = rand.nextInt(Cpus)
-            enqueue(idx, rand, reg)
+            enqueue(state, reg)
 
-            val lt = latches(idx)
+            val lt = latches(dispatcher)
             if (lt.get() ne Open) {
               val f = lt.getAndSet(Open)
               f()
