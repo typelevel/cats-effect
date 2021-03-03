@@ -21,6 +21,7 @@ import cats.effect.kernel.implicits._
 import cats.syntax.all._
 
 import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 
@@ -101,41 +102,56 @@ object Dispatcher {
 
     for {
       supervisor <- Supervisor[F]
-      latch <- Resource.eval(F delay {
-        val latch = new Array[AtomicReference[() => Unit]](Cpus)
+      latches <- Resource.eval(F delay {
+        val latches = new Array[AtomicReference[() => Unit]](Cpus)
         var i = 0
         while (i < Cpus) {
-          latch(i) = new AtomicReference(Noop)
+          latches(i) = new AtomicReference(Noop)
           i += 1
         }
-        latch
+        latches
       })
-      state <- Resource.eval(F delay {
-        val state = new Array[AtomicReference[List[Registration]]](Cpus)
+      states <- Resource.eval(F delay {
+        val states = Array.ofDim[AtomicReference[List[Registration]]](Cpus, Cpus)
         var i = 0
         while (i < Cpus) {
-          state(i) = new AtomicReference(Nil)
+          var j = 0
+          while (j < Cpus) {
+            states(i)(j) = new AtomicReference(Nil)
+            j += 1
+          }
           i += 1
         }
-        state
+        states
       })
       ec <- Resource.eval(F.executionContext)
       alive <- Resource.make(F.delay(new AtomicBoolean(true)))(ref => F.delay(ref.set(false)))
 
       _ <- {
-        def dispatcher(idx: Int): F[Unit] =
+        def dispatcher(
+            latch: AtomicReference[() => Unit],
+            state: Array[AtomicReference[List[Registration]]]): F[Unit] =
           for {
-            _ <- F.delay(latch(idx).set(Noop)) // reset latch
+            _ <- F.delay(latch.set(Noop)) // reset latch
 
             regs <- F delay {
-              val list = state(idx).getAndSet(Nil)
-              list.reverse
+              val buffer = mutable.ListBuffer.empty[Registration]
+              var i = 0
+              while (i < Cpus) {
+                val st = state(i)
+                if (st.get() ne Nil) {
+                  val list = st.getAndSet(Nil)
+                  buffer ++= list.reverse
+                }
+                i += 1
+              }
+              buffer.toList
             }
 
             _ <-
               if (regs.isEmpty) {
                 F.async_[Unit] { cb =>
-                  if (!latch(idx).compareAndSet(Noop, () => cb(Completed))) {
+                  if (!latch.compareAndSet(Noop, () => cb(Completed))) {
                     // state was changed between when we last set the latch and now; complete the callback immediately
                     cb(Completed)
                   }
@@ -154,7 +170,9 @@ object Dispatcher {
               }
           } yield ()
 
-        (0 until Cpus).toList.traverse_(n => dispatcher(n).foreverM[Unit].background)
+        (0 until Cpus)
+          .toList
+          .traverse_(n => dispatcher(latches(n), states(n)).foreverM[Unit].background)
       }
     } yield {
       new Dispatcher[F] {
@@ -196,20 +214,22 @@ object Dispatcher {
           }
 
           @tailrec
-          def enqueue(idx: Int, reg: Registration): Unit = {
-            val st = state(idx)
+          def enqueue(idx: Int, rand: ThreadLocalRandom, reg: Registration): Unit = {
+            val inner = rand.nextInt(Cpus)
+            val st = states(idx)(inner)
             val curr = st.get()
             val next = reg :: curr
 
-            if (!st.compareAndSet(curr, next)) enqueue(idx, reg)
+            if (!st.compareAndSet(curr, next)) enqueue(idx, rand, reg)
           }
 
           if (alive.get()) {
+            val rand = ThreadLocalRandom.current()
             val reg = Registration(action, registerCancel _)
-            val idx = ThreadLocalRandom.current().nextInt(Cpus)
-            enqueue(idx, reg)
+            val idx = rand.nextInt(Cpus)
+            enqueue(idx, rand, reg)
 
-            val lt = latch(idx)
+            val lt = latches(idx)
             if (lt.get() ne Open) {
               val f = lt.getAndSet(Open)
               f()
