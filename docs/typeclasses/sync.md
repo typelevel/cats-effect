@@ -37,12 +37,3 @@ val operation: F[Unit] = F.interruptible(true)(longRunningOp())
 
 val run: F[Unit] = operation.timeout(30.seconds)
 ```
-
-## Uniqueness
-
-A `Sync[F]` is also a source of unique tokens via `unique` - an effect that produces a token
-that is guaranteed to produce a unique value every time it is evaluated
-```scala
-val token: F[Uniqe.Token] = Sync[F].unique
-(token, token).mapN { (x, y) => x === y } <-> Monad[F].pure(false)
-```

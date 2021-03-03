@@ -52,6 +52,7 @@ def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] =
   flatMap(fut) { cf =>
     async[A] { cb =>
       delay {
+        //Invoke the callback with the result of the completable future
         val stage = cf.handle[Unit] {
           case (a, null) => cb(Right(a))
           case (_, e) => cb(Left(e))
