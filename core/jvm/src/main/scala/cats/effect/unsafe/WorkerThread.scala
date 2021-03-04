@@ -219,13 +219,13 @@ private[effect] final class WorkerThread(
 
         case 4 =>
           parked.lazySet(true)
-          pool.transitionWorkerToParked(this, false)
+          pool.transitionWorkerToParked(this)
           parkLoop()
           state = 6
 
         case 5 =>
           parked.lazySet(true)
-          if (pool.transitionWorkerToParked(this, true)) {
+          if (pool.transitionWorkerToParkedWhenSearching(this)) {
             pool.notifyIfWorkPending()
           }
           parkLoop()

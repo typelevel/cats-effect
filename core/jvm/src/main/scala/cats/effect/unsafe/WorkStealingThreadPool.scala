@@ -203,39 +203,23 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * Updates the internal state to mark the given worker thread as parked.
    */
-  private[unsafe] def transitionWorkerToParked(
-      thread: WorkerThread,
-      searching: Boolean): Boolean = {
+  private[unsafe] def transitionWorkerToParkedWhenSearching(thread: WorkerThread): Boolean = {
     // Mark the thread as parked.
     sleepers.offer(thread)
-    // Decrement the number of unparked threads since we are parking.
-    decrementNumberUnparked(searching)
+    // Decrement the number of unparked and searching threads since this thread
+    // was searching prior to parking.
+    val dec = (1 << UnparkShift) | 1
+    val prev = state.getAndAdd(-dec)
+    (prev & SearchMask) == 1
   }
 
-  /**
-   * Decrements the number of unparked worker threads. Potentially decrements
-   * the number of searching threads if the parking thread was in the searching
-   * state.
-   *
-   * Returns a `Boolean` value that represents whether this parking thread
-   * was the last searching thread.
-   */
-  private[this] def decrementNumberUnparked(searching: Boolean): Boolean = {
-    // Prepare for decrementing the 16 most significant bits that hold
-    // the number of unparked threads.
-    var dec = 1 << UnparkShift
-
-    if (searching) {
-      // Also decrement the 16 least significant bits that hold
-      // the number of searching threads if the thread was in the searching state.
-      dec += 1
-    }
-
-    // Atomically change the state.
-    val prev = state.getAndAdd(-dec)
-
-    // Was this thread the last searching thread?
-    searching && (prev & SearchMask) == 1
+  private[unsafe] def transitionWorkerToParked(thread: WorkerThread): Unit = {
+    // Mark the thread as parked.
+    sleepers.offer(thread)
+    // Decrement the number of unparked threads only.
+    val dec = 1 << UnparkShift
+    state.getAndAdd(-dec)
+    ()
   }
 
   /**
