@@ -30,7 +30,7 @@ package unsafe
 import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -60,6 +60,8 @@ private[effect] final class WorkStealingThreadPool(
 
   // References to the worker threads.
   private[this] val workerThreads: Array[WorkerThread] = new Array(threadCount)
+  private[this] val localQueues: Array[LocalQueue] = new Array(threadCount)
+  private[this] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
 
   // The external queue on which fibers coming from outside the pool are enqueued, or acts
   // as a place where spillover work from other local queues can go.
@@ -86,11 +88,21 @@ private[effect] final class WorkStealingThreadPool(
     // Set up the worker threads.
     var i = 0
     while (i < threadCount) {
+      val queue = new LocalQueue()
+      localQueues(i) = queue
+      val parkedSignal = new AtomicBoolean(false)
+      parkedSignals(i) = parkedSignal
       val index = i
       val thread =
-        new WorkerThread(index, threadPrefix, blockingThreadCounter, externalQueue, this)
-      thread.setName(s"$threadPrefix-$index")
-      thread.setDaemon(true)
+        new WorkerThread(
+          index,
+          threadCount,
+          threadPrefix,
+          blockingThreadCounter,
+          queue,
+          parkedSignal,
+          externalQueue,
+          this)
       workerThreads(i) = thread
       i += 1
     }
@@ -107,16 +119,17 @@ private[effect] final class WorkStealingThreadPool(
    * Tries to steal work from another worker thread. This method does a linear search of the
    * worker threads starting at a random index.
    */
-  private[unsafe] def stealFromOtherWorkerThread(thread: WorkerThread): IOFiber[_] = {
-    val from = thread.randomIndex(threadCount)
+  private[unsafe] def stealFromOtherWorkerThread(dest: Int, from: Int): IOFiber[_] = {
+    val destQueue = localQueues(dest)
+
     var i = 0
     while (i < threadCount) {
       // Compute the index of the thread to steal from.
       val index = (from + i) % threadCount
 
-      if (index != thread.getIndex()) {
+      if (index != dest) {
         // Do not steal from yourself.
-        val res = workerThreads(index).stealInto(thread.getQueue())
+        val res = localQueues(index).stealInto(destQueue)
         if (res != null) {
           // Successful steal. Return the next fiber to be executed.
           return res
@@ -169,8 +182,8 @@ private[effect] final class WorkStealingThreadPool(
       // Update the state so that a thread can be unparked.
       // Here we are updating the 16 most significant bits, which hold the
       // number of active threads.
-      state.getAndAdd(1 | (1 << UnparkShift))
-      worker.sleeping = false
+      state.getAndAdd((1 << UnparkShift) | 1)
+      parkedSignals(worker.index).lazySet(false)
     }
     worker
   }
@@ -190,12 +203,13 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * Updates the internal state to mark the given worker thread as parked.
    */
-  private[unsafe] def transitionWorkerToParked(thread: WorkerThread): Boolean = {
+  private[unsafe] def transitionWorkerToParked(
+      thread: WorkerThread,
+      searching: Boolean): Boolean = {
     // Mark the thread as parked.
-    thread.sleeping = true
     sleepers.offer(thread)
     // Decrement the number of unparked threads since we are parking.
-    decrementNumberUnparked(thread.isSearching())
+    decrementNumberUnparked(searching)
   }
 
   /**
@@ -231,7 +245,7 @@ private[effect] final class WorkStealingThreadPool(
     var i = 0
     while (i < threadCount) {
       // Check each worker thread for available work that can be stolen.
-      if (!workerThreads(i).isEmpty()) {
+      if (localQueues(i).nonEmpty()) {
         notifyParked()
         return
       }
