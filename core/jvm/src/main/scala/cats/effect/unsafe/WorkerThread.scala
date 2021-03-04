@@ -121,8 +121,6 @@ private[effect] final class WorkerThread(
      */
     val random = ThreadLocalRandom.current()
 
-    var searching = false
-
     /*
      * A counter (modulo `OverflowQueueTicks`) which represents the
      * `WorkerThread` finite state machine. The following values have special
@@ -164,6 +162,17 @@ private[effect] final class WorkerThread(
      */
     var state = 0
 
+    def parkLoop(): Unit = {
+      var cont = true
+      while (cont && !isInterrupted()) {
+        // Park the thread until further notice.
+        LockSupport.park(pool)
+
+        // Spurious wakeup check.
+        cont = parked.get()
+      }
+    }
+
     while (!isInterrupted()) {
       ((state & OverflowQueueTicksMask): @switch) match {
         case 0 =>
@@ -173,7 +182,7 @@ private[effect] final class WorkerThread(
             fiber.run()
           }
           // Transition to executing fibers from the local queue.
-          state = 5
+          state = 7
 
         case 1 =>
           val fiber = overflow.poll()
@@ -181,70 +190,58 @@ private[effect] final class WorkerThread(
             // Run the fiber.
             fiber.run()
             // Transition to executing fibers from the local queue.
-            state = 5
+            state = 7
           } else {
-            // Transition to stealing fibers from other `WorkerThread`s.
+            // Ask for permission to steal fibers from other `WorkerThread`s.
             state = 2
           }
 
         case 2 =>
-          // Ask the pool for permission to steal from other worker threads.
-          if (!searching) {
-            searching = pool.transitionWorkerToSearching()
-          }
-          if (!searching) {
-            // Permission to steal not granted. Park.
+          if (pool.transitionWorkerToSearching()) {
             state = 3
           } else {
-            // This thread has been allowed to steal work from other workers.
-            val fiber = pool.stealFromOtherWorkerThread(index, random.nextInt(threadCount))
-            if (fiber ne null) {
-              // Run the stolen fiber.
-              searching = false
-              pool.transitionWorkerFromSearching()
-              fiber.run()
-              // Transition to executing fibers from the local queue.
-              state = 5
-            } else {
-              // Stealing attempt is unsuccessful. Park.
-              state = 3
-            }
+            state = 4
           }
 
         case 3 =>
-          parked.lazySet(true)
-          val isLastSearcher = pool.transitionWorkerToParked(this, searching)
-          searching = false
-          if (isLastSearcher) {
-            pool.notifyIfWorkPending()
+          // This thread has been allowed to steal work from other workers.
+          val fiber = pool.stealFromOtherWorkerThread(index, random.nextInt(threadCount))
+          if (fiber ne null) {
+            // Run the stolen fiber.
+            pool.transitionWorkerFromSearching()
+            fiber.run()
+            // Transition to executing fibers from the local queue.
+            state = 7
+          } else {
+            // Stealing attempt is unsuccessful. Park.
+            state = 5
           }
-
-          var cont = true
-          while (cont && !isInterrupted()) {
-            // Park the thread until further notice.
-            LockSupport.park(pool)
-
-            // Spurious wakeup check.
-            cont = parked.get()
-          }
-
-          searching = true
-          state = 4
 
         case 4 =>
+          parked.lazySet(true)
+          pool.transitionWorkerToParked(this, false)
+          parkLoop()
+          state = 6
+
+        case 5 =>
+          parked.lazySet(true)
+          if (pool.transitionWorkerToParked(this, true)) {
+            pool.notifyIfWorkPending()
+          }
+          parkLoop()
+          state = 6
+
+        case 6 =>
           val fiber = overflow.poll()
           if (fiber ne null) {
-            if (searching) {
-              searching = false
-              pool.transitionWorkerFromSearching()
-            }
+            pool.transitionWorkerFromSearching()
             // Run the fiber.
             fiber.run()
             // Transition to executing fibers from the local queue.
-            state = 5
+            state = 7
           } else {
             // Transition to stealing fibers from other `WorkerThread`s.
-            state = 2
+            state = 3
           }
 
         case _ =>
