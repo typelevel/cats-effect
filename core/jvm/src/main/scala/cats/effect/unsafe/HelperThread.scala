@@ -122,7 +122,7 @@ private[effect] final class HelperThread(
     // Check for exit condition. Do not continue if the `WorkStealingPool` has
     // been shut down, or the `WorkerThread` which spawned this `HelperThread`
     // has finished blocking.
-    while (!pool.done && !signal.get()) {
+    while (!isInterrupted() && !signal.get()) {
       val fiber = overflow.poll()
 
       if (fiber eq null) {

@@ -81,7 +81,7 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val blockingThreadCounter: AtomicInteger = new AtomicInteger(0)
 
   // Shutdown signal for the worker threads.
-  @volatile private[unsafe] var done: Boolean = false
+  private[this] val done: AtomicBoolean = new AtomicBoolean(false)
 
   // Initialization block.
   {
@@ -288,7 +288,7 @@ private[effect] final class WorkStealingThreadPool(
       // It's enough to only do this check here as there is no other way to submit work to the `ExecutionContext`
       // represented by this thread pool after it has been shutdown. Also, no one else can create raw fibers
       // directly, as `IOFiber` is not a public type.
-      if (done) {
+      if (done.get()) {
         return
       }
 
@@ -303,23 +303,45 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Shutdown the thread pool. Calling this method after the pool has been shut down
-   * has no effect.
+   * Shut down the thread pool and clean up the pool state. Calling this method
+   * after the pool has been shut down has no effect.
    */
   def shutdown(): Unit = {
-    if (done) {
-      return
-    }
+    // Execute the shutdown logic only once.
+    if (done.compareAndSet(false, true)) {
+      // Send an interrupt signal to each of the worker threads.
+      var i = 0
+      while (i < threadCount) {
+        workerThreads(i).interrupt()
+        i += 1
+      }
 
-    // Set the worker thread shutdown flag.
-    done = true
-    // Shutdown and drain the external queue.
-    externalQueue.clear()
-    // Send an interrupt signal to each of the worker threads.
-    workerThreads.foreach(_.interrupt())
-    // Remove the references to the worker threads so that they can be cleaned up, including their worker queues.
-    for (i <- 0 until workerThreads.length) {
-      workerThreads(i) = null
+      // Wait for all worker threads to finalize.
+      // Clear the interrupt flag
+      Thread.interrupted()
+      i = 0
+      while (i < threadCount) {
+        workerThreads(i).join()
+      }
+
+      // It is now safe to clean up the state of the thread pool.
+      state.lazySet(0)
+
+      // Remove the references to the worker threads so that they can be cleaned
+      // up, including their worker queues.
+      i = 0
+      while (i < threadCount) {
+        workerThreads(i) = null
+        parkedSignals(i) = null
+        localQueues(i) = null
+        i += 1
+      }
+      // Remove the references to the worker threads which might be parked.
+      sleepers.clear()
+
+      // Shutdown and drain the external queue.
+      externalQueue.clear()
+      Thread.currentThread().interrupt()
     }
   }
 }
