@@ -14,15 +14,6 @@
  * limitations under the License.
  */
 
-/*
- * This code is an adaptation of the `worker` code from the `tokio` runtime.
- * The original source code in Rust is licensed under the MIT license and available
- * at: https://docs.rs/crate/tokio/0.2.22/source/src/runtime/thread_pool/worker.rs.
- *
- * For the reasoning behind the design decisions of this code, please consult:
- * https://tokio.rs/blog/2019-10-scheduler#the-next-generation-tokio-scheduler.
- */
-
 package cats.effect
 package unsafe
 
@@ -100,8 +91,10 @@ private[effect] final class WorkerThread(
   }
 
   /**
-   * Enqueues a fiber to the local work stealing queue. This method always
-   * notifies another thread that a steal should be attempted from this queue.
+   * Schedules the fiber for execution at the back of the local queue and
+   * notifies the work stealing pool of newly available work.
+   *
+   * @param fiber the fiber to be scheduled on the local queue
    */
   def schedule(fiber: IOFiber[_]): Unit = {
     queue.enqueue(fiber, overflow)
@@ -109,9 +102,17 @@ private[effect] final class WorkerThread(
   }
 
   /**
-   * Enqueues a fiber to the local work stealing queue. This method can skip
-   * notifying another thread about potential work to be stolen if it can be
-   * determined that this is a mostly single fiber workload.
+   * Specifically supports the `cede` and `autoCede` mechanisms of the
+   * [[cats.effect.IOFiber]] runloop. In the case where the local queue is
+   * empty prior to enqueuing the argument fiber, the local queue is bypassed,
+   * which saves a lot of unnecessary atomic load/store operations as well as a
+   * costly wake up of another thread for which there is no actual work. On the
+   * other hand, if the local queue is not empty, this method enqueues the
+   * argument fiber on the local queue, wakes up another thread to potentially
+   * help out with the available fibers and continues with the worker thread run
+   * loop.
+   *
+   * @param fiber the fiber that `cede`s/`autoCede`s
    */
   def reschedule(fiber: IOFiber[_]): Unit = {
     if ((cedeBypass eq null) && queue.isEmpty()) {
@@ -121,6 +122,9 @@ private[effect] final class WorkerThread(
     }
   }
 
+  /**
+   * The run loop of the [[WorkerThread]].
+   */
   override def run(): Unit = {
 
     /*
