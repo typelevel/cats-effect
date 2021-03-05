@@ -83,6 +83,13 @@ private[effect] final class WorkerThread(
    */
   private[this] var blocking: Boolean = false
 
+  /**
+   * A mutable reference to a fiber which is used to bypass the local queue when
+   * a `cede` operation would enqueue a fiber to the empty local queue and then
+   * proceed to dequeue the same fiber again from the queue.
+   */
+  private[this] var cedeBypass: IOFiber[_] = null
+
   // Constructor code.
   {
     // Worker threads are daemon threads.
@@ -107,7 +114,11 @@ private[effect] final class WorkerThread(
    * determined that this is a mostly single fiber workload.
    */
   def reschedule(fiber: IOFiber[_]): Unit = {
-    schedule(fiber)
+    if ((cedeBypass eq null) && queue.isEmpty()) {
+      cedeBypass = fiber
+    } else {
+      schedule(fiber)
+    }
   }
 
   override def run(): Unit = {
@@ -245,8 +256,15 @@ private[effect] final class WorkerThread(
           }
 
         case _ =>
-          // Dequeue a fiber from the local queue.
-          val fiber = queue.dequeue()
+          // Check the queue bypass reference before dequeueing from the local
+          // queue.
+          val fiber = if (cedeBypass eq null) {
+            queue.dequeue()
+          } else {
+            val f = cedeBypass
+            cedeBypass = null
+            f
+          }
           if (fiber ne null) {
             // Run the stolen fiber.
             fiber.run()
