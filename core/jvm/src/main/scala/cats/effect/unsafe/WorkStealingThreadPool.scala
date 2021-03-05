@@ -418,11 +418,26 @@ private[effect] final class WorkStealingThreadPool(
       }
 
       // Wait for all worker threads to finalize.
-      // Clear the interrupt flag
+      // Clear the interrupt flag.
       Thread.interrupted()
+
+      // Check if a worker thread is shutting down the thread pool, to avoid a
+      // self join, which hangs forever. Any other thread shutting down the pool
+      // will receive an index of `-1`, which means that it will join all worker
+      // threads.
+      val thread = Thread.currentThread()
+      val workerIndex = if (thread.isInstanceOf[WorkerThread]) {
+        thread.asInstanceOf[WorkerThread].index
+      } else {
+        -1
+      }
+
       i = 0
       while (i < threadCount) {
-        workerThreads(i).join()
+        if (workerIndex != i) {
+          workerThreads(i).join()
+        }
+        i += 1
       }
 
       // It is now safe to clean up the state of the thread pool.
