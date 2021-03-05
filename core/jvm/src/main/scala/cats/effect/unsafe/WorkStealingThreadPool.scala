@@ -80,7 +80,7 @@ private[effect] final class WorkStealingThreadPool(
    * enqueued, or acts as a place where spillover work from other local queues
    * can end up.
    */
-  private[this] val externalQueue: ConcurrentLinkedQueue[IOFiber[_]] =
+  private[this] val overflowQueue: ConcurrentLinkedQueue[IOFiber[_]] =
     new ConcurrentLinkedQueue()
 
   /**
@@ -123,7 +123,7 @@ private[effect] final class WorkStealingThreadPool(
           blockingThreadCounter,
           queue,
           parkedSignal,
-          externalQueue,
+          overflowQueue,
           this)
       workerThreads(i) = thread
       i += 1
@@ -171,7 +171,7 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // The worker thread could not steal any work. Fall back to checking the external queue.
-    externalQueue.poll()
+    overflowQueue.poll()
   }
 
   /**
@@ -244,7 +244,7 @@ private[effect] final class WorkStealingThreadPool(
 
     // If no work was found in the local queues of the worker threads, look for
     // work in the external queue.
-    if (!externalQueue.isEmpty()) {
+    if (!overflowQueue.isEmpty()) {
       notifyParked()
     }
   }
@@ -339,7 +339,7 @@ private[effect] final class WorkStealingThreadPool(
     } else if (thread.isInstanceOf[HelperThread]) {
       thread.asInstanceOf[HelperThread].schedule(fiber)
     } else {
-      externalQueue.offer(fiber)
+      overflowQueue.offer(fiber)
       notifyParked()
     }
   }
@@ -454,7 +454,7 @@ private[effect] final class WorkStealingThreadPool(
       sleepers.clear()
 
       // Shutdown and drain the external queue.
-      externalQueue.clear()
+      overflowQueue.clear()
       Thread.currentThread().interrupt()
     }
   }
