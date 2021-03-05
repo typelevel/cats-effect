@@ -176,7 +176,15 @@ private[effect] final class HelperThread(
       // of propagating blocking actions on every spawned helper thread, this is
       // not an issue, as the `HelperThread`s are all executing `IOFiber[_]`
       // instances, which mostly consist of non-blocking code.
-      helper.join()
+      try helper.join()
+      catch {
+        case _: InterruptedException =>
+          // Propagate interruption to the helper thread.
+          Thread.interrupted()
+          helper.interrupt()
+          helper.join()
+          this.interrupt()
+      }
 
       // Logically exit the blocking region.
       blocking = false
