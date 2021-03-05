@@ -62,6 +62,15 @@ private[effect] final class WorkerThread(
   import WorkStealingThreadPoolConstants._
 
   /**
+   * Uncontented source of randomness. By default, `java.util.Random` is thread
+   * safe, which is a feature we do not need in this class, as the source of
+   * randomness is completely isolated to each instance of `WorkerThread`. The
+   * instance is obtained only once at the beginning of this method, to avoid
+   * the cost of the `ThreadLocal` mechanism at runtime.
+   */
+  private[this] val random = ThreadLocalRandom.current()
+
+  /**
    * An array backed list for purposes of draining the local queue in
    * anticipation of execution of blocking code.
    */
@@ -98,7 +107,7 @@ private[effect] final class WorkerThread(
    */
   def schedule(fiber: IOFiber[_]): Unit = {
     queue.enqueue(fiber, overflow)
-    pool.notifyParked()
+    pool.notifyParked(random.nextInt(threadCount))
   }
 
   /**
@@ -126,15 +135,6 @@ private[effect] final class WorkerThread(
    * The run loop of the [[WorkerThread]].
    */
   override def run(): Unit = {
-
-    /*
-     * Uncontented source of randomness. By default, `java.util.Random` is
-     * thread safe, which is a feature we do not need in this class, as the
-     * source of randomness is completely isolated to each instance of
-     * `WorkerThread`. The instance is obtained only once at the beginning of
-     * this method, to avoid the cost of the `ThreadLocal` mechanism at runtime.
-     */
-    val random = ThreadLocalRandom.current()
 
     /*
      * A counter (modulo `OverflowQueueTicks`) which represents the
@@ -267,7 +267,7 @@ private[effect] final class WorkerThread(
           if (fiber ne null) {
             // Successful steal. Announce that the current thread is no longer
             // looking for work.
-            pool.transitionWorkerFromSearching()
+            pool.transitionWorkerFromSearching(random.nextInt(threadCount))
             // Run the stolen fiber.
             fiber.run()
             // Transition to executing fibers from the local queue.
@@ -281,7 +281,7 @@ private[effect] final class WorkerThread(
           // Set the worker thread parked signal.
           parked.lazySet(true)
           // Announce that the worker thread is parking.
-          pool.transitionWorkerToParked(this)
+          pool.transitionWorkerToParked()
           // Park the thread.
           parkLoop()
           // After the worker thread has been unparked, look for work in the
@@ -294,12 +294,12 @@ private[effect] final class WorkerThread(
           // Announce that the worker thread which was searching for work is now
           // parking. This checks if the parking worker thread was the last
           // actively searching thread.
-          if (pool.transitionWorkerToParkedWhenSearching(this)) {
+          if (pool.transitionWorkerToParkedWhenSearching()) {
             // If this was indeed the last actively searching thread, do another
             // global check of the pool. Other threads might be busy with their
             // local queues or new work might have arrived on the overflow
             // queue. Another thread might be able to help.
-            pool.notifyIfWorkPending()
+            pool.notifyIfWorkPending(random.nextInt(threadCount))
           }
           // Park the thread.
           parkLoop()
@@ -312,7 +312,7 @@ private[effect] final class WorkerThread(
           val fiber = overflow.poll()
           if (fiber ne null) {
             // Announce that the current thread is no longer looking for work.
-            pool.transitionWorkerFromSearching()
+            pool.transitionWorkerFromSearching(random.nextInt(threadCount))
             // Run the fiber.
             fiber.run()
             // Transition to executing fibers from the local queue.
