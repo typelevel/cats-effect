@@ -49,7 +49,7 @@ class WorkStealingBenchmark {
   @Param(Array("1000000"))
   var size: Int = _
 
-  def benchmark(implicit runtime: IORuntime): Int = {
+  def schedulingBenchmark(implicit runtime: IORuntime): Int = {
     def fiber(i: Int): IO[Int] =
       IO.cede.flatMap { _ =>
         IO(i).flatMap { j =>
@@ -73,48 +73,100 @@ class WorkStealingBenchmark {
   @Benchmark
   def scheduling(): Int = {
     import cats.effect.unsafe.implicits.global
-    benchmark
+    schedulingBenchmark
+  }
+
+  def allocBenchmark(implicit runtime: IORuntime): Int = {
+    def allocation(n: Int): IO[Array[AnyRef]] =
+      IO {
+        val size = math.max(100, math.min(n, 2000))
+        val array = new Array[AnyRef](size)
+        for (i <- (0 until size)) {
+          array(i) = new AnyRef()
+        }
+        array
+      }
+
+    def sum(array: Array[AnyRef]): IO[Int] =
+      IO {
+        array.map(_.hashCode()).sum
+      }
+
+    def fiber(i: Int): IO[Int] =
+      IO.cede.flatMap { _ =>
+        allocation(i).flatMap { arr =>
+          IO.cede.flatMap(_ => sum(arr)).flatMap { _ =>
+            if (i > 1000)
+              IO.cede.flatMap(_ => IO.pure(i))
+            else
+              IO.cede.flatMap(_ => fiber(i + 1))
+          }
+        }
+      }
+
+    List
+      .range(0, 2500)
+      .traverse(_ => fiber(0).start)
+      .flatMap(_.traverse(_.joinWithNever))
+      .map(_.sum)
+      .unsafeRunSync()
   }
 
   @Benchmark
-  def asyncTooManyThreads(): Int = {
-    implicit lazy val runtime: IORuntime = {
-      val (blocking, blockDown) = {
-        val threadCount = new AtomicInteger(0)
-        val executor = Executors.newCachedThreadPool { (r: Runnable) =>
-          val t = new Thread(r)
-          t.setName(s"io-blocking-${threadCount.getAndIncrement()}")
-          t.setDaemon(true)
-          t
-        }
-        (ExecutionContext.fromExecutor(executor), () => executor.shutdown())
+  def alloc(): Int = {
+    import cats.effect.unsafe.implicits.global
+    allocBenchmark
+  }
+
+  lazy val manyThreadsRuntime: IORuntime = {
+    val (blocking, blockDown) = {
+      val threadCount = new AtomicInteger(0)
+      val executor = Executors.newCachedThreadPool { (r: Runnable) =>
+        val t = new Thread(r)
+        t.setName(s"io-blocking-${threadCount.getAndIncrement()}")
+        t.setDaemon(true)
+        t
       }
-
-      val (scheduler, schedDown) = {
-        val executor = Executors.newSingleThreadScheduledExecutor { r =>
-          val t = new Thread(r)
-          t.setName("io-scheduler")
-          t.setDaemon(true)
-          t.setPriority(Thread.MAX_PRIORITY)
-          t
-        }
-        (Scheduler.fromScheduledExecutor(executor), () => executor.shutdown())
-      }
-
-      val compute = new WorkStealingThreadPool(256, "io-compute", runtime)
-
-      new IORuntime(
-        compute,
-        blocking,
-        scheduler,
-        { () =>
-          compute.shutdown()
-          blockDown()
-          schedDown()
-        },
-        IORuntimeConfig())
+      (ExecutionContext.fromExecutor(executor), () => executor.shutdown())
     }
 
-    benchmark
+    val (scheduler, schedDown) = {
+      val executor = Executors.newSingleThreadScheduledExecutor { r =>
+        val t = new Thread(r)
+        t.setName("io-scheduler")
+        t.setDaemon(true)
+        t.setPriority(Thread.MAX_PRIORITY)
+        t
+      }
+      (Scheduler.fromScheduledExecutor(executor), () => executor.shutdown())
+    }
+
+    val compute = new WorkStealingThreadPool(256, "io-compute", manyThreadsRuntime)
+
+    val cancellationCheckThreshold =
+      System.getProperty("cats.effect.cancellation.check.threshold", "512").toInt
+
+    new IORuntime(
+      compute,
+      blocking,
+      scheduler,
+      () => {
+        compute.shutdown()
+        blockDown()
+        schedDown()
+      },
+      IORuntimeConfig(
+        cancellationCheckThreshold,
+        System
+          .getProperty("cats.effect.auto.yield.threshold.multiplier", "2")
+          .toInt * cancellationCheckThreshold
+      )
+    )
+  }
+
+  @Benchmark
+  def manyThreadsSchedulingBenchmark(): Int = {
+    implicit val runtime = manyThreadsRuntime
+    schedulingBenchmark
   }
 }
