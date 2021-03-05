@@ -262,8 +262,16 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Tries rescheduling the fiber directly on the local work stealing queue, if executed from
-   * a worker thread. Otherwise falls back to scheduling on the external queue.
+   * Executes a fiber on this thread pool.
+   *
+   * If the request comes from a [[WorkerThread]], the fiber is enqueued on the
+   * local queue of that thread.
+   *
+   * If the request comes from a [[HelperTread]] or an external thread, the
+   * fiber is enqueued on the overflow queue. Furthermore, if the request comes
+   * from an external thread, worker threads are notified of new work.
+   *
+   * @param fiber the fiber to be executed on the thread pool
    */
   private[effect] def executeFiber(fiber: IOFiber[_]): Unit = {
     val thread = Thread.currentThread()
