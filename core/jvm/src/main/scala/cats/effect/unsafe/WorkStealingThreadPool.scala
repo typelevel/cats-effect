@@ -29,7 +29,7 @@ package unsafe
 
 import scala.concurrent.ExecutionContext
 
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.{ConcurrentLinkedQueue, RejectedExecutionException}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
 
@@ -278,26 +278,53 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Schedule a `java.lang.Runnable` for execution in this thread pool. The runnable
-   * is suspended in an `IO` and executed as a fiber.
+   * Executes a [[java.lang.Runnable]] on the [[WorkStealingThreadPool]].
+   *
+   * If the submitted `runnable` is a general purpose computation, it is
+   * suspended in [[cats.effect.IO]] and executed as a fiber on this pool.
+   *
+   * On the other hand, if the submitted `runnable` is an instance of
+   * [[cats.effect.IOFiber]], it is directly executed on this pool without any
+   * wrapping or indirection. This functionality is used as a fast path in the
+   * [[cats.effect.IOFiber]] runloop for quick scheduling of fibers which are
+   * resumed on the thread pool as part of the asynchronous node of
+   * [[cats.effect.IO]].
+   *
+   * This method fulfills the `ExecutionContext` interface.
+   *
+   * @param runnable the runnable to be executed
+   * @throws [[java.util.concurrent.RejectedExecutionException]] if the thread
+   *         pool has been shut down and cannot accept new work
    */
   override def execute(runnable: Runnable): Unit = {
     if (runnable.isInstanceOf[IOFiber[_]]) {
+      // Fast-path scheduling of a fiber without wrapping.
       executeFiber(runnable.asInstanceOf[IOFiber[_]])
     } else {
-      // It's enough to only do this check here as there is no other way to submit work to the `ExecutionContext`
-      // represented by this thread pool after it has been shutdown. Also, no one else can create raw fibers
-      // directly, as `IOFiber` is not a public type.
+      // Executing a general purpose computation on the thread pool.
+
+      // It is enough to only do this check here as there is no other way to
+      // submit work to the `ExecutionContext` represented by this thread pool
+      // after it has been shut down. Additionally, no one else can create raw
+      // fibers directly, as `IOFiber` is not a public type.
       if (done.get()) {
-        return
+        throw new RejectedExecutionException("The work stealing thread pool has been shut down")
       }
 
-      // `unsafeRunFiber(true)` will enqueue the fiber, no need to do it manually
+      // Wrap the runnable in an `IO` and execute it as a fiber.
       IO(runnable.run()).unsafeRunFiber((), reportFailure, _ => ())(self)
       ()
     }
   }
 
+  /**
+   * Reports unhandled exceptions and errors by printing them to the error
+   * stream.
+   *
+   * This method fulfills the `ExecutionContext` interface.
+   *
+   * @param cause the unhandled throwable instances
+   */
   override def reportFailure(cause: Throwable): Unit = {
     cause.printStackTrace()
   }
@@ -310,6 +337,11 @@ private[effect] final class WorkStealingThreadPool(
     // Execute the shutdown logic only once.
     if (done.compareAndSet(false, true)) {
       // Send an interrupt signal to each of the worker threads.
+
+      // Note: while loops and mutable variables are used throughout this method
+      // to avoid allocations of objects, since this method is expected to be
+      // executed mostly in situations where the thread pool is shutting down in
+      // the face of unhandled exceptions or as part of the whole JVM exiting.
       var i = 0
       while (i < threadCount) {
         workerThreads(i).interrupt()
