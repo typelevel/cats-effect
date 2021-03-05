@@ -206,7 +206,7 @@ private[effect] final class WorkStealingThreadPool(
       // searching worker threads (unparked worker threads are implicitly
       // allowed to search for work in the local queues of other worker
       // threads).
-      state.getAndAdd((1 << UnparkShift) | 1)
+      state.getAndAdd(DeltaSearching)
       parkedSignals(worker.index).lazySet(false)
     }
     worker
@@ -300,8 +300,7 @@ private[effect] final class WorkStealingThreadPool(
     sleepers.offer(thread)
     // Decrement the number of unparked and searching threads simultaneously
     // since this thread was searching prior to parking.
-    val dec = (1 << UnparkShift) | 1
-    val prev = state.getAndAdd(-dec)
+    val prev = state.getAndAdd(-DeltaSearching)
     (prev & SearchMask) == 1
   }
 
@@ -317,8 +316,7 @@ private[effect] final class WorkStealingThreadPool(
     // Mark the thread as parked.
     sleepers.offer(thread)
     // Decrement the number of unparked threads only.
-    val dec = 1 << UnparkShift
-    state.getAndAdd(-dec)
+    state.getAndAdd(-DeltaNotSearching)
     ()
   }
 

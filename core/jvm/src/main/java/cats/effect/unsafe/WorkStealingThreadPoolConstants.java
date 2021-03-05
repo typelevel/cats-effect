@@ -25,6 +25,17 @@ final class WorkStealingThreadPoolConstants {
   static final int UnparkShift = 16;
 
   /**
+   * Constant used when parking a thread which was not searching for work.
+   */
+  static final int DeltaNotSearching = 1 << UnparkShift;
+
+  /**
+   * Constant used when parking a thread which was previously searching for work
+   * and also when unparking any worker thread.
+   */
+  static final int DeltaSearching = DeltaNotSearching | 1;
+
+  /**
    * The number of threads currently searching for work is encoded as an unsigned
    * 16 bit number in the 16 least significant bits of a 32 bit integer. Used for
    * extracting the number of searching threads.
