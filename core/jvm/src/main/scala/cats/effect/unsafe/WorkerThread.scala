@@ -383,9 +383,6 @@ private[effect] final class WorkerThread(
 
       // Spawn a new `HelperThread`.
       val helper = new HelperThread(threadPrefix, blockingThreadCounter, overflow, pool)
-      helper.setName(
-        s"$threadPrefix-blocking-helper-${blockingThreadCounter.incrementAndGet()}")
-      helper.setDaemon(true)
       helper.start()
 
       // With another `HelperThread` started, it is time to execute the blocking
