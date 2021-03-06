@@ -195,7 +195,7 @@ private[effect] final class WorkStealingThreadPool(
       val index = (from + i) % threadCount
 
       val signal = parkedSignals(index)
-      if (signal.get() && signal.compareAndSet(true, false)) {
+      if (signal.getAndSet(false)) {
         // Update the state so that a thread can be unparked.
         // Here we are updating the 16 most significant bits, which hold the
         // number of active threads, as well as incrementing the number of
