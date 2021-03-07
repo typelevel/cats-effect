@@ -27,16 +27,19 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
 
   def blocking[A](thunk: => A): IO[A] =
-    Blocking(TypeBlocking, () => thunk)
+    Blocking(TypeBlocking, () => thunk, IOTracing.calculateStackTraceEvent(thunk.getClass))
 
   def interruptible[A](many: Boolean)(thunk: => A): IO[A] =
-    Blocking(if (many) TypeInterruptibleMany else TypeInterruptibleOnce, () => thunk)
+    Blocking(
+      if (many) TypeInterruptibleMany else TypeInterruptibleOnce,
+      () => thunk,
+      IOTracing.calculateStackTraceEvent(thunk.getClass))
 
   def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
     if (hint eq TypeDelay)
       apply(thunk)
     else
-      Blocking(hint, () => thunk)
+      Blocking(hint, () => thunk, IOTracing.calculateStackTraceEvent(thunk.getClass))
 
   def fromCompletableFuture[A](fut: IO[CompletableFuture[A]]): IO[A] =
     asyncForIO.fromCompletableFuture(fut)

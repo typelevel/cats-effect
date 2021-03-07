@@ -19,12 +19,30 @@ package cats.effect
 import java.util.concurrent.ConcurrentHashMap
 
 private[effect] object IOTracing {
-  
-  
+
   /**
    * Global cache for trace frames. Keys are references to lambda classes.
    * Should converge to the working set of traces very quickly for hot code paths.
    */
   private[this] val frameCache: ConcurrentHashMap[Class[_], IOEvent] = new ConcurrentHashMap()
+
+  def calculateStackTraceEvent(clazz: Class[_]): IOEvent =
+    if (TracingConstants.isCachedStackTracing) {
+      val currentFrame = frameCache.get(clazz)
+      if (currentFrame eq null) {
+        val newFrame = buildFrame()
+        frameCache.put(clazz, newFrame)
+        newFrame
+      } else {
+        currentFrame
+      }
+    } else if (TracingConstants.isFullStackTracing) {
+      buildFrame()
+    } else {
+      null
+    }
+
+  private def buildFrame(): IOEvent =
+    IOEvent.StackTrace(new Throwable().getStackTrace.toList)
 
 }

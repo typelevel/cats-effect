@@ -320,7 +320,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * failures would be completely silent and `IO` references would
    * never terminate on evaluation.
    */
-  def flatMap[B](f: A => IO[B]): IO[B] = IO.FlatMap(this, f)
+  def flatMap[B](f: A => IO[B]): IO[B] =
+    IO.FlatMap(this, f, IOTracing.calculateStackTraceEvent(f.getClass))
 
   def flatten[B](implicit ev: A <:< IO[B]): IO[B] = flatMap(ev)
 
@@ -378,7 +379,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Implements `ApplicativeError.handleErrorWith`.
    */
   def handleErrorWith[B >: A](f: Throwable => IO[B]): IO[B] =
-    IO.HandleErrorWith(this, f)
+    IO.HandleErrorWith(this, f, IOTracing.calculateStackTraceEvent(f.getClass))
 
   def ifM[B](ifTrue: => IO[B], ifFalse: => IO[B])(implicit ev: A <:< Boolean): IO[B] =
     flatMap(a => if (ev(a)) ifTrue else ifFalse)
@@ -393,7 +394,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * failures would be completely silent and `IO` references would
    * never terminate on evaluation.
    */
-  def map[B](f: A => B): IO[B] = IO.Map(this, f)
+  def map[B](f: A => B): IO[B] = IO.Map(this, f, IOTracing.calculateStackTraceEvent(f.getClass))
 
   def onCancel(fin: IO[Unit]): IO[A] =
     IO.OnCancel(this, fin)
@@ -765,7 +766,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    * Alias for `IO.delay(body)`.
    */
-  def apply[A](thunk: => A): IO[A] = Delay(() => thunk)
+  def apply[A](thunk: => A): IO[A] =
+    Delay(() => thunk, IOTracing.calculateStackTraceEvent(thunk.getClass))
 
   /**
    * Suspends a synchronous side effect in `IO`.
@@ -924,7 +926,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     Sleep(delay)
 
   def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
-    Uncancelable(body)
+    Uncancelable(body, IOTracing.calculateStackTraceEvent(body.getClass))
 
   private[this] val _unit: IO[Unit] = Pure(())
 
@@ -1340,11 +1342,13 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 5
   }
 
-  private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A, event: IOEvent) extends IO[A] {
+  private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A, event: IOEvent)
+      extends IO[A] {
     def tag = 6
   }
 
-  private[effect] final case class FlatMap[E, +A](ioe: IO[E], f: E => IO[A], event: IOEvent) extends IO[A] {
+  private[effect] final case class FlatMap[E, +A](ioe: IO[E], f: E => IO[A], event: IOEvent)
+      extends IO[A] {
     def tag = 7
   }
 
@@ -1352,7 +1356,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 8
   }
 
-  private[effect] final case class HandleErrorWith[+A](ioa: IO[A], f: Throwable => IO[A], event: IOEvent)
+  private[effect] final case class HandleErrorWith[+A](
+      ioa: IO[A],
+      f: Throwable => IO[A],
+      event: IOEvent)
       extends IO[A] {
     def tag = 9
   }
@@ -1365,7 +1372,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 11
   }
 
-  private[effect] final case class Uncancelable[+A](body: Poll[IO] => IO[A], event: IOEvent) extends IO[A] {
+  private[effect] final case class Uncancelable[+A](body: Poll[IO] => IO[A], event: IOEvent)
+      extends IO[A] {
     def tag = 12
   }
   private[effect] object Uncancelable {
@@ -1402,7 +1410,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 19
   }
 
-  private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A, event: IOEvent) extends IO[A] {
+  private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A, event: IOEvent)
+      extends IO[A] {
     def tag = 20
   }
 
