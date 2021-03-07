@@ -72,11 +72,11 @@ does means that it is actually possible for a fiber to take control of a CPU
 core and never give it back if it executes a tight CPU-bound loop like
 
 ```scala
-def factorial(n: BigInt): IO[Int] = n match {
-  case 0 => IO.pure(1)
-  case n => factorial(n-1).flatMap {
-    m => m * n
-  }
+def factorial(n: BigInt): IO[BigInt] = n match {
+   case 0 => IO.pure(1)
+   case n => factorial(n-1).flatMap {
+      m => IO.pure(m * n)
+   }
 }
 
 factorial(10000).unsafeRunSync()
