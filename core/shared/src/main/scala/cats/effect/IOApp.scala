@@ -62,7 +62,7 @@ trait IOApp {
   def run(args: List[String]): IO[ExitCode]
 
   /**
-   * The main method that runs the `IO` returned by [[run]] and exits
+   * The main method that runs the `IO` returned by run and exits
    * the app with the resulting code on completion.
    */
   def main(args: Array[String]): Unit =
@@ -121,4 +121,11 @@ trait IOApp {
     IOAppPlatform.defaultExecutionContext
 }
 
-object IOApp extends IOAppCompanionPlatform
+object IOApp extends IOAppCompanionPlatform {
+
+  trait Simple extends IOApp {
+    def run: IO[Unit]
+    final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
+  }
+
+}
