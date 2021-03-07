@@ -125,7 +125,6 @@ private final class IOFiber[A](
 
   private[this] val cancellationCheckThreshold = runtime.config.cancellationCheckThreshold
   private[this] val autoYieldThreshold = runtime.config.autoYieldThreshold
-  private[this] val iterationThreshold = autoYieldThreshold
 
   override def run(): Unit = {
     // insert a read barrier after every async boundary
@@ -228,23 +227,22 @@ private final class IOFiber[A](
       _cur0
     }
 
-    val nextIteration = if (iteration > iterationThreshold) {
-      1
-    } else {
-      iteration + 1
-    }
-
-    if ((nextIteration % cancellationCheckThreshold) == 0) {
-      //Ensure that we see cancellation
+    if (iteration >= cancellationCheckThreshold) {
+      // Ensure that we see cancellation.
       readBarrier()
     }
 
     if (shouldFinalize()) {
       asyncCancel(null)
-    } else if ((nextIteration % autoYieldThreshold) == 0) {
+    } else if (iteration >= autoYieldThreshold) {
       objectState.push(cur0)
       autoCede()
     } else {
+      // This is a modulo operation in disguise. `iteration` is reset every time
+      // the runloop yields automatically by the runloop always starting from
+      // iteration 0.
+      val nextIteration = iteration + 1
+
       // println(s"<$name> looping on $cur0")
       /*
        * The cases have to use continuous constants to generate a `tableswitch`.
@@ -307,11 +305,11 @@ private final class IOFiber[A](
           (ioe.tag: @switch) match {
             case 0 =>
               val pure = ioe.asInstanceOf[Pure[Any]]
-              runLoop(next(pure.value), nextIteration)
+              runLoop(next(pure.value), nextIteration + 1)
 
             case 1 =>
               val error = ioe.asInstanceOf[Error]
-              runLoop(failed(error.t, 0), nextIteration)
+              runLoop(failed(error.t, 0), nextIteration + 1)
 
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
@@ -324,23 +322,20 @@ private final class IOFiber[A](
                   case NonFatal(t) => error = t
                 }
 
-              if (error == null) {
-                runLoop(succeeded(result, 0), nextIteration)
-              } else {
-                runLoop(failed(error, 0), nextIteration)
-              }
+              val nextIO = if (error == null) succeeded(result, 0) else failed(error, 0)
+              runLoop(nextIO, nextIteration + 1)
 
             case 3 =>
               val realTime = runtime.scheduler.nowMillis().millis
-              runLoop(next(realTime), nextIteration)
+              runLoop(next(realTime), nextIteration + 1)
 
             case 4 =>
               val monotonic = runtime.scheduler.monotonicNanos().nanos
-              runLoop(next(monotonic), nextIteration)
+              runLoop(next(monotonic), nextIteration + 1)
 
             case 5 =>
               val ec = currentCtx
-              runLoop(next(ec), nextIteration)
+              runLoop(next(ec), nextIteration + 1)
 
             case _ =>
               objectState.push(f)
@@ -363,11 +358,11 @@ private final class IOFiber[A](
           (ioe.tag: @switch) match {
             case 0 =>
               val pure = ioe.asInstanceOf[Pure[Any]]
-              runLoop(next(pure.value), nextIteration)
+              runLoop(next(pure.value), nextIteration + 1)
 
             case 1 =>
               val error = ioe.asInstanceOf[Error]
-              runLoop(failed(error.t, 0), nextIteration)
+              runLoop(failed(error.t, 0), nextIteration + 1)
 
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
@@ -379,19 +374,19 @@ private final class IOFiber[A](
                   case NonFatal(t) => failed(t, 0)
                 }
 
-              runLoop(result, nextIteration)
+              runLoop(result, nextIteration + 1)
 
             case 3 =>
               val realTime = runtime.scheduler.nowMillis().millis
-              runLoop(next(realTime), nextIteration)
+              runLoop(next(realTime), nextIteration + 1)
 
             case 4 =>
               val monotonic = runtime.scheduler.monotonicNanos().nanos
-              runLoop(next(monotonic), nextIteration)
+              runLoop(next(monotonic), nextIteration + 1)
 
             case 5 =>
               val ec = currentCtx
-              runLoop(next(ec), nextIteration)
+              runLoop(next(ec), nextIteration + 1)
 
             case _ =>
               objectState.push(f)
@@ -407,11 +402,11 @@ private final class IOFiber[A](
           (ioa.tag: @switch) match {
             case 0 =>
               val pure = ioa.asInstanceOf[Pure[Any]]
-              runLoop(succeeded(Right(pure.value), 0), nextIteration)
+              runLoop(succeeded(Right(pure.value), 0), nextIteration + 1)
 
             case 1 =>
               val error = ioa.asInstanceOf[Error]
-              runLoop(succeeded(Left(error.t), 0), nextIteration)
+              runLoop(succeeded(Left(error.t), 0), nextIteration + 1)
 
             case 2 =>
               val delay = ioa.asInstanceOf[Delay[Any]]
@@ -426,19 +421,19 @@ private final class IOFiber[A](
 
               val next =
                 if (error == null) succeeded(Right(result), 0) else succeeded(Left(error), 0)
-              runLoop(next, nextIteration)
+              runLoop(next, nextIteration + 1)
 
             case 3 =>
               val realTime = runtime.scheduler.nowMillis().millis
-              runLoop(succeeded(Right(realTime), 0), nextIteration)
+              runLoop(succeeded(Right(realTime), 0), nextIteration + 1)
 
             case 4 =>
               val monotonic = runtime.scheduler.monotonicNanos().nanos
-              runLoop(succeeded(Right(monotonic), 0), nextIteration)
+              runLoop(succeeded(Right(monotonic), 0), nextIteration + 1)
 
             case 5 =>
               val ec = currentCtx
-              runLoop(succeeded(Right(ec), 0), nextIteration)
+              runLoop(succeeded(Right(ec), 0), nextIteration + 1)
 
             case _ =>
               conts.push(AttemptK)
@@ -866,7 +861,7 @@ private final class IOFiber[A](
       /* suppress all subsequent cancelation on this fiber */
       masks += 1
       // println(s"$name: Running finalizers on ${Thread.currentThread().getName}")
-      runLoop(finalizers.pop(), 1)
+      runLoop(finalizers.pop(), 0)
     } else {
       if (cb != null)
         cb(RightUnit)
@@ -1066,7 +1061,7 @@ private final class IOFiber[A](
       currentCtx = startEC
       ctxs.push(startEC)
 
-      runLoop(startIO, 1)
+      runLoop(startIO, 0)
     }
   }
 
@@ -1077,7 +1072,7 @@ private final class IOFiber[A](
       case Right(a) => succeeded(a, 0)
     }
 
-    runLoop(next, 1)
+    runLoop(next, 0)
   }
 
   private[this] def blockingR(): Unit = {
@@ -1101,12 +1096,12 @@ private final class IOFiber[A](
 
   private[this] def afterBlockingSuccessfulR(): Unit = {
     val result = objectState.pop()
-    runLoop(succeeded(result, 0), 1)
+    runLoop(succeeded(result, 0), 0)
   }
 
   private[this] def afterBlockingFailedR(): Unit = {
     val error = objectState.pop().asInstanceOf[Throwable]
-    runLoop(failed(error, 0), 1)
+    runLoop(failed(error, 0), 0)
   }
 
   private[this] def evalOnR(): Unit = {
@@ -1115,12 +1110,12 @@ private final class IOFiber[A](
   }
 
   private[this] def cedeR(): Unit = {
-    runLoop(succeeded((), 0), 1)
+    runLoop(succeeded((), 0), 0)
   }
 
   private[this] def autoCedeR(): Unit = {
     val io = objectState.pop().asInstanceOf[IO[Any]]
-    runLoop(io, 1)
+    runLoop(io, 0)
   }
 
   //////////////////////////////////////
@@ -1159,7 +1154,7 @@ private final class IOFiber[A](
   private[this] def cancelationLoopSuccessK(): IO[Any] = {
     if (!finalizers.isEmpty()) {
       conts.push(CancelationLoopK)
-      runLoop(finalizers.pop(), 1)
+      runLoop(finalizers.pop(), 0)
     } else {
       /* resume external canceller */
       val cb = objectState.pop()
