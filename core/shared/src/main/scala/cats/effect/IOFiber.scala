@@ -23,11 +23,11 @@ import cats.arrow.FunctionK
 import scala.annotation.{switch, tailrec}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.util.control.NonFatal
+import scala.util.control.{NoStackTrace, NonFatal}
+import scala.reflect.NameTransformer
 
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
-import scala.util.control.NoStackTrace
 
 /*
  * Rationale on memory barrier exploitation in this class...
@@ -79,6 +79,7 @@ private final class IOFiber[A](
 
   import IO._
   import IOFiberConstants._
+  import TracingConstants._
 
   /*
    * Ideally these would be on the stack, but they can't because we sometimes need to
@@ -105,6 +106,11 @@ private final class IOFiber[A](
   private[this] val finalizers = new ArrayStack[IO[Unit]](16)
 
   private[this] val callbacks = new CallbackStack[A](cb)
+
+  /* tracing data structures */
+  private[this] val events: RingBuffer[IOEvent] = new RingBuffer(traceBufferLogSize)
+  private[this] var captured: Int = 0
+  private[this] var omitted: Int = 0
 
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
@@ -1267,12 +1273,73 @@ private final class IOFiber[A](
     masks += 1
     failed(t, depth + 1)
   }
+
+  private[this] def pushEvent(ev: IOEvent): Unit = {
+    captured += 1
+    if (events.push(ev) != null) omitted += 1
+  }
+
+  /**
+   * If stack tracing and contextual exceptions are enabled, this
+   * function will rewrite the stack trace of a captured exception
+   * to include the async stack trace.
+   */
+  private[this] def augmentException(ex: Throwable): Unit = {
+    def dropRunLoopFrames(frames: Array[StackTraceElement]): Array[StackTraceElement] =
+      frames.takeWhile(ste => !IOFiber.runLoopFilter.exists(ste.getClassName.startsWith(_)))
+
+    def getOpAndCallSite(
+        frames: List[StackTraceElement]): Option[(StackTraceElement, StackTraceElement)] =
+      frames.sliding(2).collect { case a :: b :: Nil => (a, b) }.find {
+        case (_, callSite) =>
+          !IOFiber.stackTraceFilter.exists(callSite.getClassName.startsWith(_))
+      }
+
+    val stackTrace = ex.getStackTrace
+    if (!stackTrace.isEmpty) {
+      val augmented = stackTrace(stackTrace.length - 1).getClassName.indexOf('@') != -1
+      if (!augmented) {
+        val prefix = dropRunLoopFrames(stackTrace)
+        val suffix = events
+          .toList
+          .collect { case ev: IOEvent.StackTrace => ev }
+          .flatMap(t => getOpAndCallSite(t.stackTrace))
+          .map {
+            case (methodSite, callSite) =>
+              val op = NameTransformer.decode(methodSite.getMethodName)
+
+              new StackTraceElement(
+                op + " @ " + callSite.getClassName,
+                callSite.getMethodName,
+                callSite.getFileName,
+                callSite.getLineNumber)
+          }
+          .toArray
+        ex.setStackTrace(prefix ++ suffix)
+      }
+    }
+  }
+
 }
 
 private object IOFiber {
   /* prefetch */
   private val OutcomeCanceled = Outcome.Canceled()
   private[effect] val RightUnit = Right(())
+
+  private val runLoopFilter = List(
+    "cats.effect.",
+    "scala.runtime."
+  )
+
+  private val stackTraceFilter = List(
+    "cats.effect.",
+    "cats.",
+    "sbt.",
+    "java.",
+    "sun.",
+    "scala."
+  )
 }
 
 private[effect] case object AsyncPropagateCancelation extends NoStackTrace
