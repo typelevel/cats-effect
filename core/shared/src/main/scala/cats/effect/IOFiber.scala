@@ -263,10 +263,17 @@ private final class IOFiber[A](
 
         case 1 =>
           val cur = cur0.asInstanceOf[Error]
+
+          if (isStackTracing && enhancedExceptions) {
+            augmentException(cur.t)
+          }
+
           runLoop(failed(cur.t, 0), nextIteration)
 
         case 2 =>
           val cur = cur0.asInstanceOf[Delay[Any]]
+
+          pushEvent(cur.event)
 
           var error: Throwable = null
           val r =
@@ -309,6 +316,8 @@ private final class IOFiber[A](
 
             if (error == null) succeeded(result, 0) else failed(error, 0)
           }
+
+          pushEvent(cur.event)
 
           (ioe.tag: @switch) match {
             case 0 =>
@@ -365,6 +374,8 @@ private final class IOFiber[A](
             catch {
               case NonFatal(t) => failed(t, 0)
             }
+
+          pushEvent(cur.event)
 
           (ioe.tag: @switch) match {
             case 0 =>
@@ -454,6 +465,8 @@ private final class IOFiber[A](
         case 9 =>
           val cur = cur0.asInstanceOf[HandleErrorWith[Any]]
 
+          pushEvent(cur.event)
+
           objectState.push(cur.f)
           conts.push(HandleErrorWithK)
 
@@ -484,6 +497,8 @@ private final class IOFiber[A](
 
         case 12 =>
           val cur = cur0.asInstanceOf[Uncancelable[Any]]
+
+          pushEvent(cur.event)
 
           masks += 1
           val id = masks
@@ -799,6 +814,8 @@ private final class IOFiber[A](
         case 20 =>
           val cur = cur0.asInstanceOf[Blocking[Any]]
           /* we know we're on the JVM here */
+
+          pushEvent(cur.event)
 
           if (cur.hint eq TypeBlocking) {
             resumeTag = BlockingR
@@ -1274,10 +1291,11 @@ private final class IOFiber[A](
     failed(t, depth + 1)
   }
 
-  private[this] def pushEvent(ev: IOEvent): Unit = {
-    captured += 1
-    if (events.push(ev) != null) omitted += 1
-  }
+  private[this] def pushEvent(ev: IOEvent): Unit =
+    if (ev != null) {
+      captured += 1
+      if (events.push(ev) != null) omitted += 1
+    }
 
   /**
    * If stack tracing and contextual exceptions are enabled, this
