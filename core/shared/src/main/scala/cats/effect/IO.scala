@@ -1324,7 +1324,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 1
   }
 
-  private[effect] final case class Delay[+A](thunk: () => A) extends IO[A] {
+  private[effect] final case class Delay[+A](thunk: () => A, event: IOEvent) extends IO[A] {
     def tag = 2
   }
 
@@ -1340,11 +1340,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 5
   }
 
-  private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A) extends IO[A] {
+  private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A, event: IOEvent) extends IO[A] {
     def tag = 6
   }
 
-  private[effect] final case class FlatMap[E, +A](ioe: IO[E], f: E => IO[A]) extends IO[A] {
+  private[effect] final case class FlatMap[E, +A](ioe: IO[E], f: E => IO[A], event: IOEvent) extends IO[A] {
     def tag = 7
   }
 
@@ -1352,7 +1352,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 8
   }
 
-  private[effect] final case class HandleErrorWith[+A](ioa: IO[A], f: Throwable => IO[A])
+  private[effect] final case class HandleErrorWith[+A](ioa: IO[A], f: Throwable => IO[A], event: IOEvent)
       extends IO[A] {
     def tag = 9
   }
@@ -1365,7 +1365,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 11
   }
 
-  private[effect] final case class Uncancelable[+A](body: Poll[IO] => IO[A]) extends IO[A] {
+  private[effect] final case class Uncancelable[+A](body: Poll[IO] => IO[A], event: IOEvent) extends IO[A] {
     def tag = 12
   }
   private[effect] object Uncancelable {
@@ -1402,7 +1402,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 19
   }
 
-  private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A) extends IO[A] {
+  private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A, event: IOEvent) extends IO[A] {
     def tag = 20
   }
 
