@@ -3,14 +3,19 @@ id: async
 title: Async
 ---
 
-`Async` is the asynchronous FFI for suspending side-effectful operations.
+`Async` is the asynchronous FFI for suspending side-effectful operations that
+are completed elsewhere (often on another threadpool via a future-like API).
+This typeclass allows us to sequence asynchronous operations without stumbling
+into [callback hell](http://callbackhell.com/) and also gives us the ability to
+shift execution to other execution contexts.
 
 ## FFI
 
 An asynchronous task is one whose results are computed somewhere else. We await
 the results of that execution by giving it a callback to be invoked with the
 result. That computation may fail hence the callback is of type
-`Either[Throwable, A] => ()`.
+`Either[Throwable, A] => ()`. This awaiting  is semantic only - no threads are
+blocked, the current fiber is simply descheduled until the callback completes.
 
 This leads us directly to the simplest asynchronous FFI
 ```scala
