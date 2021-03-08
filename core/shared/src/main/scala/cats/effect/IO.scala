@@ -1069,6 +1069,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     }
   }
 
+  /*
+   * Produce a value that is guaranteed to be unique ie
+   * (IO.unique, IO.unique).mapN(_ =!= _)
+   */
+  def unique: IO[Unique.Token] = _asyncForIO.unique
+
   /**
    * Returns the given argument if `cond` is true, otherwise `IO.Unit`
    *
