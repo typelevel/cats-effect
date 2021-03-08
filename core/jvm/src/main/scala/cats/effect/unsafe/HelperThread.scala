@@ -77,6 +77,15 @@ private[effect] final class HelperThread(
    */
   private[this] var blocking: Boolean = false
 
+  // Constructor code.
+  {
+    // Helper threads are daemon threads.
+    setDaemon(true)
+
+    // Set the name of this helper thread.
+    setName(s"$threadPrefix-blocking-helper-${blockingThreadCounter.incrementAndGet()}")
+  }
+
   /**
    * Called by the [[WorkerThread]] which spawned this [[HelperThread]], to
    * notify the [[HelperThread]] that the [[WorkerThread]] is finished blocking
@@ -113,7 +122,7 @@ private[effect] final class HelperThread(
     // Check for exit condition. Do not continue if the `WorkStealingPool` has
     // been shut down, or the `WorkerThread` which spawned this `HelperThread`
     // has finished blocking.
-    while (!pool.done && !signal.get()) {
+    while (!isInterrupted() && !signal.get()) {
       val fiber = overflow.poll()
 
       if (fiber eq null) {
@@ -150,9 +159,6 @@ private[effect] final class HelperThread(
 
       // Spawn a new `HelperThread`.
       val helper = new HelperThread(threadPrefix, blockingThreadCounter, overflow, pool)
-      helper.setName(
-        s"$threadPrefix-blocking-helper-${blockingThreadCounter.incrementAndGet()}")
-      helper.setDaemon(true)
       helper.start()
 
       // With another `HelperThread` started, it is time to execute the blocking
@@ -170,7 +176,15 @@ private[effect] final class HelperThread(
       // of propagating blocking actions on every spawned helper thread, this is
       // not an issue, as the `HelperThread`s are all executing `IOFiber[_]`
       // instances, which mostly consist of non-blocking code.
-      helper.join()
+      try helper.join()
+      catch {
+        case _: InterruptedException =>
+          // Propagate interruption to the helper thread.
+          Thread.interrupted()
+          helper.interrupt()
+          helper.join()
+          this.interrupt()
+      }
 
       // Logically exit the blocking region.
       blocking = false
