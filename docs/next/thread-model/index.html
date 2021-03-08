@@ -111,11 +111,11 @@ of the CPU by suspending its runloop periodically. In practice this is rarely an
 issue as fibers automatically yield at asynchronous boundaries (eg I/O) but it
 does means that it is actually possible for a fiber to take control of a CPU
 core and never give it back if it executes a tight CPU-bound loop like</p>
-<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">factorial</span></span>(n: <span class="hljs-type">BigInt</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Int</span>] = n <span class="hljs-keyword">match</span> {
-  <span class="hljs-keyword">case</span> <span class="hljs-number">0</span> =&gt; <span class="hljs-type">IO</span>.pure(<span class="hljs-number">1</span>)
-  <span class="hljs-keyword">case</span> n =&gt; factorial(n<span class="hljs-number">-1</span>).flatMap {
-    m =&gt; m * n
-  }
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">factorial</span></span>(n: <span class="hljs-type">BigInt</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">BigInt</span>] = n <span class="hljs-keyword">match</span> {
+   <span class="hljs-keyword">case</span> <span class="hljs-number">0</span> =&gt; <span class="hljs-type">IO</span>.pure(<span class="hljs-number">1</span>)
+   <span class="hljs-keyword">case</span> n =&gt; factorial(n<span class="hljs-number">-1</span>).flatMap {
+      m =&gt; <span class="hljs-type">IO</span>.pure(m * n)
+   }
 }
 
 factorial(<span class="hljs-number">10000</span>).unsafeRunSync()
