@@ -44,11 +44,11 @@ class ECBenchmark {
 
   @Benchmark
   def app(): Unit = {
-    val _ = ioApp.run
+    val _ = ioApp.main(Array.empty)
   }
 
   @Benchmark
   def appWithCtx(): Unit = {
-    val _ = ioAppCtx.run
+    val _ = ioAppCtx.main(Array.empty)
   }
 }
