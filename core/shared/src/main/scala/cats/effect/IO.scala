@@ -45,6 +45,7 @@ import scala.concurrent.{
 }
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
+import cats.effect.kernel.Unique
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -1068,6 +1069,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       }
     }
   }
+
+  def unique: IO[Unique.Token] = _asyncForIO.unique
 
   /**
    * Returns the given argument if `cond` is true, otherwise `IO.Unit`
