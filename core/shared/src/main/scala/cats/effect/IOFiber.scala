@@ -236,8 +236,9 @@ private final class IOFiber[A](
     if (shouldFinalize()) {
       asyncCancel(null)
     } else if (iteration >= autoYieldThreshold) {
-      objectState.push(cur0)
-      autoCede()
+      resumeIO = cur0
+      resumeTag = AutoCedeR
+      rescheduleFiber(currentCtx)(this)
     } else {
       // This is a modulo operation in disguise. `iteration` is reset every time
       // the runloop yields automatically by the runloop always starting from
@@ -876,11 +877,6 @@ private final class IOFiber[A](
     rescheduleFiber(currentCtx)(this)
   }
 
-  private[this] def autoCede(): Unit = {
-    resumeTag = AutoCedeR
-    rescheduleFiber(currentCtx)(this)
-  }
-
   /*
    * We should attempt finalization if all of the following are true:
    * 1) We own the runloop
@@ -1118,7 +1114,8 @@ private final class IOFiber[A](
   }
 
   private[this] def autoCedeR(): Unit = {
-    val io = objectState.pop().asInstanceOf[IO[Any]]
+    val io = resumeIO
+    resumeIO = null
     runLoop(io, 0)
   }
 
