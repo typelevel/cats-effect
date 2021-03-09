@@ -24,7 +24,7 @@ trait Async[F[_]] {
 }
 ```
 
-As in example of this in action, we can look at the definition of `Async[F].fromFuture`,
+As an example of this in action, we can look at the definition of `Async[F].fromFuture`,
 which uses `Future#onComplete` to invoke the supplied callback
 ```scala
 def fromFuture[A](fut: F[Future[A]]): F[A] =
