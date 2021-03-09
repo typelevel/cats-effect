@@ -88,7 +88,7 @@ private final class IOFiber[A](
   private[this] val objectState = new ArrayStack[AnyRef](16)
 
   /* fast-path to head */
-  private[this] var currentCtx: ExecutionContext = _
+  private[this] var currentCtx: ExecutionContext = startEC
   private[this] var ctxs: ArrayStack[ExecutionContext] = _
 
   private[this] var canceled: Boolean = false
@@ -113,6 +113,7 @@ private final class IOFiber[A](
 
   /* mutable state for resuming the fiber in different states */
   private[this] var resumeTag: Byte = ExecR
+  private[this] var resumeIO: IO[Any] = startIO
 
   /* prefetch for Right(()) */
   private[this] val RightUnit = IOFiber.RightUnit
@@ -1058,10 +1059,11 @@ private final class IOFiber[A](
       conts.push(RunTerminusK)
 
       ctxs = new ArrayStack[ExecutionContext](2)
-      currentCtx = startEC
-      ctxs.push(startEC)
+      ctxs.push(currentCtx)
 
-      runLoop(startIO, 0)
+      val io = resumeIO
+      resumeIO = null
+      runLoop(io, 0)
     }
   }
 
