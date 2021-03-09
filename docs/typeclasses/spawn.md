@@ -88,7 +88,7 @@ We can demonstrate this property relatively easily using the `IO` monad:
 import scala.concurrent.duration._
 
 for {
-  target <- IO(println("Catch me if you can!")).foreverM.start
+  target <- IO.println("Catch me if you can!").foreverM.start
   _ <- IO.sleep(1.second)
   _ <- target.cancel
 } yield ()
@@ -98,7 +98,7 @@ This will print "`Catch me if you can!`" a nondeterministic number of times (pro
 
 It is actually impossible to replicate this example with `Thread` without building your own machinery for managing cancellation (usually some shared `Boolean` which tracks whether or not you've been canceled). With `Fiber`, it is handled for you.
 
-Even more importantly, this cancellation mechanism is the same one that is described by `MonadCancel`, meaning that all of the resource safety and `uncancelable` functionality that it defines can be brought to bear, making it possible to write code which is resource-safe even when externally canceled by some other fiber. This problem is nearly impossible to solve by any other means.
+Even more importantly, this cancellation mechanism is the same one that is described by [`MonadCancel`](./monadcancel.md), meaning that all of the resource safety and `uncancelable` functionality that it defines can be brought to bear, making it possible to write code which is resource-safe even when externally canceled by some other fiber. This problem is nearly impossible to solve by any other means.
 
 In practice, this kind of cancellation is often handled for you (the user) in the form of cleanup when unexpected things happen. For example, imagine the following code:
 

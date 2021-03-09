@@ -3,7 +3,20 @@ id: monadcancel
 title: MonadCancel
 ---
 
-This typeclass extends `MonadError` (in Cats) and defines the meaning of resource safety and cancellation. Using it, we can define effects which safely acquire and release resources:
+A fiber can terminate in three different states, reflected by the different subtypes of `Outcome`:
+
+```scala
+sealed trait Outcome[F[_], E, A]
+final case class Succeeded[F[_], E, A](fa: F[A]) extends Outcome[F, E, A]
+final case class Errored[F[_], E, A](e: E) extends Outcome[F, E, A]
+final case class Canceled[F[_], E, A]() extends Outcome[F, E, A]
+```
+
+This means that when writing resource-safe code, we have to worry about
+cancellation as well as exceptions. The `MonadCancel` typeclass addresses this
+by extending `MonadError` (in Cats) to provide the capability to guarantee the
+running of finalizers when a fiber is cancelled. Using it, we can define effects
+which safely acquire and release resources:
 
 <!-- TODO enable mdoc for this -->
 ```scala
