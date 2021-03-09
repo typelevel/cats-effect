@@ -7,14 +7,19 @@ title: Temporal
 a specified duration.
 
 ```scala
-firstThing >> IO.sleep(5.seconds) >> secondThing
+firstThing >> Temporal[F].sleep(5.seconds) >> secondThing
 ```
 
-Note that this should *always* be used instead of `IO(Thread.sleep(duration))`. TODO
-link to appropriate section on `Sync`, blocking operations and underlying threads
+Of course this could be achieved by `Sync[F].delay(Thread.sleep(duration))` but
+this is a _very bad_ idea as it will block a thread from the compute pool (see
+the [thread model docs](../thread-model.md) for more details on why this is
+bad).  Instead, `Temporal[F]#sleep` is assigned its own typeclass and is a
+primitive of the implementation that semantically blocks the execution of the
+calling  fiber by de-scheduling it.  Internally a scheduler is used to wait for
+the specified duration before rescheduling the fiber.
 
-This enables us to define powerful time-dependent
-derived combinators like `timeoutTo`:
+The ability to sleep for a specified duration enables us to define powerful
+time-dependent derived combinators like `timeoutTo`:
 
 ```scala
 val data = fetchFromRemoteService.timeoutTo(2.seconds, cachedValue)
