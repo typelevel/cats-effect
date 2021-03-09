@@ -963,7 +963,7 @@ private final class IOFiber[A](
     var k: Byte = -1
 
     /*
-     * short circuit on error by dropping map, flatMap, and auto-cede continuations
+     * short circuit on error by dropping map and flatMap continuations
      * until we hit a continuation that needs to deal with errors.
      */
     while (i >= 0 && k < 0) {
