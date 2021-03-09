@@ -792,7 +792,7 @@ private final class IOFiber[A](
 
           if (cur.hint eq TypeBlocking) {
             resumeTag = BlockingR
-            objectState.push(cur)
+            resumeIO = cur
             runtime.blocking.execute(this)
           } else {
             runLoop(interruptibleImpl(cur, runtime.blocking), nextIteration)
@@ -1079,7 +1079,8 @@ private final class IOFiber[A](
 
   private[this] def blockingR(): Unit = {
     var error: Throwable = null
-    val cur = objectState.pop().asInstanceOf[Blocking[Any]]
+    val cur = resumeIO.asInstanceOf[Blocking[Any]]
+    resumeIO = null
     val r =
       try cur.thunk()
       catch {
