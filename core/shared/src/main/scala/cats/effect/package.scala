@@ -42,6 +42,9 @@ package object effect {
   type GenTemporal[F[_], E] = cekernel.GenTemporal[F, E]
   val GenTemporal = cekernel.GenTemporal
 
+  type Unique[F[_]] = cekernel.Unique[F]
+  val Unique = cekernel.Unique
+
   type Sync[F[_]] = cekernel.Sync[F]
   val Sync = cekernel.Sync
 
