@@ -737,7 +737,8 @@ private final class IOFiber[A](
 
         /* Cede */
         case 16 =>
-          cede()
+          resumeTag = CedeR
+          rescheduleFiber(currentCtx)(this)
 
         case 17 =>
           val cur = cur0.asInstanceOf[Start[Any]]
@@ -870,11 +871,6 @@ private final class IOFiber[A](
 
       done(OutcomeCanceled)
     }
-  }
-
-  private[this] def cede(): Unit = {
-    resumeTag = CedeR
-    rescheduleFiber(currentCtx)(this)
   }
 
   /*
