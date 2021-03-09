@@ -782,7 +782,7 @@ private final class IOFiber[A](
             conts.push(EvalOnK)
 
             resumeTag = EvalOnR
-            objectState.push(cur.ioa)
+            resumeIO = cur.ioa
             execute(ec)(this)
           }
 
@@ -1108,7 +1108,8 @@ private final class IOFiber[A](
   }
 
   private[this] def evalOnR(): Unit = {
-    val ioa = objectState.pop().asInstanceOf[IO[Any]]
+    val ioa = resumeIO
+    resumeIO = null
     runLoop(ioa, 0)
   }
 
