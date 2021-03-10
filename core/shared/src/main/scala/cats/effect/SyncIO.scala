@@ -16,8 +16,9 @@
 
 package cats.effect
 
-import cats.{Eval, Now, Show, StackSafeMonad}
+import cats.{Align, Eval, Functor, Now, Show, StackSafeMonad}
 import cats.kernel.{Monoid, Semigroup}
+import cats.data.Ior
 
 import scala.annotation.{switch, tailrec}
 import scala.concurrent.duration._
@@ -495,6 +496,23 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
       extends SyncIOSemigroup[A]
       with Monoid[SyncIO[A]] {
     def empty: SyncIO[A] = pure(A.empty)
+  }
+
+  implicit val alignForIO: Align[SyncIO] =
+    new SyncIOAlign
+
+  protected class SyncIOAlign extends Align[SyncIO] {
+    def align[A, B](fa: SyncIO[A], fb: SyncIO[B]): SyncIO[Ior[A, B]] =
+      alignWith(fa, fb)(identity)
+
+    override def alignWith[A, B, C](fa: SyncIO[A], fb: SyncIO[B])(
+        f: Ior[A, B] => C): SyncIO[C] =
+      fa.redeemWith(
+        t => fb.redeemWith(_ => SyncIO.raiseError(t), b => SyncIO.pure(f(Ior.right(b)))),
+        a => fb.redeem(_ => f(Ior.left(a)), b => f(Ior.both(a, b)))
+      )
+
+    def functor: Functor[SyncIO] = Functor[SyncIO]
   }
 
   private[this] val _syncForSyncIO: Sync[SyncIO] =

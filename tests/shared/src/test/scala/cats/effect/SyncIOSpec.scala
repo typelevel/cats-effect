@@ -17,6 +17,8 @@
 package cats.effect
 
 import cats.kernel.laws.discipline.MonoidTests
+import cats.laws.discipline.AlignTests
+import cats.laws.discipline.arbitrary._
 import cats.effect.laws.SyncTests
 import cats.syntax.all._
 import org.scalacheck.Prop
@@ -226,6 +228,13 @@ class SyncIOSpec
     checkAll(
       "SyncIO[Int]",
       MonoidTests[SyncIO[Int]].monoid
+    )
+  }
+
+  {
+    checkAll(
+      "SyncIO",
+      AlignTests[SyncIO].align[Int, Int, Int, Int]
     )
   }
 

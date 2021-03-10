@@ -17,9 +17,11 @@
 package cats.effect
 
 import cats.{
+  Align,
   Alternative,
   Applicative,
   Eval,
+  Functor,
   Id,
   Monad,
   Monoid,
@@ -31,6 +33,7 @@ import cats.{
   StackSafeMonad,
   Traverse
 }
+import cats.data.Ior
 import cats.syntax.all._
 import cats.effect.instances.spawn
 import cats.effect.std.Console
@@ -1225,6 +1228,22 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   protected class IOSemigroupK extends SemigroupK[IO] {
     final override def combineK[A](a: IO[A], b: IO[A]): IO[A] =
       a.handleErrorWith(_ => b)
+  }
+
+  implicit val alignForIO: Align[IO] =
+    new IOAlign
+
+  protected class IOAlign extends Align[IO] {
+    def align[A, B](fa: IO[A], fb: IO[B]): IO[Ior[A, B]] =
+      alignWith(fa, fb)(identity)
+
+    override def alignWith[A, B, C](fa: IO[A], fb: IO[B])(f: Ior[A, B] => C): IO[C] =
+      fa.redeemWith(
+        t => fb.redeemWith(_ => IO.raiseError(t), b => IO.pure(f(Ior.right(b)))),
+        a => fb.redeem(_ => f(Ior.left(a)), b => f(Ior.both(a, b)))
+      )
+
+    def functor: Functor[IO] = Functor[IO]
   }
 
   private[this] val _asyncForIO: kernel.Async[IO] = new kernel.Async[IO]

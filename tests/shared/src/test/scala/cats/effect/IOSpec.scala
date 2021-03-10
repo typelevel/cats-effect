@@ -16,8 +16,9 @@
 
 package cats.effect
 
-import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.SemigroupKTests
+import cats.kernel.laws.discipline.{MonoidTests}
+import cats.laws.discipline.{AlignTests, SemigroupKTests}
+import cats.laws.discipline.arbitrary._
 import cats.effect.laws.AsyncTests
 import cats.effect.testkit.TestContext
 import cats.syntax.all._
@@ -1155,6 +1156,15 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     checkAll(
       "IO[Int]",
       SemigroupKTests[IO].semigroupK[Int]
+    )
+  }
+
+  {
+    implicit val ticker = Ticker()
+
+    checkAll(
+      "IO",
+      AlignTests[IO].align[Int, Int, Int, Int]
     )
   }
 
