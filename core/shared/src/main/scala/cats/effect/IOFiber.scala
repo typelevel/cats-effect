@@ -827,6 +827,7 @@ private final class IOFiber[A](
     masks = initMask
 
     resumeTag = DoneR
+    resumeIO = null
     /*
      * Write barrier to publish masks. The thread which owns the runloop is
      * effectively a single writer, so lazy set can be utilized for relaxed
