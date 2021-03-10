@@ -21,6 +21,7 @@ package kernel
 import java.util.concurrent.atomic.AtomicReference
 
 import cats.effect.kernel.Deferred.TransformedDeferred
+import cats.effect.kernel.DeferredSink.AlreadyCompleted
 import cats.syntax.all._
 
 import scala.annotation.tailrec
@@ -36,10 +37,10 @@ import scala.collection.immutable.LongMap
  * `get` on an empty `Deferred` will block until the `Deferred` is completed.
  * `get` on a completed `Deferred` will always immediately return its content.
  *
- * `complete(a)` on an empty `Deferred` will set it to `a`, and notify any and
- * all readers currently blocked on a call to `get`.
+ * `complete(a)` on an empty `Deferred` will set it to `a`, return a `Right`,
+ * and notify any and all readers currently blocked on a call to `get`.
  * `complete(a)` on a `Deferred` that has already been completed will not modify
- * its content, and result in a failed `F`.
+ * its content, and return a `Left`.
  *
  * Albeit simple, `Deferred` can be used in conjunction with [[Ref]] to build
  * complex concurrent behaviour and data structures like queues and semaphores.
@@ -158,7 +159,7 @@ object Deferred {
         }
       }
 
-    def complete(a: A): F[Boolean] = {
+    def complete(a: A): F[Either[AlreadyCompleted, Unit]] = {
       def notifyReaders(readers: LongMap[A => Unit]): F[Unit] = {
         // LongMap iterators return values in unsigned key order,
         // which corresponds to the arrival order of readers since
@@ -177,16 +178,16 @@ object Deferred {
 
       // side-effectful (even though it returns F[Unit])
       @tailrec
-      def loop(): F[Boolean] =
+      def loop(): F[Either[AlreadyCompleted, Unit]] =
         ref.get match {
           case State.Set(_) =>
-            F.pure(false)
+            F.pure(DeferredSink.completeFailure)
           case s @ State.Unset(readers, _) =>
             val updated = State.Set(a)
             if (!ref.compareAndSet(s, updated)) loop()
             else {
               val notify = if (readers.isEmpty) F.unit else notifyReaders(readers)
-              notify.as(true)
+              notify.as(DeferredSink.completeSuccess)
             }
         }
 
@@ -200,7 +201,7 @@ object Deferred {
         new Deferred[F, B] {
           override def get: F[B] =
             fa.get.map(f)
-          override def complete(b: B): F[Boolean] =
+          override def complete(b: B): F[Either[AlreadyCompleted, Unit]] =
             fa.complete(g(b))
           override def tryGet: F[Option[B]] =
             fa.tryGet.map(_.map(f))
@@ -213,7 +214,8 @@ object Deferred {
       extends Deferred[G, A] {
     override def get: G[A] = trans(underlying.get)
     override def tryGet: G[Option[A]] = trans(underlying.tryGet)
-    override def complete(a: A): G[Boolean] = trans(underlying.complete(a))
+    override def complete(a: A): G[Either[AlreadyCompleted, Unit]] = trans(
+      underlying.complete(a))
   }
 }
 
@@ -255,7 +257,7 @@ trait DeferredSink[F[_], A] {
    * Satisfies:
    *   `Deferred[F, A].flatMap(r => r.complete(a) *> r.get) == a.pure[F]`
    */
-  def complete(a: A): F[Boolean]
+  def complete(a: A): F[Either[AlreadyCompleted, Unit]]
 }
 
 object DeferredSink {
@@ -263,8 +265,15 @@ object DeferredSink {
     new Contravariant[DeferredSink[F, *]] {
       override def contramap[A, B](fa: DeferredSink[F, A])(f: B => A): DeferredSink[F, B] =
         new DeferredSink[F, B] {
-          override def complete(b: B): F[Boolean] =
+          override def complete(b: B): F[Either[AlreadyCompleted, Unit]] =
             fa.complete(f(b))
         }
     }
+
+  case object AlreadyCompleted
+      extends IllegalStateException(
+        "Cannot complete a Deferred that has already been completed")
+  type AlreadyCompleted = AlreadyCompleted.type
+  private[kernel] val completeSuccess: Either[AlreadyCompleted, Unit] = Right(())
+  private[kernel] val completeFailure: Either[AlreadyCompleted, Unit] = Left(AlreadyCompleted)
 }

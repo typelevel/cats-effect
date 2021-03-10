@@ -275,7 +275,12 @@ object pure {
         new Deferred[PureConc[E, *], A] {
           override def get: PureConc[E, A] = mVar.read[PureConc[E, *]]
 
-          override def complete(a: A): PureConc[E, Boolean] = mVar.tryPut[PureConc[E, *]](a)
+          override def complete(
+              a: A): PureConc[E, Either[DeferredSink.AlreadyCompleted, Unit]] =
+            mVar.tryPut[PureConc[E, *]](a).map {
+              case true => Right(())
+              case false => Left(DeferredSink.AlreadyCompleted)
+            }
 
           override def tryGet: PureConc[E, Option[A]] = mVar.tryRead[PureConc[E, *]]
         }

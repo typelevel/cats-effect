@@ -27,11 +27,11 @@ class DeferredSpec extends BaseSpec { outer =>
   "Deferred" >> {
 
     "complete" in real {
-      val op = Deferred[IO, Int].flatMap { p => p.complete(0) *> p.get }
+      val op = Deferred[IO, Int].flatMap { p => p.complete(0).product(p.get) }
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo(0)
+          res must beEqualTo((Right(()), 0))
         }
       }
     }
@@ -41,7 +41,7 @@ class DeferredSpec extends BaseSpec { outer =>
 
       op.flatMap { res =>
         IO {
-          res must beEqualTo((false, 0))
+          res must beEqualTo((Left(DeferredSink.AlreadyCompleted), 0))
         }
       }
     }
