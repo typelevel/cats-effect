@@ -572,7 +572,7 @@ private final class IOFiber[A](
                         objectState.push(t)
                       case Right(a) =>
                         resumeTag = AsyncContinueSuccessfulR
-                        objectState.push(a.asInstanceOf[Object])
+                        objectState.push(a.asInstanceOf[AnyRef])
                     }
                     execute(ec)(this)
                   } else {
@@ -1089,7 +1089,7 @@ private final class IOFiber[A](
 
     if (error == null) {
       resumeTag = AfterBlockingSuccessfulR
-      objectState.push(r.asInstanceOf[Object])
+      objectState.push(r.asInstanceOf[AnyRef])
     } else {
       resumeTag = AfterBlockingFailedR
       objectState.push(error)
@@ -1194,7 +1194,7 @@ private final class IOFiber[A](
 
     if (!shouldFinalize()) {
       resumeTag = AfterBlockingSuccessfulR
-      objectState.push(result.asInstanceOf[Object])
+      objectState.push(result.asInstanceOf[AnyRef])
       execute(ec)(this)
     } else {
       asyncCancel(null)
