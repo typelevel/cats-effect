@@ -35,14 +35,15 @@ private[effect] object IOFiberConstants {
 
   // resume ids
   val ExecR: Byte = 0
-  val AsyncContinueR: Byte = 1
-  val BlockingR: Byte = 2
-  val AfterBlockingSuccessfulR: Byte = 3
-  val AfterBlockingFailedR: Byte = 4
-  val EvalOnR: Byte = 5
-  val CedeR: Byte = 6
-  val AutoCedeR: Byte = 7
-  val DoneR: Byte = 8
+  val AsyncContinueSuccessfulR: Byte = 1
+  val AsyncContinueFailedR: Byte = 2
+  val BlockingR: Byte = 3
+  val AfterBlockingSuccessfulR: Byte = 4
+  val AfterBlockingFailedR: Byte = 5
+  val EvalOnR: Byte = 6
+  val CedeR: Byte = 7
+  val AutoCedeR: Byte = 8
+  val DoneR: Byte = 9
 
   // ContState tags
   val ContStateInitial: Int = 0

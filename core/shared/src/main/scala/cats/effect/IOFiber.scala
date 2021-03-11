@@ -133,14 +133,15 @@ private final class IOFiber[A](
     try {
       (resumeTag: @switch) match {
         case 0 => execR()
-        case 1 => asyncContinueR()
-        case 2 => blockingR()
-        case 3 => afterBlockingSuccessfulR()
-        case 4 => afterBlockingFailedR()
-        case 5 => evalOnR()
-        case 6 => cedeR()
-        case 7 => autoCedeR()
-        case 8 => ()
+        case 1 => asyncContinueSuccessfulR()
+        case 2 => asyncContinueFailedR()
+        case 3 => blockingR()
+        case 4 => afterBlockingSuccessfulR()
+        case 5 => afterBlockingFailedR()
+        case 6 => evalOnR()
+        case 7 => cedeR()
+        case 8 => autoCedeR()
+        case 9 => ()
       }
     } catch {
       case t: Throwable =>
@@ -565,8 +566,14 @@ private final class IOFiber[A](
                   if (!shouldFinalize()) {
                     /* we weren't cancelled, so schedule the runloop for execution */
                     val ec = currentCtx
-                    resumeTag = AsyncContinueR
-                    objectState.push(e)
+                    e match {
+                      case Left(t) =>
+                        resumeTag = AsyncContinueFailedR
+                        objectState.push(t)
+                      case Right(a) =>
+                        resumeTag = AsyncContinueSuccessfulR
+                        objectState.push(a.asInstanceOf[Object])
+                    }
                     execute(ec)(this)
                   } else {
                     /*
@@ -1060,14 +1067,14 @@ private final class IOFiber[A](
     }
   }
 
-  private[this] def asyncContinueR(): Unit = {
-    val e = objectState.pop().asInstanceOf[Either[Throwable, Any]]
-    val next = e match {
-      case Left(t) => failed(t, 0)
-      case Right(a) => succeeded(a, 0)
-    }
+  private[this] def asyncContinueSuccessfulR(): Unit = {
+    val a = objectState.pop().asInstanceOf[Any]
+    runLoop(succeeded(a, 0), 0)
+  }
 
-    runLoop(next, 0)
+  private[this] def asyncContinueFailedR(): Unit = {
+    val t = objectState.pop().asInstanceOf[Throwable]
+    runLoop(failed(t, 0), 0)
   }
 
   private[this] def blockingR(): Unit = {
