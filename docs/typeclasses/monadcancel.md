@@ -31,7 +31,7 @@ The `bracket` combinator works a bit like the FP equivalent of `try`/`finally`: 
 In addition to `bracket`, `MonadCancel` also provides a lower-level operation, `uncancelable`, which makes it possible to perform extremely complex, cancellation-sensitive actions in a safe and composable manner. For example, imagine that we have a block of code which must be guarded by a `Semaphore`, ensuring the runtime has exclusive access when evaluating. The problem here is that the acquisition of the `Semaphore`, which is a resource, may *also* result in blocking the fiber, and thus may need to be canceled externally. Put another way: resource acquisition needs to be uncancelable, but this *particular* resource acquisition has a very specific point at which it needs to allow cancellation, otherwise it might end up locking up the JVM. `uncancelable` provides a mechanism to achieve this:
 
 ```scala mdoc
-import cats.effect.{IO, MonadCancel}
+import cats.effect.{MonadCancel}
 import cats.effect.std.Semaphore
 import cats.effect.syntax.all._
 import cats.syntax.all._

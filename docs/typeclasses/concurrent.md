@@ -4,7 +4,7 @@ title: Concurrent
 ---
 
 This typeclass extends `Spawn` with the capability to allocate concurrent state
-in the form of [Ref](../datatypes/ref.md) and [Deferred](../datatypes/deferred.md) and
+in the form of [Ref](../std/ref.md) and [Deferred](../std/deferred.md) and
 to perform various operations which require the allocation of concurrent state,
 including `memoize` and `parTraverseN`. `Ref` and `Deferred` are the concurrent
 primitives necessary to implement arbitrarily complicated concurrent state machines.
