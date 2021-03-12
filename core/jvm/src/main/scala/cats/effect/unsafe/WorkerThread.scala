@@ -20,7 +20,6 @@ package unsafe
 import scala.annotation.switch
 import scala.concurrent.{BlockContext, CanAwait}
 
-import java.util.ArrayList
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
@@ -72,12 +71,6 @@ private[effect] final class WorkerThread(
   private[this] val random = ThreadLocalRandom.current()
 
   /**
-   * An array backed list for purposes of draining the local queue in
-   * anticipation of execution of blocking code.
-   */
-  private[this] val drain: ArrayList[IOFiber[_]] = new ArrayList(LocalQueueCapacity)
-
-  /**
    * A flag which is set whenever a blocking code region is entered. This is
    * useful for detecting nested blocking regions, in order to avoid
    * unnecessarily spawning extra [[HelperThread]]s.
@@ -107,7 +100,7 @@ private[effect] final class WorkerThread(
    * @param fiber the fiber to be scheduled on the local queue
    */
   def schedule(fiber: IOFiber[_]): Unit = {
-    queue.enqueue(fiber, overflow, random)
+    queue.enqueue(fiber, batched, overflow, random)
     pool.notifyParked(random.nextInt(threadCount))
   }
 
@@ -149,34 +142,42 @@ private[effect] final class WorkerThread(
      *
      *      If a fiber is successfully dequeued from the overflow queue, it will
      *      be executed. The `WorkerThread` unconditionally transitions to
-     *      executing fibers from the local queue (state value 7 and larger).
+     *      executing fibers from the local queue (state value 8 and larger).
      *
      *      This state occurs "naturally" after a certain number of executions
      *      from the local queue (when the state value wraps around modulo
      *      `OverflowQueueTicks`).
      *
-     *   1: Fall back to checking the overflow queue after a failed dequeue from
+     *   1: Fall back to checking the batched queue after a failed dequeue from
+     *      the local queue. Depending on the outcome of this check, the
+     *      `WorkerThread` transitions to executing fibers from the local queue
+     *      in the case of a successful dequeue from the batched queue and
+     *      subsequent bulk enqueue of the batch to the local queue (state value
+     *      8 and larger). Otherwise, the `WorkerThread` transitions to looking
+     *      for single fibers in the overflow queue.
+     *
+     *   2: Fall back to checking the overflow queue after a failed dequeue from
      *      the local queue. Depending on the outcome of this check, the
      *      `WorkerThread` transitions to executing fibers from the local queue
      *      in the case of a successful dequeue from the overflow queue
-     *      (state value 7 and larger). Otherwise, the `WorkerThread`
-     *      transitions to ask for permission to steal from other
+     *      (state value 8 and larger). Otherwise, the `WorkerThread`
+     *      transitions to asking for permission to steal from other
      *      `WorkerThread`s (state value 2).
      *
-     *   2: Ask for permission to steal fibers from other `WorkerThread`s.
+     *   3: Ask for permission to steal fibers from other `WorkerThread`s.
      *      Depending on the outcome, the `WorkerThread` transitions starts
      *      looking for fibers to steal from the local queues of other
      *      worker threads (permission granted, state value 3), or starts
      *      preparing to park (permission denied, state value 4).
      *
-     *   3: The `WorkerThread` has been allowed to steal fibers from other
+     *   4: The `WorkerThread` has been allowed to steal fibers from other
      *      worker threads. If the attempt is successful, the first fiber is
      *      executed directly and the `WorkerThread` transitions to executing
-     *      fibers from the local queue (state value 7 and larger). If the
+     *      fibers from the local queue (state value 8 and larger). If the
      *      attempt is unsuccessful, the worker thread starts preparing to park
      *      (state value 5).
      *
-     *   4: Prepare to park a worker thread which was not allowed to search for
+     *   5: Prepare to park a worker thread which was not allowed to search for
      *      work in the local queues of other worker threads. There is less
      *      bookkeeping to be done compared to the case where a worker was
      *      searching prior to parking. After the worker thread has been
@@ -184,7 +185,7 @@ private[effect] final class WorkerThread(
      *      while also holding a permission to steal fibers from other worker
      *      threads (state value 6).
      *
-     *   5: Prepare to park a worker thread which had been searching for work
+     *   6: Prepare to park a worker thread which had been searching for work
      *      in the local queues of other worker threads, but found none. The
      *      reason why this is a separate state from 4 is because there is
      *      additional pool bookkeeping to be carried out before parking.
@@ -192,16 +193,16 @@ private[effect] final class WorkerThread(
      *      for work in the overflow queue while also holding a permission to
      *      steal fibers from other worker threads (state value 6).
      *
-     *   6: State after a worker thread has been unparked. In this state, the
+     *   7: State after a worker thread has been unparked. In this state, the
      *      permission to steal from other worker threads is implicitly held.
      *      The unparked worker thread starts by looking for work in the
      *      overflow queue. If a fiber has been found, it is executed and the
      *      worker thread transitions to executing fibers from the local queue
-     *      (state value 7 and larger). If no fiber has been found, the worker
+     *      (state value 8 and larger). If no fiber has been found, the worker
      *      thread proceeds to steal work from other worker threads (since it
      *      already has the permission to do so by convention).
      *
-     *   7 and larger: Look for fibers to execute in the local queue. In case
+     *   8 and larger: Look for fibers to execute in the local queue. In case
      *      of a successful dequeue from the local queue, increment the state
      *      value. In case of a failed dequeue from the local queue, transition
      *      to state value 1.
@@ -236,33 +237,52 @@ private[effect] final class WorkerThread(
             fiber.run()
           }
           // Transition to executing fibers from the local queue.
-          state = 7
+          state = 8
 
         case 1 =>
-          // Dequeue a fiber from the overflow queue after a failed dequeue
-          // from the local queue.
+          // Try to get a batch of fibers to execute from the batched queue
+          // after a failed dequeue from the local queue.
+          val batch = batched.poll(random)
+          if (batch ne null) {
+            // A batch of fibers has been successfully obtained. Proceed to
+            // enqueue all of the fibers on the local queue and execute the
+            // first one.
+            val fiber = queue.enqueueBatch(batch)
+            // Run the first fiber from the batch.
+            fiber.run()
+            // Transition to executing fibers from the local queue.
+            state = 8
+          } else {
+            // Could not obtain a batch of fibers. Proceed to check for single
+            // fibers in the overflow queue.
+            state = 2
+          }
+
+        case 2 =>
+          // Dequeue a fiber from the overflow queue after a failed attempt to
+          // secure a batch of fibers.
           val fiber = overflow.poll(random)
           if (fiber ne null) {
             // Run the fiber.
             fiber.run()
             // Transition to executing fibers from the local queue.
-            state = 7
+            state = 8
           } else {
             // Ask for permission to steal fibers from other `WorkerThread`s.
-            state = 2
-          }
-
-        case 2 =>
-          // Ask for permission to steal fibers from other `WorkerThread`s.
-          if (pool.transitionWorkerToSearching()) {
-            // Permission granted, proceed to stealing.
             state = 3
-          } else {
-            // Permission denied, proceed to park.
-            state = 4
           }
 
         case 3 =>
+          // Ask for permission to steal fibers from other `WorkerThread`s.
+          if (pool.transitionWorkerToSearching()) {
+            // Permission granted, proceed to stealing.
+            state = 4
+          } else {
+            // Permission denied, proceed to park.
+            state = 5
+          }
+
+        case 4 =>
           // Try stealing fibers from other worker threads.
           val fiber = pool.stealFromOtherWorkerThread(index, random)
           if (fiber ne null) {
@@ -272,13 +292,13 @@ private[effect] final class WorkerThread(
             // Run the stolen fiber.
             fiber.run()
             // Transition to executing fibers from the local queue.
-            state = 7
+            state = 8
           } else {
             // Stealing attempt is unsuccessful. Park.
-            state = 5
+            state = 6
           }
 
-        case 4 =>
+        case 5 =>
           // Set the worker thread parked signal.
           parked.lazySet(true)
           // Announce that the worker thread is parking.
@@ -287,9 +307,9 @@ private[effect] final class WorkerThread(
           parkLoop()
           // After the worker thread has been unparked, look for work in the
           // overflow queue.
-          state = 6
+          state = 7
 
-        case 5 =>
+        case 6 =>
           // Set the worker thread parked signal.
           parked.lazySet(true)
           // Announce that the worker thread which was searching for work is now
@@ -306,9 +326,9 @@ private[effect] final class WorkerThread(
           parkLoop()
           // After the worker thread has been unparked, look for work in the
           // overflow queue.
-          state = 6
+          state = 7
 
-        case 6 =>
+        case 7 =>
           // Dequeue a fiber from the overflow queue.
           val fiber = overflow.poll(random)
           if (fiber ne null) {
@@ -317,12 +337,12 @@ private[effect] final class WorkerThread(
             // Run the fiber.
             fiber.run()
             // Transition to executing fibers from the local queue.
-            state = 7
+            state = 8
           } else {
             // Transition to stealing fibers from other `WorkerThread`s.
             // The permission is held implicitly by threads right after they
             // have been woken up.
-            state = 3
+            state = 4
           }
 
         case _ =>
@@ -344,7 +364,7 @@ private[effect] final class WorkerThread(
             // Continue executing fibers from the local queue.
             state += 1
           } else {
-            // Transition to checking the overflow queue.
+            // Transition to checking the batched queue.
             state = 1
           }
       }
@@ -370,9 +390,9 @@ private[effect] final class WorkerThread(
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
     // Drain the local queue to the `overflow` queue.
+    val drain = new Array[IOFiber[_]](LocalQueueCapacity)
     queue.drain(drain)
     overflow.offerAll(drain, random)
-    drain.clear()
 
     if (blocking) {
       // This `WorkerThread` is already inside an enclosing blocking region.

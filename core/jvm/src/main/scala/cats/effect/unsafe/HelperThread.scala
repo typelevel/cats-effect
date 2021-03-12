@@ -138,7 +138,7 @@ private[effect] final class HelperThread(
     while (!isInterrupted() && !signal.get()) {
       val batch = batched.poll(random)
       if (batch ne null) {
-        overflow.offerAllStriped(batch, random)
+        overflow.offerAll(batch, random)
       }
 
       val fiber = overflow.poll(random)

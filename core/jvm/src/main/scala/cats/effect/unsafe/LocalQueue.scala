@@ -28,7 +28,6 @@
 package cats.effect
 package unsafe
 
-import java.util.ArrayList
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -195,19 +194,6 @@ private final class LocalQueue {
   private[this] val tailPublisher: AtomicInteger = new AtomicInteger(0)
 
   /**
-   * Preallocated [[java.util.ArrayList]] for native support of bulk add
-   * operations on a [[java.util.concurrent.ConcurrentLinkedQueue]] when
-   * offloading excess capacity from the local queue to the external queue. The
-   * list must be reset before each use.
-   *
-   * The list is initialized with the capacity of
-   * [[LocalQueueConstants.HalfLocalQueueCapacity]] + 1 because half of the
-   * `buffer` is offloaded to the overflow queue, as well as the incoming
-   * 1 fiber from the [[LocalQueue#enqueue]] operation.
-   */
-  private[this] val overflowBuffer: ArrayList[IOFiber[_]] = new ArrayList(OverflowBatchSize)
-
-  /**
    * Enqueues a fiber for execution at the back of this queue.
    *
    * @note Can '''only''' be correctly called by the owner [[WorkerThread]].
@@ -233,6 +219,7 @@ private final class LocalQueue {
    */
   def enqueue(
       fiber: IOFiber[_],
+      batched: ScalQueue[Array[IOFiber[_]]],
       overflow: ScalQueue[IOFiber[_]],
       random: ThreadLocalRandom): Unit = {
     // A plain, unsynchronized load of the tail of the local queue.
@@ -282,6 +269,7 @@ private final class LocalQueue {
       if (head.compareAndSet(hd, newHd)) {
         // Outcome 3, half of the queue has been claimed by the owner
         // `WorkerThread`, to be transferred to the overflow queue.
+        val batch = new Array[IOFiber[_]](OverflowBatchSize)
         var i = 0
         // Transfer half of the buffer into the overflow buffer for a final
         // bulk add operation into the external queue. References in the
@@ -290,16 +278,14 @@ private final class LocalQueue {
           val idx = index(real + i)
           val f = buffer(idx)
           buffer(idx) = null
-          overflowBuffer.add(f)
+          batch(i) = f
           i += 1
         }
         // Also add the incoming fiber to the overflow buffer.
-        overflowBuffer.add(fiber)
+        batch(i) = fiber
         // Enqueue all of the fibers on the overflow queue with a bulk add
         // operation.
-        overflow.offerAll(overflowBuffer, random)
-        // Reset the overflow buffer before the next use.
-        overflowBuffer.clear()
+        batched.offer(batch, random)
         // The incoming fiber has been enqueued on the overflow queue. Proceed
         // to break out of the loop.
         return
@@ -310,6 +296,50 @@ private final class LocalQueue {
       // likely another thread has freed some capacity in the buffer by stealing
       // from the queue.
     }
+  }
+
+  /**
+   * Adds a batch of fibers to the buffer and directly returns the first fiber
+   * for execution.
+   *
+   * @note Can '''only''' be correctly called by the owner [[WorkerThread]] when
+   *       this queue is '''empty'''.
+   *
+   * @note The references inside the batch are not nulled out. It is important
+   *       to never reference the batch after this usage, so that it can be
+   *       garbage collected, and ultimately, the referenced fibers.
+   *
+   * @param batch a batch of fibers to be enqueued
+   * @return the first fiber in the batch for direct execution
+   */
+  def enqueueBatch(batch: Array[IOFiber[_]]): IOFiber[_] = {
+    // A plain, unsynchronized load of the tail of the local queue.
+    val tl = tail
+
+    // This next section can be completely unsynchronized because the owner
+    // `WorkerThread` is the only thread allowed to write to the local queue.
+    // This bulk add operation is completely undetectable to other threads
+    // because the tail is only published after all fibers have been transferred
+    // to the buffer.
+    // The batch always has `OverflowBatchCapacity` number of elements.
+    // The iteration starts from 1, because the very first fiber is returned to
+    // be directly executed.
+    var i = 0
+    while (i < HalfLocalQueueCapacity) {
+      val idx = index(tl + i)
+      buffer(idx) = batch(i)
+      i += 1
+    }
+
+    // Return the first fiber.
+    val fiber = batch(i)
+
+    // Move the tail by `HalfLocalQueueCapacity` elements
+    // (`HalfLocalQueueCapacity == OverflowBatchCapacity - 1`).
+    val newTl = unsignedShortAddition(tl, HalfLocalQueueCapacity)
+    tailPublisher.lazySet(newTl)
+    tail = newTl
+    fiber
   }
 
   /**
@@ -541,7 +571,7 @@ private final class LocalQueue {
    * @param dst the destination list in which all remaining fibers are
    *            transferred
    */
-  def drain(dst: ArrayList[IOFiber[_]]): Unit = {
+  def drain(dst: Array[IOFiber[_]]): Unit = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -575,7 +605,7 @@ private final class LocalQueue {
           val idx = index(real + i)
           val fiber = buffer(idx)
           buffer(idx) = null
-          dst.add(fiber)
+          dst(i) = fiber
           i += 1
         }
 

@@ -16,7 +16,6 @@
 
 package cats.effect.unsafe
 
-import java.util.ArrayList
 import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
 
 /**
@@ -60,20 +59,16 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     ()
   }
 
-  def offerAll(list: ArrayList[A], random: ThreadLocalRandom): Unit = {
-    val idx = random.nextInt(numQueues)
-    queues(idx).addAll(list)
-    ()
-  }
-
-  def offerAllStriped(as: Array[A], random: ThreadLocalRandom): Unit = {
+  def offerAll(as: Array[A], random: ThreadLocalRandom): Unit = {
     val nq = numQueues
     val len = as.length
     var i = 0
     while (i < len) {
       val fiber = as(i)
-      val idx = random.nextInt(nq)
-      queues(idx).offer(fiber)
+      if (fiber ne null) {
+        val idx = random.nextInt(nq)
+        queues(idx).offer(fiber)
+      }
       i += 1
     }
   }
