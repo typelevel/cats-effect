@@ -75,6 +75,9 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val localQueues: Array[LocalQueue] = new Array(threadCount)
   private[this] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
 
+  private[this] val batchedQueue: ScalQueue[Array[IOFiber[_]]] =
+    new ScalQueue(threadCount)
+
   /**
    * The overflow queue on which fibers coming from outside the pool are
    * enqueued, or acts as a place where spillover work from other local queues
@@ -120,6 +123,7 @@ private[effect] final class WorkStealingThreadPool(
           blockingThreadCounter,
           queue,
           parkedSignal,
+          batchedQueue,
           overflowQueue,
           this)
       workerThreads(i) = thread

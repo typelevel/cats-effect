@@ -50,6 +50,7 @@ private[effect] final class WorkerThread(
     private[this] val queue: LocalQueue,
     // The state of the `WorkerThread` (parked/unparked).
     private[this] val parked: AtomicBoolean,
+    private[this] val batched: ScalQueue[Array[IOFiber[_]]],
     // Overflow queue used by the local queue for offloading excess fibers, as well as
     // for drawing fibers when the local queue is exhausted.
     private[this] val overflow: ScalQueue[IOFiber[_]],
@@ -387,7 +388,13 @@ private[effect] final class WorkerThread(
 
       // Spawn a new `HelperThread`.
       val helper =
-        new HelperThread(threadCount, threadPrefix, blockingThreadCounter, overflow, pool)
+        new HelperThread(
+          threadCount,
+          threadPrefix,
+          blockingThreadCounter,
+          batched,
+          overflow,
+          pool)
       helper.start()
 
       // With another `HelperThread` started, it is time to execute the blocking

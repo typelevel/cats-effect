@@ -59,6 +59,7 @@ private[effect] final class HelperThread(
     private[this] val threadCount: Int,
     private[this] val threadPrefix: String,
     private[this] val blockingThreadCounter: AtomicInteger,
+    private[this] val batched: ScalQueue[Array[IOFiber[_]]],
     private[this] val overflow: ScalQueue[IOFiber[_]],
     private[this] val pool: WorkStealingThreadPool)
     extends Thread
@@ -135,8 +136,12 @@ private[effect] final class HelperThread(
     // been shut down, or the `WorkerThread` which spawned this `HelperThread`
     // has finished blocking.
     while (!isInterrupted() && !signal.get()) {
-      val fiber = overflow.poll(random)
+      val batch = batched.poll(random)
+      if (batch ne null) {
+        overflow.offerAllStriped(batch, random)
+      }
 
+      val fiber = overflow.poll(random)
       if (fiber eq null) {
         // There are no more fibers on the overflow queue. Since the overflow
         // queue is not a blocking queue, there is no point in busy waiting,
@@ -171,7 +176,13 @@ private[effect] final class HelperThread(
 
       // Spawn a new `HelperThread`.
       val helper =
-        new HelperThread(threadCount, threadPrefix, blockingThreadCounter, overflow, pool)
+        new HelperThread(
+          threadCount,
+          threadPrefix,
+          blockingThreadCounter,
+          batched,
+          overflow,
+          pool)
       helper.start()
 
       // With another `HelperThread` started, it is time to execute the blocking

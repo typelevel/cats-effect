@@ -66,6 +66,18 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     ()
   }
 
+  def offerAllStriped(as: Array[A], random: ThreadLocalRandom): Unit = {
+    val nq = numQueues
+    val len = as.length
+    var i = 0
+    while (i < len) {
+      val fiber = as(i)
+      val idx = random.nextInt(nq)
+      queues(idx).offer(fiber)
+      i += 1
+    }
+  }
+
   def poll(random: ThreadLocalRandom): A = {
     val nq = numQueues
     val from = random.nextInt(nq)
