@@ -30,7 +30,6 @@ package unsafe
 
 import java.util.ArrayList
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Fixed length, FIFO, single producer, multiple consumer, lock-free, circular
@@ -175,7 +174,7 @@ private final class LocalQueue {
    * to undo the changes to the ''steal'' tag of the head on completion, action
    * which ultimately signals that stealing is finished.
    */
-  private[this] val head: AtomicInteger = new AtomicInteger(0)
+  private[this] val head: AtomicIntegerCompat = new AtomicIntegerCompat(0)
 
   /**
    * The tail of the queue.
@@ -187,12 +186,7 @@ private final class LocalQueue {
    * Conceptually, it is an unsigned 16 bit value (the most significant 16
    * bits of the integer value are ignored in most operations).
    */
-  private[this] var tail: Int = 0
-
-  /**
-   * The publisher for the tail of the queue. Accessed by other [[WorkerThread]]s.
-   */
-  private[this] val tailPublisher: AtomicInteger = new AtomicInteger(0)
+  private[this] var tail: AtomicIntegerCompat = new AtomicIntegerCompat(0)
 
   /**
    * Preallocated [[java.util.ArrayList]] for native support of bulk add
@@ -233,14 +227,14 @@ private final class LocalQueue {
    */
   def enqueue(fiber: IOFiber[_], overflow: ConcurrentLinkedQueue[IOFiber[_]]): Unit = {
     // A plain, unsynchronized load of the tail of the local queue.
-    val tl = tail
+    val tl = tail.getPlainCompat()
 
     // A CAS loop on the head of the queue. The loop can break out of the whole
     // method only when one of the three previously described outcomes has been
     // observed.
     while (true) {
       // A load of the head of the queue using `acquire` semantics.
-      val hd = head.get()
+      val hd = head.getAcquireCompat()
 
       // Preparation for outcome 1, calculating the "steal" tag of the head.
       val steal = msb(hd)
@@ -252,8 +246,7 @@ private final class LocalQueue {
         val idx = index(tl)
         buffer(idx) = fiber
         val newTl = unsignedShortAddition(tl, 1)
-        tailPublisher.lazySet(newTl)
-        tail = newTl
+        tail.setReleaseCompat(newTl)
         return
       }
 
@@ -329,14 +322,14 @@ private final class LocalQueue {
    */
   def dequeue(): IOFiber[_] = {
     // A plain, unsynchronized load of the tail of the local queue.
-    val tl = tail
+    val tl = tail.getPlainCompat()
 
     // A CAS loop on the head of the queue (since it is a FIFO queue). The loop
     // can break out of the whole method only when it has successfully moved
     // the head by 1 position, securing the fiber to return in the process.
     while (true) {
       // A load of the head of the queue using `acquire` semantics.
-      val hd = head.get()
+      val hd = head.getAcquireCompat()
 
       // Dequeueing only cares about the "real" value of the head.
       val real = lsb(hd)
@@ -399,10 +392,10 @@ private final class LocalQueue {
   def stealInto(dst: LocalQueue): IOFiber[_] = {
     // A plain, unsynchronized load of the tail of the destination queue, owned
     // by the executing thread.
-    val dstTl = dst.plainLoadTail()
+    val dstTl = dst.tailForwarder.getPlainCompat()
 
     // A load of the head of the destination queue using `acquire` semantics.
-    val dstHd = dst.headForwarder.get()
+    val dstHd = dst.headForwarder.getAcquireCompat()
 
     // Before a steal is attempted, make sure that the destination queue is not
     // being stolen from. It can be argued that an attempt to steal fewer fibers
@@ -419,7 +412,7 @@ private final class LocalQueue {
     // stealing from this queue.
     while (true) {
       // A load of the head of the local queue using `acquire` semantics.
-      var hd = head.get()
+      var hd = head.getAcquireCompat()
 
       val steal = msb(hd)
       val real = lsb(hd)
@@ -434,7 +427,7 @@ private final class LocalQueue {
       // A load of the tail of the local queue using `acquire` semantics.  Here,
       // the `WorkerThread` that executes this code is **not** the owner of this
       // local queue, hence the need for an `acquire` load.
-      val tl = tailPublisher.get()
+      val tl = tail.getAcquireCompat()
 
       // Calculate the current size of the queue (the number of enqueued fibers).
       var n = unsignedShortSubtraction(tl, real)
@@ -496,8 +489,7 @@ private final class LocalQueue {
 
             // Publish the new tail of the destination queue. That way the
             // destination queue also becomes eligible for stealing.
-            dst.tailPublisherForwarder.lazySet(newDstTl)
-            dst.plainStoreTail(newDstTl)
+            dst.tailForwarder.setReleaseCompat(newDstTl)
             return fiber
           } else {
             // Failed to opportunistically restore the value of the `head`. Load
@@ -540,14 +532,14 @@ private final class LocalQueue {
    */
   def drain(dst: ArrayList[IOFiber[_]]): Unit = {
     // A plain, unsynchronized load of the tail of the local queue.
-    val tl = tail
+    val tl = tail.getPlainCompat()
 
     // A CAS loop on the head of the queue. The loop can break out of the whole
     // method only when the "real" value of head has been successfully moved to
     // match the tail of the queue.
     while (true) {
       // A load of the head of the queue using `acquire` semantics.
-      val hd = head.get()
+      val hd = head.getAcquireCompat()
 
       val real = lsb(hd)
 
@@ -588,8 +580,8 @@ private final class LocalQueue {
    * @return `true` if the queue is empty, `false` otherwise
    */
   def isEmpty(): Boolean = {
-    val hd = head.get()
-    val tl = tailPublisher.get()
+    val hd = head.getAcquireCompat()
+    val tl = tail.getAcquireCompat()
     lsb(hd) == tl
   }
 
@@ -599,26 +591,6 @@ private final class LocalQueue {
    * @return `true` if the queue is '''not''' empty, `false` otherwise
    */
   def nonEmpty(): Boolean = !isEmpty()
-
-  /**
-   * A ''plain'' load of the `tail` of the queue.
-   *
-   * Serves mostly as a forwarder method such that `tail` can remain
-   * `private[this]`.
-   *
-   * @return the value of the tail of the queue
-   */
-  private def plainLoadTail(): Int = tail
-
-  /**
-   * A ''plain'' store of the `tail` of the queue.
-   *
-   * Serves mostly as a forwarder method such that `tail` can remain
-   * `private[this]`.
-   */
-  private def plainStoreTail(tl: Int): Unit = {
-    tail = tl
-  }
 
   /**
    * Forwarder method for accessing the backing buffer of another [[LocalQueue]].
@@ -632,14 +604,14 @@ private final class LocalQueue {
    *
    * @return a reference to the `head` of the queue
    */
-  private def headForwarder: AtomicInteger = head
+  private def headForwarder: AtomicIntegerCompat = head
 
   /**
-   * A forwarder method to the `tailPublisher`.
+   * A forwarder method to the `tail`.
    *
-   * @return a reference to the `tailPublisher`
+   * @return a reference to the `tail`
    */
-  private def tailPublisherForwarder: AtomicInteger = tailPublisher
+  private def tailForwarder: AtomicIntegerCompat = tail
 
   /**
    * Computes the index into the circular buffer for a given integer value.
