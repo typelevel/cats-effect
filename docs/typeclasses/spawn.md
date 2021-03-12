@@ -12,7 +12,7 @@ Clearly there is a mismatch here. Applications conventionally resolve this throu
 This is what fibers achieve:
 
 ```scala mdoc
-import cats.effect.Spawn
+import cats.effect.{MonadCancel, Spawn}
 import cats.effect.syntax.all._
 import cats.syntax.all._
 
@@ -86,6 +86,7 @@ We can demonstrate this property relatively easily using the `IO` monad:
 
 ```scala mdoc
 import scala.concurrent.duration._
+import cats.effect.IO
 
 for {
   target <- IO.println("Catch me if you can!").foreverM.start

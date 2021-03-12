@@ -20,6 +20,8 @@ def memoize[A](fa: F[A]): F[F[A]]
 Usage looks like this:
 
 ```scala mdoc
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
  
 val action: IO[String] = IO.println("This is only printed once").as("action")
 
