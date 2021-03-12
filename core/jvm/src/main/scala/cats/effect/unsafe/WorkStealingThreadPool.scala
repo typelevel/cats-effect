@@ -80,8 +80,8 @@ private[effect] final class WorkStealingThreadPool(
    * enqueued, or acts as a place where spillover work from other local queues
    * can end up.
    */
-  private[this] val overflowQueue: ConcurrentLinkedQueue[IOFiber[_]] =
-    new ConcurrentLinkedQueue()
+  private[this] val overflowQueue: Array[ConcurrentLinkedQueue[IOFiber[_]]] =
+    new Array(threadCount)
 
   /**
    * Represents two unsigned 16 bit integers.
@@ -107,6 +107,7 @@ private[effect] final class WorkStealingThreadPool(
     // Set up the worker threads.
     var i = 0
     while (i < threadCount) {
+      overflowQueue(i) = new ConcurrentLinkedQueue()
       val queue = new LocalQueue()
       localQueues(i) = queue
       val parkedSignal = new AtomicBoolean(false)
@@ -147,13 +148,16 @@ private[effect] final class WorkStealingThreadPool(
    *             search, used to reduce contention when stealing
    * @return a fiber instance to execute instantly in case of a successful steal
    */
-  private[unsafe] def stealFromOtherWorkerThread(dest: Int, from: Int): IOFiber[_] = {
+  private[unsafe] def stealFromOtherWorkerThread(
+      dest: Int,
+      threadFrom: Int,
+      overflowFrom: Int): IOFiber[_] = {
     val destQueue = localQueues(dest)
 
     var i = 0
     while (i < threadCount) {
       // Compute the index of the thread to steal from.
-      val index = (from + i) % threadCount
+      val index = (threadFrom + i) % threadCount
 
       if (index != dest) {
         // Do not steal from yourself.
@@ -168,7 +172,28 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // The worker thread could not steal any work. Fall back to checking the external queue.
-    overflowQueue.poll()
+    pollOverflow(overflowFrom)
+  }
+
+  private[this] def pollOverflow(from: Int): IOFiber[_] = {
+    var i = 0
+    var fiber: IOFiber[_] = null
+    while ((fiber eq null) && i < threadCount) {
+      val idx = (from + i) % threadCount
+      fiber = overflowQueue(idx).poll()
+      i += 1
+    }
+    fiber
+  }
+
+  private[this] def overflowNonEmpty(): Boolean = {
+    var i = 0
+    var empty = true
+    while (empty && i < threadCount) {
+      empty = overflowQueue(i).isEmpty()
+      i += 1
+    }
+    !empty
   }
 
   /**
@@ -243,7 +268,7 @@ private[effect] final class WorkStealingThreadPool(
 
     // If no work was found in the local queues of the worker threads, look for
     // work in the external queue.
-    if (!overflowQueue.isEmpty()) {
+    if (overflowNonEmpty()) {
       notifyParked(from)
     }
   }
@@ -334,9 +359,11 @@ private[effect] final class WorkStealingThreadPool(
     } else if (thread.isInstanceOf[HelperThread]) {
       thread.asInstanceOf[HelperThread].schedule(fiber)
     } else {
-      val random = ThreadLocalRandom.current().nextInt(threadCount)
-      overflowQueue.offer(fiber)
-      notifyParked(random)
+      val random = ThreadLocalRandom.current()
+      var idx = random.nextInt(threadCount)
+      overflowQueue(idx).offer(fiber)
+      idx = random.nextInt(threadCount)
+      notifyParked(idx)
     }
   }
 
@@ -427,7 +454,11 @@ private[effect] final class WorkStealingThreadPool(
       state.lazySet(0)
 
       // Shutdown and drain the external queue.
-      overflowQueue.clear()
+      i = 0
+      while (i < threadCount) {
+        overflowQueue(i).clear()
+        i += 1
+      }
       Thread.currentThread().interrupt()
     }
   }

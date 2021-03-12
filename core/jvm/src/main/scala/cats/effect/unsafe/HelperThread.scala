@@ -19,7 +19,7 @@ package unsafe
 
 import scala.concurrent.{BlockContext, CanAwait}
 
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 /**
@@ -56,12 +56,22 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
  * introduces more logic on the hot path.
  */
 private[effect] final class HelperThread(
+    private[this] val threadCount: Int,
     private[this] val threadPrefix: String,
     private[this] val blockingThreadCounter: AtomicInteger,
-    private[this] val overflow: ConcurrentLinkedQueue[IOFiber[_]],
+    private[this] val overflow: Array[ConcurrentLinkedQueue[IOFiber[_]]],
     private[this] val pool: WorkStealingThreadPool)
     extends Thread
     with BlockContext {
+
+  /**
+   * Uncontented source of randomness. By default, `java.util.Random` is thread
+   * safe, which is a feature we do not need in this class, as the source of
+   * randomness is completely isolated to each instance of `WorkerThread`. The
+   * instance is obtained only once at the beginning of this method, to avoid
+   * the cost of the `ThreadLocal` mechanism at runtime.
+   */
+  private[this] var random: ThreadLocalRandom = _
 
   /**
    * Signalling mechanism through which the [[WorkerThread]] which spawned this
@@ -103,7 +113,8 @@ private[effect] final class HelperThread(
    * @param fiber the fiber to be scheduled on the `overflow` queue
    */
   def schedule(fiber: IOFiber[_]): Unit = {
-    overflow.offer(fiber)
+    val idx = random.nextInt(threadCount)
+    overflow(idx).offer(fiber)
     ()
   }
 
@@ -119,11 +130,25 @@ private[effect] final class HelperThread(
    * for the [[HelperThread]] to exit its runloop and die.
    */
   override def run(): Unit = {
+    random = ThreadLocalRandom.current()
+
+    def pollOverflow(): IOFiber[_] = {
+      val from = random.nextInt(threadCount)
+      var i = 0
+      var fiber: IOFiber[_] = null
+      while ((fiber eq null) && i < threadCount) {
+        val idx = (from + i) % threadCount
+        fiber = overflow(idx).poll()
+        i += 1
+      }
+      fiber
+    }
+
     // Check for exit condition. Do not continue if the `WorkStealingPool` has
     // been shut down, or the `WorkerThread` which spawned this `HelperThread`
     // has finished blocking.
     while (!isInterrupted() && !signal.get()) {
-      val fiber = overflow.poll()
+      val fiber = pollOverflow()
 
       if (fiber eq null) {
         // There are no more fibers on the overflow queue. Since the overflow
@@ -158,7 +183,8 @@ private[effect] final class HelperThread(
       blocking = true
 
       // Spawn a new `HelperThread`.
-      val helper = new HelperThread(threadPrefix, blockingThreadCounter, overflow, pool)
+      val helper =
+        new HelperThread(threadCount, threadPrefix, blockingThreadCounter, overflow, pool)
       helper.start()
 
       // With another `HelperThread` started, it is time to execute the blocking
