@@ -56,7 +56,6 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
  * introduces more logic on the hot path.
  */
 private[effect] final class HelperThread(
-    private[this] val threadCount: Int,
     private[this] val threadPrefix: String,
     private[this] val blockingThreadCounter: AtomicInteger,
     private[this] val batched: ScalQueue[Array[IOFiber[_]]],
@@ -176,13 +175,7 @@ private[effect] final class HelperThread(
 
       // Spawn a new `HelperThread`.
       val helper =
-        new HelperThread(
-          threadCount,
-          threadPrefix,
-          blockingThreadCounter,
-          batched,
-          overflow,
-          pool)
+        new HelperThread(threadPrefix, blockingThreadCounter, batched, overflow, pool)
       helper.start()
 
       // With another `HelperThread` started, it is time to execute the blocking

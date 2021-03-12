@@ -118,7 +118,6 @@ private[effect] final class WorkStealingThreadPool(
       val thread =
         new WorkerThread(
           index,
-          threadCount,
           threadPrefix,
           blockingThreadCounter,
           queue,
@@ -184,7 +183,7 @@ private[effect] final class WorkStealingThreadPool(
    * @param from a randomly generated index from which to start the linear
    *             search, used to reduce contention when unparking worker threads
    */
-  private[unsafe] def notifyParked(from: Int): Unit = {
+  private[unsafe] def notifyParked(random: ThreadLocalRandom): Unit = {
     // Find a worker thread to unpark.
     if (!notifyShouldWakeup()) {
       // There are enough searching and/or running worker threads.
@@ -193,6 +192,7 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // Unpark a worker thread.
+    val from = random.nextInt(threadCount)
     var i = 0
     while (i < threadCount) {
       val index = (from + i) % threadCount
@@ -237,12 +237,12 @@ private[effect] final class WorkStealingThreadPool(
    * @param from a randomly generated index from which to start the linear
    *             search, used to reduce contention when unparking worker threads
    */
-  private[unsafe] def notifyIfWorkPending(from: Int): Unit = {
+  private[unsafe] def notifyIfWorkPending(random: ThreadLocalRandom): Unit = {
     var i = 0
     while (i < threadCount) {
       // Check each worker thread for available work that can be stolen.
       if (localQueues(i).nonEmpty()) {
-        notifyParked(from)
+        notifyParked(random)
         return
       }
       i += 1
@@ -251,7 +251,7 @@ private[effect] final class WorkStealingThreadPool(
     // If no work was found in the local queues of the worker threads, look for
     // work in the external queue.
     if (overflowQueue.nonEmpty()) {
-      notifyParked(from)
+      notifyParked(random)
     }
   }
 
@@ -287,13 +287,13 @@ private[effect] final class WorkStealingThreadPool(
    * @param from a randomly generated index from which to start the linear
    *             search, used to reduce contention when unparking worker threads
    */
-  private[unsafe] def transitionWorkerFromSearching(from: Int): Unit = {
+  private[unsafe] def transitionWorkerFromSearching(random: ThreadLocalRandom): Unit = {
     // Decrement the number of searching worker threads.
     val prev = state.getAndDecrement()
     if (prev == 1) {
       // If this was the only searching thread, wake a thread up to potentially help out
       // with the local work queue.
-      notifyParked(from)
+      notifyParked(random)
     }
   }
 
@@ -343,7 +343,7 @@ private[effect] final class WorkStealingThreadPool(
     } else {
       val random = ThreadLocalRandom.current()
       overflowQueue.offer(fiber, random)
-      notifyParked(random.nextInt(threadCount))
+      notifyParked(random)
     }
   }
 

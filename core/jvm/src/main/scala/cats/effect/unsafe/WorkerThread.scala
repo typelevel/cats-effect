@@ -39,8 +39,6 @@ import java.util.concurrent.locks.LockSupport
 private[effect] final class WorkerThread(
     // Index assigned by the `WorkStealingThreadPool` for identification purposes.
     private[unsafe] val index: Int,
-    // The size of the `WorkStealingThreadPool`. Used when generating random searching indices.
-    private[this] val threadCount: Int,
     // Thread prefix string used for naming new instances of `WorkerThread` and `HelperThread`.
     private[this] val threadPrefix: String,
     // Instance to a global counter used when naming new instances of `HelperThread`.
@@ -68,7 +66,7 @@ private[effect] final class WorkerThread(
    * instance is obtained only once at the beginning of this method, to avoid
    * the cost of the `ThreadLocal` mechanism at runtime.
    */
-  private[this] val random = ThreadLocalRandom.current()
+  private[this] var random: ThreadLocalRandom = _
 
   /**
    * A flag which is set whenever a blocking code region is entered. This is
@@ -100,8 +98,9 @@ private[effect] final class WorkerThread(
    * @param fiber the fiber to be scheduled on the local queue
    */
   def schedule(fiber: IOFiber[_]): Unit = {
-    queue.enqueue(fiber, batched, overflow, random)
-    pool.notifyParked(random.nextInt(threadCount))
+    val rnd = random
+    queue.enqueue(fiber, batched, overflow, rnd)
+    pool.notifyParked(rnd)
   }
 
   /**
@@ -129,6 +128,8 @@ private[effect] final class WorkerThread(
    * The run loop of the [[WorkerThread]].
    */
   override def run(): Unit = {
+    random = ThreadLocalRandom.current()
+    val rnd = random
 
     /*
      * A counter (modulo `OverflowQueueTicks`) which represents the
@@ -231,7 +232,7 @@ private[effect] final class WorkerThread(
       ((state & OverflowQueueTicksMask): @switch) match {
         case 0 =>
           // Dequeue a fiber from the overflow queue.
-          val fiber = overflow.poll(random)
+          val fiber = overflow.poll(rnd)
           if (fiber ne null) {
             // Run the fiber.
             fiber.run()
@@ -242,7 +243,7 @@ private[effect] final class WorkerThread(
         case 1 =>
           // Try to get a batch of fibers to execute from the batched queue
           // after a failed dequeue from the local queue.
-          val batch = batched.poll(random)
+          val batch = batched.poll(rnd)
           if (batch ne null) {
             // A batch of fibers has been successfully obtained. Proceed to
             // enqueue all of the fibers on the local queue and execute the
@@ -261,7 +262,7 @@ private[effect] final class WorkerThread(
         case 2 =>
           // Dequeue a fiber from the overflow queue after a failed attempt to
           // secure a batch of fibers.
-          val fiber = overflow.poll(random)
+          val fiber = overflow.poll(rnd)
           if (fiber ne null) {
             // Run the fiber.
             fiber.run()
@@ -284,11 +285,11 @@ private[effect] final class WorkerThread(
 
         case 4 =>
           // Try stealing fibers from other worker threads.
-          val fiber = pool.stealFromOtherWorkerThread(index, random)
+          val fiber = pool.stealFromOtherWorkerThread(index, rnd)
           if (fiber ne null) {
             // Successful steal. Announce that the current thread is no longer
             // looking for work.
-            pool.transitionWorkerFromSearching(random.nextInt(threadCount))
+            pool.transitionWorkerFromSearching(rnd)
             // Run the stolen fiber.
             fiber.run()
             // Transition to executing fibers from the local queue.
@@ -320,7 +321,7 @@ private[effect] final class WorkerThread(
             // global check of the pool. Other threads might be busy with their
             // local queues or new work might have arrived on the overflow
             // queue. Another thread might be able to help.
-            pool.notifyIfWorkPending(random.nextInt(threadCount))
+            pool.notifyIfWorkPending(rnd)
           }
           // Park the thread.
           parkLoop()
@@ -330,10 +331,10 @@ private[effect] final class WorkerThread(
 
         case 7 =>
           // Dequeue a fiber from the overflow queue.
-          val fiber = overflow.poll(random)
+          val fiber = overflow.poll(rnd)
           if (fiber ne null) {
             // Announce that the current thread is no longer looking for work.
-            pool.transitionWorkerFromSearching(random.nextInt(threadCount))
+            pool.transitionWorkerFromSearching(rnd)
             // Run the fiber.
             fiber.run()
             // Transition to executing fibers from the local queue.
@@ -408,13 +409,7 @@ private[effect] final class WorkerThread(
 
       // Spawn a new `HelperThread`.
       val helper =
-        new HelperThread(
-          threadCount,
-          threadPrefix,
-          blockingThreadCounter,
-          batched,
-          overflow,
-          pool)
+        new HelperThread(threadPrefix, blockingThreadCounter, batched, overflow, pool)
       helper.start()
 
       // With another `HelperThread` started, it is time to execute the blocking
