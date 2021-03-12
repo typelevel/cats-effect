@@ -29,7 +29,7 @@ package cats.effect
 package unsafe
 
 import java.util.ArrayList
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -231,7 +231,10 @@ private final class LocalQueue {
    *                 be enqueued in the case that there is not enough capacity
    *                 in the local queue
    */
-  def enqueue(fiber: IOFiber[_], overflow: ConcurrentLinkedQueue[IOFiber[_]]): Unit = {
+  def enqueue(
+      fiber: IOFiber[_],
+      overflow: ScalQueue[IOFiber[_]],
+      random: ThreadLocalRandom): Unit = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -263,7 +266,7 @@ private final class LocalQueue {
         // Outcome 2, there is a concurrent stealer and there is no available
         // capacity for the new fiber. Proceed to enqueue the fiber on the
         // overflow queue and break out of the loop.
-        overflow.offer(fiber)
+        overflow.offer(fiber, random)
         return
       }
 
@@ -294,7 +297,7 @@ private final class LocalQueue {
         overflowBuffer.add(fiber)
         // Enqueue all of the fibers on the overflow queue with a bulk add
         // operation.
-        overflow.addAll(overflowBuffer)
+        overflow.offerAll(overflowBuffer, random)
         // Reset the overflow buffer before the next use.
         overflowBuffer.clear()
         // The incoming fiber has been enqueued on the overflow queue. Proceed
