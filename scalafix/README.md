@@ -14,5 +14,5 @@ ThisBuild / scalacOptions += "-P:semanticdb:synthetics:on"
 
 Then run Scalafix:
 ```sh
-sbt ";scalafixEnable ;scalafixAll github:fthomas/cats-effect/v3_0_0?sha=topic/scalafix"
+sbt ";scalafixEnable ;scalafixAll github:typelevel/cats-effect/v3_0_0?sha=v3.0.0"
 ```
