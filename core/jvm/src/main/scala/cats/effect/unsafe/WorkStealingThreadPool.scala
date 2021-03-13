@@ -249,7 +249,13 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // If no work was found in the local queues of the worker threads, look for
-    // work in the external queue.
+    // work in the batched queue.
+    if (batchedQueue.nonEmpty()) {
+      notifyParked(random)
+    }
+
+    // If no work was found in the local queues of the worker threads or in the
+    // batched queue, look for work in the external queue.
     if (overflowQueue.nonEmpty()) {
       notifyParked(random)
     }
