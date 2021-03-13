@@ -299,50 +299,6 @@ private final class LocalQueue {
   }
 
   /**
-   * Adds a batch of fibers to the buffer and directly returns the first fiber
-   * for execution.
-   *
-   * @note Can '''only''' be correctly called by the owner [[WorkerThread]] when
-   *       this queue is '''empty'''.
-   *
-   * @note The references inside the batch are not nulled out. It is important
-   *       to never reference the batch after this usage, so that it can be
-   *       garbage collected, and ultimately, the referenced fibers.
-   *
-   * @param batch a batch of fibers to be enqueued
-   * @return the first fiber in the batch for direct execution
-   */
-  def enqueueBatch(batch: Array[IOFiber[_]]): IOFiber[_] = {
-    // A plain, unsynchronized load of the tail of the local queue.
-    val tl = tail
-
-    // This next section can be completely unsynchronized because the owner
-    // `WorkerThread` is the only thread allowed to write to the local queue.
-    // This bulk add operation is completely undetectable to other threads
-    // because the tail is only published after all fibers have been transferred
-    // to the buffer.
-    // The batch always has `OverflowBatchCapacity` number of elements.
-    // The iteration starts from 1, because the very first fiber is returned to
-    // be directly executed.
-    var i = 0
-    while (i < HalfLocalQueueCapacity) {
-      val idx = index(tl + i)
-      buffer(idx) = batch(i)
-      i += 1
-    }
-
-    // Return the first fiber.
-    val fiber = batch(i)
-
-    // Move the tail by `HalfLocalQueueCapacity` elements
-    // (`HalfLocalQueueCapacity == OverflowBatchCapacity - 1`).
-    val newTl = unsignedShortAddition(tl, HalfLocalQueueCapacity)
-    tailPublisher.lazySet(newTl)
-    tail = newTl
-    fiber
-  }
-
-  /**
    * Dequeues a fiber from the head of the local queue.
    *
    * @note Can '''only''' be correctly called by the owner [[WorkerThread]].

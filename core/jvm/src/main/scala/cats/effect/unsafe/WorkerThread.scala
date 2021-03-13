@@ -248,7 +248,12 @@ private[effect] final class WorkerThread(
             // A batch of fibers has been successfully obtained. Proceed to
             // enqueue all of the fibers on the local queue and execute the
             // first one.
-            val fiber = queue.enqueueBatch(batch)
+            val fiber = batch(0)
+            var i = 1
+            while (i < OverflowBatchSize) {
+              queue.enqueue(batch(i), batched, overflow, random)
+              i += 1
+            }
             // Run the first fiber from the batch.
             fiber.run()
             // Transition to executing fibers from the local queue.
