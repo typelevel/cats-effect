@@ -94,7 +94,7 @@ trait Supervisor[F[_]] {
   /**
    * Starts the supplied effect `fa` on the supervisor.
    *
-   * @return a [[Fiber]] that represents a handle to the started fiber.
+   * @return a [[cats.effect.kernel.Fiber]] that represents a handle to the started fiber.
    */
   def supervise[A](fa: F[A]): F[Fiber[F, Throwable, A]]
 }
@@ -102,7 +102,7 @@ trait Supervisor[F[_]] {
 object Supervisor {
 
   /**
-   * Creates a [[Resource]] scope within which fibers can be monitored. When
+   * Creates a [[cats.effect.kernel.Resource]] scope within which fibers can be monitored. When
    * this scope exits, all supervised fibers will be finalized.
    */
   def apply[F[_]](implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {

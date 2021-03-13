@@ -58,7 +58,7 @@ object Dequeue {
 
   /**
    * Constructs an empty, bounded dequeue holding up to `capacity` elements for
-   * `F` data types that are [[Concurrent]]. When the queue is full (contains
+   * `F` data types that are [[cats.effect.kernel.GenConcurrent]]. When the queue is full (contains
    * exactly `capacity` elements), every next [[Queue#offer]] will be
    * backpressured (i.e. the [[Queue#offer]] blocks semantically).
    *
@@ -72,7 +72,7 @@ object Dequeue {
 
   /**
    * Constructs an empty, unbounded dequeue for `F` data types that are
-   * [[Concurrent]]. [[Queue#offer]] never blocks semantically, as there is
+   * [[cats.effect.kernel.GenConcurrent]]. [[Queue#offer]] never blocks semantically, as there is
    * always spare capacity in the queue.
    *
    * @return an empty, unbounded queue
@@ -369,8 +369,7 @@ trait DequeueSink[F[_], A] extends QueueSink[F, A] {
 }
 
 object DequeueSink {
-  implicit def catsContravariantForDequeueSink[F[_]: Functor]
-      : Contravariant[DequeueSink[F, *]] =
+  implicit def catsContravariantForDequeueSink[F[_]]: Contravariant[DequeueSink[F, *]] =
     new Contravariant[DequeueSink[F, *]] {
       override def contramap[A, B](fa: DequeueSink[F, A])(f: B => A): DequeueSink[F, B] =
         new DequeueSink[F, B] {

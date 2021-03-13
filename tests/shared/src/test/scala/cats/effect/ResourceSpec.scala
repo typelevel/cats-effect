@@ -822,15 +822,16 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         i mustEqual 1
       }
 
-      "extends finalizers into join scope" in ticked { implicit ticker =>
+      "join scope contained by outer" in ticked { implicit ticker =>
         var i = 0
         var completed = false
 
         val fork = Resource.make(IO.unit)(_ => IO(i += 1))
 
-        val target = fork.start.evalMap(f => (f.joinWithNever *> waitR).use_) *>
-          waitR *>
-          Resource.eval(IO { completed = true })
+        val target =
+          fork.start.evalMap(f => (f.joinWithNever *> waitR).use_) *>
+            waitR *>
+            Resource.eval(IO { completed = true })
 
         target.use_.unsafeToFuture()
 
@@ -838,10 +839,11 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         i mustEqual 0
 
         ticker.ctx.tick(900.millis)
-        i mustEqual 1
+        i mustEqual 0
         completed must beFalse
 
         ticker.ctx.tick(1.second)
+        i mustEqual 1
         completed must beTrue
       }
     }

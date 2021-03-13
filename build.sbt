@@ -43,7 +43,7 @@ val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
 
 val ScalaJSJava = "adopt@1.8"
-val Scala213 = "2.13.4"
+val Scala213 = "2.13.5"
 
 ThisBuild / crossScalaVersions := Seq("3.0.0-M3", "3.0.0-RC1", "2.12.13", Scala213)
 
@@ -51,7 +51,7 @@ ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
 val LTSJava = "adopt@1.11"
 val LatestJava = "adopt@1.15"
-val GraalVM8 = "graalvm-ce-java8@20.3.0"
+val GraalVM8 = "graalvm-ce-java8@21.0"
 
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)

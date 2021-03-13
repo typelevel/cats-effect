@@ -46,24 +46,125 @@ import scala.concurrent.{
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
+/**
+ * A pure abstraction representing the intention to perform a
+ * side effect, where the result of that side effect may be obtained
+ * synchronously (via return) or asynchronously (via callback).
+ *
+ * `IO` values are pure, immutable values and thus preserve
+ * referential transparency, being usable in functional programming.
+ * An `IO` is a data structure that represents just a description
+ * of a side effectful computation.
+ *
+ * `IO` can describe synchronous or asynchronous computations that:
+ *
+ *  1. on evaluation yield exactly one result
+ *  1. can end in either success or failure and in case of failure
+ *     `flatMap` chains get short-circuited (`IO` implementing
+ *     the algebra of `MonadError`)
+ *  1. can be canceled, but note this capability relies on the
+ *     user to provide cancellation logic
+ *
+ * Effects described via this abstraction are not evaluated until
+ * the "end of the world", which is to say, when one of the "unsafe"
+ * methods are used. Effectful results are not memoized, meaning that
+ * memory overhead is minimal (and no leaks), and also that a single
+ * effect may be run multiple times in a referentially-transparent
+ * manner. For example:
+ *
+ * {{{
+ * val ioa = IO.println("hey!")
+ *
+ * val program = for {
+ *   _ <- ioa
+ *   _ <- ioa
+ * } yield ()
+ *
+ * program.unsafeRunSync()
+ * }}}
+ *
+ * The above will print "hey!" twice, as the effect will be re-run
+ * each time it is sequenced in the monadic chain.
+ *
+ * `IO` is trampolined in its `flatMap` evaluation. This means that
+ * you can safely call `flatMap` in a recursive function of arbitrary
+ * depth, without fear of blowing the stack.
+ *
+ * {{{
+ * def fib(n: Int, a: Long = 0, b: Long = 1): IO[Long] =
+ *   IO.pure(a + b) flatMap { b2 =>
+ *     if (n > 0)
+ *       fib(n - 1, b, b2)
+ *     else
+ *       IO.pure(a)
+ *   }
+ * }}}
+ */
 sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   private[effect] def tag: Byte
 
+  /**
+   * Like [[*>]], but keeps the result of the source.
+   *
+   * For a similar method that also runs the parameter in case of failure or interruption, see [[guarantee]].
+   */
   def <*[B](that: IO[B]): IO[A] =
     productL(that)
 
+  /**
+   * Runs the current IO, then runs the parameter, keeping its result.
+   * The result of the first action is ignored.
+   * If the source fails, the other action won't run.
+   */
   def *>[B](that: IO[B]): IO[B] =
     productR(that)
 
   def >>[B](that: => IO[B]): IO[B] =
     flatMap(_ => that)
 
+  /**
+   * Runs this IO and the parameter in parallel.
+   *
+   * Failure in either of the IOs will cancel the other one.
+   * If the whole computation is canceled, both actions are also canceled.
+   */
+  def &>[B](that: IO[B]): IO[B] =
+    both(that).map { case (_, b) => b }
+
+  /**
+   * Like [[&>]], but keeps the result of the source
+   */
+  def <&[B](that: IO[B]): IO[A] =
+    both(that).map { case (a, _) => a }
+
+  /**
+   * Replaces the result of this IO with the given value.
+   */
   def as[B](b: B): IO[B] =
     map(_ => b)
 
+  /**
+   * Materializes any sequenced exceptions into value space, where
+   * they may be handled.
+   *
+   * This is analogous to the `catch` clause in `try`/`catch`, being
+   * the inverse of `IO.raiseError`. Thus:
+   *
+   * {{{
+   * IO.raiseError(ex).attempt.unsafeRunAsync === Left(ex)
+   * }}}
+   *
+   * @see [[IO.raiseError]]
+   */
   def attempt: IO[Either[Throwable, A]] =
     IO.Attempt(this)
+
+  /**
+   * Replaces failures in this IO with an empty Option.
+   */
+  def option: IO[Option[A]] =
+    redeem(_ => None, Some(_))
 
   def bothOutcome[B](that: IO[B]): IO[(OutcomeIO[A @uncheckedVariance], OutcomeIO[B])] =
     IO.uncancelable { poll =>
@@ -76,9 +177,139 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def both[B](that: IO[B]): IO[(A, B)] =
     IO.both(this, that)
 
+  /**
+   * Returns an `IO` action that treats the source task as the
+   * acquisition of a resource, which is then exploited by the `use`
+   * function and then `released`.
+   *
+   * The `bracket` operation is the equivalent of the
+   * `try {} catch {} finally {}` statements from mainstream languages.
+   *
+   * The `bracket` operation installs the necessary exception handler
+   * to release the resource in the event of an exception being raised
+   * during the computation, or in case of cancellation.
+   *
+   * If an exception is raised, then `bracket` will re-raise the
+   * exception ''after'' performing the `release`. If the resulting
+   * task gets canceled, then `bracket` will still perform the
+   * `release`, but the yielded task will be non-terminating
+   * (equivalent with [[IO.never]]).
+   *
+   * Example:
+   *
+   * {{{
+   *   import java.io._
+   *
+   *   def readFile(file: File): IO[String] = {
+   *     // Opening a file handle for reading text
+   *     val acquire = IO(new BufferedReader(
+   *       new InputStreamReader(new FileInputStream(file), "utf-8")
+   *     ))
+   *
+   *     acquire.bracket { in =>
+   *       // Usage part
+   *       IO {
+   *         // Yes, ugly Java, non-FP loop;
+   *         // side-effects are suspended though
+   *         var line: String = null
+   *         val buff = new StringBuilder()
+   *         do {
+   *           line = in.readLine()
+   *           if (line != null) buff.append(line)
+   *         } while (line != null)
+   *         buff.toString()
+   *       }
+   *     } { in =>
+   *       // The release part
+   *       IO(in.close())
+   *     }
+   *   }
+   * }}}
+   *
+   * Note that in case of cancellation the underlying implementation
+   * cannot guarantee that the computation described by `use` doesn't
+   * end up executed concurrently with the computation from
+   * `release`. In the example above that ugly Java loop might end up
+   * reading from a `BufferedReader` that is already closed due to the
+   * task being canceled, thus triggering an error in the background
+   * with nowhere to get signaled.
+   *
+   * In this particular example, given that we are just reading from a
+   * file, it doesn't matter. But in other cases it might matter, as
+   * concurrency on top of the JVM when dealing with I/O might lead to
+   * corrupted data.
+   *
+   * For those cases you might want to do synchronization (e.g. usage
+   * of locks and semaphores) and you might want to use [[bracketCase]],
+   * the version that allows you to differentiate between normal
+   * termination and cancellation.
+   *
+   * '''NOTE on error handling''': in case both the `release`
+   * function and the `use` function throws, the error raised by `release`
+   * gets signaled.
+   *
+   * For example:
+   *
+   * {{{
+   *   IO("resource").bracket { _ =>
+   *     // use
+   *     IO.raiseError(new RuntimeException("Foo"))
+   *   } { _ =>
+   *     // release
+   *     IO.raiseError(new RuntimeException("Bar"))
+   *   }
+   * }}}
+   *
+   * In this case the error signaled downstream is `"Bar"`, while the
+   * `"Foo"` error gets reported on a side-channel. This is consistent
+   * with the behavior `try {} finally {}`.
+   *
+   * @see [[bracketCase]]
+   *
+   * @param use is a function that evaluates the resource yielded by
+   *        the source, yielding a result that will get generated by
+   *        the task returned by this `bracket` function
+   *
+   * @param release is a function that gets called after `use`
+   *        terminates, either normally or in error, or if it gets
+   *        canceled, receiving as input the resource that needs to
+   *        be released
+   */
   def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
     bracketCase(use)((a, _) => release(a))
 
+  /**
+   * Returns a new `IO` task that treats the source task as the
+   * acquisition of a resource, which is then exploited by the `use`
+   * function and then `released`, with the possibility of
+   * distinguishing between normal termination and cancellation, such
+   * that an appropriate release of resources can be executed.
+   *
+   * The `bracketCase` operation is the equivalent of
+   * `try {} catch {} finally {}` statements from mainstream languages
+   * when used for the acquisition and release of resources.
+   *
+   * The `bracketCase` operation installs the necessary exception handler
+   * to release the resource in the event of an exception being raised
+   * during the computation, or in case of cancellation.
+   *
+   * In comparison with the simpler [[bracket]] version, this one
+   * allows the caller to differentiate between normal termination,
+   * termination in error and cancellation via an [[Outcome]]
+   * parameter.
+   *
+   * @see [[bracket]]
+   *
+   * @param use is a function that evaluates the resource yielded by
+   *        the source, yielding a result that will get generated by
+   *        this function on evaluation
+   *
+   * @param release is a function that gets called after `use`
+   *        terminates, either normally or in error, or if it gets
+   *        canceled, receiving as input the resource that needs
+   *        release, along with the result of `use`
+   *        (cancellation, error or successful result)
+   */
   def bracketCase[B](use: A => IO[B])(release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
     IO.bracketFull(_ => this)(use)(release)
 
@@ -89,22 +320,94 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def backgroundOn(ec: ExecutionContext): ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
     Resource.make(startOn(ec))(_.cancel).map(_.join)
 
+  /**
+   * Monadic bind on `IO`, used for sequentially composing two `IO`
+   * actions, where the value produced by the first `IO` is passed as
+   * input to a function producing the second `IO` action.
+   *
+   * Due to this operation's signature, `flatMap` forces a data
+   * dependency between two `IO` actions, thus ensuring sequencing
+   * (e.g. one action to be executed before another one).
+   *
+   * Any exceptions thrown within the function will be caught and
+   * sequenced into the `IO`, because due to the nature of
+   * asynchronous processes, without catching and handling exceptions,
+   * failures would be completely silent and `IO` references would
+   * never terminate on evaluation.
+   */
   def flatMap[B](f: A => IO[B]): IO[B] = IO.FlatMap(this, f)
 
   def flatten[B](implicit ev: A <:< IO[B]): IO[B] = flatMap(ev)
 
+  /**
+   * Executes the given `finalizer` when the source is finished,
+   * either in success or in error, or if canceled.
+   *
+   * This variant of [[guaranteeCase]] evaluates the given `finalizer`
+   * regardless of how the source gets terminated:
+   *
+   *  - normal completion
+   *  - completion in error
+   *  - cancelation
+   *
+   * This equivalence always holds:
+   *
+   * {{{
+   *   io.guarantee(f) <-> IO.unit.bracket(_ => io)(_ => f)
+   * }}}
+   *
+   * @see [[guaranteeCase]] for the version that can discriminate
+   *      between termination conditions
+   */
   def guarantee(finalizer: IO[Unit]): IO[A] =
     guaranteeCase(_ => finalizer)
 
+  /**
+   * Executes the given `finalizer` when the source is finished,
+   * either in success or in error, or if canceled, allowing
+   * for differentiating between exit conditions.
+   *
+   * This variant of [[guarantee]] injects an [[Outcome]] in
+   * the provided function, allowing one to make a difference
+   * between:
+   *
+   *  - normal completion
+   *  - completion in error
+   *  - cancelation
+   *
+   * This equivalence always holds:
+   *
+   * {{{
+   *   io.guaranteeCase(f) <-> IO.unit.bracketCase(_ => io)((_, e) => f(e))
+   * }}}
+   *
+   * @see [[guarantee]] for the simpler version
+   */
   def guaranteeCase(finalizer: OutcomeIO[A @uncheckedVariance] => IO[Unit]): IO[A] =
     onCase { case oc => finalizer(oc) }
 
+  /**
+   * Handle any error, potentially recovering from it, by mapping it to another
+   * `IO` value.
+   *
+   * Implements `ApplicativeError.handleErrorWith`.
+   */
   def handleErrorWith[B >: A](f: Throwable => IO[B]): IO[B] =
     IO.HandleErrorWith(this, f)
 
   def ifM[B](ifTrue: => IO[B], ifFalse: => IO[B])(implicit ev: A <:< Boolean): IO[B] =
     flatMap(a => if (ev(a)) ifTrue else ifFalse)
 
+  /**
+   * Functor map on `IO`. Given a mapping function, it transforms the
+   * value produced by the source, while keeping the `IO` context.
+   *
+   * Any exceptions thrown within the function will be caught and
+   * sequenced into the `IO`. Due to the nature of
+   * asynchronous processes, without catching and handling exceptions,
+   * failures would be completely silent and `IO` references would
+   * never terminate on evaluation.
+   */
   def map[B](f: A => B): IO[B] = IO.Map(this, f)
 
   def onCancel(fin: IO[Unit]): IO[A] =
@@ -149,18 +452,99 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     (FiberIO[A @uncheckedVariance], OutcomeIO[B])]] =
     IO.racePair(this, that)
 
+  /**
+   * Returns a new value that transforms the result of the source,
+   * given the `recover` or `map` functions, which get executed depending
+   * on whether the result ends in error or if it is successful.
+   *
+   * This is an optimization on usage of [[attempt]] and [[map]],
+   * this equivalence being true:
+   *
+   * {{{
+   *   io.redeem(recover, map) <-> io.attempt.map(_.fold(recover, map))
+   * }}}
+   *
+   * Usage of `redeem` subsumes `handleError` because:
+   *
+   * {{{
+   *   io.redeem(fe, id) <-> io.handleError(fe)
+   * }}}
+   *
+   * @param recover is a function used for error recover in case the
+   *        source ends in error
+   * @param map is a function used for mapping the result of the source
+   *        in case it ends in success
+   */
   def redeem[B](recover: Throwable => B, map: A => B): IO[B] =
     attempt.map(_.fold(recover, map))
 
+  /**
+   * Returns a new value that transforms the result of the source,
+   * given the `recover` or `bind` functions, which get executed depending
+   * on whether the result ends in error or if it is successful.
+   *
+   * This is an optimization on usage of [[attempt]] and [[flatMap]],
+   * this equivalence being available:
+   *
+   * {{{
+   *   io.redeemWith(recover, bind) <-> io.attempt.flatMap(_.fold(recover, bind))
+   * }}}
+   *
+   * Usage of `redeemWith` subsumes `handleErrorWith` because:
+   *
+   * {{{
+   *   io.redeemWith(fe, F.pure) <-> io.handleErrorWith(fe)
+   * }}}
+   *
+   * Usage of `redeemWith` also subsumes [[flatMap]] because:
+   *
+   * {{{
+   *   io.redeemWith(F.raiseError, fs) <-> io.flatMap(fs)
+   * }}}
+   *
+   * @param recover is the function that gets called to recover the source
+   *        in case of error
+   * @param bind is the function that gets to transform the source
+   *        in case of success
+   */
   def redeemWith[B](recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
     attempt.flatMap(_.fold(recover, bind))
 
+  /**
+   * Returns an IO that will delay the execution of the source by the given duration.
+   */
   def delayBy(duration: FiniteDuration): IO[A] =
     IO.sleep(duration) *> this
 
+  /**
+   * Returns an IO that either completes with the result of the source within
+   * the specified time `duration` or otherwise raises a `TimeoutException`.
+   *
+   * The source is cancelled in the event that it takes longer than
+   * the specified time duration to complete.
+   *
+   * @param duration is the time span for which we wait for the source to
+   *        complete; in the event that the specified time has passed without
+   *        the source completing, a `TimeoutException` is raised
+   */
   def timeout[A2 >: A](duration: FiniteDuration): IO[A2] =
     timeoutTo(duration, IO.raiseError(new TimeoutException(duration.toString)))
 
+  /**
+   * Returns an IO that either completes with the result of the source within
+   * the specified time `duration` or otherwise evaluates the `fallback`.
+   *
+   * The source is cancelled in the event that it takes longer than
+   * the `FiniteDuration` to complete, the evaluation of the fallback
+   * happening immediately after that.
+   *
+   * @param duration is the time span for which we wait for the source to
+   *        complete; in the event that the specified time has passed without
+   *        the source completing, the `fallback` gets evaluated
+   *
+   * @param fallback is the task evaluated after the duration has passed and
+   *        the source canceled
+   */
   def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2]): IO[A2] =
     race(IO.sleep(duration)).flatMap {
       case Right(_) => fallback
@@ -179,25 +563,87 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def productR[B](that: IO[B]): IO[B] =
     flatMap(_ => that)
 
+  /**
+   * Start execution of the source suspended in the `IO` context.
+   *
+   * This can be used for non-deterministic / concurrent execution.
+   * The following code is more or less equivalent with `parMap2`
+   * (minus the behavior on error handling and cancellation):
+   *
+   * {{{
+   *   def par2[A, B](ioa: IO[A], iob: IO[B]): IO[(A, B)] =
+   *     for {
+   *       fa <- ioa.start
+   *       fb <- iob.start
+   *        a <- fa.join
+   *        b <- fb.join
+   *     } yield (a, b)
+   * }}}
+   *
+   * Note in such a case usage of `parMapN` (via `cats.Parallel`) is
+   * still recommended because of behavior on error and cancellation —
+   * consider in the example above what would happen if the first task
+   * finishes in error. In that case the second task doesn't get canceled,
+   * which creates a potential memory leak.
+   *
+   * Also see [[background]] for a safer alternative.
+   */
   def start: IO[FiberIO[A @uncheckedVariance]] =
     IO.Start(this)
 
+  /**
+   * Returns a resource that will start execution of this IO in the background.
+   *
+   * In case the resource is closed while this IO is still running (e.g. due to a failure in `use`),
+   * the background action will be canceled.
+   *
+   * @see [[cats.effect.kernel.GenSpawn#background]] for the generic version.
+   */
   def background: ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
     Spawn[IO].background(this)
 
   def memoize: IO[IO[A]] =
     Concurrent[IO].memoize(this)
 
+  /**
+   * Makes the source `IO` uninterruptible such that a [[cats.effect.kernel.Fiber#cancel]]
+   * signal has no effect.
+   */
   def uncancelable: IO[A] =
     IO.uncancelable(_ => this)
 
+  /**
+   * Ignores the result of this IO.
+   */
   def void: IO[Unit] =
     map(_ => ())
+
+  /**
+   * Converts the source `IO` into any `F` type that implements
+   * the [[LiftIO]] type class.
+   */
+  def to[F[_]](implicit F: LiftIO[F]): F[A @uncheckedVariance] =
+    F.liftIO(this)
 
   override def toString: String = "IO(...)"
 
   // unsafe stuff
 
+  /**
+   * Passes the result of the encapsulated effects to the given
+   * callback by running them as impure side effects.
+   *
+   * Any exceptions raised within the effect will be passed to the
+   * callback in the `Either`.  The callback will be invoked at most
+   * *once*.  Note that it is very possible to construct an IO which
+   * never returns while still never blocking a thread, and attempting
+   * to evaluate that IO with this method will result in a situation
+   * where the callback is *never* invoked.
+   *
+   * As the name says, this is an UNSAFE function as it is impure and
+   * performs side effects.  You should ideally only call this
+   * function ''once'', at the very end of your program.
+   */
   def unsafeRunAsync(cb: Either[Throwable, A] => Unit)(
       implicit runtime: unsafe.IORuntime): Unit = {
     unsafeRunFiber(
@@ -216,9 +662,30 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     ()
   }
 
+  /**
+   * Triggers the evaluation of the source and any suspended side
+   * effects therein, but ignores the result.
+   *
+   * This operation is similar to [[unsafeRunAsync]], in that the
+   * evaluation can happen asynchronously, except no callback is required
+   * and therefore the result is ignored.
+   *
+   * Note that errors still get logged (via IO's internal logger),
+   * because errors being thrown should never be totally silent.
+   */
   def unsafeRunAndForget()(implicit runtime: unsafe.IORuntime): Unit =
     unsafeRunAsync(_ => ())
 
+  /**
+   * Evaluates the effect and produces the result in a `Future`.
+   *
+   * This is similar to `unsafeRunAsync` in that it evaluates the `IO`
+   * as a side effect in a non-blocking fashion, but uses a `Future`
+   * rather than an explicit callback.  This function should really
+   * only be used if interoperating with code which uses Scala futures.
+   *
+   * @see [[IO.fromFuture]]
+   */
   def unsafeToFuture()(implicit runtime: unsafe.IORuntime): Future[A] = {
     val p = Promise[A]()
 
@@ -292,20 +759,87 @@ private[effect] trait IOLowPriorityImplicits {
 
 object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
+  /**
+   * Newtype encoding for an `IO` datatype that has a `cats.Applicative`
+   * capable of doing parallel processing in `ap` and `map2`, needed
+   * for implementing `cats.Parallel`.
+   *
+   * Helpers are provided for converting back and forth in `Par.apply`
+   * for wrapping any `IO` value and `Par.unwrap` for unwrapping.
+   *
+   * The encoding is based on the "newtypes" project by
+   * Alexander Konovalov, chosen because it's devoid of boxing issues and
+   * a good choice until opaque types will land in Scala.
+   */
   type Par[A] = ParallelF[IO, A]
 
   // constructors
 
+  /**
+   * Suspends a synchronous side effect in `IO`.
+   *
+   * Alias for `IO.delay(body)`.
+   */
   def apply[A](thunk: => A): IO[A] = Delay(() => thunk)
 
+  /**
+   * Suspends a synchronous side effect in `IO`.
+   *
+   * Any exceptions thrown by the effect will be caught and sequenced
+   * into the `IO`.
+   */
   def delay[A](thunk: => A): IO[A] = apply(thunk)
 
+  /**
+   * Suspends a synchronous side effect which produces an `IO` in `IO`.
+   *
+   * This is useful for trampolining (i.e. when the side effect is
+   * conceptually the allocation of a stack frame).  Any exceptions
+   * thrown by the side effect will be caught and sequenced into the
+   * `IO`.
+   */
   def defer[A](thunk: => IO[A]): IO[A] =
     delay(thunk).flatten
 
   def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
     asyncForIO.async(k)
 
+  /**
+   * Suspends an asynchronous side effect in `IO`.
+   *
+   * The given function will be invoked during evaluation of the `IO`
+   * to "schedule" the asynchronous callback, where the callback is
+   * the parameter passed to that function.  Only the ''first''
+   * invocation of the callback will be effective!  All subsequent
+   * invocations will be silently dropped.
+   *
+   * As a quick example, you can use this function to perform a
+   * parallel computation given an `ExecutorService`:
+   *
+   * {{{
+   * def fork[A](body: => A, exc: ExecutorService): IO[A] =
+   *   IO async_ { cb =>
+   *     exc.execute(new Runnable {
+   *       def run() =
+   *         try cb(Right(body)) catch { case NonFatal(t) => cb(Left(t)) }
+   *     })
+   *   }
+   * }}}
+   *
+   * The `fork` function will do exactly what it sounds like: take a
+   * thunk and an `ExecutorService` and run that thunk on the thread
+   * pool.  Or rather, it will produce an `IO` which will do those
+   * things when run; it does *not* schedule the thunk until the
+   * resulting `IO` is run!  Note that there is no thread blocking in
+   * this implementation; the resulting `IO` encapsulates the callback
+   * in a pure and monadic fashion without using threads.
+   *
+   * This function can be thought of as a safer, lexically-constrained
+   * version of `Promise`, where `IO` is like a safer, lazy version of
+   * `Future`.
+   *
+   * @see [[async]]
+   */
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
     asyncForIO.async_(k)
 
@@ -325,7 +859,17 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def monotonic: IO[FiniteDuration] = Monotonic
 
+  /**
+   * A non-terminating `IO`, alias for `async(_ => ())`.
+   */
   def never[A]: IO[A] = _never
+
+  /**
+   * An IO that contains an empty Option.
+   */
+  def none[A]: IO[Option[A]] = pure(None)
+
+  def some[A](a: A): IO[Option[A]] = pure(Some(a))
 
   /**
    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
@@ -339,12 +883,58 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def parSequenceN[T[_]: Traverse, A](n: Int)(tma: T[IO[A]]): IO[T[A]] =
     _asyncForIO.parSequenceN(n)(tma)
 
+  /**
+   * Lifts a pure value into `IO`.
+   *
+   * This should ''only'' be used if the value in question has
+   * "already" been computed!  In other words, something like
+   * `IO.pure(readLine)` is most definitely not the right thing to do!
+   * However, `IO.pure(42)` is correct and will be more efficient
+   * (when evaluated) than `IO(42)`, due to avoiding the allocation of
+   * extra thunks.
+   */
   def pure[A](value: A): IO[A] = Pure(value)
 
+  /**
+   * Constructs an `IO` which sequences the specified exception.
+   *
+   * If this `IO` is run using `unsafeRunSync` or `unsafeRunTimed`,
+   * the exception will be thrown.  This exception can be "caught" (or
+   * rather, materialized into value-space) using the `attempt`
+   * method.
+   *
+   * @see [[IO#attempt]]
+   */
   def raiseError[A](t: Throwable): IO[A] = Error(t)
 
   def realTime: IO[FiniteDuration] = RealTime
 
+  /**
+   * Creates an asynchronous task that on evaluation sleeps for the
+   * specified duration, emitting a notification on completion.
+   *
+   * This is the pure, non-blocking equivalent to:
+   *
+   *  - `Thread.sleep` (JVM)
+   *  - `ScheduledExecutorService.schedule` (JVM)
+   *  - `setTimeout` (JavaScript)
+   *
+   * You can combine it with `flatMap` to create delayed tasks:
+   *
+   * {{{
+   *   val timeout = IO.sleep(10.seconds).flatMap { _ =>
+   *     IO.raiseError(new TimeoutException)
+   *   }
+   * }}}
+   *
+   * The created task is cancelable and so it can be used safely in race
+   * conditions without resource leakage.
+   *
+   * @param duration is the time span to wait before emitting the tick
+   *
+   * @return a new asynchronous and cancelable `IO` that will sleep for
+   *         the specified duration and then finally emit a tick
+   */
   def sleep(delay: FiniteDuration): IO[Unit] =
     Sleep(delay)
 
@@ -352,6 +942,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     Uncancelable(body)
 
   private[this] val _unit: IO[Unit] = Pure(())
+
+  /**
+   * Alias for `IO.pure(())`.
+   */
   def unit: IO[Unit] = _unit
 
   // utilities
@@ -367,12 +961,87 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def both[A, B](left: IO[A], right: IO[B]): IO[(A, B)] =
     asyncForIO.both(left, right)
 
+  /**
+   * Constructs an `IO` which evaluates the given `Future` and
+   * produces the result (or failure).
+   *
+   * Because `Future` eagerly evaluates, as well as because it
+   * memoizes, this function takes its parameter as an `IO`,
+   * which could be lazily evaluated.  If this laziness is
+   * appropriately threaded back to the definition site of the
+   * `Future`, it ensures that the computation is fully managed by
+   * `IO` and thus referentially transparent.
+   *
+   * Example:
+   *
+   * {{{
+   *   // Lazy evaluation, equivalent with by-name params
+   *   IO.fromFuture(IO(f))
+   *
+   *   // Eager evaluation, for pure futures
+   *   IO.fromFuture(IO.pure(f))
+   * }}}
+   *
+   * Roughly speaking, the following identities hold:
+   *
+   * {{{
+   * IO.fromFuture(IO(f)).unsafeToFuture() === f // true-ish (except for memoization)
+   * IO.fromFuture(IO(ioa.unsafeToFuture())) === ioa // true
+   * }}}
+   *
+   * @see [[IO#unsafeToFuture]]
+   */
   def fromFuture[A](fut: IO[Future[A]]): IO[A] =
     asyncForIO.fromFuture(fut)
 
+  /**
+   * Run two IO tasks concurrently, and return the first to
+   * finish, either in success or error. The loser of the race is
+   * canceled.
+   *
+   * The two tasks are executed in parallel if asynchronous,
+   * the winner being the first that signals a result.
+   *
+   * As an example see [[IO.timeout]] and [[IO.timeoutTo]]
+   *
+   * Also see [[racePair]] for a version that does not cancel
+   * the loser automatically on successful results.
+   *
+   * @param lh is the "left" task participating in the race
+   * @param rh is the "right" task participating in the race
+   */
   def race[A, B](left: IO[A], right: IO[B]): IO[Either[A, B]] =
     asyncForIO.race(left, right)
 
+  /**
+   * Run two IO tasks concurrently, and returns a pair
+   * containing both the winner's successful value and the loser
+   * represented as a still-unfinished task.
+   *
+   * If the first task completes in error, then the result will
+   * complete in error, the other task being canceled.
+   *
+   * On usage the user has the option of canceling the losing task,
+   * this being equivalent with plain [[race]]:
+   *
+   * {{{
+   *   val ioA: IO[A] = ???
+   *   val ioB: IO[B] = ???
+   *
+   *   IO.racePair(ioA, ioB).flatMap {
+   *     case Left((a, fiberB)) =>
+   *       fiberB.cancel.map(_ => a)
+   *     case Right((fiberA, b)) =>
+   *       fiberA.cancel.map(_ => b)
+   *   }
+   * }}}
+   *
+   * See [[race]] for a simpler version that cancels the loser
+   * immediately.
+   *
+   * @param lh is the "left" task participating in the race
+   * @param rh is the "right" task participating in the race
+   */
   def racePair[A, B](
       left: IO[A],
       right: IO[B]): IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] =
@@ -399,6 +1068,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       }
     }
   }
+
+  /*
+   * Produce a value that is guaranteed to be unique ie
+   * (IO.unique, IO.unique).mapN(_ =!= _)
+   */
+  def unique: IO[Unique.Token] = _asyncForIO.unique
 
   /**
    * Returns the given argument if `cond` is true, otherwise `IO.Unit`
@@ -484,24 +1159,43 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def println[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): IO[Unit] =
     Console[IO].println(a)
 
+  /**
+   * Lifts an `Eval` into `IO`.
+   *
+   * This function will preserve the evaluation semantics of any
+   * actions that are lifted into the pure `IO`.  Eager `Eval`
+   * instances will be converted into thunk-less `IO` (i.e. eager
+   * `IO`), while lazy eval and memoized will be executed as such.
+   */
   def eval[A](fa: Eval[A]): IO[A] =
     fa match {
       case Now(a) => pure(a)
       case notNow => apply(notNow.value)
     }
 
+  /**
+   * Lifts an `Option[A]` into the `IO[A]` context, raising the throwable if the option is empty.
+   */
   def fromOption[A](o: Option[A])(orElse: => Throwable): IO[A] =
     o match {
       case None => raiseError(orElse)
       case Some(value) => pure(value)
     }
 
+  /**
+   * Lifts an `Either[Throwable, A]` into the `IO[A]` context, raising
+   * the throwable if it exists.
+   */
   def fromEither[A](e: Either[Throwable, A]): IO[A] =
     e match {
       case Right(a) => pure(a)
       case Left(err) => raiseError(err)
     }
 
+  /**
+   * Lifts an `Try[A]` into the `IO[A]` context, raising the throwable if it
+   * exists.
+   */
   def fromTry[A](t: Try[A]): IO[A] =
     t match {
       case Success(a) => pure(a)
@@ -642,75 +1336,88 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   // implementations
 
-  final private[effect] case class Pure[+A](value: A) extends IO[A] {
+  private[effect] final case class Pure[+A](value: A) extends IO[A] {
     def tag = 0
     override def toString: String = s"IO($value)"
   }
 
-  private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A) extends IO[A] {
+  private[effect] final case class Error(t: Throwable) extends IO[Nothing] {
     def tag = 1
   }
 
-  private[effect] final case class FlatMap[E, +A](ioe: IO[E], f: E => IO[A]) extends IO[A] {
+  private[effect] final case class Delay[+A](thunk: () => A) extends IO[A] {
     def tag = 2
   }
 
-  private[effect] final case class Error(t: Throwable) extends IO[Nothing] { def tag = 3 }
+  private[effect] case object RealTime extends IO[FiniteDuration] {
+    def tag = 3
+  }
+
+  private[effect] case object Monotonic extends IO[FiniteDuration] {
+    def tag = 4
+  }
+
+  private[effect] case object ReadEC extends IO[ExecutionContext] {
+    def tag = 5
+  }
+
+  private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A) extends IO[A] {
+    def tag = 6
+  }
+
+  private[effect] final case class FlatMap[E, +A](ioe: IO[E], f: E => IO[A]) extends IO[A] {
+    def tag = 7
+  }
 
   private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]] {
-    def tag = 4
+    def tag = 8
   }
 
   private[effect] final case class HandleErrorWith[+A](ioa: IO[A], f: Throwable => IO[A])
       extends IO[A] {
-    def tag = 5
+    def tag = 9
   }
 
-  // we keep Delay as a separate case as a fast-path, since the added tags don't appear to confuse HotSpot (for reasons unknown)
-  private[effect] final case class Delay[+A](thunk: () => A) extends IO[A] { def tag = 6 }
-
-  private[effect] case object Canceled extends IO[Unit] { def tag = 7 }
+  private[effect] case object Canceled extends IO[Unit] {
+    def tag = 10
+  }
 
   private[effect] final case class OnCancel[+A](ioa: IO[A], fin: IO[Unit]) extends IO[A] {
-    def tag = 8
+    def tag = 11
   }
 
   private[effect] final case class Uncancelable[+A](body: Poll[IO] => IO[A]) extends IO[A] {
-    def tag = 9
+    def tag = 12
   }
   private[effect] object Uncancelable {
     // INTERNAL, it's only created by the runloop itself during the execution of `Uncancelable`
     final case class UnmaskRunLoop[+A](ioa: IO[A], id: Int) extends IO[A] {
-      def tag = 10
+      def tag = 13
     }
   }
 
   // Low level construction that powers `async`
   private[effect] final case class IOCont[K, R](body: Cont[IO, K, R]) extends IO[R] {
-    def tag = 11
+    def tag = 14
   }
   private[effect] object IOCont {
     // INTERNAL, it's only created by the runloop itself during the execution of `IOCont`
     final case class Get[A](state: ContState) extends IO[A] {
-      def tag = 12
+      def tag = 15
     }
   }
 
-  private[effect] case object Cede extends IO[Unit] { def tag = 13 }
+  private[effect] case object Cede extends IO[Unit] {
+    def tag = 16
+  }
 
   private[effect] final case class Start[A](ioa: IO[A]) extends IO[FiberIO[A]] {
-    def tag = 14
+    def tag = 17
   }
 
   private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
-    def tag = 15
+    def tag = 18
   }
-
-  private[effect] case object RealTime extends IO[FiniteDuration] { def tag = 16 }
-
-  private[effect] case object Monotonic extends IO[FiniteDuration] { def tag = 17 }
-
-  private[effect] case object ReadEC extends IO[ExecutionContext] { def tag = 18 }
 
   private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {
     def tag = 19

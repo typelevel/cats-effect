@@ -517,6 +517,72 @@ private final class LocalQueue {
   }
 
   /**
+   * Steals all enqueued fibers and transfers them to the provided list.
+   *
+   * This method is called by the runtime when blocking is detected in order to
+   * give a chance to the fibers enqueued behind the `head` of the queue to run
+   * on another thread. More often than not, these fibers are the ones that will
+   * ultimately unblock the blocking fiber currently executing. Ideally, other
+   * [[WorkerThread]]s would steal the contents of this [[LocalQueue]].
+   * Unfortunately, in practice, careless blocking has a tendency to quickly
+   * spread around the [[WorkerThread]]s (and there's a fixed number of them) in
+   * the runtime and halt any and all progress. For that reason, this method is
+   * used to completely drain any remaining fibers and transfer them to other
+   * helper threads which will continue executing fibers until the blocked thread
+   * has been unblocked.
+   *
+   * Conceptually, this method is identical to [[LocalQueue#dequeue]], with the
+   * main difference being that the `head` of the queue is moved forward to
+   * match the `tail` of the queue, thus securing ''all'' remaining fibers.
+   *
+   * @param dst the destination list in which all remaining fibers are
+   *            transferred
+   */
+  def drain(dst: ArrayList[IOFiber[_]]): Unit = {
+    // A plain, unsynchronized load of the tail of the local queue.
+    val tl = tail
+
+    // A CAS loop on the head of the queue. The loop can break out of the whole
+    // method only when the "real" value of head has been successfully moved to
+    // match the tail of the queue.
+    while (true) {
+      // A load of the head of the queue using `acquire` semantics.
+      val hd = head.get()
+
+      val real = lsb(hd)
+
+      if (tl == real) {
+        // The tail and the "real" value of the head are equal. The queue is
+        // empty. There is nothing more to be done.
+        return
+      }
+
+      // Make sure to preserve the "steal" tag in the presence of a concurrent
+      // stealer. Otherwise, move the "steal" tag along with the "real" value.
+      val steal = msb(hd)
+      val newHd = if (steal == real) pack(tl, tl) else pack(steal, tl)
+
+      if (head.compareAndSet(hd, newHd)) {
+        // The head has been successfully moved forward and all remaining fibers
+        // secured. Proceed to null out the references to the fibers and
+        // transfer them to the destination list.
+        val n = unsignedShortSubtraction(tl, real)
+        var i = 0
+        while (i < n) {
+          val idx = index(real + i)
+          val fiber = buffer(idx)
+          buffer(idx) = null
+          dst.add(fiber)
+          i += 1
+        }
+
+        // The fibers have been transferred. Break out of the loop.
+        return
+      }
+    }
+  }
+
+  /**
    * Checks whether the local queue is empty.
    *
    * @return `true` if the queue is empty, `false` otherwise

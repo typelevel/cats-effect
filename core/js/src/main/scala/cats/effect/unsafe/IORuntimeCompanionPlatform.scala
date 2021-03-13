@@ -38,10 +38,25 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       def monotonicNanos() = System.nanoTime()
     }
 
-  lazy val global: IORuntime =
-    IORuntime(
-      defaultComputeExecutionContext,
-      defaultComputeExecutionContext,
-      defaultScheduler,
-      () => ())
+  private[this] var _global: IORuntime = null
+
+  private[effect] def installGlobal(global: IORuntime): Unit = {
+    require(_global == null)
+    _global = global
+  }
+
+  lazy val global: IORuntime = {
+    if (_global == null) {
+      installGlobal {
+        IORuntime(
+          defaultComputeExecutionContext,
+          defaultComputeExecutionContext,
+          defaultScheduler,
+          () => (),
+          IORuntimeConfig())
+      }
+    }
+
+    _global
+  }
 }
