@@ -130,27 +130,29 @@ private[effect] final class HelperThread(
    */
   override def run(): Unit = {
     random = ThreadLocalRandom.current()
+    val rnd = random
 
     // Check for exit condition. Do not continue if the `WorkStealingPool` has
     // been shut down, or the `WorkerThread` which spawned this `HelperThread`
     // has finished blocking.
     while (!isInterrupted() && !signal.get()) {
-      val batch = batched.poll(random)
-      if (batch ne null) {
-        overflow.offerAll(batch, random)
-      }
-
-      val fiber = overflow.poll(random)
+      val fiber = overflow.poll(rnd)
       if (fiber eq null) {
-        // There are no more fibers on the overflow queue. Since the overflow
-        // queue is not a blocking queue, there is no point in busy waiting,
-        // especially since there is no guarantee that the `WorkerThread` which
-        // spawned this `HelperThread` will ever exit the blocking region, and
-        // new external work may never arrive on the `overflow` queue. This
-        // pathological case is not handled as it is a case of uncontrolled
-        // blocking on a fixed thread pool, an inherently careless and unsafe
-        // situation.
-        return
+        // Fall back to checking the batched queue.
+        val batch = batched.poll(rnd)
+        if (batch eq null) {
+          // There are no more fibers neither in the overflow queue, nor in the
+          // batched queue. Since the queues are not a blocking queue, there is
+          // no point in busy waiting, especially since there is no guarantee
+          // that the `WorkerThread` which spawned this `HelperThread` will ever
+          // exit the blocking region, and new external work may never arrive on
+          // the `overflow` queue. This pathological case is not handled as it
+          // is a case of uncontrolled blocking on a fixed thread pool, an
+          // inherently careless and unsafe situation.
+          return
+        } else {
+          overflow.offerAll(batch, rnd)
+        }
       } else {
         fiber.run()
       }
