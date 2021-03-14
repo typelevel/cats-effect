@@ -23,12 +23,21 @@ import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
  * [[https://scal.cs.uni-salzburg.at/dq/ Scal]] project. The whole queue
  * consists of several [[java.util.concurrent.ConcurrentLinkedQueue]] instances
  * (the number of queues is a power of 2 for optimization purposes) which are
- * load balanced using random index generation.
+ * load balanced between using random index generation.
  *
- * @param threadCount the number of threads to load balance
+ * The Scal queue does not guarantee any ordering of dequeued elements and is
+ * more akin to the data structure known as '''bag'''. The naming is kept to
+ * honor the original development efforts.
+ *
+ * @param threadCount the number of threads to load balance between
  */
 private final class ScalQueue[A <: AnyRef](threadCount: Int) {
 
+  /**
+   * Calculates the next power of 2 using bitwise operations. This value
+   * actually represents the bitmask for the next power of 2 and can be used
+   * for indexing into the array of concurrent queues.
+   */
   private[this] val mask: Int = {
     // Bit twiddling hacks.
     // http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
@@ -40,8 +49,16 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     value | value >> 16
   }
 
+  /**
+   * The number of queues to load balance between (a power of 2 equal to
+   * `threadCount` if `threadCount` is a power of 2, otherwise the next power of
+   * 2 larger than `threadCount`).
+   */
   private[this] val numQueues: Int = mask + 1
 
+  /**
+   * The concurrent queues backing this Scal queue.
+   */
   private[this] val queues: Array[ConcurrentLinkedQueue[A]] = {
     val nq = numQueues
     val queues = new Array[ConcurrentLinkedQueue[A]](nq)
@@ -53,12 +70,26 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     queues
   }
 
+  /**
+   * Enqueues a single element on the Scal queue.
+   *
+   * @param a the element to be enqueued
+   * @param random an uncontended source of randomness, used for randomly
+   *               choosing a destination queue
+   */
   def offer(a: A, random: ThreadLocalRandom): Unit = {
     val idx = random.nextInt(numQueues)
     queues(idx).offer(a)
     ()
   }
 
+  /**
+   * Enqueues a batch of elements in a striped fashion.
+   *
+   * @param as the batch of elements to be enqueued
+   * @param random an uncontended source of randomness, used for randomly
+   *               choosing a destination queue
+   */
   def offerAll(as: Array[A], random: ThreadLocalRandom): Unit = {
     val nq = numQueues
     val len = as.length
@@ -73,6 +104,13 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     }
   }
 
+  /**
+   * Dequeues an element from this Scal queue.
+   *
+   * @param random an uncontended source of randomness, used for randomly
+   *               selecting the first queue to look for elements
+   * @return an element from this Scal queue or `null` if this queue is empty
+   */
   def poll(random: ThreadLocalRandom): A = {
     val nq = numQueues
     val from = random.nextInt(nq)
@@ -88,6 +126,14 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     a
   }
 
+  /**
+   * Checks if this Scal queue is empty.
+   *
+   * The Scal queue is defined as empty if '''all''' concurrent queues report
+   * that they contain no elements.
+   *
+   * @return `true` if this Scal queue is empty, `false` otherwise
+   */
   def isEmpty(): Boolean = {
     val nq = numQueues
     var i = 0
@@ -101,9 +147,20 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     empty
   }
 
+  /**
+   * Checks if this Scal queue is '''not''' empty.
+   *
+   * The Scal queue is defined as not empty if '''any''' concurrent queue
+   * reports that it contains some elements.
+   *
+   * @return `true` if this Scal queue is '''not''' empty, `false` otherwise
+   */
   def nonEmpty(): Boolean =
     !isEmpty()
 
+  /**
+   * Clears all concurrent queues that make up this Scal queue.
+   */
   def clear(): Unit = {
     val nq = numQueues
     var i = 0
