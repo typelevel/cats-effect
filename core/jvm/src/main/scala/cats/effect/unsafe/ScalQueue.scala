@@ -86,6 +86,20 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
   /**
    * Enqueues a batch of elements in a striped fashion.
    *
+   * @note By convention, the array of elements cannot contain any null
+   *       references, which are unsupported by the underlying concurrent
+   *       queues.
+   *
+   * @note This method has a somewhat high overhead when enqueueing every single
+   *       element. However, this is acceptable in practice because this method
+   *       is only used on the slowest path when blocking operations are
+   *       anticipated, which is not what the fiber runtime is optimized for.
+   *       This overhead can be substituted for the overhead of allocation of
+   *       array list instances which contain some of the fibers of the batch,
+   *       so that they can be enqueued with a bulk operation on each of the
+   *       concurrent queues. Maybe this can be explored in the future, but
+   *       remains to be seen if it is a worthwhile tradeoff.
+   *
    * @param as the batch of elements to be enqueued
    * @param random an uncontended source of randomness, used for randomly
    *               choosing a destination queue
