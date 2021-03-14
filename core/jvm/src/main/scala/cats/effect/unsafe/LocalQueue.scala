@@ -303,16 +303,65 @@ private final class LocalQueue {
     }
   }
 
+  /**
+   * Enqueues a batch of fibers to the local queue as a single operation without
+   * the enqueue overhead for each fiber. It returns the first fiber in the
+   * batch to be directly executed without first enqueueing it on the local
+   * queue.
+   *
+   * @note Can '''only''' be correctly called by the owner [[WorkerThread]] when
+   *       this queue is '''empty'''.
+   *
+   * @note By convention, each batch of fibers contains exactly
+   * `LocalQueueConstants.OverflowBatchSize` number of fibers.
+   *
+   * @note The references inside the batch are not nulled out. It is important
+   *       to never reference the batch after this usage, so that it can be
+   *       garbage collected, and ultimately, the referenced fibers.
+   *
+   * @note In an ideal world, this method would involve only a single publishing
+   *       of the `tail` of the queue to carry out the enqueueing of the whole
+   *       batch of fibers. However, there must exist some synchronization with
+   *       other threads, especially in situations where there are many more
+   *       worker threads compared to the number of processors. In particular,
+   *       there is one very unlucky interleaving where another worker thread
+   *       can begin a steal operation from this queue, while this queue is
+   *       filled to capacity. In that situation, the other worker thread would
+   *       reserve half of the fibers in this queue, to transfer them to its own
+   *       local queue. While that stealing operation is in place, this queue
+   *       effectively operates with half of its capacity for the purposes of
+   *       enqueueing new fibers. Should the stealing thread be preempted while
+   *       the stealing operation is still underway, and the worker thread which
+   *       owns this local queue executes '''every''' other fiber and tries
+   *       enqueueing a batch, doing so without synchronization can end up
+   *       overwriting the stolen fibers, simply because the size of the batch
+   *       is larger than half of the queue. However, in normal operation with a
+   *       properly sized thread pool, this pathological interleaving should
+   *       never occur, and is also the reason why this operation has the same
+   *       performance impact as the ideal non-synchronized version of this
+   *       method.
+   *
+   * @param batch the batch of fibers to be enqueued on this local queue
+   * @return the first fiber instance to be executed directly
+   */
   def enqueueBatch(batch: Array[IOFiber[_]]): IOFiber[_] = {
+    // Secure the first fiber in the batch, for direct execution.
     val fiber = batch(0)
+
+    // The offset into the batch. Updated with each transferred fiber.
     var offset = 1
 
+    // Loop until all fibers have been transferred.
     while (offset < OverflowBatchSize) {
+      // A plain, unsynchronized load of the tail of the local queue.
       val tl = tail
 
+      // A load of the head of the queue using `acquire` semantics.
       val hd = head.get()
       val steal = msb(hd)
 
+      // Calculate how many fibers from the batch can be transferred with the
+      // current loop iteration.
       val len = math.min(
         OverflowBatchSize - offset,
         LocalQueueCapacity - unsignedShortSubtraction(tl, steal))
@@ -324,11 +373,14 @@ private final class LocalQueue {
         offset += 1
       }
 
+      // Publish the new tail.
       val newTl = unsignedShortAddition(tl, len)
       tailPublisher.lazySet(newTl)
       tail = newTl
     }
 
+    // Return the first fiber to be directly executed without being enqueued on
+    // the local queue.
     fiber
   }
 
