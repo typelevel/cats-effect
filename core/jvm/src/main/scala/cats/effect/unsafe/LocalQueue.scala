@@ -210,12 +210,17 @@ private final class LocalQueue {
    *
    *   3. There is not enough free capacity in this queue and no other thread is
    *      stealing from it, in which case, half of this queue, including the new
-   *      fiber will be offloaded to the `overflow` queue as a bulk operation.
+   *      fiber will be offloaded to the `batched` queue as a bulk operation.
    *
    * @param fiber the fiber to be added to the local queue
-   * @param overflow a reference to a concurrent queue where excess fibers can
-   *                 be enqueued in the case that there is not enough capacity
-   *                 in the local queue
+   * @param batched a reference to a striped concurrent queue where half of the
+   *                queue can be spilled over as one bulk operation
+   * @param overflow a reference to a striped concurrent queue where excess
+   *                 fibers can be enqueued in the case that there is not enough
+   *                 capacity in the local queue
+   * @param random a reference to an uncontended source of randomness, to be
+   *               passed along to the striped concurrent queues when executing
+   *               their enqueue operations
    */
   def enqueue(
       fiber: IOFiber[_],
@@ -260,7 +265,7 @@ private final class LocalQueue {
       // Preparation for outcome 3.
       // There is no concurrent stealer, but there is also no leftover capacity
       // in the buffer, to accept the incoming fiber. Time to transfer half of
-      // the queue into the overflow queue. This is necessary because the next
+      // the queue into the batched queue. This is necessary because the next
       // fibers to be executed may spawn new fibers, which can quickly be
       // enqueued to the local queue, instead of always being delegated to the
       // overflow queue one by one.
@@ -268,12 +273,12 @@ private final class LocalQueue {
       val newHd = pack(realPlusHalf, realPlusHalf)
       if (head.compareAndSet(hd, newHd)) {
         // Outcome 3, half of the queue has been claimed by the owner
-        // `WorkerThread`, to be transferred to the overflow queue.
+        // `WorkerThread`, to be transferred to the batched queue.
         val batch = new Array[IOFiber[_]](OverflowBatchSize)
         var i = 0
-        // Transfer half of the buffer into the overflow buffer for a final
-        // bulk add operation into the external queue. References in the
-        // buffer are nulled out for garbage collection purposes.
+        // Transfer half of the buffer into the batch for a final bulk add
+        // operation into the batched queue. References in the buffer are nulled
+        // out for garbage collection purposes.
         while (i < HalfLocalQueueCapacity) {
           val idx = index(real + i)
           val f = buffer(idx)
@@ -281,12 +286,12 @@ private final class LocalQueue {
           batch(i) = f
           i += 1
         }
-        // Also add the incoming fiber to the overflow buffer.
+        // Also add the incoming fiber to the batch.
         batch(i) = fiber
-        // Enqueue all of the fibers on the overflow queue with a bulk add
+        // Enqueue all of the fibers on the batched queue with a bulk add
         // operation.
         batched.offer(batch, random)
-        // The incoming fiber has been enqueued on the overflow queue. Proceed
+        // The incoming fiber has been enqueued on the batched queue. Proceed
         // to break out of the loop.
         return
       }
