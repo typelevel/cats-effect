@@ -592,7 +592,7 @@ private final class LocalQueue {
   }
 
   /**
-   * Steals all enqueued fibers and transfers them to the provided list.
+   * Steals all enqueued fibers and transfers them to the provided array.
    *
    * This method is called by the runtime when blocking is detected in order to
    * give a chance to the fibers enqueued behind the `head` of the queue to run
@@ -610,7 +610,9 @@ private final class LocalQueue {
    * main difference being that the `head` of the queue is moved forward to
    * match the `tail` of the queue, thus securing ''all'' remaining fibers.
    *
-   * @param dst the destination list in which all remaining fibers are
+   * @note Can '''only''' be correctly called by the owner [[WorkerThread]].
+   *
+   * @param dst the destination array in which all remaining fibers are
    *            transferred
    */
   def drain(dst: Array[IOFiber[_]]): Unit = {
