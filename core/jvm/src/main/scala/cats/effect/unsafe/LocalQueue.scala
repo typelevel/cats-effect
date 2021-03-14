@@ -298,6 +298,35 @@ private final class LocalQueue {
     }
   }
 
+  def enqueueBatch(batch: Array[IOFiber[_]]): IOFiber[_] = {
+    val fiber = batch(0)
+    var offset = 1
+
+    while (offset < OverflowBatchSize) {
+      val tl = tail
+
+      val hd = head.get()
+      val steal = msb(hd)
+
+      val len = math.min(
+        OverflowBatchSize - offset,
+        LocalQueueCapacity - unsignedShortSubtraction(tl, steal))
+      var i = 0
+      while (i < len) {
+        val idx = index(tl + i)
+        buffer(idx) = batch(offset)
+        i += 1
+        offset += 1
+      }
+
+      val newTl = unsignedShortAddition(tl, len)
+      tailPublisher.lazySet(newTl)
+      tail = newTl
+    }
+
+    fiber
+  }
+
   /**
    * Dequeues a fiber from the head of the local queue.
    *
