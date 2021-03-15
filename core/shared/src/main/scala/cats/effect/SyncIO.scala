@@ -498,10 +498,9 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
     def empty: SyncIO[A] = pure(A.empty)
   }
 
-  implicit val alignForIO: Align[SyncIO] =
-    new SyncIOAlign
+  implicit def alignForSyncIO: Align[SyncIO] = _alignForSyncIO
 
-  protected class SyncIOAlign extends Align[SyncIO] {
+  private[this] val _alignForSyncIO = new Align[SyncIO] {
     def align[A, B](fa: SyncIO[A], fb: SyncIO[B]): SyncIO[Ior[A, B]] =
       alignWith(fa, fb)(identity)
 

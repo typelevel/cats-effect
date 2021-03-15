@@ -1230,10 +1230,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       a.handleErrorWith(_ => b)
   }
 
-  implicit val alignForIO: Align[IO] =
-    new IOAlign
+  implicit def alignForIO: Align[IO] = _alignForIO
 
-  protected class IOAlign extends Align[IO] {
+  private[this] val _alignForIO = new Align[IO] {
     def align[A, B](fa: IO[A], fb: IO[B]): IO[Ior[A, B]] =
       alignWith(fa, fb)(identity)
 
