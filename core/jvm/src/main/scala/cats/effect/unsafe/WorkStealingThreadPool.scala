@@ -37,7 +37,7 @@ import java.util.concurrent.{
   RejectedExecutionException,
   ThreadLocalRandom
 }
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -93,13 +93,14 @@ private[effect] final class WorkStealingThreadPool(
    * The 16 least significant bits track the number of worker threads that are searching
    * for work to steal from other worker threads.
    */
-  private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
+  private[this] val state: AtomicIntegerCompat =
+    new AtomicIntegerCompat(threadCount << UnparkShift)
 
   /**
    * An atomic counter used for generating unique indices for distinguishing and
    * naming helper threads.
    */
-  private[this] val blockingThreadCounter: AtomicInteger = new AtomicInteger(0)
+  private[this] val blockingThreadCounter: AtomicIntegerCompat = new AtomicIntegerCompat(0)
 
   /**
    * The shutdown latch of the work stealing thread pool.
@@ -223,7 +224,7 @@ private[effect] final class WorkStealingThreadPool(
    *         `false` otherwise
    */
   private[this] def notifyShouldWakeup(): Boolean = {
-    val st = state.get()
+    val st = state.getAcquireCompat()
     (st & SearchMask) == 0 && ((st & UnparkMask) >>> UnparkShift) < threadCount
   }
 
@@ -260,7 +261,7 @@ private[effect] final class WorkStealingThreadPool(
    *         for work to steal from other worker threads, `false` otherwise
    */
   private[unsafe] def transitionWorkerToSearching(): Boolean = {
-    val st = state.get()
+    val st = state.getAcquireCompat()
 
     // Try to keep at most around 50% threads that are searching for work, to
     // reduce unnecessary contention. It is not exactly 50%, but it is a good
@@ -439,7 +440,7 @@ private[effect] final class WorkStealingThreadPool(
       }
 
       // It is now safe to clean up the state of the thread pool.
-      state.lazySet(0)
+      state.setReleaseCompat(0)
 
       // Remove the references to the worker threads so that they can be cleaned
       // up, including their worker queues.
