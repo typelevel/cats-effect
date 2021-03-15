@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe;
+package cats.effect;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
-final class AtomicBooleanCompat extends AtomicBoolean {
+final class AtomicIntegerCompat extends AtomicInteger {
 
   public static final long serialVersionUID = 1L;
 
   private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
-  private static final MethodType GET_METHOD_TYPE = MethodType.methodType(boolean.class);
-  private static final MethodType SET_METHOD_TYPE = MethodType.methodType(void.class, boolean.class);
+  private static final MethodType GET_METHOD_TYPE = MethodType.methodType(int.class);
+  private static final MethodType SET_METHOD_TYPE = MethodType.methodType(void.class, int.class);
   private static final MethodHandle GET_PLAIN_METHOD_HANDLE;
   private static final MethodHandle GET_ACQUIRE_METHOD_HANDLE;
   private static final MethodHandle SET_RELEASE_METHOD_HANDLE;
@@ -40,10 +40,10 @@ final class AtomicBooleanCompat extends AtomicBoolean {
 
   private static MethodHandle makeMethodHandle(String name, MethodType type, String fallback) {
     try {
-      return LOOKUP.findVirtual(AtomicBooleanCompat.class, name, type);
+      return LOOKUP.findVirtual(AtomicIntegerCompat.class, name, type);
     } catch (NoSuchMethodException e) {
       try {
-        return LOOKUP.findVirtual(AtomicBooleanCompat.class, fallback, type);
+        return LOOKUP.findVirtual(AtomicIntegerCompat.class, fallback, type);
       } catch (Throwable t) {
         throw new ExceptionInInitializerError(t);
       }
@@ -52,30 +52,30 @@ final class AtomicBooleanCompat extends AtomicBoolean {
     }
   }
 
-  private boolean value;
+  private int value;
 
-  AtomicBooleanCompat(final boolean value) {
+  AtomicIntegerCompat(final int value) {
     super(value);
     this.value = value;
   }
 
-  public boolean getPlainCompat() throws Throwable {
-    return (boolean) GET_PLAIN_METHOD_HANDLE.invokeExact(this);
+  public int getPlainCompat() throws Throwable {
+    return (int) GET_PLAIN_METHOD_HANDLE.invokeExact(this);
   }
 
-  public boolean getAcquireCompat() throws Throwable {
-    return (boolean) GET_ACQUIRE_METHOD_HANDLE.invokeExact(this);
+  public int getAcquireCompat() throws Throwable {
+    return (int) GET_ACQUIRE_METHOD_HANDLE.invokeExact(this);
   }
 
-  public void setReleaseCompat(final boolean newValue) throws Throwable {
+  public void setReleaseCompat(final int newValue) throws Throwable {
     SET_RELEASE_METHOD_HANDLE.invokeExact(this, newValue);
   }
 
-  private boolean fauxGetPlain() {
+  private int fauxGetPlain() {
     return this.value;
   }
 
-  private void fauxSetRelease(final boolean newValue) {
+  private void fauxSetRelease(final int newValue) {
     this.lazySet(newValue);
     this.value = newValue;
   }

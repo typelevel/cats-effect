@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe;
+package cats.effect;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
