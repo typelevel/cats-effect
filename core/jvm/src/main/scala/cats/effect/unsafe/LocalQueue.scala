@@ -494,7 +494,7 @@ private final class LocalQueue {
           } else {
             // Failed to opportunistically restore the value of the `head`. Load
             // it again and retry.
-            hd = head.get()
+            hd = head.getAcquireCompat()
             newReal = lsb(hd)
           }
         }

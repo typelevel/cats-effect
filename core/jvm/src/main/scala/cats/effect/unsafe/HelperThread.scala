@@ -20,7 +20,6 @@ package unsafe
 import scala.concurrent.{BlockContext, CanAwait}
 
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 /**
  * A helper thread which is spawned whenever a blocking action is being executed
@@ -57,7 +56,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
  */
 private[effect] final class HelperThread(
     private[this] val threadPrefix: String,
-    private[this] val blockingThreadCounter: AtomicInteger,
+    private[this] val blockingThreadCounter: AtomicIntegerCompat,
     private[this] val overflow: ConcurrentLinkedQueue[IOFiber[_]],
     private[this] val pool: WorkStealingThreadPool)
     extends Thread
@@ -68,7 +67,7 @@ private[effect] final class HelperThread(
    * [[HelperThread]] signals that it has successfully exited the blocking code
    * region and that this [[HelperThread]] should finalize.
    */
-  private[this] val signal: AtomicBoolean = new AtomicBoolean(false)
+  private[this] val signal: AtomicBooleanCompat = new AtomicBooleanCompat(false)
 
   /**
    * A flag which is set whenever a blocking code region is entered. This is
@@ -93,7 +92,7 @@ private[effect] final class HelperThread(
    * and die.
    */
   private[unsafe] def setSignal(): Unit = {
-    signal.lazySet(true)
+    signal.setReleaseCompat(true)
   }
 
   /**
@@ -122,7 +121,7 @@ private[effect] final class HelperThread(
     // Check for exit condition. Do not continue if the `WorkStealingPool` has
     // been shut down, or the `WorkerThread` which spawned this `HelperThread`
     // has finished blocking.
-    while (!isInterrupted() && !signal.get()) {
+    while (!isInterrupted() && !signal.getAcquireCompat()) {
       val fiber = overflow.poll()
 
       if (fiber eq null) {

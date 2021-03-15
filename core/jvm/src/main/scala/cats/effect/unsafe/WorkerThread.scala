@@ -22,7 +22,6 @@ import scala.concurrent.{BlockContext, CanAwait}
 
 import java.util.ArrayList
 import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -45,11 +44,11 @@ private[effect] final class WorkerThread(
     // Thread prefix string used for naming new instances of `WorkerThread` and `HelperThread`.
     private[this] val threadPrefix: String,
     // Instance to a global counter used when naming new instances of `HelperThread`.
-    private[this] val blockingThreadCounter: AtomicInteger,
+    private[this] val blockingThreadCounter: AtomicIntegerCompat,
     // Local queue instance with exclusive write access.
     private[this] val queue: LocalQueue,
     // The state of the `WorkerThread` (parked/unparked).
-    private[this] val parked: AtomicBoolean,
+    private[this] val parked: AtomicBooleanCompat,
     // Overflow queue used by the local queue for offloading excess fibers, as well as
     // for drawing fibers when the local queue is exhausted.
     private[this] val overflow: ConcurrentLinkedQueue[IOFiber[_]],
@@ -221,7 +220,7 @@ private[effect] final class WorkerThread(
         LockSupport.park(pool)
 
         // Spurious wakeup check.
-        cont = parked.get()
+        cont = parked.getAcquireCompat()
       }
     }
 
@@ -279,7 +278,7 @@ private[effect] final class WorkerThread(
 
         case 4 =>
           // Set the worker thread parked signal.
-          parked.lazySet(true)
+          parked.setReleaseCompat(true)
           // Announce that the worker thread is parking.
           pool.transitionWorkerToParked()
           // Park the thread.
@@ -290,7 +289,7 @@ private[effect] final class WorkerThread(
 
         case 5 =>
           // Set the worker thread parked signal.
-          parked.lazySet(true)
+          parked.setReleaseCompat(true)
           // Announce that the worker thread which was searching for work is now
           // parking. This checks if the parking worker thread was the last
           // actively searching thread.

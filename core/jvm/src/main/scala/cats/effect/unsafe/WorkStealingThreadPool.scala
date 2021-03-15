@@ -37,7 +37,6 @@ import java.util.concurrent.{
   RejectedExecutionException,
   ThreadLocalRandom
 }
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -77,7 +76,7 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[this] val workerThreads: Array[WorkerThread] = new Array(threadCount)
   private[this] val localQueues: Array[LocalQueue] = new Array(threadCount)
-  private[this] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
+  private[this] val parkedSignals: Array[AtomicBooleanCompat] = new Array(threadCount)
 
   /**
    * The overflow queue on which fibers coming from outside the pool are
@@ -105,7 +104,7 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * The shutdown latch of the work stealing thread pool.
    */
-  private[this] val done: AtomicBoolean = new AtomicBoolean(false)
+  private[this] val done: AtomicBooleanCompat = new AtomicBooleanCompat(false)
 
   // Thread pool initialization block.
   {
@@ -114,7 +113,7 @@ private[effect] final class WorkStealingThreadPool(
     while (i < threadCount) {
       val queue = new LocalQueue()
       localQueues(i) = queue
-      val parkedSignal = new AtomicBoolean(false)
+      val parkedSignal = new AtomicBooleanCompat(false)
       parkedSignals(i) = parkedSignal
       val index = i
       val thread =
@@ -375,7 +374,7 @@ private[effect] final class WorkStealingThreadPool(
       // submit work to the `ExecutionContext` represented by this thread pool
       // after it has been shut down. Additionally, no one else can create raw
       // fibers directly, as `IOFiber` is not a public type.
-      if (done.get()) {
+      if (done.getAcquireCompat()) {
         throw new RejectedExecutionException("The work stealing thread pool has been shut down")
       }
 
