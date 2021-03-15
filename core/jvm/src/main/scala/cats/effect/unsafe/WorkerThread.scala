@@ -249,6 +249,9 @@ private[effect] final class WorkerThread(
             // enqueue all of the fibers on the local queue and execute the
             // first one.
             val fiber = queue.enqueueBatch(batch)
+            // Many fibers have been enqueued on the local queue. Notify other
+            // worker threads.
+            pool.notifyParked(rnd)
             // Directly run a fiber from the batch.
             fiber.run()
             // Transition to executing fibers from the local queue.
