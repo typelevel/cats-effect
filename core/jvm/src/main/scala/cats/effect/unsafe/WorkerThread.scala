@@ -249,7 +249,7 @@ private[effect] final class WorkerThread(
             // enqueue all of the fibers on the local queue and execute the
             // first one.
             val fiber = queue.enqueueBatch(batch)
-            // Run the first fiber from the batch.
+            // Directly run a fiber from the batch.
             fiber.run()
             // Transition to executing fibers from the local queue.
             state = 8

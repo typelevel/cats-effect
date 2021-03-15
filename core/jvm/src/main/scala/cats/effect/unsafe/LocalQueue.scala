@@ -305,9 +305,8 @@ private final class LocalQueue {
 
   /**
    * Enqueues a batch of fibers to the local queue as a single operation without
-   * the enqueue overhead for each fiber. It returns the first fiber in the
-   * batch to be directly executed without first enqueueing it on the local
-   * queue.
+   * the enqueue overhead for each fiber. It a fiber from the batch to be
+   * directly executed without first enqueueing it on the local queue.
    *
    * @note Can '''only''' be correctly called by the owner [[WorkerThread]] when
    *       this queue is '''empty'''.
@@ -342,46 +341,45 @@ private final class LocalQueue {
    *       method.
    *
    * @param batch the batch of fibers to be enqueued on this local queue
-   * @return the first fiber instance to be executed directly
+   * @return a fiber to be executed directly
    */
   def enqueueBatch(batch: Array[IOFiber[_]]): IOFiber[_] = {
-    // Secure the first fiber in the batch, for direct execution.
-    val fiber = batch(0)
+    // A plain, unsynchronized load of the tail of the local queue.
+    val tl = tail
 
-    // The offset into the batch. Updated with each transferred fiber.
-    var offset = 1
-
-    // Loop until all fibers have been transferred.
-    while (offset < OverflowBatchSize) {
-      // A plain, unsynchronized load of the tail of the local queue.
-      val tl = tail
-
+    while (true) {
       // A load of the head of the queue using `acquire` semantics.
       val hd = head.get()
       val steal = msb(hd)
 
-      // Calculate how many fibers from the batch can be transferred with the
-      // current loop iteration.
-      val len = math.min(
-        OverflowBatchSize - offset,
-        LocalQueueCapacity - unsignedShortSubtraction(tl, steal))
-      var i = 0
-      while (i < len) {
-        val idx = index(tl + i)
-        buffer(idx) = batch(offset)
-        i += 1
-        offset += 1
-      }
+      // Check the current occupancy of the queue. In the one pathological case
+      // described in the scaladoc for this class, this number will be equal to
+      // `LocalQueueCapacity`.
+      val len = unsignedShortSubtraction(tl, steal)
+      if (len <= HalfLocalQueueCapacity) {
+        // It is safe to transfer the fibers from the batch to the queue.
+        var i = 0
+        while (i < HalfLocalQueueCapacity) {
+          val idx = index(tl + i)
+          buffer(idx) = batch(i)
+          i += 1
+        }
 
-      // Publish the new tail.
-      val newTl = unsignedShortAddition(tl, len)
-      tailPublisher.lazySet(newTl)
-      tail = newTl
+        // Publish the new tail.
+        val newTl = unsignedShortAddition(tl, HalfLocalQueueCapacity)
+        tailPublisher.lazySet(newTl)
+        tail = newTl
+        // Return a fiber to be directly executed, withouth enqueueing it first
+        // on the local queue.
+        return batch(i)
+      }
     }
 
-    // Return the first fiber to be directly executed without being enqueued on
-    // the local queue.
-    fiber
+    // Technically this is unreachable code. The only way to break out of the
+    // loop is to return in the if statement. However, `while` loops evaluate
+    // to `Unit` in Scala, which does not match the return type of the method,
+    // so **something** has to be returned.
+    null
   }
 
   /**
