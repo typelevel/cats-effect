@@ -20,9 +20,9 @@ import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
 
 import java.util.{concurrent => juc}
-import juc.atomic.{AtomicBoolean, AtomicReference}
+import juc.atomic.AtomicReference
 
-private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(true) {
+private[effect] abstract class IOFiberPlatform[A] extends AtomicBooleanCompat(true) {
   this: IOFiber[A] =>
 
   private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
@@ -50,7 +50,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(true) {
 
     IO.async[Any] { nextCb =>
       for {
-        done <- IO(new AtomicBoolean(false))
+        done <- IO(new AtomicBooleanCompat(false))
         cb <- IO(new AtomicReference[Either[Throwable, Unit] => Unit](null))
 
         canInterrupt <- IO(new juc.Semaphore(0))
@@ -77,7 +77,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(true) {
                     Left(t)
                 } finally {
                   canInterrupt.tryAcquire()
-                  done.set(true)
+                  done.setReleaseCompat(true)
 
                   if (!many) {
                     val cb0 = cb.getAndSet(null)
@@ -104,7 +104,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(true) {
               // if done is false, and we can't get the semaphore, it means
               // that the action hasn't *yet* started, so we busy-wait for it
               var break = true
-              while (break && !done.get()) {
+              while (break && !done.getAcquireCompat()) {
                 if (canInterrupt.tryAcquire()) {
                   try {
                     target.interrupt()
@@ -118,10 +118,10 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(true) {
 
             val repeat = if (many) {
               IO {
-                while (!done.get()) {
+                while (!done.getAcquireCompat()) {
                   if (canInterrupt.tryAcquire()) {
                     try {
-                      while (!done.get()) {
+                      while (!done.getAcquireCompat()) {
                         target.interrupt() // it's hammer time!
                       }
                     } finally {
@@ -134,7 +134,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(true) {
               }
             } else {
               IO {
-                if (done.get() && cb.get() != null) {
+                if (done.getAcquireCompat() && cb.get() != null) {
                   // this indicates that the blocking action completed *before* we registered the callback
                   finCb(RightUnit) // ...so we just complete cancelation ourselves
                 }

@@ -21,19 +21,17 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-final class AtomicBooleanCompat extends AtomicBoolean {
+class AtomicBooleanCompat extends AtomicBoolean {
 
   public static final long serialVersionUID = 1L;
 
   private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
   private static final MethodType GET_METHOD_TYPE = MethodType.methodType(boolean.class);
   private static final MethodType SET_METHOD_TYPE = MethodType.methodType(void.class, boolean.class);
-  private static final MethodHandle GET_PLAIN_METHOD_HANDLE;
   private static final MethodHandle GET_ACQUIRE_METHOD_HANDLE;
   private static final MethodHandle SET_RELEASE_METHOD_HANDLE;
 
   static {
-    GET_PLAIN_METHOD_HANDLE = makeMethodHandle("getPlain", GET_METHOD_TYPE, "fauxGetPlain");
     GET_ACQUIRE_METHOD_HANDLE = makeMethodHandle("getAcquire", GET_METHOD_TYPE, "get");
     SET_RELEASE_METHOD_HANDLE = makeMethodHandle("setRelease", SET_METHOD_TYPE, "fauxSetRelease");
   }
@@ -59,20 +57,12 @@ final class AtomicBooleanCompat extends AtomicBoolean {
     this.value = value;
   }
 
-  public boolean getPlainCompat() throws Throwable {
-    return (boolean) GET_PLAIN_METHOD_HANDLE.invokeExact(this);
-  }
-
   public boolean getAcquireCompat() throws Throwable {
     return (boolean) GET_ACQUIRE_METHOD_HANDLE.invokeExact(this);
   }
 
   public void setReleaseCompat(final boolean newValue) throws Throwable {
     SET_RELEASE_METHOD_HANDLE.invokeExact(this, newValue);
-  }
-
-  private boolean fauxGetPlain() {
-    return this.value;
   }
 
   private void fauxSetRelease(final boolean newValue) {

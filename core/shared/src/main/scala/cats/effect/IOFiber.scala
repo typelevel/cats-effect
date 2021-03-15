@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.effect.unsafe._
+import cats.effect.unsafe.{HelperThread, IORuntime, WorkStealingThreadPool, WorkerThread}
 
 import cats.arrow.FunctionK
 
@@ -26,7 +26,6 @@ import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.atomic.AtomicBoolean
 import scala.util.control.NoStackTrace
 
 /*
@@ -75,7 +74,7 @@ private final class IOFiber[A](
     with FiberIO[A]
     with Runnable {
   /* true when semantically blocking (ensures that we only unblock *once*) */
-  suspended: AtomicBoolean =>
+  suspended: AtomicBooleanCompat =>
 
   import IO._
   import IOFiberConstants._
@@ -610,7 +609,7 @@ private final class IOFiber[A](
              */
             @tailrec
             def stateLoop(): Unit = {
-              val tag = state.get()
+              val tag = state.getAcquireCompat()
               if (tag <= ContStateWaiting) {
                 if (!state.compareAndSet(tag, ContStateResult)) stateLoop()
                 else {
@@ -832,7 +831,7 @@ private final class IOFiber[A](
      *
      * http://psy-lob-saw.blogspot.com/2012/12/atomiclazyset-is-performance-win-for.html
      */
-    suspended.lazySet(false)
+    suspended.setReleaseCompat(false)
 
     /* clear out literally everything to avoid any possible memory leaks */
 
@@ -913,7 +912,7 @@ private final class IOFiber[A](
    * http://psy-lob-saw.blogspot.com/2012/12/atomiclazyset-is-performance-win-for.html
    */
   private[this] def suspend(): Unit =
-    suspended.lazySet(true)
+    suspended.setReleaseCompat(true)
 
   /* returns the *new* context, not the old */
   private[this] def popContext(): ExecutionContext = {
@@ -1042,7 +1041,7 @@ private final class IOFiber[A](
 
   // TODO figure out if the JVM ever optimizes this away
   private[this] def readBarrier(): Unit = {
-    suspended.get()
+    suspended.getAcquireCompat()
     ()
   }
 

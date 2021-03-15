@@ -16,9 +16,8 @@
 
 package cats.effect
 
-// TODO rename
-// `result` is published by a volatile store on the atomic integer extended
-// by this class.
-private class ContState(var wasFinalizing: Boolean) extends AtomicIntegerCompat(0) {
-  var result: Either[Throwable, Any] = _
+import java.util.concurrent.atomic.AtomicInteger
+
+class AtomicIntegerCompat(value: Int) extends AtomicInteger(value) {
+  def getAcquireCompat(): Int = get()
 }

@@ -21,19 +21,17 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.concurrent.atomic.AtomicInteger;
 
-final class AtomicIntegerCompat extends AtomicInteger {
+class AtomicIntegerCompat extends AtomicInteger {
 
   public static final long serialVersionUID = 1L;
 
   private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
   private static final MethodType GET_METHOD_TYPE = MethodType.methodType(int.class);
   private static final MethodType SET_METHOD_TYPE = MethodType.methodType(void.class, int.class);
-  private static final MethodHandle GET_PLAIN_METHOD_HANDLE;
   private static final MethodHandle GET_ACQUIRE_METHOD_HANDLE;
   private static final MethodHandle SET_RELEASE_METHOD_HANDLE;
 
   static {
-    GET_PLAIN_METHOD_HANDLE = makeMethodHandle("getPlain", GET_METHOD_TYPE, "fauxGetPlain");
     GET_ACQUIRE_METHOD_HANDLE = makeMethodHandle("getAcquire", GET_METHOD_TYPE, "get");
     SET_RELEASE_METHOD_HANDLE = makeMethodHandle("setRelease", SET_METHOD_TYPE, "fauxSetRelease");
   }
@@ -59,20 +57,12 @@ final class AtomicIntegerCompat extends AtomicInteger {
     this.value = value;
   }
 
-  public int getPlainCompat() throws Throwable {
-    return (int) GET_PLAIN_METHOD_HANDLE.invokeExact(this);
-  }
-
   public int getAcquireCompat() throws Throwable {
     return (int) GET_ACQUIRE_METHOD_HANDLE.invokeExact(this);
   }
 
   public void setReleaseCompat(final int newValue) throws Throwable {
     SET_RELEASE_METHOD_HANDLE.invokeExact(this, newValue);
-  }
-
-  private int fauxGetPlain() {
-    return this.value;
   }
 
   private void fauxSetRelease(final int newValue) {
