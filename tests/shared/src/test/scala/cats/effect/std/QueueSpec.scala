@@ -340,6 +340,17 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
     name >> {
 
+      "should return the queue size when added to" in real {
+        for {
+          q <- constructor(1)
+          _ <- offer(q, 1)
+          _ <- take(q)
+          _ <- offer(q, 2)
+          sz <- q.size
+          r <- IO(sz must beEqualTo(1))
+        } yield r
+      }
+
       "should return None on tryTake when the queue is empty" in real {
         for {
           q <- constructor(1)
