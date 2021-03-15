@@ -123,6 +123,10 @@ private final class IOFiber[A](
   /* similar prefetch for EndFiber */
   private[this] val IOEndFiber = IO.EndFiber
 
+  private[this] val ContStateInitial = ContState.Initial
+  private[this] val ContStateWaiting = ContState.Waiting
+  private[this] val ContStateResult = ContState.Result
+
   private[this] val cancellationCheckThreshold = runtime.config.cancellationCheckThreshold
   private[this] val autoYieldThreshold = runtime.config.autoYieldThreshold
 
@@ -592,6 +596,8 @@ private final class IOFiber[A](
                */
             }
 
+            val result = ContStateResult(e)
+
             /*
              * CAS loop to update the Cont state machine:
              * 0 - Initial
@@ -610,11 +616,11 @@ private final class IOFiber[A](
              */
             @tailrec
             def stateLoop(): Unit = {
-              val tag = state.get()
-              if (tag <= ContStateWaiting) {
-                if (!state.compareAndSet(tag, ContStateResult)) stateLoop()
+              val phase = state.get()
+              if (!phase.isInstanceOf[ContState.Result]) {
+                if (!state.compareAndSet(phase, result)) stateLoop()
                 else {
-                  if (tag == ContStateWaiting) {
+                  if (phase eq ContStateWaiting) {
                     /*
                      * `get` has been sequenced and is waiting
                      * reacquire runloop to continue
@@ -625,8 +631,6 @@ private final class IOFiber[A](
               }
             }
 
-            // The result will be published when the CAS on `state` succeeds.
-            state.result = e
             stateLoop()
           }
 
@@ -714,7 +718,7 @@ private final class IOFiber[A](
              *   which would have been caught by the previous branch unless the `cb` has
              *   completed and the state is `Result`
              */
-            val result = state.result
+            val result = state.get().asInstanceOf[ContState.Result].result
 
             if (!shouldFinalize()) {
               /* we weren't cancelled, so resume the runloop */

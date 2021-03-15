@@ -16,11 +16,17 @@
 
 package cats.effect
 
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 // TODO rename
 // `result` is published by a volatile store on the atomic integer extended
 // by this class.
-private class ContState(var wasFinalizing: Boolean) extends AtomicInteger(0) {
-  var result: Either[Throwable, Any] = _
+private final class ContState(var wasFinalizing: Boolean)
+    extends AtomicReference[ContState.Phase](ContState.Initial)
+
+object ContState {
+  sealed abstract class Phase
+  case object Initial extends Phase
+  case object Waiting extends Phase
+  final case class Result(result: Either[Throwable, Any]) extends Phase
 }
