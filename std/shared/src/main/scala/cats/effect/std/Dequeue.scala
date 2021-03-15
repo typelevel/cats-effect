@@ -50,6 +50,7 @@ trait Dequeue[F[_], A] extends Queue[F, A] with DequeueSource[F, A] with Dequeue
       def takeFront: G[A] = f(self.takeFront)
       def tryTakeFront: G[Option[A]] = f(self.tryTakeFront)
       def reverse: G[Unit] = f(self.reverse)
+      def size: G[Int] = f(self.size)
     }
 
 }
@@ -109,6 +110,8 @@ object Dequeue {
             fa.tryOfferFront(g(b))
 
           override def reverse: F[Unit] = fa.reverse
+
+          override def size: F[Int] = fa.size
         }
     }
 
@@ -233,6 +236,8 @@ object Dequeue {
         }
         .flatten
         .uncancelable
+
+    override def size: F[Int] = state.get.map(_.size)
   }
 
   private def assertNonNegative(capacity: Int): Unit =
@@ -314,6 +319,9 @@ object DequeueSource {
 
           override def tryTakeFront: F[Option[B]] =
             fa.tryTakeFront.map(_.map(f))
+
+          override def size: F[Int] =
+            fa.size
         }
     }
 }
