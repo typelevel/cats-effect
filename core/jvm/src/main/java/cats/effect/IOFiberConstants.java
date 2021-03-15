@@ -48,5 +48,6 @@ final class IOFiberConstants {
   // ContState tags
   public static final int ContStateInitial = 0;
   public static final int ContStateWaiting = 1;
-  public static final int ContStateResult = 2;
+  public static final int ContStateWinner = 2;
+  public static final int ContStateResult = 3;
 }

@@ -621,8 +621,11 @@ private final class IOFiber[A](
             def stateLoop(): Unit = {
               val tag = state.get()
               if (tag <= ContStateWaiting) {
-                if (!state.compareAndSet(tag, ContStateResult)) stateLoop()
+                if (!state.compareAndSet(tag, ContStateWinner)) stateLoop()
                 else {
+                  state.result = e
+                  // The winner has to publish the result.
+                  state.lazySet(ContStateResult)
                   if (tag == ContStateWaiting) {
                     /*
                      * `get` has been sequenced and is waiting
@@ -634,8 +637,6 @@ private final class IOFiber[A](
               }
             }
 
-            // The result will be published when the CAS on `state` succeeds.
-            state.result = e
             stateLoop()
           }
 
@@ -723,6 +724,10 @@ private final class IOFiber[A](
              *   which would have been caught by the previous branch unless the `cb` has
              *   completed and the state is `Result`
              */
+
+            // Wait for the winner to publish the result.
+            while (state.get() != ContStateResult) ()
+
             val result = state.result
 
             if (!shouldFinalize()) {
