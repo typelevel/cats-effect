@@ -44,8 +44,8 @@ import cats.syntax.all._
  * outcomes, which are encoded by the datatype [[Outcome]]:
  *
  *   1. [[Outcome.Succeeded]]: indicates success with a value of type `A`
- *   1. [[Outcome.Errored]]: indicates failure with a value of type `E`
- *   1. [[Outcome.Canceled]]: indicates abnormal termination
+ *   2. [[Outcome.Errored]]: indicates failure with a value of type `E`
+ *   3. [[Outcome.Canceled]]: indicates abnormal termination
  *
  * Additionally, a fiber may never produce an outcome, in which case it is said
  * to be non-terminating.
@@ -65,9 +65,9 @@ import cats.syntax.all._
  *      it cannot be reversed. In contrast, [[cats.MonadError.handleError handleError]]
  *      exposes the ability to catch and recover from errors, and then proceed
  *      with normal execution.
- *   1. Cancellation can be masked via [[MonadCancel!.uncancelable]]. Masking
+ *   2. Cancellation can be masked via [[MonadCancel!.uncancelable]]. Masking
  *      is discussed in the next section.
- *   1. [[GenSpawn]] introduces external cancellation, another cancellation
+ *   3. [[GenSpawn]] introduces external cancellation, another cancellation
  *      mechanism by which fibers can be canceled by external parties.
  *
  * ==Masking==
