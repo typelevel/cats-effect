@@ -73,6 +73,15 @@ with that as an error code (via <code class="language-plaintext highlighter-roug
 <code class="language-plaintext highlighter-rouge">sys.exit</code> is called</li>
 </ul>
 
+<p>Or if you don’t need to use arguments and return exit codes:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+
+<span class="k">object</span> <span class="nc">Main</span> <span class="k">extends</span> <span class="nv">IOApp</span><span class="o">.</span><span class="py">Simple</span> <span class="o">{</span>
+  <span class="k">val</span> <span class="nv">run</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Hello, World!"</span><span class="o">))</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
 <h3 id="cancelation-and-safe-resource-release">Cancelation and Safe Resource Release</h3>
 
 <p>The <code class="language-plaintext highlighter-rouge">cats.effect.IO</code> implementation is cancelable and so is <code class="language-plaintext highlighter-rouge">IOApp</code>.</p>
