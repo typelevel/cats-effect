@@ -49,6 +49,7 @@ abstract class Queue[F[_], A] extends QueueSource[F, A] with QueueSink[F, A] { s
     new Queue[G, A] {
       def offer(a: A): G[Unit] = f(self.offer(a))
       def tryOffer(a: A): G[Boolean] = f(self.tryOffer(a))
+      def size: G[Int] = f(self.size)
       val take: G[A] = f(self.take)
       val tryTake: G[Option[A]] = f(self.tryTake)
     }
@@ -231,6 +232,9 @@ object Queue {
         }
         .flatten
         .uncancelable
+
+    def size: F[Int] = state.get.map(_.size)
+
   }
 
   private final class BoundedQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
@@ -251,6 +255,7 @@ object Queue {
 
     protected def onTryOfferNoCapacity(s: State[F, A], a: A): (State[F, A], F[Boolean]) =
       s -> F.pure(false)
+
   }
 
   private final class DroppingQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
@@ -289,6 +294,7 @@ object Queue {
       val (_, rest) = queue.dequeue
       State(rest.enqueue(a), size, takers, offerers) -> F.pure(true)
     }
+
   }
 
   private final case class State[F[_], A](
@@ -315,6 +321,8 @@ object Queue {
             fa.take.map(f)
           override def tryTake: F[Option[B]] =
             fa.tryTake.map(_.map(f))
+          override def size: F[Int] =
+            fa.size
         }
     }
 }
@@ -336,6 +344,8 @@ trait QueueSource[F[_], A] {
    *         element was available
    */
   def tryTake: F[Option[A]]
+
+  def size: F[Int]
 }
 
 object QueueSource {
@@ -345,8 +355,11 @@ object QueueSource {
         new QueueSource[F, B] {
           override def take: F[B] =
             fa.take.map(f)
-          override def tryTake: F[Option[B]] =
+          override def tryTake: F[Option[B]] = {
             fa.tryTake.map(_.map(f))
+          }
+          override def size: F[Int] =
+            fa.size
         }
     }
 }
