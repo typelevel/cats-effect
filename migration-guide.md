@@ -20,26 +20,9 @@ start with modules: most people want core. library author / application develope
  <!-- random note: there should be a clear sequence of steps for those who don't really want to read through the overview and whatnot -->
  <!-- something like "letsdodissssss": update deps to compatible versions, run scalafix, use lookup table to update any outstanding method calls... -->
 
-### Before you begin: this isn't a "quick start" guide
-
-This guide is meant for existing users of Cats Effect 2 who want to upgrade their applications
-to the 3.x series of releases, starting with 3.0.0.
-
-> If you haven't used Cats Effect before
-> and want to give it a try, please follow the [quick start guide](dead-link) instead!
-
-In this guide, we will not discuss the new features and additions in the library,
-but focus on changes the users will need to make to get their projects to build with Cats Effect 3.
-For new features, please consult the [documentation](dead-link) instead.
-
 ## Summary
 
-Here is a general view of the steps you should take to migrate your application to Cats Effect 3:
-
-1. Make sure your dependencies have upgraded
-3. Run the Scalafix migration (optional)
-4. Upgrade dependencies and Cats Effect itself
-5. Fix remaining compilation issues using [the lookup table of replacements](#notable-changes)
+<!-- todo: this is in summary.md now -->
 
 ## What's changed, what's the same?
 
@@ -74,6 +57,12 @@ Cats Effect 3 splits that into multiple modules:
 
 Depending on how you use Cats Effect, you might be able to pick just some of them.
 
+<!--
+
+todo: library is a subset of application
+probably useless distinction
+
+
 #### I am a library author, only using the type classes
 
 Use `kernel`. For your tests, you might also need `kernel-testkit`, and `core` (for `IO`) or another effect library.
@@ -85,18 +74,10 @@ Use `kernel` and `laws`.
 #### I am an application developer or library author, using IO
 
 Use `core`. If you were using `Semaphore` previously, you will also need `std`.
+ -->
 
 ## Scalafix migration
-
-Many parts of this migration can be automated by using the Scalafix migration.
-
-> Note: In case of projects using Scala Steward, the migration should automatically be applied
-when you receive the update.
-
-If you want to trigger the migration manually:
-
-todo. WIP in [Frank's PR](https://github.com/typelevel/cats-effect/pull/1686)
-<!-- todo instructions -->
+<!-- moved -->
 
 ## Notable changes
 
@@ -178,7 +159,7 @@ Note: package name changes were skipped from the table. Most type classes are no
 | `Timer[F].clock`                            | `Clock[F]`                              |
 | `Timer[F].sleep`                            | `Temporal[F].sleep`                     |
 
-TODO: IO,IOApp, Resource, Timer
+TODO: IOApp
 
 However, some changes will require more work than a simple search/replace.
 We will go through them here.
@@ -204,20 +185,7 @@ todo - Gavin wrote about this
 There is none! The library was rewritten from scratch, and there was no goal of having binary compatibility with pre-3.0 releases.
 
 > Note: We will guarantee binary compatibility between all stable releases in the 3.x series, and a 2.x branch will be maintained for some time to allow a smoother transition.
-
-What this means for you: if you are an end user (an application developer),
-you will need to update **every library using cats-effect** to a CE3-compatible version before you can safely deploy your application.
-[We are keeping track of the efforts of library authors to publish compatible releases](https://github.com/typelevel/cats-effect/issues/1330) as soon as possible when 3.0.0 final is out.
-
-If you are a library author, you also should guarantee your dependencies are CE3-compatible before you publish a release.
-
-To get some aid in pinpointing problematic dependencies, for [sbt][sbt] users we recommend using existing tooling like
-[`sbt`'s eviction mechanism][sbt-eviction] and
-[the dependency graph plugin included in `sbt` since 1.4.0][dependency-graph]. Using the `whatDependsOn` task, you will be able to quickly see the libraries that pull in the problematic version.
-
-You might also want to consider [sbt-missinglink](https://github.com/scalacenter/sbt-missinglink) to verify your classpath works with your code, or
-[follow the latest developments in sbt's eviction mechanism](https://github.com/sbt/sbt/pull/6221#issuecomment-777722540).
-
+<!-- note: some things were moved to new page -->
 To sum up, the only thing guaranteed when it comes to binary compatibility between CE2 and CE3 is that your code will blow up in runtime if you try to use them together! Make sure to double-check everything your build depends on is updated.
 
 ### Source compatibility
@@ -263,6 +231,3 @@ todo
 Currently, improved stack traces are not implemented. <!-- todo link to some PRs for it? -->
 
 [hierarchy-ce3]: https://raw.githubusercontent.com/typelevel/cats-effect/series/3.x/images/hierarchy.svg
-[sbt]: https://scala-sbt.org
-[sbt-eviction]: https://www.scala-sbt.org/1.x/docs/Library-Management.html#Eviction+warning
-[dependency-graph]: https://www.scala-sbt.org/1.x/docs/sbt-1.4-Release-Notes.html#sbt-dependency-graph+is+in-sourced
