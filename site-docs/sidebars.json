@@ -4,7 +4,8 @@
       "getting-started",
       "thread-model",
       "typeclasses",
-      "schedulers"
+      "schedulers",
+      "tutorial"
     ],
     "Standard Library": [
       "std/countdown-latch",
