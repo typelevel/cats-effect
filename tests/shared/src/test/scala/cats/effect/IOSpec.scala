@@ -350,6 +350,29 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         test must completeAs(42)
       }
 
+      "repeated async callback real" in real {
+        case object TestException extends RuntimeException
+
+        var cb: Either[Throwable, Int] => Unit = null
+
+        val test = for {
+          latch1 <- Deferred[IO, Unit]
+          latch2 <- Deferred[IO, Unit]
+          fiber <-
+            IO.async[Int] { cb0 =>
+              IO { cb = cb0 } *> latch1.complete(()) *> latch2.get *> IO.pure(None)
+            }.start
+          _ <- latch1.get
+          _ <- IO(cb(Right(42)))
+          _ <- IO(cb(Right(43)))
+          _ <- IO(cb(Left(TestException)))
+          _ <- latch2.complete(())
+          value <- fiber.joinWithNever
+        } yield value
+
+        test.attempt.flatMap { n => IO(n mustEqual Right(42)) }
+      }
+
       "complete a fiber with Canceled under finalizer on poll" in ticked { implicit ticker =>
         val ioa =
           IO.uncancelable(p => IO.canceled >> p(IO.unit).guarantee(IO.unit))
