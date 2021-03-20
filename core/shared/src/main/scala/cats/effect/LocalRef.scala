@@ -50,12 +50,9 @@ final class LocalRef[A] private (local: Local[Ref[IO, A]]) extends Ref[IO, A] {
 object LocalRef {
 
   def apply[A](default: A): IO[LocalRef[A]] =
-    of(default)
-
-  def of[A](default: A): IO[LocalRef[A]] =
     for {
       ref <- Ref.of[IO, A](default)
-      local <- Local.of[Ref[IO, A]](ref)
+      local <- Local[Ref[IO, A]](ref)
     } yield new LocalRef(local)
 
 }
