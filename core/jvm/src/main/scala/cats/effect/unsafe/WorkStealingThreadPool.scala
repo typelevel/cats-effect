@@ -32,11 +32,7 @@ package unsafe
 
 import scala.concurrent.ExecutionContext
 
-import java.util.concurrent.{
-  ConcurrentLinkedQueue,
-  RejectedExecutionException,
-  ThreadLocalRandom
-}
+import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
 
@@ -360,8 +356,6 @@ private[effect] final class WorkStealingThreadPool(
    * This method fulfills the `ExecutionContext` interface.
    *
    * @param runnable the runnable to be executed
-   * @throws [[java.util.concurrent.RejectedExecutionException]] if the thread
-   *         pool has been shut down and cannot accept new work
    */
   override def execute(runnable: Runnable): Unit = {
     if (runnable.isInstanceOf[IOFiber[_]]) {
@@ -369,15 +363,6 @@ private[effect] final class WorkStealingThreadPool(
       executeFiber(runnable.asInstanceOf[IOFiber[_]])
     } else {
       // Executing a general purpose computation on the thread pool.
-
-      // It is enough to only do this check here as there is no other way to
-      // submit work to the `ExecutionContext` represented by this thread pool
-      // after it has been shut down. Additionally, no one else can create raw
-      // fibers directly, as `IOFiber` is not a public type.
-      if (done.get()) {
-        throw new RejectedExecutionException("The work stealing thread pool has been shut down")
-      }
-
       // Wrap the runnable in an `IO` and execute it as a fiber.
       IO(runnable.run()).unsafeRunFiber((), reportFailure, _ => ())(self)
       ()
@@ -440,16 +425,6 @@ private[effect] final class WorkStealingThreadPool(
 
       // It is now safe to clean up the state of the thread pool.
       state.lazySet(0)
-
-      // Remove the references to the worker threads so that they can be cleaned
-      // up, including their worker queues.
-      i = 0
-      while (i < threadCount) {
-        workerThreads(i) = null
-        parkedSignals(i) = null
-        localQueues(i) = null
-        i += 1
-      }
 
       // Shutdown and drain the external queue.
       overflowQueue.clear()

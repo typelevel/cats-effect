@@ -145,7 +145,6 @@ private final class IOFiber[A](
       }
     } catch {
       case t: Throwable =>
-        runtime.shutdown()
         Thread.interrupted()
         currentCtx.reportFailure(t)
         runtime.fiberErrorCbs.synchronized {
@@ -159,6 +158,7 @@ private final class IOFiber[A](
             idx += 1
           }
         }
+        runtime.shutdown()
         Thread.currentThread().interrupt()
     }
   }
