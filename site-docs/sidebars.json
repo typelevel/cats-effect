@@ -6,6 +6,16 @@
       "typeclasses",
       "schedulers"
     ],
+    "Typeclasses": [
+      "typeclasses",
+      "typeclasses/monadcancel",
+      "typeclasses/spawn",
+      "typeclasses/unique",
+      "typeclasses/clock",
+      "typeclasses/temporal",
+      "typeclasses/sync",
+      "typeclasses/async"
+    ],
     "Standard Library": [
       "std/countdown-latch",
       "std/cyclic-barrier",
