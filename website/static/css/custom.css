@@ -27,3 +27,11 @@
 
 @media only screen and (min-width: 1500px) {
 }
+
+header nav li:last-child a {
+  width: 32px;
+  height: 32px;
+  background-image: url(/cats-effect/img/github.png);
+  background-size: 32px 32px;
+  text-indent: -9999px;
+}
