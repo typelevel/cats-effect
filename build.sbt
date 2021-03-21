@@ -256,6 +256,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .settings(
     name := "cats-effect"
   )
+  .jvmSettings(
+    javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
+  )
 
 /**
  * Test support for the core project, providing various helpful instances
