@@ -111,21 +111,24 @@ trait IOApp {
 
     try {
       blocking(latch.await())
-      if (error != null) {
-        // Runtime has already been shutdown in IOFiber.
-        throw error
-      } else {
-        // Clean up after ourselves, relevant for running IOApps in sbt,
-        // otherwise scheduler threads will accumulate over time.
-        runtime.shutdown()
-        if (result == ExitCode.Success) {
-          // Return naturally from main. This allows any non-daemon
-          // threads to gracefully complete their work, and managed
-          // environments to execute their own shutdown hooks.
-          ()
-        } else {
-          System.exit(result.code)
-        }
+      error match {
+        case null =>
+          // Clean up after ourselves, relevant for running IOApps in sbt,
+          // otherwise scheduler threads will accumulate over time.
+          runtime.shutdown()
+          if (result == ExitCode.Success) {
+            // Return naturally from main. This allows any non-daemon
+            // threads to gracefully complete their work, and managed
+            // environments to execute their own shutdown hooks.
+            ()
+          } else {
+            System.exit(result.code)
+          }
+        case _: CancellationException =>
+          // Do not report cancellation exceptions but still exit with an error code.
+          System.exit(1)
+        case t: Throwable =>
+          throw t
       }
     } catch {
       // this handles sbt when fork := false

@@ -112,7 +112,6 @@ class IOAppSpec extends Specification {
       "exit on canceled" in {
         val h = java(Canceled, List.empty)
         h.awaitStatus() mustEqual 1
-        h.stderr() must contain("canceled")
       }
     }
   }
