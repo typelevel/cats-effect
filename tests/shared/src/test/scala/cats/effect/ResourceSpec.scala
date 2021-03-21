@@ -27,7 +27,11 @@ import cats.syntax.all._
 import cats.effect.implicits._
 
 import org.scalacheck.Prop, Prop.forAll
+// import org.scalacheck.rng.Seed
+
 import org.specs2.ScalaCheck
+// import org.specs2.scalacheck.Parameters
+
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
@@ -197,6 +201,20 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       closed must beTrue
     }
 
+    "allocated releases two resources" in real {
+      var a = false
+      var b = false
+
+      val test =
+        Resource.make(IO.unit)(_ => IO { a = true }) >>
+          Resource.make(IO.unit)(_ => IO { b = true })
+
+      test.allocated.flatMap(_._2) >> IO {
+        a must beTrue
+        b must beTrue
+      }
+    }
+
     "allocated releases resources in reverse order of acquisition" in ticked {
       implicit ticker =>
         forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
@@ -314,7 +332,9 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         }
         val a1 = resource.use(IO.pure)
 
-        a0 eqv a1
+        a0.flatMap(IO.pure).handleErrorWith(IO.raiseError) eqv a1
+          .flatMap(IO.pure)
+          .handleErrorWith(IO.raiseError)
       }
     }
 
@@ -594,9 +614,9 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
     "combineK" should {
       "behave like orElse when underlying effect does" in ticked { implicit ticker =>
-        forAll { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
-          val lhs = r1.orElse(r2).use(IO.pure)
-          val rhs = (r1 <+> r2).use(IO.pure)
+        prop { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
+          val lhs = r1.orElse(r2)
+          val rhs = r1 <+> r2
 
           lhs eqv rhs
         }
@@ -639,6 +659,20 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   "Async[Resource]" >> {
     val wait = IO.sleep(1.second)
     val waitR = Resource.eval(wait)
+
+    "onCancel" should {
+      "not fire when adjacent to uncancelable" in ticked { implicit ticker =>
+        var fired = false
+
+        val test =
+          (Resource.eval(IO.canceled)).uncancelable.onCancel(Resource.eval(IO { fired = true }))
+
+        test.use_.unsafeToFuture()
+        ticker.ctx.tickAll()
+
+        fired must beFalse
+      }
+    }
 
     "async" should {
       "forward inner finalizers into outer scope" in ticked { implicit ticker =>
@@ -914,7 +948,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     checkAll(
       "Resource[IO, *]",
       AsyncTests[Resource[IO, *]].async[Int, Int, Int](10.millis)
-    )
+    ) /*(Parameters(seed = Some(Seed.fromBase64("yLyDPF_RFdOXw9qgux3dGkf0t1fcyG0u1VAdcMm03IK=").get)))*/
   }
 
   {

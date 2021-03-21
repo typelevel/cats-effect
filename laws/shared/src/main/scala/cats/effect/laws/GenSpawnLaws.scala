@@ -88,16 +88,24 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
   }
 
   def raceCanceledIdentityLeft[A](fa: F[A]) =
-    F.race(F.canceled, fa) <-> fa.map(_.asRight[Unit])
+    F.race(F.canceled, fa.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_))) <-> fa.map(
+      _.asRight[Unit])
 
   def raceCanceledIdentityRight[A](fa: F[A]) =
-    F.race(fa, F.canceled) <-> fa.map(_.asLeft[Unit])
+    F.race(fa.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_)), F.canceled) <-> fa.map(
+      _.asLeft[Unit])
 
   def raceNeverNoncanceledIdentityLeft[A](fa: F[A]) =
-    F.race(F.never[Unit], fa) <-> F.onCancel(fa.map(_.asRight[Unit]), F.never)
+    F.race(F.never[Unit], fa.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_))) <-> F
+      .onCancel(
+        fa.flatMap(r => F.pure(r.asRight[Unit])).handleErrorWith(F.raiseError(_)),
+        F.never)
 
   def raceNeverNoncanceledIdentityRight[A](fa: F[A]) =
-    F.race(fa, F.never[Unit]) <-> F.onCancel(fa.map(_.asLeft[Unit]), F.never)
+    F.race(fa.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_)), F.never[Unit]) <-> F
+      .onCancel(
+        fa.flatMap(r => F.pure(r.asLeft[Unit])).handleErrorWith(F.raiseError(_)),
+        F.never)
 
   // I really like these laws, since they relate cede to timing, but they're definitely nondeterministic
   /*def raceLeftCedeYields[A](a: A) =

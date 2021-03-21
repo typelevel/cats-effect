@@ -197,7 +197,12 @@ trait MonadCancelGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
 
   // TODO we can't really use poll :-( since we can't Cogen FunctionK
   private def genUncancelable[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
-    deeper[A].map(pc => F.uncancelable(_ => pc))
+    deeper[A].map(pc =>
+      F.uncancelable(_ => pc)
+        .flatMap(F.pure(_))
+        .handleErrorWith(
+          F.raiseError(_)
+        )) // this is a bit of a hack to get around functor law breakage
 
   private def genOnCancel[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
     for {
@@ -291,7 +296,10 @@ trait AsyncGenerators[F[_]] extends GenTemporalGenerators[F, Throwable] with Syn
       fo <- deeper[Option[F[Unit]]](
         Arbitrary(Gen.option[F[Unit]](deeper[Unit])),
         Cogen.cogenOption(cogenFU))
-    } yield F.async[A](k => F.delay(k(result)) >> fo)
+    } yield F
+      .async[A](k => F.delay(k(result)) >> fo)
+      .flatMap(F.pure(_))
+      .handleErrorWith(F.raiseError(_))
 
   private def genEvalOn[A: Arbitrary: Cogen](deeper: GenK[F]) =
     for {

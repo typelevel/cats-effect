@@ -41,6 +41,23 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def uncancelableEliminatesOnCancel[A](fa: F[A], fin: F[Unit]) =
     F.uncancelable(_ => F.onCancel(fa, fin)) <-> F.uncancelable(_ => fa)
 
+  /*
+   * NB: This is effectively in violation of the monad laws, since
+   * we consider finalizers to associate over the boundary here, but
+   * we do NOT consider them to right-associate over map or flatMap.
+   * This simply stems from the fact that cancellation is fundamentally
+   * uncomposable, and it's better to pick a semantic for uncancelable
+   * which allows regional composition, since this avoids "gaps" in
+   * otherwise-safe code.
+   *
+   * The argument is that cancellation is a *hint* not a mandate. This
+   * holds for self-cancellation just as much as external-cancellation.
+   * Thus, laws about where the cancellation is visible are always going
+   * to be a bit off.
+   */
+  def onCancelAssociatesOverUncancelableBoundary[A](fa: F[A], fin: F[Unit]) =
+    F.uncancelable(_ => F.onCancel(fa, fin)) <-> F.onCancel(F.uncancelable(_ => fa), fin)
+
   def forceRDiscardsPure[A, B](a: A, fa: F[B]) =
     F.forceR(F.pure(a))(fa) <-> fa
 
@@ -59,9 +76,9 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
     F.onCancel(F.onCancel(F.canceled, fin1), fin2) <->
       F.forceR(F.uncancelable(_ => F.forceR(fin1)(fin2)))(F.canceled)
 
-  def uncancelableCanceledAssociatesRightOverFlatMap[A](a: A, f: A => F[Unit]) =
-    F.uncancelable(_ => F.canceled.as(a).flatMap(f)) <->
-      F.forceR(F.uncancelable(_ => f(a)))(F.canceled)
+  def uncancelableCanceledAssociatesRightOverFlatMapAttempt[A](fa: F[A]) =
+    (F.uncancelable(_ => F.canceled >> fa).attempt >> F.unit) <->
+      F.forceR(F.uncancelable(_ => fa))(F.canceled)
 
   def canceledAssociatesLeftOverFlatMap[A](fa: F[A]) =
     F.canceled >> fa.void <-> F.canceled
