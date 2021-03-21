@@ -189,8 +189,7 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
       tryOffer: (Dequeue[IO, Int], Int) => IO[Boolean],
       take: Dequeue[IO, Int] => IO[Int],
       tryTake: Dequeue[IO, Int] => IO[Option[Int]],
-      size: Dequeue[IO, Int] => IO[Int],
-  ): Fragments = {
+      size: Dequeue[IO, Int] => IO[Int]): Fragments = {
     tryOfferOnFullTests(name, _ => constructor, offer, tryOffer, true)
     tryOfferTryTakeTests(name, _ => constructor, tryOffer, tryTake)
     commonTests(name, _ => constructor, offer, tryOffer, take, tryTake, size)
