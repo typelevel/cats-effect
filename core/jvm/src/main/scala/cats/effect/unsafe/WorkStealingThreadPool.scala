@@ -32,7 +32,7 @@ package unsafe
 
 import scala.concurrent.ExecutionContext
 
-import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
+import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
 
@@ -76,12 +76,18 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
 
   /**
-   * The overflow queue on which fibers coming from outside the pool are
-   * enqueued, or acts as a place where spillover work from other local queues
-   * can end up.
+   * The batched queue on which spillover work from other local queues can end
+   * up.
    */
-  private[this] val overflowQueue: ConcurrentLinkedQueue[IOFiber[_]] =
-    new ConcurrentLinkedQueue()
+  private[this] val batchedQueue: ScalQueue[Array[IOFiber[_]]] =
+    new ScalQueue(threadCount)
+
+  /**
+   * The overflow queue on which fibers coming from outside the pool are
+   * enqueued.
+   */
+  private[this] val overflowQueue: ScalQueue[IOFiber[_]] =
+    new ScalQueue(threadCount)
 
   /**
    * Represents two unsigned 16 bit integers.
@@ -115,11 +121,11 @@ private[effect] final class WorkStealingThreadPool(
       val thread =
         new WorkerThread(
           index,
-          threadCount,
           threadPrefix,
           blockingThreadCounter,
           queue,
           parkedSignal,
+          batchedQueue,
           overflowQueue,
           this)
       workerThreads(i) = thread
@@ -143,12 +149,16 @@ private[effect] final class WorkStealingThreadPool(
    * @param dest the index of the worker thread attempting to steal work from
    *             other worker threads (used to avoid stealing from its own local
    *             queue)
-   * @param from a randomly generated index from which to start the linear
-   *             search, used to reduce contention when stealing
+   * @param random a reference to an uncontended source of randomness, to be
+   *               passed along to the striped concurrent queues when executing
+   *               their enqueue operations
    * @return a fiber instance to execute instantly in case of a successful steal
    */
-  private[unsafe] def stealFromOtherWorkerThread(dest: Int, from: Int): IOFiber[_] = {
+  private[unsafe] def stealFromOtherWorkerThread(
+      dest: Int,
+      random: ThreadLocalRandom): IOFiber[_] = {
     val destQueue = localQueues(dest)
+    val from = random.nextInt(threadCount)
 
     var i = 0
     while (i < threadCount) {
@@ -168,16 +178,17 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // The worker thread could not steal any work. Fall back to checking the external queue.
-    overflowQueue.poll()
+    overflowQueue.poll(random)
   }
 
   /**
    * Potentially unparks a worker thread.
    *
-   * @param from a randomly generated index from which to start the linear
-   *             search, used to reduce contention when unparking worker threads
+   * @param random a reference to an uncontended source of randomness, to be
+   *               passed along to the striped concurrent queues when executing
+   *               their enqueue operations
    */
-  private[unsafe] def notifyParked(from: Int): Unit = {
+  private[unsafe] def notifyParked(random: ThreadLocalRandom): Unit = {
     // Find a worker thread to unpark.
     if (!notifyShouldWakeup()) {
       // There are enough searching and/or running worker threads.
@@ -186,6 +197,7 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // Unpark a worker thread.
+    val from = random.nextInt(threadCount)
     var i = 0
     while (i < threadCount) {
       val index = (from + i) % threadCount
@@ -227,24 +239,31 @@ private[effect] final class WorkStealingThreadPool(
    * Notifies a thread if there are fibers available for stealing in any of the
    * local queues, or in the overflow queue.
    *
-   * @param from a randomly generated index from which to start the linear
-   *             search, used to reduce contention when unparking worker threads
+   * @param random a reference to an uncontended source of randomness, to be
+   *               passed along to the striped concurrent queues when executing
+   *               their enqueue operations
    */
-  private[unsafe] def notifyIfWorkPending(from: Int): Unit = {
+  private[unsafe] def notifyIfWorkPending(random: ThreadLocalRandom): Unit = {
     var i = 0
     while (i < threadCount) {
       // Check each worker thread for available work that can be stolen.
       if (localQueues(i).nonEmpty()) {
-        notifyParked(from)
+        notifyParked(random)
         return
       }
       i += 1
     }
 
     // If no work was found in the local queues of the worker threads, look for
-    // work in the external queue.
-    if (!overflowQueue.isEmpty()) {
-      notifyParked(from)
+    // work in the batched queue.
+    if (batchedQueue.nonEmpty()) {
+      notifyParked(random)
+    }
+
+    // If no work was found in the local queues of the worker threads or in the
+    // batched queue, look for work in the external queue.
+    if (overflowQueue.nonEmpty()) {
+      notifyParked(random)
     }
   }
 
@@ -277,16 +296,17 @@ private[effect] final class WorkStealingThreadPool(
    * Deregisters the current worker thread from the set of searching threads and
    * asks for help with the local queue if necessary.
    *
-   * @param from a randomly generated index from which to start the linear
-   *             search, used to reduce contention when unparking worker threads
+   * @param random a reference to an uncontended source of randomness, to be
+   *               passed along to the striped concurrent queues when executing
+   *               their enqueue operations
    */
-  private[unsafe] def transitionWorkerFromSearching(from: Int): Unit = {
+  private[unsafe] def transitionWorkerFromSearching(random: ThreadLocalRandom): Unit = {
     // Decrement the number of searching worker threads.
     val prev = state.getAndDecrement()
     if (prev == 1) {
       // If this was the only searching thread, wake a thread up to potentially help out
       // with the local work queue.
-      notifyParked(from)
+      notifyParked(random)
     }
   }
 
@@ -334,8 +354,8 @@ private[effect] final class WorkStealingThreadPool(
     } else if (thread.isInstanceOf[HelperThread]) {
       thread.asInstanceOf[HelperThread].schedule(fiber)
     } else {
-      val random = ThreadLocalRandom.current().nextInt(threadCount)
-      overflowQueue.offer(fiber)
+      val random = ThreadLocalRandom.current()
+      overflowQueue.offer(fiber, random)
       notifyParked(random)
     }
   }

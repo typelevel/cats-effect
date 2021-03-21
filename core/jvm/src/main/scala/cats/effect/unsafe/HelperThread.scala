@@ -19,7 +19,7 @@ package unsafe
 
 import scala.concurrent.{BlockContext, CanAwait}
 
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 /**
@@ -58,10 +58,20 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 private[effect] final class HelperThread(
     private[this] val threadPrefix: String,
     private[this] val blockingThreadCounter: AtomicInteger,
-    private[this] val overflow: ConcurrentLinkedQueue[IOFiber[_]],
+    private[this] val batched: ScalQueue[Array[IOFiber[_]]],
+    private[this] val overflow: ScalQueue[IOFiber[_]],
     private[this] val pool: WorkStealingThreadPool)
     extends Thread
     with BlockContext {
+
+  /**
+   * Uncontented source of randomness. By default, `java.util.Random` is thread
+   * safe, which is a feature we do not need in this class, as the source of
+   * randomness is completely isolated to each instance of `WorkerThread`. The
+   * instance is obtained only once at the beginning of this method, to avoid
+   * the cost of the `ThreadLocal` mechanism at runtime.
+   */
+  private[this] var random: ThreadLocalRandom = _
 
   /**
    * Signalling mechanism through which the [[WorkerThread]] which spawned this
@@ -103,7 +113,7 @@ private[effect] final class HelperThread(
    * @param fiber the fiber to be scheduled on the `overflow` queue
    */
   def schedule(fiber: IOFiber[_]): Unit = {
-    overflow.offer(fiber)
+    overflow.offer(fiber, random)
     ()
   }
 
@@ -119,22 +129,30 @@ private[effect] final class HelperThread(
    * for the [[HelperThread]] to exit its runloop and die.
    */
   override def run(): Unit = {
+    random = ThreadLocalRandom.current()
+    val rnd = random
+
     // Check for exit condition. Do not continue if the `WorkStealingPool` has
     // been shut down, or the `WorkerThread` which spawned this `HelperThread`
     // has finished blocking.
     while (!isInterrupted() && !signal.get()) {
-      val fiber = overflow.poll()
-
+      val fiber = overflow.poll(rnd)
       if (fiber eq null) {
-        // There are no more fibers on the overflow queue. Since the overflow
-        // queue is not a blocking queue, there is no point in busy waiting,
-        // especially since there is no guarantee that the `WorkerThread` which
-        // spawned this `HelperThread` will ever exit the blocking region, and
-        // new external work may never arrive on the `overflow` queue. This
-        // pathological case is not handled as it is a case of uncontrolled
-        // blocking on a fixed thread pool, an inherently careless and unsafe
-        // situation.
-        return
+        // Fall back to checking the batched queue.
+        val batch = batched.poll(rnd)
+        if (batch eq null) {
+          // There are no more fibers neither in the overflow queue, nor in the
+          // batched queue. Since the queues are not a blocking queue, there is
+          // no point in busy waiting, especially since there is no guarantee
+          // that the `WorkerThread` which spawned this `HelperThread` will ever
+          // exit the blocking region, and new external work may never arrive on
+          // the `overflow` queue. This pathological case is not handled as it
+          // is a case of uncontrolled blocking on a fixed thread pool, an
+          // inherently careless and unsafe situation.
+          return
+        } else {
+          overflow.offerAll(batch, rnd)
+        }
       } else {
         fiber.run()
       }
@@ -158,7 +176,8 @@ private[effect] final class HelperThread(
       blocking = true
 
       // Spawn a new `HelperThread`.
-      val helper = new HelperThread(threadPrefix, blockingThreadCounter, overflow, pool)
+      val helper =
+        new HelperThread(threadPrefix, blockingThreadCounter, batched, overflow, pool)
       helper.start()
 
       // With another `HelperThread` started, it is time to execute the blocking
