@@ -615,7 +615,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def to[F[_]](implicit F: LiftIO[F]): F[A @uncheckedVariance] =
     F.liftIO(this)
 
-  // override def toString: String = "IO(...)"
+  override def toString: String = "IO(...)"
 
   // unsafe stuff
 

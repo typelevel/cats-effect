@@ -76,11 +76,6 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
     F.onCancel(F.onCancel(F.canceled, fin1), fin2) <->
       F.forceR(F.uncancelable(_ => F.forceR(fin1)(fin2)))(F.canceled)
 
-  // the following set of three laws is formulated in this way to exclude F.never
-  // notably, `F.uncancelable(_ => F.canceled >> fa) >> F.never` results in cancelation
-  // however, `F.uncancelable(_ => fa) >> F.forceR(F.never)(F.canceled)` is nonterminating
-  // these are the semantics we want, but it also means the rewrite rule cannot be generalized
-
   def uncancelableCanceledAssociatesRightOverFlatMapAttempt[A](fa: F[A]) =
     (F.uncancelable(_ => F.canceled >> fa).attempt >> F.unit) <->
       F.forceR(F.uncancelable(_ => fa))(F.canceled)
