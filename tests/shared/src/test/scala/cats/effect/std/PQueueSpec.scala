@@ -104,7 +104,7 @@ class BoundedPQueueSpec extends BaseSpec with PQueueTests {
     tryOfferOnFullTests(name, constructor, _.offer(_), _.tryOffer(_), false)
     cancelableOfferTests(name, constructor, _.offer(_), _.take, _.tryTake)
     tryOfferTryTakeTests(name, constructor, _.tryOffer(_), _.tryTake)
-    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake)
+    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
     dequeueInPriorityOrder(name, constructor)
 
   }
@@ -127,7 +127,7 @@ class UnboundedPQueueSpec extends BaseSpec with PQueueTests {
       constructor: IO[PQueue[IO, Int]]): Fragments = {
     tryOfferOnFullTests(name, _ => constructor, _.offer(_), _.tryOffer(_), true)
     tryOfferTryTakeTests(name, _ => constructor, _.tryOffer(_), _.tryTake)
-    commonTests(name, _ => constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake)
+    commonTests(name, _ => constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
     dequeueInPriorityOrder(name, _ => constructor)
   }
 }

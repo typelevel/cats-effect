@@ -35,7 +35,8 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       _.offerBack(_),
       _.tryOfferBack(_),
       _.takeFront,
-      _.tryTakeFront
+      _.tryTakeFront,
+      _.size
     )
     boundedDequeueTests(
       "BoundedDequeue - reverse",
@@ -43,7 +44,8 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       _.offerFront(_),
       _.tryOfferFront(_),
       _.takeBack,
-      _.tryTakeBack
+      _.tryTakeBack,
+      _.size
     )
     boundedDequeueTests(
       "BoundedDequeue mapK",
@@ -51,7 +53,8 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       _.offerBack(_),
       _.tryOfferBack(_),
       _.takeFront,
-      _.tryTakeFront
+      _.tryTakeFront,
+      _.size
     )
     boundedDequeueTests(
       "BoundedDequeue mapK - reverse",
@@ -59,7 +62,8 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       _.offerFront(_),
       _.tryOfferFront(_),
       _.takeBack,
-      _.tryTakeBack
+      _.tryTakeBack,
+      _.size
     )
   }
 
@@ -69,7 +73,8 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       offer: (Dequeue[IO, Int], Int) => IO[Unit],
       tryOffer: (Dequeue[IO, Int], Int) => IO[Boolean],
       take: Dequeue[IO, Int] => IO[Int],
-      tryTake: Dequeue[IO, Int] => IO[Option[Int]]
+      tryTake: Dequeue[IO, Int] => IO[Option[Int]],
+      size: Dequeue[IO, Int] => IO[Int]
   ): Fragments = {
     s"$name - demonstrate offer and take with zero capacity" in real {
       for {
@@ -129,7 +134,7 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
     tryOfferOnFullTests(name, constructor, offer, tryOffer, false)
     cancelableOfferTests(name, constructor, offer, take, tryTake)
     tryOfferTryTakeTests(name, constructor, tryOffer, tryTake)
-    commonTests(name, constructor, offer, tryOffer, take, tryTake)
+    commonTests(name, constructor, offer, tryOffer, take, tryTake, size)
     reverse(name, constructor)
   }
 }
@@ -144,7 +149,8 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
       _.offerBack(_),
       _.tryOfferBack(_),
       _.takeFront,
-      _.tryTakeFront)
+      _.tryTakeFront,
+      _.size)
 
     unboundedDequeueTests(
       "UnboundedDequeue - reverse",
@@ -152,7 +158,8 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
       _.offerFront(_),
       _.tryOfferFront(_),
       _.takeBack,
-      _.tryTakeBack)
+      _.tryTakeBack,
+      _.size)
 
     unboundedDequeueTests(
       "UnboundedDequeue mapK",
@@ -160,7 +167,8 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
       _.offerBack(_),
       _.tryOfferBack(_),
       _.takeFront,
-      _.tryTakeFront
+      _.tryTakeFront,
+      _.size
     )
 
     unboundedDequeueTests(
@@ -169,7 +177,8 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
       _.offerFront(_),
       _.tryOfferFront(_),
       _.takeBack,
-      _.tryTakeBack
+      _.tryTakeBack,
+      _.size
     )
   }
 
@@ -179,11 +188,11 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
       offer: (Dequeue[IO, Int], Int) => IO[Unit],
       tryOffer: (Dequeue[IO, Int], Int) => IO[Boolean],
       take: Dequeue[IO, Int] => IO[Int],
-      tryTake: Dequeue[IO, Int] => IO[Option[Int]]
-  ): Fragments = {
+      tryTake: Dequeue[IO, Int] => IO[Option[Int]],
+      size: Dequeue[IO, Int] => IO[Int]): Fragments = {
     tryOfferOnFullTests(name, _ => constructor, offer, tryOffer, true)
     tryOfferTryTakeTests(name, _ => constructor, tryOffer, tryTake)
-    commonTests(name, _ => constructor, offer, tryOffer, take, tryTake)
+    commonTests(name, _ => constructor, offer, tryOffer, take, tryTake, size)
   }
 }
 

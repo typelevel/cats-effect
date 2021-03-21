@@ -88,7 +88,7 @@ private final class IOFiber[A](
   private[this] val objectState = new ArrayStack[AnyRef](16)
 
   /* fast-path to head */
-  private[this] var currentCtx: ExecutionContext = _
+  private[this] var currentCtx: ExecutionContext = startEC
   private[this] var ctxs: ArrayStack[ExecutionContext] = _
 
   private[this] var canceled: Boolean = false
@@ -113,6 +113,7 @@ private final class IOFiber[A](
 
   /* mutable state for resuming the fiber in different states */
   private[this] var resumeTag: Byte = ExecR
+  private[this] var resumeIO: IO[Any] = startIO
 
   /* prefetch for Right(()) */
   private[this] val RightUnit = IOFiber.RightUnit
@@ -132,18 +133,18 @@ private final class IOFiber[A](
     try {
       (resumeTag: @switch) match {
         case 0 => execR()
-        case 1 => asyncContinueR()
-        case 2 => blockingR()
-        case 3 => afterBlockingSuccessfulR()
-        case 4 => afterBlockingFailedR()
-        case 5 => evalOnR()
-        case 6 => cedeR()
-        case 7 => autoCedeR()
-        case 8 => ()
+        case 1 => asyncContinueSuccessfulR()
+        case 2 => asyncContinueFailedR()
+        case 3 => blockingR()
+        case 4 => afterBlockingSuccessfulR()
+        case 5 => afterBlockingFailedR()
+        case 6 => evalOnR()
+        case 7 => cedeR()
+        case 8 => autoCedeR()
+        case 9 => ()
       }
     } catch {
       case t: Throwable =>
-        runtime.shutdown()
         Thread.interrupted()
         currentCtx.reportFailure(t)
         runtime.fiberErrorCbs.synchronized {
@@ -157,6 +158,7 @@ private final class IOFiber[A](
             idx += 1
           }
         }
+        runtime.shutdown()
         Thread.currentThread().interrupt()
     }
   }
@@ -235,8 +237,9 @@ private final class IOFiber[A](
     if (shouldFinalize()) {
       asyncCancel(null)
     } else if (iteration >= autoYieldThreshold) {
-      objectState.push(cur0)
-      autoCede()
+      resumeIO = cur0
+      resumeTag = AutoCedeR
+      rescheduleFiber(currentCtx)(this)
     } else {
       // This is a modulo operation in disguise. `iteration` is reset every time
       // the runloop yields automatically by the runloop always starting from
@@ -563,8 +566,14 @@ private final class IOFiber[A](
                   if (!shouldFinalize()) {
                     /* we weren't cancelled, so schedule the runloop for execution */
                     val ec = currentCtx
-                    resumeTag = AsyncContinueR
-                    objectState.push(e)
+                    e match {
+                      case Left(t) =>
+                        resumeTag = AsyncContinueFailedR
+                        objectState.push(t)
+                      case Right(a) =>
+                        resumeTag = AsyncContinueSuccessfulR
+                        objectState.push(a.asInstanceOf[AnyRef])
+                    }
                     execute(ec)(this)
                   } else {
                     /*
@@ -735,7 +744,8 @@ private final class IOFiber[A](
 
         /* Cede */
         case 16 =>
-          cede()
+          resumeTag = CedeR
+          rescheduleFiber(currentCtx)(this)
 
         case 17 =>
           val cur = cur0.asInstanceOf[Start[Any]]
@@ -781,7 +791,7 @@ private final class IOFiber[A](
             conts.push(EvalOnK)
 
             resumeTag = EvalOnR
-            objectState.push(cur.ioa)
+            resumeIO = cur.ioa
             execute(ec)(this)
           }
 
@@ -791,7 +801,7 @@ private final class IOFiber[A](
 
           if (cur.hint eq TypeBlocking) {
             resumeTag = BlockingR
-            objectState.push(cur)
+            resumeIO = cur
             runtime.blocking.execute(this)
           } else {
             runLoop(interruptibleImpl(cur, runtime.blocking), nextIteration)
@@ -824,6 +834,7 @@ private final class IOFiber[A](
     masks = initMask
 
     resumeTag = DoneR
+    resumeIO = null
     /*
      * Write barrier to publish masks. The thread which owns the runloop is
      * effectively a single writer, so lazy set can be utilized for relaxed
@@ -868,16 +879,6 @@ private final class IOFiber[A](
 
       done(OutcomeCanceled)
     }
-  }
-
-  private[this] def cede(): Unit = {
-    resumeTag = CedeR
-    rescheduleFiber(currentCtx)(this)
-  }
-
-  private[this] def autoCede(): Unit = {
-    resumeTag = AutoCedeR
-    rescheduleFiber(currentCtx)(this)
   }
 
   /*
@@ -970,7 +971,7 @@ private final class IOFiber[A](
     var k: Byte = -1
 
     /*
-     * short circuit on error by dropping map, flatMap, and auto-cede continuations
+     * short circuit on error by dropping map and flatMap continuations
      * until we hit a continuation that needs to deal with errors.
      */
     while (i >= 0 && k < 0) {
@@ -1058,26 +1059,28 @@ private final class IOFiber[A](
       conts.push(RunTerminusK)
 
       ctxs = new ArrayStack[ExecutionContext](2)
-      currentCtx = startEC
-      ctxs.push(startEC)
+      ctxs.push(currentCtx)
 
-      runLoop(startIO, 0)
+      val io = resumeIO
+      resumeIO = null
+      runLoop(io, 0)
     }
   }
 
-  private[this] def asyncContinueR(): Unit = {
-    val e = objectState.pop().asInstanceOf[Either[Throwable, Any]]
-    val next = e match {
-      case Left(t) => failed(t, 0)
-      case Right(a) => succeeded(a, 0)
-    }
+  private[this] def asyncContinueSuccessfulR(): Unit = {
+    val a = objectState.pop().asInstanceOf[Any]
+    runLoop(succeeded(a, 0), 0)
+  }
 
-    runLoop(next, 0)
+  private[this] def asyncContinueFailedR(): Unit = {
+    val t = objectState.pop().asInstanceOf[Throwable]
+    runLoop(failed(t, 0), 0)
   }
 
   private[this] def blockingR(): Unit = {
     var error: Throwable = null
-    val cur = objectState.pop().asInstanceOf[Blocking[Any]]
+    val cur = resumeIO.asInstanceOf[Blocking[Any]]
+    resumeIO = null
     val r =
       try cur.thunk()
       catch {
@@ -1086,7 +1089,7 @@ private final class IOFiber[A](
 
     if (error == null) {
       resumeTag = AfterBlockingSuccessfulR
-      objectState.push(r.asInstanceOf[Object])
+      objectState.push(r.asInstanceOf[AnyRef])
     } else {
       resumeTag = AfterBlockingFailedR
       objectState.push(error)
@@ -1105,7 +1108,8 @@ private final class IOFiber[A](
   }
 
   private[this] def evalOnR(): Unit = {
-    val ioa = objectState.pop().asInstanceOf[IO[Any]]
+    val ioa = resumeIO
+    resumeIO = null
     runLoop(ioa, 0)
   }
 
@@ -1114,7 +1118,8 @@ private final class IOFiber[A](
   }
 
   private[this] def autoCedeR(): Unit = {
-    val io = objectState.pop().asInstanceOf[IO[Any]]
+    val io = resumeIO
+    resumeIO = null
     runLoop(io, 0)
   }
 
@@ -1189,7 +1194,7 @@ private final class IOFiber[A](
 
     if (!shouldFinalize()) {
       resumeTag = AfterBlockingSuccessfulR
-      objectState.push(result.asInstanceOf[Object])
+      objectState.push(result.asInstanceOf[AnyRef])
       execute(ec)(this)
     } else {
       asyncCancel(null)
