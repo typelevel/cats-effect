@@ -48,5 +48,6 @@ private[effect] object IOFiberConstants {
   // ContState tags
   val ContStateInitial: Int = 0
   val ContStateWaiting: Int = 1
-  val ContStateResult: Int = 2
+  val ContStateWinner: Int = 2
+  val ContStateResult: Int = 3
 }
