@@ -9,16 +9,16 @@ pull_request_rules:
     conditions:
       - author=scala-steward
       - status-success=Build and Test (ubuntu-latest, 2.12.13, adopt@1.8, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 2.13.4, adopt@1.8, ciJVM)
-      - status-success=Build and Test (windows-latest, 2.13.4, adopt@1.8, ciJVM)
+      - status-success=Build and Test (ubuntu-latest, 2.13.5, adopt@1.8, ciJVM)
+      - status-success=Build and Test (windows-latest, 2.13.5, adopt@1.8, ciJVM)
       - status-success=Build and Test (ubuntu-latest, 3.0.0-M3, adopt@1.8, ciJVM)
       - status-success=Build and Test (ubuntu-latest, 3.0.0-RC1, adopt@1.8, ciJVM)
       - status-success=Build and Test (ubuntu-latest, 2.12.13, adopt@1.8, ciJS)
-      - status-success=Build and Test (ubuntu-latest, 2.13.4, adopt@1.8, ciJS)
+      - status-success=Build and Test (ubuntu-latest, 2.13.5, adopt@1.8, ciJS)
       - status-success=Build and Test (ubuntu-latest, 3.0.0-M3, adopt@1.8, ciJS)
       - status-success=Build and Test (ubuntu-latest, 3.0.0-RC1, adopt@1.8, ciJS)
       - status-success=Build and Test (ubuntu-latest, 2.12.13, adopt@1.8, ciFirefox)
-      - status-success=Build and Test (ubuntu-latest, 2.13.4, adopt@1.8, ciFirefox)
+      - status-success=Build and Test (ubuntu-latest, 2.13.5, adopt@1.8, ciFirefox)
       - status-success=Build and Test (ubuntu-latest, 3.0.0-M3, adopt@1.8, ciFirefox)
       - status-success=Build and Test (ubuntu-latest, 3.0.0-RC1, adopt@1.8, ciFirefox)
       - body~=labels:.*semver-patch
