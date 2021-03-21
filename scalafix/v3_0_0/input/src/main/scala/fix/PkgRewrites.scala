@@ -3,8 +3,8 @@ rule = "scala:fix.v3_0_0"
  */
 package fix
 
-import cats.effect.IO
 import cats.effect.concurrent.{ Deferred, Ref, Semaphore }
+import cats.effect.{ ApplicativeThrow, IO, MonadThrow }
 
 object PkgRewrites {
   locally(Deferred)
@@ -18,4 +18,7 @@ object PkgRewrites {
   locally(Semaphore)
   locally(cats.effect.concurrent.Semaphore)
   def f3(s: cats.effect.concurrent.Semaphore[IO]): Semaphore[IO] = s
+
+  def f4[F[_]](F: ApplicativeThrow[F]): F[Unit] = F.unit
+  def f5[F[_]](F: MonadThrow[F]): F[Unit] = F.unit
 }

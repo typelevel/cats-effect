@@ -22,6 +22,8 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
     val Sync_S = Symbol("cats/effect/Sync#")
 
     Patch.replaceSymbols(
+      "cats/effect/package.ApplicativeThrow." -> "cats/ApplicativeThrow.",
+      "cats/effect/package.MonadThrow." -> "cats/MonadThrow.",
       "cats/effect/package.BracketThrow." -> "cats/effect/MonadCancelThrow.",
       "cats/effect/Bracket." -> "cats/effect/MonadCancel.",
       "cats/effect/IO.async()." -> "async_",
