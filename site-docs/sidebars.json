@@ -4,7 +4,8 @@
       "getting-started",
       "thread-model",
       "typeclasses",
-      "schedulers"
+      "schedulers",
+      "tutorial"
     ],
     "Typeclasses": [
       "typeclasses",
