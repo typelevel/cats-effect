@@ -25,18 +25,20 @@ import scala.concurrent.ExecutionContext
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class ECBenchmark {
-  trait Run { self: IOApp.Simple =>
+  trait Run { self: IOApp =>
     val size = 100000
-    def run: IO[Unit] = {
+    def run(args: List[String]): IO[ExitCode] = {
+      val _ = args
+
       def loop(i: Int): IO[Int] =
         if (i < size) IO.shift.flatMap(_ => IO.pure(i + 1)).flatMap(loop)
         else IO.shift.flatMap(_ => IO.pure(i))
 
-      IO(0).flatMap(loop).void
+      IO(0).flatMap(loop).map(_ => ExitCode.Success)
     }
   }
 
-  private val ioApp = new IOApp.Simple with Run
+  private val ioApp = new IOApp with Run
   private val ioAppCtx = new IOApp.WithContext with Run {
     protected def executionContextResource: Resource[SyncIO, ExecutionContext] =
       Resource.eval(SyncIO.pure(ExecutionContext.Implicits.global))

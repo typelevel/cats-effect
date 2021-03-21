@@ -23,7 +23,8 @@ import cats.effect.IO.Par
 import cats.effect.internals.IORunLoop
 import org.scalacheck.Arbitrary.{arbitrary => getArbitrary}
 import org.scalacheck._
-import scala.util.Either
+
+import scala.annotation.nowarn
 
 object arbitrary {
   implicit def catsEffectLawsArbitraryForIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]] =
@@ -76,6 +77,7 @@ object arbitrary {
     getArbitrary[(Either[Throwable, IO[A]] => Unit) => Unit]
       .map(k => IO.async(k).flatMap(x => x))
 
+  @nowarn("msg=never used")
   def genBindSuspend[A: Arbitrary: Cogen]: Gen[SyncIO[A]] =
     getArbitrary[A].map(SyncIO.apply(_).flatMap(SyncIO.pure))
 
