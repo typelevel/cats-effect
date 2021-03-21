@@ -83,6 +83,12 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("example/test-js.sh ${{ matrix.scala }}"),
     name = Some("Test Example JavaScript App Using Node"),
     cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")
+  ),
+  WorkflowStep.Run(
+    List("cd scalafix", "sbt test"),
+    name = Some("Scalafix tests"),
+    cond =
+      Some(s"matrix.scala == '$Scala213' && matrix.ci == 'ciJVM' && matrix.os == '$PrimaryOS'")
   )
 )
 
