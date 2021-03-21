@@ -89,7 +89,7 @@ raised.
 
 Now, the signature of our function looks like this:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect.IO
 import java.io.File
 
@@ -108,9 +108,8 @@ encapsulate those actions in their own `IO` instances. For this, we will make
 use of cats-effect `Resource`, that allows to orderly create, use and then
 release resources. See this code:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect.{IO, Resource}
-import cats.syntax.all._ 
 import java.io._ 
 
 def inputStream(f: File): Resource[IO, FileInputStream] =
@@ -153,7 +152,7 @@ resources, that method creates `Resource` instances over objects that implement
 `java.lang.AutoCloseable` interface without having to define how the resource is
 released. So our `inputStream` function would look like this:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect.{IO, Resource}
 import java.io.{File, FileInputStream}
 
@@ -169,7 +168,7 @@ of the release phase.
 
 Let's go back to our `copy` function, which now looks like this:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect.{IO, Resource}
 import java.io._
 
@@ -208,7 +207,7 @@ then in the _usage_ stage we will copy the contents, and finally in the release
 stage we will close the streams.  Thus we could define our `copy` function as
 follows:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect.IO
 import cats.syntax.all._ 
 import java.io._ 
@@ -261,7 +260,7 @@ of the bytes transferred. To reuse the same buffer we should define it outside
 the main loop, and leave the actual transmission of data to another function
 `transmit` that uses that loop. Something like:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect.IO
 import cats.syntax.all._ 
 import java.io._ 
@@ -337,8 +336,7 @@ permit as a `Resource` instance that will acquire the single permit, runs the
 `.release` on the semaphore explicitly, but `.permit` is more idiomatic and
 ensures that the permit is released even if the effect run fails.
 
-```scala
-import cats.syntax.all._
+```scala mdoc:compile-only
 import cats.effect.{IO, Resource}
 import cats.effect.std.Semaphore
 import java.io._
@@ -416,10 +414,8 @@ When coding `IOApp`, instead of a `main` function we have a `run` function,
 which creates the `IO` instance that forms the program. In our case, our `run`
 method can look like this:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect._
-import cats.effect.std.Console
-import cats.syntax.all._
 import java.io.File
 
 object Main extends IOApp {
@@ -434,7 +430,7 @@ object Main extends IOApp {
       orig = new File(args(0))
       dest = new File(args(1))
       count <- copy(orig, dest)
-      _     <- Console[IO].println(s"$count bytes copied from ${orig.getPath} to ${dest.getPath}")
+      _     <- IO.println(s"$count bytes copied from ${orig.getPath} to ${dest.getPath}")
     } yield ExitCode.Success
 }
 ```
@@ -442,8 +438,7 @@ object Main extends IOApp {
 Heed how `run` verifies the `args` list passed. If there are fewer than two
 arguments, an error is raised. As `IO` implements `MonadError` we can at any
 moment call to `IO.raiseError` to interrupt a sequence of `IO` operations. Log
-message is printed by means of `Console`, a handy type class that can be used
-instead of _e.g._ `IO(println(...))`.
+message is printed by means of handy `IO.println` method.
 
 #### Copy program code
 You can check the [final version of our copy program
@@ -466,11 +461,6 @@ run, still resources will be properly released. But recall what we commented
 before: this is because `use` returns `IO` instances that are cancelable, in
 contrast our `transfer` function is not cancelable.
 
-WARNING: To properly test cancelation, You should also ensure that
-`fork := true` is set in the sbt configuration, otherwise sbt will
-intercept the cancelation because it will be running the program
-in the same JVM as itself.
-
 ### Polymorphic cats-effect code
 There is an important characteristic of `IO` that we shall be aware of. `IO` is
 able to suspend side-effects asynchronously thanks to the existence of an
@@ -488,7 +478,7 @@ a polymorphic version of our `transfer` function with this approach, just by
 replacing any use of `IO` by calls to the `delay` and `pure` methods of the
 `Sync[F]` instance:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect.Sync
 import cats.syntax.all._
 import java.io._
@@ -509,10 +499,9 @@ Sync`. This is because it does not only suspend a side-effect, it uses
 functionality of semaphores that requires a `Concurrent` instance in (implicit)
 scope.  And `Sync` does _not_ extend `Concurrent` while `Async` does.
 
-```scala
+```scala mdoc:compile-only
 import cats.effect._
 import cats.effect.std.Semaphore
-import cats.syntax.all._
 import java.io._
 
 def transmit[F[_]: Sync](origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): F[Long] = ???
@@ -627,21 +616,25 @@ The `Ref` wrapping our queue will be `Ref[F, Queue[Int]]` (for some `F[_]`).
 
 Now, our `producer` method will be:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect._
 import cats.effect.std.Console
 import cats.syntax.all._
 import collection.immutable.Queue
 
 def producer[F[_]: Sync: Console](queueR: Ref[F, Queue[Int]], counter: Int): F[Unit] =
-  (for {
+  for {
     _ <- if(counter % 10000 == 0) Console[F].println(s"Produced $counter items") else Sync[F].unit
     _ <- queueR.getAndUpdate(_.enqueue(counter + 1))
-  } yield ()) >> producer(queueR, counter + 1)
+    _ <- producer(queueR, counter + 1)
+  } yield ()
 ```
 
 First line just prints some log message every `10000` items, so we know if it is
-'alive'. Then it calls `queueR.getAndUpdate` to add data into the queue. Note
+'alive'. It uses type class `Console[_]`, which brings the capacity to print
+and read strings (`IO.println` just uses `Console[IO].println` underneath).
+
+Then our code calls `queueR.getAndUpdate` to add data into the queue. Note
 that `.getAndUpdate` provides the current queue, then we use `.enqueue` to
 insert the next value `counter+1`. This call returns a new queue with the value
 added that is stored by the ref instance. If some other fiber is accessing to
@@ -650,19 +643,20 @@ added that is stored by the ref instance. If some other fiber is accessing to
 The `consumer` method is a bit different. It will try to read data from the
 queue but it must be aware that the queue can be empty:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect._
 import cats.effect.std.Console
 import cats.syntax.all._
 import collection.immutable.Queue
 
 def consumer[F[_] : Sync: Console](queueR: Ref[F, Queue[Int]]): F[Unit] =
-  (for {
+  for {
     iO <- queueR.modify{ queue =>
       queue.dequeueOption.fold((queue, Option.empty[Int])){case (i,queue) => (queue, Option(i))}
     }
     _ <- if(iO.exists(_ % 10000 == 0)) Console[F].println(s"Consumed ${iO.get} items") else Sync[F].unit
-  } yield ()) >> consumer(queueR)
+    _ <- consumer(queueR)
+  } yield ()
 ```
 
 The call to `queueR.modify` allows to modify the wrapped data (our queue) and
@@ -674,7 +668,7 @@ recursively to start again.
 We can now create a program that instantiates our `queueR` and runs both
 `producer` and `consumer` in parallel:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect._
 import cats.effect.std.Console
 import cats.syntax.all._
@@ -712,15 +706,24 @@ Alternatively we could have used `start` method to explicitely create new
 `Fiber` instances that will run the producer and consumer, then use `join` to
 wait for them to finish, something like:
 
-```scala
-def run(args: List[String]): IO[ExitCode] =
-  for {
-    queueR <- Ref.of[IO, Queue[Int]](Queue.empty[Int])
-    producerFiber <- producer(queueR, 0).start
-    consumerFiber <- consumer(queueR, 0).start
-    _ <- producerFiber.join
-    _ <- consumerFiber.join
-  } yield ExitCode.Error
+```scala mdoc:compile-only
+import cats.effect._
+import collection.immutable.Queue
+
+object InefficientProducerConsumer extends IOApp {
+
+  def producer[F[_]: Sync](queueR: Ref[F, Queue[Int]], counter: Int): F[Unit] = ??? // As defined before
+  def consumer[F[_] : Sync](queueR: Ref[F, Queue[Int]]): F[Unit] = ??? // As defined before
+
+  def run(args: List[String]): IO[ExitCode] =
+    for {
+      queueR <- Ref.of[IO, Queue[Int]](Queue.empty[Int])
+      producerFiber <- producer(queueR, 0).start
+      consumerFiber <- consumer(queueR).start
+      _ <- producerFiber.join
+      _ <- consumerFiber.join
+    } yield ExitCode.Error
+}
 ```
 
 Problem is, if there is an error in any of the fibers the `join` call will not
@@ -753,7 +756,7 @@ keep track of the `Deferred` instances created when the queue was empty that are
 waiting for elements to be available. These instances will be kept in a new
 queue `takers`. We will keep both queues in a new type `State`:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect.Deferred
 import scala.collection.immutable.Queue
 case class State[F[_], A](queue: Queue[A], takers: Queue[Deferred[F,A]])
@@ -770,7 +773,7 @@ work as follows:
 Assuming that in our setting we produce and consume `Int`s (just as before),
 then new consumer code will then be:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect.{Deferred, Ref, Async}
 import cats.effect.std.Console
 import cats.syntax.all._
@@ -791,10 +794,11 @@ def consumer[F[_]: Async: Console](id: Int, stateR: Ref[F, State[F, Int]]): F[Un
       }.flatten
     }
 
-  (for {
+  for {
     i <- take
     _ <- if(i % 10000 == 0) Console[F].println(s"Consumer $id has reached $i items") else Async[F].unit
-  } yield ()) >> consumer(id, stateR)
+    _ <- consumer(id, stateR)
+  } yield ()
 }
 ```
 
@@ -810,7 +814,7 @@ The producer, for its part, will:
 
 Thus the producer will look like:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect.{Deferred, Ref, Sync}
 import cats.effect.std.Console
 import cats.syntax.all._
@@ -829,11 +833,12 @@ def producer[F[_]: Sync: Console](id: Int, counterR: Ref[F, Int], stateR: Ref[F,
         State(queue.enqueue(i), takers) -> Sync[F].unit
     }.flatten
 
-  (for {
+  for {
     i <- counterR.getAndUpdate(_ + 1)
     _ <- offer(i)
     _ <- if(i % 10000 == 0) Console[F].println(s"Producer $id has reached $i items") else Sync[F].unit
-  } yield ()) >> producer(id, counterR, stateR)
+    _ <- producer(id, counterR, stateR)
+  } yield ()
 }
 ```
 
@@ -841,7 +846,7 @@ Finally we modify our main program so it instantiates the counter and state
 `Ref`s. Also it will create several consumers and producers, 10 of each, and
 will start all of them in parallel:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect._
 import cats.effect.std.Console
 import cats.instances.list._
@@ -901,7 +906,7 @@ offers can be added to `queue` or directly passed to some consumer (`taker`).
 Alongside the `Deferred` instance we need to keep as well the actual element
 offered by the producer in the `offerers` queue. Thus `State` class now becomes:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect.Deferred
 import scala.collection.immutable.Queue
 
@@ -929,7 +934,7 @@ and `offerers` are each one empty or not. For each escenario a consumer shall:
 
 So consumer code looks like this:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect._
 import cats.effect.std.Console
 import cats.syntax.all._
@@ -937,7 +942,7 @@ import scala.collection.immutable.Queue
 
 case class State[F[_], A](queue: Queue[A], capacity: Int, takers: Queue[Deferred[F,A]], offerers: Queue[(A, Deferred[F,Unit])])
 
-def consumer[F[_]: Async](id: Int, stateR: Ref[F, State[F, Int]]): F[Unit] = {
+def consumer[F[_]: Async: Console](id: Int, stateR: Ref[F, State[F, Int]]): F[Unit] = {
 
   val take: F[Int] =
     Deferred[F, Int].flatMap { taker =>
@@ -957,10 +962,11 @@ def consumer[F[_]: Async](id: Int, stateR: Ref[F, State[F, Int]]): F[Unit] = {
       }.flatten
     }
 
-  (for {
+  for {
     i <- take
     _ <- if(i % 10000 == 0) Console[F].println(s"Consumer $id has reached $i items") else Async[F].unit
-  } yield ()) >> consumer(id, stateR)
+    _ <- consumer(id, stateR)
+  } yield ()
 }
 ```
 
@@ -975,7 +981,7 @@ Producer functionality is a bit easier:
 
 Now producer code looks like this:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect._
 import cats.effect.std.Console
 import cats.syntax.all._
@@ -998,11 +1004,12 @@ def producer[F[_]: Async: Console](id: Int, counterR: Ref[F, Int], stateR: Ref[F
       }.flatten
     }
 
-  (for {
+  for {
     i <- counterR.getAndUpdate(_ + 1)
     _ <- offer(i)
     _ <- if(i % 10000 == 0) Console[F].println(s"Producer $id has reached $i items") else Async[F].unit
-  } yield ()) >> producer(id, counterR, stateR)
+    _ <- producer(id, counterR, stateR)
+  } yield ()
 }
 ```
 
@@ -1012,7 +1019,7 @@ modifying state, just as with unbounded queues.
 As the final step we must adapt the main program to use these new consumers and
 producers. Let's say we limit the queue size to `100`, then we have:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect._
 import cats.effect.std.Console
 import cats.syntax.all._
@@ -1058,10 +1065,12 @@ internal `offer`, so we will focus on it. And, for the sake of clarity in our
 analysis let's reformat the code using a for-comprehension:
 
 ```scala
-def offer(i: Int): F[Unit] =
+import cats.effect.Deferred
+
+def offer[F[_]](i: Int): F[Unit] =
   for {
     offerer <- Deferred[F, Int]
-    op      <- stateR.modify {...} // `op` is an F[] to be run
+    op      <- stateR.modify {???} // `op` is an F[] to be run
     _       <- op
   } yield ()
 ```
@@ -1078,12 +1087,12 @@ running `op` will leave the state inconsistent. We can quickly fix this by
 making that code uncancelable:
 
 ```scala
-def offer(i: Int): F[Unit] =
+def offer[F[_]](i: Int): F[Unit] =
   for {
     offerer <- Deferred[F, Int]
     _       <- F.uncancelable { poll => // `poll` ignored at this point, we'll discuss it later
                  for {
-                   op <- stateR.modify {...} // `op` is an F[] to be run
+                   op <- stateR.modify {???} // `op` is an F[] to be run
                    _  <- op // `taker.complete(i).void`, `Sync[F].unit` or `offerer.get`
                  } yield ()
               }
@@ -1108,7 +1117,7 @@ cancellation. That cleaning up will have to remove the `offerer` from the list
 of offerers kept in the state, as it shall never be completed. Our `offer`
 function has become:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect._
 import cats.effect.std.Console
 import cats.syntax.all._
@@ -1135,11 +1144,12 @@ def producer[F[_]: Async: Console](id: Int, counterR: Ref[F, Int], stateR: Ref[F
       }
     }
 
-  (for {
+  for {
     i <- counterR.getAndUpdate(_ + 1)
     _ <- offer(i)
     _ <- if(i % 10000 == 0) Console[F].println(s"Producer $id has reached $i items") else Async[F].unit
-  } yield ()) >> producer(id, counterR, stateR)
+    _ <- producer(id, counterR, stateR)
+  } yield ()
 }
 ```
 
@@ -1149,7 +1159,7 @@ will make sure to clean up the state when a cancellation occurs. In this case,
 the blocking call is `taker.get`, when such call is canceled the `taker` will
 be removed from the list of takers in the state. So our `consumer` is now:
 
-```scala
+```scala mdoc:compile-only
 import cats.effect._
 import cats.effect.std.Console
 import cats.syntax.all._
@@ -1181,10 +1191,11 @@ def consumer[F[_]: Async: Console](id: Int, stateR: Ref[F, State[F, Int]]): F[Un
       }
     }
 
-  (for {
+  for {
     i <- take
     _ <- if(i % 10000 == 0) Console[F].println(s"Consumer $id has reached $i items") else Async[F].unit
-  } yield ()) >> consumer(id, stateR)
+    _ <- consumer(id, stateR)
+  } yield ()
 }
 ```
 
