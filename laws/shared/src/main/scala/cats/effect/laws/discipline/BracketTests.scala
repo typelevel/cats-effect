@@ -26,6 +26,8 @@ import cats.effect.laws.discipline.arbitrary.catsEffectLawsCogenForExitCase
 import org.scalacheck._
 import Prop.forAll
 
+import scala.annotation.nowarn
+
 trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
   def laws: BracketLaws[F, E]
 
@@ -73,6 +75,7 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
       )
     }
 
+  @nowarn("msg=never used")
   def bracketTrans[M[_], A: Arbitrary: Eq, B: Arbitrary: Eq](fromM: M ~> F)(implicit
                                                                             ArbFA: Arbitrary[F[A]],
                                                                             ArbFB: Arbitrary[F[B]],

@@ -23,6 +23,7 @@ import cats.laws.discipline.ApplicativeTests
 import cats.syntax.all._
 import org.scalacheck.{Arbitrary, Cogen}
 
+import scala.annotation.nowarn
 import scala.concurrent.Promise
 import scala.util.Failure
 
@@ -30,6 +31,7 @@ class FiberTests extends BaseTestsSuite {
   implicit def genFiber[A: Arbitrary: Cogen]: Arbitrary[Fiber[IO, A]] =
     Arbitrary(genIO[A].map(io => Fiber(io, IO.unit)))
 
+  @nowarn("msg=never used")
   implicit def fiberEq[F[_]: Applicative, A](implicit FA: Eq[F[A]]): Eq[Fiber[F, A]] =
     Eq.by[Fiber[F, A], F[A]](_.join)
 

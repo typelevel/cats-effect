@@ -45,10 +45,10 @@ import cats.effect.concurrent.Ref
 class RefBenchmark {
 
   @Benchmark
-  def modify(): Unit = RefBenchmark.modify(10000)
+  def modify(): Long = RefBenchmark.modify(10000)
 
   @Benchmark
-  def getAndUpdate(): Unit = RefBenchmark.getAndUpdate(10000)
+  def getAndUpdate(): Long = RefBenchmark.getAndUpdate(10000)
 
 }
 
@@ -56,7 +56,7 @@ object RefBenchmark {
   implicit val cs: ContextShift[IO] = IO.contextShift(global)
 
   def modify(iterations: Int): Long = {
-    Ref[IO].of(0l).flatMap { ref =>
+    Ref[IO].of(0L).flatMap { ref =>
       def loop(remaining: Int, acc: Long): IO[Long] = {
         if (remaining == 0) IO(acc)
         else ref.modify(n => (n+1, n)).flatMap(prev => loop(remaining - 1, acc + prev))
@@ -66,7 +66,7 @@ object RefBenchmark {
   }.unsafeRunSync()
 
   def getAndUpdate(iterations: Int): Long = {
-    Ref[IO].of(0l).flatMap { ref =>
+    Ref[IO].of(0L).flatMap { ref =>
       def loop(remaining: Int, acc: Long): IO[Long] = {
         if (remaining == 0) IO(acc)
         else ref.getAndUpdate(_ + 1).flatMap(prev => loop(remaining - 1, acc + prev))
