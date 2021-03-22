@@ -93,10 +93,10 @@ const siteConfig = {
       pinned: true
     },
     {
-      image: 'img/adopters/philips.svg',
-      caption: 'Philips',
-      title: 'Philips',
-      infoLink: 'https://www.philips.com',
+      image: 'img/adopters/47deg.svg',
+      caption: '47 Degrees',
+      title: '47 Degrees',
+      infoLink: 'https://www.47deg.com',
       pinned: true
     },
     {
@@ -111,6 +111,13 @@ const siteConfig = {
       caption: 'Comcast',
       title: 'Comcast',
       infoLink: 'https://comcast.com/',
+      pinned: true
+    },
+    {
+      image: 'img/adopters/philips.svg',
+      caption: 'Philips',
+      title: 'Philips',
+      infoLink: 'https://www.philips.com',
       pinned: true
     },
     {

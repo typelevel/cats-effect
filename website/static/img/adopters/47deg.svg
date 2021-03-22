@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 41.1 (35376) - http://www.bohemiancoding.com/sketch -->
+    <title>.brand</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id=".brand">
+            <circle id="background" fill="#F44336" cx="24" cy="24" r="24"></circle>
+            <path d="M20.868,14.696 L10.052,29.724 L18.944,29.724 L18.944,33 L20.868,33 L20.868,29.724 L23,29.724 L23,27.956 L20.868,27.956 L20.868,14.696 Z M13.458,27.956 L18.944,20.286 L18.944,27.956 L13.458,27.956 Z M24.5,32.402 L26.008,33.416 L37.604,15.658 L24.864,15.658 L24.864,17.426 L34.354,17.426 L24.5,32.402 Z" id="47" fill="#FAFAFA"></path>
+        </g>
+    </g>
+</svg>

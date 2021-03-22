@@ -48,7 +48,31 @@
         "title": "Thread Model"
       },
       "typeclasses": {
-        "title": "Typeclasses"
+        "title": "Overview"
+      },
+      "typeclasses/async": {
+        "title": "Async"
+      },
+      "typeclasses/clock": {
+        "title": "Clock"
+      },
+      "typeclasses/concurrent": {
+        "title": "Concurrent"
+      },
+      "typeclasses/monadcancel": {
+        "title": "MonadCancel"
+      },
+      "typeclasses/spawn": {
+        "title": "Spawn"
+      },
+      "typeclasses/sync": {
+        "title": "Sync"
+      },
+      "typeclasses/temporal": {
+        "title": "Temporal"
+      },
+      "typeclasses/unique": {
+        "title": "Unique"
       },
       "version-2.x/concurrency/version-2.x-basics": {
         "title": "Basics"
@@ -174,16 +198,41 @@
         "title": "Thread Model"
       },
       "version-3.x/version-3.x-typeclasses": {
-        "title": "Typeclasses"
+        "title": "Overview"
+      },
+      "version-3.x/typeclasses/version-3.x-async": {
+        "title": "Async"
+      },
+      "version-3.x/typeclasses/version-3.x-clock": {
+        "title": "Clock"
+      },
+      "version-3.x/typeclasses/version-3.x-concurrent": {
+        "title": "Concurrent"
+      },
+      "version-3.x/typeclasses/version-3.x-monadcancel": {
+        "title": "MonadCancel"
+      },
+      "version-3.x/typeclasses/version-3.x-spawn": {
+        "title": "Spawn"
+      },
+      "version-3.x/typeclasses/version-3.x-sync": {
+        "title": "Sync"
+      },
+      "version-3.x/typeclasses/version-3.x-temporal": {
+        "title": "Temporal"
+      },
+      "version-3.x/typeclasses/version-3.x-unique": {
+        "title": "Unique"
       }
     },
     "links": {
       "Docs": "Docs",
-      "GitHub": "GitHub",
-      "API": "API"
+      "API": "API",
+      "GitHub": "GitHub"
     },
     "categories": {
       "Overview": "Overview",
+      "Typeclasses": "Typeclasses",
       "Standard Library": "Standard Library",
       "Getting Started": "Getting Started",
       "Guides": "Guides",

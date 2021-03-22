@@ -35,3 +35,10 @@ header nav li:last-child a {
   background-size: 32px 32px;
   text-indent: -9999px;
 }
+
+.productShowcaseSection .logos img {
+  height: 40px;
+  padding-left: 40px;
+  padding-right: 40px;
+  width: auto;
+}
