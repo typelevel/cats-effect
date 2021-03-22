@@ -171,9 +171,14 @@ We could then define `async` in terms of `cont`
 
 ```scala
 def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] =
-  cont flatMap {
-    case (cb, fa) => 
-      k(cb).flatMap(_.map(fa.onCancel(_)).getOrElse(fa))
+  F.uncancelable { poll =>
+    cont[A].flatMap {
+      case (cb, get) =>
+        k(cb).flatMap {
+          case Some(fin) => poll(get).onCancel(fin)
+          case None => poll(get)
+        }
+    }
   }
 ```
 
@@ -197,9 +202,9 @@ trait Cont[F[_], K, R] {
 
 This strange formulation means that only operations up to those defined by
 `MonadCancel` are in scope within the body of `Cont`. The third element of the
-tuple is a natural transformation used to lift `k(cb)` into `G`. With that in
-place, the implementation is actually very similar to what we had above, but
-statically prohibits us from calling unsafe operations.
+tuple is a natural transformation used to lift `k(cb)` and any finalizers into
+`G`. With that in place, the implementation is actually very similar to what we
+had above, but statically prohibits us from calling unsafe operations.
 
 ```scala
 def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
