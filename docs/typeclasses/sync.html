@@ -1,33 +1,84 @@
-<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Sync · Cats Effect</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="A `Monad` that can suspend the execution of side effects in the `F[_]` context."/><meta name="docsearch:version" content="3.x"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Sync · Cats Effect"/><meta property="og:type" content="website"/><meta property="og:url" content="https://typelevel.org/cats-effect/"/><meta property="og:description" content="A `Monad` that can suspend the execution of side effects in the `F[_]` context."/><meta property="og:image" content="https://typelevel.org/cats-effect/img/undraw_online.svg"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/undraw_tweetstorm.svg"/><link rel="shortcut icon" href="/cats-effect/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github-gist.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="/cats-effect/js/scrollSpy.js"></script><link rel="stylesheet" href="/cats-effect/css/main.css"/><script src="/cats-effect/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/cats-effect/"><img class="logo" src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect"/><h2 class="headerTitleWithLogo">Cats Effect</h2></a><a href="/cats-effect/versions"><h3>3.x</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/cats-effect/docs/getting-started" target="_self">Docs</a></li><li class=""><a href="/cats-effect/api/3.x" target="_self">API</a></li><li class=""><a target="_self"></a></li><li class=""><a href="https://github.com/typelevel/cats-effect" target="_blank">GitHub</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Sync</h1></header><article><div><span><p>A <code>Monad</code> that can suspend the execution of side effects in the <code>F[_]</code> context.</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.<span class="hljs-type">Defer</span>
-<span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">BracketThrow</span>
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Sync · Cats Effect</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="`Sync` is the synchronous FFI for suspending side-effectful operations. The"/><meta name="docsearch:version" content="3.x"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Sync · Cats Effect"/><meta property="og:type" content="website"/><meta property="og:url" content="https://typelevel.org/cats-effect/"/><meta property="og:description" content="`Sync` is the synchronous FFI for suspending side-effectful operations. The"/><meta property="og:image" content="https://typelevel.org/cats-effect/img/undraw_online.svg"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/undraw_tweetstorm.svg"/><link rel="shortcut icon" href="/cats-effect/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github-gist.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="/cats-effect/js/scrollSpy.js"></script><link rel="stylesheet" href="/cats-effect/css/main.css"/><script src="/cats-effect/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/cats-effect/"><img class="logo" src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect"/><h2 class="headerTitleWithLogo">Cats Effect</h2></a><a href="/cats-effect/versions"><h3>3.x</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/cats-effect/docs/getting-started" target="_self">Docs</a></li><li class=""><a href="/cats-effect/api/3.x" target="_self">API</a></li><li class=""><a target="_self"></a></li><li class=""><a href="https://github.com/typelevel/cats-effect" target="_blank">GitHub</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Typeclasses</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Overview<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/getting-started">Getting Started</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/thread-model">Thread Model</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/schedulers">Schedulers</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/tutorial">Tutorial</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Typeclasses<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses">Overview</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/monadcancel">MonadCancel</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/spawn">Spawn</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/unique">Unique</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/clock">Clock</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/temporal">Temporal</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/cats-effect/docs/typeclasses/sync">Sync</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/async">Async</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Standard Library<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/countdown-latch">Count Down Latch</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/cyclic-barrier">Cyclic Barrier</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/deferred">Deferred</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/dequeue">Dequeue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/dispatcher">Dispatcher</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/hotswap">Hotswap</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/pqueue">Priority Queue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/queue">Queue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/ref">Ref</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/resource">Resource</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/supervisor">Supervisor</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
 
-<span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Sync</span>[<span class="hljs-type">F</span>[_]] <span class="hljs-keyword">extends</span> <span class="hljs-title">BracketThrow</span>[<span class="hljs-type">F</span>] <span class="hljs-keyword">with</span> <span class="hljs-title">Defer</span>[<span class="hljs-type">F</span>] </span>{
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">suspend</span></span>[<span class="hljs-type">A</span>](thunk: =&gt; <span class="hljs-type">F</span>[<span class="hljs-type">A</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">A</span>]
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">delay</span></span>[<span class="hljs-type">A</span>](thunk: =&gt; <span class="hljs-type">A</span>): <span class="hljs-type">F</span>[<span class="hljs-type">A</span>] = suspend(pure(thunk))
-}
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Sync</h1></header><article><div><span><p><code>Sync</code> is the synchronous FFI for suspending side-effectful operations. The
+means of suspension is dependent on whether the side effect you want to
+suspend is blocking or not (see the <a href="/cats-effect/docs/thread-model">thread model docs</a>
+for more details on why this is the case).</p>
+<h2><a class="anchor" aria-hidden="true" id="methods-of-suspension"></a><a href="#methods-of-suspension" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Methods of suspension</h2>
+<p>If your side effect is not thread-blocking then you can use <code>Sync[F].delay</code></p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> counter = <span class="hljs-keyword">new</span> <span class="hljs-type">AtomicLong</span>()
+
+<span class="hljs-keyword">val</span> inc: <span class="hljs-type">F</span>[<span class="hljs-type">Long</span>] = <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].delay(counter.incrementAndGet())
 </code></pre>
-<p>This is the most basic interface that represents the suspension of synchronous side effects. On the other hand, its implementation of <code>flatMap</code> is stack safe, meaning that you can describe <code>tailRecM</code> in terms of it as demonstrated in the laws module.</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">Sync</span>}
-<span class="hljs-keyword">import</span> cats.laws._
-
-<span class="hljs-keyword">val</span> <span class="hljs-type">F</span> = <span class="hljs-type">Sync</span>[<span class="hljs-type">IO</span>]
-
-<span class="hljs-keyword">lazy</span> <span class="hljs-keyword">val</span> stackSafetyOnRepeatedRightBinds = {
-  <span class="hljs-keyword">val</span> result = (<span class="hljs-number">0</span> until <span class="hljs-number">10000</span>).foldRight(<span class="hljs-type">F</span>.delay(())) { (_, acc) =&gt;
-    <span class="hljs-type">F</span>.delay(()).flatMap(_ =&gt; acc)
-  }
-
-  result &lt;-&gt; <span class="hljs-type">F</span>.pure(())
-}
+<p>If your side effect is thread blocking then you should use <code>Sync[F].blocking</code>,
+which not only suspends the side effect but also shifts the evaluation
+of the effect to a separate threadpool to avoid blocking the compute
+threadpool. Execution is shifted back to the compute pool once
+the blocking operation completes.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> contents: <span class="hljs-type">F</span>[<span class="hljs-type">String</span>] = <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>].blocking(<span class="hljs-type">Source</span>.fromFile(<span class="hljs-string">"file"</span>).mkString)
 </code></pre>
-<p>Example of use:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">Sync</span>}
+<p>A downside of thread-blocking calls is that the fiber executing them is not
+cancelable until the blocking call completes. If you have a very long-running
+blocking operation then you may want to suspend it using <code>Sync[F].interruptible</code>
+instead.  This behaves the same as <code>blocking</code> but will attempt to interrupt the
+blocking operation via a thread interrupt in the event on cancellation.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-comment">//true means we try thread interruption repeatedly until the blocking operation exits</span>
+<span class="hljs-keyword">val</span> operation: <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = <span class="hljs-type">F</span>.interruptible(<span class="hljs-literal">true</span>)(longRunningOp())
 
-<span class="hljs-keyword">val</span> ioa = <span class="hljs-type">Sync</span>[<span class="hljs-type">IO</span>].delay(println(<span class="hljs-string">"Hello world!"</span>))
-
-ioa.unsafeRunSync()
+<span class="hljs-keyword">val</span> run: <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = operation.timeout(<span class="hljs-number">30.</span>seconds)
 </code></pre>
-<p>So basically using <code>Sync[IO].delay</code> is equivalent to using <code>IO.apply</code>.</p>
-<p>The use of <code>suspend</code> is useful for trampolining (i.e. when the side effect is conceptually the allocation of a stack frame) and it's used by <code>delay</code> to represent an internal stack of calls. Any exceptions thrown by the side effect will be caught and sequenced into the <code>F[_]</code> context.</p>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/en/getting-started">Getting Started</a><a href="/cats-effect/docs/en/guides/tutorial">Tutorial</a><a href="/cats-effect/docs/en/datatypes/io">IO Monad</a><a href="/cats-effect/docs/en/concurrency/overview">Concurrency</a></div><div><h5>Community</h5><a href="https://typelevel.org/blog/">Blog</a><a href="https://gitter.im/typelevel/cats-effect">Gitter</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2021 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/typeclasses/temporal"><span class="arrow-prev">← </span><span>Temporal</span></a><a class="docs-next button" href="/cats-effect/docs/typeclasses/async"><span>Async</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#methods-of-suspension">Methods of suspension</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/en/getting-started">Getting Started</a><a href="/cats-effect/docs/en/guides/tutorial">Tutorial</a><a href="/cats-effect/docs/en/datatypes/io">IO Monad</a><a href="/cats-effect/docs/en/concurrency/overview">Concurrency</a></div><div><h5>Community</h5><a href="https://typelevel.org/blog/">Blog</a><a href="https://gitter.im/typelevel/cats-effect">Gitter</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2021 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>

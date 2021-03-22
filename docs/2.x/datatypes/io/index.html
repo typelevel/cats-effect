@@ -198,7 +198,7 @@ purely functional way:</p>
 <p><code>IO</code> can describe asynchronous processes via the <code>IO.async</code> and
 <code>IO.cancelable</code> builders.</p>
 <p><code>IO.async</code> is the operation that complies with the laws of
-<code>Async#async</code> (see <a href="../typeclasses/async.md">Async</a>) and can
+<code>Async#async</code> (see <a href="/cats-effect/docs/2.x/typeclasses/async">Async</a>) and can
 describe simple asynchronous processes that cannot be canceled,
 its signature being:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">async</span></span>[<span class="hljs-type">A</span>](k: (<span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>] =&gt; <span class="hljs-type">Unit</span>) =&gt; <span class="hljs-type">Unit</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">A</span>] = ???
@@ -227,7 +227,7 @@ however the code for converting a <code>Future</code> would be straightforward:<
 <h4><a class="anchor" aria-hidden="true" id="cancelable-processes"></a><a href="#cancelable-processes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cancelable Processes</h4>
 <p>For building cancelable <code>IO</code> tasks you need to use the
 <code>IO.cancelable</code> builder, this being compliant with
-<code>Concurrent#cancelable</code> (see <a href="../typeclasses/concurrent.md">Concurrent</a>)
+<code>Concurrent#cancelable</code> (see <a href="/cats-effect/docs/2.x/typeclasses/concurrent">Concurrent</a>)
 and has this signature:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">cancelable</span></span>[<span class="hljs-type">A</span>](k: (<span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>] =&gt; <span class="hljs-type">Unit</span>) =&gt; <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">A</span>] = ???
 </code></pre>
@@ -637,7 +637,7 @@ in other words, either all of it executes, or none of it. And this is
 what this operation does — cancelable IOs are by definition not atomic
 and in certain cases we need to make them atomic.</p>
 <p>This law is compliant with the laws of <code>Concurrent#uncancelable</code> (see
-<a href="../typeclasses/concurrent.md">Concurrent</a>).</p>
+<a href="/cats-effect/docs/2.x/typeclasses/concurrent">Concurrent</a>).</p>
 <h3><a class="anchor" aria-hidden="true" id="iocancelboundary"></a><a href="#iocancelboundary" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>IO.cancelBoundary</h3>
 <p>Returns a cancelable boundary — an <code>IO</code> task that checks for the
 cancellation status of the run-loop and does not allow for the bind
@@ -1223,7 +1223,7 @@ parFailure.attempt.unsafeRunSync()
 <pre><code class="hljs css language-scala"><span class="hljs-type">IO</span>(println(<span class="hljs-string">"Potentially cancelable!"</span>)).unsafeRunCancelable(_ =&gt; ())
 <span class="hljs-comment">// Potentially cancelable!</span>
 <span class="hljs-comment">// res59: cats.effect.package.CancelToken[IO] = Suspend(</span>
-<span class="hljs-comment">//   thunk = cats.effect.internals.IOConnection$Impl$$Lambda$10104/1700431157@4f99d7c5</span>
+<span class="hljs-comment">//   thunk = cats.effect.internals.IOConnection$Impl$$Lambda$10333/1626886366@84a2431</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="unsaferuntimed"></a><a href="#unsaferuntimed" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>unsafeRunTimed</h3>

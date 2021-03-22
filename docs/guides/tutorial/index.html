@@ -402,12 +402,12 @@ in the same JVM as itself.</p>
 <p>There is an important characteristic of <code>IO</code> that we shall be aware of. <code>IO</code> is
 able to encapsulate side-effects, but the capacity to define concurrent and/or
 async and/or cancelable <code>IO</code> instances comes from the existence of a
-<code>Concurrent[IO]</code> instance. <a href="../typeclasses/concurrent.md"><code>Concurrent</code></a> is a
+<code>Concurrent[IO]</code> instance. <a href="/cats-effect/docs/typeclasses/concurrent"><code>Concurrent</code></a> is a
 type class that, for an <code>F[_]</code> carrying a side-effect, brings the ability to
 cancel or start concurrently the side-effect in <code>F</code>. <code>Concurrent</code> also extends
-type class <a href="../typeclasses/async.md"><code>Async</code></a>, that allows to define
+type class <a href="/cats-effect/docs/typeclasses/async"><code>Async</code></a>, that allows to define
 synchronous/asynchronous computations. <code>Async</code>, in turn, extends type class
-<a href="../typeclasses/sync.md"><code>Sync</code></a>, which can suspend the execution of side
+<a href="/cats-effect/docs/typeclasses/sync"><code>Sync</code></a>, which can suspend the execution of side
 effects in <code>F</code>.</p>
 <p>So well, <code>Sync</code> can suspend side effects (and so can <code>Async</code> and <code>Concurrent</code> as
 they extend <code>Sync</code>). We have used <code>IO</code> so far mostly for that purpose. Now,
