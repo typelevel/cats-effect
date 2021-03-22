@@ -16,16 +16,16 @@
 
 package cats.effect
 
-final class Local[A] private (index: Int, default: A) {
+final class Local[A] private (default: A) { self =>
 
   def get: IO[A] =
-    IO.Local(state => (state, state.get(index).map(_.asInstanceOf[A]).getOrElse(default)))
+    IO.Local(state => (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
 
   def set(value: A): IO[Unit] =
-    IO.Local(state => (state + (index -> value), ()))
+    IO.Local(state => (state + (self -> value), ()))
 
   def clear: IO[Unit] =
-    IO.Local(state => (state - index, ()))
+    IO.Local(state => (state - self, ()))
 
   def update(f: A => A): IO[Unit] =
     get.flatMap(a => set(f(a)))
@@ -47,9 +47,6 @@ final class Local[A] private (index: Int, default: A) {
 object Local {
 
   def apply[A](default: A): IO[Local[A]] =
-    IO {
-      val index = IOFiber.nextLocalIndex()
-      new Local(index, default)
-    }
+    IO(new Local(default))
 
 }

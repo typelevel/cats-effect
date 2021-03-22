@@ -26,7 +26,7 @@ import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.AtomicBoolean
 import scala.util.control.NoStackTrace
 
 /*
@@ -1136,14 +1136,9 @@ private final class IOFiber[A](
 }
 
 private object IOFiber {
-  private val localIndex = new AtomicInteger(0)
-
   /* prefetch */
   private val OutcomeCanceled = Outcome.Canceled()
   private[effect] val RightUnit = Right(())
-
-  private[effect] def nextLocalIndex(): Int =
-    localIndex.getAndIncrement()
 }
 
 private[effect] case object AsyncPropagateCancelation extends NoStackTrace
