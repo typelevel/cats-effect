@@ -72,7 +72,14 @@ trait IOApp {
         case Right(_) => sys.error("impossible")
       }
       .unsafeRunAsync({
-        case Left(t) => throw t
+        case Left(t) =>
+          t match {
+            case _: CancellationException =>
+              // Do not report cancellation exceptions but still exit with an error code.
+              reportExitCode(ExitCode(1))
+            case t: Throwable =>
+              throw t
+          }
         case Right(code) => reportExitCode(code)
       })(runtime)
   }
