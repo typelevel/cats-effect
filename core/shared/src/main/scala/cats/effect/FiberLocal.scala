@@ -63,7 +63,7 @@ object FiberLocal {
         override def getAndClear: IO[A] =
           get <* clear
 
+      }
     }
-  }
 
 }

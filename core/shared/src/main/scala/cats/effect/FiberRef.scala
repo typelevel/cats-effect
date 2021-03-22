@@ -17,6 +17,7 @@
 package cats.effect
 
 trait FiberRef[F[_], A] extends Ref[F, A] {
+
   /**
    * Divorces the current reference from parent fiber and
    * sets a new reference for the current fiber and children
@@ -33,9 +34,7 @@ object FiberRef {
       local <- FiberLocal[Ref[IO, A]](ref)
     } yield new FiberRef[IO, A] {
       override def reset: IO[Unit] =
-        Ref.of[IO, A](default).flatMap { nextRef =>
-          local.set(nextRef)
-        }
+        Ref.of[IO, A](default).flatMap { nextRef => local.set(nextRef) }
 
       override def get: IO[A] =
         local.get.flatMap(_.get)
@@ -63,6 +62,6 @@ object FiberRef {
 
       override def modifyState[B](state: cats.data.State[A, B]): IO[B] =
         local.get.flatMap(_.modifyState(state))
-   }
+    }
 
 }
