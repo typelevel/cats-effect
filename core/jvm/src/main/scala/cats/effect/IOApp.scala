@@ -25,7 +25,7 @@ trait IOApp {
   private[this] var _runtime: unsafe.IORuntime = null
   protected def runtime: unsafe.IORuntime = _runtime
 
-  protected def config: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
+  protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
   protected def computeWorkerThreadCount: Int =
     Math.max(2, Runtime.getRuntime().availableProcessors())
@@ -57,7 +57,7 @@ trait IOApp {
             blockDown()
             schedDown()
           },
-          config)
+          runtimeConfig)
       }
 
       _runtime = IORuntime.global

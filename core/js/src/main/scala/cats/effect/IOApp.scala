@@ -25,7 +25,7 @@ trait IOApp {
   private[this] var _runtime: unsafe.IORuntime = null
 
   protected def runtime: unsafe.IORuntime = _runtime
-  protected def config: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
+  protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
   def run(args: List[String]): IO[ExitCode]
 
@@ -39,7 +39,7 @@ trait IOApp {
           IORuntime.defaultComputeExecutionContext,
           IORuntime.defaultScheduler,
           () => (),
-          config)
+          runtimeConfig)
       }
 
       _runtime = IORuntime.global
