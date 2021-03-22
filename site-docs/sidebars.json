@@ -3,7 +3,6 @@
     "Overview": [
       "getting-started",
       "thread-model",
-      "typeclasses",
       "schedulers",
       "tutorial"
     ],
