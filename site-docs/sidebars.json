@@ -7,7 +7,7 @@
       "schedulers",
       "tutorial"
     ],
-    "Typeclasses": [
+    "Abstract Capabilities": [
       "typeclasses",
       "typeclasses/monadcancel",
       "typeclasses/spawn",
