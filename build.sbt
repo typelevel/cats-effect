@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import microsites.{ConfigYml, ExtraMdFileConfig}
 import sbtghactions.UseRef
 
 import scala.util.Try
@@ -34,14 +33,8 @@ ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/2.x")
 
-ThisBuild / githubWorkflowBuildPreamble ++= Seq(
-  WorkflowStep.Use(UseRef.Public("ruby", "setup-ruby", "v1"), Map("ruby-version" -> "2.7")),
-  WorkflowStep.Run(List("gem install bundler")),
-  WorkflowStep.Run(List("bundle install --gemfile=site/Gemfile"))
-)
-
 ThisBuild / githubWorkflowBuild +=
-  WorkflowStep.Sbt(List("microsite/makeMicrosite"), cond = Some(s"matrix.scala == '$OldScala'"))
+  WorkflowStep.Sbt(List("docs/mdoc"), cond = Some(s"matrix.scala == '$OldScala'"))
 
 ThisBuild / githubWorkflowBuild +=
   WorkflowStep.Run(
@@ -77,7 +70,7 @@ replaceCommandAlias(
 
 replaceCommandAlias(
   "release",
-  "; reload; project /; +mimaReportBinaryIssuesIfRelevant; +publishIfRelevant; sonatypeBundleRelease; microsite/publishMicrosite"
+  "; reload; project /; +mimaReportBinaryIssuesIfRelevant; +publishIfRelevant; sonatypeBundleRelease"
 )
 
 // Directly copied from typelevel/cats
@@ -356,64 +349,27 @@ lazy val benchmarksNext = project
   .settings(scalacOptions ~= (_.filterNot(Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)))
   .enablePlugins(JmhPlugin)
 
-lazy val docsMappingsAPIDir =
-  settingKey[String]("Name of subdirectory in site target directory for api docs")
-
-lazy val siteSettings = Seq(
-  micrositeName := "Cats Effect",
-  micrositeDescription := "The IO Monad for Scala",
-  micrositeAuthor := "Cats Effect contributors",
-  micrositeGithubOwner := "typelevel",
-  micrositeGithubRepo := "cats-effect",
-  micrositeBaseUrl := "/cats-effect",
-  micrositeTwitterCreator := "@typelevel",
-  micrositeDocumentationUrl := "https://typelevel.org/cats-effect/api/",
-  micrositeFooterText := None,
-  micrositeHighlightTheme := "atom-one-light",
-  micrositePalette := Map(
-    "brand-primary" -> "#3e5b95",
-    "brand-secondary" -> "#294066",
-    "brand-tertiary" -> "#2d5799",
-    "gray-dark" -> "#49494B",
-    "gray" -> "#7B7B7E",
-    "gray-light" -> "#E5E5E6",
-    "gray-lighter" -> "#F4F3F4",
-    "white-color" -> "#FFFFFF"
-  ),
-  micrositeExtraMdFiles := Map(
-    file("README.md") -> ExtraMdFileConfig(
-      "index.md",
-      "home",
-      Map("permalink" -> "/", "title" -> "Home", "section" -> "home", "position" -> "0")
-    )
-  ),
-  micrositeConfigYaml := ConfigYml(
-    yamlPath = Some((resourceDirectory in Compile).value / "microsite" / "_config.yml")
-  ),
-  mdocIn := (sourceDirectory in Compile).value / "mdoc",
-  Compile / scalacOptions ~= (_.filterNot(
-    Set(
-      "-Xfatal-warnings",
-      "-Werror",
-      "-Ywarn-numeric-widen",
-      "-Ywarn-unused:imports",
-      "-Ywarn-unused:locals",
-      "-Ywarn-unused:patvars",
-      "-Ywarn-unused:privates",
-      "-Ywarn-numeric-widen",
-      "-Ywarn-dead-code",
-      "-Xlint:-missing-interpolator,_"
-    ).contains
-  )),
-  docsMappingsAPIDir := "api",
-  addMappingsToSiteDir(mappings in packageDoc in Compile in coreJVM, docsMappingsAPIDir)
-)
-
-lazy val microsite = project
-  .in(file("site"))
-  .enablePlugins(MicrositesPlugin, SiteScaladocPlugin, MdocPlugin, NoPublishPlugin)
-  .settings(commonSettings)
-  .settings(siteSettings)
+lazy val docs = project
+  .in(file("site-docs"))
+  .enablePlugins(MdocPlugin)
+  .settings(commonSettings ++ noPublishSettings)
+  .settings(
+    fork in mdoc := true,
+    Compile / scalacOptions ~= (_.filterNot(
+      Set(
+        "-Xfatal-warnings",
+        "-Werror",
+        "-Ywarn-numeric-widen",
+        "-Ywarn-unused:imports",
+        "-Ywarn-unused:locals",
+        "-Ywarn-unused:patvars",
+        "-Ywarn-unused:privates",
+        "-Ywarn-numeric-widen",
+        "-Ywarn-dead-code",
+        "-Xlint:-missing-interpolator,_"
+      ).contains
+    ))
+  )
   .dependsOn(coreJVM, lawsJVM)
 
 git.gitHeadCommit := Try("git rev-parse HEAD".!!.trim).toOption
