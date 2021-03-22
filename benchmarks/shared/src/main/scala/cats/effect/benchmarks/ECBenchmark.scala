@@ -27,8 +27,9 @@ import scala.concurrent.ExecutionContext
 class ECBenchmark {
   trait Run { self: IOApp =>
     val size = 100000
-    def run(args: List[String]) = {
+    def run(args: List[String]): IO[ExitCode] = {
       val _ = args
+
       def loop(i: Int): IO[Int] =
         if (i < size) IO.shift.flatMap(_ => IO.pure(i + 1)).flatMap(loop)
         else IO.shift.flatMap(_ => IO.pure(i))
@@ -40,7 +41,7 @@ class ECBenchmark {
   private val ioApp = new IOApp with Run
   private val ioAppCtx = new IOApp.WithContext with Run {
     protected def executionContextResource: Resource[SyncIO, ExecutionContext] =
-      Resource.liftF(SyncIO.pure(ExecutionContext.Implicits.global))
+      Resource.eval(SyncIO.pure(ExecutionContext.Implicits.global))
   }
 
   @Benchmark

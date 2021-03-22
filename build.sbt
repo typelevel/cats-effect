@@ -19,13 +19,14 @@ import sbtghactions.UseRef
 import scala.util.Try
 import scala.sys.process._
 
-ThisBuild / baseVersion := "2.3"
+ThisBuild / baseVersion := "2.4"
 
 val OldScala = "2.12.13"
-val OldDotty = "3.0.0-M2"
-val NewDotty = "3.0.0-M3"
+val NewScala = "2.13.5"
+val OldDotty = "3.0.0-M3"
+val NewDotty = "3.0.0-RC1"
 
-ThisBuild / crossScalaVersions := Seq(OldDotty, NewDotty, OldScala, "2.13.4")
+ThisBuild / crossScalaVersions := Seq(OldDotty, NewDotty, OldScala, NewScala)
 ThisBuild / scalaVersion := (ThisBuild / crossScalaVersions).value.last
 
 ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11")
@@ -34,6 +35,13 @@ ThisBuild / githubWorkflowTargetBranches := Seq("series/2.x")
 
 ThisBuild / githubWorkflowBuild +=
   WorkflowStep.Sbt(List("docs/mdoc"), cond = Some(s"matrix.scala == '$OldScala'"))
+
+ThisBuild / githubWorkflowBuild +=
+  WorkflowStep.Run(
+    List("cd scalafix", "sbt test"),
+    name = Some("Scalafix tests"),
+    cond = Some(s"matrix.scala == '$NewScala'")
+  )
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
@@ -51,9 +59,9 @@ ThisBuild / scmInfo := Some(
   ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")
 )
 
-val CatsVersion = "2.3.1"
-val DisciplineMunitVersion = "1.0.5"
-val SilencerVersion = "1.7.2"
+val CatsVersion = "2.4.2"
+val DisciplineMunitVersion = "1.0.6"
+val SilencerVersion = "1.7.3"
 
 replaceCommandAlias(
   "ci",
@@ -246,7 +254,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       if (isDotty.value)
         Seq(
           // Only way to properly resolve this library
-          ("com.github.ghik" % "silencer-lib_2.13.3" % SilencerVersion % Provided)
+          ("com.github.ghik" % "silencer-lib_2.13.5" % SilencerVersion % Provided)
         ).map(_.withDottyCompat(scalaVersion.value))
       else
         Seq(
@@ -262,7 +270,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       // disable mima check on dotty for now
       if (isDotty.value) Set.empty else mimaPreviousArtifacts.value
     },
-    mimaFailOnNoPrevious := !isDotty.value
+    mimaFailOnNoPrevious := !isDotty.value,
+    javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
   )
   .jsSettings(scalaJSSettings)
 

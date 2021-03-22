@@ -73,7 +73,17 @@ In terms of the behavior, the contract is currently this:
   with that as an error code (via `sys.exit`)
 - if the `IO` terminates in error, it is printed to standard error and
   `sys.exit` is called
-  
+
+Or if you don't need to use arguments and return exit codes:
+
+```scala mdoc:reset:silent
+import cats.effect._
+
+object Main extends IOApp.Simple {
+  val run = IO(println("Hello, World!"))
+}
+```
+
 ### Cancelation and Safe Resource Release
 
 The `cats.effect.IO` implementation is cancelable and so is `IOApp`.

@@ -35,7 +35,7 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
     F.async[A](_(Left(e))) <-> F.raiseError(e)
 
   def repeatedAsyncEvaluationNotMemoized[A](a: A, f: A => A) =
-    F.suspend {
+    F.defer {
       var cur = a
 
       val change: F[Unit] = F.async { cb =>
@@ -49,7 +49,7 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
     } <-> F.pure(f(f(a)))
 
   def repeatedAsyncFEvaluationNotMemoized[A](a: A, f: A => A) =
-    F.suspend {
+    F.defer {
       var cur = a
 
       val change: F[Unit] = F.asyncF { cb =>
@@ -63,7 +63,7 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
     } <-> F.pure(f(f(a)))
 
   def repeatedCallbackIgnored[A](a: A, f: A => A) =
-    F.suspend {
+    F.defer {
       var cur = a
       val change = F.delay { cur = f(cur) }
       val readResult = F.delay(cur)

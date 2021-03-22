@@ -28,16 +28,16 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] with DeferLaws[F] {
     F.delay(a) <-> F.pure(a)
 
   def suspendConstantIsPureJoin[A](fa: F[A]) =
-    F.suspend(fa) <-> F.flatten(F.pure(fa))
+    F.defer(fa) <-> F.flatten(F.pure(fa))
 
   def delayThrowIsRaiseError[A](e: Throwable) =
     F.delay[A](throw e) <-> F.raiseError(e)
 
   def suspendThrowIsRaiseError[A](e: Throwable) =
-    F.suspend[A](throw e) <-> F.raiseError(e)
+    F.defer[A](throw e) <-> F.raiseError(e)
 
   def unsequencedDelayIsNoop[A](a: A, f: A => A) =
-    F.suspend {
+    F.defer {
       var cur = a
       val change = F.delay { cur = f(cur) }
       val _ = change
@@ -46,7 +46,7 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] with DeferLaws[F] {
     } <-> F.pure(a)
 
   def repeatedSyncEvaluationNotMemoized[A](a: A, f: A => A) =
-    F.suspend {
+    F.defer {
       var cur = a
       val change = F.delay { cur = f(cur) }
       val read = F.delay(cur)
@@ -61,7 +61,7 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] with DeferLaws[F] {
   }
 
   def bindSuspendsEvaluation[A](fa: F[A], a1: A, f: (A, A) => A) =
-    F.suspend {
+    F.defer {
       var state = a1
       val evolve = F.flatMap(fa) { a2 =>
         state = f(a1, a2)
@@ -72,7 +72,7 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] with DeferLaws[F] {
     } <-> F.map(fa)(a2 => f(a1, f(a1, a2)))
 
   def mapSuspendsEvaluation[A](fa: F[A], a1: A, f: (A, A) => A) =
-    F.suspend {
+    F.defer {
       var state = a1
       val evolve = F.map(fa) { a2 =>
         state = f(a1, a2)
