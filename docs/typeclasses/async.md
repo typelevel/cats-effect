@@ -224,4 +224,8 @@ def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
 }
 ```
 
-The `Cont` model is also substantially cleaner to implement internally. 
+The `Cont` model is also substantially cleaner to implement internally,
+particularly with respect to cancelation and finalization. With `cont` a
+finalizer can only be introduced via `onCancel`, as opposed to `async` where
+finalizers can be introduced either via `onCancel` or by returning
+`Some(finalizer)` from the continuation.
