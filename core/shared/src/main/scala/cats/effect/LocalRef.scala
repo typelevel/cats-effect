@@ -16,7 +16,7 @@
 
 package cats.effect
 
-final class LocalRef[A] private (local: Local[Ref[IO, A]]) extends Ref[IO, A] {
+final class LocalRef[A] private (local: FiberRef[IO, Ref[IO, A]]) extends Ref[IO, A] {
 
   override def get: IO[A] =
     local.get.flatMap(_.get)
@@ -52,7 +52,7 @@ object LocalRef {
   def apply[A](default: A): IO[LocalRef[A]] =
     for {
       ref <- Ref.of[IO, A](default)
-      local <- Local[Ref[IO, A]](ref)
+      local <- FiberRef[Ref[IO, A]](ref)
     } yield new LocalRef(local)
 
 }
