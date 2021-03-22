@@ -17,18 +17,18 @@
 package cats
 package effect
 
-class LocalRefSpec extends BaseSpec {
+class FiberLocalSpec extends BaseSpec {
 
-  "LocalRef" should {
+  "Local" should {
     "return a default value" in ticked { implicit ticker =>
-      val io = LocalRef(0).flatMap(_.get)
+      val io = FiberLocal(0).flatMap(_.get)
 
       io must completeAs(0)
     }
 
     "set and get a value" in ticked { implicit ticker =>
       val io = for {
-        local <- LocalRef(0)
+        local <- FiberLocal(0)
         _ <- local.set(10)
         value <- local.get
       } yield value
@@ -38,7 +38,7 @@ class LocalRefSpec extends BaseSpec {
 
     "preserve locals across async boundaries" in ticked { implicit ticker =>
       val io = for {
-        local <- LocalRef(0)
+        local <- FiberLocal(0)
         _ <- local.set(10)
         _ <- IO.cede
         value <- local.get
@@ -47,9 +47,9 @@ class LocalRefSpec extends BaseSpec {
       io must completeAs(10)
     }
 
-    "children fibers can read locals" in ticked { implicit ticker =>
+    "copy locals to children fibers" in ticked { implicit ticker =>
       val io = for {
-        local <- LocalRef(0)
+        local <- FiberLocal(0)
         _ <- local.set(10)
         f <- local.get.start
         value <- f.joinWithNever
@@ -58,20 +58,20 @@ class LocalRefSpec extends BaseSpec {
       io must completeAs(10)
     }
 
-    "child local manipulation is visible to parents" in ticked { implicit ticker =>
+    "child local manipulation is invisible to parents" in ticked { implicit ticker =>
       val io = for {
-        local <- LocalRef(0)
+        local <- FiberLocal(10)
         f <- local.set(20).start
         _ <- f.join
         value <- local.get
       } yield value
 
-      io must completeAs(20)
+      io must completeAs(10)
     }
 
-    "parent local manipulation is visible to children" in ticked { implicit ticker =>
+    "parent local manipulation is invisible to children" in ticked { implicit ticker =>
       val io = for {
-        local <- LocalRef(0)
+        local <- FiberLocal(0)
         d1 <- Deferred[IO, Unit]
         f <- (d1.get *> local.get).start
         _ <- local.set(10)
@@ -79,7 +79,7 @@ class LocalRefSpec extends BaseSpec {
         value <- f.joinWithNever
       } yield value
 
-      io must completeAs(10)
+      io must completeAs(0)
     }
   }
 

@@ -16,54 +16,53 @@
 
 package cats.effect
 
-trait FiberRef[F[_], A] {
-
-  def get: F[A]
-
-  def set(value: A): F[Unit]
-
-  def clear: F[Unit]
-
-  def update(f: A => A): F[Unit]
-
-  def modify[B](f: A => (A, B)): F[B]
-
-  def getAndSet(value: A): F[A]
-
-  def getAndClear: F[A]
-
+trait FiberRef[F[_], A] extends Ref[F, A] {
+  /**
+   * Divorces the current reference from parent fiber and
+   * sets a new reference for the current fiber and children
+   * fibers.
+   */
+  def reset: F[Unit]
 }
 
 object FiberRef {
 
   def apply[A](default: A): IO[FiberRef[IO, A]] =
-    IO {
-      new FiberRef[IO, A] { self =>
-        override def get: IO[A] =
-          IO.Local(state => (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
+    for {
+      ref <- Ref.of[IO, A](default)
+      local <- FiberLocal[Ref[IO, A]](ref)
+    } yield new FiberRef[IO, A] {
+      override def reset: IO[Unit] =
+        Ref.of[IO, A](default).flatMap { nextRef =>
+          local.set(nextRef)
+        }
 
-        override def set(value: A): IO[Unit] =
-          IO.Local(state => (state + (self -> value), ()))
+      override def get: IO[A] =
+        local.get.flatMap(_.get)
 
-        override def clear: IO[Unit] =
-          IO.Local(state => (state - self, ()))
+      override def set(a: A): IO[Unit] =
+        local.get.flatMap(_.set(a))
 
-        override def update(f: A => A): IO[Unit] =
-          get.flatMap(a => set(f(a)))
+      override def access: IO[(A, A => IO[Boolean])] =
+        local.get.flatMap(_.access)
 
-        override def modify[B](f: A => (A, B)): IO[B] =
-          get.flatMap { a =>
-            val (a2, b) = f(a)
-            set(a2).as(b)
-          }
+      override def tryUpdate(f: A => A): IO[Boolean] =
+        local.get.flatMap(_.tryUpdate(f))
 
-        override def getAndSet(value: A): IO[A] =
-          get <* set(value)
+      override def tryModify[B](f: A => (A, B)): IO[Option[B]] =
+        local.get.flatMap(_.tryModify(f))
 
-        override def getAndClear: IO[A] =
-          get <* clear
+      override def update(f: A => A): IO[Unit] =
+        local.get.flatMap(_.update(f))
 
-    }
-  }
+      override def modify[B](f: A => (A, B)): IO[B] =
+        local.get.flatMap(_.modify(f))
+
+      override def tryModifyState[B](state: cats.data.State[A, B]): IO[Option[B]] =
+        local.get.flatMap(_.tryModifyState(state))
+
+      override def modifyState[B](state: cats.data.State[A, B]): IO[B] =
+        local.get.flatMap(_.modifyState(state))
+   }
 
 }

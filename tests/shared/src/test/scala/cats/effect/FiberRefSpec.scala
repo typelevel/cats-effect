@@ -19,7 +19,7 @@ package effect
 
 class FiberRefSpec extends BaseSpec {
 
-  "Local" should {
+  "FiberRef" should {
     "return a default value" in ticked { implicit ticker =>
       val io = FiberRef(0).flatMap(_.get)
 
@@ -47,7 +47,7 @@ class FiberRefSpec extends BaseSpec {
       io must completeAs(10)
     }
 
-    "copy locals to children fibers" in ticked { implicit ticker =>
+    "children fibers can read locals" in ticked { implicit ticker =>
       val io = for {
         local <- FiberRef(0)
         _ <- local.set(10)
@@ -58,18 +58,18 @@ class FiberRefSpec extends BaseSpec {
       io must completeAs(10)
     }
 
-    "child local manipulation is invisible to parents" in ticked { implicit ticker =>
+    "child local manipulation is visible to parents" in ticked { implicit ticker =>
       val io = for {
-        local <- FiberRef(10)
+        local <- FiberRef(0)
         f <- local.set(20).start
         _ <- f.join
         value <- local.get
       } yield value
 
-      io must completeAs(10)
+      io must completeAs(20)
     }
 
-    "parent local manipulation is invisible to children" in ticked { implicit ticker =>
+    "parent local manipulation is visible to children" in ticked { implicit ticker =>
       val io = for {
         local <- FiberRef(0)
         d1 <- Deferred[IO, Unit]
@@ -79,7 +79,7 @@ class FiberRefSpec extends BaseSpec {
         value <- f.joinWithNever
       } yield value
 
-      io must completeAs(0)
+      io must completeAs(10)
     }
   }
 
