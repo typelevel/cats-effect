@@ -28,6 +28,18 @@
       "std/ref",
       "std/resource",
       "std/supervisor"
+    ],
+    "Ecosystem": [
+      "ecosystem",
+      "ecosystem/aws",
+      "ecosystem/configuration",
+      "ecosystem/database",
+      "ecosystem/http",
+      "ecosystem/kafka",
+      "ecosystem/logging",
+      "ecosystem/redis",
+      "ecosystem/scalability",
+      "ecosystem/tracing"
     ]
   }
 }
