@@ -112,8 +112,7 @@ reader. To start with, consider the definition of `async` again
 
 ```scala
 trait Async[F[_]] {
-  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
-}
+  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A]
 ```
 
 Suppose we try to implement the inductive instance of this for `OptionT`. We
@@ -139,23 +138,25 @@ trait OptionTAsync[F[_]] extends Async[OptionT[F, *]] {
 This looks (vaguely) reasonable. However, there is a subtle problem lurking in
 there -  the use of `flatten`. The problem is that `OptionT` (and similarly
 `EitherT` and `IorT`) has an additional error channel (where `x = 
-delegrate.pure(None)`) that we are forced to discard when mapping to something
+delegate.pure(None)`) that we are forced to discard when mapping to something
 of type `F[Option[F[Unit]]]`.
 
 This in fact breaks several of the `Async` laws:
 
 ```scala
 def asyncRightIsSequencedPure[A](a: A, fu: F[Unit]) =
-    F.async[A](k => F.delay(k(Right(a))) >> fu.as(None)) <-> (fu >> F.pure(a))
+  F.async[A](k => F.delay(k(Right(a))) >> fu.as(None)) <-> (fu >> F.pure(a))
 
-  def asyncLeftIsSequencedRaiseError[A](e: Throwable, fu: F[Unit]) =
-    F.async[A](k => F.delay(k(Left(e))) >> fu.as(None)) <-> (fu >> F.raiseError(e))
+def asyncLeftIsSequencedRaiseError[A](e: Throwable, fu: F[Unit]) =
+  F.async[A](k => F.delay(k(Left(e))) >> fu.as(None)) <-> (fu >> F.raiseError(e))
 ```
 
 In both cases if we have `fu = OptionT.none[F, A]` (the error channel for `OptionT`) then
 the LHS will suppress the error, whereas the RHS will not.
 
-A possible solution would be to un-CPS the computation by defining
+A possible solution would be to
+un-[CPS](https://en.wikipedia.org/wiki/Continuation-passing_style) the
+computation by defining
 
 ```scala
 def cont[A]: F[(Either[Throwable, A] => Unit, F[A])]
@@ -203,7 +204,7 @@ trait Cont[F[_], K, R] {
 This strange formulation means that only operations up to those defined by
 `MonadCancel` are in scope within the body of `Cont`. The third element of the
 tuple is a natural transformation used to lift `k(cb)` and any finalizers into
-`G`. With that in place, the implementation is actually very similar to what we
+`G`. With that in place, the implementation is actually almost identical to what we
 had above, but statically prohibits us from calling unsafe operations.
 
 ```scala
@@ -211,8 +212,8 @@ def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
   val body = new Cont[F, A, A] {
     def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
       G.uncancelable { poll =>
-        lift(k(resume)) flatMap {
-          case Some(fin) => G.onCancel(poll(get), lift(fin))
+        lift(k(resume)).flatMap {
+          case Some(fin) => poll(get).onCancel(lift(fin))
           case None => poll(get)
         }
       }
@@ -222,3 +223,5 @@ def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
   cont(body)
 }
 ```
+
+The `Cont` model is also substantially cleaner to implement internally. 
