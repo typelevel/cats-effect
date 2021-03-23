@@ -47,6 +47,9 @@
       "thread-model": {
         "title": "Thread Model"
       },
+      "tutorial": {
+        "title": "Tutorial"
+      },
       "typeclasses": {
         "title": "Overview"
       },
@@ -196,6 +199,9 @@
       },
       "version-3.x/version-3.x-thread-model": {
         "title": "Thread Model"
+      },
+      "version-3.x/version-3.x-tutorial": {
+        "title": "Tutorial"
       },
       "version-3.x/version-3.x-typeclasses": {
         "title": "Overview"
