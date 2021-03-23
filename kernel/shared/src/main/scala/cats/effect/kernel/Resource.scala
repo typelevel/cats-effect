@@ -637,10 +637,6 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    *
    * @param fa the value to lift into a resource
    */
-  @deprecated("please use `eval` instead.", since = "3.0")
-  def liftF[F[_], A](fa: F[A]): Resource[F, A] =
-    Resource.Eval(fa)
-
   def eval[F[_], A](fa: F[A]): Resource[F, A] =
     Resource.Eval(fa)
 
