@@ -129,10 +129,12 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
         back <- onCancel(
           poll(result.get), {
             for {
-              done <- deferred[Unit]
-              _ <- start(guarantee(fibA.cancel, done.complete(()).void))
-              _ <- start(guarantee(fibB.cancel, done.complete(()).void))
-              _ <- done.get
+              doneA <- deferred[Unit]
+              doneB <- deferred[Unit]
+              _ <- start(guarantee(fibA.cancel, doneA.complete(()).void))
+              _ <- start(guarantee(fibB.cancel, doneB.complete(()).void))
+              _ <- doneA.get
+              _ <- doneB.get
             } yield ()
           }
         )
