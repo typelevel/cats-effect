@@ -782,9 +782,7 @@ object GenSpawn {
       WriterT(F.race(fa.run, fb.run).map(_.bisequence))
 
     override def both[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[F, L, (A, B)] =
-      WriterT(F.both(fa.run, fb.run).map {
-        case ((l1, a), (l2, b)) => (l1 |+| l2) -> (a -> b)
-      })
+      WriterT(F.both(fa.run, fb.run).map { case ((l1, a), (l2, b)) => (l1 |+| l2) -> (a -> b) })
 
     override def raceOutcome[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[
       F,

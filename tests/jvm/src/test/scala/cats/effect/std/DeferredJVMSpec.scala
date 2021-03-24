@@ -231,7 +231,12 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
 
     try {
       ioa.unsafeRunTimed(10.seconds)(
-        unsafe.IORuntime(ctx, ctx, unsafe.Scheduler.fromScheduledExecutor(scheduler), () => ()))
+        unsafe.IORuntime(
+          ctx,
+          ctx,
+          unsafe.Scheduler.fromScheduledExecutor(scheduler),
+          () => (),
+          unsafe.IORuntimeConfig()))
     } finally {
       executor.shutdown()
       scheduler.shutdown()

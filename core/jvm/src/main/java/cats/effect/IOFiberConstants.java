@@ -35,17 +35,19 @@ final class IOFiberConstants {
 
   // resume ids
   public static final byte ExecR = 0;
-  public static final byte AsyncContinueR = 1;
-  public static final byte BlockingR = 2;
-  public static final byte AfterBlockingSuccessfulR = 3;
-  public static final byte AfterBlockingFailedR = 4;
-  public static final byte EvalOnR = 5;
-  public static final byte CedeR = 6;
-  public static final byte AutoCedeR = 7;
-  public static final byte DoneR = 8;
+  public static final byte AsyncContinueSuccessfulR = 1;
+  public static final byte AsyncContinueFailedR = 2;
+  public static final byte BlockingR = 3;
+  public static final byte AfterBlockingSuccessfulR = 4;
+  public static final byte AfterBlockingFailedR = 5;
+  public static final byte EvalOnR = 6;
+  public static final byte CedeR = 7;
+  public static final byte AutoCedeR = 8;
+  public static final byte DoneR = 9;
 
   // ContState tags
   public static final int ContStateInitial = 0;
   public static final int ContStateWaiting = 1;
-  public static final int ContStateResult = 2;
+  public static final int ContStateWinner = 2;
+  public static final int ContStateResult = 3;
 }

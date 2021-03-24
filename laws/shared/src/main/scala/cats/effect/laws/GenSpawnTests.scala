@@ -57,7 +57,6 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] with UniqueTests[F] 
       iso: Isomorphisms[F],
       faPP: F[A] => Pretty,
       fuPP: F[Unit] => Pretty,
-      aFUPP: (A => F[Unit]) => Pretty,
       ePP: E => Pretty,
       foaPP: F[Outcome[F, E, A]] => Pretty,
       feauPP: F[Either[A, Unit]] => Pretty,

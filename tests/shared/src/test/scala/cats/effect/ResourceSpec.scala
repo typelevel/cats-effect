@@ -27,7 +27,11 @@ import cats.syntax.all._
 import cats.effect.implicits._
 
 import org.scalacheck.Prop, Prop.forAll
+// import org.scalacheck.rng.Seed
+
 import org.specs2.ScalaCheck
+// import org.specs2.scalacheck.Parameters
+
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
@@ -197,6 +201,20 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       closed must beTrue
     }
 
+    "allocated releases two resources" in real {
+      var a = false
+      var b = false
+
+      val test =
+        Resource.make(IO.unit)(_ => IO { a = true }) >>
+          Resource.make(IO.unit)(_ => IO { b = true })
+
+      test.allocated.flatMap(_._2) >> IO {
+        a must beTrue
+        b must beTrue
+      }
+    }
+
     "allocated releases resources in reverse order of acquisition" in ticked {
       implicit ticker =>
         forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
@@ -310,13 +328,13 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     "allocated produces the same value as the resource" in ticked { implicit ticker =>
       forAll { (resource: Resource[IO, Int]) =>
         val a0 = IO.uncancelable { p =>
-          p(resource.allocated).flatMap {
-            case (b, fin) => fin.as(b)
-          }
+          p(resource.allocated).flatMap { case (b, fin) => fin.as(b) }
         }
         val a1 = resource.use(IO.pure)
 
-        a0 eqv a1
+        a0.flatMap(IO.pure).handleErrorWith(IO.raiseError) eqv a1
+          .flatMap(IO.pure)
+          .handleErrorWith(IO.raiseError)
       }
     }
 
@@ -596,9 +614,9 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
     "combineK" should {
       "behave like orElse when underlying effect does" in ticked { implicit ticker =>
-        forAll { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
-          val lhs = r1.orElse(r2).use(IO.pure)
-          val rhs = (r1 <+> r2).use(IO.pure)
+        prop { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
+          val lhs = r1.orElse(r2)
+          val rhs = r1 <+> r2
 
           lhs eqv rhs
         }
@@ -641,6 +659,20 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   "Async[Resource]" >> {
     val wait = IO.sleep(1.second)
     val waitR = Resource.eval(wait)
+
+    "onCancel" should {
+      "not fire when adjacent to uncancelable" in ticked { implicit ticker =>
+        var fired = false
+
+        val test =
+          (Resource.eval(IO.canceled)).uncancelable.onCancel(Resource.eval(IO { fired = true }))
+
+        test.use_.unsafeToFuture()
+        ticker.ctx.tickAll()
+
+        fired must beFalse
+      }
+    }
 
     "async" should {
       "forward inner finalizers into outer scope" in ticked { implicit ticker =>
@@ -824,15 +856,16 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         i mustEqual 1
       }
 
-      "extends finalizers into join scope" in ticked { implicit ticker =>
+      "join scope contained by outer" in ticked { implicit ticker =>
         var i = 0
         var completed = false
 
         val fork = Resource.make(IO.unit)(_ => IO(i += 1))
 
-        val target = fork.start.evalMap(f => (f.joinWithNever *> waitR).use_) *>
-          waitR *>
-          Resource.eval(IO { completed = true })
+        val target =
+          fork.start.evalMap(f => (f.joinWithNever *> waitR).use_) *>
+            waitR *>
+            Resource.eval(IO { completed = true })
 
         target.use_.unsafeToFuture()
 
@@ -840,11 +873,58 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         i mustEqual 0
 
         ticker.ctx.tick(900.millis)
-        i mustEqual 1
+        i mustEqual 0
         completed must beFalse
 
         ticker.ctx.tick(1.second)
+        i mustEqual 1
         completed must beTrue
+      }
+    }
+  }
+
+  "Concurrent[Resource]" >> {
+    "both" >> {
+      "parallel acquisition and release" in ticked { implicit ticker =>
+        var leftAllocated = false
+        var rightAllocated = false
+        var leftReleasing = false
+        var rightReleasing = false
+        var leftReleased = false
+        var rightReleased = false
+
+        val wait = IO.sleep(1.second)
+        val lhs = Resource.make(wait >> IO { leftAllocated = true }) { _ =>
+          IO { leftReleasing = true } >> wait >> IO { leftReleased = true }
+        }
+        val rhs = Resource.make(wait >> IO { rightAllocated = true }) { _ =>
+          IO { rightReleasing = true } >> wait >> IO { rightReleased = true }
+        }
+
+        Async[Resource[IO, *]].both(lhs, rhs).use(_ => wait).unsafeToFuture()
+
+        // after 1 second:
+        //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
+        //  resources are still open during `use` (correctness)
+        ticker.ctx.tick(1.second)
+        leftAllocated must beTrue
+        rightAllocated must beTrue
+        leftReleasing must beFalse
+        rightReleasing must beFalse
+
+        // after 2 seconds:
+        //  both resources have started cleanup (correctness)
+        ticker.ctx.tick(1.second)
+        leftReleasing must beTrue
+        rightReleasing must beTrue
+        leftReleased must beFalse
+        rightReleased must beFalse
+
+        // after 3 seconds:
+        //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
+        ticker.ctx.tick(1.second)
+        leftReleased must beTrue
+        rightReleased must beTrue
       }
     }
   }
@@ -868,7 +948,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     checkAll(
       "Resource[IO, *]",
       AsyncTests[Resource[IO, *]].async[Int, Int, Int](10.millis)
-    )
+    ) /*(Parameters(seed = Some(Seed.fromBase64("yLyDPF_RFdOXw9qgux3dGkf0t1fcyG0u1VAdcMm03IK=").get)))*/
   }
 
   {

@@ -91,32 +91,10 @@ object TimeT {
       implicit F: GenConcurrent[F, E]): GenTemporal[TimeT[F, *], E] =
     new TimeTGenTemporal[F, E]
 
-  private[this] class TimeTGenTemporal[F[_], E](implicit F: GenConcurrent[F, E])
-      extends GenTemporal[TimeT[F, *], E] {
-
-    def unique: TimeT[F, Unique.Token] =
-      Kleisli.liftF(F.unique)
-
-    def pure[A](x: A): TimeT[F, A] =
-      Kleisli.pure(x)
-
-    def handleErrorWith[A](fa: TimeT[F, A])(f: E => TimeT[F, A]): TimeT[F, A] =
-      Kleisli { time => F.handleErrorWith(fa.run(time))(f.andThen(_.run(time))) }
-
-    def raiseError[A](e: E): TimeT[F, A] =
-      TimeT.liftF(F.raiseError(e))
-
-    val canceled: TimeT[F, Unit] =
-      TimeT.liftF(F.canceled)
-
-    def onCancel[A](fa: TimeT[F, A], fin: TimeT[F, Unit]): TimeT[F, A] =
-      Kleisli { time => F.onCancel(fa.run(time), fin.run(time)) }
-
-    val cede: TimeT[F, Unit] =
-      TimeT.liftF(F.cede)
-
-    def never[A]: TimeT[F, A] =
-      TimeT.liftF(F.never[A])
+  private[this] class TimeTGenTemporal[F[_], E](implicit FF: GenConcurrent[F, E])
+      extends GenTemporal[TimeT[F, *], E]
+      with GenConcurrent.KleisliGenConcurrent[F, Time, E] {
+    protected def F: GenConcurrent[F, E] = FF
 
     override def racePair[A, B](fa: TimeT[F, A], fb: TimeT[F, B]): TimeT[
       F,
@@ -139,41 +117,20 @@ object TimeT {
         }
       }
 
-    def start[A](fa: TimeT[F, A]): TimeT[F, Fiber[TimeT[F, *], E, A]] =
+    override def start[A](fa: TimeT[F, A]): TimeT[F, Fiber[TimeT[F, *], E, A]] =
       for {
         time <- Kleisli.ask[F, Time]
         forked = time.fork()
         delegate <- Kleisli.liftF(F.start(fa.run(forked)))
       } yield fiberize(forked, delegate)
 
-    def uncancelable[A](body: Poll[TimeT[F, *]] => TimeT[F, A]): TimeT[F, A] =
-      Kleisli { time =>
-        F.uncancelable { poll =>
-          val poll2 = new Poll[TimeT[F, *]] {
-            def apply[a](tfa: TimeT[F, a]) =
-              Kleisli { time2 => poll(tfa.run(time2)) }
-          }
-
-          body(poll2).run(time)
-        }
-      }
-
-    def forceR[A, B](fa: TimeT[F, A])(fb: TimeT[F, B]): TimeT[F, B] =
-      Kleisli(time => F.forceR(fa.run(time))(fb.run(time)))
-
-    def flatMap[A, B](fa: TimeT[F, A])(f: A => TimeT[F, B]): TimeT[F, B] =
-      fa.flatMap(f)
-
-    def tailRecM[A, B](a: A)(f: A => TimeT[F, Either[A, B]]): TimeT[F, B] =
-      Kleisli { time => F.tailRecM(a)(f.andThen(_.run(time))) }
-
-    val monotonic: TimeT[F, FiniteDuration] =
+    override val monotonic: TimeT[F, FiniteDuration] =
       Kleisli.ask[F, Time].map(_.now)
 
-    val realTime =
+    override val realTime =
       pure(0.millis) // TODO is there anything better here?
 
-    def sleep(time: FiniteDuration): TimeT[F, Unit] =
+    override def sleep(time: FiniteDuration): TimeT[F, Unit] =
       Kleisli.ask[F, Time].map(_.now += time) // what could go wrong*
 
     private[this] def fiberize[A](
@@ -193,11 +150,5 @@ object TimeT {
             }
           }
       }
-
-    override def ref[A](a: A): TimeT[F, Ref[TimeT[F, *], A]] =
-      Kleisli.liftF(F.map(F.ref(a))(_.mapK(Kleisli.liftK)))
-
-    override def deferred[A]: TimeT[F, Deferred[TimeT[F, *], A]] =
-      Kleisli.liftF(F.map(F.deferred[A])(_.mapK(Kleisli.liftK)))
   }
 }

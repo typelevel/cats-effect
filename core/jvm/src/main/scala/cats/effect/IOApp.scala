@@ -16,17 +16,52 @@
 
 package cats.effect
 
-import scala.concurrent.CancellationException
+import scala.concurrent.{blocking, CancellationException}
 
 import java.util.concurrent.CountDownLatch
 
 trait IOApp {
 
+  private[this] var _runtime: unsafe.IORuntime = null
+  protected def runtime: unsafe.IORuntime = _runtime
+
+  protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
+
+  protected def computeWorkerThreadCount: Int =
+    Math.max(2, Runtime.getRuntime().availableProcessors())
+
+  protected def schedulerWorkerThreadCount: Int = 1
+
   def run(args: List[String]): IO[ExitCode]
 
-  protected val runtime: unsafe.IORuntime = unsafe.IORuntime.global
-
   final def main(args: Array[String]): Unit = {
+    if (runtime == null) {
+      import unsafe.IORuntime
+
+      IORuntime installGlobal {
+        val (compute, compDown) =
+          IORuntime.createDefaultComputeThreadPool(runtime, threads = computeWorkerThreadCount)
+
+        val (blocking, blockDown) =
+          IORuntime.createDefaultBlockingExecutionContext()
+
+        val (scheduler, schedDown) =
+          IORuntime.createDefaultScheduler(threads = schedulerWorkerThreadCount)
+
+        IORuntime(
+          compute,
+          blocking,
+          scheduler,
+          { () =>
+            compDown()
+            blockDown()
+            schedDown()
+          },
+          runtimeConfig)
+      }
+
+      _runtime = IORuntime.global
+    }
 
     val rt = Runtime.getRuntime()
 
@@ -55,12 +90,11 @@ trait IOApp {
       if (latch.getCount() > 0) {
         val cancelLatch = new CountDownLatch(1)
         fiber.cancel.unsafeRunAsync(_ => cancelLatch.countDown())(runtime)
-        cancelLatch.await()
+        blocking(cancelLatch.await())
       }
 
       // Clean up after ourselves, relevant for running IOApps in sbt,
       // otherwise scheduler threads will accumulate over time.
-      runtime.internalShutdown()
       runtime.shutdown()
     }
 
@@ -76,23 +110,25 @@ trait IOApp {
     }
 
     try {
-      latch.await()
-      if (error != null) {
-        // Runtime has already been shutdown in IOFiber.
-        throw error
-      } else {
-        // Clean up after ourselves, relevant for running IOApps in sbt,
-        // otherwise scheduler threads will accumulate over time.
-        runtime.internalShutdown()
-        runtime.shutdown()
-        if (result == ExitCode.Success) {
-          // Return naturally from main. This allows any non-daemon
-          // threads to gracefully complete their work, and managed
-          // environments to execute their own shutdown hooks.
-          ()
-        } else {
-          System.exit(result.code)
-        }
+      blocking(latch.await())
+      error match {
+        case null =>
+          // Clean up after ourselves, relevant for running IOApps in sbt,
+          // otherwise scheduler threads will accumulate over time.
+          runtime.shutdown()
+          if (result == ExitCode.Success) {
+            // Return naturally from main. This allows any non-daemon
+            // threads to gracefully complete their work, and managed
+            // environments to execute their own shutdown hooks.
+            ()
+          } else {
+            System.exit(result.code)
+          }
+        case _: CancellationException =>
+          // Do not report cancellation exceptions but still exit with an error code.
+          System.exit(1)
+        case t: Throwable =>
+          throw t
       }
     } catch {
       // this handles sbt when fork := false

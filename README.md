@@ -10,11 +10,11 @@
 
 ## Getting Started
 
-- Tired: **2.3.1**
-- Wired: **3.0.0-RC1**
+- Tired: **2.4.0**
+- Wired: **3.0.0-RC3**
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect" % "2.3.1"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "2.4.0"
 ```
 
 The above represents the core, stable dependency which brings in the entirety of Cats Effect. This is *most likely* what you want. All current Cats Effect releases are published for Scala 2.12, 2.13, 3.0.0-M2 and M3, and ScalaJS 1.4.x.
@@ -23,27 +23,25 @@ If you are using Cats Effect 3, then you may want to consider one of the several
 
 ```scala
 libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-effect-kernel" % "3.0.0-RC1",
-  "org.typelevel" %% "cats-effect-laws"   % "3.0.0-RC1" % Test)
+  "org.typelevel" %% "cats-effect-kernel" % "3.0.0-RC3",
+  "org.typelevel" %% "cats-effect-laws"   % "3.0.0-RC3" % Test)
 ```
 
 If you're a middleware framework (like fs2), you probably want to depend on **std**, which gives you access to `Queue`, `Semaphore`, and much more without introducing a hard-dependency on `IO` outside of your tests:
 
 ```scala
 libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-effect-std" % "3.0.0-RC1",
-  "org.typelevel" %% "cats-effect"     % "3.0.0-RC1" % Test)
+  "org.typelevel" %% "cats-effect-std" % "3.0.0-RC3",
+  "org.typelevel" %% "cats-effect"     % "3.0.0-RC3" % Test)
 ```
 
 You may also find some utility in the **testkit** and **kernel-testkit** projects, which contain `TestContext`, `TimeT`, generators for `IO`, and a few other things:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect-testkit" % "3.0.0-RC1" % Test
+libraryDependencies += "org.typelevel" %% "cats-effect-testkit" % "3.0.0-RC3" % Test
 ```
 
 Cats Effect provides backward binary compatibility within the 2.x and 3.x version lines, and both forward and backward compatibility within any major/minor line. This is analogous to the versioning scheme used by Cats itself, as well as other  major projects such as ScalaJS. Thus, any project depending upon Cats Effect 2.2.1 can be used with libraries compiled against Cats Effect 2.0.0 or 2.2.3, but *not* with libraries compiled against 2.3.0 or higher.
-
-Binary compatibility for a given set of *release candidates* (e.g. **3.0.0-RC1**, **3.0.0-RC2**, etc) is provided on a best-effort basis. It is the intention that no breaking changes are introduced within a release candidate cycle, but exceptions may be made for high priority changes.
 
 ## Hello, World
 
@@ -101,7 +99,7 @@ If you follow these rules, and you use libraries and frameworks which also follo
 
 <p>The chart to the right shows the results of a synthetic benchmark simulating an extremely high-contention scheduling scenario. The scenario is typical of something like a microservice handling extremely high requests-per-second, with each request representing some sort of scatter/gather semantic in which many complex asynchronous actions must be taken in parallel to produce a timely response.</p>
 
-The benchmark measures the performance of a typical "disruptor pattern" application written using a fixed thread pool (from `java.util.concurrent.Executors`) compared to the same workflow implemented using Cats Effect (specifically version 3.0). The scores are not a typo: Cats Effect is *almost 55x faster* than the typical disruptor-style, hand-tuned implementation. Similarly dramatic results are consistently observed when comparing Cats Effect with other popular asynchronous and functional frameworks.
+[The benchmark](https://github.com/typelevel/cats-effect/blob/220d0106ca0ff6106746a41504b6ab07d8fc9199/benchmarks/src/main/scala/cats/effect/benchmarks/WorkStealingBenchmark.scala) measures the performance of a typical "disruptor pattern" application written using a fixed thread pool (from `java.util.concurrent.Executors`) compared to the same workflow implemented using Cats Effect (specifically version 3.0). The scores are not a typo: Cats Effect is *almost 55x faster* than the typical disruptor-style, hand-tuned implementation. Similarly dramatic results are consistently observed when comparing Cats Effect with other popular asynchronous and functional frameworks.
 
 As always, benchmarks are one thing, and your application is its own special snowflake with its own performance profile. Always measure and test *your application* before assuming that someone else's performance results apply in your use-case. When in doubt, [come talk with us](https://gitter.im/typelevel/cats-effect) and we'll give you an honest opinion!
 

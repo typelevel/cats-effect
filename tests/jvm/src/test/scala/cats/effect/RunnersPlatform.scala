@@ -27,32 +27,26 @@ trait RunnersPlatform extends BeforeAfterAll {
   protected def runtime(): IORuntime = runtime0
 
   def beforeAll(): Unit = {
-    val cancellationCheckThreshold =
-      System.getProperty("cats.effect.cancellation.check.threshold", "512").toInt
-
     val (blocking, blockDown) =
-      IORuntime.createDefaultBlockingExecutionContext(s"io-blocking-${getClass.getName}")
+      IORuntime.createDefaultBlockingExecutionContext(threadPrefix =
+        s"io-blocking-${getClass.getName}")
     val (scheduler, schedDown) =
-      IORuntime.createDefaultScheduler(s"io-scheduler-${getClass.getName}")
+      IORuntime.createDefaultScheduler(threadPrefix = s"io-scheduler-${getClass.getName}")
     val (compute, compDown) =
-      IORuntime.createDefaultComputeThreadPool(runtime0, s"io-compute-${getClass.getName}")
+      IORuntime.createDefaultComputeThreadPool(
+        runtime0,
+        threadPrefix = s"io-compute-${getClass.getName}")
 
     runtime0 = new IORuntime(
       compute,
       blocking,
       scheduler,
-      () => (),
-      IORuntimeConfig(
-        cancellationCheckThreshold,
-        System
-          .getProperty("cats.effect.auto.yield.threshold.multiplier", "2")
-          .toInt * cancellationCheckThreshold
-      ),
-      internalShutdown = () => {
+      { () =>
         compDown()
         blockDown()
         schedDown()
-      }
+      },
+      IORuntimeConfig()
     )
   }
 

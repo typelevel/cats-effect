@@ -101,7 +101,7 @@ abstract class Semaphore[F[_]] {
   def release: F[Unit] = releaseN(1)
 
   /**
-   * Returns a [[Resource]] that acquires a permit, holds it for the lifetime of the resource, then
+   * Returns a [[cats.effect.kernel.Resource]] that acquires a permit, holds it for the lifetime of the resource, then
    * releases the permit.
    */
   def permit: Resource[F, Unit]
@@ -261,9 +261,7 @@ object Semaphore {
   final private[std] class MapKSemaphore[F[_], G[_]](
       underlying: Semaphore[F],
       f: F ~> G
-  )(
-      implicit F: MonadCancel[F, _],
-      G: MonadCancel[G, _])
+  )(implicit F: MonadCancel[F, _], G: MonadCancel[G, _])
       extends Semaphore[G] {
     def available: G[Long] = f(underlying.available)
     def count: G[Long] = f(underlying.count)

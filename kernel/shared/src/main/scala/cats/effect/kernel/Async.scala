@@ -26,7 +26,7 @@ import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 
 trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
-  // returns an optional cancelation token
+  // `k` returns an optional cancelation token
   def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
     val body = new Cont[F, A, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
@@ -49,6 +49,19 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
 
   // evalOn(executionContext, ec) <-> pure(ec)
   def evalOn[A](fa: F[A], ec: ExecutionContext): F[A]
+
+  def evalOnK(ec: ExecutionContext): F ~> F =
+    new (F ~> F) {
+      def apply[A](fa: F[A]): F[A] = evalOn(fa, ec)
+    }
+
+  def startOn[A](fa: F[A], ec: ExecutionContext): F[Fiber[F, Throwable, A]] =
+    evalOn(start(fa), ec)
+
+  def backgroundOn[A](
+      fa: F[A],
+      ec: ExecutionContext): Resource[F, F[Outcome[F, Throwable, A]]] =
+    Resource.make(startOn(fa, ec))(_.cancel)(this).map(_.join)
 
   def executionContext: F[ExecutionContext]
 
@@ -73,14 +86,14 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
 object Async {
   def apply[F[_]](implicit F: Async[F]): F.type = F
 
-  def defaultCont[F[_], A](body: Cont[F, A, A])(implicit F: Async[F]): F[A] = {
+  def defaultCont[F[_], K, R](body: Cont[F, K, R])(implicit F: Async[F]): F[R] = {
     sealed trait State
     case class Initial() extends State
-    case class Value(v: Either[Throwable, A]) extends State
-    case class Waiting(cb: Either[Throwable, A] => Unit) extends State
+    case class Value(v: Either[Throwable, K]) extends State
+    case class Waiting(cb: Either[Throwable, K] => Unit) extends State
 
     F.delay(new AtomicReference[State](Initial())).flatMap { state =>
-      def get: F[A] =
+      def get: F[K] =
         F.defer {
           state.get match {
             case Value(v) => F.fromEither(v)
@@ -115,7 +128,7 @@ object Async {
           }
         }
 
-      def resume(v: Either[Throwable, A]): Unit = {
+      def resume(v: Either[Throwable, K]): Unit = {
         @tailrec
         def loop(): Unit =
           state.get match {

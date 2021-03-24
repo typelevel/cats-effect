@@ -37,12 +37,19 @@ trait Generators1[F[_]] {
   //todo: uniqueness based on... names, I guess. Have to solve the diamond problem somehow
 
   //Generators of base cases, with no recursion
-  protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] = Nil
+  protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] = {
+    // prevent unused implicit param warnings, the params need to stay because
+    // this method is overriden in subtraits
+    val _ = (implicitly[Arbitrary[A]], implicitly[Cogen[A]])
+    Nil
+  }
 
   //Only recursive generators - the argument is a generator of the next level of depth
   protected def recursiveGen[A: Arbitrary: Cogen](
       deeper: GenK[F]): List[(String, Gen[F[A]])] = {
-    val _ = deeper // prevent unused param warning
+    // prevent unused params warnings, the params need to stay because
+    // this method is overriden in subtraits
+    val _ = (deeper, implicitly[Arbitrary[A]], implicitly[Cogen[A]])
     Nil
   }
 
@@ -190,7 +197,12 @@ trait MonadCancelGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
 
   // TODO we can't really use poll :-( since we can't Cogen FunctionK
   private def genUncancelable[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
-    deeper[A].map(pc => F.uncancelable(_ => pc))
+    deeper[A].map(pc =>
+      F.uncancelable(_ => pc)
+        .flatMap(F.pure(_))
+        .handleErrorWith(
+          F.raiseError(_)
+        )) // this is a bit of a hack to get around functor law breakage
 
   private def genOnCancel[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
     for {
@@ -277,14 +289,17 @@ trait AsyncGenerators[F[_]] extends GenTemporalGenerators[F, Throwable] with Syn
     List("async" -> genAsync[A](deeper), "evalOn" -> genEvalOn[A](deeper)) ++ super
       .recursiveGen[A](deeper)
 
-  private def genAsync[A: Arbitrary: Cogen](deeper: GenK[F]) =
+  private def genAsync[A: Arbitrary](deeper: GenK[F]) =
     for {
       result <- arbitrary[Either[Throwable, A]]
 
       fo <- deeper[Option[F[Unit]]](
         Arbitrary(Gen.option[F[Unit]](deeper[Unit])),
         Cogen.cogenOption(cogenFU))
-    } yield F.async[A](k => F.delay(k(result)) >> fo)
+    } yield F
+      .async[A](k => F.delay(k(result)) >> fo)
+      .flatMap(F.pure(_))
+      .handleErrorWith(F.raiseError(_))
 
   private def genEvalOn[A: Arbitrary: Cogen](deeper: GenK[F]) =
     for {

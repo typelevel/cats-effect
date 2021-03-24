@@ -297,8 +297,8 @@ sealed abstract class Resource[F[_], +A] {
    */
   def race[B](
       that: Resource[F, B]
-  )(implicit F: Async[F]): Resource[F, Either[A, B]] =
-    Async[Resource[F, *]].race(this, that)
+  )(implicit F: Concurrent[F]): Resource[F, Either[A, B]] =
+    Concurrent[Resource[F, *]].race(this, that)
 
   /**
    * Implementation for the `flatMap` operation, as described via the
@@ -407,25 +407,26 @@ sealed abstract class Resource[F[_], +A] {
         release: F[Unit]): F[(B, F[Unit])] =
       current match {
         case Allocate(resource) =>
-          F.bracketFull(resource) {
-            case (b, rel) =>
-              stack match {
-                case Nil =>
-                  (
-                    b: B,
-                    rel(ExitCase.Succeeded).guarantee(release)
-                  ).pure[F]
-                case Frame(head, tail) =>
-                  continue(head(b), tail, rel(ExitCase.Succeeded).guarantee(release))
-              }
-          } {
-            case (_, Outcome.Succeeded(_)) =>
-              F.unit
-            case ((_, release), outcome) =>
-              release(ExitCase.fromOutcome(outcome))
+          F uncancelable { poll =>
+            resource(poll) flatMap {
+              case (b, rel) =>
+                val rel2 = rel(ExitCase.Succeeded).guarantee(release)
+
+                stack match {
+                  case Nil =>
+                    F.pure((b, rel2))
+
+                  case Frame(head, tail) =>
+                    poll(continue(head(b), tail, rel2))
+                      .onCancel(rel(ExitCase.Canceled).handleError(_ => ()))
+                      .onError { case e => rel(ExitCase.Errored(e)).handleError(_ => ()) }
+                }
+            }
           }
+
         case Bind(source, fs) =>
           loop(source, Frame(fs, stack), release)
+
         case Pure(v) =>
           stack match {
             case Nil =>
@@ -433,6 +434,7 @@ sealed abstract class Resource[F[_], +A] {
             case Frame(head, tail) =>
               loop(head(v), tail, release)
           }
+
         case Eval(fa) =>
           fa.flatMap(a => continue(Resource.pure(a), stack, release))
       }
@@ -635,10 +637,6 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    *
    * @param fa the value to lift into a resource
    */
-  @deprecated("please use `eval` instead.", since = "3.0")
-  def liftF[F[_], A](fa: F[A]): Resource[F, A] =
-    Resource.Eval(fa)
-
   def eval[F[_], A](fa: F[A]): Resource[F, A] =
     Resource.Eval(fa)
 
@@ -675,7 +673,7 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    * Races the evaluation of two resource allocations and returns the result of the winner,
    * except in the case of cancellation.
    */
-  def race[F[_]: Async, A, B](
+  def race[F[_]: Concurrent, A, B](
       rfa: Resource[F, A],
       rfb: Resource[F, B]
   ): Resource[F, Either[A, B]] =
@@ -970,20 +968,17 @@ abstract private[effect] class ResourceConcurrent[F[_]]
 
   /*
    * 1. If the scope containing the *fiber* terminates:
-   *   a) if the fiber is incomplete, run its inner finalizers when it complets
+   *   a) if the fiber is incomplete, run its inner finalizers when it completes
    *   b) if the fiber is succeeded, run its finalizers
    * 2. If the fiber is canceled or errored, finalize
-   * 3. If the fiber succeeds, await joining and extend finalizers into joining scope
-   * 4. If a fiber is canceled *after* it completes, we explicitly snag the finalizers and run them, setting the result to Canceled()
-   *   a) ...but only if the fiber has not yet been joined! This catches the "tree fell in the forest but no one was around" case
-   * 5. If a fiber is joined multiple times, subsequent joins have access to the result but not the finalizers (mirroring memoization on a Resource)
+   * 3. If the fiber succeeds and .cancel won the race, finalize eagerly and
+   *    `join` results in `Canceled()`
+   * 4. If the fiber succeeds and .cancel lost the race or wasn't called,
+   *    finalize naturally when the containing scope ends, `join` returns
+   *    the value
    */
   def start[A](fa: Resource[F, A]): Resource[F, Fiber[Resource[F, *], Throwable, A]] = {
-    final case class State(
-        fin: Option[F[Unit]] = None,
-        runOnComplete: Boolean = false,
-        canceled: Boolean = false,
-        joined: Boolean = false)
+    final case class State(fin: F[Unit] = F.unit, finalizeOnComplete: Boolean = false)
 
     Resource {
       import Outcome._
@@ -994,10 +989,10 @@ abstract private[effect] class ResourceConcurrent[F[_]]
             poll(fa.allocated) flatMap { // intentionally short-circuits in case of cancelation or error
               case (a, rel) =>
                 state modify { s =>
-                  if (s.runOnComplete || s.canceled)
+                  if (s.finalizeOnComplete)
                     (s, rel.attempt.as(None))
                   else
-                    (s.copy(fin = Some(rel)), F.pure(Some(a)))
+                    (s.copy(fin = rel), F.pure(Some(a)))
                 }
             }
 
@@ -1011,16 +1006,7 @@ abstract private[effect] class ResourceConcurrent[F[_]]
               Resource eval {
                 F uncancelable { poll =>
                   // technically cancel is uncancelable, but separation of concerns and what not
-                  val maybeFins = poll(outer.cancel) *> {
-                    state modify { s =>
-                      if (!s.joined)
-                        (s.copy(canceled = true, fin = None), s.fin.traverse_(x => x))
-                      else
-                        (s.copy(canceled = true), F.unit)
-                    }
-                  }
-
-                  maybeFins.flatten
+                  poll(outer.cancel) *> state.update(_.copy(finalizeOnComplete = true))
                 }
               }
 
@@ -1034,35 +1020,21 @@ abstract private[effect] class ResourceConcurrent[F[_]]
                     Outcome.errored[Resource[F, *], Throwable, A](e).pure[F]
 
                   case Succeeded(fp) =>
-                    fp flatMap {
+                    fp map {
                       case Some(a) =>
-                        state modify { s =>
-                          val results =
-                            if (s.canceled && !s.joined)
-                              Outcome.canceled[Resource[F, *], Throwable, A]
-                            else
-                              Outcome.succeeded[Resource[F, *], Throwable, A](
-                                Resource.make(a.pure[F])(_ => s.fin.traverse_(x => x)))
-
-                          (s.copy(joined = true, fin = None), results)
-                        }
+                        a.pure[Outcome[Resource[F, *], Throwable, *]]
 
                       case None =>
-                        Outcome.canceled[Resource[F, *], Throwable, A].pure[F]
+                        Outcome.canceled[Resource[F, *], Throwable, A]
                     }
                 }
               }
           }
 
-          val finalizeEarly = {
-            val ff = state modify { s =>
-              (s.copy(runOnComplete = true), s.fin.traverse_(x => x))
-            }
+          val finalizeOuter =
+            state.modify(s => (s.copy(finalizeOnComplete = true), s.fin)).flatten
 
-            ff.flatten
-          }
-
-          (fiber, finalizeEarly)
+          (fiber, finalizeOuter)
         }
       }
     }
@@ -1073,6 +1045,9 @@ abstract private[effect] class ResourceConcurrent[F[_]]
 
   def ref[A](a: A): Resource[F, Ref[Resource[F, *], A]] =
     Resource.eval(F.ref(a)).map(_.mapK(Resource.liftK[F]))
+
+  override def both[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, (A, B)] =
+    Resource.both(fa, fb)
 }
 
 private[effect] trait ResourceClock[F[_]] extends Clock[Resource[F, *]] {
@@ -1130,9 +1105,7 @@ abstract private[effect] class ResourceAsync[F[_]]
               val nt2 = new (Resource[F, *] ~> D) {
                 def apply[A](rfa: Resource[F, A]) =
                   Kleisli { r =>
-                    nt(rfa.allocated) flatMap {
-                      case (a, fin) => r.update(_ !> fin).as(a)
-                    }
+                    nt(rfa.allocated) flatMap { case (a, fin) => r.update(_ !> fin).as(a) }
                   }
               }
 
@@ -1240,10 +1213,7 @@ abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resou
   def combineK[A](ra: Resource[F, A], rb: Resource[F, A]): Resource[F, A] =
     Resource.make(Ref[F].of(F.unit))(_.get.flatten).evalMap { finalizers =>
       def allocate(r: Resource[F, A]): F[A] =
-        r.fold(
-          _.pure[F],
-          (release: F[Unit]) =>
-            finalizers.update(MonadCancel[F, Throwable].guarantee(_, release)))
+        r.fold(_.pure[F], (release: F[Unit]) => finalizers.update(_.guarantee(release)))
 
       K.combineK(allocate(ra), allocate(rb))
     }

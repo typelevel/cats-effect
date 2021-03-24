@@ -42,23 +42,14 @@ package object effect {
   type GenTemporal[F[_], E] = cekernel.GenTemporal[F, E]
   val GenTemporal = cekernel.GenTemporal
 
+  type Unique[F[_]] = cekernel.Unique[F]
+  val Unique = cekernel.Unique
+
   type Sync[F[_]] = cekernel.Sync[F]
   val Sync = cekernel.Sync
 
   type Async[F[_]] = cekernel.Async[F]
   val Async = cekernel.Async
-
-  type ApplicativeThrow[F[_]] = cekernel.ApplicativeThrow[F]
-
-  object ApplicativeThrow {
-    def apply[F[_]](implicit F: ApplicativeThrow[F]): F.type = F
-  }
-
-  type MonadThrow[F[_]] = cekernel.MonadThrow[F]
-
-  object MonadThrow {
-    def apply[F[_]](implicit F: MonadThrow[F]): F.type = F
-  }
 
   type MonadCancelThrow[F[_]] = cekernel.MonadCancelThrow[F]
 

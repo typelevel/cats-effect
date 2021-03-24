@@ -221,8 +221,11 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
     try {
       var results: Outcome[Option, Throwable, A] = Outcome.Succeeded(None)
 
-      ioa.unsafeRunAsyncOutcome { oc => results = oc.mapK(someK) }(
-        unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => ()))
+      ioa
+        .flatMap(IO.pure(_))
+        .handleErrorWith(IO.raiseError(_))
+        .unsafeRunAsyncOutcome { oc => results = oc.mapK(someK) }(unsafe
+          .IORuntime(ticker.ctx, ticker.ctx, scheduler, () => (), unsafe.IORuntimeConfig()))
 
       ticker.ctx.tickAll(1.second)
 
@@ -255,7 +258,7 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
   }
 
   implicit def materializeRuntime(implicit ticker: Ticker): unsafe.IORuntime =
-    unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => ())
+    unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => (), unsafe.IORuntimeConfig())
 
   def scheduler(implicit ticker: Ticker): unsafe.Scheduler =
     new unsafe.Scheduler {

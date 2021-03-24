@@ -23,8 +23,10 @@ import cats.effect.laws.AsyncTests
 import cats.implicits._
 
 import org.scalacheck.Prop
+// import org.scalacheck.rng.Seed
 
 import org.specs2.ScalaCheck
+// import org.specs2.scalacheck.Parameters
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
@@ -57,7 +59,7 @@ class OptionTIOSpec
     checkAll(
       "OptionT[IO]",
       AsyncTests[OptionT[IO, *]].async[Int, Int, Int](10.millis)
-    ) /*(Parameters(seed = Some(Seed.fromBase64("XidlR_tu11X7_v51XojzZJsm6EaeU99RAEL9vzbkWBD=").get)))*/
+    ) /*(Parameters(seed = Some(Seed.fromBase64("xuJLKQlO7U9WUCzxlh--IB-5ppu1VpQkCFAmUX3tIrM=").get)))*/
   }
 
 }

@@ -100,7 +100,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
     tryOfferOnFullTests(name, constructor, _.offer(_), _.tryOffer(_), false)
     cancelableOfferTests(name, constructor, _.offer(_), _.take, _.tryTake)
     tryOfferTryTakeTests(name, constructor, _.tryOffer(_), _.tryTake)
-    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake)
+    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
   }
 }
 
@@ -117,7 +117,7 @@ class UnboundedQueueSpec extends BaseSpec with QueueTests[Queue] {
   private def unboundedQueueTests(name: String, constructor: IO[Queue[IO, Int]]): Fragments = {
     tryOfferOnFullTests(name, _ => constructor, _.offer(_), _.tryOffer(_), true)
     tryOfferTryTakeTests(name, _ => constructor, _.tryOffer(_), _.tryTake)
-    commonTests(name, _ => constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake)
+    commonTests(name, _ => constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
   }
 }
 
@@ -140,7 +140,7 @@ class DroppingQueueSpec extends BaseSpec with QueueTests[Queue] {
     tryOfferOnFullTests(name, constructor, _.offer(_), _.tryOffer(_), false)
     cancelableOfferTests(name, constructor, _.offer(_), _.take, _.tryTake)
     tryOfferTryTakeTests(name, constructor, _.tryOffer(_), _.tryTake)
-    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake)
+    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
   }
 }
 
@@ -161,7 +161,7 @@ class CircularBufferQueueSpec extends BaseSpec with QueueTests[Queue] {
     negativeCapacityConstructionTests(name, constructor)
     zeroCapacityConstructionTests(name, constructor)
     tryOfferOnFullTests(name, constructor, _.offer(_), _.tryOffer(_), true)
-    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake)
+    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
   }
 }
 
@@ -178,9 +178,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         val test = IO.defer(constructor(0)).attempt
         test.flatMap { res =>
           IO {
-            res must beLike {
-              case Left(e) => e must haveClass[IllegalArgumentException]
-            }
+            res must beLike { case Left(e) => e must haveClass[IllegalArgumentException] }
           }
         }
       }
@@ -198,9 +196,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         val test = IO.defer(constructor(-1)).attempt
         test.flatMap { res =>
           IO {
-            res must beLike {
-              case Left(e) => e must haveClass[IllegalArgumentException]
-            }
+            res must beLike { case Left(e) => e must haveClass[IllegalArgumentException] }
           }
         }
       }
@@ -340,9 +336,21 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       offer: (Q[IO, Int], Int) => IO[Unit],
       tryOffer: (Q[IO, Int], Int) => IO[Boolean],
       take: Q[IO, Int] => IO[Int],
-      tryTake: Q[IO, Int] => IO[Option[Int]]): Fragments = {
+      tryTake: Q[IO, Int] => IO[Option[Int]],
+      size: Q[IO, Int] => IO[Int]): Fragments = {
 
     name >> {
+
+      "should return the queue size when added to" in real {
+        for {
+          q <- constructor(1)
+          _ <- offer(q, 1)
+          _ <- take(q)
+          _ <- offer(q, 2)
+          sz <- size(q)
+          r <- IO(sz must beEqualTo(1))
+        } yield r
+      }
 
       "should return None on tryTake when the queue is empty" in real {
         for {

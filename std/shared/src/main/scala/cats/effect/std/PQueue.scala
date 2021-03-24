@@ -47,6 +47,7 @@ abstract class PQueue[F[_], A] extends PQueueSource[F, A] with PQueueSink[F, A] 
     new PQueue[G, A] {
       def offer(a: A): G[Unit] = f(self.offer(a))
       def tryOffer(a: A): G[Boolean] = f(self.tryOffer(a))
+      def size: G[Int] = f(self.size)
       val take: G[A] = f(self.take)
       val tryTake: G[Option[A]] = f(self.tryTake)
     }
@@ -157,6 +158,9 @@ object PQueue {
         }
         .flatten
         .uncancelable
+
+    def size: F[Int] =
+      ref.get.map(_.size)
   }
 
   private[std] final case class State[F[_], A](
@@ -187,6 +191,8 @@ object PQueue {
             fa.take.map(f)
           override def tryTake: F[Option[B]] =
             fa.tryTake.map(_.map(f))
+          override def size: F[Int] =
+            fa.size
         }
     }
 
@@ -218,6 +224,8 @@ trait PQueueSource[F[_], A] {
    *         element was available
    */
   def tryTake: F[Option[A]]
+
+  def size: F[Int]
 }
 
 object PQueueSource {
@@ -229,6 +237,8 @@ object PQueueSource {
             fa.take.map(f)
           override def tryTake: F[Option[B]] =
             fa.tryTake.map(_.map(f))
+          override def size: F[Int] =
+            fa.size
         }
     }
 }
@@ -259,7 +269,7 @@ trait PQueueSink[F[_], A] {
 }
 
 object PQueueSink {
-  implicit def catsContravariantForPQueueSink[F[_]: Functor]: Contravariant[PQueueSink[F, *]] =
+  implicit def catsContravariantForPQueueSink[F[_]]: Contravariant[PQueueSink[F, *]] =
     new Contravariant[PQueueSink[F, *]] {
       override def contramap[A, B](fa: PQueueSink[F, A])(f: B => A): PQueueSink[F, B] =
         new PQueueSink[F, B] {

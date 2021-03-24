@@ -50,6 +50,7 @@ trait Dequeue[F[_], A] extends Queue[F, A] with DequeueSource[F, A] with Dequeue
       def takeFront: G[A] = f(self.takeFront)
       def tryTakeFront: G[Option[A]] = f(self.tryTakeFront)
       def reverse: G[Unit] = f(self.reverse)
+      def size: G[Int] = f(self.size)
     }
 
 }
@@ -58,7 +59,7 @@ object Dequeue {
 
   /**
    * Constructs an empty, bounded dequeue holding up to `capacity` elements for
-   * `F` data types that are [[Concurrent]]. When the queue is full (contains
+   * `F` data types that are [[cats.effect.kernel.GenConcurrent]]. When the queue is full (contains
    * exactly `capacity` elements), every next [[Queue#offer]] will be
    * backpressured (i.e. the [[Queue#offer]] blocks semantically).
    *
@@ -72,7 +73,7 @@ object Dequeue {
 
   /**
    * Constructs an empty, unbounded dequeue for `F` data types that are
-   * [[Concurrent]]. [[Queue#offer]] never blocks semantically, as there is
+   * [[cats.effect.kernel.GenConcurrent]]. [[Queue#offer]] never blocks semantically, as there is
    * always spare capacity in the queue.
    *
    * @return an empty, unbounded queue
@@ -109,6 +110,8 @@ object Dequeue {
             fa.tryOfferFront(g(b))
 
           override def reverse: F[Unit] = fa.reverse
+
+          override def size: F[Int] = fa.size
         }
     }
 
@@ -233,6 +236,8 @@ object Dequeue {
         }
         .flatten
         .uncancelable
+
+    override def size: F[Int] = state.get.map(_.size)
   }
 
   private def assertNonNegative(capacity: Int): Unit =
@@ -314,6 +319,9 @@ object DequeueSource {
 
           override def tryTakeFront: F[Option[B]] =
             fa.tryTakeFront.map(_.map(f))
+
+          override def size: F[Int] =
+            fa.size
         }
     }
 }
@@ -369,8 +377,7 @@ trait DequeueSink[F[_], A] extends QueueSink[F, A] {
 }
 
 object DequeueSink {
-  implicit def catsContravariantForDequeueSink[F[_]: Functor]
-      : Contravariant[DequeueSink[F, *]] =
+  implicit def catsContravariantForDequeueSink[F[_]]: Contravariant[DequeueSink[F, *]] =
     new Contravariant[DequeueSink[F, *]] {
       override def contramap[A, B](fa: DequeueSink[F, A])(f: B => A): DequeueSink[F, B] =
         new DequeueSink[F, B] {

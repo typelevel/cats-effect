@@ -175,7 +175,7 @@ object Console {
   def apply[F[_]](implicit C: Console[F]): C.type = C
 
   /**
-   * Constructs a `Console` instance for `F` data types that are [[Sync]].
+   * Constructs a `Console` instance for `F` data types that are [[cats.effect.kernel.Sync]].
    */
   def make[F[_]](implicit F: Sync[F]): Console[F] =
     new SyncConsole[F]

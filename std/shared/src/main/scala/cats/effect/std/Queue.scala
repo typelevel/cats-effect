@@ -49,6 +49,7 @@ abstract class Queue[F[_], A] extends QueueSource[F, A] with QueueSink[F, A] { s
     new Queue[G, A] {
       def offer(a: A): G[Unit] = f(self.offer(a))
       def tryOffer(a: A): G[Boolean] = f(self.tryOffer(a))
+      def size: G[Int] = f(self.size)
       val take: G[A] = f(self.take)
       val tryTake: G[Option[A]] = f(self.tryTake)
     }
@@ -58,7 +59,7 @@ object Queue {
 
   /**
    * Constructs an empty, bounded queue holding up to `capacity` elements for
-   * `F` data types that are [[Concurrent]]. When the queue is full (contains
+   * `F` data types that are [[cats.effect.kernel.GenConcurrent]]. When the queue is full (contains
    * exactly `capacity` elements), every next [[Queue#offer]] will be
    * backpressured (i.e. the [[Queue#offer]] blocks semantically).
    *
@@ -73,7 +74,7 @@ object Queue {
   /**
    * Constructs a queue through which a single element can pass only in the case
    * when there are at least one taking fiber and at least one offering fiber
-   * for `F` data types that are [[Concurrent]]. Both [[Queue#offer]] and
+   * for `F` data types that are [[cats.effect.kernel.GenConcurrent]]. Both [[Queue#offer]] and
    * [[Queue#take]] semantically block until there is a fiber executing the
    * opposite action, at which point both fibers are freed.
    *
@@ -84,7 +85,7 @@ object Queue {
 
   /**
    * Constructs an empty, unbounded queue for `F` data types that are
-   * [[Concurrent]]. [[Queue#offer]] never blocks semantically, as there is
+   * [[cats.effect.kernel.GenConcurrent]]. [[Queue#offer]] never blocks semantically, as there is
    * always spare capacity in the queue.
    *
    * @return an empty, unbounded queue
@@ -94,7 +95,7 @@ object Queue {
 
   /**
    * Constructs an empty, bounded, dropping queue holding up to `capacity`
-   * elements for `F` data types that are [[Concurrent]]. When the queue is full
+   * elements for `F` data types that are [[cats.effect.kernel.GenConcurrent]]. When the queue is full
    * (contains exactly `capacity` elements), every next [[Queue#offer]] will be
    * ignored, i.e. no other elements can be enqueued until there is sufficient
    * capacity in the queue, and the offer effect itself will not semantically
@@ -110,7 +111,7 @@ object Queue {
 
   /**
    * Constructs an empty, bounded, circular buffer queue holding up to
-   * `capacity` elements for `F` data types that are [[Concurrent]]. The queue
+   * `capacity` elements for `F` data types that are [[cats.effect.kernel.GenConcurrent]]. The queue
    * always keeps at most `capacity` number of elements, with the oldest
    * element in the queue always being dropped in favor of a new elements
    * arriving in the queue, and the offer effect itself will not semantically
@@ -231,6 +232,9 @@ object Queue {
         }
         .flatten
         .uncancelable
+
+    def size: F[Int] = state.get.map(_.size)
+
   }
 
   private final class BoundedQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
@@ -251,6 +255,7 @@ object Queue {
 
     protected def onTryOfferNoCapacity(s: State[F, A], a: A): (State[F, A], F[Boolean]) =
       s -> F.pure(false)
+
   }
 
   private final class DroppingQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
@@ -289,6 +294,7 @@ object Queue {
       val (_, rest) = queue.dequeue
       State(rest.enqueue(a), size, takers, offerers) -> F.pure(true)
     }
+
   }
 
   private final case class State[F[_], A](
@@ -315,6 +321,8 @@ object Queue {
             fa.take.map(f)
           override def tryTake: F[Option[B]] =
             fa.tryTake.map(_.map(f))
+          override def size: F[Int] =
+            fa.size
         }
     }
 }
@@ -336,6 +344,8 @@ trait QueueSource[F[_], A] {
    *         element was available
    */
   def tryTake: F[Option[A]]
+
+  def size: F[Int]
 }
 
 object QueueSource {
@@ -345,8 +355,11 @@ object QueueSource {
         new QueueSource[F, B] {
           override def take: F[B] =
             fa.take.map(f)
-          override def tryTake: F[Option[B]] =
+          override def tryTake: F[Option[B]] = {
             fa.tryTake.map(_.map(f))
+          }
+          override def size: F[Int] =
+            fa.size
         }
     }
 }
@@ -373,7 +386,7 @@ trait QueueSink[F[_], A] {
 }
 
 object QueueSink {
-  implicit def catsContravariantForQueueSink[F[_]: Functor]: Contravariant[QueueSink[F, *]] =
+  implicit def catsContravariantForQueueSink[F[_]]: Contravariant[QueueSink[F, *]] =
     new Contravariant[QueueSink[F, *]] {
       override def contramap[A, B](fa: QueueSink[F, A])(f: B => A): QueueSink[F, B] =
         new QueueSink[F, B] {

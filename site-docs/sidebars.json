@@ -1,7 +1,34 @@
 {
   "docs": {
-    "Getting Started": ["installation"],
-    "Typeclasses": ["typeclasses"],
-    "Schedulers": ["schedulers"]
+    "Overview": [
+      "getting-started",
+      "thread-model",
+      "typeclasses",
+      "schedulers",
+      "tutorial"
+    ],
+    "Typeclasses": [
+      "typeclasses",
+      "typeclasses/monadcancel",
+      "typeclasses/spawn",
+      "typeclasses/unique",
+      "typeclasses/clock",
+      "typeclasses/temporal",
+      "typeclasses/sync",
+      "typeclasses/async"
+    ],
+    "Standard Library": [
+      "std/countdown-latch",
+      "std/cyclic-barrier",
+      "std/deferred",
+      "std/dequeue",
+      "std/dispatcher",
+      "std/hotswap",
+      "std/pqueue",
+      "std/queue",
+      "std/ref",
+      "std/resource",
+      "std/supervisor"
+    ]
   }
 }

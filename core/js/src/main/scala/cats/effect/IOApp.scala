@@ -22,11 +22,29 @@ import scala.scalajs.js
 
 trait IOApp {
 
+  private[this] var _runtime: unsafe.IORuntime = null
+
+  protected def runtime: unsafe.IORuntime = _runtime
+  protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
+
   def run(args: List[String]): IO[ExitCode]
 
-  protected val runtime: unsafe.IORuntime = unsafe.IORuntime.global
-
   final def main(args: Array[String]): Unit = {
+    if (runtime == null) {
+      import unsafe.IORuntime
+
+      IORuntime installGlobal {
+        IORuntime(
+          IORuntime.defaultComputeExecutionContext,
+          IORuntime.defaultComputeExecutionContext,
+          IORuntime.defaultScheduler,
+          () => (),
+          runtimeConfig)
+      }
+
+      _runtime = IORuntime.global
+    }
+
     // An infinite heartbeat to keep main alive.  This is similar to
     // `IO.never`, except `IO.never` doesn't schedule any tasks and is
     // insufficient to keep main alive.  The tick is fast enough that
@@ -54,9 +72,16 @@ trait IOApp {
         case Right(_) => sys.error("impossible")
       }
       .unsafeRunAsync({
-        case Left(t) => throw t
+        case Left(t) =>
+          t match {
+            case _: CancellationException =>
+              // Do not report cancellation exceptions but still exit with an error code.
+              reportExitCode(ExitCode(1))
+            case t: Throwable =>
+              throw t
+          }
         case Right(code) => reportExitCode(code)
-      })(unsafe.IORuntime.global)
+      })(runtime)
   }
 
   private[this] def reportExitCode(code: ExitCode): Unit =

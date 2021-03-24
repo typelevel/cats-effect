@@ -25,7 +25,7 @@ class HotswapSpec extends BaseSpec { outer =>
   sequential
 
   def logged(log: Ref[IO, List[String]], name: String): Resource[IO, Unit] =
-    Resource.make(log.update(_ :+ s"open $name"))(_ => log.update(_ :+ (s"close $name")))
+    Resource.make(log.update(_ :+ s"open $name"))(_ => log.update(_ :+ s"close $name"))
 
   "Hotswap" should {
     "run finalizer of target run when hotswap is finalized" in real {
