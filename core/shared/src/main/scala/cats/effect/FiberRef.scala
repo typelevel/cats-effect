@@ -16,14 +16,16 @@
 
 package cats.effect
 
+import cats.syntax.all._
+
 trait FiberRef[F[_], A] extends Ref[F, A] {
 
   /**
    * Divorces the current reference from parent fiber and
-   * sets a new reference for the current fiber and children
-   * fibers.
+   * sets a new reference for the duration of `fa` evaluation.
    */
-  def reset: F[Unit]
+  def locally(fa: F[A]): F[A]
+
 }
 
 object FiberRef {
@@ -33,8 +35,16 @@ object FiberRef {
       ref <- Ref.of[IO, A](default)
       local <- FiberLocal[Ref[IO, A]](ref)
     } yield new FiberRef[IO, A] {
-      override def reset: IO[Unit] =
-        Ref.of[IO, A](default).flatMap { nextRef => local.set(nextRef) }
+      override def locally(fa: IO[A]): IO[A] = {
+        val acquire = local.get.product(Ref.of[IO, A](default)).flatTap {
+          case (_, nextRef) =>
+            local.set(nextRef)
+        }
+        def release(oldRef: Ref[IO, A]): IO[Unit] =
+          local.set(oldRef)
+
+        acquire.bracket(_ => fa) { case (oldRef, _) => release(oldRef) }
+      }
 
       override def get: IO[A] =
         local.get.flatMap(_.get)

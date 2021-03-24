@@ -82,10 +82,10 @@ class FiberRefSpec extends BaseSpec {
       io must completeAs(10)
     }
 
-    "resetting divorces references" in ticked { implicit ticker =>
+    "locally" in ticked { implicit ticker =>
       val io = for {
         local <- FiberRef(0)
-        f <- (local.reset >> local.set(1) >> local.get).start
+        f <- (local.locally(local.set(1) >> local.get)).start
         v1 <- f.joinWithNever
         v2 <- local.get
       } yield (v1, v2)
