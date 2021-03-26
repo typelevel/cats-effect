@@ -24,7 +24,7 @@ import scala.concurrent.duration.FiniteDuration
 
 /**
  * A typeclass that encodes the notion of suspending fibers for
- * a given duration. Analogous to [[Thread.sleep]] but is
+ * a given duration. Analogous to `Thread.sleep` but is
  * only semantically blocking rather than blocking an underlying
  * OS pthread.
  */

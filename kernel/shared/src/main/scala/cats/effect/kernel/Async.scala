@@ -143,7 +143,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   def executionContext: F[ExecutionContext]
 
   /**
-   * Lifts a [[Future]] into an `F` effect.
+   * Lifts a [[scala.concurrent.Future]] into an `F` effect.
    */
   def fromFuture[A](fut: F[Future[A]]): F[A] =
     flatMap(fut) { f =>
