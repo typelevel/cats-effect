@@ -67,6 +67,7 @@ import scala.util.control.NoStackTrace
  */
 private final class IOFiber[A](
     initMask: Int,
+    initLocalState: IOLocalState,
     cb: OutcomeIO[A] => Unit,
     startIO: IO[A],
     startEC: ExecutionContext,
@@ -105,6 +106,8 @@ private final class IOFiber[A](
   private[this] val finalizers = new ArrayStack[IO[Unit]](16)
 
   private[this] val callbacks = new CallbackStack[A](cb)
+
+  private[this] var localState: IOLocalState = initLocalState
 
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
@@ -759,6 +762,7 @@ private final class IOFiber[A](
           val ec = currentCtx
           val fiber = new IOFiber[Any](
             initMask2,
+            localState,
             null,
             cur.ioa,
             ec,
@@ -811,6 +815,13 @@ private final class IOFiber[A](
           } else {
             runLoop(interruptibleImpl(cur, runtime.blocking), nextIteration)
           }
+
+        case 21 =>
+          val cur = cur0.asInstanceOf[Local[Any]]
+
+          val (nextLocalState, value) = cur.f(localState)
+          localState = nextLocalState
+          runLoop(succeeded(value, 0), nextIteration)
       }
     }
   }

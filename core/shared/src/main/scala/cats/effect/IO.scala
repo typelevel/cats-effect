@@ -694,6 +694,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
     val fiber = new IOFiber[A](
       0,
+      Map(),
       oc =>
         oc.fold(
           canceled,
@@ -1436,6 +1437,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A) extends IO[A] {
     def tag = 20
+  }
+
+  private[effect] final case class Local[+A](f: IOLocalState => (IOLocalState, A))
+      extends IO[A] {
+    def tag = 21
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
