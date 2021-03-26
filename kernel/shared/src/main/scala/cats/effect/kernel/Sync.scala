@@ -19,6 +19,11 @@ package cats.effect.kernel
 import cats.{Applicative, Defer, Monoid, Semigroup}
 import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 
+/**
+ *
+ * A typeclass that encodes the notion of suspending synchronous
+ * side effects in the `F[_]` context
+ */
 trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Unique[F] with Defer[F] {
 
   private[this] val Delay = Sync.Type.Delay
@@ -28,18 +33,65 @@ trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Unique[F] 
 
   override def applicative: Applicative[F] = this
 
+  /**
+   * Yields a value that is guaranteed to be unique ie
+   * (F.unique, F.unique).mapN(_ =!= _)
+   */
   def unique: F[Unique.Token] =
     delay(new Unique.Token())
 
+  /**
+   * The synchronous FFI - lifts any by-name parameter
+   * into the `F[_]` context.
+   *
+   * Equivalent to `Applicative.pure` for pure expressions,
+   * the purpose of this function is to suspend side effects
+   * in `F`.
+   *
+   * @param thunk The side effect which is to be suspended in `F[_]`
+   */
   def delay[A](thunk: => A): F[A] =
     suspend(Delay)(thunk)
 
+  /**
+   * Suspends the evaluation of an `F[_]` reference.
+   *
+   * Equivalent to `FlatMap.flatten` for pure expressions,
+   * the purpose of this function is to suspend side effects
+   * in `F[_]`.
+   */
   def defer[A](thunk: => F[A]): F[A] =
     flatMap(delay(thunk))(x => x)
 
+  /**
+   * Like [[Sync.delay]] but intended for thread blocking operations.
+   * `blocking` will shift the execution of the
+   * blocking operation to a separate threadpool to avoid
+   * blocking on the main execution context. See the thread-model
+   * documentation for more information on why this is necesary.
+   *
+   * {{{
+   * Sync[F].blocking(scala.io.Source.fromFile("path").mkString)
+   * }}}
+   *
+   * @param thunk The side effect which is to be suspended in `F[_]`
+   * and evaluated on a blocking execution context
+   */
   def blocking[A](thunk: => A): F[A] =
     suspend(Blocking)(thunk)
 
+  /**
+   * Like [[Sync.blocking]] but will attempt to abort the
+   * blocking operation using thread interrupts in the
+   * event of cancelation.
+   *
+   * @param many Whether interruption via thread interrupt should be
+   * attempted once or repeatedly until the blocking operation
+   * completes or exits.
+   *
+   * @param thunk The side effect which is to be suspended in `F[_]`
+   * and evaluated on a blocking execution context
+   */
   def interruptible[A](many: Boolean)(thunk: => A): F[A] =
     suspend(if (many) InterruptibleOnce else InterruptibleMany)(thunk)
 

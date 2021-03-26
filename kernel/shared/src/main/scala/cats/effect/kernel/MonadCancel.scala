@@ -204,6 +204,9 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    *   1. Polling in the wrong order
    *   1. Applying the same poll more than once: `poll(poll(fa))`
    *   1. Applying a poll bound to one fiber within another fiber
+   *
+   * @param body A function which takes a [[Poll]] and returns the
+   * effect that we wish to make uncancelable.
    */
   def uncancelable[A](body: Poll[F] => F[A]): F[A]
 
