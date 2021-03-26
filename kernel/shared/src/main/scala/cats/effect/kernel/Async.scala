@@ -26,10 +26,9 @@ import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
- *
  * A typeclass that encodes the notion of suspending asynchronous
  * side effects in the `F[_]` context
-
+ *
  * An asynchronous task is one whose results are computed somewhere else (eg
  * by a [[scala.concurrent.Future]] running on some other threadpool). We await
  * the results of that execution by giving it a callback to be invoked with the

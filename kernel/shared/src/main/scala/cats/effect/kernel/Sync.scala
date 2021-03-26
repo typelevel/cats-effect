@@ -20,7 +20,6 @@ import cats.{Applicative, Defer, Monoid, Semigroup}
 import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 
 /**
- *
  * A typeclass that encodes the notion of suspending synchronous
  * side effects in the `F[_]` context
  */
