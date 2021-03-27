@@ -38,13 +38,13 @@ Many parts of this migration can be automated by using the [Scalafix][scalafix] 
 
 If you want to trigger the migration manually, you can follow [the instructions here](https://github.com/typelevel/cats-effect/blob/series/3.x/scalafix/README.md). Remember to run it *before* making any changes to your dependencies' versions.
 
+Now is the time to update cats-effect **every dependency using it** to a CE3-compatible version.
+
 ## Upgrade dependencies
 
 At this point, if you've run the Scalafix migration, your code will not compile. However, you should hold off going through the list of errors and fixing the remaining issues yourself at this point.
 
-Now is the time to update cats-effect **every dependency using it** to a CE3-compatible version.
-
-If you're an [sbt][sbt] user, it is recommended that you upgrade to at least `1.5.0-RC1`:
+If you're an [sbt][sbt] user, it is recommended that you upgrade to at least `1.5.0-RC1` before you proceed:
 
 In your `project/build.properties`:
 
@@ -58,6 +58,22 @@ use compatible versions of each library (in the case of cats-effect, this will r
 all use either the 2.x.x versions or the 3.x.x versions).
 
 Having upgraded sbt, you can try to upgrade cats-effect:
+
+### Which modules should I use?
+
+Cats Effect 3 splits the code dependency into multiple modules. If you were previously using `cats-effect`, you can keep doing so, but if you're a user of another effect system (Monix, ZIO, ...), or a library author, you might be able to depend on a subset of it instead.
+
+The current non-test modules are:
+
+```scala
+"org.typelevel" %% "cats-effect-kernel"         % "3.0.0-RC1",
+"org.typelevel" %% "cats-effect-std"            % "3.0.0-RC1"
+"org.typelevel" %% "cats-effect"                % "3.0.0-RC1",
+```
+
+- `kernel` - type class definitions, simple concurrency primitives
+- `std` - high-level abstractions like `Console`, `Semaphore`, `Hotswap`, `Dispatcher`
+- `core` - `IO`, `SyncIO`
 
 ```diff
 libraryDependencies ++= Seq(

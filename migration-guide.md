@@ -48,11 +48,11 @@ Cats Effect 3 splits that into multiple modules:
 
 ```scala
 "org.typelevel" %% "cats-effect-kernel"         % "3.0.0-RC1",
+"org.typelevel" %% "cats-effect-std"            % "3.0.0-RC1"
+"org.typelevel" %% "cats-effect"                % "3.0.0-RC1",
 "org.typelevel" %% "cats-effect-kernel-testkit" % "3.0.0-RC1" % Test,
 "org.typelevel" %% "cats-effect-laws"           % "3.0.0-RC1" % Test,
-"org.typelevel" %% "cats-effect"                % "3.0.0-RC1",
 "org.typelevel" %% "cats-effect-testkit"        % "3.0.0-RC1" % Test,
-"org.typelevel" %% "cats-effect-std"            % "3.0.0-RC1"
 ```
 
 Depending on how you use Cats Effect, you might be able to pick just some of them.
