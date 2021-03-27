@@ -99,25 +99,6 @@ def continual[A, B](fa: F[A])(f: Either[Throwable, A] => F[B]): F[B] = MonadCanc
 
 todo - Gavin wrote about this
 
-## Compatibility with Cats Effect 2
-
-### Binary compatibility
-
-There is none! The library was rewritten from scratch, and there was no goal of having binary compatibility with pre-3.0 releases.
-
-> Note: We will guarantee binary compatibility between all stable releases in the 3.x series, and a 2.x branch will be maintained for some time to allow a smoother transition.
-<!-- note: some things were moved to new page -->
-To sum up, the only thing guaranteed when it comes to binary compatibility between CE2 and CE3 is that your code will blow up in runtime if you try to use them together! Make sure to double-check everything your build depends on is updated.
-
-### Source compatibility
-
-In some areas, the code using CE3 looks similarly or identically as it would before the migration.
-Regardless of that, it is not recommended to assume anything is the same unless explicitly mentioned in this guide.
-
-### Feature compatibility
-
-Everything that was possible with CE2 should still be possible with CE3, with the following exceptions:
-
 #### Implementing Async
 
 Types that used to implement `Async` but not `Concurrent` from CE2 might not be able to implement anything more than `Sync` in CE3 -
