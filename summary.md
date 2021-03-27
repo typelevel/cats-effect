@@ -17,10 +17,20 @@ to 3.0.0.
 > If you haven't used Cats Effect before and want to give it a try,
 > please follow the [getting started guide](./getting-started.html) instead!
 
-### Need help?
+### 🤔 Need help?
 
 If any point of the migration turns out to be difficult and you feel like you need help, feel free to [explain your problem on Gitter](https://gitter.im/typelevel/cats-effect) and we will do our best to assist you.
-If you spot a mistake in the guide, you can [report an issue on GitHub](https://github.com/typelevel/cats-effect/issues/new).
+If you spot a mistake in the guide or the library itself, you can [report an issue on GitHub](https://github.com/typelevel/cats-effect/issues/new).
+
+### Context: what's changed, what's the same?
+
+Cats Effect 3 (CE3 for short) is a complete redesign of the library.
+Some abstractions known from Cats Effect 2 (CE2) have been removed, others changed responsibilities, and finally, new abstractions were introduced.
+
+The `cats.effect.IO` type known from CE2 is still there, albeit with a different place in the type class hierarchy - namely, it doesn't appear in it.
+
+The new set of type classes has been designed in a way that deliberately avoids coupling with `IO`, which makes the library more modular,
+and allows library authors (as well as users of other effect types) to omit that dependency from their builds.
 
 ## Make sure your dependencies have upgraded
 
@@ -44,13 +54,13 @@ Now is the time to update cats-effect **every dependency using it** to a CE3-com
 
 At this point, if you've run the Scalafix migration, your code will not compile. However, you should hold off going through the list of errors and fixing the remaining issues yourself at this point.
 
-If you're an [sbt][sbt] user, it is recommended that you upgrade to at least `1.5.0-RC1` before you proceed:
+If you're an [sbt][sbt] user, it is recommended that you upgrade to at least `1.5.0-RC2` before you proceed:
 
 In your `project/build.properties`:
 
 ```diff
 - sbt.version = 1.4.9
-+ sbt.version = 1.5.0-RC1
++ sbt.version = 1.5.0-RC2
 ```
 
 This will enable eviction errors, which means your build will only succeed if all your dependencies
@@ -66,9 +76,9 @@ Cats Effect 3 splits the code dependency into multiple modules. If you were prev
 The current non-test modules are:
 
 ```scala
-"org.typelevel" %% "cats-effect-kernel"         % "3.0.0-RC1",
-"org.typelevel" %% "cats-effect-std"            % "3.0.0-RC1"
-"org.typelevel" %% "cats-effect"                % "3.0.0-RC1",
+"org.typelevel" %% "cats-effect-kernel" % "3.0.0",
+"org.typelevel" %% "cats-effect-std"    % "3.0.0"
+"org.typelevel" %% "cats-effect"        % "3.0.0",
 ```
 
 - `kernel` - type class definitions, simple concurrency primitives
@@ -103,7 +113,7 @@ sbt:demo> update
 
 This tells you that you need to upgrade both `monix-catnap` and `odin-core` before proceeding. Make sure `update` of all your project's modules passes before proceeding to the next point.
 
-> Note that some of the libraries listed might be transitive dependencies, which means
+> Note: that some of the libraries listed might be transitive dependencies, which means
 > you're depending on other projects that depend on them.
 > Upgrading your direct dependencies should solve the transitive dependencies' incompatibilities as well.
 
