@@ -584,6 +584,25 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         }
       }
 
+      "allow for misordered nesting" in ticked { implicit ticker =>
+        var outerR = 0
+        var innerR = 0
+
+        val outer = IO.async[Int] { cb1 =>
+          val inner = IO.async[Int] { cb2 =>
+            IO(cb1(Right(1))) *>
+              IO.executionContext.flatMap(ec => IO(ec.execute(() => cb2(Right(2))))).as(None)
+          }
+
+          inner.flatMap(i => IO { innerR = i }).as(None)
+        }
+
+        val test = outer.flatMap(i => IO { outerR = i })
+
+        test must completeAs(())
+        outerR mustEqual 1
+        innerR mustEqual 2
+      }
     }
 
     "cancellation" should {
