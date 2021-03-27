@@ -1,3 +1,8 @@
+---
+id: migration-guide
+title: Migration guide
+---
+
 ## Summary
 
 Here is a general view of the steps you should take to migrate your application to Cats Effect 3:
