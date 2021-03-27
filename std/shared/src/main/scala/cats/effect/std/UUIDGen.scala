@@ -16,8 +16,10 @@
 
 package cats.effect.std
 
+import cats.Functor
 import cats.effect.kernel.Sync
 import cats.implicits._
+
 import java.util.UUID
 
 /**
@@ -30,20 +32,14 @@ trait UUIDGen[F[_]] {
    * @return randomly generated UUID
    */
   def randomUUID: F[UUID]
-
-  /**
-   * Generates a UUID in a pseudorandom manner and returns String representation of this UUID.
-   * @return randomly generated UUID string
-   */
-  def randomString: F[String]
 }
 
 object UUIDGen {
   def apply[F[_]](implicit ev: UUIDGen[F]): UUIDGen[F] = ev
 
   implicit def fromSync[F[_]: Sync]: UUIDGen[F] = new UUIDGen[F] {
-
     override def randomUUID: F[UUID] = Sync[F].delay(UUID.randomUUID())
-    override def randomString: F[String] = randomUUID.map(_.toString)
   }
+  def randomUUID[F[_]: UUIDGen]: F[UUID] = UUIDGen[F].randomUUID
+  def randomString[F[_]: UUIDGen: Functor]: F[String] = randomUUID.map(_.toString)
 }
