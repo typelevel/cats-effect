@@ -7,12 +7,11 @@ title: Migration guide
 
 Here is a general view of the steps you should take to migrate your application to Cats Effect 3:
 
-<!-- no toc - annotation for vscode plugin to stop making this a structured ToC -->
-1. [Make sure your dependencies have upgraded](#make-sure-your-dependencies-have-upgraded)
-2. [Run the Scalafix migration](#run-the-scalafix-migration) (optional)
-3. [Upgrade dependencies and Cats Effect itself](#upgrade-dependencies)
-4. [Fix remaining compilation issues](#fix-remaining-compilation-issues)
-5. [Test your application](#test-your-application). <!-- todo wording -->
+1. [Make sure your dependencies have upgraded](#make-sure-your-dependencies-have-upgraded)<!-- don't remove this comment - this ensures the vscode extension doesn't make this a ToC -->
+1. [Run the Scalafix migration](#run-the-scalafix-migration) (optional)
+2. [Upgrade dependencies and Cats Effect itself](#upgrade-dependencies)
+3. [Fix remaining compilation issues](#fix-remaining-compilation-issues)
+4. [Test your application](#test-your-application). <!-- todo wording -->
 
 ### Before you begin: this isn't a "quick start" guide
 
