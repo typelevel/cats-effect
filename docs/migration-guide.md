@@ -81,7 +81,7 @@ The current non-test modules are:
 
 ```scala
 "org.typelevel" %% "cats-effect-kernel" % "3.0.0",
-"org.typelevel" %% "cats-effect-std"    % "3.0.0"
+"org.typelevel" %% "cats-effect-std"    % "3.0.0",
 "org.typelevel" %% "cats-effect"        % "3.0.0",
 ```
 
