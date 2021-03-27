@@ -104,41 +104,25 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
     uncancelable { poll =>
       for {
-        fibADef <- deferred[Fiber[F, E, A]]
-        fibBDef <- deferred[Fiber[F, E, B]]
-
         result <-
-          deferred[
-            Either[(Outcome[F, E, A], Fiber[F, E, B]), (Fiber[F, E, A], Outcome[F, E, B])]]
+          deferred[Either[Outcome[F, E, A], Outcome[F, E, B]]]
 
-        fibA <- start {
-          guaranteeCase(fa) { oc =>
-            fibBDef.get flatMap { fibB => result.complete(Left((oc, fibB))).void }
-          }
-        }
-
-        fibB <- start {
-          guaranteeCase(fb) { oc =>
-            fibADef.get flatMap { fibA => result.complete(Right((fibA, oc))).void }
-          }
-        }
-
-        _ <- fibADef.complete(fibA)
-        _ <- fibBDef.complete(fibB)
+        fibA <- start(guaranteeCase(fa)(oc => result.complete(Left(oc)).void))
+        fibB <- start(guaranteeCase(fb)(oc => result.complete(Right(oc)).void))
 
         back <- onCancel(
-          poll(result.get), {
-            for {
-              doneA <- deferred[Unit]
-              doneB <- deferred[Unit]
-              _ <- start(guarantee(fibA.cancel, doneA.complete(()).void))
-              _ <- start(guarantee(fibB.cancel, doneB.complete(()).void))
-              _ <- doneA.get
-              _ <- doneB.get
-            } yield ()
-          }
-        )
-      } yield back
+          poll(result.get),
+          for {
+            canA <- start(fibA.cancel)
+            canB <- start(fibB.cancel)
+
+            _ <- canA.join
+            _ <- canB.join
+          } yield ())
+      } yield back match {
+        case Left(oc) => Left((oc, fibB))
+        case Right(oc) => Right((fibA, oc))
+      }
     }
   }
 }
