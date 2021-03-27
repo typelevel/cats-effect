@@ -22,15 +22,39 @@ import cats.{Applicative, MonadError, Monoid, Semigroup}
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
 
+/**
+ * A typeclass that encodes the notion of suspending fibers for
+ * a given duration. Analogous to `Thread.sleep` but is
+ * only semantically blocking rather than blocking an underlying
+ * OS pthread.
+ */
 trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
   override def applicative: Applicative[F] = this
 
-  // (sleep(n) *> now) <-> now.map(_ + n + d) forSome { val d: Double }
+  /**
+   * Semantically block the fiber for the specified duration.
+   *
+   * @param time The duration to semantically block for
+   */
   def sleep(time: FiniteDuration): F[Unit]
 
+  /**
+   * Delay the execution of `fa` by a given duration.
+   *
+   * @param fa The effect to execute
+   *
+   * @param time The duration to wait before executing fa
+   */
   def delayBy[A](fa: F[A], time: FiniteDuration): F[A] =
     productR(sleep(time))(fa)
 
+  /**
+   * Wait for the specified duration after the execution of `fa`
+   * before returning the result.
+   *
+   * @param fa The effect to execute
+   * @param time The duration to wait after executing fa
+   */
   def andWait[A](fa: F[A], time: FiniteDuration): F[A] =
     productL(fa)(sleep(time))
 
@@ -42,11 +66,11 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * the `FiniteDuration` to complete, the evaluation of the fallback
    * happening immediately after that.
    *
-   * @param duration is the time span for which we wait for the source to
+   * @param duration The time span for which we wait for the source to
    *        complete; in the event that the specified time has passed without
    *        the source completing, the `fallback` gets evaluated
    *
-   * @param fallback is the task evaluated after the duration has passed and
+   * @param fallback The task evaluated after the duration has passed and
    *        the source canceled
    */
   def timeoutTo[A](fa: F[A], duration: FiniteDuration, fallback: F[A]): F[A] =
@@ -62,7 +86,7 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * The source is cancelled in the event that it takes longer than
    * the specified time duration to complete.
    *
-   * @param duration is the time span for which we wait for the source to
+   * @param duration The time span for which we wait for the source to
    *        complete; in the event that the specified time has passed without
    *        the source completing, a `TimeoutException` is raised
    */
