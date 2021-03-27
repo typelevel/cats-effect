@@ -125,7 +125,9 @@ This tells you that you need to upgrade both `monix-catnap` and `odin-core` befo
 
 Here's the new type class hierarchy. It might be helpful in understanding some of the changes:
 
-[![hierarchy](https://raw.githubusercontent.com/typelevel/cats-effect/series/3.x/images/hierarchy.svg)][hierarchy-ce3]
+<a href="https://raw.githubusercontent.com/typelevel/cats-effect/series/3.x/images/hierarchy.svg" target="_blank">
+  <img src="https://raw.githubusercontent.com/typelevel/cats-effect/series/3.x/images/hierarchy.svg" alt="hierarchy" style="margin: 30px 0"/>
+</a>
 
 Most of the following are handled by [the Scalafix migration](#run-the-scalafix-migration). If you can, try that first!
 
@@ -218,4 +220,3 @@ Enjoy using cats-effect!
 
 [sbt]: https://scala-sbt.org
 [scalafix]: https://scalacenter.github.io/scalafix/
-[hierarchy-ce3]: https://raw.githubusercontent.com/typelevel/cats-effect/series/3.x/images/hierarchy.svg
