@@ -106,7 +106,7 @@ object Supervisor {
    * this scope exits, all supervised fibers will be finalized.
    */
   def apply[F[_]](implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
-    // It would have preferable to use Scope here but explicit cancellation is
+    // It would have preferable to use Scope here but explicit cancelation is
     // intertwined with resource management
     for {
       stateRef <- Resource.make(F.ref[Map[Unique.Token, F[Unit]]](Map())) { state =>

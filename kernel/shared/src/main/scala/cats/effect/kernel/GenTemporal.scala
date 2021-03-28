@@ -62,7 +62,7 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * Returns an effect that either completes with the result of the source within
    * the specified time `duration` or otherwise evaluates the `fallback`.
    *
-   * The source is cancelled in the event that it takes longer than
+   * The source is canceled in the event that it takes longer than
    * the `FiniteDuration` to complete, the evaluation of the fallback
    * happening immediately after that.
    *
@@ -83,7 +83,7 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * Returns an effect that either completes with the result of the source within
    * the specified time `duration` or otherwise raises a `TimeoutException`.
    *
-   * The source is cancelled in the event that it takes longer than
+   * The source is canceled in the event that it takes longer than
    * the specified time duration to complete.
    *
    * @param duration The time span for which we wait for the source to

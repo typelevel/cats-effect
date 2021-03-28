@@ -125,7 +125,7 @@ trait IOApp {
             System.exit(result.code)
           }
         case _: CancellationException =>
-          // Do not report cancellation exceptions but still exit with an error code.
+          // Do not report cancelation exceptions but still exit with an error code.
           System.exit(1)
         case t: Throwable =>
           throw t

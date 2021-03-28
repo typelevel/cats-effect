@@ -51,7 +51,7 @@ IO.blocking(url1 == url2) // => IO[Boolean]
 
 In the above, `URL#equals` effect (along with its associated blocking DNS resolution) is moved off of the precious thread-stealing compute pool and onto an unbounded blocking pool. This worker thread then blocks (which causes the kernel to remove it from the processor) for as long as necessary to complete the DNS resolution, after which it returns and completes the boolean comparison. As soon as this effect completes, `IO` *immediately* shifts the fiber back to the work-stealing compute pool, ensuring all of the benefits are applied and the blocking worker thread can be returned to its pool.
 
-This scheduling dance is handled for you entirely automatically, and the only extra work which must be performed by you, the user, is explicitly declaring your thread-blocking effects as `blocking` or `interruptible` (the `interruptible` implementation is similar to `blocking` except that it also utilizes thread interruption to allow fiber cancellation to function even within thread-blocking effects).
+This scheduling dance is handled for you entirely automatically, and the only extra work which must be performed by you, the user, is explicitly declaring your thread-blocking effects as `blocking` or `interruptible` (the `interruptible` implementation is similar to `blocking` except that it also utilizes thread interruption to allow fiber cancelation to function even within thread-blocking effects).
 
 ## JavaScript
 

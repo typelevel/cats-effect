@@ -143,8 +143,8 @@ class WorkStealingBenchmark {
 
     val compute = new WorkStealingThreadPool(256, "io-compute", manyThreadsRuntime)
 
-    val cancellationCheckThreshold =
-      System.getProperty("cats.effect.cancellation.check.threshold", "512").toInt
+    val cancelationCheckThreshold =
+      System.getProperty("cats.effect.cancelation.check.threshold", "512").toInt
 
     new IORuntime(
       compute,
@@ -156,10 +156,10 @@ class WorkStealingBenchmark {
         schedDown()
       },
       IORuntimeConfig(
-        cancellationCheckThreshold,
+        cancelationCheckThreshold,
         System
           .getProperty("cats.effect.auto.yield.threshold.multiplier", "2")
-          .toInt * cancellationCheckThreshold
+          .toInt * cancelationCheckThreshold
       )
     )
   }

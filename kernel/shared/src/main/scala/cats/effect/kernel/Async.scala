@@ -48,7 +48,7 @@ import scala.concurrent.{ExecutionContext, Future}
  * `async_` is somewhat contrained however. We can't perform any `F[_]` effects
  * in the process of registering the callback and we also can't register
  * a finalizer to eg cancel the asynchronous task in the event that the fiber
- * running `async_` is cancelled.
+ * running `async_` is canceled.
  *
  * This leads us directly to the more general asynchronous FFI
  * {{{
@@ -89,7 +89,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   /**
    * A convenience version of [[Async.async]] for when we don't need to
    * perform `F[_]` effects or perform finalization in the event of
-   * cancellation.
+   * cancelation.
    */
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): F[A] =
     async[A](cb => as(delay(k(cb)), None))

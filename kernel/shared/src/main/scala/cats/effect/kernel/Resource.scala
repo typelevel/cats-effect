@@ -293,7 +293,7 @@ sealed abstract class Resource[F[_], +A] {
 
   /**
    * Races the evaluation of two resource allocations and returns the result of the winner,
-   * except in the case of cancellation.
+   * except in the case of cancelation.
    */
   def race[B](
       that: Resource[F, B]
@@ -671,7 +671,7 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
 
   /**
    * Races the evaluation of two resource allocations and returns the result of the winner,
-   * except in the case of cancellation.
+   * except in the case of cancelation.
    */
   def race[F[_]: Concurrent, A, B](
       rfa: Resource[F, A],

@@ -49,7 +49,7 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 
   /**
    * Submits an effect to be executed, returning a `Future` that holds the
-   * result of its evaluation, along with a cancellation token that can be
+   * result of its evaluation, along with a cancelation token that can be
    * used to cancel the original effect.
    */
   def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit])
@@ -62,7 +62,7 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
     unsafeToFutureCancelable(fa)._1
 
   /**
-   * Submits an effect to be executed, returning a cancellation token that
+   * Submits an effect to be executed, returning a cancelation token that
    * can be used to cancel it.
    */
   def unsafeRunCancelable[A](fa: F[A]): () => Future[Unit] =
