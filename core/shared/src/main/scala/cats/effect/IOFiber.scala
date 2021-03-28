@@ -628,7 +628,7 @@ private final class IOFiber[A](
                 else {
                   state.result = e
                   // The winner has to publish the result.
-                  state.lazySet(ContStateResult)
+                  state.set(ContStateResult)
                   if (tag == ContStateWaiting) {
                     /*
                      * `get` has been sequenced and is waiting
@@ -851,15 +851,7 @@ private final class IOFiber[A](
 
     resumeTag = DoneR
     resumeIO = null
-    /*
-     * Write barrier to publish masks. The thread which owns the runloop is
-     * effectively a single writer, so lazy set can be utilized for relaxed
-     * memory barriers (equivalent to a `release` set), while still keeping
-     * the same memory publishing semantics as `set(false)`.
-     *
-     * http://psy-lob-saw.blogspot.com/2012/12/atomiclazyset-is-performance-win-for.html
-     */
-    suspended.lazySet(false)
+    suspended.set(false)
 
     /* clear out literally everything to avoid any possible memory leaks */
 
@@ -922,15 +914,8 @@ private final class IOFiber[A](
   private[this] def resume(): Boolean =
     suspended.getAndSet(false)
 
-  /*
-   * The thread which owns the runloop is effectively a single writer, so lazy set
-   * can be utilized for relaxed memory barriers (equivalent to a `release` set),
-   * while still keeping the same memory publishing semantics as `set(true)`.
-   *
-   * http://psy-lob-saw.blogspot.com/2012/12/atomiclazyset-is-performance-win-for.html
-   */
   private[this] def suspend(): Unit =
-    suspended.lazySet(true)
+    suspended.set(true)
 
   /* returns the *new* context, not the old */
   private[this] def popContext(): ExecutionContext = {
