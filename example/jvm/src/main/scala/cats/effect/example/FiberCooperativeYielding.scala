@@ -91,8 +91,9 @@ object FiberCooperativeYielding extends IOApp.Simple {
       _ <- IO(Thread.sleep(200)) // throttle a bit
       _ <- IO(println(s"[${Thread.currentThread.getName}] $id"))
       _ <- if (id == "A" && i == 2) IO(println("A CEDES")) >> IO.cede else IO.unit
-      _ <- if (i == 1) IO(println(s"$id DONE"))
-      else countdown(id)(i - 1)
+      _ <-
+        if (i == 1) IO(println(s"$id DONE"))
+        else countdown(id)(i - 1)
     } yield ()
 
   override def run: IO[Unit] =
@@ -107,4 +108,3 @@ object FiberCooperativeYielding extends IOApp.Simple {
       _ <- fiber4.join
     } yield ()
 }
-
