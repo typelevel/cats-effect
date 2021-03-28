@@ -697,7 +697,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       Map(),
       oc =>
         oc.fold(
-          canceled,
+          {
+            runtime.fiberErrorCbs.remove(failure)
+            canceled
+          },
           { t =>
             runtime.fiberErrorCbs.remove(failure)
             failure(t)
