@@ -9,9 +9,9 @@ Here is a general view of the steps you should take to migrate your application 
 
 1. [Make sure your dependencies have upgraded](#make-sure-your-dependencies-have-upgraded)<!-- don't remove this comment - this ensures the vscode extension doesn't make this a ToC -->
 1. [Run the Scalafix migration](#run-the-scalafix-migration) (optional)
-2. [Upgrade dependencies and Cats Effect itself](#upgrade-dependencies)
-3. [Fix remaining compilation issues](#fix-remaining-compilation-issues)
-4. [Test your application](#test-your-application). <!-- todo wording -->
+1. [Upgrade dependencies and Cats Effect itself](#upgrade-dependencies)
+1. [Fix remaining compilation issues](#fix-remaining-compilation-issues)
+1. [Test your application](#test-your-application).
 
 ### Before you begin: this isn't a "quick start" guide
 
@@ -149,6 +149,16 @@ Most of the following are handled by [the Scalafix migration](#run-the-scalafix-
 
 <!-- todo explanation/notes paragraph -->
 
+#### Implementing Async
+
+Types that used to implement `Async` but not `Concurrent` from CE2 might not be able to implement anything more than `Sync` in CE3 -
+this has an impact on users who have used e.g.
+[doobie](https://tpolecat.github.io/doobie/)'s `ConnectionIO`, `slick.dbio.DBIO` with
+[slick-effect](https://github.com/kubukoz/slick-effect), or
+[ciris](https://cir.is)'s `ConfigValue` in a polymorphic context with an `Async[F]` constraint.
+
+Please refer to each library's appropriate documentation/changelog to see how to adjust your code to this change.
+
 ### Blocker
 
 | Cats Effect 2.x           | Cats Effect 3                                                  | Notes                                   |
@@ -194,13 +204,30 @@ Most of the following are handled by [the Scalafix migration](#run-the-scalafix-
 | `Concurrent[F].racePair`                    | `Spawn[F].racePair`             |                                                |
 | `Concurrent[F].cancelable`                  | `Async.async(f)`                | Wrap side effects in F, cancel token in `Some` |
 | `Concurrent[F].cancelableF`                 | `Async.async(f(_).map(_.some))` | `Some` means there is a finalizer to execute.  |
-| `Concurrent[F].continual`                   | -                               | see [below](#concurrent-continual)             |
-| `Concurrent.continual`                      | -                               | see [below](#concurrent-continual)             |
+| `Concurrent[F].continual`                   | -                               | see [below](#continual)                        |
+| `Concurrent.continual`                      | -                               | see [below](#continual)                        |
 | `Concurrent.timeout`                        | `Temporal[F].timeout`           |                                                |
 | `Concurrent.timeoutTo`                      | `Temporal[F].timeoutTo`         |                                                |
 | `Concurrent.memoize`                        | `Concurrent[F].memoize`         |                                                |
 | `Concurrent.parTraverseN`                   | `Concurrent[F].parTraverseN`    |                                                |
 | `Concurrent.parSequenceN`                   | `Concurrent[F].parSequenceN`    |                                                |
+
+
+#### continual
+
+<!-- todo explain -->
+
+```scala mdoc
+import cats.effect.kernel.MonadCancel
+import cats.effect.kernel.MonadCancelThrow
+import cats.syntax.all._
+
+def continual[F[_]: MonadCancelThrow, A, B](fa: F[A])(
+  f: Either[Throwable, A] => F[B]
+): F[B] = MonadCancel[F].uncancelable { poll =>
+  poll(fa).attempt.flatMap(f)
+}
+```
 
 <!-- todo -->
 ### Effect, ConcurrentEffect, SyncEffect
@@ -258,67 +285,37 @@ Yielding back to the scheduler can now be done with `Spawn[F].cede`.
 
 ### IO
 
+| Cats Effect 2.x                   | Cats Effect 3                                  | Notes                                                  |
+| --------------------------------- | ---------------------------------------------- | ------------------------------------------------------ |
+| `IO#as`                           | `IO.as` / `IO.map`                             | the argument isn't by-name anymore                     | <!-- todo https://github.com/typelevel/cats-effect/issues/1824 --> |
+| `IO.runAsync`, `IO.runCancelable` | Unsafe variants or [`Dispatcher`](#dispatcher) |                                                        |
+| `IO.unsafe*`                      | The same or [`Dispatcher`](#dispatcher)        | Methods that run an IO require an implicit `IORuntime` |
+| `IO.unsafeRunAsyncAndForget`      | `IO.unsafeRunAndForget`                        |                                                        |
+| `IO.unsafeRunCancelable`          | `start.unsafeRunSync.cancel`                   |                                                        |
+| `IO.unsafeRunTimed`               | -                                              |                                                        |
+| `IO.background`                   | The same                                       | Value in resource is now an `Outcome`                  |
+| `IO.guaranteeCase`/`bracketCase`  | The same                                       | [`ExitCase` is now `Outcome`](#outcome)                |
+| `IO.parProduct`                   | `IO.both`                                      |                                                        |
+| `IO.suspend`                      | `IO.defer`                                     |                                                        |
+| `IO.shift`                        | See [below](#shifting)                         |                                                        |
+| `IO.cancelBoundary`               | `IO.cede`                                      | Also [performs a yield](#shifting)                     |
 
-### Rest of the world <!-- todo -->
+### Resource
 
-| Cats Effect 2.x  | Cats Effect 3 | Notes |
-| ---------------- | ------------- | ----- |
-| `CancelToken[F]` | `F[Unit]`     |       |
+| Cats Effect 2.x                      | Cats Effect 3                | Notes                                                    |
+| ------------------------------------ | ---------------------------- | -------------------------------------------------------- |
+| `Resource.parZip`                    | `Resource.both`              |                                                          |
+| `Resource.liftF`                     | `Resource.eval`              |                                                          |
+| `Resource.fromAutoCloseableBlocking` | `Resource.fromAutoCloseable` | The method always uses `blocking` for the cleanup action |
 
+### Timer
 
+| Cats Effect 2.x  | Cats Effect 3       | Notes |
+| ---------------- | ------------------- | ----- |
+| `Timer[F].clock` | `Clock[F]`          |       |
+| `Timer[F].sleep` | `Temporal[F].sleep` |       |
 
-
-| Cats Effect 2.x                      | Cats Effect 3                                  | Notes                                                    |
-| ------------------------------------ | ---------------------------------------------- | -------------------------------------------------------- |
-| `IO#as`                              | `IO.as` / `IO.map`                             | the argument isn't by-name anymore                       | <!-- todo https://github.com/typelevel/cats-effect/issues/1824 --> |
-| `IO.runAsync`, `IO.runCancelable`    | Unsafe variants or [`Dispatcher`](#dispatcher) |                                                          |
-| `IO.unsafe*`                         | The same or [`Dispatcher`](#dispatcher)        | Methods that run an IO require an implicit `IORuntime`   |
-| `IO.unsafeRunAsyncAndForget`         | `IO.unsafeRunAndForget`                        |                                                          |
-| `IO.unsafeRunCancelable`             | `start.unsafeRunSync.cancel`                   |                                                          |
-| `IO.unsafeRunTimed`                  | -                                              |                                                          |
-| `IO.background`                      | The same                                       | Value in resource is now an `Outcome`                    |
-| `IO.guaranteeCase`/`bracketCase`     | The same                                       | [`ExitCase` is now `Outcome`](#outcome)                  |
-| `IO.parProduct`                      | `IO.both`                                      |                                                          |
-| `IO.suspend`                         | `IO.defer`                                     |                                                          |
-| `IO.shift`                           | See [below](#shifting)                         |                                                          |
-| `IO.cancelBoundary`                  | `IO.cede`                                      | Also [performs a yield](#shifting)                       |
-| `Resource.parZip`                    | `Resource.both`                                |                                                          |
-| `Resource.liftF`                     | `Resource.eval`                                |                                                          |
-| `Resource.fromAutoCloseableBlocking` | `Resource.fromAutoCloseable`                   | The method always uses `blocking` for the cleanup action |
-| `Timer[F].clock`                     | `Clock[F]`                                     |                                                          |
-| `Timer[F].sleep`                     | `Temporal[F].sleep`                            |                                                          |
-
-TODO: IOApp
-
-However, some changes will require more work than a simple search/replace.
-We will go through them here.
-
-
-### Concurrent: continual
-
-<!-- todo explain -->
-
-```scala mdoc
-import cats.effect.kernel.MonadCancel
-import cats.effect.kernel.MonadCancelThrow
-import cats.syntax.all._
-
-def continual[F[_]: MonadCancelThrow, A, B](fa: F[A])(
-  f: Either[Throwable, A] => F[B]
-): F[B] = MonadCancel[F].uncancelable { poll =>
-  poll(fa).attempt.flatMap(f)
-}
-```
-
-### Implementing Async
-
-Types that used to implement `Async` but not `Concurrent` from CE2 might not be able to implement anything more than `Sync` in CE3 -
-this has an impact on users who have used e.g.
-[doobie](https://tpolecat.github.io/doobie/)'s `ConnectionIO`, `slick.dbio.DBIO` with
-[slick-effect](https://github.com/kubukoz/slick-effect), or
-[ciris](https://cir.is)'s `ConfigValue` in a polymorphic context with an `Async[F]` constraint.
-
-Please refer to each library's appropriate documentation/changelog to see how to adjust your code to this change.
+### TODO: IOApp
 
 ### Tracing
 
