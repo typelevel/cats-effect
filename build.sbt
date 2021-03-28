@@ -36,6 +36,7 @@ ThisBuild / developers := List(
   Developer("mpilquist", "Michael Pilquist", "@mpilquist", url("https://github.com/mpilquist")),
   Developer("vasilmkd", "Vasil Vasilev", "@vasilvasilev97", url("https://github.com/vasilmkd")),
   Developer("bplommer", "Ben Plommer", "@bplommer", url("https://github.com/bplommer")),
+  Developer("wemrysi", "Emrys Ingersoll", "@wemrysi", url("https://github.com/wemrysi")),
   Developer("gvolpe", "Gabriel Volpe", "@volpegabriel87", url("https://github.com/gvolpe"))
 )
 
