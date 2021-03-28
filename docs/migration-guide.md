@@ -133,74 +133,160 @@ Most of the following are handled by [the Scalafix migration](#run-the-scalafix-
 
 > Note: package name changes were skipped from the table. Most type classes are now in `cats.effect.kernel`.
 
-| Cats Effect 2.x                             | Cats Effect 3                                                  | Notes                                                    |
-| ------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------- |
-| `Async[F].async`                            | `Async[F].async_`                                              |                                                          |
-| `Async[F].asyncF(f)`                        | `Async[F].async(f).as(none)`                                   |                                                          |
-| `Async.shift`                               | nothing / `Spawn[F].cede`                                      | See [below](#shifting)                                   |
-| `Async.fromFuture`                          | `Async[F].fromFuture`                                          |                                                          |
-| `Async.memoize`                             | `Concurrent[F].memoize`                                        |                                                          |
-| `Async.parTraverseN`                        | `Concurrent[F].parTraverseN`                                   |                                                          |
-| `Async.parSequenceN`                        | `Concurrent[F].parSequenceN`                                   |                                                          |
-| `Async[F].liftIO`, `Async.liftIO`           | `LiftIO[F].liftIO`                                             | `LiftIO` is in the `cats-effect` module                  |
-| `Async <: LiftIO`                           | No subtyping relationship                                      | `LiftIO` is in the `cats-effect` module                  |
-| `Blocker.apply`                             | -                                                              | blocking pool is provided by runtime                     |
-| `Blocker.delay`                             | `Sync[F].blocking`                                             | `Blocker` was removed                                    |
-| `Blocker(ec).blockOn(fa)`                   | `Async[F].evalOn(fa, ec)`                                      | You can probably use `Sync[F].blocking`                  |
-| `Blocker.blockOnK`                          | For blocking actions on a specific pool, use `Async[F].evalOn` |                                                          |
-| `Bracket[F].bracket`                        | `MonadCancel[F].bracket`                                       |                                                          |
-| `Bracket[F].bracketCase`                    | `MonadCancel[F].bracketCase`                                   | `ExitCase` is now `Outcome`                              |
-| `Bracket[F].uncancelable(fa)`               | `MonadCancel[F].uncancelable(_ => fa)`                         |                                                          |
-| `Bracket[F].guarantee`                      | `MonadCancel[F].guarantee`                                     |                                                          |
-| `Bracket[F].guaranteeCase`                  | `MonadCancel[F].guaranteeCase`                                 | `ExitCase` is now `Outcome`                              |
-| `Bracket[F].onCancel`                       | `MonadCancel[F].onCancel`                                      |                                                          |
-| `CancelToken[F]`                            | `F[Unit]`                                                      |                                                          |
-| `Clock[F].realTime: TimeUnit => F[Long]`    | `Clock[F].realTime: F[FiniteDuration]`                         |                                                          |
-| `Clock[F].monotonic: TimeUnit => F[Long]`   | `Clock[F].monotonic: F[FiniteDuration]`                        |                                                          |
-| `Clock.instantNow`                          | `Clock[F].realTimeInstant`                                     |                                                          |
-| `Clock.create`, `Clock[F].mapK`             | -                                                              | See [below](#clock-changes)                              |
-| `Concurrent[F].start`                       | `Spawn[F].start`                                               |                                                          |
-| `Concurrent[F].background`                  | `Spawn[F].background`                                          | Value in resource is now an `Outcome`                    |
-| `Concurrent[F].liftIO`, `Concurrent.liftIO` | `LiftIO[F].liftIO`                                             | `LiftIO` is in the `cats-effect` module                  |
-| `Concurrent <: LiftIO`                      | No subtyping relationship                                      | `LiftIO` is in the `cats-effect` module                  |
-| `Concurrent[F].race`                        | `Spawn[F].race`                                                |                                                          |
-| `Concurrent[F].racePair`                    | `Spawn[F].racePair`                                            |                                                          |
-| `Concurrent[F].cancelable`                  | `Async.async(f)`                                               | Wrap side effects in F, cancel token in `Some`           |
-| `Concurrent[F].cancelableF`                 | `Async.async(f(_).map(_.some))`                                | `Some` means there is a finalizer to execute.            |
-| `Concurrent[F].continual`                   | -                                                              | see [below](#concurrent-continual)                       |
-| `Concurrent.continual`                      | -                                                              | see [below](#concurrent-continual)                       |
-| `Concurrent.timeout`                        | `Temporal[F].timeout`                                          |                                                          |
-| `Concurrent.timeoutTo`                      | `Temporal[F].timeoutTo`                                        |                                                          |
-| `Concurrent.memoize`                        | `Concurrent[F].memoize`                                        |                                                          |
-| `Concurrent.parTraverseN`                   | `Concurrent[F].parTraverseN`                                   |                                                          |
-| `Concurrent.parSequenceN`                   | `Concurrent[F].parSequenceN`                                   |                                                          |
-| `ConcurrentEffect[F]`                       | [`Dispatcher`](#dispatcher)                                    |                                                          |
-| `ContextShift[F].shift`                     | nothing / `Spawn[F].cede`                                      | See [below](#shifting)                                   |
-| `ContextShift[F].evalOn`                    | `Async[F].evalOn`                                              |                                                          |
-| `Effect[F]`                                 | [`Dispatcher`](#dispatcher)                                    |                                                          |
-| `Effect.toIOK`                              | [`Dispatcher`](#dispatcher)                                    |                                                          |
-| `ExitCase[E]`                               | [`Outcome[F, E, A]`](#outcome)                                 |                                                          |
-| `Fiber[F, A]`                               | [`Outcome[F, E, A]`](#outcome)                                 |                                                          |
-| `Fiber[F, A].join: F[A]`                    | [`Outcome[F, E, A]`.joinWithNever](#outcome)                   |                                                          |
-| `Sync[F].suspend`                           | `Sync[F].defer`                                                |                                                          |
-| `SyncEffect`                                | [`Dispatcher`](#dispatcher)                                    |                                                          |
-| `IO#as`                                     | `IO.as` / `IO.map`                                             | the argument isn't by-name anymore                       | <!-- todo https://github.com/typelevel/cats-effect/issues/1824 --> |
-| `IO.runAsync`, `IO.runCancelable`           | Unsafe variants or [`Dispatcher`](#dispatcher)                 |                                                          |
-| `IO.unsafe*`                                | The same or [`Dispatcher`](#dispatcher)                        | Methods that run an IO require an implicit `IORuntime`   |
-| `IO.unsafeRunAsyncAndForget`                | `IO.unsafeRunAndForget`                                        |                                                          |
-| `IO.unsafeRunCancelable`                    | `start.unsafeRunSync.cancel`                                   |                                                          |
-| `IO.unsafeRunTimed`                         | -                                                              |                                                          |
-| `IO.background`                             | The same                                                       | Value in resource is now an `Outcome`                    |
-| `IO.guaranteeCase`/`bracketCase`            | The same                                                       | [`ExitCase` is now `Outcome`](#outcome)                  |
-| `IO.parProduct`                             | `IO.both`                                                      |                                                          |
-| `IO.suspend`                                | `IO.defer`                                                     |                                                          |
-| `IO.shift`                                  | See [below](#shifting)                                         |                                                          |
-| `IO.cancelBoundary`                         | `IO.cede`                                                      | Also [performs a yield](#shifting)                       |
-| `Resource.parZip`                           | `Resource.both`                                                |                                                          |
-| `Resource.liftF`                            | `Resource.eval`                                                |                                                          |
-| `Resource.fromAutoCloseableBlocking`        | `Resource.fromAutoCloseable`                                   | The method always uses `blocking` for the cleanup action |
-| `Timer[F].clock`                            | `Clock[F]`                                                     |                                                          |
-| `Timer[F].sleep`                            | `Temporal[F].sleep`                                            |                                                          |
+### Async <!-- todo -->
+
+| Cats Effect 2.x                   | Cats Effect 3                | Notes                                   |
+| --------------------------------- | ---------------------------- | --------------------------------------- |
+| `Async[F].async`                  | `Async[F].async_`            |                                         |
+| `Async[F].asyncF(f)`              | `Async[F].async(f).as(none)` |                                         |
+| `Async.shift`                     | nothing / `Spawn[F].cede`    | See [below](#shifting)                  |
+| `Async.fromFuture`                | `Async[F].fromFuture`        |                                         |
+| `Async.memoize`                   | `Concurrent[F].memoize`      |                                         |
+| `Async.parTraverseN`              | `Concurrent[F].parTraverseN` |                                         |
+| `Async.parSequenceN`              | `Concurrent[F].parSequenceN` |                                         |
+| `Async[F].liftIO`, `Async.liftIO` | `LiftIO[F].liftIO`           | `LiftIO` is in the `cats-effect` module |
+| `Async <: LiftIO`                 | No subtyping relationship    | `LiftIO` is in the `cats-effect` module |
+
+<!-- todo explanation/notes paragraph -->
+
+### Blocker
+
+| Cats Effect 2.x           | Cats Effect 3                                                  | Notes                                   |
+| ------------------------- | -------------------------------------------------------------- | --------------------------------------- |
+| `Blocker.apply`           | -                                                              | blocking pool is provided by runtime    |
+| `Blocker.delay`           | `Sync[F].blocking`                                             | `Blocker` was removed                   |
+| `Blocker(ec).blockOn(fa)` | `Async[F].evalOn(fa, ec)`                                      | You can probably use `Sync[F].blocking` |
+| `Blocker.blockOnK`        | For blocking actions on a specific pool, use `Async[F].evalOn` |                                         |
+
+<!-- todo notes -->
+
+### Bracket
+
+| Cats Effect 2.x               | Cats Effect 3                          | Notes                       |
+| ----------------------------- | -------------------------------------- | --------------------------- |
+| `Bracket[F].bracket`          | `MonadCancel[F].bracket`               |                             |
+| `Bracket[F].bracketCase`      | `MonadCancel[F].bracketCase`           | `ExitCase` is now `Outcome` |
+| `Bracket[F].uncancelable(fa)` | `MonadCancel[F].uncancelable(_ => fa)` |                             |
+| `Bracket[F].guarantee`        | `MonadCancel[F].guarantee`             |                             |
+| `Bracket[F].guaranteeCase`    | `MonadCancel[F].guaranteeCase`         | `ExitCase` is now `Outcome` |
+| `Bracket[F].onCancel`         | `MonadCancel[F].onCancel`              |                             |
+
+### Clock
+
+| Cats Effect 2.x                           | Cats Effect 3                           |
+| ----------------------------------------- | --------------------------------------- |
+| `Clock[F].realTime: TimeUnit => F[Long]`  | `Clock[F].realTime: F[FiniteDuration]`  |
+| `Clock[F].monotonic: TimeUnit => F[Long]` | `Clock[F].monotonic: F[FiniteDuration]` |
+| `Clock.instantNow`                        | `Clock[F].realTimeInstant`              |
+| `Clock.create`, `Clock[F].mapK`           | -                                       |
+
+<!-- todo why `create` and mapK are gone (because it's a typeclass now)  -->
+
+### Concurrent
+
+| Cats Effect 2.x                             | Cats Effect 3                   | Notes                                          |
+| ------------------------------------------- | ------------------------------- | ---------------------------------------------- |
+| `Concurrent[F].start`                       | `Spawn[F].start`                |                                                |
+| `Concurrent[F].background`                  | `Spawn[F].background`           | Value in resource is now an `Outcome`          |
+| `Concurrent[F].liftIO`, `Concurrent.liftIO` | `LiftIO[F].liftIO`              | `LiftIO` is in the `cats-effect` module        |
+| `Concurrent <: LiftIO`                      | No subtyping relationship       | `LiftIO` is in the `cats-effect` module        |
+| `Concurrent[F].race`                        | `Spawn[F].race`                 |                                                |
+| `Concurrent[F].racePair`                    | `Spawn[F].racePair`             |                                                |
+| `Concurrent[F].cancelable`                  | `Async.async(f)`                | Wrap side effects in F, cancel token in `Some` |
+| `Concurrent[F].cancelableF`                 | `Async.async(f(_).map(_.some))` | `Some` means there is a finalizer to execute.  |
+| `Concurrent[F].continual`                   | -                               | see [below](#concurrent-continual)             |
+| `Concurrent.continual`                      | -                               | see [below](#concurrent-continual)             |
+| `Concurrent.timeout`                        | `Temporal[F].timeout`           |                                                |
+| `Concurrent.timeoutTo`                      | `Temporal[F].timeoutTo`         |                                                |
+| `Concurrent.memoize`                        | `Concurrent[F].memoize`         |                                                |
+| `Concurrent.parTraverseN`                   | `Concurrent[F].parTraverseN`    |                                                |
+| `Concurrent.parSequenceN`                   | `Concurrent[F].parSequenceN`    |                                                |
+
+<!-- todo -->
+### Effect, ConcurrentEffect, SyncEffect
+
+| Cats Effect 2.x       | Cats Effect 3 |
+| --------------------- | ------------- |
+| `ConcurrentEffect[F]` | `Dispatcher`  |
+| `Effect[F]`           | `Dispatcher`  |
+| `Effect.toIOK`        | `Dispatcher`  |
+| `SyncEffect[F]`       | `Dispatcher`  |
+
+
+#### Dispatcher
+
+todo - Gavin wrote about this
+
+<!-- todo -->
+
+### ContextShift
+
+| Cats Effect 2.x          | Cats Effect 3             |
+| ------------------------ | ------------------------- |
+| `ContextShift[F].shift`  | nothing / `Spawn[F].cede` |
+| `ContextShift[F].evalOn` | `Async[F].evalOn`         |
+
+#### shifting
+
+The `IO.shift` / `ContextShift[F].shift` methods are gone, and they don't have a fully compatible counterpart.
+
+In CE2, `shift` would ensure the next actions in the fiber would be scheduled on the `ExecutionContext` instance (or the `ContextShift` instance) provided in the parameter.
+This was used for two reasons:
+
+- to switch back from a thread pool not managed by the effect system (e.g. a callback handler in a Java HTTP client)
+- to reschedule the fiber on the given `ExecutionContext`, which would give other fibers a chance to run on that context's threads. This is called yielding to the scheduler.
+
+There is no longer a need for shifting back, because interop with callback-based libraries is done through methods in `Async`, which now **switch back to the appropriate thread pool automatically**.
+
+Yielding back to the scheduler can now be done with `Spawn[F].cede`.
+
+### ExitCase, Fiber
+
+| Cats Effect 2.x          | Cats Effect 3                  |
+| ------------------------ | ------------------------------ |
+| `ExitCase[E]`            | `Outcome[F, E, A]`             |
+| `Fiber[F, A]`            | `Fiber[F, E, A]`               |
+| `Fiber[F, A].join: F[A]` | `Fiber[F, E, A]`.joinWithNever |
+
+<!-- todo -->
+
+### Sync
+
+| Cats Effect 2.x   | Cats Effect 3   |
+| ----------------- | --------------- |
+| `Sync[F].suspend` | `Sync[F].defer` |
+
+### IO
+
+
+### Rest of the world <!-- todo -->
+
+| Cats Effect 2.x  | Cats Effect 3 | Notes |
+| ---------------- | ------------- | ----- |
+| `CancelToken[F]` | `F[Unit]`     |       |
+
+
+
+
+| Cats Effect 2.x                      | Cats Effect 3                                  | Notes                                                    |
+| ------------------------------------ | ---------------------------------------------- | -------------------------------------------------------- |
+| `IO#as`                              | `IO.as` / `IO.map`                             | the argument isn't by-name anymore                       | <!-- todo https://github.com/typelevel/cats-effect/issues/1824 --> |
+| `IO.runAsync`, `IO.runCancelable`    | Unsafe variants or [`Dispatcher`](#dispatcher) |                                                          |
+| `IO.unsafe*`                         | The same or [`Dispatcher`](#dispatcher)        | Methods that run an IO require an implicit `IORuntime`   |
+| `IO.unsafeRunAsyncAndForget`         | `IO.unsafeRunAndForget`                        |                                                          |
+| `IO.unsafeRunCancelable`             | `start.unsafeRunSync.cancel`                   |                                                          |
+| `IO.unsafeRunTimed`                  | -                                              |                                                          |
+| `IO.background`                      | The same                                       | Value in resource is now an `Outcome`                    |
+| `IO.guaranteeCase`/`bracketCase`     | The same                                       | [`ExitCase` is now `Outcome`](#outcome)                  |
+| `IO.parProduct`                      | `IO.both`                                      |                                                          |
+| `IO.suspend`                         | `IO.defer`                                     |                                                          |
+| `IO.shift`                           | See [below](#shifting)                         |                                                          |
+| `IO.cancelBoundary`                  | `IO.cede`                                      | Also [performs a yield](#shifting)                       |
+| `Resource.parZip`                    | `Resource.both`                                |                                                          |
+| `Resource.liftF`                     | `Resource.eval`                                |                                                          |
+| `Resource.fromAutoCloseableBlocking` | `Resource.fromAutoCloseable`                   | The method always uses `blocking` for the cleanup action |
+| `Timer[F].clock`                     | `Clock[F]`                                     |                                                          |
+| `Timer[F].sleep`                     | `Temporal[F].sleep`                            |                                                          |
 
 TODO: IOApp
 
@@ -224,10 +310,6 @@ def continual[F[_]: MonadCancelThrow, A, B](fa: F[A])(
 }
 ```
 
-### Dispatcher
-
-todo - Gavin wrote about this
-
 ### Implementing Async
 
 Types that used to implement `Async` but not `Concurrent` from CE2 might not be able to implement anything more than `Sync` in CE3 -
@@ -237,29 +319,6 @@ this has an impact on users who have used e.g.
 [ciris](https://cir.is)'s `ConfigValue` in a polymorphic context with an `Async[F]` constraint.
 
 Please refer to each library's appropriate documentation/changelog to see how to adjust your code to this change.
-
-### Outcome
-
-todo
-
-### shifting
-
-The `IO.shift` / `ContextShift[F].shift` methods are gone, and they don't have a fully compatible counterpart.
-
-In CE2, `shift` would ensure the next actions in the fiber would be scheduled on the `ExecutionContext` instance (or the `ContextShift` instance) provided in the parameter.
-This was used for two reasons:
-
-- to switch back from a thread pool not managed by the effect system (e.g. a callback handler in a Java HTTP client)
-- to reschedule the fiber on the given `ExecutionContext`, which would give other fibers a chance to run on that context's threads. This is called yielding to the scheduler.
-
-There is no longer a need for shifting back, because interop with callback-based libraries is done through methods in `Async`, which now **switch back to the appropriate thread pool automatically**.
-
-Yielding back to the scheduler can now be done with `Spawn[F].cede`.
-
-### Clock changes
-
-todo
-<!-- why `create` and mapK are gone (because it's a typeclass now)  -->
 
 ### Tracing
 
