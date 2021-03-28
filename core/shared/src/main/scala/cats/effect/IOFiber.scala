@@ -566,32 +566,24 @@ private final class IOFiber[A](
                 // `resume()` is a volatile read of `suspended` through which
                 // `wasFinalizing` is published
                 if (finalizing == state.wasFinalizing) {
-                  if (outcome == null) {
-                    if (!shouldFinalize()) {
-                      /* we weren't canceled or completed, so schedule the runloop for execution */
-                      val ec = currentCtx
-                      e match {
-                        case Left(t) =>
-                          resumeTag = AsyncContinueFailedR
-                          objectState.push(t)
-                        case Right(a) =>
-                          resumeTag = AsyncContinueSuccessfulR
-                          objectState.push(a.asInstanceOf[AnyRef])
-                      }
-                      execute(ec)(this)
-                    } else {
-                      /*
-                       * we were canceled, but since we have won the race on `suspended`
-                       * via `resume`, `cancel` cannot run the finalisers, and we have to.
-                       */
-                      asyncCancel(null)
+                  if (!shouldFinalize()) {
+                    /* we weren't canceled or completed, so schedule the runloop for execution */
+                    val ec = currentCtx
+                    e match {
+                      case Left(t) =>
+                        resumeTag = AsyncContinueFailedR
+                        objectState.push(t)
+                      case Right(a) =>
+                        resumeTag = AsyncContinueSuccessfulR
+                        objectState.push(a.asInstanceOf[AnyRef])
                     }
+                    execute(ec)(this)
                   } else {
                     /*
-                     * fall through on the branching when we were canceled, finalizers
-                     * were run, and the outcome was set
+                     * we were canceled, but since we have won the race on `suspended`
+                     * via `resume`, `cancel` cannot run the finalisers, and we have to.
                      */
-                    suspend()
+                    asyncCancel(null)
                   }
                 } else {
                   /*
@@ -716,11 +708,10 @@ private final class IOFiber[A](
                * finalisers.
                */
               if (resume()) {
-                if (shouldFinalize() && outcome == null) {
+                if (shouldFinalize())
                   asyncCancel(null)
-                } else {
+                else
                   suspend()
-                }
               }
             }
           } else {
