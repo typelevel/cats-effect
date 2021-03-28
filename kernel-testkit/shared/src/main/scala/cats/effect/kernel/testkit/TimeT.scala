@@ -32,12 +32,12 @@ import java.util.concurrent.TimeUnit
  * race conditions on `now` since we ensure that `Time` instances are
  * unique per-fiber. Thus, a volatile var is sufficient.
  */
-final class Time private[effect] (@volatile private[effect] var now: FiniteDuration) {
+private[effect] final class Time private[effect] (@volatile private[effect] var now: FiniteDuration) {
   private[effect] def fork(): Time =
     new Time(now)
 }
 
-object Time {
+private[effect] object Time {
 
   implicit def cogenTime: Cogen[Time] =
     Cogen[FiniteDuration].contramap(_.now)
@@ -47,7 +47,7 @@ object Time {
 
 }
 
-object TimeT {
+private[effect] object TimeT {
 
   def liftF[F[_], A](fa: F[A]): TimeT[F, A] =
     Kleisli.liftF(fa)

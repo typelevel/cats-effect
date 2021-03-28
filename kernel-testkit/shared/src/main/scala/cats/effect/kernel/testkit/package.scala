@@ -19,5 +19,5 @@ package cats.effect.kernel
 import cats.data.Kleisli
 
 package object testkit {
-  type TimeT[F[_], A] = Kleisli[F, Time, A]
+  private[effect] type TimeT[F[_], A] = Kleisli[F, Time, A]
 }
