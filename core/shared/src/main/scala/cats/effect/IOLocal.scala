@@ -16,29 +16,29 @@
 
 package cats.effect
 
-trait FiberLocal[F[_], A] {
+sealed trait IOLocal[A] {
 
-  def get: F[A]
+  def get: IO[A]
 
-  def set(value: A): F[Unit]
+  def set(value: A): IO[Unit]
 
-  def clear: F[Unit]
+  def clear: IO[Unit]
 
-  def update(f: A => A): F[Unit]
+  def update(f: A => A): IO[Unit]
 
-  def modify[B](f: A => (A, B)): F[B]
+  def modify[B](f: A => (A, B)): IO[B]
 
-  def getAndSet(value: A): F[A]
+  def getAndSet(value: A): IO[A]
 
-  def getAndClear: F[A]
+  def getAndClear: IO[A]
 
 }
 
-object FiberLocal {
+object IOLocal {
 
-  def apply[A](default: A): IO[FiberLocal[IO, A]] =
+  def apply[A](default: A): IO[IOLocal[A]] =
     IO {
-      new FiberLocal[IO, A] { self =>
+      new IOLocal[A] { self =>
         override def get: IO[A] =
           IO.Local(state => (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
 
