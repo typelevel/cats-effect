@@ -30,8 +30,6 @@ trait IOApp {
   protected def computeWorkerThreadCount: Int =
     Math.max(2, Runtime.getRuntime().availableProcessors())
 
-  protected def schedulerWorkerThreadCount: Int = 1
-
   def run(args: List[String]): IO[ExitCode]
 
   final def main(args: Array[String]): Unit = {
@@ -46,7 +44,7 @@ trait IOApp {
           IORuntime.createDefaultBlockingExecutionContext()
 
         val (scheduler, schedDown) =
-          IORuntime.createDefaultScheduler(threads = schedulerWorkerThreadCount)
+          IORuntime.createDefaultScheduler()
 
         IORuntime(
           compute,
