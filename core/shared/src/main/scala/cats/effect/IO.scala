@@ -144,7 +144,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   /**
    * Replaces the result of this IO with the given value.
    */
-  def as[B](b: B): IO[B] =
+  def as[B](b: => B): IO[B] =
     map(_ => b)
 
   /**

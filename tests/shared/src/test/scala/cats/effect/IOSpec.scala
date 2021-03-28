@@ -54,6 +54,15 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         IO.pure(42).map(_.toString) must completeAs("42")
       }
 
+      "as doesn't evaluate if IO fails" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        case object TestException2 extends RuntimeException
+
+        val fa = IO.raiseError(TestException).as(throw TestException2)
+
+        fa must failAs(TestException)
+      }
+
       "flatMap results sequencing both effects" in ticked { implicit ticker =>
         var i = 0
         IO.pure(42).flatMap(i2 => IO { i = i2 }) must completeAs(())
