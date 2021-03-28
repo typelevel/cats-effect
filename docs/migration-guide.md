@@ -228,7 +228,7 @@ def continual[F[_]: MonadCancelThrow, A, B](fa: F[A])(
 
 todo - Gavin wrote about this
 
-#### Implementing Async
+### Implementing Async
 
 Types that used to implement `Async` but not `Concurrent` from CE2 might not be able to implement anything more than `Sync` in CE3 -
 this has an impact on users who have used e.g.
@@ -238,11 +238,11 @@ this has an impact on users who have used e.g.
 
 Please refer to each library's appropriate documentation/changelog to see how to adjust your code to this change.
 
-#### Outcome
+### Outcome
 
 todo
 
-#### shifting
+### shifting
 
 The `IO.shift` / `ContextShift[F].shift` methods are gone, and they don't have a fully compatible counterpart.
 
@@ -256,12 +256,12 @@ There is no longer a need for shifting back, because interop with callback-based
 
 Yielding back to the scheduler can now be done with `Spawn[F].cede`.
 
-#### Clock changes
+### Clock changes
 
 todo
 <!-- why `create` and mapK are gone (because it's a typeclass now)  -->
 
-#### Tracing
+### Tracing
 
 Currently, improved stack traces are not implemented.
 There is currently [work in progress](https://github.com/typelevel/cats-effect/pull/1763) to bring them back.
