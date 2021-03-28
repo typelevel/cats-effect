@@ -82,5 +82,5 @@ package object effect {
   type Ref[F[_], A] = cekernel.Ref[F, A]
   val Ref = cekernel.Ref
 
-  private[effect] type IOLocalState = scala.collection.immutable.Map[FiberLocal[IO, _], Any]
+  private[effect] type IOLocalState = scala.collection.immutable.Map[IOLocal[_], Any]
 }
