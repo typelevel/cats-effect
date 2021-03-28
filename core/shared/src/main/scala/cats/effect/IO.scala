@@ -1042,6 +1042,35 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def deferred[A]: IO[Deferred[IO, A]] = IO(Deferred.unsafe)
 
+  def fiberLocal[A](default: A): IO[FiberLocal[IO, A]] =
+    IO {
+      new FiberLocal[IO, A] { self =>
+        override def get: IO[A] =
+          IO.Local(state => (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
+
+        override def set(value: A): IO[Unit] =
+          IO.Local(state => (state + (self -> value), ()))
+
+        override def clear: IO[Unit] =
+          IO.Local(state => (state - self, ()))
+
+        override def update(f: A => A): IO[Unit] =
+          get.flatMap(a => set(f(a)))
+
+        override def modify[B](f: A => (A, B)): IO[B] =
+          get.flatMap { a =>
+            val (a2, b) = f(a)
+            set(a2).as(b)
+          }
+
+        override def getAndSet(value: A): IO[A] =
+          get <* set(value)
+
+        override def getAndClear: IO[A] =
+          get <* clear
+      }
+    }
+
   def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
       release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] = {
     val safeRelease: (A, OutcomeIO[B]) => IO[Unit] =
