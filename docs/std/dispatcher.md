@@ -3,6 +3,8 @@ id: dispatcher
 title: Dispatcher
 ---
 
+![](img/dispatcher.jpeg)
+
 ## Motivation
 
 Users of cats effect 2 may be familiar with the `Effect` and `ConcurrentEffect`
