@@ -9,7 +9,7 @@ This tutorial tries to help newcomers to cats-effect to get familiar with its
 main concepts by means of code examples, in a learn-by-doing fashion. Two small
 programs will be coded, each one in its own section. [The first
 one](#copyingfiles) copies the contents from one file to another, safely
-handling _resources_ and _cancellation_ in the process. That should help us to
+handling _resources_ and _cancelation_ in the process. That should help us to
 flex our muscles. [The second one](#producerconsumer) implements a solution to
 the producer-consumer problem to introduce cats-effect _fibers_.
 
@@ -67,7 +67,7 @@ Almost all code snippets in this tutorial can be pasted and compiled right in
 the scala console of the project defined above (or any project with similar
 settings).
 
-## <a name="copyingfiles"></a>Copying files - basic concepts, resource handling and cancellation
+## <a name="copyingfiles"></a>Copying files - basic concepts, resource handling and cancelation
 
 Our goal is to create a program that copies files. First we will work on a
 function that carries such task, and then we will create a program that can be
@@ -301,21 +301,21 @@ iteration.
 We are making progress, and already have a version of `copy` that can be used.
 If any exception is raised when `transfer` is running, then the streams will be
 automatically closed by `Resource`. But there is something else we have to take
-into account: `IO` instances execution can be **_canceled!_** And cancellation
+into account: `IO` instances execution can be **_canceled!_** And cancelation
 should not be ignored, as it is a key feature of cats-effect. We will discuss
-cancellation in the next section.
+cancelation in the next section.
 
-### Dealing with cancellation
-Cancellation is a powerful but non-trivial cats-effect feature. In cats-effect,
+### Dealing with cancelation
+Cancelation is a powerful but non-trivial cats-effect feature. In cats-effect,
 some `IO` instances can be canceled ( _e.g._ by other `IO` instaces running
 concurrently) meaning that their evaluation will be aborted. If the programmer is
-careful, an alternative `IO` task will be run under cancellation, for example to
+careful, an alternative `IO` task will be run under cancelation, for example to
 deal with potential cleaning up activities.
 
-Now, `IO`s created with `Resource.use` can be canceled. The cancellation will
+Now, `IO`s created with `Resource.use` can be canceled. The cancelation will
 trigger the execution of the code that handles the closing of the resource. In
 our case, that would close both streams. So far so good! But what happens if
-cancellation happens _while_ the streams are being used? This could lead to data
+cancelation happens _while_ the streams are being used? This could lead to data
 corruption as some thread is writing to the stream while at the same time
 another thread is trying to close it.
  
@@ -383,7 +383,7 @@ def copy(origin: File, destination: File): IO[Long] = {
 Before calling to `transfer` we acquire the semaphore, which is not released
 until `transfer` is done. The `use` call ensures that the semaphore will be
 released under any circumstances, whatever the result of `transfer` (success,
-error, or cancellation). As the 'release' parts in the `Resource` instances are
+error, or cancelation). As the 'release' parts in the `Resource` instances are
 now blocked on the same semaphore, we can be sure that streams are closed only
 after `transfer` is over, _i.e._ we have implemented mutual exclusion of
 `transfer` execution and resources releasing.
@@ -408,7 +408,7 @@ up to the program main function.
 coding an effectful `main` method we code a pure `run` function. When executing
 the class a `main` method defined in `IOApp` will call the `run` function we
 have coded. Any interruption (like pressing `Ctrl-c`) will be treated as a
-cancellation of the running `IO`.
+cancelation of the running `IO`.
 
 When coding `IOApp`, instead of a `main` function we have a `run` function,
 which creates the `IO` instance that forms the program. In our case, our `run`
@@ -700,7 +700,7 @@ the producer and consumer in parallel. To do to it uses `parMapN`, that creates
 and runs the fibers that will run the `IO`s passed as paremeter. Then it takes
 the output of each fiber and and applies a given function to them. In our case
 both producer and consumer shall run forever until user presses CTRL-C which
-will trigger a cancellation.
+will trigger a cancelation.
 
 Alternatively we could have used `start` method to explicitely create new
 `Fiber` instances that will run the producer and consumer, then use `join` to
@@ -1057,8 +1057,8 @@ The full implementation of this producer consumer with bounded queue is
 available
 [here](https://github.com/lrodero/cats-effect-tutorial/blob/series/3.x/src/main/scala/catseffecttutorial/producerconsumer/ProducerConsumerBounded.scala).
 
-### Taking care of cancellation
-We shall ask ourselves, is this implementation cancellation-safe? That is, what
+### Taking care of cancelation
+We shall ask ourselves, is this implementation cancelation-safe? That is, what
 happens if the fiber running a consumer or a producer gets canceled? Does state
 become inconsistent? Let's check `producer` first. State is handled by its
 internal `offer`, so we will focus on it. And, for the sake of clarity in our
@@ -1075,10 +1075,10 @@ def offer[F[_]](i: Int): F[Unit] =
   } yield ()
 ```
 
-So far so good. Now, cancellation steps into action in each `.flatMap` in `F`,
+So far so good. Now, cancelation steps into action in each `.flatMap` in `F`,
 that is, in each step of our for-comprehension. If the fiber gets canceled right
 before or after the first step, well, that is not an issue. The `offerer` will
-be eventually garbage collected, that's all. But what if the cancellation
+be eventually garbage collected, that's all. But what if the cancelation
 happens right after the call to `modify`? Well, then `op` will not be run.
 Recall that, by the content of `modify`, that `op` can be
 `taker.complete(i).void`, `Sync[F].unit` or `offerer.get`. Cancelling after
@@ -1113,7 +1113,7 @@ This can be addressed using `Poll[F]`, which is passed as parameter by
 uncancelable region. So if the operation to run was `offerer.get` we will embed
 that call inside the `Poll[F]`, thus ensuring the blocked fiber can be canceled.
 Finally, we must also take care of cleaning up the state if there is indeed a
-cancellation. That cleaning up will have to remove the `offerer` from the list
+cancelation. That cleaning up will have to remove the `offerer` from the list
 of offerers kept in the state, as it shall never be completed. Our `offer`
 function has become:
 
@@ -1153,9 +1153,9 @@ def producer[F[_]: Async: Console](id: Int, counterR: Ref[F, Int], stateR: Ref[F
 }
 ```
 
-The consumer part must deal with cancellation in the same way. It will use
-`poll` to enable cancellation on the blocking calls, but at the same time it
-will make sure to clean up the state when a cancellation occurs. In this case,
+The consumer part must deal with cancelation in the same way. It will use
+`poll` to enable cancelation on the blocking calls, but at the same time it
+will make sure to clean up the state when a cancelation occurs. In this case,
 the blocking call is `taker.get`, when such call is canceled the `taker` will
 be removed from the list of takers in the state. So our `consumer` is now:
 
@@ -1199,7 +1199,7 @@ def consumer[F[_]: Async: Console](id: Int, stateR: Ref[F, State[F, Int]]): F[Un
 }
 ```
 
-We have made our producer-consumer implementation able to handle cancellation.
+We have made our producer-consumer implementation able to handle cancelation.
 Notably, we have not needed to change the `producer` and `consumer` functions
 signatures. This last implementation is
 available

@@ -16,36 +16,36 @@
 
 package cats.effect
 
-trait FiberLocal[F[_], A] {
+sealed trait IOLocal[A] {
 
-  def get: F[A]
+  def get: IO[A]
 
-  def set(value: A): F[Unit]
+  def set(value: A): IO[Unit]
 
-  def clear: F[Unit]
+  def reset: IO[Unit]
 
-  def update(f: A => A): F[Unit]
+  def update(f: A => A): IO[Unit]
 
-  def modify[B](f: A => (A, B)): F[B]
+  def modify[B](f: A => (A, B)): IO[B]
 
-  def getAndSet(value: A): F[A]
+  def getAndSet(value: A): IO[A]
 
-  def getAndClear: F[A]
+  def getAndReset: IO[A]
 
 }
 
-object FiberLocal {
+object IOLocal {
 
-  def apply[A](default: A): IO[FiberLocal[IO, A]] =
+  def apply[A](default: A): IO[IOLocal[A]] =
     IO {
-      new FiberLocal[IO, A] { self =>
+      new IOLocal[A] { self =>
         override def get: IO[A] =
           IO.Local(state => (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
 
         override def set(value: A): IO[Unit] =
           IO.Local(state => (state + (self -> value), ()))
 
-        override def clear: IO[Unit] =
+        override def reset: IO[Unit] =
           IO.Local(state => (state - self, ()))
 
         override def update(f: A => A): IO[Unit] =
@@ -60,8 +60,8 @@ object FiberLocal {
         override def getAndSet(value: A): IO[A] =
           get <* set(value)
 
-        override def getAndClear: IO[A] =
-          get <* clear
+        override def getAndReset: IO[A] =
+          get <* reset
 
       }
     }

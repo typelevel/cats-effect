@@ -25,7 +25,7 @@ import org.specs2.mutable.Specification
 import org.specs2.specification.BeforeAfterEach
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
-// import scala.concurrent.{CancellationException, ExecutionContext}
+// import scala.concurrent.{CancelationException, ExecutionContext}
 import cats.effect.unsafe.IORuntime
 
 class DeferredJVMParallelism1Tests extends BaseDeferredJVMTests(1)
@@ -109,7 +109,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
   //   for (_ <- 0 until iterations) {
   //     val cancelLoop = new AtomicBoolean(false)
   //     val unit = IO {
-  //       if (cancelLoop.get()) throw new CancellationException
+  //       if (cancelLoop.get()) throw new CancelationException
   //     }
 
   //     try {

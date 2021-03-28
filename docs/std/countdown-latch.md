@@ -18,7 +18,7 @@ trait CountDownLatch[F[_]] {
 }
 ```
 
-Cancellation of `await` is supported.
+Cancelation of `await` is supported.
 
 ```scala mdoc
 import cats.implicits._

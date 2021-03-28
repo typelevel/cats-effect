@@ -194,11 +194,11 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
 
         val run = for {
           //Run in a tight loop on single-threaded ec so only hope of
-          //seeing cancellation status is auto-cede
+          //seeing cancelation status is auto-cede
           fiber <- forever.start
           //Allow the tight loop to be scheduled
           _ <- IO.sleep(5.millis)
-          //Only hope for the cancellation being run is auto-yielding
+          //Only hope for the cancelation being run is auto-yielding
           _ <- fiber.cancel
         } yield true
 

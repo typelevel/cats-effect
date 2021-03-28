@@ -62,11 +62,11 @@ import scala.util.{Failure, Success, Try}
  * `IO` can describe synchronous or asynchronous computations that:
  *
  *  1. on evaluation yield exactly one result
- *  1. can end in either success or failure and in case of failure
+ *  2. can end in either success or failure and in case of failure
  *     `flatMap` chains get short-circuited (`IO` implementing
  *     the algebra of `MonadError`)
- *  1. can be canceled, but note this capability relies on the
- *     user to provide cancellation logic
+ *  3. can be canceled, but note this capability relies on the
+ *     user to provide cancelation logic
  *
  * Effects described via this abstraction are not evaluated until
  * the "end of the world", which is to say, when one of the "unsafe"
@@ -190,7 +190,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *
    * The `bracket` operation installs the necessary exception handler
    * to release the resource in the event of an exception being raised
-   * during the computation, or in case of cancellation.
+   * during the computation, or in case of cancelation.
    *
    * If an exception is raised, then `bracket` will re-raise the
    * exception ''after'' performing the `release`. If the resulting
@@ -229,7 +229,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *   }
    * }}}
    *
-   * Note that in case of cancellation the underlying implementation
+   * Note that in case of cancelation the underlying implementation
    * cannot guarantee that the computation described by `use` doesn't
    * end up executed concurrently with the computation from
    * `release`. In the example above that ugly Java loop might end up
@@ -245,7 +245,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * For those cases you might want to do synchronization (e.g. usage
    * of locks and semaphores) and you might want to use [[bracketCase]],
    * the version that allows you to differentiate between normal
-   * termination and cancellation.
+   * termination and cancelation.
    *
    * '''NOTE on error handling''': in case both the `release`
    * function and the `use` function throws, the error raised by `release`
@@ -285,7 +285,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Returns a new `IO` task that treats the source task as the
    * acquisition of a resource, which is then exploited by the `use`
    * function and then `released`, with the possibility of
-   * distinguishing between normal termination and cancellation, such
+   * distinguishing between normal termination and cancelation, such
    * that an appropriate release of resources can be executed.
    *
    * The `bracketCase` operation is the equivalent of
@@ -294,11 +294,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *
    * The `bracketCase` operation installs the necessary exception handler
    * to release the resource in the event of an exception being raised
-   * during the computation, or in case of cancellation.
+   * during the computation, or in case of cancelation.
    *
    * In comparison with the simpler [[bracket]] version, this one
    * allows the caller to differentiate between normal termination,
-   * termination in error and cancellation via an [[Outcome]]
+   * termination in error and cancelation via an [[Outcome]]
    * parameter.
    *
    * @see [[bracket]]
@@ -311,7 +311,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *        terminates, either normally or in error, or if it gets
    *        canceled, receiving as input the resource that needs
    *        release, along with the result of `use`
-   *        (cancellation, error or successful result)
+   *        (cancelation, error or successful result)
    */
   def bracketCase[B](use: A => IO[B])(release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
     IO.bracketFull(_ => this)(use)(release)
@@ -510,7 +510,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Returns an IO that either completes with the result of the source within
    * the specified time `duration` or otherwise raises a `TimeoutException`.
    *
-   * The source is cancelled in the event that it takes longer than
+   * The source is canceled in the event that it takes longer than
    * the specified time duration to complete.
    *
    * @param duration is the time span for which we wait for the source to
@@ -524,7 +524,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Returns an IO that either completes with the result of the source within
    * the specified time `duration` or otherwise evaluates the `fallback`.
    *
-   * The source is cancelled in the event that it takes longer than
+   * The source is canceled in the event that it takes longer than
    * the `FiniteDuration` to complete, the evaluation of the fallback
    * happening immediately after that.
    *
@@ -558,7 +558,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *
    * This can be used for non-deterministic / concurrent execution.
    * The following code is more or less equivalent with `parMap2`
-   * (minus the behavior on error handling and cancellation):
+   * (minus the behavior on error handling and cancelation):
    *
    * {{{
    *   def par2[A, B](ioa: IO[A], iob: IO[B]): IO[(A, B)] =
@@ -571,7 +571,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * }}}
    *
    * Note in such a case usage of `parMapN` (via `cats.Parallel`) is
-   * still recommended because of behavior on error and cancellation —
+   * still recommended because of behavior on error and cancelation —
    * consider in the example above what would happen if the first task
    * finishes in error. In that case the second task doesn't get canceled,
    * which creates a potential memory leak.
@@ -697,7 +697,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       Map(),
       oc =>
         oc.fold(
-          canceled,
+          {
+            runtime.fiberErrorCbs.remove(failure)
+            canceled
+          },
           { t =>
             runtime.fiberErrorCbs.remove(failure)
             failure(t)

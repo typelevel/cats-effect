@@ -77,46 +77,46 @@ import cats.effect.kernel.syntax.monadCancel._
  * both fibers will be ordered with respect to each other; it is entirely
  * nondeterministic.
  *
- * ==Cancellation==
+ * ==Cancelation==
  *
- * [[MonadCancel]] introduces a simple means of cancellation, particularly
- * self-cancellation, where a fiber can request the abnormal termination of its
+ * [[MonadCancel]] introduces a simple means of cancelation, particularly
+ * self-cancelation, where a fiber can request the abnormal termination of its
  * own execution. This is achieved by calling
  * [[MonadCancel!.canceled canceled]].
  *
- * [[GenSpawn]] expands on the cancellation model described by [[MonadCancel]]
- * by introducing a means of external cancellation. With external cancellation,
+ * [[GenSpawn]] expands on the cancelation model described by [[MonadCancel]]
+ * by introducing a means of external cancelation. With external cancelation,
  * a fiber can request the abnormal termination of another fiber by calling
  * [[Fiber!.cancel]].
  *
- * The cancellation model dictates that external cancellation behaves
- * identically to self-cancellation. To guarantee consistent behavior between
+ * The cancelation model dictates that external cancelation behaves
+ * identically to self-cancelation. To guarantee consistent behavior between
  * the two, the following semantics are shared:
  *
- *   1. Masking: if a fiber is canceled while it is masked, cancellation is
+ *   1. Masking: if a fiber is canceled while it is masked, cancelation is
  *      suppressed until it reaches a completely unmasked state. See
  *      [[MonadCancel]] documentation for more details.
  *   1. Backpressure: [[Fiber!.cancel cancel]] semantically blocks all callers
  *      until finalization is complete.
- *   1. Idempotency: once a fiber's cancellation has been requested, subsequent
- *      cancellations have no effect on cancellation status.
- *   1. Terminal: Cancellation of a fiber that has terminated immediately
+ *   1. Idempotency: once a fiber's cancelation has been requested, subsequent
+ *      cancelations have no effect on cancelation status.
+ *   1. Terminal: Cancelation of a fiber that has terminated immediately
  *      returns.
  *
- * External cancellation contrasts with self-cancellation in one aspect: the
+ * External cancelation contrasts with self-cancelation in one aspect: the
  * former may require synchronization between multiple threads to communicate
- * a cancellation request. As a result, cancellation may not be immediately
+ * a cancelation request. As a result, cancelation may not be immediately
  * observed by a fiber. Implementations are free to decide how and when this
  * synchronization takes place.
  *
- * ==Cancellation safety==
+ * ==Cancelation safety==
  *
- * A function or effect is considered to be cancellation-safe if it can be run
+ * A function or effect is considered to be cancelation-safe if it can be run
  * in the absence of masking without violating effectful lifecycles or leaking
  * resources. These functions require extra attention and care from users to
  * ensure safe usage.
  *
- * [[start]] and [[racePair]] are both considered to be cancellation-unsafe
+ * [[start]] and [[racePair]] are both considered to be cancelation-unsafe
  * effects because they return a [[Fiber]], which is a resource that has a
  * lifecycle.
  *
@@ -200,7 +200,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    * A low-level primitive for starting the concurrent evaluation of a fiber.
    * Returns a [[Fiber]] that can be used to wait for a fiber or cancel it.
    *
-   * [[start]] is a cancellation-unsafe function; it is recommended to
+   * [[start]] is a cancelation-unsafe function; it is recommended to
    * use the safer variant, [[background]], to spawn fibers.
    *
    * @param fa the effect for the fiber
@@ -215,8 +215,8 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    * it is effectively a [[Fiber!.join join]].
    *
    * The child fiber is canceled in two cases: either the resource goes out
-   * of scope or the parent fiber is cancelled. If the child fiber terminates
-   * before one of these cases occurs, then cancellation is a no-op. This
+   * of scope or the parent fiber is canceled. If the child fiber terminates
+   * before one of these cases occurs, then cancelation is a no-op. This
    * avoids fiber leaks because the child fiber is always canceled before
    * the parent fiber drops the reference to it.
    *
@@ -282,7 +282,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    * of the race is considered to be the first fiber that completes with an
    * outcome.
    *
-   * [[racePair]] is a cancellation-unsafe function; it is recommended to use
+   * [[racePair]] is a cancelation-unsafe function; it is recommended to use
    * the safer variants.
    *
    * @param fa the effect for the first racing fiber
@@ -314,7 +314,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
 
   /**
    * Races the evaluation of two fibers that returns the result of the winner,
-   * except in the case of cancellation.
+   * except in the case of cancelation.
    *
    * The semantics of [[race]] are described by the following rules:
    *

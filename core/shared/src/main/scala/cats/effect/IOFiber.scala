@@ -127,7 +127,7 @@ private final class IOFiber[A](
   /* similar prefetch for EndFiber */
   private[this] val IOEndFiber = IO.EndFiber
 
-  private[this] val cancellationCheckThreshold = runtime.config.cancellationCheckThreshold
+  private[this] val cancelationCheckThreshold = runtime.config.cancelationCheckThreshold
   private[this] val autoYieldThreshold = runtime.config.autoYieldThreshold
 
   override def run(): Unit = {
@@ -170,7 +170,7 @@ private final class IOFiber[A](
     IO defer {
       canceled = true
 
-      // println(s"${name}: attempting cancellation")
+      // println(s"${name}: attempting cancelation")
 
       /* check to see if the target fiber is suspended */
       if (resume()) {
@@ -232,8 +232,8 @@ private final class IOFiber[A](
       _cur0
     }
 
-    if (iteration >= cancellationCheckThreshold) {
-      // Ensure that we see cancellation.
+    if (iteration >= cancelationCheckThreshold) {
+      // Ensure that we see cancelation.
       readBarrier()
     }
 
@@ -633,7 +633,7 @@ private final class IOFiber[A](
                 else {
                   state.result = e
                   // The winner has to publish the result.
-                  state.lazySet(ContStateResult)
+                  state.set(ContStateResult)
                   if (tag == ContStateWaiting) {
                     /*
                      * `get` has been sequenced and is waiting
@@ -695,7 +695,7 @@ private final class IOFiber[A](
             suspended.getAndSet(true)
 
             /*
-             * race condition check: we may have been cancelled
+             * race condition check: we may have been canceled
              * after setting the state but before we suspended
              */
             if (shouldFinalize()) {
@@ -742,7 +742,7 @@ private final class IOFiber[A](
             val result = state.result
 
             if (!shouldFinalize()) {
-              /* we weren't cancelled, so resume the runloop */
+              /* we weren't canceled, so resume the runloop */
               val next = result match {
                 case Left(t) => failed(t, 0)
                 case Right(a) => succeeded(a, 0)
@@ -859,19 +859,11 @@ private final class IOFiber[A](
 
     resumeTag = DoneR
     resumeIO = null
-    /*
-     * Write barrier to publish masks. The thread which owns the runloop is
-     * effectively a single writer, so lazy set can be utilized for relaxed
-     * memory barriers (equivalent to a `release` set), while still keeping
-     * the same memory publishing semantics as `set(false)`.
-     *
-     * http://psy-lob-saw.blogspot.com/2012/12/atomiclazyset-is-performance-win-for.html
-     */
-    suspended.lazySet(false)
+    suspended.set(false)
 
     /* clear out literally everything to avoid any possible memory leaks */
 
-    /* conts may be null if the fiber was cancelled before it was started */
+    /* conts may be null if the fiber was canceled before it was started */
     if (conts != null)
       conts.invalidate()
 
@@ -908,7 +900,7 @@ private final class IOFiber[A](
   /*
    * We should attempt finalization if all of the following are true:
    * 1) We own the runloop
-   * 2) We have been cancelled
+   * 2) We have been canceled
    * 3) We are unmasked
    */
   private[this] def shouldFinalize(): Boolean =
@@ -930,15 +922,8 @@ private final class IOFiber[A](
   private[this] def resume(): Boolean =
     suspended.getAndSet(false)
 
-  /*
-   * The thread which owns the runloop is effectively a single writer, so lazy set
-   * can be utilized for relaxed memory barriers (equivalent to a `release` set),
-   * while still keeping the same memory publishing semantics as `set(true)`.
-   *
-   * http://psy-lob-saw.blogspot.com/2012/12/atomiclazyset-is-performance-win-for.html
-   */
   private[this] def suspend(): Unit =
-    suspended.lazySet(true)
+    suspended.set(true)
 
   /* returns the *new* context, not the old */
   private[this] def popContext(): ExecutionContext = {

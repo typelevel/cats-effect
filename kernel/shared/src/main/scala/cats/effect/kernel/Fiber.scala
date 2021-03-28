@@ -20,7 +20,7 @@ import cats.syntax.all._
 
 /**
  * A datatype that represents a handle to a fiber and allows for waiting and
- * cancellation against that fiber.
+ * cancelation against that fiber.
  *
  * @see [[GenSpawn]] documentation for more detailed information on the
  * concurrency of fibers.
@@ -28,21 +28,21 @@ import cats.syntax.all._
 trait Fiber[F[_], E, A] {
 
   /**
-   * Requests the cancellation of the fiber bound to this `Fiber` handle
+   * Requests the cancelation of the fiber bound to this `Fiber` handle
    * and awaits its finalization.
    *
    * [[cancel]] semantically blocks the caller until finalization of the
    * cancellee has completed. This means that if the cancellee is currently
    * masked, [[cancel]] will block until it is unmasked and finalized.
    *
-   * Cancellation is idempotent, so repeated calls to [[cancel]] simply block
+   * Cancelation is idempotent, so repeated calls to [[cancel]] simply block
    * until finalization is complete. If [[cancel]] is called after finalization
    * is complete, it will return immediately.
    *
    * [[cancel]] is uncancelable; a fiber that is canceling another fiber
-   * is masked from cancellation.
+   * is masked from cancelation.
    *
-   * @see [[GenSpawn]] documentation for more details on cancellation
+   * @see [[GenSpawn]] documentation for more details on cancelation
    */
   def cancel: F[Unit]
 

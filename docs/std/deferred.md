@@ -18,7 +18,7 @@ Expected behavior of `get`
 
 - `get` on an empty `Deferred` will block until the `Deferred` is completed
 - `get` on a completed `Deferred` will always immediately return its content
-- `get` is cancelable and on cancellation it will unsubscribe the registered
+- `get` is cancelable and on cancelation it will unsubscribe the registered
   listener, an operation that's possible for as long as the `Deferred` value
   isn't complete
 

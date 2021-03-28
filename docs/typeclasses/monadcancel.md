@@ -13,9 +13,9 @@ final case class Canceled[F[_], E, A]() extends Outcome[F, E, A]
 ```
 
 This means that when writing resource-safe code, we have to worry about
-cancellation as well as exceptions. The `MonadCancel` typeclass addresses this
+cancelation as well as exceptions. The `MonadCancel` typeclass addresses this
 by extending `MonadError` (in Cats) to provide the capability to guarantee the
-running of finalizers when a fiber is cancelled. Using it, we can define effects
+running of finalizers when a fiber is canceled. Using it, we can define effects
 which safely acquire and release resources:
 
 <!-- TODO enable mdoc for this -->
@@ -28,7 +28,7 @@ openFile.bracket(fis => readFromFile(fis))(fis => closeFile(fis))
 
 The `bracket` combinator works a bit like the FP equivalent of `try`/`finally`: if `openFile` runs (in the above), then `closeFile` *will* be run, no matter what. This will happen even if `readFromFile` produces an error, or even if the whole process is canceled by some other fiber. Additionally, `openFile` itself is atomic: it either doesn't evaluate at all (e.g. if the current fiber is canceled prior to any of this even happening), or it *fully* evaluates. This allows `openFile` to do complicated things in the process of acquiring the resource without fear of something external getting in the way.
 
-In addition to `bracket`, `MonadCancel` also provides a lower-level operation, `uncancelable`, which makes it possible to perform extremely complex, cancellation-sensitive actions in a safe and composable manner. For example, imagine that we have a block of code which must be guarded by a `Semaphore`, ensuring the runtime has exclusive access when evaluating. The problem here is that the acquisition of the `Semaphore`, which is a resource, may *also* result in blocking the fiber, and thus may need to be canceled externally. Put another way: resource acquisition needs to be uncancelable, but this *particular* resource acquisition has a very specific point at which it needs to allow cancellation, otherwise it might end up locking up the JVM. `uncancelable` provides a mechanism to achieve this:
+In addition to `bracket`, `MonadCancel` also provides a lower-level operation, `uncancelable`, which makes it possible to perform extremely complex, cancelation-sensitive actions in a safe and composable manner. For example, imagine that we have a block of code which must be guarded by a `Semaphore`, ensuring the runtime has exclusive access when evaluating. The problem here is that the acquisition of the `Semaphore`, which is a resource, may *also* result in blocking the fiber, and thus may need to be canceled externally. Put another way: resource acquisition needs to be uncancelable, but this *particular* resource acquisition has a very specific point at which it needs to allow cancelation, otherwise it might end up locking up the JVM. `uncancelable` provides a mechanism to achieve this:
 
 ```scala mdoc
 import cats.effect.{MonadCancel}
@@ -57,11 +57,11 @@ def guarded[F[_], R, A, E](
 
 The above looks intimidating, but it's actually just another flavor of `bracket`, the operation we saw earlier! The whole thing is wrapped in `uncancelable`, which means we don't need to worry about other fibers interrupting us in the middle of each of these actions. In particular, the very *first* action we perform is `alloc`, which allocates a value of type `R`. Once this has completed successfully, we attempt to acquire the `Semaphore`. If some other fiber has already acquired the lock, this may end up blocking for quite a while. We *want* other fibers to be able to interrupt this blocking, so we wrap the acquisition in `poll`.
 
-You can think of `poll` like a "cancelable" block: it re-enables cancellation for whatever is inside of it, but *only* if that's possible. There's a reason it's not just called `cancelable`! We'll come back to this a little bit later.
+You can think of `poll` like a "cancelable" block: it re-enables cancelation for whatever is inside of it, but *only* if that's possible. There's a reason it's not just called `cancelable`! We'll come back to this a little bit later.
 
 If the semaphore acquisition is canceled, we want to make sure we still release the resource, `r`, so we use `onCancel` to achieve this. From that moment forward, if and when we're ready to release our resource, we want to *also* release the semaphore, so we create an effect which merges these two things together.
 
-Finally we move on to invoking the `use(r)` action, which again we need to wrap in `poll` to ensure that it can be interrupted by an external fiber. This `use(r)` action may take quite a long time and have a lot of complicated internal workings, and the last thing we want to do is suppress cancellation for its entire duration. It's likely safe to cancel `use`, because the resource management is already handled (by us!).
+Finally we move on to invoking the `use(r)` action, which again we need to wrap in `poll` to ensure that it can be interrupted by an external fiber. This `use(r)` action may take quite a long time and have a lot of complicated internal workings, and the last thing we want to do is suppress cancelation for its entire duration. It's likely safe to cancel `use`, because the resource management is already handled (by us!).
 
 Finally, once `use(r)` is done, we run `releaseAll`. The `guarantee` method does exactly what it sounds like it does: ensures that `releaseAll` is run regardless of whether `use(r)` completes naturally, raises an error, or is canceled.
 
@@ -153,9 +153,9 @@ MonadCancel[F].canceled >> fa
 
 The above will result in a canceled evaluation, and `fa` will never be run, *provided* that it isn't wrapped in an `uncancelable` block. If the above is wrapped in `uncancelable`, then the `canceled` effect will be ignored.
 
-Self-cancellation is somewhat similar to raising an error with `raiseError` in that it will short-circuit evaluation and begin "popping" back up the stack until it hits a handler. Just as `raiseError` can be observed using the `onError` method, `canceled` can be observed using `onCancel`.
+Self-cancelation is somewhat similar to raising an error with `raiseError` in that it will short-circuit evaluation and begin "popping" back up the stack until it hits a handler. Just as `raiseError` can be observed using the `onError` method, `canceled` can be observed using `onCancel`.
 
-The primary differences between self-cancellation and `raiseError` are two-fold. First, `uncancelable` suppresses `canceled` *within its body* (unless `poll`ed!), turning it into something equivalent to just `().pure[F]`. Note however that cancelation will be observed as soon as `uncancelable` terminates ie `uncancelable` only suppresses the cancelation until the end of its body, not indefinitely.
+The primary differences between self-cancelation and `raiseError` are two-fold. First, `uncancelable` suppresses `canceled` *within its body* (unless `poll`ed!), turning it into something equivalent to just `().pure[F]`. Note however that cancelation will be observed as soon as `uncancelable` terminates ie `uncancelable` only suppresses the cancelation until the end of its body, not indefinitely.
 
 ```scala mdoc
 import cats.effect.IO
@@ -171,8 +171,8 @@ val run = for {
 
 run.unsafeRunSync()
 ```
-There is no analogue for this kind of functionality with errors. Second, if you sequence an error with `raiseError`, it's always possible to use `attempt` or `handleError` to *handle* the error and resume normal execution. No such functionality is available for cancellation. 
+There is no analogue for this kind of functionality with errors. Second, if you sequence an error with `raiseError`, it's always possible to use `attempt` or `handleError` to *handle* the error and resume normal execution. No such functionality is available for cancelation. 
 
-In other words, cancellation is effective; it cannot be undone. It can be suppressed, but once it is observed, it must be respected by the canceled fiber. This feature is exceptionally important for ensuring deterministic evaluation and avoiding deadlocks.
+In other words, cancelation is effective; it cannot be undone. It can be suppressed, but once it is observed, it must be respected by the canceled fiber. This feature is exceptionally important for ensuring deterministic evaluation and avoiding deadlocks.
 
-Self-cancellation is intended for use-cases such as [supervisor nets](https://erlang.org/doc/man/supervisor.html) and other complex constructs which require the ability to manipulate their own evaluation in this fashion. It isn't something that will be found often in application code.
+Self-cancelation is intended for use-cases such as [supervisor nets](https://erlang.org/doc/man/supervisor.html) and other complex constructs which require the ability to manipulate their own evaluation in this fashion. It isn't something that will be found often in application code.

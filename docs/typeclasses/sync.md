@@ -30,7 +30,7 @@ A downside of thread-blocking calls is that the fiber executing them is not
 cancelable until the blocking call completes. If you have a very long-running
 blocking operation then you may want to suspend it using `Sync[F].interruptible`
 instead.  This behaves the same as `blocking` but will attempt to interrupt the
-blocking operation via a thread interrupt in the event on cancellation.
+blocking operation via a thread interrupt in the event on cancelation.
 
 ```scala
 //true means we try thread interruption repeatedly until the blocking operation exits

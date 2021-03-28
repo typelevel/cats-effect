@@ -107,7 +107,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
       "redeem subsumes handleError" in ticked { implicit ticker =>
         forAll { (io: IO[Int], recover: Throwable => Int) =>
-          // we have to workaround functor law weirdness here... again... sigh... because of self-cancellation
+          // we have to workaround functor law weirdness here... again... sigh... because of self-cancelation
           io.redeem(recover, identity).flatMap(IO.pure(_)) eqv io.handleError(recover)
         }
       }
@@ -253,7 +253,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         } must completeAs(42)
       }
 
-      "joinWithNever on a cancelled fiber" in ticked { implicit ticker =>
+      "joinWithNever on a canceled fiber" in ticked { implicit ticker =>
         (for {
           fib <- IO.sleep(2.seconds).start
           _ <- fib.cancel
@@ -454,7 +454,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           IO.both(IO.pure(1), IO.never).void must nonTerminate
         }
 
-        "propagate cancellation" in ticked { implicit ticker =>
+        "propagate cancelation" in ticked { implicit ticker =>
           (for {
             fiber <- IO.both(IO.never, IO.never).void.start
             _ <- IO(ticker.ctx.tickAll())
@@ -605,7 +605,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       }
     }
 
-    "cancellation" should {
+    "cancelation" should {
 
       "implement never with non-terminating semantics" in ticked { implicit ticker =>
         IO.never must nonTerminate
@@ -957,7 +957,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       }
 
       // format: off
-      "not finalize after uncancelable with suppressed cancellation (succeeded)" in ticked { implicit ticker =>
+      "not finalize after uncancelable with suppressed cancelation (succeeded)" in ticked { implicit ticker =>
         var finalized = false
 
         val test =
@@ -971,7 +971,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       // format: on
 
       // format: off
-      "not finalize after uncancelable with suppressed cancellation (errored)" in ticked { implicit ticker =>
+      "not finalize after uncancelable with suppressed cancelation (errored)" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
 
         var finalized = false

@@ -45,14 +45,14 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
    * NB: This is effectively in violation of the monad laws, since
    * we consider finalizers to associate over the boundary here, but
    * we do NOT consider them to right-associate over map or flatMap.
-   * This simply stems from the fact that cancellation is fundamentally
+   * This simply stems from the fact that cancelation is fundamentally
    * uncomposable, and it's better to pick a semantic for uncancelable
    * which allows regional composition, since this avoids "gaps" in
    * otherwise-safe code.
    *
-   * The argument is that cancellation is a *hint* not a mandate. This
-   * holds for self-cancellation just as much as external-cancellation.
-   * Thus, laws about where the cancellation is visible are always going
+   * The argument is that cancelation is a *hint* not a mandate. This
+   * holds for self-cancelation just as much as external-cancelation.
+   * Thus, laws about where the cancelation is visible are always going
    * to be a bit off.
    */
   def onCancelAssociatesOverUncancelableBoundary[A](fa: F[A], fin: F[Unit]) =

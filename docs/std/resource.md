@@ -81,7 +81,7 @@ val concat: IO[Unit] =
 
 Note that the resources are released in reverse order to the acquire and that
 both `acquire` and `release` are non-interruptible and hence safe in the face of
-cancellation. Outer resources will be released irrespective of failure in the
+cancelation. Outer resources will be released irrespective of failure in the
 lifecycle of an inner resource.
 
 Also note that finalization happens as soon as the `use` block finishes and
