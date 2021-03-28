@@ -38,7 +38,7 @@ def fromFuture[A](fut: F[Future[A]]): F[A] =
 `async_` is somewhat contrained however. We can't perform any `F` effects
 in the process of registering the callback and we also can't register
 a finalizer to cancel the asynchronous task in the event that the fiber
-running `async_` is cancelled.
+running `async_` is canceled.
 
 `Async` therefore provides the more general `async` as well
 ```scala
@@ -49,7 +49,7 @@ trait Async[F[_]] {
 
 As you can see, it takes the same callback as before but this time we can
 perform effects suspended in `F`. The `Option[F[Unit]]` allows us to
-return a finalizer to be invoked if the fiber is cancelled. For example, here's
+return a finalizer to be invoked if the fiber is canceled. For example, here's
 a simplified version of `Async[F].fromCompletableFuture`
 
 ```scala
@@ -63,7 +63,7 @@ def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] =
           case (_, e) => cb(Left(e))
         }
 
-        //Cancel the completable future if the fiber is cancelled
+        //Cancel the completable future if the fiber is canceled
         Some(void(delay(stage.cancel(false))))
       }
     }

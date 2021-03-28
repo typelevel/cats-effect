@@ -80,7 +80,7 @@ def release: F[Unit] =
   }
 ```
 
-Ignoring subtleties around cancellation, the implementation is straightforward. If there is more
+Ignoring subtleties around cancelation, the implementation is straightforward. If there is more
 than 1 latch remaining then we simply decrement the count. If we are already done then we do nothing. The interesting case is when there is precisely 1 latch remaining, in which case we
 transition to the `Done` state and we also `complete` the signal which unblocks all the
 fibers waiting on the countdown latch.

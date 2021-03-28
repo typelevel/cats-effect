@@ -95,13 +95,13 @@ for {
 } yield ()
 ```
 
-This will print "`Catch me if you can!`" a nondeterministic number of times (probably quite a few!) as the `target` fiber loops around and around, printing over and over again, until the main fiber finishes sleeping for one second and cancels it. Technically, cancellation may not *instantaneously* reflect in the target fiber, depending on implementation details, but in practice it is almost always practically instant. The `target` fiber's execution is almost immediately halted, it stops printing, and the program terminates.
+This will print "`Catch me if you can!`" a nondeterministic number of times (probably quite a few!) as the `target` fiber loops around and around, printing over and over again, until the main fiber finishes sleeping for one second and cancels it. Technically, cancelation may not *instantaneously* reflect in the target fiber, depending on implementation details, but in practice it is almost always practically instant. The `target` fiber's execution is almost immediately halted, it stops printing, and the program terminates.
 
-It is actually impossible to replicate this example with `Thread` without building your own machinery for managing cancellation (usually some shared `Boolean` which tracks whether or not you've been canceled). With `Fiber`, it is handled for you.
+It is actually impossible to replicate this example with `Thread` without building your own machinery for managing cancelation (usually some shared `Boolean` which tracks whether or not you've been canceled). With `Fiber`, it is handled for you.
 
-Even more importantly, this cancellation mechanism is the same one that is described by [`MonadCancel`](./monadcancel.md), meaning that all of the resource safety and `uncancelable` functionality that it defines can be brought to bear, making it possible to write code which is resource-safe even when externally canceled by some other fiber. This problem is nearly impossible to solve by any other means.
+Even more importantly, this cancelation mechanism is the same one that is described by [`MonadCancel`](./monadcancel.md), meaning that all of the resource safety and `uncancelable` functionality that it defines can be brought to bear, making it possible to write code which is resource-safe even when externally canceled by some other fiber. This problem is nearly impossible to solve by any other means.
 
-In practice, this kind of cancellation is often handled for you (the user) in the form of cleanup when unexpected things happen. For example, imagine the following code:
+In practice, this kind of cancelation is often handled for you (the user) in the form of cleanup when unexpected things happen. For example, imagine the following code:
 
 ```scala
 import cats.syntax.all._
@@ -115,7 +115,7 @@ The `par` part of `parTraverse` means that, rather than performing each `IO` act
 
 Of course, *one* of these divisions will fail and an exception will be raised. When this happens, the result of the whole evaluation is discarded and the `IO[List[Float]]` will actually just produce the exception itself. Naturally, once any one of the constituent `IO`s has failed, there is no point in continuing to evaluate the other nineteen, and so their fibers are all immediately `cancel`ed.
 
-In these kinds of trivial examples involving primitive arithmetic, this kind of auto-cancellation doesn't represent much of a savings. However, if we were actually `parTraverse`ing a long `List` of `URL`s, where each one was being fetched in parallel, then perhaps failing fast and `cancel`ing all other actions on the first error would result in a significant savings in bandwidth and CPU.
+In these kinds of trivial examples involving primitive arithmetic, this kind of auto-cancelation doesn't represent much of a savings. However, if we were actually `parTraverse`ing a long `List` of `URL`s, where each one was being fetched in parallel, then perhaps failing fast and `cancel`ing all other actions on the first error would result in a significant savings in bandwidth and CPU.
 
 Critically, all of this functionality is built on `Spawn` and nothing else, and so we effectively get it for free whenever this instance is available for a given `F`.
 

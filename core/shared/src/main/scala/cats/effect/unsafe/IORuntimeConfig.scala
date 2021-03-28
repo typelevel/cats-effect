@@ -18,18 +18,18 @@ package cats.effect
 package unsafe
 
 final case class IORuntimeConfig private (
-    val cancellationCheckThreshold: Int,
+    val cancelationCheckThreshold: Int,
     val autoYieldThreshold: Int)
 
 object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
 
   def apply(): IORuntimeConfig = Default
 
-  def apply(cancellationCheckThreshold: Int, autoYieldThreshold: Int): IORuntimeConfig = {
-    if (autoYieldThreshold % cancellationCheckThreshold == 0)
-      new IORuntimeConfig(cancellationCheckThreshold, autoYieldThreshold)
+  def apply(cancelationCheckThreshold: Int, autoYieldThreshold: Int): IORuntimeConfig = {
+    if (autoYieldThreshold % cancelationCheckThreshold == 0)
+      new IORuntimeConfig(cancelationCheckThreshold, autoYieldThreshold)
     else
       throw new AssertionError(
-        s"Auto yield threshold $autoYieldThreshold must be a multiple of cancellation check threshold $cancellationCheckThreshold")
+        s"Auto yield threshold $autoYieldThreshold must be a multiple of cancelation check threshold $cancelationCheckThreshold")
   }
 }

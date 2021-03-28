@@ -20,13 +20,13 @@ package unsafe
 abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
 
   protected final val Default: IORuntimeConfig = {
-    val cancellationCheckThreshold =
-      System.getProperty("cats.effect.cancellation.check.threshold", "512").toInt
+    val cancelationCheckThreshold =
+      System.getProperty("cats.effect.cancelation.check.threshold", "512").toInt
 
     apply(
-      cancellationCheckThreshold,
+      cancelationCheckThreshold,
       System
         .getProperty("cats.effect.auto.yield.threshold.multiplier", "2")
-        .toInt * cancellationCheckThreshold)
+        .toInt * cancelationCheckThreshold)
   }
 }

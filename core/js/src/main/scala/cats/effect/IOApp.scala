@@ -75,7 +75,7 @@ trait IOApp {
         case Left(t) =>
           t match {
             case _: CancellationException =>
-              // Do not report cancellation exceptions but still exit with an error code.
+              // Do not report cancelation exceptions but still exit with an error code.
               reportExitCode(ExitCode(1))
             case t: Throwable =>
               throw t
