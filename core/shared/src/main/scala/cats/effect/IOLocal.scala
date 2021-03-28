@@ -22,7 +22,7 @@ sealed trait IOLocal[A] {
 
   def set(value: A): IO[Unit]
 
-  def clear: IO[Unit]
+  def reset: IO[Unit]
 
   def update(f: A => A): IO[Unit]
 
@@ -30,7 +30,7 @@ sealed trait IOLocal[A] {
 
   def getAndSet(value: A): IO[A]
 
-  def getAndClear: IO[A]
+  def getAndReset: IO[A]
 
 }
 
@@ -45,7 +45,7 @@ object IOLocal {
         override def set(value: A): IO[Unit] =
           IO.Local(state => (state + (self -> value), ()))
 
-        override def clear: IO[Unit] =
+        override def reset: IO[Unit] =
           IO.Local(state => (state - self, ()))
 
         override def update(f: A => A): IO[Unit] =
@@ -60,8 +60,8 @@ object IOLocal {
         override def getAndSet(value: A): IO[A] =
           get <* set(value)
 
-        override def getAndClear: IO[A] =
-          get <* clear
+        override def getAndReset: IO[A] =
+          get <* reset
 
       }
     }
