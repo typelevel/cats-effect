@@ -22,7 +22,7 @@ import scala.util.control.NonFatal
 import java.util.{concurrent => juc}
 import juc.atomic.{AtomicBoolean, AtomicReference}
 
-private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(true) {
+private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
   this: IOFiber[A] =>
 
   private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany

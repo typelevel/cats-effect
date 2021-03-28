@@ -1068,9 +1068,11 @@ private final class IOFiber[A](
   ///////////////////////////////////////
 
   private[this] def execR(): Unit = {
-    if (resume()) {
-      // println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
+    // println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
 
+    if (canceled) {
+      done(OutcomeCanceled)
+    } else {
       conts = new ByteStack(16)
       conts.push(RunTerminusK)
 

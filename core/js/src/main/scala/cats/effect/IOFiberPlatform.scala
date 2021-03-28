@@ -20,7 +20,7 @@ import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.atomic.AtomicBoolean
 
-private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(true) {
+private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
   this: IOFiber[A] =>
 
   // in theory this code should never be hit due to the override in IOCompanionPlatform
