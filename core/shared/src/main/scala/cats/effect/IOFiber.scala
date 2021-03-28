@@ -566,24 +566,32 @@ private final class IOFiber[A](
                 // `resume()` is a volatile read of `suspended` through which
                 // `wasFinalizing` is published
                 if (finalizing == state.wasFinalizing) {
-                  if (!shouldFinalize()) {
-                    /* we weren't cancelled, so schedule the runloop for execution */
-                    val ec = currentCtx
-                    e match {
-                      case Left(t) =>
-                        resumeTag = AsyncContinueFailedR
-                        objectState.push(t)
-                      case Right(a) =>
-                        resumeTag = AsyncContinueSuccessfulR
-                        objectState.push(a.asInstanceOf[AnyRef])
+                  if (outcome == null) {
+                    if (!shouldFinalize()) {
+                      /* we weren't canceled or completed, so schedule the runloop for execution */
+                      val ec = currentCtx
+                      e match {
+                        case Left(t) =>
+                          resumeTag = AsyncContinueFailedR
+                          objectState.push(t)
+                        case Right(a) =>
+                          resumeTag = AsyncContinueSuccessfulR
+                          objectState.push(a.asInstanceOf[AnyRef])
+                      }
+                      execute(ec)(this)
+                    } else {
+                      /*
+                       * we were canceled, but since we have won the race on `suspended`
+                       * via `resume`, `cancel` cannot run the finalisers, and we have to.
+                       */
+                      asyncCancel(null)
                     }
-                    execute(ec)(this)
                   } else {
                     /*
-                     * we were canceled, but since we have won the race on `suspended`
-                     * via `resume`, `cancel` cannot run the finalisers, and we have to.
+                     * fall through on the branching when we were canceled, finalizers
+                     * were run, and the outcome was set
                      */
-                    asyncCancel(null)
+                    suspend()
                   }
                 } else {
                   /*
@@ -592,15 +600,20 @@ private final class IOFiber[A](
                    */
                   suspend()
                 }
-              } else if (!shouldFinalize()) {
+              } else if (finalizing == state.wasFinalizing && !shouldFinalize() && outcome == null) {
                 /*
-                 * If we aren't canceled, loop on `suspended` to wait
-                 * until `get` has released ownership of the runloop.
+                 * If we aren't canceled or completed, and we're
+                 * still in the same finalization state, loop on
+                 * `suspended` to wait until `get` has released
+                 * ownership of the runloop.
                  */
                 loop()
-              } /*
-               * If we are canceled, just die off and let `cancel` or `get` win
-               * the race to `resume` and run the finalisers.
+              }
+
+              /*
+               * If we are canceled or completed or in hte process of finalizing
+               * when we previously weren't, just die off and let `cancel` or `get`
+               * win the race to `resume` and run the finalisers.
                */
             }
 
@@ -703,7 +716,11 @@ private final class IOFiber[A](
                * finalisers.
                */
               if (resume()) {
-                asyncCancel(null)
+                if (shouldFinalize() && outcome == null) {
+                  asyncCancel(null)
+                } else {
+                  suspend()
+                }
               }
             }
           } else {
@@ -741,7 +758,7 @@ private final class IOFiber[A](
               }
 
               runLoop(next, nextIteration)
-            } else {
+            } else if (outcome == null) {
               /*
                * we were canceled, but `cancel` cannot run the finalisers
                * because the runloop was not suspended, so we have to run them
@@ -1070,6 +1087,7 @@ private final class IOFiber[A](
   private[this] def execR(): Unit = {
     // println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
 
+    resumeTag = DoneR
     if (canceled) {
       done(OutcomeCanceled)
     } else {
