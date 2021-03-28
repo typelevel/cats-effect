@@ -663,7 +663,7 @@ private final class IOFiber[A](
             state.compareAndSet(ContStateWaiting, ContStateInitial)
             ()
           }
-          finalizers.push(EvalOn(fin, currentCtx))
+          finalizers.push(fin)
           conts.push(OnCancelK)
 
           if (state.compareAndSet(ContStateInitial, ContStateWaiting)) {
