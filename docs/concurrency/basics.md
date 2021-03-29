@@ -12,7 +12,7 @@ It is focused on using Scala with libraries in Cats-Effect ecosystem.
 
 ## Dictionary
 
-![concurrency vs parallelism](../assets/concurrency-vs-parallelism.png)
+![concurrency vs parallelism](/cats-effect/img/2.x/assets/concurrency-vs-parallelism.png)
 
 ### Parallelism
 Using multiple computational resources (like more processor cores) to perform a computation faster,
@@ -83,7 +83,7 @@ mentioned earlier.
 
 ### Choosing Thread Pool
 
-![thread pools](../assets/concurrency-thread-pools.png)
+![thread pools](/cats-effect/img/2.x/assets/concurrency-thread-pools.png)
 
 We can configure thread pools in multiple ways:
 

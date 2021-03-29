@@ -3,7 +3,7 @@ id: mvar
 title: MVar
 ---
 
-![concurrency mvar](../assets/concurrency-mvar.png)
+![concurrency mvar](/cats-effect/img/2.x/assets/concurrency-mvar.png)
 
 An `MVar2` is a mutable location that can be empty or contain a value,
 asynchronously blocking reads when empty and blocking writes when full.

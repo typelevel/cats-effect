@@ -3,7 +3,7 @@ id: ref
 title: Ref
 ---
 
-![concurrency ref](../assets/concurrency-ref.png)
+![concurrency ref](/cats-effect/img/2.x/assets/concurrency-ref.png)
 
 An asynchronous, concurrent mutable reference.
 

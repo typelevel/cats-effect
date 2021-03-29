@@ -7,13 +7,13 @@ title: Overview
 
 The following graphic represents the current hierarchy of `Cats Effect`:
 
-![cats-effect typeclasses](../assets/cats-effect-typeclasses.svg)
+![cats-effect typeclasses](/cats-effect/img/2.x/assets/cats-effect-typeclasses.svg)
 
 `MonadError` belongs in the [Cats](https://typelevel.org/cats/) project whereas the rest of the typeclasses belong in `Cats Effect`. On the side menu, you'll find more information about each of them, including examples.
 
 ## Cheat sheet
 
-![typeclasses cheat sheet](../assets/typeclasses-cheat-sheet.png)
+![typeclasses cheat sheet](/cats-effect/img/2.x/assets/typeclasses-cheat-sheet.png)
 
 ### Bracket
 Can safely acquire and release resources
