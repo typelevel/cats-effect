@@ -42,7 +42,6 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 }
 ```
 
-<!-- these docs should say how to get a dispatcher! -->
 An instance of `Dispatcher` is very cheap - it allocates a single fiber so it
 is encouraged to instantiate it where necessary rather than wiring
 a single instance throughout an application.
