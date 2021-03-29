@@ -141,7 +141,7 @@ ThisBuild / scmInfo := Some(
     url("https://github.com/typelevel/cats-effect"),
     "git@github.com:typelevel/cats-effect.git"))
 
-ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/"))
+ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 
 ThisBuild / autoAPIMappings := true
 
