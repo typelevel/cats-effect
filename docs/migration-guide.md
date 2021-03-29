@@ -291,6 +291,8 @@ todo - Gavin wrote about this
 | `ContextShift[F].shift`  | nothing / `Spawn[F].cede` |
 | `ContextShift[F].evalOn` | `Async[F].evalOn`         |
 
+<!-- todo CS is gone! 🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴 -->
+
 #### Shifting
 
 The `IO.shift` / `ContextShift[F].shift` methods are gone, and they don't have a fully compatible counterpart.
@@ -358,6 +360,14 @@ Yielding back to the scheduler can now be done with `Spawn[F].cede`.
 ### TODO: IOApp
 
 ### Tracing
+
+### Deferred
+
+<!-- todo - complete doesn't fail anymore -->
+
+<!-- also check if https://github.com/scala-steward-org/scala-steward/pull/1940 has anything we don't -->
+
+<!--  -->
 
 Currently, improved stack traces are not implemented.
 There is currently [work in progress](https://github.com/typelevel/cats-effect/pull/1763) to bring them back.
