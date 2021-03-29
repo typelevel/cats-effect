@@ -43,7 +43,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
  * so they can be allocated on-demand if necessary.
  *
  * Notably, [[Dispatcher]] replaces Effect and ConcurrentEffect from Cats
- * Effect 2 while only a requiring an [[cats.effect.kernel.Async]] constraint.
+ * Effect 2 while only requiring an [[cats.effect.kernel.Async]] constraint.
  */
 trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 
