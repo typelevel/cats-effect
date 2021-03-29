@@ -27,7 +27,6 @@ import scala.util.control.NonFatal
 
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
-import scala.util.control.NoStackTrace
 
 /*
  * Rationale on memory barrier exploitation in this class...
@@ -1276,5 +1275,3 @@ private object IOFiber {
   private val OutcomeCanceled = Outcome.Canceled()
   private[effect] val RightUnit = Right(())
 }
-
-private[effect] case object AsyncPropagateCancelation extends NoStackTrace
