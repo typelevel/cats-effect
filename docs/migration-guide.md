@@ -19,7 +19,7 @@ This guide is meant for existing users of Cats Effect 2 who want to upgrade thei
 to 3.0.0.
 
 > If you haven't used Cats Effect before and want to give it a try,
-> please follow the [getting started guide](./getting-started.html) instead!
+> please follow the [getting started guide](./getting-started.md) instead!
 
 ### 🤔 Need help?
 
@@ -52,7 +52,7 @@ Many parts of this migration can be automated by using the [Scalafix][scalafix] 
 
 If you want to trigger the migration manually, you can follow [the instructions here](https://github.com/typelevel/cats-effect/blob/series/3.x/scalafix/README.md). Remember to run it *before* making any changes to your dependencies' versions.
 
-Now is the time to update cats-effect **every dependency using it** to a CE3-compatible version.
+Now is the time to update `cats-effect` and **every dependency using it** to a CE3-compatible version.
 
 ## Upgrade dependencies
 
@@ -68,10 +68,10 @@ In your `project/build.properties`:
 ```
 
 This will enable eviction errors, which means your build will only succeed if all your dependencies
-use compatible versions of each library (in the case of cats-effect, this will require your dependencies
+use compatible versions of each library (in the case of `cats-effect`, this will require your dependencies
 all use either the 2.x.x versions or the 3.x.x versions).
 
-Having upgraded sbt, you can try to upgrade cats-effect:
+Having upgraded sbt, you can try to upgrade Cats Effect:
 
 ### Which modules should I use?
 
@@ -139,7 +139,7 @@ Most of the following are handled by [the Scalafix migration](#run-the-scalafix-
 | Cats Effect 2.x                   | Cats Effect 3                                      |
 | --------------------------------- | -------------------------------------------------- |
 | `Async[F].async`                  | `Async[F].async_`                                  |
-| `Async[F].asyncF(f)`              | `Async[F].async(f).as(none)`                       |
+| `Async[F].asyncF(f)`              | `Async[F].async(f(_).as(none))`                    |
 | `Async.shift`                     | nothing / `Spawn[F].cede` - See [below](#shifting) |
 | `Async.fromFuture`                | `Async[F].fromFuture`                              |
 | `Async.memoize`                   | `Concurrent[F].memoize`                            |
@@ -150,7 +150,12 @@ Most of the following are handled by [the Scalafix migration](#run-the-scalafix-
 
 #### `async` signature
 
-The most significant change here, aside from the new place of `Async` in the type class hierarchy, is the shape of `async`. Let's look at it:
+In Cats Effect 2, `Async` was able to lift asynchronous effects into `F`. `Concurrent` extended that ability
+to allow canceling them - in CE3,
+these two capabilities have been merged into `Async`, so all `Async` types
+have to be cancelable to pass the laws.
+
+A major outcome of this decision is that the `async` method supports cancelation. Here's the new signature:
 
 ```scala mdoc
 trait Async[F[_]] {
@@ -160,31 +165,35 @@ trait Async[F[_]] {
 
 We can divide the parameter `k` into the following:
 
-- `Either[Throwable, A] => Unit` - the callback that, when called, will complete or fail this effect. This is identical as in CE2.
-- `=> F[...]` (outer effect) - the effect of registering the callback This would be e.g. `delay { window.setTimeout(() => cb(...)) }`.
-- `Option[F[Unit]]` - an optional cancellation token. Passing `None` here is equivalent to `Some(F.unit)`
+- `Either[Throwable, A] => Unit` - the callback that will complete or fail this effect when called. This is identical as in CE2.
+- `=> F[...]` (outer effect) - the effect of registering the callback. This would be e.g. `delay { window.setTimeout(() => cb(...)) }`.
+- `Option[F[Unit]]` - an optional effect that will run if the action is canceled. Passing `None` here is equivalent to `Some(F.unit)`
 
-The most similar method to this in CE2 would be `Concurrent.cancelableF[F, A`:
+The most similar method to this in CE2 would be `Concurrent.cancelableF`:
 
 ```scala mdoc
 // CE2!
 def cancelableF[F[_], A](k: (Either[Throwable, A] => Unit) => F[F[Unit]]) = ???
 ```
 
-The only difference being that there was always a cancelation token.
+The only difference being that there was always an effect for cancelation - now it's optional (the `F` inside `F`).
 
-#### `LiftIO` relationship
+#### Relationship with `LiftIO`
 
-<!-- `LiftIO` is in the `cats-effect` module | -->
-<!-- todo explain -->
+`LiftIO` is no longer part of the "kernel" type classes (being unlawful and strictly coupled to `IO`, which isn't part of `kernel` either), and has been moved to the `core` module (the `cats-effect` dependency).
+
+`Async` is in `kernel` (`cats-effect-kernel`), so it can't depend on `LiftIO`, and thus doesn't extend it.
+If you need `LiftIO` functionality, use it directly (or use the methods on `IO` like `to[F[_]: LiftIO]`).
 
 #### Implementing Async
 
-Types that used to implement `Async` but not `Concurrent` from CE2 might not be able to implement anything more than `Sync` in CE3 -
-this has an impact on users who have used e.g.
-[doobie](https://tpolecat.github.io/doobie/)'s `ConnectionIO`, `slick.dbio.DBIO` with
-[slick-effect](https://github.com/kubukoz/slick-effect), or
-[ciris](https://cir.is)'s `ConfigValue` in a polymorphic context with an `Async[F]` constraint.
+Types that used to implement `Async` but not `Concurrent` from CE2 might not be able to implement `Async` in CE3 -
+this has an impact on users who have used polymorphic effects with an `F[_]: Async` constraint in their applications, where `F` was one of:
+
+- [doobie](https://tpolecat.github.io/doobie/)'s `ConnectionIO`,
+- [slick](http://scala-slick.org/)'s `DBIO` with [slick-effect](https://github.com/kubukoz/slick-effect),
+- [ciris](https://cir.is)'s `ConfigValue`, or
+- possibly others that we don't know of
 
 Please refer to each library's appropriate documentation/changelog to see how to adjust your code to this change.
 
@@ -246,7 +255,7 @@ Please refer to each library's appropriate documentation/changelog to see how to
 
 <!-- todo explain -->
 
-```scala mdoc
+```scala mdoc:reset
 import cats.effect.kernel.MonadCancel
 import cats.effect.kernel.MonadCancelThrow
 import cats.syntax.all._
@@ -304,6 +313,8 @@ Yielding back to the scheduler can now be done with `Spawn[F].cede`.
 | `Fiber[F, A]`            | `Fiber[F, E, A]`               |
 | `Fiber[F, A].join: F[A]` | `Fiber[F, E, A]`.joinWithNever |
 
+#### Outcome
+
 <!-- todo -->
 
 ### Sync
@@ -353,12 +364,12 @@ There is currently [work in progress](https://github.com/typelevel/cats-effect/p
 
 ## Test your application
 
-If you followed this guide, all your dependencies are using the 3.x releases of cats-effect, your code compiles and your tests pass,
+If you followed this guide, all your dependencies are using the 3.x releases of Cats Effect, your code compiles and your tests pass,
 the process is probably done - at this point you should do the usual steps you make after major changes in your application:
 running integration/end to end tests, manual testing, canary deployments and any other steps that might
 typically be done in your environment.
 
-Enjoy using cats-effect!
+Enjoy using Cats Effect 3!
 
 [sbt]: https://scala-sbt.org
 [scalafix]: https://scalacenter.github.io/scalafix/
