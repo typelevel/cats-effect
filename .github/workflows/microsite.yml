@@ -59,4 +59,4 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./website/build/cats-effect
-          publish_branch: test-gh-pages
+          publish_branch: gh-pages
