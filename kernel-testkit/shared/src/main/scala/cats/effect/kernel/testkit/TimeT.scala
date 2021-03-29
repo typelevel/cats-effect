@@ -32,7 +32,8 @@ import java.util.concurrent.TimeUnit
  * race conditions on `now` since we ensure that `Time` instances are
  * unique per-fiber. Thus, a volatile var is sufficient.
  */
-private[effect] final class Time private[effect] (@volatile private[effect] var now: FiniteDuration) {
+private[effect] final class Time private[effect] (
+    @volatile private[effect] var now: FiniteDuration) {
   private[effect] def fork(): Time =
     new Time(now)
 }
