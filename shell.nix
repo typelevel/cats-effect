@@ -7,16 +7,7 @@ let
 
       sbt = p.sbt.overrideAttrs (
         old: rec {
-          version = "1.4.9";
-
-          src = builtins.fetchurl {
-            url    = "https://github.com/sbt/sbt/releases/download/v${version}/sbt-${version}.tgz";
-            sha256 = "0vnvzpc9vcb7gij7vplbgzmfc4b2i95hm9ihfcv9j534ywcq2ilm";
-          };
-
-          patchPhase = ''
-            echo -java-home ${java} >> conf/sbtopts
-          '';
+          jre = "${java}";
         }
       );
     };
@@ -43,6 +34,6 @@ pkgs.mkShell {
   buildInputs = with pkgs; [
     coursier    # v2.0.12
     pkgs.${jdk} # v15.0.1
-    sbt         # v1.4.9
+    sbt         # v1.4.7 (script version)
   ] ++ siteDeps;
 }
