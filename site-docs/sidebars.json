@@ -2,10 +2,10 @@
   "docs": {
     "Overview": [
       "getting-started",
+      "tutorial",
       "thread-model",
       "typeclasses",
-      "schedulers",
-      "tutorial"
+      "schedulers"
     ],
     "Typeclasses": [
       "typeclasses",
