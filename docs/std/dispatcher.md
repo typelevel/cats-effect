@@ -3,7 +3,7 @@ id: dispatcher
 title: Dispatcher
 ---
 
-![](img/dispatcher.jpeg)
+![](assets/dispatcher.jpeg)
 
 ## Motivation
 
