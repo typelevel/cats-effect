@@ -13,6 +13,7 @@
       "typeclasses/spawn",
       "typeclasses/unique",
       "typeclasses/clock",
+      "typeclasses/concurrent",
       "typeclasses/temporal",
       "typeclasses/sync",
       "typeclasses/async"
