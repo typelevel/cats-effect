@@ -1,0 +1,236 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Async · Cats Effect</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="`Async` is the asynchronous FFI for suspending side-effectful operations that"/><meta name="docsearch:version" content="3.x"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Async · Cats Effect"/><meta property="og:type" content="website"/><meta property="og:url" content="https://typelevel.org/cats-effect/"/><meta property="og:description" content="`Async` is the asynchronous FFI for suspending side-effectful operations that"/><meta property="og:image" content="https://typelevel.org/cats-effect/img/undraw_online.svg"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/undraw_tweetstorm.svg"/><link rel="shortcut icon" href="/cats-effect/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github-gist.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="/cats-effect/js/scrollSpy.js"></script><link rel="stylesheet" href="/cats-effect/css/main.css"/><script src="/cats-effect/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/cats-effect/"><img class="logo" src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect"/><h2 class="headerTitleWithLogo">Cats Effect</h2></a><a href="/cats-effect/versions"><h3>3.x</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/cats-effect/docs/getting-started" target="_self">Docs</a></li><li class=""><a href="/cats-effect/api/3.x" target="_self">API</a></li><li class=""><a target="_self"></a></li><li class=""><a href="https://github.com/typelevel/cats-effect" target="_blank">GitHub</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Typeclasses</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Overview<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/getting-started">Getting Started</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/tutorial">Tutorial</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/thread-model">Thread Model</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/schedulers">Schedulers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Typeclasses<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses">Overview</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/monadcancel">MonadCancel</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/spawn">Spawn</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/unique">Unique</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/clock">Clock</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/temporal">Temporal</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/sync">Sync</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/cats-effect/docs/typeclasses/async">Async</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Standard Library<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/countdown-latch">Count Down Latch</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/cyclic-barrier">Cyclic Barrier</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/deferred">Deferred</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/dequeue">Dequeue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/dispatcher">Dispatcher</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/hotswap">Hotswap</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/pqueue">Priority Queue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/queue">Queue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/ref">Ref</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/resource">Resource</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/supervisor">Supervisor</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Async</h1></header><article><div><span><p><code>Async</code> is the asynchronous FFI for suspending side-effectful operations that
+are completed elsewhere (often on another threadpool via a future-like API).
+This typeclass allows us to sequence asynchronous operations without stumbling
+into <a href="http://callbackhell.com/">callback hell</a> and also gives us the ability to
+shift execution to other execution contexts.</p>
+<h2><a class="anchor" aria-hidden="true" id="ffi"></a><a href="#ffi" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>FFI</h2>
+<p>An asynchronous task is one whose results are computed somewhere else. We await
+the results of that execution by giving it a callback to be invoked with the
+result. That computation may fail hence the callback is of type
+<code>Either[Throwable, A] =&gt; ()</code>. This awaiting  is semantic only - no threads are
+blocked, the current fiber is simply descheduled until the callback completes.</p>
+<p>This leads us directly to the simplest asynchronous FFI</p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Async</span>[<span class="hljs-type">F</span>[_]] </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">async_</span></span>[<span class="hljs-type">A</span>](k: (<span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>] =&gt; <span class="hljs-type">Unit</span>) =&gt; <span class="hljs-type">Unit</span>): <span class="hljs-type">F</span>[<span class="hljs-type">A</span>]
+}
+</code></pre>
+<p>As an example of this in action, we can look at the definition of <code>Async[F].fromFuture</code>,
+which uses <code>Future#onComplete</code> to invoke the supplied callback</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">fromFuture</span></span>[<span class="hljs-type">A</span>](fut: <span class="hljs-type">F</span>[<span class="hljs-type">Future</span>[<span class="hljs-type">A</span>]]): <span class="hljs-type">F</span>[<span class="hljs-type">A</span>] =
+  flatMap(fut) { f =&gt;
+    flatMap(executionContext) { <span class="hljs-keyword">implicit</span> ec =&gt;
+      async_[<span class="hljs-type">A</span>](cb =&gt; f.onComplete(t =&gt; cb(t.toEither)))
+    }
+  }
+</code></pre>
+<p><code>async_</code> is somewhat contrained however. We can't perform any <code>F</code> effects
+in the process of registering the callback and we also can't register
+a finalizer to cancel the asynchronous task in the event that the fiber
+running <code>async_</code> is canceled.</p>
+<p><code>Async</code> therefore provides the more general <code>async</code> as well</p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Async</span>[<span class="hljs-type">F</span>[_]] </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">async</span></span>[<span class="hljs-type">A</span>](k: (<span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>] =&gt; <span class="hljs-type">Unit</span>) =&gt; <span class="hljs-type">F</span>[<span class="hljs-type">Option</span>[<span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]]]): <span class="hljs-type">F</span>[<span class="hljs-type">A</span>] = {
+}
+</code></pre>
+<p>As you can see, it takes the same callback as before but this time we can
+perform effects suspended in <code>F</code>. The <code>Option[F[Unit]]</code> allows us to
+return a finalizer to be invoked if the fiber is canceled. For example, here's
+a simplified version of <code>Async[F].fromCompletableFuture</code></p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">fromCompletableFuture</span></span>[<span class="hljs-type">A</span>](fut: <span class="hljs-type">F</span>[<span class="hljs-type">CompletableFuture</span>[<span class="hljs-type">A</span>]]): <span class="hljs-type">F</span>[<span class="hljs-type">A</span>] =
+  flatMap(fut) { cf =&gt;
+    async[<span class="hljs-type">A</span>] { cb =&gt;
+      delay {
+        <span class="hljs-comment">//Invoke the callback with the result of the completable future</span>
+        <span class="hljs-keyword">val</span> stage = cf.handle[<span class="hljs-type">Unit</span>] {
+          <span class="hljs-keyword">case</span> (a, <span class="hljs-literal">null</span>) =&gt; cb(<span class="hljs-type">Right</span>(a))
+          <span class="hljs-keyword">case</span> (_, e) =&gt; cb(<span class="hljs-type">Left</span>(e))
+        }
+
+        <span class="hljs-comment">//Cancel the completable future if the fiber is canceled</span>
+        <span class="hljs-type">Some</span>(void(delay(stage.cancel(<span class="hljs-literal">false</span>))))
+      }
+    }
+  }
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="threadpool-shifting"></a><a href="#threadpool-shifting" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Threadpool shifting</h2>
+<p><code>Async</code> has the ability to shift execution to a different threadpool.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Async</span>[<span class="hljs-type">F</span>[_]] </span>{
+  <span class="hljs-comment">//Get the current execution context</span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">executionContext</span></span>: <span class="hljs-type">F</span>[<span class="hljs-type">ExecutionContext</span>]
+  
+  <span class="hljs-comment">//Evaluate fa on the supplied execution context and</span>
+  <span class="hljs-comment">//then shift execution back</span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">evalOn</span></span>[<span class="hljs-type">A</span>](fa: <span class="hljs-type">F</span>[<span class="hljs-type">A</span>], ec: <span class="hljs-type">ExecutionContext</span>): <span class="hljs-type">F</span>[<span class="hljs-type">A</span>]
+
+}
+</code></pre>
+<p>If you are familiar with the reader monad then this is very similar -
+<code>executionContext</code> is like <code>ask</code> and gives us the current execution context.
+<code>evalOn</code> is like <code>local</code> and allows us to <em>locally</em> change the execution
+context for a given computation. After this computation is complete,
+execution will return to the context specified by <code>executionContext</code></p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> printThread: <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] =
+  <span class="hljs-type">IO</span>.executionContext.flatMap(<span class="hljs-type">IO</span>.println(_))
+
+<span class="hljs-keyword">for</span> {
+  _ &lt;- printThread <span class="hljs-comment">//io-compute-1</span>
+  _ &lt;- <span class="hljs-type">IO</span>.evalOn(printThread, someEc) <span class="hljs-comment">//some-ec-thread</span>
+  _ &lt;- printThread <span class="hljs-comment">//io-compute-1</span>
+} <span class="hljs-keyword">yield</span> ()
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="here-be-dragons"></a><a href="#here-be-dragons" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Here be dragons</h2>
+<p><code>Async</code> also defines a function called <code>cont</code>. This is <em>not</em> intended to be
+called from user code. You also <em>absolutely do not</em> need to understand it in
+order to use <code>Async</code>. The design is however very instructive for the curious
+reader. To start with, consider the definition of <code>async</code> again</p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Async</span>[<span class="hljs-type">F</span>[_]] </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">async</span></span>[<span class="hljs-type">A</span>](k: (<span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>] =&gt; <span class="hljs-type">Unit</span>) =&gt; <span class="hljs-type">F</span>[<span class="hljs-type">Option</span>[<span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]]]): <span class="hljs-type">F</span>[<span class="hljs-type">A</span>]
+</code></pre>
+<p>Suppose we try to implement the inductive instance of this for <code>OptionT</code>. We
+have something similar to</p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">OptionTAsync</span>[<span class="hljs-type">F</span>[_]] <span class="hljs-keyword">extends</span> <span class="hljs-title">Async</span>[<span class="hljs-type">OptionT</span>[<span class="hljs-type">F</span>, *]] </span>{
+  <span class="hljs-keyword">implicit</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">delegate</span></span>: <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>]
+
+  <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">async</span></span>[<span class="hljs-type">A</span>](
+      k: (<span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>] =&gt; <span class="hljs-type">Unit</span>) =&gt; <span class="hljs-type">OptionT</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Option</span>[<span class="hljs-type">OptionT</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>]]])
+      : <span class="hljs-type">OptionT</span>[<span class="hljs-type">F</span>, <span class="hljs-type">A</span>] = <span class="hljs-type">OptionT</span>.liftF(
+    delegate.async { (cb: <span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>] =&gt; <span class="hljs-type">Unit</span>) =&gt;
+      <span class="hljs-keyword">val</span> x: <span class="hljs-type">F</span>[<span class="hljs-type">Option</span>[<span class="hljs-type">Option</span>[<span class="hljs-type">OptionT</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>]]]] = k(cb).value
+      delegate.map(x) { (o: <span class="hljs-type">Option</span>[<span class="hljs-type">Option</span>[<span class="hljs-type">OptionT</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>]]]) =&gt;
+        o.flatten.map { (opt: <span class="hljs-type">OptionT</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Unit</span>]) =&gt; opt.value.void }
+      }
+    }
+  )
+}
+</code></pre>
+<p>This looks (vaguely) reasonable. However, there is a subtle problem lurking in
+there -  the use of <code>flatten</code>. The problem is that <code>OptionT</code> (and similarly
+<code>EitherT</code> and <code>IorT</code>) has an additional error channel (where <code>x = delegate.pure(None)</code>) that we are forced to discard when mapping to something
+of type <code>F[Option[F[Unit]]]</code>.</p>
+<p>This in fact breaks several of the <code>Async</code> laws:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">asyncRightIsSequencedPure</span></span>[<span class="hljs-type">A</span>](a: <span class="hljs-type">A</span>, fu: <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]) =
+  <span class="hljs-type">F</span>.async[<span class="hljs-type">A</span>](k =&gt; <span class="hljs-type">F</span>.delay(k(<span class="hljs-type">Right</span>(a))) &gt;&gt; fu.as(<span class="hljs-type">None</span>)) &lt;-&gt; (fu &gt;&gt; <span class="hljs-type">F</span>.pure(a))
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">asyncLeftIsSequencedRaiseError</span></span>[<span class="hljs-type">A</span>](e: <span class="hljs-type">Throwable</span>, fu: <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]) =
+  <span class="hljs-type">F</span>.async[<span class="hljs-type">A</span>](k =&gt; <span class="hljs-type">F</span>.delay(k(<span class="hljs-type">Left</span>(e))) &gt;&gt; fu.as(<span class="hljs-type">None</span>)) &lt;-&gt; (fu &gt;&gt; <span class="hljs-type">F</span>.raiseError(e))
+</code></pre>
+<p>In both cases if we have <code>fu = OptionT.none[F, A]</code> (the error channel for <code>OptionT</code>) then
+the LHS will suppress the error, whereas the RHS will not.</p>
+<p>A possible solution would be to
+un-<a href="https://en.wikipedia.org/wiki/Continuation-passing_style">CPS</a> the
+computation by defining</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">cont</span></span>[<span class="hljs-type">A</span>]: <span class="hljs-type">F</span>[(<span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>] =&gt; <span class="hljs-type">Unit</span>, <span class="hljs-type">F</span>[<span class="hljs-type">A</span>])]
+</code></pre>
+<p>where the first element of the tuple <code>Either[Throwable, A] =&gt; Unit</code> is the
+callback used to obtain the result of the asynchronous computation as before and
+the second element (which we'll call <code>get</code>) is similar to a promise and can be
+used to semantically block waiting for the result of the asynchronous
+computation.</p>
+<p>We could then define <code>async</code> in terms of <code>cont</code></p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">async</span></span>[<span class="hljs-type">A</span>](k: (<span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>] =&gt; <span class="hljs-type">Unit</span>) =&gt; <span class="hljs-type">F</span>[<span class="hljs-type">Option</span>[<span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]]]): <span class="hljs-type">F</span>[<span class="hljs-type">A</span>] =
+  <span class="hljs-type">F</span>.uncancelable { poll =&gt;
+    cont[<span class="hljs-type">A</span>].flatMap {
+      <span class="hljs-keyword">case</span> (cb, get) =&gt;
+        k(cb).flatMap {
+          <span class="hljs-keyword">case</span> <span class="hljs-type">Some</span>(fin) =&gt; poll(get).onCancel(fin)
+          <span class="hljs-keyword">case</span> <span class="hljs-type">None</span> =&gt; poll(get)
+        }
+    }
+  }
+</code></pre>
+<p>In this case, the error channel is propagated from <code>k(cb)</code> as we directly <code>flatMap</code>
+on the result.</p>
+<p>Fantastic! We're done, right? Well... not quite. The problem is that it is not safe
+to call concurrent operations such as <code>get.start</code>. We therefore need to employ
+one more trick and restrict the operations in scope using higher-rank polymorphism.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">cont</span></span>[<span class="hljs-type">K</span>, <span class="hljs-type">R</span>](body: <span class="hljs-type">Cont</span>[<span class="hljs-type">F</span>, <span class="hljs-type">K</span>, <span class="hljs-type">R</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">R</span>]
+
+<span class="hljs-comment">//where</span>
+<span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Cont</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">K</span>, <span class="hljs-title">R</span>] </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">apply</span></span>[<span class="hljs-type">G</span>[_]](
+      <span class="hljs-keyword">implicit</span>
+      <span class="hljs-type">G</span>: <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">G</span>, <span class="hljs-type">Throwable</span>]): (<span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">K</span>] =&gt; <span class="hljs-type">Unit</span>, <span class="hljs-type">G</span>[<span class="hljs-type">K</span>], <span class="hljs-type">F</span> ~&gt; <span class="hljs-type">G</span>) =&gt; <span class="hljs-type">G</span>[<span class="hljs-type">R</span>]
+}
+</code></pre>
+<p>This strange formulation means that only operations up to those defined by
+<code>MonadCancel</code> are in scope within the body of <code>Cont</code>. The third element of the
+tuple is a natural transformation used to lift <code>k(cb)</code> and any finalizers into
+<code>G</code>. With that in place, the implementation is actually almost identical to what we
+had above, but statically prohibits us from calling unsafe operations.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">async</span></span>[<span class="hljs-type">A</span>](k: (<span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>] =&gt; <span class="hljs-type">Unit</span>) =&gt; <span class="hljs-type">F</span>[<span class="hljs-type">Option</span>[<span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]]]): <span class="hljs-type">F</span>[<span class="hljs-type">A</span>] = {
+  <span class="hljs-keyword">val</span> body = <span class="hljs-keyword">new</span> <span class="hljs-type">Cont</span>[<span class="hljs-type">F</span>, <span class="hljs-type">A</span>, <span class="hljs-type">A</span>] {
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">apply</span></span>[<span class="hljs-type">G</span>[_]](<span class="hljs-keyword">implicit</span> <span class="hljs-type">G</span>: <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">G</span>, <span class="hljs-type">Throwable</span>]) = { (resume, get, lift) =&gt;
+      <span class="hljs-type">G</span>.uncancelable { poll =&gt;
+        lift(k(resume)).flatMap {
+          <span class="hljs-keyword">case</span> <span class="hljs-type">Some</span>(fin) =&gt; poll(get).onCancel(lift(fin))
+          <span class="hljs-keyword">case</span> <span class="hljs-type">None</span> =&gt; poll(get)
+        }
+      }
+    }
+  }
+
+  cont(body)
+}
+</code></pre>
+<p>The <code>Cont</code> model is also substantially cleaner to implement internally,
+particularly with respect to cancelation and finalization. With <code>cont</code> a
+finalizer can only be introduced via <code>onCancel</code>, as opposed to <code>async</code> where
+finalizers can be introduced either via <code>onCancel</code> or by returning
+<code>Some(finalizer)</code> from the continuation.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/typeclasses/sync"><span class="arrow-prev">← </span><span>Sync</span></a><a class="docs-next button" href="/cats-effect/docs/std/countdown-latch"><span>Count Down Latch</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#ffi">FFI</a></li><li><a href="#threadpool-shifting">Threadpool shifting</a></li><li><a href="#here-be-dragons">Here be dragons</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/en/getting-started">Getting Started</a><a href="/cats-effect/docs/en/tutorial">Tutorial</a><a href="/cats-effect/docs/en/typeclasses">Typeclasses</a><a href="/cats-effect/docs/en/schedulers">Schedulers</a></div><div><h5>Community</h5><a href="https://typelevel.org/blog/">Blog</a><a href="https://gitter.im/typelevel/cats-effect">Gitter</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2021 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>

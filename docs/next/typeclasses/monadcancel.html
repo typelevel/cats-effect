@@ -1,0 +1,197 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>MonadCancel · Cats Effect</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="A fiber can terminate in three different states, reflected by the different subtypes of `Outcome`:"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="MonadCancel · Cats Effect"/><meta property="og:type" content="website"/><meta property="og:url" content="https://typelevel.org/cats-effect/"/><meta property="og:description" content="A fiber can terminate in three different states, reflected by the different subtypes of `Outcome`:"/><meta property="og:image" content="https://typelevel.org/cats-effect/img/undraw_online.svg"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/undraw_tweetstorm.svg"/><link rel="shortcut icon" href="/cats-effect/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github-gist.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="/cats-effect/js/scrollSpy.js"></script><link rel="stylesheet" href="/cats-effect/css/main.css"/><script src="/cats-effect/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/cats-effect/"><img class="logo" src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect"/><h2 class="headerTitleWithLogo">Cats Effect</h2></a><a href="/cats-effect/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/cats-effect/docs/next/getting-started" target="_self">Docs</a></li><li class=""><a href="/cats-effect/api/3.x" target="_self">API</a></li><li class=""><a target="_self"></a></li><li class=""><a href="https://github.com/typelevel/cats-effect" target="_blank">GitHub</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Typeclasses</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Overview<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/getting-started">Getting Started</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/tutorial">Tutorial</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/thread-model">Thread Model</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/schedulers">Schedulers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Typeclasses<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses">Overview</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/cats-effect/docs/next/typeclasses/monadcancel">MonadCancel</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/spawn">Spawn</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/unique">Unique</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/clock">Clock</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/temporal">Temporal</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/sync">Sync</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/async">Async</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Standard Library<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/countdown-latch">Count Down Latch</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/cyclic-barrier">Cyclic Barrier</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/deferred">Deferred</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/dequeue">Dequeue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/dispatcher">Dispatcher</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/hotswap">Hotswap</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/pqueue">Priority Queue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/queue">Queue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/ref">Ref</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/resource">Resource</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/supervisor">Supervisor</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">MonadCancel</h1></header><article><div><span><p>A fiber can terminate in three different states, reflected by the different subtypes of <code>Outcome</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">sealed</span> <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Outcome</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">E</span>, <span class="hljs-title">A</span>]</span>
+<span class="hljs-keyword">final</span> <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Succeeded</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">E</span>, <span class="hljs-title">A</span>](<span class="hljs-params">fa: <span class="hljs-type">F</span>[<span class="hljs-type">A</span>]</span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">Outcome</span>[<span class="hljs-type">F</span>, <span class="hljs-type">E</span>, <span class="hljs-type">A</span>]</span>
+<span class="hljs-keyword">final</span> <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Errored</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">E</span>, <span class="hljs-title">A</span>](<span class="hljs-params">e: <span class="hljs-type">E</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">Outcome</span>[<span class="hljs-type">F</span>, <span class="hljs-type">E</span>, <span class="hljs-type">A</span>]</span>
+<span class="hljs-keyword">final</span> <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Canceled</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">E</span>, <span class="hljs-title">A</span>](<span class="hljs-params"></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">Outcome</span>[<span class="hljs-type">F</span>, <span class="hljs-type">E</span>, <span class="hljs-type">A</span>]</span>
+</code></pre>
+<p>This means that when writing resource-safe code, we have to worry about
+cancelation as well as exceptions. The <code>MonadCancel</code> typeclass addresses this
+by extending <code>MonadError</code> (in Cats) to provide the capability to guarantee the
+running of finalizers when a fiber is canceled. Using it, we can define effects
+which safely acquire and release resources:</p>
+<!-- TODO enable mdoc for this -->
+```scala
+import cats.effect._
+import cats.effect.syntax.all._
+<p>openFile.bracket(fis =&gt; readFromFile(fis))(fis =&gt; closeFile(fis))</p>
+<pre><code class="hljs">
+The `bracket` combinator works a bit like the FP equivalent of `try`/`finally`: if `openFile` runs (in the above), then `closeFile` *will* be run, no matter what. This will happen even if `readFromFile` produces an error, or even if the whole process is canceled by some other fiber. Additionally, `openFile` itself is atomic: it either doesn't evaluate at all (e.g. if the current fiber is canceled prior to any of this even happening), or it *fully* evaluates. This allows `openFile` to do complicated things in the process of acquiring the resource without fear of something external getting in the way.
+
+In addition to `bracket`, `MonadCancel` also provides a lower-level operation, `uncancelable`, which makes it possible to perform extremely complex, cancelation-sensitive actions in a safe and composable manner. For example, imagine that we have a block of code which must be guarded by a `Semaphore`, ensuring the runtime has exclusive access when evaluating. The problem here is that the acquisition of the `Semaphore`, which is a resource, may *also* result in blocking the fiber, and thus may need to be canceled externally. Put another way: resource acquisition needs to be uncancelable, but this *particular* resource acquisition has a very specific point at which it needs to allow cancelation, otherwise it might end up locking up the JVM. `uncancelable` provides a mechanism to achieve this:
+
+```scala
+import cats.effect.{MonadCancel}
+import cats.effect.std.Semaphore
+import cats.effect.syntax.all._
+import cats.syntax.all._
+
+def guarded[F[_], R, A, E](
+    s: Semaphore[F], 
+    alloc: F[R])(
+    use: R =&gt; F[A])(
+    release: R =&gt; F[Unit])(
+    implicit F: MonadCancel[F, E])
+    : F[A] =
+  F uncancelable { poll =&gt;
+    for {
+      r &lt;- alloc
+
+      _ &lt;- poll(s.acquire).onCancel(release(r))
+      releaseAll = s.release &gt;&gt; release(r)
+
+      a &lt;- poll(use(r)).guarantee(releaseAll)
+    } yield a
+  }
+</code></pre>
+<p>The above looks intimidating, but it's actually just another flavor of <code>bracket</code>, the operation we saw earlier! The whole thing is wrapped in <code>uncancelable</code>, which means we don't need to worry about other fibers interrupting us in the middle of each of these actions. In particular, the very <em>first</em> action we perform is <code>alloc</code>, which allocates a value of type <code>R</code>. Once this has completed successfully, we attempt to acquire the <code>Semaphore</code>. If some other fiber has already acquired the lock, this may end up blocking for quite a while. We <em>want</em> other fibers to be able to interrupt this blocking, so we wrap the acquisition in <code>poll</code>.</p>
+<p>You can think of <code>poll</code> like a &quot;cancelable&quot; block: it re-enables cancelation for whatever is inside of it, but <em>only</em> if that's possible. There's a reason it's not just called <code>cancelable</code>! We'll come back to this a little bit later.</p>
+<p>If the semaphore acquisition is canceled, we want to make sure we still release the resource, <code>r</code>, so we use <code>onCancel</code> to achieve this. From that moment forward, if and when we're ready to release our resource, we want to <em>also</em> release the semaphore, so we create an effect which merges these two things together.</p>
+<p>Finally we move on to invoking the <code>use(r)</code> action, which again we need to wrap in <code>poll</code> to ensure that it can be interrupted by an external fiber. This <code>use(r)</code> action may take quite a long time and have a lot of complicated internal workings, and the last thing we want to do is suppress cancelation for its entire duration. It's likely safe to cancel <code>use</code>, because the resource management is already handled (by us!).</p>
+<p>Finally, once <code>use(r)</code> is done, we run <code>releaseAll</code>. The <code>guarantee</code> method does exactly what it sounds like it does: ensures that <code>releaseAll</code> is run regardless of whether <code>use(r)</code> completes naturally, raises an error, or is canceled.</p>
+<p>As mentioned earlier, <code>poll</code> is <em>not</em> the same as a function hypothetically named <code>cancelable</code>. If we had something like <code>cancelable</code>, then we would need to answer an impossible question: what does <code>uncancelable</code> mean if someone can always contradict you with <code>cancelable</code>? Additionally, whatever answer you come up with to <em>that</em> question has to be applied to weird and complicated things such as <code>uncancelable(uncancelable(cancelable(...)))</code>, which is unpleasant and hard to define.</p>
+<p>At the end of the day, the better option is to simply add <code>poll</code> to <code>uncancelable</code> after the fashion we have done. The <em>meaning</em> of <code>poll</code> is that it &quot;undoes&quot; the effect of its origin <code>uncancelable</code>. So in other words:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> fa: <span class="hljs-type">F</span>[<span class="hljs-type">A</span>] = ???
+<span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>].uncancelable(poll =&gt; poll(fa))  <span class="hljs-comment">// =&gt; fa</span>
+</code></pre>
+<p>The <code>poll</code> wrapped around the <code>fa</code> effectively <em>eliminates</em> the <code>uncancelable</code>, so the above is equivalent to just writing <code>fa</code>. This significance of this &quot;elimination&quot; semantic becomes apparent when you consider what happens when multiple <code>uncancelable</code>s are nested within each other:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { outer =&gt;
+  <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { inner =&gt;
+    inner(fa)
+  }
+}
+</code></pre>
+<p>The <code>inner</code> poll eliminates the inner <code>uncancelable</code>, but the <em>outer</em> <code>uncancelable</code> still applies, meaning that this whole thing is equivalent to <code>MonadCancel[F].uncancelable(_ =&gt; fa)</code>. Indeed these
+must be the semantics to preserve local reasoning about cancelation. Suppose <code>poll</code> had the effect
+of making its interior cancelable. Then if we had</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">foo</span></span>[<span class="hljs-type">A</span>](inner: <span class="hljs-type">IO</span>[<span class="hljs-type">A</span>]) = <span class="hljs-type">IO</span>.uncancelable( _ =&gt;
+  <span class="hljs-comment">// Relies on inner being uncancelable so we can clean up the resource after</span>
+  inner &lt;* cleanupImportantResource
+)
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">bar</span></span>: <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = <span class="hljs-type">IO</span>.uncancelable( poll =&gt;
+  poll(<span class="hljs-type">IO</span>.pure(<span class="hljs-string">"bar"</span>))
+)
+
+<span class="hljs-keyword">val</span> x: <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = foo(bar)
+</code></pre>
+<p>If we inline the execution we see that we have:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> x: <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = <span class="hljs-type">IO</span>.uncancelable( _ =&gt;
+  <span class="hljs-type">IO</span>.uncancelable( poll =&gt;
+    <span class="hljs-comment">//Oh dear! If poll makes us cancelable then we could be canceled here</span>
+    <span class="hljs-comment">//and never clean up the resource</span>
+    poll(<span class="hljs-type">IO</span>.pure(<span class="hljs-string">"bar"</span>))
+  ) &lt;* cleanupImportantResource
+)
+</code></pre>
+<p>Note that polling for an <em>outer</em> block within an inner one has no effect whatsoever. For example:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { outer =&gt;
+  <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { _ =&gt;
+    outer(fa)
+  }
+}
+</code></pre>
+<p>This is exactly the same as:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { _ =&gt;
+  <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { _ =&gt;
+    fa
+  }
+}
+</code></pre>
+<p>The use of the <code>outer</code> poll within the inner <code>uncancelable</code> is simply ignored unless we have already stripped off the inner <code>uncancelable</code> using <em>its</em> <code>poll</code>. For example:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { outer =&gt;
+  <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>] uncancelable { inner =&gt;
+    outer(inner(fa))
+  }
+}
+</code></pre>
+<p>This is simply equivalent to writing <code>fa</code>. Which is to say, <code>poll</code> composes in the way you would expect.</p>
+<h3><a class="anchor" aria-hidden="true" id="self-cancelation"></a><a href="#self-cancelation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Self-Cancelation</h3>
+<p>One particularly unique aspect of <code>MonadCancel</code> is the ability to self-cancel. For example:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>].canceled &gt;&gt; fa
+</code></pre>
+<p>The above will result in a canceled evaluation, and <code>fa</code> will never be run, <em>provided</em> that it isn't wrapped in an <code>uncancelable</code> block. If the above is wrapped in <code>uncancelable</code>, then the <code>canceled</code> effect will be ignored.</p>
+<p>Self-cancelation is somewhat similar to raising an error with <code>raiseError</code> in that it will short-circuit evaluation and begin &quot;popping&quot; back up the stack until it hits a handler. Just as <code>raiseError</code> can be observed using the <code>onError</code> method, <code>canceled</code> can be observed using <code>onCancel</code>.</p>
+<p>The primary differences between self-cancelation and <code>raiseError</code> are two-fold. First, <code>uncancelable</code> suppresses <code>canceled</code> <em>within its body</em> (unless <code>poll</code>ed!), turning it into something equivalent to just <code>().pure[F]</code>. Note however that cancelation will be observed as soon as <code>uncancelable</code> terminates ie <code>uncancelable</code> only suppresses the cancelation until the end of its body, not indefinitely.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
+<span class="hljs-keyword">import</span> cats.effect.unsafe.implicits.global
+
+<span class="hljs-keyword">val</span> run = <span class="hljs-keyword">for</span> {
+  fib &lt;- (<span class="hljs-type">IO</span>.uncancelable(_ =&gt;
+      <span class="hljs-type">IO</span>.canceled &gt;&gt; <span class="hljs-type">IO</span>.println(<span class="hljs-string">"This will print as cancelation is suppressed"</span>)
+    ) &gt;&gt; <span class="hljs-type">IO</span>.println(
+    <span class="hljs-string">"This will never be called as we are canceled as soon as the uncancelable block finishes"</span>)).start
+  res &lt;- fib.join
+} <span class="hljs-keyword">yield</span> res
+<span class="hljs-comment">// run: IO[cats.effect.kernel.Outcome[IO, Throwable, Unit]] = FlatMap(</span>
+<span class="hljs-comment">//   ioe = Start(</span>
+<span class="hljs-comment">//     ioa = FlatMap(</span>
+<span class="hljs-comment">//       ioe = Uncancelable(body = &lt;function1&gt;),</span>
+<span class="hljs-comment">//       f = cats.effect.IO$$Lambda$11474/423899395@7ab8374e</span>
+<span class="hljs-comment">//     )</span>
+<span class="hljs-comment">//   ),</span>
+<span class="hljs-comment">//   f = &lt;function1&gt;</span>
+<span class="hljs-comment">// )</span>
+
+run.unsafeRunSync()
+<span class="hljs-comment">// res0: cats.effect.kernel.Outcome[IO, Throwable, Unit] = Canceled()</span>
+</code></pre>
+<p>There is no analogue for this kind of functionality with errors. Second, if you sequence an error with <code>raiseError</code>, it's always possible to use <code>attempt</code> or <code>handleError</code> to <em>handle</em> the error and resume normal execution. No such functionality is available for cancelation.</p>
+<p>In other words, cancelation is effective; it cannot be undone. It can be suppressed, but once it is observed, it must be respected by the canceled fiber. This feature is exceptionally important for ensuring deterministic evaluation and avoiding deadlocks.</p>
+<p>Self-cancelation is intended for use-cases such as <a href="https://erlang.org/doc/man/supervisor.html">supervisor nets</a> and other complex constructs which require the ability to manipulate their own evaluation in this fashion. It isn't something that will be found often in application code.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/next/typeclasses"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/cats-effect/docs/next/typeclasses/spawn"><span>Spawn</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/en/getting-started">Getting Started</a><a href="/cats-effect/docs/en/tutorial">Tutorial</a><a href="/cats-effect/docs/en/typeclasses">Typeclasses</a><a href="/cats-effect/docs/en/schedulers">Schedulers</a></div><div><h5>Community</h5><a href="https://typelevel.org/blog/">Blog</a><a href="https://gitter.im/typelevel/cats-effect">Gitter</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2021 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
