@@ -33,6 +33,7 @@ const users = [
   ['RMS', 'https://www.rms.com/'],
   ['Revonte', 'https://revonte.com'],
   ['Rewards Network', 'https://www.rewardsnetwork.com/'],
+  ['Security Scorecard', 'https://www.securityscorecard.io/'],
   ['ShipReq', 'https://shipreq.com'],
   ['Software Mill', 'https://softwaremill.com'],
   ['SpotX', 'https://www.spotx.tv/'],
