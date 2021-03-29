@@ -131,9 +131,10 @@ Here's the new type class hierarchy. It might be helpful in understanding some o
 
 Most of the following are handled by [the Scalafix migration](#run-the-scalafix-migration). If you can, try that first!
 
-> Note: package name changes were skipped from the table. Most type classes are now in `cats.effect.kernel`.
+> Note: package name changes were skipped from this guide. Most type classes are now in the `cats.effect.kernel` package,
+> but you can access them through `cats.effect.<the typeclass>` too thanks to type aliases.
 
-### Async <!-- todo -->
+### Async
 
 | Cats Effect 2.x                   | Cats Effect 3                | Notes                                   |
 | --------------------------------- | ---------------------------- | --------------------------------------- |
@@ -146,6 +147,31 @@ Most of the following are handled by [the Scalafix migration](#run-the-scalafix-
 | `Async.parSequenceN`              | `Concurrent[F].parSequenceN` |                                         |
 | `Async[F].liftIO`, `Async.liftIO` | `LiftIO[F].liftIO`           | `LiftIO` is in the `cats-effect` module |
 | `Async <: LiftIO`                 | No subtyping relationship    | `LiftIO` is in the `cats-effect` module |
+
+#### `async` signature
+
+The most significant change here, aside from the new place of `Async` in the type class hierarchy, is the shape of `async`. Let's look at it:
+
+```scala mdoc
+trait Async[F[_]] {
+  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A]
+}
+```
+
+We can divide the parameter `k` into the following:
+
+- `Either[Throwable, A] => Unit` - the callback that, when called, will complete or fail this effect. This is identical as in CE2.
+- `=> F[...]` (outer effect) - the effect of registering the callback This would be e.g. `delay { window.setTimeout(() => cb(...)) }`.
+- `Option[F[Unit]]` - an optional cancellation token. Passing `None` here is equivalent to `Some(F.unit)`
+
+The most similar method to this in CE2 would be `Concurrent.cancelableF[F, A`:
+
+```scala mdoc
+// CE2!
+def cancelableF[F[_], A](k: (Either[Throwable, A] => Unit) => F[F[Unit]]) = ???
+```
+
+The only difference being that there was always a cancelation token.
 
 <!-- todo explanation/notes paragraph -->
 
@@ -202,7 +228,7 @@ Please refer to each library's appropriate documentation/changelog to see how to
 | `Concurrent <: LiftIO`                      | No subtyping relationship       | `LiftIO` is in the `cats-effect` module        |
 | `Concurrent[F].race`                        | `Spawn[F].race`                 |                                                |
 | `Concurrent[F].racePair`                    | `Spawn[F].racePair`             |                                                |
-| `Concurrent[F].cancelable`                  | `Async.async(f)`                | Wrap side effects in F, cancel token in `Some` |
+| `Concurrent[F].cancelable`                  | `Async.async`                   | Wrap side effects in F, cancel token in `Some` |
 | `Concurrent[F].cancelableF`                 | `Async.async(f(_).map(_.some))` | `Some` means there is a finalizer to execute.  |
 | `Concurrent[F].continual`                   | -                               | see [below](#continual)                        |
 | `Concurrent.continual`                      | -                               | see [below](#continual)                        |
@@ -253,7 +279,7 @@ todo - Gavin wrote about this
 | `ContextShift[F].shift`  | nothing / `Spawn[F].cede` |
 | `ContextShift[F].evalOn` | `Async[F].evalOn`         |
 
-#### shifting
+#### Shifting
 
 The `IO.shift` / `ContextShift[F].shift` methods are gone, and they don't have a fully compatible counterpart.
 
