@@ -45,11 +45,9 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     (ExecutionContext.fromExecutor(executor), { () => executor.shutdown() })
   }
 
-  def createDefaultScheduler(
-      threads: Int = 1,
-      threadPrefix: String = "io-scheduler"): (Scheduler, () => Unit) = {
+  def createDefaultScheduler(threadPrefix: String = "io-scheduler"): (Scheduler, () => Unit) = {
     val scheduler = new ScheduledThreadPoolExecutor(
-      threads,
+      1,
       { r =>
         val t = new Thread(r)
         t.setName(threadPrefix)

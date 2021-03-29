@@ -19,6 +19,7 @@ package cats.effect
 package object kernel {
 
   type MonadCancelThrow[F[_]] = MonadCancel[F, Throwable]
+  val MonadCancelThrow = MonadCancel
 
   type Spawn[F[_]] = GenSpawn[F, Throwable]
   val Spawn = GenSpawn
