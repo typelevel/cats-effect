@@ -1344,6 +1344,41 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   implicit val consoleForIO: Console[IO] =
     Console.make
 
+  implicit val _localForIO: FiberLocal[IO] = new FiberLocal[IO] {
+
+    def local[A](default: A): IO[Local[IO, A]] = IO {
+      new Local[IO, A] { self =>
+        override def get: IO[A] =
+          IO.IOLocal(state =>
+            (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
+
+        override def set(value: A): IO[Unit] =
+          IO.IOLocal(state => (state + (self -> value), ()))
+
+        override def reset: IO[Unit] =
+          IO.IOLocal(state => (state - self, ()))
+
+        override def update(f: A => A): IO[Unit] =
+          get.flatMap(a => set(f(a)))
+
+        override def modify[B](f: A => (A, B)): IO[B] =
+          get.flatMap { a =>
+            val (a2, b) = f(a)
+            set(a2).as(b)
+          }
+
+        override def getAndSet(value: A): IO[A] =
+          get <* set(value)
+
+        override def getAndReset: IO[A] =
+          get <* reset
+
+      }
+    }
+  }
+
+  def local[A](default: A): IO[Local[IO, A]] = _localForIO.local(default)
+
   // This is cached as a val to save allocations, but it uses ops from the Async
   // instance which is also cached as a val, and therefore needs to appear
   // later in the file
@@ -1442,7 +1477,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 20
   }
 
-  private[effect] final case class Local[+A](f: IOLocalState => (IOLocalState, A))
+  private[effect] final case class IOLocal[+A](f: IOLocalState => (IOLocalState, A))
       extends IO[A] {
     def tag = 21
   }

@@ -21,14 +21,14 @@ class IOLocalSpec extends BaseSpec {
 
   "IOLocal" should {
     "return a default value" in ticked { implicit ticker =>
-      val io = IOLocal(0).flatMap(_.get)
+      val io = IO.local(0).flatMap(_.get)
 
       io must completeAs(0)
     }
 
     "set and get a value" in ticked { implicit ticker =>
       val io = for {
-        local <- IOLocal(0)
+        local <- IO.local(0)
         _ <- local.set(10)
         value <- local.get
       } yield value
@@ -38,7 +38,7 @@ class IOLocalSpec extends BaseSpec {
 
     "preserve locals across async boundaries" in ticked { implicit ticker =>
       val io = for {
-        local <- IOLocal(0)
+        local <- IO.local(0)
         _ <- local.set(10)
         _ <- IO.cede
         value <- local.get
@@ -49,7 +49,7 @@ class IOLocalSpec extends BaseSpec {
 
     "copy locals to children fibers" in ticked { implicit ticker =>
       val io = for {
-        local <- IOLocal(0)
+        local <- IO.local(0)
         _ <- local.set(10)
         f <- local.get.start
         value <- f.joinWithNever
@@ -60,7 +60,7 @@ class IOLocalSpec extends BaseSpec {
 
     "child local manipulation is invisible to parents" in ticked { implicit ticker =>
       val io = for {
-        local <- IOLocal(10)
+        local <- IO.local(10)
         f <- local.set(20).start
         _ <- f.join
         value <- local.get
@@ -71,7 +71,7 @@ class IOLocalSpec extends BaseSpec {
 
     "parent local manipulation is invisible to children" in ticked { implicit ticker =>
       val io = for {
-        local <- IOLocal(0)
+        local <- IO.local(0)
         d1 <- Deferred[IO, Unit]
         f <- (d1.get *> local.get).start
         _ <- local.set(10)
