@@ -19,6 +19,7 @@ const users = [
   ['Evolution Gaming', 'https://eng.evolutiongaming.com/'],
   ['Exelonix', 'https://exelonix.com/'],
   ['Gemini Observatory', 'https://www.gemini.edu'],
+  ['Hi.Fi', 'https://hi.fi'],
   ['ING Bank', 'https://www.ing.com'],
   ['Inner Product', 'https://inner-product.com'],
   ['Intent HQ', 'https://www.intenthq.com/'],
