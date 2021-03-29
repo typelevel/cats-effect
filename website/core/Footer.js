@@ -33,14 +33,14 @@ class Footer extends React.Component {
             <a href={this.docUrl('getting-started', this.props.language)}>
               Getting Started
             </a>
-            <a href={this.docUrl('guides/tutorial', this.props.language)}>
+            <a href={this.docUrl('tutorial', this.props.language)}>
               Tutorial
             </a>
-            <a href={this.docUrl('datatypes/io', this.props.language)}>
-              IO Monad
+            <a href={this.docUrl('typeclasses', this.props.language)}>
+              Typeclasses
             </a>
-            <a href={this.docUrl('concurrency/overview', this.props.language)}>
-              Concurrency
+            <a href={this.docUrl('schedulers', this.props.language)}>
+              Schedulers
             </a>
           </div>
           <div>
