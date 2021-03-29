@@ -136,17 +136,17 @@ Most of the following are handled by [the Scalafix migration](#run-the-scalafix-
 
 ### Async
 
-| Cats Effect 2.x                   | Cats Effect 3                | Notes                                   |
-| --------------------------------- | ---------------------------- | --------------------------------------- |
-| `Async[F].async`                  | `Async[F].async_`            |                                         |
-| `Async[F].asyncF(f)`              | `Async[F].async(f).as(none)` |                                         |
-| `Async.shift`                     | nothing / `Spawn[F].cede`    | See [below](#shifting)                  |
-| `Async.fromFuture`                | `Async[F].fromFuture`        |                                         |
-| `Async.memoize`                   | `Concurrent[F].memoize`      |                                         |
-| `Async.parTraverseN`              | `Concurrent[F].parTraverseN` |                                         |
-| `Async.parSequenceN`              | `Concurrent[F].parSequenceN` |                                         |
-| `Async[F].liftIO`, `Async.liftIO` | `LiftIO[F].liftIO`           | `LiftIO` is in the `cats-effect` module |
-| `Async <: LiftIO`                 | No subtyping relationship    | `LiftIO` is in the `cats-effect` module |
+| Cats Effect 2.x                   | Cats Effect 3                                      |
+| --------------------------------- | -------------------------------------------------- |
+| `Async[F].async`                  | `Async[F].async_`                                  |
+| `Async[F].asyncF(f)`              | `Async[F].async(f).as(none)`                       |
+| `Async.shift`                     | nothing / `Spawn[F].cede` - See [below](#shifting) |
+| `Async.fromFuture`                | `Async[F].fromFuture`                              |
+| `Async.memoize`                   | `Concurrent[F].memoize`                            |
+| `Async.parTraverseN`              | `Concurrent[F].parTraverseN`                       |
+| `Async.parSequenceN`              | `Concurrent[F].parSequenceN`                       |
+| `Async[F].liftIO`, `Async.liftIO` | `LiftIO[F].liftIO`                                 |
+| `Async <: LiftIO`                 | No subtyping relationship                          |
 
 #### `async` signature
 
@@ -173,7 +173,10 @@ def cancelableF[F[_], A](k: (Either[Throwable, A] => Unit) => F[F[Unit]]) = ???
 
 The only difference being that there was always a cancelation token.
 
-<!-- todo explanation/notes paragraph -->
+#### `LiftIO` relationship
+
+<!-- `LiftIO` is in the `cats-effect` module | -->
+<!-- todo explain -->
 
 #### Implementing Async
 
