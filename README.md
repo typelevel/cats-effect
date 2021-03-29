@@ -48,7 +48,6 @@ Cats Effect provides backward binary compatibility within the 2.x and 3.x versio
 <!-- this is probably a bad link -->
 Check out the [migration guide](./migration-guide.md)!
 
-
 ## Hello, World
 
 ```scala
