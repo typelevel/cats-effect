@@ -18,7 +18,6 @@ by extending `MonadError` (in Cats) to provide the capability to guarantee the
 running of finalizers when a fiber is canceled. Using it, we can define effects
 which safely acquire and release resources:
 
-<!-- TODO enable mdoc for this -->
 ```scala
 import cats.effect._
 import cats.effect.syntax.all._
@@ -37,7 +36,7 @@ import cats.effect.syntax.all._
 import cats.syntax.all._
 
 def guarded[F[_], R, A, E](
-    s: Semaphore[F], 
+    s: Semaphore[F],
     alloc: F[R])(
     use: R => F[A])(
     release: R => F[Unit])(
@@ -171,7 +170,7 @@ val run = for {
 
 run.unsafeRunSync()
 ```
-There is no analogue for this kind of functionality with errors. Second, if you sequence an error with `raiseError`, it's always possible to use `attempt` or `handleError` to *handle* the error and resume normal execution. No such functionality is available for cancelation. 
+There is no analogue for this kind of functionality with errors. Second, if you sequence an error with `raiseError`, it's always possible to use `attempt` or `handleError` to *handle* the error and resume normal execution. No such functionality is available for cancelation.
 
 In other words, cancelation is effective; it cannot be undone. It can be suppressed, but once it is observed, it must be respected by the canceled fiber. This feature is exceptionally important for ensuring deterministic evaluation and avoiding deadlocks.
 

@@ -1,4 +1,4 @@
-# Cats Effect 
+# Cats Effect
 
 [![Gitter](https://img.shields.io/gitter/room/typelevel/cats-effect.svg)](https://gitter.im/typelevel/cats-effect) [![Latest version](https://index.scala-lang.org/typelevel/cats-effect/cats-effect/latest.svg?color=orange)](https://index.scala-lang.org/typelevel/cats-effect/cats-effect)
 
@@ -121,7 +121,31 @@ There's always lots to do! This is an incredibly exciting project used by countl
 
 Cats Effect is built with [sbt](https://github.com/sbt/sbt), and you should be able to jump right in by running `sbt test`. I will note, however, that `sbt +test` takes about two hours on my laptop, so you probably *shouldn't* start there...
 
-We use a typical pull request workflow, with automated builds run within GitHub Actions. 
+We use a typical pull request workflow, with automated builds run within GitHub Actions.
+
+### Website
+
+To build the documentation site locally, the following dependencies are needed, in addition to `sbt`.
+
+- Node (14.x ideally)
+- Yarn (any version should work)
+
+NOTE: [Nix](https://nixos.org/) users can just run `nix-shell` at the root directory and follow along the next instructions.
+
+Next, check out the documentation branch along with its submodules.
+
+```
+git checkout --track origin/docs
+git submodule update --init --recursive
+```
+
+Finally, build the site.
+
+```
+./build.sh host
+```
+
+If everything goes well, your browser will open at the end of this.
 
 ## Tool Sponsorship
 
