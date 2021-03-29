@@ -23,8 +23,8 @@ ThisBuild / baseVersion := "2.4"
 
 val OldScala = "2.12.13"
 val NewScala = "2.13.5"
-val OldDotty = "3.0.0-M3"
-val NewDotty = "3.0.0-RC1"
+val OldDotty = "3.0.0-RC1"
+val NewDotty = "3.0.0-RC2"
 
 ThisBuild / crossScalaVersions := Seq(OldDotty, NewDotty, OldScala, NewScala)
 ThisBuild / scalaVersion := (ThisBuild / crossScalaVersions).value.last
@@ -59,8 +59,8 @@ ThisBuild / scmInfo := Some(
   ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")
 )
 
-val CatsVersion = "2.4.2"
-val DisciplineMunitVersion = "1.0.6"
+val CatsVersion = "2.5.0"
+val DisciplineMunitVersion = "1.0.7"
 val SilencerVersion = "1.7.3"
 
 replaceCommandAlias(
