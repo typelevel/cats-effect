@@ -17,6 +17,9 @@
 package cats.effect.kernel
 
 trait FiberLocal[F[_]] {
+
+  def F: Concurrent[F]
+
   def local[A](default: A): F[Local[F, A]]
 }
 

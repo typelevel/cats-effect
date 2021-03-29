@@ -1346,6 +1346,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   implicit val _localForIO: FiberLocal[IO] = new FiberLocal[IO] {
 
+    val F = _asyncForIO
+
     def local[A](default: A): IO[Local[IO, A]] = IO {
       new Local[IO, A] { self =>
         override def get: IO[A] =

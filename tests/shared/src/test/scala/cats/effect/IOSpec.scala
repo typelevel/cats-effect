@@ -35,6 +35,7 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.{ExecutionContext, TimeoutException}
 import scala.concurrent.duration._
+import cats.effect.laws.FiberLocalTests
 
 class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
   outer =>
@@ -1203,6 +1204,15 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     checkAll(
       "IO",
       AlignTests[IO].align[Int, Int, Int, Int]
+    )
+  }
+
+  {
+    implicit val ticker = Ticker()
+
+    checkAll(
+      "IO",
+      FiberLocalTests[IO].fiberLocal[Int]
     )
   }
 
