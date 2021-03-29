@@ -20,10 +20,11 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{AlignTests, SemigroupKTests}
 import cats.laws.discipline.arbitrary._
 
+import cats.effect.implicits._
 import cats.effect.laws.AsyncTests
 import cats.effect.testkit.TestContext
+import cats.effect.std.Semaphore
 import cats.syntax.all._
-import cats.effect.implicits._
 
 import org.scalacheck.Prop, Prop.forAll
 // import org.scalacheck.rng.Seed
@@ -35,6 +36,8 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.{ExecutionContext, TimeoutException}
 import scala.concurrent.duration._
+
+import java.util.concurrent.CancellationException
 
 class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
   outer =>
@@ -1092,6 +1095,101 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
             res mustEqual List(1, 2)
           }
         }
+      }
+
+      "run a synchronous IO" in ticked { implicit ticker =>
+        val ioa = IO(1).map(_ + 2)
+        val test = IO.fromFuture(IO(ioa.unsafeToFuture()))
+        test must completeAs(3)
+      }
+
+      "run an asynchronous IO" in ticked { implicit ticker =>
+        val ioa = (IO(1) <* IO.cede).map(_ + 2)
+        val test = IO.fromFuture(IO(ioa.unsafeToFuture()))
+        test must completeAs(3)
+      }
+
+      "run several IOs back to back" in ticked { implicit ticker =>
+        var counter = 0
+        val increment = IO {
+          counter += 1
+        }
+
+        val num = 10
+
+        val test = IO.fromFuture(IO(increment.unsafeToFuture())).replicateA(num).void
+
+        test.flatMap(_ => IO(counter)) must completeAs(num)
+      }
+
+      "run multiple IOs in parallel" in ticked { implicit ticker =>
+        val num = 10
+
+        val test = for {
+          latches <- (0 until num).toList.traverse(_ => Deferred[IO, Unit])
+          awaitAll = latches.parTraverse_(_.get)
+
+          // engineer a deadlock: all subjects must be run in parallel or this will hang
+          subjects = latches.map(latch => latch.complete(()) >> awaitAll)
+
+          _ <- subjects.parTraverse_(act => IO(act.unsafeRunAndForget()))
+        } yield ()
+
+        test must completeAs(())
+      }
+
+      "forward cancelation onto the inner action" in ticked { implicit ticker =>
+        var canceled = false
+
+        val run = IO {
+          IO.never.onCancel(IO { canceled = true }).unsafeRunCancelable()
+        }
+
+        val test = IO.defer {
+          run.flatMap(ct => IO.sleep(500.millis) >> IO.fromFuture(IO(ct())))
+        }
+
+        test.flatMap(_ => IO(canceled)) must completeAs(true)
+      }
+
+      "cancel all inner effects when canceled" in ticked { implicit ticker =>
+        val deadlock = for {
+          gate1 <- Semaphore[IO](2)
+          _ <- gate1.acquireN(2)
+
+          gate2 <- Semaphore[IO](2)
+          _ <- gate2.acquireN(2)
+
+          io = IO {
+            // these finalizers never return, so this test is intentionally designed to hang
+            // they flip their gates first though; this is just testing that both run in parallel
+            val a = (gate1.release *> IO.never) onCancel {
+              gate2.release *> IO.never
+            }
+
+            val b = (gate1.release *> IO.never) onCancel {
+              gate2.release *> IO.never
+            }
+
+            a.unsafeRunAndForget()
+            b.unsafeRunAndForget()
+          }
+
+          _ <- io.flatMap(_ => gate1.acquireN(2)).start
+          _ <- gate2.acquireN(2) // if both are not run in parallel, then this will hang
+        } yield ()
+
+        val test = for {
+          t <- IO(deadlock.unsafeToFutureCancelable())
+          (f, ct) = t
+          _ <- IO.fromFuture(IO(ct()))
+          _ <- IO.blocking(scala.concurrent.Await.result(f, Duration.Inf))
+        } yield ()
+
+        test.attempt.map {
+          case Left(t) => t.isInstanceOf[CancellationException]
+          case Right(_) => false
+        } must completeAs(true)
       }
 
     }

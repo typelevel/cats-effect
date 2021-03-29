@@ -676,16 +676,45 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *
    * @see [[IO.fromFuture]]
    */
-  def unsafeToFuture()(implicit runtime: unsafe.IORuntime): Future[A] = {
+  def unsafeToFuture()(implicit runtime: unsafe.IORuntime): Future[A] =
+    unsafeToFutureCancelable()._1
+
+  /**
+   * Evaluates the effect and produces the result in a `Future`, along with a
+   * cancelation token that can be used to cancel the original effect.
+   *
+   * This is similar to `unsafeRunAsync` in that it evaluates the `IO`
+   * as a side effect in a non-blocking fashion, but uses a `Future`
+   * rather than an explicit callback.  This function should really
+   * only be used if interoperating with code which uses Scala futures.
+   *
+   * @see [[IO.fromFuture]]
+   */
+  def unsafeToFutureCancelable()(
+      implicit runtime: unsafe.IORuntime): (Future[A], () => Future[Unit]) = {
     val p = Promise[A]()
 
-    unsafeRunAsync {
-      case Left(t) => p.failure(t)
-      case Right(a) => p.success(a)
-    }
+    val fiber = unsafeRunFiber(
+      p.failure(new CancellationException("Main fiber was canceled")),
+      p.failure,
+      p.success)
 
-    p.future
+    (p.future, () => fiber.cancel.unsafeToFuture())
   }
+
+  /**
+   * Evaluates the effect, returning a cancelation token that can be used to
+   * cancel it.
+   *
+   * This is similar to `unsafeRunAsync` in that it evaluates the `IO`
+   * as a side effect in a non-blocking fashion, but uses a `Future`
+   * rather than an explicit callback.  This function should really
+   * only be used if interoperating with code which uses Scala futures.
+   *
+   * @see [[IO.fromFuture]]
+   */
+  def unsafeRunCancelable()(implicit runtime: unsafe.IORuntime): () => Future[Unit] =
+    unsafeToFutureCancelable()._2
 
   private[effect] def unsafeRunFiber(
       canceled: => Unit,
