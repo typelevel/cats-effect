@@ -16,6 +16,7 @@
 
 import java.io.File
 
+import com.typesafe.tools.mima.core._
 import org.openqa.selenium.firefox.FirefoxOptions
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
 
@@ -261,7 +262,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
   .dependsOn(kernel, std)
   .settings(
-    name := "cats-effect"
+    name := "cats-effect",
+    mimaBinaryIssueFilters ++= Seq(
+      // introduced by #1837, removal of package private class
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation$")
+    )
   )
   .jvmSettings(
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
