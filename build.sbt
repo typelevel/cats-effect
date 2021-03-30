@@ -47,7 +47,7 @@ val Windows = "windows-latest"
 val ScalaJSJava = "adopt@1.8"
 val Scala213 = "2.13.5"
 
-ThisBuild / crossScalaVersions := Seq("3.0.0-M3", "3.0.0-RC1", "2.12.13", Scala213)
+ThisBuild / crossScalaVersions := Seq("3.0.0-RC1", "3.0.0-RC2", "2.12.13", Scala213)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
@@ -146,10 +146,11 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/"))
 
 ThisBuild / autoAPIMappings := true
 
-val CatsVersion = "2.4.2"
+val CatsVersion = "2.5.0"
 val Specs2Version = "4.10.6"
 val ScalaCheckVersion = "1.15.3"
 val DisciplineVersion = "1.1.4"
+val CoopVersion = "1.0.0"
 
 replaceCommandAlias(
   "ci",
@@ -234,7 +235,7 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-free" % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      "org.typelevel" %%% "coop" % "1.0.0-M4")
+      "org.typelevel" %%% "coop" % CoopVersion)
   )
 
 /**
