@@ -222,6 +222,13 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies += "org.specs2" %%% "specs2-core" % Specs2Version % Test)
   .settings(dottyLibrarySettings)
   .settings(libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion)
+  .jsSettings(
+    Compile / doc / sources := {
+      if (scalaVersion.value == "3.0.0-RC2")
+        Seq()
+      else
+        (Compile / doc / sources).value
+    })
 
 /**
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
