@@ -43,14 +43,13 @@ private[effect] object IOLocal {
     IO {
       new IOLocal[A] { self =>
         override def get: IO[A] =
-          IO.IOLocal(state =>
-            (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
+          IO.Local(state => (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
 
         override def set(value: A): IO[Unit] =
-          IO.IOLocal(state => (state + (self -> value), ()))
+          IO.Local(state => (state + (self -> value), ()))
 
         override def reset: IO[Unit] =
-          IO.IOLocal(state => (state - self, ()))
+          IO.Local(state => (state - self, ()))
 
         override def update(f: A => A): IO[Unit] =
           get.flatMap(a => set(f(a)))

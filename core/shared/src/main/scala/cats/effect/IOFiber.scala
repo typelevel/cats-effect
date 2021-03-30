@@ -825,7 +825,7 @@ private final class IOFiber[A](
           }
 
         case 21 =>
-          val cur = cur0.asInstanceOf[IOLocal[Any]]
+          val cur = cur0.asInstanceOf[Local[Any]]
 
           val (nextLocalState, value) = cur.f(localState)
           localState = nextLocalState
