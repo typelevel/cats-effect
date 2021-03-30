@@ -18,18 +18,18 @@ package cats.effect
 package laws
 
 import cats.Eq
-import cats.effect.kernel.FiberLocal
+import cats.effect.kernel.GenLocal
 
 import org.scalacheck._, Prop.forAll
 import org.scalacheck.util.Pretty
 
 import org.typelevel.discipline.Laws
 
-trait FiberLocalTests[F[_]] extends Laws {
+trait GenLocalTests[F[_], E] extends Laws {
 
-  val laws: FiberLocalLaws[F]
+  val laws: GenLocalLaws[F, E]
 
-  def fiberLocal[A: Arbitrary](
+  def local[A: Arbitrary](
       implicit eqFA: Eq[F[A]],
       eqFU: Eq[F[Unit]],
       faPP: F[A] => Pretty
@@ -53,9 +53,9 @@ trait FiberLocalTests[F[_]] extends Laws {
   }
 }
 
-object FiberLocalTests {
-  def apply[F[_]](implicit F0: FiberLocal[F]): FiberLocalTests[F] =
-    new FiberLocalTests[F] {
-      val laws = FiberLocalLaws[F]
+object GenLocalTests {
+  def apply[F[_], E](implicit F0: GenLocal[F, E]): GenLocalTests[F, E] =
+    new GenLocalTests[F, E] {
+      val laws = GenLocalLaws[F, E]
     }
 }

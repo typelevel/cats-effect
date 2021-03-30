@@ -79,9 +79,13 @@ package object effect {
   type Ref[F[_], A] = cekernel.Ref[F, A]
   val Ref = cekernel.Ref
 
-  type Local[F[_], A] = cekernel.Local[F, A]
-  type FiberLocal[F[_]] = cekernel.FiberLocal[F]
-  val FiberLocal = cekernel.FiberLocal
+  type FiberLocal[F[_], A] = cekernel.FiberLocal[F, A]
+
+  type GenLocal[F[_], E] = cekernel.GenLocal[F, E]
+  val GenLocal = cekernel.GenLocal
+
+  type Local[F[_]] = cekernel.Local[F]
+  val Local = cekernel.Local
 
   private[effect] type IOLocalState = scala.collection.immutable.Map[Any, Any]
 }

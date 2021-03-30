@@ -16,14 +16,14 @@
 
 package cats.effect.kernel
 
-trait FiberLocal[F[_]] {
+trait GenLocal[F[_], E] {
 
-  def F: Concurrent[F]
+  def F: GenConcurrent[F, E]
 
-  def local[A](default: A): F[Local[F, A]]
+  def local[A](default: A): F[FiberLocal[F, A]]
 }
 
-trait Local[F[_], A] {
+trait FiberLocal[F[_], A] {
 
   def get: F[A]
 
@@ -41,6 +41,7 @@ trait Local[F[_], A] {
 
 }
 
-object FiberLocal {
-  def apply[F[_]](implicit F: FiberLocal[F]): F.type = F
+object GenLocal {
+  def apply[F[_], E](implicit F: GenLocal[F, E]): F.type = F
+  def apply[F[_]](implicit F: GenLocal[F, _], d: DummyImplicit): F.type = F
 }

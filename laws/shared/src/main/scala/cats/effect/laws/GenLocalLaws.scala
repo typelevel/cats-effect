@@ -17,14 +17,14 @@
 package cats.effect
 package laws
 
-import cats.effect.kernel.{Concurrent, FiberLocal}
+import cats.effect.kernel.{GenConcurrent, GenLocal}
 import cats.syntax.all._
 import cats.effect.kernel.syntax.all._
 
-trait FiberLocalLaws[F[_]] {
-  implicit val F: FiberLocal[F]
+trait GenLocalLaws[F[_], E] {
+  implicit val F: GenLocal[F, E]
 
-  implicit def app: Concurrent[F] = F.F
+  implicit def app: GenConcurrent[F, E] = F.F
 
   def defaultGet[A](default: A) =
     F.local(default).flatMap { local => local.get } <-> (F.local(default) >> app.pure(default))
@@ -57,7 +57,7 @@ trait FiberLocalLaws[F[_]] {
       (F.local(default).flatMap(_.get))
 }
 
-object FiberLocalLaws {
-  def apply[F[_]](implicit F0: FiberLocal[F]): FiberLocalLaws[F] =
-    new FiberLocalLaws[F] { val F = F0 }
+object GenLocalLaws {
+  def apply[F[_], E](implicit F0: GenLocal[F, E]): GenLocalLaws[F, E] =
+    new GenLocalLaws[F, E] { val F = F0 }
 }

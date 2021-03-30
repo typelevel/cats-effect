@@ -1344,12 +1344,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   implicit val consoleForIO: Console[IO] =
     Console.make
 
-  implicit val _localForIO: FiberLocal[IO] = new FiberLocal[IO] {
+  implicit val _localForIO: Local[IO] = new Local[IO] {
 
     val F = _asyncForIO
 
-    def local[A](default: A): IO[Local[IO, A]] = IO {
-      new Local[IO, A] { self =>
+    def local[A](default: A): IO[FiberLocal[IO, A]] = IO {
+      new FiberLocal[IO, A] { self =>
         override def get: IO[A] =
           IO.IOLocal(state =>
             (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
@@ -1379,7 +1379,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     }
   }
 
-  def local[A](default: A): IO[Local[IO, A]] = _localForIO.local(default)
+  def local[A](default: A): IO[FiberLocal[IO, A]] = _localForIO.local(default)
 
   // This is cached as a val to save allocations, but it uses ops from the Async
   // instance which is also cached as a val, and therefore needs to appear

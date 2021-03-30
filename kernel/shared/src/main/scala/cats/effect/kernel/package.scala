@@ -32,4 +32,7 @@ package object kernel {
 
   type ParallelF[F[_], A] = Par.ParallelF[F, A]
   val ParallelF = Par.ParallelF
+
+  type Local[F[_]] = GenLocal[F, Throwable]
+  val Local = GenLocal
 }

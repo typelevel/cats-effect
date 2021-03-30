@@ -20,7 +20,7 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{AlignTests, SemigroupKTests}
 import cats.laws.discipline.arbitrary._
 
-import cats.effect.laws.AsyncTests
+import cats.effect.laws.{AsyncTests, GenLocalTests}
 import cats.effect.testkit.TestContext
 import cats.syntax.all._
 import cats.effect.implicits._
@@ -35,7 +35,6 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.{ExecutionContext, TimeoutException}
 import scala.concurrent.duration._
-import cats.effect.laws.FiberLocalTests
 
 class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
   outer =>
@@ -1212,7 +1211,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     checkAll(
       "IO",
-      FiberLocalTests[IO].fiberLocal[Int]
+      GenLocalTests[IO, Throwable].local[Int]
     )
   }
 
