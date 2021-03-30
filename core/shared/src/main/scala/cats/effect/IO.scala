@@ -1239,6 +1239,16 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   private[this] val _asyncForIO: kernel.Async[IO] = new kernel.Async[IO]
     with StackSafeMonad[IO] {
 
+    override def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
+      val body = new Cont[IO, A, A] {
+        def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
+          G.uncancelable { poll => lift(IO.delay(k(resume))).flatMap(_ => poll(get)) }
+        }
+      }
+
+      cont(body)
+    }
+
     override def as[A, B](ioa: IO[A], b: B): IO[B] =
       ioa.as(b)
 
