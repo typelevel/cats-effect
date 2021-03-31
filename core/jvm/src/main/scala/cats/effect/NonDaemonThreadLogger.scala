@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
 
 import cats.syntax.all._
 import scala.collection.mutable.ListBuffer

@@ -17,7 +17,6 @@
 package cats.effect
 
 import scala.concurrent.{blocking, CancellationException}
-import internals.NonDaemonThreadLogger
 
 import java.util.concurrent.CountDownLatch
 
