@@ -95,13 +95,6 @@ private final class IOFiber[A](
   private[this] var masks: Int = initMask
   private[this] var finalizing: Boolean = false
 
-  /*
-   * allow for 255 masks before conflicting; 255 chosen because it is a familiar bound,
-   * and because it's evenly divides UnsignedInt.MaxValue.
-   * This scheme gives us 16,843,009 (~2^24) potential derived fibers before masks can conflict
-   */
-  private[this] val childMask: Int = initMask + 255
-
   private[this] val finalizers = new ArrayStack[IO[Unit]](16)
 
   private[this] val callbacks = new CallbackStack[A](cb)
@@ -765,10 +758,10 @@ private final class IOFiber[A](
         case 17 =>
           val cur = cur0.asInstanceOf[Start[Any]]
 
-          val initMask2 = childMask
+          val childMask = initMask + ChildMaskOffset
           val ec = currentCtx
           val fiber = new IOFiber[Any](
-            initMask2,
+            childMask,
             localState,
             null,
             cur.ioa,
