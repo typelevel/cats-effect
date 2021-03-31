@@ -118,7 +118,10 @@ trait IOApp {
             // Return naturally from main. This allows any non-daemon
             // threads to gracefully complete their work, and managed
             // environments to execute their own shutdown hooks.
-            ()
+            if (NonDaemonThreadLogger.isEnabled())
+              new NonDaemonThreadLogger().start()
+            else
+              ()
           } else {
             System.exit(result.code)
           }
