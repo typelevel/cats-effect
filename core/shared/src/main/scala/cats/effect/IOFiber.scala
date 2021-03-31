@@ -65,12 +65,12 @@ import java.util.concurrent.atomic.AtomicBoolean
  * merely a fast-path and are not necessary for correctness.
  */
 private final class IOFiber[A](
-    initMask: Int,
+    private[this] val initMask: Int,
     initLocalState: IOLocalState,
     cb: OutcomeIO[A] => Unit,
     startIO: IO[A],
     startEC: ExecutionContext,
-    runtime: IORuntime
+    private[this] val runtime: IORuntime
 ) extends IOFiberPlatform[A]
     with FiberIO[A]
     with Runnable {
