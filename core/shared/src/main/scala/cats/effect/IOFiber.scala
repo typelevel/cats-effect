@@ -104,17 +104,12 @@ private final class IOFiber[A](
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
 
-  private[this] val TypeBlocking = Sync.Type.Blocking
-
   /* mutable state for resuming the fiber in different states */
   private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: IO[Any] = startIO
 
   /* prefetch for Right(()) */
   private[this] val RightUnit = IOFiber.RightUnit
-
-  /* similar prefetch for Outcome */
-  private[this] val OutcomeCanceled = IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]]
 
   /* similar prefetch for EndFiber */
   private[this] val IOEndFiber = IO.EndFiber
@@ -808,7 +803,7 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[Blocking[Any]]
           /* we know we're on the JVM here */
 
-          if (cur.hint eq TypeBlocking) {
+          if (cur.hint eq IOFiber.TypeBlocking) {
             resumeTag = BlockingR
             resumeIO = cur
             runtime.blocking.execute(this)
@@ -885,7 +880,7 @@ private final class IOFiber[A](
       if (cb != null)
         cb(RightUnit)
 
-      done(OutcomeCanceled)
+      done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
     }
   }
 
@@ -1057,7 +1052,7 @@ private final class IOFiber[A](
 
     resumeTag = DoneR
     if (canceled) {
-      done(OutcomeCanceled)
+      done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
     } else {
       conts = new ByteStack(16)
       conts.push(RunTerminusK)
@@ -1171,7 +1166,7 @@ private final class IOFiber[A](
         cb.asInstanceOf[Either[Throwable, Unit] => Unit](RightUnit)
       }
       /* resume joiners */
-      done(OutcomeCanceled)
+      done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
     }
 
     IOEndFiber
@@ -1265,6 +1260,7 @@ private final class IOFiber[A](
 
 private object IOFiber {
   /* prefetch */
-  private val OutcomeCanceled = Outcome.Canceled()
+  private[IOFiber] val TypeBlocking = Sync.Type.Blocking
+  private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
   private[effect] val RightUnit = Right(())
 }
