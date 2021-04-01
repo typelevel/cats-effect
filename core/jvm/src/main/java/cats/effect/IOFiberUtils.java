@@ -16,7 +16,38 @@
 
 package cats.effect;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+
 class IOFiberUtils {
 
-  static void onSpinWait() {}
+  private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
+  private static final MethodType ON_SPIN_WAIT_METHOD_TYPE = MethodType.methodType(void.class);
+  private static final MethodHandle ON_SPIN_WAIT_METHOD_HANDLE;
+
+  static {
+    ON_SPIN_WAIT_METHOD_HANDLE = makeMethodHandle();
+  }
+
+  static void onSpinWait() throws Throwable {
+    ON_SPIN_WAIT_METHOD_HANDLE.invokeExact();
+  }
+  
+  private static void fauxOnSpinWait() {
+  }
+  
+  private static MethodHandle makeMethodHandle() {
+    try {
+      return LOOKUP.findStatic(Thread.class, "onSpinWait", ON_SPIN_WAIT_METHOD_TYPE);
+    } catch (NoSuchMethodException e) {
+      try {
+        return LOOKUP.findStatic(IOFiberUtils.class, "fauxOnSpinWait", ON_SPIN_WAIT_METHOD_TYPE);
+      } catch (Throwable t) {
+        throw new ExceptionInInitializerError(t);
+      }
+    } catch (IllegalAccessException e) {
+      throw new ExceptionInInitializerError(e);
+    }
+  }
 }
