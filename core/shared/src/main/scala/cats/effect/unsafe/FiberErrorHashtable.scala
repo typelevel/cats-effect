@@ -61,7 +61,7 @@ private[effect] final class FiberErrorHashtable(initialSize: Int) {
         } else {
           idx += 1
           idx &= mask
-          if (idx == init - 1) {
+          if (idx == init) {
             cont = false
           }
         }
