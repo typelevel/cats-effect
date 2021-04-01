@@ -1464,7 +1464,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
   private[effect] case object EndFiber extends IO[Nothing] {
-    def tag = -1
+    def tag = 23
   }
 
 }

@@ -134,6 +134,9 @@ private final class IOFiber[A](
         case 9 => ()
       }
     } catch {
+      case npe: NullPointerException =>
+        val next = IO.Error(npe)
+        runLoop(next, cancelationCheckThreshold, autoYieldThreshold)
       case t: Throwable =>
         Thread.interrupted()
         currentCtx.reportFailure(t)
@@ -203,24 +206,9 @@ private final class IOFiber[A](
   /* masks encoding: initMask => no masks, ++ => push, -- => pop */
   @tailrec
   private[this] def runLoop(
-      _cur0: IO[Any],
+      cur0: IO[Any],
       cancelationIterations: Int,
       autoCedeIterations: Int): Unit = {
-    /*
-     * `cur` will be set to `EndFiber` when the runloop needs to terminate,
-     * either because the entire IO is done, or because this branch is done
-     * and execution is continuing asynchronously in a different runloop invocation.
-     */
-    if (_cur0 eq IOEndFiber) {
-      return
-    }
-
-    /* Null IO, blow up but keep the failure within IO */
-    val cur0: IO[Any] = if (_cur0 == null) {
-      IO.Error(new NullPointerException())
-    } else {
-      _cur0
-    }
 
     var nextCancelation = cancelationIterations - 1
     var nextAutoCede = autoCedeIterations
@@ -232,7 +220,7 @@ private final class IOFiber[A](
       nextAutoCede -= nextCancelation
     }
 
-    if (shouldFinalize()) {
+    if (!finalizing && shouldFinalize()) {
       asyncCancel(null)
     } else if (autoCedeIterations <= 0) {
       resumeIO = cur0
@@ -875,6 +863,14 @@ private final class IOFiber[A](
           val (nextLocalState, value) = cur.f(localState)
           localState = nextLocalState
           runLoop(succeeded(value, 0), nextCancelation, nextAutoCede)
+
+        case 23 =>
+          /*
+           * `cur` will be set to `EndFiber` when the runloop needs to terminate,
+           * either because the entire IO is done, or because this branch is done
+           * and execution is continuing asynchronously in a different runloop invocation.
+           */
+          return
       }
     }
   }
