@@ -776,6 +776,55 @@ private final class IOFiber[A](
           runLoop(succeeded(fiber, 0), nextIteration)
 
         case 18 =>
+          val cur = cur0.asInstanceOf[RacePair[Any, Any]]
+
+          val next =
+            IO.async[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
+              cb =>
+                IO {
+                  val childMask = initMask + ChildMaskOffset
+                  val ec = currentCtx
+                  val rt = runtime
+
+                  val fiberA = new IOFiber[Any](
+                    childMask,
+                    localState,
+                    null,
+                    cur.ioa,
+                    ec,
+                    rt
+                  )
+
+                  val fiberB = new IOFiber[Any](
+                    childMask,
+                    localState,
+                    null,
+                    cur.iob,
+                    ec,
+                    rt
+                  )
+
+                  fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
+                  fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
+
+                  scheduleFiber(ec)(fiberA)
+                  scheduleFiber(ec)(fiberB)
+
+                  val cancel =
+                    for {
+                      cancelA <- fiberA.cancel.start
+                      cancelB <- fiberB.cancel.start
+                      _ <- cancelA.join
+                      _ <- cancelB.join
+                    } yield ()
+
+                  Some(cancel)
+                }
+            }
+
+          runLoop(next, nextIteration)
+
+        case 19 =>
           val cur = cur0.asInstanceOf[Sleep]
 
           val next = IO.async[Unit] { cb =>
@@ -787,7 +836,7 @@ private final class IOFiber[A](
 
           runLoop(next, nextIteration)
 
-        case 19 =>
+        case 20 =>
           val cur = cur0.asInstanceOf[EvalOn[Any]]
 
           /* fast-path when it's an identity transformation */
@@ -804,7 +853,7 @@ private final class IOFiber[A](
             execute(ec)(this)
           }
 
-        case 20 =>
+        case 21 =>
           val cur = cur0.asInstanceOf[Blocking[Any]]
           /* we know we're on the JVM here */
 
@@ -816,7 +865,7 @@ private final class IOFiber[A](
             runLoop(interruptibleImpl(cur, runtime.blocking), nextIteration)
           }
 
-        case 21 =>
+        case 22 =>
           val cur = cur0.asInstanceOf[Local[Any]]
 
           val (nextLocalState, value) = cur.f(localState)

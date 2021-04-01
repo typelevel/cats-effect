@@ -1039,7 +1039,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def racePair[A, B](
       left: IO[A],
       right: IO[B]): IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] =
-    asyncForIO.racePair(left, right)
+    RacePair(left, right)
 
   def ref[A](a: A): IO[Ref[IO, A]] = IO(Ref.unsafe(a))
 
@@ -1440,21 +1440,26 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 17
   }
 
-  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
+  private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B])
+      extends IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] {
     def tag = 18
   }
 
-  private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {
+  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
     def tag = 19
   }
 
-  private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A) extends IO[A] {
+  private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {
     def tag = 20
+  }
+
+  private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A) extends IO[A] {
+    def tag = 21
   }
 
   private[effect] final case class Local[+A](f: IOLocalState => (IOLocalState, A))
       extends IO[A] {
-    def tag = 21
+    def tag = 22
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
