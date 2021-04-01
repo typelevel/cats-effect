@@ -300,6 +300,7 @@ private final class LocalQueue {
       // fresh chance to enqueue the incoming fiber to the local queue, most
       // likely another thread has freed some capacity in the buffer by stealing
       // from the queue.
+      ThreadUtils.onSpinWait()
     }
   }
 
@@ -373,6 +374,8 @@ private final class LocalQueue {
         // on the local queue.
         return batch(i)
       }
+
+      ThreadUtils.onSpinWait()
     }
 
     // Technically this is unreachable code. The only way to break out of the
@@ -435,6 +438,8 @@ private final class LocalQueue {
         buffer(idx) = null
         return fiber
       }
+
+      ThreadUtils.onSpinWait()
     }
 
     // Technically this is unreachable code. The only way to break out of the
@@ -545,10 +550,10 @@ private final class LocalQueue {
 
         // After transferring the stolen fibers, it is time to announce that the
         // stealing operation is done, by moving the "steal" tag to match the
-        // "real" value of the head. Opportunistically try to set it without
-        // reading the `head` again.
-        hd = newHd
+        // "real" value of the head.
         while (true) {
+          hd = head.get()
+          newReal = lsb(hd)
           newHd = pack(newReal, newReal)
 
           if (head.compareAndSet(hd, newHd)) {
@@ -572,14 +577,13 @@ private final class LocalQueue {
             dst.tailPublisherForwarder.lazySet(newDstTl)
             dst.plainStoreTail(newDstTl)
             return fiber
-          } else {
-            // Failed to opportunistically restore the value of the `head`. Load
-            // it again and retry.
-            hd = head.get()
-            newReal = lsb(hd)
           }
+
+          ThreadUtils.onSpinWait()
         }
       }
+
+      ThreadUtils.onSpinWait()
     }
 
     // Technically this is unreachable code. The only way to break out of the
@@ -654,6 +658,8 @@ private final class LocalQueue {
         // The fibers have been transferred. Break out of the loop.
         return
       }
+
+      ThreadUtils.onSpinWait()
     }
   }
 
