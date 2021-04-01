@@ -595,6 +595,7 @@ private final class IOFiber[A](
                  * `suspended` to wait until `get` has released
                  * ownership of the runloop.
                  */
+                IOFiberUtils.onSpinWait()
                 loop()
               }
 
@@ -635,6 +636,7 @@ private final class IOFiber[A](
                      * `get` has been sequenced and is waiting
                      * reacquire runloop to continue
                      */
+                    IOFiberUtils.onSpinWait()
                     loop()
                   }
                 }
@@ -733,7 +735,9 @@ private final class IOFiber[A](
              */
 
             // Wait for the winner to publish the result.
-            while (state.get() != ContStateResult) ()
+            while (state.get() != ContStateResult) {
+              IOFiberUtils.onSpinWait()
+            }
 
             val result = state.result
 
