@@ -447,7 +447,7 @@ Yielding back to the scheduler can now be done with `Spawn[F].cede`.
 | ------------------------ | ------------------------------ |
 | `ExitCase[E]`            | `Outcome[F, E, A]`             |
 | `Fiber[F, A]`            | `Fiber[F, E, A]`               |
-| `Fiber[F, A].join: F[A]` | `Fiber[F, E, A]`.joinWithNever |
+| `Fiber[F, A].join: F[A]` | `Fiber[F, E, A].joinWithNever` |
 
 This section isn't written yet. Please follow the Scaladoc and see [Spawn](./typeclasses/spawn.md)
 <!-- todo -->
