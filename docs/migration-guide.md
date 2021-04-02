@@ -280,7 +280,8 @@ def myBlocking[A](fa: IO[A]) = fa.evalOn(myBlockingPool)
 | `Bracket[F].guaranteeCase`    | `MonadCancel[F].guaranteeCase`         | [`ExitCase` is now `Outcome`](#exitcase-fiber) |
 | `Bracket[F].onCancel`         | `MonadCancel[F].onCancel`              |                                                |
 
-`Bracket` has mostly been renamed to `MonadCancel`. The `bracketCase` method is no longer a primitive, and is derived from
+`Bracket` has mostly been renamed to `MonadCancel`, and the migration should be straightforward.
+The `bracketCase` method is no longer a primitive, and is derived from
 the primitives `uncancelable` and `onCancel`.
 
 If you were using `uncancelable` using the extension method syntax, you can continue to do so without any changes.
