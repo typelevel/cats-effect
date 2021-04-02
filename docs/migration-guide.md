@@ -123,6 +123,8 @@ This tells you that you need to upgrade both `monix-catnap` and `odin-core` befo
 
 ## Fix remaining compilation issues
 
+#### New type class hierarchy
+
 Here's the new type class hierarchy. It might be helpful in understanding some of the changes:
 
 <a href="https://raw.githubusercontent.com/typelevel/cats-effect/series/3.x/images/hierarchy.svg" target="_blank">
@@ -133,6 +135,14 @@ Most of the following are handled by [the Scalafix migration](#run-the-scalafix-
 
 > Note: package name changes were skipped from this guide. Most type classes are now in the `cats.effect.kernel` package,
 > but you can access them through `cats.effect.<the typeclass>` too thanks to type aliases.
+
+Assume these imports for the rest of the guide:
+
+```scala mdoc
+import cats.effect.unsafe.implicits.global
+```
+
+Learn more about `global` about [in the `IO` section](#io).
 
 ### Async
 
@@ -178,6 +188,8 @@ def cancelableF[F[_], A](k: (Either[Throwable, A] => Unit) => F[F[Unit]])
 
 The only difference being that there was always an effect for cancelation - now it's optional (the `F` inside `F`).
 
+You can learn more about `Async` [on its page](./typeclasses/async.md).
+
 #### Relationship with `LiftIO`
 
 `LiftIO` is no longer part of the "kernel" type classes (being unlawful and strictly coupled to `IO`, which isn't part of `kernel` either), and has been moved to the `core` module (the `cats-effect` dependency).
@@ -214,7 +226,7 @@ import cats.effect.Sync
 val program = IO.blocking(println("hello blocking!"))
 ```
 
-or the [`Sync`](./typeclasses/sync.md) typeclass:
+or the `Sync` typeclass:
 
 ```scala mdoc
 val programSync = Sync[IO].blocking(println("hello Sync blocking!"))
@@ -239,9 +251,9 @@ val runtime = cats.effect.unsafe.IORuntime.global
 
 def showThread() = java.lang.Thread.currentThread().getName()
 
-IO.blocking(showThread)
+IO.blocking(showThread())
   .product(
-    IO(showThread)
+    IO(showThread())
   )
   .unsafeRunSync()(runtime)
 ```
@@ -287,7 +299,8 @@ the primitives `uncancelable` and `onCancel`.
 If you were using `uncancelable` using the extension method syntax, you can continue to do so without any changes.
 In the case of usage through `Bracket[F, E]`, you can use the new method but ignoring the parameter provided in the lambda (see table above).
 
-To learn what the new signature of `uncancelable` means and how you can use it in your programs after the migration, see [`MonadCancel` docs](./typeclasses/monadcancel.md).
+To learn what the new signature of `uncancelable` means, how you can use it in your programs after the migration, and other things about `MonadCancel`,
+see [its docs](./typeclasses/monadcancel.md).
 
 Another important change is replacing `ExitCase` with `Outcome`. Learn more [below](#exitcase-fiber).
 
@@ -300,7 +313,25 @@ Another important change is replacing `ExitCase` with `Outcome`. Learn more [bel
 | `Clock.instantNow`                        | `Clock[F].realTimeInstant`              |
 | `Clock.create`, `Clock[F].mapK`           | -                                       |
 
-<!-- todo why `create` and mapK are gone (because it's a typeclass now)  -->
+`Clock` has been included in the new type class hierarchy and thus it also has laws (e.g. getting the monotonic time twice is guaranteed to return increasing values).
+
+As for the user-facing differences, the most important ones are the signature changes of `realTime` and `monotonic`:
+instead of having the user provide the time unit and getting a `Long`, the methods now return `FiniteDuration`:
+
+```scala mdoc
+import cats.effect.Clock
+
+val clocks = for {
+  before <- Clock[IO].monotonic
+  after <- Clock[IO].monotonic
+} yield (after - before)
+
+clocks.unsafeRunSync()
+```
+
+Because `Clock` is no longer a "usual" value but a type class, it's not possible to create new values of it through `create` and `mapK`.
+
+`Clock` is a part of `Sync` and thus it should be easy to get an instance inductively for any monad transformer, or directly for any effect that is a `Sync`.
 
 ### Concurrent
 
@@ -322,6 +353,23 @@ Another important change is replacing `ExitCase` with `Outcome`. Learn more [bel
 | `Concurrent.parTraverseN`                   | `Concurrent[F].parTraverseN`    |                                                |
 | `Concurrent.parSequenceN`                   | `Concurrent[F].parSequenceN`    |                                                |
 
+This is arguably the most changed type class.
+
+Some of its operations have been moved to other type classes:
+
+- `Spawn` - a new type class, responsible for creating new fibers and racing them ([see more in `Spawn` docs](./typeclasses/spawn.md))
+- `Async` - `cancelable` has been merged with `async`, so it ended up there. This was discussed in [the `Async` part of the guide](#async).
+- `Temporal` - another new type class which extends `Concurrent` (so it's actually more powerful) with the ability to sleep. This is [the replacement of `Timer`](#timer).
+
+If you're only using methods from `Spawn` or `Temporal`, you might be able to reduce your type class constraints to these.
+
+#### Place in the hierarchy
+
+If you recall [the type class hierarchy](#new-type-class-hierarchy), `Concurrent` is no longer below `Async` and `Sync` - it's above them.
+This means `Concurrent` can no longer perform any kind of `FFI` on its own, and if you don't have `Sync` or `Async` in scope you can't even `delay`.
+This allows writing code that deals with concurrency without enabling suspension of arbitrary side effects in the given region of your code.
+
+For the migration purposes, this means you might have to replace some `F[_]: Concurrent` constraints with `F[_]: Async`.
 
 #### continual
 
@@ -339,7 +387,18 @@ def continual[F[_]: MonadCancelThrow, A, B](fa: F[A])(
 }
 ```
 
-<!-- todo -->
+#### `GenConcurrent`
+
+The actual abstraction isn't `Concurrent` anymore, but rather a generalization of it for arbitrary error types, `GenConcurrent[F, E]`.
+There are aliases set up in `cats.effect` and `cats.effect.kernel` to make it easier to use with `Throwable`, e.g.
+
+```scala
+type Concurrent[F] = GenConcurrent[F, Throwable]
+```
+
+The same pattern is followed by `GenTemporal`/`Temporal` and `GenSpawn`/`Spawn`. While not strictly a migration-helping change, this allows you
+to abstract away `Throwable` in parts of your code that don't need to know what the exact error type is.
+
 
 ### Effect, ConcurrentEffect, SyncEffect
 
@@ -353,9 +412,9 @@ def continual[F[_]: MonadCancelThrow, A, B](fa: F[A])(
 
 #### Dispatcher
 
-todo - Gavin wrote about this
+Not written yet. See [the docs for now](./std/dispatcher.md).
 
-<!-- todo -->
+<!-- todo - Gavin wrote about this in the issue-->
 
 ### ContextShift
 
@@ -363,6 +422,8 @@ todo - Gavin wrote about this
 | ------------------------ | ------------------------- |
 | `ContextShift[F].shift`  | nothing / `Spawn[F].cede` |
 | `ContextShift[F].evalOn` | `Async[F].evalOn`         |
+
+This section isn't written yet. Follow the Scaladoc of the methods mentioned.
 
 <!-- todo CS is gone! 🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴 -->
 
@@ -388,13 +449,17 @@ Yielding back to the scheduler can now be done with `Spawn[F].cede`.
 | `Fiber[F, A]`            | `Fiber[F, E, A]`               |
 | `Fiber[F, A].join: F[A]` | `Fiber[F, E, A]`.joinWithNever |
 
+This section isn't written yet. Please follow the Scaladoc and see [Spawn](./typeclasses/spawn.md)
 <!-- todo -->
+<!-- todo link spawn docs because they have a lot of fiber info -->
 
 ### Sync
 
 | Cats Effect 2.x   | Cats Effect 3   |
 | ----------------- | --------------- |
 | `Sync[F].suspend` | `Sync[F].defer` |
+
+This section isn't written yet. Please follow the Scaladoc.
 
 ### IO
 
@@ -413,6 +478,9 @@ Yielding back to the scheduler can now be done with `Spawn[F].cede`.
 | `IO.shift`                        | See [below](#shifting)                         |                                                        |
 | `IO.cancelBoundary`               | `IO.cede`                                      | Also [performs a yield](#shifting)                     |
 
+This section isn't written yet. Check out [the tutorial](./tutorial.md).
+<!-- todo runtime -->
+
 ### Resource
 
 | Cats Effect 2.x                      | Cats Effect 3                | Notes                                                    |
@@ -421,27 +489,43 @@ Yielding back to the scheduler can now be done with `Spawn[F].cede`.
 | `Resource.liftF`                     | `Resource.eval`              |                                                          |
 | `Resource.fromAutoCloseableBlocking` | `Resource.fromAutoCloseable` | The method always uses `blocking` for the cleanup action |
 
+This section isn't written yet. Follwo the Scaladoc.
+
+<!-- todo -->
+
 ### Timer
 
-| Cats Effect 2.x  | Cats Effect 3       | Notes |
-| ---------------- | ------------------- | ----- |
-| `Timer[F].clock` | `Clock[F]`          |       |
-| `Timer[F].sleep` | `Temporal[F].sleep` |       |
+| Cats Effect 2.x  | Cats Effect 3       |
+| ---------------- | ------------------- |
+| `Timer[F].clock` | `Clock[F]`          |
+| `Timer[F].sleep` | `Temporal[F].sleep` |
 
-### TODO: IOApp
+This section isn't written yet. Check out [`Temporal`](./typeclasses/temporal.md).
+
+<!-- todo -->
+### IOApp
+
+
+<!-- todo -->
 
 ### Tracing
 
+Currently, improved stack traces are not implemented.
+There is currently [work in progress](https://github.com/typelevel/cats-effect/pull/1763) to bring them back.
+
 ### Deferred
+
+This section hasn't been written yet.
+
+The important change is that `complete` no longer fails when the Deferred has already been completed already, but instead succeeds with `false`.
+
+Follow the Scaladoc for more.
 
 <!-- todo - complete doesn't fail anymore -->
 
 <!-- also check if https://github.com/scala-steward-org/scala-steward/pull/1940 has anything we don't -->
 
 <!--  -->
-
-Currently, improved stack traces are not implemented.
-There is currently [work in progress](https://github.com/typelevel/cats-effect/pull/1763) to bring them back.
 
 ## Test your application
 
@@ -451,6 +535,10 @@ running integration/end to end tests, manual testing, canary deployments and any
 typically be done in your environment.
 
 Enjoy using Cats Effect 3!
+
+## FAQ / Examples
+
+This section will include examples of typical errors encountered during the migration and their solutions.
 
 [sbt]: https://scala-sbt.org
 [scalafix]: https://scalacenter.github.io/scalafix/
