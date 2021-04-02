@@ -503,8 +503,8 @@ This section isn't written yet. Follwo the Scaladoc.
 This section isn't written yet. Check out [`Temporal`](./typeclasses/temporal.md).
 
 <!-- todo -->
-### IOApp
 
+### IOApp
 
 <!-- todo -->
 
