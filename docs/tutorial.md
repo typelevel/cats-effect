@@ -565,7 +565,7 @@ which are the basic building block of cats-effect concurrency.
 
 ### Intro to fibers
 A fiber carries an `F` action to execute (typically an `IO` instance). Fibers
-are like 'light' threads, meaning they can be used in a similar way than threads
+are like 'light' threads, meaning they can be used in a similar way as threads
 to create concurrent code. However, they are _not_ threads. Spawning new fibers
 does not guarantee that the action described in the `F` associated to it will be
 run if there is a shortage of threads. Internally cats-effect uses thread pools
