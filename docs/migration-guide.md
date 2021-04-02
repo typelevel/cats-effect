@@ -353,27 +353,32 @@ Because `Clock` is no longer a "usual" value but a type class, it's not possible
 | `Concurrent.parTraverseN`                   | `Concurrent[F].parTraverseN`    |                                                |
 | `Concurrent.parSequenceN`                   | `Concurrent[F].parSequenceN`    |                                                |
 
-This is arguably the most changed type class.
+This is arguably the most changed type class. Similarly to `Async`, it is [no longer related to `LiftIO`](#relationship-with-liftio).
 
-Some of its operations have been moved to other type classes:
+The primitive operations that used to be `Concurrent` have all been moved to other type classes:
 
 - `Spawn` - a new type class, responsible for creating new fibers and racing them ([see more in `Spawn` docs](./typeclasses/spawn.md))
 - `Async` - `cancelable` has been merged with `async`, so it ended up there. This was discussed in [the `Async` part of the guide](#async).
 - `Temporal` - another new type class which extends `Concurrent` (so it's actually more powerful) with the ability to sleep. This is [the replacement of `Timer`](#timer).
 
+The remaining part of `Concurrent` are the ability to create `Ref`s and `Deferred`s, which (together with the `Spawn` methods) enable the implementation of `memoize`.
+
 If you're only using methods from `Spawn` or `Temporal`, you might be able to reduce your type class constraints to these.
 
 #### Place in the hierarchy
 
-If you recall [the type class hierarchy](#new-type-class-hierarchy), `Concurrent` is no longer below `Async` and `Sync` - it's above them.
-This means `Concurrent` can no longer perform any kind of `FFI` on its own, and if you don't have `Sync` or `Async` in scope you can't even `delay`.
+If you recall [the type class hierarchy](#new-type-class-hierarchy), `Concurrent` is no longer a child of `Async` and `Sync` - it's one of their parents.
+
+This means `Concurrent` can no longer perform any kind of FFI on its own, and if you don't have `Sync` or `Async` in scope you can't even `delay`.
 This allows writing code that deals with concurrency without enabling suspension of arbitrary side effects in the given region of your code.
 
-For the migration purposes, this means you might have to replace some `F[_]: Concurrent` constraints with `F[_]: Async`.
+For the migration purposes, this means you might have to replace some `F[_]: Concurrent` constraints with `F[_]: Async`, if you rely on `async`/`delay`.
 
-#### continual
+#### `continual`
 
-<!-- todo explain -->
+`Concurrent#continual` has been removed, as it was deemed the wrong tool for most use-cases.
+
+If you desperately need it, here's a polyfill implementation you can use for the migration:
 
 ```scala mdoc
 import cats.effect.kernel.MonadCancel
@@ -386,6 +391,9 @@ def continual[F[_]: MonadCancelThrow, A, B](fa: F[A])(
   poll(fa).attempt.flatMap(f)
 }
 ```
+
+> Note: It's recommended to use `uncancelable { poll => ... }`, `bracketCase` and `onCancel` directly instead.
+> Learn more in [`MonadCancel` docs](./typeclasses/monadcancel.md).
 
 #### `GenConcurrent`
 
