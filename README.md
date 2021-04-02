@@ -45,8 +45,7 @@ Cats Effect provides backward binary compatibility within the 2.x and 3.x versio
 
 ### Moving from cats-effect 1.x / 2.x?
 
-<!-- this is probably a bad link -->
-Check out the [migration guide](./migration-guide.md)!
+Check out the [migration guide](https://typelevel.org/cats-effect/docs/migration-guide)!
 
 ## Hello, World
 
