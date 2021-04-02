@@ -498,7 +498,7 @@ This section isn't written yet. Check out [the tutorial](./tutorial.md).
 | `Resource.liftF`                     | `Resource.eval`              |                                                          |
 | `Resource.fromAutoCloseableBlocking` | `Resource.fromAutoCloseable` | The method always uses `blocking` for the cleanup action |
 
-This section isn't written yet. Follwo the Scaladoc.
+This section isn't written yet. Follow the Scaladoc.
 
 <!-- todo -->
 
