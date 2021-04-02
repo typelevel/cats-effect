@@ -157,7 +157,7 @@ have to be cancelable to pass the laws.
 
 A major outcome of this decision is that the `async` method supports cancelation. Here's the new signature:
 
-```scala mdoc
+```scala
 trait Async[F[_]] {
   def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A]
 }
@@ -171,9 +171,9 @@ We can divide the parameter `k` into the following:
 
 The most similar method to this in CE2 would be `Concurrent.cancelableF`:
 
-```scala mdoc
+```scala
 // CE2!
-def cancelableF[F[_], A](k: (Either[Throwable, A] => Unit) => F[F[Unit]]) = ???
+def cancelableF[F[_], A](k: (Either[Throwable, A] => Unit) => F[F[Unit]])
 ```
 
 The only difference being that there was always an effect for cancelation - now it's optional (the `F` inside `F`).
@@ -271,14 +271,24 @@ def myBlocking[A](fa: IO[A]) = fa.evalOn(myBlockingPool)
 
 ### Bracket
 
-| Cats Effect 2.x               | Cats Effect 3                          | Notes                       |
-| ----------------------------- | -------------------------------------- | --------------------------- |
-| `Bracket[F].bracket`          | `MonadCancel[F].bracket`               |                             |
-| `Bracket[F].bracketCase`      | `MonadCancel[F].bracketCase`           | `ExitCase` is now `Outcome` |
-| `Bracket[F].uncancelable(fa)` | `MonadCancel[F].uncancelable(_ => fa)` |                             |
-| `Bracket[F].guarantee`        | `MonadCancel[F].guarantee`             |                             |
-| `Bracket[F].guaranteeCase`    | `MonadCancel[F].guaranteeCase`         | `ExitCase` is now `Outcome` |
-| `Bracket[F].onCancel`         | `MonadCancel[F].onCancel`              |                             |
+| Cats Effect 2.x               | Cats Effect 3                          | Notes                                          |
+| ----------------------------- | -------------------------------------- | ---------------------------------------------- |
+| `Bracket[F].bracket`          | `MonadCancel[F].bracket`               |                                                |
+| `Bracket[F].bracketCase`      | `MonadCancel[F].bracketCase`           | [`ExitCase` is now `Outcome`](#exitcase-fiber) |
+| `Bracket[F].uncancelable(fa)` | `MonadCancel[F].uncancelable(_ => fa)` |                                                |
+| `Bracket[F].guarantee`        | `MonadCancel[F].guarantee`             |                                                |
+| `Bracket[F].guaranteeCase`    | `MonadCancel[F].guaranteeCase`         | [`ExitCase` is now `Outcome`](#exitcase-fiber) |
+| `Bracket[F].onCancel`         | `MonadCancel[F].onCancel`              |                                                |
+
+`Bracket` has mostly been renamed to `MonadCancel`. The `bracketCase` method is no longer a primitive, and is derived from
+the primitives `uncancelable` and `onCancel`.
+
+If you were using `uncancelable` using the extension method syntax, you can continue to do so without any changes.
+In the case of usage through `Bracket[F, E]`, you can use the new method but ignoring the parameter provided in the lambda (see table above).
+
+To learn what the new signature of `uncancelable` means and how you can use it in your programs after the migration, see [`MonadCancel` docs](./typeclasses/monadcancel.md).
+
+Another important change is replacing `ExitCase` with `Outcome`. Learn more [below](#exitcase-fiber).
 
 ### Clock
 
@@ -316,7 +326,7 @@ def myBlocking[A](fa: IO[A]) = fa.evalOn(myBlockingPool)
 
 <!-- todo explain -->
 
-```scala mdoc:reset
+```scala mdoc
 import cats.effect.kernel.MonadCancel
 import cats.effect.kernel.MonadCancelThrow
 import cats.syntax.all._
@@ -377,8 +387,6 @@ Yielding back to the scheduler can now be done with `Spawn[F].cede`.
 | `Fiber[F, A]`            | `Fiber[F, E, A]`               |
 | `Fiber[F, A].join: F[A]` | `Fiber[F, E, A]`.joinWithNever |
 
-#### Outcome
-
 <!-- todo -->
 
 ### Sync
@@ -398,7 +406,7 @@ Yielding back to the scheduler can now be done with `Spawn[F].cede`.
 | `IO.unsafeRunCancelable`          | `start.unsafeRunSync.cancel`                   |                                                        |
 | `IO.unsafeRunTimed`               | -                                              |                                                        |
 | `IO.background`                   | The same                                       | Value in resource is now an `Outcome`                  |
-| `IO.guaranteeCase`/`bracketCase`  | The same                                       | [`ExitCase` is now `Outcome`](#outcome)                |
+| `IO.guaranteeCase`/`bracketCase`  | The same                                       | [`ExitCase` is now `Outcome`](#exitcase-fiber)         |
 | `IO.parProduct`                   | `IO.both`                                      |                                                        |
 | `IO.suspend`                      | `IO.defer`                                     |                                                        |
 | `IO.shift`                        | See [below](#shifting)                         |                                                        |
