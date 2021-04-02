@@ -199,14 +199,76 @@ Please refer to each library's appropriate documentation/changelog to see how to
 
 ### Blocker
 
-| Cats Effect 2.x           | Cats Effect 3                                                  | Notes                                   |
-| ------------------------- | -------------------------------------------------------------- | --------------------------------------- |
-| `Blocker.apply`           | -                                                              | blocking pool is provided by runtime    |
-| `Blocker.delay`           | `Sync[F].blocking`                                             | `Blocker` was removed                   |
-| `Blocker(ec).blockOn(fa)` | `Async[F].evalOn(fa, ec)`                                      | You can probably use `Sync[F].blocking` |
-| `Blocker.blockOnK`        | For blocking actions on a specific pool, use `Async[F].evalOn` |                                         |
+| Cats Effect 2.x           | Cats Effect 3                                                  | Notes                                                                           |
+| ------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `Blocker.apply`           | -                                                              | blocking pool is [provided by runtime](#where-does-the-blocking-pool-come-from) |
+| `Blocker.delay`           | `Sync[F].blocking`/`Sync[F].interruptible`                     | `Blocker` was removed                                                           |
+| `Blocker(ec).blockOn(fa)` | `Async[F].evalOn(fa, ec)`                                      | You can probably use `Sync[F].blocking`                                         |
+| `Blocker.blockOnK`        | For blocking actions on a specific pool, use `Async[F].evalOn` |                                                                                 |
 
-<!-- todo notes -->
+`Blocker` has been removed. Instead of that, you should either use your specific effect type's method of blocking...
+
+```scala mdoc
+import cats.effect.IO
+import cats.effect.Sync
+
+val program = IO.blocking(println("hello blocking!"))
+```
+
+or the [`Sync`](./typeclasses/sync.md) typeclass:
+
+```scala mdoc
+val programSync = Sync[IO].blocking(println("hello Sync blocking!"))
+```
+
+#### No `blockOn`?
+
+It should be noted that `blockOn` is missing. There is now no _standard_ way to wrap an effect and move it to a blocking pool,
+but instead it's recommended that you wrap every blocking action in `blocking` separately.
+
+If you _absolutely_ need to run a whole effect on a blocking pool, you can pass a blocking `ExecutionContext` to `Async[F].evalOn`.
+
+> **Important note**: An effect wrapped with `evalOn` can still schedule asynchronous actions on any other threads.
+> The only actions impacted by `evalOn` will be the ones that would otherwise run on the compute pool
+> (because `evalOn`, in fact, changes the compute pool for a duration of the given effect).
+>
+> This is actually safer than CE2's `blockOn`, because after any `async` actions inside the effect,
+> the rest of the effect will be shifted to the selected pool. Learn more about [shifting in CE3](#shifting).
+
+```scala mdoc
+import scala.concurrent.ExecutionContext
+
+def myBlockingPool: ExecutionContext = ???
+
+def myBlocking[A](fa: IO[A]) = fa.evalOn(myBlockingPool)
+```
+
+#### Interruptible blocking
+
+It is now possible to make the blocking task interruptible using [`Sync`](./typeclasses/sync.md):
+
+```scala mdoc
+// many: whether it's okay to try interrupting more than once
+val programInterruptible = Sync[IO].interruptible(many = false)(println("hello Sync blocking!"))
+```
+
+#### Where does the blocking pool come from?
+
+The blocking thread pool, similarly to the compute pool, is provided in `IORuntime` when you run your `IO`.
+For other effect systems it could be a `Runtime` or `Scheduler`, etc. You can learn more about CE3 [schedulers](./schedulers.md) and [the thread model in comparison to CE2's](./thread-model.md).
+
+```scala mdoc
+val runtime = cats.effect.unsafe.IORuntime.global
+
+def showThread() = java.lang.Thread.currentThread().getName()
+
+IO.blocking(showThread)
+  .product(
+    IO(showThread)
+  )
+  .unsafeRunSync()(runtime)
+```
+
 
 ### Bracket
 
@@ -268,6 +330,7 @@ def continual[F[_]: MonadCancelThrow, A, B](fa: F[A])(
 ```
 
 <!-- todo -->
+
 ### Effect, ConcurrentEffect, SyncEffect
 
 | Cats Effect 2.x       | Cats Effect 3 |
