@@ -103,10 +103,15 @@ parameterized by the return type). Now, let's start implementing our function.
 First, we need to open two streams that will read and write file contents.
 
 ### Acquiring and releasing `Resource`s
-We consider opening a stream to be a side-effect action, so we have to
-encapsulate those actions in their own `IO` instances. For this, we will make
-use of cats-effect `Resource`, that allows us to create, use and then
-release resources in an orderly fashion. See this code:
+We consider opening a stream to be a side-effectful action, so we have to
+encapsulate those actions in their own `IO` instances. We can just embed the
+actions by calling `IO(action)`, but when dealing with input/output actions it
+is advised to use instead `IO.blocking(action)`. This way we help cats-effect to
+better plan how to assign threads to actions. We will return to this topic when
+we introduce _fibers_ later on in this tutorial.
+
+Also, we will make use of cats-effect `Resource`. It allows to orderly create,
+use and then release resources. See this code:
 
 ```scala mdoc:compile-only
 import cats.effect.{IO, Resource}
@@ -114,16 +119,16 @@ import java.io._
 
 def inputStream(f: File): Resource[IO, FileInputStream] =
   Resource.make {
-    IO(new FileInputStream(f))                         // build
+    IO.blocking(new FileInputStream(f))                         // build
   } { inStream =>
-    IO(inStream.close()).handleErrorWith(_ => IO.unit) // release
+    IO.blocking(inStream.close()).handleErrorWith(_ => IO.unit) // release
   }
 
 def outputStream(f: File): Resource[IO, FileOutputStream] =
   Resource.make {
-    IO(new FileOutputStream(f))                         // build 
+    IO.blocking(new FileOutputStream(f))                         // build 
   } { outStream =>
-    IO(outStream.close()).handleErrorWith(_ => IO.unit) // release
+    IO.blocking(outStream.close()).handleErrorWith(_ => IO.unit) // release
   }
 
 def inputOutputStreams(in: File, out: File): Resource[IO, (InputStream, OutputStream)] =
@@ -273,10 +278,7 @@ def transmit(origin: InputStream, destination: OutputStream, buffer: Array[Byte]
   } yield count // Returns the actual amount of bytes transmitted
 
 def transfer(origin: InputStream, destination: OutputStream): IO[Long] =
-  for {
-    buffer <- IO(new Array[Byte](1024 * 10)) // Allocated only when the IO is evaluated
-    total  <- transmit(origin, destination, buffer, 0L)
-  } yield total
+  transmit(origin, destination, new Array[Byte](1024 * 10), 0L)
 ```
 
 Take a look at `transmit`, observe that both input and output actions are
@@ -307,95 +309,19 @@ cancelation in the next section.
 
 ### Dealing with cancelation
 Cancelation is a powerful but non-trivial cats-effect feature. In cats-effect,
-some `IO` instances can be canceled ( _e.g._ by other `IO` instaces running
+some `IO` instances can be canceled ( _e.g._ by other `IO` instances running
 concurrently) meaning that their evaluation will be aborted. If the programmer is
 careful, an alternative `IO` task will be run under cancelation, for example to
 deal with potential cleaning up activities.
 
-Now, `IO`s created with `Resource.use` can be canceled. The cancelation will
-trigger the execution of the code that handles the closing of the resource. In
-our case, that would close both streams. So far so good! But what happens if
-cancelation happens _while_ the streams are being used? This could lead to data
-corruption as some thread is writing to the stream while at the same time
-another thread is trying to close it.
- 
-To prevent such data corruption we must use some concurrency control mechanism
-that ensures that no stream will be closed while the `IO` returned by `transfer`
-is being evaluated.  Cats-effect provides several constructs for controlling
-concurrency, for this case we will use a _semaphore_. A semaphore has a number
-of permits, its method `.acquire` 'blocks' if no permit is available until
-`release` is called on the same semaphore. It is important to remark that _there
-is no actual thread being really blocked_, the thread that finds the `.acquire`
-call will be immediately recycled by cats-effect. When the `release` method is
-invoked then cats-effect will look for some available thread to resume the
-execution of the code after `.acquire`.
- 
-We will use a semaphore with a single permit. The `.permit` method acquires one
-permit as a `Resource` instance that will acquire the single permit, runs the
-`IO` given and then releases the permit. We could also use `.acquire` and then
-`.release` on the semaphore explicitly, but `.permit` is more idiomatic and
-ensures that the permit is released even if the effect run fails.
-
-```scala mdoc:compile-only
-import cats.effect.{IO, Resource}
-import cats.effect.std.Semaphore
-import java.io._
-
-// transfer and transmit methods as defined before
-def transfer(origin: InputStream, destination: OutputStream): IO[Long] = ???
-
-def inputStream(f: File, guard: Semaphore[IO]): Resource[IO, FileInputStream] =
-  Resource.make {
-    IO(new FileInputStream(f))
-  } { inStream => 
-    guard.permit.use { _ =>
-      IO(inStream.close()).handleErrorWith(_ => IO.unit)
-    }
-  }
-
-def outputStream(f: File, guard: Semaphore[IO]): Resource[IO, FileOutputStream] =
-  Resource.make {
-    IO(new FileOutputStream(f))
-  } { outStream =>
-    guard.permit.use { _ =>
-      IO(outStream.close()).handleErrorWith(_ => IO.unit)
-    }
-  }
-
-def inputOutputStreams(in: File, out: File, guard: Semaphore[IO]): Resource[IO, (InputStream, OutputStream)] =
-  for {
-    inStream  <- inputStream(in, guard)
-    outStream <- outputStream(out, guard)
-  } yield (inStream, outStream)
-
-def copy(origin: File, destination: File): IO[Long] = {
-  for {
-    guard <- Semaphore[IO](1)
-    count <- inputOutputStreams(origin, destination, guard).use { case (in, out) => 
-      guard.permit.use { _ =>
-        transfer(in, out)
-      }
-    }
-  } yield count
-}
-```
-
-Before calling to `transfer` we acquire the semaphore, which is not released
-until `transfer` is done. The `use` call ensures that the semaphore will be
-released under any circumstances, whatever the result of `transfer` (success,
-error, or cancelation). As the 'release' parts in the `Resource` instances are
-now blocked on the same semaphore, we can be sure that streams are closed only
-after `transfer` is over, _i.e._ we have implemented mutual exclusion of
-`transfer` execution and resources releasing.
-
-Mark that while the `IO` returned by `copy` is cancelable (because so are `IO`
-instances returned by `Resource.use`), the `IO` returned by `transfer` is not.
-Trying to cancel it will not have any effect and that `IO` will run until the
-whole file is copied! That is an important limitation, in real world code you
-will probably want to make your functions cancelable.
-
-And that is it! We are done, now we can create a program that uses this
-`copy` function.
+Thankfully, `Resource` makes dealing with cancelation an easy task. If the `IO`
+inside a `Resource.use` is canceled, the release section of that resource is
+run. In our example this means the input and output streams will be properly
+closed. Also, cats-effect does not cancel code inside `IO.blocking` instances.
+In the case of our `transmit` function this means the execution would be
+interrupted only between two calls to `IO.blocking`. If we want the execution of
+an IO instance to be interrupted when canceled, without waiting for it to
+finish, we must instantiate it using `IO.interruptible`.
 
 ### `IOApp` for our final program
 
@@ -457,9 +383,7 @@ at any time for example by pressing `Ctrl-c`, our code will deal with safe
 resource release (streams closing) even under such circumstances. The same will
 apply if the `copy` function is run from other modules that require its
 functionality. If the `IO` returned by this function is canceled while being
-run, still resources will be properly released. But recall what we commented on
-before: this is because `use` returns `IO` instances that are cancelable. By
-contrast, our `transfer` function is not cancelable.
+run, still resources will be properly released.
 
 ### Polymorphic cats-effect code
 There is an important characteristic of `IO` that we should be aware of. `IO` is
@@ -492,28 +416,22 @@ def transmit[F[_]: Sync](origin: InputStream, destination: OutputStream, buffer:
 ```
 
 We leave as an exercise to code the polymorphic versions of `inputStream`,
-`outputStream`, `inputOutputStreams`, `transfer` and `copy` functions. You will
-find that transformation similar to the one shown for `transfer` in the snippet
-above, but the function `copy` requires `F[_]: Async` instead of `F[_]:
-Sync`. This is because it not only suspends a side-effect, it uses
-functionality of semaphores that requires a `Concurrent` instance in (implicit)
-scope.  And `Sync` does _not_ extend `Concurrent` while `Async` does.
+`outputStream`, `inputOutputStreams`, `transfer` and `copy` functions.
 
 ```scala mdoc:compile-only
 import cats.effect._
-import cats.effect.std.Semaphore
 import java.io._
 
 def transmit[F[_]: Sync](origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): F[Long] = ???
 def transfer[F[_]: Sync](origin: InputStream, destination: OutputStream): F[Long] = ???
-def inputStream[F[_]: Sync](f: File, guard: Semaphore[F]): Resource[F, FileInputStream] = ???
-def outputStream[F[_]: Sync](f: File, guard: Semaphore[F]): Resource[F, FileOutputStream] = ???
-def inputOutputStreams[F[_]: Sync](in: File, out: File, guard: Semaphore[F]): Resource[F, (InputStream, OutputStream)] = ???
-def copy[F[_]: Async](origin: File, destination: File): F[Long] = ???
+def inputStream[F[_]: Sync](f: File): Resource[F, FileInputStream] = ???
+def outputStream[F[_]: Sync](f: File): Resource[F, FileOutputStream] = ???
+def inputOutputStreams[F[_]: Sync](in: File, out: File): Resource[F, (InputStream, OutputStream)] = ???
+def copy[F[_]: Sync](origin: File, destination: File): F[Long] = ???
 ```
 
 Only in our `main` function we will set `IO` as the final `F` for our program.
-To do so, of course, an `Async[IO]` instance must be in scope, but that instance
+To do so, of course, a `Sync[IO]` instance must be in scope, but that instance
 is brought transparently by `IOApp` so we do not need to be concerned about it.
 
 During the remainder of this tutorial we will use polymorphic code, only falling
@@ -539,8 +457,12 @@ your IO-kungfu:
    before overwriting that file.
 2. Modify `transmit` so the buffer size is not hardcoded but passed as
    parameter.
-3. Use some other concurrency tool of cats-effect instead of `semaphore` to
-   ensure mutual exclusion of `transfer` execution and streams closing.
+3. Test safe cancelation, checking that the streams are indeed being properly
+   closed. You can do that just by interrupting the program execution pressing
+   `Ctrl-c`. To make sure you have the time to interrupt the program, introduce
+   a delay of a few seconds in the `transmit` function (see `IO.sleep`). And to
+   ensure that the release functionality in the `Resource`s is run you can add
+   some log message there (see `IO.println`).
 4. Create a new program able to copy folders. If the origin folder has
    subfolders, then their contents must be recursively copied too. Of course the
    copying must be safely cancelable at any moment.
@@ -588,8 +510,7 @@ Another difference with threads is that fibers are very cheap entities. We can
 spawn millions of them at ease without impacting the performance. 
 
 Cats-effect implements some concurrency primitives to coordinate concurrent
-fibers: [Deferred](std/deferred.md), [Ref](std/ref.md), `Semaphore`
-(semaphores we already discussed in the first part of this tutorial)...
+fibers: [Deferred](std/deferred.md), [Ref](std/ref.md), `Semaphore`...
 
 Way more detailed info about concurrency in cats-effect can be found in [this
 other tutorial 'Concurrency in Scala with
@@ -677,7 +598,7 @@ import collection.immutable.Queue
 object InefficientProducerConsumer extends IOApp {
 
   def producer[F[_]: Sync](queueR: Ref[F, Queue[Int]], counter: Int): F[Unit] = ??? // As defined before
-  def consumer[F[_] : Sync](queueR: Ref[F, Queue[Int]]): F[Unit] = ??? // As defined before
+  def consumer[F[_]: Sync](queueR: Ref[F, Queue[Int]]): F[Unit] = ??? // As defined before
 
   override def run(args: List[String]): IO[ExitCode] =
     for {
@@ -713,7 +634,7 @@ import collection.immutable.Queue
 object InefficientProducerConsumer extends IOApp {
 
   def producer[F[_]: Sync](queueR: Ref[F, Queue[Int]], counter: Int): F[Unit] = ??? // As defined before
-  def consumer[F[_] : Sync](queueR: Ref[F, Queue[Int]]): F[Unit] = ??? // As defined before
+  def consumer[F[_]: Sync](queueR: Ref[F, Queue[Int]]): F[Unit] = ??? // As defined before
 
   def run(args: List[String]): IO[ExitCode] =
     for {
