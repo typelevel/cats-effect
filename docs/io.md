@@ -66,12 +66,18 @@ We build our program description by using various `IO` constructs, most importan
 Here is an example snippet (remember that for-comprehension is syntactic sugar for a chain of `flatMap`s followed by a `map`):
 
 ```scala mdoc
+import cats.effect.IO
+
+trait User
+trait Response
+trait Unit
+
 def getUserFromDatabase(): IO[User] = ???
 def sendHttpRequest(user: User): IO[Response] = ???
 def logResponse(response: Response): IO[Unit] = ???
 
-val ourProgram = for {
-  user <- getUserFromDatabase
+lazy val ourProgram = for {
+  user <- getUserFromDatabase()
   response <- sendHttpRequest(user)
   _ <- logResponse(response)
 } yield response
