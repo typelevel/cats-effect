@@ -284,14 +284,14 @@ def myBlocking[A](fa: IO[A]) = fa.evalOn(myBlockingPool)
 
 ### Bracket
 
-| Cats Effect 2.x               | Cats Effect 3                          | Notes                                          |
-| ----------------------------- | -------------------------------------- | ---------------------------------------------- |
-| `Bracket[F].bracket`          | `MonadCancel[F].bracket`               |                                                |
-| `Bracket[F].bracketCase`      | `MonadCancel[F].bracketCase`           | [`ExitCase` is now `Outcome`](#exitcase-fiber) |
-| `Bracket[F].uncancelable(fa)` | `MonadCancel[F].uncancelable(_ => fa)` |                                                |
-| `Bracket[F].guarantee`        | `MonadCancel[F].guarantee`             |                                                |
-| `Bracket[F].guaranteeCase`    | `MonadCancel[F].guaranteeCase`         | [`ExitCase` is now `Outcome`](#exitcase-fiber) |
-| `Bracket[F].onCancel`         | `MonadCancel[F].onCancel`              |                                                |
+| Cats Effect 2.x               | Cats Effect 3                          | Notes                                    |
+| ----------------------------- | -------------------------------------- | ---------------------------------------- |
+| `Bracket[F].bracket`          | `MonadCancel[F].bracket`               |                                          |
+| `Bracket[F].bracketCase`      | `MonadCancel[F].bracketCase`           | [`ExitCase` is now `Outcome`](#exitcase) |
+| `Bracket[F].uncancelable(fa)` | `MonadCancel[F].uncancelable(_ => fa)` |                                          |
+| `Bracket[F].guarantee`        | `MonadCancel[F].guarantee`             |                                          |
+| `Bracket[F].guaranteeCase`    | `MonadCancel[F].guaranteeCase`         | [`ExitCase` is now `Outcome`](#exitcase) |
+| `Bracket[F].onCancel`         | `MonadCancel[F].onCancel`              |                                          |
 
 `Bracket` has mostly been renamed to `MonadCancel`, and the migration should be straightforward.
 The `bracketCase` method is no longer a primitive, and is derived from
@@ -303,7 +303,7 @@ In the case of usage through `Bracket[F, E]`, you can use the new method but ign
 To learn what the new signature of `uncancelable` means, how you can use it in your programs after the migration, and other things about `MonadCancel`,
 see [its docs](./typeclasses/monadcancel.md).
 
-Another important change is replacing `ExitCase` with `Outcome`. Learn more [below](#exitcase-fiber).
+Another important change is replacing `ExitCase` with `Outcome`. Learn more [below](#exitcase).
 
 ### Clock
 
@@ -455,6 +455,7 @@ trait LibraryInterface {
 In CE2 you could run an effect in `addListener` using `Effect` like this:
 
 ```scala
+// CE2
 def addListenerF[F[_]: Effect](
   interface: LibraryInterface,
   listener: String => F[Unit]
@@ -473,6 +474,7 @@ import cats.effect.Sync
 import cats.effect.std.Dispatcher
 import cats.effect.syntax.all._
 
+// CE3
 def addListenerF[F[_]: Async](
   interface: LibraryInterface,
   listener: String => F[Unit]
@@ -546,8 +548,51 @@ the method's type is now `F[Boolean]`, which will complete with `false` if there
 | `Fiber[F, A]`            | `Fiber[F, E, A]`               |
 | `Fiber[F, A].join: F[A]` | `Fiber[F, E, A].joinWithNever` |
 
-This section isn't written yet. Please follow the Scaladoc and see [Spawn](./typeclasses/spawn.md)
-<!-- todo -->
+#### `ExitCase`
+
+In CE2, the final status of an effect's execution was represented as `ExitCase`:
+
+```scala
+// CE2
+sealed trait ExitCase[+E]
+case object Completed extends ExitCase[Nothing]
+final case class Error[+E](e: E) extends ExitCase[E]
+case object Canceled extends ExitCase[Nothing]
+```
+
+The closest type corresponding to it in CE3 is `Outcome`:
+
+```scala
+// CE3
+sealed trait Outcome[F[_], E, A]
+final case class Succeeded[F[_], E, A](fa: F[A]) extends Outcome[F, E, A]
+final case class Errored[F[_], E, A](e: E) extends Outcome[F, E, A]
+final case class Canceled[F[_], E, A]() extends Outcome[F, E, A]
+```
+
+If we ignore the various differences in type parameter variance (which were mostly added for better Scala 3 support),
+the elephant in the room is `Succeeded` (the new `Completed`) - it has an `F[A]` field, which will contain the value the effect produced in the successful case. This means methods like `bracketCase` / `Resource.allocateCase` can use this result when cleaning up the resource.
+
+If you're simply migrating code that was using these methods, just renaming to the appropriate new names (and possibly fixing some pattern matches)
+should get you to a compiling state. For more information about Outcome, see [`Spawn` docs](./typeclasses/spawn.md).
+
+#### `Fiber`
+
+Mostly unchanged, `Fiber` still has a `cancel` method, and a `join` method:
+
+```scala
+trait Fiber[F[_], E, A] {
+  def cancel: F[Unit]
+  def join: F[Outcome[F, E, A]]
+}
+```
+
+However, there are still some differences here: first of all, `join` doesn't just return `F[A]`, but the whole `Outcome` of it.
+This is also why `Fiber` got the extra type parameter `A`.
+
+In CE2, the `F[A]` type of `join` meant that in case the fiber was canceled, `join` would never complete.
+That behavior is still available as `joinWithNever` (you can learn more about it [in `Spawn` docs](./typeclasses/spawn.md)),
+but it's often safer to move away from it and pass an explicit cancelation handler (for example, a failing one) using `fiber.joinWith(onCancel: F[A])`.
 
 ### Sync
 
@@ -564,7 +609,7 @@ This section isn't written yet. Please follow the Scaladoc and see [Spawn](./typ
 | `IO#unsafe*`                      | The same or similar                            | Methods that run an IO require an implicit `IORuntime` |
 | `IO#unsafeRunTimed`               | -                                              |                                                        |
 | `IO#background`                   | The same                                       | Value in resource is now an `Outcome`                  |
-| `IO#guaranteeCase`/`bracketCase`  | The same                                       | [`ExitCase` is now `Outcome`](#exitcase-fiber)         |
+| `IO#guaranteeCase`/`bracketCase`  | The same                                       | [`ExitCase` is now `Outcome`](#exitcase)               |
 | `IO#parProduct`                   | `IO#both`                                      |                                                        |
 | `IO.suspend`                      | `IO.defer`                                     |                                                        |
 | `IO.shift`                        | See [shifting](#shifting)                      |                                                        |
@@ -592,10 +637,6 @@ Note that some of your direct `unsafeRun*` calls might be possible to replace wi
 | `Resource.parZip`                    | `Resource.both`              |                                                          |
 | `Resource.liftF`                     | `Resource.eval`              |                                                          |
 | `Resource.fromAutoCloseableBlocking` | `Resource.fromAutoCloseable` | The method always uses `blocking` for the cleanup action |
-
-This section isn't written yet. Follow the Scaladoc.
-
-<!-- todo -->
 
 ### Timer
 
