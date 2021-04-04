@@ -17,6 +17,7 @@
 package cats.effect
 
 import cats.syntax.all._
+import cats.effect.std.Semaphore
 
 import org.scalacheck.Prop.forAll
 
@@ -26,7 +27,7 @@ import org.specs2.mutable.Specification
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-import java.util.concurrent.{CountDownLatch, Executors}
+import java.util.concurrent.{CancellationException, CountDownLatch, Executors}
 import java.util.concurrent.CompletableFuture
 
 abstract class IOPlatformSpecification extends Specification with ScalaCheck with Runners {
@@ -213,6 +214,46 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
           } yield now.toEpochMilli == realTime.toMillis
 
           op must completeAs(true)
+      }
+
+      "cancel all inner effects when canceled" in ticked { implicit ticker =>
+        val deadlock = for {
+          gate1 <- Semaphore[IO](2)
+          _ <- gate1.acquireN(2)
+
+          gate2 <- Semaphore[IO](2)
+          _ <- gate2.acquireN(2)
+
+          io = IO {
+            // these finalizers never return, so this test is intentionally designed to hang
+            // they flip their gates first though; this is just testing that both run in parallel
+            val a = (gate1.release *> IO.never) onCancel {
+              gate2.release *> IO.never
+            }
+
+            val b = (gate1.release *> IO.never) onCancel {
+              gate2.release *> IO.never
+            }
+
+            a.unsafeRunAndForget()
+            b.unsafeRunAndForget()
+          }
+
+          _ <- io.flatMap(_ => gate1.acquireN(2)).start
+          _ <- gate2.acquireN(2) // if both are not run in parallel, then this will hang
+        } yield ()
+
+        val test = for {
+          t <- IO(deadlock.unsafeToFutureCancelable())
+          (f, ct) = t
+          _ <- IO.fromFuture(IO(ct()))
+          _ <- IO.blocking(scala.concurrent.Await.result(f, Duration.Inf))
+        } yield ()
+
+        test.attempt.map {
+          case Left(t) => t.isInstanceOf[CancellationException]
+          case Right(_) => false
+        } must completeAs(true)
       }
 
     }
