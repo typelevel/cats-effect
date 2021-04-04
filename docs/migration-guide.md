@@ -426,7 +426,7 @@ All the `*Effect` type classes have been removed. Instead, the recommended way t
 
 This is something you might want to do in a situation where you have an effect, but a third-party library expects a callback that has to complete synchronously (or in a `scala.concurrent.Future`, or a Java future).
 
-You can get an instance of it with `Dispatcher.apply[F]` for any `F[_]: Async`, but keep in mind the shape of that method:
+You can get an instance of it with `Dispatcher.apply[F]` for any `F[_]: Async`:
 
 ```scala
 object Dispatcher {
@@ -434,9 +434,10 @@ object Dispatcher {
 }
 ```
 
-The resource returned here is related to the lifecycle of all tasks you run with a dispatcher.
-
-> Note: When this resource is closed, **all its running tasks are canceled**. This [might be configurable]() in a future release
+> Note: keep in mind the shape of that method: the resource is related to the lifecycle of all tasks you run with a dispatcher.
+> When this resource is closed, **all its running tasks are canceled**.
+>
+> This [might be configurable](https://github.com/typelevel/cats-effect/issues/1881) in a future release.
 
 Creating a `Dispatcher` is relatively lightweight, so you can create one even for each task you execute, but sometimes it's worth keeping a `Dispatcher` alive for longer.
 To find out more, see [its docs](./std/dispatcher.md).
