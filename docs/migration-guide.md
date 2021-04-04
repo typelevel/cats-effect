@@ -142,7 +142,7 @@ Assume this import for the rest of the guide:
 import cats.effect.unsafe.implicits.global
 ```
 
-Learn more about `global` about [in the `IO` section](#io).
+Learn more about `global` [in the `IO` section](#io).
 
 ### Async
 
@@ -548,7 +548,6 @@ the method's type is now `F[Boolean]`, which will complete with `false` if there
 
 This section isn't written yet. Please follow the Scaladoc and see [Spawn](./typeclasses/spawn.md)
 <!-- todo -->
-<!-- todo link spawn docs because they have a lot of fiber info -->
 
 ### Sync
 
@@ -560,21 +559,31 @@ This section isn't written yet. Please follow the Scaladoc and see [Spawn](./typ
 
 | Cats Effect 2.x                   | Cats Effect 3                                  | Notes                                                  |
 | --------------------------------- | ---------------------------------------------- | ------------------------------------------------------ |
-| `IO#as`                           | `IO.as` / `IO.map`                             | the argument isn't by-name anymore                     | <!-- todo https://github.com/typelevel/cats-effect/issues/1824 --> |
-| `IO.runAsync`, `IO.runCancelable` | Unsafe variants or [`Dispatcher`](#dispatcher) |                                                        |
-| `IO.unsafe*`                      | The same or [`Dispatcher`](#dispatcher)        | Methods that run an IO require an implicit `IORuntime` |
-| `IO.unsafeRunAsyncAndForget`      | `IO.unsafeRunAndForget`                        |                                                        |
-| `IO.unsafeRunCancelable`          | `start.unsafeRunSync.cancel`                   |                                                        |
-| `IO.unsafeRunTimed`               | -                                              |                                                        |
-| `IO.background`                   | The same                                       | Value in resource is now an `Outcome`                  |
-| `IO.guaranteeCase`/`bracketCase`  | The same                                       | [`ExitCase` is now `Outcome`](#exitcase-fiber)         |
-| `IO.parProduct`                   | `IO.both`                                      |                                                        |
+| `IO#as`                           | `IO.as(a)` / `IO.map(_ => a)`                  | the argument isn't by-name anymore                     |
+| `IO#runAsync`, `IO#runCancelable` | Unsafe variants or [`Dispatcher`](#dispatcher) | Methods that run an IO require an implicit `IORuntime` |
+| `IO#unsafe*`                      | The same or similar                            | Methods that run an IO require an implicit `IORuntime` |
+| `IO#unsafeRunTimed`               | -                                              |                                                        |
+| `IO#background`                   | The same                                       | Value in resource is now an `Outcome`                  |
+| `IO#guaranteeCase`/`bracketCase`  | The same                                       | [`ExitCase` is now `Outcome`](#exitcase-fiber)         |
+| `IO#parProduct`                   | `IO#both`                                      |                                                        |
 | `IO.suspend`                      | `IO.defer`                                     |                                                        |
-| `IO.shift`                        | See [below](#shifting)                         |                                                        |
+| `IO.shift`                        | See [shifting](#shifting)                      |                                                        |
 | `IO.cancelBoundary`               | `IO.cede`                                      | Also [performs a yield](#shifting)                     |
 
-This section isn't written yet. Check out [the tutorial](./tutorial.md).
-<!-- todo runtime -->
+Most changes in `IO` are straightforward, with the exception of the "unsafe" methods that cause an IO to be run.
+
+Aside from the renamings of these methods, they all now take an implicit `IORuntime`.
+
+```scala mdoc:fail:reset
+import cats.effect.IO
+
+def io: IO[Unit] = ???
+
+io.unsafeRunSync()
+```
+
+Follow the advice from the "missing implicit" error message whenever you need this functionality.
+Note that some of your direct `unsafeRun*` calls might be possible to replace with [`Dispatcher`](#dispatcher).
 
 ### Resource
 
@@ -595,20 +604,44 @@ This section isn't written yet. Follow the Scaladoc.
 | `Timer[F].clock` | `Clock[F]`          |
 | `Timer[F].sleep` | `Temporal[F].sleep` |
 
-This section isn't written yet. Check out [`Temporal`](./typeclasses/temporal.md).
+For `Clock`, see [the relevant part of the guide](#clock).
 
-<!-- todo -->
+Similarly to `Clock`, `Timer` has been replaced with a lawful type class, `Temporal`. Learn more in [its documentation](./typeclasses/temporal.md).
 
 ### IOApp
 
-<!-- todo -->
+| Cats Effect 2.x    | Cats Effect 3     |
+| ------------------ | ----------------- |
+| `executionContext` | `runtime.compute` |
+| `contextShift`     | -                 |
+| `timer`            | -                 |
+
+Instead of the `executionContext` used to build the `ContextShift` instance,
+you now have access to the `IORuntime` value that'll be used to run your program.
+
+Because `IO` only expects an `IORuntime` when you run it, there is always an instance of the `Temporal` and `Clock` type classes,
+so you don't need to pass `Timer[IO]` and `ContextShift[IO]` or `Concurrent[IO]` anymore:
+just use `IO.sleep` and other methods directly, no implicits involved.
+
+There's also a simpler variant of `IOApp` if you don't need the command line arguments or don't want to deal with exit codes:
+
+```scala mdoc
+import cats.effect.IO
+import cats.effect.IOApp
+
+object Demo extends IOApp.Simple {
+  def run: IO[Unit] = IO.println("hello Cats!")
+}
+```
+
+This change has been added to the Cats Effect 2 series in [2.4.0](https://github.com/typelevel/cats-effect/releases/tag/v2.4.0).
 
 ### Tracing
 
 Currently, improved stack traces are not implemented.
 There is currently [work in progress](https://github.com/typelevel/cats-effect/pull/1763) to bring them back.
 
-<!-- also check if https://github.com/scala-steward-org/scala-steward/pull/1940 has anything we don't -->
+<!-- todo also check if https://github.com/scala-steward-org/scala-steward/pull/1940 has anything we don't -->
 
 ## Test your application
 
