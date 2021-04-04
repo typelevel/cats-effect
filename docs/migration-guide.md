@@ -136,7 +136,7 @@ Most of the following are handled by [the Scalafix migration](#run-the-scalafix-
 > Note: package name changes were skipped from this guide. Most type classes are now in the `cats.effect.kernel` package,
 > but you can access them through `cats.effect.<the typeclass>` too thanks to type aliases.
 
-Assume these imports for the rest of the guide:
+Assume this import for the rest of the guide:
 
 ```scala mdoc
 import cats.effect.unsafe.implicits.global
@@ -402,7 +402,7 @@ The actual abstraction isn't `Concurrent` anymore, but rather a generalization o
 There are aliases set up in `cats.effect` and `cats.effect.kernel` to make it easier to use with `Throwable`, e.g.
 
 ```scala
-type Concurrent[F] = GenConcurrent[F, Throwable]
+type Concurrent[F[_]] = GenConcurrent[F, Throwable]
 ```
 
 The same pattern is followed by `GenTemporal`/`Temporal` and `GenSpawn`/`Spawn`. While not strictly a migration-helping change, this allows you
@@ -418,12 +418,70 @@ to abstract away `Throwable` in parts of your code that don't need to know what 
 | `Effect.toIOK`        | `Dispatcher`  |
 | `SyncEffect[F]`       | `Dispatcher`  |
 
+All the `*Effect` type classes have been removed. Instead, the recommended way to run a polymorphic effect is through a new interface, `Dispatcher`.
 
-#### Dispatcher
+#### `Dispatcher`
 
-Not written yet. See [the docs for now](./std/dispatcher.md).
+`Dispatcher` allows running an effect in a variety of ways, including running to a `Future` or running synchronously (only on the JVM).
 
-<!-- todo - Gavin wrote about this in the issue-->
+This is something you might want to do in a situation where you have an effect, but a third-party library expects a callback that has to complete synchronously (or in a `scala.concurrent.Future`, or a Java future).
+
+You can get an instance of it with `Dispatcher.apply[F]` for any `F[_]: Async`, but keep in mind the shape of that method:
+
+```scala
+object Dispatcher {
+  def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]]
+}
+```
+
+The resource returned here is related to the lifecycle of all tasks you run with a dispatcher. When this resource is closed, all the tasks are canceled.
+Creating a `Dispatcher` is relatively lightweight, so you can create one even for each task you execute, but sometimes it's worth keeping a `Dispatcher` alive for longer.
+To find out more, see [its docs](./std/dispatcher.md).
+
+For example, given a bogus library interface like this:
+
+```scala mdoc
+trait LibraryInterface {
+  def addListener(f: String => Unit): Unit
+  def run(): Unit // starts a task in the background
+  def shutdown(): Unit
+}
+```
+
+In CE2 you could run an effect in `addListener` using `Effect` like this:
+
+```scala
+def addListenerF[F[_]: Effect](
+  interface: LibraryInterface,
+  listener: String => F[Unit]
+): F[Unit] =
+  Sync[F].delay {
+    interface.addListener(str => listener(str).toIO.unsafeRunSync())
+    interface.run()
+  } *> Async[F].never.guarantee(Sync[F].delay(interface.shutdown()))
+```
+
+In CE3, you would use `Dispatcher`:
+
+```scala mdoc
+import cats.effect.Async
+import cats.effect.Sync
+import cats.effect.std.Dispatcher
+import cats.effect.syntax.all._
+
+def addListenerF[F[_]: Async](
+  interface: LibraryInterface,
+  listener: String => F[Unit]
+): F[Unit] =
+  Dispatcher[F].use { dispatcher =>
+    Sync[F].delay {
+      interface.addListener(str => dispatcher.unsafeRunSync(listener(str)))
+      interface.run()
+    } *> Async[F].never[Unit].guarantee(Sync[F].delay(interface.shutdown()))
+  }
+```
+
+Every time the `addListener`-registered callback is triggered, the effect produced by `listener(str)` would be executed.
 
 ### ContextShift
 
