@@ -510,6 +510,34 @@ There is no longer a need for shifting back (1), because interop with callback-b
 
 Yielding back to the scheduler (2) can now be done with `Spawn[F].cede`.
 
+### Deferred
+
+In CE2, completing a `Deferred` after it's already been completed would result in a failed effect. This is not the case in CE3.
+
+Before:
+
+```scala
+// CE2
+trait Deferred[F[_], A] {
+  def complete(a: A): F[Unit]
+}
+```
+
+After:
+
+```scala
+// CE3
+trait Deferred[F[_], A] {
+  def complete(a: A): F[Boolean]
+}
+```
+
+Because creating a `Deferred` is no longer restricted to effects using `Throwable` as their error type (you can use any `GenConcurrent[F, _]`),
+there is no way to fail the effect from inside the library for an arbitrary error type - so instead of an `F[Unit]` that could fail,
+the method's type is now `F[Boolean]`, which will complete with `false` if there were previous completions.
+
+**This is equivalent to `tryComplete` in CE2**. Make sure your code doesn't rely on calling `complete` more than once to fail.
+
 ### ExitCase, Fiber
 
 | Cats Effect 2.x          | Cats Effect 3                  |
@@ -580,19 +608,7 @@ This section isn't written yet. Check out [`Temporal`](./typeclasses/temporal.md
 Currently, improved stack traces are not implemented.
 There is currently [work in progress](https://github.com/typelevel/cats-effect/pull/1763) to bring them back.
 
-### Deferred
-
-This section hasn't been written yet.
-
-The important change is that `complete` no longer fails when the Deferred has already been completed already, but instead succeeds with `false`.
-
-Follow the Scaladoc for more.
-
-<!-- todo - complete doesn't fail anymore -->
-
 <!-- also check if https://github.com/scala-steward-org/scala-steward/pull/1940 has anything we don't -->
-
-<!--  -->
 
 ## Test your application
 
