@@ -594,12 +594,6 @@ In CE2, the `F[A]` type of `join` meant that in case the fiber was canceled, `jo
 That behavior is still available as `joinWithNever` (you can learn more about it [in `Spawn` docs](./typeclasses/spawn.md)),
 but it's often safer to move away from it and pass an explicit cancelation handler (for example, a failing one) using `fiber.joinWith(onCancel: F[A])`.
 
-### Sync
-
-| Cats Effect 2.x   | Cats Effect 3   |
-| ----------------- | --------------- |
-| `Sync[F].suspend` | `Sync[F].defer` |
-
 ### IO
 
 | Cats Effect 2.x                   | Cats Effect 3                                  | Notes                                                  |
@@ -630,25 +624,6 @@ io.unsafeRunSync()
 Follow the advice from the "missing implicit" error message whenever you need this functionality.
 Note that some of your direct `unsafeRun*` calls might be possible to replace with [`Dispatcher`](#dispatcher).
 
-### Resource
-
-| Cats Effect 2.x                      | Cats Effect 3                | Notes                                                    |
-| ------------------------------------ | ---------------------------- | -------------------------------------------------------- |
-| `Resource.parZip`                    | `Resource.both`              |                                                          |
-| `Resource.liftF`                     | `Resource.eval`              |                                                          |
-| `Resource.fromAutoCloseableBlocking` | `Resource.fromAutoCloseable` | The method always uses `blocking` for the cleanup action |
-
-### Timer
-
-| Cats Effect 2.x  | Cats Effect 3       |
-| ---------------- | ------------------- |
-| `Timer[F].clock` | `Clock[F]`          |
-| `Timer[F].sleep` | `Temporal[F].sleep` |
-
-For `Clock`, see [the relevant part of the guide](#clock).
-
-Similarly to `Clock`, `Timer` has been replaced with a lawful type class, `Temporal`. Learn more in [its documentation](./typeclasses/temporal.md).
-
 ### IOApp
 
 | Cats Effect 2.x    | Cats Effect 3     |
@@ -677,12 +652,39 @@ object Demo extends IOApp.Simple {
 
 This change has been added to the Cats Effect 2 series in [2.4.0](https://github.com/typelevel/cats-effect/releases/tag/v2.4.0).
 
+### MVar
+
+<!-- todo -->
+
+### Sync
+
+| Cats Effect 2.x   | Cats Effect 3   |
+| ----------------- | --------------- |
+| `Sync[F].suspend` | `Sync[F].defer` |
+
+### Resource
+
+| Cats Effect 2.x                      | Cats Effect 3                | Notes                                                    |
+| ------------------------------------ | ---------------------------- | -------------------------------------------------------- |
+| `Resource.parZip`                    | `Resource.both`              |                                                          |
+| `Resource.liftF`                     | `Resource.eval`              |                                                          |
+| `Resource.fromAutoCloseableBlocking` | `Resource.fromAutoCloseable` | The method always uses `blocking` for the cleanup action |
+
+### Timer
+
+| Cats Effect 2.x  | Cats Effect 3       |
+| ---------------- | ------------------- |
+| `Timer[F].clock` | `Clock[F]`          |
+| `Timer[F].sleep` | `Temporal[F].sleep` |
+
+For `Clock`, see [the relevant part of the guide](#clock).
+
+Similarly to `Clock`, `Timer` has been replaced with a lawful type class, `Temporal`. Learn more in [its documentation](./typeclasses/temporal.md).
+
 ### Tracing
 
 Currently, improved stack traces are not implemented.
 There is currently [work in progress](https://github.com/typelevel/cats-effect/pull/1763) to bring them back.
-
-<!-- todo also check if https://github.com/scala-steward-org/scala-steward/pull/1940 has anything we don't -->
 
 ## Test your application
 
