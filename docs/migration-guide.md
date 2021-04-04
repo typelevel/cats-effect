@@ -654,7 +654,9 @@ This change has been added to the Cats Effect 2 series in [2.4.0](https://github
 
 ### MVar
 
-<!-- todo -->
+`MVar` has been removed with no direct replacement.
+
+Depending on how you used it, you might be able to replace it with [`monix-catnap`'s implementation](https://monix.io/docs/current/catnap/mvar.html), a single-element [`Queue`](./std/queue.md) or a specialized utility built with [`Ref`](./std/ref.md) and [`Deferred`](./std/deferred.md).
 
 ### Sync
 
