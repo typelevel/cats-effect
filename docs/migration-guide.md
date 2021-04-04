@@ -58,13 +58,13 @@ Now is the time to update `cats-effect` and **every dependency using it** to a C
 
 At this point, if you've run the Scalafix migration, your code will not compile. However, you should hold off going through the list of errors and fixing the remaining issues yourself at this point.
 
-If you're an [sbt][sbt] user, it is recommended that you upgrade to at least `1.5.0-RC2` before you proceed:
+If you're an [sbt][sbt] user, it is recommended that you upgrade to at least `1.5.0` before you proceed:
 
 In your `project/build.properties`:
 
 ```diff
 - sbt.version = 1.4.9
-+ sbt.version = 1.5.0-RC2
++ sbt.version = 1.5.0
 ```
 
 This will enable eviction errors, which means your build will only succeed if all your dependencies
@@ -434,7 +434,10 @@ object Dispatcher {
 }
 ```
 
-The resource returned here is related to the lifecycle of all tasks you run with a dispatcher. When this resource is closed, all the tasks are canceled.
+The resource returned here is related to the lifecycle of all tasks you run with a dispatcher.
+
+> Note: When this resource is closed, **all its running tasks are canceled**. This [might be configurable]() in a future release
+
 Creating a `Dispatcher` is relatively lightweight, so you can create one even for each task you execute, but sometimes it's worth keeping a `Dispatcher` alive for longer.
 To find out more, see [its docs](./std/dispatcher.md).
 
