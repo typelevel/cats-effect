@@ -494,9 +494,6 @@ Every time the `addListener`-registered callback is triggered, the effect produc
 | `ContextShift[F].shift`  | nothing / `Spawn[F].cede` |
 | `ContextShift[F].evalOn` | `Async[F].evalOn`         |
 
-This section isn't written yet. Follow the Scaladoc of the methods mentioned.
-
-<!-- todo CS is gone! 🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴🦀🌴 -->
 
 #### Shifting
 
@@ -506,11 +503,12 @@ In CE2, `shift` would ensure the next actions in the fiber would be scheduled on
 This was used for two reasons:
 
 - to switch back from a thread pool not managed by the effect system (e.g. a callback handler in a Java HTTP client)
-- to reschedule the fiber on the given `ExecutionContext`, which would give other fibers a chance to run on that context's threads. This is called yielding to the scheduler.
+- to reschedule the fiber on the given `ExecutionContext`, which would give other fibers a chance to run on the underlying pool's threads.
+  This is called yielding to the scheduler.
 
-There is no longer a need for shifting back, because interop with callback-based libraries is done through methods in `Async`, which now **switch back to the appropriate thread pool automatically**.
+There is no longer a need for shifting back (1), because interop with callback-based libraries is done through methods in `Async`, which now **switch back to the appropriate thread pool automatically**.
 
-Yielding back to the scheduler can now be done with `Spawn[F].cede`.
+Yielding back to the scheduler (2) can now be done with `Spawn[F].cede`.
 
 ### ExitCase, Fiber
 
@@ -529,8 +527,6 @@ This section isn't written yet. Please follow the Scaladoc and see [Spawn](./typ
 | Cats Effect 2.x   | Cats Effect 3   |
 | ----------------- | --------------- |
 | `Sync[F].suspend` | `Sync[F].defer` |
-
-This section isn't written yet. Please follow the Scaladoc.
 
 ### IO
 
