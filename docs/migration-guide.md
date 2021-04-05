@@ -588,10 +588,10 @@ trait Fiber[F[_], E, A] {
 ```
 
 However, there are still some differences here: first of all, `join` doesn't just return `F[A]`, but the whole `Outcome` of it.
-This is also why `Fiber` got the extra type parameter `A`.
+This is also why `Fiber` got the extra type parameter `E`.
 
 In CE2, the `F[A]` type of `join` meant that in case the fiber was canceled, `join` would never complete.
-That behavior is still available as `joinWithNever` (you can learn more about it [in `Spawn` docs](./typeclasses/spawn.md)),
+That behavior is still available as `joinWithNever` (you can learn more about it [in `Spawn` docs](./typeclasses/spawn.md#joining)),
 but it's often safer to move away from it and pass an explicit cancelation handler (for example, a failing one) using `fiber.joinWith(onCancel: F[A])`.
 
 ### IO
