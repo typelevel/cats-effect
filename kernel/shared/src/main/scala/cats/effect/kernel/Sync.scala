@@ -92,7 +92,7 @@ trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Unique[F] 
    * and evaluated on a blocking execution context
    */
   def interruptible[A](many: Boolean)(thunk: => A): F[A] =
-    suspend(if (many) InterruptibleOnce else InterruptibleMany)(thunk)
+    suspend(if (many) InterruptibleMany else InterruptibleOnce)(thunk)
 
   def suspend[A](hint: Sync.Type)(thunk: => A): F[A]
 }
