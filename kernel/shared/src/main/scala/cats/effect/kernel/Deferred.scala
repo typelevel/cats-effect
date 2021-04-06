@@ -206,7 +206,7 @@ object Deferred {
 
     /*
      * Returns a new view of this `SyncDeferredSink` instance that shares
-     * the same state but which suspends operations in `F` rather than `G`.
+     * the same state but which suspends operations in `G` rather than `F`.
      *
      * Similar to `mapK`, but requires a [[Sync]] instance instead of a natural
      * transformation.
