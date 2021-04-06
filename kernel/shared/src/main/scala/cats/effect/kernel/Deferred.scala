@@ -98,9 +98,9 @@ object Deferred {
     val dummyId = 0L
   }
 
-  private sealed trait AsyncDeferredSource[F[_], A] extends DeferredSource[F, A] {
+  private[kernel] sealed trait AsyncDeferredSource[F[_], A] extends DeferredSource[F, A] {
     protected implicit def F: Async[F]
-    protected val ref: AtomicReference[State[A]]
+    private[Deferred] val ref: AtomicReference[State[A]]
 
     def get: F[A] = {
       // side-effectful
@@ -167,7 +167,7 @@ object Deferred {
   sealed trait SyncDeferredSink[F[_], A] extends DeferredSink[F, A] { self =>
     protected implicit def F: Sync[F]
 
-    protected val ref: AtomicReference[State[A]]
+    private[Deferred] val ref: AtomicReference[State[A]]
 
     def complete(a: A): F[Boolean] = {
       def notifyReaders(readers: LongMap[A => Unit]): F[Unit] = {
@@ -214,7 +214,7 @@ object Deferred {
     def transformSync[G[_]](implicit G: Sync[G]): SyncDeferredSink[G, A] =
       new SyncDeferredSink[G, A] {
         override protected val F: Sync[G] = G
-        override protected val ref: AtomicReference[State[A]] = self.ref
+        override private[Deferred] val ref: AtomicReference[State[A]] = self.ref
       }
   }
 
@@ -223,7 +223,7 @@ object Deferred {
       with AsyncDeferredSource[F, A]
       with SyncDeferredSink[F, A] { self =>
     // shared mutable state
-    protected val ref = new AtomicReference[State[A]](
+    private[Deferred] val ref = new AtomicReference[State[A]](
       State.Unset(LongMap.empty, State.initialId)
     )
 
@@ -236,7 +236,7 @@ object Deferred {
      */
     def transformAsync[G[_]](implicit G: Async[G]): AsyncDeferred[G, A] =
       new AsyncDeferred[G, A] {
-        override protected val ref: AtomicReference[State[A]] = self.ref
+        override private[Deferred] val ref: AtomicReference[State[A]] = self.ref
       }
   }
 
