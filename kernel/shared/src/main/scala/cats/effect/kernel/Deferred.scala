@@ -68,6 +68,13 @@ object Deferred {
     F.deferred[A]
 
   /**
+   * Like `apply` but returns `AsyncDeferred`, which provides methods
+   * to change its effect type without use of a natural transformation.
+   */
+  def async[F[_], A](implicit F: Async[F]): F[AsyncDeferred[F, A]] =
+    F.delay(new AsyncDeferred[F, A])
+
+  /**
    * Like `apply` but returns the newly allocated Deferred directly
    * instead of wrapping it in `F.delay`.  This method is considered
    * unsafe because it is not referentially transparent -- it
@@ -91,11 +98,9 @@ object Deferred {
     val dummyId = 0L
   }
 
-  final class AsyncDeferred[F[_], A](implicit F: Async[F]) extends Deferred[F, A] {
-    // shared mutable state
-    private[this] val ref = new AtomicReference[State[A]](
-      State.Unset(LongMap.empty, State.initialId)
-    )
+  private sealed trait AsyncDeferredSource[F[_], A] extends DeferredSource[F, A] {
+    protected implicit def F: Async[F]
+    protected val ref: AtomicReference[State[A]]
 
     def get: F[A] = {
       // side-effectful
@@ -157,6 +162,12 @@ object Deferred {
           case State.Unset(_, _) => None
         }
       }
+  }
+
+  sealed trait SyncDeferredSink[F[_], A] extends DeferredSink[F, A] { self =>
+    protected implicit def F: Sync[F]
+
+    protected val ref: AtomicReference[State[A]]
 
     def complete(a: A): F[Boolean] = {
       def notifyReaders(readers: LongMap[A => Unit]): F[Unit] = {
@@ -192,6 +203,41 @@ object Deferred {
 
       F.defer(loop())
     }
+
+    /*
+     * Returns a new view of this `SyncDeferredSink` instance that shares
+     * the same state but which suspends operations in `F` rather than `G`.
+     *
+     * Similar to `mapK`, but requires a [[Sync]] instance instead of a natural
+     * transformation.
+     */
+    def transformSync[G[_]](implicit G: Sync[G]): SyncDeferredSink[G, A] =
+      new SyncDeferredSink[G, A] {
+        override protected val F: Sync[G] = G
+        override protected val ref: AtomicReference[State[A]] = self.ref
+      }
+  }
+
+  sealed class AsyncDeferred[F[_], A](implicit protected val F: Async[F])
+      extends Deferred[F, A]
+      with AsyncDeferredSource[F, A]
+      with SyncDeferredSink[F, A] { self =>
+    // shared mutable state
+    protected val ref = new AtomicReference[State[A]](
+      State.Unset(LongMap.empty, State.initialId)
+    )
+
+    /*
+     * Returns a new view of this `AsyncDeferred` instance that shares
+     * the same state but which suspends operations in `G` rather than `F`.
+     *
+     * Similar to `mapK`, but requires an [[Async]] instance instead of
+     * a natural transformation.
+     */
+    def transformAsync[G[_]](implicit G: Async[G]): AsyncDeferred[G, A] =
+      new AsyncDeferred[G, A] {
+        override protected val ref: AtomicReference[State[A]] = self.ref
+      }
   }
 
   implicit def catsInvariantForDeferred[F[_]: Functor]: Invariant[Deferred[F, *]] =
