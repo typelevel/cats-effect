@@ -27,7 +27,7 @@ import cats.syntax.all._
 import scala.annotation.tailrec
 
 /**
- * An asynchronous, concurrent mutable reference.
+ * A thread-safe, concurrent mutable reference.
  *
  * Provides safe concurrent access and modification of its content, but no
  * functionality for synchronisation, which is instead handled by [[Deferred]].
@@ -163,7 +163,7 @@ object Ref {
   def apply[F[_]](implicit mk: Make[F]): ApplyBuilders[F] = new ApplyBuilders(mk)
 
   /**
-   * Creates an asynchronous, concurrent mutable reference initialized to the supplied value.
+   * Creates a thread-safe, concurrent mutable reference initialized to the supplied value.
    *
    * {{{
    *   import cats.effect.IO
@@ -262,7 +262,7 @@ object Ref {
   final class ApplyBuilders[F[_]](val mk: Make[F]) extends AnyVal {
 
     /**
-     * Creates an asynchronous, concurrent mutable reference initialized to the supplied value.
+     * Creates a thread-safe, concurrent mutable reference initialized to the supplied value.
      *
      * @see [[Ref.of]]
      */
