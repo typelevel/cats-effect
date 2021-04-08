@@ -246,7 +246,7 @@ private[effect] final class WorkerThread(
             fiber.run()
           }
           // Transition to executing fibers from the local queue.
-          state = 9
+          state = 7
 
         case 1 =>
           // Try to get a batch of fibers to execute from the batched queue
@@ -263,7 +263,7 @@ private[effect] final class WorkerThread(
             // Directly run a fiber from the batch.
             fiber.run()
             // Transition to executing fibers from the local queue.
-            state = 9
+            state = 7
           } else {
             // Could not obtain a batch of fibers. Proceed to check for single
             // fibers in the overflow queue.
@@ -278,7 +278,7 @@ private[effect] final class WorkerThread(
             // Run the fiber.
             fiber.run()
             // Transition to executing fibers from the local queue.
-            state = 9
+            state = 7
           } else {
             // Ask for permission to steal fibers from other `WorkerThread`s.
             state = 3
@@ -291,6 +291,14 @@ private[effect] final class WorkerThread(
             state = 4
           } else {
             // Permission denied, proceed to park.
+            // Set the worker thread parked signal.
+            parked.lazySet(true)
+            // Announce that the worker thread is parking.
+            pool.transitionWorkerToParked()
+            // Park the thread.
+            parkLoop()
+            // After the worker thread has been unparked, look for work in the
+            // batched queue.
             state = 5
           }
 
@@ -304,43 +312,29 @@ private[effect] final class WorkerThread(
             // Run the stolen fiber.
             fiber.run()
             // Transition to executing fibers from the local queue.
-            state = 9
+            state = 7
           } else {
             // Stealing attempt is unsuccessful. Park.
-            state = 6
+            // Set the worker thread parked signal.
+            parked.lazySet(true)
+            // Announce that the worker thread which was searching for work is now
+            // parking. This checks if the parking worker thread was the last
+            // actively searching thread.
+            if (pool.transitionWorkerToParkedWhenSearching()) {
+              // If this was indeed the last actively searching thread, do another
+              // global check of the pool. Other threads might be busy with their
+              // local queues or new work might have arrived on the overflow
+              // queue. Another thread might be able to help.
+              pool.notifyIfWorkPending(rnd)
+            }
+            // Park the thread.
+            parkLoop()
+            // After the worker thread has been unparked, look for work in the
+            // batched queue.
+            state = 5
           }
 
         case 5 =>
-          // Set the worker thread parked signal.
-          parked.lazySet(true)
-          // Announce that the worker thread is parking.
-          pool.transitionWorkerToParked()
-          // Park the thread.
-          parkLoop()
-          // After the worker thread has been unparked, look for work in the
-          // overflow queue.
-          state = 7
-
-        case 6 =>
-          // Set the worker thread parked signal.
-          parked.lazySet(true)
-          // Announce that the worker thread which was searching for work is now
-          // parking. This checks if the parking worker thread was the last
-          // actively searching thread.
-          if (pool.transitionWorkerToParkedWhenSearching()) {
-            // If this was indeed the last actively searching thread, do another
-            // global check of the pool. Other threads might be busy with their
-            // local queues or new work might have arrived on the overflow
-            // queue. Another thread might be able to help.
-            pool.notifyIfWorkPending(rnd)
-          }
-          // Park the thread.
-          parkLoop()
-          // After the worker thread has been unparked, look for work in the
-          // overflow queue.
-          state = 7
-
-        case 7 =>
           // Try to get a batch of fibers to execute from the batched queue.
           val batch = batched.poll(rnd)
           if (batch ne null) {
@@ -355,14 +349,14 @@ private[effect] final class WorkerThread(
             // Directly run a fiber from the batch.
             fiber.run()
             // Transition to executing fibers from the local queue.
-            state = 9
+            state = 7
           } else {
             // Could not obtain a batch of fibers. Proceed to check for single
             // fibers in the overflow queue.
-            state = 8
+            state = 6
           }
 
-        case 8 =>
+        case 6 =>
           // Dequeue a fiber from the overflow queue.
           val fiber = overflow.poll(rnd)
           if (fiber ne null) {
@@ -371,7 +365,7 @@ private[effect] final class WorkerThread(
             // Run the fiber.
             fiber.run()
             // Transition to executing fibers from the local queue.
-            state = 9
+            state = 7
           } else {
             // Transition to stealing fibers from other `WorkerThread`s.
             // The permission is held implicitly by threads right after they
