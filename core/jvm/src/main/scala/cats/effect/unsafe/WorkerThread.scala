@@ -143,7 +143,7 @@ private[effect] final class WorkerThread(
      *
      *      If a fiber is successfully dequeued from the overflow queue, it will
      *      be executed. The `WorkerThread` unconditionally transitions to
-     *      executing fibers from the local queue (state value 9 and larger).
+     *      executing fibers from the local queue (state value 7 and larger).
      *
      *      This state occurs "naturally" after a certain number of executions
      *      from the local queue (when the state value wraps around modulo
@@ -154,67 +154,59 @@ private[effect] final class WorkerThread(
      *      `WorkerThread` transitions to executing fibers from the local queue
      *      in the case of a successful dequeue from the batched queue and
      *      subsequent bulk enqueue of the batch to the local queue (state value
-     *      9 and larger). Otherwise, the `WorkerThread` transitions to looking
+     *      7 and larger). Otherwise, the `WorkerThread` transitions to looking
      *      for single fibers in the overflow queue.
      *
      *   2: Fall back to checking the overflow queue after a failed dequeue from
      *      the local queue. Depending on the outcome of this check, the
      *      `WorkerThread` transitions to executing fibers from the local queue
      *      in the case of a successful dequeue from the overflow queue
-     *      (state value 9 and larger). Otherwise, the `WorkerThread`
+     *      (state value 7 and larger). Otherwise, the `WorkerThread`
      *      transitions to asking for permission to steal from other
-     *      `WorkerThread`s (state value 2).
+     *      `WorkerThread`s (state value 3).
      *
      *   3: Ask for permission to steal fibers from other `WorkerThread`s.
      *      Depending on the outcome, the `WorkerThread` transitions starts
      *      looking for fibers to steal from the local queues of other
-     *      worker threads (permission granted, state value 3), or starts
-     *      preparing to park (permission denied, state value 4).
+     *      worker threads (permission granted, state value 4), or parks
+     *      directly. In this case, there is less bookkeeping to be done
+     *      compared to the case where a worker was searching for work prior
+     *      to parking. After the worker thread has been unparked, it
+     *      transitions to looking for work in the batched (state value 5) and
+     *      overflow queues (state value 6) while also holding a permission to
+     *      steal fibers from other worker threads.
      *
      *   4: The `WorkerThread` has been allowed to steal fibers from other
      *      worker threads. If the attempt is successful, the first fiber is
      *      executed directly and the `WorkerThread` transitions to executing
-     *      fibers from the local queue (state value 9 and larger). If the
-     *      attempt is unsuccessful, the worker thread starts preparing to park
-     *      (state value 5).
+     *      fibers from the local queue (state value 7 and larger). If the
+     *      attempt is unsuccessful, the worker thread announces to the pool
+     *      that it was unable to find any work and parks. After the worker
+     *      thread has been unparked, it transitions to looking for work in the
+     *      batched (state value 5) and overflow queues (state value 6) while
+     *      also holding a permission to steal fibers from other worker threads.
      *
-     *   5: Prepare to park a worker thread which was not allowed to search for
-     *      work in the local queues of other worker threads. There is less
-     *      bookkeeping to be done compared to the case where a worker was
-     *      searching prior to parking. After the worker thread has been
-     *      unparked, it transitions to looking for work in the overflow queue
-     *      while also holding a permission to steal fibers from other worker
-     *      threads (state value 6).
-     *
-     *   6: Prepare to park a worker thread which had been searching for work
-     *      in the local queues of other worker threads, but found none. The
-     *      reason why this is a separate state from 4 is because there is
-     *      additional pool bookkeeping to be carried out before parking.
-     *      After the worker thread has been unparked, it transitions to looking
-     *      for work in the overflow queue while also holding a permission to
-     *      steal fibers from other worker threads (state value 6).
-     *
-     *   7: State after a worker thread has been unparked. In this state, the
+     *   5: State after a worker thread has been unparked. In this state, the
      *      permission to steal from other worker threads is implicitly held.
      *      The unparked worker thread starts by looking for work in the
      *      batched queue. If a fiber has been found, it is executed and the
      *      worker thread transitions to executing fibers from the local queue
-     *      (state value 9 and larger). If no fiber has been found, the worker
+     *      (state value 7 and larger). If no fiber has been found, the worker
      *      thread proceeds to look for single fibers in the overflow queue
-     *      (state value 8).
+     *      (state value 6).
      *
-     *   8: In this state, the permission to steal from other worker threads is
+     *   6: In this state, the permission to steal from other worker threads is
      *      implicitly held. If a fiber has been found in the overflow queue, it
      *      is executed and the worker thread transitions to executing fibers
-     *      from the local queue (state value 9 and larger). If no fiber has
+     *      from the local queue (state value 7 and larger). If no fiber has
      *      been found, the worker thread proceeds to steal work from other
      *      worker threads (since it already has the permission to do so by
-     *      convention).
+     *      convention) (state value 4).
      *
-     *   9 and larger: Look for fibers to execute in the local queue. In case
+     *   7 and larger: Look for fibers to execute in the local queue. In case
      *      of a successful dequeue from the local queue, increment the state
      *      value. In case of a failed dequeue from the local queue, transition
-     *      to state value 1.
+     *      to looking for fibers in the batched queue (state value 1).
      *
      * A note on the implementation. Some of the states seem like they have
      * overlapping logic. This is indeed true, but it is a conscious decision.
