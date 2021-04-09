@@ -87,7 +87,7 @@ class IOPropSpec extends IOPlatformSpecification with Discipline with ScalaCheck
       implicit val ticker = Ticker()
 
       val test = IO(implicitly[Arbitrary[IO[Int]]].arbitrary.sample.get).flatMap { io =>
-        IO.delay(io === io)
+        IO.delay(io.eqv(io))
       }
 
       val iterations = 15000
