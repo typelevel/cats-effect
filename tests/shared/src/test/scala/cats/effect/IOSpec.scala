@@ -25,7 +25,7 @@ import cats.effect.laws.AsyncTests
 import cats.effect.testkit.TestContext
 import cats.syntax.all._
 
-import org.scalacheck.Prop, Prop.forAll
+import org.scalacheck.{Arbitrary, Prop}, Prop.forAll
 // import org.scalacheck.rng.Seed
 
 import org.specs2.ScalaCheck
@@ -1149,6 +1149,21 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         test.flatMap(_ => IO(canceled)) must completeAs(true)
       }
 
+      "evaluate blocking actions without losing fibers" in real {
+        implicit val ticker = Ticker()
+
+        val test = IO(implicitly[Arbitrary[IO[Int]]].arbitrary.sample.get).flatMap { io =>
+          IO.delay(io === io)
+        }
+
+        val iterations = 1000
+
+        List.fill(iterations)(test).sequence.map(_.count(identity)).flatMap { c =>
+          IO {
+            c mustEqual iterations
+          }
+        }
+      }
     }
 
     "temporal" should {
