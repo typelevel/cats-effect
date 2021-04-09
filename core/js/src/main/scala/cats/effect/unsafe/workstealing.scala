@@ -27,6 +27,8 @@ private[effect] sealed abstract class WorkStealingThreadPool private ()
   def execute(runnable: Runnable): Unit
   def reportFailure(cause: Throwable): Unit
   private[effect] def executeFiber(fiber: IOFiber[_]): Unit
+  private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit
+  private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit
 }
 
 // Unfortunately, due to the explicit branching for optimization purposes, this
