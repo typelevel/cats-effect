@@ -13,12 +13,12 @@ handling _resources_ and _cancelation_ in the process. That should help us to
 flex our muscles. [The second one](#producerconsumer) implements a solution to
 the producer-consumer problem to introduce cats-effect _fibers_.
 
-This tutorial assumes certain familiarity with functional programming. It is
-also a good idea to read cats-effect documentation prior to starting this
+This tutorial assumes some familiarity with functional programming. It is
+also a good idea to read the cats-effect documentation prior to starting this
 tutorial, at least the [Getting Started page](getting-started.md).
 
 Please read this tutorial as training material, not as a best-practices
-document. As you gain more experience with cats-effect, probably you will find
+document. As you gain more experience with cats-effect, you will probably find
 your own solutions to deal with the problems presented here. Also, bear in mind
 that using cats-effect for copying files or implementing basic concurrency
 patterns (such as the producer-consumer problem) is suitable for a 'getting
@@ -36,7 +36,7 @@ This [Github
 repo](https://github.com/lrodero/cats-effect-tutorial/tree/series/3.x) includes
 all the software that will be developed during this tutorial (branch
 `series/3.x`). It uses `sbt` as the build tool. To ease coding, compiling and
-running the code snippets in this tutorial it is recommended to use the same
+running the code snippets in this tutorial, it is recommended to use the same
 `build.sbt`, or at least one with the same dependencies and compilation options:
 
 ```scala
@@ -70,7 +70,7 @@ settings).
 ## <a name="copyingfiles"></a>Copying files - basic concepts, resource handling and cancelation
 
 Our goal is to create a program that copies files. First we will work on a
-function that carries such task, and then we will create a program that can be
+function that carries out such a task, and then we will create a program that can be
 invoked from the shell and uses that function.
 
 First of all we must code the function that copies the content from a file to
@@ -96,7 +96,7 @@ import java.io.File
 def copy(origin: File, destination: File): IO[Long] = ???
 ```
 
-Nothing scary, uh? As we said before, the function just returns an `IO`
+Nothing scary, eh? As we said before, the function just returns an `IO`
 instance. When run, all side-effects will be actually executed and the `IO`
 instance will return the bytes copied in a `Long` (note that `IO` is
 parameterized by the return type). Now, let's start implementing our function.
@@ -105,8 +105,8 @@ First, we need to open two streams that will read and write file contents.
 ### Acquiring and releasing `Resource`s
 We consider opening a stream to be a side-effect action, so we have to
 encapsulate those actions in their own `IO` instances. For this, we will make
-use of cats-effect `Resource`, that allows to orderly create, use and then
-release resources. See this code:
+use of cats-effect `Resource`, that allows us to create, use and then
+release resources in an orderly fashion. See this code:
 
 ```scala mdoc:compile-only
 import cats.effect.{IO, Resource}
@@ -148,7 +148,7 @@ that `.attempt.void` is used to get the same 'swallow and ignore errors'
 behavior.
 
 Optionally we could have used `Resource.fromAutoCloseable` to define our
-resources, that method creates `Resource` instances over objects that implement
+resources, that method creates `Resource` instances over objects that implement the
 `java.lang.AutoCloseable` interface without having to define how the resource is
 released. So our `inputStream` function would look like this:
 
@@ -196,7 +196,7 @@ is any issue opening the output file, then the input stream will be closed.
 Now, if you are familiar with cats-effect's `Bracket` you may be wondering why
 we are not using it as it looks so similar to `Resource` (and there is a good
 reason for that: `Resource` is based on `bracket`). Ok, before moving forward it
-is worth to take a look to `bracket`.
+is worth taking a look at `bracket`.
 
 There are three stages when using `bracket`: _resource acquisition_, _usage_,
 and _release_. Each stage is defined by an `IO` instance.  A fundamental
@@ -235,7 +235,7 @@ def copy(origin: File, destination: File): IO[Long] = {
 }
 ```
 
-New `copy` definition is more complex, even though the code as a whole is way
+The new `copy` definition is more complex, even though the code as a whole is way
 shorter as we do not need the `inputOutputStreams` function. But there is a
 catch in the code above.  When using `bracket`, if there is a problem when
 getting resources in the first stage, then the release stage will not be run.
@@ -282,7 +282,7 @@ def transfer(origin: InputStream, destination: OutputStream): IO[Long] =
 Take a look at `transmit`, observe that both input and output actions are
 created by invoking `IO.blocking` which return the actions encapsulated in a
 (suspended in) `IO`. We can also just embed the actions by calling `IO(action)`,
-but when dealing with input/output actions it is advised to use instead
+but when dealing with input/output actions it is advised that you instead use
 `IO.blocking(action)`. This way we help cats-effect to better plan how to assign
 threads to actions. We will return to this topic when we introduce _fibers_
 later on in this tutorial.
@@ -437,7 +437,7 @@ object Main extends IOApp {
 
 Heed how `run` verifies the `args` list passed. If there are fewer than two
 arguments, an error is raised. As `IO` implements `MonadError` we can at any
-moment call to `IO.raiseError` to interrupt a sequence of `IO` operations. Log
+moment call to `IO.raiseError` to interrupt a sequence of `IO` operations. The log
 message is printed by means of handy `IO.println` method.
 
 #### Copy program code
@@ -457,12 +457,12 @@ at any time for example by pressing `Ctrl-c`, our code will deal with safe
 resource release (streams closing) even under such circumstances. The same will
 apply if the `copy` function is run from other modules that require its
 functionality. If the `IO` returned by this function is canceled while being
-run, still resources will be properly released. But recall what we commented
-before: this is because `use` returns `IO` instances that are cancelable, in
-contrast our `transfer` function is not cancelable.
+run, still resources will be properly released. But recall what we commented on
+before: this is because `use` returns `IO` instances that are cancelable. By
+contrast, our `transfer` function is not cancelable.
 
 ### Polymorphic cats-effect code
-There is an important characteristic of `IO` that we shall be aware of. `IO` is
+There is an important characteristic of `IO` that we should be aware of. `IO` is
 able to suspend side-effects asynchronously thanks to the existence of an
 instance of `Async[IO]`. Because `Async` extends `Sync`, `IO` can also suspend
 side-effects synchronously. On top of that `Async` extends typeclasses such as
@@ -494,8 +494,8 @@ def transmit[F[_]: Sync](origin: InputStream, destination: OutputStream, buffer:
 We leave as an exercise to code the polymorphic versions of `inputStream`,
 `outputStream`, `inputOutputStreams`, `transfer` and `copy` functions. You will
 find that transformation similar to the one shown for `transfer` in the snippet
-above, only that function `copy` requires `F[_]: Async` instead of `F[_]:
-Sync`. This is because it does not only suspend a side-effect, it uses
+above, but the function `copy` requires `F[_]: Async` instead of `F[_]:
+Sync`. This is because it not only suspends a side-effect, it uses
 functionality of semaphores that requires a `Concurrent` instance in (implicit)
 scope.  And `Sync` does _not_ extend `Concurrent` while `Async` does.
 
@@ -516,7 +516,7 @@ Only in our `main` function we will set `IO` as the final `F` for our program.
 To do so, of course, an `Async[IO]` instance must be in scope, but that instance
 is brought transparently by `IOApp` so we do not need to be concerned about it.
 
-During the remaining of this tutorial we will use polymorphic code, only falling
+During the remainder of this tutorial we will use polymorphic code, only falling
 to `IO` in the `run` method of our `IOApp`s. Polymorphic code is less
 restrictive, as functions are not tied to `IO` but are applicable to any `F[_]`
 as long as there is an instance of the type class required (`Sync[F[_]]` ,
