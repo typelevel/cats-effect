@@ -36,7 +36,7 @@ import java.util.concurrent.locks.LockSupport
  * highly parallel system when compared to a fixed size thread pool whose worker
  * threads all draw tasks from a single global work queue.
  */
-private[effect] final class WorkerThread(
+private final class WorkerThread(
     // Index assigned by the `WorkStealingThreadPool` for identification purposes.
     private[unsafe] val index: Int,
     // Thread prefix string used for naming new instances of `WorkerThread` and `HelperThread`.
