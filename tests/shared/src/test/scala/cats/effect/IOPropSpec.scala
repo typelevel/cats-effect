@@ -20,7 +20,7 @@ import cats.syntax.all._
 import cats.effect.implicits._
 import cats.effect.std.Queue
 
-import org.scalacheck.Arbitrary.arbitrary
+import org.scalacheck.Arbitrary, Arbitrary.arbitrary
 
 import org.specs2.ScalaCheck
 
@@ -81,6 +81,22 @@ class IOPropSpec extends IOPlatformSpecification with Discipline with ScalaCheck
           }
       }
 
+    }
+
+    "evaluate fibers correctly in presence of a parasitic execution context" in real {
+      implicit val ticker = Ticker()
+
+      val test = IO(implicitly[Arbitrary[IO[Int]]].arbitrary.sample.get).flatMap { io =>
+        IO.delay(io === io)
+      }
+
+      val iterations = 15000
+
+      List.fill(iterations)(test).sequence.map(_.count(identity)).flatMap { c =>
+        IO {
+          c mustEqual iterations
+        }
+      }
     }
   }
 
