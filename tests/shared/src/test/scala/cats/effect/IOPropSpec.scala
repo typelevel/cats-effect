@@ -90,7 +90,7 @@ class IOPropSpec extends IOPlatformSpecification with Discipline with ScalaCheck
         IO.delay(io.eqv(io))
       }
 
-      val iterations = 15000
+      val iterations = 5000
 
       List.fill(iterations)(test).sequence.map(_.count(identity)).flatMap { c =>
         IO {
