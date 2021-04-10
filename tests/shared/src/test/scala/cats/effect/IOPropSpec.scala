@@ -80,7 +80,6 @@ class IOPropSpec extends IOPlatformSpecification with Discipline with ScalaCheck
             l.map(IO.pure(_)).parSequenceN(n).mustEqual(expected)
           }
       }
-
     }
   }
 

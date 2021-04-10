@@ -27,17 +27,6 @@ private[effect] sealed abstract class WorkStealingThreadPool private ()
   def execute(runnable: Runnable): Unit
   def reportFailure(cause: Throwable): Unit
   private[effect] def executeFiber(fiber: IOFiber[_]): Unit
-}
-
-// Unfortunately, due to the explicit branching for optimization purposes, this
-// type leaks into the shared source code of IOFiber.scala.
-private[effect] sealed abstract class WorkerThread private () extends Thread {
-  def reschedule(fiber: IOFiber[_]): Unit
-  def schedule(fiber: IOFiber[_]): Unit
-}
-
-// Unfortunately, due to the explicit branching for optimization purposes, this
-// type leaks into the shared source code of IOFiber.scala.
-private[effect] sealed abstract class HelperThread private () extends Thread {
-  def schedule(fiber: IOFiber[_]): Unit
+  private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit
+  private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit
 }

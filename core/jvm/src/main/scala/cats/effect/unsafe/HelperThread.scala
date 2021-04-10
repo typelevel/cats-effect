@@ -55,7 +55,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
  * [[WorkerThread]]s, and having a dynamic number of [[WorkerThread]] instances
  * introduces more logic on the hot path.
  */
-private[effect] final class HelperThread(
+private final class HelperThread(
     private[this] val threadPrefix: String,
     private[this] val blockingThreadCounter: AtomicInteger,
     private[this] val batched: ScalQueue[Array[IOFiber[_]]],

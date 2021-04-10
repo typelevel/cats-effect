@@ -1148,7 +1148,6 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
         test.flatMap(_ => IO(canceled)) must completeAs(true)
       }
-
     }
 
     "temporal" should {
