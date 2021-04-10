@@ -125,5 +125,20 @@ class ConsoleSpec extends BaseSpec {
       }
     }
 
+    "printStackTrace to the standard error output" in real {
+      val e = new Throwable("error!")
+
+      val stackTraceString =
+        e.getStackTrace()
+          .map { line => "\tat " + line.toString }
+          .mkString(e.toString + "\n", "\n", "\n")
+
+      standardErrTest(Console[IO].printStackTrace(e)).flatMap { err =>
+        IO {
+          err must beEqualTo(stackTraceString)
+        }
+      }
+    }
+
   }
 }
