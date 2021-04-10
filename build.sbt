@@ -20,7 +20,7 @@ import com.typesafe.tools.mima.core._
 import org.openqa.selenium.firefox.FirefoxOptions
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
 
-ThisBuild / baseVersion := "3.0"
+ThisBuild / baseVersion := "3.1"
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
