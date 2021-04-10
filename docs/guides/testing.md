@@ -1,7 +1,6 @@
 ---
-layout: docsplus
-title:  "Testing with cats-effect"
-position: 2
+id: testing
+title: Testing with cats-effect
 ---
 
 <nav role="navigation" id="toc"></nav>
