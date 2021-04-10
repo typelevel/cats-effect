@@ -1,6 +1,6 @@
 ---
 id: testing
-title: Testing with cats-effect
+title: Testing
 ---
 
 <nav role="navigation" id="toc"></nav>
