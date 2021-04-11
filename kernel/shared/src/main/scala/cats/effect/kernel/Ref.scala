@@ -178,6 +178,15 @@ object Ref {
   def of[F[_], A](a: A)(implicit mk: Make[F]): F[Ref[F, A]] = mk.refOf(a)
 
   /**
+   * Like [[of]], but returns `SyncRef` which provides the [[SyncRef#transformSync]]
+   * method to change its effect type without use of a natural transformation.
+   */
+  def sync[F[_], A](a: A)(implicit F: Sync[F]): F[SyncRef[F, A]] = syncIn[F, F, A](a)
+
+  def syncIn[F[_], G[_], A](a: A)(implicit F: Sync[F], G: Sync[G]): F[SyncRef[G, A]] =
+    F.delay(new SyncRef(new AtomicReference(a)))
+
+  /**
    * Creates a Ref starting with the value of the one in `source`.
    *
    * Updates of either of the Refs will not have an effect on the other (assuming A is immutable).
@@ -269,7 +278,7 @@ object Ref {
     def of[A](a: A): F[Ref[F, A]] = mk.refOf(a)
   }
 
-  final private class SyncRef[F[_], A](ar: AtomicReference[A])(implicit F: Sync[F])
+  final class SyncRef[F[_], A] private[Ref] (ar: AtomicReference[A])(implicit F: Sync[F])
       extends Ref[F, A] {
     def get: F[A] = F.delay(ar.get)
 
@@ -350,6 +359,8 @@ object Ref {
       val f = state.runF.value
       modify(a => f(a).value)
     }
+
+    def transformSync[G[_]: Sync]: SyncRef[G, A] = new SyncRef(ar)
   }
 
   final private[kernel] class TransformedRef[F[_], G[_], A](
