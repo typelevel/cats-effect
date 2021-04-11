@@ -18,7 +18,8 @@ package cats
 package effect
 package std
 
-import cats.effect.kernel.{Deferred, GenConcurrent, Poll, Ref}
+import cats.effect.kernel.Deferred.AsyncDeferredLike
+import cats.effect.kernel.{Async, Deferred, GenConcurrent, MonadCancel, Poll, Ref, Sync}
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
 
@@ -68,7 +69,15 @@ object Queue {
    */
   def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
     assertNonNegative(capacity)
-    F.ref(State.empty[F, A]).map(new BoundedQueue(capacity, _))
+    F.ref(State.empty[Deferred[F, *], A]).map(new BoundedQueue(capacity, _))
+  }
+
+  def boundedIn[F[_], G[_], A](
+      capacity: Int)(implicit F: Sync[F], G: Async[G]): F[Queue[G, A]] = {
+    assertNonNegative(capacity)
+    Ref
+      .in[F, G, State[AsyncDeferredLike, A]](State.empty)
+      .map(new BoundedQueue[G, AsyncDeferredLike, A](capacity, _))
   }
 
   /**
@@ -83,6 +92,9 @@ object Queue {
   def synchronous[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     bounded(0)
 
+  def synchronousIn[F[_]: Sync, G[_]: Async, A]: F[Queue[G, A]] =
+    boundedIn[F, G, A](0)
+
   /**
    * Constructs an empty, unbounded queue for `F` data types that are
    * [[cats.effect.kernel.GenConcurrent]]. [[Queue#offer]] never blocks semantically, as there is
@@ -92,6 +104,9 @@ object Queue {
    */
   def unbounded[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     bounded(Int.MaxValue)
+
+  def unboundedIn[F[_]: Sync, G[_]: Async, A]: F[Queue[G, A]] =
+    boundedIn[F, G, A](Int.MaxValue)
 
   /**
    * Constructs an empty, bounded, dropping queue holding up to `capacity`
@@ -106,7 +121,12 @@ object Queue {
    */
   def dropping[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
     assertPositive(capacity, "Dropping")
-    F.ref(State.empty[F, A]).map(new DroppingQueue(capacity, _))
+    F.ref(State.empty[Deferred[F, *], A]).map(new DroppingQueue(capacity, _))
+  }
+
+  def droppingIn[F[_]: Sync, G[_]: Async, A](capacity: Int): F[Queue[G, A]] = {
+    assertPositive(capacity, "Dropping")
+    Ref.in[F, G, State[AsyncDeferredLike, A]](State.empty).map(new DroppingQueue(capacity, _))
   }
 
   /**
@@ -123,7 +143,14 @@ object Queue {
   def circularBuffer[F[_], A](capacity: Int)(
       implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
     assertPositive(capacity, "CircularBuffer")
-    F.ref(State.empty[F, A]).map(new CircularBufferQueue(capacity, _))
+    F.ref(State.empty[Deferred[F, *], A]).map(new CircularBufferQueue(capacity, _))
+  }
+
+  def circularBufferIn[F[_]: Sync, G[_]: Async, A](capacity: Int): F[Queue[G, A]] = {
+    assertPositive(capacity, "CircularBuffer")
+    Ref
+      .in[F, G, State[AsyncDeferredLike, A]](State.empty)
+      .map(new CircularBufferQueue(capacity, _))
   }
 
   private def assertNonNegative(capacity: Int): Unit =
@@ -138,28 +165,56 @@ object Queue {
         s"$name queue capacity must be positive, was: $capacity")
     else ()
 
-  private sealed abstract class AbstractQueue[F[_], A](
+  private sealed trait DeferredOps[F[_], D[_]] {
+    def get[A](d: D[A]): F[A]
+    def complete[A](d: D[A], a: A): F[Unit]
+    def mkD[A]: F[D[A]]
+  }
+
+  implicit private def opsForAsync[F[_]](
+      implicit F: Async[F]): DeferredOps[F, AsyncDeferredLike] =
+    new DeferredOps[F, AsyncDeferredLike] {
+      def complete[A](d: AsyncDeferredLike[A], b: A): F[Unit] =
+        d.transformAsync[F].complete(b).void
+
+      def get[A](db: AsyncDeferredLike[A]): F[A] = db.transformAsync[F].get
+
+      def mkD[A]: F[AsyncDeferredLike[A]] = Deferred.async[F, A].widen
+    }
+
+  implicit private def opsForGenConcurrent[F[_]](
+      implicit F: GenConcurrent[F, _]): DeferredOps[F, Deferred[F, *]] =
+    new DeferredOps[F, Deferred[F, *]] {
+      def complete[A](d: Deferred[F, A], b: A): F[Unit] =
+        d.complete(b).void
+
+      def get[A](db: Deferred[F, A]): F[A] = db.get
+
+      def mkD[A]: F[Deferred[F, A]] = F.deferred
+    }
+
+  private sealed abstract class AbstractQueue[F[_], D[_], A](
       capacity: Int,
-      state: Ref[F, State[F, A]]
-  )(implicit F: GenConcurrent[F, _])
+      state: Ref[F, State[D, A]]
+  )(implicit F: MonadCancel[F, _], ops: DeferredOps[F, D])
       extends Queue[F, A] {
 
     protected def onOfferNoCapacity(
-        s: State[F, A],
+        s: State[D, A],
         a: A,
-        offerer: Deferred[F, Unit],
+        offerer: D[Unit],
         poll: Poll[F]
-    ): (State[F, A], F[Unit])
+    ): (State[D, A], F[Unit])
 
-    protected def onTryOfferNoCapacity(s: State[F, A], a: A): (State[F, A], F[Boolean])
+    protected def onTryOfferNoCapacity(s: State[D, A], a: A): (State[D, A], F[Boolean])
 
     def offer(a: A): F[Unit] =
-      F.deferred[Unit].flatMap { offerer =>
+      ops.mkD[Unit].flatMap { offerer =>
         F.uncancelable { poll =>
           state.modify {
             case State(queue, size, takers, offerers) if takers.nonEmpty =>
               val (taker, rest) = takers.dequeue
-              State(queue, size, rest, offerers) -> taker.complete(a).void
+              State(queue, size, rest, offerers) -> ops.complete(taker, a)
 
             case State(queue, size, takers, offerers) if size < capacity =>
               State(queue.enqueue(a), size + 1, takers, offerers) -> F.unit
@@ -175,7 +230,7 @@ object Queue {
         .modify {
           case State(queue, size, takers, offerers) if takers.nonEmpty =>
             val (taker, rest) = takers.dequeue
-            State(queue, size, rest, offerers) -> taker.complete(a).as(true)
+            State(queue, size, rest, offerers) -> ops.complete(taker, a).as(true)
 
           case State(queue, size, takers, offerers) if size < capacity =>
             State(queue.enqueue(a), size + 1, takers, offerers) -> F.pure(true)
@@ -187,7 +242,7 @@ object Queue {
         .uncancelable
 
     val take: F[A] =
-      F.deferred[A].flatMap { taker =>
+      ops.mkD[A].flatMap { taker =>
         F.uncancelable { poll =>
           state.modify {
             case State(queue, size, takers, offerers) if queue.nonEmpty && offerers.isEmpty =>
@@ -197,16 +252,16 @@ object Queue {
             case State(queue, size, takers, offerers) if queue.nonEmpty =>
               val (a, rest) = queue.dequeue
               val ((move, release), tail) = offerers.dequeue
-              State(rest.enqueue(move), size, takers, tail) -> release.complete(()).as(a)
+              State(rest.enqueue(move), size, takers, tail) -> ops.complete(release, ()).as(a)
 
             case State(queue, size, takers, offerers) if offerers.nonEmpty =>
               val ((a, release), rest) = offerers.dequeue
-              State(queue, size, takers, rest) -> release.complete(()).as(a)
+              State(queue, size, takers, rest) -> ops.complete(release, ()).as(a)
 
             case State(queue, size, takers, offerers) =>
-              val cleanup = state.update { s => s.copy(takers = s.takers.filter(_ ne taker)) }
+              val cleanup = state.update { s => s.copy(takers = s.takers.filter(_ != taker)) }
               State(queue, size, takers.enqueue(taker), offerers) ->
-                poll(taker.get).onCancel(cleanup)
+                poll(ops.get(taker)).onCancel(cleanup)
           }.flatten
         }
       }
@@ -221,11 +276,13 @@ object Queue {
           case State(queue, size, takers, offerers) if queue.nonEmpty =>
             val (a, rest) = queue.dequeue
             val ((move, release), tail) = offerers.dequeue
-            State(rest.enqueue(move), size, takers, tail) -> release.complete(()).as(a.some)
+            State(rest.enqueue(move), size, takers, tail) -> ops
+              .complete(release, ())
+              .as(a.some)
 
           case State(queue, size, takers, offerers) if offerers.nonEmpty =>
             val ((a, release), rest) = offerers.dequeue
-            State(queue, size, takers, rest) -> release.complete(()).as(a.some)
+            State(queue, size, takers, rest) -> ops.complete(release, ()).as(a.some)
 
           case s =>
             s -> F.pure(none[A])
@@ -237,59 +294,66 @@ object Queue {
 
   }
 
-  private final class BoundedQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
-      implicit F: GenConcurrent[F, _]
+  private final class BoundedQueue[F[_], D[_], A](capacity: Int, state: Ref[F, State[D, A]])(
+      implicit F: MonadCancel[F, _],
+      ops: DeferredOps[F, D]
   ) extends AbstractQueue(capacity, state) {
 
-    protected def onOfferNoCapacity(
-        s: State[F, A],
+    override protected def onOfferNoCapacity(
+        s: State[D, A],
         a: A,
-        offerer: Deferred[F, Unit],
+        offerer: D[Unit],
         poll: Poll[F]
-    ): (State[F, A], F[Unit]) = {
+    ): (State[D, A], F[Unit]) = {
       val State(queue, size, takers, offerers) = s
-      val cleanup = state.update { s => s.copy(offerers = s.offerers.filter(_._2 ne offerer)) }
-      State(queue, size, takers, offerers.enqueue(a -> offerer)) -> poll(offerer.get)
+      val cleanup = state.update { s => s.copy(offerers = s.offerers.filter(_._2 != offerer)) }
+      State(queue, size, takers, offerers.enqueue(a -> offerer)) -> poll(ops.get(offerer))
         .onCancel(cleanup)
     }
 
-    protected def onTryOfferNoCapacity(s: State[F, A], a: A): (State[F, A], F[Boolean]) =
+    override protected def onTryOfferNoCapacity(
+        s: State[D, A],
+        a: A): (State[D, A], F[Boolean]) =
       s -> F.pure(false)
 
   }
 
-  private final class DroppingQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
-      implicit F: GenConcurrent[F, _]
+  private final class DroppingQueue[F[_], D[_], A](capacity: Int, state: Ref[F, State[D, A]])(
+      implicit F: MonadCancel[F, _],
+      ops: DeferredOps[F, D]
   ) extends AbstractQueue(capacity, state) {
 
     protected def onOfferNoCapacity(
-        s: State[F, A],
+        s: State[D, A],
         a: A,
-        offerer: Deferred[F, Unit],
+        offerer: D[Unit],
         poll: Poll[F]
-    ): (State[F, A], F[Unit]) =
+    ): (State[D, A], F[Unit]) =
       s -> F.unit
 
-    protected def onTryOfferNoCapacity(s: State[F, A], a: A): (State[F, A], F[Boolean]) =
+    protected def onTryOfferNoCapacity(s: State[D, A], a: A): (State[D, A], F[Boolean]) =
       s -> F.pure(false)
   }
 
-  private final class CircularBufferQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
-      implicit F: GenConcurrent[F, _]
+  private final class CircularBufferQueue[F[_], D[_], A](
+      capacity: Int,
+      state: Ref[F, State[D, A]])(
+      implicit F: MonadCancel[F, _],
+      ops: DeferredOps[F, D]
   ) extends AbstractQueue(capacity, state) {
 
     protected def onOfferNoCapacity(
-        s: State[F, A],
+        s: State[D, A],
         a: A,
-        offerer: Deferred[F, Unit],
+        offerer: D[Unit],
         poll: Poll[F]
-    ): (State[F, A], F[Unit]) = {
+    ): (State[D, A], F[Unit]) = {
       // dotty doesn't like cats map on tuples
       val (ns, fb) = onTryOfferNoCapacity(s, a)
       (ns, fb.void)
     }
 
-    protected def onTryOfferNoCapacity(s: State[F, A], a: A): (State[F, A], F[Boolean]) = {
+    protected def onTryOfferNoCapacity(s: State[D, A], a: A): (State[D, A], F[Boolean]) = {
       val State(queue, size, takers, offerers) = s
       val (_, rest) = queue.dequeue
       State(rest.enqueue(a), size, takers, offerers) -> F.pure(true)
@@ -297,15 +361,15 @@ object Queue {
 
   }
 
-  private final case class State[F[_], A](
+  private final case class State[D[_], A](
       queue: ScalaQueue[A],
       size: Int,
-      takers: ScalaQueue[Deferred[F, A]],
-      offerers: ScalaQueue[(A, Deferred[F, Unit])]
+      takers: ScalaQueue[D[A]],
+      offerers: ScalaQueue[(A, D[Unit])]
   )
 
   private object State {
-    def empty[F[_], A]: State[F, A] =
+    def empty[D[_], A]: State[D, A] =
       State(ScalaQueue.empty, 0, ScalaQueue.empty, ScalaQueue.empty)
   }
 

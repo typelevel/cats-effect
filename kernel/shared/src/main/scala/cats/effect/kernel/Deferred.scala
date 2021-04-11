@@ -98,7 +98,9 @@ object Deferred {
     val dummyId = 0L
   }
 
-  private[kernel] sealed trait AsyncDeferredSource[F[_], A] extends DeferredSource[F, A] {
+  private[kernel] sealed trait AsyncDeferredSource[F[_], A]
+      extends DeferredSource[F, A]
+      with AsyncDeferredLike[A] {
     protected implicit def F: Async[F]
     private[Deferred] val ref: AtomicReference[State[A]]
 
@@ -216,6 +218,10 @@ object Deferred {
         override protected val F: Sync[G] = G
         override private[Deferred] val ref: AtomicReference[State[A]] = self.ref
       }
+  }
+
+  sealed trait AsyncDeferredLike[A] {
+    def transformAsync[G[_]](implicit G: Async[G]): AsyncDeferred[G, A]
   }
 
   sealed class AsyncDeferred[F[_], A](implicit protected val F: Async[F])
