@@ -222,13 +222,12 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies += "org.specs2" %%% "specs2-core" % Specs2Version % Test)
   .settings(dottyLibrarySettings)
   .settings(libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion)
-  .jsSettings(
-    Compile / doc / sources := {
-      if (scalaVersion.value == "3.0.0-RC2")
-        Seq()
-      else
-        (Compile / doc / sources).value
-    })
+  .jsSettings(Compile / doc / sources := {
+    if (scalaVersion.value == "3.0.0-RC2")
+      Seq()
+    else
+      (Compile / doc / sources).value
+  })
 
 /**
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
@@ -274,7 +273,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation$")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation$"),
+      // introduced by #1889, removal of private classes
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$AbstractQueue"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$BoundedQueue"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$DroppingQueue"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$CircularBufferQueue")
     )
   )
   .jvmSettings(
