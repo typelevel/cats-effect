@@ -20,7 +20,15 @@ package std
 
 import cats._
 import cats.syntax.all._
-import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
+import cats.data.{
+  EitherT,
+  IndexedReaderWriterStateT,
+  IndexedStateT,
+  IorT,
+  Kleisli,
+  OptionT,
+  WriterT
+}
 import cats.effect.kernel._
 import scala.util.{Random => SRandom}
 
@@ -227,11 +235,12 @@ object Random {
     Random[F].mapK(OptionT.liftK)
 
   /**
-   * [[Random]] instance built for `cats.data.StateT` values initialized with
+   * [[Random]] instance built for `cats.data.IndexedStateT` values initialized with
    * any `F` data type that also implements `Random`.
    */
-  implicit def catsStateTRandom[F[_]: Random: Applicative, S]: Random[StateT[F, S, *]] =
-    Random[F].mapK(StateT.liftK)
+  implicit def catsIndexedStateTRandom[F[_]: Random: Applicative, S]
+      : Random[IndexedStateT[F, S, S, *]] =
+    Random[F].mapK(IndexedStateT.liftK)
 
   /**
    * [[Random]] instance built for `cats.data.WriterT` values initialized with
@@ -251,16 +260,16 @@ object Random {
     Random[F].mapK(IorT.liftK)
 
   /**
-   * [[Random]] instance built for `cats.data.ReaderWriterStateT` values
+   * [[Random]] instance built for `cats.data.IndexedReaderWriterStateT` values
    * initialized with any `F` data type that also implements `Random`.
    */
-  implicit def catsReaderWriterStateTRandom[
+  implicit def catsIndexedReaderWriterStateTRandom[
       F[_]: Random: Applicative,
       E,
       L: Monoid,
       S
-  ]: Random[ReaderWriterStateT[F, E, L, S, *]] =
-    Random[F].mapK(ReaderWriterStateT.liftK)
+  ]: Random[IndexedReaderWriterStateT[F, E, L, S, S, *]] =
+    Random[F].mapK(IndexedReaderWriterStateT.liftK)
 
   /**
    * Creates Several Random Number Generators and equally
