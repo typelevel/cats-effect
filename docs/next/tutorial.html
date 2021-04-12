@@ -62,11 +62,11 @@ one</a> copies the contents from one file to another, safely
 handling <em>resources</em> and <em>cancelation</em> in the process. That should help us to
 flex our muscles. <a href="#producerconsumer">The second one</a> implements a solution to
 the producer-consumer problem to introduce cats-effect <em>fibers</em>.</p>
-<p>This tutorial assumes certain familiarity with functional programming. It is
-also a good idea to read cats-effect documentation prior to starting this
+<p>This tutorial assumes some familiarity with functional programming. It is
+also a good idea to read the cats-effect documentation prior to starting this
 tutorial, at least the <a href="/cats-effect/docs/next/getting-started">Getting Started page</a>.</p>
 <p>Please read this tutorial as training material, not as a best-practices
-document. As you gain more experience with cats-effect, probably you will find
+document. As you gain more experience with cats-effect, you will probably find
 your own solutions to deal with the problems presented here. Also, bear in mind
 that using cats-effect for copying files or implementing basic concurrency
 patterns (such as the producer-consumer problem) is suitable for a 'getting
@@ -81,7 +81,7 @@ cats-effect.</p>
 repo</a> includes
 all the software that will be developed during this tutorial (branch
 <code>series/3.x</code>). It uses <code>sbt</code> as the build tool. To ease coding, compiling and
-running the code snippets in this tutorial it is recommended to use the same
+running the code snippets in this tutorial, it is recommended to use the same
 <code>build.sbt</code>, or at least one with the same dependencies and compilation options:</p>
 <pre><code class="hljs css language-scala">name := <span class="hljs-string">"cats-effect-tutorial"</span>
 
@@ -107,7 +107,7 @@ the scala console of the project defined above (or any project with similar
 settings).</p>
 <h2><a class="anchor" aria-hidden="true" id="a-namecopyingfilesacopying-files---basic-concepts-resource-handling-and-cancelation"></a><a href="#a-namecopyingfilesacopying-files---basic-concepts-resource-handling-and-cancelation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><a name="copyingfiles"></a>Copying files - basic concepts, resource handling and cancelation</h2>
 <p>Our goal is to create a program that copies files. First we will work on a
-function that carries such task, and then we will create a program that can be
+function that carries out such a task, and then we will create a program that can be
 invoked from the shell and uses that function.</p>
 <p>First of all we must code the function that copies the content from a file to
 another file. The function takes the source and destination files as parameters.
@@ -128,7 +128,7 @@ raised.</p>
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">copy</span></span>(origin: <span class="hljs-type">File</span>, destination: <span class="hljs-type">File</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = ???
 </code></pre>
-<p>Nothing scary, uh? As we said before, the function just returns an <code>IO</code>
+<p>Nothing scary, eh? As we said before, the function just returns an <code>IO</code>
 instance. When run, all side-effects will be actually executed and the <code>IO</code>
 instance will return the bytes copied in a <code>Long</code> (note that <code>IO</code> is
 parameterized by the return type). Now, let's start implementing our function.
@@ -136,8 +136,8 @@ First, we need to open two streams that will read and write file contents.</p>
 <h3><a class="anchor" aria-hidden="true" id="acquiring-and-releasing-resources"></a><a href="#acquiring-and-releasing-resources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Acquiring and releasing <code>Resource</code>s</h3>
 <p>We consider opening a stream to be a side-effect action, so we have to
 encapsulate those actions in their own <code>IO</code> instances. For this, we will make
-use of cats-effect <code>Resource</code>, that allows to orderly create, use and then
-release resources. See this code:</p>
+use of cats-effect <code>Resource</code>, that allows us to create, use and then
+release resources in an orderly fashion. See this code:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">Resource</span>}
 <span class="hljs-keyword">import</span> java.io._  
 
@@ -175,7 +175,7 @@ ignore the error, but normally it should be at least logged. Often you will see
 that <code>.attempt.void</code> is used to get the same 'swallow and ignore errors'
 behavior.</p>
 <p>Optionally we could have used <code>Resource.fromAutoCloseable</code> to define our
-resources, that method creates <code>Resource</code> instances over objects that implement
+resources, that method creates <code>Resource</code> instances over objects that implement the
 <code>java.lang.AutoCloseable</code> interface without having to define how the resource is
 released. So our <code>inputStream</code> function would look like this:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">Resource</span>}
@@ -215,7 +215,7 @@ is any issue opening the output file, then the input stream will be closed.</p>
 <p>Now, if you are familiar with cats-effect's <code>Bracket</code> you may be wondering why
 we are not using it as it looks so similar to <code>Resource</code> (and there is a good
 reason for that: <code>Resource</code> is based on <code>bracket</code>). Ok, before moving forward it
-is worth to take a look to <code>bracket</code>.</p>
+is worth taking a look at <code>bracket</code>.</p>
 <p>There are three stages when using <code>bracket</code>: <em>resource acquisition</em>, <em>usage</em>,
 and <em>release</em>. Each stage is defined by an <code>IO</code> instance.  A fundamental
 property is that the <em>release</em> stage will always be run regardless whether the
@@ -250,7 +250,7 @@ follows:</p>
     }
 }
 </code></pre>
-<p>New <code>copy</code> definition is more complex, even though the code as a whole is way
+<p>The new <code>copy</code> definition is more complex, even though the code as a whole is way
 shorter as we do not need the <code>inputOutputStreams</code> function. But there is a
 catch in the code above.  When using <code>bracket</code>, if there is a problem when
 getting resources in the first stage, then the release stage will not be run.
@@ -293,7 +293,7 @@ the main loop, and leave the actual transmission of data to another function
 <p>Take a look at <code>transmit</code>, observe that both input and output actions are
 created by invoking <code>IO.blocking</code> which return the actions encapsulated in a
 (suspended in) <code>IO</code>. We can also just embed the actions by calling <code>IO(action)</code>,
-but when dealing with input/output actions it is advised to use instead
+but when dealing with input/output actions it is advised that you instead use
 <code>IO.blocking(action)</code>. This way we help cats-effect to better plan how to assign
 threads to actions. We will return to this topic when we introduce <em>fibers</em>
 later on in this tutorial.</p>
@@ -430,7 +430,7 @@ method can look like this:</p>
 </code></pre>
 <p>Heed how <code>run</code> verifies the <code>args</code> list passed. If there are fewer than two
 arguments, an error is raised. As <code>IO</code> implements <code>MonadError</code> we can at any
-moment call to <code>IO.raiseError</code> to interrupt a sequence of <code>IO</code> operations. Log
+moment call to <code>IO.raiseError</code> to interrupt a sequence of <code>IO</code> operations. The log
 message is printed by means of handy <code>IO.println</code> method.</p>
 <h4><a class="anchor" aria-hidden="true" id="copy-program-code"></a><a href="#copy-program-code" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Copy program code</h4>
 <p>You can check the <a href="https://github.com/lrodero/cats-effect-tutorial/blob/series/3.x/src/main/scala/catseffecttutorial/copyfile/CopyFile.scala">final version of our copy program
@@ -445,11 +445,11 @@ at any time for example by pressing <code>Ctrl-c</code>, our code will deal with
 resource release (streams closing) even under such circumstances. The same will
 apply if the <code>copy</code> function is run from other modules that require its
 functionality. If the <code>IO</code> returned by this function is canceled while being
-run, still resources will be properly released. But recall what we commented
-before: this is because <code>use</code> returns <code>IO</code> instances that are cancelable, in
-contrast our <code>transfer</code> function is not cancelable.</p>
+run, still resources will be properly released. But recall what we commented on
+before: this is because <code>use</code> returns <code>IO</code> instances that are cancelable. By
+contrast, our <code>transfer</code> function is not cancelable.</p>
 <h3><a class="anchor" aria-hidden="true" id="polymorphic-cats-effect-code"></a><a href="#polymorphic-cats-effect-code" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Polymorphic cats-effect code</h3>
-<p>There is an important characteristic of <code>IO</code> that we shall be aware of. <code>IO</code> is
+<p>There is an important characteristic of <code>IO</code> that we should be aware of. <code>IO</code> is
 able to suspend side-effects asynchronously thanks to the existence of an
 instance of <code>Async[IO]</code>. Because <code>Async</code> extends <code>Sync</code>, <code>IO</code> can also suspend
 side-effects synchronously. On top of that <code>Async</code> extends typeclasses such as
@@ -476,7 +476,7 @@ replacing any use of <code>IO</code> by calls to the <code>delay</code> and <cod
 <p>We leave as an exercise to code the polymorphic versions of <code>inputStream</code>,
 <code>outputStream</code>, <code>inputOutputStreams</code>, <code>transfer</code> and <code>copy</code> functions. You will
 find that transformation similar to the one shown for <code>transfer</code> in the snippet
-above, only that function <code>copy</code> requires <code>F[_]: Async</code> instead of <code>F[_]: Sync</code>. This is because it does not only suspend a side-effect, it uses
+above, but the function <code>copy</code> requires <code>F[_]: Async</code> instead of <code>F[_]: Sync</code>. This is because it not only suspends a side-effect, it uses
 functionality of semaphores that requires a <code>Concurrent</code> instance in (implicit)
 scope.  And <code>Sync</code> does <em>not</em> extend <code>Concurrent</code> while <code>Async</code> does.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
@@ -493,7 +493,7 @@ scope.  And <code>Sync</code> does <em>not</em> extend <code>Concurrent</code> w
 <p>Only in our <code>main</code> function we will set <code>IO</code> as the final <code>F</code> for our program.
 To do so, of course, an <code>Async[IO]</code> instance must be in scope, but that instance
 is brought transparently by <code>IOApp</code> so we do not need to be concerned about it.</p>
-<p>During the remaining of this tutorial we will use polymorphic code, only falling
+<p>During the remainder of this tutorial we will use polymorphic code, only falling
 to <code>IO</code> in the <code>run</code> method of our <code>IOApp</code>s. Polymorphic code is less
 restrictive, as functions are not tied to <code>IO</code> but are applicable to any <code>F[_]</code>
 as long as there is an instance of the type class required (<code>Sync[F[_]]</code> ,
