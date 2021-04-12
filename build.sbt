@@ -273,12 +273,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation$"),
-      // introduced by #1889, removal of private classes
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$AbstractQueue"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$BoundedQueue"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$DroppingQueue"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$CircularBufferQueue")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation$")
     )
   )
   .jvmSettings(
@@ -333,7 +328,14 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
       else
         "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     },
-    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test
+    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
+    mimaBinaryIssueFilters ++= Seq(
+      // introduced by #1889, removal of private classes
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$AbstractQueue"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$BoundedQueue"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$DroppingQueue"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Queue$CircularBufferQueue")
+    )
   )
 
 /**
