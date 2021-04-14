@@ -26,6 +26,7 @@ const users = [
   ['ITV', 'https://www.itv.com/'],
   ['Kazula', 'https://www.kaluza.com'],
   ['Medidata', 'https://www.medidata.com/'],
+  ['Ocado Technology', 'https://ocadotechnology.com/'],
   ['OVO Energy', 'https://www.ovoenergy.com'],
   ['Packlink', 'https://www.packlink.com'],
   ['Philips', 'https://www.philips.com/'],
