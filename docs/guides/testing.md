@@ -46,7 +46,8 @@ Some reference material on this approach:
 
 - [TestContext api documentation](https://www.javadoc.io/doc/org.typelevel/cats-effect-laws_2.13/2.2.0/cats/effect/laws/util/TestContext.html) (includes examples and motivation)
 - [Time Traveling in Tests with Cats-Effect](https://blog.softwaremill.com/time-traveling-in-tests-with-cats-effect-b22084f6a89), by Krzysztof Ciesielski
-
+- [Time-warping with cats-effect](https://github.com/jatcwang/talks/blob/cc6c4bf603409c8390db2104ce775283ab22bc05/2021_timewarping_with_cats_effect/public/presentation.pdf) by Jacob Wang. This talk explains how test-context works under the hood, with examples on how you can structure your tests.
+- 
 ### Managing shared resources
 
 Sometimes you'll want to write a test that acquires a Resource before the suite and releases it after. For example, spinning up a database.
