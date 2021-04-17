@@ -22,7 +22,7 @@ trait Queue[F[_], A] {
 `take` is semantically blocking when the queue is empty. A `Queue` may be constructed
 with different policies for the behaviour of `offer` when the queue has reached
 capacity:
-- `bounded(capacity: Int)`: `offer` is semantically when the queue is full
+- `bounded(capacity: Int)`: `offer` is semantically blocking when the queue is full
 - `synchronous`: equivalent to `bounded(0)` - `offer` and `take` are both blocking
   until another fiber invokes the opposite action
 - `unbounded`: `offer` never blocks
