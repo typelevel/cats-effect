@@ -71,7 +71,7 @@
 with different policies for the behaviour of <code>offer</code> when the queue has reached
 capacity:</p>
 <ul>
-<li><code>bounded(capacity: Int)</code>: <code>offer</code> is semantically when the queue is full</li>
+<li><code>bounded(capacity: Int)</code>: <code>offer</code> is semantically blocking when the queue is full</li>
 <li><code>synchronous</code>: equivalent to <code>bounded(0)</code> - <code>offer</code> and <code>take</code> are both blocking
 until another fiber invokes the opposite action</li>
 <li><code>unbounded</code>: <code>offer</code> never blocks</li>

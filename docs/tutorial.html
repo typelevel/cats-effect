@@ -605,7 +605,7 @@ queue but it must be aware that the queue can be empty:</p>
 <span class="hljs-keyword">import</span> cats.syntax.all._
 <span class="hljs-keyword">import</span> collection.immutable.<span class="hljs-type">Queue</span>
 
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">consumer</span></span>[<span class="hljs-type">F</span>[_] : <span class="hljs-type">Sync</span>: <span class="hljs-type">Console</span>](queueR: <span class="hljs-type">Ref</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Queue</span>[<span class="hljs-type">Int</span>]]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">consumer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>: <span class="hljs-type">Console</span>](queueR: <span class="hljs-type">Ref</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Queue</span>[<span class="hljs-type">Int</span>]]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
   <span class="hljs-keyword">for</span> {
     iO &lt;- queueR.modify{ queue =&gt;
       queue.dequeueOption.fold((queue, <span class="hljs-type">Option</span>.empty[<span class="hljs-type">Int</span>])){<span class="hljs-keyword">case</span> (i,queue) =&gt; (queue, <span class="hljs-type">Option</span>(i))}
@@ -647,7 +647,7 @@ recursively to start again.</p>
 <a href="https://github.com/lrodero/cats-effect-tutorial/blob/series/3.x/src/main/scala/catseffecttutorial/producerconsumer/InefficientProducerConsumer.scala">here</a>.</p>
 <p>Our <code>run</code> function instantiates the shared queue wrapped in a <code>Ref</code> and boots
 the producer and consumer in parallel. To do to it uses <code>parMapN</code>, that creates
-and runs the fibers that will run the <code>IO</code>s passed as paremeter. Then it takes
+and runs the fibers that will run the <code>IO</code>s passed as parameter. Then it takes
 the output of each fiber and and applies a given function to them. In our case
 both producer and consumer shall run forever until user presses CTRL-C which
 will trigger a cancelation.</p>
