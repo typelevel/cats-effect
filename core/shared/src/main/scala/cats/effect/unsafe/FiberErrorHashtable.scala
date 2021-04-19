@@ -67,5 +67,5 @@ private[effect] final class FiberErrorHashtable(initialCapacity: Int) {
   }
 
   private def hash(cb: Throwable => Unit): Int =
-    cb.hashCode() & mask
+    System.identityHashCode(cb) & mask
 }
