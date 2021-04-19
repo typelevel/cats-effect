@@ -17,7 +17,20 @@
 package cats.effect
 package unsafe
 
-private[effect] final class FiberErrorHashtable(initialCapacity: Int) {
+/**
+ * A primitive thread safe hash table implementation specialized for a single
+ * purpose, to hold references to the error callbacks of fibers. The hashing
+ * function is [[System.identityHashCode]] simply because the callbacks are
+ * functions and therefore have no defined notion of [[Object#hashCode]]. The
+ * thread safety is achieved by pessimistically locking the whole structure.
+ * This is fine in practice because this data structure is only accessed when
+ * running [[cats.effect.IO#unsafeRunFiber]], which is not expected to be
+ * executed often in a realistic system.
+ *
+ * @param initialCapacity the initial capacity of the hashtable, ''must'' be a
+ *                        power of 2
+ */
+private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
   var hashtable: Array[Throwable => Unit] = new Array(initialCapacity)
   private[this] var size = 0
   private[this] var mask = initialCapacity - 1
@@ -66,6 +79,6 @@ private[effect] final class FiberErrorHashtable(initialCapacity: Int) {
     }
   }
 
-  private def hash(cb: Throwable => Unit): Int =
+  private[this] def hash(cb: Throwable => Unit): Int =
     System.identityHashCode(cb) & mask
 }

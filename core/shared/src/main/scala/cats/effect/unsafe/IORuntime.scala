@@ -39,7 +39,7 @@ final class IORuntime private[effect] (
     val scheduler: Scheduler,
     val shutdown: () => Unit,
     val config: IORuntimeConfig,
-    private[effect] val fiberErrorCbs: FiberErrorHashtable = new FiberErrorHashtable(16)
+    private[effect] val fiberErrorCbs: ThreadSafeHashtable = new ThreadSafeHashtable(16)
 ) {
   override def toString: String = s"IORuntime($compute, $scheduler, $config)"
 }
