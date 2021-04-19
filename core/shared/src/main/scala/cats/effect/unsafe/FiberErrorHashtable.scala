@@ -23,52 +23,48 @@ private[effect] final class FiberErrorHashtable(initialCapacity: Int) {
   private[this] var mask = initialCapacity - 1
   private[this] var capacity = initialCapacity
 
-  def put(cb: Throwable => Unit): Unit =
-    this.synchronized {
-      val cap = capacity
-      if (size == cap) {
-        val newCap = cap * 2
-        val newHashtable = new Array[Throwable => Unit](newCap)
-        System.arraycopy(hashtable, 0, newHashtable, 0, cap)
-        hashtable = newHashtable
-        mask = newCap - 1
-        capacity = newCap
-      }
+  def put(cb: Throwable => Unit): Unit = this.synchronized {
+    val cap = capacity
+    if (size == cap) {
+      val newCap = cap * 2
+      val newHashtable = new Array[Throwable => Unit](newCap)
+      System.arraycopy(hashtable, 0, newHashtable, 0, cap)
+      hashtable = newHashtable
+      mask = newCap - 1
+      capacity = newCap
+    }
 
-      val init = hash(cb)
-      var idx = init
-      var cont = true
-      while (cont) {
-        if (hashtable(idx) == null) {
-          hashtable(idx) = cb
-          size += 1
-          cont = false
-        } else {
-          idx += 1
-          idx &= mask
+    val init = hash(cb)
+    var idx = init
+    while (true) {
+      if (hashtable(idx) == null) {
+        hashtable(idx) = cb
+        size += 1
+        return
+      } else {
+        idx += 1
+        idx &= mask
+      }
+    }
+  }
+
+  def remove(cb: Throwable => Unit): Unit = this.synchronized {
+    val init = hash(cb)
+    var idx = init
+    while (true) {
+      if (cb eq hashtable(idx)) {
+        hashtable(idx) = null
+        size -= 1
+        return
+      } else {
+        idx += 1
+        idx &= mask
+        if (idx == init) {
+          return
         }
       }
     }
-
-  def remove(cb: Throwable => Unit): Unit =
-    this.synchronized {
-      val init = hash(cb)
-      var idx = init
-      var cont = true
-      while (cont) {
-        if (cb eq hashtable(idx)) {
-          hashtable(idx) = null
-          size -= 1
-          cont = false
-        } else {
-          idx += 1
-          idx &= mask
-          if (idx == init) {
-            cont = false
-          }
-        }
-      }
-    }
+  }
 
   private def hash(cb: Throwable => Unit): Int =
     cb.hashCode() & mask
