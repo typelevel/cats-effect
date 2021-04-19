@@ -36,7 +36,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
   private[this] var mask = initialCapacity - 1
   private[this] var capacity = initialCapacity
 
-  def put(cb: Throwable => Unit): Unit = this.synchronized {
+  def put(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {
     val cap = capacity
     if (size == cap) {
       val newCap = cap * 2
@@ -47,8 +47,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
       capacity = newCap
     }
 
-    val init = hash(cb)
-    var idx = init
+    var idx = hash & mask
     while (true) {
       if (hashtable(idx) == null) {
         hashtable(idx) = cb
@@ -61,8 +60,8 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
     }
   }
 
-  def remove(cb: Throwable => Unit): Unit = this.synchronized {
-    val init = hash(cb)
+  def remove(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {
+    val init = hash & mask
     var idx = init
     while (true) {
       if (cb eq hashtable(idx)) {
@@ -78,7 +77,4 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
       }
     }
   }
-
-  private[this] def hash(cb: Throwable => Unit): Int =
-    System.identityHashCode(cb) & mask
 }

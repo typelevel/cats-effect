@@ -16,8 +16,6 @@
 
 package cats.effect.unsafe
 
-import java.util.concurrent.ThreadLocalRandom
-
 /**
  * A conceptual hash table which balances between several
  * [[ThreadSafeHashtable]]s, in order to reduce the contention on the single
@@ -25,8 +23,23 @@ import java.util.concurrent.ThreadLocalRandom
  * hash table.
  */
 private[effect] final class FiberCallbackStripedHashtable {
-  val numTables: Int = Runtime.getRuntime().availableProcessors()
+  val numTables: Int = {
+    val cpus = Runtime.getRuntime().availableProcessors()
+    // Bit twiddling hacks.
+    // http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+    var value = cpus - 1
+    value |= value >> 1
+    value |= value >> 2
+    value |= value >> 4
+    value |= value >> 8
+    value |= value >> 16
+    value + 1
+  }
+
+  private[this] val mask: Int = numTables - 1
+
   private[this] val initialCapacity: Int = 8
+
   val tables: Array[ThreadSafeHashtable] = {
     val array = new Array[ThreadSafeHashtable](numTables)
     var i = 0
@@ -37,13 +50,15 @@ private[effect] final class FiberCallbackStripedHashtable {
     array
   }
 
-  def put(cb: Throwable => Unit, random: ThreadLocalRandom): Int = {
-    val idx = random.nextInt(numTables)
-    tables(idx).put(cb)
-    idx
+  def put(cb: Throwable => Unit): Unit = {
+    val hash = System.identityHashCode(cb)
+    val idx = hash & mask
+    tables(idx).put(cb, hash)
   }
 
-  def remove(cb: Throwable => Unit, idx: Int): Unit = {
-    tables(idx).remove(cb)
+  def remove(cb: Throwable => Unit): Unit = {
+    val hash = System.identityHashCode(cb)
+    val idx = hash & mask
+    tables(idx).remove(cb, hash)
   }
 }

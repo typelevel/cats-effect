@@ -721,24 +721,21 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       failure: Throwable => Unit,
       success: A => Unit)(implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
-    val random = java.util.concurrent.ThreadLocalRandom.current()
-    val idx = runtime.fiberErrorCbs.put(failure, random)
-
     val fiber = new IOFiber[A](
       0,
       Map(),
       oc =>
         oc.fold(
           {
-            runtime.fiberErrorCbs.remove(failure, idx)
+            runtime.fiberErrorCbs.remove(failure)
             canceled
           },
           { t =>
-            runtime.fiberErrorCbs.remove(failure, idx)
+            runtime.fiberErrorCbs.remove(failure)
             failure(t)
           },
           { ioa =>
-            runtime.fiberErrorCbs.remove(failure, idx)
+            runtime.fiberErrorCbs.remove(failure)
             success(ioa.asInstanceOf[IO.Pure[A]].value)
           }
         ),
@@ -747,6 +744,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       runtime
     )
 
+    runtime.fiberErrorCbs.put(failure)
     runtime.compute.execute(fiber)
     fiber
   }
