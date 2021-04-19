@@ -17,20 +17,22 @@
 package cats.effect
 package unsafe
 
-private[effect] final class FiberErrorHashtable(initialSize: Int) {
-  var hashtable: Array[Throwable => Unit] = new Array(initialSize)
-  private[this] var capacity = 0
-  private[this] var mask = initialSize - 1
+private[effect] final class FiberErrorHashtable(initialCapacity: Int) {
+  var hashtable: Array[Throwable => Unit] = new Array(initialCapacity)
+  private[this] var size = 0
+  private[this] var mask = initialCapacity - 1
+  private[this] var capacity = initialCapacity
 
   def put(cb: Throwable => Unit): Unit =
     this.synchronized {
-      val len = hashtable.length
-      if (capacity == len) {
-        val newLen = len * 2
-        val newHashtable = new Array[Throwable => Unit](newLen)
-        System.arraycopy(hashtable, 0, newHashtable, 0, len)
+      val cap = capacity
+      if (size == cap) {
+        val newCap = cap * 2
+        val newHashtable = new Array[Throwable => Unit](newCap)
+        System.arraycopy(hashtable, 0, newHashtable, 0, cap)
         hashtable = newHashtable
-        mask = newLen - 1
+        mask = newCap - 1
+        capacity = newCap
       }
 
       val init = hash(cb)
@@ -39,7 +41,7 @@ private[effect] final class FiberErrorHashtable(initialSize: Int) {
       while (cont) {
         if (hashtable(idx) == null) {
           hashtable(idx) = cb
-          capacity += 1
+          size += 1
           cont = false
         } else {
           idx += 1
@@ -56,7 +58,7 @@ private[effect] final class FiberErrorHashtable(initialSize: Int) {
       while (cont) {
         if (cb eq hashtable(idx)) {
           hashtable(idx) = null
-          capacity -= 1
+          size -= 1
           cont = false
         } else {
           idx += 1
