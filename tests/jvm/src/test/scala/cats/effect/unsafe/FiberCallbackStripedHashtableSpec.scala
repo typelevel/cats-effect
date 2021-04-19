@@ -23,7 +23,7 @@ import scala.concurrent.duration._
 
 import java.util.concurrent.CountDownLatch
 
-class ThreadSafeHashtableSpec extends BaseSpec with Runners {
+class FiberCallbackStripedHashtableSpec extends BaseSpec with Runners {
 
   override def executionTimeout: FiniteDuration = 30.seconds
 
@@ -55,7 +55,7 @@ class ThreadSafeHashtableSpec extends BaseSpec with Runners {
     rt
   }
 
-  "ThreadSafeHashtable" should {
+  "FiberCallbackStripedHashtable" should {
     "work correctly in the presence of many unsafeRuns" in real {
       val iterations = 1000000
 
@@ -77,7 +77,7 @@ class ThreadSafeHashtableSpec extends BaseSpec with Runners {
             .flatMap { _ =>
               IO.blocking {
                 rt.fiberErrorCbs.synchronized {
-                  rt.fiberErrorCbs.hashtable.forall(_ eq null) mustEqual true
+                  rt.fiberErrorCbs.tables.forall(_.hashtable.forall(_ eq null)) mustEqual true
                 }
               }
             }

@@ -18,10 +18,16 @@ package cats.effect.unsafe
 
 import java.util.concurrent.ThreadLocalRandom
 
+/**
+ * A conceptual hash table which balances between several
+ * [[ThreadSafeHashtable]]s, in order to reduce the contention on the single
+ * lock by spreading it to several different locks controlling parts of the
+ * hash table.
+ */
 private[effect] final class FiberCallbackStripedHashtable {
-  private[this] val numTables: Int = Runtime.getRuntime().availableProcessors()
+  val numTables: Int = Runtime.getRuntime().availableProcessors()
   private[this] val initialCapacity: Int = 8
-  private[this] val tables: Array[ThreadSafeHashtable] = {
+  val tables: Array[ThreadSafeHashtable] = {
     val array = new Array[ThreadSafeHashtable](numTables)
     var i = 0
     while (i < numTables) {
