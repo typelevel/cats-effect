@@ -17,7 +17,7 @@
 package cats.effect
 package unsafe
 
-import cats.syntax.traverse._
+import cats.syntax.parallel._
 
 import scala.concurrent.duration._
 
@@ -72,7 +72,7 @@ class ThreadSafeHashtableSpec extends BaseSpec with Runners {
         IO(new CountDownLatch(iterations)).flatMap { counter =>
           (0 until iterations)
             .toList
-            .traverse { n => IO(io(n).unsafeRunAsync { _ => counter.countDown() }(rt)) }
+            .parTraverse { n => IO(io(n).unsafeRunAsync { _ => counter.countDown() }(rt)) }
             .flatMap { _ => IO.blocking(counter.await()) }
             .flatMap { _ =>
               IO.blocking {
