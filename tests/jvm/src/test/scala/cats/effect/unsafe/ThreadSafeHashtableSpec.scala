@@ -19,9 +19,13 @@ package unsafe
 
 import cats.syntax.traverse._
 
+import scala.concurrent.duration._
+
 import java.util.concurrent.CountDownLatch
 
 class ThreadSafeHashtableSpec extends BaseSpec with Runners {
+
+  override def executionTimeout: FiniteDuration = 30.seconds
 
   def hashtableRuntime(): IORuntime = {
     lazy val rt: IORuntime = {
@@ -53,7 +57,7 @@ class ThreadSafeHashtableSpec extends BaseSpec with Runners {
 
   "ThreadSafeHashtable" should {
     "work correctly in the presence of many unsafeRuns" in real {
-      val iterations = 100000
+      val iterations = 1000000
 
       object Boom extends RuntimeException("Boom!")
 
