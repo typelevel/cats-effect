@@ -47,7 +47,7 @@ val Windows = "windows-latest"
 val ScalaJSJava = "adopt@1.8"
 val Scala213 = "2.13.5"
 
-ThisBuild / crossScalaVersions := Seq("3.0.0-RC1", "3.0.0-RC2", "2.12.13", Scala213)
+ThisBuild / crossScalaVersions := Seq("3.0.0-RC2", "3.0.0-RC3", "2.12.13", Scala213)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
@@ -146,11 +146,11 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 
 ThisBuild / autoAPIMappings := true
 
-val CatsVersion = "2.5.0"
+val CatsVersion = "2.6.0"
 val Specs2Version = "4.10.6"
 val ScalaCheckVersion = "1.15.3"
-val DisciplineVersion = "1.1.4"
-val CoopVersion = "1.0.0"
+val DisciplineVersion = "1.1.5"
+val CoopVersion = "1.1.0"
 
 replaceCommandAlias(
   "ci",
