@@ -224,7 +224,7 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
   .settings(libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion)
   .jsSettings(
     Compile / doc / sources := {
-      if (scalaVersion.value == "3.0.0-RC2")
+      if (isDotty.value)
         Seq()
       else
         (Compile / doc / sources).value
