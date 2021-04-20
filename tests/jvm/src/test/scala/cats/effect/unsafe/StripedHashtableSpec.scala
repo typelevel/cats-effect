@@ -23,7 +23,7 @@ import scala.concurrent.duration._
 
 import java.util.concurrent.CountDownLatch
 
-class FiberCallbackStripedHashtableSpec extends BaseSpec with Runners {
+class StripedHashtableSpec extends BaseSpec with Runners {
 
   override def executionTimeout: FiniteDuration = 30.seconds
 
@@ -55,7 +55,7 @@ class FiberCallbackStripedHashtableSpec extends BaseSpec with Runners {
     rt
   }
 
-  "FiberCallbackStripedHashtable" should {
+  "StripedHashtable" should {
     "work correctly in the presence of many unsafeRuns" in real {
       val iterations = 1000000
 

@@ -22,7 +22,7 @@ package cats.effect.unsafe
  * lock by spreading it to several different locks controlling parts of the
  * hash table.
  */
-private[effect] final class FiberCallbackStripedHashtable {
+private[effect] final class StripedHashtable {
   val numTables: Int = {
     val cpus = Runtime.getRuntime().availableProcessors()
     // Bit twiddling hacks.
