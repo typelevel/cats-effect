@@ -20,6 +20,15 @@ package std
 
 import cats._
 import cats.syntax.all._
+import cats.data.{
+  EitherT,
+  IndexedReaderWriterStateT,
+  IndexedStateT,
+  IorT,
+  Kleisli,
+  OptionT,
+  WriterT
+}
 import cats.effect.kernel._
 import scala.util.{Random => SRandom}
 
@@ -29,7 +38,7 @@ import scala.util.{Random => SRandom}
  *
  * Alumnus of the Davenverse.
  */
-trait Random[F[_]] {
+trait Random[F[_]] { self =>
 
   /**
    * Returns the next pseudorandom, uniformly distributed double value between min (inclusive) and max (exclusive) from this random number generator's sequence.
@@ -125,6 +134,70 @@ trait Random[F[_]] {
    */
   def shuffleVector[A](v: Vector[A]): F[Vector[A]]
 
+  /**
+   * Modifies the context in which this [[Random]] operates using the natural
+   * transformation `f`.
+   *
+   * @return a [[Random]] in the new context obtained by mapping the current one
+   *         using `f`
+   */
+  def mapK[G[_]](f: F ~> G): Random[G] =
+    new Random[G] {
+      override def betweenDouble(minInclusive: Double, maxExclusive: Double): G[Double] =
+        f(self.betweenDouble(minInclusive, maxExclusive))
+
+      override def betweenFloat(minInclusive: Float, maxExclusive: Float): G[Float] =
+        f(self.betweenFloat(minInclusive, maxExclusive))
+
+      override def betweenInt(minInclusive: Int, maxExclusive: Int): G[Int] =
+        f(self.betweenInt(minInclusive, maxExclusive))
+
+      override def betweenLong(minInclusive: Long, maxExclusive: Long): G[Long] =
+        f(self.betweenLong(minInclusive, maxExclusive))
+
+      override def nextAlphaNumeric: G[Char] =
+        f(self.nextAlphaNumeric)
+
+      override def nextBoolean: G[Boolean] =
+        f(self.nextBoolean)
+
+      override def nextBytes(n: Int): G[Array[Byte]] =
+        f(self.nextBytes(n))
+
+      override def nextDouble: G[Double] =
+        f(self.nextDouble)
+
+      override def nextFloat: G[Float] =
+        f(self.nextFloat)
+
+      override def nextGaussian: G[Double] =
+        f(self.nextGaussian)
+
+      override def nextInt: G[Int] =
+        f(self.nextInt)
+
+      override def nextIntBounded(n: Int): G[Int] =
+        f(self.nextIntBounded(n))
+
+      override def nextLong: G[Long] =
+        f(self.nextLong)
+
+      override def nextLongBounded(n: Long): G[Long] =
+        f(self.nextLongBounded(n))
+
+      override def nextPrintableChar: G[Char] =
+        f(self.nextPrintableChar)
+
+      override def nextString(length: Int): G[String] =
+        f(self.nextString(length))
+
+      override def shuffleList[A](l: List[A]): G[List[A]] =
+        f(self.shuffleList(l))
+
+      override def shuffleVector[A](v: Vector[A]): G[Vector[A]] =
+        f(self.shuffleVector(v))
+
+    }
 }
 
 object Random {
@@ -139,6 +212,64 @@ object Random {
       val sRandom = new SRandom()
       new ScalaRandom[F](sRandom.pure[F]) {}
     }
+
+  /**
+   * [[Random]] instance built for `cats.data.EitherT` values initialized with
+   * any `F` data type that also implements `Random`.
+   */
+  implicit def catsEitherTRandom[F[_]: Random: Functor, L]: Random[EitherT[F, L, *]] =
+    Random[F].mapK(EitherT.liftK)
+
+  /**
+   * [[Random]] instance built for `cats.data.Kleisli` values initialized with
+   * any `F` data type that also implements `Random`.
+   */
+  implicit def catsKleisliRandom[F[_]: Random, R]: Random[Kleisli[F, R, *]] =
+    Random[F].mapK(Kleisli.liftK)
+
+  /**
+   * [[Random]] instance built for `cats.data.OptionT` values initialized with
+   * any `F` data type that also implements `Random`.
+   */
+  implicit def catsOptionTRandom[F[_]: Random: Functor]: Random[OptionT[F, *]] =
+    Random[F].mapK(OptionT.liftK)
+
+  /**
+   * [[Random]] instance built for `cats.data.IndexedStateT` values initialized with
+   * any `F` data type that also implements `Random`.
+   */
+  implicit def catsIndexedStateTRandom[F[_]: Random: Applicative, S]
+      : Random[IndexedStateT[F, S, S, *]] =
+    Random[F].mapK(IndexedStateT.liftK)
+
+  /**
+   * [[Random]] instance built for `cats.data.WriterT` values initialized with
+   * any `F` data type that also implements `Random`.
+   */
+  implicit def catsWriterTRandom[
+      F[_]: Random: Applicative,
+      L: Monoid
+  ]: Random[WriterT[F, L, *]] =
+    Random[F].mapK(WriterT.liftK)
+
+  /**
+   * [[Random]] instance built for `cats.data.IorT` values initialized with any
+   * `F` data type that also implements `Random`.
+   */
+  implicit def catsIorTRandom[F[_]: Random: Functor, L]: Random[IorT[F, L, *]] =
+    Random[F].mapK(IorT.liftK)
+
+  /**
+   * [[Random]] instance built for `cats.data.IndexedReaderWriterStateT` values
+   * initialized with any `F` data type that also implements `Random`.
+   */
+  implicit def catsIndexedReaderWriterStateTRandom[
+      F[_]: Random: Applicative,
+      E,
+      L: Monoid,
+      S
+  ]: Random[IndexedReaderWriterStateT[F, E, L, S, S, *]] =
+    Random[F].mapK(IndexedReaderWriterStateT.liftK)
 
   /**
    * Creates Several Random Number Generators and equally
