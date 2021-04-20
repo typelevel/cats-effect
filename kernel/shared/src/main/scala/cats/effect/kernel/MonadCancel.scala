@@ -30,7 +30,6 @@ import cats.data.{
 }
 import cats.syntax.all._
 
-// TODO: talk about cancelation boundaries
 /**
  * A typeclass that characterizes monads which support safe cancelation,
  * masking, and finalization. [[MonadCancel]] extends the capabilities of
@@ -92,6 +91,61 @@ import cats.syntax.all._
  *
  * These semantics allow users to precisely mark what regions of code are
  * cancelable within a larger code block.
+ *
+ * ==Cancelation Boundaries===
+ *
+ * A cancelation boundary is a point in a program where the cancelation
+ * status of a fiber may be checked and hence cancelation observed. Note
+ * that in general you cannot guarantee that cancelation will be observed
+ * at a given boundary. However, in the absence of masking it will be
+ * observed eventually.
+ *
+ * In general, the invocation of any combinators from the cats/cats effect
+ * hierarchy (eg `map`, `flatMap`, `handleErrorWith`, `attempt`)
+ * introduces a cancelation boundary.
+ *
+ * {{{
+ *   fa
+ *     .flatMap(f)
+ *     .handleErrorWith(g)
+ *     .map(h)
+ * }}}
+ *
+ * If the fiber above is canceled then the cancelation status may be checked
+ * and the execution terminated between any of the combinators.
+ *
+ * There are however several boundaries that are not cancelation boundaries.
+ *
+ * 1. The boundary after `uncancelable`
+ *
+ * {{{
+ *   F.uncancelable(poll => foo(poll)).flatMap(f)
+ * }}}
+ *
+ * It is guaranteed that we will not observe cancelation after `uncancelable`
+ * and hence `flatMap(f)` will be invoked. This is necessary for `uncancelable`
+ * to compose by ensuring the safety of `Resource#allocated` and other things
+ * which need to guarantee that the caller has the chance to register a
+ * finalizer for whatever is returned.
+ *
+ * This does however mean that we violate the functor law that `fa.map(identity) <-> fa` as
+ *
+ * {{{
+ *   F.uncancelable(_ => fa).onCancel(fin)  <-!-> F.uncancelable(_ => fa).map(identity).onCancel(fin)
+ * }}}
+ *
+ * as cancelation may be observed before the `onCancel` on the RHS.
+ *
+ * 2. The boundary after `poll`
+ *
+ * {{{
+ *   F.uncancelable(poll => poll(fa).flatMap(f))
+ * }}}
+ *
+ * If `fa` completes successfully then cancelation may not be observed after `poll` but
+ * before `flatMap`. The reasoning is similar to above - if `fa` has successfully
+ * produced a value then the caller should have the opportunity to observe the value
+ * and ensure finalizers are in-place, etc.
  *
  * ==Finalization==
  *
