@@ -137,13 +137,15 @@ private final class IOFiber[A](
       case t: Throwable =>
         Thread.interrupted()
         currentCtx.reportFailure(t)
-        runtime.fiberErrorCbs.synchronized {
-          var idx = 0
-          val tables = runtime.fiberErrorCbs.tables
-          val numTables = runtime.fiberErrorCbs.numTables
-          while (idx < numTables) {
-            val table = tables(idx).hashtable
-            val len = table.length
+        runtime.shutdown()
+
+        var idx = 0
+        val tables = runtime.fiberErrorCbs.tables
+        val numTables = runtime.fiberErrorCbs.numTables
+        while (idx < numTables) {
+          val table = tables(idx).hashtable
+          val len = table.length
+          table.synchronized {
             var i = 0
             while (i < len) {
               val cb = table(i)
@@ -152,10 +154,10 @@ private final class IOFiber[A](
               }
               i += 1
             }
-            idx += 1
           }
+          idx += 1
         }
-        runtime.shutdown()
+
         Thread.currentThread().interrupt()
     }
   }
