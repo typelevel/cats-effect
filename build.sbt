@@ -19,12 +19,12 @@ import sbtghactions.UseRef
 import scala.util.Try
 import scala.sys.process._
 
-ThisBuild / baseVersion := "2.4"
+ThisBuild / baseVersion := "2.5"
 
 val OldScala = "2.12.13"
 val NewScala = "2.13.5"
-val OldDotty = "3.0.0-RC1"
-val NewDotty = "3.0.0-RC2"
+val OldDotty = "3.0.0-RC2"
+val NewDotty = "3.0.0-RC3"
 
 ThisBuild / crossScalaVersions := Seq(OldDotty, NewDotty, OldScala, NewScala)
 ThisBuild / scalaVersion := (ThisBuild / crossScalaVersions).value.last
@@ -59,8 +59,8 @@ ThisBuild / scmInfo := Some(
   ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")
 )
 
-val CatsVersion = "2.5.0"
-val DisciplineMunitVersion = "1.0.7"
+val CatsVersion = "2.6.0"
+val DisciplineMunitVersion = "1.0.8"
 val SilencerVersion = "1.7.3"
 
 replaceCommandAlias(
