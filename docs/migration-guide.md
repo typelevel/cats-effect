@@ -443,52 +443,53 @@ object Dispatcher {
 Creating a `Dispatcher` is relatively lightweight, so you can create one even for each task you execute, but sometimes it's worth keeping a `Dispatcher` alive for longer.
 To find out more, see [its docs](./std/dispatcher.md).
 
-For example, given a bogus library interface like this:
+For example, given an imaginary library's interface like this:
 
 ```scala mdoc
-trait LibraryInterface {
-  def addListener(f: String => Unit): Unit
-  def run(): Unit // starts a task in the background
-  def shutdown(): Unit
+trait Consumer[A] {
+  def onNext(a: A): Unit
 }
 ```
 
-In CE2 you could run an effect in `addListener` using `Effect` like this:
+In which the `onNext` method would be called by something beyond our control, and we would only be supplying a `Consumer` to it,
+In CE2 you could run an effect in `onNext` using `Effect` like this:
 
 ```scala
 // CE2
-def addListenerF[F[_]: Effect](
-  interface: LibraryInterface,
-  listener: String => F[Unit]
-): F[Unit] =
-  Sync[F].delay {
-    interface.addListener(str => listener(str).toIO.unsafeRunSync())
-    interface.run()
-  } *> Async[F].never.guarantee(Sync[F].delay(interface.shutdown()))
+def consumer[F[_]: Effect, A](handler: A => F[Unit]): Consumer[A] =
+  new Consumer[A] {
+    def onNext(a: A): Unit = handler(a).toIO.unsafeRunSync()
+  }
 ```
 
 In CE3, you would use `Dispatcher`:
 
 ```scala mdoc
 import cats.effect.Async
-import cats.effect.Sync
+import cats.effect.Resource
 import cats.effect.std.Dispatcher
-import cats.effect.syntax.all._
 
 // CE3
-def addListenerF[F[_]: Async](
-  interface: LibraryInterface,
-  listener: String => F[Unit]
-): F[Unit] =
-  Dispatcher[F].use { dispatcher =>
-    Sync[F].delay {
-      interface.addListener(str => dispatcher.unsafeRunSync(listener(str)))
-      interface.run()
-    } *> Async[F].never[Unit].guarantee(Sync[F].delay(interface.shutdown()))
+def consumer[F[_]: Async, A](handler: A => F[Unit]): Resource[F, Consumer[A]] =
+  Dispatcher[F].map { dispatcher =>
+    new Consumer[A] {
+      def onNext(a: A): Unit = dispatcher.unsafeRunSync(handler(a))
+    }
   }
 ```
 
-Every time the `addListener`-registered callback is triggered, the effect produced by `listener(str)` would be executed.
+The `Resource` produced by this method will manage the lifetime of the `Dispatcher` instance - while it's open,
+the dispatcher instance will be able to run actions that we want to execute in the `onNext` callback.
+
+An alternative approach to creating a `Dispatcher` on our own would be taking one as a parameter.
+It is recommended to pass it **explicitly**, as `Dispatcher` isn't a type class and there can be many instances of it in an application.
+
+```scala mdoc
+def consumer2[F[_], A](dispatcher: Dispatcher[F], handler: A => F[Unit]): Consumer[A] =
+  new Consumer[A] {
+    def onNext(a: A): Unit = dispatcher.unsafeRunSync(handler(a))
+  }
+```
 
 ### ContextShift
 
