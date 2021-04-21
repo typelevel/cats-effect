@@ -5,7 +5,7 @@ title: Migration guide
 
 ## Summary
 
-Here is a general view of the steps you should take to migrate your application to Cats Effect 3:
+Here is an overview of the steps you should take to migrate your application to Cats Effect 3:
 
 1. [Make sure your dependencies have upgraded](#make-sure-your-dependencies-have-upgraded)<!-- don't remove this comment - this ensures the vscode extension doesn't make this a ToC -->
 1. [Run the Scalafix migration](#run-the-scalafix-migration) (optional)
