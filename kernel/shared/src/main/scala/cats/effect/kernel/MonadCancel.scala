@@ -150,7 +150,7 @@ import cats.syntax.all._
  * However, if it were possible to observe cancelation on the boundary directly
  * after `allocated` then we would have a leak as the caller would be unable to
  * ensure that the finalizer is invoked. In other words, the safety of `allocated`
- * and the safety of `f` does not guarantee the safety of the composition
+ * and the safety of `f` would not guarantee the safety of the composition
  * `allocated.flatMap(f)`.
  *
  * This does however mean that we violate the functor law that `fa.map(identity) <-> fa` as
@@ -160,8 +160,9 @@ import cats.syntax.all._
  * }}}
  *
  * as cancelation may be observed before the `onCancel` on the RHS. The justification is
- * that cancelation is a hint rather than a mandate and that it is better to
- * allow safe composition of regions.
+ * that cancelation is a hint rather than a mandate and so enshrining its behaviour in
+ * laws will always be awkward. Given this, it is better to pick a semantic that
+ * allows safe composition of regions.
  *
  * 3. The boundary after `poll`
  *
