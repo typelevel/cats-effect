@@ -116,7 +116,21 @@ import cats.syntax.all._
  *
  * There are however several boundaries that are not cancelation boundaries.
  *
- * 1. The boundary after `uncancelable`
+ * 1. Any boundary inside `uncancelable` and not inside `poll`. This is the
+ *    definition of masking as above.
+ *
+ * {{{
+ *   F.uncancelable( _ =>
+ *     fa
+ *       .flatMap(f)
+ *       .handleErrorWith(g)
+ *       .map(h)
+ *   )
+ * }}}
+ *
+ * None of the boundaries above are cancelation boundaries as cancelation is masked.
+ *
+ * 2. The boundary after `uncancelable`
  *
  * {{{
  *   F.uncancelable(poll => foo(poll)).flatMap(f)
@@ -124,9 +138,20 @@ import cats.syntax.all._
  *
  * It is guaranteed that we will not observe cancelation after `uncancelable`
  * and hence `flatMap(f)` will be invoked. This is necessary for `uncancelable`
- * to compose by ensuring the safety of `Resource#allocated` and other things
- * which need to guarantee that the caller has the chance to register a
- * finalizer for whatever is returned.
+ * to compose. Consider for example `Resource#allocated`
+ *
+ * {{{
+ *   def allocated[B >: A](implicit F: MonadCancel[F, Throwable]): F[(B, F[Unit])]
+ * }}}
+ *
+ * which returns a tuple of the resource and a finalizer which needs to be invoked
+ * to clean-up once the resource is no longer needed. The implementation of
+ * `allocated` can make sure it is safe by appropriate use of `uncancelable`.
+ * However, if it were possible to observe cancelation on the boundary directly
+ * after `allocated` then we would have a leak as the caller would be unable to
+ * ensure that the finalizer is invoked. In other words, the safety of `allocated`
+ * and the safety of `f` does not guarantee the safety of the composition
+ * `allocated.flatMap(f)`.
  *
  * This does however mean that we violate the functor law that `fa.map(identity) <-> fa` as
  *
@@ -134,9 +159,11 @@ import cats.syntax.all._
  *   F.uncancelable(_ => fa).onCancel(fin)  <-!-> F.uncancelable(_ => fa).map(identity).onCancel(fin)
  * }}}
  *
- * as cancelation may be observed before the `onCancel` on the RHS.
+ * as cancelation may be observed before the `onCancel` on the RHS. The justification is
+ * that cancelation is a hint rather than a mandate and that it is better to
+ * allow safe composition of regions.
  *
- * 2. The boundary after `poll`
+ * 3. The boundary after `poll`
  *
  * {{{
  *   F.uncancelable(poll => poll(fa).flatMap(f))
