@@ -90,6 +90,8 @@ The current non-test modules are:
 - `std` - high-level abstractions like `Console`, `Semaphore`, `Hotswap`, `Dispatcher`
 - `core` - `IO`, `SyncIO`
 
+> Note: It is recommended to upgrade to 2.4.0 first, to minimize the changes.
+
 ```diff
 libraryDependencies ++= Seq(
   //...
