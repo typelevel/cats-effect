@@ -94,15 +94,19 @@ import cats.syntax.all._
  *
  * ==Cancelation Boundaries===
  *
- * A cancelation boundary is a point in a program where the cancelation
+ * A boundary corresponds to an iteration of the internal runloop. In general
+ * they are introduced by any of the combinators from the cats/cats effect
+ * hierarchy (`map`, `flatMap`, `handleErrorWith`, `attempt`, etc).
+ *
+ * A cancelation boundary is a boundary where the cancelation
  * status of a fiber may be checked and hence cancelation observed. Note
  * that in general you cannot guarantee that cancelation will be observed
  * at a given boundary. However, in the absence of masking it will be
  * observed eventually.
  *
- * In general, the invocation of any combinators from the cats/cats effect
- * hierarchy (eg `map`, `flatMap`, `handleErrorWith`, `attempt`)
- * introduces a cancelation boundary.
+ * With a small number of exceptions covered below, all boundaries are
+ * cancelable boundaries ie cancelation may be observed before the invocation
+ * of any combinator.
  *
  * {{{
  *   fa
@@ -114,7 +118,7 @@ import cats.syntax.all._
  * If the fiber above is canceled then the cancelation status may be checked
  * and the execution terminated between any of the combinators.
  *
- * There are however several boundaries that are not cancelation boundaries.
+ * As noted above, there are some boundaries which are not cancelable boundaries:
  *
  * 1. Any boundary inside `uncancelable` and not inside `poll`. This is the
  *    definition of masking as above.
