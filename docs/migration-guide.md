@@ -24,7 +24,8 @@ to 3.0.0.
 ### 🤔 Need help?
 
 If any point of the migration turns out to be difficult and you feel like you need help, feel free to [explain your problem on Gitter](https://gitter.im/typelevel/cats-effect) and we will do our best to assist you.
-If you spot a mistake in the guide or the library itself, you can [report an issue on GitHub](https://github.com/typelevel/cats-effect/issues/new).
+If you spot a mistake in the guide or the library itself, you can [report an issue on GitHub](https://github.com/typelevel/cats-effect/issues/new)
+or [fix it with a pull request](https://github.com/typelevel/cats-effect/compare).
 
 ### Context: what's changed, what's the same?
 
