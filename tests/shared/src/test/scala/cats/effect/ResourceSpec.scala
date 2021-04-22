@@ -371,7 +371,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     }
 
     "use is stack-safe over binds" in ticked { implicit ticker =>
-      val stackDepth = 10000
+      val stackDepth = 50000
       verifyThatSoeIsReproducibleWithStackDepth(stackDepth)
       val r = (1 to stackDepth)
         .foldLeft(Resource.eval(IO.unit)) {
@@ -400,7 +400,9 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     }
 
     "mapK is stack-safe over binds" in ticked { implicit ticker =>
-      val r = (1 to 10000)
+      val stackDepth = 50000
+      verifyThatSoeIsReproducibleWithStackDepth(stackDepth)
+      val r = (1 to stackDepth)
         .foldLeft(Resource.eval(IO.unit)) {
           case (r, _) =>
             r.flatMap(_ => Resource.eval(IO.unit))
