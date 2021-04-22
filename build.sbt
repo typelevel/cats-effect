@@ -222,13 +222,12 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies += "org.specs2" %%% "specs2-core" % Specs2Version % Test)
   .settings(dottyLibrarySettings)
   .settings(libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion)
-  .jsSettings(
-    Compile / doc / sources := {
-      if (isDotty.value)
-        Seq()
-      else
-        (Compile / doc / sources).value
-    })
+  .jsSettings(Compile / doc / sources := {
+    if (isDotty.value)
+      Seq()
+    else
+      (Compile / doc / sources).value
+  })
 
 /**
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
@@ -303,7 +302,8 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform)
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
-      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test)
+      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test),
+    scalacOptions ++= List("-Xasync")
   )
   .jvmSettings(
     Test / fork := true,
@@ -329,7 +329,12 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
       else
         "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     },
-    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test
+    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
+    libraryDependencies ++= {
+      if (!isDotty.value)
+        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided")
+      else Seq()
+    }
   )
 
 /**
