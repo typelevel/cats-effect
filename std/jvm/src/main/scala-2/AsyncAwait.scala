@@ -19,7 +19,6 @@ package cats.effect.std
 import scala.annotation.compileTimeOnly
 import scala.reflect.macros.whitebox
 
-import cats.effect.std.Dispatcher
 import cats.effect.kernel.Outcome
 import cats.effect.kernel.Sync
 import cats.effect.kernel.Async
