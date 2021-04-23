@@ -71,7 +71,6 @@ object AsyncAwaitDsl {
       try {
         val awaitSym = typeOf[AsyncAwaitDsl[Any]].decl(TermName("await"))
         def mark(t: DefDef): Tree = {
-          import language.reflectiveCalls
           c.internal
             .asInstanceOf[{
               def markForAsyncTransform(
