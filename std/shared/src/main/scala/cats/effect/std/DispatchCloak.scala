@@ -26,8 +26,13 @@ import cats.data.OptionT
 import scala.util.control.NoStackTrace
 
 /**
- * Construct that "clocks" non-successful outcomes as Throwables
- * to traverse dispatcher layers.
+ * Construct that "cloaks" non-successful outcomes as path-dependant Throwables,
+ * allowing to traverse dispatcher layers and be recovered in effect-land on
+ * the other side of the unsafe region.
+ *
+ * In particular, side error channels that the kernel typeclasses do not know about,
+ * such as the ones of OptionT/EitherT/IorT, can be accounted for using this construct,
+ * making it possible to interoperate with impure semantics, in polymorphic ways.
  */
 abstract class DispatchCloak[F[_]](implicit F: Spawn[F]) {
 
@@ -56,26 +61,36 @@ object DispatchCloak extends LowPriorityDispatchCloakImplicits {
 
   def apply[F[_]](implicit instance: DispatchCloak[F]): DispatchCloak[F] = instance
 
+  // A marker exception to communicate cancellation through dispatch runtimes.
   case object CancelCloak extends Throwable with NoStackTrace
 
-  implicit def cloackForOptionT[F[_]: Spawn]: DispatchCloak[OptionT[F, *]] =
+  implicit def cloakForOptionT[F[_]: Spawn: DispatchCloak]: DispatchCloak[OptionT[F, *]] =
     new DispatchCloak[OptionT[F, *]] {
-      // Path dependant class to ensure this instance doesn't intercept
-      // instances belonging to other transformer layers.
+      // Path dependant object to ensure this doesn't intercept instances
+      // cloaked Nones belonging to other OptionT layers.
       private case object NoneCloak extends Throwable with NoStackTrace
 
-      def cloak[A](fa: OptionT[F, A]): OptionT[F, Either[Throwable, A]] =
-        fa.map(_.asRight[Throwable]).orElse(OptionT.pure(NoneCloak.asLeft[A]))
+      def cloak[A](fa: OptionT[F, A]): OptionT[F, Either[Throwable, A]] = {
+        OptionT.liftF(
+          DispatchCloak[F].cloak(fa.value).map(_.sequence.getOrElse(Left(this.NoneCloak))))
+      }
 
-      def uncloak[A](t: Throwable): Option[OptionT[F, A]] =
-        if (t == NoneCloak) Some(OptionT.none[F, A]) else None
+      def uncloak[A](t: Throwable): Option[OptionT[F, A]] = t match {
+        case this.NoneCloak => Some(OptionT.none[F, A])
+        case other => DispatchCloak[F].uncloak(other).map(OptionT.liftF[F, A])
+      }
     }
 
 }
 
 private[std] trait LowPriorityDispatchCloakImplicits {
 
-  implicit def cloakForSpawn[F[_]: Spawn]: DispatchCloak[F] = new DispatchCloak[F] {
+  /**
+   * This should be the default instance for anything that does not have a side
+   * error channel that might prevent calls such `Dispatcher#unsafeRunSync` from
+   * terminating due to the kernel typeclasses not having knowledge of.
+   */
+  implicit def defaultCloak[F[_]: Spawn]: DispatchCloak[F] = new DispatchCloak[F] {
     def cloak[A](fa: F[A]): F[Either[Throwable, A]] =
       fa.map(a => Right(a))
 

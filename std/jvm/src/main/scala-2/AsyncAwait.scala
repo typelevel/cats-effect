@@ -19,12 +19,10 @@ package cats.effect.std
 import scala.annotation.compileTimeOnly
 import scala.reflect.macros.whitebox
 
-import cats.effect.kernel.Outcome
 import cats.effect.kernel.Sync
 import cats.effect.kernel.Async
-import cats.effect.kernel.syntax.all._
 
-class AsyncAwaitDsl[F[_]](implicit F: Async[F]) {
+class AsyncAwaitDsl[F[_]](implicit F: Async[F], Cloak: DispatchCloak[F]) {
 
   /**
    * Type member used by the macro expansion to recover what `F` is without typetags
@@ -35,6 +33,8 @@ class AsyncAwaitDsl[F[_]](implicit F: Async[F]) {
    * Value member used by the macro expansion to recover the Async instance associated to the block.
    */
   implicit val _AsyncInstance: Async[F] = F
+
+  implicit val _CloakInstance: DispatchCloak[F] = Cloak
 
   /**
    * Non-blocking await the on result of `awaitable`. This may only be used directly within an enclosing `async` block.
@@ -90,16 +90,13 @@ object AsyncAwaitDsl {
         val name = TypeName("stateMachine$async")
         // format: off
         q"""
-          final class $name(dispatcher: _root_.cats.effect.std.Dispatcher[${c.prefix}._AsyncContext], callback: _root_.cats.effect.std.AsyncAwaitDsl.Callback) extends _root_.cats.effect.std.AsyncAwaitStateMachine(dispatcher, callback) {
-            ${mark(q"""override def apply(tr$$async: _root_.cats.effect.kernel.Outcome[${c.prefix}._AsyncContext, _root_.scala.Throwable, _root_.scala.AnyRef]): _root_.scala.Unit = ${body}""")}
+          final class $name(dispatcher: _root_.cats.effect.std.Dispatcher[${c.prefix}._AsyncContext], cloak: _root_.cats.effect.std.DispatchCloak[${c.prefix}._AsyncContext], callback: _root_.cats.effect.std.AsyncAwaitDsl.Callback) extends _root_.cats.effect.std.AsyncAwaitStateMachine(dispatcher, cloak, callback) {
+            ${mark(q"""override def apply(tr$$async: _root_.scala.Either[_root_.scala.Throwable, _root_.scala.AnyRef]): _root_.scala.Unit = ${body}""")}
           }
-          ${c.prefix}._AsyncInstance.recoverWith {
+          ${c.prefix}._CloakInstance.recoverCloaked {
             _root_.cats.effect.std.Dispatcher[${c.prefix}._AsyncContext].use { dispatcher =>
-              ${c.prefix}._AsyncInstance.async_[_root_.scala.AnyRef](cb => new $name(dispatcher, cb).start())
+              ${c.prefix}._AsyncInstance.async_[_root_.scala.AnyRef](cb => new $name(dispatcher, ${c.prefix}._CloakInstance, cb).start())
             }
-          }{
-            case _root_.cats.effect.std.AsyncAwaitDsl.CancelBridge =>
-              ${c.prefix}._AsyncInstance.map(${c.prefix}._AsyncInstance.canceled)(_ => null.asInstanceOf[AnyRef])
           }.asInstanceOf[${c.macroApplication.tpe}]
         """
       } catch {
@@ -111,17 +108,16 @@ object AsyncAwaitDsl {
       }
   }
 
-  // A marker exception to communicate cancellation through the async runtime.
-  object CancelBridge extends Throwable with scala.util.control.NoStackTrace
 }
 
 abstract class AsyncAwaitStateMachine[F[_]](
     dispatcher: Dispatcher[F],
+    cloak: DispatchCloak[F],
     callback: AsyncAwaitDsl.Callback
-)(implicit F: Sync[F]) extends Function1[Outcome[F, Throwable, AnyRef], Unit] {
+)(implicit F: Sync[F]) extends Function1[Either[Throwable, AnyRef], Unit] {
 
   // FSM translated method
-  //def apply(v1: Outcome[IO, Throwable, AnyRef]): Unit = ???
+  //def apply(v1: Either[Throwable, AnyRef]): Unit = ???
 
   private[this] var state$async: Int = 0
 
@@ -139,29 +135,22 @@ abstract class AsyncAwaitStateMachine[F[_]](
   }
 
   protected def onComplete(f: F[AnyRef]): Unit = {
-    dispatcher.unsafeRunAndForget(f.guaranteeCase(outcome => F.delay(this(outcome))))
+    dispatcher.unsafeRunAndForget {
+      F.flatMap(cloak.guaranteeCloak(f))(either => F.delay(this(either)))
+    }
   }
 
-  protected def getCompleted(f: F[AnyRef]): Outcome[F, Throwable, AnyRef] = {
+  protected def getCompleted(f: F[AnyRef]): Either[Throwable, AnyRef] = {
     val _ = f
     null
   }
 
-  protected def tryGet(tr: Outcome[F, Throwable, AnyRef]): AnyRef =
+  protected def tryGet(tr: Either[Throwable, AnyRef]): AnyRef =
     tr match {
-      case Outcome.Succeeded(value) =>
-        // TODO discuss how to propagate "errors"" from other
-        // error channels than the Async's, such as None
-        // in OptionT. Maybe some ad-hoc polymorphic construct
-        // with a custom path-dependent "bridge" exception type...
-        // ... or something
-        dispatcher.unsafeRunSync(value)
-      case Outcome.Errored(e) =>
+      case Right(value) => value
+      case Left(e) =>
         callback(Left(e))
         this // sentinel value to indicate the dispatch loop should exit.
-      case Outcome.Canceled() =>
-        callback(Left(AsyncAwaitDsl.CancelBridge))
-        this
     }
 
   def start(): Unit = {

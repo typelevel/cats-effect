@@ -20,6 +20,7 @@ package std
 import scala.concurrent.duration._
 import cats.syntax.all._
 import cats.data.Kleisli
+import cats.data.OptionT
 
 class AsyncAwaitSpec extends BaseSpec {
 
@@ -113,6 +114,69 @@ class AsyncAwaitSpec extends BaseSpec {
       program.run(0).flatMap { res =>
         IO {
           res must beEqualTo(2)
+        }
+      }
+    }
+  }
+
+  "OptionTAsyncAwait" should {
+    type F[A] = OptionT[IO, A]
+    object OptionTAsyncAwait extends cats.effect.std.AsyncAwaitDsl[F]
+    import OptionTAsyncAwait.{await => oAwait, _}
+
+    "work on successes" in real {
+      val io = Temporal[F].sleep(100.millis) >> OptionT.pure[IO](1)
+
+      val program = async(oAwait(io) + oAwait(io))
+
+      program.value.flatMap { res =>
+        IO {
+          res must beEqualTo(Some(2))
+        }
+      }
+    }
+
+    "work on None" in real {
+      val io1 = OptionT.pure[IO](1)
+      val io2 = OptionT.none[IO, Int]
+
+      val program = async(oAwait(io1) + oAwait(io2))
+
+      program.value.flatMap { res =>
+        IO {
+          res must beEqualTo(None)
+        }
+      }
+    }
+  }
+
+  "Nested OptionT AsyncAwait" should {
+    type F[A] = OptionT[OptionT[IO, *], A]
+    object NestedAsyncAwait extends cats.effect.std.AsyncAwaitDsl[F]
+    import NestedAsyncAwait.{await => oAwait, _}
+
+    "surface None at the right layer (1)" in real {
+      // val io1 = 1.pure[F]
+      val io2 = OptionT.liftF(OptionT.none[IO, Int])
+
+      val program = async(oAwait(io2))
+
+      program.value.value.flatMap { res =>
+        IO {
+          res must beEqualTo(None)
+        }
+      }
+    }
+
+    "surface None at the right layer (2)" in real {
+      val io1 = 1.pure[F]
+      val io2 = OptionT.none[OptionT[IO, *], Int]
+
+      val program = async(oAwait(io1) + oAwait(io2))
+
+      program.value.value.flatMap { res =>
+        IO {
+          res must beEqualTo(Some(None))
         }
       }
     }
