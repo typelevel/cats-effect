@@ -19,7 +19,7 @@ This guide is meant for existing users of Cats Effect 2 who want to upgrade thei
 to 3.0.0.
 
 > If you haven't used Cats Effect before and want to give it a try,
-> please follow the [getting started guide](./getting-started.md) instead!
+> please follow the [getting started guide](getting-started.md) instead!
 
 ### 🤔 Need help?
 
@@ -191,7 +191,7 @@ def cancelableF[F[_], A](k: (Either[Throwable, A] => Unit) => F[F[Unit]])
 
 The only difference being that there was always an effect for cancelation - now it's optional (the `F` inside `F`).
 
-You can learn more about `Async` [on its page](./typeclasses/async.md).
+You can learn more about `Async` [on its page](typeclasses/async.md).
 
 #### Relationship with `LiftIO`
 
@@ -237,7 +237,7 @@ val programSync = Sync[IO].blocking(println("hello Sync blocking!"))
 
 #### Interruptible blocking
 
-It is now possible to make the blocking task interruptible using [`Sync`](./typeclasses/sync.md):
+It is now possible to make the blocking task interruptible using [`Sync`](typeclasses/sync.md):
 
 ```scala mdoc
 // many: whether it's okay to try interrupting more than once
@@ -248,7 +248,7 @@ val programInterruptible =
 #### Where does the blocking pool come from?
 
 The blocking thread pool, similarly to the compute pool, is provided in `IORuntime` when you run your `IO`.
-For other effect systems it could be a `Runtime` or `Scheduler`, etc. You can learn more about CE3 [schedulers](./schedulers.md) and [the thread model in comparison to CE2's](./thread-model.md).
+For other effect systems it could be a `Runtime` or `Scheduler`, etc. You can learn more about CE3 [schedulers](schedulers.md) and [the thread model in comparison to CE2's](thread-model.md).
 
 ```scala mdoc
 val runtime = cats.effect.unsafe.IORuntime.global
@@ -304,7 +304,7 @@ If you were using `uncancelable` using the extension method syntax, you can cont
 In the case of usage through `Bracket[F, E]`, you can use the new method but ignoring the parameter provided in the lambda (see table above).
 
 To learn what the new signature of `uncancelable` means, how you can use it in your programs after the migration, and other things about `MonadCancel`,
-see [its docs](./typeclasses/monadcancel.md).
+see [its docs](typeclasses/monadcancel.md).
 
 Another important change is replacing `ExitCase` with `Outcome`. Learn more [below](#exitcase).
 
@@ -361,7 +361,7 @@ This is arguably the most changed type class. Similarly to `Async`, it is [no lo
 
 The primitive operations that used to be `Concurrent` have all been moved to other type classes:
 
-- `Spawn` - a new type class, responsible for creating new fibers and racing them ([see more in `Spawn` docs](./typeclasses/spawn.md))
+- `Spawn` - a new type class, responsible for creating new fibers and racing them ([see more in `Spawn` docs](typeclasses/spawn.md))
 - `Async` - `cancelable` has been merged with `async`, so it ended up there. This was discussed in [the `Async` part of the guide](#async).
 - `Temporal` - another new type class which extends `Concurrent` (so it's actually more powerful) with the ability to sleep. This is [the replacement of `Timer`](#timer).
 
@@ -397,7 +397,7 @@ def continual[F[_]: MonadCancelThrow, A, B](fa: F[A])(
 ```
 
 > Note: It's recommended to use `uncancelable { poll => ... }`, `bracketCase` and `onCancel` directly instead.
-> Learn more in [`MonadCancel` docs](./typeclasses/monadcancel.md).
+> Learn more in [`MonadCancel` docs](typeclasses/monadcancel.md).
 
 #### `GenConcurrent`
 
@@ -443,7 +443,7 @@ object Dispatcher {
 > This [might be configurable](https://github.com/typelevel/cats-effect/issues/1881) in a future release.
 
 Creating a `Dispatcher` is relatively lightweight, so you can create one even for each task you execute, but sometimes it's worth keeping a `Dispatcher` alive for longer.
-To find out more, see [its docs](./std/dispatcher.md).
+To find out more, see [its docs](std/dispatcher.md).
 
 For example, given an imaginary library's interface like this:
 
@@ -578,7 +578,7 @@ If we ignore the various differences in type parameter variance (which were most
 the elephant in the room is `Succeeded` (the new `Completed`) - it has an `F[A]` field, which will contain the value the effect produced in the successful case. This means methods like `bracketCase` / `Resource.allocateCase` can use this result when cleaning up the resource.
 
 If you're simply migrating code that was using these methods, just renaming to the appropriate new names (and possibly fixing some pattern matches)
-should get you to a compiling state. For more information about Outcome, see [`Spawn` docs](./typeclasses/spawn.md).
+should get you to a compiling state. For more information about Outcome, see [`Spawn` docs](typeclasses/spawn.md).
 
 #### `Fiber`
 
@@ -595,7 +595,7 @@ However, there are still some differences here: first of all, `join` doesn't jus
 This is also why `Fiber` got the extra type parameter `E`.
 
 In CE2, the `F[A]` type of `join` meant that in case the fiber was canceled, `join` would never complete.
-That behavior is still available as `joinWithNever` (you can learn more about it [in `Spawn` docs](./typeclasses/spawn.md#joining)),
+That behavior is still available as `joinWithNever` (you can learn more about it [in `Spawn` docs](typeclasses/spawn.md#joining)),
 but it's often safer to move away from it and pass an explicit cancelation handler (for example, a failing one) using `fiber.joinWith(onCancel: F[A])`.
 
 ### IO
@@ -660,7 +660,7 @@ This change has been added to the Cats Effect 2 series in [2.4.0](https://github
 
 `MVar` has been removed with no direct replacement.
 
-Depending on how you used it, you might be able to replace it with [`monix-catnap`'s implementation](https://monix.io/docs/current/catnap/mvar.html), a single-element [`Queue`](./std/queue.md) or a specialized utility built with [`Ref`](./std/ref.md) and [`Deferred`](./std/deferred.md).
+Depending on how you used it, you might be able to replace it with [`monix-catnap`'s implementation](https://monix.io/docs/current/catnap/mvar.html), a single-element [`Queue`](std/queue.md) or a specialized utility built with [`Ref`](std/ref.md) and [`Deferred`](std/deferred.md).
 
 ### Sync
 
@@ -685,7 +685,7 @@ Depending on how you used it, you might be able to replace it with [`monix-catna
 
 For `Clock`, see [the relevant part of the guide](#clock).
 
-Similarly to `Clock`, `Timer` has been replaced with a lawful type class, `Temporal`. Learn more in [its documentation](./typeclasses/temporal.md).
+Similarly to `Clock`, `Timer` has been replaced with a lawful type class, `Temporal`. Learn more in [its documentation](typeclasses/temporal.md).
 
 ### Tracing
 
