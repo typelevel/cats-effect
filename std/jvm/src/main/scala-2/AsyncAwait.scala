@@ -20,7 +20,6 @@ import scala.annotation.compileTimeOnly
 import scala.reflect.macros.whitebox
 
 import cats.effect.kernel.Async
-import cats.effect.kernel.Outcome
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
 import cats.effect.kernel.Outcome.Canceled
@@ -61,7 +60,7 @@ class AsyncAwaitDsl[F[_]](implicit F: Async[F], R: Resume[F]) {
 
 object AsyncAwaitDsl {
 
-  type CallbackTarget[F[_]] = Outcome[F, Throwable, AnyRef]
+  type CallbackTarget[F[_]] = F[AnyRef]
   type Callback[F[_]] = Either[Throwable, CallbackTarget[F]] => Unit
   type ResumeOutcome[F[_]] = Either[F[AnyRef], (F[Unit], AnyRef)]
 
@@ -100,12 +99,10 @@ object AsyncAwaitDsl {
           final class $name(dispatcher: _root_.cats.effect.std.Dispatcher[${c.prefix}._AsyncContext], resume: _root_.cats.effect.std.Resume[${c.prefix}._AsyncContext], callback: _root_.cats.effect.std.AsyncAwaitDsl.Callback[${c.prefix}._AsyncContext]) extends _root_.cats.effect.std.AsyncAwaitStateMachine(dispatcher, resume, callback) {
             ${mark(q"""override def apply(tr$$async: _root_.cats.effect.std.AsyncAwaitDsl.ResumeOutcome[${c.prefix}._AsyncContext]): _root_.scala.Unit = ${body}""")}
           }
-          ${c.prefix}._AsyncInstance.flatMap {
+          ${c.prefix}._AsyncInstance.flatten {
             _root_.cats.effect.std.Dispatcher[${c.prefix}._AsyncContext].use { dispatcher =>
-              ${c.prefix}._AsyncInstance.async_[_root_.cats.effect.kernel.Outcome[${c.prefix}._AsyncContext, Throwable, AnyRef]](cb => new $name(dispatcher, ${c.prefix}._ResumeInstance, cb).start())
+              ${c.prefix}._AsyncInstance.async_[${c.prefix}._AsyncContext[AnyRef]](cb => new $name(dispatcher, ${c.prefix}._ResumeInstance, cb).start())
             }
-          }{ outcome =>
-            outcome.embedNever
           }.asInstanceOf[${c.macroApplication.tpe}]
         """
       } catch {
@@ -141,7 +138,7 @@ abstract class AsyncAwaitStateMachine[F[_]](
     callback(Left(t))
 
   protected def completeSuccess(value: AnyRef): Unit = {
-    callback(Right(Outcome.Succeeded(F.as(recordedEffect, value))))
+    callback(Right(F.as(recordedEffect, value)))
   }
 
   protected def onComplete(f: F[AnyRef]): Unit = {
@@ -165,7 +162,7 @@ abstract class AsyncAwaitStateMachine[F[_]](
         recordedEffect = newEffect
         value
       case Left(monadicStop) =>
-        callback(Right(Outcome.succeeded(monadicStop)))
+        callback(Right(monadicStop))
         this // sentinel value to indicate the dispatch loop should exit.
     }
 
