@@ -20,7 +20,11 @@ import cats.Monad
 import cats.syntax.all._
 import cats.data.OptionT
 import cats.data.WriterT
+import cats.data.Kleisli
 import cats.kernel.Monoid
+import cats.data.IorT
+import cats.data.Ior
+import cats.data.EitherT
 
 /**
  * Encodes the ability to peek into a computation's product/coproduct
@@ -42,13 +46,13 @@ trait Resume[F[_]] {
 
 object Resume extends LowPriorityResumeInstances {
 
-  implicit def optionTResume[F[_]](implicit F: Monad[F], R: Resume[F]): Resume[OptionT[F, *]] =
+  implicit def optionTResume[F[_]](implicit F: Monad[F], RF: Resume[F]): Resume[OptionT[F, *]] =
     new Resume[OptionT[F, *]] {
       def resume[A](
           fa: OptionT[F, A]): OptionT[F, Either[OptionT[F, A], (OptionT[F, Unit], A)]] =
         OptionT.liftF {
-          R.resume(fa.value).map {
-            case Left(fa) => Left(OptionT(fa))
+          RF.resume(fa.value).map {
+            case Left(stopped) => Left(OptionT(stopped))
             case Right((funit, None)) => Left(OptionT(funit.as(None)))
             case Right((funit, Some(value))) => Right(OptionT.liftF(funit), value)
           }
@@ -56,16 +60,55 @@ object Resume extends LowPriorityResumeInstances {
     }
 
   implicit def writerTResume[F[_]: Monad, L: Monoid](
-      implicit R: Resume[F]): Resume[WriterT[F, L, *]] =
+      implicit RF: Resume[F]): Resume[WriterT[F, L, *]] =
     new Resume[WriterT[F, L, *]] {
       def resume[A](fa: WriterT[F, L, A])
           : WriterT[F, L, Either[WriterT[F, L, A], (WriterT[F, L, Unit], A)]] =
         WriterT.liftF {
-          R.resume(fa.run).map {
-            case Left(value) => Left(WriterT(value))
+          RF.resume(fa.run).map {
+            case Left(stopped) => Left(WriterT(stopped))
             case Right((funit, (log, value))) =>
               val w = WriterT(funit.map(log -> _))
               Right((w, value))
+          }
+        }
+    }
+
+  implicit def kleisliResume[F[_]: Monad, R](implicit RF: Resume[F]): Resume[Kleisli[F, R, *]] =
+    new Resume[Kleisli[F, R, *]] {
+      def resume[A](fa: Kleisli[F, R, A])
+          : Kleisli[F, R, Either[Kleisli[F, R, A], (Kleisli[F, R, Unit], A)]] = Kleisli { r =>
+        RF.resume(fa.run(r)).map {
+          case Left(stopped) => Left(Kleisli.liftF[F, R, A](stopped))
+          case Right((funit, value)) => Right((Kleisli.liftF(funit), value))
+        }
+      }
+    }
+
+  implicit def iorTResume[F[_]: Monad, E](implicit RF: Resume[F]): Resume[IorT[F, E, *]] =
+    new Resume[IorT[F, E, *]] {
+      def resume[A](
+          fa: IorT[F, E, A]): IorT[F, E, Either[IorT[F, E, A], (IorT[F, E, Unit], A)]] =
+        IorT.liftF {
+          RF.resume(fa.value).map {
+            case Left(stopped) => Left(IorT(stopped))
+            case Right((funit, Ior.Right(value))) => Right((IorT.liftF(funit), value))
+            case Right((funit, left @ Ior.Left(_))) => Left(IorT(funit.as(left)))
+            case Right((funit, Ior.Both(e, value))) =>
+              Right(IorT(funit.as(Ior.Both(e, ()))), value)
+          }
+        }
+    }
+
+  implicit def eitherTResume[F[_]: Monad, E](implicit RF: Resume[F]): Resume[EitherT[F, E, *]] =
+    new Resume[EitherT[F, E, *]] {
+      def resume[A](fa: EitherT[F, E, A])
+          : EitherT[F, E, Either[EitherT[F, E, A], (EitherT[F, E, Unit], A)]] =
+        EitherT.liftF {
+          RF.resume(fa.value).map {
+            case Left(stopped) => Left(EitherT(stopped))
+            case Right((funit, Right(value))) => Right((EitherT.liftF(funit), value))
+            case Right((funit, left @ Left(_))) => Left(EitherT(funit.as(left)))
           }
         }
     }
