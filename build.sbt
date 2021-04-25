@@ -303,7 +303,15 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test),
-    scalacOptions ++= List("-Xasync")
+    scalacOptions ++= List("-Xasync"),
+    Test / unmanagedSourceDirectories ++= {
+      if (!isDotty.value)
+        Seq(
+          (Compile / baseDirectory)
+            .value
+            .getParentFile() / "shared" / "src" / "test" / "scala-2")
+      else Seq()
+    }
   )
   .jvmSettings(
     Test / fork := true,
@@ -333,6 +341,14 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= {
       if (!isDotty.value)
         Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided")
+      else Seq()
+    },
+    Compile / unmanagedSourceDirectories ++= {
+      if (!isDotty.value)
+        Seq(
+          (Compile / baseDirectory)
+            .value
+            .getParentFile() / "shared" / "src" / "main" / "scala-2")
       else Seq()
     }
   )
