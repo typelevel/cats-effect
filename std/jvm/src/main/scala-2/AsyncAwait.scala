@@ -19,10 +19,15 @@ package cats.effect.std
 import scala.annotation.compileTimeOnly
 import scala.reflect.macros.whitebox
 
-import cats.effect.kernel.Sync
 import cats.effect.kernel.Async
+import cats.effect.kernel.Outcome
+import cats.effect.kernel.syntax.all._
+import cats.syntax.all._
+import cats.effect.kernel.Outcome.Canceled
+import cats.effect.kernel.Outcome.Errored
+import cats.effect.kernel.Outcome.Succeeded
 
-class AsyncAwaitDsl[F[_]](implicit F: Async[F], Cloak: DispatchCloak[F]) {
+class AsyncAwaitDsl[F[_]](implicit F: Async[F], R: Resume[F]) {
 
   /**
    * Type member used by the macro expansion to recover what `F` is without typetags
@@ -34,7 +39,7 @@ class AsyncAwaitDsl[F[_]](implicit F: Async[F], Cloak: DispatchCloak[F]) {
    */
   implicit val _AsyncInstance: Async[F] = F
 
-  implicit val _CloakInstance: DispatchCloak[F] = Cloak
+  implicit val _ResumeInstance: Resume[F] = R
 
   /**
    * Non-blocking await the on result of `awaitable`. This may only be used directly within an enclosing `async` block.
@@ -56,7 +61,9 @@ class AsyncAwaitDsl[F[_]](implicit F: Async[F], Cloak: DispatchCloak[F]) {
 
 object AsyncAwaitDsl {
 
-  type Callback = Either[Throwable, AnyRef] => Unit
+  type CallbackTarget[F[_]] = Outcome[F, Throwable, AnyRef]
+  type Callback[F[_]] = Either[Throwable, CallbackTarget[F]] => Unit
+  type ResumeOutcome[F[_]] = Either[F[AnyRef], (F[Unit], AnyRef)]
 
   def asyncImpl[F[_], T](
       c: whitebox.Context
@@ -90,13 +97,15 @@ object AsyncAwaitDsl {
         val name = TypeName("stateMachine$async")
         // format: off
         q"""
-          final class $name(dispatcher: _root_.cats.effect.std.Dispatcher[${c.prefix}._AsyncContext], cloak: _root_.cats.effect.std.DispatchCloak[${c.prefix}._AsyncContext], callback: _root_.cats.effect.std.AsyncAwaitDsl.Callback) extends _root_.cats.effect.std.AsyncAwaitStateMachine(dispatcher, cloak, callback) {
-            ${mark(q"""override def apply(tr$$async: _root_.scala.Either[_root_.scala.Throwable, _root_.scala.AnyRef]): _root_.scala.Unit = ${body}""")}
+          final class $name(dispatcher: _root_.cats.effect.std.Dispatcher[${c.prefix}._AsyncContext], resume: _root_.cats.effect.std.Resume[${c.prefix}._AsyncContext], callback: _root_.cats.effect.std.AsyncAwaitDsl.Callback[${c.prefix}._AsyncContext]) extends _root_.cats.effect.std.AsyncAwaitStateMachine(dispatcher, resume, callback) {
+            ${mark(q"""override def apply(tr$$async: _root_.cats.effect.std.AsyncAwaitDsl.ResumeOutcome[${c.prefix}._AsyncContext]): _root_.scala.Unit = ${body}""")}
           }
-          ${c.prefix}._CloakInstance.recoverCloaked {
+          ${c.prefix}._AsyncInstance.flatMap {
             _root_.cats.effect.std.Dispatcher[${c.prefix}._AsyncContext].use { dispatcher =>
-              ${c.prefix}._AsyncInstance.async_[_root_.scala.AnyRef](cb => new $name(dispatcher, ${c.prefix}._CloakInstance, cb).start())
+              ${c.prefix}._AsyncInstance.async_[_root_.cats.effect.kernel.Outcome[${c.prefix}._AsyncContext, Throwable, AnyRef]](cb => new $name(dispatcher, ${c.prefix}._ResumeInstance, cb).start())
             }
+          }{ outcome =>
+            outcome.embedNever
           }.asInstanceOf[${c.macroApplication.tpe}]
         """
       } catch {
@@ -112,13 +121,14 @@ object AsyncAwaitDsl {
 
 abstract class AsyncAwaitStateMachine[F[_]](
     dispatcher: Dispatcher[F],
-    cloak: DispatchCloak[F],
-    callback: AsyncAwaitDsl.Callback
-)(implicit F: Sync[F]) extends Function1[Either[Throwable, AnyRef], Unit] {
+    resume: Resume[F],
+    callback: AsyncAwaitDsl.Callback[F]
+)(implicit F: Async[F]) extends Function1[AsyncAwaitDsl.ResumeOutcome[F], Unit] {
 
   // FSM translated method
-  //def apply(v1: Either[Throwable, AnyRef]): Unit = ???
+  //def apply(v1: AsyncAwaitDsl.ResumeOutcome[F]): Unit = ???
 
+  private[this] var recordedEffect : F[Unit] = F.unit
   private[this] var state$async: Int = 0
 
   /** Retrieve the current value of the state variable */
@@ -131,25 +141,31 @@ abstract class AsyncAwaitStateMachine[F[_]](
     callback(Left(t))
 
   protected def completeSuccess(value: AnyRef): Unit = {
-    callback(Right(value))
+    callback(Right(Outcome.Succeeded(F.as(recordedEffect, value))))
   }
 
   protected def onComplete(f: F[AnyRef]): Unit = {
     dispatcher.unsafeRunAndForget {
-      F.flatMap(cloak.guaranteeCloak(f))(either => F.delay(this(either)))
+      (recordedEffect *> f).start.flatMap(_.join).flatMap {
+        case Canceled() => F.delay(this(Left(F.canceled.asInstanceOf[F[AnyRef]])))
+        case Errored(e) => F.delay(this(Left(F.raiseError(e))))
+        case Succeeded(fa) => resume.resume(fa).flatMap(r => F.delay(this(r)))
+      }
     }
   }
 
-  protected def getCompleted(f: F[AnyRef]): Either[Throwable, AnyRef] = {
+  protected def getCompleted(f: F[AnyRef]): AsyncAwaitDsl.ResumeOutcome[F] = {
     val _ = f
     null
   }
 
-  protected def tryGet(tr: Either[Throwable, AnyRef]): AnyRef =
+  protected def tryGet(tr: AsyncAwaitDsl.ResumeOutcome[F]): AnyRef =
     tr match {
-      case Right(value) => value
-      case Left(e) =>
-        callback(Left(e))
+      case Right((newEffect, value)) =>
+        recordedEffect = newEffect
+        value
+      case Left(monadicStop) =>
+        callback(Right(Outcome.succeeded(monadicStop)))
         this // sentinel value to indicate the dispatch loop should exit.
     }
 

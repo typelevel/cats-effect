@@ -21,6 +21,7 @@ import scala.concurrent.duration._
 import cats.syntax.all._
 import cats.data.Kleisli
 import cats.data.OptionT
+import cats.data.WriterT
 
 class AsyncAwaitSpec extends BaseSpec {
 
@@ -180,6 +181,26 @@ class AsyncAwaitSpec extends BaseSpec {
         }
       }
     }
+  }
+
+  "WriteT AsyncAwait" should {
+    type F[A] = WriterT[IO, Int, A]
+    object NestedAsyncAwait extends cats.effect.std.AsyncAwaitDsl[F]
+    import NestedAsyncAwait.{await => wAwait, _}
+
+    "surface logged " in real {
+      // val io1 = 1.pure[F]
+      val io1 = WriterT(IO(1, 3))
+
+      val program = async(wAwait(io1) * wAwait(io1))
+
+      program.run.flatMap { res =>
+        IO {
+          res must beEqualTo((2, 9))
+        }
+      }
+    }
+
   }
 
 }
