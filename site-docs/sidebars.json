@@ -3,6 +3,7 @@
     "Overview": [
       "getting-started",
       "tutorial",
+      "migration-guide",
       "thread-model",
       "typeclasses",
       "schedulers"
