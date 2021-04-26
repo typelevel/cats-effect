@@ -134,25 +134,29 @@ instance will return the bytes copied in a <code>Long</code> (note that <code>IO
 parameterized by the return type). Now, let's start implementing our function.
 First, we need to open two streams that will read and write file contents.</p>
 <h3><a class="anchor" aria-hidden="true" id="acquiring-and-releasing-resources"></a><a href="#acquiring-and-releasing-resources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Acquiring and releasing <code>Resource</code>s</h3>
-<p>We consider opening a stream to be a side-effect action, so we have to
-encapsulate those actions in their own <code>IO</code> instances. For this, we will make
-use of cats-effect <code>Resource</code>, that allows us to create, use and then
-release resources in an orderly fashion. See this code:</p>
+<p>We consider opening a stream to be a side-effectful action, so we have to
+encapsulate those actions in their own <code>IO</code> instances. We can just embed the
+actions by calling <code>IO(action)</code>, but when dealing with input/output actions it
+is advised to use instead <code>IO.blocking(action)</code>. This way we help cats-effect to
+better plan how to assign threads to actions. We will return to this topic when
+we introduce <em>fibers</em> later on in this tutorial.</p>
+<p>Also, we will make use of cats-effect <code>Resource</code>. It allows to orderly create,
+use and then release resources. See this code:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">Resource</span>}
 <span class="hljs-keyword">import</span> java.io._  
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputStream</span></span>(f: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">FileInputStream</span>] =
   <span class="hljs-type">Resource</span>.make {
-    <span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileInputStream</span>(f))                         <span class="hljs-comment">// build</span>
+    <span class="hljs-type">IO</span>.blocking(<span class="hljs-keyword">new</span> <span class="hljs-type">FileInputStream</span>(f))                         <span class="hljs-comment">// build</span>
   } { inStream =&gt;
-    <span class="hljs-type">IO</span>(inStream.close()).handleErrorWith(_ =&gt; <span class="hljs-type">IO</span>.unit) <span class="hljs-comment">// release</span>
+    <span class="hljs-type">IO</span>.blocking(inStream.close()).handleErrorWith(_ =&gt; <span class="hljs-type">IO</span>.unit) <span class="hljs-comment">// release</span>
   }
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">outputStream</span></span>(f: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">FileOutputStream</span>] =
   <span class="hljs-type">Resource</span>.make {
-    <span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileOutputStream</span>(f))                         <span class="hljs-comment">// build </span>
+    <span class="hljs-type">IO</span>.blocking(<span class="hljs-keyword">new</span> <span class="hljs-type">FileOutputStream</span>(f))                         <span class="hljs-comment">// build </span>
   } { outStream =&gt;
-    <span class="hljs-type">IO</span>(outStream.close()).handleErrorWith(_ =&gt; <span class="hljs-type">IO</span>.unit) <span class="hljs-comment">// release</span>
+    <span class="hljs-type">IO</span>.blocking(outStream.close()).handleErrorWith(_ =&gt; <span class="hljs-type">IO</span>.unit) <span class="hljs-comment">// release</span>
   }
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputOutputStreams</span></span>(in: <span class="hljs-type">File</span>, out: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, (<span class="hljs-type">InputStream</span>, <span class="hljs-type">OutputStream</span>)] =
@@ -285,10 +289,7 @@ the main loop, and leave the actual transmission of data to another function
   } <span class="hljs-keyword">yield</span> count <span class="hljs-comment">// Returns the actual amount of bytes transmitted // Returns the actual amount of bytes transmitted</span>
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>(origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] =
-  <span class="hljs-keyword">for</span> {
-    buffer &lt;- <span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>](<span class="hljs-number">1024</span> * <span class="hljs-number">10</span>)) <span class="hljs-comment">// Allocated only when the IO is evaluated</span>
-    total  &lt;- transmit(origin, destination, buffer, <span class="hljs-number">0</span>L)
-  } <span class="hljs-keyword">yield</span> total
+  transmit(origin, destination, <span class="hljs-keyword">new</span> <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>](<span class="hljs-number">1024</span> * <span class="hljs-number">10</span>), <span class="hljs-number">0</span>L)
 </code></pre>
 <p>Take a look at <code>transmit</code>, observe that both input and output actions are
 created by invoking <code>IO.blocking</code> which return the actions encapsulated in a
@@ -315,87 +316,18 @@ should not be ignored, as it is a key feature of cats-effect. We will discuss
 cancelation in the next section.</p>
 <h3><a class="anchor" aria-hidden="true" id="dealing-with-cancelation"></a><a href="#dealing-with-cancelation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Dealing with cancelation</h3>
 <p>Cancelation is a powerful but non-trivial cats-effect feature. In cats-effect,
-some <code>IO</code> instances can be canceled ( <em>e.g.</em> by other <code>IO</code> instaces running
+some <code>IO</code> instances can be canceled ( <em>e.g.</em> by other <code>IO</code> instances running
 concurrently) meaning that their evaluation will be aborted. If the programmer is
 careful, an alternative <code>IO</code> task will be run under cancelation, for example to
 deal with potential cleaning up activities.</p>
-<p>Now, <code>IO</code>s created with <code>Resource.use</code> can be canceled. The cancelation will
-trigger the execution of the code that handles the closing of the resource. In
-our case, that would close both streams. So far so good! But what happens if
-cancelation happens <em>while</em> the streams are being used? This could lead to data
-corruption as some thread is writing to the stream while at the same time
-another thread is trying to close it.</p>
-<p>To prevent such data corruption we must use some concurrency control mechanism
-that ensures that no stream will be closed while the <code>IO</code> returned by <code>transfer</code>
-is being evaluated.  Cats-effect provides several constructs for controlling
-concurrency, for this case we will use a <em>semaphore</em>. A semaphore has a number
-of permits, its method <code>.acquire</code> 'blocks' if no permit is available until
-<code>release</code> is called on the same semaphore. It is important to remark that <em>there
-is no actual thread being really blocked</em>, the thread that finds the <code>.acquire</code>
-call will be immediately recycled by cats-effect. When the <code>release</code> method is
-invoked then cats-effect will look for some available thread to resume the
-execution of the code after <code>.acquire</code>.</p>
-<p>We will use a semaphore with a single permit. The <code>.permit</code> method acquires one
-permit as a <code>Resource</code> instance that will acquire the single permit, runs the
-<code>IO</code> given and then releases the permit. We could also use <code>.acquire</code> and then
-<code>.release</code> on the semaphore explicitly, but <code>.permit</code> is more idiomatic and
-ensures that the permit is released even if the effect run fails.</p>
-<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">Resource</span>}
-<span class="hljs-keyword">import</span> cats.effect.std.<span class="hljs-type">Semaphore</span>
-<span class="hljs-keyword">import</span> java.io._
-
-<span class="hljs-comment">// transfer and transmit methods as defined before</span>
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>(origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = ???
-
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputStream</span></span>(f: <span class="hljs-type">File</span>, guard: <span class="hljs-type">Semaphore</span>[<span class="hljs-type">IO</span>]): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">FileInputStream</span>] =
-  <span class="hljs-type">Resource</span>.make {
-    <span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileInputStream</span>(f))
-  } { inStream =&gt; 
-    guard.permit.use { _ =&gt;
-      <span class="hljs-type">IO</span>(inStream.close()).handleErrorWith(_ =&gt; <span class="hljs-type">IO</span>.unit)
-    }
-  }
-
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">outputStream</span></span>(f: <span class="hljs-type">File</span>, guard: <span class="hljs-type">Semaphore</span>[<span class="hljs-type">IO</span>]): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">FileOutputStream</span>] =
-  <span class="hljs-type">Resource</span>.make {
-    <span class="hljs-type">IO</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">FileOutputStream</span>(f))
-  } { outStream =&gt;
-    guard.permit.use { _ =&gt;
-      <span class="hljs-type">IO</span>(outStream.close()).handleErrorWith(_ =&gt; <span class="hljs-type">IO</span>.unit)
-    }
-  }
-
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputOutputStreams</span></span>(in: <span class="hljs-type">File</span>, out: <span class="hljs-type">File</span>, guard: <span class="hljs-type">Semaphore</span>[<span class="hljs-type">IO</span>]): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, (<span class="hljs-type">InputStream</span>, <span class="hljs-type">OutputStream</span>)] =
-  <span class="hljs-keyword">for</span> {
-    inStream  &lt;- inputStream(in, guard)
-    outStream &lt;- outputStream(out, guard)
-  } <span class="hljs-keyword">yield</span> (inStream, outStream)
-
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">copy</span></span>(origin: <span class="hljs-type">File</span>, destination: <span class="hljs-type">File</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] = {
-  <span class="hljs-keyword">for</span> {
-    guard &lt;- <span class="hljs-type">Semaphore</span>[<span class="hljs-type">IO</span>](<span class="hljs-number">1</span>)
-    count &lt;- inputOutputStreams(origin, destination, guard).use { <span class="hljs-keyword">case</span> (in, out) =&gt; 
-      guard.permit.use { _ =&gt;
-        transfer(in, out)
-      }
-    }
-  } <span class="hljs-keyword">yield</span> count
-}
-</code></pre>
-<p>Before calling to <code>transfer</code> we acquire the semaphore, which is not released
-until <code>transfer</code> is done. The <code>use</code> call ensures that the semaphore will be
-released under any circumstances, whatever the result of <code>transfer</code> (success,
-error, or cancelation). As the 'release' parts in the <code>Resource</code> instances are
-now blocked on the same semaphore, we can be sure that streams are closed only
-after <code>transfer</code> is over, <em>i.e.</em> we have implemented mutual exclusion of
-<code>transfer</code> execution and resources releasing.</p>
-<p>Mark that while the <code>IO</code> returned by <code>copy</code> is cancelable (because so are <code>IO</code>
-instances returned by <code>Resource.use</code>), the <code>IO</code> returned by <code>transfer</code> is not.
-Trying to cancel it will not have any effect and that <code>IO</code> will run until the
-whole file is copied! That is an important limitation, in real world code you
-will probably want to make your functions cancelable.</p>
-<p>And that is it! We are done, now we can create a program that uses this
-<code>copy</code> function.</p>
+<p>Thankfully, <code>Resource</code> makes dealing with cancelation an easy task. If the <code>IO</code>
+inside a <code>Resource.use</code> is canceled, the release section of that resource is
+run. In our example this means the input and output streams will be properly
+closed. Also, cats-effect does not cancel code inside <code>IO.blocking</code> instances.
+In the case of our <code>transmit</code> function this means the execution would be
+interrupted only between two calls to <code>IO.blocking</code>. If we want the execution of
+an IO instance to be interrupted when canceled, without waiting for it to
+finish, we must instantiate it using <code>IO.interruptible</code>.</p>
 <h3><a class="anchor" aria-hidden="true" id="ioapp-for-our-final-program"></a><a href="#ioapp-for-our-final-program" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>IOApp</code> for our final program</h3>
 <p>We will create a program that copies files, this program only takes two
 parameters: the name of the origin and destination files. For coding this
@@ -445,9 +377,7 @@ at any time for example by pressing <code>Ctrl-c</code>, our code will deal with
 resource release (streams closing) even under such circumstances. The same will
 apply if the <code>copy</code> function is run from other modules that require its
 functionality. If the <code>IO</code> returned by this function is canceled while being
-run, still resources will be properly released. But recall what we commented on
-before: this is because <code>use</code> returns <code>IO</code> instances that are cancelable. By
-contrast, our <code>transfer</code> function is not cancelable.</p>
+run, still resources will be properly released.</p>
 <h3><a class="anchor" aria-hidden="true" id="polymorphic-cats-effect-code"></a><a href="#polymorphic-cats-effect-code" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Polymorphic cats-effect code</h3>
 <p>There is an important characteristic of <code>IO</code> that we should be aware of. <code>IO</code> is
 able to suspend side-effects asynchronously thanks to the existence of an
@@ -474,24 +404,19 @@ replacing any use of <code>IO</code> by calls to the <code>delay</code> and <cod
   } <span class="hljs-keyword">yield</span> count <span class="hljs-comment">// Returns the actual amount of bytes transmitted</span>
 </code></pre>
 <p>We leave as an exercise to code the polymorphic versions of <code>inputStream</code>,
-<code>outputStream</code>, <code>inputOutputStreams</code>, <code>transfer</code> and <code>copy</code> functions. You will
-find that transformation similar to the one shown for <code>transfer</code> in the snippet
-above, but the function <code>copy</code> requires <code>F[_]: Async</code> instead of <code>F[_]: Sync</code>. This is because it not only suspends a side-effect, it uses
-functionality of semaphores that requires a <code>Concurrent</code> instance in (implicit)
-scope.  And <code>Sync</code> does <em>not</em> extend <code>Concurrent</code> while <code>Async</code> does.</p>
+<code>outputStream</code>, <code>inputOutputStreams</code>, <code>transfer</code> and <code>copy</code> functions.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
-<span class="hljs-keyword">import</span> cats.effect.std.<span class="hljs-type">Semaphore</span>
 <span class="hljs-keyword">import</span> java.io._
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transmit</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>, buffer: <span class="hljs-type">Array</span>[<span class="hljs-type">Byte</span>], acc: <span class="hljs-type">Long</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Long</span>] = ???
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">transfer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](origin: <span class="hljs-type">InputStream</span>, destination: <span class="hljs-type">OutputStream</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Long</span>] = ???
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputStream</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](f: <span class="hljs-type">File</span>, guard: <span class="hljs-type">Semaphore</span>[<span class="hljs-type">F</span>]): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, <span class="hljs-type">FileInputStream</span>] = ???
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">outputStream</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](f: <span class="hljs-type">File</span>, guard: <span class="hljs-type">Semaphore</span>[<span class="hljs-type">F</span>]): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, <span class="hljs-type">FileOutputStream</span>] = ???
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputOutputStreams</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](in: <span class="hljs-type">File</span>, out: <span class="hljs-type">File</span>, guard: <span class="hljs-type">Semaphore</span>[<span class="hljs-type">F</span>]): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, (<span class="hljs-type">InputStream</span>, <span class="hljs-type">OutputStream</span>)] = ???
-<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">copy</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Async</span>](origin: <span class="hljs-type">File</span>, destination: <span class="hljs-type">File</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Long</span>] = ???
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputStream</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](f: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, <span class="hljs-type">FileInputStream</span>] = ???
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">outputStream</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](f: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, <span class="hljs-type">FileOutputStream</span>] = ???
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">inputOutputStreams</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](in: <span class="hljs-type">File</span>, out: <span class="hljs-type">File</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, (<span class="hljs-type">InputStream</span>, <span class="hljs-type">OutputStream</span>)] = ???
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">copy</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](origin: <span class="hljs-type">File</span>, destination: <span class="hljs-type">File</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Long</span>] = ???
 </code></pre>
 <p>Only in our <code>main</code> function we will set <code>IO</code> as the final <code>F</code> for our program.
-To do so, of course, an <code>Async[IO]</code> instance must be in scope, but that instance
+To do so, of course, a <code>Sync[IO]</code> instance must be in scope, but that instance
 is brought transparently by <code>IOApp</code> so we do not need to be concerned about it.</p>
 <p>During the remainder of this tutorial we will use polymorphic code, only falling
 to <code>IO</code> in the <code>run</code> method of our <code>IOApp</code>s. Polymorphic code is less
@@ -513,8 +438,12 @@ destination file already exists, the program should ask for confirmation
 before overwriting that file.</li>
 <li>Modify <code>transmit</code> so the buffer size is not hardcoded but passed as
 parameter.</li>
-<li>Use some other concurrency tool of cats-effect instead of <code>semaphore</code> to
-ensure mutual exclusion of <code>transfer</code> execution and streams closing.</li>
+<li>Test safe cancelation, checking that the streams are indeed being properly
+closed. You can do that just by interrupting the program execution pressing
+<code>Ctrl-c</code>. To make sure you have the time to interrupt the program, introduce
+a delay of a few seconds in the <code>transmit</code> function (see <code>IO.sleep</code>). And to
+ensure that the release functionality in the <code>Resource</code>s is run you can add
+some log message there (see <code>IO.println</code>).</li>
 <li>Create a new program able to copy folders. If the origin folder has
 subfolders, then their contents must be recursively copied too. Of course the
 copying must be safely cancelable at any moment.</li>
@@ -557,8 +486,7 @@ info as a hint to optimize <code>IO</code> scheduling.</p>
 <p>Another difference with threads is that fibers are very cheap entities. We can
 spawn millions of them at ease without impacting the performance.</p>
 <p>Cats-effect implements some concurrency primitives to coordinate concurrent
-fibers: <a href="/cats-effect/docs/next/std/deferred">Deferred</a>, <a href="/cats-effect/docs/next/std/ref">Ref</a>, <code>Semaphore</code>
-(semaphores we already discussed in the first part of this tutorial)...</p>
+fibers: <a href="/cats-effect/docs/next/std/deferred">Deferred</a>, <a href="/cats-effect/docs/next/std/ref">Ref</a>, <code>Semaphore</code>...</p>
 <p>Way more detailed info about concurrency in cats-effect can be found in <a href="https://github.com/slouc/concurrency-in-scala-with-ce">this
 other tutorial 'Concurrency in Scala with
 Cats-Effect'</a>.</p>
@@ -629,7 +557,7 @@ recursively to start again.</p>
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">InefficientProducerConsumer</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span> </span>{
 
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">producer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](queueR: <span class="hljs-type">Ref</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Queue</span>[<span class="hljs-type">Int</span>]], counter: <span class="hljs-type">Int</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = ??? <span class="hljs-comment">// As defined before</span>
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">consumer</span></span>[<span class="hljs-type">F</span>[_] : <span class="hljs-type">Sync</span>](queueR: <span class="hljs-type">Ref</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Queue</span>[<span class="hljs-type">Int</span>]]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = ??? <span class="hljs-comment">// As defined before</span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">consumer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](queueR: <span class="hljs-type">Ref</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Queue</span>[<span class="hljs-type">Int</span>]]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = ??? <span class="hljs-comment">// As defined before</span>
 
   <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">ExitCode</span>] =
     <span class="hljs-keyword">for</span> {
@@ -660,7 +588,7 @@ wait for them to finish, something like:</p>
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">InefficientProducerConsumer</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span> </span>{
 
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">producer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](queueR: <span class="hljs-type">Ref</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Queue</span>[<span class="hljs-type">Int</span>]], counter: <span class="hljs-type">Int</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = ??? <span class="hljs-comment">// As defined before</span>
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">consumer</span></span>[<span class="hljs-type">F</span>[_] : <span class="hljs-type">Sync</span>](queueR: <span class="hljs-type">Ref</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Queue</span>[<span class="hljs-type">Int</span>]]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = ??? <span class="hljs-comment">// As defined before</span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">consumer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Sync</span>](queueR: <span class="hljs-type">Ref</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Queue</span>[<span class="hljs-type">Int</span>]]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = ??? <span class="hljs-comment">// As defined before</span>
 
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>(args: <span class="hljs-type">List</span>[<span class="hljs-type">String</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">ExitCode</span>] =
     <span class="hljs-keyword">for</span> {
