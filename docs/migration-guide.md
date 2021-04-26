@@ -1,6 +1,6 @@
 ---
 id: migration-guide
-title: Migration guide
+title: Migration Guide
 ---
 
 ## Summary
@@ -13,7 +13,7 @@ Here is an overview of the steps you should take to migrate your application to 
 1. [Fix remaining compilation issues](#fix-remaining-compilation-issues)
 1. [Test your application](#test-your-application).
 
-### Before you begin: this isn't a "quick start" guide
+### Before You Begin: This Isn't A "Quick Start" Guide
 
 This guide is meant for existing users of Cats Effect 2 who want to upgrade their applications
 to 3.0.0.
@@ -21,13 +21,13 @@ to 3.0.0.
 > If you haven't used Cats Effect before and want to give it a try,
 > please follow the [getting started guide](./getting-started.md) instead!
 
-### 🤔 Need help?
+### 🤔 Need Help?
 
 If any point of the migration turns out to be difficult and you feel like you need help, feel free to [explain your problem on Gitter](https://gitter.im/typelevel/cats-effect) and we will do our best to assist you.
 If you spot a mistake in the guide or the library itself, you can [report an issue on GitHub](https://github.com/typelevel/cats-effect/issues/new)
 or [fix it with a pull request](https://github.com/typelevel/cats-effect/compare).
 
-### Context: what's changed, what's the same?
+### Context: What's Changed, What's the Same?
 
 Cats Effect 3 (CE3 for short) is a complete redesign of the library.
 Some abstractions known from Cats Effect 2 (CE2) have been removed, others changed responsibilities, and finally, new abstractions were introduced.
@@ -37,7 +37,7 @@ The `cats.effect.IO` type known from CE2 is still there, albeit with a different
 The new set of type classes has been designed in a way that deliberately avoids coupling with `IO`, which makes the library more modular,
 and allows library authors (as well as users of other effect types) to omit that dependency from their builds.
 
-## Make sure your dependencies have upgraded
+## Make Sure Your Dependencies Have Upgraded
 
 Before you make any changes to your build or your code, you should make sure all of your direct and transitive dependencies have made releases compatible with Cats Effect 3.
 
@@ -45,7 +45,7 @@ There isn't any automated way to do this, but you can just go ahead and [try to 
 
 If you're using an open source library that hasn't made a compatible release yet, [let us know - we are keeping track of the efforts of library authors](https://github.com/typelevel/cats-effect/issues/1330) to publish compatible releases as soon as possible when 3.0.0 final is out.
 
-## Run the Scalafix migration
+## Run the Scalafix Migration
 
 Many parts of this migration can be automated by using the [Scalafix][scalafix] migration.
 
@@ -55,7 +55,7 @@ If you want to trigger the migration manually, you can follow [the instructions 
 
 Now is the time to update `cats-effect` and **every dependency using it** to a CE3-compatible version.
 
-## Upgrade dependencies
+## Upgrade Dependencies
 
 At this point, if you've run the Scalafix migration, your code will not compile. However, you should hold off going through the list of errors and fixing the remaining issues yourself at this point.
 
@@ -74,7 +74,7 @@ all use either the 2.x.x versions or the 3.x.x versions).
 
 Having upgraded sbt, you can try to upgrade Cats Effect:
 
-### Which modules should I use?
+### Which Modules Should I Use?
 
 Cats Effect 3 splits the code dependency into multiple modules. If you were previously using `cats-effect`, you can keep doing so, but if you're a user of another effect system (Monix, ZIO, ...), or a library author, you might be able to depend on a subset of it instead.
 
@@ -124,9 +124,9 @@ This tells you that you need to upgrade both `monix-catnap` and `odin-core` befo
 > you're depending on other projects that depend on them.
 > Upgrading your direct dependencies should solve the transitive dependencies' incompatibilities as well.
 
-## Fix remaining compilation issues
+## Fix Remaining Compilation Issues
 
-#### New type class hierarchy
+#### New Type Class Hierarchy
 
 Here's the new type class hierarchy. It might be helpful in understanding some of the changes:
 
@@ -161,7 +161,7 @@ Learn more about `global` [in the `IO` section](#io).
 | `Async[F].liftIO`, `Async.liftIO` | `LiftIO[F].liftIO`                                 |
 | `Async <: LiftIO`                 | No subtyping relationship                          |
 
-#### `async` signature
+#### `async` Signature
 
 In Cats Effect 2, `Async` was able to lift asynchronous effects into `F`. `Concurrent` extended that ability
 to allow canceling them - in CE3,
@@ -212,7 +212,7 @@ this has an impact on users who have used polymorphic effects with an `F[_]: Asy
 
 Please refer to each library's appropriate documentation/changelog to see how to adjust your code to this change.
 
-### Blocker
+### `Blocker`
 
 | Cats Effect 2.x                               | Cats Effect 3                               | Notes                                                                           |
 | --------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------- |
@@ -235,7 +235,7 @@ or the `Sync` typeclass:
 val programSync = Sync[IO].blocking(println("hello Sync blocking!"))
 ```
 
-#### Interruptible blocking
+#### Interruptible Blocking
 
 It is now possible to make the blocking task interruptible using [`Sync`](./typeclasses/sync.md):
 
@@ -245,7 +245,7 @@ val programInterruptible =
   Sync[IO].interruptible(many = false)(println("hello Sync blocking!"))
 ```
 
-#### Where does the blocking pool come from?
+#### Where Does The Blocking Pool Come From?
 
 The blocking thread pool, similarly to the compute pool, is provided in `IORuntime` when you run your `IO`.
 For other effect systems it could be a `Runtime` or `Scheduler`, etc. You can learn more about CE3 [schedulers](./schedulers.md) and [the thread model in comparison to CE2's](./thread-model.md).
@@ -285,7 +285,7 @@ def myBlocking[A](fa: IO[A]) = fa.evalOn(myBlockingPool)
 ```
 
 
-### Bracket
+### `Bracket`
 
 | Cats Effect 2.x               | Cats Effect 3                          | Notes                                    |
 | ----------------------------- | -------------------------------------- | ---------------------------------------- |
@@ -308,7 +308,7 @@ see [its docs](./typeclasses/monadcancel.md).
 
 Another important change is replacing `ExitCase` with `Outcome`. Learn more [below](#exitcase).
 
-### Clock
+### `Clock`
 
 | Cats Effect 2.x                           | Cats Effect 3                           |
 | ----------------------------------------- | --------------------------------------- |
@@ -337,7 +337,7 @@ Because `Clock` is no longer a "usual" value but a type class, it's not possible
 
 `Clock` is a part of `Sync` and thus it should be easy to get an instance inductively for any monad transformer, or directly for any effect that is a `Sync`.
 
-### Concurrent
+### `Concurrent`
 
 | Cats Effect 2.x                             | Cats Effect 3                   | Notes                                          |
 | ------------------------------------------- | ------------------------------- | ---------------------------------------------- |
@@ -369,7 +369,7 @@ The remaining part of `Concurrent` are the ability to create `Ref`s and `Deferre
 
 If you're only using methods from `Spawn` or `Temporal`, you might be able to reduce your type class constraints to these.
 
-#### Place in the hierarchy
+#### Place in the Hierarchy
 
 If you recall [the type class hierarchy](#new-type-class-hierarchy), `Concurrent` is no longer a child of `Async` and `Sync` - it's one of their parents.
 
@@ -412,7 +412,7 @@ The same pattern is followed by `GenTemporal`/`Temporal` and `GenSpawn`/`Spawn`.
 to abstract away `Throwable` in parts of your code that don't need to know what the exact error type is.
 
 
-### Effect, ConcurrentEffect, SyncEffect
+### `Effect`, `ConcurrentEffect`, `SyncEffect`
 
 | Cats Effect 2.x       | Cats Effect 3 |
 | --------------------- | ------------- |
@@ -493,7 +493,7 @@ def consumer2[F[_], A](dispatcher: Dispatcher[F], handler: A => F[Unit]): Consum
   }
 ```
 
-### ContextShift
+### `ContextShift`
 
 | Cats Effect 2.x          | Cats Effect 3             |
 | ------------------------ | ------------------------- |
@@ -516,7 +516,7 @@ There is no longer a need for shifting back (1), because interop with callback-b
 
 Yielding back to the scheduler (2) can now be done with `Spawn[F].cede`.
 
-### Deferred
+### `Deferred`
 
 In CE2, completing a `Deferred` after it's already been completed would result in a failed effect. This is not the case in CE3.
 
@@ -544,7 +544,7 @@ the method's type is now `F[Boolean]`, which will complete with `false` if there
 
 **This is equivalent to `tryComplete` in CE2**. Make sure your code doesn't rely on calling `complete` more than once to fail.
 
-### ExitCase, Fiber
+### `ExitCase`, `Fiber`
 
 | Cats Effect 2.x          | Cats Effect 3                  |
 | ------------------------ | ------------------------------ |
@@ -598,7 +598,7 @@ In CE2, the `F[A]` type of `join` meant that in case the fiber was canceled, `jo
 That behavior is still available as `joinWithNever` (you can learn more about it [in `Spawn` docs](./typeclasses/spawn.md#joining)),
 but it's often safer to move away from it and pass an explicit cancelation handler (for example, a failing one) using `fiber.joinWith(onCancel: F[A])`.
 
-### IO
+### `IO`
 
 | Cats Effect 2.x                   | Cats Effect 3                                  | Notes                                                  |
 | --------------------------------- | ---------------------------------------------- | ------------------------------------------------------ |
@@ -643,7 +643,7 @@ io.unsafeRunSync()
 Follow the advice from the "missing implicit" error message whenever you need this functionality.
 Note that some of your direct `unsafeRun*` calls might be possible to replace with [`Dispatcher`](#dispatcher).
 
-### IOApp
+### `IOApp`
 
 | Cats Effect 2.x    | Cats Effect 3     |
 | ------------------ | ----------------- |
@@ -671,7 +671,7 @@ object Demo extends IOApp.Simple {
 
 This change has been added to the Cats Effect 2 series in [2.4.0](https://github.com/typelevel/cats-effect/releases/tag/v2.4.0).
 
-### MVar
+### `MVar`
 
 `MVar` has been removed with no direct replacement.
 
@@ -683,7 +683,7 @@ Depending on how you used it, you might be able to replace it with [`monix-catna
 | ----------------- | --------------- |
 | `Sync[F].suspend` | `Sync[F].defer` |
 
-### Resource
+### `Resource`
 
 | Cats Effect 2.x                      | Cats Effect 3                | Notes                                                    |
 | ------------------------------------ | ---------------------------- | -------------------------------------------------------- |
@@ -707,7 +707,7 @@ Similarly to `Clock`, `Timer` has been replaced with a lawful type class, `Tempo
 Currently, improved stack traces are not implemented.
 There is currently [work in progress](https://github.com/typelevel/cats-effect/pull/1763) to bring them back.
 
-## Test your application
+## Test Your Application
 
 If you followed this guide, all your dependencies are using the 3.x releases of Cats Effect, your code compiles and your tests pass,
 the process is probably done - at this point you should do the usual steps you make after major changes in your application:
