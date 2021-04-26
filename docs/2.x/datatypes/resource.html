@@ -78,7 +78,7 @@
 <span class="hljs-keyword">val</span> acquire: <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = <span class="hljs-type">IO</span>(println(<span class="hljs-string">"Acquire cats..."</span>)) *&gt; <span class="hljs-type">IO</span>(<span class="hljs-string">"cats"</span>)
 <span class="hljs-comment">// acquire: IO[String] = Bind(</span>
 <span class="hljs-comment">//   source = Delay(thunk = &lt;function0&gt;),</span>
-<span class="hljs-comment">//   f = cats.effect.IO$$Lambda$11196/1531557532@512f52a3,</span>
+<span class="hljs-comment">//   f = cats.effect.IO$$Lambda$11220/1528006846@7bc6681c,</span>
 <span class="hljs-comment">//   trace = StackTrace(</span>
 <span class="hljs-comment">//     stackTrace = List(</span>
 <span class="hljs-comment">//       cats.effect.internals.IOTracing$.buildFrame(IOTracing.scala:48),</span>
@@ -100,26 +100,11 @@
 <span class="hljs-comment">//       scala.util.DynamicVariable.withValue(DynamicVariable.scala:59),</span>
 <span class="hljs-comment">//       scala.Console$.withOut(Console.scala:164),</span>
 <span class="hljs-comment">//       mdoc.internal.document.DocumentBuilder$$doc$.build(DocumentBuilder.scala:88),</span>
-<span class="hljs-comment">//       mdoc.internal.markdown.MarkdownBuilder$.buildDocument(MarkdownBuilder.scala:44),</span>
-<span class="hljs-comment">//       mdoc.internal.markdown.Processor.processScalaInputs(Processor.scala:182),</span>
-<span class="hljs-comment">//       mdoc.internal.markdown.Processor.processScalaInputs(Processor.scala:149),</span>
-<span class="hljs-comment">//       mdoc.internal.markdown.Processor.processDocument(Processor.scala:49),</span>
-<span class="hljs-comment">//       mdoc.internal.markdown.Markdown$.toMarkdown(Markdown.scala:131),</span>
-<span class="hljs-comment">//       mdoc.internal.cli.MainOps.handleMarkdown(MainOps.scala:82),</span>
-<span class="hljs-comment">//       mdoc.internal.cli.MainOps.handleFile(MainOps.scala:110),</span>
-<span class="hljs-comment">//       mdoc.internal.cli.MainOps.$anonfun$generateCompleteSite$1(MainOps.scala:156),</span>
-<span class="hljs-comment">//       scala.collection.LinearSeqOps.foldLeft(LinearSeq.scala:169),</span>
-<span class="hljs-comment">//       scala.collection.LinearSeqOps.foldLeft$(LinearSeq.scala:165),</span>
-<span class="hljs-comment">//       scala.collection.immutable.List.foldLeft(List.scala:79),</span>
-<span class="hljs-comment">//       mdoc.internal.cli.MainOps.generateCompleteSite(MainOps.scala:155),</span>
-<span class="hljs-comment">//       mdoc.internal.cli.MainOps.run(MainOps.scala:177),</span>
-<span class="hljs-comment">//       mdoc.internal.cli.MainOps$.process(MainOps.scala:269),</span>
-<span class="hljs-comment">//       mdoc.Main$.process(Main.scala:26),</span>
-<span class="hljs-comment">//       mdoc.Main$.process(Main.scala:21),</span>
-<span class="hljs-comment">//       mdoc.Main$.main(Main.scala:16),</span>
-<span class="hljs-comment">//       mdoc.Main.main(Main.scala),</span>
-<span class="hljs-comment">//       sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method),</span>
-<span class="hljs-comment">//       sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:...</span>
+<span class="hljs-comment">//       mdoc.internal.markdown.MarkdownBuilder$.$anonfun$buildDocument$2(MarkdownBuilder.scala:47),</span>
+<span class="hljs-comment">//       mdoc.internal.markdown.MarkdownBuilder$$anon$1.run(MarkdownBuilder.scala:103)</span>
+<span class="hljs-comment">//     )</span>
+<span class="hljs-comment">//   )</span>
+<span class="hljs-comment">// )</span>
 <span class="hljs-keyword">val</span> release: <span class="hljs-type">String</span> =&gt; <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = _ =&gt; <span class="hljs-type">IO</span>(println(<span class="hljs-string">"...release everything"</span>))
 <span class="hljs-comment">// release: String =&gt; IO[Unit] = &lt;function1&gt;</span>
 <span class="hljs-keyword">val</span> addDogs: <span class="hljs-type">String</span> =&gt; <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = x =&gt;
