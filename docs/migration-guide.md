@@ -617,12 +617,27 @@ Most changes in `IO` are straightforward, with the exception of the "unsafe" met
 
 Aside from the renamings of these methods, they all now take an implicit `IORuntime`.
 
-```scala mdoc:fail:reset
+```scala
 import cats.effect.IO
 
 def io: IO[Unit] = ???
 
 io.unsafeRunSync()
+// error: Could not find an implicit IORuntime.
+// 
+// Instead of calling unsafe methods directly, consider using cats.effect.IOApp, which
+// runs your IO. If integrating with non-functional code or experimenting in a REPL / Worksheet,
+// add the following import:
+// 
+// import cats.effect.unsafe.implicits.global
+// 
+// Alternatively, you can create an explicit IORuntime value and put it in implicit scope.
+// This may be useful if you have a pre-existing fixed thread pool and/or scheduler which you
+// wish to use to execute IO programs. Please be sure to review thread pool best practices to
+// avoid unintentionally degrading your application performance.
+// 
+// io.unsafeRunSync()
+// ^^^^^^^^^^^^^^^^^^
 ```
 
 Follow the advice from the "missing implicit" error message whenever you need this functionality.
