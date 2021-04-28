@@ -1,0 +1,651 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Migration Guide · Cats Effect</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## Summary"/><meta name="docsearch:version" content="3.x"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Migration Guide · Cats Effect"/><meta property="og:type" content="website"/><meta property="og:url" content="https://typelevel.org/cats-effect/"/><meta property="og:description" content="## Summary"/><meta property="og:image" content="https://typelevel.org/cats-effect/img/undraw_online.svg"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/undraw_tweetstorm.svg"/><link rel="shortcut icon" href="/cats-effect/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github-gist.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="/cats-effect/js/scrollSpy.js"></script><link rel="stylesheet" href="/cats-effect/css/main.css"/><script src="/cats-effect/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/cats-effect/"><img class="logo" src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect"/><h2 class="headerTitleWithLogo">Cats Effect</h2></a><a href="/cats-effect/versions"><h3>3.x</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/cats-effect/docs/getting-started" target="_self">Docs</a></li><li class=""><a href="/cats-effect/api/3.x" target="_self">API</a></li><li class=""><a target="_self"></a></li><li class=""><a href="https://github.com/typelevel/cats-effect" target="_blank">GitHub</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Overview</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Overview<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/getting-started">Getting Started</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/tutorial">Tutorial</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/cats-effect/docs/migration-guide">Migration Guide</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/thread-model">Thread Model</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/schedulers">Schedulers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Typeclasses<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses">Overview</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/monadcancel">MonadCancel</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/spawn">Spawn</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/unique">Unique</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/clock">Clock</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/concurrent">Concurrent</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/temporal">Temporal</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/sync">Sync</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/async">Async</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Standard Library<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/countdown-latch">Count Down Latch</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/cyclic-barrier">Cyclic Barrier</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/deferred">Deferred</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/dequeue">Dequeue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/dispatcher">Dispatcher</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/hotswap">Hotswap</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/pqueue">Priority Queue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/queue">Queue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/ref">Ref</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/resource">Resource</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/supervisor">Supervisor</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Migration Guide</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="summary"></a><a href="#summary" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Summary</h2>
+<p>Here is an overview of the steps you should take to migrate your application to Cats Effect 3:</p>
+<ol>
+<li><a href="#make-sure-your-dependencies-have-upgraded">Make sure your dependencies have upgraded</a><!-- don't remove this comment - this ensures the vscode extension doesn't make this a ToC --></li>
+<li><a href="#run-the-scalafix-migration">Run the Scalafix migration</a> (optional)</li>
+<li><a href="#upgrade-dependencies">Upgrade dependencies and Cats Effect itself</a></li>
+<li><a href="#fix-remaining-compilation-issues">Fix remaining compilation issues</a></li>
+<li><a href="#test-your-application">Test your application</a>.</li>
+</ol>
+<h3><a class="anchor" aria-hidden="true" id="before-you-begin-this-isnt-a-quick-start-guide"></a><a href="#before-you-begin-this-isnt-a-quick-start-guide" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Before You Begin: This Isn't A &quot;Quick Start&quot; Guide</h3>
+<p>This guide is meant for existing users of Cats Effect 2 who want to upgrade their applications
+to 3.0.0.</p>
+<blockquote>
+<p>If you haven't used Cats Effect before and want to give it a try,
+please follow the <a href="/cats-effect/docs/getting-started">getting started guide</a> instead!</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="-need-help"></a><a href="#-need-help" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>🤔 Need Help?</h3>
+<p>If any point of the migration turns out to be difficult and you feel like you need help, feel free to <a href="https://gitter.im/typelevel/cats-effect">explain your problem on Gitter</a> and we will do our best to assist you.
+If you spot a mistake in the guide or the library itself, you can <a href="https://github.com/typelevel/cats-effect/issues/new">report an issue on GitHub</a>
+or <a href="https://github.com/typelevel/cats-effect/compare">fix it with a pull request</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="context-whats-changed-whats-the-same"></a><a href="#context-whats-changed-whats-the-same" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Context: What's Changed, What's the Same?</h3>
+<p>Cats Effect 3 (CE3 for short) is a complete redesign of the library.
+Some abstractions known from Cats Effect 2 (CE2) have been removed, others changed responsibilities, and finally, new abstractions were introduced.</p>
+<p>The <code>cats.effect.IO</code> type known from CE2 is still there, albeit with a different place in the type class hierarchy - namely, it doesn't appear in it.</p>
+<p>The new set of type classes has been designed in a way that deliberately avoids coupling with <code>IO</code>, which makes the library more modular,
+and allows library authors (as well as users of other effect types) to omit that dependency from their builds.</p>
+<h2><a class="anchor" aria-hidden="true" id="make-sure-your-dependencies-have-upgraded"></a><a href="#make-sure-your-dependencies-have-upgraded" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Make Sure Your Dependencies Have Upgraded</h2>
+<p>Before you make any changes to your build or your code, you should make sure all of your direct and transitive dependencies have made releases compatible with Cats Effect 3.</p>
+<p>There isn't any automated way to do this, but you can just go ahead and <a href="#upgrade-dependencies">try to upgrade the dependencies</a>, then stash the changes and return to here.</p>
+<p>If you're using an open source library that hasn't made a compatible release yet, <a href="https://github.com/typelevel/cats-effect/issues/1330">let us know - we are keeping track of the efforts of library authors</a> to publish compatible releases as soon as possible when 3.0.0 final is out.</p>
+<h2><a class="anchor" aria-hidden="true" id="run-the-scalafix-migration"></a><a href="#run-the-scalafix-migration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run the Scalafix Migration</h2>
+<p>Many parts of this migration can be automated by using the <a href="https://scalacenter.github.io/scalafix/">Scalafix</a> migration.</p>
+<blockquote>
+<p>Note: In case of projects using Scala Steward, the migration should automatically be applied when you receive the update.</p>
+</blockquote>
+<p>If you want to trigger the migration manually, you can follow <a href="https://github.com/typelevel/cats-effect/blob/series/3.x/scalafix/README.md">the instructions here</a>. Remember to run it <em>before</em> making any changes to your dependencies' versions.</p>
+<p>Now is the time to update <code>cats-effect</code> and <strong>every dependency using it</strong> to a CE3-compatible version.</p>
+<h2><a class="anchor" aria-hidden="true" id="upgrade-dependencies"></a><a href="#upgrade-dependencies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Upgrade Dependencies</h2>
+<p>At this point, if you've run the Scalafix migration, your code will not compile. However, you should hold off going through the list of errors and fixing the remaining issues yourself at this point.</p>
+<p>If you're an <a href="https://scala-sbt.org">sbt</a> user, it is recommended that you upgrade to at least <code>1.5.0</code> before you proceed:</p>
+<p>In your <code>project/build.properties</code>:</p>
+<pre><code class="hljs css language-diff"><span class="hljs-deletion">- sbt.version = 1.4.9</span>
+<span class="hljs-addition">+ sbt.version = 1.5.0</span>
+</code></pre>
+<p>This will enable eviction errors, which means your build will only succeed if all your dependencies
+use compatible versions of each library (in the case of <code>cats-effect</code>, this will require your dependencies
+all use either the 2.x.x versions or the 3.x.x versions).</p>
+<p>Having upgraded sbt, you can try to upgrade Cats Effect:</p>
+<h3><a class="anchor" aria-hidden="true" id="which-modules-should-i-use"></a><a href="#which-modules-should-i-use" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Which Modules Should I Use?</h3>
+<p>Cats Effect 3 splits the code dependency into multiple modules. If you were previously using <code>cats-effect</code>, you can keep doing so, but if you're a user of another effect system (Monix, ZIO, ...), or a library author, you might be able to depend on a subset of it instead.</p>
+<p>The current non-test modules are:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect-kernel"</span> % <span class="hljs-string">"3.0.0"</span>,
+<span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect-std"</span>    % <span class="hljs-string">"3.0.0"</span>,
+<span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect"</span>        % <span class="hljs-string">"3.0.0"</span>,
+</code></pre>
+<ul>
+<li><code>kernel</code> - type class definitions, simple concurrency primitives</li>
+<li><code>std</code> - high-level abstractions like <code>Console</code>, <code>Semaphore</code>, <code>Hotswap</code>, <code>Dispatcher</code></li>
+<li><code>core</code> - <code>IO</code>, <code>SyncIO</code></li>
+</ul>
+<blockquote>
+<p>Note: It is recommended to upgrade to 2.4.0 first, to minimize the changes.</p>
+</blockquote>
+<pre><code class="hljs css language-diff">libraryDependencies ++= Seq(
+  //...
+<span class="hljs-deletion">-  "org.typelevel" %% "cats-effect" % "2.4.0",</span>
+<span class="hljs-addition">+  "org.typelevel" %% "cats-effect" % "3.0.0",</span>
+  //...
+)
+</code></pre>
+<p>Then run <code>update</code> or <code>evicted</code> in sbt. You should see something like the following:</p>
+<pre><code class="hljs css language-scala">sbt:demo&gt; update
+[error] stack trace is suppressed; run last core / update <span class="hljs-keyword">for</span> the full output
+[error] (core / update) found version conflict(s) in library dependencies; some are suspected to be binary incompatible:
+[error]
+[error]     * org.typelevel:cats-effect_2<span class="hljs-number">.13</span>:<span class="hljs-number">3.0</span><span class="hljs-number">.0</span> (early-semver) is selected over {<span class="hljs-number">2.3</span><span class="hljs-number">.1</span>, <span class="hljs-number">2.1</span><span class="hljs-number">.4</span>}
+[error]         +- com.example:core-core_2<span class="hljs-number">.13</span>:<span class="hljs-number">0.0</span><span class="hljs-number">.7</span><span class="hljs-number">-26</span><span class="hljs-number">-3183519</span>d       (depends on <span class="hljs-number">3.0</span><span class="hljs-number">.0</span>)
+[error]         +- io.monix:monix-catnap_2<span class="hljs-number">.13</span>:<span class="hljs-number">3.3</span><span class="hljs-number">.0</span>                   (depends on <span class="hljs-number">2.1</span><span class="hljs-number">.4</span>)
+[error]         +- com.github.valskalla:odin-core_2<span class="hljs-number">.13</span>:<span class="hljs-number">0.11</span><span class="hljs-number">.0</span>         (depends on <span class="hljs-number">2.3</span><span class="hljs-number">.1</span>)
+[error]
+[error]
+[error] <span class="hljs-keyword">this</span> can be overridden using libraryDependencySchemes or evictionErrorLevel
+[error] <span class="hljs-type">Total</span> time: <span class="hljs-number">0</span> s, completed <span class="hljs-number">27</span> <span class="hljs-type">Mar</span> <span class="hljs-number">2021</span>, <span class="hljs-number">17</span>:<span class="hljs-number">51</span>:<span class="hljs-number">52</span>
+</code></pre>
+<p>This tells you that you need to upgrade both <code>monix-catnap</code> and <code>odin-core</code> before proceeding. Make sure <code>update</code> of all your project's modules passes before proceeding to the next point.</p>
+<blockquote>
+<p>Note: that some of the libraries listed might be transitive dependencies, which means
+you're depending on other projects that depend on them.
+Upgrading your direct dependencies should solve the transitive dependencies' incompatibilities as well.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="fix-remaining-compilation-issues"></a><a href="#fix-remaining-compilation-issues" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Fix Remaining Compilation Issues</h2>
+<h4><a class="anchor" aria-hidden="true" id="new-type-class-hierarchy"></a><a href="#new-type-class-hierarchy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>New Type Class Hierarchy</h4>
+<p>Here's the new type class hierarchy. It might be helpful in understanding some of the changes:</p>
+<p><a href="https://raw.githubusercontent.com/typelevel/cats-effect/series/3.x/images/hierarchy.svg" target="_blank">
+<img src="https://raw.githubusercontent.com/typelevel/cats-effect/series/3.x/images/hierarchy.svg" alt="hierarchy" style="margin: 30px 0"/>
+</a></p>
+<p>Most of the following are handled by <a href="#run-the-scalafix-migration">the Scalafix migration</a>. If you can, try that first!</p>
+<blockquote>
+<p>Note: package name changes were skipped from this guide. Most type classes are now in the <code>cats.effect.kernel</code> package,
+but you can access them through <code>cats.effect.&lt;the typeclass&gt;</code> too thanks to type aliases.</p>
+</blockquote>
+<p>Assume this import for the rest of the guide:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.unsafe.implicits.global
+</code></pre>
+<p>Learn more about <code>global</code> <a href="#io">in the <code>IO</code> section</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="async"></a><a href="#async" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Async</h3>
+<table>
+<thead>
+<tr><th>Cats Effect 2.x</th><th>Cats Effect 3</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Async[F].async</code></td><td><code>Async[F].async_</code></td></tr>
+<tr><td><code>Async[F].asyncF(f)</code></td><td><code>Async[F].async(f(_).as(none))</code></td></tr>
+<tr><td><code>Async.shift</code></td><td>nothing / <code>Spawn[F].cede</code> - See <a href="#shifting">below</a></td></tr>
+<tr><td><code>Async.fromFuture</code></td><td><code>Async[F].fromFuture</code></td></tr>
+<tr><td><code>Async.memoize</code></td><td><code>Concurrent[F].memoize</code></td></tr>
+<tr><td><code>Async.parTraverseN</code></td><td><code>Concurrent[F].parTraverseN</code></td></tr>
+<tr><td><code>Async.parSequenceN</code></td><td><code>Concurrent[F].parSequenceN</code></td></tr>
+<tr><td><code>Async[F].liftIO</code>, <code>Async.liftIO</code></td><td><code>LiftIO[F].liftIO</code></td></tr>
+<tr><td><code>Async &lt;: LiftIO</code></td><td>No subtyping relationship</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="async-signature"></a><a href="#async-signature" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>async</code> Signature</h4>
+<p>In Cats Effect 2, <code>Async</code> was able to lift asynchronous effects into <code>F</code>. <code>Concurrent</code> extended that ability
+to allow canceling them - in CE3,
+these two capabilities have been merged into <code>Async</code>, so all <code>Async</code> types
+have to be cancelable to pass the laws.</p>
+<p>A major outcome of this decision is that the <code>async</code> method supports cancelation. Here's the new signature:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Async</span>[<span class="hljs-type">F</span>[_]] </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">async</span></span>[<span class="hljs-type">A</span>](k: (<span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>] =&gt; <span class="hljs-type">Unit</span>) =&gt; <span class="hljs-type">F</span>[<span class="hljs-type">Option</span>[<span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]]]): <span class="hljs-type">F</span>[<span class="hljs-type">A</span>]
+}
+</code></pre>
+<p>We can divide the parameter <code>k</code> into the following:</p>
+<ul>
+<li><code>Either[Throwable, A] =&gt; Unit</code> - the callback that will complete or fail this effect when called. This is identical as in CE2.</li>
+<li><code>=&gt; F[...]</code> (outer effect) - the effect of registering the callback. This would be e.g. <code>delay { window.setTimeout(() =&gt; cb(...)) }</code>.</li>
+<li><code>Option[F[Unit]]</code> - an optional effect that will run if the action is canceled. Passing <code>None</code> here is equivalent to <code>Some(F.unit)</code></li>
+</ul>
+<p>The most similar method to this in CE2 would be <code>Concurrent.cancelableF</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-comment">// CE2!</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">cancelableF</span></span>[<span class="hljs-type">F</span>[_], <span class="hljs-type">A</span>](k: (<span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>] =&gt; <span class="hljs-type">Unit</span>) =&gt; <span class="hljs-type">F</span>[<span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]])
+</code></pre>
+<p>The only difference being that there was always an effect for cancelation - now it's optional (the <code>F</code> inside <code>F</code>).</p>
+<p>You can learn more about <code>Async</code> <a href="/cats-effect/docs/typeclasses/async">on its page</a>.</p>
+<h4><a class="anchor" aria-hidden="true" id="relationship-with-liftio"></a><a href="#relationship-with-liftio" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Relationship with <code>LiftIO</code></h4>
+<p><code>LiftIO</code> is no longer part of the &quot;kernel&quot; type classes (being unlawful and strictly coupled to <code>IO</code>, which isn't part of <code>kernel</code> either), and has been moved to the <code>core</code> module (the <code>cats-effect</code> dependency).</p>
+<p><code>Async</code> is in <code>kernel</code> (<code>cats-effect-kernel</code>), so it can't depend on <code>LiftIO</code>, and thus doesn't extend it.
+If you need <code>LiftIO</code> functionality, use it directly (or use the methods on <code>IO</code> like <code>to[F[_]: LiftIO]</code>).</p>
+<h4><a class="anchor" aria-hidden="true" id="implementing-async"></a><a href="#implementing-async" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Implementing Async</h4>
+<p>Types that used to implement <code>Async</code> but not <code>Concurrent</code> from CE2 might not be able to implement <code>Async</code> in CE3 -
+this has an impact on users who have used polymorphic effects with an <code>F[_]: Async</code> constraint in their applications, where <code>F</code> was one of:</p>
+<ul>
+<li><a href="https://tpolecat.github.io/doobie/">doobie</a>'s <code>ConnectionIO</code>,</li>
+<li><a href="http://scala-slick.org/">slick</a>'s <code>DBIO</code> with <a href="https://github.com/kubukoz/slick-effect">slick-effect</a>,</li>
+<li><a href="https://cir.is">ciris</a>'s <code>ConfigValue</code>, or</li>
+<li>possibly others that we don't know of</li>
+</ul>
+<p>Please refer to each library's appropriate documentation/changelog to see how to adjust your code to this change.</p>
+<h3><a class="anchor" aria-hidden="true" id="blocker"></a><a href="#blocker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>Blocker</code></h3>
+<table>
+<thead>
+<tr><th>Cats Effect 2.x</th><th>Cats Effect 3</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Blocker.apply</code></td><td>-</td><td>blocking pool is <a href="#where-does-the-blocking-pool-come-from">provided by runtime</a></td></tr>
+<tr><td><code>Blocker#delay</code></td><td><code>Sync[F].blocking</code>, <code>Sync[F].interruptible</code></td><td><code>Blocker</code> was removed</td></tr>
+<tr><td><code>Blocker(ec).blockOn(fa)</code>, <code>Blocker.blockOnK</code></td><td><a href="#no-blockon">see notes</a></td><td></td></tr>
+</tbody>
+</table>
+<p><code>Blocker</code> has been removed. Instead of that, you should either use your specific effect type's method of blocking...</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
+<span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">Sync</span>
+
+<span class="hljs-keyword">val</span> program = <span class="hljs-type">IO</span>.blocking(println(<span class="hljs-string">"hello blocking!"</span>))
+<span class="hljs-comment">// program: IO[Unit] = Blocking(hint = Blocking, thunk = &lt;function0&gt;)</span>
+</code></pre>
+<p>or the <code>Sync</code> typeclass:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> programSync = <span class="hljs-type">Sync</span>[<span class="hljs-type">IO</span>].blocking(println(<span class="hljs-string">"hello Sync blocking!"</span>))
+<span class="hljs-comment">// programSync: IO[Unit] = Blocking(hint = Blocking, thunk = &lt;function0&gt;)</span>
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="interruptible-blocking"></a><a href="#interruptible-blocking" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Interruptible Blocking</h4>
+<p>It is now possible to make the blocking task interruptible using <a href="/cats-effect/docs/typeclasses/sync"><code>Sync</code></a>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-comment">// many: whether it's okay to try interrupting more than once</span>
+<span class="hljs-keyword">val</span> programInterruptible =
+  <span class="hljs-type">Sync</span>[<span class="hljs-type">IO</span>].interruptible(many = <span class="hljs-literal">false</span>)(println(<span class="hljs-string">"hello Sync blocking!"</span>))
+<span class="hljs-comment">// programInterruptible: IO[Unit] = Blocking(</span>
+<span class="hljs-comment">//   hint = InterruptibleOnce,</span>
+<span class="hljs-comment">//   thunk = &lt;function0&gt;</span>
+<span class="hljs-comment">// )</span>
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="where-does-the-blocking-pool-come-from"></a><a href="#where-does-the-blocking-pool-come-from" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Where Does The Blocking Pool Come From?</h4>
+<p>The blocking thread pool, similarly to the compute pool, is provided in <code>IORuntime</code> when you run your <code>IO</code>.
+For other effect systems it could be a <code>Runtime</code> or <code>Scheduler</code>, etc. You can learn more about CE3 <a href="/cats-effect/docs/schedulers">schedulers</a> and <a href="/cats-effect/docs/thread-model">the thread model in comparison to CE2's</a>.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> runtime = cats.effect.unsafe.<span class="hljs-type">IORuntime</span>.global
+<span class="hljs-comment">// runtime: cats.effect.unsafe.IORuntime = IORuntime(cats.effect.unsafe.WorkStealingThreadPool@3abe0338, cats.effect.unsafe.SchedulerCompanionPlatform$$anon$1@12416b1a, IORuntimeConfig(512,1024))</span>
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">showThread</span></span>() = java.lang.<span class="hljs-type">Thread</span>.currentThread().getName()
+
+<span class="hljs-type">IO</span>.blocking(showThread())
+  .product(
+    <span class="hljs-type">IO</span>(showThread())
+  )
+  .unsafeRunSync()(runtime)
+<span class="hljs-comment">// res0: (String, String) = ("io-blocking-0", "io-compute-1")</span>
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="no-blockon"></a><a href="#no-blockon" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>No <code>blockOn</code>?</h4>
+<p>It should be noted that <code>blockOn</code> is missing. There is now no <em>standard</em> way to wrap an effect and move it to a blocking pool,
+but instead it's recommended that you wrap every blocking action in <code>blocking</code> separately.</p>
+<p>If you <em>absolutely</em> need to run a whole effect on a blocking pool, you can pass a blocking <code>ExecutionContext</code> to <code>Async[F].evalOn</code>.</p>
+<blockquote>
+<p><strong>Important note</strong>: An effect wrapped with <code>evalOn</code> can still schedule asynchronous actions on any other threads.
+The only actions impacted by <code>evalOn</code> will be the ones that would otherwise run on the compute pool
+(because <code>evalOn</code>, in fact, changes the compute pool for a duration of the given effect).</p>
+<p>This is actually safer than CE2's <code>blockOn</code>, because after any <code>async</code> actions inside the effect,
+the rest of the effect will be shifted to the selected pool. Learn more about <a href="#shifting">shifting in CE3</a>.</p>
+</blockquote>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scala.concurrent.<span class="hljs-type">ExecutionContext</span>
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">myBlockingPool</span></span>: <span class="hljs-type">ExecutionContext</span> = ???
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">myBlocking</span></span>[<span class="hljs-type">A</span>](fa: <span class="hljs-type">IO</span>[<span class="hljs-type">A</span>]) = fa.evalOn(myBlockingPool)
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="bracket"></a><a href="#bracket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>Bracket</code></h3>
+<table>
+<thead>
+<tr><th>Cats Effect 2.x</th><th>Cats Effect 3</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Bracket[F].bracket</code></td><td><code>MonadCancel[F].bracket</code></td><td></td></tr>
+<tr><td><code>Bracket[F].bracketCase</code></td><td><code>MonadCancel[F].bracketCase</code></td><td><a href="#exitcase"><code>ExitCase</code> is now <code>Outcome</code></a></td></tr>
+<tr><td><code>Bracket[F].uncancelable(fa)</code></td><td><code>MonadCancel[F].uncancelable(_ =&gt; fa)</code></td><td></td></tr>
+<tr><td><code>Bracket[F].guarantee</code></td><td><code>MonadCancel[F].guarantee</code></td><td></td></tr>
+<tr><td><code>Bracket[F].guaranteeCase</code></td><td><code>MonadCancel[F].guaranteeCase</code></td><td><a href="#exitcase"><code>ExitCase</code> is now <code>Outcome</code></a></td></tr>
+<tr><td><code>Bracket[F].onCancel</code></td><td><code>MonadCancel[F].onCancel</code></td><td></td></tr>
+</tbody>
+</table>
+<p><code>Bracket</code> has mostly been renamed to <code>MonadCancel</code>, and the migration should be straightforward.
+The <code>bracketCase</code> method is no longer a primitive, and is derived from
+the primitives <code>uncancelable</code> and <code>onCancel</code>.</p>
+<p>If you were using <code>uncancelable</code> using the extension method syntax, you can continue to do so without any changes.
+In the case of usage through <code>Bracket[F, E]</code>, you can use the new method but ignoring the parameter provided in the lambda (see table above).</p>
+<p>To learn what the new signature of <code>uncancelable</code> means, how you can use it in your programs after the migration, and other things about <code>MonadCancel</code>,
+see <a href="/cats-effect/docs/typeclasses/monadcancel">its docs</a>.</p>
+<p>Another important change is replacing <code>ExitCase</code> with <code>Outcome</code>. Learn more <a href="#exitcase">below</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="clock"></a><a href="#clock" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>Clock</code></h3>
+<table>
+<thead>
+<tr><th>Cats Effect 2.x</th><th>Cats Effect 3</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Clock[F].realTime: TimeUnit =&gt; F[Long]</code></td><td><code>Clock[F].realTime: F[FiniteDuration]</code></td></tr>
+<tr><td><code>Clock[F].monotonic: TimeUnit =&gt; F[Long]</code></td><td><code>Clock[F].monotonic: F[FiniteDuration]</code></td></tr>
+<tr><td><code>Clock.instantNow</code></td><td><code>Clock[F].realTimeInstant</code></td></tr>
+<tr><td><code>Clock.create</code>, <code>Clock[F].mapK</code></td><td>-</td></tr>
+</tbody>
+</table>
+<p><code>Clock</code> has been included in the new type class hierarchy and thus it also has laws (e.g. getting the monotonic time twice is guaranteed to return increasing values).</p>
+<p>As for the user-facing differences, the most important ones are the signature changes of <code>realTime</code> and <code>monotonic</code>:
+instead of having the user provide the time unit and getting a <code>Long</code>, the methods now return <code>FiniteDuration</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">Clock</span>
+
+<span class="hljs-keyword">val</span> clocks = <span class="hljs-keyword">for</span> {
+  before &lt;- <span class="hljs-type">Clock</span>[<span class="hljs-type">IO</span>].monotonic
+  after &lt;- <span class="hljs-type">Clock</span>[<span class="hljs-type">IO</span>].monotonic
+} <span class="hljs-keyword">yield</span> (after - before)
+<span class="hljs-comment">// clocks: IO[concurrent.duration.FiniteDuration] = FlatMap(</span>
+<span class="hljs-comment">//   ioe = IO(...),</span>
+<span class="hljs-comment">//   f = &lt;function1&gt;</span>
+<span class="hljs-comment">// )</span>
+
+clocks.unsafeRunSync()
+<span class="hljs-comment">// res1: concurrent.duration.FiniteDuration = 1210710 nanoseconds</span>
+</code></pre>
+<p>Because <code>Clock</code> is no longer a &quot;usual&quot; value but a type class, it's not possible to create new values of it through <code>create</code> and <code>mapK</code>.</p>
+<p><code>Clock</code> is a part of <code>Sync</code> and thus it should be easy to get an instance inductively for any monad transformer, or directly for any effect that is a <code>Sync</code>.</p>
+<h3><a class="anchor" aria-hidden="true" id="concurrent"></a><a href="#concurrent" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>Concurrent</code></h3>
+<table>
+<thead>
+<tr><th>Cats Effect 2.x</th><th>Cats Effect 3</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Concurrent[F].start</code></td><td><code>Spawn[F].start</code></td><td></td></tr>
+<tr><td><code>Concurrent[F].background</code></td><td><code>Spawn[F].background</code></td><td>Value in resource is now an <code>Outcome</code></td></tr>
+<tr><td><code>Concurrent[F].liftIO</code>, <code>Concurrent.liftIO</code></td><td><code>LiftIO[F].liftIO</code></td><td><code>LiftIO</code> is in the <code>cats-effect</code> module</td></tr>
+<tr><td><code>Concurrent &lt;: LiftIO</code></td><td>No subtyping relationship</td><td><code>LiftIO</code> is in the <code>cats-effect</code> module</td></tr>
+<tr><td><code>Concurrent[F].race</code></td><td><code>Spawn[F].race</code></td><td></td></tr>
+<tr><td><code>Concurrent[F].racePair</code></td><td><code>Spawn[F].racePair</code></td><td></td></tr>
+<tr><td><code>Concurrent[F].cancelable</code></td><td><code>Async.async</code></td><td>Wrap side effects in F, cancel token in <code>Some</code></td></tr>
+<tr><td><code>Concurrent[F].cancelableF</code></td><td><code>Async.async(f(_).map(_.some))</code></td><td><code>Some</code> means there is a finalizer to execute.</td></tr>
+<tr><td><code>Concurrent[F].continual</code></td><td>-</td><td>see <a href="#continual">below</a></td></tr>
+<tr><td><code>Concurrent.continual</code></td><td>-</td><td>see <a href="#continual">below</a></td></tr>
+<tr><td><code>Concurrent.timeout</code></td><td><code>Temporal[F].timeout</code></td><td></td></tr>
+<tr><td><code>Concurrent.timeoutTo</code></td><td><code>Temporal[F].timeoutTo</code></td><td></td></tr>
+<tr><td><code>Concurrent.memoize</code></td><td><code>Concurrent[F].memoize</code></td><td></td></tr>
+<tr><td><code>Concurrent.parTraverseN</code></td><td><code>Concurrent[F].parTraverseN</code></td><td></td></tr>
+<tr><td><code>Concurrent.parSequenceN</code></td><td><code>Concurrent[F].parSequenceN</code></td><td></td></tr>
+</tbody>
+</table>
+<p>This is arguably the most changed type class. Similarly to <code>Async</code>, it is <a href="#relationship-with-liftio">no longer related to <code>LiftIO</code></a>.</p>
+<p>The primitive operations that used to be <code>Concurrent</code> have all been moved to other type classes:</p>
+<ul>
+<li><code>Spawn</code> - a new type class, responsible for creating new fibers and racing them (<a href="/cats-effect/docs/typeclasses/spawn">see more in <code>Spawn</code> docs</a>)</li>
+<li><code>Async</code> - <code>cancelable</code> has been merged with <code>async</code>, so it ended up there. This was discussed in <a href="#async">the <code>Async</code> part of the guide</a>.</li>
+<li><code>Temporal</code> - another new type class which extends <code>Concurrent</code> (so it's actually more powerful) with the ability to sleep. This is <a href="#timer">the replacement of <code>Timer</code></a>.</li>
+</ul>
+<p>The remaining part of <code>Concurrent</code> are the ability to create <code>Ref</code>s and <code>Deferred</code>s, which (together with the <code>Spawn</code> methods) enable the implementation of <code>memoize</code>.</p>
+<p>If you're only using methods from <code>Spawn</code> or <code>Temporal</code>, you might be able to reduce your type class constraints to these.</p>
+<h4><a class="anchor" aria-hidden="true" id="place-in-the-hierarchy"></a><a href="#place-in-the-hierarchy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Place in the Hierarchy</h4>
+<p>If you recall <a href="#new-type-class-hierarchy">the type class hierarchy</a>, <code>Concurrent</code> is no longer a child of <code>Async</code> and <code>Sync</code> - it's one of their parents.</p>
+<p>This means <code>Concurrent</code> can no longer perform any kind of FFI on its own, and if you don't have <code>Sync</code> or <code>Async</code> in scope you can't even <code>delay</code>.
+This allows writing code that deals with concurrency without enabling suspension of arbitrary side effects in the given region of your code.</p>
+<p>For the migration purposes, this means you might have to replace some <code>F[_]: Concurrent</code> constraints with <code>F[_]: Async</code>, if you rely on <code>async</code>/<code>delay</code>.</p>
+<h4><a class="anchor" aria-hidden="true" id="continual"></a><a href="#continual" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>continual</code></h4>
+<p><code>Concurrent#continual</code> has been removed, as it was deemed the wrong tool for most use-cases.</p>
+<p>If you desperately need it, here's a polyfill implementation you can use for the migration:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.kernel.<span class="hljs-type">MonadCancel</span>
+<span class="hljs-keyword">import</span> cats.effect.kernel.<span class="hljs-type">MonadCancelThrow</span>
+<span class="hljs-keyword">import</span> cats.syntax.all._
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">continual</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">MonadCancelThrow</span>, <span class="hljs-type">A</span>, <span class="hljs-type">B</span>](fa: <span class="hljs-type">F</span>[<span class="hljs-type">A</span>])(
+  f: <span class="hljs-type">Either</span>[<span class="hljs-type">Throwable</span>, <span class="hljs-type">A</span>] =&gt; <span class="hljs-type">F</span>[<span class="hljs-type">B</span>]
+): <span class="hljs-type">F</span>[<span class="hljs-type">B</span>] = <span class="hljs-type">MonadCancel</span>[<span class="hljs-type">F</span>].uncancelable { poll =&gt;
+  poll(fa).attempt.flatMap(f)
+}
+</code></pre>
+<blockquote>
+<p>Note: It's recommended to use <code>uncancelable { poll =&gt; ... }</code>, <code>bracketCase</code> and <code>onCancel</code> directly instead.
+Learn more in <a href="/cats-effect/docs/typeclasses/monadcancel"><code>MonadCancel</code> docs</a>.</p>
+</blockquote>
+<h4><a class="anchor" aria-hidden="true" id="genconcurrent"></a><a href="#genconcurrent" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>GenConcurrent</code></h4>
+<p>The actual abstraction isn't <code>Concurrent</code> anymore, but rather a generalization of it for arbitrary error types, <code>GenConcurrent[F, E]</code>.
+There are aliases set up in <code>cats.effect</code> and <code>cats.effect.kernel</code> to make it easier to use with <code>Throwable</code>, e.g.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">type</span> <span class="hljs-title">Concurrent</span>[<span class="hljs-type">F</span>[_]] </span>= <span class="hljs-type">GenConcurrent</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Throwable</span>]
+</code></pre>
+<p>The same pattern is followed by <code>GenTemporal</code>/<code>Temporal</code> and <code>GenSpawn</code>/<code>Spawn</code>. While not strictly a migration-helping change, this allows you
+to abstract away <code>Throwable</code> in parts of your code that don't need to know what the exact error type is.</p>
+<h3><a class="anchor" aria-hidden="true" id="effect-concurrenteffect-synceffect"></a><a href="#effect-concurrenteffect-synceffect" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>Effect</code>, <code>ConcurrentEffect</code>, <code>SyncEffect</code></h3>
+<table>
+<thead>
+<tr><th>Cats Effect 2.x</th><th>Cats Effect 3</th></tr>
+</thead>
+<tbody>
+<tr><td><code>ConcurrentEffect[F]</code></td><td><code>Dispatcher</code></td></tr>
+<tr><td><code>Effect[F]</code></td><td><code>Dispatcher</code></td></tr>
+<tr><td><code>Effect.toIOK</code></td><td><code>Dispatcher</code></td></tr>
+<tr><td><code>SyncEffect[F]</code></td><td><code>Dispatcher</code></td></tr>
+</tbody>
+</table>
+<p>All the <code>*Effect</code> type classes have been removed. Instead, the recommended way to run a polymorphic effect is through a new interface, <code>Dispatcher</code>.</p>
+<h4><a class="anchor" aria-hidden="true" id="dispatcher"></a><a href="#dispatcher" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>Dispatcher</code></h4>
+<p><code>Dispatcher</code> allows running an effect in a variety of ways, including running to a <code>Future</code> or running synchronously (only on the JVM).</p>
+<p>This is something you might want to do in a situation where you have an effect, but a third-party library expects a callback that has to complete synchronously (or in a <code>scala.concurrent.Future</code>, or a Java future).</p>
+<p>You can get an instance of it with <code>Dispatcher.apply[F]</code> for any <code>F[_]: Async</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Dispatcher</span> </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">apply</span></span>[<span class="hljs-type">F</span>[_]](<span class="hljs-keyword">implicit</span> <span class="hljs-type">F</span>: <span class="hljs-type">Async</span>[<span class="hljs-type">F</span>]): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Dispatcher</span>[<span class="hljs-type">F</span>]]
+}
+</code></pre>
+<blockquote>
+<p>Note: keep in mind the shape of that method: the resource is related to the lifecycle of all tasks you run with a dispatcher.
+When this resource is closed, <strong>all its running tasks are canceled</strong>.</p>
+<p>This <a href="https://github.com/typelevel/cats-effect/issues/1881">might be configurable</a> in a future release.</p>
+</blockquote>
+<p>Creating a <code>Dispatcher</code> is relatively lightweight, so you can create one even for each task you execute, but sometimes it's worth keeping a <code>Dispatcher</code> alive for longer.
+To find out more, see <a href="/cats-effect/docs/std/dispatcher">its docs</a>.</p>
+<p>For example, given an imaginary library's interface like this:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Consumer</span>[<span class="hljs-type">A</span>] </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">onNext</span></span>(a: <span class="hljs-type">A</span>): <span class="hljs-type">Unit</span>
+}
+</code></pre>
+<p>In which the <code>onNext</code> method would be called by something beyond our control, and we would only be supplying a <code>Consumer</code> to it,
+In CE2 you could run an effect in <code>onNext</code> using <code>Effect</code> like this:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-comment">// CE2</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">consumer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Effect</span>, <span class="hljs-type">A</span>](handler: <span class="hljs-type">A</span> =&gt; <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]): <span class="hljs-type">Consumer</span>[<span class="hljs-type">A</span>] =
+  <span class="hljs-keyword">new</span> <span class="hljs-type">Consumer</span>[<span class="hljs-type">A</span>] {
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">onNext</span></span>(a: <span class="hljs-type">A</span>): <span class="hljs-type">Unit</span> = handler(a).toIO.unsafeRunSync()
+  }
+</code></pre>
+<p>In CE3, you would use <code>Dispatcher</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">Async</span>
+<span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">Resource</span>
+<span class="hljs-keyword">import</span> cats.effect.std.<span class="hljs-type">Dispatcher</span>
+
+<span class="hljs-comment">// CE3</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">consumer</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Async</span>, <span class="hljs-type">A</span>](handler: <span class="hljs-type">A</span> =&gt; <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]): <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, <span class="hljs-type">Consumer</span>[<span class="hljs-type">A</span>]] =
+  <span class="hljs-type">Dispatcher</span>[<span class="hljs-type">F</span>].map { dispatcher =&gt;
+    <span class="hljs-keyword">new</span> <span class="hljs-type">Consumer</span>[<span class="hljs-type">A</span>] {
+      <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">onNext</span></span>(a: <span class="hljs-type">A</span>): <span class="hljs-type">Unit</span> = dispatcher.unsafeRunSync(handler(a))
+    }
+  }
+</code></pre>
+<p>The <code>Resource</code> produced by this method will manage the lifetime of the <code>Dispatcher</code> instance - while it's open,
+the dispatcher instance will be able to run actions that we want to execute in the <code>onNext</code> callback.</p>
+<p>An alternative approach to creating a <code>Dispatcher</code> on our own would be taking one as a parameter.
+It is recommended to pass it <strong>explicitly</strong>, as <code>Dispatcher</code> isn't a type class and there can be many instances of it in an application.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">consumer2</span></span>[<span class="hljs-type">F</span>[_], <span class="hljs-type">A</span>](dispatcher: <span class="hljs-type">Dispatcher</span>[<span class="hljs-type">F</span>], handler: <span class="hljs-type">A</span> =&gt; <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]): <span class="hljs-type">Consumer</span>[<span class="hljs-type">A</span>] =
+  <span class="hljs-keyword">new</span> <span class="hljs-type">Consumer</span>[<span class="hljs-type">A</span>] {
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">onNext</span></span>(a: <span class="hljs-type">A</span>): <span class="hljs-type">Unit</span> = dispatcher.unsafeRunSync(handler(a))
+  }
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="contextshift"></a><a href="#contextshift" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>ContextShift</code></h3>
+<table>
+<thead>
+<tr><th>Cats Effect 2.x</th><th>Cats Effect 3</th></tr>
+</thead>
+<tbody>
+<tr><td><code>ContextShift[F].shift</code></td><td>nothing / <code>Spawn[F].cede</code></td></tr>
+<tr><td><code>ContextShift[F].evalOn</code></td><td><code>Async[F].evalOn</code></td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="shifting"></a><a href="#shifting" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Shifting</h4>
+<p>The <code>IO.shift</code> / <code>ContextShift[F].shift</code> methods are gone, and they don't have a fully compatible counterpart.</p>
+<p>In CE2, <code>shift</code> would ensure the next actions in the fiber would be scheduled on the <code>ExecutionContext</code> instance (or the <code>ContextShift</code> instance) provided in the parameter.
+This was used for two reasons:</p>
+<ul>
+<li>to switch back from a thread pool not managed by the effect system (e.g. a callback handler in a Java HTTP client)</li>
+<li>to reschedule the fiber on the given <code>ExecutionContext</code>, which would give other fibers a chance to run on the underlying pool's threads.
+This is called yielding to the scheduler.</li>
+</ul>
+<p>There is no longer a need for shifting back (1), because interop with callback-based libraries is done through methods in <code>Async</code>, which now <strong>switch back to the appropriate thread pool automatically</strong>.</p>
+<p>Yielding back to the scheduler (2) can now be done with <code>Spawn[F].cede</code>.</p>
+<h3><a class="anchor" aria-hidden="true" id="deferred"></a><a href="#deferred" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>Deferred</code></h3>
+<p>In CE2, completing a <code>Deferred</code> after it's already been completed would result in a failed effect. This is not the case in CE3.</p>
+<p>Before:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-comment">// CE2</span>
+<span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Deferred</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">A</span>] </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">complete</span></span>(a: <span class="hljs-type">A</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]
+}
+</code></pre>
+<p>After:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-comment">// CE3</span>
+<span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Deferred</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">A</span>] </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">complete</span></span>(a: <span class="hljs-type">A</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Boolean</span>]
+}
+</code></pre>
+<p>Because creating a <code>Deferred</code> is no longer restricted to effects using <code>Throwable</code> as their error type (you can use any <code>GenConcurrent[F, _]</code>),
+there is no way to fail the effect from inside the library for an arbitrary error type - so instead of an <code>F[Unit]</code> that could fail,
+the method's type is now <code>F[Boolean]</code>, which will complete with <code>false</code> if there were previous completions.</p>
+<p><strong>This is equivalent to <code>tryComplete</code> in CE2</strong>. Make sure your code doesn't rely on calling <code>complete</code> more than once to fail.</p>
+<h3><a class="anchor" aria-hidden="true" id="exitcase-fiber"></a><a href="#exitcase-fiber" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>ExitCase</code>, <code>Fiber</code></h3>
+<table>
+<thead>
+<tr><th>Cats Effect 2.x</th><th>Cats Effect 3</th></tr>
+</thead>
+<tbody>
+<tr><td><code>ExitCase[E]</code></td><td><code>Outcome[F, E, A]</code></td></tr>
+<tr><td><code>Fiber[F, A]</code></td><td><code>Fiber[F, E, A]</code></td></tr>
+<tr><td><code>Fiber[F, A].join: F[A]</code></td><td><code>Fiber[F, E, A].joinWithNever</code></td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="exitcase"></a><a href="#exitcase" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>ExitCase</code></h4>
+<p>In CE2, the final status of an effect's execution was represented as <code>ExitCase</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-comment">// CE2</span>
+<span class="hljs-keyword">sealed</span> <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">ExitCase</span>[+<span class="hljs-type">E</span>]</span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Completed</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">ExitCase</span>[<span class="hljs-type">Nothing</span>]</span>
+<span class="hljs-keyword">final</span> <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Error</span>[+<span class="hljs-type">E</span>](<span class="hljs-params">e: <span class="hljs-type">E</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">ExitCase</span>[<span class="hljs-type">E</span>]</span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Canceled</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">ExitCase</span>[<span class="hljs-type">Nothing</span>]</span>
+</code></pre>
+<p>The closest type corresponding to it in CE3 is <code>Outcome</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-comment">// CE3</span>
+<span class="hljs-keyword">sealed</span> <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Outcome</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">E</span>, <span class="hljs-title">A</span>]</span>
+<span class="hljs-keyword">final</span> <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Succeeded</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">E</span>, <span class="hljs-title">A</span>](<span class="hljs-params">fa: <span class="hljs-type">F</span>[<span class="hljs-type">A</span>]</span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">Outcome</span>[<span class="hljs-type">F</span>, <span class="hljs-type">E</span>, <span class="hljs-type">A</span>]</span>
+<span class="hljs-keyword">final</span> <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Errored</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">E</span>, <span class="hljs-title">A</span>](<span class="hljs-params">e: <span class="hljs-type">E</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">Outcome</span>[<span class="hljs-type">F</span>, <span class="hljs-type">E</span>, <span class="hljs-type">A</span>]</span>
+<span class="hljs-keyword">final</span> <span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Canceled</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">E</span>, <span class="hljs-title">A</span>](<span class="hljs-params"></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">Outcome</span>[<span class="hljs-type">F</span>, <span class="hljs-type">E</span>, <span class="hljs-type">A</span>]</span>
+</code></pre>
+<p>If we ignore the various differences in type parameter variance (which were mostly added for better Scala 3 support),
+the elephant in the room is <code>Succeeded</code> (the new <code>Completed</code>) - it has an <code>F[A]</code> field, which will contain the value the effect produced in the successful case. This means methods like <code>bracketCase</code> / <code>Resource.allocateCase</code> can use this result when cleaning up the resource.</p>
+<p>If you're simply migrating code that was using these methods, just renaming to the appropriate new names (and possibly fixing some pattern matches)
+should get you to a compiling state. For more information about Outcome, see <a href="/cats-effect/docs/typeclasses/spawn"><code>Spawn</code> docs</a>.</p>
+<h4><a class="anchor" aria-hidden="true" id="fiber"></a><a href="#fiber" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>Fiber</code></h4>
+<p>Mostly unchanged, <code>Fiber</code> still has a <code>cancel</code> method, and a <code>join</code> method:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Fiber</span>[<span class="hljs-type">F</span>[_], <span class="hljs-title">E</span>, <span class="hljs-title">A</span>] </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">cancel</span></span>: <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">join</span></span>: <span class="hljs-type">F</span>[<span class="hljs-type">Outcome</span>[<span class="hljs-type">F</span>, <span class="hljs-type">E</span>, <span class="hljs-type">A</span>]]
+}
+</code></pre>
+<p>However, there are still some differences here: first of all, <code>join</code> doesn't just return <code>F[A]</code>, but the whole <code>Outcome</code> of it.
+This is also why <code>Fiber</code> got the extra type parameter <code>E</code>.</p>
+<p>In CE2, the <code>F[A]</code> type of <code>join</code> meant that in case the fiber was canceled, <code>join</code> would never complete.
+That behavior is still available as <code>joinWithNever</code> (you can learn more about it <a href="/cats-effect/docs/typeclasses/spawn#joining">in <code>Spawn</code> docs</a>),
+but it's often safer to move away from it and pass an explicit cancelation handler (for example, a failing one) using <code>fiber.joinWith(onCancel: F[A])</code>.</p>
+<h3><a class="anchor" aria-hidden="true" id="io"></a><a href="#io" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>IO</code></h3>
+<table>
+<thead>
+<tr><th>Cats Effect 2.x</th><th>Cats Effect 3</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td><code>IO#as</code></td><td><code>IO.as(a)</code> / <code>IO.map(_ =&gt; a)</code></td><td>the argument isn't by-name anymore</td></tr>
+<tr><td><code>IO#runAsync</code>, <code>IO#runCancelable</code></td><td>Unsafe variants or <a href="#dispatcher"><code>Dispatcher</code></a></td><td>Methods that run an IO require an implicit <code>IORuntime</code></td></tr>
+<tr><td><code>IO#unsafe*</code></td><td>The same or similar</td><td>Methods that run an IO require an implicit <code>IORuntime</code></td></tr>
+<tr><td><code>IO#unsafeRunTimed</code></td><td>-</td><td></td></tr>
+<tr><td><code>IO#background</code></td><td>The same</td><td>Value in resource is now an <code>Outcome</code></td></tr>
+<tr><td><code>IO#guaranteeCase</code>/<code>bracketCase</code></td><td>The same</td><td><a href="#exitcase"><code>ExitCase</code> is now <code>Outcome</code></a></td></tr>
+<tr><td><code>IO#parProduct</code></td><td><code>IO#both</code></td><td></td></tr>
+<tr><td><code>IO.suspend</code></td><td><code>IO.defer</code></td><td></td></tr>
+<tr><td><code>IO.shift</code></td><td>See <a href="#shifting">shifting</a></td><td></td></tr>
+<tr><td><code>IO.cancelBoundary</code></td><td><code>IO.cede</code></td><td>Also <a href="#shifting">performs a yield</a></td></tr>
+</tbody>
+</table>
+<p>Most changes in <code>IO</code> are straightforward, with the exception of the &quot;unsafe&quot; methods that cause an IO to be run.</p>
+<p>Aside from the renamings of these methods, they all now take an implicit <code>IORuntime</code>.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">io</span></span>: <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = ???
+
+io.unsafeRunSync()
+<span class="hljs-comment">// error: Could not find an implicit IORuntime.</span>
+<span class="hljs-comment">// </span>
+<span class="hljs-comment">// Instead of calling unsafe methods directly, consider using cats.effect.IOApp, which</span>
+<span class="hljs-comment">// runs your IO. If integrating with non-functional code or experimenting in a REPL / Worksheet,</span>
+<span class="hljs-comment">// add the following import:</span>
+<span class="hljs-comment">// </span>
+<span class="hljs-comment">// import cats.effect.unsafe.implicits.global</span>
+<span class="hljs-comment">// </span>
+<span class="hljs-comment">// Alternatively, you can create an explicit IORuntime value and put it in implicit scope.</span>
+<span class="hljs-comment">// This may be useful if you have a pre-existing fixed thread pool and/or scheduler which you</span>
+<span class="hljs-comment">// wish to use to execute IO programs. Please be sure to review thread pool best practices to</span>
+<span class="hljs-comment">// avoid unintentionally degrading your application performance.</span>
+<span class="hljs-comment">// </span>
+<span class="hljs-comment">// io.unsafeRunSync()</span>
+<span class="hljs-comment">// ^^^^^^^^^^^^^^^^^^</span>
+</code></pre>
+<p>Follow the advice from the &quot;missing implicit&quot; error message whenever you need this functionality.
+Note that some of your direct <code>unsafeRun*</code> calls might be possible to replace with <a href="#dispatcher"><code>Dispatcher</code></a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="ioapp"></a><a href="#ioapp" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>IOApp</code></h3>
+<table>
+<thead>
+<tr><th>Cats Effect 2.x</th><th>Cats Effect 3</th></tr>
+</thead>
+<tbody>
+<tr><td><code>executionContext</code></td><td><code>runtime.compute</code></td></tr>
+<tr><td><code>contextShift</code></td><td>-</td></tr>
+<tr><td><code>timer</code></td><td>-</td></tr>
+</tbody>
+</table>
+<p>Instead of the <code>executionContext</code> used to build the <code>ContextShift</code> instance,
+you now have access to the <code>IORuntime</code> value that'll be used to run your program.</p>
+<p>Because <code>IO</code> only expects an <code>IORuntime</code> when you run it, there is always an instance of the <code>Temporal</code> and <code>Clock</code> type classes,
+so you don't need to pass <code>Timer[IO]</code> and <code>ContextShift[IO]</code> or <code>Concurrent[IO]</code> anymore:
+just use <code>IO.sleep</code> and other methods directly, no implicits involved.</p>
+<p>There's also a simpler variant of <code>IOApp</code> if you don't need the command line arguments or don't want to deal with exit codes:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
+<span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IOApp</span>
+
+<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Demo</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span>.<span class="hljs-title">Simple</span> </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>: <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = <span class="hljs-type">IO</span>.println(<span class="hljs-string">"hello Cats!"</span>)
+}
+</code></pre>
+<p>This change has been added to the Cats Effect 2 series in <a href="https://github.com/typelevel/cats-effect/releases/tag/v2.4.0">2.4.0</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="mvar"></a><a href="#mvar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>MVar</code></h3>
+<p><code>MVar</code> has been removed with no direct replacement.</p>
+<p>Depending on how you used it, you might be able to replace it with <a href="https://monix.io/docs/current/catnap/mvar.html"><code>monix-catnap</code>'s implementation</a>, a single-element <a href="/cats-effect/docs/std/queue"><code>Queue</code></a> or a specialized utility built with <a href="/cats-effect/docs/std/ref"><code>Ref</code></a> and <a href="/cats-effect/docs/std/deferred"><code>Deferred</code></a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="sync"></a><a href="#sync" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sync</h3>
+<table>
+<thead>
+<tr><th>Cats Effect 2.x</th><th>Cats Effect 3</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Sync[F].suspend</code></td><td><code>Sync[F].defer</code></td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="resource"></a><a href="#resource" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>Resource</code></h3>
+<table>
+<thead>
+<tr><th>Cats Effect 2.x</th><th>Cats Effect 3</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Resource.parZip</code></td><td><code>Resource.both</code></td><td></td></tr>
+<tr><td><code>Resource.liftF</code></td><td><code>Resource.eval</code></td><td></td></tr>
+<tr><td><code>Resource.fromAutoCloseableBlocking</code></td><td><code>Resource.fromAutoCloseable</code></td><td>The method always uses <code>blocking</code> for the cleanup action</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="timer"></a><a href="#timer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Timer</h3>
+<table>
+<thead>
+<tr><th>Cats Effect 2.x</th><th>Cats Effect 3</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Timer[F].clock</code></td><td><code>Clock[F]</code></td></tr>
+<tr><td><code>Timer[F].sleep</code></td><td><code>Temporal[F].sleep</code></td></tr>
+</tbody>
+</table>
+<p>For <code>Clock</code>, see <a href="#clock">the relevant part of the guide</a>.</p>
+<p>Similarly to <code>Clock</code>, <code>Timer</code> has been replaced with a lawful type class, <code>Temporal</code>. Learn more in <a href="/cats-effect/docs/typeclasses/temporal">its documentation</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="tracing"></a><a href="#tracing" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tracing</h3>
+<p>Currently, improved stack traces are not implemented.
+There is currently <a href="https://github.com/typelevel/cats-effect/pull/1763">work in progress</a> to bring them back.</p>
+<h2><a class="anchor" aria-hidden="true" id="test-your-application"></a><a href="#test-your-application" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Test Your Application</h2>
+<p>If you followed this guide, all your dependencies are using the 3.x releases of Cats Effect, your code compiles and your tests pass,
+the process is probably done - at this point you should do the usual steps you make after major changes in your application:
+running integration/end to end tests, manual testing, canary deployments and any other steps that might
+typically be done in your environment.</p>
+<p>Enjoy using Cats Effect 3!</p>
+<h2><a class="anchor" aria-hidden="true" id="faq--examples"></a><a href="#faq--examples" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>FAQ / Examples</h2>
+<p>This section will include examples of typical errors encountered during the migration and their solutions.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/tutorial"><span class="arrow-prev">← </span><span>Tutorial</span></a><a class="docs-next button" href="/cats-effect/docs/thread-model"><span>Thread Model</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#summary">Summary</a><ul class="toc-headings"><li><a href="#before-you-begin-this-isnt-a-quick-start-guide">Before You Begin: This Isn't A &quot;Quick Start&quot; Guide</a></li><li><a href="#-need-help">🤔 Need Help?</a></li><li><a href="#context-whats-changed-whats-the-same">Context: What's Changed, What's the Same?</a></li></ul></li><li><a href="#make-sure-your-dependencies-have-upgraded">Make Sure Your Dependencies Have Upgraded</a></li><li><a href="#run-the-scalafix-migration">Run the Scalafix Migration</a></li><li><a href="#upgrade-dependencies">Upgrade Dependencies</a><ul class="toc-headings"><li><a href="#which-modules-should-i-use">Which Modules Should I Use?</a></li></ul></li><li><a href="#fix-remaining-compilation-issues">Fix Remaining Compilation Issues</a><ul class="toc-headings"><li><a href="#async">Async</a></li><li><a href="#blocker"><code>Blocker</code></a></li><li><a href="#bracket"><code>Bracket</code></a></li><li><a href="#clock"><code>Clock</code></a></li><li><a href="#concurrent"><code>Concurrent</code></a></li><li><a href="#effect-concurrenteffect-synceffect"><code>Effect</code>, <code>ConcurrentEffect</code>, <code>SyncEffect</code></a></li><li><a href="#contextshift"><code>ContextShift</code></a></li><li><a href="#deferred"><code>Deferred</code></a></li><li><a href="#exitcase-fiber"><code>ExitCase</code>, <code>Fiber</code></a></li><li><a href="#io"><code>IO</code></a></li><li><a href="#ioapp"><code>IOApp</code></a></li><li><a href="#mvar"><code>MVar</code></a></li><li><a href="#sync">Sync</a></li><li><a href="#resource"><code>Resource</code></a></li><li><a href="#timer">Timer</a></li><li><a href="#tracing">Tracing</a></li></ul></li><li><a href="#test-your-application">Test Your Application</a></li><li><a href="#faq--examples">FAQ / Examples</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/getting-started">Getting Started</a><a href="/cats-effect/docs/tutorial">Tutorial</a><a href="/cats-effect/docs/typeclasses">Typeclasses</a><a href="/cats-effect/docs/schedulers">Schedulers</a></div><div><h5>Community</h5><a href="https://typelevel.org/blog/">Blog</a><a href="https://gitter.im/typelevel/cats-effect">Gitter</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2021 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
