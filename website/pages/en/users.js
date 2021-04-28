@@ -5,6 +5,7 @@ const CompLibrary = require('../../core/CompLibrary');
 const Container = CompLibrary.Container;
 
 const users = [
+  ['AccionLabs', 'https://www.accionlabs.com/'],
   ['Azavea', 'https://www.azavea.com/'],
   ['Anduin Transactions', 'https://www.anduintransact.com/'],
   ['Banno Group', 'https://banno.com'],
