@@ -25,6 +25,8 @@ import cats.kernel.Monoid
 import cats.data.IorT
 import cats.data.Ior
 import cats.data.EitherT
+import cats.effect.kernel.Resource
+import cats.effect.kernel.MonadCancel
 
 /**
  * Encodes the ability to peek into a computation's product/coproduct
@@ -54,7 +56,7 @@ object Resume extends LowPriorityResumeInstances {
           RF.resume(fa.value).map {
             case Left(stopped) => Left(OptionT(stopped))
             case Right((funit, None)) => Left(OptionT(funit.as(None)))
-            case Right((funit, Some(value))) => Right(OptionT.liftF(funit), value)
+            case Right((funit, Some(value))) => Right((OptionT.liftF(funit), value))
           }
         }
     }
@@ -95,7 +97,7 @@ object Resume extends LowPriorityResumeInstances {
             case Right((funit, Ior.Right(value))) => Right((IorT.liftF(funit), value))
             case Right((funit, left @ Ior.Left(_))) => Left(IorT(funit.as(left)))
             case Right((funit, Ior.Both(e, value))) =>
-              Right(IorT(funit.as(Ior.Both(e, ()))), value)
+              Right((IorT(funit.as(Ior.Both(e, ()))), value))
           }
         }
     }
@@ -111,6 +113,33 @@ object Resume extends LowPriorityResumeInstances {
             case Right((funit, left @ Left(_))) => Left(EitherT(funit.as(left)))
           }
         }
+    }
+
+  @scala.annotation.implicitAmbiguous(
+    "cats.effect.std.Resume cannot be implemented safely for cats.effect.kernel.Resource")
+  implicit def preventResourceResume[F[_]](
+      implicit F: MonadCancel[F, Throwable],
+      RF: Resume[F]): Resume[Resource[F, *]] = ???
+
+  // This implementation breaks laws breaks on first attempt with seed
+  // 0HGJ9GYf2lulgEEt7ykq8Mknz0uqEm-gkp_FKLoXiMJ=
+  implicit def resourceResume[F[_]](
+      implicit F: MonadCancel[F, Throwable],
+      RF: Resume[F]): Resume[Resource[F, *]] =
+    new Resume[Resource[F, *]] {
+      def resume[A](
+          fa: Resource[F, A]): Resource[F, Either[Resource[F, A], (Resource[F, Unit], A)]] = {
+        Resource[F, Either[Resource[F, A], (Resource[F, Unit], A)]] {
+          RF.resume(fa.allocated[A]).map {
+            case Left(stopped) =>
+              // A is never yielded, so the finalizer is guaranteed to be ran
+              // (according to `allocated`'s docs)
+              Left(Resource(stopped)) -> F.unit
+            case Right((funit, (a, finalizer))) =>
+              (Right(Resource.eval(funit) -> a), finalizer)
+          }
+        }
+      }
     }
 
 }

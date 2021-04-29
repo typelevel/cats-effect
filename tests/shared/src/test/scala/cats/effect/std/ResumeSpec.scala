@@ -22,7 +22,7 @@ trait ResumeLaws[F[_]] {
   implicit val resume: Resume[F]
 
   // Running the effect through unsafe async boundary to ensure
-  // that non-CE semantics are accounted for by the Resume.
+  // that algebraic semantics are accounted for by the Resume.
   //
   // In case of unaccounted coproduct semantics (side error channels), the unsafe
   // run will hang, making the test eventually timeout.
@@ -38,19 +38,22 @@ trait ResumeLaws[F[_]] {
   // effect.
   def accountsForAllButSideEffects[A](fa: F[A]) = {
     val throughUnsafeBoundary = Dispatcher[F].use { dispatcher =>
-      val resumed = resume.resume(fa)
-
-      resumed.start.flatMap(_.join).flatMap {
-        case Outcome.Succeeded(ffa) =>
-          val ffuture = async.delay(dispatcher.unsafeToFuture(ffa))
-          async.fromFuture(ffuture).flatMap {
-            case Left(fa) => fa
-            case Right((funit, a)) => funit.as(a)
-          }
-        case Outcome.Canceled() => async.canceled *> async.never[A]
-        case Outcome.Errored(e) => async.raiseError[A](e)
+      resume.resume(fa).background.use {
+        _.flatMap {
+          case Outcome.Canceled() =>
+            async.canceled *> async.never[A]
+          case Outcome.Errored(e) =>
+            async.raiseError[A](e)
+          case Outcome.Succeeded(fa_) =>
+            val ffuture = async.delay(dispatcher.unsafeToFuture(fa_))
+            async.fromFuture(ffuture).flatMap {
+              case Left(fa) => fa
+              case Right((funit, a)) => funit.as(a)
+            }
+        }
       }
     }
+
     throughUnsafeBoundary <-> fa
   }
 
@@ -114,6 +117,9 @@ class ResumeSpec extends Specification with Discipline with ScalaCheck with Base
     checkAll("EitherT[IO, Int, *]", ResumeTests[EitherT[IO, Int, *]].resume[Int])
     checkAll("Kleisli[IO, Int, *]", ResumeTests[Kleisli[IO, Int, *]].resume[Int])
     checkAll("IO", ResumeTests[IO].resume[Int])
+    // Laws breaks on first attempt with seed
+    // 0HGJ9GYf2lulgEEt7ykq8Mknz0uqEm-gkp_FKLoXiMJ=
+    // checkAll("Resource[IO, *]", ResumeTests[Resource[IO, *]].resume[Int])
   }
 
 }
