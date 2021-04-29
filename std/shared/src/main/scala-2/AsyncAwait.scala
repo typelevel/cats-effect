@@ -143,10 +143,10 @@ abstract class AsyncAwaitStateMachine[F[_]](
 
   protected def onComplete(f: F[AnyRef]): Unit = {
     dispatcher.unsafeRunAndForget {
-      (recordedEffect *> f).start.flatMap(_.join).flatMap {
+      resume.resume((recordedEffect *> f)).start.flatMap(_.join).flatMap {
         case Canceled() => F.delay(this(Left(F.canceled.asInstanceOf[F[AnyRef]])))
         case Errored(e) => F.delay(this(Left(F.raiseError(e))))
-        case Succeeded(fa) => resume.resume(fa).flatMap(r => F.delay(this(r)))
+        case Succeeded(resumed) => resumed.flatMap(r => F.delay(this(r)))
       }
     }
   }
