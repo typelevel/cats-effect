@@ -118,6 +118,33 @@ class WorkStealingBenchmark {
     allocBenchmark
   }
 
+  def runnableSchedulingBenchmark(ec: ExecutionContext): Unit = {
+    val theSize = 10000
+    val countDown = new java.util.concurrent.CountDownLatch(theSize)
+
+    def run(j: Int): Unit = {
+      ec.execute { () =>
+        if (j > 1000) {
+          countDown.countDown()
+        } else {
+          run(j + 1)
+        }
+      }
+    }
+
+    (0 to theSize).foreach(_ => run(0))
+
+    countDown.await()
+  }
+
+  /**
+   * Demonstrates performance of WorkStealingThreadPool when executing Runnables (that includes Futures).
+   */
+  @Benchmark
+  def runnableScheduling(): Unit = {
+    runnableSchedulingBenchmark(cats.effect.unsafe.implicits.global.compute)
+  }
+
   lazy val manyThreadsRuntime: IORuntime = {
     val (blocking, blockDown) = {
       val threadCount = new AtomicInteger(0)
