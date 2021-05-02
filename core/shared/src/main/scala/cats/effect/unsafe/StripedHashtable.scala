@@ -25,7 +25,7 @@ package cats.effect.unsafe
 private[effect] final class StripedHashtable {
 
   // we expect to have at least this many tables (it will be rounded up to a power of two by the log2NumTables computation)
-  private[this] def minNumTables: Int = Runtime.getRuntime().availableProcessors()
+  private[this] def minNumTables: Int = Runtime.getRuntime().availableProcessors() * 4
 
   private[this] val log2NumTables = {
     var result = 0
