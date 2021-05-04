@@ -415,10 +415,16 @@ private[effect] final class WorkStealingThreadPool(
       // Executing a general purpose computation on the thread pool.
       // Wrap the runnable in an `IO` and execute it as a fiber.
       val io = IO.delay(runnable.run())
-      val fiber = new IOFiber[Unit](0, Map.empty, _ => (), io, this, self)
+      val fiber = new IOFiber[Unit](0, Map.empty, outcomeToUnit, io, this, self)
       executeFiber(fiber)
     }
   }
+
+  /**
+   * Preallocated fiber callback function for transforming
+   * [[java.lang.Runnable]] values into [[cats.effect.IOFiber]] instances.
+   */
+  private[this] val outcomeToUnit: OutcomeIO[Unit] => Unit = _ => ()
 
   /**
    * Reports unhandled exceptions and errors by printing them to the error
