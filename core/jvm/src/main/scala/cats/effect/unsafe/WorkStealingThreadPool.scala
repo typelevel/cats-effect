@@ -424,7 +424,10 @@ private[effect] final class WorkStealingThreadPool(
    * Preallocated fiber callback function for transforming
    * [[java.lang.Runnable]] values into [[cats.effect.IOFiber]] instances.
    */
-  private[this] val outcomeToUnit: OutcomeIO[Unit] => Unit = _ => ()
+  private[this] val outcomeToUnit: OutcomeIO[Unit] => Unit = {
+    case Outcome.Errored(t) => reportFailure(t)
+    case _ => ()
+  }
 
   /**
    * Reports unhandled exceptions and errors by printing them to the error
