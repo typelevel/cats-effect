@@ -414,8 +414,9 @@ private[effect] final class WorkStealingThreadPool(
     } else {
       // Executing a general purpose computation on the thread pool.
       // Wrap the runnable in an `IO` and execute it as a fiber.
-      IO(runnable.run()).unsafeRunFiber((), reportFailure, _ => ())(self)
-      ()
+      val io = IO.delay(runnable.run())
+      val fiber = new IOFiber[Unit](0, Map.empty, _ => (), io, this, self)
+      executeFiber(fiber)
     }
   }
 
