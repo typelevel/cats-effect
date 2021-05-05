@@ -17,6 +17,7 @@
 package cats.effect
 
 import cats.{Align, Eval, Functor, Now, Show, StackSafeMonad}
+import cats.effect.util.{ArrayStack, ByteStack}
 import cats.kernel.{Monoid, Semigroup}
 import cats.data.Ior
 

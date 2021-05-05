@@ -171,7 +171,7 @@ addCommandAlias(
 addCommandAlias("prePR", "; root/clean; +root/scalafmtAll; +root/headerCreate")
 
 val jsProjects: Seq[ProjectReference] =
-  Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.js, std.js, example.js)
+  Seq(kernel.js, kernelTestkit.js, laws.js, utils.js, core.js, testkit.js, tests.js, std.js, example.js)
 
 val undocumentedRefs =
   jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
@@ -201,6 +201,7 @@ lazy val rootJVM = project
     kernel.jvm,
     kernelTestkit.jvm,
     laws.jvm,
+    utils.jvm,
     core.jvm,
     testkit.jvm,
     tests.jvm,
@@ -261,6 +262,14 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
   )
 
 /**
+ * Small subproject containing low-level code shared between `sync` and `core`.
+ */
+lazy val utils = crossProject(JSPlatform, JVMPlatform)
+  .in(file("utils"))
+  .enablePlugins(NoPublishPlugin)
+  .settings(name := "utils")
+
+/**
  * Concrete, production-grade implementations of the abstractions. Or, more
  * simply-put: IO. Also contains some general datatypes built on top of IO which
  * are useful in their own right, as well as some utilities (such as IOApp).
@@ -268,7 +277,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
  */
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
-  .dependsOn(kernel, std)
+  .dependsOn(kernel, std, utils)
   .settings(
     name := "cats-effect",
     mimaBinaryIssueFilters ++= Seq(

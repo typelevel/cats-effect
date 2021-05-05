@@ -14,68 +14,59 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.util
 
-private[effect] final class ArrayStack[A <: AnyRef](
-    private[this] var buffer: Array[AnyRef],
+private[effect] final class ByteStack(
+    private[this] var buffer: Array[Byte],
     private[this] var index: Int) {
 
   def this(initBound: Int) =
-    this(new Array[AnyRef](initBound), 0)
+    this(new Array[Byte](initBound), 0)
 
-  def push(a: A): Unit = {
+  def push(b: Byte): Unit = {
     checkAndGrow()
-    buffer(index) = a
+    buffer(index) = b
     index += 1
   }
 
   // TODO remove bounds check
-  def pop(): A = {
+  def pop(): Byte = {
     index -= 1
-    val back = buffer(index).asInstanceOf[A]
-    buffer(index) = null // avoid memory leaks
-    back
+    buffer(index)
   }
 
-  def peek(): A = buffer(index - 1).asInstanceOf[A]
+  def peek(): Byte = buffer(index - 1)
 
   def isEmpty(): Boolean = index <= 0
 
   // to allow for external iteration
-  def unsafeBuffer(): Array[AnyRef] = buffer
+  def unsafeBuffer(): Array[Byte] = buffer
   def unsafeIndex(): Int = index
 
-  def unsafeSet(newI: Int): Unit = {
-    var i = newI
-    while (i < index) {
-      buffer(i) = null
-      i += 1
-    }
-
+  def unsafeSet(newI: Int): Unit =
     index = newI
-  }
 
   def invalidate(): Unit = {
     index = 0
     buffer = null
   }
 
-  def copy(): ArrayStack[A] = {
+  def copy(): ByteStack = {
     val buffer2 = if (index == 0) {
-      new Array[AnyRef](buffer.length)
+      new Array[Byte](buffer.length)
     } else {
-      val buffer2 = new Array[AnyRef](buffer.length)
+      val buffer2 = new Array[Byte](buffer.length)
       System.arraycopy(buffer, 0, buffer2, 0, buffer.length)
       buffer2
     }
 
-    new ArrayStack[A](buffer2, index)
+    new ByteStack(buffer2, index)
   }
 
   private[this] def checkAndGrow(): Unit =
     if (index >= buffer.length) {
       val len = buffer.length
-      val buffer2 = new Array[AnyRef](len * 2)
+      val buffer2 = new Array[Byte](len * 2)
       System.arraycopy(buffer, 0, buffer2, 0, len)
       buffer = buffer2
     }
