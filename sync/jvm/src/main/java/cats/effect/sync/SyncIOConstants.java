@@ -14,11 +14,15 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.sync;
 
-import java.time.Instant
+final class SyncIOConstants {
 
-private[effect] trait SyncIOCompanionPlatform { this: SyncIO.type =>
-  final def realTimeInstant: SyncIO[Instant] =
-    realTime.map(d => Instant.ofEpochMilli(d.toMillis))
+  public static final int MaxStackDepth = 512;
+
+  public static final byte MapK = 0;
+  public static final byte FlatMapK = 1;
+  public static final byte HandleErrorWithK = 2;
+  public static final byte RunTerminusK = 3;
+  public static final byte AttemptK = 4;
 }

@@ -171,7 +171,7 @@ addCommandAlias(
 addCommandAlias("prePR", "; root/clean; +root/scalafmtAll; +root/headerCreate")
 
 val jsProjects: Seq[ProjectReference] =
-  Seq(kernel.js, kernelTestkit.js, laws.js, utils.js, core.js, testkit.js, tests.js, std.js, example.js)
+  Seq(kernel.js, kernelTestkit.js, laws.js, utils.js, sync.js, core.js, testkit.js, tests.js, std.js, example.js)
 
 val undocumentedRefs =
   jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
@@ -202,6 +202,7 @@ lazy val rootJVM = project
     kernelTestkit.jvm,
     laws.jvm,
     utils.jvm,
+    sync.jvm,
     core.jvm,
     testkit.jvm,
     tests.jvm,
@@ -270,6 +271,15 @@ lazy val utils = crossProject(JSPlatform, JVMPlatform)
   .settings(name := "utils")
 
 /**
+ * Concrete, production-grade implementation of a synchronous-only effect type:
+ * SyncIO.
+ */
+lazy val sync = crossProject(JSPlatform, JVMPlatform)
+  .in(file("sync"))
+  .dependsOn(kernel, utils)
+  .settings(name := "cats-effect-sync")
+
+/**
  * Concrete, production-grade implementations of the abstractions. Or, more
  * simply-put: IO. Also contains some general datatypes built on top of IO which
  * are useful in their own right, as well as some utilities (such as IOApp).
@@ -277,7 +287,7 @@ lazy val utils = crossProject(JSPlatform, JVMPlatform)
  */
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
-  .dependsOn(kernel, std, utils)
+  .dependsOn(kernel, std, sync, utils)
   .settings(
     name := "cats-effect",
     mimaBinaryIssueFilters ++= Seq(

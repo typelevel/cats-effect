@@ -14,14 +14,11 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.sync
 
-private object SyncIOConstants {
-  val MaxStackDepth = 512
+import java.time.Instant
 
-  val MapK: Byte = 0
-  val FlatMapK: Byte = 1
-  val HandleErrorWithK: Byte = 2
-  val RunTerminusK: Byte = 3
-  val AttemptK: Byte = 4
+private[effect] trait SyncIOCompanionPlatform { this: SyncIO.type =>
+  final def realTimeInstant: SyncIO[Instant] =
+    realTime.map(d => Instant.ofEpochMilli(d.toMillis))
 }

@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.sync
 
-import scalajs.js
+private object SyncIOConstants {
+  val MaxStackDepth = 512
 
-private[effect] trait SyncIOCompanionPlatform { this: SyncIO.type =>
-  final def realTimeDate: SyncIO[js.Date] = realTime.map(d => new js.Date(d.toMillis.toDouble))
+  val MapK: Byte = 0
+  val FlatMapK: Byte = 1
+  val HandleErrorWithK: Byte = 2
+  val RunTerminusK: Byte = 3
+  val AttemptK: Byte = 4
 }

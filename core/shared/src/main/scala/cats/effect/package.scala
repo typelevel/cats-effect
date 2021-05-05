@@ -16,7 +16,7 @@
 
 package cats
 
-import cats.effect.{kernel => cekernel}
+import cats.effect.{kernel => cekernel, sync => cesync}
 
 package object effect {
 
@@ -68,6 +68,9 @@ package object effect {
 
   type Resource[F[_], +A] = cekernel.Resource[F, A]
   val Resource = cekernel.Resource
+
+  type SyncIO[+A] = cesync.SyncIO[A]
+  val SyncIO = cesync.SyncIO
 
   type OutcomeIO[A] = Outcome[IO, Throwable, A]
   type FiberIO[A] = Fiber[IO, Throwable, A]

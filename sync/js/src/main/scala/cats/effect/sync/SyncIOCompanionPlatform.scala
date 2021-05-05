@@ -14,15 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect;
+package cats.effect.sync
 
-final class SyncIOConstants {
+import scalajs.js
 
-  public static final int MaxStackDepth = 512;
-
-  public static final byte MapK = 0;
-  public static final byte FlatMapK = 1;
-  public static final byte HandleErrorWithK = 2;
-  public static final byte RunTerminusK = 3;
-  public static final byte AttemptK = 4;
+private[effect] trait SyncIOCompanionPlatform { this: SyncIO.type =>
+  final def realTimeDate: SyncIO[js.Date] = realTime.map(d => new js.Date(d.toMillis.toDouble))
 }
