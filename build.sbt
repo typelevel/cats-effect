@@ -280,7 +280,8 @@ lazy val sync = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(kernel)
   .settings(
     name := "cats-effect-sync",
-    Compile / unmanagedSourceDirectories += (utils / baseDirectory).value / "src" / "main" / "scala"
+    Compile / unmanagedSourceDirectories += (utils / baseDirectory).value / "src" / "main" / "scala",
+    mimaPreviousArtifacts := Set()
   )
 
 /**
