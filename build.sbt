@@ -20,6 +20,8 @@ import com.typesafe.tools.mima.core._
 import org.openqa.selenium.firefox.FirefoxOptions
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
 
+import sbtcrossproject.CrossType
+
 ThisBuild / baseVersion := "3.1"
 
 ThisBuild / organization := "org.typelevel"
@@ -171,7 +173,7 @@ addCommandAlias(
 addCommandAlias("prePR", "; root/clean; +root/scalafmtAll; +root/headerCreate")
 
 val jsProjects: Seq[ProjectReference] =
-  Seq(kernel.js, kernelTestkit.js, laws.js, utils.js, sync.js, core.js, testkit.js, tests.js, std.js, example.js)
+  Seq(kernel.js, kernelTestkit.js, laws.js, sync.js, core.js, testkit.js, tests.js, std.js, example.js)
 
 val undocumentedRefs =
   jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
@@ -201,7 +203,6 @@ lazy val rootJVM = project
     kernel.jvm,
     kernelTestkit.jvm,
     laws.jvm,
-    utils.jvm,
     sync.jvm,
     core.jvm,
     testkit.jvm,
@@ -265,7 +266,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
 /**
  * Small subproject containing low-level code shared between `sync` and `core`.
  */
-lazy val utils = crossProject(JSPlatform, JVMPlatform)
+lazy val utils = project
   .in(file("utils"))
   .enablePlugins(NoPublishPlugin)
   .settings(name := "utils")
@@ -276,8 +277,11 @@ lazy val utils = crossProject(JSPlatform, JVMPlatform)
  */
 lazy val sync = crossProject(JSPlatform, JVMPlatform)
   .in(file("sync"))
-  .dependsOn(kernel, utils)
-  .settings(name := "cats-effect-sync")
+  .dependsOn(kernel)
+  .settings(
+    name := "cats-effect-sync",
+    Compile / unmanagedSourceDirectories += (utils / baseDirectory).value / "src" / "main" / "scala"
+  )
 
 /**
  * Concrete, production-grade implementations of the abstractions. Or, more
@@ -287,7 +291,7 @@ lazy val sync = crossProject(JSPlatform, JVMPlatform)
  */
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
-  .dependsOn(kernel, std, sync, utils)
+  .dependsOn(kernel, std, sync)
   .settings(
     name := "cats-effect",
     mimaBinaryIssueFilters ++= Seq(
@@ -299,7 +303,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.IORuntime.fiberErrorCbs"),
       ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.unsafe.IORuntime.this"),
       ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.IORuntime.<init>$default$6")
-    )
+    ),
+    Compile / unmanagedSourceDirectories += (utils / baseDirectory).value / "src" / "main" / "scala"
   )
   .jvmSettings(
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
