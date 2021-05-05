@@ -303,7 +303,34 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.FiberErrorHashtable"),
       ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.IORuntime.fiberErrorCbs"),
       ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.unsafe.IORuntime.this"),
-      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.IORuntime.<init>$default$6")
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.IORuntime.<init>$default$6"),
+      // introduced by #2324, cats-effect-sync
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Failure"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$SyncIOMonoid"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Failure$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$FlatMap"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Attempt"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIOLowPriorityImplicits$SyncIOSemigroup"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Attempt$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Pure$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIOLowPriorityImplicits"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.ByteStack"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$FlatMap$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Success$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Success"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.ArrayStack"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Map"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$HandleErrorWith$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$HandleErrorWith"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Pure"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Map$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIOCompanionPlatform"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Delay$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Error$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Delay"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Error"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO")
     ),
     Compile / unmanagedSourceDirectories += (utils / baseDirectory).value / "src" / "main" / "scala"
   )
@@ -320,7 +347,13 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core, kernelTestkit)
   .settings(
     name := "cats-effect-testkit",
-    libraryDependencies ++= Seq("org.scalacheck" %%% "scalacheck" % ScalaCheckVersion))
+    libraryDependencies ++= Seq("org.scalacheck" %%% "scalacheck" % ScalaCheckVersion),
+    mimaBinaryIssueFilters ++= Seq(
+      // introduced by #2324, cats-effect-sync
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.testkit.TestInstances.syncIoBooleanToProp"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.testkit.TestInstances.unsafeRunSync")
+    )
+  )
 
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
