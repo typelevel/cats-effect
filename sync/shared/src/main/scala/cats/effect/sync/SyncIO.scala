@@ -32,7 +32,7 @@ import scala.util.control.NonFatal
  * side effect, where the result of that side effect is obtained
  * synchronously.
  *
- * `SyncIO` is similar to [[IO]], but does not support asynchronous
+ * `SyncIO` is similar to `cats.effect.IO`, but does not support asynchronous
  * computations. Consequently, a `SyncIO` can be run synchronously
  * to obtain a result via `unsafeRunSync`. This is unlike
  * `IO#unsafeRunSync`, which cannot be safely called in general --
