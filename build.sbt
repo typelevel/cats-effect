@@ -262,9 +262,9 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
 
 /**
  * Concrete, production-grade implementations of the abstractions. Or, more
- * simply-put: IO and Resource. Also contains some general datatypes built
- * on top of IO which are useful in their own right, as well as some utilities
- * (such as IOApp). This is the "batteries included" dependency.
+ * simply-put: IO. Also contains some general datatypes built on top of IO which
+ * are useful in their own right, as well as some utilities (such as IOApp).
+ * This is the "batteries included" dependency.
  */
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
