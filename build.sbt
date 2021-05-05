@@ -264,14 +264,6 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
   )
 
 /**
- * Small subproject containing low-level code shared between `sync` and `core`.
- */
-lazy val utils = project
-  .in(file("utils"))
-  .enablePlugins(NoPublishPlugin)
-  .settings(name := "utils")
-
-/**
  * Concrete, production-grade implementation of a synchronous-only effect type:
  * SyncIO.
  */
@@ -280,7 +272,6 @@ lazy val sync = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(kernel)
   .settings(
     name := "cats-effect-sync",
-    Compile / unmanagedSourceDirectories += (utils / baseDirectory).value / "src" / "main" / "scala",
     mimaPreviousArtifacts := Set()
   )
 
@@ -331,8 +322,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Delay"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Error"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO")
-    ),
-    Compile / unmanagedSourceDirectories += (utils / baseDirectory).value / "src" / "main" / "scala"
+    )
   )
   .jvmSettings(
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8")

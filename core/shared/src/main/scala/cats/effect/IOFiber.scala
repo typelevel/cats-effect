@@ -17,7 +17,6 @@
 package cats.effect
 
 import cats.arrow.FunctionK
-import cats.effect.util.{ArrayStack, ByteStack}
 import cats.effect.unsafe._
 
 import scala.annotation.{switch, tailrec}
