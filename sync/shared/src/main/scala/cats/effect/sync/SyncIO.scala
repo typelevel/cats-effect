@@ -42,7 +42,7 @@ import scala.util.control.NonFatal
  */
 sealed abstract class SyncIO[+A] private () {
 
-  private[effect] def tag: Byte
+  protected def tag: Byte
 
   /**
    * Alias for `productL`.
@@ -337,7 +337,7 @@ sealed abstract class SyncIO[+A] private () {
   }
 }
 
-private[effect] trait SyncIOLowPriorityImplicits {
+private[sync] trait SyncIOLowPriorityImplicits {
 
   implicit def semigroupForIO[A: Semigroup]: Semigroup[SyncIO[A]] =
     new SyncIOSemigroup[A]

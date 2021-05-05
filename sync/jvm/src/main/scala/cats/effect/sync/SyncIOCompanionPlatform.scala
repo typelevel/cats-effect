@@ -18,7 +18,7 @@ package cats.effect.sync
 
 import java.time.Instant
 
-private[effect] trait SyncIOCompanionPlatform { this: SyncIO.type =>
+private[sync] trait SyncIOCompanionPlatform { this: SyncIO.type =>
   final def realTimeInstant: SyncIO[Instant] =
     realTime.map(d => Instant.ofEpochMilli(d.toMillis))
 }
