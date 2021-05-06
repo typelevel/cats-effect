@@ -15,7 +15,6 @@
  */
 
 package cats.effect
-package sync
 
 import cats.{Align, Eval, Functor, Now, Show, StackSafeMonad}
 import cats.effect.kernel.{MonadCancel, Sync}
@@ -337,7 +336,7 @@ sealed abstract class SyncIO[+A] private () {
   }
 }
 
-private[sync] trait SyncIOLowPriorityImplicits {
+private[effect] trait SyncIOLowPriorityImplicits {
 
   implicit def semigroupForIO[A: Semigroup]: Semigroup[SyncIO[A]] =
     new SyncIOSemigroup[A]

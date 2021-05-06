@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package cats.effect.sync
+package cats.effect
 
 import java.time.Instant
 
-private[sync] trait SyncIOCompanionPlatform { this: SyncIO.type =>
+private[effect] trait SyncIOCompanionPlatform { this: SyncIO.type =>
   final def realTimeInstant: SyncIO[Instant] =
     realTime.map(d => Instant.ofEpochMilli(d.toMillis))
 }

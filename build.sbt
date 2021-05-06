@@ -337,12 +337,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core, kernelTestkit)
   .settings(
     name := "cats-effect-testkit",
-    libraryDependencies ++= Seq("org.scalacheck" %%% "scalacheck" % ScalaCheckVersion),
-    mimaBinaryIssueFilters ++= Seq(
-      // introduced by #2324, cats-effect-sync
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.testkit.TestInstances.syncIoBooleanToProp"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.testkit.TestInstances.unsafeRunSync")
-    )
+    libraryDependencies ++= Seq("org.scalacheck" %%% "scalacheck" % ScalaCheckVersion)
   )
 
 /**

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.sync;
+package cats.effect;
 
 final class SyncIOConstants {
 
