@@ -6,6 +6,7 @@ const Container = CompLibrary.Container;
 
 const users = [
   ['AccionLabs', 'https://www.accionlabs.com/'],
+  ['Agoda', 'https://www.agoda.com/'],
   ['Azavea', 'https://www.azavea.com/'],
   ['Anduin Transactions', 'https://www.anduintransact.com/'],
   ['Banno Group', 'https://banno.com'],
