@@ -86,7 +86,7 @@ def scalaVersionSpecificFolders(srcName: String, srcBaseDir: java.io.File, scala
 }
 
 val commonSettings = Seq(
-  scalacOptions in (Compile, doc) ++= {
+  Compile / doc / scalacOptions ++= {
     val isSnapshot = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.isEmpty
 
     val path =
@@ -95,22 +95,22 @@ val commonSettings = Seq(
       else
         scmInfo.value.get.browseUrl + "/blob/v" + version.value + "€{FILE_PATH}.scala"
 
-    Seq("-doc-source-url", path, "-sourcepath", baseDirectory.in(LocalRootProject).value.getAbsolutePath)
+    Seq("-doc-source-url", path, "-sourcepath", (LocalRootProject / baseDirectory).value.getAbsolutePath)
   },
   Compile / unmanagedSourceDirectories ++= scalaVersionSpecificFolders("main", baseDirectory.value, scalaVersion.value),
   Test / unmanagedSourceDirectories ++= scalaVersionSpecificFolders("test", baseDirectory.value, scalaVersion.value),
-  sources in (Compile, doc) := (sources in (Compile, doc)).value,
-  scalacOptions in (Compile, doc) ++=
+  Compile / doc / sources := (Compile / doc / sources).value,
+  Compile / doc / scalacOptions ++=
     Seq("-doc-root-content", (baseDirectory.value.getParentFile / "shared" / "rootdoc.txt").getAbsolutePath),
-  scalacOptions in (Compile, doc) ++=
+  Compile / doc / scalacOptions ++=
     Opts.doc.title("cats-effect"),
-  scalacOptions in Test ++= { if (isDotty.value) Seq() else Seq("-Yrangepos") },
-  scalacOptions in Test ~= (_.filterNot(Set("-Wvalue-discard", "-Ywarn-value-discard"))),
+  Test / scalacOptions ++= { if (isDotty.value) Seq() else Seq("-Yrangepos") },
+  Test / scalacOptions ~= (_.filterNot(Set("-Wvalue-discard", "-Ywarn-value-discard"))),
   // Disable parallel execution in tests; otherwise we cannot test System.err
-  parallelExecution in Test := false,
-  testForkedParallel in Test := false,
+  Test / parallelExecution := false,
+  Test / testForkedParallel := false,
   testFrameworks += new TestFramework("munit.Framework"),
-  concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
+  Global / concurrentRestrictions += Tags.limit(Tags.Test, 1),
   headerLicense := Some(HeaderLicense.Custom("""|Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
                                                 |
                                                 |Licensed under the Apache License, Version 2.0 (the "License");
@@ -205,7 +205,7 @@ lazy val scalaJSSettings = Seq(
 
     maybeVersionOrHash match {
       case Some(versionOrHash) =>
-        val l = (baseDirectory in LocalRootProject).value.toURI.toString
+        val l = (LocalRootProject / baseDirectory).value.toURI.toString
         val g = s"https://raw.githubusercontent.com/typelevel/cats-effect/$versionOrHash/"
         Seq(s"-P:scalajs:mapSourceURI:$l->$g")
 
@@ -214,7 +214,7 @@ lazy val scalaJSSettings = Seq(
     }
   },
   // Work around "dropping dependency on node with no phase object: mixin"
-  scalacOptions in (Compile, doc) -= "-Xfatal-warnings",
+  Compile / doc / scalacOptions -= "-Xfatal-warnings",
   scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule)),
   // Dotty dislikes these -P flags, warns against them
   scalacOptions := {
@@ -226,10 +226,10 @@ lazy val scalaJSSettings = Seq(
 )
 
 lazy val sharedSourcesSettings = Seq(
-  unmanagedSourceDirectories in Compile += {
+  Compile / unmanagedSourceDirectories += {
     baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
   },
-  unmanagedSourceDirectories in Test += {
+  Test / unmanagedSourceDirectories += {
     baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
   }
 )
@@ -317,17 +317,17 @@ lazy val runtimeTests = project
   .configs(FullTracingTest)
   .settings(inConfig(FullTracingTest)(Defaults.testSettings): _*)
   .settings(
-    unmanagedSourceDirectories in FullTracingTest += {
+    FullTracingTest / unmanagedSourceDirectories += {
       baseDirectory.value.getParentFile / "src" / "fulltracing" / "scala"
     },
-    test in Test := (test in Test).dependsOn(test in FullTracingTest).value,
-    fork in Test := true,
-    fork in FullTracingTest := true,
-    javaOptions in Test ++= Seq(
+    Test / test := (Test / test).dependsOn(FullTracingTest / test).value,
+    Test / fork := true,
+    FullTracingTest / fork := true,
+    Test / javaOptions ++= Seq(
       "-Dcats.effect.tracing=true",
       "-Dcats.effect.stackTracingMode=cached"
     ),
-    javaOptions in FullTracingTest ++= Seq(
+    FullTracingTest / javaOptions ++= Seq(
       "-Dcats.effect.tracing=true",
       "-Dcats.effect.stackTracingMode=full"
     )
@@ -352,9 +352,10 @@ lazy val benchmarksNext = project
 lazy val docs = project
   .in(file("site-docs"))
   .enablePlugins(MdocPlugin)
-  .settings(commonSettings ++ noPublishSettings)
+  .enablePlugins(NoPublishPlugin)
+  .settings(commonSettings)
   .settings(
-    fork in mdoc := true,
+    mdoc / fork := true,
     Compile / scalacOptions ~= (_.filterNot(
       Set(
         "-Xfatal-warnings",
@@ -374,3 +375,5 @@ lazy val docs = project
 
 git.gitHeadCommit := Try("git rev-parse HEAD".!!.trim).toOption
 git.gitCurrentTags := Try("git tag --contains HEAD".!!.trim.split("\\s+").toList).toOption.toList.flatten
+
+Global / excludeLintKeys += (docs / mdoc / fork)
