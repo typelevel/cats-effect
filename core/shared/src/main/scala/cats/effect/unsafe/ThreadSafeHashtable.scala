@@ -38,7 +38,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
 
   def put(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {
     val cap = capacity
-    if (size == cap) {
+    if (size << 1 >= cap) { // the << 1 ensures that the load factor will remain between 0.25 and 0.5
       val newCap = cap * 2
       val newHashtable = new Array[Throwable => Unit](newCap)
       System.arraycopy(hashtable, 0, newHashtable, 0, cap)

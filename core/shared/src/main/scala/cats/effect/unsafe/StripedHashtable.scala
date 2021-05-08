@@ -23,22 +23,25 @@ package cats.effect.unsafe
  * hash table.
  */
 private[effect] final class StripedHashtable {
-  val numTables: Int = {
-    val cpus = Runtime.getRuntime().availableProcessors()
-    // Bit twiddling hacks.
-    // http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
-    var value = cpus - 1
-    value |= value >> 1
-    value |= value >> 2
-    value |= value >> 4
-    value |= value >> 8
-    value |= value >> 16
-    value + 1
+
+  // we expect to have at least this many tables (it will be rounded up to a power of two by the log2NumTables computation)
+  private[this] def minNumTables: Int = Runtime.getRuntime().availableProcessors() * 4
+
+  private[this] val log2NumTables = {
+    var result = 0
+    var x = minNumTables
+    while (x != 0) {
+      result += 1
+      x >>= 1
+    }
+    result
   }
+
+  def numTables: Int = 1 << log2NumTables
 
   private[this] val mask: Int = numTables - 1
 
-  private[this] val initialCapacity: Int = 8
+  private[this] def initialCapacity: Int = 8
 
   val tables: Array[ThreadSafeHashtable] = {
     val array = new Array[ThreadSafeHashtable](numTables)
@@ -53,12 +56,12 @@ private[effect] final class StripedHashtable {
   def put(cb: Throwable => Unit): Unit = {
     val hash = System.identityHashCode(cb)
     val idx = hash & mask
-    tables(idx).put(cb, hash)
+    tables(idx).put(cb, hash >> log2NumTables)
   }
 
   def remove(cb: Throwable => Unit): Unit = {
     val hash = System.identityHashCode(cb)
     val idx = hash & mask
-    tables(idx).remove(cb, hash)
+    tables(idx).remove(cb, hash >> log2NumTables)
   }
 }
