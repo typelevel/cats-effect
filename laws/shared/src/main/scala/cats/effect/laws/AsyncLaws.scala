@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ package laws
 
 import cats.effect.ExitCase.{Completed, Error}
 import cats.effect.concurrent.Deferred
-import cats.implicits._
+import cats.syntax.all._
 import cats.laws._
 
 import scala.util.Either
@@ -35,7 +35,7 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
     F.async[A](_(Left(e))) <-> F.raiseError(e)
 
   def repeatedAsyncEvaluationNotMemoized[A](a: A, f: A => A) =
-    F.suspend {
+    F.defer {
       var cur = a
 
       val change: F[Unit] = F.async { cb =>
@@ -49,7 +49,7 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
     } <-> F.pure(f(f(a)))
 
   def repeatedAsyncFEvaluationNotMemoized[A](a: A, f: A => A) =
-    F.suspend {
+    F.defer {
       var cur = a
 
       val change: F[Unit] = F.asyncF { cb =>
@@ -63,7 +63,7 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
     } <-> F.pure(f(f(a)))
 
   def repeatedCallbackIgnored[A](a: A, f: A => A) =
-    F.suspend {
+    F.defer {
       var cur = a
       val change = F.delay { cur = f(cur) }
       val readResult = F.delay(cur)
@@ -84,7 +84,8 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
   def neverIsDerivedFromAsync[A] =
     F.never[A] <-> F.async[A](_ => ())
 
-  def asyncCanBeDerivedFromAsyncF[A](k: (Either[Throwable, A] => Unit) => Unit) =
+  // Dotty incorrectly infers the return type as IsEq[F[Any]]
+  def asyncCanBeDerivedFromAsyncF[A](k: (Either[Throwable, A] => Unit) => Unit): IsEq[F[A]] =
     F.async(k) <-> F.asyncF(cb => F.delay(k(cb)))
 
   def bracketReleaseIsCalledOnCompletedOrError[A, B](fa: F[A], b: B) = {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,5 +22,5 @@ package object internals {
    * Handy alias for the registration functions of [[IO.Async]].
    */
   private[effect] type Start[+A] =
-    (IOConnection, Callback.T[A]) => Unit
+    (IOConnection, IOContext, Callback.T[A]) => Unit
 }

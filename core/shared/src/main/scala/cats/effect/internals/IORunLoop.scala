@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,11 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend}
+import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend, Trace}
+import cats.effect.tracing.{IOEvent, IOTrace}
+import cats.effect.internals.TracingPlatform.{enhancedExceptions, isStackTracing}
+
+import scala.reflect.NameTransformer
 import scala.util.control.NonFatal
 
 private[effect] object IORunLoop {
@@ -31,14 +35,20 @@ private[effect] object IORunLoop {
    * with the result when completed.
    */
   def start[A](source: IO[A], cb: Either[Throwable, A] => Unit): Unit =
-    loop(source, IOConnection.uncancelable, cb.asInstanceOf[Callback], null, null, null)
+    loop(source, IOConnection.uncancelable, cb.asInstanceOf[Callback], null, null, null, null)
+
+  def restart[A](source: IO[A], ctx: IOContext, cb: Either[Throwable, A] => Unit): Unit =
+    loop(source, IOConnection.uncancelable, cb.asInstanceOf[Callback], ctx, null, null, null)
 
   /**
    * Evaluates the given `IO` reference, calling the given callback
    * with the result when completed.
    */
   def startCancelable[A](source: IO[A], conn: IOConnection, cb: Either[Throwable, A] => Unit): Unit =
-    loop(source, conn, cb.asInstanceOf[Callback], null, null, null)
+    loop(source, conn, cb.asInstanceOf[Callback], null, null, null, null)
+
+  def restartCancelable[A](source: IO[A], conn: IOConnection, ctx: IOContext, cb: Either[Throwable, A] => Unit): Unit =
+    loop(source, conn, cb.asInstanceOf[Callback], ctx, null, null, null)
 
   /**
    * Loop for evaluating an `IO` value.
@@ -51,6 +61,7 @@ private[effect] object IORunLoop {
     source: Current,
     cancelable: IOConnection,
     cb: Either[Throwable, Any] => Unit,
+    ctxRef: IOContext,
     rcbRef: RestartCallback,
     bFirstRef: Bind,
     bRestRef: CallStack
@@ -58,6 +69,7 @@ private[effect] object IORunLoop {
     var currentIO: Current = source
     // Can change on a context switch
     var conn: IOConnection = cancelable
+    var ctx: IOContext = ctxRef
     var bFirst: Bind = bFirstRef
     var bRest: CallStack = bRestRef
     var rcb: RestartCallback = rcbRef
@@ -70,7 +82,12 @@ private[effect] object IORunLoop {
 
     while ({
       currentIO match {
-        case Bind(fa, bindNext) =>
+        case bind @ Bind(fa, bindNext, _) =>
+          if (isStackTracing) {
+            if (ctx eq null) ctx = new IOContext()
+            val trace = bind.trace
+            if (trace ne null) ctx.pushEvent(trace.asInstanceOf[IOEvent])
+          }
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
@@ -98,6 +115,9 @@ private[effect] object IORunLoop {
             catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
+          if (isStackTracing && enhancedExceptions && ctx != null) {
+            augmentException(ex, ctx)
+          }
           findErrorHandler(bFirst, bRest) match {
             case null =>
               cb(Left(ex))
@@ -111,6 +131,11 @@ private[effect] object IORunLoop {
           }
 
         case bindNext @ Map(fa, _, _) =>
+          if (isStackTracing) {
+            if (ctx eq null) ctx = new IOContext()
+            val trace = bindNext.trace
+            if (trace ne null) ctx.pushEvent(trace.asInstanceOf[IOEvent])
+          }
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
@@ -118,10 +143,17 @@ private[effect] object IORunLoop {
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
 
-        case async @ Async(_, _) =>
+        case async @ Async(_, _, _) =>
           if (conn eq null) conn = IOConnection()
+          // We need to initialize an IOContext because the continuation
+          // may produce trace frames e.g. IOBracket.
+          if (ctx eq null) ctx = new IOContext()
           if (rcb eq null) rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
-          rcb.start(async, bFirst, bRest)
+          if (isStackTracing) {
+            val trace = async.trace
+            if (trace ne null) ctx.pushEvent(trace.asInstanceOf[IOEvent])
+          }
+          rcb.start(async, ctx, bFirst, bRest)
           return
 
         case ContextSwitch(next, modify, restore) =>
@@ -131,8 +163,18 @@ private[effect] object IORunLoop {
           if (conn ne old) {
             if (rcb ne null) rcb.contextSwitch(conn)
             if (restore ne null)
-              currentIO = Bind(next, new RestoreContext(old, restore))
+              currentIO = Bind(
+                next,
+                new RestoreContext(old,
+                                   restore.asInstanceOf[(Any, Throwable, IOConnection, IOConnection) => IOConnection]),
+                null
+              )
           }
+
+        case Trace(source, frame) =>
+          if (ctx eq null) ctx = new IOContext()
+          ctx.pushEvent(frame)
+          currentIO = source
       }
 
       if (hasUnboxed) {
@@ -169,6 +211,7 @@ private[effect] object IORunLoop {
     var currentIO: Current = source
     var bFirst: Bind = null
     var bRest: CallStack = null
+    var ctx: IOContext = null
     // Values from Pure and Delay are unboxed in this var,
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
@@ -176,7 +219,12 @@ private[effect] object IORunLoop {
 
     while ({
       currentIO match {
-        case Bind(fa, bindNext) =>
+        case bind @ Bind(fa, bindNext, _) =>
+          if (isStackTracing) {
+            if (ctx eq null) ctx = new IOContext()
+            val trace = bind.trace
+            if (trace ne null) ctx.pushEvent(trace.asInstanceOf[IOEvent])
+          }
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
@@ -205,6 +253,9 @@ private[effect] object IORunLoop {
             } catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
+          if (isStackTracing && enhancedExceptions && ctx != null) {
+            augmentException(ex, ctx)
+          }
           findErrorHandler(bFirst, bRest) match {
             case null =>
               return currentIO.asInstanceOf[IO[A]]
@@ -217,17 +268,28 @@ private[effect] object IORunLoop {
           }
 
         case bindNext @ Map(fa, _, _) =>
+          if (isStackTracing) {
+            if (ctx eq null) ctx = new IOContext()
+            val trace = bindNext.trace
+            if (trace ne null) ctx.pushEvent(trace.asInstanceOf[IOEvent])
+          }
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
+          if (ctx eq null) ctx = new IOContext()
+
+        case Trace(source, frame) =>
+          if (ctx eq null) ctx = new IOContext()
+          ctx.pushEvent(frame)
+          currentIO = source
 
         case _ =>
           // Cannot inline the code of this method — as it would
           // box those vars in scala.runtime.ObjectRef!
-          return suspendAsync(currentIO.asInstanceOf[IO[A]], bFirst, bRest)
+          return suspendAsync(currentIO.asInstanceOf[IO[A]], ctx, bFirst, bRest)
       }
 
       if (hasUnboxed) {
@@ -252,11 +314,11 @@ private[effect] object IORunLoop {
     // $COVERAGE-ON$
   }
 
-  private def suspendAsync[A](currentIO: IO[A], bFirst: Bind, bRest: CallStack): IO[A] =
+  private def suspendAsync[A](currentIO: IO[A], ctx: IOContext, bFirst: Bind, bRest: CallStack): IO[A] =
     // Encountered an instruction that can't be interpreted synchronously,
     // so suspend it in an Async node that can be invoked later.
-    Async { (conn, cb) =>
-      loop(currentIO, conn, cb.asInstanceOf[Callback], null, bFirst, bRest)
+    Async { (conn, _, cb) =>
+      loop(currentIO, conn, cb.asInstanceOf[Callback], ctx, null, bFirst, bRest)
     }
 
   /**
@@ -308,6 +370,43 @@ private[effect] object IORunLoop {
     }
 
   /**
+   * If stack tracing and contextual exceptions are enabled, this
+   * function will rewrite the stack trace of a captured exception
+   * to include the async stack trace.
+   */
+  private def augmentException(ex: Throwable, ctx: IOContext): Unit = {
+    val stackTrace = ex.getStackTrace
+    if (!stackTrace.isEmpty) {
+      val augmented = stackTrace(stackTrace.length - 1).getClassName.indexOf('@') != -1
+      if (!augmented) {
+        val prefix = dropRunLoopFrames(stackTrace)
+        val suffix = ctx
+          .getStackTraces()
+          .flatMap(t => IOTrace.getOpAndCallSite(t.stackTrace))
+          .map {
+            case (methodSite, callSite) =>
+              val op = NameTransformer.decode(methodSite.getMethodName)
+
+              new StackTraceElement(op + " @ " + callSite.getClassName,
+                                    callSite.getMethodName,
+                                    callSite.getFileName,
+                                    callSite.getLineNumber)
+          }
+          .toArray
+        ex.setStackTrace(prefix ++ suffix)
+      }
+    }
+  }
+
+  private def dropRunLoopFrames(frames: Array[StackTraceElement]): Array[StackTraceElement] =
+    frames.takeWhile(ste => !runLoopFilter.exists(ste.getClassName.startsWith(_)))
+
+  private[this] val runLoopFilter = List(
+    "cats.effect.",
+    "scala.runtime."
+  )
+
+  /**
    * A `RestartCallback` gets created only once, per [[startCancelable]]
    * (`unsafeRunAsync`) invocation, once an `Async` state is hit,
    * its job being to resume the loop after the boundary, but with
@@ -329,6 +428,7 @@ private[effect] object IORunLoop {
     private[this] var trampolineAfter = false
     private[this] var bFirst: Bind = _
     private[this] var bRest: CallStack = _
+    private[this] var ctx: IOContext = _
 
     // Used in combination with trampolineAfter = true
     private[this] var value: Either[Throwable, Any] = _
@@ -336,29 +436,33 @@ private[effect] object IORunLoop {
     def contextSwitch(conn: IOConnection): Unit =
       this.conn = conn
 
-    def start(task: IO.Async[Any], bFirst: Bind, bRest: CallStack): Unit = {
+    def start(task: IO.Async[Any], ctx: IOContext, bFirst: Bind, bRest: CallStack): Unit = {
       canCall = true
       this.bFirst = bFirst
       this.bRest = bRest
       this.trampolineAfter = task.trampolineAfter
+      this.ctx = ctx
+
       // Go, go, go
-      task.k(conn, this)
+      task.k(conn, ctx, this)
     }
 
     private[this] def signal(either: Either[Throwable, Any]): Unit = {
       // Allow GC to collect
       val bFirst = this.bFirst
       val bRest = this.bRest
+      val ctx = this.ctx
       this.bFirst = null
       this.bRest = null
+      this.ctx = null
 
       // Auto-cancelable logic: in case the connection was cancelled,
       // we interrupt the bind continuation
       if (!conn.isCanceled) either match {
         case Right(success) =>
-          loop(Pure(success), conn, cb, this, bFirst, bRest)
+          loop(Pure(success), conn, cb, ctx, this, bFirst, bRest)
         case Left(e) =>
-          loop(RaiseError(e), conn, cb, this, bFirst, bRest)
+          loop(RaiseError(e), conn, cb, ctx, this, bFirst, bRest)
       }
     }
 

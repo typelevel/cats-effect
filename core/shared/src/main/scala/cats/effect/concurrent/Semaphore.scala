@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package effect
 package concurrent
 
 import cats.effect.concurrent.Semaphore.TransformedSemaphore
-import cats.implicits._
+import cats.syntax.all._
 
 import scala.collection.immutable.Queue
 
@@ -214,7 +214,7 @@ object Semaphore {
           state
             .modify { old =>
               val (newState, result) = old match {
-                case Right(m) if m >= n => (Right(m - n), m != n)
+                case Right(m) if m >= n => (Right(m - n), true)
                 case _                  => (old, false)
               }
               (newState, result)

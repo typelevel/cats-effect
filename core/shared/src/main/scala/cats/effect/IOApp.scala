@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package cats
 package effect
 
 import cats.effect.internals.{IOAppCompanionPlatform, IOAppPlatform}
+import scala.concurrent.ExecutionContext
 
 /**
  * `App` type that runs a [[cats.effect.IO]].  Shutdown occurs after
@@ -38,7 +39,7 @@ import cats.effect.internals.{IOAppCompanionPlatform, IOAppPlatform}
  *
  * {{{
  * import cats.effect._
- * import cats.implicits._
+ * import cats.syntax.all._
  *
  * object MyApp extends IOApp {
  *   def run(args: List[String]): IO[ExitCode] =
@@ -61,7 +62,7 @@ trait IOApp {
   def run(args: List[String]): IO[ExitCode]
 
   /**
-   * The main method that runs the `IO` returned by [[run]] and exits
+   * The main method that runs the `IO` returned by run and exits
    * the app with the resulting code on completion.
    */
   def main(args: Array[String]): Unit =
@@ -100,6 +101,31 @@ trait IOApp {
    */
   implicit protected def timer: Timer[IO] =
     IOAppPlatform.defaultTimer
+
+  /**
+   * Provides a default `ExecutionContext` for the app.
+   *
+   * The default on top of the JVM is lazily constructed as a fixed
+   * thread pool based on number available of available CPUs (see
+   * `PoolUtils`).
+   *
+   * On top of JavaScript, this will use the standard
+   * [[https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout setTimeout]].
+   *
+   * @note This is the same ExecutionContext that backs the default implicit `ContextShift`
+   *
+   * @note To use a different `ExecutionContext`, consider extending `IOApp.WithContext`,
+   *       which will do it more comprehensively.
+   */
+  protected def executionContext: ExecutionContext =
+    IOAppPlatform.defaultExecutionContext
 }
 
-object IOApp extends IOAppCompanionPlatform
+object IOApp extends IOAppCompanionPlatform {
+
+  trait Simple extends IOApp {
+    def run: IO[Unit]
+    final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
+  }
+
+}

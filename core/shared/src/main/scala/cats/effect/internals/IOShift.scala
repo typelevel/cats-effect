@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ private[effect] object IOShift {
   /** Implementation for `IO.shift`. */
   def apply(ec: ExecutionContext): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {
-      def apply(conn: IOConnection, cb: Callback.T[Unit]): Unit =
+      def apply(conn: IOConnection, ctx: IOContext, cb: Callback.T[Unit]): Unit =
         ec.execute(new Tick(cb))
     })
 

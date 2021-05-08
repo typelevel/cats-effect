@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -164,7 +164,7 @@ object Timer {
       val clock: Clock[Resource[F, *]] = Clock.deriveResource
 
       def sleep(duration: FiniteDuration): Resource[F, Unit] =
-        Resource.liftF(timer.sleep(duration))
+        Resource.eval(timer.sleep(duration))
     }
 
   implicit class TimerOps[F[_]](val self: Timer[F]) extends AnyVal {

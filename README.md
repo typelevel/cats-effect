@@ -1,44 +1,39 @@
 # Cats Effect
 
-[![Build Status](https://travis-ci.org/typelevel/cats-effect.svg?branch=master)](https://travis-ci.org/typelevel/cats-effect) [![Gitter](https://img.shields.io/gitter/room/typelevel/cats-effect.svg)](https://gitter.im/typelevel/cats-effect) [![Latest version](https://index.scala-lang.org/typelevel/cats-effect/cats-effect/latest.svg?color=orange)](https://index.scala-lang.org/typelevel/cats-effect/cats-effect)
+[![Gitter](https://img.shields.io/gitter/room/typelevel/cats-effect.svg)](https://gitter.im/typelevel/cats-effect) [![Latest version](https://index.scala-lang.org/typelevel/cats-effect/cats-effect/latest.svg?color=orange)](https://index.scala-lang.org/typelevel/cats-effect/cats-effect)
 
-> For when purity just isn't impure enough.
+Cats Effect is a high-performance, asynchronous, composable framework for building real-world applications in a purely functional style within the [Typelevel](https://typelevel.org) ecosystem. It provides a concrete tool, known as "the `IO` monad", for capturing and controlling *actions*, often referred to as "effects", that your program wishes to perform within a resource-safe, typed context with seamless support for concurrency and coordination. These effects may be asynchronous (callback-driven) or synchronous (directly returning values); they may return within microseconds or run infinitely.
 
-This project aims to provide a standard `IO` type ([doc](https://typelevel.org/cats-effect/datatypes/io.html) / [api](https://typelevel.org/cats-effect/api/cats/effect/IO.html)) for the [Cats](http://typelevel.org/cats/) ecosystem, as well as a set of typeclasses (and associated laws!) which characterize general effect types. This project was *explicitly* designed with the constraints of the JVM and of JavaScript in mind. Critically, this means two things:
-
-- Manages both synchronous *and* asynchronous (callback-driven) effects
-- Compatible with a single-threaded runtime
-
-In this way, `IO` is more similar to common `Task` implementations than it is to the classic `scalaz.effect.IO` or even Haskell's `IO`, both of which are purely synchronous in nature. As Haskell's runtime uses green threading, a synchronous `IO` (and the requisite thread blocking) makes a lot of sense. With Scala though, we're either on a runtime with native threads (the JVM) or only a single thread (JavaScript), meaning that asynchronous effects are every bit as important as synchronous ones.
+Even more importantly, Cats Effect defines a set of typeclasses which define what it means to *be* a purely functional runtime system. These abstractions power a thriving ecosystem consisting of streaming frameworks, JDBC database layers, HTTP servers and clients, asynchronous clients for systems like Redis and MongoDB, and so much more! Additionally, you can leverage these abstractions within your own application to unlock powerful capabilities with little-or-no code changes, for example solving problems such as dependency injection, multiple error channels, shared state across modules, tracing, and more.
 
 ## Usage
 
 Versions of Cats Effect:
 
-- Stable: `2.1.3`
+- Stable: `2.3.1`
 
-See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/master/versioning.md) for more information on our compatibility and semantic versioning policies.
+See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/series/2.x/versioning.md) for more information on our compatibility and semantic versioning policies.
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect" % "2.1.3"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "2.3.1"
 ```
 
 Cats Effect relies on improved type inference and needs partial unification enabled as described in the Cats [Getting Started](https://github.com/typelevel/cats#getting-started) documentation.
 
-If your project uses Scala.js, replace the double-`%` with a triple. Note that **cats-effect** has an upstream dependency on **cats-core** version 2.x.
+If your project uses ScalaJS, replace the double-`%` with a triple. Note that **cats-effect** has an upstream dependency on **cats-core** version 2.x.
 
-Cross-builds are available for Scala 2.12.x and 2.13.x, with Scala.js builds targeting both 0.6.x and 1.0.x.
+Cross-builds are available for Scala 2.12.x, 2.13.x, 3.0.x, with ScalaJS builds targeting 1.x.
 
 The most current snapshot (or major release) can be found in the maven badge at the top of this readme. If you are a very brave sort, you are free to depend on snapshots; they are stable versions, as they are derived from the git hash rather than an unstable `-SNAPSHOT` suffix, but they do not come with any particular confidence or compatibility guarantees.
 
-Please see [this document](https://github.com/typelevel/cats-effect/blob/master/verifying-releases.md) for information on how to cryptographically verify the integrity of cats-effect releases. You should *absolutely* be doing this! It takes five minutes and eliminates the need to trust a third-party with your classpath.
+Please see [this document](https://github.com/typelevel/cats-effect/blob/series/2.x/verifying-releases.md) for information on how to cryptographically verify the integrity of cats-effect releases. You should *absolutely* be doing this! It takes five minutes and eliminates the need to trust a third-party with your classpath.
 
 ### Laws
 
-The **cats-effect-laws** artifact provides [Discipline-style](https://github.com/typelevel/discipline) laws for the `Sync`, `Async`, `Concurrent`, `Effect` and `ConcurrentEffect` typeclasses (`LiftIO` is lawless, but highly parametric). It is relatively easy to use these laws to test your own implementations of these typeclasses. Take a look [here](https://github.com/typelevel/cats-effect/tree/master/laws/shared/src/main/scala/cats/effect/laws) for more.
+The **cats-effect-laws** artifact provides [Discipline-style](https://github.com/typelevel/discipline) laws for the `Sync`, `Async`, `Concurrent`, `Effect` and `ConcurrentEffect` typeclasses (`LiftIO` is lawless, but highly parametric). It is relatively easy to use these laws to test your own implementations of these typeclasses. Take a look [here](https://github.com/typelevel/cats-effect/tree/series/2.x/laws/shared/src/main/scala/cats/effect/laws) for more.
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "2.1.3" % "test"
+libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "2.3.1" % "test"
 ```
 
 These laws are compatible with both Specs2 and ScalaTest.
@@ -64,10 +59,10 @@ These are some well known libraries that depend on `cats-effect`:
 | [Ciris](https://cir.is) | Lightweight, extensible, and validated configuration loading in Scala |
 | [Doobie](http://tpolecat.github.io/doobie/) | A principled JDBC layer for Scala |
 | [Eff](http://atnos-org.github.io/eff/) | Extensible Effects for Scala |
-| [Fs2](https://functional-streams-for-scala.github.io/fs2/) | Functional Streams for Scala (Streaming I/O library) |
+| [Fs2](https://fs2.io/) | Functional Streams for Scala (Streaming I/O library) |
 | [Finch](https://finagle.github.io/finch/) | Scala combinator API for building Finagle HTTP services |
 | [Http4s](http://http4s.org/) | Typeful, functional, streaming HTTP for Scala |
-| [Monix](https://monix.io/) | Asynchronous, Reactive Programming for Scala and Scala.js |
+| [Monix](https://monix.io/) / [Monix BIO](https://bio.monix.io/) | Asynchronous, Reactive Programming for Scala and ScalaJS |
 | [Pure Config](https://pureconfig.github.io/) | A boilerplate-free library for loading configuration files |
 | [Scala Cache](https://cb372.github.io/scalacache/) | A facade for the most popular cache implementations for Scala |
 | [Sttp](http://sttp.readthedocs.io/en/latest/) | The Scala HTTP client you always wanted |
@@ -91,7 +86,7 @@ These are some of the projects that provide high-level functions on top of `cats
 
 ## Development
 
-We use the standard pull request driven github workflow. Pull requests are always welcome, even if it's for something as minor as a whitespace tweak! If you're a maintainer, you are expected to do your work in pull requests, rather than pushing directly to master. Ideally, someone other than yourself will merge and push your PR to master. However, if you've received at least one explicit 👍 from another maintainer (or significant volume of 👍 from the general Cats community), you may merge your own PR in the interest of moving forward with important efforts. Please don't abuse this policy.
+We use the standard pull request driven github workflow. Pull requests are always welcome, even if it's for something as minor as a whitespace tweak! If you're a maintainer, you are expected to do your work in pull requests, rather than pushing directly to the main branch. Ideally, someone other than yourself will merge your PR. However, if you've received at least one explicit 👍 from another maintainer (or significant volume of 👍 from the general Cats community), you may merge your own PR in the interest of moving forward with important efforts. Please don't abuse this policy.
 
 Do *not* rebase commits that have been PR'd! That history doesn't belong to you anymore, and it is not yours to rewrite. This goes for maintainers and contributors alike. Rebasing locally is completely fine (and encouraged), since linear history is pretty and checkpoint commits are not. Just don't rebase something that's already out there unless you've *explicitly* marked it as a work in progress (e.g. `[WIP]`) in some clear and unambiguous way.
 
@@ -107,18 +102,24 @@ You can build the microsite with `sbt microsite/makeMicrosite`.
 To preview your changes you need to have
 [jekyll](https://github.com/jekyll/jekyll) installed. This depends on your
 platform, but assuming you have ruby installed it could be as simple as `gem
-install jekyll`.
+install jekyll jekyll-relative-links sass`. Alternatively, you can use the provided
+[Gemfile](https://bundler.io/gemfile.html) under `site` to install jekyll
+and the required plugins.
 
 Start a local server by navigating to `site/target/site`, then run `jekyll
-serve`. Finally point your browser at
+serve -b /cats-effect`. Finally point your browser at
 [http://localhost:4000/cats-effect/](http://localhost:4000/cats-effect/). Any
 changes should be picked up immediately when you re-run `sbt
 microsite/makeMicrosite`.
 
+## Tool Sponsorship
+
+<img width="185px" height="44px" align="right" src="https://www.yourkit.com/images/yklogo.png"/>Development of Cats Effect is generously supported in part by [YourKit](https://www.yourkit.com) through the use of their excellent Java profiler.
+
 ## License
 
 ```
-Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -133,4 +134,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-[Code of Conduct]: https://github.com/typelevel/cats-effect/blob/master/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/typelevel/cats-effect/blob/series/2.x/CODE_OF_CONDUCT.md

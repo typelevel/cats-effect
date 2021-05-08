@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package cats.effect
 
 import cats.effect.concurrent.Ref
-import cats.implicits._
 import cats.kernel.Eq
 import cats.laws.discipline._
 import org.scalacheck.Arbitrary
@@ -29,5 +28,5 @@ class RefTests extends BaseTestsSuite {
 
   implicit def eqRef[A: Eq]: Eq[Ref[IO, A]] = Eq.by(_.get.unsafeRunSync())
 
-  checkAll("Ref[IO, *]", InvariantTests[Ref[IO, *]].invariant[Int, Int, Int])
+  checkAllAsync("Ref[IO, *]", _ => InvariantTests[Ref[IO, *]].invariant[Int, Int, Int])
 }

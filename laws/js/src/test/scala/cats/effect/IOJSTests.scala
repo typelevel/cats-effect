@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,12 @@
 
 package cats.effect
 
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AsyncFunSuite
-
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.scalajs.js.timers.setTimeout
 
-class IOJSTests extends AsyncFunSuite with Matchers {
-  implicit override def executionContext =
+class IOJSTests extends CatsEffectSuite {
+  implicit val executionContext: ExecutionContext =
     ExecutionContext.global
 
   def delayed[A](duration: FiniteDuration)(f: => A): IO[A] =
@@ -33,9 +30,7 @@ class IOJSTests extends AsyncFunSuite with Matchers {
     }
 
   test("unsafeToFuture works") {
-    delayed(100.millis)(10).unsafeToFuture().map { r =>
-      r shouldEqual 10
-    }
+    delayed(100.millis)(10).unsafeToFuture().map(assertEquals(_, 10))
   }
 
   test("unsafeRunSync is unsupported for async stuff") {
@@ -45,7 +40,7 @@ class IOJSTests extends AsyncFunSuite with Matchers {
         fail("Expected UnsupportedOperationException")
       } catch {
         case _: UnsupportedOperationException =>
-          succeed
+          assert(true)
       }
     }
   }

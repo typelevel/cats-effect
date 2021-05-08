@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,15 +30,18 @@ object Test {
       fDerived
     }
 
-  def g2[F[+_, +_]](implicit F: Sync[F[Throwable, ?]]): Resource[F[Throwable, ?], Either[Base, Nothing]] =
+  def g2[F[+_, +_]](implicit F: Sync[F[Throwable, *]]): Resource[F[Throwable, *], Either[Base, Nothing]] = {
+    // Dotty does not have +* kind projector syntax
+    type PartiallyApplied[+A] = F[Throwable, A]
     Resource
-      .liftF[F[Throwable, +?], Either[Base, Nothing]](f[F[Throwable, +?]])
+      .eval[PartiallyApplied, Either[Base, Nothing]](f[PartiallyApplied])
       .map(x => x)
+  }
 
   // this one fails, but not the above
   def g[F[+_]](implicit F: Sync[F]): Resource[F, Either[Base, Nothing]] =
     Resource
-      .liftF[F, Either[Base, Nothing]](f[F])
+      .eval[F, Either[Base, Nothing]](f[F])
       .map(x => x)
       .flatMap(x => Resource.pure[F, Either[Base, Nothing]](x))
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,7 +50,9 @@ final class Blocker private (val blockingContext: ExecutionContext) extends AnyV
    * `blockOn` as a natural transformation.
    */
   def blockOnK[F[_]](implicit cs: ContextShift[F]): F ~> F =
-    λ[F ~> F](blockOn(_))
+    new (F ~> F) {
+      def apply[A](fa: F[A]): F[A] = blockOn(fa)
+    }
 }
 
 object Blocker extends BlockerPlatform {

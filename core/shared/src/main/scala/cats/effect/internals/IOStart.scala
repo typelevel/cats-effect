@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.{ContextShift, Fiber, IO}
-import cats.implicits._
+import cats.syntax.all._
 import scala.concurrent.Promise
 
 private[effect] object IOStart {
@@ -26,7 +26,7 @@ private[effect] object IOStart {
    * Implementation for `IO.start`.
    */
   def apply[A](cs: ContextShift[IO], fa: IO[A]): IO[Fiber[IO, A]] = {
-    val start: Start[Fiber[IO, A]] = (_, cb) => {
+    val start: Start[Fiber[IO, A]] = (_, _, cb) => {
       // Memoization
       val p = Promise[Either[Throwable, A]]()
 

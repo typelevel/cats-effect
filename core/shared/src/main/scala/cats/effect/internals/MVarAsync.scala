@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,10 +43,10 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
     }
 
   def tryPut(a: A): F[Boolean] =
-    F.suspend(unsafeTryPut(a))
+    F.defer(unsafeTryPut(a))
 
   val tryTake: F[Option[A]] =
-    F.suspend(unsafeTryTake())
+    F.defer(unsafeTryTake())
 
   val take: F[A] =
     F.flatMap(tryTake) {
@@ -76,6 +76,20 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
         case WaitForTake(_, _) => false
       }
     }
+
+  def use[B](f: A => F[B]): F[B] =
+    modify(a => F.map(f(a))((a, _)))
+
+  def modify[B](f: A => F[(A, B)]): F[B] =
+    F.flatMap(take) { a =>
+      F.flatMap(F.onError(f(a)) { case _ => put(a) }) {
+        case (newA, b) =>
+          F.as(put(newA), b)
+      }
+    }
+
+  def modify_(f: A => F[A]): F[Unit] =
+    modify(a => F.map(f(a))((_, ())))
 
   @tailrec
   private def unsafeTryPut(a: A): F[Boolean] =

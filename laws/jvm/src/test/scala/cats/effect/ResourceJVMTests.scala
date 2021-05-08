@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ class ResourceJVMTests extends BaseTestsSuite {
       .use(_ => IO.pure("Hello world"))
       .unsafeRunSync()
 
-    result shouldBe "Hello world"
-    destroyed shouldBe true
+    assertEquals(result, "Hello world")
+    assertEquals(destroyed, true)
   }
 }

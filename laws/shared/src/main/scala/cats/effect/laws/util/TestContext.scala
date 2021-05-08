@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package cats.effect.laws.util
 
 import cats.effect.internals.Callback.T
-import cats.effect.internals.{IOConnection, IOForkedStart, IOShift}
+import cats.effect.internals.{IOConnection, IOContext, IOForkedStart, IOShift}
 import cats.effect._
 
 import scala.collection.immutable.SortedSet
@@ -190,7 +190,7 @@ final class TestContext private () extends ExecutionContext { self =>
 
       override def shift: F[Unit] =
         F.liftIO(IO.Async(new IOForkedStart[Unit] {
-          def apply(conn: IOConnection, cb: T[Unit]): Unit =
+          def apply(conn: IOConnection, ctx: IOContext, cb: T[Unit]): Unit =
             self.execute(tick(cb))
         }))
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,15 +44,6 @@ private[effect] object IOPlatform {
         )
     }
   }
-
-  /**
-   * Establishes the maximum stack depth for `IO#map` operations
-   * for JavaScript.
-   *
-   * The default for JavaScript is 32, from which we subtract 1
-   * as an optimization.
-   */
-  final val fusionMaxStackDepth = 31
 
   /** Returns `true` if the underlying platform is the JVM,
    * `false` if it's JavaScript. */

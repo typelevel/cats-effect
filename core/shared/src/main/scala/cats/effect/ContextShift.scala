@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,7 +85,10 @@ object ContextShift {
   /**
    * `evalOn` as a natural transformation.
    */
-  def evalOnK[F[_]](ec: ExecutionContext)(implicit cs: ContextShift[F]): F ~> F = λ[F ~> F](cs.evalOn(ec)(_))
+  def evalOnK[F[_]](ec: ExecutionContext)(implicit cs: ContextShift[F]): F ~> F =
+    new (F ~> F) {
+      def apply[A](fa: F[A]): F[A] = cs.evalOn(ec)(fa)
+    }
 
   /**
    * Derives a [[ContextShift]] instance for `cats.data.EitherT`,

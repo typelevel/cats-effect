@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package cats
 package effect
 package laws
 
-import cats.implicits._
+import cats.syntax.all._
 import cats.laws._
 
 trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {

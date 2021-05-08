@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package cats
 package effect
 package internals
 
+import scala.concurrent.ExecutionContext
+
 private[effect] object IOAppPlatform {
   def main(args: Array[String], contextShift: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(
     run: List[String] => IO[ExitCode]
@@ -27,7 +29,10 @@ private[effect] object IOAppPlatform {
       // Return naturally from main. This allows any non-daemon
       // threads to gracefully complete their work, and managed
       // environments to execute their own shutdown hooks.
-      ()
+      if (NonDaemonThreadLogger.isEnabled())
+        new NonDaemonThreadLogger().start()
+      else
+        ()
     } else {
       sys.exit(code)
     }
@@ -54,6 +59,9 @@ private[effect] object IOAppPlatform {
 
   def defaultContextShift: ContextShift[IO] =
     IOContextShift(PoolUtils.ioAppGlobal)
+
+  def defaultExecutionContext: ExecutionContext =
+    PoolUtils.ioAppGlobal
 
   private def installHook(fiber: Fiber[IO, Int]): IO[Unit] =
     IO {

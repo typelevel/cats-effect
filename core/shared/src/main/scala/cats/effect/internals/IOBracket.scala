@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,26 +30,35 @@ private[effect] object IOBracket {
    * Implementation for `IO.bracketCase`.
    */
   def apply[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
-    IO.Async { (conn, cb) =>
-      // Placeholder for the future finalizer
-      val deferredRelease = ForwardCancelable()
-      conn.push(deferredRelease.cancel)
-      // Race-condition check, avoiding starting the bracket if the connection
-      // was cancelled already, to ensure that `cancel` really blocks if we
-      // start `acquire` — n.b. `isCanceled` is visible here due to `push`
-      if (!conn.isCanceled) {
-        // Note `acquire` is uncancelable due to usage of `IORunLoop.start`
-        // (in other words it is disconnected from our IOConnection)
-        IORunLoop.start[A](acquire, new BracketStart(use, release, conn, deferredRelease, cb))
-      } else {
-        deferredRelease.complete(IO.unit)
-      }
-    }
+    IOAsync[B](
+      { (conn, ctx, cb) =>
+        // Placeholder for the future finalizer
+        val deferredRelease = ForwardCancelable()
+        conn.push(deferredRelease.cancel)
+        // Race-condition check, avoiding starting the bracket if the connection
+        // was cancelled already, to ensure that `cancel` really blocks if we
+        // start `acquire` — n.b. `isCanceled` is visible here due to `push`
+        if (!conn.isCanceled) {
+          // Note `acquire` is uncancelable due to usage of `IORunLoop.restart`
+          // (in other words it is disconnected from our IOConnection)
+          // We don't need to explicitly pass back a reference to `ctx` because
+          // it is held in `RestartCallback` and `BracketStart`.
+          // Updates to it in the run-loop will be visible when the callback is
+          // invoked, even across asynchronous boundaries.
+          IORunLoop.restart(acquire, ctx, new BracketStart(use, release, ctx, conn, deferredRelease, cb))
+        } else {
+          deferredRelease.complete(IO.unit)
+        }
+      },
+      trampolineAfter = true,
+      traceKey = use
+    )
 
   // Internals of `IO.bracketCase`.
   final private class BracketStart[A, B](
     use: A => IO[B],
     release: (A, ExitCase[Throwable]) => IO[Unit],
+    ctx: IOContext,
     conn: IOConnection,
     deferredRelease: ForwardCancelable,
     cb: Callback.T[B]
@@ -67,6 +76,7 @@ private[effect] object IOBracket {
       // Introducing a light async boundary, otherwise executing the required
       // logic directly will yield a StackOverflowException
       result = ea
+
       ec.execute(this)
     }
 
@@ -87,7 +97,7 @@ private[effect] object IOBracket {
             fb.flatMap(frame)
           }
           // Actual execution
-          IORunLoop.startCancelable(onNext, conn, cb)
+          IORunLoop.restartCancelable(onNext, conn, ctx, cb)
         }
 
       case error @ Left(_) =>
@@ -100,10 +110,10 @@ private[effect] object IOBracket {
    * Implementation for `IO.guaranteeCase`.
    */
   def guaranteeCase[A](source: IO[A], release: ExitCase[Throwable] => IO[Unit]): IO[A] =
-    IO.Async { (conn, cb) =>
-      // Light async boundary, otherwise this will trigger a StackOverflowException
-      ec.execute(new Runnable {
-        def run(): Unit = {
+    IOAsync[A](
+      (conn, ctx, cb) =>
+        // Light async boundary, otherwise this will trigger a StackOverflowException
+        ec.execute { () =>
           val frame = new EnsureReleaseFrame[A](release)
           val onNext = source.flatMap(frame)
           // Registering our cancelable token ensures that in case
@@ -113,11 +123,11 @@ private[effect] object IOBracket {
           // the connection was already cancelled — n.b. we don't need
           // to trigger `release` otherwise, because it already happened
           if (!conn.isCanceled) {
-            IORunLoop.startCancelable(onNext, conn, cb)
+            IORunLoop.restartCancelable(onNext, conn, ctx, cb)
           }
-        }
-      })
-    }
+        },
+      traceKey = release
+    )
 
   final private class BracketReleaseFrame[A, B](a: A, releaseFn: (A, ExitCase[Throwable]) => IO[Unit])
       extends BaseReleaseFrame[A, B] {

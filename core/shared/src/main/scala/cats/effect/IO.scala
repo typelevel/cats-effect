@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package cats
 package effect
 
 import cats.effect.internals._
-import cats.effect.internals.IOPlatform.fusionMaxStackDepth
+import cats.effect.internals.TracingPlatform.{isCachedStackTracing, isFullStackTracing}
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
@@ -26,6 +26,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Left, Right, Success, Try}
 import cats.data.Ior
+import cats.effect.tracing.{IOEvent, IOTrace}
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -77,7 +78,7 @@ import cats.data.Ior
  *       if (n > 0)
  *         fib(n - 1, b, b2)
  *       else
- *         IO.pure(b2)
+ *         IO.pure(a)
  *     }
  * }}}
  */
@@ -100,17 +101,17 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * failures would be completely silent and `IO` references would
    * never terminate on evaluation.
    */
-  final def map[B](f: A => B): IO[B] =
-    this match {
-      case Map(source, g, index) =>
-        // Allowed to do fixed number of map operations fused before
-        // resetting the counter in order to avoid stack overflows;
-        // See `IOPlatform` for details on this maximum.
-        if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
-        else Map(this, f, 0)
-      case _ =>
-        Map(this, f, 0)
+  final def map[B](f: A => B): IO[B] = {
+    val trace = if (isCachedStackTracing) {
+      IOTracing.cached(f.getClass)
+    } else if (isFullStackTracing) {
+      IOTracing.uncached()
+    } else {
+      null
     }
+
+    Map(this, f, trace)
+  }
 
   /**
    * Monadic bind on `IO`, used for sequentially composing two `IO`
@@ -127,8 +128,17 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * failures would be completely silent and `IO` references would
    * never terminate on evaluation.
    */
-  final def flatMap[B](f: A => IO[B]): IO[B] =
-    Bind(this, f)
+  final def flatMap[B](f: A => IO[B]): IO[B] = {
+    val trace = if (isCachedStackTracing) {
+      IOTracing.cached(f.getClass)
+    } else if (isFullStackTracing) {
+      IOTracing.uncached()
+    } else {
+      null
+    }
+
+    Bind(this, f, trace)
+  }
 
   /**
    * Materializes any sequenced exceptions into value space, where
@@ -144,7 +154,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * @see [[IO.raiseError]]
    */
   def attempt: IO[Either[Throwable, A]] =
-    Bind(this, AttemptIO.asInstanceOf[A => IO[Either[Throwable, A]]])
+    Bind(this, AttemptIO.asInstanceOf[A => IO[Either[Throwable, A]]], null)
 
   /**
    * Produces an `IO` reference that should execute the source on
@@ -313,12 +323,13 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * As soon as an async blocking limit is hit, evaluation
    * ''immediately'' aborts and `None` is returned.
    *
-   * Please note that this function is intended for ''testing''; it
-   * should never appear in your mainline production code!  It is
-   * absolutely not an appropriate function to use if you want to
-   * implement timeouts, or anything similar. If you need that sort
-   * of functionality, you should be using a streaming library (like
-   * fs2 or Monix).
+   * This function should never appear in your mainline production code!
+   * If you want to implement timeouts, or anything similar, you should
+   * use `Concurrent.timeout` or `Concurrent.timeoutTo`, which implement
+   * a timeout ''within'' your `IO` program, while permitting proper
+   * resource cleanup and subsequent error handling. `unsafeRunTimed`
+   * should only be used for ''testing'', in cases where you want timeouts to
+   * cause immediate termination of the cats-effect runtime itself.
    *
    * @see [[unsafeRunSync]]
    * @see [[timeout]] for pure and safe version
@@ -327,7 +338,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IORunLoop.step(this) match {
       case Pure(a)       => Some(a)
       case RaiseError(e) => throw e
-      case self @ Async(_, _) =>
+      case self @ Async(_, _, _) =>
         IOPlatform.unsafeResync(self, limit)
       case _ =>
         // $COVERAGE-OFF$
@@ -347,7 +358,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * @see [[IO.fromFuture]]
    */
   final def unsafeToFuture(): Future[A] = {
-    val p = Promise[A]
+    val p = Promise[A]()
     unsafeRunAsync { cb =>
       cb.fold(p.failure, p.success)
       ()
@@ -567,7 +578,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        be released
    */
   final def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
-    bracketCase(use)((a, _) => release(a))
+    IOBracket(this)(use)((a, _) => release(a))
 
   /**
    * Returns a new `IO` task that treats the source task as the
@@ -675,7 +686,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * Implements `ApplicativeError.handleErrorWith`.
    */
   def handleErrorWith[AA >: A](f: Throwable => IO[AA]): IO[AA] =
-    IO.Bind(this, new IOFrame.ErrorHandler(f))
+    IO.Bind(this, new IOFrame.ErrorHandler(f), null)
 
   /**
    * Zips both this action and the parameter in parallel.
@@ -709,7 +720,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        in case it ends in success
    */
   def redeem[B](recover: Throwable => B, map: A => B): IO[B] =
-    IO.Bind(this, new IOFrame.Redeem(recover, map))
+    IO.Bind(this, new IOFrame.Redeem(recover, map), null)
 
   /**
    * Returns a new value that transforms the result of the source,
@@ -741,7 +752,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        in case of success
    */
   def redeemWith[B](recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
-    IO.Bind(this, new IOFrame.RedeemWith(recover, bind))
+    IO.Bind(this, new IOFrame.RedeemWith(recover, bind), null)
 
   override def toString: String = this match {
     case Pure(a)       => s"IO($a)"
@@ -860,6 +871,20 @@ abstract private[effect] class IOLowPriorityInstances extends IOParallelNewtype 
 
     final override def map[A, B](fa: IO[A])(f: A => B): IO[B] =
       fa.map(f)
+
+    // We missed labeling this final when the class was written and changing
+    // in 2.x would break binary compatibility. In cats 3, this should be
+    // final to match the style (although, I don't think there is a performance
+    // difference).
+    override def map2Eval[A, B, C](fa: IO[A], fb: Eval[IO[B]])(fn: (A, B) => C): Eval[IO[C]] =
+      // we maybe can skip evaluating fb if fa is a failure
+      Eval.now(
+        for {
+          a <- fa
+          b <- fb.value
+        } yield fn(a, b)
+      )
+
     final override def flatMap[A, B](ioa: IO[A])(f: A => IO[B]): IO[B] =
       ioa.flatMap(f)
 
@@ -886,9 +911,9 @@ abstract private[effect] class IOLowPriorityInstances extends IOParallelNewtype 
     final override def guaranteeCase[A](fa: IO[A])(finalizer: ExitCase[Throwable] => IO[Unit]): IO[A] =
       fa.guaranteeCase(finalizer)
 
-    final override def redeem[A, B](fa: IO[A])(recover: Throwable => B, f: A => B): IO[B] =
+    override def redeem[A, B](fa: IO[A])(recover: Throwable => B, f: A => B): IO[B] =
       fa.redeem(recover, f)
-    final override def redeemWith[A, B](fa: IO[A])(recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
+    override def redeemWith[A, B](fa: IO[A])(recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
       fa.redeemWith(recover, bind)
 
     final override def delay[A](thunk: => A): IO[A] =
@@ -954,9 +979,15 @@ abstract private[effect] class IOInstances extends IOLowPriorityInstances {
       final override val monad: Monad[IO] =
         ioConcurrentEffect(cs)
 
-      final override val sequential: IO.Par ~> IO = λ[IO.Par ~> IO](IO.Par.unwrap(_))
+      final override val sequential: IO.Par ~> IO =
+        new (IO.Par ~> IO) {
+          def apply[A](fa: IO.Par[A]): IO[A] = IO.Par.unwrap(fa)
+        }
 
-      final override val parallel: IO ~> IO.Par = λ[IO ~> IO.Par](IO.Par(_))
+      final override val parallel: IO ~> IO.Par =
+        new (IO ~> IO.Par) {
+          def apply[A](fa: IO[A]): IO.Par[A] = IO.Par(fa)
+        }
     }
 
   implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new IOSemigroup[A] with Monoid[IO[A]] {
@@ -1119,8 +1150,14 @@ object IO extends IOInstances {
    * Any exceptions thrown by the effect will be caught and sequenced
    * into the `IO`.
    */
-  def delay[A](body: => A): IO[A] =
-    Delay(() => body)
+  def delay[A](body: => A): IO[A] = {
+    val nextIo = Delay(() => body)
+    if (isFullStackTracing) {
+      IOTracing.decorated(nextIo)
+    } else {
+      nextIo
+    }
+  }
 
   /**
    * Suspends a synchronous side effect which produces an `IO` in `IO`.
@@ -1130,8 +1167,14 @@ object IO extends IOInstances {
    * thrown by the side effect will be caught and sequenced into the
    * `IO`.
    */
-  def suspend[A](thunk: => IO[A]): IO[A] =
-    Suspend(() => thunk)
+  def suspend[A](thunk: => IO[A]): IO[A] = {
+    val nextIo = Suspend(() => thunk)
+    if (isFullStackTracing) {
+      IOTracing.decorated(nextIo)
+    } else {
+      nextIo
+    }
+  }
 
   /**
    * Suspends a pure value in `IO`.
@@ -1143,7 +1186,14 @@ object IO extends IOInstances {
    * (when evaluated) than `IO(42)`, due to avoiding the allocation of
    * extra thunks.
    */
-  def pure[A](a: A): IO[A] = Pure(a)
+  def pure[A](a: A): IO[A] = {
+    val nextIo = Pure(a)
+    if (isFullStackTracing) {
+      IOTracing.decorated(nextIo)
+    } else {
+      nextIo
+    }
+  }
 
   /** Alias for `IO.pure(())`. */
   val unit: IO[Unit] = pure(())
@@ -1209,11 +1259,11 @@ object IO extends IOInstances {
    * @see [[asyncF]] and [[cancelable]]
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
-    Async { (_, cb) =>
+    IOAsync[A]((_, _, cb) => {
       val cb2 = Callback.asyncIdempotent(null, cb)
       try k(cb2)
       catch { case NonFatal(t) => cb2(Left(t)) }
-    }
+    }, traceKey = k)
 
   /**
    * Suspends an asynchronous side effect in `IO`, this being a variant
@@ -1240,18 +1290,21 @@ object IO extends IOInstances {
    * @see [[async]] and [[cancelable]]
    */
   def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
-    Async { (conn, cb) =>
-      // Must create new connection, otherwise we can have a race
-      // condition b/t the bind continuation and `startCancelable` below
-      val conn2 = IOConnection()
-      conn.push(conn2.cancel)
-      // The callback handles "conn.pop()"
-      val cb2 = Callback.asyncIdempotent(conn, cb)
-      val fa =
-        try k(cb2)
-        catch { case NonFatal(t) => IO(cb2(Left(t))) }
-      IORunLoop.startCancelable(fa, conn2, Callback.report)
-    }
+    IOAsync[A](
+      (conn, _, cb) => {
+        // Must create new connection, otherwise we can have a race
+        // condition b/t the bind continuation and `startCancelable` below
+        val conn2 = IOConnection()
+        conn.push(conn2.cancel)
+        // The callback handles "conn.pop()"
+        val cb2 = Callback.asyncIdempotent(conn, cb)
+        val fa =
+          try k(cb2)
+          catch { case NonFatal(t) => IO(cb2(Left(t))) }
+        IORunLoop.startCancelable(fa, conn2, Callback.report)
+      },
+      traceKey = k
+    )
 
   /**
    * Builds a cancelable `IO`.
@@ -1293,25 +1346,28 @@ object IO extends IOInstances {
    *      the underlying cancelation model
    */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): IO[A] =
-    Async { (conn, cb) =>
-      val cb2 = Callback.asyncIdempotent(conn, cb)
-      val ref = ForwardCancelable()
-      conn.push(ref.cancel)
-      // Race condition test — no need to execute `k` if it was already cancelled,
-      // ensures that fiber.cancel will always wait for the finalizer if `k`
-      // is executed — note that `isCanceled` is visible here due to `push`
-      if (!conn.isCanceled)
-        ref.complete(
-          try k(cb2)
-          catch {
-            case NonFatal(t) =>
-              cb2(Left(t))
-              IO.unit
-          }
-        )
-      else
-        ref.complete(IO.unit)
-    }
+    IOAsync[A](
+      (conn, _, cb) => {
+        val cb2 = Callback.asyncIdempotent(conn, cb)
+        val ref = ForwardCancelable()
+        conn.push(ref.cancel)
+        // Race condition test — no need to execute `k` if it was already cancelled,
+        // ensures that fiber.cancel will always wait for the finalizer if `k`
+        // is executed — note that `isCanceled` is visible here due to `push`
+        if (!conn.isCanceled)
+          ref.complete(
+            try k(cb2)
+            catch {
+              case NonFatal(t) =>
+                cb2(Left(t))
+                IO.unit
+            }
+          )
+        else
+          ref.complete(IO.unit)
+      },
+      traceKey = k
+    )
 
   /**
    * Constructs an `IO` which sequences the specified exception.
@@ -1323,7 +1379,14 @@ object IO extends IOInstances {
    *
    * @see [[IO#attempt]]
    */
-  def raiseError[A](e: Throwable): IO[A] = RaiseError(e)
+  def raiseError[A](e: Throwable): IO[A] = {
+    val nextIo = RaiseError(e)
+    if (isFullStackTracing) {
+      IOTracing.decorated(nextIo)
+    } else {
+      nextIo
+    }
+  }
 
   /**
    * Constructs an `IO` which evaluates the given `Future` and
@@ -1481,7 +1544,7 @@ object IO extends IOInstances {
    * }}}
    */
   val cancelBoundary: IO[Unit] = {
-    val start: Start[Unit] = (_, cb) => cb(Callback.rightUnit)
+    val start: Start[Unit] = (_, _, cb) => cb(Callback.rightUnit)
     Async(start, trampolineAfter = true)
   }
 
@@ -1562,8 +1625,61 @@ object IO extends IOInstances {
   def contextShift(ec: ExecutionContext): ContextShift[IO] =
     IOContextShift(ec)
 
+  /**
+   * Returns the accumulated trace of the currently active fiber.
+   */
+  val trace: IO[IOTrace] =
+    IO.Async { (_, ctx, cb) =>
+      cb(Right(ctx.trace()))
+    }
+
+  /**
+   * Returns the given argument if `cond` is true, otherwise `IO.Unit`
+   *
+   * @see [[IO.unlessA]] for the inverse
+   * @see [[IO.raiseWhen]] for conditionally raising an error
+   */
+  def whenA(cond: Boolean)(action: => IO[Unit]): IO[Unit] =
+    Applicative[IO].whenA(cond)(action)
+
+  /**
+   * Returns the given argument if `cond` is false, otherwise `IO.Unit`
+   *
+   * @see [[IO.whenA]] for the inverse
+   * @see [[IO.raiseWhen]] for conditionally raising an error
+   */
+  def unlessA(cond: Boolean)(action: => IO[Unit]): IO[Unit] =
+    Applicative[IO].unlessA(cond)(action)
+
+  /**
+   * Returns `raiseError` when the `cond` is true, otherwise `IO.unit`
+   *
+   * @example {{{
+   * val tooMany = 5
+   * val x: Int = ???
+   * IO.raiseWhen(x >= tooMany)(new IllegalArgumentException("Too many"))
+   * }}}
+   */
+  def raiseWhen(cond: Boolean)(e: => Throwable): IO[Unit] =
+    IO.whenA(cond)(IO.raiseError(e))
+
+  /**
+   * Returns `raiseError` when `cond` is false, otherwise IO.unit
+   *
+   * @example {{{
+   * val tooMany = 5
+   * val x: Int = ???
+   * IO.raiseUnless(x < tooMany)(new IllegalArgumentException("Too many"))
+   * }}}
+   */
+  def raiseUnless(cond: Boolean)(e: => Throwable): IO[Unit] =
+    IO.unlessA(cond)(IO.raiseError(e))
+
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
   /* IO's internal encoding: */
+  // In the Bind, Map, and Async constructors, you will notice that traces
+  // are typed as an `AnyRef`. This seems to avoid a performance hit when
+  // tracing is disabled, particularly with the C2 JIT compiler.
 
   /** Corresponds to [[IO.pure]]. */
   final private[effect] case class Pure[+A](a: A) extends IO[A]
@@ -1578,12 +1694,12 @@ object IO extends IOInstances {
   final private[effect] case class Suspend[+A](thunk: () => IO[A]) extends IO[A]
 
   /** Corresponds to [[IO.flatMap]]. */
-  final private[effect] case class Bind[E, +A](source: IO[E], f: E => IO[A]) extends IO[A]
+  final private[effect] case class Bind[E, +A](source: IO[E], f: E => IO[A], trace: AnyRef) extends IO[A]
 
   /** Corresponds to [[IO.map]]. */
-  final private[effect] case class Map[E, +A](source: IO[E], f: E => A, index: Int) extends IO[A] with (E => IO[A]) {
+  final private[effect] case class Map[E, +A](source: IO[E], f: E => A, trace: AnyRef) extends IO[A] with (E => IO[A]) {
     override def apply(value: E): IO[A] =
-      new Pure(f(value))
+      Pure(f(value))
   }
 
   /**
@@ -1601,9 +1717,12 @@ object IO extends IOInstances {
    *        signal downstream
    */
   final private[effect] case class Async[+A](
-    k: (IOConnection, Either[Throwable, A] => Unit) => Unit,
-    trampolineAfter: Boolean = false
+    k: (IOConnection, IOContext, Either[Throwable, A] => Unit) => Unit,
+    trampolineAfter: Boolean = false,
+    trace: AnyRef = null
   ) extends IO[A]
+
+  final private[effect] case class Trace[A](source: IO[A], trace: IOEvent) extends IO[A]
 
   /**
    * An internal state for that optimizes changes to

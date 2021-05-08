@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,17 +19,12 @@ package cats.effect
 import cats.Eq
 import cats.effect.concurrent.Ref
 import cats.effect.implicits._
-import cats.implicits._
-import org.scalatest.compatible.Assertion
-import org.scalatest.funsuite.AsyncFunSuite
-import org.scalatest.Succeeded
-import org.scalatest.matchers.should.Matchers
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
 
-class AsyncTests extends AsyncFunSuite with Matchers {
-  implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
+class AsyncTests extends CatsEffectSuite {
+  implicit val executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val timer: Timer[IO] = IO.timer(executionContext)
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
@@ -38,14 +33,12 @@ class AsyncTests extends AsyncFunSuite with Matchers {
   private def awaitEqual[A: Eq](t: IO[A], success: A): IO[Unit] =
     t.flatMap(a => if (Eq[A].eqv(a, success)) IO.unit else smallDelay *> awaitEqual(t, success))
 
-  private def run(t: IO[Unit]): Future[Assertion] = t.as(Succeeded).unsafeToFuture()
-
   test("F.parTraverseN(n)(collection)(f)") {
     val finalValue = 100
     val r = Ref.unsafe[IO, Int](0)
     val list = List.range(0, finalValue)
     val modifies = implicitly[Async[IO]].parTraverseN(3)(list)(_ => IO.shift *> r.update(_ + 1))
-    run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
+    (IO.shift *> modifies.start *> awaitEqual(r.get, finalValue)).as(assert(true))
   }
 
   test("F.parSequenceN(n)(collection)") {
@@ -53,6 +46,6 @@ class AsyncTests extends AsyncFunSuite with Matchers {
     val r = Ref.unsafe[IO, Int](0)
     val list = List.fill(finalValue)(IO.shift *> r.update(_ + 1))
     val modifies = implicitly[Async[IO]].parSequenceN(3)(list)
-    run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
+    (IO.shift *> modifies.start *> awaitEqual(r.get, finalValue)).as(assert(true))
   }
 }

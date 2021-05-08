@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ private[effect] trait ResourcePlatform {
    * {{{
    *   import java.security.KeyStore.PasswordProtection
    *   import cats.effect._
-   *   import cats.implicits._
+   *   import cats.syntax.all._
    *
    *   def passwordProtection[F[_]](getPassword: F[Array[Char]])(implicit F: Sync[F]): Resource[F, PasswordProtection] =
    *     Resource.fromDestroyable(

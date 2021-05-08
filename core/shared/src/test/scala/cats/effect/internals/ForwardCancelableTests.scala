@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,26 +14,25 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
 import cats.effect.IO
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AnyFunSuite
 
-class ForwardCancelableTests extends AnyFunSuite with Matchers {
+class ForwardCancelableTests extends CatsEffectSuite {
   test("cancel() after complete") {
     var effect = 0
 
     val ref = ForwardCancelable()
     ref.complete(IO(effect += 1))
-    effect shouldBe 0
+    assertEquals(effect, 0)
 
     ref.cancel.unsafeRunAsyncAndForget()
-    effect shouldBe 1
+    assertEquals(effect, 1)
 
     // Weak idempotency guarantees (not thread-safe)
     ref.cancel.unsafeRunAsyncAndForget()
-    effect shouldBe 1
+    assertEquals(effect, 1)
   }
 
   test("cancel() before complete") {
@@ -41,17 +40,17 @@ class ForwardCancelableTests extends AnyFunSuite with Matchers {
 
     val ref = ForwardCancelable()
     ref.cancel.unsafeRunAsyncAndForget()
-    effect shouldBe 0
+    assertEquals(effect, 0)
 
     ref.complete(IO(effect += 1))
-    effect shouldBe 1
+    assertEquals(effect, 1)
 
     intercept[IllegalStateException](ref.complete(IO(effect += 2)))
     // completed task was canceled before error was thrown
-    effect shouldBe 3
+    assertEquals(effect, 3)
 
     ref.cancel.unsafeRunAsyncAndForget()
-    effect shouldBe 3
+    assertEquals(effect, 3)
   }
 
   test("complete twice before cancel") {
@@ -59,12 +58,12 @@ class ForwardCancelableTests extends AnyFunSuite with Matchers {
 
     val ref = ForwardCancelable()
     ref.complete(IO(effect += 1))
-    effect shouldBe 0
+    assertEquals(effect, 0)
 
     intercept[IllegalStateException](ref.complete(IO(effect += 2)))
-    effect shouldBe 2
+    assertEquals(effect, 2)
 
     ref.cancel.unsafeRunAsyncAndForget()
-    effect shouldBe 3
+    assertEquals(effect, 3)
   }
 }

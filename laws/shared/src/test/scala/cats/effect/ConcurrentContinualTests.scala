@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,29 +16,27 @@
 
 package cats.effect
 
-import cats.effect.concurrent.Ref
-import cats.implicits._
+import cats.effect.concurrent.{Deferred, Ref}
 import cats.effect.implicits._
-import scala.util.Success
-import cats.effect.concurrent.Deferred
-import org.scalatest.funsuite.AsyncFunSuite
+import cats.syntax.all._
 
-class ContinualHangingTest extends AsyncFunSuite {
+import scala.concurrent.ExecutionContext
+import scala.util.Success
+
+class ContinualHangingTest extends CatsEffectSuite {
   test("Concurrent.continual can be canceled immediately after starting") {
+    implicit val executionContext = ExecutionContext.global
     implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
-    val task =
-      Deferred[IO, Unit]
-        .flatMap { started =>
-          (started.complete(()) *> IO.never: IO[Unit])
-            .continual(_ => IO.unit)
-            .start
-            .flatMap(started.get *> _.cancel)
-        }
-        .replicateA(10000)
-        .as(true)
-
-    task.unsafeToFuture.map(result => assert(result == true))
+    Deferred[IO, Unit]
+      .flatMap { started =>
+        (started.complete(()) *> IO.never: IO[Unit])
+          .continual(_ => IO.unit)
+          .start
+          .flatMap(started.get *> _.cancel)
+      }
+      .replicateA(10000)
+      .as(assert(true))
   }
 }
 
@@ -58,7 +56,7 @@ class ConcurrentContinualTests extends BaseTestsSuite {
 
     val f = task.unsafeToFuture()
     ec.tick(1.second)
-    f.value shouldBe Some(Success(true))
+    assertEquals(f.value, Some(Success(true)))
   }
 
   testAsync("Concurrent.continual backpressures on finalizers") { implicit ec =>
@@ -77,10 +75,10 @@ class ConcurrentContinualTests extends BaseTestsSuite {
     val f = task.unsafeToFuture()
 
     ec.tick(1.second)
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick(1.second)
-    f.value shouldBe Some(Success(true))
+    assertEquals(f.value, Some(Success(true)))
   }
 
   testAsync("Concurrent.continual behaves like flatMap on the happy path") { implicit ec =>
@@ -89,7 +87,7 @@ class ConcurrentContinualTests extends BaseTestsSuite {
 
     val f = task.unsafeToFuture()
     ec.tick()
-    f.value shouldBe Some(Success(3))
+    assertEquals(f.value, Some(Success(3)))
   }
 
   testAsync("Concurrent.continual behaves like handleErrorWith on errors") { implicit ec =>
@@ -100,7 +98,7 @@ class ConcurrentContinualTests extends BaseTestsSuite {
 
     val f = task.unsafeToFuture()
     ec.tick()
-    f.value shouldBe Some(Success(ex))
+    assertEquals(f.value, Some(Success(ex)))
   }
 
   testAsync("Concurrent.continual propagates errors in the continuation") { implicit ec =>
@@ -111,7 +109,7 @@ class ConcurrentContinualTests extends BaseTestsSuite {
 
     val f = task.unsafeToFuture()
     ec.tick()
-    f.value shouldBe Some(Success(ex))
+    assertEquals(f.value, Some(Success(ex)))
   }
 
   testAsync("Concurrent.continual respects the continual guarantee") { implicit ec =>
@@ -129,9 +127,9 @@ class ConcurrentContinualTests extends BaseTestsSuite {
     val f = task.unsafeToFuture()
 
     ec.tick(1.second)
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick(1.second)
-    f.value shouldBe Some(Success(true))
+    assertEquals(f.value, Some(Success(true)))
   }
 }

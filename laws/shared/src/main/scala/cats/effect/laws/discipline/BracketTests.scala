@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 import cats.effect.laws.discipline.arbitrary.catsEffectLawsCogenForExitCase
 import org.scalacheck._
 import Prop.forAll
+
+import scala.annotation.nowarn
 
 trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
   def laws: BracketLaws[F, E]
@@ -73,6 +75,7 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
       )
     }
 
+  @nowarn("msg=never used")
   def bracketTrans[M[_], A: Arbitrary: Eq, B: Arbitrary: Eq](fromM: M ~> F)(implicit
                                                                             ArbFA: Arbitrary[F[A]],
                                                                             ArbFB: Arbitrary[F[B]],

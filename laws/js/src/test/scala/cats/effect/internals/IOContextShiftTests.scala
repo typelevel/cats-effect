@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,9 +24,9 @@ class IOContextShiftTests extends BaseTestsSuite {
     val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val f = contextShift.shift.map(_ => 1).unsafeToFuture()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe Some(Success(1))
+    assertEquals(f.value, Some(Success(1)))
   }
 }

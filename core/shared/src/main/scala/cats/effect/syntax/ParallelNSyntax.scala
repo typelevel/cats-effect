@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,12 +20,16 @@ import cats.effect.Concurrent
 import cats.effect.implicits._
 import cats.{Monad, Parallel, Traverse}
 
+import scala.annotation.nowarn
+
 trait ParallelNSyntax {
+  @nowarn("msg=never used")
   implicit final def catsSyntaxParallelTraverseNConcurrent[T[_]: Traverse, A](
     ta: T[A]
   ): ParallelTraversableNConcurrentOps[T, A] =
     new ParallelTraversableNConcurrentOps[T, A](ta)
 
+  @nowarn("msg=never used")
   implicit final def catsSyntaxParallelSequenceNConcurrent[T[_]: Traverse, M[_]: Monad, A](
     tma: T[M[A]]
   ): ParallelSequenceNConcurrentOps[T, M, A] = new ParallelSequenceNConcurrentOps[T, M, A](tma)

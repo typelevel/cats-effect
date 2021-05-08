@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,36 +16,24 @@
 
 package cats.effect
 
-import cats.effect.internals.TestUtils
 import cats.effect.laws.util.{TestContext, TestInstances}
-import org.scalactic.source
-import org.scalatest.Tag
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatestplus.scalacheck.Checkers
+import org.scalacheck.Prop
 import org.typelevel.discipline.Laws
-import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class BaseTestsSuite
-    extends AnyFunSuite
-    with Matchers
-    with Checkers
-    with FunSuiteDiscipline
-    with TestInstances
-    with TestUtils {
+class BaseTestsSuite extends CatsEffectSuite with TestInstances {
 
   /** For tests that need a usable [[TestContext]] reference. */
-  def testAsync[A](name: String, tags: Tag*)(f: TestContext => Unit)(implicit pos: source.Position): Unit =
-    // Overriding System.err
-    test(name, tags: _*)(silenceSystemErr(f(TestContext())))(pos)
+  def testAsync(name: String)(f: TestContext => Unit): Unit =
+    test(name)(f(TestContext()))
+
+  def propertyAsync(name: String)(f: TestContext => Prop): Unit =
+    property(name)(f(TestContext()))
 
   def checkAllAsync(name: String, f: TestContext => Laws#RuleSet): Unit = {
     val context = TestContext()
     val ruleSet = f(context)
 
     for ((id, prop) <- ruleSet.all.properties)
-      test(name + "." + id) {
-        silenceSystemErr(check(prop))
-      }
+      property(name + "." + id)(prop)
   }
 }

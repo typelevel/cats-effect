@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package cats.effect
 
 import cats.effect.laws.discipline.EffectTests
 import cats.effect.laws.discipline.arbitrary._
-import cats.implicits._
 
 /**
  * Tests laws for a dummy data type that is not

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@ import scala.annotation.implicitNotFound
 import scala.concurrent.{Promise, TimeoutException}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Either
-import simulacrum.typeclass
 
 /**
  * Type class for [[Async]] data types that are cancelable and
@@ -191,11 +190,7 @@ import simulacrum.typeclass
  * When doing [[Bracket.bracket bracket]] or [[Bracket.bracketCase bracketCase]],
  * `acquire` and `release` operations are guaranteed to be uncancelable as well.
  */
-@typeclass
-@implicitNotFound("""Cannot find implicit value for Concurrent[${F}].
-Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
-or some equivalent type.""")
+@implicitNotFound("Could not find an instance of Concurrent for ${F}")
 trait Concurrent[F[_]] extends Async[F] {
 
   /**
@@ -410,7 +405,7 @@ object Concurrent {
       case RaiseError(e) => F.raiseError(e)
       case Delay(thunk)  => F.delay(thunk())
       case _ =>
-        F.suspend {
+        F.defer {
           IORunLoop.step(ioa) match {
             case Pure(a)       => F.pure(a)
             case RaiseError(e) => F.raiseError(e)
@@ -517,7 +512,7 @@ object Concurrent {
    *        the source completing, a `TimeoutException` is raised
    */
   def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Concurrent[F], timer: Timer[F]): F[A] = {
-    val timeoutException = F.suspend(F.raiseError[A](new TimeoutException(duration.toString)))
+    val timeoutException = F.defer(F.raiseError[A](new TimeoutException(duration.toString)))
     timeoutTo(fa, duration, timeoutException)
   }
 
@@ -529,7 +524,7 @@ object Concurrent {
    * kept in [[cats.effect.concurrent.Ref]] and thus needing `cancelableF`:
    *
    * {{{
-   *   import cats.implicits._
+   *   import cats.syntax.all._
    *   import cats.effect.{CancelToken, Concurrent}
    *   import cats.effect.concurrent.Ref
    *   import scala.collection.immutable.Queue
@@ -872,4 +867,47 @@ object Concurrent {
         case _                  => F.unit
       }
     }
+
+  /**
+   * Summon an instance of [[Concurrent]] for `F`.
+   */
+  @inline def apply[F[_]](implicit instance: Concurrent[F]): Concurrent[F] = instance
+
+  trait Ops[F[_], A] {
+    type TypeClassType <: Concurrent[F]
+    def self: F[A]
+    val typeClassInstance: TypeClassType
+    def start: F[Fiber[F, A]] = typeClassInstance.start[A](self)
+    def background: Resource[F, F[A]] = typeClassInstance.background[A](self)
+    def racePair[B](fb: F[B]): F[Either[(A, Fiber[F, B]), (Fiber[F, A], B)]] =
+      typeClassInstance.racePair[A, B](self, fb)
+    def race[B](fb: F[B]): F[Either[A, B]] = typeClassInstance.race[A, B](self, fb)
+    def continual[B](f: Either[Throwable, A] => F[B]): F[B] = typeClassInstance.continual[A, B](self)(f)
+  }
+  trait AllOps[F[_], A] extends Ops[F, A] with Async.AllOps[F, A] {
+    type TypeClassType <: Concurrent[F]
+  }
+  trait ToConcurrentOps {
+    implicit def toConcurrentOps[F[_], A](target: F[A])(implicit tc: Concurrent[F]): Ops[F, A] {
+      type TypeClassType = Concurrent[F]
+    } = new Ops[F, A] {
+      type TypeClassType = Concurrent[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
+  }
+  object nonInheritedOps extends ToConcurrentOps
+
+  // indirection required to avoid spurious static forwarders that conflict on case-insensitive filesystems (scala-js/scala-js#4148)
+  class ops$ {
+    implicit def toAllConcurrentOps[F[_], A](target: F[A])(implicit tc: Concurrent[F]): AllOps[F, A] {
+      type TypeClassType = Concurrent[F]
+    } = new AllOps[F, A] {
+      type TypeClassType = Concurrent[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
+  }
+  // TODO this lacks a MODULE$ field; is that okay???
+  val ops = new ops$
 }

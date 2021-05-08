@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ final private[internals] class IOTimer(ec: ExecutionContext) extends Timer[IO] {
 
   def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {
-      def apply(conn: IOConnection, cb: Either[Throwable, Unit] => Unit): Unit = {
+      def apply(conn: IOConnection, ctx: IOContext, cb: Either[Throwable, Unit] => Unit): Unit = {
         val task = setTimeout(timespan.toMillis, ec, new ScheduledTick(conn, cb))
         // On the JVM this would need a ForwardCancelable,
         // but not on top of JS as we don't have concurrency

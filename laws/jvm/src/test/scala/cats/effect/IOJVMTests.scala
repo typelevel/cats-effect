@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,15 +19,12 @@ package cats.effect
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-import org.scalatest._
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AnyFunSuite
 import cats.syntax.all._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
-class IOJVMTests extends AnyFunSuite with Matchers {
+class IOJVMTests extends CatsEffectSuite {
   val ThreadName = "test-thread"
 
   val TestEC = new ExecutionContext {
@@ -66,12 +63,12 @@ class IOJVMTests extends AnyFunSuite with Matchers {
 
     val (n1, n2, n3, n4, n5, n6) = test.unsafeRunSync()
 
-    n1 shouldEqual ThreadName
-    n2 shouldEqual ThreadName
-    (n3 should not).equal(ThreadName)
-    (n4 should not).equal(ThreadName)
-    n5 shouldEqual ThreadName
-    n6 shouldEqual ThreadName
+    assertEquals(n1, ThreadName)
+    assertEquals(n2, ThreadName)
+    assertNotEquals(n3, ThreadName)
+    assertNotEquals(n4, ThreadName)
+    assertEquals(n5, ThreadName)
+    assertEquals(n6, ThreadName)
   }
 
   test("unsafeRunTimed(Duration.Undefined) throws exception") {
@@ -88,7 +85,7 @@ class IOJVMTests extends AnyFunSuite with Matchers {
     val received = never.unsafeRunTimed(100.millis)
     val elapsed = System.currentTimeMillis() - start
 
-    received shouldEqual None
+    assertEquals(received, None)
     assert(elapsed >= 100)
   }
 
@@ -101,7 +98,7 @@ class IOJVMTests extends AnyFunSuite with Matchers {
 
     for (_ <- 0 until 1000) {
       val r = (io1, io2).parMapN(_ + _).unsafeRunSync()
-      r shouldEqual 3
+      assertEquals(r, 3)
     }
   }
 
@@ -155,6 +152,6 @@ class IOJVMTests extends AnyFunSuite with Matchers {
       Thread.currentThread().getName()
     }
 
-    ioa.unsafeRunSync() shouldEqual ThreadName
+    assertEquals(ioa.unsafeRunSync(), ThreadName)
   }
 }

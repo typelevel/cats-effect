@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,11 +35,11 @@ final private[effect] class ForwardCancelable private () {
   private[this] val state = new AtomicReference[State](init)
 
   val cancel: CancelToken[IO] = {
-    @tailrec def loop(conn: IOConnection, cb: Callback.T[Unit]): Unit =
+    @tailrec def loop(conn: IOConnection, ctx: IOContext, cb: Callback.T[Unit]): Unit =
       state.get() match {
         case current @ Empty(list) =>
           if (!state.compareAndSet(current, Empty(cb :: list)))
-            loop(conn, cb)
+            loop(conn, ctx, cb)
 
         case Active(token) =>
           state.lazySet(finished) // GC purposes

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AnyFunSuite
-
-class ArrayStackTests extends AnyFunSuite with Matchers with TestUtils {
+class ArrayStackTests extends CatsEffectSuite {
   test("push and pop 8 items") {
     val stack = new ArrayStack[String]()
     var times = 0
@@ -34,9 +32,9 @@ class ArrayStackTests extends AnyFunSuite with Matchers with TestUtils {
         list = stack.pop() :: list
       }
 
-      list shouldBe (0 until 8).map(_.toString).toList
-      stack.pop().asInstanceOf[AnyRef] shouldBe null
-      stack.isEmpty shouldBe true
+      assertEquals(list, (0 until 8).map(_.toString).toList)
+      assertEquals(stack.pop().asInstanceOf[AnyRef], null)
+      assertEquals(stack.isEmpty, true)
 
       times += 1
     }
@@ -56,9 +54,9 @@ class ArrayStackTests extends AnyFunSuite with Matchers with TestUtils {
         list = stack.pop() :: list
       }
 
-      list shouldBe (0 until 100).map(_.toString).toList
-      stack.pop().asInstanceOf[AnyRef] shouldBe null
-      stack.isEmpty shouldBe true
+      assertEquals(list, (0 until 100).map(_.toString).toList)
+      assertEquals(stack.pop().asInstanceOf[AnyRef], null)
+      assertEquals(stack.isEmpty, true)
 
       times += 1
     }
@@ -77,10 +75,10 @@ class ArrayStackTests extends AnyFunSuite with Matchers with TestUtils {
       list = stack.pop() :: list
     }
 
-    list shouldBe (0 until 100).map(_.toString).toList.reverse
-    stack.pop().asInstanceOf[AnyRef] shouldBe null
-    stack.isEmpty shouldBe true
-    stack2.isEmpty shouldBe false
+    assertEquals(list, (0 until 100).map(_.toString).toList.reverse)
+    assertEquals(stack.pop().asInstanceOf[AnyRef], null)
+    assertEquals(stack.isEmpty, true)
+    assertEquals(stack2.isEmpty, false)
   }
 
   test("pushAll(iterable)") {
@@ -94,15 +92,15 @@ class ArrayStackTests extends AnyFunSuite with Matchers with TestUtils {
       list = stack.pop() :: list
     }
 
-    list shouldBe expected
-    stack.pop().asInstanceOf[AnyRef] shouldBe null
-    stack.isEmpty shouldBe true
+    assertEquals(list, expected)
+    assertEquals(stack.pop().asInstanceOf[AnyRef], null)
+    assertEquals(stack.isEmpty, true)
   }
 
   test("iterator") {
     val stack = new ArrayStack[String]()
     val expected = (0 until 100).map(_.toString).toList
     for (i <- expected) stack.push(i)
-    stack.iteratorReversed.toList shouldBe expected.reverse
+    assertEquals(stack.iteratorReversed.toList, expected.reverse)
   }
 }

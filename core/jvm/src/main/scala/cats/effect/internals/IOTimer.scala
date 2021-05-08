@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ final private[internals] class IOTimer private (ec: ExecutionContext, sc: Schedu
 
   override def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {
-      def apply(conn: IOConnection, cb: T[Unit]): Unit = {
+      def apply(conn: IOConnection, ctx: IOContext, cb: T[Unit]): Unit = {
         // Doing what IO.cancelable does
         val ref = ForwardCancelable()
         conn.push(ref.cancel)

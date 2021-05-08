@@ -1,3 +1,0 @@
--J-Xmx4G
--J-XX:ReservedCodeCacheSize=256m
--J-XX:MaxMetaspaceSize=512m

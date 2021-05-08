@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,16 +21,19 @@ import cats.data._
 import cats.effect.Sync._
 import cats.effect.laws.discipline._
 import cats.effect.laws.discipline.arbitrary._
-import cats.implicits._
 import cats.laws.discipline.arbitrary._
 
 class InstancesTests extends BaseTestsSuite {
+  import cats.effect.laws.discipline.{AsyncTests, ConcurrentTests}
   checkAllAsync("StateT[IO, S, *]", implicit ec => AsyncTests[StateT[IO, Int, *]].async[Int, Int, Int])
 
   checkAllAsync(
     "StateT[IO, S, *]",
     implicit ec => {
-      val fromState = λ[State[Int, *] ~> StateT[IO, Int, *]](st => StateT(s => IO.pure(st.run(s).value)))
+      val fromState = new (State[Int, *] ~> StateT[IO, Int, *]) {
+        def apply[A](fa: State[Int, A]): StateT[IO, Int, A] =
+          StateT(s => IO.pure(fa.run(s).value))
+      }
       BracketTests[StateT[IO, Int, *], Throwable].bracketTrans[State[Int, *], Int, Int](fromState)
     }
   )
@@ -43,7 +46,9 @@ class InstancesTests extends BaseTestsSuite {
   checkAllAsync(
     "OptionT[IO, *]",
     implicit ec => {
-      val fromOption = λ[Option ~> OptionT[IO, *]](OptionT.fromOption(_))
+      val fromOption = new (Option ~> OptionT[IO, *]) {
+        def apply[A](fa: Option[A]): OptionT[IO, A] = OptionT.fromOption(fa)
+      }
       BracketTests[OptionT[IO, *], Throwable].bracketTrans[Option, Int, Int](fromOption)
     }
   )
@@ -66,7 +71,9 @@ class InstancesTests extends BaseTestsSuite {
   checkAllAsync(
     "EitherT[IO, Throwable, *]",
     implicit ec => {
-      val fromEither = λ[Either[Throwable, *] ~> EitherT[IO, Throwable, *]](EitherT.fromEither(_))
+      val fromEither = new (Either[Throwable, *] ~> EitherT[IO, Throwable, *]) {
+        def apply[A](fa: Either[Throwable, A]): EitherT[IO, Throwable, A] = EitherT.fromEither(fa)
+      }
       BracketTests[EitherT[IO, Throwable, *], Throwable].bracketTrans[Either[Throwable, *], Int, Int](fromEither)
     }
   )
@@ -82,7 +89,10 @@ class InstancesTests extends BaseTestsSuite {
   checkAllAsync(
     "WriterT[IO, Int, *]",
     implicit ec => {
-      val fromWriter = λ[Writer[Int, *] ~> WriterT[IO, Int, *]](w => WriterT(IO.pure(w.run)))
+      val fromWriter = new (Writer[Int, *] ~> WriterT[IO, Int, *]) {
+        def apply[A](fa: Writer[Int, A]): WriterT[IO, Int, A] =
+          WriterT(IO.pure(fa.run))
+      }
       BracketTests[WriterT[IO, Int, *], Throwable].bracketTrans[Writer[Int, *], Int, Int](fromWriter)
     }
   )
@@ -95,7 +105,9 @@ class InstancesTests extends BaseTestsSuite {
   checkAllAsync(
     "IorT[IO, Int, *]",
     implicit ec => {
-      val fromIor = λ[Ior[Int, *] ~> IorT[IO, Int, *]](IorT.fromIor(_))
+      val fromIor = new (Ior[Int, *] ~> IorT[IO, Int, *]) {
+        def apply[A](fa: Ior[Int, A]): IorT[IO, Int, A] = IorT.fromIor(fa)
+      }
       BracketTests[IorT[IO, Int, *], Throwable].bracketTrans[Ior[Int, *], Int, Int](fromIor)
     }
   )
@@ -107,9 +119,10 @@ class InstancesTests extends BaseTestsSuite {
     "ReaderWriterStateT[IO, S, *]",
     implicit ec => {
       val fromReaderWriterState =
-        λ[ReaderWriterState[Int, Int, Int, *] ~> ReaderWriterStateT[IO, Int, Int, Int, *]](st =>
-          ReaderWriterStateT((e, s) => IO.pure(st.run(e, s).value))
-        )
+        new (ReaderWriterState[Int, Int, Int, *] ~> ReaderWriterStateT[IO, Int, Int, Int, *]) {
+          def apply[A](fa: ReaderWriterState[Int, Int, Int, A]): ReaderWriterStateT[IO, Int, Int, Int, A] =
+            ReaderWriterStateT((e, s) => IO.pure(fa.run(e, s).value))
+        }
       BracketTests[ReaderWriterStateT[IO, Int, Int, Int, *], Throwable]
         .bracketTrans[ReaderWriterState[Int, Int, Int, *], Int, Int](fromReaderWriterState)
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ private[effect] trait BlockerPlatform {
           val b = List.newBuilder[Runnable]
           val itr = tasks.iterator
           while (itr.hasNext) b += itr.next
-          NonEmptyList.fromList(b.result)
+          NonEmptyList.fromList(b.result())
         }
         F.flatMap(tasks) {
           case Some(t) => F.raiseError(new OutstandingTasksAtShutdown(t))

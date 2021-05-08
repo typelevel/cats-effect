@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,8 +53,8 @@ private[effect] object IOForkedStart {
   @tailrec def detect(task: IO[_], limit: Int = 8): Boolean =
     if (limit > 0) {
       task match {
-        case IO.Async(k, _)                => k.isInstanceOf[IOForkedStart[_]]
-        case IO.Bind(other, _)             => detect(other, limit - 1)
+        case IO.Async(k, _, _)             => k.isInstanceOf[IOForkedStart[_]]
+        case IO.Bind(other, _, _)          => detect(other, limit - 1)
         case IO.Map(other, _, _)           => detect(other, limit - 1)
         case IO.ContextSwitch(other, _, _) => detect(other, limit - 1)
         case _                             => false
