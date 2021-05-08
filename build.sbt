@@ -279,7 +279,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.FiberErrorHashtable"),
       ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.IORuntime.fiberErrorCbs"),
       ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.unsafe.IORuntime.this"),
-      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.IORuntime.<init>$default$6")
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.IORuntime.<init>$default$6"),
+      // introduced by #1947, SyncIO#>> parameter should be by-name
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.SyncIO.>>")
     )
   )
   .jvmSettings(
