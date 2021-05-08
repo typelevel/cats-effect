@@ -17,7 +17,7 @@
 package cats.effect
 package unsafe
 
-abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
+private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
 
   protected final val Default: IORuntimeConfig = {
     val cancelationCheckThreshold =
