@@ -45,8 +45,8 @@ class Footer extends React.Component {
           </div>
           <div>
             <h5>Community</h5>
-            <a href="https://typelevel.org/blog/">Blog</a>
-            <a href="https://gitter.im/typelevel/cats-effect">Gitter</a>
+            <a target="_blank" href="https://typelevel.org/blog/">Blog</a>
+            <a target="_blank" href="https://discord.gg/HmPs7rAtEY">Discord</a>
           </div>
           <div>
             <h5>More</h5>
