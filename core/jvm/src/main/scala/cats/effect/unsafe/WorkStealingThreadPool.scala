@@ -188,12 +188,12 @@ private[effect] final class WorkStealingThreadPool(
    *               passed along to the striped concurrent queues when executing
    *               their enqueue operations
    */
-  private[unsafe] def notifyParked(random: ThreadLocalRandom): Unit = {
+  private[unsafe] def notifyParked(random: ThreadLocalRandom): Boolean = {
     // Find a worker thread to unpark.
     if (!notifyShouldWakeup()) {
       // There are enough searching and/or running worker threads.
       // Unparking a new thread would probably result in unnecessary contention.
-      return
+      return false
     }
 
     // Unpark a worker thread.
@@ -213,11 +213,13 @@ private[effect] final class WorkStealingThreadPool(
         state.getAndAdd(DeltaSearching)
         val worker = workerThreads(index)
         LockSupport.unpark(worker)
-        return
+        return true
       }
 
       i += 1
     }
+
+    false
   }
 
   /**
@@ -264,6 +266,7 @@ private[effect] final class WorkStealingThreadPool(
     // batched queue, look for work in the external queue.
     if (overflowQueue.nonEmpty()) {
       notifyParked(random)
+      ()
     }
   }
 
@@ -307,6 +310,7 @@ private[effect] final class WorkStealingThreadPool(
       // If this was the only searching thread, wake a thread up to potentially help out
       // with the local work queue.
       notifyParked(random)
+      ()
     }
   }
 
@@ -357,6 +361,7 @@ private[effect] final class WorkStealingThreadPool(
       val random = ThreadLocalRandom.current()
       overflowQueue.offer(fiber, random)
       notifyParked(random)
+      ()
     }
   }
 
