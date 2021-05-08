@@ -15,3 +15,4 @@ benchmarks/results
 .bloop
 .bundle
 project/metals.sbt
+/website/i18n/en.json
