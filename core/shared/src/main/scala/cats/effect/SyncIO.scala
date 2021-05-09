@@ -258,6 +258,12 @@ sealed abstract class SyncIO[+A] private () {
 
           conts.push(AttemptK)
           runLoop(cur.ioa)
+
+        case 9 =>
+          runLoop(succeeded(System.currentTimeMillis().millis, 0))
+
+        case 10 =>
+          runLoop(succeeded(System.nanoTime().nanos, 0))
       }
 
     @tailrec
@@ -409,7 +415,7 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
     }
 
   val monotonic: SyncIO[FiniteDuration] =
-    Suspend(Delay, () => System.nanoTime().nanos)
+    Monotonic
 
   /**
    * Suspends a pure value in `SyncIO`.
@@ -443,7 +449,7 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
     Error(t)
 
   val realTime: SyncIO[FiniteDuration] =
-    Suspend(Delay, () => System.currentTimeMillis().millis)
+    RealTime
 
   private[this] val _unit: SyncIO[Unit] =
     Pure(())
@@ -603,5 +609,13 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
 
   private final case class Attempt[+A](ioa: SyncIO[A]) extends SyncIO[Either[Throwable, A]] {
     def tag = 8
+  }
+
+  private final case object RealTime extends SyncIO[FiniteDuration] {
+    def tag = 9
+  }
+
+  private final case object Monotonic extends SyncIO[FiniteDuration] {
+    def tag = 10
   }
 }
