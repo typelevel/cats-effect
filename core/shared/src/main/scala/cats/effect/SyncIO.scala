@@ -544,7 +544,7 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
         SyncIO.realTime
 
       def suspend[A](hint: Sync.Type)(thunk: => A): SyncIO[A] =
-        SyncIO(thunk)
+        Suspend(hint, () => thunk)
 
       override def attempt[A](fa: SyncIO[A]): SyncIO[Either[Throwable, A]] =
         fa.attempt
