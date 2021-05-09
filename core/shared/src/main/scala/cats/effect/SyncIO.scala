@@ -202,7 +202,7 @@ sealed abstract class SyncIO[+A] private () {
           runLoop(succeeded(cur.value, 0))
 
         case 1 =>
-          val cur = cur0.asInstanceOf[SyncIO.Delay[Any]]
+          val cur = cur0.asInstanceOf[SyncIO.Suspend[Any]]
 
           var error: Throwable = null
           val r =
@@ -353,6 +353,8 @@ private[effect] trait SyncIOLowPriorityImplicits {
 
 object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
 
+  private[this] val Delay = Sync.Type.Delay
+
   // constructors
 
   /**
@@ -365,7 +367,7 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
    * @return a `SyncIO` that will be evaluated to the side effectful expression `thunk`
    */
   def apply[A](thunk: => A): SyncIO[A] =
-    Delay(() => thunk)
+    Suspend(Delay, () => thunk)
 
   /**
    * Suspends a synchronous side effect which produces a `SyncIO` in `SyncIO`.
@@ -407,7 +409,7 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
     }
 
   val monotonic: SyncIO[FiniteDuration] =
-    Delay(() => System.nanoTime().nanos)
+    Suspend(Delay, () => System.nanoTime().nanos)
 
   /**
    * Suspends a pure value in `SyncIO`.
@@ -441,7 +443,7 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
     Error(t)
 
   val realTime: SyncIO[FiniteDuration] =
-    Delay(() => System.currentTimeMillis().millis)
+    Suspend(Delay, () => System.currentTimeMillis().millis)
 
   private[this] val _unit: SyncIO[Unit] =
     Pure(())
@@ -570,7 +572,7 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
     override def toString: String = s"SyncIO($value)"
   }
 
-  private final case class Delay[+A](thunk: () => A) extends SyncIO[A] {
+  private final case class Suspend[+A](hint: Sync.Type, thunk: () => A) extends SyncIO[A] {
     def tag = 1
   }
 
