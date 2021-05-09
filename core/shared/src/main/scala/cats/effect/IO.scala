@@ -1234,6 +1234,24 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       case Failure(err) => raiseError(err)
     }
 
+  /**
+   * Lifts a `SyncIO[A]` into the `IO[A]` context.
+   */
+  def fromSyncIO[A](sio: SyncIO[A]): IO[A] =
+    sio match {
+      case SyncIO.Pure(a) => IO.pure(a)
+      case SyncIO.Suspend(hint, thunk) => IO.suspend(hint)(thunk())
+      case SyncIO.Error(t) => IO.raiseError(t)
+      case SyncIO.Map(sioe, f) => fromSyncIO(sioe).map(f)
+      case SyncIO.FlatMap(sioe, f) => fromSyncIO(sioe).flatMap(f.andThen(fromSyncIO))
+      case SyncIO.HandleErrorWith(sioa, f) =>
+        fromSyncIO(sioa).handleErrorWith(f.andThen(fromSyncIO))
+      case SyncIO.Success(_) | SyncIO.Failure(_) => sys.error("impossible")
+      case SyncIO.Attempt(sioa) => fromSyncIO(sioa).attempt
+      case SyncIO.RealTime => IO.realTime
+      case SyncIO.Monotonic => IO.monotonic
+    }
+
   // instances
 
   implicit def showForIO[A: Show]: Show[IO[A]] =
