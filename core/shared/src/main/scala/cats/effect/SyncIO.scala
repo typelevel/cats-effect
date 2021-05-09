@@ -63,7 +63,11 @@ sealed abstract class SyncIO[+A] private () {
    *
    * @see [[SyncIO#flatMap]]
    */
-  def >>[B](that: SyncIO[B]): SyncIO[B] =
+  def >>[B](that: => SyncIO[B]): SyncIO[B] =
+    flatMap(_ => that)
+
+  // Necessary overload to preserve binary compatibility #1947
+  private[effect] def >>[B](that: SyncIO[B]): SyncIO[B] =
     flatMap(_ => that)
 
   /**
