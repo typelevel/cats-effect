@@ -306,7 +306,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Map.this"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.apply"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.copy"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.this")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.this"),
+      // introduced by #1953, Translate `SyncIO` to `F[_]: Sync`
+      // renaming of package private classes
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Delay$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Delay")
     )
   )
   .jvmSettings(
