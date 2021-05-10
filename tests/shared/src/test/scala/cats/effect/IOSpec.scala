@@ -1222,7 +1222,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
       "fromSyncIO" should {
         "lift a SyncIO into IO" in realProp(arbitrarySyncIO[Int].arbitrary) { sio =>
-          val io = IO.fromSyncIO(sio)
+          val io = sio.toIO
 
           for {
             res1 <- IO.delay(sio.unsafeRunSync()).attempt
