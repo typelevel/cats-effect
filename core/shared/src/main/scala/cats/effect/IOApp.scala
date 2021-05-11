@@ -37,7 +37,8 @@ object IOApp {
 
   trait SimpleResourceApp extends ResourceApp {
     def runResource: Resource[IO, Unit]
-    final def runResource(args: List[String]): Resource[IO, ExitCode] = runResource.as(ExitCode.Success)
+    final def runResource(args: List[String]): Resource[IO, ExitCode] =
+      runResource.as(ExitCode.Success)
   }
 
 }
