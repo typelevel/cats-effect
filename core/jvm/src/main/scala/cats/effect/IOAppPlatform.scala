@@ -16,14 +16,11 @@
 
 package cats.effect
 
-import cats.effect.kernel.Resource
-import cats.syntax.all._
-
 import scala.concurrent.{blocking, CancellationException}
 
 import java.util.concurrent.CountDownLatch
 
-trait IOApp {
+trait IOAppPlatform { this: IOApp =>
 
   private[this] var _runtime: unsafe.IORuntime = null
   protected def runtime: unsafe.IORuntime = _runtime
@@ -32,8 +29,6 @@ trait IOApp {
 
   protected def computeWorkerThreadCount: Int =
     Math.max(2, Runtime.getRuntime().availableProcessors())
-
-  def run(args: List[String]): IO[ExitCode]
 
   final def main(args: Array[String]): Unit = {
     if (runtime == null) {
@@ -141,24 +136,6 @@ trait IOApp {
         rt.removeShutdownHook(hook)
         Thread.currentThread().interrupt()
     }
-  }
-}
-
-object IOApp {
-
-  trait Simple extends IOApp {
-    def run: IO[Unit]
-    final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
-  }
-
-  trait ResourceApp extends IOApp {
-    def runResource(args: List[String]): Resource[IO, ExitCode]
-    final def run(args: List[String]): IO[ExitCode] = runResource(args).use(IO.pure(_))
-  }
-
-  trait SimpleResourceApp extends ResourceApp {
-    def runResource: Resource[IO, Unit]
-    final def runResource(args: List[String]): Resource[IO, ExitCode] = runResource.as(ExitCode.Success)
   }
 
 }
