@@ -97,4 +97,14 @@ object IOApp {
     final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
   }
 
+  trait ResourceApp extends IOApp {
+    def runResource(args: List[String]): Resource[IO, ExitCode]
+    final def run(args: List[String]): IO[ExitCode] = runResource(args).use(IO.pure(_))
+  }
+
+  trait SimpleResource extends ResourceApp {
+    def runResource: Resource[IO, Unit]
+    final def runResource(args: List[String]): Resource[IO, ExitCode] = runResource.as(ExitCode.Success)
+  }
+
 }

@@ -16,6 +16,9 @@
 
 package cats.effect
 
+import cats.effect.kernel.Resource
+import cats.syntax.all._
+
 import scala.concurrent.{blocking, CancellationException}
 
 import java.util.concurrent.CountDownLatch
@@ -146,6 +149,16 @@ object IOApp {
   trait Simple extends IOApp {
     def run: IO[Unit]
     final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
+  }
+
+  trait ResourceApp extends IOApp {
+    def runResource(args: List[String]): Resource[IO, ExitCode]
+    final def run(args: List[String]): IO[ExitCode] = runResource(args).use(IO.pure(_))
+  }
+
+  trait SimpleResource extends ResourceApp {
+    def runResource: Resource[IO, Unit]
+    final def runResource(args: List[String]): Resource[IO, ExitCode] = runResource.as(ExitCode.Success)
   }
 
 }
