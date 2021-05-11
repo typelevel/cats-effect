@@ -16,7 +16,6 @@
 
 package cats.effect
 
-import cats.effect.kernel.Resource
 import cats.syntax.all._
 
 trait IOApp extends IOAppPlatform {
