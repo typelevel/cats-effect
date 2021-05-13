@@ -145,7 +145,7 @@ for working with `Concurrent` and thus for getting the
 `ConcurrentEffect` necessary to evaluate an `IO`. It also needs a
 `Timer[IO]` in scope for utilities such as `IO.sleep` and `timeout`.
  
-[ContextShift](contextshift) andgi
+[ContextShift](contextshift) and
 [Timer](timer) are provided by the environment and
 in this case the environment is the `IOApp`. Monix's
 [Task](https://monix.io/docs/3x/eval/task.html) however has global
