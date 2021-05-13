@@ -22,7 +22,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        scala: [3.0.0-RC2, 3.0.0-RC3, 2.12.13, 2.13.5]
+        scala: [3.0.0, 2.12.13, 2.13.5]
         java:
           - adopt@1.8
           - adopt@1.11
@@ -37,9 +37,7 @@ jobs:
           - ci: ciJS
             java: graalvm-ce-java8@21.1
           - os: windows-latest
-            scala: 3.0.0-RC2
-          - os: windows-latest
-            scala: 3.0.0-RC3
+            scala: 3.0.0
           - os: windows-latest
             scala: 2.12.13
           - os: windows-latest
@@ -51,9 +49,7 @@ jobs:
           - ci: ciFirefox
             java: graalvm-ce-java8@21.1
           - os: windows-latest
-            scala: 3.0.0-RC2
-          - os: windows-latest
-            scala: 3.0.0-RC3
+            scala: 3.0.0
           - os: windows-latest
             scala: 2.12.13
           - os: windows-latest
