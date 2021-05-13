@@ -5,7 +5,7 @@ title: Resource
 
 Effectfully allocates and releases a resource. Forms a `MonadError` on the resource type when the effect type has a `Bracket` instance.
 
-The [Acquiring and releasing `Resource`s](../guides/tutorial.md#acquiring-and-releasing-resources) section of the tutorial provides some additional context and examples regarding `Resource`.
+The [Acquiring and releasing `Resource`s](../guides/tutorial#acquiring-and-releasing-resources) section of the tutorial provides some additional context and examples regarding `Resource`.
 
 ```scala mdoc:silent
 import cats.effect.BracketThrow

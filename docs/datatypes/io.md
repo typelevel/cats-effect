@@ -107,7 +107,7 @@ def fib(n: Int, a: Long = 0, b: Long = 1): IO[Long] =
   }
 ```
 
-`IO` implements all the typeclasses shown in the [hierarchy](../typeclasses/overview.md). Therefore
+`IO` implements all the typeclasses shown in the [hierarchy](../typeclasses/overview). Therefore
 all those operations are available for `IO`, in addition to some
 others.
 
@@ -199,7 +199,7 @@ for {
 `IO.cancelable` builders.
 
 `IO.async` is the operation that complies with the laws of
-`Async#async` (see [Async](../typeclasses/async.md)) and can
+`Async#async` (see [Async](../typeclasses/async)) and can
 describe simple asynchronous processes that cannot be canceled,
 its signature being:
 
@@ -620,7 +620,7 @@ being available via `IO#start`, the operation that's compliant with
 def start: IO[Fiber[IO, A]]
 ```
 
-Returned is a [Fiber](fiber.md). You can think of fibers as being
+Returned is a [Fiber](fiber). You can think of fibers as being
 lightweight threads, a fiber being the pure and light equivalent of a
 thread that can be either joined (via `join`) or interrupted (via
 `cancel`).
@@ -683,7 +683,7 @@ cancel.unsafeRunSync()
 ```
 
 The `runCancelable` alternative is the operation that's compliant with
-the laws of [ConcurrentEffect](../typeclasses/concurrent-effect.md).
+the laws of [ConcurrentEffect](../typeclasses/concurrent-effect).
 Same idea, only the actual execution is suspended in `SyncIO`:
 
 ```scala mdoc:silent
@@ -782,7 +782,7 @@ def racePair[A, B](lh: IO[A], rh: IO[B])
 ```
 
 The simple version, `IO.race`, will cancel the loser immediately,
-whereas the second version gives you a [Fiber](fiber.md), letting
+whereas the second version gives you a [Fiber](fiber), letting
 you decide what to do next.
 
 So `race` can be derived with `racePair` like so:
@@ -1189,13 +1189,13 @@ def retryWithBackoff[A](ioa: IO[A], initialDelay: FiniteDuration, maxRetries: In
 
 Note there are 2 overloads of the `IO.shift` function:
 
-- One that takes a [ContextShift](contextshift.md) that manages the thread-pool used to trigger async boundaries.
+- One that takes a [ContextShift](contextshift) that manages the thread-pool used to trigger async boundaries.
 - Another that takes a Scala `ExecutionContext` as the thread-pool.
 
 Please use the former by default and use the latter only for fine-grained control over the thread pool in use.
 
 By default, `Cats Effect` provides an instance of `ContextShift[IO]` that manages thread-pools,
-but only inside an implementation of [IOApp](ioapp.md).
+but only inside an implementation of [IOApp](ioapp).
 Custom instances of `ContextShift[IO]` can be created using an `ExecutionContext`:
 
 ```scala mdoc:reset:silent
@@ -1311,9 +1311,9 @@ def loop(n: Int): IO[Int] =
 Since the introduction of the [Parallel](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/Parallel.scala) typeclasss in the Cats library and its `IO` instance, it became possible to execute two or more given `IO`s in parallel.
 
 Note: all parallel operations require an implicit `ContextShift[IO]` in scope
-(see [ContextShift](contextshift.md)). You have a `ContextShift` in scope if:
+(see [ContextShift](contextshift)). You have a `ContextShift` in scope if:
 
-1. via usage of [IOApp](ioapp.md) that gives you a `ContextShift` by default
+1. via usage of [IOApp](ioapp) that gives you a `ContextShift` by default
 2. the user provides a custom `ContextShift`, which can be created using `IO.contextShift(executionContext)`
 
 ### parMapN

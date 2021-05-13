@@ -150,7 +150,7 @@ with this model.
 
 ## Thread Scheduling
 Working with `cats.effect.IO` you should notice a lot of calls to `IO.shift`, described
-in [Thread Shifting section in `IO` documentation](../datatypes/io.md#thread-shifting)
+in [Thread Shifting section in `IO` documentation](../datatypes/io#thread-shifting)
 
 This function allows to shift computation to different thread pool or simply send it to current `ExecutionContext`
 to schedule it again. This is often called introducing **asynchronous boundary**.
@@ -200,7 +200,7 @@ def infiniteIO(id: Int)(cs: ContextShift[IO]): IO[Fiber[IO, Unit]] = {
 }
 ```
 
-We have two single threaded `ExecutionContexts` (wrapped in [ContextShift](../datatypes/contextshift.md))
+We have two single threaded `ExecutionContexts` (wrapped in [ContextShift](../datatypes/contextshift))
 and a function that will run `IO`, forever printing its identifier.
 Note `repeat.start` and return type of `IO[Fiber[IO, Unit]]` which means that we run this computation in the background.
 It will run on thread pool provided by `cs`, which we will pass explicitly:

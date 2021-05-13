@@ -18,7 +18,7 @@ the producer-consumer problem to introduce cats-effect _fibers_.
 This tutorial assumes certain familiarity with functional programming. It is
 also a good idea to read cats-effect documentation prior to starting this
 tutorial, at least the 
-[excellent documentation about `IO` data type](../datatypes/io.md).
+[excellent documentation about `IO` data type](../datatypes/io).
 
 Please read this tutorial as training material, not as a best-practices
 document. As you gain more experience with cats-effect, probably you will find
@@ -71,7 +71,7 @@ invoked from the shell and uses that function.
 First of all we must code the function that copies the content from a file to
 another file. The function takes the source and destination files as parameters.
 But this is functional programming! So invoking the function shall not copy
-anything, instead it will return an [`IO`](../datatypes/io.md) instance that
+anything, instead it will return an [`IO`](../datatypes/io) instance that
 encapsulates all the side effects involved (opening/closing files,
 reading/writing content), that way _purity_ is kept.  Only when that `IO`
 instance is evaluated all those side-effectful actions will be run. In our
@@ -100,7 +100,7 @@ First, we need to open two streams that will read and write file contents.
 ### Acquiring and releasing `Resource`s
 We consider opening a stream to be a side-effect action, so we have to
 encapsulate those actions in their own `IO` instances. For this, we will make
-use of cats-effect [`Resource`](../datatypes/resource.md), that allows to
+use of cats-effect [`Resource`](../datatypes/resource), that allows to
 orderly create, use and then release resources. See this code:
 
 ```scala
@@ -189,7 +189,7 @@ is any issue opening the output file, then the input stream will be closed.
 
 ### What about `bracket`?
 Now, if you are familiar with cats-effect's
-[`Bracket`](../typeclasses/bracket.md) you may be wondering why we are not using
+[`Bracket`](../typeclasses/bracket) you may be wondering why we are not using
 it as it looks so similar to `Resource` (and there is a good reason for that:
 `Resource` is based on `bracket`). Ok, before moving forward it is worth to take
 a look to `bracket`.
@@ -307,14 +307,14 @@ our case, that would close both streams. So far so good! But what happens if
 cancellation happens _while_ the streams are being used? This could lead to data
 corruption as a stream where some thread is writing to is at the same time being
 closed by another thread. For more info about this problem see
-[Gotcha: Cancellation is a concurrent action](../datatypes/io.md#gotcha-cancellation-is-a-concurrent-action)
+[Gotcha: Cancellation is a concurrent action](../datatypes/io#gotcha-cancellation-is-a-concurrent-action)
 in cats-effect site.
 
 To prevent such data corruption we must use some concurrency control mechanism
 that ensures that no stream will be closed while the `IO` returned by `transfer`
 is being evaluated.  Cats-effect provides several constructs for controlling
 concurrency, for this case we will use a
-[_semaphore_](../concurrency/semaphore.md). A semaphore has a number of permits,
+[_semaphore_](../concurrency/semaphore). A semaphore has a number of permits,
 its method `.acquire` 'blocks' if no permit is available until `release` is
 called on the same semaphore. It is important to remark that _there is no actual
 thread being really blocked_, the thread that finds the `.acquire` call will be
@@ -386,7 +386,7 @@ instances returned by `Resource.use`), the `IO` returned by `transfer` is not.
 Trying to cancel it will not have any effect and that `IO` will run until the
 whole file is copied! In real world code you will probably want to make your
 functions cancelable, section 
-[Building cancelable IO tasks](../datatypes/io.md#building-cancelable-io-tasks) 
+[Building cancelable IO tasks](../datatypes/io#building-cancelable-io-tasks) 
 of `IO` documentation explains how to create such cancelable `IO` instances
 (besides calling `Resource.use`, as we have done for our code).
 
@@ -397,7 +397,7 @@ And that is it! We are done, now we can create a program that uses this
 
 We will create a program that copies files, this program only takes two
 parameters: the name of the origin and destination files. For coding this
-program we will use [`IOApp`](../datatypes/ioapp.md) as it allows to maintain
+program we will use [`IOApp`](../datatypes/ioapp) as it allows to maintain
 purity in our definitions up to the program main function.
 
 `IOApp` is a kind of 'functional' equivalent to Scala's `App`, where instead of
@@ -595,10 +595,10 @@ the fibers in our code.  But the developer can also create new `ContextShift[F]`
 instances using custom thread pools.
 
 Cats-effect implements some concurrency primitives to coordinate concurrent
-fibers: [Deferred](../concurrency/deferred.md),
-[MVar2](../concurrency/mvar.md),
-[Ref](../concurrency/ref.md) and
-[Semaphore](../concurrency/semaphore.md)
+fibers: [Deferred](../concurrency/deferred),
+[MVar2](../concurrency/mvar),
+[Ref](../concurrency/ref) and
+[Semaphore](../concurrency/semaphore)
 (semaphores we already discussed in the first part of this tutorial). It is
 important to understand that, when a fiber gets blocked by some concurrent data
 structure, cats-effect recycles the thread so it becomes available for other
@@ -611,7 +611,7 @@ Way more detailed info about concurrency in cats-effect can be found in [this
 other tutorial 'Concurrency in Scala with
 Cats-Effect'](https://github.com/slouc/concurrency-in-scala-with-ce). It is also
 strongly advised to read the 
-[Concurrency section of cats-effect docs](../concurrency/index.md). But for the
+[Concurrency section of cats-effect docs](../concurrency/index). But for the
 remaining of this tutorial we will focus on a practical approach to those
 concepts.
 
@@ -628,7 +628,7 @@ queue will be an instance of an immutable `Queue[Int]`.
 As accesses to the queue can (and will!) be concurrent, we need some way to
 protect the queue so only one fiber at a time is handling it. The best way to
 ensure an ordered access to some shared data is 
-[Ref](../concurrency/ref.md). A `Ref` instance
+[Ref](../concurrency/ref). A `Ref` instance
 wraps some given data and implements methods to manipulate that data in a safe
 manner. When some fiber is runnning one of those methods, any other call to any
 method of the `Ref` instance will be blocked.

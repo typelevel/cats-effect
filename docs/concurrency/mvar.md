@@ -54,7 +54,7 @@ It has these fundamental (atomic) operations:
 In this context "<i>asynchronous blocking</i>" means that we are not blocking
 any threads. Instead the implementation uses callbacks to notify clients
 when the operation has finished (notifications exposed by means of [Async](../typeclasses/async.md) or
-[Concurrent](../typeclasses/concurrent.md) data types such as [IO](../datatypes/io.md))
+[Concurrent](../typeclasses/concurrent.md) data types such as [IO](../datatypes/io))
 and it thus works on top of JavaScript as well.
 </p>
 

@@ -4,7 +4,7 @@ title: IOApp
 ---
 
 `IOApp` is a safe application type that describes a `main` 
-which executes a [cats.effect.IO](io.md), as an entry point to 
+which executes a [cats.effect.IO](io), as an entry point to 
 a pure FP program.
 
 <nav role="navigation" id="toc"></nav>
@@ -145,14 +145,14 @@ for working with `Concurrent` and thus for getting the
 `ConcurrentEffect` necessary to evaluate an `IO`. It also needs a
 `Timer[IO]` in scope for utilities such as `IO.sleep` and `timeout`.
  
-[ContextShift](contextshift.md) and
-[Timer](timer.md) are provided by the environment and
+[ContextShift](contextshift) andgi
+[Timer](timer) are provided by the environment and
 in this case the environment is the `IOApp`. Monix's
 [Task](https://monix.io/docs/3x/eval/task.html) however has global
 `ContextShift[Task]` and `Timer[Task]` always in scope and doesn't
 need them, but it does need a
 [Scheduler](https://monix.io/docs/3x/execution/scheduler.html) to be
-available for the necessary [Effect](../typeclasses/effect.md) instance. And both
+available for the necessary [Effect](../typeclasses/effect) instance. And both
 Cats-Effect's `IO` and Monix's `Task` are cancelable, in which case it
 is desirable for the `IOApp` / `TaskApp` to install shutdown handlers
 to execute in case of interruption, however our type classes can also
