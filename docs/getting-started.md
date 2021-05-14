@@ -6,7 +6,7 @@ title: Getting Started
 Add the following to your **build.sbt**:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.1.0"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.1.1"
 ```
 
 Naturally, if you're using ScalaJS, you should replace the double `%%` with a triple `%%%`. If you're on Scala 2, it is *highly* recommended that you enable the [better-monadic-for](https://github.com/oleg-py/better-monadic-for) plugin, which fixes a number of surprising elements of the `for`-comprehension syntax in the Scala language:
@@ -56,7 +56,7 @@ We will learn more about constructs like `start` and `*>` in later pages, but fo
 Of course, the easiest way to play with Cats Effect is to try it out in a Scala REPL. We recommend using [Ammonite](https://ammonite.io/#Ammonite-REPL) for this kind of thing. To get started, run the following lines (if not using Ammonite, skip the first line and make sure that Cats Effect and its dependencies are correctly configured on the classpath):
 
 ```scala
-import $ivy.`org.typelevel::cats-effect:3.1.0`
+import $ivy.`org.typelevel::cats-effect:3.1.1`
 
 import cats.effect.unsafe.implicits._ 
 import cats.effect.IO 
@@ -72,7 +72,7 @@ Congratulations, you've just run your first `IO` within the REPL! The `unsafeRun
 The easiest way to write unit tests which use Cats Effect is with [MUnit](https://scalameta.org/munit/) and [MUnit Cats Effect](https://github.com/typelevel/munit-cats-effect). To get started, add the following to your **build.sbt**:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "munit-cats-effect-3" % "0.13.1" % Test
+libraryDependencies += "org.typelevel" %% "munit-cats-effect-3" % "1.0.3" % Test
 ```
 
 With this dependency, you can now write unit tests which directly return `IO` programs without being forced to run them using one of the `unsafe` functions. This is particularly useful if you're either using ScalaJS (where the fact that the `unsafe` functions block the event dispatcher would result in deadlock), or if you simply want your tests to run more efficiently (since MUnit can run them in parallel):
@@ -102,7 +102,7 @@ If MUnit isn't your speed, the [Cats Effect Testing](https://github.com/typeleve
 Simply add a dependency on the module which is appropriate to your test framework of choice. For example, Specs2:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect-testing-specs2" % "1.0.0" % Test
+libraryDependencies += "org.typelevel" %% "cats-effect-testing-specs2" % "1.1.0" % Test
 ```
 
 Once this is done, you can write specifications in the familiar Specs2 style, except where each example may now return in `IO`:
