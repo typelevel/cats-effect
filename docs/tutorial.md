@@ -623,7 +623,7 @@ the output of each fiber and and applies a given function to them. In our case
 both producer and consumer shall run forever until user presses CTRL-C which
 will trigger a cancelation.
 
-Alternatively we could have used `start` method to explicitely create new
+Alternatively we could have used `start` method to explicitly create new
 `Fiber` instances that will run the producer and consumer, then use `join` to
 wait for them to finish, something like:
 
