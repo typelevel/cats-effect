@@ -10,7 +10,7 @@ When created, a `Deferred` is empty. It can then be completed exactly once, and 
 ```scala mdoc:silent
 abstract class Deferred[F[_], A] {
   def get: F[A]
-  def complete(a: A): F[Unit]
+  def complete(a: A): F[Boolean]
 }
 ```
 
