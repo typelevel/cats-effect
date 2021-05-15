@@ -174,20 +174,24 @@ sealed abstract class SyncIO[+A] private () {
   /**
    * Lifts a `SyncIO[A]` into the `IO[A]` context.
    */
-  def toIO: IO[A] =
-    this match {
-      case SyncIO.Pure(a) => IO.pure(a)
-      case SyncIO.Suspend(hint, thunk) => IO.suspend(hint)(thunk())
-      case SyncIO.Error(t) => IO.raiseError(t)
-      case SyncIO.Map(sioe, f) => sioe.toIO.map(f)
-      case SyncIO.FlatMap(sioe, f) => sioe.toIO.flatMap(f.andThen(_.toIO))
-      case SyncIO.HandleErrorWith(sioa, f) =>
-        sioa.toIO.handleErrorWith(f.andThen(_.toIO))
-      case SyncIO.Success(_) | SyncIO.Failure(_) => sys.error("impossible")
-      case self: SyncIO.Attempt[_] => self.ioa.toIO.attempt.asInstanceOf[IO[A]]
-      case _: SyncIO.RealTime.type => IO.realTime.asInstanceOf[IO[A]]
-      case _: SyncIO.Monotonic.type => IO.monotonic.asInstanceOf[IO[A]]
-    }
+  def toIO: IO[A] = {
+    def interpret[B](sio: SyncIO[B]): IO[B] =
+      sio match {
+        case SyncIO.Pure(a) => IO.pure(a)
+        case SyncIO.Suspend(hint, thunk) => IO.suspend(hint)(thunk())
+        case SyncIO.Error(t) => IO.raiseError(t)
+        case SyncIO.Map(sioe, f) => interpret(sioe).map(f)
+        case SyncIO.FlatMap(sioe, f) => interpret(sioe).flatMap(f.andThen(interpret))
+        case SyncIO.HandleErrorWith(sioa, f) =>
+          interpret(sioa).handleErrorWith(f.andThen(interpret))
+        case SyncIO.Success(_) | SyncIO.Failure(_) => sys.error("impossible")
+        case SyncIO.Attempt(sioa) => interpret(sioa).attempt
+        case SyncIO.RealTime => IO.realTime
+        case SyncIO.Monotonic => IO.monotonic
+      }
+
+    interpret(this).uncancelable
+  }
 
   // unsafe
 
