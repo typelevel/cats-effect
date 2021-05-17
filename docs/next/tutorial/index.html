@@ -579,7 +579,7 @@ and runs the fibers that will run the <code>IO</code>s passed as parameter. Then
 the output of each fiber and and applies a given function to them. In our case
 both producer and consumer shall run forever until user presses CTRL-C which
 will trigger a cancelation.</p>
-<p>Alternatively we could have used <code>start</code> method to explicitely create new
+<p>Alternatively we could have used <code>start</code> method to explicitly create new
 <code>Fiber</code> instances that will run the producer and consumer, then use <code>join</code> to
 wait for them to finish, something like:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect._
