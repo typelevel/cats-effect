@@ -1281,7 +1281,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def as[A, B](ioa: IO[A], b: B): IO[B] =
       ioa.as(b)
 
-    override def attempt[A](ioa: IO[A]) =
+    override def attempt[A](ioa: IO[A]): IO[Either[Throwable, A]] =
       ioa.attempt
 
     def forceR[A, B](left: IO[A])(right: IO[B]): IO[B] =
@@ -1354,7 +1354,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     override def blocking[A](thunk: => A): IO[A] = IO.blocking(thunk)
 
-    override def interruptible[A](many: Boolean)(thunk: => A) = IO.interruptible(many)(thunk)
+    override def interruptible[A](many: Boolean)(thunk: => A): IO[A] =
+      IO.interruptible(many)(thunk)
 
     def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
       IO.suspend(hint)(thunk)
