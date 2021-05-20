@@ -36,10 +36,10 @@ import scala.collection.immutable.LongMap
  * `get` on an empty `Deferred` will block until the `Deferred` is completed.
  * `get` on a completed `Deferred` will always immediately return its content.
  *
- * `complete(a)` on an empty `Deferred` will set it to `a`, and notify any and
- * all readers currently blocked on a call to `get`.
+ * `complete(a)` on an empty `Deferred` will set it to `a`, notify any and
+ * all readers currently blocked on a call to `get`, and return true.
  * `complete(a)` on a `Deferred` that has already been completed will not modify
- * its content, and result in a failed `F`.
+ * its content, and return false.
  *
  * Albeit simple, `Deferred` can be used in conjunction with [[Ref]] to build
  * complex concurrent behaviour and data structures like queues and semaphores.
