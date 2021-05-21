@@ -75,18 +75,18 @@ class TestSuite {
   private var _database: Option[(Database, IO[Unit])] = None
   private def database: Database = _database.getOrElse(sys.error("not currently alive!"))._1
 
-  def beforeAll: Unit = {
+  def beforeAll(): Unit = {
     _database = Some(Database.resource.allocated.unsafeRunSync())
     ()
   }
 
-  def afterAll: Unit = {
+  def afterAll(): Unit = {
     _database.foreach(_._2.unsafeRunSync())
     _database = None
   }
 
   /* tests using `database` */
-  def test = {
+  def test(): Unit = {
       assert(database != null)
   }
 }
