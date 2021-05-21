@@ -606,7 +606,7 @@ abstract private[effect] class ResourceMonadError[F[_], E] extends ResourceMonad
           case Left(error)         => (Left(error), (_: ExitCase[Throwable]) => F.unit)
           case Right((a, release)) => (Right(a), release)
         })
-      case Bind(source: Resource[F, s], fs) =>
+      case Bind(source: Resource[_, s], fs) =>
         Suspend(F.pure(source).map[Resource[F, Either[E, A]]] { source =>
           Bind(
             attempt(source),
