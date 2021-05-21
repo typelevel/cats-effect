@@ -24,7 +24,7 @@ import cats.effect.{IO, Resource}
 
 val greet: String => IO[Unit] = x => IO(println("Hello " + x))
 
-Resource.liftF(IO.pure("World")).use(greet).unsafeRunSync()
+Resource.eval(IO.pure("World")).use(greet).unsafeRunSync()
 ```
 
 Moreover it's possible to apply further effects to the wrapped resource without leaving the `Resource` context via `evalMap`:
@@ -116,7 +116,7 @@ def reader[F[_]](file: File, blocker: Blocker)(implicit F: Sync[F], cs: ContextS
 
 def dumpResource[F[_]](res: Resource[F, BufferedReader], blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
   def loop(in: BufferedReader): F[Unit] =
-    F.suspend {
+    F.defer {
       blocker.delay(in.readLine()).flatMap { line =>
         if (line != null) {
           System.out.println(line)
