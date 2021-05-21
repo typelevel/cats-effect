@@ -53,7 +53,7 @@ jobs:
 
       - run: sbt ++${{ matrix.scala }} ci
 
-      - if: matrix.scala == '2.12.13'
+      - if: matrix.scala == '2.13.5'
         run: sbt ++${{ matrix.scala }} docs/mdoc
 
       - name: Scalafix tests

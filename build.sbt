@@ -33,7 +33,7 @@ ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11")
 ThisBuild / githubWorkflowTargetBranches := Seq("series/2.x")
 
 ThisBuild / githubWorkflowBuild +=
-  WorkflowStep.Sbt(List("docs/mdoc"), cond = Some(s"matrix.scala == '$OldScala'"))
+  WorkflowStep.Sbt(List("docs/mdoc"), cond = Some(s"matrix.scala == '$NewScala'"))
 
 ThisBuild / githubWorkflowBuild +=
   WorkflowStep.Run(
