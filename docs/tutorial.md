@@ -619,7 +619,7 @@ The full implementation of this naive producer consumer is available
 Our `run` function instantiates the shared queue wrapped in a `Ref` and boots
 the producer and consumer in parallel. To do to it uses `parMapN`, that creates
 and runs the fibers that will run the `IO`s passed as parameter. Then it takes
-the output of each fiber and and applies a given function to them. In our case
+the output of each fiber and applies a given function to them. In our case
 both producer and consumer shall run forever until user presses CTRL-C which
 will trigger a cancelation.
 
