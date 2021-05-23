@@ -611,7 +611,7 @@ Way more detailed info about concurrency in cats-effect can be found in [this
 other tutorial 'Concurrency in Scala with
 Cats-Effect'](https://github.com/slouc/concurrency-in-scala-with-ce). It is also
 strongly advised to read the 
-[Concurrency section of cats-effect docs](../concurrency/index.md). But for the
+[Concurrency section of cats-effect docs](../concurrency/overview.md). But for the
 remaining of this tutorial we will focus on a practical approach to those
 concepts.
 

@@ -46,7 +46,11 @@ class DeferredTests extends CatsEffectSuite {
         _ <- p.complete(0)
         err <- p.complete(1).attempt
         v <- p.get
-      } yield assert(err.swap.toOption.get.isInstanceOf[IllegalStateException]) && assertEquals(v, 0)
+        _ <- IO.delay {
+          assert(err.swap.toOption.get.isInstanceOf[IllegalStateException])
+          assertEquals(v, 0)
+        }
+      } yield ()
     }
 
     test(s"$label - get blocks until set") {

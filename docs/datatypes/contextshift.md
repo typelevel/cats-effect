@@ -47,7 +47,7 @@ import cats.syntax.all._
 def fib[F[_]](n: Int, a: Long = 0, b: Long = 1)
   (implicit F: Sync[F], cs: ContextShift[F]): F[Long] = {
 
-  F.suspend {
+  F.defer {
     val next = 
       if (n > 0) fib(n - 1, b, a + b)
       else F.pure(a)

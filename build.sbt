@@ -33,7 +33,7 @@ ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11")
 ThisBuild / githubWorkflowTargetBranches := Seq("series/2.x")
 
 ThisBuild / githubWorkflowBuild +=
-  WorkflowStep.Sbt(List("docs/mdoc"), cond = Some(s"matrix.scala == '$OldScala'"))
+  WorkflowStep.Sbt(List("docs/mdoc"), cond = Some(s"matrix.scala == '$NewScala'"))
 
 ThisBuild / githubWorkflowBuild +=
   WorkflowStep.Run(
@@ -60,7 +60,7 @@ ThisBuild / scmInfo := Some(
 
 val CatsVersion = "2.6.1"
 val DisciplineMunitVersion = "1.0.9"
-val SilencerVersion = "1.7.3"
+val SilencerVersion = "1.7.4"
 
 replaceCommandAlias(
   "ci",
@@ -253,8 +253,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       if (isDotty.value)
         Seq(
           // Only way to properly resolve this library
-          ("com.github.ghik" % "silencer-lib_2.13.5" % SilencerVersion % Provided)
-        ).map(_.withDottyCompat(scalaVersion.value))
+          ("com.github.ghik" % "silencer-lib" % SilencerVersion % Provided)
+        ).map(_.cross(CrossVersion.for3Use2_13With("", ".5")))
       else
         Seq(
           compilerPlugin(("com.github.ghik" % "silencer-plugin" % SilencerVersion).cross(CrossVersion.full)),
