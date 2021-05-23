@@ -22,7 +22,7 @@ import scala.sys.process._
 ThisBuild / baseVersion := "2.5"
 
 val OldScala = "2.12.13"
-val NewScala = "2.13.5"
+val NewScala = "2.13.6"
 val Dotty = "3.0.0"
 
 ThisBuild / crossScalaVersions := Seq(Dotty, OldScala, NewScala)
