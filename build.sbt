@@ -219,9 +219,9 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
   .in(file("kernel"))
   .settings(
     name := "cats-effect-kernel",
-    libraryDependencies += "org.specs2" %%% "specs2-core" % Specs2Version % Test)
-  .settings(dottyLibrarySettings)
-  .settings(libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion)
+    libraryDependencies ++= Seq(
+      ("org.specs2" %%% "specs2-core" % Specs2Version % Test).cross(CrossVersion.for3Use2_13),
+      "org.typelevel" %%% "cats-core" % CatsVersion))
   .jsSettings(
     Compile / doc / sources := {
       if (isDotty.value)
@@ -331,7 +331,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies += {
       if (isDotty.value)
         ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
-          .withDottyCompat(scalaVersion.value)
+          .cross(CrossVersion.for3Use2_13)
           .exclude("org.scalacheck", "scalacheck_2.13")
           .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
       else

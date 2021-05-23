@@ -16,11 +16,11 @@
 
 import sbt._, Keys._
 
-import dotty.tools.sbtplugin.DottyPlugin, DottyPlugin.autoImport._
+import sbtspiewak.SpiewakPlugin, SpiewakPlugin.autoImport._
 
 object Common extends AutoPlugin {
 
-  override def requires = plugins.JvmPlugin && DottyPlugin
+  override def requires = plugins.JvmPlugin && SpiewakPlugin
   override def trigger = allRequirements
 
   override def projectSettings =
