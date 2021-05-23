@@ -27,6 +27,13 @@ import org.scalacheck._
 import scala.annotation.nowarn
 
 object arbitrary {
+  private case object SilentThrowable extends Throwable {
+    override def printStackTrace(): Unit = ()
+  }
+
+  implicit def arbitrarySilentThrowable: Arbitrary[Throwable] =
+    Arbitrary(Gen.const(SilentThrowable))
+
   implicit def catsEffectLawsArbitraryForIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]] =
     Arbitrary(Gen.delay(genIO[A]))
 
@@ -60,7 +67,7 @@ object arbitrary {
     getArbitrary[A].map(SyncIO.apply(_))
 
   def genFail[A]: Gen[SyncIO[A]] =
-    getArbitrary[Throwable].map(SyncIO.raiseError)
+    arbitrarySilentThrowable.arbitrary.map(SyncIO.raiseError)
 
   def genAsync[A: Arbitrary]: Gen[IO[A]] =
     getArbitrary[(Either[Throwable, A] => Unit) => Unit].map(IO.async)

@@ -41,13 +41,15 @@ class IOAppTests extends CatsEffectSuite {
   }
 
   test("raised error exits with 1") {
-    silenceSystemErr { () =>
-      IOAppPlatform
-        .mainFiber(Array.empty, Eval.now(implicitly), Eval.now(implicitly))(_ => IO.raiseError(new Exception()))
-        .flatMap(_.join)
-        .map(assertEquals(_, 1))
-        .unsafeRunSync()
+    case object SilentThrowable extends Throwable {
+      override def printStackTrace(): Unit = ()
     }
+
+    IOAppPlatform
+      .mainFiber(Array.empty, Eval.now(implicitly), Eval.now(implicitly))(_ => IO.raiseError(SilentThrowable))
+      .flatMap(_.join)
+      .map(assertEquals(_, 1))
+      .unsafeRunSync()
   }
 
   implicit val executionContext: ExecutionContext = TrampolineEC.immediate
