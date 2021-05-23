@@ -102,7 +102,7 @@ If MUnit isn't your speed, the [Cats Effect Testing](https://github.com/typeleve
 Simply add a dependency on the module which is appropriate to your test framework of choice. For example, Specs2:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect-testing-specs2" % "1.1.0" % Test
+libraryDependencies += "org.typelevel" %% "cats-effect-testing-specs2" % "1.1.1" % Test
 ```
 
 Once this is done, you can write specifications in the familiar Specs2 style, except where each example may now return in `IO`:
