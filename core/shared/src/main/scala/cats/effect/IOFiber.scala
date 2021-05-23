@@ -135,30 +135,7 @@ private final class IOFiber[A](
       }
     } catch {
       case t: Throwable =>
-        Thread.interrupted()
-        currentCtx.reportFailure(t)
-        runtime.shutdown()
-
-        var idx = 0
-        val tables = runtime.fiberErrorCbs.tables
-        val numTables = runtime.fiberErrorCbs.numTables
-        while (idx < numTables) {
-          val table = tables(idx).hashtable
-          val len = table.length
-          table.synchronized {
-            var i = 0
-            while (i < len) {
-              val cb = table(i)
-              if (cb ne null) {
-                cb(t)
-              }
-              i += 1
-            }
-          }
-          idx += 1
-        }
-
-        Thread.currentThread().interrupt()
+        onFatalFailure(t)
     }
   }
 
@@ -1316,6 +1293,33 @@ private final class IOFiber[A](
   private[this] def unmaskFailureK(t: Throwable, depth: Int): IO[Any] = {
     masks += 1
     failed(t, depth + 1)
+  }
+
+  private[this] def onFatalFailure(t: Throwable): Unit = {
+    Thread.interrupted()
+    currentCtx.reportFailure(t)
+    runtime.shutdown()
+
+    var idx = 0
+    val tables = runtime.fiberErrorCbs.tables
+    val numTables = runtime.fiberErrorCbs.numTables
+    while (idx < numTables) {
+      val table = tables(idx).hashtable
+      val len = table.length
+      table.synchronized {
+        var i = 0
+        while (i < len) {
+          val cb = table(i)
+          if (cb ne null) {
+            cb(t)
+          }
+          i += 1
+        }
+      }
+      idx += 1
+    }
+
+    Thread.currentThread().interrupt()
   }
 }
 
