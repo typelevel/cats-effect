@@ -17,7 +17,7 @@ trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {
 }
 ```
 
-This `runCancelable` operation actually mirrors the `cancelable` builder in [Concurrent](concurrent.md). With the `runCancelable` and `cancelable` pair one is then able to convert between `ConcurrentEffect` data types:
+This `runCancelable` operation actually mirrors the `cancelable` builder in [Concurrent](./concurrent.md). With the `runCancelable` and `cancelable` pair one is then able to convert between `ConcurrentEffect` data types:
 
 ```scala mdoc:reset:silent
 import cats.effect._
