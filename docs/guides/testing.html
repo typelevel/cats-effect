@@ -49,18 +49,18 @@ Writing tests to be structured the same way as &quot;normal&quot; code results i
   <span class="hljs-keyword">private</span> <span class="hljs-keyword">var</span> _database: <span class="hljs-type">Option</span>[(<span class="hljs-type">Database</span>, <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>])] = <span class="hljs-type">None</span>
   <span class="hljs-keyword">private</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">database</span></span>: <span class="hljs-type">Database</span> = _database.getOrElse(sys.error(<span class="hljs-string">"not currently alive!"</span>))._1
 
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">beforeAll</span></span>: <span class="hljs-type">Unit</span> = {
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">beforeAll</span></span>(): <span class="hljs-type">Unit</span> = {
     _database = <span class="hljs-type">Some</span>(<span class="hljs-type">Database</span>.resource.allocated.unsafeRunSync())
     ()
   }
 
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">afterAll</span></span>: <span class="hljs-type">Unit</span> = {
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">afterAll</span></span>(): <span class="hljs-type">Unit</span> = {
     _database.foreach(_._2.unsafeRunSync())
     _database = <span class="hljs-type">None</span>
   }
 
   <span class="hljs-comment">/* tests using `database` */</span>
-  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">test</span> </span>= {
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">test</span></span>(): <span class="hljs-type">Unit</span> = {
       assert(database != <span class="hljs-literal">null</span>)
   }
 }

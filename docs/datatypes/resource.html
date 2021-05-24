@@ -13,7 +13,7 @@
 <span class="hljs-keyword">val</span> greet: <span class="hljs-type">String</span> =&gt; <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = x =&gt; <span class="hljs-type">IO</span>(println(<span class="hljs-string">"Hello "</span> + x))
 <span class="hljs-comment">// greet: String =&gt; IO[Unit] = &lt;function1&gt;</span>
 
-<span class="hljs-type">Resource</span>.liftF(<span class="hljs-type">IO</span>.pure(<span class="hljs-string">"World"</span>)).use(greet).unsafeRunSync()
+<span class="hljs-type">Resource</span>.eval(<span class="hljs-type">IO</span>.pure(<span class="hljs-string">"World"</span>)).use(greet).unsafeRunSync()
 <span class="hljs-comment">// Hello World</span>
 </code></pre>
 <p>Moreover it's possible to apply further effects to the wrapped resource without leaving the <code>Resource</code> context via <code>evalMap</code>:</p>
@@ -22,7 +22,7 @@
 <span class="hljs-keyword">val</span> acquire: <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = <span class="hljs-type">IO</span>(println(<span class="hljs-string">"Acquire cats..."</span>)) *&gt; <span class="hljs-type">IO</span>(<span class="hljs-string">"cats"</span>)
 <span class="hljs-comment">// acquire: IO[String] = Bind(</span>
 <span class="hljs-comment">//   source = Delay(thunk = &lt;function0&gt;),</span>
-<span class="hljs-comment">//   f = cats.effect.IO$$Lambda$10351/2122369219@71a530d3,</span>
+<span class="hljs-comment">//   f = cats.effect.IO$$Lambda$11168/1306403741@2fabe6b9,</span>
 <span class="hljs-comment">//   trace = StackTrace(</span>
 <span class="hljs-comment">//     stackTrace = List(</span>
 <span class="hljs-comment">//       cats.effect.internals.IOTracing$.buildFrame(IOTracing.scala:48),</span>
@@ -126,7 +126,7 @@ r.use { <span class="hljs-keyword">case</span> (a, b) =&gt; <span class="hljs-ty
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">dumpResource</span></span>[<span class="hljs-type">F</span>[_]](res: <span class="hljs-type">Resource</span>[<span class="hljs-type">F</span>, <span class="hljs-type">BufferedReader</span>], blocker: <span class="hljs-type">Blocker</span>)(<span class="hljs-keyword">implicit</span> <span class="hljs-type">F</span>: <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>], cs: <span class="hljs-type">ContextShift</span>[<span class="hljs-type">F</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] = {
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">loop</span></span>(in: <span class="hljs-type">BufferedReader</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>] =
-    <span class="hljs-type">F</span>.suspend {
+    <span class="hljs-type">F</span>.defer {
       blocker.delay(in.readLine()).flatMap { line =&gt;
         <span class="hljs-keyword">if</span> (line != <span class="hljs-literal">null</span>) {
           <span class="hljs-type">System</span>.out.println(line)

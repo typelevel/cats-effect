@@ -89,7 +89,7 @@ something like this:</p>
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">fib</span></span>[<span class="hljs-type">F</span>[_]](n: <span class="hljs-type">Int</span>, a: <span class="hljs-type">Long</span> = <span class="hljs-number">0</span>, b: <span class="hljs-type">Long</span> = <span class="hljs-number">1</span>)
   (<span class="hljs-keyword">implicit</span> <span class="hljs-type">F</span>: <span class="hljs-type">Sync</span>[<span class="hljs-type">F</span>], cs: <span class="hljs-type">ContextShift</span>[<span class="hljs-type">F</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">Long</span>] = {
 
-  <span class="hljs-type">F</span>.suspend {
+  <span class="hljs-type">F</span>.defer {
     <span class="hljs-keyword">val</span> next = 
       <span class="hljs-keyword">if</span> (n &gt; <span class="hljs-number">0</span>) fib(n - <span class="hljs-number">1</span>, b, a + b)
       <span class="hljs-keyword">else</span> <span class="hljs-type">F</span>.pure(a)
