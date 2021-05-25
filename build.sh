@@ -29,8 +29,6 @@ cp -R versions/2.x/site-docs/target/mdoc/* docs/
 cp versions/2.x/site-docs/sidebars.json website/sidebars.json
 (cd website && yarn run version 2.x)
 
-rm -rf docs/*
-
 mkdir -p website/static/api/3.x/
 rm -rf website/static/api/3.x/*
 cp -R versions/3.x/target/scala-2.13/unidoc/* website/static/api/3.x/
