@@ -576,7 +576,7 @@ recursively to start again.</p>
 <p>Our <code>run</code> function instantiates the shared queue wrapped in a <code>Ref</code> and boots
 the producer and consumer in parallel. To do to it uses <code>parMapN</code>, that creates
 and runs the fibers that will run the <code>IO</code>s passed as parameter. Then it takes
-the output of each fiber and and applies a given function to them. In our case
+the output of each fiber and applies a given function to them. In our case
 both producer and consumer shall run forever until user presses CTRL-C which
 will trigger a cancelation.</p>
 <p>Alternatively we could have used <code>start</code> method to explicitly create new
