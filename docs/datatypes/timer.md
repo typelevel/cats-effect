@@ -70,5 +70,5 @@ These properties only apply on the JVM.
 
 Also see these related data types:
 
-- [Clock](datatypes/clock.md): for time measurements and getting the current clock
-- [ContextShift](datatypes/contextshift.md): the pure equivalent of an `ExecutionContext`
+- [Clock](clock.md): for time measurements and getting the current clock
+- [ContextShift](contextshift.md): the pure equivalent of an `ExecutionContext`
