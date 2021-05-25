@@ -31,7 +31,7 @@ object arbitrary {
     override def printStackTrace(): Unit = ()
   }
 
-  implicit def arbitrarySilentThrowable: Arbitrary[Throwable] =
+  implicit private[effect] def arbitrarySilentThrowable: Arbitrary[Throwable] =
     Arbitrary(Gen.const(SilentThrowable))
 
   implicit def catsEffectLawsArbitraryForIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]] =

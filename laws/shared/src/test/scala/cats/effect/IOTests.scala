@@ -36,6 +36,8 @@ import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
 
 class IOTests extends BaseTestsSuite {
+  import cats.effect.laws.discipline.arbitrary.arbitrarySilentThrowable
+
   checkAllAsync("IO", implicit ec => {
     implicit val cs: ContextShift[IO] = ec.ioContextShift
     ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int]
