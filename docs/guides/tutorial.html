@@ -10,7 +10,7 @@ the producer-consumer problem to introduce cats-effect <em>fibers</em>.</p>
 <p>This tutorial assumes certain familiarity with functional programming. It is
 also a good idea to read cats-effect documentation prior to starting this
 tutorial, at least the
-<a href="../datatypes/io.md">excellent documentation about <code>IO</code> data type</a>.</p>
+<a href="/cats-effect/docs/datatypes/io">excellent documentation about <code>IO</code> data type</a>.</p>
 <p>Please read this tutorial as training material, not as a best-practices
 document. As you gain more experience with cats-effect, probably you will find
 your own solutions to deal with the problems presented here. Also, bear in mind
@@ -53,7 +53,7 @@ invoked from the shell and uses that function.</p>
 <p>First of all we must code the function that copies the content from a file to
 another file. The function takes the source and destination files as parameters.
 But this is functional programming! So invoking the function shall not copy
-anything, instead it will return an <a href="../datatypes/io.md"><code>IO</code></a> instance that
+anything, instead it will return an <a href="/cats-effect/docs/datatypes/io"><code>IO</code></a> instance that
 encapsulates all the side effects involved (opening/closing files,
 reading/writing content), that way <em>purity</em> is kept.  Only when that <code>IO</code>
 instance is evaluated all those side-effectful actions will be run. In our
@@ -77,7 +77,7 @@ First, we need to open two streams that will read and write file contents.</p>
 <h3><a class="anchor" aria-hidden="true" id="acquiring-and-releasing-resources"></a><a href="#acquiring-and-releasing-resources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Acquiring and releasing <code>Resource</code>s</h3>
 <p>We consider opening a stream to be a side-effect action, so we have to
 encapsulate those actions in their own <code>IO</code> instances. For this, we will make
-use of cats-effect <a href="../datatypes/resource.md"><code>Resource</code></a>, that allows to
+use of cats-effect <a href="/cats-effect/docs/datatypes/resource"><code>Resource</code></a>, that allows to
 orderly create, use and then release resources. See this code:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">Resource</span>}
 <span class="hljs-keyword">import</span> cats.syntax.all._ 
@@ -154,7 +154,7 @@ input file then the output file will not be opened.  On the other hand, if there
 is any issue opening the output file, then the input stream will be closed.</p>
 <h3><a class="anchor" aria-hidden="true" id="what-about-bracket"></a><a href="#what-about-bracket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What about <code>bracket</code>?</h3>
 <p>Now, if you are familiar with cats-effect's
-<a href="../typeclasses/bracket.md"><code>Bracket</code></a> you may be wondering why we are not using
+<a href="/cats-effect/docs/typeclasses/bracket"><code>Bracket</code></a> you may be wondering why we are not using
 it as it looks so similar to <code>Resource</code> (and there is a good reason for that:
 <code>Resource</code> is based on <code>bracket</code>). Ok, before moving forward it is worth to take
 a look to <code>bracket</code>.</p>
@@ -261,13 +261,13 @@ our case, that would close both streams. So far so good! But what happens if
 cancellation happens <em>while</em> the streams are being used? This could lead to data
 corruption as a stream where some thread is writing to is at the same time being
 closed by another thread. For more info about this problem see
-<a href="../datatypes/io.md#gotcha-cancellation-is-a-concurrent-action">Gotcha: Cancellation is a concurrent action</a>
+<a href="/cats-effect/docs/datatypes/io#gotcha-cancellation-is-a-concurrent-action">Gotcha: Cancellation is a concurrent action</a>
 in cats-effect site.</p>
 <p>To prevent such data corruption we must use some concurrency control mechanism
 that ensures that no stream will be closed while the <code>IO</code> returned by <code>transfer</code>
 is being evaluated.  Cats-effect provides several constructs for controlling
 concurrency, for this case we will use a
-<a href="../concurrency/semaphore.md"><em>semaphore</em></a>. A semaphore has a number of permits,
+<a href="/cats-effect/docs/concurrency/semaphore"><em>semaphore</em></a>. A semaphore has a number of permits,
 its method <code>.acquire</code> 'blocks' if no permit is available until <code>release</code> is
 called on the same semaphore. It is important to remark that <em>there is no actual
 thread being really blocked</em>, the thread that finds the <code>.acquire</code> call will be
@@ -334,7 +334,7 @@ instances returned by <code>Resource.use</code>), the <code>IO</code> returned b
 Trying to cancel it will not have any effect and that <code>IO</code> will run until the
 whole file is copied! In real world code you will probably want to make your
 functions cancelable, section
-<a href="../datatypes/io.md#building-cancelable-io-tasks">Building cancelable IO tasks</a>
+<a href="/cats-effect/docs/datatypes/io#building-cancelable-io-tasks">Building cancelable IO tasks</a>
 of <code>IO</code> documentation explains how to create such cancelable <code>IO</code> instances
 (besides calling <code>Resource.use</code>, as we have done for our code).</p>
 <p>And that is it! We are done, now we can create a program that uses this
@@ -342,7 +342,7 @@ of <code>IO</code> documentation explains how to create such cancelable <code>IO
 <h3><a class="anchor" aria-hidden="true" id="ioapp-for-our-final-program"></a><a href="#ioapp-for-our-final-program" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>IOApp</code> for our final program</h3>
 <p>We will create a program that copies files, this program only takes two
 parameters: the name of the origin and destination files. For coding this
-program we will use <a href="../datatypes/ioapp.md"><code>IOApp</code></a> as it allows to maintain
+program we will use <a href="/cats-effect/docs/datatypes/ioapp"><code>IOApp</code></a> as it allows to maintain
 purity in our definitions up to the program main function.</p>
 <p><code>IOApp</code> is a kind of 'functional' equivalent to Scala's <code>App</code>, where instead of
 coding an effectful <code>main</code> method we code a pure <code>run</code> function. When executing
@@ -512,10 +512,10 @@ run. When using <code>IOApp</code> we get also the <code>ContextShift[IO]</code>
 the fibers in our code.  But the developer can also create new <code>ContextShift[F]</code>
 instances using custom thread pools.</p>
 <p>Cats-effect implements some concurrency primitives to coordinate concurrent
-fibers: <a href="../concurrency/deferred.md">Deferred</a>,
-<a href="../concurrency/mvar.md">MVar2</a>,
-<a href="../concurrency/ref.md">Ref</a> and
-<a href="../concurrency/semaphore.md">Semaphore</a>
+fibers: <a href="/cats-effect/docs/concurrency/deferred">Deferred</a>,
+<a href="/cats-effect/docs/concurrency/mvar">MVar2</a>,
+<a href="/cats-effect/docs/concurrency/ref">Ref</a> and
+<a href="/cats-effect/docs/concurrency/semaphore">Semaphore</a>
 (semaphores we already discussed in the first part of this tutorial). It is
 important to understand that, when a fiber gets blocked by some concurrent data
 structure, cats-effect recycles the thread so it becomes available for other
@@ -527,7 +527,7 @@ recover back that thread until the action finishes.</p>
 other tutorial 'Concurrency in Scala with
 Cats-Effect'</a>. It is also
 strongly advised to read the
-<a href="../concurrency/overview.md">Concurrency section of cats-effect docs</a>. But for the
+<a href="/cats-effect/docs/concurrency/overview">Concurrency section of cats-effect docs</a>. But for the
 remaining of this tutorial we will focus on a practical approach to those
 concepts.</p>
 <p>Ok, now we have briefly discussed fibers we can start working on our
@@ -541,7 +541,7 @@ queue will be an instance of an immutable <code>Queue[Int]</code>.</p>
 <p>As accesses to the queue can (and will!) be concurrent, we need some way to
 protect the queue so only one fiber at a time is handling it. The best way to
 ensure an ordered access to some shared data is
-<a href="../concurrency/ref.md">Ref</a>. A <code>Ref</code> instance
+<a href="/cats-effect/docs/concurrency/ref">Ref</a>. A <code>Ref</code> instance
 wraps some given data and implements methods to manipulate that data in a safe
 manner. When some fiber is runnning one of those methods, any other call to any
 method of the <code>Ref</code> instance will be blocked.</p>
