@@ -33,14 +33,14 @@ lazy val v2_4_0_tests = project
   .in(file("v2_4_0/tests"))
   .settings(
     libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % V.scalafixVersion % Test cross CrossVersion.full,
-    compile.in(Compile) :=
-      compile.in(Compile).dependsOn(compile.in(v2_4_0_input, Compile)).value,
+    (Compile / compile) :=
+      (Compile / compile).dependsOn(v2_4_0_input / Compile / compile).value,
     scalafixTestkitOutputSourceDirectories :=
-      sourceDirectories.in(v2_4_0_output, Compile).value,
+      (v2_4_0_output / Compile / sourceDirectories).value,
     scalafixTestkitInputSourceDirectories :=
-      sourceDirectories.in(v2_4_0_input, Compile).value,
+      (v2_4_0_input / Compile / sourceDirectories).value,
     scalafixTestkitInputClasspath :=
-      fullClasspath.in(v2_4_0_input, Compile).value
+      (v2_4_0_input / Compile / fullClasspath).value
   )
   .dependsOn(v2_4_0_input, rules)
   .enablePlugins(ScalafixTestkitPlugin)
