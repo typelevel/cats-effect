@@ -912,10 +912,10 @@ private final class IOFiber[A](
       conts.invalidate()
       objectState.invalidate()
       finalizers.invalidate()
+      ctxs.invalidate()
     }
 
     currentCtx = null
-    ctxs = null
   }
 
   private[this] def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
