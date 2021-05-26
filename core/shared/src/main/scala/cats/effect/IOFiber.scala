@@ -85,7 +85,7 @@ private final class IOFiber[A](
    * relocate our runloop to another fiber.
    */
   private[this] var conts: ByteStack = _
-  private[this] val objectState = new ArrayStack[AnyRef](16)
+  private[this] var objectState: ArrayStack[AnyRef] = _
 
   /* fast-path to head */
   private[this] var currentCtx: ExecutionContext = startEC
@@ -908,13 +908,13 @@ private final class IOFiber[A](
     /* clear out literally everything to avoid any possible memory leaks */
 
     /* conts may be null if the fiber was canceled before it was started */
-    if (conts != null)
+    if (conts != null) {
       conts.invalidate()
+      objectState.invalidate()
+    }
 
     currentCtx = null
     ctxs = null
-
-    objectState.invalidate()
 
     finalizers.invalidate()
   }
@@ -924,10 +924,11 @@ private final class IOFiber[A](
     finalizing = true
 
     if (!finalizers.isEmpty()) {
-      objectState.push(cb)
-
       conts = new ByteStack(16)
       conts.push(CancelationLoopK)
+
+      objectState = new ArrayStack(16)
+      objectState.push(cb)
 
       /* suppress all subsequent cancelation on this fiber */
       masks += 1
@@ -1107,6 +1108,8 @@ private final class IOFiber[A](
     } else {
       conts = new ByteStack(16)
       conts.push(RunTerminusK)
+
+      objectState = new ArrayStack(16)
 
       ctxs = new ArrayStack[ExecutionContext](2)
       ctxs.push(currentCtx)
