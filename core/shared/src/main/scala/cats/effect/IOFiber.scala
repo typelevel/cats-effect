@@ -95,7 +95,7 @@ private final class IOFiber[A](
   private[this] var masks: Int = initMask
   private[this] var finalizing: Boolean = false
 
-  private[this] val finalizers = new ArrayStack[IO[Unit]](16)
+  private[this] var finalizers: ArrayStack[IO[Unit]] = _
 
   private[this] val callbacks = new CallbackStack[A](cb)
 
@@ -911,12 +911,11 @@ private final class IOFiber[A](
     if (conts != null) {
       conts.invalidate()
       objectState.invalidate()
+      finalizers.invalidate()
     }
 
     currentCtx = null
     ctxs = null
-
-    finalizers.invalidate()
   }
 
   private[this] def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
@@ -1110,6 +1109,7 @@ private final class IOFiber[A](
       conts.push(RunTerminusK)
 
       objectState = new ArrayStack(16)
+      finalizers = new ArrayStack(16)
 
       ctxs = new ArrayStack[ExecutionContext](2)
       ctxs.push(currentCtx)
