@@ -191,7 +191,8 @@ sealed abstract class SyncIO[+A] private () {
 
     val conts = new ByteStack()
     conts.init(16)
-    val objectState = new ArrayStack[AnyRef](16)
+    val objectState = new ArrayStack[AnyRef]()
+    objectState.init(16)
 
     conts.push(RunTerminusK)
 
