@@ -16,10 +16,14 @@
 
 package cats.effect
 
-private[effect] final class ArrayStack[A <: AnyRef] {
+private[effect] final class ArrayStack[A <: AnyRef](
+    private[this] var buffer: Array[AnyRef],
+    private[this] var index: Int) {
 
-  private[this] var buffer: Array[AnyRef] = _
-  private[this] var index: Int = _
+  def this(initBound: Int) =
+    this(new Array[AnyRef](initBound), 0)
+
+  def this() = this(null, 0)
 
   def init(bound: Int): Unit = {
     buffer = new Array(bound)
@@ -61,6 +65,18 @@ private[effect] final class ArrayStack[A <: AnyRef] {
   def invalidate(): Unit = {
     index = 0
     buffer = null
+  }
+
+  def copy(): ArrayStack[A] = {
+    val buffer2 = if (index == 0) {
+      new Array[AnyRef](buffer.length)
+    } else {
+      val buffer2 = new Array[AnyRef](buffer.length)
+      System.arraycopy(buffer, 0, buffer2, 0, buffer.length)
+      buffer2
+    }
+
+    new ArrayStack[A](buffer2, index)
   }
 
   private[this] def checkAndGrow(): Unit =
