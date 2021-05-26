@@ -21,10 +21,10 @@ jobs:
         with:
           java-version: adopt@1.8
 
-      - name: Install NodeJS 12
-        uses: actions/setup-node@v2.1.2
+      - name: Install NodeJS 14
+        uses: actions/setup-node@v2.1.5
         with:
-          node-version: '12'
+          node-version: '14'
 
       - name: Cache ivy2
         uses: actions/cache@v1
