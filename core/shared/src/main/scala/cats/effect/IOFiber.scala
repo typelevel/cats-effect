@@ -97,7 +97,7 @@ private final class IOFiber[A](
 
   private[this] var finalizers: ArrayStack[IO[Unit]] = _
 
-  private[this] val callbacks = new CallbackStack[A](cb)
+  private[this] val callbacks: CallbackStack[A] = new CallbackStack(cb)
 
   private[this] var localState: IOLocalState = initLocalState
 
@@ -109,13 +109,13 @@ private final class IOFiber[A](
   private[this] var resumeIO: IO[Any] = startIO
 
   /* prefetch for Right(()) */
-  private[this] val RightUnit = IOFiber.RightUnit
+  private[this] val RightUnit: Either[Throwable, Unit] = IOFiber.RightUnit
 
   /* similar prefetch for EndFiber */
-  private[this] val IOEndFiber = IO.EndFiber
+  private[this] val IOEndFiber: IO.EndFiber.type = IO.EndFiber
 
-  private[this] val cancelationCheckThreshold = runtime.config.cancelationCheckThreshold
-  private[this] val autoYieldThreshold = runtime.config.autoYieldThreshold
+  private[this] val cancelationCheckThreshold: Int = runtime.config.cancelationCheckThreshold
+  private[this] val autoYieldThreshold: Int = runtime.config.autoYieldThreshold
 
   override def run(): Unit = {
     // insert a read barrier after every async boundary
