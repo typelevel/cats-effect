@@ -189,7 +189,8 @@ sealed abstract class SyncIO[+A] private () {
   def unsafeRunSync(): A = {
     import SyncIOConstants._
 
-    val conts = new ByteStack(16)
+    val conts = new ByteStack()
+    conts.init(16)
     val objectState = new ArrayStack[AnyRef](16)
 
     conts.push(RunTerminusK)
