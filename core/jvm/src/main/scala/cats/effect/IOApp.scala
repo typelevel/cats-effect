@@ -31,7 +31,7 @@ trait IOApp {
     Math.max(2, Runtime.getRuntime().availableProcessors())
 
   def run(args: List[String]): IO[ExitCode]
-  
+
   final def main(args: Array[String]): Unit = {
     if (runtime == null) {
       import unsafe.IORuntime
