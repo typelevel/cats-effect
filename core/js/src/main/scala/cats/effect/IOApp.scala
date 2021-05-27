@@ -28,7 +28,7 @@ trait IOApp {
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
   def run(args: List[String]): IO[ExitCode]
-  
+
   final def main(args: Array[String]): Unit = {
     if (runtime == null) {
       import unsafe.IORuntime
