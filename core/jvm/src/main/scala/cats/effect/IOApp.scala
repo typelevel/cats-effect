@@ -20,7 +20,7 @@ import scala.concurrent.{blocking, CancellationException}
 
 import java.util.concurrent.CountDownLatch
 
-trait IOAppPlatform { this: IOApp =>
+trait IOApp {
 
   private[this] var _runtime: unsafe.IORuntime = null
   protected def runtime: unsafe.IORuntime = _runtime
@@ -30,6 +30,8 @@ trait IOAppPlatform { this: IOApp =>
   protected def computeWorkerThreadCount: Int =
     Math.max(2, Runtime.getRuntime().availableProcessors())
 
+  def run(args: List[String]): IO[ExitCode]
+  
   final def main(args: Array[String]): Unit = {
     if (runtime == null) {
       import unsafe.IORuntime
@@ -136,6 +138,15 @@ trait IOAppPlatform { this: IOApp =>
         rt.removeShutdownHook(hook)
         Thread.currentThread().interrupt()
     }
+  }
+
+}
+
+object IOApp {
+
+  trait Simple extends IOApp {
+    def run: IO[Unit]
+    final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
   }
 
 }

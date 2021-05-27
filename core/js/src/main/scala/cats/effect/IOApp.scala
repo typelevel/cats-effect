@@ -20,13 +20,15 @@ import scala.concurrent.CancellationException
 import scala.concurrent.duration._
 import scala.scalajs.js
 
-trait IOAppPlatform { this: IOApp =>
+trait IOApp {
 
   private[this] var _runtime: unsafe.IORuntime = null
 
   protected def runtime: unsafe.IORuntime = _runtime
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
+  def run(args: List[String]): IO[ExitCode]
+  
   final def main(args: Array[String]): Unit = {
     if (runtime == null) {
       import unsafe.IORuntime
@@ -86,4 +88,13 @@ trait IOAppPlatform { this: IOApp =>
     if (js.typeOf(js.Dynamic.global.process) != "undefined") {
       js.Dynamic.global.process.exitCode = code.code
     }
+}
+
+object IOApp {
+
+  trait Simple extends IOApp {
+    def run: IO[Unit]
+    final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
+  }
+
 }
