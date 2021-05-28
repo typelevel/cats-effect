@@ -26,7 +26,7 @@ import cats.effect.kernel.Outcome.Canceled
 import cats.effect.kernel.Outcome.Errored
 import cats.effect.kernel.Outcome.Succeeded
 
-class AsyncAwaitDsl[F[_]](implicit F: Async[F], R: Resume[F]) {
+class AsyncAwaitDsl[F[_]](implicit F: Async[F]) {
 
   /**
    * Type member used by the macro expansion to recover what `F` is without typetags
@@ -37,8 +37,6 @@ class AsyncAwaitDsl[F[_]](implicit F: Async[F], R: Resume[F]) {
    * Value member used by the macro expansion to recover the Async instance associated to the block.
    */
   implicit val _AsyncInstance: Async[F] = F
-
-  implicit val _ResumeInstance: Resume[F] = R
 
   /**
    * Non-blocking await the on result of `awaitable`. This may only be used directly within an enclosing `async` block.
@@ -96,12 +94,12 @@ object AsyncAwaitDsl {
         val name = TypeName("stateMachine$async")
         // format: off
         q"""
-          final class $name(dispatcher: _root_.cats.effect.std.Dispatcher[${c.prefix}._AsyncContext], resume: _root_.cats.effect.std.Resume[${c.prefix}._AsyncContext], callback: _root_.cats.effect.std.AsyncAwaitDsl.Callback[${c.prefix}._AsyncContext]) extends _root_.cats.effect.std.AsyncAwaitStateMachine(dispatcher, resume, callback) {
+          final class $name(dispatcher: _root_.cats.effect.std.Dispatcher[${c.prefix}._AsyncContext], callback: _root_.cats.effect.std.AsyncAwaitDsl.Callback[${c.prefix}._AsyncContext]) extends _root_.cats.effect.std.AsyncAwaitStateMachine(dispatcher, callback) {
             ${mark(q"""override def apply(tr$$async: _root_.cats.effect.std.AsyncAwaitDsl.ResumeOutcome[${c.prefix}._AsyncContext]): _root_.scala.Unit = ${body}""")}
           }
           ${c.prefix}._AsyncInstance.flatten {
             _root_.cats.effect.std.Dispatcher[${c.prefix}._AsyncContext].use { dispatcher =>
-              ${c.prefix}._AsyncInstance.async_[${c.prefix}._AsyncContext[AnyRef]](cb => new $name(dispatcher, ${c.prefix}._ResumeInstance, cb).start())
+              ${c.prefix}._AsyncInstance.async_[${c.prefix}._AsyncContext[AnyRef]](cb => new $name(dispatcher, cb).start())
             }
           }.asInstanceOf[${c.macroApplication.tpe}]
         """
@@ -118,14 +116,16 @@ object AsyncAwaitDsl {
 
 abstract class AsyncAwaitStateMachine[F[_]](
     dispatcher: Dispatcher[F],
-    resume: Resume[F],
     callback: AsyncAwaitDsl.Callback[F]
 )(implicit F: Async[F]) extends Function1[AsyncAwaitDsl.ResumeOutcome[F], Unit] {
 
   // FSM translated method
   //def apply(v1: AsyncAwaitDsl.ResumeOutcome[F]): Unit = ???
 
+  // Resorting to mutation to track algebraic product effects (like WriterT),
+  // since the information they carry would otherwise get lost on every dispatch.
   private[this] var recordedEffect : F[Unit] = F.unit
+
   private[this] var state$async: Int = 0
 
   /** Retrieve the current value of the state variable */
@@ -143,10 +143,17 @@ abstract class AsyncAwaitStateMachine[F[_]](
 
   protected def onComplete(f: F[AnyRef]): Unit = {
     dispatcher.unsafeRunAndForget {
-      resume.resume((recordedEffect *> f)).start.flatMap(_.join).flatMap {
+      // Resorting to mutation to extract the "happy path" value from the monadic context,
+      // as inspecting the Succeeded outcome using dispatcher is risky on algebraic sums,
+      // such as OptionT, EitherT, ...
+      var value: Option[AnyRef] = None
+      (recordedEffect *> f).flatTap(r => F.delay{value = Some(r)}).start.flatMap(_.join).flatMap {
         case Canceled() => F.delay(this(Left(F.canceled.asInstanceOf[F[AnyRef]])))
         case Errored(e) => F.delay(this(Left(F.raiseError(e))))
-        case Succeeded(resumed) => resumed.flatMap(r => F.delay(this(r)))
+        case Succeeded(resumed) => value match {
+          case Some(value) => F.delay(this(Right(resumed.void -> value)))
+          case None => F.delay(this(Left(resumed)))
+        }
       }
     }
   }
