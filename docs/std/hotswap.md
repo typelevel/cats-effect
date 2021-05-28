@@ -31,6 +31,7 @@ A rotating logger would then look something like this:
 def rotating(n: Int): Resource[IO, Logger[IO]] =
   Hotswap.create[IO, File].flatMap { hs =>
     def file(name: String): Resource[IO, File] = ???
+    def write(file: File): IO[Unit] = ???
 
     Resource.eval {
       for {
