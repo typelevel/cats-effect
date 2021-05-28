@@ -31,30 +31,35 @@ A rotating logger would then look something like this:
 def rotating(n: Int): Resource[IO, Logger[IO]] =
   Hotswap.create[IO, File].flatMap { hs =>
     def file(name: String): Resource[IO, File] = ???
-  
+
     Resource.eval {
       for {
         index <- Ref[IO].of(0)
         count <- Ref[IO].of(0)
         //Open the initial log file
         f <- hs.swap(file("0.log"))
-        log <- Ref[IO].of(f)
+        logFile <- Ref[IO].of(f)
       } yield new Logger[IO] {
         def log(msg: String): IO[Unit] =
-          if (msg.length() < n - count)
-            log.get.flatMap { file => write(file, msg) } 
-            _ <- count.update(_ + msg.length())
-          else
-            for {
-              //Reset the log length counter
-              _ <- count.set(msg.length())
-              //Increment the counter for the log file name
-              idx <- index.modify(n => (n+1, n))
-              //Close the old log file and open the new one
-              f <- hs.swap(file(s"${idx}.log"))
-              _ <- log.set(f)
-              _ <- write(f, msg)
-            } yield ()
+          count.get.flatMap { currentCount =>
+            if (msg.length() < n - currentCount)
+              for {
+                currentFile <- logFile.get
+                _ <- write(currentFile, msg)
+                _ <- count.update(_ + msg.length())
+              } yield ()
+            else
+              for {
+                //Reset the log length counter
+                _ <- count.set(msg.length())
+                //Increment the counter for the log file name
+                idx <- index.updateAndGet(_ + 1)
+                //Close the old log file and open the new one
+                f <- hs.swap(file(s"$idx.log"))
+                _ <- logFile.set(f)
+                _ <- write(f, msg)
+              } yield ()
+          }
       }
     }
   }
