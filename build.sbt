@@ -47,7 +47,7 @@ val Windows = "windows-latest"
 val ScalaJSJava = "adopt@1.8"
 val Scala213 = "2.13.6"
 
-ThisBuild / crossScalaVersions := Seq("3.0.0", "2.12.13", Scala213)
+ThisBuild / crossScalaVersions := Seq("3.0.0", "2.12.14", Scala213)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
