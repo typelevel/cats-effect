@@ -157,10 +157,9 @@ class AsyncAwaitSpec extends BaseSpec {
     import NestedAsyncAwait.{await => oAwait, _}
 
     "surface None at the right layer (1)" in real {
-      // val io1 = 1.pure[F]
-      val io2 = OptionT.liftF(OptionT.none[IO, Int])
+      val io = OptionT.liftF(OptionT.none[IO, Int])
 
-      val program = async(oAwait(io2))
+      val program = async(oAwait(io))
 
       program.value.value.flatMap { res =>
         IO {
@@ -183,14 +182,13 @@ class AsyncAwaitSpec extends BaseSpec {
     }
   }
 
-  "WriteT AsyncAwait" should {
+  "WriterT AsyncAwait" should {
     type F[A] = WriterT[IO, Int, A]
-    object NestedAsyncAwait extends cats.effect.std.AsyncAwaitDsl[F]
-    import NestedAsyncAwait.{await => wAwait, _}
+    object WriterTAsyncAwait extends cats.effect.std.AsyncAwaitDsl[F]
+    import WriterTAsyncAwait.{await => wAwait, _}
 
     "surface logged " in real {
-      // val io1 = 1.pure[F]
-      val io1 = WriterT(IO(1, 3))
+      val io1 = WriterT(IO((1, 3)))
 
       val program = async(wAwait(io1) * wAwait(io1))
 

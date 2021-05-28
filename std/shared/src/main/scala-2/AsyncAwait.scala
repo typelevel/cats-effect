@@ -60,7 +60,14 @@ object AsyncAwaitDsl {
 
   type CallbackTarget[F[_]] = F[AnyRef]
   type Callback[F[_]] = Either[Throwable, CallbackTarget[F]] => Unit
-  type ResumeOutcome[F[_]] = Either[F[AnyRef], (F[Unit], AnyRef)]
+
+  // Outcome of an await block. Either a failed algebraic computation,
+  // or a successful value accompanied by a "summary" computation.
+  //
+  // Allows to short-circuit the async/await state machine when relevant
+  // (think OptionT.none) and track algebraic information that may otherwise
+  // get lost during Dispatcher#unsafeRun calls (WriterT/IorT logs).
+  type AwaitOutcome[F[_]] = Either[F[AnyRef], (F[Unit], AnyRef)]
 
   def asyncImpl[F[_], T](
       c: whitebox.Context
@@ -95,7 +102,7 @@ object AsyncAwaitDsl {
         // format: off
         q"""
           final class $name(dispatcher: _root_.cats.effect.std.Dispatcher[${c.prefix}._AsyncContext], callback: _root_.cats.effect.std.AsyncAwaitDsl.Callback[${c.prefix}._AsyncContext]) extends _root_.cats.effect.std.AsyncAwaitStateMachine(dispatcher, callback) {
-            ${mark(q"""override def apply(tr$$async: _root_.cats.effect.std.AsyncAwaitDsl.ResumeOutcome[${c.prefix}._AsyncContext]): _root_.scala.Unit = ${body}""")}
+            ${mark(q"""override def apply(tr$$async: _root_.cats.effect.std.AsyncAwaitDsl.AwaitOutcome[${c.prefix}._AsyncContext]): _root_.scala.Unit = ${body}""")}
           }
           ${c.prefix}._AsyncInstance.flatten {
             _root_.cats.effect.std.Dispatcher[${c.prefix}._AsyncContext].use { dispatcher =>
@@ -117,14 +124,14 @@ object AsyncAwaitDsl {
 abstract class AsyncAwaitStateMachine[F[_]](
     dispatcher: Dispatcher[F],
     callback: AsyncAwaitDsl.Callback[F]
-)(implicit F: Async[F]) extends Function1[AsyncAwaitDsl.ResumeOutcome[F], Unit] {
+)(implicit F: Async[F]) extends Function1[AsyncAwaitDsl.AwaitOutcome[F], Unit] {
 
   // FSM translated method
-  //def apply(v1: AsyncAwaitDsl.ResumeOutcome[F]): Unit = ???
+  //def apply(v1: AsyncAwaitDsl.AwaitOutcome[F]): Unit = ???
 
   // Resorting to mutation to track algebraic product effects (like WriterT),
   // since the information they carry would otherwise get lost on every dispatch.
-  private[this] var recordedEffect : F[Unit] = F.unit
+  private[this] var summary : F[Unit] = F.unit
 
   private[this] var state$async: Int = 0
 
@@ -138,7 +145,7 @@ abstract class AsyncAwaitStateMachine[F[_]](
     callback(Left(t))
 
   protected def completeSuccess(value: AnyRef): Unit = {
-    callback(Right(F.as(recordedEffect, value)))
+    callback(Right(F.as(summary, value)))
   }
 
   protected def onComplete(f: F[AnyRef]): Unit = {
@@ -146,27 +153,27 @@ abstract class AsyncAwaitStateMachine[F[_]](
       // Resorting to mutation to extract the "happy path" value from the monadic context,
       // as inspecting the Succeeded outcome using dispatcher is risky on algebraic sums,
       // such as OptionT, EitherT, ...
-      var value: Option[AnyRef] = None
-      (recordedEffect *> f).flatTap(r => F.delay{value = Some(r)}).start.flatMap(_.join).flatMap {
+      var awaitedValue: Option[AnyRef] = None
+      (summary *> f).flatTap(r => F.delay{awaitedValue = Some(r)}).start.flatMap(_.join).flatMap {
         case Canceled() => F.delay(this(Left(F.canceled.asInstanceOf[F[AnyRef]])))
         case Errored(e) => F.delay(this(Left(F.raiseError(e))))
-        case Succeeded(resumed) => value match {
-          case Some(value) => F.delay(this(Right(resumed.void -> value)))
-          case None => F.delay(this(Left(resumed)))
+        case Succeeded(awaitOutcome) => awaitedValue match {
+          case Some(v) => F.delay(this(Right(awaitOutcome.void -> v)))
+          case None => F.delay(this(Left(awaitOutcome)))
         }
       }
     }
   }
 
-  protected def getCompleted(f: F[AnyRef]): AsyncAwaitDsl.ResumeOutcome[F] = {
+  protected def getCompleted(f: F[AnyRef]): AsyncAwaitDsl.AwaitOutcome[F] = {
     val _ = f
     null
   }
 
-  protected def tryGet(tr: AsyncAwaitDsl.ResumeOutcome[F]): AnyRef =
-    tr match {
-      case Right((newEffect, value)) =>
-        recordedEffect = newEffect
+  protected def tryGet(awaitOutcome: AsyncAwaitDsl.AwaitOutcome[F]): AnyRef =
+    awaitOutcome match {
+      case Right((newSummary, value)) =>
+        summary = newSummary
         value
       case Left(monadicStop) =>
         callback(Right(monadicStop))

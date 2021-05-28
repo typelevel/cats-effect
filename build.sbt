@@ -45,15 +45,15 @@ val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
 
 val ScalaJSJava = "adopt@1.8"
-val Scala213 = "2.13.5"
+val Scala213 = "2.13.6"
 
-ThisBuild / crossScalaVersions := Seq("3.0.0-RC2", "3.0.0-RC3", "2.12.13", Scala213)
+ThisBuild / crossScalaVersions := Seq("3.0.0", "2.12.13", Scala213)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
 val LTSJava = "adopt@1.11"
-val LatestJava = "adopt@1.15"
-val GraalVM8 = "graalvm-ce-java8@21.0"
+val LatestJava = "adopt@1.16"
+val GraalVM8 = "graalvm-ce-java8@21.1"
 
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
@@ -146,11 +146,11 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 
 ThisBuild / autoAPIMappings := true
 
-val CatsVersion = "2.6.0"
-val Specs2Version = "4.10.6"
-val ScalaCheckVersion = "1.15.3"
-val DisciplineVersion = "1.1.5"
-val CoopVersion = "1.1.0"
+val CatsVersion = "2.6.1"
+val Specs2Version = "4.12.0"
+val ScalaCheckVersion = "1.15.4"
+val DisciplineVersion = "1.1.6"
+val CoopVersion = "1.1.1"
 
 replaceCommandAlias(
   "ci",
@@ -219,15 +219,16 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
   .in(file("kernel"))
   .settings(
     name := "cats-effect-kernel",
-    libraryDependencies += "org.specs2" %%% "specs2-core" % Specs2Version % Test)
-  .settings(dottyLibrarySettings)
-  .settings(libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion)
-  .jsSettings(Compile / doc / sources := {
-    if (isDotty.value)
-      Seq()
-    else
-      (Compile / doc / sources).value
-  })
+    libraryDependencies ++= Seq(
+      ("org.specs2" %%% "specs2-core" % Specs2Version % Test).cross(CrossVersion.for3Use2_13),
+      "org.typelevel" %%% "cats-core" % CatsVersion))
+  .jsSettings(
+    Compile / doc / sources := {
+      if (isDotty.value)
+        Seq()
+      else
+        (Compile / doc / sources).value
+    })
 
 /**
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
@@ -273,7 +274,15 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation$")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation$"),
+      // introduced by #1913, striped fiber callback hashtable, changes to package private code
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.FiberErrorHashtable"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.IORuntime.fiberErrorCbs"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.unsafe.IORuntime.this"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.IORuntime.<init>$default$6"),
+      // introduced by #1928, wake up a worker thread before spawning a helper thread when blocking
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.WorkStealingThreadPool.notifyParked")
     )
   )
   .jvmSettings(
@@ -331,7 +340,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies += {
       if (isDotty.value)
         ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
-          .withDottyCompat(scalaVersion.value)
+          .cross(CrossVersion.for3Use2_13)
           .exclude("org.scalacheck", "scalacheck_2.13")
           .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
       else

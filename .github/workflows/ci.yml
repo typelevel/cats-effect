@@ -22,24 +22,22 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        scala: [3.0.0-RC2, 3.0.0-RC3, 2.12.13, 2.13.5]
+        scala: [3.0.0, 2.12.13, 2.13.6]
         java:
           - adopt@1.8
           - adopt@1.11
-          - adopt@1.15
-          - graalvm-ce-java8@21.0
+          - adopt@1.16
+          - graalvm-ce-java8@21.1
         ci: [ciJVM, ciJS, ciFirefox]
         exclude:
           - ci: ciJS
             java: adopt@1.11
           - ci: ciJS
-            java: adopt@1.15
+            java: adopt@1.16
           - ci: ciJS
-            java: graalvm-ce-java8@21.0
+            java: graalvm-ce-java8@21.1
           - os: windows-latest
-            scala: 3.0.0-RC2
-          - os: windows-latest
-            scala: 3.0.0-RC3
+            scala: 3.0.0
           - os: windows-latest
             scala: 2.12.13
           - os: windows-latest
@@ -47,18 +45,16 @@ jobs:
           - ci: ciFirefox
             java: adopt@1.11
           - ci: ciFirefox
-            java: adopt@1.15
+            java: adopt@1.16
           - ci: ciFirefox
-            java: graalvm-ce-java8@21.0
+            java: graalvm-ce-java8@21.1
           - os: windows-latest
-            scala: 3.0.0-RC2
-          - os: windows-latest
-            scala: 3.0.0-RC3
+            scala: 3.0.0
           - os: windows-latest
             scala: 2.12.13
           - os: windows-latest
             ci: ciFirefox
-          - java: adopt@1.15
+          - java: adopt@1.16
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
@@ -97,22 +93,22 @@ jobs:
 
       - name: Check that workflows are up to date
         shell: bash
-        run: sbt ++${{ matrix.scala }} githubWorkflowCheck
+        run: sbt --client '++${{ matrix.scala }}; githubWorkflowCheck'
 
       - shell: bash
-        run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
+        run: sbt --client '++${{ matrix.scala }}; ${{ matrix.ci }}'
 
-      - if: matrix.scala == '2.13.5' && matrix.ci == 'ciJVM'
+      - if: matrix.scala == '2.13.6' && matrix.ci == 'ciJVM'
         shell: bash
-        run: sbt ++${{ matrix.scala }} docs/mdoc
+        run: sbt --client '++${{ matrix.scala }}; docs/mdoc'
 
       - if: matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
         shell: bash
-        run: sbt ++${{ matrix.scala }} exampleJVM/compile
+        run: sbt --client '++${{ matrix.scala }}; exampleJVM/compile'
 
       - if: matrix.ci == 'ciJS' && matrix.os == 'ubuntu-latest'
         shell: bash
-        run: sbt ++${{ matrix.scala }} exampleJS/compile
+        run: sbt --client '++${{ matrix.scala }}; exampleJS/compile'
 
       - name: Test Example JVM App Within Sbt
         if: matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
@@ -125,7 +121,7 @@ jobs:
         run: example/test-js.sh ${{ matrix.scala }}
 
       - name: Scalafix tests
-        if: matrix.scala == '2.13.5' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13.6' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           cd scalafix

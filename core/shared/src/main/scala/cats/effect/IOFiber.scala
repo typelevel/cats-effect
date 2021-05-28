@@ -120,36 +120,17 @@ private final class IOFiber[A](
   override def run(): Unit = {
     // insert a read barrier after every async boundary
     readBarrier()
-    try {
-      (resumeTag: @switch) match {
-        case 0 => execR()
-        case 1 => asyncContinueSuccessfulR()
-        case 2 => asyncContinueFailedR()
-        case 3 => blockingR()
-        case 4 => afterBlockingSuccessfulR()
-        case 5 => afterBlockingFailedR()
-        case 6 => evalOnR()
-        case 7 => cedeR()
-        case 8 => autoCedeR()
-        case 9 => ()
-      }
-    } catch {
-      case t: Throwable =>
-        Thread.interrupted()
-        currentCtx.reportFailure(t)
-        runtime.fiberErrorCbs.synchronized {
-          var idx = 0
-          val len = runtime.fiberErrorCbs.hashtable.length
-          while (idx < len) {
-            val cb = runtime.fiberErrorCbs.hashtable(idx)
-            if (cb != null) {
-              cb(t)
-            }
-            idx += 1
-          }
-        }
-        runtime.shutdown()
-        Thread.currentThread().interrupt()
+    (resumeTag: @switch) match {
+      case 0 => execR()
+      case 1 => asyncContinueSuccessfulR()
+      case 2 => asyncContinueFailedR()
+      case 3 => blockingR()
+      case 4 => afterBlockingSuccessfulR()
+      case 5 => afterBlockingFailedR()
+      case 6 => evalOnR()
+      case 7 => cedeR()
+      case 8 => autoCedeR()
+      case 9 => ()
     }
   }
 
@@ -260,7 +241,10 @@ private final class IOFiber[A](
           val r =
             try cur.thunk()
             catch {
-              case NonFatal(t) => error = t
+              case NonFatal(t) =>
+                error = t
+              case t: Throwable =>
+                onFatalFailure(t)
             }
 
           val next =
@@ -298,7 +282,10 @@ private final class IOFiber[A](
             val result =
               try f(v)
               catch {
-                case NonFatal(t) => error = t
+                case NonFatal(t) =>
+                  error = t
+                case t: Throwable =>
+                  onFatalFailure(t)
               }
 
             if (error == null) succeeded(result, 0) else failed(error, 0)
@@ -321,7 +308,10 @@ private final class IOFiber[A](
               val result =
                 try f(delay.thunk())
                 catch {
-                  case NonFatal(t) => error = t
+                  case NonFatal(t) =>
+                    error = t
+                  case t: Throwable =>
+                    onFatalFailure(t)
                 }
 
               val nextIO = if (error == null) succeeded(result, 0) else failed(error, 0)
@@ -354,7 +344,10 @@ private final class IOFiber[A](
           def next(v: Any): IO[Any] =
             try f(v)
             catch {
-              case NonFatal(t) => failed(t, 0)
+              case NonFatal(t) =>
+                failed(t, 0)
+              case t: Throwable =>
+                onFatalFailure(t)
             }
 
           (ioe.tag: @switch) match {
@@ -373,7 +366,10 @@ private final class IOFiber[A](
               val result =
                 try f(delay.thunk())
                 catch {
-                  case NonFatal(t) => failed(t, 0)
+                  case NonFatal(t) =>
+                    failed(t, 0)
+                  case t: Throwable =>
+                    onFatalFailure(t)
                 }
 
               runLoop(result, nextCancelation - 1, nextAutoCede)
@@ -418,7 +414,10 @@ private final class IOFiber[A](
               val result =
                 try delay.thunk()
                 catch {
-                  case NonFatal(t) => error = t
+                  case NonFatal(t) =>
+                    error = t
+                  case t: Throwable =>
+                    onFatalFailure(t)
                 }
 
               val next =
@@ -1135,7 +1134,10 @@ private final class IOFiber[A](
     val r =
       try cur.thunk()
       catch {
-        case NonFatal(t) => error = t
+        case NonFatal(t) =>
+          error = t
+        case t: Throwable =>
+          onFatalFailure(t)
       }
 
     if (error == null) {
@@ -1186,7 +1188,10 @@ private final class IOFiber[A](
     val transformed =
       try f(result)
       catch {
-        case NonFatal(t) => error = t
+        case NonFatal(t) =>
+          error = t
+        case t: Throwable =>
+          onFatalFailure(t)
       }
 
     if (depth > MaxStackDepth) {
@@ -1203,7 +1208,10 @@ private final class IOFiber[A](
 
     try f(result)
     catch {
-      case NonFatal(t) => failed(t, depth + 1)
+      case NonFatal(t) =>
+        failed(t, depth + 1)
+      case t: Throwable =>
+        onFatalFailure(t)
     }
   }
 
@@ -1273,7 +1281,10 @@ private final class IOFiber[A](
 
     try f(t)
     catch {
-      case NonFatal(t) => failed(t, depth + 1)
+      case NonFatal(t) =>
+        failed(t, depth + 1)
+      case t: Throwable =>
+        onFatalFailure(t)
     }
   }
 
@@ -1307,6 +1318,34 @@ private final class IOFiber[A](
   private[this] def unmaskFailureK(t: Throwable, depth: Int): IO[Any] = {
     masks += 1
     failed(t, depth + 1)
+  }
+
+  private[this] def onFatalFailure(t: Throwable): Null = {
+    Thread.interrupted()
+    currentCtx.reportFailure(t)
+    runtime.shutdown()
+
+    var idx = 0
+    val tables = runtime.fiberErrorCbs.tables
+    val numTables = runtime.fiberErrorCbs.numTables
+    while (idx < numTables) {
+      val table = tables(idx).hashtable
+      val len = table.length
+      table.synchronized {
+        var i = 0
+        while (i < len) {
+          val cb = table(i)
+          if (cb ne null) {
+            cb(t)
+          }
+          i += 1
+        }
+      }
+      idx += 1
+    }
+
+    Thread.currentThread().interrupt()
+    null
   }
 }
 
