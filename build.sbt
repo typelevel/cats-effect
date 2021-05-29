@@ -254,7 +254,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
         Seq(
           // Only way to properly resolve this library
           ("com.github.ghik" % "silencer-lib" % SilencerVersion % Provided)
-        ).map(_.cross(CrossVersion.for3Use2_13With("", ".5")))
+        ).map(_.cross(CrossVersion.for3Use2_13With("", s".${NewScala.split("\\.").last}")))
       else
         Seq(
           compilerPlugin(("com.github.ghik" % "silencer-plugin" % SilencerVersion).cross(CrossVersion.full)),
