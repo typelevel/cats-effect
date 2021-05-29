@@ -21,7 +21,7 @@ import scala.sys.process._
 
 ThisBuild / baseVersion := "2.5"
 
-val OldScala = "2.12.13"
+val OldScala = "2.12.14"
 val NewScala = "2.13.6"
 val Dotty = "3.0.0"
 
