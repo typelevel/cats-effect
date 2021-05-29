@@ -56,6 +56,19 @@ class AsyncAwaitSpec extends BaseSpec {
       }
     }
 
+    "propagate uncaught errors outward" in real {
+
+      case object Boom extends Throwable
+
+      val program = async(throw Boom)
+
+      program.attempt.flatMap { res =>
+        IO {
+          res must beEqualTo(Left(Boom))
+        }
+      }
+    }
+
     "propagate canceled outcomes outward" in real {
 
       val io = IO.canceled
@@ -73,10 +86,10 @@ class AsyncAwaitSpec extends BaseSpec {
 
       val program = for {
         ref <- Ref[IO].of(0)
-        _ <- async { ioAwait(IO.sleep(100.millis) *> ref.update(_ + 1)) }
-          .start
-          .flatMap(_.cancel)
-        _ <- IO.sleep(200.millis)
+        _ <- async {
+          ioAwait(IO.never)
+          ioAwait(ref.update(_ + 1))
+        }.start.flatMap(_.cancel)
         result <- ref.get
       } yield {
         result
@@ -97,8 +110,10 @@ class AsyncAwaitSpec extends BaseSpec {
       for {
         before <- IO(x must beEqualTo(0))
         _ <- program
-        after <- IO(x must beEqualTo(1))
-      } yield before && after
+        _ <- IO(x must beEqualTo(1))
+        _ <- program
+        _ <- IO(x must beEqualTo(2))
+      } yield ok
     }
   }
 
