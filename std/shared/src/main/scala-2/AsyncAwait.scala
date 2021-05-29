@@ -17,7 +17,7 @@
 package cats.effect.std
 
 import scala.annotation.compileTimeOnly
-import scala.reflect.macros.whitebox
+import scala.reflect.macros.blackbox
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.syntax.all._
@@ -90,8 +90,8 @@ object AsyncAwaitDsl {
   type AwaitOutcome[F[_]] = Either[F[AnyRef], (F[Unit], AnyRef)]
 
   def asyncImpl[F[_], T](
-      c: whitebox.Context
-  )(body: c.Tree): c.Tree = {
+      c: blackbox.Context
+  )(body: c.Expr[T]): c.Expr[F[T]] = {
     import c.universe._
     if (!c.compilerSettings.contains("-Xasync")) {
       c.abort(
@@ -120,7 +120,7 @@ object AsyncAwaitDsl {
         }
         val name = TypeName("stateMachine$async")
         // format: off
-        q"""
+        val tree = q"""
           final class $name(dispatcher: _root_.cats.effect.std.Dispatcher[${c.prefix}._AsyncContext], callback: _root_.cats.effect.std.AsyncAwaitDsl.AwaitCallback[${c.prefix}._AsyncContext]) extends _root_.cats.effect.std.AsyncAwaitStateMachine(dispatcher, callback) {
             ${mark(q"""override def apply(tr$$async: _root_.cats.effect.std.AsyncAwaitDsl.AwaitOutcome[${c.prefix}._AsyncContext]): _root_.scala.Unit = ${body}""")}
           }
@@ -131,6 +131,7 @@ object AsyncAwaitDsl {
           }.asInstanceOf[${c.macroApplication.tpe}]
         """
         // format: on
+        c.Expr(tree)
       } catch {
         case e: ReflectiveOperationException =>
           c.abort(
