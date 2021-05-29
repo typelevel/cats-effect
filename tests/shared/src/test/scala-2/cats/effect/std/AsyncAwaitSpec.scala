@@ -108,7 +108,7 @@ class AsyncAwaitSpec extends BaseSpec {
       val program = async(x += 1)
 
       for {
-        before <- IO(x must beEqualTo(0))
+        _ <- IO(x must beEqualTo(0))
         _ <- program
         _ <- IO(x must beEqualTo(1))
         _ <- program

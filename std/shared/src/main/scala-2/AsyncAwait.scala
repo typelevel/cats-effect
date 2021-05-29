@@ -181,19 +181,20 @@ abstract class AsyncAwaitStateMachine[F[_]](
       // as inspecting the Succeeded outcome using dispatcher is risky on algebraic sums,
       // such as OptionT, EitherT, ...
       var awaitedValue: Option[AnyRef] = None
-      (summary *> f)
-        .flatTap(r => F.delay { awaitedValue = Some(r) })
-        .start
-        .flatMap(_.join)
-        .flatMap {
-          case Canceled() => F.delay(this(Left(F.canceled.asInstanceOf[F[AnyRef]])))
-          case Errored(e) => F.delay(this(Left(F.raiseError(e))))
-          case Succeeded(awaitOutcome) =>
-            awaitedValue match {
-              case Some(v) => F.delay(this(Right(awaitOutcome.void -> v)))
-              case None => F.delay(this(Left(awaitOutcome)))
-            }
-        }
+      F.uncancelable { poll =>
+        poll(summary *> f)
+          .flatTap(r => F.delay { awaitedValue = Some(r) })
+          .start
+          .flatMap(_.join)
+      }.flatMap {
+        case Canceled() => F.delay(this(Left(F.canceled.asInstanceOf[F[AnyRef]])))
+        case Errored(e) => F.delay(this(Left(F.raiseError(e))))
+        case Succeeded(awaitOutcome) =>
+          awaitedValue match {
+            case Some(v) => F.delay(this(Right(awaitOutcome.void -> v)))
+            case None => F.delay(this(Left(awaitOutcome)))
+          }
+      }
     }
   }
 
