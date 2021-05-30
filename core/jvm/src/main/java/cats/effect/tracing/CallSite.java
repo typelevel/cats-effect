@@ -37,6 +37,14 @@ class CallSite {
   private static final MethodType GET_INT_METHOD_TYPE = MethodType.methodType(int.class);
   private static final Class<?> STACK_FRAME_CLASS = findClass("java.lang.StackWalker.StackFrame",
       "java.lang.StackTraceElement");
+  private static final MethodHandle GET_CLASS_NAME_METHOD_HANDLE = createVirtualMethodHandle(STACK_FRAME_CLASS,
+      "getClassName", GET_STRING_METHOD_TYPE);
+  private static final MethodHandle GET_METHOD_NAME_METHOD_HANDLE = createVirtualMethodHandle(STACK_FRAME_CLASS,
+      "getMethodName", GET_STRING_METHOD_TYPE);
+  private static final MethodHandle GET_FILE_NAME_METHOD_HANDLE = createVirtualMethodHandle(STACK_FRAME_CLASS,
+      "getFileName", GET_STRING_METHOD_TYPE);
+  private static final MethodHandle GET_LINE_NUMBER_METHOD_HANDLE = createVirtualMethodHandle(STACK_FRAME_CLASS,
+      "getLineNumber", GET_INT_METHOD_TYPE);
 
   private static Object initStackWalker() {
     try {
