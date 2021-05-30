@@ -409,7 +409,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Implements `ApplicativeError.handleErrorWith`.
    */
   def handleErrorWith[B >: A](f: Throwable => IO[B]): IO[B] =
-    IO.HandleErrorWith(this, f)
+    IO.HandleErrorWith(this, f, Tracing.calculateTracingEvent(f.getClass))
 
   def ifM[B](ifTrue: => IO[B], ifFalse: => IO[B])(implicit ev: A <:< Boolean): IO[B] =
     flatMap(a => if (ev(a)) ifTrue else ifFalse)
@@ -1443,7 +1443,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 8
   }
 
-  private[effect] final case class HandleErrorWith[+A](ioa: IO[A], f: Throwable => IO[A])
+  private[effect] final case class HandleErrorWith[+A](
+      ioa: IO[A],
+      f: Throwable => IO[A],
+      event: TracingEvent)
       extends IO[A] {
     def tag = 9
   }
