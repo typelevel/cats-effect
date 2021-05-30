@@ -23,6 +23,13 @@ private[effect] final class ArrayStack[A <: AnyRef](
   def this(initBound: Int) =
     this(new Array[AnyRef](initBound), 0)
 
+  def this() = this(null, 0)
+
+  def init(bound: Int): Unit = {
+    buffer = new Array(bound)
+    index = 0
+  }
+
   def push(a: A): Unit = {
     checkAndGrow()
     buffer(index) = a

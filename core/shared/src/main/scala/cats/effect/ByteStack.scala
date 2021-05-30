@@ -23,6 +23,13 @@ private[effect] final class ByteStack(
   def this(initBound: Int) =
     this(new Array[Byte](initBound), 0)
 
+  def this() = this(null, 0)
+
+  def init(bound: Int): Unit = {
+    buffer = new Array(bound)
+    index = 0
+  }
+
   def push(b: Byte): Unit = {
     checkAndGrow()
     buffer(index) = b

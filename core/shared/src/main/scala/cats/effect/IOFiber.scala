@@ -84,20 +84,20 @@ private final class IOFiber[A](
    * Ideally these would be on the stack, but they can't because we sometimes need to
    * relocate our runloop to another fiber.
    */
-  private[this] var conts: ByteStack = _
-  private[this] val objectState = new ArrayStack[AnyRef](16)
+  private[this] val conts: ByteStack = new ByteStack()
+  private[this] val objectState: ArrayStack[AnyRef] = new ArrayStack()
 
   /* fast-path to head */
   private[this] var currentCtx: ExecutionContext = startEC
-  private[this] var ctxs: ArrayStack[ExecutionContext] = _
+  private[this] val ctxs: ArrayStack[ExecutionContext] = new ArrayStack()
 
   private[this] var canceled: Boolean = false
   private[this] var masks: Int = initMask
   private[this] var finalizing: Boolean = false
 
-  private[this] val finalizers = new ArrayStack[IO[Unit]](16)
+  private[this] val finalizers: ArrayStack[IO[Unit]] = new ArrayStack()
 
-  private[this] val callbacks = new CallbackStack[A](cb)
+  private[this] val callbacks: CallbackStack[A] = new CallbackStack(cb)
 
   private[this] var localState: IOLocalState = initLocalState
 
@@ -109,13 +109,13 @@ private final class IOFiber[A](
   private[this] var resumeIO: IO[Any] = startIO
 
   /* prefetch for Right(()) */
-  private[this] val RightUnit = IOFiber.RightUnit
+  private[this] val RightUnit: Either[Throwable, Unit] = IOFiber.RightUnit
 
   /* similar prefetch for EndFiber */
-  private[this] val IOEndFiber = IO.EndFiber
+  private[this] val IOEndFiber: IO.EndFiber.type = IO.EndFiber
 
-  private[this] val cancelationCheckThreshold = runtime.config.cancelationCheckThreshold
-  private[this] val autoYieldThreshold = runtime.config.autoYieldThreshold
+  private[this] val cancelationCheckThreshold: Int = runtime.config.cancelationCheckThreshold
+  private[this] val autoYieldThreshold: Int = runtime.config.autoYieldThreshold
 
   override def run(): Unit = {
     // insert a read barrier after every async boundary
@@ -907,16 +907,11 @@ private final class IOFiber[A](
 
     /* clear out literally everything to avoid any possible memory leaks */
 
-    /* conts may be null if the fiber was canceled before it was started */
-    if (conts != null)
-      conts.invalidate()
-
-    currentCtx = null
-    ctxs = null
-
+    conts.invalidate()
     objectState.invalidate()
-
     finalizers.invalidate()
+    ctxs.invalidate()
+    currentCtx = null
   }
 
   private[this] def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
@@ -924,10 +919,11 @@ private final class IOFiber[A](
     finalizing = true
 
     if (!finalizers.isEmpty()) {
-      objectState.push(cb)
-
-      conts = new ByteStack(16)
+      conts.init(16)
       conts.push(CancelationLoopK)
+
+      objectState.init(16)
+      objectState.push(cb)
 
       /* suppress all subsequent cancelation on this fiber */
       masks += 1
@@ -1105,10 +1101,13 @@ private final class IOFiber[A](
     if (canceled) {
       done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
     } else {
-      conts = new ByteStack(16)
+      conts.init(16)
       conts.push(RunTerminusK)
 
-      ctxs = new ArrayStack[ExecutionContext](2)
+      objectState.init(16)
+      finalizers.init(16)
+
+      ctxs.init(2)
       ctxs.push(currentCtx)
 
       val io = resumeIO
