@@ -20,6 +20,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 class CallSite {
 
@@ -63,4 +64,6 @@ class CallSite {
       throw new ExceptionInInitializerError(e);
     }
   }
+
+  private static final Function<Stream<Object>, Object[]> collectTrace = s -> s.toArray(Object[]::new);
 }
