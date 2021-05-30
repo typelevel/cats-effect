@@ -602,7 +602,7 @@ but it's often safer to move away from it and pass an explicit cancelation handl
 
 | Cats Effect 2.x                   | Cats Effect 3                                  | Notes                                                  |
 | --------------------------------- | ---------------------------------------------- | ------------------------------------------------------ |
-| `IO#as`                           | `IO.as(a)` / `IO.map(_ => a)`                  | the argument isn't by-name anymore                     |
+| `IO#as`                           | `IO#as(a)` / `IO#map(_ => a)`                  | the argument isn't by-name anymore                     |
 | `IO#runAsync`, `IO#runCancelable` | Unsafe variants or [`Dispatcher`](#dispatcher) | Methods that run an IO require an implicit `IORuntime` |
 | `IO#unsafe*`                      | The same or similar                            | Methods that run an IO require an implicit `IORuntime` |
 | `IO#unsafeRunTimed`               | -                                              |                                                        |
