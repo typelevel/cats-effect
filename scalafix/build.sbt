@@ -15,7 +15,7 @@ lazy val v3_0_0_input = project
   .in(file("v3_0_0/input"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "2.3.3"
+      "org.typelevel" %% "cats-effect" % "2.5.1"
     ),
     scalacOptions += "-P:semanticdb:synthetics:on"
   )
@@ -24,7 +24,7 @@ lazy val v3_0_0_output = project
   .in(file("v3_0_0/output"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.0.0-RC2"
+      "org.typelevel" %% "cats-effect" % "3.0.0"
     )
   )
 
@@ -32,14 +32,14 @@ lazy val v3_0_0_tests = project
   .in(file("v3_0_0/tests"))
   .settings(
     libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % V.scalafixVersion % Test cross CrossVersion.full,
-    compile.in(Compile) :=
-      compile.in(Compile).dependsOn(compile.in(v3_0_0_input, Compile)).value,
+    Compile / compile :=
+      (Compile / compile).dependsOn(v3_0_0_input / Compile / compile).value,
     scalafixTestkitOutputSourceDirectories :=
-      sourceDirectories.in(v3_0_0_output, Compile).value,
+      (v3_0_0_output / Compile / sourceDirectories).value,
     scalafixTestkitInputSourceDirectories :=
-      sourceDirectories.in(v3_0_0_input, Compile).value,
+      (v3_0_0_input / Compile / sourceDirectories).value,
     scalafixTestkitInputClasspath :=
-      fullClasspath.in(v3_0_0_input, Compile).value
+      (v3_0_0_input / Compile / fullClasspath).value
   )
   .dependsOn(v3_0_0_input, rules)
   .enablePlugins(ScalafixTestkitPlugin)
