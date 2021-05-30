@@ -971,7 +971,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     Sleep(delay)
 
   def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
-    Uncancelable(body)
+    Uncancelable(body, Tracing.calculateTracingEvent(body.getClass))
 
   private[this] val _unit: IO[Unit] = Pure(())
 
@@ -1459,7 +1459,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 11
   }
 
-  private[effect] final case class Uncancelable[+A](body: Poll[IO] => IO[A]) extends IO[A] {
+  private[effect] final case class Uncancelable[+A](
+      body: Poll[IO] => IO[A],
+      event: TracingEvent)
+      extends IO[A] {
     def tag = 12
   }
   private[effect] object Uncancelable {
