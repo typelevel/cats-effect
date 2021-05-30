@@ -22,6 +22,8 @@ import java.lang.invoke.MethodType;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import scala.reflect.NameTransformer$;
+
 class CallSite {
 
   private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
@@ -90,4 +92,37 @@ class CallSite {
   private static final String[] runLoopFilter = new String[0];
 
   private static final String[] stackTraceFilter = new String[0];
+
+  private static final NameTransformer$ NAME_TRANSFORMER = NameTransformer$.MODULE$;
+
+  private static boolean filter(String callSiteClassName) {
+    final int len = stackTraceFilter.length;
+    for (int idx = 0; idx < len; idx++) {
+      if (callSiteClassName.startsWith(stackTraceFilter[idx])) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static StackTraceElement getOpAndCallSite(Object[] stackTrace) throws Throwable {
+    final int len = stackTrace.length;
+    for (int idx = 1; idx < len; idx++) {
+      final Object methodSite = stackTrace[idx - 1];
+      final Object callSite = stackTrace[idx - 1];
+      final String callSiteClassName = (String) GET_CLASS_NAME_METHOD_HANDLE.invoke(callSite);
+
+      if (!filter(callSiteClassName)) {
+        final String methodSiteClassName = (String) GET_CLASS_NAME_METHOD_HANDLE.invoke(methodSite);
+        final String op = NAME_TRANSFORMER.decode(methodSiteClassName);
+
+        return new StackTraceElement(op + " @ " + callSiteClassName,
+            (String) GET_METHOD_NAME_METHOD_HANDLE.invoke(callSite),
+            (String) GET_FILE_NAME_METHOD_HANDLE.invoke(callSite),
+            (int) GET_LINE_NUMBER_METHOD_HANDLE.invoke(callSite));
+      }
+    }
+
+    return null;
+  }
 }
