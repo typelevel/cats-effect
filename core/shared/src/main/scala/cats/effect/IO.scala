@@ -37,6 +37,7 @@ import cats.data.Ior
 import cats.syntax.all._
 import cats.effect.instances.spawn
 import cats.effect.std.Console
+import cats.effect.tracing.{Tracing, TracingEvent}
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{
@@ -807,7 +808,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    * Alias for `IO.delay(body)`.
    */
-  def apply[A](thunk: => A): IO[A] = Delay(() => thunk)
+  def apply[A](thunk: => A): IO[A] = {
+    val fn = () => thunk
+    Delay(fn, Tracing.calculateTracingEvent(fn.getClass))
+  }
 
   /**
    * Suspends a synchronous side effect in `IO`.
@@ -1404,7 +1408,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 1
   }
 
-  private[effect] final case class Delay[+A](thunk: () => A) extends IO[A] {
+  private[effect] final case class Delay[+A](thunk: () => A, event: TracingEvent)
+      extends IO[A] {
     def tag = 2
   }
 
