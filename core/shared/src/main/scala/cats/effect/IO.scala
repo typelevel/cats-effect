@@ -343,7 +343,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * failures would be completely silent and `IO` references would
    * never terminate on evaluation.
    */
-  def flatMap[B](f: A => IO[B]): IO[B] = IO.FlatMap(this, f)
+  def flatMap[B](f: A => IO[B]): IO[B] =
+    IO.FlatMap(this, f, Tracing.calculateTracingEvent(f.getClass))
 
   def flatten[B](implicit ev: A <:< IO[B]): IO[B] = flatMap(ev)
 
@@ -1430,7 +1431,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 6
   }
 
-  private[effect] final case class FlatMap[E, +A](ioe: IO[E], f: E => IO[A]) extends IO[A] {
+  private[effect] final case class FlatMap[E, +A](
+      ioe: IO[E],
+      f: E => IO[A],
+      event: TracingEvent)
+      extends IO[A] {
     def tag = 7
   }
 
