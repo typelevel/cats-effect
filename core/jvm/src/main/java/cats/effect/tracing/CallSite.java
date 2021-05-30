@@ -25,7 +25,8 @@ import java.util.stream.Stream;
 class CallSite {
 
   private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
-  private static final Class<?> STACK_WALKER_CLASS = findStackWalkerClass();
+  private static final Class<?> STACK_WALKER_CLASS = findClass("java.lang.StackWalker",
+      "cats.effect.tracing.StackWalkerCompat");
   private static final MethodType WALK_METHOD_TYPE = MethodType.methodType(Object.class, Function.class);
   private static final MethodHandle WALK_METHOD_HANDLE = createWalkMethodHandle();
 
@@ -41,11 +42,15 @@ class CallSite {
     }
   }
 
-  private static Class<?> findStackWalkerClass() {
+  private static Class<?> findClass(String className, String fallbackClassName) {
     try {
-      return Class.forName("java.lang.StackWalker");
-    } catch (ClassNotFoundException e) {
-      return StackWalkerCompat.class;
+      return Class.forName(className);
+    } catch (ClassNotFoundException e1) {
+      try {
+        return Class.forName(fallbackClassName);
+      } catch (ClassNotFoundException e2) {
+        throw new ExceptionInInitializerError(e2);
+      }
     }
   }
 
