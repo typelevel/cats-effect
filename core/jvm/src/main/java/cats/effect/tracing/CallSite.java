@@ -33,6 +33,9 @@ class CallSite {
 
   private static final Object STACK_WALKER = initStackWalker();
 
+  private static final MethodType GET_STRING_METHOD_TYPE = MethodType.methodType(String.class);
+  private static final MethodType GET_INT_METHOD_TYPE = MethodType.methodType(int.class);
+
   private static Object initStackWalker() {
     try {
       final MethodType getInstanceMethodType = MethodType.methodType(STACK_WALKER_CLASS);
