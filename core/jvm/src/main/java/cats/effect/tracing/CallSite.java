@@ -23,12 +23,12 @@ import java.util.function.Function;
 
 class CallSite {
 
-  private static final Object STACK_WALKER = initStackWalker();
-
   private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
   private static final Class<?> STACK_WALKER_CLASS = findStackWalkerClass();
   private static final MethodType WALK_METHOD_TYPE = MethodType.methodType(Object.class, Function.class);
-  private static final MethodHandle WALK_METHODHANDLE = createWalkMethodHandle();
+  private static final MethodHandle WALK_METHOD_HANDLE = createWalkMethodHandle();
+
+  private static final Object STACK_WALKER = initStackWalker();
 
   private static Object initStackWalker() {
     try {
