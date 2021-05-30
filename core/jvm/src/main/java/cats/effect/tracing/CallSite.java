@@ -126,4 +126,9 @@ class CallSite {
 
     return null;
   }
+
+  static StackTraceElement generateCallSite() throws Throwable {
+    final Object[] stackTrace = (Object[]) WALK_METHOD_HANDLE.invoke(STACK_WALKER, collectTrace);
+    return getOpAndCallSite(stackTrace);
+  }
 }
