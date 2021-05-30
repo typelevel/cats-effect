@@ -16,7 +16,7 @@
 
 package cats.effect.tracing
 
-private[effect] final class RingBuffer(logSize: Int) {
+private[effect] final class RingBuffer private (logSize: Int) {
 
   private[this] val length = 1 << logSize
   private[this] val mask = length - 1
@@ -46,4 +46,10 @@ private[effect] final class RingBuffer(logSize: Int) {
     }
     result
   }
+}
+
+private[effect] object RingBuffer {
+  import TracingConstants.traceBufferLogSize
+
+  def empty: RingBuffer = new RingBuffer(traceBufferLogSize)
 }
