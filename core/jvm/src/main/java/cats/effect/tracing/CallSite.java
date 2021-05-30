@@ -28,7 +28,8 @@ class CallSite {
   private static final Class<?> STACK_WALKER_CLASS = findClass("java.lang.StackWalker",
       "cats.effect.tracing.StackWalkerCompat");
   private static final MethodType WALK_METHOD_TYPE = MethodType.methodType(Object.class, Function.class);
-  private static final MethodHandle WALK_METHOD_HANDLE = createWalkMethodHandle();
+  private static final MethodHandle WALK_METHOD_HANDLE = createVirtualMethodHandle(STACK_WALKER_CLASS, "walk",
+      WALK_METHOD_TYPE);
 
   private static final Object STACK_WALKER = initStackWalker();
 
@@ -63,9 +64,9 @@ class CallSite {
     }
   }
 
-  private static MethodHandle createWalkMethodHandle() {
+  private static MethodHandle createVirtualMethodHandle(Class<?> cls, String name, MethodType mt) {
     try {
-      return LOOKUP.findVirtual(STACK_WALKER_CLASS, "walk", WALK_METHOD_TYPE);
+      return LOOKUP.findVirtual(cls, name, mt);
     } catch (NoSuchMethodException | IllegalAccessException e) {
       throw new ExceptionInInitializerError(e);
     }
