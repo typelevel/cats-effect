@@ -66,4 +66,8 @@ class CallSite {
   }
 
   private static final Function<Stream<Object>, Object[]> collectTrace = s -> s.toArray(Object[]::new);
+
+  private static final String[] runLoopFilter = new String[0];
+
+  private static final String[] stackTraceFilter = new String[0];
 }
