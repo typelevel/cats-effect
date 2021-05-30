@@ -35,7 +35,8 @@ class CallSite {
   private static Object initStackWalker() {
     try {
       final MethodType getInstanceMethodType = MethodType.methodType(STACK_WALKER_CLASS);
-      final MethodHandle getInstanceMethodHandle = createGetInstanceMethodHandle(getInstanceMethodType);
+      final MethodHandle getInstanceMethodHandle = createStaticMethodHandle(STACK_WALKER_CLASS, "getInstance",
+          getInstanceMethodType);
       return getInstanceMethodHandle.invoke();
     } catch (Throwable t) {
       throw new ExceptionInInitializerError(t);
@@ -54,9 +55,9 @@ class CallSite {
     }
   }
 
-  private static MethodHandle createGetInstanceMethodHandle(MethodType getInstanceMethodType) {
+  private static MethodHandle createStaticMethodHandle(Class<?> cls, String name, MethodType mt) {
     try {
-      return LOOKUP.findStatic(STACK_WALKER_CLASS, "getInstance", getInstanceMethodType);
+      return LOOKUP.findStatic(cls, name, mt);
     } catch (NoSuchMethodException | IllegalAccessException e) {
       throw new ExceptionInInitializerError(e);
     }
