@@ -21,7 +21,7 @@ import scala.sys.process._
 
 ThisBuild / baseVersion := "2.5"
 
-val OldScala = "2.12.13"
+val OldScala = "2.12.14"
 val NewScala = "2.13.6"
 val Dotty = "3.0.0"
 
@@ -60,7 +60,7 @@ ThisBuild / scmInfo := Some(
 
 val CatsVersion = "2.6.1"
 val DisciplineMunitVersion = "1.0.9"
-val SilencerVersion = "1.7.4"
+val SilencerVersion = "1.7.5"
 
 replaceCommandAlias(
   "ci",
