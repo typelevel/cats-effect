@@ -423,7 +423,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * failures would be completely silent and `IO` references would
    * never terminate on evaluation.
    */
-  def map[B](f: A => B): IO[B] = IO.Map(this, f)
+  def map[B](f: A => B): IO[B] = IO.Map(this, f, Tracing.calculateTracingEvent(f.getClass))
 
   def onCancel(fin: IO[Unit]): IO[A] =
     IO.OnCancel(this, fin)
@@ -1425,7 +1425,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 5
   }
 
-  private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A) extends IO[A] {
+  private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A, event: TracingEvent)
+      extends IO[A] {
     def tag = 6
   }
 
