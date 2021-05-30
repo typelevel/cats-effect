@@ -1504,7 +1504,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 20
   }
 
-  private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A) extends IO[A] {
+  private[effect] final case class Blocking[+A](
+      hint: Sync.Type,
+      thunk: () => A,
+      event: TracingEvent)
+      extends IO[A] {
     def tag = 21
   }
 
