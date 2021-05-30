@@ -139,6 +139,7 @@ trait IOApp {
         Thread.currentThread().interrupt()
     }
   }
+
 }
 
 object IOApp {
