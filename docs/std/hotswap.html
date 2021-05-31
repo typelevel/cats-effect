@@ -74,30 +74,36 @@ the previous resource in the sequence is referenced after <code>swap</code> is i
 <pre><code class="hljs css language-scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">rotating</span></span>(n: <span class="hljs-type">Int</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">Logger</span>[<span class="hljs-type">IO</span>]] =
   <span class="hljs-type">Hotswap</span>.create[<span class="hljs-type">IO</span>, <span class="hljs-type">File</span>].flatMap { hs =&gt;
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">file</span></span>(name: <span class="hljs-type">String</span>): <span class="hljs-type">Resource</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">File</span>] = ???
-  
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">write</span></span>(file: <span class="hljs-type">File</span>, msg: <span class="hljs-type">String</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = ???
+
     <span class="hljs-type">Resource</span>.eval {
       <span class="hljs-keyword">for</span> {
         index &lt;- <span class="hljs-type">Ref</span>[<span class="hljs-type">IO</span>].of(<span class="hljs-number">0</span>)
         count &lt;- <span class="hljs-type">Ref</span>[<span class="hljs-type">IO</span>].of(<span class="hljs-number">0</span>)
         <span class="hljs-comment">//Open the initial log file</span>
         f &lt;- hs.swap(file(<span class="hljs-string">"0.log"</span>))
-        log &lt;- <span class="hljs-type">Ref</span>[<span class="hljs-type">IO</span>].of(f)
+        logFile &lt;- <span class="hljs-type">Ref</span>[<span class="hljs-type">IO</span>].of(f)
       } <span class="hljs-keyword">yield</span> <span class="hljs-keyword">new</span> <span class="hljs-type">Logger</span>[<span class="hljs-type">IO</span>] {
         <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">log</span></span>(msg: <span class="hljs-type">String</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] =
-          <span class="hljs-keyword">if</span> (msg.length() &lt; n - count)
-            log.get.flatMap { file =&gt; write(file, msg) } 
-            _ &lt;- count.update(_ + msg.length())
-          <span class="hljs-keyword">else</span>
-            <span class="hljs-keyword">for</span> {
-              <span class="hljs-comment">//Reset the log length counter</span>
-              _ &lt;- count.set(msg.length())
-              <span class="hljs-comment">//Increment the counter for the log file name</span>
-              idx &lt;- index.modify(n =&gt; (n+<span class="hljs-number">1</span>, n))
-              <span class="hljs-comment">//Close the old log file and open the new one</span>
-              f &lt;- hs.swap(file(<span class="hljs-string">s"<span class="hljs-subst">${idx}</span>.log"</span>))
-              _ &lt;- log.set(f)
-              _ &lt;- write(f, msg)
-            } <span class="hljs-keyword">yield</span> ()
+          count.get.flatMap { currentCount =&gt;
+            <span class="hljs-keyword">if</span> (msg.length() &lt; n - currentCount)
+              <span class="hljs-keyword">for</span> {
+                currentFile &lt;- logFile.get
+                _ &lt;- write(currentFile, msg)
+                _ &lt;- count.update(_ + msg.length())
+              } <span class="hljs-keyword">yield</span> ()
+            <span class="hljs-keyword">else</span>
+              <span class="hljs-keyword">for</span> {
+                <span class="hljs-comment">//Reset the log length counter</span>
+                _ &lt;- count.set(msg.length())
+                <span class="hljs-comment">//Increment the counter for the log file name</span>
+                idx &lt;- index.updateAndGet(_ + <span class="hljs-number">1</span>)
+                <span class="hljs-comment">//Close the old log file and open the new one</span>
+                f &lt;- hs.swap(file(<span class="hljs-string">s"<span class="hljs-subst">$idx</span>.log"</span>))
+                _ &lt;- logFile.set(f)
+                _ &lt;- write(f, msg)
+              } <span class="hljs-keyword">yield</span> ()
+          }
       }
     }
   }
