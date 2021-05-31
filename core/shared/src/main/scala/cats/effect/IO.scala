@@ -254,18 +254,22 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * For example:
    *
    * {{{
+   *   val foo = new RuntimeException("Foo")
+   *   val bar = new RuntimeException("Bar")
    *   IO("resource").bracket { _ =>
    *     // use
-   *     IO.raiseError(new RuntimeException("Foo"))
+   *     IO.raiseError(foo)
    *   } { _ =>
    *     // release
-   *     IO.raiseError(new RuntimeException("Bar"))
+   *     IO.raiseError(bar)
    *   }
    * }}}
    *
-   * In this case the error signaled downstream is `"Bar"`, while the
-   * `"Foo"` error gets reported on a side-channel. This is consistent
-   * with the behavior `try {} finally {}`.
+   * In this case the resulting `IO` will raise error `foo`, while the
+   * `bar` error gets reported on a side-channel. This is consistent
+   * with the behavior of Java's "Try with resources" except that no
+   * involved exceptions are mutated (i.e., in contrast to Java, `bar`
+   * isn't added as a suppressed exception to `foo`).
    *
    * @see [[bracketCase]]
    *
