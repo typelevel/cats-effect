@@ -36,10 +36,10 @@ import cats.effect.kernel.Outcome.Succeeded
  * popularised in other programming languages.
  *
  * {{{
- * object ioAsyncAwait extends AsyncAwaitDsl[IO]
- * import ioAsyncAwait._
+ * object dsl extends AsyncAwaitDsl[IO]
+ * import dsl._
  *
- * val io : IO[Int] = ???
+ * val io: IO[Int] = ???
  * async { await(io) + await(io) }
  * }}}
  *
