@@ -60,7 +60,8 @@ class AsyncAwaitSpec extends BaseSpec {
 
       case object Boom extends Throwable
 
-      val program = async(throw Boom)
+      def boom: Unit = throw Boom
+      val program = async(boom)
 
       program.attempt.flatMap { res =>
         IO {
@@ -87,7 +88,7 @@ class AsyncAwaitSpec extends BaseSpec {
       val program = for {
         ref <- Ref[IO].of(0)
         _ <- async {
-          ioAwait(IO.never)
+          ioAwait(IO.never[Unit])
           ioAwait(ref.update(_ + 1))
         }.start.flatMap(_.cancel)
         result <- ref.get

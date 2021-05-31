@@ -186,7 +186,7 @@ abstract class AsyncAwaitStateMachine[F[_]](
         poll(summary *> f)
           .flatTap(r => F.delay { awaitedValue = Some(r) })
           .start
-          .flatMap(_.join)
+          .flatMap(fiber => poll(fiber.join).onCancel(fiber.cancel))
       }.flatMap {
         case Canceled() => F.delay(this(Left(F.canceled.asInstanceOf[F[AnyRef]])))
         case Errored(e) => F.delay(this(Left(F.raiseError(e))))
