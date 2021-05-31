@@ -60,8 +60,8 @@ class AsyncAwaitSpec extends BaseSpec {
 
       case object Boom extends Throwable
 
-      def boom: Unit = throw Boom
-      val program = async(boom)
+      def boom(): Unit = throw Boom
+      val program = async(boom())
 
       program.attempt.flatMap { res =>
         IO {
