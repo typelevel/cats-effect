@@ -248,7 +248,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * termination and cancelation.
    *
    * '''NOTE on error handling''': in case both the `release`
-   * function and the `use` function throws, the error raised by `use`
+   * function and the `use` function throws, the error raised by `release`
    * gets signaled.
    *
    * For example:
