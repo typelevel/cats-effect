@@ -311,7 +311,16 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform)
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
-      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test)
+      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test),
+    scalacOptions ++= List("-Xasync"),
+    Test / unmanagedSourceDirectories ++= {
+      if (!isDotty.value)
+        Seq(
+          (Compile / baseDirectory)
+            .value
+            .getParentFile() / "shared" / "src" / "test" / "scala-2")
+      else Seq()
+    }
   )
   .jvmSettings(
     Test / fork := true,
@@ -337,7 +346,20 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
       else
         "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     },
-    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test
+    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
+    libraryDependencies ++= {
+      if (!isDotty.value)
+        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided")
+      else Seq()
+    },
+    Compile / unmanagedSourceDirectories ++= {
+      if (!isDotty.value)
+        Seq(
+          (Compile / baseDirectory)
+            .value
+            .getParentFile() / "shared" / "src" / "main" / "scala-2")
+      else Seq()
+    }
   )
 
 /**
