@@ -372,7 +372,6 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
     "use is stack-safe over binds" in ticked { implicit ticker =>
       val stackDepth = 50000
-      verifyThatSoeIsReproducibleWithStackDepth(stackDepth)
       val r = (1 to stackDepth)
         .foldLeft(Resource.eval(IO.unit)) {
           case (r, _) =>
@@ -384,7 +383,6 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
     "use is stack-safe over binds - 2" in real {
       val n = 50000
-      verifyThatSoeIsReproducibleWithStackDepth(n)
       def p(i: Int = 0, n: Int = 50000): Resource[IO, Int] =
         Resource
           .pure {
@@ -401,7 +399,6 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
     "mapK is stack-safe over binds" in ticked { implicit ticker =>
       val stackDepth = 50000
-      verifyThatSoeIsReproducibleWithStackDepth(stackDepth)
       val r = (1 to stackDepth)
         .foldLeft(Resource.eval(IO.unit)) {
           case (r, _) =>
@@ -982,20 +979,4 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       ParallelTests[Resource[IO, *]].parallel[Int, Int]
     )
   }*/
-
-  def verifyThatSoeIsReproducibleWithStackDepth(stackDepth: Int): Unit = {
-    def triggerStackOverflowError(n: Int): Int = {
-      if (n <= 0) n
-      else n + triggerStackOverflowError(n - 1)
-    }
-
-    try {
-      triggerStackOverflowError(stackDepth)
-      sys.error(
-        s"expected a StackOverflowError from $stackDepth-deep recursion, consider increasing the depth in test"
-      )
-    } catch {
-      case _: StackOverflowError =>
-    }
-  }
 }
