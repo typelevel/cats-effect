@@ -15,7 +15,7 @@ lazy val v2_4_0_input = project
   .in(file("v2_4_0/input"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "2.5.1"
+      "org.typelevel" %% "cats-effect" % "2.3.3"
     )
   )
 
@@ -25,7 +25,7 @@ lazy val v2_4_0_output = project
     libraryDependencies ++= Seq(
       // Ideally this would be a 2.4.0 release candidate or any other version
       // newer than 2.3.3.
-      "org.typelevel" %% "cats-effect" % "3.1.1"
+      "org.typelevel" %% "cats-effect" % "2.4.0"
     )
   )
 
