@@ -32,11 +32,11 @@ import scala.util.control.NonFatal
  *
  * `SyncIO` is similar to [[IO]], but does not support asynchronous
  * computations. Consequently, a `SyncIO` can be run synchronously
- * to obtain a result via `unsafeRunSync`. This is unlike
+ * on any platform to obtain a result via `unsafeRunSync`. This is unlike
  * `IO#unsafeRunSync`, which cannot be safely called in general --
  * doing so on the JVM blocks the calling thread while the
  * async part of the computation is run and doing so on Scala.js
- * throws an exception upon encountering an async boundary.
+ * is not supported.
  */
 sealed abstract class SyncIO[+A] private () {
 
