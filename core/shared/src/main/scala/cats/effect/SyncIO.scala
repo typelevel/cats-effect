@@ -36,7 +36,7 @@ import scala.util.control.NonFatal
  * `IO#unsafeRunSync`, which cannot be safely called in general --
  * doing so on the JVM blocks the calling thread while the
  * async part of the computation is run and doing so on Scala.js
- * is not supported
+ * is not supported.
  */
 sealed abstract class SyncIO[+A] private () {
 
