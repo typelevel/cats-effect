@@ -184,8 +184,9 @@ object AsyncAwaitDsl {
     // Derived from @olafurpg's
     // https://gist.github.com/olafurpg/596d62f87bf3360a29488b725fbc7608
     val defs = rec(body).filter(_.isDef).map(_.symbol).toSet
+
     val transformed = c.internal.typingTransform(body) {
-      case (tt @ q"$_($fun)", _) if tt.symbol == awaitSym =>
+      case (tt @ c.universe.Apply(_, fun :: Nil), _) if tt.symbol == awaitSym =>
         val localDefs = rec(fun).filter(_.isDef).map(_.symbol).toSet
         val banned = rec(tt).filter(x => defs(x.symbol) && !localDefs(x.symbol))
 
