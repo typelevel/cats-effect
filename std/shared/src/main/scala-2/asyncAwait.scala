@@ -172,7 +172,7 @@ object AsyncAwaitDsl {
     if (!c.compilerSettings.contains("-Xasync")) {
       c.abort(
         c.macroApplication.pos,
-        "The async requires the compiler option -Xasync (supported only by Scala 2.12.12+ / 2.13.3+)"
+        "The parallel method requires the compiler option -Xasync (supported only by Scala 2.12.12+ / 2.13.3+)"
       )
     }
 
