@@ -116,6 +116,24 @@ class AsyncAwaitSpec extends BaseSpec {
         _ <- IO(x must beEqualTo(2))
       } yield ok
     }
+
+    "allow for parallel composition" in real {
+
+      val program = Deferred[IO, Int].flatMap { promise =>
+        parallel {
+          val res = ioAwait(promise.get)
+          val _ = ioAwait(promise.complete(1))
+          res
+        }
+      }
+
+      program.flatMap { res =>
+        IO {
+          res must beEqualTo(1)
+        }
+      }
+    }
+
   }
 
   "KleisliAsyncAwait" should {

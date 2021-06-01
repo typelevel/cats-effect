@@ -46,6 +46,19 @@ import cats.effect.kernel.Outcome.Succeeded
  * The code is transformed at compile time into a state machine
  * that sequentially calls upon a [[Dispatcher]] every time it reaches
  * an "await" block.
+ *
+ * The AsyncAwaitDsl construct also allows for parallel composition:
+ *
+ * {{{
+ * object dsl extends AsyncAwaitDsl[IO]
+ * import dsl._
+ *
+ * val io: IO[Int] = ???
+ * parallel { await(io) + await(io) }
+ * }}}
+ *
+ * in which case, the code is transformed into a `parMapN` call that uses
+ * the Async instance associated to the effect.
  */
 class AsyncAwaitDsl[F[_]](implicit F: Async[F]) {
 
@@ -75,6 +88,14 @@ class AsyncAwaitDsl[F[_]](implicit F: Async[F]) {
    */
   def async[T](body: => T): F[T] = macro AsyncAwaitDsl.asyncImpl[F, T]
 
+  /**
+   * Run the block of code `body` by parallelising all `F`s that are wrapped in "await".
+   * This is translated into a call to `parMapN`.
+   *
+   * Any term (val, var, def) defined in the `parallel` block cannot be used within `await` blocks.
+   */
+  def parallel[T](body: => T): F[T] = macro AsyncAwaitDsl.parallelImpl[F, T]
+
 }
 
 object AsyncAwaitDsl {
@@ -96,7 +117,7 @@ object AsyncAwaitDsl {
     if (!c.compilerSettings.contains("-Xasync")) {
       c.abort(
         c.macroApplication.pos,
-        "The async requires the compiler option -Xasync (supported only by Scala 2.12.12+ / 2.13.3+)"
+        "The async method requires the compiler option -Xasync (supported only by Scala 2.12.12+ / 2.13.3+)"
       )
     } else
       try {
@@ -141,6 +162,68 @@ object AsyncAwaitDsl {
               .getName + " " + e.getMessage
           )
       }
+  }
+
+  def parallelImpl[F[_], T](c: blackbox.Context)(body: c.Expr[T]): c.Expr[F[T]] =
+    parallelImpl0[F, T](c)(body.tree)
+
+  def parallelImpl0[F[_], T](c: blackbox.Context)(body: c.Tree): c.Expr[F[T]] = {
+    import c.universe._
+    if (!c.compilerSettings.contains("-Xasync")) {
+      c.abort(
+        c.macroApplication.pos,
+        "The async requires the compiler option -Xasync (supported only by Scala 2.12.12+ / 2.13.3+)"
+      )
+    }
+
+    def rec(t: Tree): Iterator[c.Tree] = Iterator(t) ++ t.children.flatMap(rec(_))
+
+    val bound = collection.mutable.Buffer.empty[(c.Tree, ValDef)]
+    val awaitSym = typeOf[AsyncAwaitDsl[Any]].decl(TermName("await"))
+
+    // Derived from @olafurpg's
+    // https://gist.github.com/olafurpg/596d62f87bf3360a29488b725fbc7608
+    val defs = rec(body).filter(_.isDef).map(_.symbol).toSet
+    val transformed = c.internal.typingTransform(body) {
+      case (tt @ q"$_($fun)", _) if tt.symbol == awaitSym =>
+        val localDefs = rec(fun).filter(_.isDef).map(_.symbol).toSet
+        val banned = rec(tt).filter(x => defs(x.symbol) && !localDefs(x.symbol))
+
+        if (banned.hasNext) {
+          val banned0 = banned.next()
+          c.abort(
+            banned0.pos,
+            "await(..) call cannot use `" + banned0.symbol + "` defined within the parallel{...} block"
+          )
+        }
+        val tempName = c.freshName(TermName("tmp"))
+        val tempSym =
+          c.internal.newTermSymbol(c.internal.enclosingOwner, tempName)
+        c.internal.setInfo(tempSym, tt.tpe)
+        val tempIdent = Ident(tempSym)
+        c.internal.setType(tempIdent, tt.tpe)
+        c.internal.setFlag(tempSym, (1L << 44).asInstanceOf[c.universe.FlagSet])
+        bound.append((fun, c.internal.valDef(tempSym)))
+        tempIdent
+      case (tt, api) => api.default(tt)
+    }
+
+    val (exprs, bindings) = bound.unzip
+    val callback = c.typecheck(q"(..$bindings) => $transformed ")
+    val parMapMethod = TermName("parMap" + exprs.size)
+    val res = if (exprs.size >= 2) {
+      q"""
+        _root_.cats.Parallel.$parMapMethod(..$exprs)($callback)(cats.effect.kernel.instances.spawn.parallelForGenSpawn(${c.prefix}._AsyncInstance))
+      """
+    } else if (exprs.size == 1) {
+      q"""${c.prefix}._AsyncInstance.map(..${exprs.head})($callback)"""
+    } else {
+      q"""${c.prefix}._AsyncInstance.delay($callback())"""
+    }
+
+    c.internal.changeOwner(transformed, c.internal.enclosingOwner, callback.symbol)
+
+    c.Expr[F[T]](res)
   }
 
 }
