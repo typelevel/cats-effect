@@ -104,20 +104,20 @@ class CallSite {
       };
     } else {
       return s -> {
-        final ArrayList<Object> frames = new ArrayList<>();
+        final FrameBox box = new FrameBox();
         final Optional<Object> optionalCallSite = s.filter(cs -> {
-          frames.add(cs);
+          box.methodSite = box.callSite;
+          box.callSite = cs;
           try {
             final String callSiteClassName = (String) GET_CLASS_NAME_METHOD_HANDLE.invoke(cs);
-            return frames.size() >= 2 && !filter(callSiteClassName);
+            return box.methodSite != null && !filter(callSiteClassName);
           } catch (Throwable t) {
             return false;
           }
         }).findFirst();
 
         if (optionalCallSite.isPresent()) {
-          final int idx = frames.size() - 2;
-          final Object methodSite = frames.get(idx);
+          final Object methodSite = box.methodSite;
           final Object callSite = optionalCallSite.get();
           try {
             final String callSiteClassName = (String) GET_CLASS_NAME_METHOD_HANDLE.invoke(callSite);
@@ -174,5 +174,10 @@ class CallSite {
 
   static StackTraceElement generateCallSite() throws Throwable {
     return (StackTraceElement) WALK_METHOD_HANDLE.invoke(STACK_WALKER, calculateCallSite);
+  }
+
+  private static class FrameBox {
+    Object methodSite;
+    Object callSite;
   }
 }
