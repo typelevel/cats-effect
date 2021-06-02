@@ -18,29 +18,21 @@ package cats.effect.tracing
 
 import scala.collection.mutable.ArrayBuffer
 
-import java.util.concurrent.ConcurrentHashMap
-
-private[effect] object Tracing {
+/**
+ * Global cache for trace frames. Keys are references to lambda classes.
+ * Should converge to the working set of traces very quickly for hot code paths.
+ */
+private[effect] object Tracing extends ClassValue[TracingEvent] {
 
   import TracingConstants._
 
-  /**
-   * Global cache for trace frames. Keys are references to lambda classes.
-   * Should converge to the working set of traces very quickly for hot code paths.
-   */
-  private[this] val frameCache: ConcurrentHashMap[Class[_], TracingEvent] =
-    new ConcurrentHashMap()
+  override protected def computeValue(cls: Class[_]): TracingEvent = {
+    buildEvent()
+  }
 
   def calculateTracingEvent(cls: Class[_]): TracingEvent = {
     if (isCachedStackTracing) {
-      val currentFrame = frameCache.get(cls)
-      if (currentFrame eq null) {
-        val event = buildEvent()
-        frameCache.put(cls, event)
-        event
-      } else {
-        currentFrame
-      }
+      get(cls)
     } else if (isFullStackTracing) {
       buildEvent()
     } else {
