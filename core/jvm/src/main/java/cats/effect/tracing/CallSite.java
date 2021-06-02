@@ -113,7 +113,7 @@ class CallSite {
             box.callSiteClassName = callSiteClassName;
             return box.methodSite != null && !filter(callSiteClassName);
           } catch (Throwable t) {
-            return false;
+            throw new RuntimeException("Failed to invoke getClassName() on " + cs, t);
           }
         }).findFirst();
 
