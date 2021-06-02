@@ -86,17 +86,19 @@ private[effect] object Tracing {
       buffer.toArray
     }
 
-    val stackTrace = t.getStackTrace
-    if (!stackTrace.isEmpty) {
-      val augmented = stackTrace.last.getClassName.indexOf('@') != -1
-      if (!augmented) {
-        val prefix = dropRunLoopFrames(stackTrace)
-        val suffix = events
-          .toList
-          .collect { case ev: TracingEvent.StackTrace => ev.stackTrace.getStackTrace }
-          .flatten
-          .toArray
-        t.setStackTrace(prefix ++ suffix)
+    if (isStackTracing && enhancedExceptions) {
+      val stackTrace = t.getStackTrace
+      if (!stackTrace.isEmpty) {
+        val augmented = stackTrace.last.getClassName.indexOf('@') != -1
+        if (!augmented) {
+          val prefix = dropRunLoopFrames(stackTrace)
+          val suffix = events
+            .toList
+            .collect { case ev: TracingEvent.StackTrace => ev.stackTrace.getStackTrace }
+            .flatten
+            .toArray
+          t.setStackTrace(prefix ++ suffix)
+        }
       }
     }
   }
