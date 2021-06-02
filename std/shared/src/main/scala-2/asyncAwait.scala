@@ -221,7 +221,7 @@ object AsyncAwaitDsl {
     } else if (exprs.size == 1) {
       q"""${c.prefix}._AsyncInstance.flatMap(..${exprs.head})($callback)"""
     } else {
-      q"""${c.prefix}._AsyncInstance.delay($callback()).flatten"""
+      q"""$callback()"""
     }
 
     c.internal.changeOwner(transformed, c.internal.enclosingOwner, callback.symbol)
