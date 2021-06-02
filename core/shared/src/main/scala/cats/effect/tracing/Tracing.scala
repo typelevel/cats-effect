@@ -87,16 +87,18 @@ private[effect] object Tracing {
       buffer.toArray
     }
 
-    val stackTrace = t.getStackTrace
-    if (!stackTrace.isEmpty) {
-      val augmented = stackTrace.last.getClassName.indexOf('@') != -1
-      if (!augmented) {
-        val prefix = dropRunLoopFrames(stackTrace)
-        val suffix = events
-          .toList
-          .collect { case ev: TracingEvent.CallSite if ev.callSite ne null => ev.callSite }
-          .toArray
-        t.setStackTrace(prefix ++ suffix)
+    if (isStackTracing && enhancedExceptions) {
+      val stackTrace = t.getStackTrace
+      if (!stackTrace.isEmpty) {
+        val augmented = stackTrace.last.getClassName.indexOf('@') != -1
+        if (!augmented) {
+          val prefix = dropRunLoopFrames(stackTrace)
+          val suffix = events
+            .toList
+            .collect { case ev: TracingEvent.CallSite if ev.callSite ne null => ev.callSite }
+            .toArray
+          t.setStackTrace(prefix ++ suffix)
+        }
       }
     }
   }
