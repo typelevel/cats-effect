@@ -129,17 +129,21 @@ class CallSite {
       final String callSiteClassName = (String) GET_CLASS_NAME_METHOD_HANDLE.invoke(callSite);
 
       if (!filter(callSiteClassName)) {
-        final String methodSiteMethodName = (String) GET_METHOD_NAME_METHOD_HANDLE.invoke(methodSite);
-        final String op = NAME_TRANSFORMER.decode(methodSiteMethodName);
-
-        return new StackTraceElement(op + " @ " + callSiteClassName,
-            (String) GET_METHOD_NAME_METHOD_HANDLE.invoke(callSite),
-            (String) GET_FILE_NAME_METHOD_HANDLE.invoke(callSite),
-            (int) GET_LINE_NUMBER_METHOD_HANDLE.invoke(callSite));
+        return combineMethodCallSite(methodSite, callSite, callSiteClassName);
       }
     }
 
     return null;
+  }
+
+  private static StackTraceElement combineMethodCallSite(Object methodSite, Object callSite, String callSiteClassName)
+      throws Throwable {
+    final String methodSiteMethodName = (String) GET_METHOD_NAME_METHOD_HANDLE.invoke(methodSite);
+    final String op = NAME_TRANSFORMER.decode(methodSiteMethodName);
+
+    return new StackTraceElement(op + " @ " + callSiteClassName,
+        (String) GET_METHOD_NAME_METHOD_HANDLE.invoke(callSite), (String) GET_FILE_NAME_METHOD_HANDLE.invoke(callSite),
+        (int) GET_LINE_NUMBER_METHOD_HANDLE.invoke(callSite));
   }
 
   static StackTraceElement generateCallSite() throws Throwable {
