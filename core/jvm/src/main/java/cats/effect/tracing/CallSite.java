@@ -132,8 +132,6 @@ class CallSite {
     }
   }
 
-  private static final String[] runLoopFilter = new String[] { "cats.effect.", "scala.runtime." };
-
   private static final String[] stackTraceFilter = new String[] { "cats.effect.", "cats.", "sbt.", "java.", "sun.",
       "scala." };
 
