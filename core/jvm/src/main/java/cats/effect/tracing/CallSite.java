@@ -110,6 +110,7 @@ class CallSite {
           box.callSite = cs;
           try {
             final String callSiteClassName = (String) GET_CLASS_NAME_METHOD_HANDLE.invoke(cs);
+            box.callSiteClassName = callSiteClassName;
             return box.methodSite != null && !filter(callSiteClassName);
           } catch (Throwable t) {
             return false;
@@ -118,9 +119,9 @@ class CallSite {
 
         if (optionalCallSite.isPresent()) {
           final Object methodSite = box.methodSite;
-          final Object callSite = optionalCallSite.get();
+          final Object callSite = box.callSite;
+          final String callSiteClassName = box.callSiteClassName;
           try {
-            final String callSiteClassName = (String) GET_CLASS_NAME_METHOD_HANDLE.invoke(callSite);
             return combineMethodCallSite(methodSite, callSite, callSiteClassName);
           } catch (Throwable t) {
             return null;
@@ -179,5 +180,6 @@ class CallSite {
   private static class FrameBox {
     Object methodSite;
     Object callSite;
+    String callSiteClassName;
   }
 }
