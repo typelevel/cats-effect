@@ -91,15 +91,14 @@ class CallSite {
 
   private static Function<Stream<Object>, StackTraceElement> initCalculateCallSite() {
     if (true) {
-      final Function<Stream<Object>, Object[]> collectAll = s -> s.toArray(Object[]::new);
-      final Function<Object[], StackTraceElement> mapper = os -> {
+      return s -> {
+        final Object[] stackTrace = s.toArray(Object[]::new);
         try {
-          return getOpAndCallSiteLegacy(os);
+          return getOpAndCallSiteLegacy(stackTrace);
         } catch (Throwable t) {
           return null;
         }
       };
-      return collectAll.andThen(mapper);
     } else {
       return null;
     }
