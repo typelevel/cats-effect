@@ -125,7 +125,7 @@ class CallSite {
     final int len = stackTrace.length;
     for (int idx = 1; idx < len; idx++) {
       final Object methodSite = stackTrace[idx - 1];
-      final Object callSite = stackTrace[idx - 1];
+      final Object callSite = stackTrace[idx];
       final String callSiteClassName = (String) GET_CLASS_NAME_METHOD_HANDLE.invoke(callSite);
 
       if (!filterLegacy(callSiteClassName)) {
