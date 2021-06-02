@@ -31,6 +31,7 @@ class CallSite {
   private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
   private static final Class<?> STACK_WALKER_CLASS = findClass("java.lang.StackWalker",
       "cats.effect.tracing.StackWalkerCompat");
+  private static final boolean IS_LEGACY = STACK_WALKER_CLASS.getName().equals("cats.effect.tracing.StackWalkerCompat");
   private static final MethodType WALK_METHOD_TYPE = MethodType.methodType(Object.class, Function.class);
   private static final MethodHandle WALK_METHOD_HANDLE = createVirtualMethodHandle(STACK_WALKER_CLASS, "walk",
       WALK_METHOD_TYPE);
@@ -92,7 +93,7 @@ class CallSite {
   private static final Function<Stream<Object>, StackTraceElement> calculateCallSite = initCalculateCallSite();
 
   private static Function<Stream<Object>, StackTraceElement> initCalculateCallSite() {
-    if (true) {
+    if (IS_LEGACY) {
       return s -> {
         final Object[] stackTrace = s.toArray(Object[]::new);
         try {
