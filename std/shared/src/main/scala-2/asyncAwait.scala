@@ -210,14 +210,14 @@ object AsyncAwaitDsl {
     }
 
     val (exprs, bindings) = bound.unzip
-    val callback = c.typecheck(q"(..$bindings) => $transformed ")
+    val callback = c.typecheck(q"(..$bindings) => ${c.prefix}._AsyncInstance.delay($transformed)")
     val parMapMethod = TermName("parMap" + exprs.size)
     val res = if (exprs.size >= 2) {
       q"""
-        _root_.cats.Parallel.$parMapMethod(..$exprs)($callback)(cats.effect.kernel.instances.spawn.parallelForGenSpawn(${c.prefix}._AsyncInstance))
+        _root_.cats.Parallel.$parMapMethod(..$exprs)($callback)(cats.effect.kernel.instances.spawn.parallelForGenSpawn(${c.prefix}._AsyncInstance)).flatten
       """
     } else if (exprs.size == 1) {
-      q"""${c.prefix}._AsyncInstance.map(..${exprs.head})($callback)"""
+      q"""${c.prefix}._AsyncInstance.flatMap(..${exprs.head})($callback)"""
     } else {
       q"""${c.prefix}._AsyncInstance.delay($callback())"""
     }
