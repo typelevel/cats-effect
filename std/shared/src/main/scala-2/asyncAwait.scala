@@ -70,7 +70,7 @@ class AsyncAwaitDsl[F[_]](implicit F: Async[F]) {
   /**
    * Value member used by the macro expansion to recover the Async instance associated to the block.
    */
-  implicit val _AsyncInstance: Async[F] = F
+  val _AsyncInstance: Async[F] = F
 
   /**
    * Non-blocking await the on result of `awaitable`. This may only be used directly within an enclosing `async` block.
