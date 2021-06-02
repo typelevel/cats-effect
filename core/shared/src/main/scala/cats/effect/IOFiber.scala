@@ -1264,6 +1264,7 @@ private final class IOFiber[A](
   }
 
   private[this] def runTerminusFailureK(t: Throwable): IO[Any] = {
+    Tracing.augmentThrowable(t, tracingEvents)
     done(Outcome.Errored(t))
     IOEndFiber
   }
