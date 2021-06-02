@@ -87,7 +87,23 @@ class CallSite {
     }
   }
 
-  private static final Function<Stream<Object>, Object[]> collectTrace = s -> s.toArray(Object[]::new);
+  private static final Function<Stream<Object>, StackTraceElement> calculateCallSite = initCalculateCallSite();
+
+  private static Function<Stream<Object>, StackTraceElement> initCalculateCallSite() {
+    if (true) {
+      final Function<Stream<Object>, Object[]> collectAll = s -> s.toArray(Object[]::new);
+      final Function<Object[], StackTraceElement> mapper = os -> {
+        try {
+          return getOpAndCallSiteLegacy(os);
+        } catch (Throwable t) {
+          return null;
+        }
+      };
+      return collectAll.andThen(mapper);
+    } else {
+      return null;
+    }
+  }
 
   private static final String[] runLoopFilter = new String[] { "cats.effect.", "scala.runtime." };
 
@@ -96,7 +112,7 @@ class CallSite {
 
   private static final NameTransformer$ NAME_TRANSFORMER = NameTransformer$.MODULE$;
 
-  private static boolean filter(String callSiteClassName) {
+  private static boolean filterLegacy(String callSiteClassName) {
     final int len = stackTraceFilter.length;
     for (int idx = 0; idx < len; idx++) {
       if (callSiteClassName.startsWith(stackTraceFilter[idx])) {
@@ -106,14 +122,14 @@ class CallSite {
     return false;
   }
 
-  private static StackTraceElement getOpAndCallSite(Object[] stackTrace) throws Throwable {
+  private static StackTraceElement getOpAndCallSiteLegacy(Object[] stackTrace) throws Throwable {
     final int len = stackTrace.length;
     for (int idx = 1; idx < len; idx++) {
       final Object methodSite = stackTrace[idx - 1];
       final Object callSite = stackTrace[idx - 1];
       final String callSiteClassName = (String) GET_CLASS_NAME_METHOD_HANDLE.invoke(callSite);
 
-      if (!filter(callSiteClassName)) {
+      if (!filterLegacy(callSiteClassName)) {
         final String methodSiteMethodName = (String) GET_METHOD_NAME_METHOD_HANDLE.invoke(methodSite);
         final String op = NAME_TRANSFORMER.decode(methodSiteMethodName);
 
@@ -128,7 +144,6 @@ class CallSite {
   }
 
   static StackTraceElement generateCallSite() throws Throwable {
-    final Object[] stackTrace = (Object[]) WALK_METHOD_HANDLE.invoke(STACK_WALKER, collectTrace);
-    return getOpAndCallSite(stackTrace);
+    return (StackTraceElement) WALK_METHOD_HANDLE.invoke(STACK_WALKER, calculateCallSite);
   }
 }
