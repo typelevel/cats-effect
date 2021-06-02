@@ -19,6 +19,8 @@ package cats.effect.tracing;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.util.ArrayList;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -100,7 +102,32 @@ class CallSite {
         }
       };
     } else {
-      return null;
+      return s -> {
+        final ArrayList<Object> frames = new ArrayList<>();
+        final Optional<Object> optionalCallSite = s.filter(cs -> {
+          frames.add(cs);
+          try {
+            final String callSiteClassName = (String) GET_CLASS_NAME_METHOD_HANDLE.invoke(cs);
+            return frames.size() >= 2 && !filter(callSiteClassName);
+          } catch (Throwable t) {
+            return false;
+          }
+        }).findFirst();
+
+        if (optionalCallSite.isPresent()) {
+          final int idx = frames.size() - 2;
+          final Object methodSite = frames.get(idx);
+          final Object callSite = optionalCallSite.get();
+          try {
+            final String callSiteClassName = (String) GET_CLASS_NAME_METHOD_HANDLE.invoke(callSite);
+            return combineMethodCallSite(methodSite, callSite, callSiteClassName);
+          } catch (Throwable t) {
+            return null;
+          }
+        }
+
+        return null;
+      };
     }
   }
 
