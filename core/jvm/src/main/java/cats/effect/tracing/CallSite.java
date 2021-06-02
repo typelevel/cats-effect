@@ -111,7 +111,7 @@ class CallSite {
 
   private static final NameTransformer$ NAME_TRANSFORMER = NameTransformer$.MODULE$;
 
-  private static boolean filterLegacy(String callSiteClassName) {
+  private static boolean filter(String callSiteClassName) {
     final int len = stackTraceFilter.length;
     for (int idx = 0; idx < len; idx++) {
       if (callSiteClassName.startsWith(stackTraceFilter[idx])) {
@@ -128,7 +128,7 @@ class CallSite {
       final Object callSite = stackTrace[idx];
       final String callSiteClassName = (String) GET_CLASS_NAME_METHOD_HANDLE.invoke(callSite);
 
-      if (!filterLegacy(callSiteClassName)) {
+      if (!filter(callSiteClassName)) {
         final String methodSiteMethodName = (String) GET_METHOD_NAME_METHOD_HANDLE.invoke(methodSite);
         final String op = NAME_TRANSFORMER.decode(methodSiteMethodName);
 
