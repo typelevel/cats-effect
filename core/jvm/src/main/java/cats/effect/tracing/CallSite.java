@@ -114,8 +114,8 @@ class CallSite {
       final String callSiteClassName = (String) GET_CLASS_NAME_METHOD_HANDLE.invoke(callSite);
 
       if (!filter(callSiteClassName)) {
-        final String methodSiteClassName = (String) GET_CLASS_NAME_METHOD_HANDLE.invoke(methodSite);
-        final String op = NAME_TRANSFORMER.decode(methodSiteClassName);
+        final String methodSiteMethodName = (String) GET_METHOD_NAME_METHOD_HANDLE.invoke(methodSite);
+        final String op = NAME_TRANSFORMER.decode(methodSiteMethodName);
 
         return new StackTraceElement(op + " @ " + callSiteClassName,
             (String) GET_METHOD_NAME_METHOD_HANDLE.invoke(callSite),
