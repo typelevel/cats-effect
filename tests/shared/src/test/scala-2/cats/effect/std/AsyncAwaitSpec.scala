@@ -134,6 +134,25 @@ class AsyncAwaitSpec extends BaseSpec {
       }
     }
 
+    "suspends side effects in parallel composition" in real {
+
+      var x = 0
+      // the expansion of "parallel" differs based on how many awaits are called (0, 1, 2+)
+      val program1 = parallel { x += 1 }
+      val program2 = parallel { x += 1; ioAwait(IO.pure(1)) }
+      val program3 = parallel { x += 1; ioAwait(IO.pure(1)) + ioAwait(IO.pure(1)) }
+
+      for {
+        _ <- IO(x must beEqualTo(0))
+        _ <- program1
+        _ <- IO(x must beEqualTo(1))
+        _ <- program2
+        _ <- IO(x must beEqualTo(2))
+        _ <- program3
+        _ <- IO(x must beEqualTo(3))
+      } yield ok
+    }
+
   }
 
   "KleisliAsyncAwait" should {

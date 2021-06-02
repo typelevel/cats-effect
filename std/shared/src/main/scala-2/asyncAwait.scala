@@ -211,7 +211,8 @@ object AsyncAwaitDsl {
 
     val (exprs, bindings) = bound.unzip
     val callback =
-      c.typecheck(q"(..$bindings) => ${c.prefix}._AsyncInstance.delay($transformed)")
+      c.typecheck(
+        q"(..$bindings) => ${c.prefix}._AsyncInstance.delay { val res = $transformed; res }")
     val parMapMethod = TermName("parMap" + exprs.size)
     val res = if (exprs.size >= 2) {
       q"""
@@ -220,7 +221,7 @@ object AsyncAwaitDsl {
     } else if (exprs.size == 1) {
       q"""${c.prefix}._AsyncInstance.flatMap(..${exprs.head})($callback)"""
     } else {
-      q"""${c.prefix}._AsyncInstance.delay($callback())"""
+      q"""${c.prefix}._AsyncInstance.delay($callback()).flatten"""
     }
 
     c.internal.changeOwner(transformed, c.internal.enclosingOwner, callback.symbol)
