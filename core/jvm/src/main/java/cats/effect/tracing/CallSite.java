@@ -136,8 +136,6 @@ class CallSite {
   private static final String[] stackTraceFilter = new String[] { "cats.effect.", "cats.", "sbt.", "java.", "sun.",
       "scala." };
 
-  private static final NameTransformer$ NAME_TRANSFORMER = NameTransformer$.MODULE$;
-
   private static boolean filter(String callSiteClassName) {
     final int len = stackTraceFilter.length;
     for (int idx = 0; idx < len; idx++) {
@@ -166,7 +164,7 @@ class CallSite {
   private static StackTraceElement combineMethodCallSite(Object methodSite, Object callSite, String callSiteClassName)
       throws Throwable {
     final String methodSiteMethodName = (String) GET_METHOD_NAME_METHOD_HANDLE.invoke(methodSite);
-    final String op = NAME_TRANSFORMER.decode(methodSiteMethodName);
+    final String op = NameTransformer$.MODULE$.decode(methodSiteMethodName);
 
     return new StackTraceElement(op + " @ " + callSiteClassName,
         (String) GET_METHOD_NAME_METHOD_HANDLE.invoke(callSite), (String) GET_FILE_NAME_METHOD_HANDLE.invoke(callSite),
