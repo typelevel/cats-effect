@@ -21,6 +21,7 @@ const users = [
   ['Evolution Gaming', 'https://eng.evolutiongaming.com/'],
   ['Exelonix', 'https://exelonix.com/'],
   ['Gemini Observatory', 'https://www.gemini.edu'],
+  ['Grieg Connect', 'https://www.griegconnect.com'],
   ['Hi.Fi', 'https://hi.fi'],
   ['ING Bank', 'https://www.ing.com'],
   ['Inner Product', 'https://inner-product.com'],
