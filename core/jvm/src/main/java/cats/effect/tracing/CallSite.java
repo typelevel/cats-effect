@@ -105,7 +105,7 @@ class CallSite {
     } else {
       return s -> {
         final FrameBox box = new FrameBox();
-        final Optional<Object> optionalCallSite = s.filter(cs -> {
+        s.anyMatch(cs -> {
           box.methodSite = box.callSite;
           box.callSite = cs;
           try {
@@ -115,9 +115,9 @@ class CallSite {
           } catch (Throwable t) {
             throw new RuntimeException("Failed to invoke getClassName() on " + cs, t);
           }
-        }).findFirst();
+        });
 
-        if (optionalCallSite.isPresent()) {
+        if (box.callSite != null) {
           final Object methodSite = box.methodSite;
           final Object callSite = box.callSite;
           final String callSiteClassName = box.callSiteClassName;
