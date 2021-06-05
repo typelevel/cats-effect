@@ -1328,12 +1328,13 @@ private final class IOFiber[A](
     val tables = runtime.fiberErrorCbs.tables
     val numTables = runtime.fiberErrorCbs.numTables
     while (idx < numTables) {
-      val table = tables(idx).unsafeHashtable()
-      val len = table.length
+      val table = tables(idx)
       table.synchronized {
+        val hashtable = table.unsafeHashtable()
+        val len = hashtable.length
         var i = 0
         while (i < len) {
-          val cb = table(i)
+          val cb = hashtable(i)
           if (cb ne null) {
             cb(t)
           }
