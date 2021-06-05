@@ -50,6 +50,8 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
       while (i < cap) {
         val cur = table(i)
         if ((cur ne null) && (cur ne Tombstone)) {
+          // Only re-insert references to actual callbacks.
+          // Filters out `Tombstone`s.
           insert(newHashtable, newMask, cur, System.identityHashCode(cur) >> log2NumTables)
         }
         i += 1
@@ -78,6 +80,8 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
     while (true) {
       val cur = table(idx)
       if ((cur eq null) || (cur eq Tombstone)) {
+        // Both null and `Tombstone` references are considered empty and new
+        // references can be inserted in their place.
         table(idx) = cb
         return
       } else {
@@ -93,15 +97,18 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
     while (true) {
       val cur = table(idx)
       if (cb eq cur) {
+        // Mark the removed callback with the `Tombstone` reference.
         table(idx) = Tombstone
         size -= 1
         return
       } else if (cur ne null) {
+        // Skip over references of other callbacks and `Tombstone` objects.
         idx = (idx + 1) & mask
         if (idx == init) {
           return
         }
       } else {
+        // Reached a `null` reference. The callback was not in the hash table.
         return
       }
     }
@@ -114,5 +121,10 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
 }
 
 private object ThreadSafeHashtable {
+
+  /**
+   * Sentinel object for marking removed callbacks. Used to keep the linear
+   * probing chain intact.
+   */
   private[ThreadSafeHashtable] final val Tombstone: Throwable => Unit = _ => ()
 }
