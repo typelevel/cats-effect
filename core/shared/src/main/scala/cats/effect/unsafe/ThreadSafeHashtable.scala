@@ -35,6 +35,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
   private[this] var size: Int = 0
   private[this] var mask: Int = initialCapacity - 1
   private[this] var capacity: Int = initialCapacity
+  private[this] val log2NumTables: Int = StripedHashtable.log2NumTables
 
   def put(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {
     val cap = capacity
@@ -47,7 +48,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
       while (i < cap) {
         val cur = table(i)
         if (cur ne null) {
-          insert(newHashtable, cur, System.identityHashCode(cur))
+          insert(newHashtable, cur, System.identityHashCode(cur) >> log2NumTables)
         }
         i += 1
       }
