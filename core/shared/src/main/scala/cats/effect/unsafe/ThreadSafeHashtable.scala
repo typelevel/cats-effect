@@ -97,7 +97,9 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
     val init = hash & mask
     var idx = init
     val table = hashtable
-    while (true) {
+    var remaining = mask
+
+    while (remaining >= 0) {
       val cur = table(idx)
       if (cb eq cur) {
         // Mark the removed callback with the `Tombstone` reference.
@@ -107,13 +109,11 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
       } else if (cur ne null) {
         // Skip over references of other callbacks and `Tombstone` objects.
         idx = (idx + 1) & mask
-        if (idx == init) {
-          return
-        }
       } else {
         // Reached a `null` reference. The callback was not in the hash table.
         return
       }
+      remaining -= 1
     }
   }
 
