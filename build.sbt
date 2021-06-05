@@ -283,7 +283,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       // introduced by #1928, wake up a worker thread before spawning a helper thread when blocking
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.WorkStealingThreadPool.notifyParked"),
-      // introduced by #2041, re-hash and insert callbacks when resizing the `ThreadSafeHashtable`
+      // introduced by #2041, Rewrite and improve `ThreadSafeHashtable`
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.ThreadSafeHashtable.hashtable"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.ThreadSafeHashtable.hashtable_=")
