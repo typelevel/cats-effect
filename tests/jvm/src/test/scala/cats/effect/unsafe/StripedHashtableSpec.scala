@@ -79,7 +79,7 @@ class StripedHashtableSpec extends BaseSpec with Runners {
                 rt.fiberErrorCbs.synchronized {
                   rt.fiberErrorCbs
                     .tables
-                    .forall(_.unsafeHashtable().forall(_ eq null)) mustEqual true
+                    .forall(_.isEmpty) mustEqual true
                 }
               }
             }
