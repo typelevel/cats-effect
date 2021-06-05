@@ -77,7 +77,9 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
       cb: Throwable => Unit,
       hash: Int): Unit = {
     var idx = hash & mask
-    while (true) {
+    var remaining = mask
+
+    while (remaining >= 0) {
       val cur = table(idx)
       if ((cur eq null) || (cur eq Tombstone)) {
         // Both null and `Tombstone` references are considered empty and new
@@ -87,6 +89,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
       } else {
         idx = (idx + 1) & mask
       }
+      remaining -= 1
     }
   }
 
