@@ -103,3 +103,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
 
   def unsafeHashtable(): Array[Throwable => Unit] = hashtable
 }
+
+private object ThreadSafeHashtable {
+  private[ThreadSafeHashtable] final val Tombstone: Throwable => Unit = _ => ()
+}
