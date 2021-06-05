@@ -45,9 +45,9 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
       val table = hashtable
       var i = 0
       while (i < cap) {
-        val cb = table(i)
-        if (cb ne null) {
-          insert(newHashtable, cb, System.identityHashCode(cb))
+        val cur = table(i)
+        if (cur ne null) {
+          insert(newHashtable, cur, System.identityHashCode(cur))
         }
         i += 1
       }
