@@ -41,6 +41,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
     val cap = capacity
     if ((size << 1) >= cap) { // the << 1 ensures that the load factor will remain between 0.25 and 0.5
       val newCap = cap << 1
+      val newMask = newCap - 1
       val newHashtable = new Array[Throwable => Unit](newCap)
 
       val table = hashtable
@@ -48,7 +49,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
       while (i < cap) {
         val cur = table(i)
         if (cur ne null) {
-          insert(newHashtable, cur, System.identityHashCode(cur) >> log2NumTables)
+          insert(newHashtable, newMask, cur, System.identityHashCode(cur) >> log2NumTables)
         }
         i += 1
       }
@@ -58,7 +59,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
       capacity = newCap
     }
 
-    insert(hashtable, cb, hash)
+    insert(hashtable, mask, cb, hash)
     size += 1
   }
 
@@ -69,6 +70,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
    */
   private[this] def insert(
       table: Array[Throwable => Unit],
+      mask: Int,
       cb: Throwable => Unit,
       hash: Int): Unit = {
     var idx = hash & mask
