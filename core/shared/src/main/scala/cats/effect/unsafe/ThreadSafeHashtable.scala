@@ -47,17 +47,19 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
       capacity = newCap
     }
 
-    insert(cb, hash)
+    insert(hashtable, cb, hash)
   }
 
   /**
    * ''Must'' be called with the lock on the whole `ThreadSafeHashtable` object
-   * already held. The `hashtable` should contain at least one empty space to
+   * already held. The `table` should contain at least one empty space to
    * place the callback in.
    */
-  private[this] def insert(cb: Throwable => Unit, hash: Int): Unit = {
+  private[this] def insert(
+      table: Array[Throwable => Unit],
+      cb: Throwable => Unit,
+      hash: Int): Unit = {
     var idx = hash & mask
-    val table = hashtable
     while (true) {
       if (table(idx) eq null) {
         table(idx) = cb
