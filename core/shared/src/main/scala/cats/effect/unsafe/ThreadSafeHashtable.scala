@@ -85,9 +85,10 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
   def remove(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {
     val init = hash & mask
     var idx = init
+    val table = hashtable
     while (true) {
-      if (cb eq hashtable(idx)) {
-        hashtable(idx) = null
+      if (cb eq table(idx)) {
+        table(idx) = null
         size -= 1
         return
       } else {
