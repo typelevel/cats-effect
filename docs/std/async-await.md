@@ -1,6 +1,6 @@
 ---
 id: async-await
-title: Async/await
+title: Async/Await (Experimental)
 ---
 
 Syntactic sugar that allows for direct-style programming.
@@ -11,7 +11,7 @@ This feature currently only works on scala 2 (2.12.12+ / 2.13.3+), relies on an 
 
 ## Motivation
 
-A number of programming languages offer this syntax as a solution to the problem commonly known as "callback-hell". Whilst Scala offers a solution to this problem in the form of **for-comprehension**, which all monadic constructs can integrate with, some people prefer the **async/await** syntax, which sometime helps convey meaning better than for-comprehensions.
+A number of programming languages offer this syntax as a solution to the problem commonly known as "callback-hell". Whilst Scala offers a solution to this problem in the form of **for-comprehensions**, which all monadic constructs can integrate with, some people prefer the **async/await** syntax, which sometime helps convey meaning better than for-comprehensions.
 
 ## Sequential async/await
 
@@ -19,13 +19,14 @@ This construct works for any effect type that has an associated [Async](../typec
 
 ```scala mdoc:compile-only
 import cats.effect.IO
-import scala.concurrent.duration._
+import cats.effect.std.AsyncAwaitDsl
 
-object dsl extends cats.effect.std.AsyncAwaitDsl[IO]
+object dsl extends AsyncAwaitDsl[IO]
 import dsl._
 
-val io = IO.sleep(50.millis).as(1)
+import scala.concurrent.duration._
 
+val io = IO.sleep(50.millis).as(1)
 val program : IO[Int] = async { await(io) + await(io) }
 ```
 
@@ -42,13 +43,13 @@ val program : IO[Int] = for {
 
 ### Known limitations
 
-`await` cannot be called from within local methods or lambdas (which prevents its use in `for` loops (that get translated to `foreach`)). This is a limitation of the compiler.
+`await` cannot be called from within local methods or lambdas (which prevents its use in `for` loops (that get translated to a `foreach` call)). This is due to a limitation in the Scala compiler.
 
 ```scala mdoc:reset:fail
 import cats.effect.IO
-import scala.concurrent.duration._
+import cats.effect.std.AsyncAwaitDsl
 
-object dsl extends cats.effect.std.AsyncAwaitDsl[IO]
+object dsl extends AsyncAwaitDsl[IO]
 import dsl._
 
 val program : IO[Int] = async {
