@@ -36,6 +36,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
   private[this] var mask: Int = initialCapacity - 1
   private[this] var capacity: Int = initialCapacity
   private[this] val log2NumTables: Int = StripedHashtable.log2NumTables
+  private[this] val Tombstone: Throwable => Unit = ThreadSafeHashtable.Tombstone
 
   def put(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {
     val cap = capacity
@@ -48,14 +49,14 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
       var i = 0
       while (i < cap) {
         val cur = table(i)
-        if (cur ne null) {
+        if ((cur ne null) && (cur ne Tombstone)) {
           insert(newHashtable, newMask, cur, System.identityHashCode(cur) >> log2NumTables)
         }
         i += 1
       }
 
       hashtable = newHashtable
-      mask = newCap - 1
+      mask = newMask
       capacity = newCap
     }
 
@@ -75,7 +76,8 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
       hash: Int): Unit = {
     var idx = hash & mask
     while (true) {
-      if (table(idx) eq null) {
+      val cur = table(idx)
+      if ((cur eq null) || (cur eq Tombstone)) {
         table(idx) = cb
         return
       } else {
@@ -89,15 +91,18 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
     var idx = init
     val table = hashtable
     while (true) {
-      if (cb eq table(idx)) {
-        table(idx) = null
+      val cur = table(idx)
+      if (cb eq cur) {
+        table(idx) = Tombstone
         size -= 1
         return
-      } else {
+      } else if (cur ne null) {
         idx = (idx + 1) & mask
         if (idx == init) {
           return
         }
+      } else {
+        return
       }
     }
   }
@@ -105,7 +110,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
   def unsafeHashtable(): Array[Throwable => Unit] = hashtable
 
   def isEmpty: Boolean =
-    size == 0 && hashtable.forall(_ eq null)
+    size == 0 && hashtable.forall(cb => (cb eq null) || (cb eq Tombstone))
 }
 
 private object ThreadSafeHashtable {
