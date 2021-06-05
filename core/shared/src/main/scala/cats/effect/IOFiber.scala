@@ -1324,6 +1324,9 @@ private final class IOFiber[A](
     currentCtx.reportFailure(t)
     runtime.shutdown()
 
+    // Make sure the shutdown did not interrupt this thread.
+    Thread.interrupted()
+
     var idx = 0
     val tables = runtime.fiberErrorCbs.tables
     val numTables = runtime.fiberErrorCbs.numTables
