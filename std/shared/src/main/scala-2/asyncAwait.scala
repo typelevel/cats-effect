@@ -210,9 +210,10 @@ object AsyncAwaitDsl {
     }
 
     val (exprs, bindings) = bound.unzip
+    val resVal = c.freshName(TermName("res"))
     val callback =
       c.typecheck(
-        q"(..$bindings) => ${c.prefix}._AsyncInstance.delay { val res = $transformed; res }")
+        q"(..$bindings) => ${c.prefix}._AsyncInstance.delay { val $resVal = $transformed; $resVal }")
     val parMapMethod = TermName("parMap" + exprs.size)
     val res = if (exprs.size >= 2) {
       q"""
