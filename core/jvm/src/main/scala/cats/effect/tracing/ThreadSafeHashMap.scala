@@ -79,10 +79,11 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
   def remove(cls: Class[_], hash: Int): Unit = this.synchronized {
     val init = hash & mask
     var idx = init
+    val kt = keysTable
 
     while (true) {
-      if (cls eq keysTable(idx)) {
-        keysTable(idx) = null
+      if (cls eq kt(idx)) {
+        kt(idx) = null
         valsTable(idx) = null
         size -= 1
         return
