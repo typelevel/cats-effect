@@ -76,6 +76,26 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
     }
   }
 
+  def get(cls: Class[_], hash: Int): TracingEvent = {
+    val init = hash & mask
+    var idx = init
+    val kt = keysTable
+
+    while (true) {
+      if (cls eq kt(idx)) {
+        return valsTable(idx)
+      } else {
+        idx += 1
+        idx &= mask
+        if (idx == init) {
+          return null
+        }
+      }
+    }
+
+    null
+  }
+
   def remove(cls: Class[_], hash: Int): Unit = this.synchronized {
     val init = hash & mask
     var idx = init
