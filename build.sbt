@@ -312,7 +312,9 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test),
-    scalacOptions ++= List("-Xasync"),
+    scalacOptions ++= {
+      if (!isDotty.value) Seq("-Xasync") else Seq()
+    },
     Test / unmanagedSourceDirectories ++= {
       if (!isDotty.value)
         Seq(
