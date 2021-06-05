@@ -31,7 +31,7 @@ package unsafe
  *                        power of 2
  */
 private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
-  var hashtable: Array[Throwable => Unit] = new Array(initialCapacity)
+  private[this] var hashtable: Array[Throwable => Unit] = new Array(initialCapacity)
   private[this] var size: Int = 0
   private[this] var mask: Int = initialCapacity - 1
   private[this] var capacity: Int = initialCapacity
@@ -99,4 +99,6 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
       }
     }
   }
+
+  def unsafeHashtable(): Array[Throwable => Unit] = hashtable
 }

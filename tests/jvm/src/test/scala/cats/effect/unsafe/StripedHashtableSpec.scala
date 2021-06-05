@@ -77,7 +77,9 @@ class StripedHashtableSpec extends BaseSpec with Runners {
             .flatMap { _ =>
               IO.blocking {
                 rt.fiberErrorCbs.synchronized {
-                  rt.fiberErrorCbs.tables.forall(_.hashtable.forall(_ eq null)) mustEqual true
+                  rt.fiberErrorCbs
+                    .tables
+                    .forall(_.unsafeHashtable().forall(_ eq null)) mustEqual true
                 }
               }
             }
