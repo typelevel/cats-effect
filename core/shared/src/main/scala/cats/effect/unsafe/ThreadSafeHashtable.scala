@@ -79,8 +79,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
         table(idx) = cb
         return
       } else {
-        idx += 1
-        idx &= mask
+        idx = (idx + 1) & mask
       }
     }
   }
@@ -95,8 +94,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
         size -= 1
         return
       } else {
-        idx += 1
-        idx &= mask
+        idx = (idx + 1) & mask
         if (idx == init) {
           return
         }
