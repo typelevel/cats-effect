@@ -32,9 +32,9 @@ package unsafe
  */
 private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
   var hashtable: Array[Throwable => Unit] = new Array(initialCapacity)
-  private[this] var size = 0
-  private[this] var mask = initialCapacity - 1
-  private[this] var capacity = initialCapacity
+  private[this] var size: Int = 0
+  private[this] var mask: Int = initialCapacity - 1
+  private[this] var capacity: Int = initialCapacity
 
   def put(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {
     val cap = capacity
