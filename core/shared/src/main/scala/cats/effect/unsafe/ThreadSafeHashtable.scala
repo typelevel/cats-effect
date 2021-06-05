@@ -42,7 +42,6 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
       val newCap = cap << 1
       val newHashtable = new Array[Throwable => Unit](newCap)
 
-      val sz = size
       val table = hashtable
       var i = 0
       while (i < cap) {
@@ -53,13 +52,13 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
         i += 1
       }
 
-      size = sz
       hashtable = newHashtable
       mask = newCap - 1
       capacity = newCap
     }
 
     insert(hashtable, cb, hash)
+    size += 1
   }
 
   /**
@@ -75,7 +74,6 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
     while (true) {
       if (table(idx) eq null) {
         table(idx) = cb
-        size += 1
         return
       } else {
         idx += 1
