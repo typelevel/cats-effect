@@ -41,7 +41,17 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
     if (size << 1 >= cap) { // the << 1 ensures that the load factor will remain between 0.25 and 0.5
       val newCap = cap * 2
       val newHashtable = new Array[Throwable => Unit](newCap)
-      System.arraycopy(hashtable, 0, newHashtable, 0, cap)
+
+      val table = hashtable
+      var i = 0
+      while (i < cap) {
+        val cb = table(i)
+        if (cb ne null) {
+          insert(newHashtable, cb, System.identityHashCode(cb))
+        }
+        i += 1
+      }
+
       hashtable = newHashtable
       mask = newCap - 1
       capacity = newCap
