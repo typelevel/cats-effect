@@ -104,7 +104,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
   def unsafeHashtable(): Array[Throwable => Unit] = hashtable
 
   def isEmpty: Boolean =
-    size == 0
+    size == 0 && hashtable.forall(_ eq null)
 }
 
 private object ThreadSafeHashtable {
