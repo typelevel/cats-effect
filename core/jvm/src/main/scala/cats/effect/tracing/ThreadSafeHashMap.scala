@@ -30,6 +30,7 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
     val cap = capacity
     if ((size << 4) / 3 >= cap) {
       val newCap = cap << 1
+      val newMask = newCap - 1
       val newKeysTable = new Array[Class[_]](newCap)
       val newValsTable = new Array[TracingEvent](newCap)
 
@@ -42,6 +43,7 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
           insert(
             newKeysTable,
             newValsTable,
+            newMask,
             c,
             vt(i),
             System.identityHashCode(c) >> log2NumTables)
@@ -51,11 +53,11 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
 
       keysTable = newKeysTable
       valsTable = newValsTable
-      mask = newCap - 1
+      mask = newMask
       capacity = newCap
     }
 
-    insert(keysTable, valsTable, cls, event, hash)
+    insert(keysTable, valsTable, mask, cls, event, hash)
     size += 1
   }
 
@@ -67,6 +69,7 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
   private[this] def insert(
       keysTable: Array[Class[_]],
       valsTable: Array[TracingEvent],
+      mask: Int,
       cls: Class[_],
       event: TracingEvent,
       hash: Int
