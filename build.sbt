@@ -47,8 +47,9 @@ val Arm64 = "ARM64"
 
 val ScalaJSJava = "adopt@1.8"
 val Scala213 = "2.13.6"
+val Scala3 = "3.0.0"
 
-ThisBuild / crossScalaVersions := Seq("3.0.0", "2.12.14", Scala213)
+ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.14", Scala213)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
@@ -99,6 +100,16 @@ val ciVariants = List("ciJVM", "ciJS", "ciFirefox")
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
+  val arm64ScalaFilters =
+    (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala3)).map { scala =>
+      MatrixExclude(Map("os" -> Arm64, "scala" -> scala))
+    }
+
+  val arm64JavaFilters =
+    (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(LTSJava)).map { java =>
+      MatrixExclude(Map("os" -> Arm64, "java" -> java))
+    }
+
   val windowsScalaFilters =
     (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).map { scala =>
       MatrixExclude(Map("os" -> Windows, "scala" -> scala))
@@ -110,7 +121,8 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
         MatrixExclude(Map("ci" -> ci, "java" -> java))
       }
 
-    javaFilters ++ windowsScalaFilters :+ MatrixExclude(Map("os" -> Windows, "ci" -> ci))
+    javaFilters ++ windowsScalaFilters ++ arm64ScalaFilters ++ arm64JavaFilters :+
+      MatrixExclude(Map("os" -> Windows, "ci" -> ci)) :+ MatrixExclude(Map("os" -> Arm64, "ci" -> ci))
   }
 }
 

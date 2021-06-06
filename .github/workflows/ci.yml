@@ -40,7 +40,19 @@ jobs:
             scala: 3.0.0
           - os: windows-latest
             scala: 2.12.14
+          - os: ARM64
+            scala: 2.12.14
+          - os: ARM64
+            scala: 2.13.6
+          - os: ARM64
+            java: adopt@1.8
+          - os: ARM64
+            java: adopt@1.16
+          - os: ARM64
+            java: graalvm-ce-java8@21.1
           - os: windows-latest
+            ci: ciJS
+          - os: ARM64
             ci: ciJS
           - ci: ciFirefox
             java: adopt@1.11
@@ -52,7 +64,19 @@ jobs:
             scala: 3.0.0
           - os: windows-latest
             scala: 2.12.14
+          - os: ARM64
+            scala: 2.12.14
+          - os: ARM64
+            scala: 2.13.6
+          - os: ARM64
+            java: adopt@1.8
+          - os: ARM64
+            java: adopt@1.16
+          - os: ARM64
+            java: graalvm-ce-java8@21.1
           - os: windows-latest
+            ci: ciFirefox
+          - os: ARM64
             ci: ciFirefox
           - java: adopt@1.16
             os: windows-latest
