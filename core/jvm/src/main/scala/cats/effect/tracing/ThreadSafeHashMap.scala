@@ -94,17 +94,16 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
     val init = hash & mask
     var idx = init
     val kt = keysTable
+    var remaining = mask
 
-    while (true) {
+    while (remaining >= 0) {
       if (cls eq kt(idx)) {
         return valsTable(idx)
       } else {
         idx += 1
         idx &= mask
-        if (idx == init) {
-          return null
-        }
       }
+      remaining -= 1
     }
 
     null
