@@ -91,4 +91,4 @@ val program : IO[Int] = async {
 }
 ```
 
-**NB** as a side note, in the cats ecosystem, the "correct" way to iterate over a collection whilst performing effects is be to rely on the `cats.Traverse#traverse` function.
+**NB** as a side note, in the cats ecosystem, the "correct" way to iterate over a collection whilst performing effects is to rely on the `cats.Traverse#traverse` function.
