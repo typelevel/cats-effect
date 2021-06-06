@@ -31,50 +31,106 @@ package unsafe
  *                        power of 2
  */
 private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
-  var hashtable: Array[Throwable => Unit] = new Array(initialCapacity)
-  private[this] var size = 0
-  private[this] var mask = initialCapacity - 1
-  private[this] var capacity = initialCapacity
+  private[this] var hashtable: Array[Throwable => Unit] = new Array(initialCapacity)
+  private[this] var size: Int = 0
+  private[this] var mask: Int = initialCapacity - 1
+  private[this] var capacity: Int = initialCapacity
+  private[this] val log2NumTables: Int = StripedHashtable.log2NumTables
+  private[this] val Tombstone: Throwable => Unit = ThreadSafeHashtable.Tombstone
 
   def put(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {
     val cap = capacity
-    if (size << 1 >= cap) { // the << 1 ensures that the load factor will remain between 0.25 and 0.5
-      val newCap = cap * 2
+    if ((size << 1) >= cap) { // the << 1 ensures that the load factor will remain between 0.25 and 0.5
+      val newCap = cap << 1
+      val newMask = newCap - 1
       val newHashtable = new Array[Throwable => Unit](newCap)
-      System.arraycopy(hashtable, 0, newHashtable, 0, cap)
+
+      val table = hashtable
+      var i = 0
+      while (i < cap) {
+        val cur = table(i)
+        if ((cur ne null) && (cur ne Tombstone)) {
+          // Only re-insert references to actual callbacks.
+          // Filters out `Tombstone`s.
+          insert(newHashtable, newMask, cur, System.identityHashCode(cur) >> log2NumTables)
+        }
+        i += 1
+      }
+
       hashtable = newHashtable
-      mask = newCap - 1
+      mask = newMask
       capacity = newCap
     }
 
+    insert(hashtable, mask, cb, hash)
+    size += 1
+  }
+
+  /**
+   * ''Must'' be called with the lock on the whole `ThreadSafeHashtable` object
+   * already held. The `table` should contain at least one empty space to
+   * place the callback in.
+   */
+  private[this] def insert(
+      table: Array[Throwable => Unit],
+      mask: Int,
+      cb: Throwable => Unit,
+      hash: Int): Unit = {
     var idx = hash & mask
-    while (true) {
-      if (hashtable(idx) == null) {
-        hashtable(idx) = cb
-        size += 1
+    var remaining = mask
+
+    while (remaining >= 0) {
+      val cur = table(idx)
+      if ((cur eq null) || (cur eq Tombstone)) {
+        // Both null and `Tombstone` references are considered empty and new
+        // references can be inserted in their place.
+        table(idx) = cb
         return
       } else {
-        idx += 1
-        idx &= mask
+        idx = (idx + 1) & mask
       }
+      remaining -= 1
     }
   }
 
   def remove(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {
     val init = hash & mask
     var idx = init
-    while (true) {
-      if (cb eq hashtable(idx)) {
-        hashtable(idx) = null
+    val table = hashtable
+    var remaining = mask
+
+    while (remaining >= 0) {
+      val cur = table(idx)
+      if (cb eq cur) {
+        // Mark the removed callback with the `Tombstone` reference.
+        table(idx) = Tombstone
         size -= 1
         return
+      } else if (cur ne null) {
+        // Skip over references of other callbacks and `Tombstone` objects.
+        idx = (idx + 1) & mask
       } else {
-        idx += 1
-        idx &= mask
-        if (idx == init) {
-          return
-        }
+        // Reached a `null` reference. The callback was not in the hash table.
+        return
       }
+      remaining -= 1
     }
   }
+
+  def unsafeHashtable(): Array[Throwable => Unit] = hashtable
+
+  /**
+   * Only used in testing.
+   */
+  private[unsafe] def isEmpty: Boolean =
+    size == 0 && hashtable.forall(cb => (cb eq null) || (cb eq Tombstone))
+}
+
+private object ThreadSafeHashtable {
+
+  /**
+   * Sentinel object for marking removed callbacks. Used to keep the linear
+   * probing chain intact.
+   */
+  private[ThreadSafeHashtable] final val Tombstone: Throwable => Unit = _ => ()
 }
