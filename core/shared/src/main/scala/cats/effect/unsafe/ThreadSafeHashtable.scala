@@ -95,10 +95,11 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
   }
 
   def remove(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {
-    val init = hash & mask
+    val msk = mask
+    val init = hash & msk
     var idx = init
     val table = hashtable
-    var remaining = mask
+    var remaining = msk
 
     while (remaining >= 0) {
       val cur = table(idx)
@@ -109,7 +110,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
         return
       } else if (cur ne null) {
         // Skip over references of other callbacks and `Tombstone` objects.
-        idx = (idx + 1) & mask
+        idx = (idx + 1) & msk
       } else {
         // Reached a `null` reference. The callback was not in the hash table.
         return
