@@ -46,8 +46,9 @@ val Windows = "windows-latest"
 
 val ScalaJSJava = "adopt@1.8"
 val Scala213 = "2.13.6"
+val Scala3 = "3.0.0"
 
-ThisBuild / crossScalaVersions := Seq("3.0.0", "2.12.14", Scala213)
+ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.14", Scala213)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
@@ -69,7 +70,7 @@ ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
     List("docs/mdoc"),
-    cond = Some(s"matrix.scala == '$Scala213' && matrix.ci == 'ciJVM'")),
+    cond = Some(s"(matrix.scala == '$Scala213' || matrix.scala == '$Scala3') && matrix.ci == 'ciJVM'")),
   WorkflowStep.Sbt(
     List("exampleJVM/compile"),
     cond = Some(s"matrix.ci == 'ciJVM' && matrix.os == '$PrimaryOS'")),
