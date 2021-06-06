@@ -35,7 +35,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
   private[this] var size: Int = 0
   private[this] var mask: Int = initialCapacity - 1
   private[this] var capacity: Int = initialCapacity
-  private[this] val log2NumTables: Int = StripedHashtable.log2NumTables
+  private[this] val log2NumTables: Int = Hashing.log2NumTables
   private[this] val Tombstone: Throwable => Unit = ThreadSafeHashtable.Tombstone
 
   def put(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {

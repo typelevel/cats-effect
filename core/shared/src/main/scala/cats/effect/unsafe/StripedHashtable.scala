@@ -23,7 +23,7 @@ package cats.effect.unsafe
  * hash table.
  */
 private[effect] final class StripedHashtable {
-  private[this] val log2NumTables: Int = StripedHashtable.log2NumTables
+  private[this] val log2NumTables: Int = Hashing.log2NumTables
 
   def numTables: Int = 1 << log2NumTables
 
@@ -51,20 +51,5 @@ private[effect] final class StripedHashtable {
     val hash = System.identityHashCode(cb)
     val idx = hash & mask
     tables(idx).remove(cb, hash >> log2NumTables)
-  }
-}
-
-private object StripedHashtable {
-  // we expect to have at least this many tables (it will be rounded up to a power of two by the log2NumTables computation)
-  private[this] def minNumTables: Int = Runtime.getRuntime().availableProcessors() * 4
-
-  final val log2NumTables: Int = {
-    var result = 0
-    var x = minNumTables
-    while (x != 0) {
-      result += 1
-      x >>= 1
-    }
-    result
   }
 }
