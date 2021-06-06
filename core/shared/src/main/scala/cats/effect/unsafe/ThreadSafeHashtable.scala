@@ -39,8 +39,9 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
   private[this] val Tombstone: Throwable => Unit = ThreadSafeHashtable.Tombstone
 
   def put(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {
+    val sz = size
     val cap = capacity
-    if ((size << 1) >= cap) { // the << 1 ensures that the load factor will remain between 0.25 and 0.5
+    if ((sz << 1) >= cap) { // the << 1 ensures that the load factor will remain between 0.25 and 0.5
       val newCap = cap << 1
       val newMask = newCap - 1
       val newHashtable = new Array[Throwable => Unit](newCap)
@@ -63,7 +64,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
     }
 
     insert(hashtable, mask, cb, hash)
-    size += 1
+    size = sz + 1
   }
 
   /**
