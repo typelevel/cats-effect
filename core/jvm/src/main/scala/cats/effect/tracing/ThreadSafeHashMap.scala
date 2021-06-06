@@ -25,6 +25,7 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
   private[this] var mask: Int = initialCapacity - 1
   private[this] var capacity: Int = initialCapacity
   private[this] val log2NumTables: Int = Hashing.log2NumTables
+  private[this] val Tombstone: Class[_] = ThreadSafeHashMap.Tombstone
 
   def put(cls: Class[_], event: TracingEvent, hash: Int): Unit = this.synchronized {
     val cap = capacity
@@ -78,7 +79,8 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
     var remaining = mask
 
     while (remaining >= 0) {
-      if (keysTable(idx) eq null) {
+      val cur = keysTable(idx)
+      if ((cur eq null) || (cur eq Tombstone)) {
         keysTable(idx) = cls
         valsTable(idx) = event
         return
@@ -114,13 +116,16 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
     var remaining = mask
 
     while (remaining >= 0) {
-      if (cls eq kt(idx)) {
-        kt(idx) = null
+      val cur = kt(idx)
+      if ((cls eq cur)) {
+        kt(idx) = Tombstone
         valsTable(idx) = null
         size -= 1
         return
-      } else {
+      } else if (cur ne null) {
         idx = (idx + 1) & mask
+      } else {
+        return
       }
       remaining -= 1
     }
