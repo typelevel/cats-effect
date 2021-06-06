@@ -75,7 +75,9 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
       hash: Int
   ): Unit = {
     var idx = hash & mask
-    while (true) {
+    var remaining = mask
+
+    while (remaining >= 0) {
       if (keysTable(idx) eq null) {
         keysTable(idx) = cls
         valsTable(idx) = event
@@ -84,6 +86,7 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
         idx += 1
         idx &= mask
       }
+      remaining -= 1
     }
   }
 
