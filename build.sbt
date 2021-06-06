@@ -43,6 +43,7 @@ ThisBuild / developers := List(
 
 val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
+val Arm64 = "ARM64"
 
 val ScalaJSJava = "adopt@1.8"
 val Scala213 = "2.13.6"
@@ -56,7 +57,7 @@ val LatestJava = "adopt@1.16"
 val GraalVM8 = "graalvm-ce-java8@21.1"
 
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
-ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
+ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, Arm64)
 
 ThisBuild / githubWorkflowBuildPreamble +=
   WorkflowStep.Use(

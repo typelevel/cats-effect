@@ -21,7 +21,7 @@ jobs:
     name: Build and Test
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, ARM64]
         scala: [3.0.0, 2.12.14, 2.13.6]
         java:
           - adopt@1.8
