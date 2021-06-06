@@ -16,12 +16,15 @@
 
 package cats.effect.tracing
 
+import cats.effect.unsafe.Hashing
+
 private final class ThreadSafeHashMap(initialCapacity: Int) {
   private[this] var keysTable: Array[Class[_]] = new Array(initialCapacity)
   private[this] var valsTable: Array[TracingEvent] = new Array(initialCapacity)
   private[this] var size: Int = 0
   private[this] var mask: Int = initialCapacity - 1
   private[this] var capacity: Int = initialCapacity
+  private[this] val log2NumTables: Int = Hashing.log2NumTables
 
   def put(cls: Class[_], event: TracingEvent, hash: Int): Unit = this.synchronized {
     val cap = capacity
@@ -36,7 +39,12 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
       while (i < cap) {
         val c = kt(i)
         if (c ne null) {
-          insert(newKeysTable, newValsTable, c, vt(i), System.identityHashCode(c))
+          insert(
+            newKeysTable,
+            newValsTable,
+            c,
+            vt(i),
+            System.identityHashCode(c) >> log2NumTables)
         }
         i += 1
       }
