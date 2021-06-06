@@ -43,7 +43,7 @@ val program : IO[Int] = for {
 
 ### Known limitations
 
-`await` cannot be called from within local methods or lambdas (which prevents its use in `for` loops (that get translated to a `foreach` call)). This is due to a limitation in the Scala compiler.
+`await` cannot be called from within local methods or lambdas (which prevents its use in `for` loops (that get translated to a `foreach` call)).
 
 ```scala mdoc:reset:fail
 import cats.effect.IO
@@ -59,7 +59,18 @@ val program : IO[Int] = async {
 }
 ```
 
-It does however work in while loops :
+This constraint is implemented in the Scala compiler (not in cats-effect), for good reason : the Scala language does not provide the capability to guarantee that such methods/lambdas will only be called during the runtime lifecycle of the `async` block. These lambdas could indeed be passed to other constructs that would use them asynchronously, thus **escaping** the lifecycle of the `async` block :
+
+```scala
+async {
+  // executes asynchronously on a separate thread, completes after 1 second.
+  scala.concurrent.Future(await(IO.sleep(1.second)))
+  // returns instantly, closing the "async" scope
+  true
+}
+``` 
+
+**However**, it is possible to call `await` within an imperative while loop:
 
 ```scala mdoc:compile-only
 import cats.effect.IO
@@ -80,3 +91,4 @@ val program : IO[Int] = async {
 }
 ```
 
+**NB** as a side note, in the cats ecosystem, the "correct" way to iterate over a collection whilst performing effects is be to rely on the `cats.Traverse#traverse` function.
