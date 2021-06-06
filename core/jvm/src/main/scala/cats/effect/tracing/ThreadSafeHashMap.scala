@@ -83,8 +83,7 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
         valsTable(idx) = event
         return
       } else {
-        idx += 1
-        idx &= mask
+        idx = (idx + 1) & mask
       }
       remaining -= 1
     }
@@ -100,8 +99,7 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
       if (cls eq kt(idx)) {
         return valsTable(idx)
       } else {
-        idx += 1
-        idx &= mask
+        idx = (idx + 1) & mask
       }
       remaining -= 1
     }
@@ -122,8 +120,7 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
         size -= 1
         return
       } else {
-        idx += 1
-        idx &= mask
+        idx = (idx + 1) & mask
       }
       remaining -= 1
     }
