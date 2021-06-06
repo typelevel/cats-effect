@@ -56,6 +56,7 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
     }
 
     insert(keysTable, valsTable, cls, event, hash)
+    size += 1
   }
 
   /**
@@ -75,7 +76,6 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
       if (keysTable(idx) eq null) {
         keysTable(idx) = cls
         valsTable(idx) = event
-        size += 1
         return
       } else {
         idx += 1
