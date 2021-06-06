@@ -98,10 +98,13 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
     var remaining = mask
 
     while (remaining >= 0) {
-      if (cls eq kt(idx)) {
+      val cur = kt(idx)
+      if (cls eq cur) {
         return valsTable(idx)
-      } else {
+      } else if (cur ne null) {
         idx = (idx + 1) & mask
+      } else {
+        return null
       }
       remaining -= 1
     }
@@ -117,7 +120,7 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
 
     while (remaining >= 0) {
       val cur = kt(idx)
-      if ((cls eq cur)) {
+      if (cls eq cur) {
         kt(idx) = Tombstone
         valsTable(idx) = null
         size -= 1
