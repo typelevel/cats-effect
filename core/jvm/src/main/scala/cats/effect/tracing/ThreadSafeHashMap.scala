@@ -126,3 +126,7 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
     }
   }
 }
+
+private object ThreadSafeHashMap {
+  private[ThreadSafeHashMap] final val Tombstone: Class[_] = ThreadSafeHashMap.getClass
+}
