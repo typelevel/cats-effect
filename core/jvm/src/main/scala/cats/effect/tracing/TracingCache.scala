@@ -21,7 +21,7 @@ import cats.effect.unsafe.Hashing
 private final class TracingCache extends ClassValue[TracingEvent] {
   private[this] val log2NumTables: Int = Hashing.log2NumTables
 
-  def numTables: Int = 1 << log2NumTables
+  private[this] def numTables: Int = 1 << log2NumTables
 
   private[this] val mask: Int = numTables - 1
 
