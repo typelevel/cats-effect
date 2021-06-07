@@ -39,8 +39,9 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
   private[this] val Tombstone: Throwable => Unit = ThreadSafeHashtable.Tombstone
 
   def put(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {
+    val sz = size
     val cap = capacity
-    if ((size << 1) >= cap) { // the << 1 ensures that the load factor will remain between 0.25 and 0.5
+    if ((sz << 1) >= cap) { // the << 1 ensures that the load factor will remain between 0.25 and 0.5
       val newCap = cap << 1
       val newMask = newCap - 1
       val newHashtable = new Array[Throwable => Unit](newCap)
@@ -63,7 +64,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
     }
 
     insert(hashtable, mask, cb, hash)
-    size += 1
+    size = sz + 1
   }
 
   /**
@@ -94,10 +95,11 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
   }
 
   def remove(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {
-    val init = hash & mask
+    val msk = mask
+    val init = hash & msk
     var idx = init
     val table = hashtable
-    var remaining = mask
+    var remaining = msk
 
     while (remaining >= 0) {
       val cur = table(idx)
@@ -108,7 +110,7 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
         return
       } else if (cur ne null) {
         // Skip over references of other callbacks and `Tombstone` objects.
-        idx = (idx + 1) & mask
+        idx = (idx + 1) & msk
       } else {
         // Reached a `null` reference. The callback was not in the hash table.
         return
