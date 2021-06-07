@@ -27,7 +27,7 @@ abstract class SyncIOPlatformSpecification extends Specification with Runners {
         val op = for {
           realTime <- SyncIO.realTime
           now <- SyncIO.realTimeInstant
-        } yield (now.toEpochMilli - realTime.toMillis) <= 30
+        } yield (now.toEpochMilli - realTime.toMillis) <= 10000
 
         op must completeAsSync(true)
       }
