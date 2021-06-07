@@ -85,6 +85,8 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
         keysTable(idx) = cls
         valsTable(idx) = event
         return
+      } else if (cls eq cur) {
+        return
       } else {
         idx = (idx + 1) & mask
       }
