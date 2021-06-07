@@ -18,6 +18,10 @@ package cats.effect.tracing
 
 import cats.effect.unsafe.Hashing
 
+/**
+ * Global cache for trace frames. Keys are references to lambda classes.
+ * Should converge to the working set of traces very quickly for hot code paths.
+ */
 private final class TracingCache extends ClassValue[TracingEvent] {
   private[this] val log2NumTables: Int = Hashing.log2NumTables
 

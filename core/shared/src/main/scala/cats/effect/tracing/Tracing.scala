@@ -18,10 +18,6 @@ package cats.effect.tracing
 
 import scala.collection.mutable.ArrayBuffer
 
-/**
- * Global cache for trace frames. Keys are references to lambda classes.
- * Should converge to the working set of traces very quickly for hot code paths.
- */
 private[effect] object Tracing extends ClassValue[TracingEvent] {
 
   import TracingConstants._
