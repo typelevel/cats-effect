@@ -36,4 +36,10 @@ private final class TracingCache extends ClassValue[TracingEvent] {
   }
 
   override protected def computeValue(cls: Class[_ <: Object]): TracingEvent = ???
+
+  override def get(cls: Class[_]): TracingEvent = {
+    val hash = System.identityHashCode(cls)
+    val idx = hash & mask
+    tables(idx).get(cls, hash >> log2NumTables)
+  }
 }
