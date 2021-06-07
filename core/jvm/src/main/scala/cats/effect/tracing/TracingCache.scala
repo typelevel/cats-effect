@@ -42,4 +42,10 @@ private final class TracingCache extends ClassValue[TracingEvent] {
     val idx = hash & mask
     tables(idx).get(cls, hash >> log2NumTables)
   }
+
+  override def remove(cls: Class[_]): Unit = {
+    val hash = System.identityHashCode(cls)
+    val idx = hash & mask
+    tables(idx).remove(cls, hash >> log2NumTables)
+  }
 }
