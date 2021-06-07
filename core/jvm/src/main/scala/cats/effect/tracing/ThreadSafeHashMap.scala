@@ -28,8 +28,9 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
   private[this] val Tombstone: Class[_] = ThreadSafeHashMap.Tombstone
 
   def put(cls: Class[_], event: TracingEvent, hash: Int): Unit = this.synchronized {
+    val sz = size
     val cap = capacity
-    if ((size << 4) / 3 >= cap) {
+    if ((sz << 4) / 3 >= cap) {
       val newCap = cap << 1
       val newMask = newCap - 1
       val newKeysTable = new Array[Class[_]](newCap)
@@ -59,7 +60,7 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
     }
 
     insert(keysTable, valsTable, mask, cls, event, hash)
-    size += 1
+    size = sz + 1
   }
 
   /**
