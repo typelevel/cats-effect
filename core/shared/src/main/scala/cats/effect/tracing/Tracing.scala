@@ -19,6 +19,7 @@ package cats.effect.tracing
 import scala.collection.mutable.ArrayBuffer
 
 import java.util.concurrent.ConcurrentHashMap
+import scala.reflect.NameTransformer
 
 private[effect] object Tracing {
 
@@ -54,8 +55,17 @@ private[effect] object Tracing {
 
   private[this] final val runLoopFilter: Array[String] = Array("cats.effect.", "scala.runtime.")
 
+  private[this] final val stackTraceFilter: Array[String] = Array(
+    "cats.effect.",
+    "cats.",
+    "sbt.",
+    "java.",
+    "sun.",
+    "scala."
+  )
+
   def augmentThrowable(t: Throwable, events: RingBuffer): Unit = {
-    def filter(ste: StackTraceElement): Boolean = {
+    def applyRunLoopFilter(ste: StackTraceElement): Boolean = {
       val name = ste.getClassName
       var i = 0
       val len = runLoopFilter.length
@@ -75,7 +85,7 @@ private[effect] object Tracing {
       val len = frames.length
       while (i < len) {
         val frame = frames(i)
-        if (!filter(frame)) {
+        if (!applyRunLoopFilter(frame)) {
           buffer += frame
         } else {
           return buffer.toArray
@@ -86,6 +96,46 @@ private[effect] object Tracing {
       buffer.toArray
     }
 
+    def applyStackTraceFilter(callSiteClassName: String): Boolean = {
+      val len = stackTraceFilter.length
+      var idx = 0
+      while (idx < len) {
+        if (callSiteClassName.startsWith(stackTraceFilter(idx))) {
+          return true
+        }
+
+        idx += 1
+      }
+
+      false
+    }
+
+    def getOpAndCallSite(stackTrace: Array[StackTraceElement]): StackTraceElement = {
+      val len = stackTrace.length
+      var idx = 1
+      while (idx < len) {
+        val methodSite = stackTrace(idx - 1)
+        val callSite = stackTrace(idx)
+        val callSiteClassName = callSite.getClassName
+
+        if (!applyStackTraceFilter(callSiteClassName)) {
+          val methodSiteMethodName = methodSite.getMethodName
+          val op = NameTransformer.decode(methodSiteMethodName)
+
+          return new StackTraceElement(
+            op + " @ " + callSiteClassName,
+            callSite.getMethodName,
+            callSite.getFileName,
+            callSite.getLineNumber
+          )
+        }
+
+        idx += 1
+      }
+
+      null
+    }
+
     if (isStackTracing && enhancedExceptions) {
       val stackTrace = t.getStackTrace
       if (!stackTrace.isEmpty) {
@@ -94,8 +144,9 @@ private[effect] object Tracing {
           val prefix = dropRunLoopFrames(stackTrace)
           val suffix = events
             .toList
-            .collect { case ev: TracingEvent.StackTrace => ev.stackTrace.getStackTrace }
-            .flatten
+            .collect {
+              case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.stackTrace.getStackTrace)
+            }
             .toArray
           t.setStackTrace(prefix ++ suffix)
         }
