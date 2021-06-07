@@ -93,17 +93,18 @@ private final class ThreadSafeHashMap(initialCapacity: Int) {
   }
 
   def get(cls: Class[_], hash: Int): TracingEvent = {
-    val init = hash & mask
+    val msk = mask
+    val init = hash & msk
     var idx = init
     val kt = keysTable
-    var remaining = mask
+    var remaining = msk
 
     while (remaining >= 0) {
       val cur = kt(idx)
       if (cls eq cur) {
         return valsTable(idx)
       } else if (cur ne null) {
-        idx = (idx + 1) & mask
+        idx = (idx + 1) & msk
       } else {
         return null
       }
