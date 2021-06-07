@@ -16,6 +16,8 @@
 
 package cats.effect.tracing
 
+import scala.collection.mutable.ArrayBuffer
+
 import java.util.concurrent.ConcurrentHashMap
 
 private[effect] object Tracing {
@@ -48,5 +50,54 @@ private[effect] object Tracing {
 
   private[this] def buildEvent(): TracingEvent = {
     TracingEvent.StackTrace(new Throwable())
+  }
+
+  private[this] final val runLoopFilter: Array[String] = Array("cats.effect.", "scala.runtime.")
+
+  def augmentThrowable(t: Throwable, events: RingBuffer): Unit = {
+    def filter(ste: StackTraceElement): Boolean = {
+      val name = ste.getClassName
+      var i = 0
+      val len = runLoopFilter.length
+      while (i < len) {
+        if (name.startsWith(runLoopFilter(i))) {
+          return true
+        }
+        i += 1
+      }
+
+      false
+    }
+
+    def dropRunLoopFrames(frames: Array[StackTraceElement]): Array[StackTraceElement] = {
+      val buffer = ArrayBuffer.empty[StackTraceElement]
+      var i = 0
+      val len = frames.length
+      while (i < len) {
+        val frame = frames(i)
+        if (!filter(frame)) {
+          buffer += frame
+        } else {
+          return buffer.toArray
+        }
+        i += 1
+      }
+
+      buffer.toArray
+    }
+
+    val stackTrace = t.getStackTrace
+    if (!stackTrace.isEmpty) {
+      val augmented = stackTrace.last.getClassName.indexOf('@') != -1
+      if (!augmented) {
+        val prefix = dropRunLoopFrames(stackTrace)
+        val suffix = events
+          .toList
+          .collect { case ev: TracingEvent.StackTrace => ev.stackTrace.getStackTrace }
+          .flatten
+          .toArray
+        t.setStackTrace(prefix ++ suffix)
+      }
+    }
   }
 }
