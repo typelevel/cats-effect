@@ -136,6 +136,7 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
             .collect {
               case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.stackTrace.getStackTrace)
             }
+            .filter(_ ne null)
             .toArray
           t.setStackTrace(prefix ++ suffix)
         }
