@@ -18,17 +18,15 @@ package cats.effect.tracing
 
 import scala.collection.mutable.ArrayBuffer
 
-private[effect] object Tracing extends ClassValue[TracingEvent] {
+private[effect] object Tracing {
 
   import TracingConstants._
 
-  override protected def computeValue(cls: Class[_]): TracingEvent = {
-    buildEvent()
-  }
+  private[this] final val Cache: TracingCache = new TracingCache()
 
   def calculateTracingEvent(cls: Class[_]): TracingEvent = {
     if (isCachedStackTracing) {
-      get(cls)
+      Cache.get(cls)
     } else if (isFullStackTracing) {
       buildEvent()
     } else {
