@@ -18,7 +18,7 @@ package cats.effect.tracing
 
 import cats.effect.unsafe.Hashing
 
-private final class StripedHashMap {
+private final class StripedHashMap extends ClassValue[TracingEvent] {
   private[this] val log2NumTables: Int = Hashing.log2NumTables
 
   def numTables: Int = 1 << log2NumTables
@@ -34,4 +34,6 @@ private final class StripedHashMap {
     }
     array
   }
+
+  override protected def computeValue(cls: Class[_ <: Object]): TracingEvent = ???
 }
