@@ -40,7 +40,20 @@ private final class TracingCache extends ClassValue[TracingEvent] {
   override def get(cls: Class[_]): TracingEvent = {
     val hash = System.identityHashCode(cls)
     val idx = hash & mask
-    tables(idx).get(cls, hash >> log2NumTables)
+    val clsHash = hash >> log2NumTables
+    val cached = tables(idx).get(cls, clsHash)
+    if (cached eq null) {
+      buildEvent(cls, idx, clsHash)
+    } else {
+      cached
+    }
+  }
+
+  private[this] def buildEvent(cls: Class[_], idx: Int, hash: Int): TracingEvent = {
+    val callSite = CallSite.generateCallSite()
+    val event = TracingEvent.CallSite(callSite)
+    tables(idx).put(cls, event, hash)
+    event
   }
 
   override def remove(cls: Class[_]): Unit = {
