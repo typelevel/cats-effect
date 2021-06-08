@@ -39,7 +39,7 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
   }
 
   private[this] def buildEvent(): TracingEvent = {
-    TracingEvent.StackTrace(new Throwable())
+    new TracingEvent.StackTrace()
   }
 
   private[this] final val runLoopFilter: Array[String] = Array("cats.effect.", "scala.runtime.")
@@ -133,9 +133,7 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
           val prefix = dropRunLoopFrames(stackTrace)
           val suffix = events
             .toList
-            .collect {
-              case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.stackTrace.getStackTrace)
-            }
+            .collect { case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace) }
             .filter(_ ne null)
             .toArray
           t.setStackTrace(prefix ++ suffix)
