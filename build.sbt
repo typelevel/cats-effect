@@ -286,7 +286,27 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       // introduced by #2041, Rewrite and improve `ThreadSafeHashtable`
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.ThreadSafeHashtable.hashtable"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.ThreadSafeHashtable.hashtable_=")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.ThreadSafeHashtable.hashtable_="),
+      // introduced by #2051, Tracing
+      // changes to package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Blocking.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Blocking.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Blocking.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Delay.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Delay.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Delay.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#FlatMap.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#FlatMap.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#FlatMap.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#HandleErrorWith.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#HandleErrorWith.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#HandleErrorWith.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Map.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Map.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Map.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.this")
     )
   )
   .jvmSettings(

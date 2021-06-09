@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.effect.tracing._
 import cats.effect.unsafe._
 
 import cats.arrow.FunctionK
@@ -116,6 +117,8 @@ private final class IOFiber[A](
 
   private[this] val cancelationCheckThreshold: Int = runtime.config.cancelationCheckThreshold
   private[this] val autoYieldThreshold: Int = runtime.config.autoYieldThreshold
+
+  private[this] val tracingEvents: RingBuffer = RingBuffer.empty
 
   override def run(): Unit = {
     // insert a read barrier after every async boundary
@@ -237,6 +240,8 @@ private final class IOFiber[A](
         case 2 =>
           val cur = cur0.asInstanceOf[Delay[Any]]
 
+          pushTracingEvent(cur.event)
+
           var error: Throwable = null
           val r =
             try cur.thunk()
@@ -274,6 +279,8 @@ private final class IOFiber[A](
         case 6 =>
           val cur = cur0.asInstanceOf[Map[Any, Any]]
 
+          pushTracingEvent(cur.event)
+
           val ioe = cur.ioe
           val f = cur.f
 
@@ -302,6 +309,8 @@ private final class IOFiber[A](
 
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
+
+              pushTracingEvent(delay.event)
 
               // this code is inlined in order to avoid two `try` blocks
               var error: Throwable = null
@@ -338,6 +347,8 @@ private final class IOFiber[A](
         case 7 =>
           val cur = cur0.asInstanceOf[FlatMap[Any, Any]]
 
+          pushTracingEvent(cur.event)
+
           val ioe = cur.ioe
           val f = cur.f
 
@@ -361,6 +372,8 @@ private final class IOFiber[A](
 
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
+
+              pushTracingEvent(delay.event)
 
               // this code is inlined in order to avoid two `try` blocks
               val result =
@@ -409,6 +422,8 @@ private final class IOFiber[A](
             case 2 =>
               val delay = ioa.asInstanceOf[Delay[Any]]
 
+              pushTracingEvent(delay.event)
+
               // this code is inlined in order to avoid two `try` blocks
               var error: Throwable = null
               val result =
@@ -444,6 +459,8 @@ private final class IOFiber[A](
         case 9 =>
           val cur = cur0.asInstanceOf[HandleErrorWith[Any]]
 
+          pushTracingEvent(cur.event)
+
           objectState.push(cur.f)
           conts.push(HandleErrorWithK)
 
@@ -474,6 +491,8 @@ private final class IOFiber[A](
 
         case 12 =>
           val cur = cur0.asInstanceOf[Uncancelable[Any]]
+
+          pushTracingEvent(cur.event)
 
           masks += 1
           val id = masks
@@ -860,6 +879,8 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[Blocking[Any]]
           /* we know we're on the JVM here */
 
+          pushTracingEvent(cur.event)
+
           if (cur.hint eq IOFiber.TypeBlocking) {
             resumeTag = BlockingR
             resumeIO = cur
@@ -1243,6 +1264,7 @@ private final class IOFiber[A](
   }
 
   private[this] def runTerminusFailureK(t: Throwable): IO[Any] = {
+    Tracing.augmentThrowable(t, tracingEvents)
     done(Outcome.Errored(t))
     IOEndFiber
   }
@@ -1317,6 +1339,12 @@ private final class IOFiber[A](
   private[this] def unmaskFailureK(t: Throwable, depth: Int): IO[Any] = {
     masks += 1
     failed(t, depth + 1)
+  }
+
+  private[this] def pushTracingEvent(te: TracingEvent): Unit = {
+    if (te ne null) {
+      tracingEvents.push(te)
+    }
   }
 
   private[this] def onFatalFailure(t: Throwable): Null = {
