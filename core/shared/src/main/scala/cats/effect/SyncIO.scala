@@ -17,10 +17,13 @@
 package cats.effect
 
 import cats.{Align, Eval, Functor, Now, Show, StackSafeMonad}
-import cats.kernel.{Monoid, Semigroup}
 import cats.data.Ior
+import cats.effect.syntax.monadCancel._
+import cats.kernel.{Monoid, Semigroup}
+import cats.syntax.all._
 
 import scala.annotation.{switch, tailrec}
+import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
 import scala.util.Try
 import scala.util.control.NonFatal
@@ -170,6 +173,29 @@ sealed abstract class SyncIO[+A] private () {
     map(_ => ())
 
   override def toString(): String = "SyncIO(...)"
+
+  /**
+   * Translates this [[SyncIO]] to any `F[_]` data type that implements
+   * [[Sync]].
+   */
+  def to[F[_]](implicit F: Sync[F]): F[A @uncheckedVariance] = {
+    def interpret[B](sio: SyncIO[B]): F[B] =
+      sio match {
+        case SyncIO.Pure(a) => F.pure(a)
+        case SyncIO.Suspend(hint, thunk) => F.suspend(hint)(thunk())
+        case SyncIO.Error(t) => F.raiseError(t)
+        case SyncIO.Map(sioe, f) => interpret(sioe).map(f)
+        case SyncIO.FlatMap(sioe, f) => interpret(sioe).flatMap(f.andThen(interpret))
+        case SyncIO.HandleErrorWith(sioa, f) =>
+          interpret(sioa).handleErrorWith(f.andThen(interpret))
+        case SyncIO.Success(_) | SyncIO.Failure(_) => sys.error("impossible")
+        case SyncIO.Attempt(sioa) => interpret(sioa).attempt.asInstanceOf[F[B]]
+        case SyncIO.RealTime => F.realTime.asInstanceOf[F[B]]
+        case SyncIO.Monotonic => F.monotonic.asInstanceOf[F[B]]
+      }
+
+    interpret(this).uncancelable
+  }
 
   /**
    * Lifts a `SyncIO[A]` into the `IO[A]` context.
