@@ -637,11 +637,11 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
     def tag = 8
   }
 
-  private final case object RealTime extends SyncIO[FiniteDuration] {
+  private case object RealTime extends SyncIO[FiniteDuration] {
     def tag = 9
   }
 
-  private final case object Monotonic extends SyncIO[FiniteDuration] {
+  private case object Monotonic extends SyncIO[FiniteDuration] {
     def tag = 10
   }
 }
