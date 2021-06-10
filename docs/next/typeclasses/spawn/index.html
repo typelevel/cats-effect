@@ -127,14 +127,18 @@
 <span class="hljs-comment">//       ioe = Map(</span>
 <span class="hljs-comment">//         ioe = Blocking(</span>
 <span class="hljs-comment">//           hint = Blocking,</span>
-<span class="hljs-comment">//           thunk = cats.effect.std.Console$SyncConsole$$Lambda$12037/1065430084@9c30d67</span>
+<span class="hljs-comment">//           thunk = cats.effect.std.Console$SyncConsole$$Lambda$12074/797963200@69b0da6a,</span>
+<span class="hljs-comment">//           event = cats.effect.tracing.TracingEvent$StackTrace</span>
 <span class="hljs-comment">//         ),</span>
-<span class="hljs-comment">//         f = cats.effect.IO$$Lambda$12048/33884041@75cd5f26</span>
+<span class="hljs-comment">//         f = cats.effect.IO$$Lambda$12085/2083792458@2805cdb4,</span>
+<span class="hljs-comment">//         event = cats.effect.tracing.TracingEvent$StackTrace</span>
 <span class="hljs-comment">//       ),</span>
-<span class="hljs-comment">//       f = cats.StackSafeMonad$$Lambda$12530/1050323799@7e229aa0</span>
+<span class="hljs-comment">//       f = cats.StackSafeMonad$$Lambda$12564/1236653784@4b54048f,</span>
+<span class="hljs-comment">//       event = cats.effect.tracing.TracingEvent$StackTrace</span>
 <span class="hljs-comment">//     )</span>
 <span class="hljs-comment">//   ),</span>
-<span class="hljs-comment">//   f = &lt;function1&gt;</span>
+<span class="hljs-comment">//   f = &lt;function1&gt;,</span>
+<span class="hljs-comment">//   event = cats.effect.tracing.TracingEvent$StackTrace</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
 <p>This will print &quot;<code>Catch me if you can!</code>&quot; a nondeterministic number of times (probably quite a few!) as the <code>target</code> fiber loops around and around, printing over and over again, until the main fiber finishes sleeping for one second and cancels it. Technically, cancelation may not <em>instantaneously</em> reflect in the target fiber, depending on implementation details, but in practice it is almost always practically instant. The <code>target</code> fiber's execution is almost immediately halted, it stops printing, and the program terminates.</p>

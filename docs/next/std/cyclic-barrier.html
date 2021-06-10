@@ -93,14 +93,21 @@ fibers required to unblock the cyclic barrier is incremented again.</p>
 <span class="hljs-comment">//   ioe = Map(</span>
 <span class="hljs-comment">//     ioe = FlatMap(</span>
 <span class="hljs-comment">//       ioe = Map(</span>
-<span class="hljs-comment">//         ioe = Delay(thunk = cats.effect.IO$$$Lambda$12018/1452766012@5213c4),</span>
-<span class="hljs-comment">//         f = cats.effect.std.CyclicBarrier$$$Lambda$12085/2131976719@f9df9f9</span>
+<span class="hljs-comment">//         ioe = Delay(</span>
+<span class="hljs-comment">//           thunk = cats.effect.IO$$$Lambda$12055/828479278@23f9a07c,</span>
+<span class="hljs-comment">//           event = cats.effect.tracing.TracingEvent$StackTrace</span>
+<span class="hljs-comment">//         ),</span>
+<span class="hljs-comment">//         f = cats.effect.std.CyclicBarrier$$$Lambda$12119/1031477312@7a5b0a79,</span>
+<span class="hljs-comment">//         event = cats.effect.tracing.TracingEvent$StackTrace</span>
 <span class="hljs-comment">//       ),</span>
-<span class="hljs-comment">//       f = cats.effect.std.CyclicBarrier$$$Lambda$12086/960576216@26dc882</span>
+<span class="hljs-comment">//       f = cats.effect.std.CyclicBarrier$$$Lambda$12120/4835753@21733091,</span>
+<span class="hljs-comment">//       event = cats.effect.tracing.TracingEvent$StackTrace</span>
 <span class="hljs-comment">//     ),</span>
-<span class="hljs-comment">//     f = cats.effect.std.CyclicBarrier$$$Lambda$12087/1390856056@74336ce7</span>
+<span class="hljs-comment">//     f = cats.effect.std.CyclicBarrier$$$Lambda$12121/781769787@40340866,</span>
+<span class="hljs-comment">//     event = cats.effect.tracing.TracingEvent$StackTrace</span>
 <span class="hljs-comment">//   ),</span>
-<span class="hljs-comment">//   f = &lt;function1&gt;</span>
+<span class="hljs-comment">//   f = &lt;function1&gt;,</span>
+<span class="hljs-comment">//   event = cats.effect.tracing.TracingEvent$StackTrace</span>
 <span class="hljs-comment">// )</span>
 
 run.unsafeRunSync()
