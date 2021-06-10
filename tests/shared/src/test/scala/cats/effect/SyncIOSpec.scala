@@ -216,9 +216,9 @@ class SyncIOSpec
         .map(_ => ()) must completeAsSync(())
     }
 
-    "toIO" should {
+    "to" should {
       "lift a SyncIO into IO" in realProp(arbitrarySyncIO[Int].arbitrary) { sio =>
-        val io = sio.toIO
+        val io = sio.to[IO]
 
         for {
           res1 <- IO.delay(sio.unsafeRunSync()).attempt

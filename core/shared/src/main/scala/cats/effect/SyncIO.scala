@@ -197,28 +197,6 @@ sealed abstract class SyncIO[+A] private () {
     interpret(this).uncancelable
   }
 
-  /**
-   * Lifts a `SyncIO[A]` into the `IO[A]` context.
-   */
-  def toIO: IO[A] = {
-    def interpret[B](sio: SyncIO[B]): IO[B] =
-      sio match {
-        case SyncIO.Pure(a) => IO.pure(a)
-        case SyncIO.Suspend(hint, thunk) => IO.suspend(hint)(thunk())
-        case SyncIO.Error(t) => IO.raiseError(t)
-        case SyncIO.Map(sioe, f) => interpret(sioe).map(f)
-        case SyncIO.FlatMap(sioe, f) => interpret(sioe).flatMap(f.andThen(interpret))
-        case SyncIO.HandleErrorWith(sioa, f) =>
-          interpret(sioa).handleErrorWith(f.andThen(interpret))
-        case SyncIO.Success(_) | SyncIO.Failure(_) => sys.error("impossible")
-        case SyncIO.Attempt(sioa) => interpret(sioa).attempt
-        case SyncIO.RealTime => IO.realTime
-        case SyncIO.Monotonic => IO.monotonic
-      }
-
-    interpret(this).uncancelable
-  }
-
   // unsafe
 
   /**
