@@ -1221,6 +1221,88 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       }
     }
 
+    "syncStep" should {
+      "run sync IO to completion" in {
+        var bool = false
+
+        val zero = 0
+
+        val io = IO.pure(5).flatMap { n =>
+          IO.delay {
+            2
+          }.map { m => n * m }
+            .flatMap { result =>
+              IO {
+                bool = result % 2 == 0
+              }
+            }
+            .map { _ => n / zero }
+            .handleErrorWith { t => IO.raiseError(t) }
+            .attempt
+            .flatMap { _ => IO.pure(42) }
+        }
+
+        io.syncStep.map {
+          case Left(_) => throw new RuntimeException("Boom!")
+          case Right(n) => n
+        } must completeAsSync(42)
+
+        bool must beEqualTo(true)
+      }
+
+      "fail synchronously with a throwable" in {
+        case object TestException extends RuntimeException
+        val io = IO.raiseError[Unit](TestException)
+
+        io.syncStep.map {
+          case Left(_) => throw new RuntimeException("Boom!")
+          case Right(()) => ()
+        } must failAsSync(TestException)
+      }
+
+      "evaluate side effects until the first async boundary and nothing else" in ticked {
+        implicit ticker =>
+          var inDelay = false
+          var inMap = false
+          var inAsync = false
+          var inFlatMap = false
+
+          val io = IO
+            .delay {
+              inDelay = true
+            }
+            .map { _ => inMap = true }
+            .flatMap { _ =>
+              IO.async_[Unit] { cb =>
+                inAsync = true
+                cb(Right(()))
+              }
+            }
+            .flatMap { _ =>
+              IO {
+                inFlatMap = true
+              }
+            }
+
+          io.syncStep.flatMap {
+            case Left(remaining) =>
+              SyncIO.delay {
+                inDelay must beTrue
+                inMap must beTrue
+                inAsync must beFalse
+                inFlatMap must beFalse
+
+                remaining must completeAs(())
+                inAsync must beTrue
+                inFlatMap must beTrue
+                ()
+              }
+
+            case Right(_) => SyncIO.raiseError[Unit](new RuntimeException("Boom!"))
+          } must completeAsSync(())
+      }
+    }
+
     platformSpecs
   }
 
