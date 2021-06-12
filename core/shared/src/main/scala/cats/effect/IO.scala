@@ -763,19 +763,36 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case IO.Delay(thunk, _) => SyncIO.delay(thunk()).map(Right(_))
         case IO.RealTime => SyncIO.realTime.map(Right(_))
         case IO.Monotonic => SyncIO.monotonic.map(Right(_))
-        case IO.ReadEC => SyncIO.pure(Left(io))
 
-        case mapIO @ IO.Map(ioe, f, _) =>
+        case IO.Map(ioe, f, _) =>
           interpret(ioe).map {
-            case Left(_) => Left(mapIO.asInstanceOf[IO[B]])
-            case Right(e) => Right(f(e))
+            case Left(_) => Left(io)
+            case Right(a) => Right(f(a))
           }
 
-        case flatMapIO @ IO.FlatMap(ioe, f, _) =>
+        case IO.FlatMap(ioe, f, _) =>
           interpret(ioe).flatMap {
-            case Left(_) => SyncIO.pure(Left(flatMapIO.asInstanceOf[IO[B]]))
-            case Right(e) => interpret(f(e))
+            case Left(_) => SyncIO.pure(Left(io))
+            case Right(a) => interpret(f(a))
           }
+
+        case IO.Attempt(ioe) =>
+          interpret(ioe)
+            .map {
+              case Left(_) => Left(io)
+              case Right(a) => Right(a.asRight[Throwable])
+            }
+            .handleError(t => Right(t.asLeft[IO[B]]))
+
+        case IO.HandleErrorWith(ioe, f, _) =>
+          interpret(ioe)
+            .map {
+              case Left(_) => Left(io)
+              case Right(a) => Right(a)
+            }
+            .handleErrorWith(t => interpret(f(t)))
+
+        case _ => SyncIO.pure(Left(io))
       }
 
     ???
