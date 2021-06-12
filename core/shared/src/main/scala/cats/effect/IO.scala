@@ -755,6 +755,32 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     fiber
   }
 
+  def syncStep: SyncIO[Either[IO[A], A]] = {
+    def interpret[B](io: IO[B]): SyncIO[Either[IO[B], B]] =
+      io match {
+        case IO.Pure(a) => SyncIO.pure(Right(a))
+        case IO.Error(t) => SyncIO.raiseError(t)
+        case IO.Delay(thunk, _) => SyncIO.delay(thunk()).map(Right(_))
+        case IO.RealTime => SyncIO.realTime.map(Right(_))
+        case IO.Monotonic => SyncIO.monotonic.map(Right(_))
+        case IO.ReadEC => SyncIO.pure(Left(io))
+
+        case mapIO @ IO.Map(ioe, f, _) =>
+          interpret(ioe).map {
+            case Left(_) => Left(mapIO.asInstanceOf[IO[B]])
+            case Right(e) => Right(f(e))
+          }
+
+        case flatMapIO @ IO.FlatMap(ioe, f, _) =>
+          interpret(ioe).flatMap {
+            case Left(_) => SyncIO.pure(Left(flatMapIO.asInstanceOf[IO[B]]))
+            case Right(e) => interpret(f(e))
+          }
+      }
+
+    ???
+  }
+
   def foreverM: IO[Nothing] = Monad[IO].foreverM[A, Nothing](this)
 
   def whileM[G[_]: Alternative, B >: A](p: IO[Boolean]): IO[G[B]] =
