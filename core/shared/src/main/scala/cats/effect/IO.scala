@@ -795,7 +795,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case _ => SyncIO.pure(Left(io))
       }
 
-    ???
+    interpret(this)
   }
 
   def foreverM: IO[Nothing] = Monad[IO].foreverM[A, Nothing](this)
