@@ -7,7 +7,21 @@ Syntactic sugar that allows for direct-style programming.
 
 ## Warning
 
-This feature currently only works on scala 2 (2.12.12+ / 2.13.3+), relies on an experimental compiler feature enabled by the `-Xasync` scalac option, and should be considered unstable with regards to backward compatibility guarantees (be that source or binary). It does however work on JVM and JS runtimes.
+This feature is provided by an incubating side-library that lives in another repository ([typelevel/cats-effect-cps](https://github.com/typelevel/cats-effect-cps)), so that it can undergo updates at a higher pace than Cats Effect if required.
+
+Because it relies on experimental functionality from the compiler, cats-effec-cps ought to be considered experimental until upstream support stabilises, at which point it will be folded into Cats Effect itself.
+
+## Installation
+
+[![cats-effect-cps Scala version support](https://index.scala-lang.org/typelevel/cats-effect-cps/cats-effect-cps/latest-by-scala-version.svg)](https://index.scala-lang.org/typelevel/cats-effect-cps/cats-effect-cps)
+
+
+```scala
+scalacOptions += "-Xasync" // scala 2.12.12+ / 2.13.3+
+libraryDependencies += "org.typelevel" %% "cats-effect-cps" % "<version>"
+```
+
+(see badge above for version number)
 
 ## Motivation
 
@@ -17,17 +31,15 @@ A number of programming languages offer this syntax as a solution to the problem
 
 This construct works for any effect type that has an associated [Async](../typeclasses/async.md) instance (including but not limited to `IO`, `Resource`, and any combination of those with `EitherT`, `Kleisli`, ...).
 
-```scala mdoc:compile-only
+```scala
 import cats.effect.IO
-import cats.effect.std.AsyncAwaitDsl
-
-object dsl extends AsyncAwaitDsl[IO]
-import dsl._
+import cats.effect.cps._
 
 import scala.concurrent.duration._
 
 val io = IO.sleep(50.millis).as(1)
-val program : IO[Int] = async { await(io) + await(io) }
+
+val program : IO[Int] = async[IO] { io.await + io.await }
 ```
 
 Under the hood, the `async` block is rewritten into non-blocking code that calls onto [Dispatcher](./dispatcher.md) every time `await` is encountered. The end result is lifted into the effect type via callback.
@@ -45,16 +57,13 @@ val program : IO[Int] = for {
 
 `await` cannot be called from within local methods or lambdas (which prevents its use in `for` loops (that get translated to a `foreach` call)).
 
-```scala mdoc:reset:fail
+```scala
 import cats.effect.IO
 import cats.effect.std.AsyncAwaitDsl
 
-object dsl extends AsyncAwaitDsl[IO]
-import dsl._
-
-val program : IO[Int] = async {
+val program : IO[Int] = async[IO] {
   var n = 0
-  for (i <- 1 to 3) (n += await(IO.pure(i)) )
+  for (i <- 1 to 3) (n += IO.pure(i).await ) // compile error
   n
 }
 ```
@@ -64,7 +73,7 @@ This constraint is implemented in the Scala compiler (not in cats-effect), for g
 ```scala
 async {
   // executes asynchronously on a separate thread, completes after 1 second.
-  scala.concurrent.Future(await(IO.sleep(1.second)))
+  scala.concurrent.Future(IO.sleep(1.second).await)
   // returns instantly, closing the "async" scope
   true
 }
@@ -72,13 +81,11 @@ async {
 
 **However**, it is possible to call `await` within an imperative while loop:
 
-```scala mdoc:compile-only
+```scala
 import cats.effect.IO
+import cats.effect.cps._
 
-object dsl extends cats.effect.std.AsyncAwaitDsl[IO]
-import dsl._
-
-val program : IO[Int] = async {
+val program : IO[Int] = async [IO]{
   var n = 0
   var i = 1
 
