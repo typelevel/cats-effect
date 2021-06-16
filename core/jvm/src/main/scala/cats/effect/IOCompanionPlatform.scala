@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import cats.effect.tracing.Tracing
+
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 
@@ -26,17 +28,26 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   private[this] val TypeInterruptibleOnce = Sync.Type.InterruptibleOnce
   private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
 
-  def blocking[A](thunk: => A): IO[A] =
-    Blocking(TypeBlocking, () => thunk)
+  def blocking[A](thunk: => A): IO[A] = {
+    val fn = () => thunk
+    Blocking(TypeBlocking, fn, Tracing.calculateTracingEvent(fn.getClass))
+  }
 
-  def interruptible[A](many: Boolean)(thunk: => A): IO[A] =
-    Blocking(if (many) TypeInterruptibleMany else TypeInterruptibleOnce, () => thunk)
+  def interruptible[A](many: Boolean)(thunk: => A): IO[A] = {
+    val fn = () => thunk
+    Blocking(
+      if (many) TypeInterruptibleMany else TypeInterruptibleOnce,
+      fn,
+      Tracing.calculateTracingEvent(fn.getClass))
+  }
 
   def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
     if (hint eq TypeDelay)
       apply(thunk)
-    else
-      Blocking(hint, () => thunk)
+    else {
+      val fn = () => thunk
+      Blocking(hint, fn, Tracing.calculateTracingEvent(fn.getClass))
+    }
 
   def fromCompletableFuture[A](fut: IO[CompletableFuture[A]]): IO[A] =
     asyncForIO.fromCompletableFuture(fut)

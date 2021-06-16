@@ -147,7 +147,7 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.6.1"
-val Specs2Version = "4.12.0"
+val Specs2Version = "4.12.1"
 val ScalaCheckVersion = "1.15.4"
 val DisciplineVersion = "1.1.6"
 val CoopVersion = "1.1.1"
@@ -282,7 +282,31 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.IORuntime.<init>$default$6"),
       // introduced by #1928, wake up a worker thread before spawning a helper thread when blocking
       // changes to `cats.effect.unsafe` package private code
-      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.WorkStealingThreadPool.notifyParked")
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.WorkStealingThreadPool.notifyParked"),
+      // introduced by #2041, Rewrite and improve `ThreadSafeHashtable`
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.ThreadSafeHashtable.hashtable"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.ThreadSafeHashtable.hashtable_="),
+      // introduced by #2051, Tracing
+      // changes to package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Blocking.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Blocking.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Blocking.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Delay.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Delay.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Delay.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#FlatMap.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#FlatMap.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#FlatMap.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#HandleErrorWith.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#HandleErrorWith.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#HandleErrorWith.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Map.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Map.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Map.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.this")
     )
   )
   .jvmSettings(
