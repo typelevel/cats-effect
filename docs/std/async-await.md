@@ -85,12 +85,12 @@ async {
 import cats.effect.IO
 import cats.effect.cps._
 
-val program : IO[Int] = async [IO]{
+val program : IO[Int] = async[IO]{
   var n = 0
   var i = 1
 
   while(i <= 3){
-    n += await(IO.pure(i))
+    n += IO.pure(i).await
     i += 1
   }
 
