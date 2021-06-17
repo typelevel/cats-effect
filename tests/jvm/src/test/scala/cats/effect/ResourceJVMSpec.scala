@@ -23,25 +23,29 @@ import org.specs2.mutable.Specification
 class ResourceJVMSpec extends Specification with Runners {
 
   "platform" should {
-    def verifyThatSoeIsReproducibleWithStackDepth(stackDepth: Int): Unit = {
+
+    /**
+     * Recursively calls itself until a [[StackOverflowError]] is encountered,
+     * at which point, the current depth is returned.
+     *
+     * @return the stack depth at which [[StackOverflowError]] occurs
+     */
+    def verifyThatSoeIsReproducibleWithStackDepth(): Int = {
+      var depth = 0
+
       def triggerStackOverflowError(n: Int): Int = {
-        if (n <= 0) n
-        else n + triggerStackOverflowError(n - 1)
+        depth = n
+        n + triggerStackOverflowError(n + 1)
       }
 
-      try {
-        triggerStackOverflowError(stackDepth)
-        sys.error(
-          s"expected a StackOverflowError from $stackDepth-deep recursion, consider increasing the depth in test"
-        )
-      } catch {
-        case _: StackOverflowError =>
+      try triggerStackOverflowError(0)
+      catch {
+        case _: StackOverflowError => depth
       }
     }
 
     "verify use is stack-safe over binds" in ticked { implicit ticker =>
-      val stackDepth = 50000
-      verifyThatSoeIsReproducibleWithStackDepth(stackDepth)
+      val stackDepth = verifyThatSoeIsReproducibleWithStackDepth()
       val r = (1 to stackDepth)
         .foldLeft(Resource.eval(IO.unit)) {
           case (r, _) =>
@@ -52,12 +56,11 @@ class ResourceJVMSpec extends Specification with Runners {
     }
 
     "verify use is stack-safe over binds - 2" in real {
-      val n = 50000
-      verifyThatSoeIsReproducibleWithStackDepth(n)
-      def p(i: Int = 0, n: Int = 50000): Resource[IO, Int] =
+      val stackDepth = verifyThatSoeIsReproducibleWithStackDepth()
+      def p(i: Int): Resource[IO, Int] =
         Resource
           .pure {
-            if (i < n) Left(i + 1)
+            if (i < stackDepth) Left(i + 1)
             else Right(i)
           }
           .flatMap {
@@ -65,12 +68,11 @@ class ResourceJVMSpec extends Specification with Runners {
             case Right(b) => Resource.pure(b)
           }
 
-      p(n = n).use(IO.pure).mustEqual(n)
+      p(0).use(IO.pure).mustEqual(stackDepth)
     }
 
     "verify mapK is stack-safe over binds" in ticked { implicit ticker =>
-      val stackDepth = 50000
-      verifyThatSoeIsReproducibleWithStackDepth(stackDepth)
+      val stackDepth = verifyThatSoeIsReproducibleWithStackDepth()
       val r = (1 to stackDepth)
         .foldLeft(Resource.eval(IO.unit)) {
           case (r, _) =>
