@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.~>
+import cats.arrow.FunctionK
 import cats.syntax.eq._
 import org.specs2.mutable.Specification
 
@@ -78,11 +78,7 @@ class ResourceJVMSpec extends Specification with Runners {
           case (r, _) =>
             r.flatMap(_ => Resource.eval(IO.unit))
         }
-        .mapK {
-          new ~>[IO, IO] {
-            def apply[A](a: IO[A]): IO[A] = a
-          }
-        }
+        .mapK(FunctionK.id)
         .use_
 
       r eqv IO.unit
