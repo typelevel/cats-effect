@@ -371,8 +371,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     }
 
     "use is stack-safe over binds" in ticked { implicit ticker =>
-      val stackDepth = 50000
-      val r = (1 to stackDepth)
+      val r = (1 to 10000)
         .foldLeft(Resource.eval(IO.unit)) {
           case (r, _) =>
             r.flatMap(_ => Resource.eval(IO.unit))
@@ -398,8 +397,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     }
 
     "mapK is stack-safe over binds" in ticked { implicit ticker =>
-      val stackDepth = 50000
-      val r = (1 to stackDepth)
+      val r = (1 to 10000)
         .foldLeft(Resource.eval(IO.unit)) {
           case (r, _) =>
             r.flatMap(_ => Resource.eval(IO.unit))
