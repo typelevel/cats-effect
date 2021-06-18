@@ -539,6 +539,8 @@ private final class IOFiber[A](
            */
           val body = cur.body
 
+          pushTracingEvent(cur.event)
+
           /*
            *`get` and `cb` (callback) race over the runloop.
            * If `cb` finishes after `get`, `get` just terminates by
