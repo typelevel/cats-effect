@@ -1284,7 +1284,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
         }
       }
 
-      cont(body)
+      IOCont(body, Tracing.calculateTracingEvent(k.getClass))
     }
 
     override def as[A, B](ioa: IO[A], b: B): IO[B] =
