@@ -73,6 +73,13 @@ class ConsoleSpec extends BaseSpec {
     test.use(out => io.as(out)).flatMap(extractMessage)
   }
 
+  private def throwableToString(t: Throwable): String = {
+    val baos = new ByteArrayOutputStream()
+    val ps = new PrintStream(baos)
+    t.printStackTrace(ps)
+    baos.toString
+  }
+
   "Console" should {
 
     case class Foo(n: Int, b: Boolean)
@@ -130,10 +137,7 @@ class ConsoleSpec extends BaseSpec {
     "printStackTrace to the standard error output" in real {
       val e = new Throwable("error!")
 
-      val stackTraceString =
-        e.getStackTrace()
-          .map { line => "\tat " + line.toString }
-          .mkString(e.toString + "\n", "\n", "\n")
+      val stackTraceString = throwableToString(e)
 
       standardErrTest(Console[IO].printStackTrace(e)).flatMap { err =>
         IO {
@@ -151,20 +155,17 @@ class ConsoleSpec extends BaseSpec {
 
         def println[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = F.unit
 
-        def error[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = F.unit
-
-        def errorln[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = {
+        def error[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = {
           val text = a.show
-          F.blocking(System.err.println(text))
+          F.blocking(System.err.print(text))
         }
+
+        def errorln[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = F.unit
       }
 
       val e = new Throwable("error!")
 
-      val stackTraceString =
-        e.getStackTrace()
-          .map { line => "\tat " + line.toString }
-          .mkString(e.toString + "\n", "\n", "\n")
+      val stackTraceString = throwableToString(e)
 
       val console = new DummyConsole[IO]
 
