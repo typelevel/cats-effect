@@ -885,7 +885,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * depending on the use case
    */
   def cont[K, R](body: Cont[IO, K, R]): IO[R] =
-    IOCont[K, R](body)
+    IOCont[K, R](body, Tracing.calculateTracingEvent(body.getClass))
 
   def executionContext: IO[ExecutionContext] = ReadEC
 
@@ -1473,7 +1473,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
 
   // Low level construction that powers `async`
-  private[effect] final case class IOCont[K, R](body: Cont[IO, K, R]) extends IO[R] {
+  private[effect] final case class IOCont[K, R](body: Cont[IO, K, R], event: TracingEvent)
+      extends IO[R] {
     def tag = 14
   }
   private[effect] object IOCont {
