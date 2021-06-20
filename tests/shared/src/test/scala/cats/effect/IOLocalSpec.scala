@@ -69,17 +69,6 @@ class IOLocalSpec extends BaseSpec {
       io must completeAs(0)
     }
 
-    "transform locals inherited by children fibers" in ticked { implicit ticker =>
-      val io = for {
-        local <- IOLocal(0, (_: Int) * 2)
-        _ <- local.set(10)
-        f <- local.get.start
-        value <- f.joinWithNever
-      } yield value
-
-      io must completeAs(20)
-    }
-
     "child local manipulation is invisible to parents" in ticked { implicit ticker =>
       val io = for {
         local <- IOLocal(10)
