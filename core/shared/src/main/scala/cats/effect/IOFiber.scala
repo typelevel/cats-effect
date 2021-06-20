@@ -781,10 +781,18 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[Start[Any]]
 
           val childMask = initMask + ChildMaskOffset
+          val childState =
+            if (localState.isEmpty)
+              localState
+            else
+              localState.map {
+                case (k: IOLocal[Any], v) =>
+                  (k, k.inherit(v))
+              }: IOLocalState
           val ec = currentCtx
           val fiber = new IOFiber[Any](
             childMask,
-            localState.filter(_._1.inheritable),
+            childState,
             null,
             cur.ioa,
             ec,
