@@ -306,7 +306,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Map.this"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.apply"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.copy"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.this")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.this"),
+      // introduced by #2066, configurable inheritance for IOLocal
+      // IOLocal is a sealed trait
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.inherit")
     )
   )
   .jvmSettings(

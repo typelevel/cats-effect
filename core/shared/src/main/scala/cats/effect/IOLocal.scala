@@ -32,12 +32,18 @@ sealed trait IOLocal[A] {
 
   def getAndReset: IO[A]
 
+  def inherit: Boolean
+
 }
 
 object IOLocal {
 
   def apply[A](default: A): IO[IOLocal[A]] =
+    apply(default: A, inherit = true)
+
+  def apply[A](default: A, inherit: Boolean): IO[IOLocal[A]] =
     IO {
+      val _inherit = inherit
       new IOLocal[A] { self =>
         override def get: IO[A] =
           IO.Local(state => (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
@@ -62,6 +68,8 @@ object IOLocal {
 
         override def getAndReset: IO[A] =
           get <* reset
+
+        override val inherit: Boolean = _inherit
 
       }
     }

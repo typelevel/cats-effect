@@ -47,7 +47,7 @@ class IOLocalSpec extends BaseSpec {
       io must completeAs(10)
     }
 
-    "copy locals to children fibers" in ticked { implicit ticker =>
+    "copy inherited locals to children fibers" in ticked { implicit ticker =>
       val io = for {
         local <- IOLocal(0)
         _ <- local.set(10)
@@ -56,6 +56,17 @@ class IOLocalSpec extends BaseSpec {
       } yield value
 
       io must completeAs(10)
+    }
+
+    "not copy non-inherited locals to children fibers" in ticked { implicit ticker =>
+      val io = for {
+        local <- IOLocal(0, inherit = false)
+        _ <- local.set(10)
+        f <- local.get.start
+        value <- f.joinWithNever
+      } yield value
+
+      io must completeAs(0)
     }
 
     "child local manipulation is invisible to parents" in ticked { implicit ticker =>
