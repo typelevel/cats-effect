@@ -784,7 +784,7 @@ private final class IOFiber[A](
           val ec = currentCtx
           val fiber = new IOFiber[Any](
             childMask,
-            localState.filter(_._1.inherit),
+            localState.filter(_._1.inheritable),
             null,
             cur.ioa,
             ec,
