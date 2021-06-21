@@ -254,18 +254,27 @@ sealed abstract class Resource[F[_], +A] {
    * `both`, for example via `parMapN`:
    *
    * {{{
-   *   def mkResource(name: String) = {
-   *     val acquire =
-   *       IO(scala.util.Random.nextInt(1000).millis).flatMap(IO.sleep) *>
-   *       IO(println(s"Acquiring $$name")).as(name)
+   * import scala.concurrent.duration._
+   * import cats.effect.{IO, Resource}
+   * import cats.effect.std.Random
+   * import cats.syntax.all._
    *
-   *     val release = IO(println(s"Releasing $$name"))
-   *     Resource.make(acquire)(release)
-   *   }
+   * def mkResource(name: String) = {
+   *   val acquire = for {
+   *     n <- Random.scalaUtilRandom[IO].flatMap(_.nextIntBounded(1000))
+   *     _ <- IO.sleep(n.millis)
+   *     _ <- IO.println(s"Acquiring $$name")
+   *   } yield name
    *
-   *  val r = (mkResource("one"), mkResource("two"))
-   *             .parMapN((s1, s2) => s"I have \$s1 and \$s2")
-   *             .use(msg => IO(println(msg)))
+   *   def release(name: String) =
+   *     IO.println(s"Releasing $$name")
+   *
+   *   Resource.make(acquire)(release)
+   * }
+   *
+   * val r = (mkResource("one"), mkResource("two"))
+   *   .parMapN((s1, s2) => s"I have \$s1 and \$s2")
+   *   .use(IO.println(_))
    * }}}
    */
   def both[B](
