@@ -51,7 +51,7 @@ trait Clock[F[_]] extends ClockPlatform[F] {
    * Returns an effect that completes with the result of the source together
    * with the duration that it took to complete.
    *
-   * @param The effect which we wish to time the execution of
+   * @param fa The effect which we wish to time the execution of
    */
   def timed[A](fa: F[A]): F[(FiniteDuration, A)] =
     applicative.map3(monotonic, fa, monotonic)((startTime, a, endTime) =>
