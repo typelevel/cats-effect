@@ -67,6 +67,9 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def forceRCanceledShortCircuits[A](fa: F[A]) =
     F.forceR(F.canceled)(fa) <-> F.productR(F.canceled)(fa)
 
+  def forceRAssociativity[A, B, C](fa: F[A], fb: F[B], fc: F[C]) =
+    F.forceR(fa)(F.forceR(fb)(fc)) <-> F.forceR(F.forceR(fa)(fb))(fc)
+
   def uncancelableFinalizers[A](fin: F[Unit]) =
     F.onCancel(F.canceled, F.uncancelable(_ => fin)) <-> F.onCancel(F.canceled, fin)
 
