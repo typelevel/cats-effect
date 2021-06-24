@@ -230,6 +230,15 @@ import cats.syntax.all._
  * for other variants of the bracket pattern. If more specialized behavior is
  * necessary, it is recommended to use [[MonadCancel!.uncancelable uncancelable]]
  * and [[MonadCancel!.onCancel onCancel]] directly.
+ *
+ * @note **Note for implementors of this typeclass:**
+ *       The default implementations of [[MonadCancel!.bracket bracket]],
+ *       [[MonadCancel!.bracketCase bracketCase]] and
+ *       [[MonadCancel!.bracketFull bracketFull]] assume a monadic data type
+ *       `F[_]` which is ''not'' short-circuiting in `flatMap`. For implementors
+ *       of short-circuiting monadic data types, please override
+ *       [[MonadCancel!.transferControlLayer]]. For help with the implementation
+ *       of this method, feel free to consult the source code for `MonadCancel`.
  */
 trait MonadCancel[F[_], E] extends MonadError[F, E] {
   implicit private[this] def F: MonadError[F, E] = this
