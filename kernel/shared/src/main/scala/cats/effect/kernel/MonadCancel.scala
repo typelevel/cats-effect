@@ -583,6 +583,10 @@ object MonadCancel {
         F.forceR(fa.value)(fb.value)
       )
 
+    override protected def transferControlLayer[A](fa: OptionT[F, A])(
+        f: OptionT[F, A] => OptionT[F, Unit]): OptionT[F, A] =
+      OptionT(fa.value.flatMap(oa => f(OptionT.fromOption(oa)).value.as(oa)))
+
     def pure[A](a: A): OptionT[F, A] = delegate.pure(a)
 
     def raiseError[A](e: E): OptionT[F, A] = delegate.raiseError(e)
