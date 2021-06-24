@@ -631,6 +631,10 @@ object MonadCancel {
         F.forceR(fa.value)(fb.value)
       )
 
+    override protected def transferControlLayer[A](fa: EitherT[F, E0, A])(
+        f: EitherT[F, E0, A] => EitherT[F, E0, Unit]): EitherT[F, E0, A] =
+      EitherT(fa.value.flatMap(ea => f(EitherT.fromEither(ea)).value.as(ea)))
+
     def pure[A](a: A): EitherT[F, E0, A] = delegate.pure(a)
 
     def raiseError[A](e: E): EitherT[F, E0, A] = delegate.raiseError(e)
