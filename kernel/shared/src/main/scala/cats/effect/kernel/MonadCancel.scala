@@ -466,6 +466,15 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
       }
     }
 
+  /**
+   * Executes the function `f` even in the face of short-circuiting `flatMap`
+   * behavior for the `F[_]` data type.
+   *
+   * @note The implementation does not need to make the resulting effect
+   *       uncancelable. This method is executed in an uncancelable context.
+   *       For help with the implementation of this method, feel free to consult
+   *       the source code for `MonadCancel`.
+   */
   protected def transferControlLayer[A](fa: F[A])(f: F[A] => F[Unit]): F[A] =
     flatMap(fa) { a => f(pure(a)).as(a) }
 }
