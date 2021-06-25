@@ -16,11 +16,10 @@
 
 package cats.effect
 
-import cats.data.WriterT
 import cats.Order
-import cats.laws.discipline.arbitrary._
+import cats.data.WriterT
 import cats.effect.laws.AsyncTests
-import cats.implicits._
+import cats.laws.discipline.arbitrary._
 
 import org.scalacheck.Prop
 
