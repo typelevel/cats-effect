@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.Order
-import cats.data.{Ior, IorT}
+import cats.data.IorT
 import cats.effect.laws.AsyncTests
 import cats.laws.discipline.arbitrary._
 
@@ -37,30 +37,6 @@ class IorTIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck
 
   implicit def ordIorTIOFD(implicit ticker: Ticker): Order[IorT[IO, Int, FiniteDuration]] =
     Order by { ioaO => unsafeRun(ioaO.value).fold(None, _ => None, fa => fa) }
-
-  //TODO remove once https://github.com/typelevel/cats/pull/3555 is released
-  implicit def orderIor[A, B](
-      implicit A: Order[A],
-      B: Order[B],
-      AB: Order[(A, B)]): Order[Ior[A, B]] =
-    new Order[Ior[A, B]] {
-
-      override def compare(x: Ior[A, B], y: Ior[A, B]): Int =
-        (x, y) match {
-          case (Ior.Left(a1), Ior.Left(a2)) => A.compare(a1, a2)
-          case (Ior.Left(_), _) => -1
-          case (Ior.Both(a1, b1), Ior.Both(a2, b2)) => AB.compare((a1, b1), (a2, b2))
-          case (Ior.Both(_, _), Ior.Left(_)) => 1
-          case (Ior.Both(_, _), Ior.Right(_)) => -1
-          case (Ior.Right(b1), Ior.Right(b2)) => B.compare(b1, b2)
-          case (Ior.Right(_), _) => 1
-        }
-
-    }
-
-  //TODO remove once https://github.com/typelevel/cats/pull/3555 is released
-  implicit def orderIorT[F[_], A, B](implicit Ord: Order[F[Ior[A, B]]]): Order[IorT[F, A, B]] =
-    Order.by(_.value)
 
   implicit def execIorT(sbool: IorT[IO, Int, Boolean])(implicit ticker: Ticker): Prop =
     Prop(
