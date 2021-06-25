@@ -16,11 +16,12 @@
 
 package cats.effect
 
-import cats.data.WriterT
+import cats.data.{Chain, WriterT}
 import cats.Order
 import cats.laws.discipline.arbitrary._
 import cats.effect.laws.AsyncTests
-import cats.implicits._
+import cats.effect.syntax.all._
+import cats.syntax.all._
 
 import org.scalacheck.Prop
 
@@ -39,6 +40,23 @@ class WriterTIOSpec
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
+
+  "WriterT" should {
+    "execute finalizers" in ticked { implicit ticker =>
+      type F[A] = WriterT[IO, Chain[String], A]
+
+      val test = for {
+        gate <- Deferred[F, Unit]
+        _ <- WriterT
+          .tell[IO, Chain[String]](Chain.one("hello"))
+          .guarantee(gate.complete(()).void)
+          .start
+        _ <- gate.get
+      } yield ()
+
+      test.run._2F must completeAs(())
+    }
+  }
 
   implicit def ordWriterTIOFD(
       implicit ticker: Ticker): Order[WriterT[IO, Int, FiniteDuration]] =
