@@ -30,6 +30,7 @@
       "std/queue",
       "std/ref",
       "std/resource",
+      "std/semaphore",
       "std/supervisor",
       "std/async-await"
     ]

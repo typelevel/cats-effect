@@ -16,13 +16,12 @@
 
 package cats.effect
 
-import cats.data.Kleisli
 import cats.{Eq, Order}
+import cats.data.Kleisli
+import cats.effect.laws.AsyncTests
 import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.eq._
-import cats.effect.laws.AsyncTests
-import cats.implicits._
 
 import org.scalacheck.Prop
 
