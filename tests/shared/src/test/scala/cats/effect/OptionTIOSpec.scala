@@ -20,7 +20,8 @@ import cats.data.OptionT
 import cats.Order
 import cats.laws.discipline.arbitrary._
 import cats.effect.laws.AsyncTests
-import cats.implicits._
+import cats.effect.syntax.all._
+import cats.syntax.all._
 
 import org.scalacheck.Prop
 // import org.scalacheck.rng.Seed
@@ -41,6 +42,20 @@ class OptionTIOSpec
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
+
+  "OptionT" should {
+    "execute finalizers for None" in ticked { implicit ticker =>
+      type F[A] = OptionT[IO, A]
+
+      val test = for {
+        gate <- Deferred[F, Unit]
+        _ <- OptionT.none[IO, Unit].guarantee(gate.complete(()).void).start
+        _ <- gate.get
+      } yield ()
+
+      test.value must completeAs(Some(()))
+    }
+  }
 
   implicit def ordOptionTIOFD(implicit ticker: Ticker): Order[OptionT[IO, FiniteDuration]] =
     Order by { ioaO => unsafeRun(ioaO.value).fold(None, _ => None, fa => fa) }
