@@ -43,11 +43,6 @@ class WriterTIOSpec
       implicit ticker: Ticker): Order[WriterT[IO, Int, FiniteDuration]] =
     Order by { ioaO => unsafeRun(ioaO.run).fold(None, _ => None, fa => fa) }
 
-  //TODO remove once https://github.com/typelevel/cats/pull/3556 is released
-  implicit def orderWriterT[F[_], S, A](
-      implicit Ord: Order[F[(S, A)]]): Order[WriterT[F, S, A]] = Order.by(_.run)
-
-  //TODO remove once https://github.com/typelevel/cats/pull/3556 is released
   implicit def execWriterT[S](sbool: WriterT[IO, S, Boolean])(implicit ticker: Ticker): Prop =
     Prop(
       unsafeRun(sbool.run).fold(
