@@ -42,13 +42,16 @@ class EitherTIOSpec
   sequential
 
   "EitherT" should {
-    "execute finalizers for Left" in ticked { implicit ticker =>
+    "execute finalizers" in ticked { implicit ticker =>
       type F[A] = EitherT[IO, String, A]
 
       val test = for {
-        gate <- Deferred[F, Unit]
-        _ <- EitherT.leftT[IO, Unit]("boom").guarantee(gate.complete(()).void).start
-        _ <- gate.get
+        gate1 <- Deferred[F, Unit]
+        gate2 <- Deferred[F, Unit]
+        _ <- EitherT.leftT[IO, Unit]("boom").guarantee(gate1.complete(()).void).start
+        _ <- EitherT.rightT[IO, String](()).guarantee(gate2.complete(()).void).start
+        _ <- gate1.get
+        _ <- gate2.get
       } yield ()
 
       test.value must completeAs(Right(()))
