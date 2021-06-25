@@ -44,13 +44,16 @@ class OptionTIOSpec
   sequential
 
   "OptionT" should {
-    "execute finalizers for None" in ticked { implicit ticker =>
+    "execute finalizers" in ticked { implicit ticker =>
       type F[A] = OptionT[IO, A]
 
       val test = for {
-        gate <- Deferred[F, Unit]
-        _ <- OptionT.none[IO, Unit].guarantee(gate.complete(()).void).start
-        _ <- gate.get
+        gate1 <- Deferred[F, Unit]
+        gate2 <- Deferred[F, Unit]
+        _ <- OptionT.none[IO, Unit].guarantee(gate1.complete(()).void).start
+        _ <- OptionT.some[IO](()).guarantee(gate2.complete(()).void).start
+        _ <- gate1.get
+        _ <- gate2.get
       } yield ()
 
       test.value must completeAs(Some(()))
