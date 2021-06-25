@@ -38,13 +38,19 @@ class IorTIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck
   sequential
 
   "IorT" should {
-    "execute finalizers for Left" in ticked { implicit ticker =>
+    "execute finalizers" in ticked { implicit ticker =>
       type F[A] = IorT[IO, String, A]
 
       val test = for {
-        gate <- Deferred[F, Unit]
-        _ <- IorT.leftT[IO, Unit]("boom").guarantee(gate.complete(()).void).start
-        _ <- gate.get
+        gate1 <- Deferred[F, Unit]
+        gate2 <- Deferred[F, Unit]
+        gate3 <- Deferred[F, Unit]
+        _ <- IorT.leftT[IO, Unit]("boom").guarantee(gate1.complete(()).void).start
+        _ <- IorT.bothT[IO]("boom", ()).guarantee(gate2.complete(()).void).start
+        _ <- IorT.rightT[IO, String](()).guarantee(gate3.complete(()).void).start
+        _ <- gate1.get
+        _ <- gate2.get
+        _ <- gate3.get
       } yield ()
 
       test.value must completeAs(Ior.right(()))
