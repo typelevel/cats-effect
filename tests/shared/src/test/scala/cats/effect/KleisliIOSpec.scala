@@ -22,7 +22,8 @@ import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.eq._
 import cats.effect.laws.AsyncTests
-import cats.implicits._
+import cats.effect.syntax.all._
+import cats.syntax.all._
 
 import org.scalacheck.Prop
 
@@ -42,6 +43,20 @@ class KleisliIOSpec
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
+
+  "Kleisli" should {
+    "execute finalizers" in ticked { implicit ticker =>
+      type F[A] = Kleisli[IO, String, A]
+
+      val test = for {
+        gate <- Deferred[F, Unit]
+        _ <- Kleisli.ask[IO, String].guarantee(gate.complete(()).void).start
+        _ <- gate.get
+      } yield ()
+
+      test.run("kleisli") must completeAs(())
+    }
+  }
 
   implicit def kleisliEq[F[_], A, B](implicit ev: Eq[A => F[B]]): Eq[Kleisli[F, A, B]] =
     Eq.by[Kleisli[F, A, B], A => F[B]](_.run)
