@@ -19,6 +19,7 @@ package cats.effect
 import cats.{Eq, Order}
 import cats.data.Kleisli
 import cats.effect.laws.AsyncTests
+import cats.effect.syntax.all._
 import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.eq._
@@ -50,6 +51,18 @@ class KleisliIOSpec
 
       List.fill(N)(0).traverse_(_ => Kleisli.liftF(IO(i += 1))).run("Go...") *>
         IO(i) must completeAs(N)
+    }
+
+    "execute finalizers" in ticked { implicit ticker =>
+      type F[A] = Kleisli[IO, String, A]
+
+      val test = for {
+        gate <- Deferred[F, Unit]
+        _ <- Kleisli.ask[IO, String].guarantee(gate.complete(()).void).start
+        _ <- gate.get
+      } yield ()
+
+      test.run("kleisli") must completeAs(())
     }
   }
 
