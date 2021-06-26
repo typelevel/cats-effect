@@ -21,11 +21,11 @@ import scala.sys.process._
 
 ThisBuild / baseVersion := "2.5"
 
-val OldScala = "2.12.14"
-val NewScala = "2.13.6"
-val Dotty = "3.0.0"
+val Scala212 = "2.12.14"
+val Scala213 = "2.13.6"
+val Scala3 = "3.0.0"
 
-ThisBuild / crossScalaVersions := Seq(Dotty, OldScala, NewScala)
+ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
 ThisBuild / scalaVersion := (ThisBuild / crossScalaVersions).value.last
 
 ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11")
@@ -33,13 +33,13 @@ ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11")
 ThisBuild / githubWorkflowTargetBranches := Seq("series/2.x")
 
 ThisBuild / githubWorkflowBuild +=
-  WorkflowStep.Sbt(List("docs/mdoc"), cond = Some(s"matrix.scala == '$NewScala'"))
+  WorkflowStep.Sbt(List("docs/mdoc"), cond = Some(s"matrix.scala == '$Scala213'"))
 
 ThisBuild / githubWorkflowBuild +=
   WorkflowStep.Run(
     List("cd scalafix", "sbt test"),
     name = Some("Scalafix tests"),
-    cond = Some(s"matrix.scala == '$NewScala'")
+    cond = Some(s"matrix.scala == '$Scala213'")
   )
 
 ThisBuild / organization := "org.typelevel"
@@ -237,7 +237,7 @@ lazy val root = project
   .in(file("."))
   .enablePlugins(NoPublishPlugin)
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS, runtimeTests)
-  .settings(crossScalaVersions := Seq(), scalaVersion := OldScala)
+  .settings(crossScalaVersions := Seq(), scalaVersion := Scala212)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
@@ -254,7 +254,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
         Seq(
           // Only way to properly resolve this library
           ("com.github.ghik" % "silencer-lib" % SilencerVersion % Provided)
-        ).map(_.cross(CrossVersion.for3Use2_13With("", s".${NewScala.split("\\.").last}")))
+        ).map(_.cross(CrossVersion.for3Use2_13With("", s".${Scala213.split("\\.").last}")))
       else
         Seq(
           compilerPlugin(("com.github.ghik" % "silencer-plugin" % SilencerVersion).cross(CrossVersion.full)),
