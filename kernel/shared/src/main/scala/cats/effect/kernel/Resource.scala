@@ -274,12 +274,9 @@ sealed abstract class Resource[F[_], +A] {
     type Update = (F[Unit] => F[Unit]) => F[Unit]
 
     def allocate[C](r: Resource[F, C], storeFinalizer: Update): F[C] =
-      r.fold(
-        _.pure[F],
-        release => storeFinalizer(MonadCancel[F, Throwable].guarantee(_, release))
-      )
+      r.fold(_.pure[F], release => storeFinalizer(F.guarantee(_, release)))
 
-    val bothFinalizers = Ref.of[F, (F[Unit], F[Unit])](().pure[F] -> ().pure[F])
+    val bothFinalizers = F.ref(F.unit -> F.unit)
 
     Resource.make(bothFinalizers)(_.get.flatMap(_.parTupled).void).evalMap { store =>
       val leftStore: Update = f => store.update(_.leftMap(f))
