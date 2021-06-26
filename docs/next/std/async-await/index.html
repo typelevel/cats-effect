@@ -1,0 +1,122 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Async/Await (Experimental) · Cats Effect</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Syntactic sugar that allows for direct-style programming."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Async/Await (Experimental) · Cats Effect"/><meta property="og:type" content="website"/><meta property="og:url" content="https://typelevel.org/cats-effect/"/><meta property="og:description" content="Syntactic sugar that allows for direct-style programming."/><meta property="og:image" content="https://typelevel.org/cats-effect/img/undraw_online.svg"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/undraw_tweetstorm.svg"/><link rel="shortcut icon" href="/cats-effect/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github-gist.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="/cats-effect/js/scrollSpy.js"></script><link rel="stylesheet" href="/cats-effect/css/main.css"/><script src="/cats-effect/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/cats-effect/"><img class="logo" src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect"/><h2 class="headerTitleWithLogo">Cats Effect</h2></a><a href="/cats-effect/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/cats-effect/docs/next/getting-started" target="_self">Docs</a></li><li class=""><a href="/cats-effect/api/3.x" target="_self">API</a></li><li class=""><a target="_self"></a></li><li class=""><a href="https://github.com/typelevel/cats-effect" target="_blank">GitHub</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Standard Library</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Overview<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/getting-started">Getting Started</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/tutorial">Tutorial</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/migration-guide">Migration Guide</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/thread-model">Thread Model</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/schedulers">Schedulers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Typeclasses<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses">Overview</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/monadcancel">MonadCancel</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/spawn">Spawn</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/unique">Unique</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/clock">Clock</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/concurrent">Concurrent</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/temporal">Temporal</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/sync">Sync</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/async">Async</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Standard Library<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/countdown-latch">Count Down Latch</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/cyclic-barrier">Cyclic Barrier</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/deferred">Deferred</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/dequeue">Dequeue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/dispatcher">Dispatcher</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/hotswap">Hotswap</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/pqueue">Priority Queue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/queue">Queue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/ref">Ref</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/resource">Resource</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/semaphore">Semaphore</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/supervisor">Supervisor</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/cats-effect/docs/next/std/async-await">Async/Await (Experimental)</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Async/Await (Experimental)</h1></header><article><div><span><p>Syntactic sugar that allows for direct-style programming.</p>
+<h2><a class="anchor" aria-hidden="true" id="warning"></a><a href="#warning" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Warning</h2>
+<p>This feature is provided by an incubating side-library that lives in another repository (<a href="https://github.com/typelevel/cats-effect-cps">typelevel/cats-effect-cps</a>), so that it can undergo updates at a higher pace than Cats Effect if required.</p>
+<p>Because it relies on experimental functionality from the compiler, cats-effec-cps ought to be considered experimental until upstream support stabilises, at which point it will be folded into Cats Effect itself.</p>
+<h2><a class="anchor" aria-hidden="true" id="installation"></a><a href="#installation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installation</h2>
+<p><a href="https://index.scala-lang.org/typelevel/cats-effect-cps/cats-effect-cps"><img src="https://index.scala-lang.org/typelevel/cats-effect-cps/cats-effect-cps/latest-by-scala-version.svg" alt="cats-effect-cps Scala version support"></a></p>
+<pre><code class="hljs css language-scala">scalacOptions += <span class="hljs-string">"-Xasync"</span> <span class="hljs-comment">// scala 2.12.12+ / 2.13.3+ (not needed if on Scala 3)</span>
+libraryDependencies += <span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect-cps"</span> % <span class="hljs-string">"&lt;version&gt;"</span>
+</code></pre>
+<p>(see badge above for version number)</p>
+<h2><a class="anchor" aria-hidden="true" id="motivation"></a><a href="#motivation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Motivation</h2>
+<p>A number of programming languages offer this syntax as a solution to the problem commonly known as &quot;callback-hell&quot;. Whilst Scala offers a solution to this problem in the form of <strong>for-comprehensions</strong>, which all monadic constructs can integrate with, some people prefer the <strong>async/await</strong> syntax, which sometime helps convey meaning better than for-comprehensions.</p>
+<h2><a class="anchor" aria-hidden="true" id="sequential-asyncawait"></a><a href="#sequential-asyncawait" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sequential async/await</h2>
+<p>This construct works for any effect type that has an associated <a href="/cats-effect/docs/next/typeclasses/async">Async</a> instance (including but not limited to <code>IO</code>, <code>Resource</code>, and any combination of those with <code>EitherT</code>, <code>Kleisli</code>, ...).</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
+<span class="hljs-keyword">import</span> cats.effect.cps._
+
+<span class="hljs-keyword">import</span> scala.concurrent.duration._
+
+<span class="hljs-keyword">val</span> io = <span class="hljs-type">IO</span>.sleep(<span class="hljs-number">50.</span>millis).as(<span class="hljs-number">1</span>)
+
+<span class="hljs-keyword">val</span> program: <span class="hljs-type">IO</span>[<span class="hljs-type">Int</span>] = async[<span class="hljs-type">IO</span>] { io.await + io.await }
+</code></pre>
+<p>Under the hood, the <code>async</code> block is rewritten into non-blocking code that calls onto <a href="/cats-effect/docs/next/std/dispatcher">Dispatcher</a> every time <code>await</code> is encountered. The end result is lifted into the effect type via callback.</p>
+<p>Semantically speaking, the <code>program</code> value above is equivalent to</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> program: <span class="hljs-type">IO</span>[<span class="hljs-type">Int</span>] = <span class="hljs-keyword">for</span> {
+  x1 &lt;- io
+  x2 &lt;- io
+} <span class="hljs-keyword">yield</span> (x1 + x2)
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="known-limitations"></a><a href="#known-limitations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Known limitations</h3>
+<p><code>await</code> cannot be called from within local methods or lambdas (which prevents its use in <code>for</code> loops (that get translated to a <code>foreach</code> call)).</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
+
+<span class="hljs-keyword">val</span> program: <span class="hljs-type">IO</span>[<span class="hljs-type">Int</span>] = async[<span class="hljs-type">IO</span>] {
+  <span class="hljs-keyword">var</span> n = <span class="hljs-number">0</span>
+  <span class="hljs-keyword">for</span> (i &lt;- <span class="hljs-number">1</span> to <span class="hljs-number">3</span>) { n += <span class="hljs-type">IO</span>.pure(i).await } <span class="hljs-comment">// compile error</span>
+  n
+}
+</code></pre>
+<p>This constraint is implemented in the Scala compiler (not in cats-effect), for good reason : the Scala language does not provide the capability to guarantee that such methods/lambdas will only be called during the runtime lifecycle of the <code>async</code> block. These lambdas could indeed be passed to other constructs that would use them asynchronously, thus <strong>escaping</strong> the lifecycle of the <code>async</code> block :</p>
+<pre><code class="hljs css language-scala">async[<span class="hljs-type">IO</span>] {
+  <span class="hljs-comment">// executes asynchronously on a separate thread, completes after 1 second.</span>
+  scala.concurrent.<span class="hljs-type">Future</span>(<span class="hljs-type">IO</span>.sleep(<span class="hljs-number">1.</span>second).await)
+  <span class="hljs-comment">// returns instantly, closing the "async" scope</span>
+  <span class="hljs-literal">true</span>
+}
+</code></pre>
+<p><strong>However</strong>, it is possible to call <code>await</code> within an imperative <code>while</code> loop:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
+<span class="hljs-keyword">import</span> cats.effect.cps._
+
+<span class="hljs-keyword">val</span> program: <span class="hljs-type">IO</span>[<span class="hljs-type">Int</span>] = async[<span class="hljs-type">IO</span>] {
+  <span class="hljs-keyword">var</span> n = <span class="hljs-number">0</span>
+  <span class="hljs-keyword">var</span> i = <span class="hljs-number">1</span>
+
+  <span class="hljs-keyword">while</span> (i &lt;= <span class="hljs-number">3</span>) {
+    n += <span class="hljs-type">IO</span>.pure(i).await
+    i += <span class="hljs-number">1</span>
+  }
+
+  n
+}
+</code></pre>
+<p><strong>NB</strong> as a side note, in the cats ecosystem, the &quot;correct&quot; way to iterate over a collection whilst performing effects is to rely on the <code>cats.Traverse#traverse</code> function.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/next/std/supervisor"><span class="arrow-prev">← </span><span>Supervisor</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#warning">Warning</a></li><li><a href="#installation">Installation</a></li><li><a href="#motivation">Motivation</a></li><li><a href="#sequential-asyncawait">Sequential async/await</a><ul class="toc-headings"><li><a href="#known-limitations">Known limitations</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/getting-started">Getting Started</a><a href="/cats-effect/docs/tutorial">Tutorial</a><a href="/cats-effect/docs/typeclasses">Typeclasses</a><a href="/cats-effect/docs/schedulers">Schedulers</a></div><div><h5>Community</h5><a target="_blank" href="https://typelevel.org/blog/">Blog</a><a target="_blank" href="https://discord.gg/HmPs7rAtEY">Discord</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2021 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
