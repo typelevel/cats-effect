@@ -335,18 +335,7 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform)
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
-      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test),
-    scalacOptions ++= {
-      if (!isDotty.value) Seq("-Xasync") else Seq()
-    },
-    Test / unmanagedSourceDirectories ++= {
-      if (!isDotty.value)
-        Seq(
-          (Compile / baseDirectory)
-            .value
-            .getParentFile() / "shared" / "src" / "test" / "scala-2")
-      else Seq()
-    }
+      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test)
   )
   .jvmSettings(
     Test / fork := true,
@@ -408,4 +397,7 @@ lazy val benchmarks = project
   .settings(name := "cats-effect-benchmarks")
   .enablePlugins(NoPublishPlugin, JmhPlugin)
 
-lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
+lazy val docs = project
+  .in(file("site-docs"))
+  .dependsOn(core.jvm)
+  .enablePlugins(MdocPlugin)

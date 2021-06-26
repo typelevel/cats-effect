@@ -31,7 +31,8 @@
       "std/ref",
       "std/resource",
       "std/semaphore",
-      "std/supervisor"
+      "std/supervisor",
+      "std/async-await"
     ]
   }
 }
