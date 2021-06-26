@@ -279,12 +279,10 @@ sealed abstract class Resource[F[_], +A] {
     val bothFinalizers = F.ref(F.unit -> F.unit)
 
     Resource.make(bothFinalizers)(_.get.flatMap(_.parTupled).void).evalMap { store =>
-      val leftStore: Update = f => store.update(_.leftMap(f))
-      val rightStore: Update =
-        f =>
-          store.update(t => (t._1, f(t._2))) // _.map(f) doesn't work on 0.25.0 for some reason
+      val thisStore: Update = f => store.update(_.bimap(f, identity))
+      val thatStore: Update = f => store.update(_.bimap(identity, f))
 
-      (allocate(this, leftStore), allocate(that, rightStore)).parTupled
+      (allocate(this, thisStore), allocate(that, thatStore)).parTupled
     }
   }
 
