@@ -884,8 +884,15 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    * @see [[async]]
    */
-  def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
-    asyncForIO.async_(k)
+  def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
+    val body = new Cont[IO, A, A] {
+      def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
+        G.uncancelable { poll => lift(IO.delay(k(resume))).flatMap(_ => poll(get)) }
+      }
+    }
+
+    IOCont(body, Tracing.calculateTracingEvent(k.getClass))
+  }
 
   def canceled: IO[Unit] = Canceled
 
@@ -1292,15 +1299,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
       IO.async(k)
 
-    override def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
-      val body = new Cont[IO, A, A] {
-        def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
-          G.uncancelable { poll => lift(IO.delay(k(resume))).flatMap(_ => poll(get)) }
-        }
-      }
-
-      IOCont(body, Tracing.calculateTracingEvent(k.getClass))
-    }
+    override def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
+      IO.async_(k)
 
     override def as[A, B](ioa: IO[A], b: B): IO[B] =
       ioa.as(b)
