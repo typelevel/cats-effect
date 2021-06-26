@@ -36,7 +36,7 @@ pull_request_rules:
   - name: automatically merge dependabot docs PRs
     conditions:
       - author=dependabot[bot]
-      - check-success=Microsite
+      - check-success=Generate Microsite
       - base=docs
     actions:
       merge:
