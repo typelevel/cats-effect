@@ -306,7 +306,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Map.this"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.apply"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.copy"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.this")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.this"),
+      // introduced by #2065, Add tracing event to `IO.async`
+      // changes to package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.this")
     )
   )
   .jvmSettings(
