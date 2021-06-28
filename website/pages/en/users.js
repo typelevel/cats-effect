@@ -27,7 +27,7 @@ const users = [
   ['Inner Product', 'https://inner-product.com'],
   ['Intent HQ', 'https://www.intenthq.com/'],
   ['ITV', 'https://www.itv.com/'],
-  ['Kazula', 'https://www.kaluza.com'],
+  ['Kaluza', 'https://www.kaluza.com'],
   ['Klarna', 'https://www.klarna.com'],
   ['Medidata', 'https://www.medidata.com/'],
   ['Ocado Technology', 'https://ocadotechnology.com/'],
