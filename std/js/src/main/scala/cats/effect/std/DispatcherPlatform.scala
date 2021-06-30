@@ -16,4 +16,34 @@
 
 package cats.effect.std
 
-private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] => }
+import scala.scalajs.js
+import scala.scalajs.js.JSConverters._
+import scala.concurrent.ExecutionContext.parasitic
+
+private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] =>
+
+  /**
+   * Submits an effect to be executed, returning a `Promise` that holds the
+   * result of its evaluation, along with a cancelation token that can be
+   * used to cancel the original effect.
+   */
+  def unsafeToPromiseCancelable[A](fa: F[A]): (js.Promise[A], () => js.Promise[Unit]) = {
+    val (f, cancel) = unsafeToFutureCancelable(fa)
+    (f.toJSPromise(parasitic), () => cancel().toJSPromise(parasitic))
+  }
+
+  /**
+   * Submits an effect to be executed, returning a `Promise` that holds the
+   * result of its evaluation.
+   */
+  def unsafeToPromise[A](fa: F[A]): js.Promise[A] =
+    unsafeToPromiseCancelable(fa)._1
+
+  /**
+   * Submits an effect to be executed, returning a cancelation token that
+   * can be used to cancel it.
+   */
+  def unsafeRunCancelablePromise[A](fa: F[A]): () => js.Promise[Unit] =
+    unsafeToPromiseCancelable(fa)._2
+
+}
