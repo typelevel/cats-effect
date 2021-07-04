@@ -20,6 +20,7 @@ import java.util.concurrent._
 import cats.effect.{ExitCode, IO, IOApp, Resource, SyncIO}
 import org.openjdk.jmh.annotations._
 import scala.concurrent.ExecutionContext
+import scala.annotation.nowarn
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -40,8 +41,10 @@ class ECBenchmark {
 
   private val ioApp = new IOApp with Run
   private val ioAppCtx = new IOApp.WithContext with Run {
+
+    @nowarn("cat=deprecation")
     protected def executionContextResource: Resource[SyncIO, ExecutionContext] =
-      Resource.eval(SyncIO.pure(ExecutionContext.Implicits.global))
+      Resource.liftF(SyncIO.pure(ExecutionContext.Implicits.global))
   }
 
   @Benchmark
