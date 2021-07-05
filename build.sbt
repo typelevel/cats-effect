@@ -60,7 +60,6 @@ ThisBuild / scmInfo := Some(
 
 val CatsVersion = "2.6.1"
 val DisciplineMunitVersion = "1.0.9"
-val SilencerVersion = "1.7.5"
 
 replaceCommandAlias(
   "ci",
@@ -248,20 +247,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "cats-core" % CatsVersion,
       "org.typelevel" %%% "cats-laws" % CatsVersion % Test,
       "org.typelevel" %%% "discipline-munit" % DisciplineMunitVersion % Test
-    ),
-    libraryDependencies ++= {
-      if (isDotty.value)
-        Seq(
-          // Only way to properly resolve this library
-          ("com.github.ghik" % "silencer-lib" % SilencerVersion % Provided)
-        ).map(_.cross(CrossVersion.for3Use2_13With("", s".${Scala213.split("\\.").last}")))
-      else
-        Seq(
-          compilerPlugin(("com.github.ghik" % "silencer-plugin" % SilencerVersion).cross(CrossVersion.full)),
-          ("com.github.ghik" % "silencer-lib" % SilencerVersion % "provided").cross(CrossVersion.full),
-          ("com.github.ghik" % "silencer-lib" % SilencerVersion % Test).cross(CrossVersion.full)
-        )
-    }
+    )
   )
   .jvmSettings(mimaSettings)
   .jvmSettings(
