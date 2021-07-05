@@ -1396,6 +1396,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def ref[A](a: A): IO[Ref[IO, A]] = IO.ref(a)
 
     override def deferred[A]: IO[Deferred[IO, A]] = IO.deferred
+
+    override def map2Eval[A, B, C](fa: IO[A], fb: Eval[IO[B]])(fn: (A, B) => C): Eval[IO[C]] =
+      Eval.now(
+        for {
+          a <- fa
+          b <- fb.value
+        } yield fn(a, b)
+      )
   }
 
   implicit def asyncForIO: kernel.Async[IO] = _asyncForIO
