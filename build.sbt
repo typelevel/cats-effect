@@ -366,20 +366,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
       else
         "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     },
-    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
-    libraryDependencies ++= {
-      if (!isDotty.value)
-        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided")
-      else Seq()
-    },
-    Compile / unmanagedSourceDirectories ++= {
-      if (!isDotty.value)
-        Seq(
-          (Compile / baseDirectory)
-            .value
-            .getParentFile() / "shared" / "src" / "main" / "scala-2")
-      else Seq()
-    }
+    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test
   )
 
 /**
