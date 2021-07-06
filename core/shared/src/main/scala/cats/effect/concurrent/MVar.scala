@@ -20,7 +20,7 @@ package concurrent
 import cats.effect.concurrent.MVar.{TransformedMVar, TransformedMVar2}
 import cats.effect.internals.{MVarAsync, MVarConcurrent}
 import cats.~>
-import com.github.ghik.silencer.silent
+import scala.annotation.nowarn
 
 /**
  * @define mVarDescription A mutable location, that is either empty or contains a value of type `A`.
@@ -135,7 +135,7 @@ abstract class MVar[F[_], A] extends MVarDocumentation {
  * The `MVar2` is the successor of `MVar` with [[tryRead]] and [[swap]]. It was implemented separately only to maintain
  * binary compatibility with `MVar`.
  */
-@silent("deprecated")
+@nowarn("cat=deprecation")
 abstract class MVar2[F[_], A] extends MVar[F, A] {
 
   /**
