@@ -30,7 +30,7 @@ import cats.syntax.show._
 import scala.annotation.tailrec
 
 import java.lang.{StringBuilder => JStringBuilder}
-import java.io.EOFException
+import java.io.{ByteArrayOutputStream, EOFException, PrintStream}
 import java.nio.{ByteBuffer, CharBuffer}
 import java.nio.charset.{Charset, CodingErrorAction, MalformedInputException}
 
@@ -125,6 +125,16 @@ trait Console[F[_]] { self =>
   def errorln[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit]
 
   /**
+   * Prints the stack trace of the given Throwable to standard error output.
+   */
+  def printStackTrace(t: Throwable): F[Unit] = {
+    val baos = new ByteArrayOutputStream()
+    val ps = new PrintStream(baos)
+    t.printStackTrace(ps)
+    error(baos.toString)
+  }
+
+  /**
    * Modifies the context in which this console operates using the natural
    * transformation `f`.
    *
@@ -147,6 +157,9 @@ trait Console[F[_]] { self =>
 
       def errorln[A](a: A)(implicit S: Show[A]): G[Unit] =
         f(self.errorln(a))
+
+      override def printStackTrace(t: Throwable): G[Unit] =
+        f(self.printStackTrace(t))
     }
 }
 
@@ -320,5 +333,8 @@ object Console {
       val text = a.show
       F.blocking(System.err.println(text))
     }
+
+    override def printStackTrace(t: Throwable): F[Unit] =
+      F.blocking(t.printStackTrace())
   }
 }

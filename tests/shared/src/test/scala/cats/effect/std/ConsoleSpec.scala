@@ -17,10 +17,12 @@
 package cats.effect
 package std
 
+import cats.Show
+import cats.effect.kernel.Sync
 import cats.syntax.all._
 
 import java.io.{ByteArrayOutputStream, PrintStream}
-import java.nio.charset.StandardCharsets
+import java.nio.charset.{Charset, StandardCharsets}
 
 class ConsoleSpec extends BaseSpec {
   sequential
@@ -69,6 +71,13 @@ class ConsoleSpec extends BaseSpec {
     } yield out
 
     test.use(out => io.as(out)).flatMap(extractMessage)
+  }
+
+  private def throwableToString(t: Throwable): String = {
+    val baos = new ByteArrayOutputStream()
+    val ps = new PrintStream(baos)
+    t.printStackTrace(ps)
+    baos.toString
   }
 
   "Console" should {
@@ -125,5 +134,46 @@ class ConsoleSpec extends BaseSpec {
       }
     }
 
+    "printStackTrace to the standard error output" in real {
+      val e = new Throwable("error!")
+
+      val stackTraceString = throwableToString(e)
+
+      standardErrTest(Console[IO].printStackTrace(e)).flatMap { err =>
+        IO {
+          err must beEqualTo(stackTraceString)
+        }
+      }
+    }
+
+    "default printStackTrace implementation copies the throwable stack trace and prints it to the standard error" in real {
+
+      final class DummyConsole[F[_]](implicit F: Sync[F]) extends Console[F] {
+        def readLineWithCharset(charset: Charset): F[String] = F.pure("line")
+
+        def print[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = F.unit
+
+        def println[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = F.unit
+
+        def error[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = {
+          val text = a.show
+          F.blocking(System.err.print(text))
+        }
+
+        def errorln[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit] = F.unit
+      }
+
+      val e = new Throwable("error!")
+
+      val stackTraceString = throwableToString(e)
+
+      val console = new DummyConsole[IO]
+
+      standardErrTest(console.printStackTrace(e)).flatMap { err =>
+        IO {
+          err must beEqualTo(stackTraceString)
+        }
+      }
+    }
   }
 }
