@@ -45,6 +45,24 @@ sealed trait Outcome[F[_], E, A] extends Product with Serializable {
       case Errored(e) => Errored(e)
       case Succeeded(fa) => Succeeded(f(fa))
     }
+
+  def isSuccess: Boolean = this match {
+    case Canceled() => false
+    case Errored(_) => false
+    case Succeeded(_) => true
+  }
+
+  def isError: Boolean = this match {
+    case Canceled() => false
+    case Errored(_) => true
+    case Succeeded(_) => false
+  }
+
+  def isCanceled: Boolean = this match {
+    case Canceled() => true
+    case Errored(_) => false
+    case Succeeded(_) => false
+  }
 }
 
 private[kernel] trait LowPriorityImplicits {

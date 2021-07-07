@@ -65,11 +65,11 @@ import cats.effect.kernel.syntax.monadCancel._
  * The observed output of each execution is shown below:
  *
  *   1. A1, A2, B1, B2
- *   2. A1, B1, A2, B2
- *   3. A1, B1, B2, A2
- *   4. B1, B2, A1, A2
- *   5. B1, A1, B2, A2
- *   6. B1, A1, A2, B3
+ *   1. A1, B1, A2, B2
+ *   1. A1, B1, B2, A2
+ *   1. B1, B2, A1, A2
+ *   1. B1, A1, B2, A2
+ *   1. B1, A1, A2, B3
  *
  * Notice how every execution preserves sequential consistency of the effects
  * within each fiber: `A1` always prints before `A2`, and `B1` always prints

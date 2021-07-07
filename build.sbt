@@ -46,8 +46,9 @@ val Windows = "windows-latest"
 
 val ScalaJSJava = "adopt@1.8"
 val Scala213 = "2.13.6"
+val Scala3 = "3.0.0"
 
-ThisBuild / crossScalaVersions := Seq("3.0.0", "2.12.14", Scala213)
+ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.14", Scala213)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
@@ -69,7 +70,7 @@ ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
     List("docs/mdoc"),
-    cond = Some(s"matrix.scala == '$Scala213' && matrix.ci == 'ciJVM'")),
+    cond = Some(s"(matrix.scala == '$Scala213' || matrix.scala == '$Scala3') && matrix.ci == 'ciJVM'")),
   WorkflowStep.Sbt(
     List("exampleJVM/compile"),
     cond = Some(s"matrix.ci == 'ciJVM' && matrix.os == '$PrimaryOS'")),
@@ -147,7 +148,7 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.6.1"
-val Specs2Version = "4.12.0"
+val Specs2Version = "4.12.3"
 val ScalaCheckVersion = "1.15.4"
 val DisciplineVersion = "1.1.6"
 val CoopVersion = "1.1.1"
@@ -307,10 +308,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.apply"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.copy"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Uncancelable.this"),
-      // introduced by #1953, Translate `SyncIO` to `F[_]: Sync`
-      // renaming of package private classes
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Delay$"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Delay")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Delay"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.this")
     )
   )
   .jvmSettings(
@@ -339,18 +341,7 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform)
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
-      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test),
-    scalacOptions ++= {
-      if (!isDotty.value) Seq("-Xasync") else Seq()
-    },
-    Test / unmanagedSourceDirectories ++= {
-      if (!isDotty.value)
-        Seq(
-          (Compile / baseDirectory)
-            .value
-            .getParentFile() / "shared" / "src" / "test" / "scala-2")
-      else Seq()
-    }
+      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test)
   )
   .jvmSettings(
     Test / fork := true,
@@ -376,20 +367,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
       else
         "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     },
-    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
-    libraryDependencies ++= {
-      if (!isDotty.value)
-        Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided")
-      else Seq()
-    },
-    Compile / unmanagedSourceDirectories ++= {
-      if (!isDotty.value)
-        Seq(
-          (Compile / baseDirectory)
-            .value
-            .getParentFile() / "shared" / "src" / "main" / "scala-2")
-      else Seq()
-    }
+    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test
   )
 
 /**
@@ -412,4 +390,7 @@ lazy val benchmarks = project
   .settings(name := "cats-effect-benchmarks")
   .enablePlugins(NoPublishPlugin, JmhPlugin)
 
-lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
+lazy val docs = project
+  .in(file("site-docs"))
+  .dependsOn(core.jvm)
+  .enablePlugins(MdocPlugin)

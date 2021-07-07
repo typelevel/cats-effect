@@ -755,6 +755,54 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     fiber
   }
 
+  /**
+   * Translates this `IO[A]` into a `SyncIO` value which, when evaluated, runs
+   * the original `IO` to its completion, or until the first asynchronous,
+   * boundary, whichever is encountered first.
+   */
+  def syncStep: SyncIO[Either[IO[A], A]] = {
+    def interpret[B](io: IO[B]): SyncIO[Either[IO[B], B]] =
+      io match {
+        case IO.Pure(a) => SyncIO.pure(Right(a))
+        case IO.Error(t) => SyncIO.raiseError(t)
+        case IO.Delay(thunk, _) => SyncIO.delay(thunk()).map(Right(_))
+        case IO.RealTime => SyncIO.realTime.map(Right(_))
+        case IO.Monotonic => SyncIO.monotonic.map(Right(_))
+
+        case IO.Map(ioe, f, _) =>
+          interpret(ioe).map {
+            case Left(_) => Left(io)
+            case Right(a) => Right(f(a))
+          }
+
+        case IO.FlatMap(ioe, f, _) =>
+          interpret(ioe).flatMap {
+            case Left(_) => SyncIO.pure(Left(io))
+            case Right(a) => interpret(f(a))
+          }
+
+        case IO.Attempt(ioe) =>
+          interpret(ioe)
+            .map {
+              case Left(_) => Left(io)
+              case Right(a) => Right(a.asRight[Throwable])
+            }
+            .handleError(t => Right(t.asLeft[IO[B]]))
+
+        case IO.HandleErrorWith(ioe, f, _) =>
+          interpret(ioe)
+            .map {
+              case Left(_) => Left(io)
+              case Right(a) => Right(a)
+            }
+            .handleErrorWith(t => interpret(f(t)))
+
+        case _ => SyncIO.pure(Left(io))
+      }
+
+    interpret(this)
+  }
+
   def foreverM: IO[Nothing] = Monad[IO].foreverM[A, Nothing](this)
 
   def whileM[G[_]: Alternative, B >: A](p: IO[Boolean]): IO[G[B]] =
@@ -833,8 +881,20 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def defer[A](thunk: => IO[A]): IO[A] =
     delay(thunk).flatten
 
-  def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
-    asyncForIO.async(k)
+  def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = {
+    val body = new Cont[IO, A, A] {
+      def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
+        G.uncancelable { poll =>
+          lift(k(resume)) flatMap {
+            case Some(fin) => G.onCancel(poll(get), lift(fin))
+            case None => poll(get)
+          }
+        }
+      }
+    }
+
+    IOCont(body, Tracing.calculateTracingEvent(k.getClass))
+  }
 
   /**
    * Suspends an asynchronous side effect in `IO`.
@@ -872,8 +932,15 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    * @see [[async]]
    */
-  def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
-    asyncForIO.async_(k)
+  def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
+    val body = new Cont[IO, A, A] {
+      def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
+        G.uncancelable { poll => lift(IO.delay(k(resume))).flatMap(_ => poll(get)) }
+      }
+    }
+
+    IOCont(body, Tracing.calculateTracingEvent(k.getClass))
+  }
 
   def canceled: IO[Unit] = Canceled
 
@@ -885,7 +952,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * depending on the use case
    */
   def cont[K, R](body: Cont[IO, K, R]): IO[R] =
-    IOCont[K, R](body)
+    IOCont[K, R](body, Tracing.calculateTracingEvent(body.getClass))
 
   def executionContext: IO[ExecutionContext] = ReadEC
 
@@ -1277,15 +1344,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   private[this] val _asyncForIO: kernel.Async[IO] = new kernel.Async[IO]
     with StackSafeMonad[IO] {
 
-    override def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
-      val body = new Cont[IO, A, A] {
-        def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
-          G.uncancelable { poll => lift(IO.delay(k(resume))).flatMap(_ => poll(get)) }
-        }
-      }
+    override def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
+      IO.async(k)
 
-      cont(body)
-    }
+    override def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
+      IO.async_(k)
 
     override def as[A, B](ioa: IO[A], b: B): IO[B] =
       ioa.as(b)
@@ -1381,6 +1444,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def ref[A](a: A): IO[Ref[IO, A]] = IO.ref(a)
 
     override def deferred[A]: IO[Deferred[IO, A]] = IO.deferred
+
+    override def map2Eval[A, B, C](fa: IO[A], fb: Eval[IO[B]])(fn: (A, B) => C): Eval[IO[C]] =
+      Eval.now(
+        for {
+          a <- fa
+          b <- fb.value
+        } yield fn(a, b)
+      )
   }
 
   implicit def asyncForIO: kernel.Async[IO] = _asyncForIO
@@ -1473,7 +1544,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
 
   // Low level construction that powers `async`
-  private[effect] final case class IOCont[K, R](body: Cont[IO, K, R]) extends IO[R] {
+  private[effect] final case class IOCont[K, R](body: Cont[IO, K, R], event: TracingEvent)
+      extends IO[R] {
     def tag = 14
   }
   private[effect] object IOCont {

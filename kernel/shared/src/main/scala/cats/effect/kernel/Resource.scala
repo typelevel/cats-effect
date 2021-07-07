@@ -254,18 +254,27 @@ sealed abstract class Resource[F[_], +A] {
    * `both`, for example via `parMapN`:
    *
    * {{{
-   *   def mkResource(name: String) = {
-   *     val acquire =
-   *       IO(scala.util.Random.nextInt(1000).millis).flatMap(IO.sleep) *>
-   *       IO(println(s"Acquiring $$name")).as(name)
+   * import scala.concurrent.duration._
+   * import cats.effect.{IO, Resource}
+   * import cats.effect.std.Random
+   * import cats.syntax.all._
    *
-   *     val release = IO(println(s"Releasing $$name"))
-   *     Resource.make(acquire)(release)
-   *   }
+   * def mkResource(name: String) = {
+   *   val acquire = for {
+   *     n <- Random.scalaUtilRandom[IO].flatMap(_.nextIntBounded(1000))
+   *     _ <- IO.sleep(n.millis)
+   *     _ <- IO.println(s"Acquiring $$name")
+   *   } yield name
    *
-   *  val r = (mkResource("one"), mkResource("two"))
-   *             .parMapN((s1, s2) => s"I have \$s1 and \$s2")
-   *             .use(msg => IO(println(msg)))
+   *   def release(name: String) =
+   *     IO.println(s"Releasing $$name")
+   *
+   *   Resource.make(acquire)(release)
+   * }
+   *
+   * val r = (mkResource("one"), mkResource("two"))
+   *   .parMapN((s1, s2) => s"I have \$s1 and \$s2")
+   *   .use(IO.println(_))
    * }}}
    */
   def both[B](
@@ -274,20 +283,15 @@ sealed abstract class Resource[F[_], +A] {
     type Update = (F[Unit] => F[Unit]) => F[Unit]
 
     def allocate[C](r: Resource[F, C], storeFinalizer: Update): F[C] =
-      r.fold(
-        _.pure[F],
-        release => storeFinalizer(MonadCancel[F, Throwable].guarantee(_, release))
-      )
+      r.fold(_.pure[F], release => storeFinalizer(F.guarantee(_, release)))
 
-    val bothFinalizers = Ref.of[F, (F[Unit], F[Unit])](().pure[F] -> ().pure[F])
+    val bothFinalizers = F.ref(F.unit -> F.unit)
 
     Resource.make(bothFinalizers)(_.get.flatMap(_.parTupled).void).evalMap { store =>
-      val leftStore: Update = f => store.update(_.leftMap(f))
-      val rightStore: Update =
-        f =>
-          store.update(t => (t._1, f(t._2))) // _.map(f) doesn't work on 0.25.0 for some reason
+      val thisStore: Update = f => store.update(_.bimap(f, identity))
+      val thatStore: Update = f => store.update(_.bimap(identity, f))
 
-      (allocate(this, leftStore), allocate(that, rightStore)).parTupled
+      (allocate(this, thisStore), allocate(that, thatStore)).parTupled
     }
   }
 

@@ -16,13 +16,13 @@
 
 package cats.effect
 
-import cats.data.Kleisli
 import cats.{Eq, Order}
+import cats.data.Kleisli
+import cats.effect.laws.AsyncTests
 import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.eq._
-import cats.effect.laws.AsyncTests
-import cats.implicits._
+import cats.syntax.all._
 
 import org.scalacheck.Prop
 
@@ -42,6 +42,16 @@ class KleisliIOSpec
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
+
+  "Kleisli[IO, R, *]" >> {
+    "should be stack safe in long traverse chains" in ticked { implicit ticker =>
+      val N = 10000
+      var i = 0
+
+      List.fill(N)(0).traverse_(_ => Kleisli.liftF(IO(i += 1))).run("Go...") *>
+        IO(i) must completeAs(N)
+    }
+  }
 
   implicit def kleisliEq[F[_], A, B](implicit ev: Eq[A => F[B]]): Eq[Kleisli[F, A, B]] =
     Eq.by[Kleisli[F, A, B], A => F[B]](_.run)
