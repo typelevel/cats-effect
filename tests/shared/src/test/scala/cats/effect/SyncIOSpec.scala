@@ -215,6 +215,16 @@ class SyncIOSpec
         .uncancelable(_ => MonadCancel[SyncIO].canceled)
         .map(_ => ()) must completeAsSync(())
     }
+
+    "lift a SyncIO into IO" in realProp(arbitrarySyncIO[Int].arbitrary) { sio =>
+      val io = sio.to[IO]
+
+      for {
+        res1 <- IO.delay(sio.unsafeRunSync()).attempt
+        res2 <- io.attempt
+        res <- IO.delay(res1 mustEqual res2)
+      } yield res
+    }
   }
 
   {

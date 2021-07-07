@@ -17,10 +17,13 @@
 package cats.effect
 
 import cats.{Align, Eval, Functor, Now, Show, StackSafeMonad}
-import cats.kernel.{Monoid, Semigroup}
 import cats.data.Ior
+import cats.effect.syntax.monadCancel._
+import cats.kernel.{Monoid, Semigroup}
+import cats.syntax.all._
 
 import scala.annotation.{switch, tailrec}
+import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
 import scala.util.Try
 import scala.util.control.NonFatal
@@ -171,6 +174,29 @@ sealed abstract class SyncIO[+A] private () {
 
   override def toString(): String = "SyncIO(...)"
 
+  /**
+   * Translates this [[SyncIO]] to any `F[_]` data type that implements
+   * [[Sync]].
+   */
+  def to[F[_]](implicit F: Sync[F]): F[A @uncheckedVariance] = {
+    def interpret[B](sio: SyncIO[B]): F[B] =
+      sio match {
+        case SyncIO.Pure(a) => F.pure(a)
+        case SyncIO.Suspend(hint, thunk) => F.suspend(hint)(thunk())
+        case SyncIO.Error(t) => F.raiseError(t)
+        case SyncIO.Map(sioe, f) => interpret(sioe).map(f)
+        case SyncIO.FlatMap(sioe, f) => interpret(sioe).flatMap(f.andThen(interpret))
+        case SyncIO.HandleErrorWith(sioa, f) =>
+          interpret(sioa).handleErrorWith(f.andThen(interpret))
+        case SyncIO.Success(_) | SyncIO.Failure(_) => sys.error("impossible")
+        case SyncIO.Attempt(sioa) => interpret(sioa).attempt.asInstanceOf[F[B]]
+        case SyncIO.RealTime => F.realTime.asInstanceOf[F[B]]
+        case SyncIO.Monotonic => F.monotonic.asInstanceOf[F[B]]
+      }
+
+    interpret(this).uncancelable
+  }
+
   // unsafe
 
   /**
@@ -202,7 +228,7 @@ sealed abstract class SyncIO[+A] private () {
           runLoop(succeeded(cur.value, 0))
 
         case 1 =>
-          val cur = cur0.asInstanceOf[SyncIO.Delay[Any]]
+          val cur = cur0.asInstanceOf[SyncIO.Suspend[Any]]
 
           var error: Throwable = null
           val r =
@@ -258,6 +284,12 @@ sealed abstract class SyncIO[+A] private () {
 
           conts.push(AttemptK)
           runLoop(cur.ioa)
+
+        case 9 =>
+          runLoop(succeeded(System.currentTimeMillis().millis, 0))
+
+        case 10 =>
+          runLoop(succeeded(System.nanoTime().nanos, 0))
       }
 
     @tailrec
@@ -353,6 +385,8 @@ private[effect] trait SyncIOLowPriorityImplicits {
 
 object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
 
+  private[this] val Delay = Sync.Type.Delay
+
   // constructors
 
   /**
@@ -365,7 +399,7 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
    * @return a `SyncIO` that will be evaluated to the side effectful expression `thunk`
    */
   def apply[A](thunk: => A): SyncIO[A] =
-    Delay(() => thunk)
+    Suspend(Delay, () => thunk)
 
   /**
    * Suspends a synchronous side effect which produces a `SyncIO` in `SyncIO`.
@@ -407,7 +441,7 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
     }
 
   val monotonic: SyncIO[FiniteDuration] =
-    Delay(() => System.nanoTime().nanos)
+    Monotonic
 
   /**
    * Suspends a pure value in `SyncIO`.
@@ -441,7 +475,7 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
     Error(t)
 
   val realTime: SyncIO[FiniteDuration] =
-    Delay(() => System.currentTimeMillis().millis)
+    RealTime
 
   private[this] val _unit: SyncIO[Unit] =
     Pure(())
@@ -542,7 +576,7 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
         SyncIO.realTime
 
       def suspend[A](hint: Sync.Type)(thunk: => A): SyncIO[A] =
-        SyncIO(thunk)
+        Suspend(hint, () => thunk)
 
       override def attempt[A](fa: SyncIO[A]): SyncIO[Either[Throwable, A]] =
         fa.attempt
@@ -570,7 +604,7 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
     override def toString: String = s"SyncIO($value)"
   }
 
-  private final case class Delay[+A](thunk: () => A) extends SyncIO[A] {
+  private final case class Suspend[+A](hint: Sync.Type, thunk: () => A) extends SyncIO[A] {
     def tag = 1
   }
 
@@ -601,5 +635,13 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
 
   private final case class Attempt[+A](ioa: SyncIO[A]) extends SyncIO[Either[Throwable, A]] {
     def tag = 8
+  }
+
+  private case object RealTime extends SyncIO[FiniteDuration] {
+    def tag = 9
+  }
+
+  private case object Monotonic extends SyncIO[FiniteDuration] {
+    def tag = 10
   }
 }
