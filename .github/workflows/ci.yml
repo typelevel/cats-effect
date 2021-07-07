@@ -98,7 +98,7 @@ jobs:
       - shell: bash
         run: sbt --client '++${{ matrix.scala }}; ${{ matrix.ci }}'
 
-      - if: matrix.scala == '2.13.6' && matrix.ci == 'ciJVM'
+      - if: (matrix.scala == '2.13.6' || matrix.scala == '3.0.0') && matrix.ci == 'ciJVM'
         shell: bash
         run: sbt --client '++${{ matrix.scala }}; docs/mdoc'
 
