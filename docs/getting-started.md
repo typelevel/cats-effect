@@ -15,6 +15,12 @@ Naturally, if you're using ScalaJS, you should replace the double `%%` with a tr
 addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
 ```
 
+Alternatively, you can use the Cats Effect 3 Giter8 template, which sets up some basic project infrastructure:
+
+```bash
+$ sbt new typelevel/ce3.g8
+```
+
 To create a new Cats Effect application, place the following contents into a new Scala file within your project:
 
 ```scala mdoc
