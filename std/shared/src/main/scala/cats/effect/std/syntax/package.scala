@@ -19,7 +19,7 @@ package cats.effect.std
 package object syntax {
 
   object all extends AllSyntax
-  
+
   object supervisor extends SupervisorSyntax
 
 }
