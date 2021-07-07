@@ -27,4 +27,6 @@ package object syntax {
   object async extends kernel.syntax.AsyncSyntax
   object resource extends kernel.syntax.ResourceSyntax
   object clock extends kernel.syntax.ClockSyntax
+
+  object supervisor extends std.syntax.SupervisorSyntax
 }

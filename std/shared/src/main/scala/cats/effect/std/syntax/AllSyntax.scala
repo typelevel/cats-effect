@@ -14,12 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats.effect
+package std.syntax
 
-package object syntax {
-
-  object all extends AllSyntax
-  
-  object supervisor extends SupervisorSyntax
-
-}
+trait AllSyntax extends SupervisorSyntax
