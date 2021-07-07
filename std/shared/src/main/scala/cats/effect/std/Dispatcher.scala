@@ -22,7 +22,7 @@ import cats.syntax.all._
 
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
 
 import java.util.concurrent.ThreadLocalRandom
@@ -74,6 +74,20 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
   def unsafeRunAndForget[A](fa: F[A]): Unit = {
     unsafeToFutureCancelable(fa)
     ()
+  }
+
+  /**
+   * Submits an effect to be executed, invoking the specified callback
+   * when a result is reached, either completion or error.
+   */
+  def unsafeRunAsync[A](fa: F[A])(cb: Either[Throwable, A] => Unit): Unit = {
+    // this is safe because the only invocation will be cb
+    implicit val parasitic: ExecutionContext = new ExecutionContext {
+      def execute(runnable: Runnable) = runnable.run()
+      def reportFailure(t: Throwable) = t.printStackTrace()
+    }
+
+    unsafeToFuture(fa).onComplete(t => cb(t.toEither))
   }
 }
 

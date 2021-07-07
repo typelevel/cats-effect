@@ -16,40 +16,27 @@
 
 package cats.effect.std
 
-import scala.concurrent.ExecutionContext
-
-import scala.scalajs.js
-import scala.scalajs.js.JSConverters._
+import scala.scalajs.js.{|, Function1, JavaScriptException, Promise, Thenable}
 
 private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] =>
 
   /**
    * Submits an effect to be executed, returning a `Promise` that holds the
-   * result of its evaluation, along with a cancelation token that can be
-   * used to cancel the original effect.
-   */
-  def unsafeToPromiseCancelable[A](fa: F[A]): (js.Promise[A], () => js.Promise[Unit]) = {
-    val parasitic = new ExecutionContext {
-      def execute(runnable: Runnable) = runnable.run()
-      def reportFailure(t: Throwable) = t.printStackTrace()
-    }
-
-    val (f, cancel) = unsafeToFutureCancelable(fa)
-    (f.toJSPromise(parasitic), () => cancel().toJSPromise(parasitic))
-  }
-
-  /**
-   * Submits an effect to be executed, returning a `Promise` that holds the
    * result of its evaluation.
    */
-  def unsafeToPromise[A](fa: F[A]): js.Promise[A] =
-    unsafeToPromiseCancelable(fa)._1
+  def unsafeToPromise[A](fa: F[A]): Promise[A] =
+    new Promise[A]((resolve: Function1[A | Thenable[A], _], reject: Function1[Any, _]) =>
+      unsafeRunAsync(fa) {
+        case Left(JavaScriptException(e)) =>
+          reject(e)
+          ()
 
-  /**
-   * Submits an effect to be executed, returning a cancelation token that
-   * can be used to cancel it.
-   */
-  def unsafeRunCancelablePromise[A](fa: F[A]): () => js.Promise[Unit] =
-    unsafeToPromiseCancelable(fa)._2
+        case Left(e) =>
+          reject(e)
+          ()
 
+        case Right(value) =>
+          resolve(value)
+          ()
+      })
 }
