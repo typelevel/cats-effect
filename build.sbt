@@ -71,18 +71,6 @@ replaceCommandAlias(
   "; reload; project /; +mimaReportBinaryIssuesIfRelevant; +publishIfRelevant; sonatypeBundleRelease"
 )
 
-// Directly copied from typelevel/cats
-def scalaVersionSpecificFolders(srcName: String, srcBaseDir: java.io.File, scalaVersion: String) = {
-  def extraDirs(suffix: String) =
-    List(CrossType.Pure, CrossType.Full)
-      .flatMap(_.sharedSrcDir(srcBaseDir, srcName).toList.map(f => file(f.getPath + suffix)))
-  CrossVersion.partialVersion(scalaVersion) match {
-    case Some((2, y))     => extraDirs("-2.x") ++ (if (y >= 13) extraDirs("-2.13+") else Nil)
-    case Some((0 | 3, _)) => extraDirs("-2.13+") ++ extraDirs("-3.x")
-    case _                => Nil
-  }
-}
-
 val commonSettings = Seq(
   Compile / doc / scalacOptions ++= {
     val isSnapshot = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.isEmpty
@@ -95,8 +83,6 @@ val commonSettings = Seq(
 
     Seq("-doc-source-url", path, "-sourcepath", (LocalRootProject / baseDirectory).value.getAbsolutePath)
   },
-  Compile / unmanagedSourceDirectories ++= scalaVersionSpecificFolders("main", baseDirectory.value, scalaVersion.value),
-  Test / unmanagedSourceDirectories ++= scalaVersionSpecificFolders("test", baseDirectory.value, scalaVersion.value),
   Compile / doc / sources := (Compile / doc / sources).value,
   Compile / doc / scalacOptions ++=
     Seq("-doc-root-content", (baseDirectory.value.getParentFile / "shared" / "rootdoc.txt").getAbsolutePath),
@@ -223,15 +209,6 @@ lazy val scalaJSSettings = Seq(
   }
 )
 
-lazy val sharedSourcesSettings = Seq(
-  Compile / unmanagedSourceDirectories += {
-    baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
-  },
-  Test / unmanagedSourceDirectories += {
-    baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
-  }
-)
-
 lazy val root = project
   .in(file("."))
   .enablePlugins(NoPublishPlugin)
@@ -318,11 +295,21 @@ lazy val runtimeTests = project
     )
   )
 
+// Custom shared sources settings for benchmark projects
+lazy val sharedSourcesSettings = Seq(
+  Compile / unmanagedSourceDirectories += {
+    baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
+  },
+  Test / unmanagedSourceDirectories += {
+    baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+  }
+)
+
 lazy val benchmarksPrev = project
   .in(file("benchmarks/vPrev"))
   .enablePlugins(NoPublishPlugin)
   .settings(commonSettings ++ sharedSourcesSettings)
-  .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "2.2.0")
+  .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "2.4.0")
   .settings(scalacOptions ~= (_.filterNot(Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)))
   .enablePlugins(JmhPlugin)
 
