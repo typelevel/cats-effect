@@ -755,6 +755,54 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     fiber
   }
 
+  /**
+   * Translates this `IO[A]` into a `SyncIO` value which, when evaluated, runs
+   * the original `IO` to its completion, or until the first asynchronous,
+   * boundary, whichever is encountered first.
+   */
+  def syncStep: SyncIO[Either[IO[A], A]] = {
+    def interpret[B](io: IO[B]): SyncIO[Either[IO[B], B]] =
+      io match {
+        case IO.Pure(a) => SyncIO.pure(Right(a))
+        case IO.Error(t) => SyncIO.raiseError(t)
+        case IO.Delay(thunk, _) => SyncIO.delay(thunk()).map(Right(_))
+        case IO.RealTime => SyncIO.realTime.map(Right(_))
+        case IO.Monotonic => SyncIO.monotonic.map(Right(_))
+
+        case IO.Map(ioe, f, _) =>
+          interpret(ioe).map {
+            case Left(_) => Left(io)
+            case Right(a) => Right(f(a))
+          }
+
+        case IO.FlatMap(ioe, f, _) =>
+          interpret(ioe).flatMap {
+            case Left(_) => SyncIO.pure(Left(io))
+            case Right(a) => interpret(f(a))
+          }
+
+        case IO.Attempt(ioe) =>
+          interpret(ioe)
+            .map {
+              case Left(_) => Left(io)
+              case Right(a) => Right(a.asRight[Throwable])
+            }
+            .handleError(t => Right(t.asLeft[IO[B]]))
+
+        case IO.HandleErrorWith(ioe, f, _) =>
+          interpret(ioe)
+            .map {
+              case Left(_) => Left(io)
+              case Right(a) => Right(a)
+            }
+            .handleErrorWith(t => interpret(f(t)))
+
+        case _ => SyncIO.pure(Left(io))
+      }
+
+    interpret(this)
+  }
+
   def foreverM: IO[Nothing] = Monad[IO].foreverM[A, Nothing](this)
 
   def whileM[G[_]: Alternative, B >: A](p: IO[Boolean]): IO[G[B]] =
