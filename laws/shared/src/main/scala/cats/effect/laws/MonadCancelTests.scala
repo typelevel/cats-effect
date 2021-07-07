@@ -62,6 +62,7 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
 
       val props = {
         val common: Seq[(String, Prop)] = Seq(
+          "guarantee forceR correspondence" -> forAll(laws.guaranteeForceRCorrespondence[A] _),
           "uncancelable poll is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
           "uncancelable ignored poll eliminates nesting" -> forAll(
             laws.uncancelableIgnoredPollEliminatesNesting[A] _),
@@ -74,6 +75,7 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
           "forceR discards pure" -> forAll(laws.forceRDiscardsPure[A, B] _),
           "forceR discards error" -> forAll(laws.forceRDiscardsError[A] _),
           "forceR canceled short-circuits" -> forAll(laws.forceRCanceledShortCircuits[A] _),
+          "forceR associativity" -> forAll(laws.forceRAssociativity[A, B, C] _),
           "uncancelable finalizers" -> forAll(laws.uncancelableFinalizers[A] _)
         )
 

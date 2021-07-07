@@ -17,13 +17,20 @@
 package cats.effect
 package laws
 
-import cats.effect.kernel.MonadCancel
+import cats.effect.kernel.{MonadCancel, Outcome}
 import cats.syntax.all._
 import cats.laws.MonadErrorLaws
 
 trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   implicit val F: MonadCancel[F, E]
+
+  def guaranteeForceRCorrespondence[A](fa: F[A], fu: F[Unit]) =
+    F.forceR(F.guaranteeCase(fa) {
+      case Outcome.Succeeded(_) => fu
+      case Outcome.Errored(_) => fu
+      case Outcome.Canceled() => F.unit
+    })(F.unit) <-> F.forceR(fa)(F.forceR(F.uncancelable(_ => fu))(F.unit))
 
   // note that this implies the nested case as well
   def uncancelablePollIsIdentity[A](fa: F[A]) =
@@ -66,6 +73,9 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   def forceRCanceledShortCircuits[A](fa: F[A]) =
     F.forceR(F.canceled)(fa) <-> F.productR(F.canceled)(fa)
+
+  def forceRAssociativity[A, B, C](fa: F[A], fb: F[B], fc: F[C]) =
+    F.forceR(fa)(F.forceR(fb)(fc)) <-> F.forceR(F.forceR(fa)(fb))(fc)
 
   def uncancelableFinalizers[A](fin: F[Unit]) =
     F.onCancel(F.canceled, F.uncancelable(_ => fin)) <-> F.onCancel(F.canceled, fin)
