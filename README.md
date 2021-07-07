@@ -20,7 +20,13 @@ libraryDependencies += "org.typelevel" %% "cats-effect" % "3.1.1"
 
 The above represents the core, stable dependency which brings in the entirety of Cats Effect. This is *most likely* what you want. All current Cats Effect releases are published for Scala 2.12, 2.13, 3.0.0-RC2 and RC3, and ScalaJS 1.5.x.
 
-You may want to consider one of the several other modules which are made available within the Cats Effect release. If you're a datatype implementor (like Monix), you probably only want to depend on **kernel** (the typeclasses) in your compile scope and **laws** in your test scope:
+Or, if you prefer a less bare-bones starting point, you can try the Giter8 template:
+
+```bash
+$ sbt new typelevel/ce3.g8
+```
+
+Depending on your use-case, you may want to consider one of the several other modules which are made available within the Cats Effect release. If you're a datatype implementer (like Monix), you probably only want to depend on **kernel** (the typeclasses) in your compile scope and **laws** in your test scope:
 
 ```scala
 libraryDependencies ++= Seq(
