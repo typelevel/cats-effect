@@ -16,9 +16,10 @@
 
 package cats.effect.std
 
+import scala.concurrent.ExecutionContext
+
 import scala.scalajs.js
 import scala.scalajs.js.JSConverters._
-import scala.concurrent.ExecutionContext.parasitic
 
 private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] =>
 
@@ -28,6 +29,11 @@ private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] =>
    * used to cancel the original effect.
    */
   def unsafeToPromiseCancelable[A](fa: F[A]): (js.Promise[A], () => js.Promise[Unit]) = {
+    val parasitic = new ExecutionContext {
+      def execute(runnable: Runnable) = runnable.run()
+      def reportFailure(t: Throwable) = t.printStackTrace()
+    }
+
     val (f, cancel) = unsafeToFutureCancelable(fa)
     (f.toJSPromise(parasitic), () => cancel().toJSPromise(parasitic))
   }
