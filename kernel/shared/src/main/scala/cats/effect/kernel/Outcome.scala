@@ -58,7 +58,7 @@ sealed trait Outcome[F[_], E, A] extends Product with Serializable {
     case Succeeded(_) => false
   }
 
-  def isCancelled: Boolean = this match {
+  def isCanceled: Boolean = this match {
     case Canceled() => true
     case Errored(_) => false
     case Succeeded(_) => false
