@@ -19,7 +19,7 @@ package laws
 
 import cats.Order
 import cats.data.Kleisli
-import cats.effect.kernel.testkit.{pure, PureConcGenerators, Time, TimeT}, pure._, TimeT._
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, Time, TimeT}, pure._, TimeT._
 import cats.laws.discipline.{arbitrary, MiniInt}
 
 import org.scalacheck.{Arbitrary, Cogen, Prop}
@@ -39,6 +39,7 @@ class KleisliPureConcSpec
     with BaseSpec
     with LowPriorityKleisliInstances {
   import PureConcGenerators._
+  import OutcomeGenerators._
   import arbitrary.{catsLawsArbitraryForKleisli => _, _}
 
   //This is highly dubious
@@ -64,6 +65,11 @@ class KleisliPureConcSpec
   implicit def help_scala_2_12_return_of_the_successful_compilation[A: Arbitrary: Cogen]
       : Arbitrary[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, A]] =
     catsLawsArbitraryForKleisli[TimeT[PureConc[Int, *], *], MiniInt, A]
+
+  implicit def cogenForKleisli[F[_], A, B](implicit F: Cogen[A => F[B]]): Cogen[Kleisli[F, A, B]] =
+    F.contramap(_.run)
+
+  implicitly[Cogen[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, Int]]]
 
   checkAll(
     "Kleisli[PureConc]",

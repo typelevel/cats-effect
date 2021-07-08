@@ -20,7 +20,7 @@ package laws
 import cats.Applicative
 import cats.data.OptionT
 import cats.effect.kernel.Outcome
-import cats.effect.kernel.testkit.{pure, PureConcGenerators, TimeT}, pure._, TimeT._
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._, TimeT._
 import cats.effect.kernel.syntax.all._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
@@ -36,6 +36,7 @@ import scala.concurrent.duration._
 
 class OptionTPureConcSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
   import PureConcGenerators._
+  import OutcomeGenerators._
 
   implicit def exec(sbool: OptionT[TimeT[PureConc[Int, *], *], Boolean]): Prop =
     Prop(

@@ -17,7 +17,7 @@
 package cats.effect
 package laws
 
-import cats.effect.kernel.testkit.{pure, PureConcGenerators, TimeT}, pure._, TimeT._
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._, TimeT._
 import cats.laws.discipline.arbitrary._
 
 import org.scalacheck.Prop
@@ -31,6 +31,7 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 class PureConcSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
   import PureConcGenerators._
+  import OutcomeGenerators._
 
   implicit def exec(fb: TimeT[PureConc[Int, *], Boolean]): Prop =
     Prop(pure.run(TimeT.run(fb)).fold(false, _ => false, _.getOrElse(false)))

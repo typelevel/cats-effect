@@ -73,6 +73,9 @@ private[effect] object TimeT {
     }
   }
 
+  implicit def cogenForTimeT[F[_], A](implicit F: Cogen[Time => F[A]]): Cogen[TimeT[F, A]] =
+    F.contramap(_.run)
+
   implicit def groupTimeT[F[_]: Monad, A](implicit A: Group[A]): Group[TimeT[F, A]] =
     new Group[TimeT[F, A]] {
 

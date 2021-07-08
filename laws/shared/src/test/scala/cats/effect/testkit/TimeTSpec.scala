@@ -48,6 +48,7 @@ class TimeTSpec
     with LowPriorityInstances {
 
   import PureConcGenerators._
+  import OutcomeGenerators._
 
   checkAll(
     "TimeT[PureConc, *]",

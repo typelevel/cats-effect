@@ -29,7 +29,8 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
 
   val laws: MonadCancelLaws[F, E]
 
-  def monadCancel[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+  @deprecated("revised several constraints", since = "3.2.0")
+  protected def monadCancel[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
       implicit ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
       ArbFC: Arbitrary[F[C]],
@@ -53,7 +54,58 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
       iso: Isomorphisms[F],
       faPP: F[A] => Pretty,
       fuPP: F[Unit] => Pretty,
-      ePP: E => Pretty): RuleSet = {
+      ePP: E => Pretty): RuleSet =
+    monadCancel[A, B, C](
+      implicitly[Arbitrary[A]],
+      implicitly[Eq[A]],
+      implicitly[Arbitrary[B]],
+      implicitly[Eq[B]],
+      implicitly[Arbitrary[C]],
+      implicitly[Eq[C]],
+      ArbFA,
+      ArbFB,
+      ArbFC,
+      ArbFU,
+      ArbFAtoB,
+      ArbFBtoC,
+      ArbE,
+      CogenA,
+      CogenB,
+      CogenC,
+      CogenE,
+      EqFA,
+      EqFB,
+      EqFC,
+      EqFU,
+      EqE,
+      EqFEitherEU,
+      EqFEitherEA,
+      EqFABC,
+      EqFInt,
+      iso)
+
+  def monadCancel[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+      implicit ArbFA: Arbitrary[F[A]],
+      ArbFB: Arbitrary[F[B]],
+      ArbFC: Arbitrary[F[C]],
+      ArbFU: Arbitrary[F[Unit]],
+      ArbFAtoB: Arbitrary[F[A => B]],
+      ArbFBtoC: Arbitrary[F[B => C]],
+      ArbE: Arbitrary[E],
+      CogenA: Cogen[A],
+      CogenB: Cogen[B],
+      CogenC: Cogen[C],
+      CogenE: Cogen[E],
+      EqFA: Eq[F[A]],
+      EqFB: Eq[F[B]],
+      EqFC: Eq[F[C]],
+      EqFU: Eq[F[Unit]],
+      EqE: Eq[E],
+      EqFEitherEU: Eq[F[Either[E, Unit]]],
+      EqFEitherEA: Eq[F[Either[E, A]]],
+      EqFABC: Eq[F[(A, B, C)]],
+      EqFInt: Eq[F[Int]],
+      iso: Isomorphisms[F]): RuleSet = {
 
     new RuleSet {
       val name = "monadCancel"
