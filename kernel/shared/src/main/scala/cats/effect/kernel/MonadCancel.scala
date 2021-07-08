@@ -21,6 +21,7 @@ import cats.data.{
   EitherT,
   IndexedReaderWriterStateT,
   IndexedStateT,
+  Ior,
   IorT,
   Kleisli,
   OptionT,
@@ -705,6 +706,25 @@ object MonadCancel {
       IorT(
         F.forceR(fa.value)(fb.value)
       )
+
+    override def guaranteeCase[A](fa: IorT[F, L, A])(
+        fin: Outcome[IorT[F, L, *], E, A] => IorT[F, L, Unit]): IorT[F, L, A] =
+      uncancelable { poll =>
+        val safeFin: Outcome[IorT[F, L, *], E, A] => IorT[F, L, Unit] =
+          oc => uncancelable(_ => fin(oc))
+
+        val finalized = onCancel(poll(fa), safeFin(Outcome.canceled))
+        val handled = onError(finalized) {
+          case e => handleError(safeFin(Outcome.errored(e)))(_ => ())
+        }
+        IorT {
+          F.flatTap(handled.value) {
+            case Ior.Left(l) => safeFin(Outcome.succeeded(IorT.leftT(l))).value
+            case Ior.Both(l, a) => safeFin(Outcome.succeeded(IorT.bothT(l, a))).value
+            case Ior.Right(a) => safeFin(Outcome.succeeded(pure(a))).value
+          }
+        }
+      }
 
     def pure[A](a: A): IorT[F, L, A] = delegate.pure(a)
 
