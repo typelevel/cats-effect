@@ -452,18 +452,10 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
   def bracketFull[A, B](acquire: Poll[F] => F[A])(use: A => F[B])(
       release: (A, Outcome[F, E, B]) => F[Unit]): F[B] =
     uncancelable { poll =>
-      val safeRelease: (A, Outcome[F, E, B]) => F[Unit] =
-        (a, out) => uncancelable(_ => release(a, out))
-
       acquire(poll).flatMap { a =>
         // we need to lazily evaluate `use` so that uncaught exceptions are caught within the effect
         // runtime, otherwise we'll throw here and the error handler will never be registered
-        val finalized = onCancel(poll(F.unit >> use(a)), safeRelease(a, Outcome.Canceled()))
-        val handled = finalized.onError {
-          case e =>
-            safeRelease(a, Outcome.Errored(e)).handleError(_ => ())
-        }
-        handled.flatMap { b => safeRelease(a, Outcome.Succeeded(b.pure)).as(b) }
+        guaranteeCase(unit >> use(a))(release(a, _))
       }
     }
 }
