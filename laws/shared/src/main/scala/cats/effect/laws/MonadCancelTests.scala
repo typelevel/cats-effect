@@ -82,7 +82,8 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
       EqFEitherEA,
       EqFABC,
       EqFInt,
-      iso)
+      iso
+    )
 
   def monadCancel[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
       implicit ArbFA: Arbitrary[F[A]],

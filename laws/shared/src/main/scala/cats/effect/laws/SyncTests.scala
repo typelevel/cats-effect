@@ -31,34 +31,35 @@ trait SyncTests[F[_]]
   val laws: SyncLaws[F]
 
   def sync[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-        implicit ArbFA: Arbitrary[F[A]],
-        ArbFB: Arbitrary[F[B]],
-        ArbFC: Arbitrary[F[C]],
-        ArbFU: Arbitrary[F[Unit]],
-        ArbFAtoB: Arbitrary[F[A => B]],
-        ArbFBtoC: Arbitrary[F[B => C]],
-        ArbE: Arbitrary[Throwable],
-        ArbST: Arbitrary[Sync.Type],
-        CogenA: Cogen[A],
-        CogenB: Cogen[B],
-        CogenC: Cogen[C],
-        CogenE: Cogen[Throwable],
-        EqFA: Eq[F[A]],
-        EqFB: Eq[F[B]],
-        EqFC: Eq[F[C]],
-        EqFU: Eq[F[Unit]],
-        EqE: Eq[Throwable],
-        EqFEitherEU: Eq[F[Either[Throwable, Unit]]],
-        EqFEitherEA: Eq[F[Either[Throwable, A]]],
-        EqFABC: Eq[F[(A, B, C)]],
-        EqFInt: Eq[F[Int]],
-        exec: F[Boolean] => Prop,
-        iso: Isomorphisms[F]): RuleSet = {
+      implicit ArbFA: Arbitrary[F[A]],
+      ArbFB: Arbitrary[F[B]],
+      ArbFC: Arbitrary[F[C]],
+      ArbFU: Arbitrary[F[Unit]],
+      ArbFAtoB: Arbitrary[F[A => B]],
+      ArbFBtoC: Arbitrary[F[B => C]],
+      ArbE: Arbitrary[Throwable],
+      ArbST: Arbitrary[Sync.Type],
+      CogenA: Cogen[A],
+      CogenB: Cogen[B],
+      CogenC: Cogen[C],
+      CogenE: Cogen[Throwable],
+      EqFA: Eq[F[A]],
+      EqFB: Eq[F[B]],
+      EqFC: Eq[F[C]],
+      EqFU: Eq[F[Unit]],
+      EqE: Eq[Throwable],
+      EqFEitherEU: Eq[F[Either[Throwable, Unit]]],
+      EqFEitherEA: Eq[F[Either[Throwable, A]]],
+      EqFABC: Eq[F[(A, B, C)]],
+      EqFInt: Eq[F[Int]],
+      exec: F[Boolean] => Prop,
+      iso: Isomorphisms[F]): RuleSet = {
 
-      new RuleSet {
-        val name = "sync"
-        val bases = Nil
-        val parents = Seq(monadCancel[A, B, C](
+    new RuleSet {
+      val name = "sync"
+      val bases = Nil
+      val parents = Seq(
+        monadCancel[A, B, C](
           implicitly[Arbitrary[A]],
           implicitly[Eq[A]],
           implicitly[Arbitrary[B]],
@@ -85,16 +86,20 @@ trait SyncTests[F[_]]
           EqFEitherEA,
           EqFABC,
           EqFInt,
-          iso), clock, unique)
+          iso
+        ),
+        clock,
+        unique
+      )
 
-        val props = Seq(
-          "suspend value is pure" -> forAll(laws.suspendValueIsPure[A] _),
-          "suspend throw is raiseError" -> forAll(laws.suspendThrowIsRaiseError[A] _),
-          "unsequenced suspend is no-op" -> forAll(laws.unsequencedSuspendIsNoop[A] _),
-          "repeated suspend is not memoized" -> forAll(laws.repeatedSuspendNotMemoized[A] _)
-        )
-      }
+      val props = Seq(
+        "suspend value is pure" -> forAll(laws.suspendValueIsPure[A] _),
+        "suspend throw is raiseError" -> forAll(laws.suspendThrowIsRaiseError[A] _),
+        "unsequenced suspend is no-op" -> forAll(laws.unsequencedSuspendIsNoop[A] _),
+        "repeated suspend is not memoized" -> forAll(laws.repeatedSuspendNotMemoized[A] _)
+      )
     }
+  }
 }
 
 object SyncTests {

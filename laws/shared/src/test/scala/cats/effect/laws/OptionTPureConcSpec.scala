@@ -20,7 +20,8 @@ package laws
 import cats.Applicative
 import cats.data.OptionT
 import cats.effect.kernel.Outcome
-import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._, TimeT._
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._,
+TimeT._
 import cats.effect.kernel.syntax.all._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
