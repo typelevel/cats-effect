@@ -60,9 +60,6 @@
 <p>Naturally, if you're using ScalaJS, you should replace the double <code>%%</code> with a triple <code>%%%</code>. If you're on Scala 2, it is <em>highly</em> recommended that you enable the <a href="https://github.com/oleg-py/better-monadic-for">better-monadic-for</a> plugin, which fixes a number of surprising elements of the <code>for</code>-comprehension syntax in the Scala language:</p>
 <pre><code class="hljs css language-scala">addCompilerPlugin(<span class="hljs-string">"com.olegpy"</span> %% <span class="hljs-string">"better-monadic-for"</span> % <span class="hljs-string">"0.3.1"</span>)
 </code></pre>
-<p>Alternatively, you can use the Cats Effect 3 Giter8 template, which sets up some basic project infrastructure:</p>
-<pre><code class="hljs css language-bash">$ sbt new typelevel/ce3.g8
-</code></pre>
 <p>To create a new Cats Effect application, place the following contents into a new Scala file within your project:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">IOApp</span>}
 
