@@ -40,5 +40,5 @@ class StateTPureConcSpec extends Specification with Discipline with ScalaCheck w
   checkAll(
     "StateT[PureConc]",
     MonadCancelTests[StateT[PureConc[Int, *], MiniInt, *], Int].monadCancel[Int, Int, Int]
-  )/*(Parameters(minTestsOk = 25, seed = Some(Seed.fromBase64("Ky43MND8m5h-10MZTckMFFAW6ea2pXWkFDE2A7ddtML=").get)))*/
+  ) /*(Parameters(minTestsOk = 25, seed = Some(Seed.fromBase64("Ky43MND8m5h-10MZTckMFFAW6ea2pXWkFDE2A7ddtML=").get)))*/
 }
