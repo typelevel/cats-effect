@@ -639,19 +639,11 @@ object MonadCancel {
 
     override def guaranteeCase[A](fa: EitherT[F, E0, A])(
         fin: Outcome[EitherT[F, E0, *], E, A] => EitherT[F, E0, Unit]): EitherT[F, E0, A] =
-      uncancelable { poll =>
-        val safeFin: Outcome[EitherT[F, E0, *], E, A] => EitherT[F, E0, Unit] =
-          oc => uncancelable(_ => fin(oc))
-
-        val finalized = onCancel(poll(fa), safeFin(Outcome.canceled))
-        val handled = onError(finalized) {
-          case e => handleError(safeFin(Outcome.errored(e)))(_ => ())
-        }
-        EitherT {
-          F.flatTap(handled.value) {
-            case Left(e) => safeFin(Outcome.succeeded(EitherT.leftT(e))).value
-            case Right(a) => safeFin(Outcome.succeeded(pure(a))).value
-          }
+      EitherT {
+        F.guaranteeCase(fa.value) {
+          case Outcome.Succeeded(fa) => fin(Outcome.succeeded(EitherT(fa))).value.void
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).value.void
+          case Outcome.Canceled() => fin(Outcome.canceled).value.void
         }
       }
 
