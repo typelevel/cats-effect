@@ -798,6 +798,16 @@ object MonadCancel {
         F.forceR(fa.run)(fb.run)
       )
 
+    override def guaranteeCase[A](fa: WriterT[F, L, A])(
+        fin: Outcome[WriterT[F, L, *], E, A] => WriterT[F, L, Unit]): WriterT[F, L, A] =
+      WriterT {
+        F.guaranteeCase(fa.run) {
+          case Outcome.Succeeded(fa) => fin(Outcome.succeeded(WriterT(fa))).run.void
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).run.void
+          case Outcome.Canceled() => fin(Outcome.canceled).run.void
+        }
+      }
+
     def pure[A](a: A): WriterT[F, L, A] = delegate.pure(a)
 
     def raiseError[A](e: E): WriterT[F, L, A] = delegate.raiseError(e)
