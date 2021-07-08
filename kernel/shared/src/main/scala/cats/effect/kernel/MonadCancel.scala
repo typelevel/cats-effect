@@ -742,6 +742,16 @@ object MonadCancel {
     def forceR[A, B](fa: Kleisli[F, R, A])(fb: Kleisli[F, R, B]): Kleisli[F, R, B] =
       Kleisli(r => F.forceR(fa.run(r))(fb.run(r)))
 
+    override def guaranteeCase[A](fa: Kleisli[F, R, A])(
+        fin: Outcome[Kleisli[F, R, *], E, A] => Kleisli[F, R, Unit]): Kleisli[F, R, A] =
+      Kleisli { r =>
+        F.guaranteeCase(fa.run(r)) {
+          case Outcome.Succeeded(fa) => fin(Outcome.succeeded(Kleisli.liftF(fa))).run(r)
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).run(r)
+          case Outcome.Canceled() => fin(Outcome.canceled).run(r)
+        }
+      }
+
     def pure[A](a: A): Kleisli[F, R, A] = delegate.pure(a)
 
     def raiseError[A](e: E): Kleisli[F, R, A] = delegate.raiseError(e)
