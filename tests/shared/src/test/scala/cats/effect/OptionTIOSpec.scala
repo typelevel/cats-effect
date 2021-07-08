@@ -58,6 +58,24 @@ class OptionTIOSpec
 
       test.value must completeAs(Some(()))
     }
+
+    "execute finalizers when doubly nested" in ticked { implicit ticker =>
+      type F[A] = OptionT[OptionT[IO, *], A]
+
+      val test = for {
+        gate1 <- Deferred[F, Unit]
+        gate2 <- Deferred[F, Unit]
+        gate3 <- Deferred[F, Unit]
+        _ <- OptionT.none[OptionT[IO, *], Unit].guarantee(gate1.complete(()).void).start
+        _ <- OptionT.some[OptionT[IO, *]](()).guarantee(gate2.complete(()).void).start
+        _ <- OptionT.liftF(OptionT.none[IO, Unit]).guarantee(gate3.complete(()).void).start
+        _ <- gate1.get
+        _ <- gate2.get
+        _ <- gate3.get
+      } yield ()
+
+      test.value.value must completeAs(Some(Some(())))
+    }
   }
 
   implicit def ordOptionTIOFD(implicit ticker: Ticker): Order[OptionT[IO, FiniteDuration]] =
