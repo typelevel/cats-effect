@@ -582,6 +582,24 @@ object MonadCancel {
         F.forceR(fa.value)(fb.value)
       )
 
+    override def guaranteeCase[A](fa: OptionT[F, A])(
+        fin: Outcome[OptionT[F, *], E, A] => OptionT[F, Unit]): OptionT[F, A] =
+      uncancelable { poll =>
+        val safeFin: Outcome[OptionT[F, *], E, A] => OptionT[F, Unit] =
+          oc => uncancelable(_ => fin(oc))
+
+        val finalized = onCancel(poll(fa), safeFin(Outcome.canceled))
+        val handled = onError(finalized) {
+          case e => handleError(safeFin(Outcome.errored(e)))(_ => ())
+        }
+        OptionT {
+          F.flatTap(handled.value) {
+            case Some(a) => safeFin(Outcome.succeeded(pure(a))).value
+            case None => safeFin(Outcome.succeeded(OptionT.none)).value
+          }
+        }
+      }
+
     def pure[A](a: A): OptionT[F, A] = delegate.pure(a)
 
     def raiseError[A](e: E): OptionT[F, A] = delegate.raiseError(e)
