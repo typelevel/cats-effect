@@ -933,5 +933,21 @@ object MonadCancel {
           body(poll2).run(e, s)
         }
       }
+
+    override def guaranteeCase[A](fa: ReaderWriterStateT[F, E0, L, S, A])(
+        fin: Outcome[ReaderWriterStateT[F, E0, L, S, *], E, A] => ReaderWriterStateT[
+          F,
+          E0,
+          L,
+          S,
+          Unit]): ReaderWriterStateT[F, E0, L, S, A] =
+      ReaderWriterStateT { (e0, s) =>
+        F.guaranteeCase(fa.run(e0, s)) {
+          case Outcome.Succeeded(fa) =>
+            fin(Outcome.succeeded(ReaderWriterStateT((_, _) => fa))).run(e0, s).void
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).run(e0, s).void
+          case Outcome.Canceled() => fin(Outcome.canceled).run(e0, s).void
+        }
+      }
   }
 }
