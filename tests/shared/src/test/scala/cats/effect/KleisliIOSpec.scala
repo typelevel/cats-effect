@@ -25,7 +25,7 @@ import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.eq._
 import cats.syntax.all._
 
-import org.scalacheck.Prop
+import org.scalacheck.{Cogen, Prop}
 
 import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
@@ -83,6 +83,10 @@ class KleisliIOSpec
         _ => false,
         bO => bO.fold(false)(identity)
       ))
+
+  implicit def cogenForKleisli[F[_], A, B](
+      implicit F: Cogen[A => F[B]]): Cogen[Kleisli[F, A, B]] =
+    F.contramap(_.run)
 
   {
     implicit val ticker = Ticker()
