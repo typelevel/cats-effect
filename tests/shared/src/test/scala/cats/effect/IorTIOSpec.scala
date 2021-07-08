@@ -17,9 +17,11 @@
 package cats.effect
 
 import cats.Order
-import cats.data.IorT
+import cats.data.{Ior, IorT}
 import cats.effect.laws.AsyncTests
+import cats.effect.syntax.all._
 import cats.laws.discipline.arbitrary._
+import cats.syntax.all._
 
 import org.scalacheck.Prop
 
@@ -34,6 +36,20 @@ class IorTIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
+
+  "IorT" should {
+    "execute finalizers for Left" in ticked { implicit ticker =>
+      type F[A] = IorT[IO, String, A]
+
+      val test = for {
+        gate <- Deferred[F, Unit]
+        _ <- IorT.leftT[IO, Unit]("boom").guarantee(gate.complete(()).void).start
+        _ <- gate.get
+      } yield ()
+
+      test.value must completeAs(Ior.right(()))
+    }
+  }
 
   implicit def ordIorTIOFD(implicit ticker: Ticker): Order[IorT[IO, Int, FiniteDuration]] =
     Order by { ioaO => unsafeRun(ioaO.value).fold(None, _ => None, fa => fa) }
