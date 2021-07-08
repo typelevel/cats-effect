@@ -866,6 +866,16 @@ object MonadCancel {
           body(poll2).run(s)
         }
       }
+
+    override def guaranteeCase[A](fa: StateT[F, S, A])(
+        fin: Outcome[StateT[F, S, *], E, A] => StateT[F, S, Unit]): StateT[F, S, A] =
+      StateT { s =>
+        F.guaranteeCase(fa.run(s)) {
+          case Outcome.Succeeded(fa) => fin(Outcome.succeeded(StateT(_ => fa))).run(s).void
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).run(s).void
+          case Outcome.Canceled() => fin(Outcome.canceled).run(s).void
+        }
+      }
   }
 
   private[kernel] trait ReaderWriterStateTMonadCancel[F[_], E0, L, S, E]
