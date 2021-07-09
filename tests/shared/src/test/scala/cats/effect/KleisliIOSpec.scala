@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.{Eq, Order}
-import cats.data.Kleisli
+import cats.data.{Kleisli, OptionT}
 import cats.effect.laws.AsyncTests
 import cats.effect.syntax.all._
 import cats.laws.discipline.MiniInt
@@ -63,6 +63,24 @@ class KleisliIOSpec
       } yield ()
 
       test.run("kleisli") must completeAs(())
+    }
+
+    "execute finalizers when doubly nested" in ticked { implicit ticker =>
+      type F[A] = Kleisli[OptionT[IO, *], String, A]
+
+      val test = for {
+        gate1 <- Deferred[F, Unit]
+        gate2 <- Deferred[F, Unit]
+        _ <- Kleisli.ask[OptionT[IO, *], String].guarantee(gate1.complete(()).void).start
+        _ <- Kleisli
+          .liftF[OptionT[IO, *], String, Unit](OptionT.none[IO, Unit])
+          .guarantee(gate2.complete(()).void)
+          .start
+        _ <- gate1.get
+        _ <- gate2.get
+      } yield ()
+
+      test.run("kleisli").value must completeAs(Some(()))
     }
   }
 
