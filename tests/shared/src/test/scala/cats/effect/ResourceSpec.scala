@@ -26,7 +26,7 @@ import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
 import cats.effect.implicits._
 
-import org.scalacheck.Prop, Prop.forAll
+import org.scalacheck.{Cogen, Prop}, Prop.forAll
 // import org.scalacheck.rng.Seed
 
 import org.specs2.ScalaCheck
@@ -943,6 +943,11 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   }
 
   {
+    implicit def cogenForResource[F[_], A](
+        implicit C: Cogen[F[(A, F[Unit])]],
+        F: MonadCancel[F, Throwable]): Cogen[Resource[F, A]] =
+      C.contramap(_.allocated)
+
     implicit val ticker = Ticker(TestContext())
 
     checkAll(
