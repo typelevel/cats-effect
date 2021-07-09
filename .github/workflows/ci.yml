@@ -22,7 +22,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        scala: [3.0.0, 2.12.14, 2.13.6]
+        scala: [3.0.1, 2.12.14, 2.13.6]
         java:
           - adopt@1.8
           - adopt@1.11
@@ -37,7 +37,7 @@ jobs:
           - ci: ciJS
             java: graalvm-ce-java8@21.1
           - os: windows-latest
-            scala: 3.0.0
+            scala: 3.0.1
           - os: windows-latest
             scala: 2.12.14
           - os: windows-latest
@@ -49,7 +49,7 @@ jobs:
           - ci: ciFirefox
             java: graalvm-ce-java8@21.1
           - os: windows-latest
-            scala: 3.0.0
+            scala: 3.0.1
           - os: windows-latest
             scala: 2.12.14
           - os: windows-latest
@@ -98,7 +98,7 @@ jobs:
       - shell: bash
         run: sbt --client '++${{ matrix.scala }}; ${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.6' || matrix.scala == '3.0.0') && matrix.ci == 'ciJVM'
+      - if: (matrix.scala == '2.13.6' || matrix.scala == '3.0.1') && matrix.ci == 'ciJVM'
         shell: bash
         run: sbt --client '++${{ matrix.scala }}; docs/mdoc'
 
