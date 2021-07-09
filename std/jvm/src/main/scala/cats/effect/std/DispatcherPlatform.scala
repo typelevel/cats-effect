@@ -19,7 +19,29 @@ package cats.effect.std
 import scala.concurrent.{Await, TimeoutException}
 import scala.concurrent.duration.Duration
 
+import java.util.concurrent.CompletableFuture
+
 private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] =>
+
+  /**
+   * Submits an effect to be executed, returning a `CompletableFuture` that holds the
+   * result of its evaluation.
+   */
+  def unsafeToCompletableFuture[A](fa: F[A]): CompletableFuture[A] = {
+    val cf = new CompletableFuture[A]()
+
+    unsafeRunAsync(fa) {
+      case Left(t) =>
+        cf.completeExceptionally(t)
+        ()
+
+      case Right(a) =>
+        cf.complete(a)
+        ()
+    }
+
+    cf
+  }
 
   /**
    * Submits an effect to be executed and indefinitely blocks until a result is
