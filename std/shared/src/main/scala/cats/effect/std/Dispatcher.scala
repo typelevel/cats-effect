@@ -76,11 +76,9 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
     ()
   }
 
-  /**
-   * Submits an effect to be executed, invoking the specified callback
-   * when a result is reached, either completion or error.
-   */
-  def unsafeRunAsync[A](fa: F[A])(cb: Either[Throwable, A] => Unit): Unit = {
+  // package-private because it's just an internal utility which supports specific implementations
+  // anyone who needs this type of thing should use unsafeToFuture and then onComplete
+  private[std] def unsafeRunAsync[A](fa: F[A])(cb: Either[Throwable, A] => Unit): Unit = {
     // this is safe because the only invocation will be cb
     implicit val parasitic: ExecutionContext = new ExecutionContext {
       def execute(runnable: Runnable) = runnable.run()
