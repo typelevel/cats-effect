@@ -15,6 +15,6 @@
  */
 
 package cats.effect
-package syntax
+package std.syntax
 
-trait AllSyntax extends kernel.syntax.AllSyntax with std.syntax.AllSyntax
+trait AllSyntax extends SupervisorSyntax

@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect
-package syntax
+package cats.effect.std
 
-trait AllSyntax extends kernel.syntax.AllSyntax with std.syntax.AllSyntax
+package object syntax {
+
+  object all extends AllSyntax
+
+  object supervisor extends SupervisorSyntax
+
+}

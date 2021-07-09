@@ -14,7 +14,18 @@
  * limitations under the License.
  */
 
-package cats.effect
-package syntax
+package cats.effect.std.syntax
 
-trait AllSyntax extends kernel.syntax.AllSyntax with std.syntax.AllSyntax
+import cats.effect.std.Supervisor
+import cats.effect.kernel.Fiber
+
+trait SupervisorSyntax {
+  implicit def supervisorOps[F[_], A](wrapped: F[A]): SupervisorOps[F, A] =
+    new SupervisorOps(wrapped)
+}
+
+final class SupervisorOps[F[_], A] private[syntax] (private[syntax] val wrapped: F[A])
+    extends AnyVal {
+  def supervise(supervisor: Supervisor[F]): F[Fiber[F, Throwable, A]] =
+    supervisor.supervise(wrapped)
+}
