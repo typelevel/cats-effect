@@ -422,7 +422,7 @@ sealed abstract class Resource[F[_], +A] {
 
                   case Frame(head, tail) =>
                     poll(continue(head(b), tail, rel2))
-                      .onCancel(rel(ExitCase.Canceled).handleError(_ => ()))
+                      .onCancel(rel(ExitCase.Canceled))
                       .onError { case e => rel(ExitCase.Errored(e)).handleError(_ => ()) }
                 }
             }
@@ -952,6 +952,22 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
       body(inner).allocated map { p =>
         Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
       }
+    }
+
+  override def guaranteeCase[A](rfa: Resource[F, A])(fin: Outcome[Resource[F, *], Throwable, A] => Resource[F, Unit]): Resource[F, A] =
+    Resource applyFull { poll =>
+      val back = poll(rfa.allocated) guaranteeCase {
+        case Outcome.Succeeded(ft) =>
+          fin(Outcome.Succeeded(Resource.eval(ft.map(_._1)))).use_
+
+        case Outcome.Errored(e) =>
+          fin(Outcome.Errored(e)).use_.handleError(_ => ())
+
+        case Outcome.Canceled() =>
+          fin(Outcome.Canceled()).use_
+      }
+
+      back.map(_.map(fu => (_: Resource.ExitCase) => fu))
     }
 }
 

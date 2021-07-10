@@ -376,14 +376,11 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    */
   def guaranteeCase[A](fa: F[A])(fin: Outcome[F, E, A] => F[Unit]): F[A] =
     uncancelable { poll =>
-      val safeFin: Outcome[F, E, A] => F[Unit] =
-        oc => uncancelable(_ => fin(oc))
-
-      val finalized = onCancel(poll(fa), safeFin(Outcome.canceled))
+      val finalized = onCancel(poll(fa), fin(Outcome.canceled))
       val handled = onError(finalized) {
-        case e => handleError(safeFin(Outcome.errored(e)))(_ => ())
+        case e => handleError(fin(Outcome.errored(e)))(_ => ())
       }
-      flatTap(handled)(a => safeFin(Outcome.succeeded(pure(a))))
+      flatTap(handled)(a => fin(Outcome.succeeded(pure(a))))
     }
 
   /**
