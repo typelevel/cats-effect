@@ -455,7 +455,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
       acquire(poll).flatMap { a =>
         // we need to lazily evaluate `use` so that uncaught exceptions are caught within the effect
         // runtime, otherwise we'll throw here and the error handler will never be registered
-        guaranteeCase(unit >> use(a))(release(a, _))
+        guaranteeCase(poll(unit >> use(a)))(release(a, _))
       }
     }
 }
