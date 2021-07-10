@@ -17,7 +17,6 @@
 package cats.effect.kernel.testkit
 
 import cats.{Eq, Order}
-import cats.data.Kleisli
 import cats.effect.laws.GenTemporalTests
 import cats.laws.discipline.arbitrary._
 
@@ -79,8 +78,4 @@ class TimeTSpec
 
   implicit def arbTime: Arbitrary[Time] =
     Arbitrary(Arbitrary.arbitrary[FiniteDuration].map(new Time(_)))
-
-  implicit def cogenKleisli[F[_], R, A](
-      implicit cg: Cogen[R => F[A]]): Cogen[Kleisli[F, R, A]] =
-    cg.contramap(_.run)
 }
