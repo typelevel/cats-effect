@@ -132,15 +132,15 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
   def fiberStartOfNeverIsUnit =
     F.start(F.never[Unit]).void <-> F.unit
 
-  def fiberJoinIsGuaranteeCase[A](fa: F[A], f: Outcome[F, E, A] => F[Unit]) =
+  def fiberJoinIsGuaranteeCase[A](fa0: F[A], f: Outcome[F, E, A] => F[Unit]) = {
+    // the semantics of cancelation create boundary conditions we must avoid
+    val fa = fa0.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_))
+
     F.start(fa)
       .flatMap(_.join)
-      .flatMap(oc =>
-        F.guarantee(
-          oc.embed(F.canceled >> F.never[A]),
-          F.unit >> { println(s">>> oc1 = $oc"); f(oc) })) <->
-      F.guaranteeCase(F.unit >> { println("uH?"); fa })(oc =>
-        F.unit >> { println(s"oc2 = $oc"); f(oc) })
+      .flatMap(oc => F.guarantee(oc.embed(F.canceled >> F.never[A]), f(oc))) <->
+      F.guaranteeCase(fa)(f)
+  }
 
   def neverDominatesOverFlatMap[A](fa: F[A]) =
     F.never >> fa <-> F.never[A]

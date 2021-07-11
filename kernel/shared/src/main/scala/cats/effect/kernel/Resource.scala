@@ -968,22 +968,14 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
   override def guaranteeCase[A](rfa: Resource[F, A])(
       fin: Outcome[Resource[F, *], Throwable, A] => Resource[F, Unit]): Resource[F, A] =
     Resource applyFull { poll =>
-      println("derp")
-      var calls = 0
       val back = poll(rfa.allocated) guaranteeCase {
         case Outcome.Succeeded(ft) =>
-          calls += 1
-          println(s"success? calls = $calls")
           fin(Outcome.Succeeded(Resource.eval(ft.map(_._1)))).use_
 
         case Outcome.Errored(e) =>
-          calls += 1
-          println(s"errored? calls = $calls")
           fin(Outcome.Errored(e)).use_.handleError(_ => ())
 
         case Outcome.Canceled() =>
-          calls += 1
-          println(s"canceled? calls = $calls")
           fin(Outcome.Canceled()).use_
       }
 
@@ -1027,17 +1019,15 @@ abstract private[effect] class ResourceConcurrent[F[_]]
         val finalized: F[Option[A]] = F uncancelable { poll =>
           poll(fa.allocated) flatMap { // intentionally short-circuits in case of cancelation or error
             case (a, rel) =>
-              val mutation = poll {
-                state modify { s =>
-                  if (s.finalizeOnComplete)
-                    (s, rel.attempt.as(none[A]))
-                  else
-                    (s.copy(fin = rel), F.pure(a.some))
-                }
+              val mutation = state modify { s =>
+                if (s.finalizeOnComplete)
+                  (s, rel.attempt.as(none[A]))
+                else
+                  (s.copy(fin = rel), F.pure(a.some))
               }
 
               // explicitly catch "late" cancelation (masked by non-associativity)
-              mutation.flatten.onCancel(rel)
+              mutation.flatten
           }
         }
 

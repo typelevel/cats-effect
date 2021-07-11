@@ -1154,7 +1154,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
     IO.uncancelable { poll =>
       acquire(poll).flatMap { a =>
-        val finalized = poll(IO.unit >> use(a)).onCancel(release(a, Outcome.Canceled()))
+        val finalized = poll(IO.defer(use(a))).onCancel(IO.defer(release(a, Outcome.Canceled())))
         val handled = finalized.onError { e =>
           release(a, Outcome.Errored(e)).handleErrorWith { t =>
             IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
