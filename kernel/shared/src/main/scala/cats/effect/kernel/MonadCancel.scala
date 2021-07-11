@@ -584,7 +584,7 @@ object MonadCancel {
       OptionT {
         F.guaranteeCase(fa.value) {
           case Outcome.Succeeded(fa) => fin(Outcome.succeeded(OptionT(fa))).value.void
-          case Outcome.Errored(e) => fin(Outcome.errored(e)).value.void
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).value.void.handleError(_ => ())
           case Outcome.Canceled() => fin(Outcome.canceled).value.void
         }
       }
@@ -638,7 +638,7 @@ object MonadCancel {
       EitherT {
         F.guaranteeCase(fa.value) {
           case Outcome.Succeeded(fa) => fin(Outcome.succeeded(EitherT(fa))).value.void
-          case Outcome.Errored(e) => fin(Outcome.errored(e)).value.void
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).value.void.handleError(_ => ())
           case Outcome.Canceled() => fin(Outcome.canceled).value.void
         }
       }
@@ -692,7 +692,7 @@ object MonadCancel {
       IorT {
         F.guaranteeCase(fa.value) {
           case Outcome.Succeeded(fa) => fin(Outcome.succeeded(IorT(fa))).value.void
-          case Outcome.Errored(e) => fin(Outcome.errored(e)).value.void
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).value.void.handleError(_ => ())
           case Outcome.Canceled() => fin(Outcome.canceled).value.void
         }
       }
@@ -744,7 +744,7 @@ object MonadCancel {
       Kleisli { r =>
         F.guaranteeCase(fa.run(r)) {
           case Outcome.Succeeded(fa) => fin(Outcome.succeeded(Kleisli.liftF(fa))).run(r)
-          case Outcome.Errored(e) => fin(Outcome.errored(e)).run(r)
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).run(r).handleError(_ => ())
           case Outcome.Canceled() => fin(Outcome.canceled).run(r)
         }
       }
@@ -800,7 +800,7 @@ object MonadCancel {
       WriterT {
         F.guaranteeCase(fa.run) {
           case Outcome.Succeeded(fa) => fin(Outcome.succeeded(WriterT(fa))).run.void
-          case Outcome.Errored(e) => fin(Outcome.errored(e)).run.void
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).run.void.handleError(_ => ())
           case Outcome.Canceled() => fin(Outcome.canceled).run.void
         }
       }
@@ -869,7 +869,7 @@ object MonadCancel {
       StateT { s =>
         F.guaranteeCase(fa.run(s)) {
           case Outcome.Succeeded(fa) => fin(Outcome.succeeded(StateT(_ => fa))).run(s).void
-          case Outcome.Errored(e) => fin(Outcome.errored(e)).run(s).void
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).run(s).void.handleError(_ => ())
           case Outcome.Canceled() => fin(Outcome.canceled).run(s).void
         }
       }
@@ -942,7 +942,8 @@ object MonadCancel {
         F.guaranteeCase(fa.run(e0, s)) {
           case Outcome.Succeeded(fa) =>
             fin(Outcome.succeeded(ReaderWriterStateT((_, _) => fa))).run(e0, s).void
-          case Outcome.Errored(e) => fin(Outcome.errored(e)).run(e0, s).void
+          case Outcome.Errored(e) =>
+            fin(Outcome.errored(e)).run(e0, s).void.handleError(_ => ())
           case Outcome.Canceled() => fin(Outcome.canceled).run(e0, s).void
         }
       }

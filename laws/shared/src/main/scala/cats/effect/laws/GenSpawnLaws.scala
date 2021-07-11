@@ -135,8 +135,12 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
   def fiberJoinIsGuaranteeCase[A](fa: F[A], f: Outcome[F, E, A] => F[Unit]) =
     F.start(fa)
       .flatMap(_.join)
-      .flatMap(oc => F.guarantee(oc.embed(F.canceled >> F.never[A]), F.unit >> { println(s">>> oc1 = $oc"); f(oc) })) <->
-      F.guaranteeCase(F.unit >> { println("uH?"); fa })(oc => F.unit >> { println(s"oc2 = $oc"); f(oc) })
+      .flatMap(oc =>
+        F.guarantee(
+          oc.embed(F.canceled >> F.never[A]),
+          F.unit >> { println(s">>> oc1 = $oc"); f(oc) })) <->
+      F.guaranteeCase(F.unit >> { println("uH?"); fa })(oc =>
+        F.unit >> { println(s"oc2 = $oc"); f(oc) })
 
   def neverDominatesOverFlatMap[A](fa: F[A]) =
     F.never >> fa <-> F.never[A]
