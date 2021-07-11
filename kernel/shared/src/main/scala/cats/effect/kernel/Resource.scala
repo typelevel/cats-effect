@@ -418,6 +418,17 @@ sealed abstract class Resource[F[_], +A] {
 
                 stack match {
                   case Nil =>
+                    /*
+                     * We *don't* poll here because this case represents the "there are no flatMaps"
+                     * scenario. If we poll in this scenario, then the following code will have a
+                     * masking gap (where F = Resource):
+                     *
+                     * F.uncancelable(_(F.uncancelable(_ => foo)))
+                     *
+                     * In this case, the inner uncancelable has no trailing flatMap, so it will hit
+                     * this case exactly. If we poll, we will create the masking gap and surface
+                     * cancelation improperly.
+                     */
                     F.pure((b, rel2))
 
                   case Frame(head, tail) =>
