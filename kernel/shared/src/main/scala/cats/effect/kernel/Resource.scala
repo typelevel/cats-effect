@@ -968,7 +968,7 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
           fin(Outcome.Canceled()).use_
       }
 
-      back.map(_.map(fu => (_: Resource.ExitCase) => fu))
+      back.map(p => Functor[(A, *)].map(p)(fu => (_: Resource.ExitCase) => fu))
     }
 }
 
