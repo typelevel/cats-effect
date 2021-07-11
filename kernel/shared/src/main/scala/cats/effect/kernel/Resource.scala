@@ -954,7 +954,8 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
       }
     }
 
-  override def guaranteeCase[A](rfa: Resource[F, A])(fin: Outcome[Resource[F, *], Throwable, A] => Resource[F, Unit]): Resource[F, A] =
+  override def guaranteeCase[A](rfa: Resource[F, A])(
+      fin: Outcome[Resource[F, *], Throwable, A] => Resource[F, Unit]): Resource[F, A] =
     Resource applyFull { poll =>
       val back = poll(rfa.allocated) guaranteeCase {
         case Outcome.Succeeded(ft) =>

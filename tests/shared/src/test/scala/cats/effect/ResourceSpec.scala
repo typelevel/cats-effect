@@ -953,7 +953,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     checkAll(
       "Resource[IO, *]",
       AsyncTests[Resource[IO, *]].async[Int, Int, Int](10.millis)
-    ) (Parameters(seed = Some(Seed.fromBase64("4gRwU6vjrDiCdawrKzOAlc7IhsXvkt7Araaf89mXZMO=").get)))
+    )(Parameters(seed =
+      Some(Seed.fromBase64("4gRwU6vjrDiCdawrKzOAlc7IhsXvkt7Araaf89mXZMO=").get)))
   }
 
   {
