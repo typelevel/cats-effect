@@ -68,6 +68,9 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def onCancelAssociatesOverUncancelableBoundary[A](fa: F[A], fin: F[Unit]) =
     F.uncancelable(_ => F.onCancel(fa, fin)) <-> F.onCancel(F.uncancelable(_ => fa), fin)
 
+  def onCancelImpliesUncancelable[A](fa: F[A], fin1: F[Unit], fin2: F[Unit]) =
+    F.onCancel(F.onCancel(fa, F.uncancelable(_ => fin1)), fin2) <-> F.onCancel(F.onCancel(fa, fin1), fin2)
+
   def forceRDiscardsPure[A, B](a: A, fa: F[B]) =
     F.forceR(F.pure(a))(fa) <-> fa
 

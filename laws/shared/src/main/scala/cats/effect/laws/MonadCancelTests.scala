@@ -126,6 +126,7 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
             laws.uncancelableEliminatesOnCancel[A] _),
           "onCancel associates over uncancelable boundary" -> forAll(
             laws.onCancelAssociatesOverUncancelableBoundary[A] _),
+          "onCancel implies uncancelable" -> forAll(laws.onCancelImpliesUncancelable[A] _),
           "forceR discards pure" -> forAll(laws.forceRDiscardsPure[A, B] _),
           "forceR discards error" -> forAll(laws.forceRDiscardsError[A] _),
           "forceR canceled short-circuits" -> forAll(laws.forceRCanceledShortCircuits[A] _),
