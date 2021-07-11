@@ -116,6 +116,7 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
       val props = {
         val common: Seq[(String, Prop)] = Seq(
           "guarantee forceR correspondence" -> forAll(laws.guaranteeForceRCorrespondence[A] _),
+          "guarantee is guaranteeCase" -> forAll(laws.guaranteeIsGuaranteeCase[A] _),
           "uncancelable poll is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
           "uncancelable ignored poll eliminates nesting" -> forAll(
             laws.uncancelableIgnoredPollEliminatesNesting[A] _),

@@ -32,6 +32,9 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
       case Outcome.Canceled() => F.unit
     })(F.unit) <-> F.forceR(fa)(F.forceR(F.uncancelable(_ => fu))(F.unit))
 
+  def guaranteeIsGuaranteeCase[A](fa: F[A], fin: F[Unit]) =
+    F.guarantee(fa, fin) <-> F.guaranteeCase(fa)(_ => fin)
+
   // note that this implies the nested case as well
   def uncancelablePollIsIdentity[A](fa: F[A]) =
     F.uncancelable(_(fa)) <-> fa
