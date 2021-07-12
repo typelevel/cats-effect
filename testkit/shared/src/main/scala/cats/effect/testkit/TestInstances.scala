@@ -163,7 +163,7 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
 
   implicit def eqIOA[A: Eq](implicit ticker: Ticker): Eq[IO[A]] =
     Eq.by(unsafeRun(_))
-    /*Eq instance { (left: IO[A], right: IO[A]) =>
+  /*Eq instance { (left: IO[A], right: IO[A]) =>
       val leftR = unsafeRun(left)
       val rightR = unsafeRun(right)
 
