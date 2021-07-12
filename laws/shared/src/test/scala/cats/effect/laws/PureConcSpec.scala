@@ -17,11 +17,9 @@
 package cats.effect
 package laws
 
-import cats.effect.kernel.{MonadCancel, Outcome}
 import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._,
 TimeT._
 import cats.laws.discipline.arbitrary._
-import cats.syntax.all._
 
 import org.scalacheck.Prop
 
@@ -35,15 +33,6 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 class PureConcSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
   import PureConcGenerators._
   import OutcomeGenerators._
-
-  "do the cancelation thingy" >> {
-    val F = MonadCancel[PureConc[Int, *]]
-
-    val results = pure.run(
-      F.start(F.guaranteeCase(F.uncancelable(_ => F.canceled))(oc => F.unit.map(_ => println(oc)))).flatMap(_.join))
-
-    results mustEqual Outcome.Succeeded(Some(()))
-  }
 
   implicit def exec(fb: TimeT[PureConc[Int, *], Boolean]): Prop =
     Prop(pure.run(TimeT.run(fb)).fold(false, _ => false, _.getOrElse(false)))
