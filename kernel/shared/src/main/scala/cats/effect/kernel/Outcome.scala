@@ -45,7 +45,7 @@ import scala.util.{Either, Left, Right}
  *    In general you can assume that binding on the value of type `F[A]` contained in
  *    `Succeeded` does not perform further effects. In the case of `IO` that means
  *    that the outcome has been constructed as `Outcome.Succeeded(IO.pure(result))`.
- *    
+ *
  * 2. Errored(e)
  *    The fiber exited with an error.
  *
