@@ -1026,7 +1026,6 @@ abstract private[effect] class ResourceConcurrent[F[_]]
                   (s.copy(fin = rel), F.pure(a.some))
               }
 
-              // explicitly catch "late" cancelation (masked by non-associativity)
               mutation.flatten
           }
         }
