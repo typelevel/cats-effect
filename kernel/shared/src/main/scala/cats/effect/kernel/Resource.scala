@@ -970,7 +970,9 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
     Resource applyFull { poll =>
       val back = poll(rfa.allocated) guaranteeCase {
         case Outcome.Succeeded(ft) =>
-          fin(Outcome.Succeeded(Resource.eval(ft.map(_._1)))).use_
+          fin(Outcome.Succeeded(Resource.eval(ft.map(_._1)))).use_ handleErrorWith { e =>
+            ft.flatMap(_._2).handleError(_ => ()) >> F.raiseError(e)
+          }
 
         case Outcome.Errored(e) =>
           fin(Outcome.Errored(e)).use_.handleError(_ => ())

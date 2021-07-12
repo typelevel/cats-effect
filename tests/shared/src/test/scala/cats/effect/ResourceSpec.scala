@@ -27,10 +27,10 @@ import cats.syntax.all._
 import cats.effect.implicits._
 
 import org.scalacheck.{Cogen, Prop}, Prop.forAll
-import org.scalacheck.rng.Seed
+// import org.scalacheck.rng.Seed
 
 import org.specs2.ScalaCheck
-import org.specs2.scalacheck.Parameters
+// import org.specs2.scalacheck.Parameters
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
@@ -953,8 +953,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     checkAll(
       "Resource[IO, *]",
       AsyncTests[Resource[IO, *]].async[Int, Int, Int](10.millis)
-    )(Parameters(seed =
-      Some(Seed.fromBase64("75d9nzLIEobZ3mfn0DvzUkMv-Jt7o7IyQyIvjqwkeVJ=").get)))
+    )/*(Parameters(seed =
+      Some(Seed.fromBase64("75d9nzLIEobZ3mfn0DvzUkMv-Jt7o7IyQyIvjqwkeVJ=").get)))*/
   }
 
   {
