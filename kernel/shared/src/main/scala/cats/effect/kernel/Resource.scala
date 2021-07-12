@@ -1010,29 +1010,41 @@ abstract private[effect] class ResourceConcurrent[F[_]]
    *    the value
    */
   def start[A](fa: Resource[F, A]): Resource[F, Fiber[Resource[F, *], Throwable, A]] = {
-    final case class State(fin: F[Unit] = F.unit, finalizeOnComplete: Boolean = false)
+    final case class State(
+        fin: F[Unit] = F.unit,
+        finalizeOnComplete: Boolean = false,
+        confirmedFinalizeOnComplete: Boolean = false)
 
     Resource {
       import Outcome._
 
       F.ref[State](State()) flatMap { state =>
-        val finalized: F[Option[A]] = F uncancelable { poll =>
-          poll(fa.allocated) flatMap { // intentionally short-circuits in case of cancelation or error
+        val finalized: F[A] = F uncancelable { poll =>
+          poll(fa.allocated) guarantee {
+            // confirm that we completed and we were asked to clean up
+            // note that this will run even if the inner effect short-circuited
+            state update { s =>
+              if (s.finalizeOnComplete)
+                s.copy(confirmedFinalizeOnComplete = true)
+              else
+                s
+            }
+          } flatMap {
+            // if the inner F has a zero, we lose the finalizers, but there's no avoiding that
             case (a, rel) =>
-              val mutation = state modify { s =>
-                if (s.finalizeOnComplete)
-                  (s, rel.attempt.as(none[A]))
+              val action = state modify { s =>
+                if (s.confirmedFinalizeOnComplete)
+                  (s, rel.handleError(_ => ()))
                 else
-                  (s.copy(fin = rel), F.pure(a.some))
+                  (s.copy(fin = rel), F.unit)
               }
 
-              mutation.flatten
+              action.flatten.as(a)
           }
         }
 
         F.start(finalized) map { outer =>
           val fiber = new Fiber[Resource[F, *], Throwable, A] {
-
             def cancel =
               Resource eval {
                 F uncancelable { poll =>
@@ -1051,12 +1063,11 @@ abstract private[effect] class ResourceConcurrent[F[_]]
                     Outcome.errored[Resource[F, *], Throwable, A](e).pure[F]
 
                   case Succeeded(fp) =>
-                    fp map {
-                      case Some(a) =>
-                        a.pure[Outcome[Resource[F, *], Throwable, *]]
-
-                      case None =>
+                    state.get map { s =>
+                      if (s.confirmedFinalizeOnComplete)
                         Outcome.canceled[Resource[F, *], Throwable, A]
+                      else
+                        Outcome.succeeded(Resource.eval(fp))
                     }
                 }
               }
