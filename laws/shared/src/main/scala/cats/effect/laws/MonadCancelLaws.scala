@@ -17,20 +17,13 @@
 package cats.effect
 package laws
 
-import cats.effect.kernel.{MonadCancel, Outcome}
+import cats.effect.kernel.MonadCancel
 import cats.syntax.all._
 import cats.laws.MonadErrorLaws
 
 trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   implicit val F: MonadCancel[F, E]
-
-  def guaranteeForceRCorrespondence[A](fa: F[A], fu: F[Unit]) =
-    F.forceR(F.guaranteeCase(fa) {
-      case Outcome.Succeeded(_) => fu
-      case Outcome.Errored(_) => fu
-      case Outcome.Canceled() => F.unit
-    })(F.unit) <-> F.forceR(fa)(F.forceR(F.uncancelable(_ => fu))(F.unit))
 
   def guaranteeIsGuaranteeCase[A](fa: F[A], fin: F[Unit]) =
     F.guarantee(fa, fin) <-> F.guaranteeCase(fa)(_ => fin)
