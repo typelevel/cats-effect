@@ -45,6 +45,9 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     _global = global
   }
 
+  private[effect] def resetGlobal(): Unit =
+    _global = null
+
   lazy val global: IORuntime = {
     if (_global == null) {
       installGlobal {
