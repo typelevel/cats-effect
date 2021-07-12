@@ -37,7 +37,7 @@ import cats.effect.kernel.syntax.monadCancel._
  * safely interact with each other via three special functions.
  * [[GenSpawn!.start start]] spawns a fiber that executes concurrently with the
  * spawning fiber. [[Fiber!.join join]] semantically blocks the joining fiber
- * until the joinee fiber terminates, after which the outcome of the joinee is
+ * until the joinee fiber terminates, after which the [[Outcome]] of the joinee is
  * returned. [[Fiber!.cancel cancel]] requests a fiber to abnormally terminate,
  * and semantically blocks the canceller until the cancellee has completed
  * finalization.

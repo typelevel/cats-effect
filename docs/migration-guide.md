@@ -718,7 +718,24 @@ Enjoy using Cats Effect 3!
 
 ## FAQ / Examples
 
-This section will include examples of typical errors encountered during the migration and their solutions.
+### Why does `Outcome#Succeeded` contain a value of type `F[A]` rather than type `A`?
+
+This is to support monad transformers. Consider
+
+```scala
+val oc: OutcomeIO[Int] =
+  for {
+    fiber <- Spawn[OptionT[IO, *]].start(OptionT.none[IO, Int])
+    oc <- fiber.join
+  } yield oc
+```
+
+If the fiber succeeds then there is no value of type `Int` to be wrapped in `Succeeded`,
+hence `Succeeded` contains a value of type `OptionT[IO, Int]` instead.
+
+In general you can assume that binding on the value of type `F[A]` contained in
+`Succeeded` does not force further execution. In the case of `OutcomeIO` that means
+that the outcome has been constructed as `Outcome.Succeeded(IO.pure(result))`.
 
 [sbt]: https://scala-sbt.org
 [scalafix]: https://scalacenter.github.io/scalafix/
