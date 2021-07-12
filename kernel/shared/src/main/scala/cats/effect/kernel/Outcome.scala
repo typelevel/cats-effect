@@ -26,9 +26,10 @@ import scala.util.{Either, Left, Right}
 /**
  * Represents the result of the execution of a fiber. It may terminate in one of 3 states:
  * 1. Succeeded(fa)
- *    The fiber completed with a value. A commonly asked question is why this wraps a
- *    value of type `F[A]` rather than one of type `A`. This is to support monad
- *    transformers. Consider
+ *    The fiber completed with a value.
+ *
+ *    A commonly asked question is why this wraps a value of type `F[A]` rather
+ *    than one of type `A`. This is to support monad transformers. Consider
  *
  *    ```scala
  *    val oc: OutcomeIO[Int] =
@@ -42,7 +43,7 @@ import scala.util.{Either, Left, Right}
  *    hence `Succeeded` contains a value of type `OptionT[IO, Int]` instead.
  *
  *    In general you can assume that binding on the value of type `F[A]` contained in
- *    `Succeeded` does not force further execution. In the case of `OutcomeIO` that means
+ *    `Succeeded` does not perform further effects. In the case of `IO` that means
  *    that the outcome has been constructed as `Outcome.Succeeded(IO.pure(result))`.
  *    
  * 2. Errored(e)

@@ -734,7 +734,7 @@ If the fiber succeeds then there is no value of type `Int` to be wrapped in `Suc
 hence `Succeeded` contains a value of type `OptionT[IO, Int]` instead.
 
 In general you can assume that binding on the value of type `F[A]` contained in
-`Succeeded` does not force further execution. In the case of `OutcomeIO` that means
+`Succeeded` does not perform further effects. In the case of `IO` that means
 that the outcome has been constructed as `Outcome.Succeeded(IO.pure(result))`.
 
 [sbt]: https://scala-sbt.org
