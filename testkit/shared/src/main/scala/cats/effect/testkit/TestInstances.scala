@@ -242,4 +242,13 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
   case class Ticker(ctx: TestContext = TestContext())
 }
 
+/**
+ * This object exists for the keeping binary compatibility in the
+ * `TestInstances` trait by forwarding to the implementaions coming from
+ * `cats-effect-kernel-testkit`.
+ *
+ * This object must exist as a standalone top-level object because any attempt
+ * to hide it inside the `TestInstances` trait ends up generating synthetic
+ * forwarder methods which break binary compatibility.
+ */
 private object KernelTestkitInstances extends KernelTestkitTestInstances
