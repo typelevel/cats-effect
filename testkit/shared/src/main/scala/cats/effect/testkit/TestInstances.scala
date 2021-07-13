@@ -24,11 +24,12 @@ import cats.effect.kernel.testkit.{
   OutcomeGenerators,
   ParallelFGenerators,
   SyncGenerators,
-  SyncTypeGenerators
+  SyncTypeGenerators,
+  TestInstances => KernelTestkitTestInstances
 }
 import cats.syntax.all._
 
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}, Arbitrary.arbitrary
+import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
@@ -99,7 +100,7 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
       AFU: Arbitrary[F[Unit]],
       AA: Arbitrary[A]
   ): Arbitrary[Resource[F, A]] =
-    Arbitrary(Gen.delay(genResource[F, A]))
+    KernelTestkitInstances.arbitraryResource[F, A]
 
   // Consider improving this a strategy similar to Generators.
   // Doesn't include interruptible resources
@@ -108,29 +109,8 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
       AFA: Arbitrary[F[A]],
       AFU: Arbitrary[F[Unit]],
       AA: Arbitrary[A]
-  ): Gen[Resource[F, A]] = {
-    def genAllocate: Gen[Resource[F, A]] =
-      for {
-        alloc <- arbitrary[F[A]]
-        dispose <- arbitrary[F[Unit]]
-      } yield Resource(alloc.map(a => a -> dispose))
-
-    def genBind: Gen[Resource[F, A]] =
-      genAllocate.map(_.flatMap(a => Resource.pure[F, A](a)))
-
-    def genEval: Gen[Resource[F, A]] =
-      arbitrary[F[A]].map(Resource.eval)
-
-    def genPure: Gen[Resource[F, A]] =
-      arbitrary[A].map(Resource.pure)
-
-    Gen.frequency(
-      5 -> genAllocate,
-      1 -> genBind,
-      1 -> genEval,
-      1 -> genPure
-    )
-  }
+  ): Gen[Resource[F, A]] =
+    KernelTestkitInstances.genResource[F, A]
 
   implicit lazy val arbitraryFiniteDuration: Arbitrary[FiniteDuration] = {
     import TimeUnit._
@@ -163,19 +143,6 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
 
   implicit def eqIOA[A: Eq](implicit ticker: Ticker): Eq[IO[A]] =
     Eq.by(unsafeRun(_))
-  /*Eq instance { (left: IO[A], right: IO[A]) =>
-      val leftR = unsafeRun(left)
-      val rightR = unsafeRun(right)
-
-      val back = leftR eqv rightR
-
-      if (!back) {
-        println(s"$left != $right")
-        println(s"$leftR != $rightR")
-      }
-
-      back
-    }*/
 
   /**
    * Defines equality for a `Resource`.  Two resources are deemed
@@ -185,10 +152,7 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
   implicit def eqResource[F[_], A](
       implicit E: Eq[F[A]],
       F: MonadCancel[F, Throwable]): Eq[Resource[F, A]] =
-    new Eq[Resource[F, A]] {
-      def eqv(x: Resource[F, A], y: Resource[F, A]): Boolean =
-        E.eqv(x.use(F.pure), y.use(F.pure))
-    }
+    KernelTestkitInstances.eqResource[F, A]
 
   implicit def ordResourceFFD[F[_]](
       implicit ordF: Order[F[FiniteDuration]],
@@ -277,3 +241,14 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
     "could not find an instance of Ticker; try using `in ticked { implicit ticker =>`")
   case class Ticker(ctx: TestContext = TestContext())
 }
+
+/**
+ * This object exists for the keeping binary compatibility in the
+ * `TestInstances` trait by forwarding to the implementaions coming from
+ * `cats-effect-kernel-testkit`.
+ *
+ * This object must exist as a standalone top-level object because any attempt
+ * to hide it inside the `TestInstances` trait ends up generating synthetic
+ * forwarder methods which break binary compatibility.
+ */
+private object KernelTestkitInstances extends KernelTestkitTestInstances

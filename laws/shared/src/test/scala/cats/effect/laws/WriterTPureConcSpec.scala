@@ -21,7 +21,7 @@ import cats.data.WriterT
 import cats.laws.discipline.arbitrary._
 import cats.effect.kernel.testkit._
 import cats.effect.kernel.testkit.TimeT._
-import cats.effect.kernel.testkit.{pure, PureConcGenerators}, pure._
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators}, pure._
 
 import org.scalacheck.Prop
 
@@ -34,6 +34,7 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 class WriterTPureConcSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
   import PureConcGenerators._
+  import OutcomeGenerators._
 
   implicit def exec[S](sbool: WriterT[TimeT[PureConc[Int, *], *], S, Boolean]): Prop =
     Prop(

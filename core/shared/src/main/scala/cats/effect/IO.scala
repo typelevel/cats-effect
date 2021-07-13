@@ -1151,22 +1151,21 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def deferred[A]: IO[Deferred[IO, A]] = IO(Deferred.unsafe)
 
   def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
-      release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] = {
-    val safeRelease: (A, OutcomeIO[B]) => IO[Unit] =
-      (a, out) => IO.uncancelable(_ => release(a, out))
-
+      release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
     IO.uncancelable { poll =>
       acquire(poll).flatMap { a =>
-        val finalized = poll(IO.unit >> use(a)).onCancel(safeRelease(a, Outcome.Canceled()))
+        def fin(oc: OutcomeIO[B]) = IO.uncancelable(_ => release(a, oc))
+
+        val finalized = poll(IO.defer(use(a))).onCancel(fin(Outcome.canceled))
         val handled = finalized.onError { e =>
-          safeRelease(a, Outcome.Errored(e)).handleErrorWith { t =>
+          fin(Outcome.errored(e)) handleErrorWith { t =>
             IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
           }
         }
-        handled.flatMap(b => safeRelease(a, Outcome.Succeeded(IO.pure(b))).as(b))
+
+        handled.flatTap(b => fin(Outcome.succeeded(IO.pure(b))))
       }
     }
-  }
 
   /*
    * Produce a value that is guaranteed to be unique ie

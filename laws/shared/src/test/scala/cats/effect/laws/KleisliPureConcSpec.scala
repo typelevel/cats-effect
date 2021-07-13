@@ -19,7 +19,9 @@ package laws
 
 import cats.Order
 import cats.data.Kleisli
-import cats.effect.kernel.testkit.{pure, PureConcGenerators, Time, TimeT}, pure._, TimeT._
+import cats.effect.kernel.Outcome
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, Time, TimeT},
+pure._, TimeT._
 import cats.laws.discipline.{arbitrary, MiniInt}
 
 import org.scalacheck.{Arbitrary, Cogen, Prop}
@@ -65,6 +67,20 @@ class KleisliPureConcSpec
       : Arbitrary[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, A]] =
     catsLawsArbitraryForKleisli[TimeT[PureConc[Int, *], *], MiniInt, A]
 
+  implicit def help_scala_2_12_cogenPureConc[A: Cogen]: Cogen[PureConc[Int, A]] =
+    cogenPureConc[Int, A]
+
+  implicit def help_scala_2_12_cogenTimeTPureConc[A: Cogen]: Cogen[TimeT[PureConc[Int, *], A]] =
+    cogenForTimeT[PureConc[Int, *], A]
+
+  implicit def help_scala_2_12_cogenKleisliTimeTPureConc[A: Cogen]
+      : Cogen[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, A]] =
+    cogenForKleisli[TimeT[PureConc[Int, *], *], MiniInt, A]
+
+  implicit def help_scala_2_12_cogenOutcomeKleisliTimeTPureConc[A: Cogen]
+      : Cogen[Outcome[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *], Int, A]] =
+    OutcomeGenerators.cogenOutcome[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *], Int, A]
+
   checkAll(
     "Kleisli[PureConc]",
     GenTemporalTests[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *], Int]
@@ -82,4 +98,8 @@ private[laws] trait LowPriorityKleisliInstances {
       CA: Cogen[A],
       F: Arbitrary[F[B]]): Arbitrary[Kleisli[F, A, B]] =
     arbitrary.catsLawsArbitraryForKleisli[F, A, B]
+
+  implicit def cogenForKleisli[F[_], A, B](
+      implicit F: Cogen[A => F[B]]): Cogen[Kleisli[F, A, B]] =
+    F.contramap(_.run)
 }

@@ -25,6 +25,9 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   implicit val F: MonadCancel[F, E]
 
+  def guaranteeIsGuaranteeCase[A](fa: F[A], fin: F[Unit]) =
+    F.guarantee(fa, fin) <-> F.guaranteeCase(fa)(_ => fin)
+
   // note that this implies the nested case as well
   def uncancelablePollIsIdentity[A](fa: F[A]) =
     F.uncancelable(_(fa)) <-> fa
@@ -58,6 +61,11 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def onCancelAssociatesOverUncancelableBoundary[A](fa: F[A], fin: F[Unit]) =
     F.uncancelable(_ => F.onCancel(fa, fin)) <-> F.onCancel(F.uncancelable(_ => fa), fin)
 
+  def onCancelImpliesUncancelable[A](fa: F[A], fin1: F[Unit], fin2: F[Unit]) =
+    F.onCancel(F.onCancel(fa, F.uncancelable(_ => fin1)), fin2) <-> F.onCancel(
+      F.onCancel(fa, fin1),
+      fin2)
+
   def forceRDiscardsPure[A, B](a: A, fa: F[B]) =
     F.forceR(F.pure(a))(fa) <-> fa
 
@@ -66,6 +74,9 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   def forceRCanceledShortCircuits[A](fa: F[A]) =
     F.forceR(F.canceled)(fa) <-> F.productR(F.canceled)(fa)
+
+  def forceRAssociativity[A, B, C](fa: F[A], fb: F[B], fc: F[C]) =
+    F.forceR(fa)(F.forceR(fb)(fc)) <-> F.forceR(F.forceR(fa)(fb))(fc)
 
   def uncancelableFinalizers[A](fin: F[Unit]) =
     F.onCancel(F.canceled, F.uncancelable(_ => fin)) <-> F.onCancel(F.canceled, fin)

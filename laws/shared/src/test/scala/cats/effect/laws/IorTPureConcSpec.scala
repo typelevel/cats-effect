@@ -18,7 +18,8 @@ package cats.effect
 package laws
 
 import cats.data.IorT
-import cats.effect.kernel.testkit.{pure, PureConcGenerators, TimeT}, pure._, TimeT._
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._,
+TimeT._
 import cats.laws.discipline.arbitrary._
 
 import org.scalacheck.Prop
@@ -32,6 +33,7 @@ import scala.concurrent.duration._
 
 class IorTPureConcSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
   import PureConcGenerators._
+  import OutcomeGenerators._
 
   implicit def exec[L](sbool: IorT[TimeT[PureConc[Int, *], *], L, Boolean]): Prop =
     Prop(

@@ -17,9 +17,14 @@
 package cats.effect
 package laws
 
+import cats.Applicative
 import cats.data.OptionT
-import cats.effect.kernel.testkit.{pure, PureConcGenerators, TimeT}, pure._, TimeT._
+import cats.effect.kernel.Outcome
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._,
+TimeT._
+import cats.effect.kernel.syntax.all._
 import cats.laws.discipline.arbitrary._
+import cats.syntax.all._
 
 import org.scalacheck.Prop
 
@@ -32,6 +37,7 @@ import scala.concurrent.duration._
 
 class OptionTPureConcSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
   import PureConcGenerators._
+  import OutcomeGenerators._
 
   implicit def exec(sbool: OptionT[TimeT[PureConc[Int, *], *], Boolean]): Prop =
     Prop(
@@ -42,6 +48,28 @@ class OptionTPureConcSpec extends Specification with Discipline with ScalaCheck 
           _ => false,
           bO => bO.flatten.fold(false)(_ => true)
         ))
+
+  "optiont bracket" should {
+    "forward completed zeros on to the handler" in {
+      var observed = false
+
+      val test = OptionT.none[PureConc[Int, *], Unit] guaranteeCase {
+        case Outcome.Succeeded(fa) =>
+          observed = true
+
+          OptionT(fa.value.map(_ must beNone).as(None))
+
+        case _ => Applicative[OptionT[PureConc[Int, *], *]].unit
+      }
+
+      pure.run(test.value) must beLike {
+        case Outcome.Succeeded(Some(None)) => ok
+        case _ => ko
+      }
+
+      observed must beTrue
+    }
+  }
 
   checkAll(
     "OptionT[TimeT[PureConc]]",

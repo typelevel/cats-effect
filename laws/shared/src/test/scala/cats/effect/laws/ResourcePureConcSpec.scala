@@ -17,33 +17,42 @@
 package cats.effect
 package laws
 
-import cats.data.EitherT
-import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._,
-TimeT._
+import cats.effect.kernel.{MonadCancel, Resource}
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TestInstances}
 import cats.laws.discipline.arbitrary._
+import cats.syntax.all._
 
-import org.scalacheck.Prop
+import org.scalacheck.{Cogen, Prop}
 
 import org.specs2.ScalaCheck
 import org.specs2.mutable._
 
-import scala.concurrent.duration._
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class EitherTPureConcSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
+class ResourcePureConcSpec
+    extends Specification
+    with Discipline
+    with ScalaCheck
+    with BaseSpec
+    with TestInstances {
   import PureConcGenerators._
   import OutcomeGenerators._
+  import pure._
 
-  implicit def exec[E](sbool: EitherT[TimeT[PureConc[Int, *], *], E, Boolean]): Prop =
+  implicit def exec(sbool: Resource[PureConc[Throwable, *], Boolean]): Prop =
     Prop(
       pure
-        .run(TimeT.run(sbool.value))
-        .fold(false, _ => false, bO => bO.fold(false)(e => e.fold(_ => false, b => b))))
+        .run(sbool.use(_.pure[PureConc[Throwable, *]]))
+        .fold(false, _ => false, fb => fb.fold(false)(identity))
+    )
+
+  implicit def cogenForResource[F[_], A](
+      implicit C: Cogen[F[(A, F[Unit])]],
+      F: MonadCancel[F, Throwable]): Cogen[Resource[F, A]] =
+    C.contramap(_.allocated)
 
   checkAll(
-    "EitherT[TimeT[PureConc]]",
-    GenTemporalTests[EitherT[TimeT[PureConc[Int, *], *], Int, *], Int]
-      .temporal[Int, Int, Int](10.millis)
+    "Resource[TimeT[PureConc]]",
+    GenSpawnTests[Resource[PureConc[Throwable, *], *], Throwable].spawn[Int, Int, Int]
   )
 }
