@@ -400,7 +400,15 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @see [[guarantee]] for the simpler version
    */
   def guaranteeCase(finalizer: OutcomeIO[A @uncheckedVariance] => IO[Unit]): IO[A] =
-    IO.unit.bracketCase(_ => this)((_, oc) => finalizer(oc))
+    IO.uncancelable { poll =>
+      val finalized = poll(this).onCancel(finalizer(Outcome.canceled))
+      val handled = finalized.onError { e =>
+        finalizer(Outcome.errored(e)).handleErrorWith { t =>
+          IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
+        }
+      }
+      handled.flatTap(a => finalizer(Outcome.succeeded(IO.pure(a))))
+    }
 
   /**
    * Handle any error, potentially recovering from it, by mapping it to another
