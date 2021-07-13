@@ -103,7 +103,15 @@ object Dispatcher {
    * Once the resource scope exits, all active effects will be canceled, and
    * attempts to submit new effects will throw an exception.
    */
-  def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] = {
+  def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] =
+    suspended[F].evalMap(identity)
+
+  /**
+   * Create a [[Dispatcher]] within the context of F detached from the resource
+   * scope. This allows the dispatcher to capture the context at the place of
+   * usage rather than creation.
+   */
+  def suspended[F[_]](implicit F: Async[F]): Resource[F, F[Dispatcher[F]]] = {
     final case class Registration(action: F[Unit], prepareCancel: F[Unit] => Unit)
         extends AtomicBoolean(true)
 
@@ -136,7 +144,6 @@ object Dispatcher {
         }
         states
       })
-      ec <- Resource.eval(F.executionContext)
       alive <- Resource.make(F.delay(new AtomicBoolean(true)))(ref => F.delay(ref.set(false)))
 
       _ <- {
@@ -187,100 +194,102 @@ object Dispatcher {
           .traverse_(n => dispatcher(latches(n), states(n)).foreverM[Unit].background)
       }
     } yield {
-      new Dispatcher[F] {
-        def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
-          val promise = Promise[E]()
+      F.executionContext.map { ec =>
+        new Dispatcher[F] {
+          def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
+            val promise = Promise[E]()
 
-          val action = fe
-            .flatMap(e => F.delay(promise.success(e)))
-            .onError { case t => F.delay(promise.failure(t)) }
-            .void
+            val action = fe
+              .flatMap(e => F.delay(promise.success(e)))
+              .onError { case t => F.delay(promise.failure(t)) }
+              .void
 
-          val cancelState = new AtomicReference[CancelState](CancelInit)
+            val cancelState = new AtomicReference[CancelState](CancelInit)
 
-          def registerCancel(token: F[Unit]): Unit = {
-            val cancelToken = () => unsafeToFuture(token)
-
-            @tailrec
-            def loop(): Unit = {
-              val state = cancelState.get()
-              state match {
-                case CancelInit =>
-                  if (!cancelState.compareAndSet(state, CancelToken(cancelToken))) {
-                    loop()
-                  }
-                case CanceledNoToken(promise) =>
-                  if (!cancelState.compareAndSet(state, CancelToken(cancelToken))) {
-                    loop()
-                  } else {
-                    cancelToken().onComplete {
-                      case Success(_) => promise.success(())
-                      case Failure(ex) => promise.failure(ex)
-                    }(ec)
-                  }
-                case _ => ()
-              }
-            }
-
-            loop()
-          }
-
-          @tailrec
-          def enqueue(state: AtomicReference[List[Registration]], reg: Registration): Unit = {
-            val curr = state.get()
-            val next = reg :: curr
-
-            if (!state.compareAndSet(curr, next)) enqueue(state, reg)
-          }
-
-          if (alive.get()) {
-            val rand = ThreadLocalRandom.current()
-            val dispatcher = rand.nextInt(Cpus)
-            val inner = rand.nextInt(Cpus)
-            val state = states(dispatcher)(inner)
-            val reg = Registration(action, registerCancel _)
-            enqueue(state, reg)
-
-            val lt = latches(dispatcher)
-            if (lt.get() ne Open) {
-              val f = lt.getAndSet(Open)
-              f()
-            }
-
-            val cancel = { () =>
-              reg.lazySet(false)
+            def registerCancel(token: F[Unit]): Unit = {
+              val cancelToken = () => unsafeToFuture(token)
 
               @tailrec
-              def loop(): Future[Unit] = {
+              def loop(): Unit = {
                 val state = cancelState.get()
                 state match {
                   case CancelInit =>
-                    val promise = Promise[Unit]()
-                    if (!cancelState.compareAndSet(state, CanceledNoToken(promise))) {
+                    if (!cancelState.compareAndSet(state, CancelToken(cancelToken))) {
                       loop()
-                    } else {
-                      promise.future
                     }
                   case CanceledNoToken(promise) =>
-                    promise.future
-                  case CancelToken(cancelToken) =>
-                    cancelToken()
+                    if (!cancelState.compareAndSet(state, CancelToken(cancelToken))) {
+                      loop()
+                    } else {
+                      cancelToken().onComplete {
+                        case Success(_) => promise.success(())
+                        case Failure(ex) => promise.failure(ex)
+                      }(ec)
+                    }
+                  case _ => ()
                 }
               }
 
               loop()
             }
 
-            // double-check after we already put things in the structure
+            @tailrec
+            def enqueue(state: AtomicReference[List[Registration]], reg: Registration): Unit = {
+              val curr = state.get()
+              val next = reg :: curr
+
+              if (!state.compareAndSet(curr, next)) enqueue(state, reg)
+            }
+
             if (alive.get()) {
-              (promise.future, cancel)
+              val rand = ThreadLocalRandom.current()
+              val dispatcher = rand.nextInt(Cpus)
+              val inner = rand.nextInt(Cpus)
+              val state = states(dispatcher)(inner)
+              val reg = Registration(action, registerCancel _)
+              enqueue(state, reg)
+
+              val lt = latches(dispatcher)
+              if (lt.get() ne Open) {
+                val f = lt.getAndSet(Open)
+                f()
+              }
+
+              val cancel = { () =>
+                reg.lazySet(false)
+
+                @tailrec
+                def loop(): Future[Unit] = {
+                  val state = cancelState.get()
+                  state match {
+                    case CancelInit =>
+                      val promise = Promise[Unit]()
+                      if (!cancelState.compareAndSet(state, CanceledNoToken(promise))) {
+                        loop()
+                      } else {
+                        promise.future
+                      }
+                    case CanceledNoToken(promise) =>
+                      promise.future
+                    case CancelToken(cancelToken) =>
+                      cancelToken()
+                  }
+                }
+
+                loop()
+              }
+
+              // double-check after we already put things in the structure
+              if (alive.get()) {
+                (promise.future, cancel)
+              } else {
+                // we were shutdown *during* the enqueue
+                cancel()
+                throw new IllegalStateException("dispatcher already shutdown")
+              }
             } else {
-              // we were shutdown *during* the enqueue
-              cancel()
               throw new IllegalStateException("dispatcher already shutdown")
             }
-          } else {
-            throw new IllegalStateException("dispatcher already shutdown")
           }
         }
       }
