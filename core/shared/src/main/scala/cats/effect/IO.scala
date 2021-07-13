@@ -1161,18 +1161,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
       release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
     IO.uncancelable { poll =>
-      acquire(poll).flatMap { a =>
-        def fin(oc: OutcomeIO[B]) = IO.uncancelable(_ => release(a, oc))
-
-        val finalized = poll(IO.defer(use(a))).onCancel(fin(Outcome.canceled))
-        val handled = finalized.onError { e =>
-          fin(Outcome.errored(e)) handleErrorWith { t =>
-            IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
-          }
-        }
-
-        handled.flatTap(b => fin(Outcome.succeeded(IO.pure(b))))
-      }
+      acquire(poll).flatMap { a => IO.defer(poll(use(a))).guaranteeCase(release(a, _)) }
     }
 
   /*
