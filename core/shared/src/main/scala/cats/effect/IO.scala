@@ -400,7 +400,15 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @see [[guarantee]] for the simpler version
    */
   def guaranteeCase(finalizer: OutcomeIO[A @uncheckedVariance] => IO[Unit]): IO[A] =
-    IO.unit.bracketCase(_ => this)((_, oc) => finalizer(oc))
+    IO.uncancelable { poll =>
+      val finalized = poll(this).onCancel(finalizer(Outcome.canceled))
+      val handled = finalized.onError { e =>
+        finalizer(Outcome.errored(e)).handleErrorWith { t =>
+          IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
+        }
+      }
+      handled.flatTap(a => finalizer(Outcome.succeeded(IO.pure(a))))
+    }
 
   /**
    * Handle any error, potentially recovering from it, by mapping it to another
@@ -1153,18 +1161,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
       release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
     IO.uncancelable { poll =>
-      acquire(poll).flatMap { a =>
-        def fin(oc: OutcomeIO[B]) = IO.uncancelable(_ => release(a, oc))
-
-        val finalized = poll(IO.defer(use(a))).onCancel(fin(Outcome.canceled))
-        val handled = finalized.onError { e =>
-          fin(Outcome.errored(e)) handleErrorWith { t =>
-            IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
-          }
-        }
-
-        handled.flatTap(b => fin(Outcome.succeeded(IO.pure(b))))
-      }
+      acquire(poll).flatMap { a => IO.defer(poll(use(a))).guaranteeCase(release(a, _)) }
     }
 
   /*
