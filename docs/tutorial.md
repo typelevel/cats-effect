@@ -409,8 +409,8 @@ import java.io._
 
 def transmit[F[_]: Sync](origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): F[Long] =
   for {
-    amount <- Sync[F].blocking(origin.read(buffer, 0, buffer.length))
-    count  <- if(amount > -1) Sync[F].blocking(destination.write(buffer, 0, amount)) >> transmit(origin, destination, buffer, acc + amount)
+    amount <- Sync[F].delay(origin.read(buffer, 0, buffer.length))
+    count  <- if(amount > -1) Sync[F].delay(destination.write(buffer, 0, amount)) >> transmit(origin, destination, buffer, acc + amount)
               else Sync[F].pure(acc) // End of read stream reached (by java.io.InputStream contract), nothing to write
   } yield count // Returns the actual amount of bytes transmitted
 ```
