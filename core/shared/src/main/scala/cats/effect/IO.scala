@@ -103,6 +103,8 @@ import scala.util.{Failure, Success, Try}
  *       IO.pure(a)
  *   }
  * }}}
+ *
+ * @see [[IOApp]]
  */
 sealed abstract class IO[+A] private () extends IOPlatform[A] {
 

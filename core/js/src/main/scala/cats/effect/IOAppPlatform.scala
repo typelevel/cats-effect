@@ -24,7 +24,30 @@ private[effect] abstract class IOAppPlatform { this: IOApp =>
 
   private[this] var _runtime: unsafe.IORuntime = null
 
+  /**
+   * The runtime which will be used by `IOApp` to evaluate the
+   * [[IO]] produced by the `run` method. This may be overridden
+   * by `IOApp` implementations which have extremely specialized
+   * needs, but this is highly unlikely to ever be truly needed.
+   * As an example, if an application wishes to make use of an
+   * alternative compute thread pool (such as `Executors.fixedThreadPool`),
+   * it is almost always better to leverage [[IO.evalOn]] on the value
+   * produced by the `run` method, rather than directly overriding
+   * `runtime`.
+   *
+   * In other words, this method is made available to users, but its
+   * use is strongly discouraged in favor of other, more precise
+   * solutions to specific use-cases.
+   *
+   * This value is guaranteed to be equal to [[unsafe.IORuntime.global]].
+   */
   protected def runtime: unsafe.IORuntime = _runtime
+
+  /**
+   * The configuration used to initialize the [[runtime]] which will
+   * evaluate the [[IO]] produced by `run`. It is very unlikely that
+   * users will need to override this method.
+   */
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
   final def main(args: Array[String]): Unit = {
