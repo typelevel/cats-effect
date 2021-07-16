@@ -17,12 +17,11 @@
 package cats.effect.unsafe
 package metrics
 
-import cats.effect.metrics.ComputePoolSamplerMBean
-
 /**
- * An implementation of the [[cats.effect.metrics.ComputePoolSamplerMBean]] for
- * monitoring the default [[cats.effect.unsafe.IORuntime]] compute pool backed
- * by [[cats.effect.unsafe.WorkStealingThreadPool]].
+ * An implementation of the
+ * [[cats.effect.unsafe.metrics.ComputePoolSamplerMBean]] for monitoring the
+ * default [[cats.effect.unsafe.IORuntime]] compute pool backed by a
+ * `cats.effect.unsafe.WorkStealingThreadPool`.
  */
 final class ComputePoolSampler(pool: WorkStealingThreadPool) extends ComputePoolSamplerMBean {
   locally {
