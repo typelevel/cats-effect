@@ -21,5 +21,5 @@ import java.util.Optional;
 class MetricsConstants {
 
   public static final boolean metricsEnabled = Optional.ofNullable(System.getProperty("cats.effect.metrics"))
-      .map(Boolean::valueOf).orElse(false);
+      .map(Boolean::valueOf).orElse(true);
 }
