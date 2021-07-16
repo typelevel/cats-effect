@@ -16,10 +16,15 @@
 
 package cats.effect.unsafe
 
+import cats.effect.unsafe.metrics.ComputePoolSampler
+
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
+import java.lang.management.ManagementFactory
 import java.util.concurrent.{Executors, ScheduledThreadPoolExecutor}
 import java.util.concurrent.atomic.AtomicInteger
+import javax.management.ObjectName
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
@@ -30,7 +35,47 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) = {
     val threadPool =
       new WorkStealingThreadPool(threads, threadPrefix, self)
-    (threadPool, { () => threadPool.shutdown() })
+
+    val unregisterMBeans =
+      if (MetricsConstants.metricsEnabled) {
+        val mBeanServer =
+          try ManagementFactory.getPlatformMBeanServer()
+          catch {
+            case t: Throwable =>
+              t.printStackTrace()
+              null
+          }
+
+        val registeredObjects = mutable.Set.empty[ObjectName]
+
+        if (mBeanServer ne null) {
+          val computePoolSamplerName =
+            new ObjectName("cats.effect.metrics:type=ComputePoolSampler")
+          val computePoolSampler = new ComputePoolSampler(threadPool)
+
+          try {
+            mBeanServer.registerMBean(computePoolSampler, computePoolSamplerName)
+            registeredObjects += computePoolSamplerName
+          } catch {
+            case t: Throwable =>
+              t.printStackTrace()
+          }
+        }
+
+        () => {
+          if (mBeanServer ne null) {
+            registeredObjects.foreach(mBeanServer.unregisterMBean)
+          }
+        }
+      } else () => ()
+
+    (
+      threadPool,
+      { () =>
+        unregisterMBeans()
+        threadPool.shutdown()
+      }
+    )
   }
 
   def createDefaultBlockingExecutionContext(
