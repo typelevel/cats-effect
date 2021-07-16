@@ -62,7 +62,7 @@ package cats.effect
  * we are neither using `args` nor are we explicitly producing a custom
  * [[ExitCode]]:
  *
-  * {{{
+ * {{{
  *   object MyApplication extends IOApp.Simple {
  *     val run =
  *       for {
