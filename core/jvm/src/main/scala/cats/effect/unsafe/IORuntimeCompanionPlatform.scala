@@ -32,12 +32,23 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   def createDefaultComputeThreadPool(
       self: => IORuntime,
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
-      threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) = {
+      threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) =
+    createDefaultComputeThreadPoolWithMBeansConfig(
+      self,
+      threads,
+      threadPrefix,
+      MetricsConstants.metricsEnabled)
+
+  private[unsafe] def createDefaultComputeThreadPoolWithMBeansConfig(
+      self: => IORuntime,
+      threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
+      threadPrefix: String = "io-compute",
+      registerMBeans: Boolean): (WorkStealingThreadPool, () => Unit) = {
     val threadPool =
       new WorkStealingThreadPool(threads, threadPrefix, self)
 
     val unregisterMBeans =
-      if (MetricsConstants.metricsEnabled) {
+      if (registerMBeans) {
         val mBeanServer =
           try ManagementFactory.getPlatformMBeanServer()
           catch {
