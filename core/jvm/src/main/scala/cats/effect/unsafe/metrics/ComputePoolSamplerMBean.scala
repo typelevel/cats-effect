@@ -43,4 +43,12 @@ trait ComputePoolSamplerMBean {
    * @return the number of worker threads searching for work
    */
   def getSearchingThreadCount: Int
+
+  /**
+   * Returns the number of currently active helper threads substituting for
+   * worker threads currently executing blocking actions.
+   *
+   * @return the number of currently active helper threads
+   */
+  def getActiveHelperThreadCount: Int
 }

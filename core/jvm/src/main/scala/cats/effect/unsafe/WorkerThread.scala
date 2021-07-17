@@ -43,6 +43,8 @@ private final class WorkerThread(
     private[this] val threadPrefix: String,
     // Instance to a global counter used when naming new instances of `HelperThread`.
     private[this] val blockingThreadCounter: AtomicInteger,
+    // Instance to a global gauge used for tracking the number of active `HelperThread`s.
+    private[this] val activeHelperThreadGauge: AtomicInteger,
     // Local queue instance with exclusive write access.
     private[this] val queue: LocalQueue,
     // The state of the `WorkerThread` (parked/unparked).
@@ -453,7 +455,13 @@ private final class WorkerThread(
 
         // Spawn a new `HelperThread`.
         val helper =
-          new HelperThread(threadPrefix, blockingThreadCounter, batched, overflow, pool)
+          new HelperThread(
+            threadPrefix,
+            blockingThreadCounter,
+            activeHelperThreadGauge,
+            batched,
+            overflow,
+            pool)
         helper.start()
 
         // With another `HelperThread` started, it is time to execute the blocking

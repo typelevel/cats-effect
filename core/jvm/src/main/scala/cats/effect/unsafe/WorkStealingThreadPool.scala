@@ -104,6 +104,12 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val blockingThreadCounter: AtomicInteger = new AtomicInteger(0)
 
   /**
+   * An atomic counter used for tracking the number of active helper threads
+   * spawned when the worker threads encounter blocking code.
+   */
+  private[this] val activeHelperThreadGauge: AtomicInteger = new AtomicInteger(0)
+
+  /**
    * The shutdown latch of the work stealing thread pool.
    */
   private[this] val done: AtomicBoolean = new AtomicBoolean(false)
@@ -123,6 +129,7 @@ private[effect] final class WorkStealingThreadPool(
           index,
           threadPrefix,
           blockingThreadCounter,
+          activeHelperThreadGauge,
           queue,
           parkedSignal,
           batchedQueue,
@@ -533,4 +540,16 @@ private[effect] final class WorkStealingThreadPool(
     val st = state.get()
     st & SearchMask
   }
+
+  /**
+   * Returns the number of currently active helper threads substituting for
+   * worker threads currently executing blocking actions.
+   *
+   * @note This method is a part of the
+   *       [[cats.effect.unsafe.metrics.ComputePoolSamplerMBean]] interface.
+   *
+   * @return the number of currently active helper threads
+   */
+  private[unsafe] def getActiveHelperThreadCount: Int =
+    activeHelperThreadGauge.get()
 }

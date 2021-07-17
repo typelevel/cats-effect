@@ -27,4 +27,5 @@ final class ComputePoolSampler(pool: WorkStealingThreadPool) extends ComputePool
   def getWorkerThreadCount: Int = pool.getWorkerThreadCount
   def getActiveThreadCount: Int = pool.getActiveThreadCount
   def getSearchingThreadCount: Int = pool.getSearchingThreadCount
+  def getActiveHelperThreadCount: Int = pool.getActiveHelperThreadCount
 }

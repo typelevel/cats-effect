@@ -58,6 +58,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 private final class HelperThread(
     private[this] val threadPrefix: String,
     private[this] val blockingThreadCounter: AtomicInteger,
+    private[this] val activeHelperThreadGauge: AtomicInteger,
     private[this] val batched: ScalQueue[Array[IOFiber[_]]],
     private[this] val overflow: ScalQueue[IOFiber[_]],
     private[this] val pool: WorkStealingThreadPool)
@@ -129,6 +130,8 @@ private final class HelperThread(
    * for the [[HelperThread]] to exit its runloop and die.
    */
   override def run(): Unit = {
+    activeHelperThreadGauge.incrementAndGet()
+
     random = ThreadLocalRandom.current()
     val rnd = random
 
@@ -149,6 +152,7 @@ private final class HelperThread(
           // the `overflow` queue. This pathological case is not handled as it
           // is a case of uncontrolled blocking on a fixed thread pool, an
           // inherently careless and unsafe situation.
+          activeHelperThreadGauge.decrementAndGet()
           return
         } else {
           overflow.offerAll(batch, rnd)
@@ -157,6 +161,9 @@ private final class HelperThread(
         fiber.run()
       }
     }
+
+    activeHelperThreadGauge.decrementAndGet()
+    ()
   }
 
   /**
@@ -177,7 +184,13 @@ private final class HelperThread(
 
       // Spawn a new `HelperThread`.
       val helper =
-        new HelperThread(threadPrefix, blockingThreadCounter, batched, overflow, pool)
+        new HelperThread(
+          threadPrefix,
+          blockingThreadCounter,
+          activeHelperThreadGauge,
+          batched,
+          overflow,
+          pool)
       helper.start()
 
       // With another `HelperThread` started, it is time to execute the blocking
