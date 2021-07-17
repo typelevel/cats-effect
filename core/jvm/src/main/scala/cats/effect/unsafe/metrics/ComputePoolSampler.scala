@@ -25,4 +25,5 @@ package metrics
  */
 final class ComputePoolSampler(pool: WorkStealingThreadPool) extends ComputePoolSamplerMBean {
   def getWorkerThreadCount: Int = pool.getWorkerThreadCount
+  def getActiveThreadCount: Int = pool.getActiveThreadCount
 }

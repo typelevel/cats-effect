@@ -506,4 +506,17 @@ private[effect] final class WorkStealingThreadPool(
    * @return the number of worker threads in this thread pool
    */
   private[unsafe] def getWorkerThreadCount: Int = threadCount
+
+  /**
+   * Returns the number of active worker threads currently executing fibers.
+   *
+   * @note This method is a part of the
+   *       [[cats.effect.unsafe.metrics.ComputePoolSamplerMBean]] interface.
+   *
+   * @return the number of currently active worker threads
+   */
+  private[unsafe] def getActiveThreadCount: Int = {
+    val st = state.get()
+    (st & UnparkMask) >>> UnparkShift
+  }
 }
