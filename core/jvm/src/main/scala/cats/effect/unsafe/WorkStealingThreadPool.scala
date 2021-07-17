@@ -115,7 +115,7 @@ private[effect] final class WorkStealingThreadPool(
    * whose asynchronous callback has not been executed yet). Does not include
    * fibers which have not started execution at all.
    */
-  private[this] val suspendedFiberCounter: LongAdder = new LongAdder()
+  private[this] val suspendedFiberGauge: LongAdder = new LongAdder()
 
   /**
    * The shutdown latch of the work stealing thread pool.
@@ -360,7 +360,7 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[effect] def registerSuspendedFiber(): Unit = {
     if (MetricsConstants.metricsEnabled) {
-      suspendedFiberCounter.increment()
+      suspendedFiberGauge.increment()
     }
   }
 
@@ -370,7 +370,7 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[effect] def deregisterSuspendedFiber(): Unit = {
     if (MetricsConstants.metricsEnabled) {
-      suspendedFiberCounter.decrement()
+      suspendedFiberGauge.decrement()
     }
   }
 
@@ -639,7 +639,7 @@ private[effect] final class WorkStealingThreadPool(
    * @return the number of suspended fibers
    */
   private[unsafe] def getSuspendedFiberCount: Int =
-    suspendedFiberCounter.intValue()
+    suspendedFiberGauge.intValue()
 
   /**
    * Returns the number of fibers currently assigned to the monitored compute
