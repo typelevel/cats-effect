@@ -24,7 +24,5 @@ package metrics
  * `cats.effect.unsafe.WorkStealingThreadPool`.
  */
 final class ComputePoolSampler(pool: WorkStealingThreadPool) extends ComputePoolSamplerMBean {
-  locally {
-    val _ = pool
-  }
+  def getWorkerThreadCount: Int = pool.getWorkerThreadCount
 }

@@ -496,4 +496,14 @@ private[effect] final class WorkStealingThreadPool(
       Thread.currentThread().interrupt()
     }
   }
+
+  /**
+   * Returns the number of worker threads in this thread pool.
+   *
+   * @note This method is a part of the
+   *       [[cats.effect.unsafe.metrics.ComputePoolSamplerMBean]] interface.
+   *
+   * @return the number of worker threads in this thread pool
+   */
+  private[unsafe] def getWorkerThreadCount: Int = threadCount
 }

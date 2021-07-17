@@ -20,4 +20,12 @@ package metrics
 /**
  * An MBean interface for monitoring the [[IO]] work stealing compute pool.
  */
-trait ComputePoolSamplerMBean
+trait ComputePoolSamplerMBean {
+
+  /**
+   * Returns the number of worker threads in the compute pool.
+   *
+   * @return the number of worker threads in the compute pool
+   */
+  def getWorkerThreadCount: Int
+}
