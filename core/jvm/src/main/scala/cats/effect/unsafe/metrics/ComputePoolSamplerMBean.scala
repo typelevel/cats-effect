@@ -68,4 +68,13 @@ trait ComputePoolSamplerMBean {
    * @return the number of fibers enqueued on the batched queue
    */
   def getBatchedQueueFiberCount: Int
+
+  /**
+   * Returns the number of fibers enqueued in the local queues of the worker
+   * threads. This is an aggregate number consisting of metrics from all
+   * worker threads.
+   *
+   * @return the number of fibers enqueued in the local queues
+   */
+  def getLocalQueueFiberCount: Int
 }

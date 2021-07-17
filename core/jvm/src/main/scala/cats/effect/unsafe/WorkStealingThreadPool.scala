@@ -578,4 +578,26 @@ private[effect] final class WorkStealingThreadPool(
    */
   def getBatchedQueueFiberCount: Int =
     batchedQueue.size() * OverflowBatchSize
+
+  /**
+   * Returns the number of fibers enqueued in the local queues of the worker
+   * threads. This is an aggregate number consisting of metrics from all
+   * worker threads.
+   *
+   * @note This method is a part of the
+   *       [[cats.effect.unsafe.metrics.ComputePoolSamplerMBean]] interface.
+   *
+   * @return the number of fibers enqueued in the local queues
+   */
+  def getLocalQueueFiberCount: Int = {
+    var i = 0
+    var count = 0
+
+    while (i < threadCount) {
+      count += localQueues(i).size()
+      i += 1
+    }
+
+    count
+  }
 }

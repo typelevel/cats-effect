@@ -676,6 +676,20 @@ private final class LocalQueue {
   def nonEmpty(): Boolean = !isEmpty()
 
   /**
+   * Returns the number of currently enqueued fibers in this queue.
+   *
+   * @note This number is an approximation and may not be correct while
+   *       stealing is taking place.
+   *
+   * @return the number of currently enqueued fibers in this queue
+   */
+  def size(): Int = {
+    val hd = head.get()
+    val tl = tailPublisher.get()
+    unsignedShortSubtraction(tl, lsb(hd))
+  }
+
+  /**
    * A ''plain'' load of the `tail` of the queue.
    *
    * Serves mostly as a forwarder method such that `tail` can remain
