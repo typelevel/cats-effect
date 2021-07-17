@@ -35,4 +35,12 @@ trait ComputePoolSamplerMBean {
    * @return the number of currently active worker threads
    */
   def getActiveThreadCount: Int
+
+  /**
+   * Returns the number of worker threads searching for fibers to steal from
+   * other worker threads.
+   *
+   * @return the number of worker threads searching for work
+   */
+  def getSearchingThreadCount: Int
 }

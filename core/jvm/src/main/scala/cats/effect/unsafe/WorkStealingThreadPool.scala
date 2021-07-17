@@ -519,4 +519,18 @@ private[effect] final class WorkStealingThreadPool(
     val st = state.get()
     (st & UnparkMask) >>> UnparkShift
   }
+
+  /**
+   * Returns the number of worker threads searching for work to steal from other
+   * worker threads.
+   *
+   * @note This method is a part of the
+   *       [[cats.effect.unsafe.metrics.ComputePoolSamplerMBean]] interface.
+   *
+   * @return the number of worker threads searching for work
+   */
+  private[unsafe] def getSearchingThreadCount: Int = {
+    val st = state.get()
+    st & SearchMask
+  }
 }
