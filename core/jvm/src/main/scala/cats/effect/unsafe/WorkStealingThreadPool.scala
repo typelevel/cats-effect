@@ -552,4 +552,16 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[unsafe] def getActiveHelperThreadCount: Int =
     activeHelperThreadGauge.get()
+
+  /**
+   * Returns the number of fibers enqueued on the overflow queue. This queue
+   * also accepts fibers scheduled for execution by external threads.
+   *
+   * @note This method is a part of the
+   *       [[cats.effect.unsafe.metrics.ComputePoolSamplerMBean]] interface.
+   *
+   * @return the number of fibers enqueued on the overflow queue
+   */
+  private[unsafe] def getOverflowQueueFiberCount: Int =
+    overflowQueue.size()
 }

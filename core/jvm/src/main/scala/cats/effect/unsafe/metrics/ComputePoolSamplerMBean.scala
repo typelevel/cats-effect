@@ -51,4 +51,12 @@ trait ComputePoolSamplerMBean {
    * @return the number of currently active helper threads
    */
   def getActiveHelperThreadCount: Int
+
+  /**
+   * Returns the number of fibers enqueued on the overflow queue. This queue
+   * also accepts fibers scheduled for execution by external threads.
+   *
+   * @return the number of fibers enqueued on the overflow queue
+   */
+  def getOverflowQueueFiberCount: Int
 }

@@ -173,6 +173,24 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     !isEmpty()
 
   /**
+   * Returns the number of elements enqueued on this Scal queue.
+   *
+   * @return the number of elements enqueued on this Scal queue
+   */
+  def size(): Int = {
+    val nq = numQueues
+    var i = 0
+    var result = 0
+
+    while (i < nq) {
+      result += queues(i).size()
+      i += 1
+    }
+
+    result
+  }
+
+  /**
    * Clears all concurrent queues that make up this Scal queue.
    */
   def clear(): Unit = {
