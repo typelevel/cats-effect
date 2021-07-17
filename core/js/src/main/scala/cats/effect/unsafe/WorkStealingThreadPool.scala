@@ -26,6 +26,8 @@ private[effect] sealed abstract class WorkStealingThreadPool private ()
     extends ExecutionContext {
   def execute(runnable: Runnable): Unit
   def reportFailure(cause: Throwable): Unit
+  private[effect] def registerSuspendedFiber(): Unit
+  private[effect] def deregisterSuspendedFiber(): Unit
   private[effect] def executeFiber(fiber: IOFiber[_]): Unit
   private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit
   private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit

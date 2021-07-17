@@ -77,4 +77,13 @@ trait ComputePoolSamplerMBean {
    * @return the number of fibers enqueued in the local queues
    */
   def getLocalQueueFiberCount: Int
+
+  /**
+   * Returns the number of suspended fibers (fibers whose asynchronous callback
+   * has not been executed yet. Includes fibers executing `IO.async` or
+   * `IO#sleep` calls.
+   *
+   * @return the number of suspended fibers
+   */
+  def getSuspendedFiberCount: Int
 }

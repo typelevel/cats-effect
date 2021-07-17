@@ -33,7 +33,7 @@ package unsafe
 import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, LongAdder}
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -109,6 +109,13 @@ private[effect] final class WorkStealingThreadPool(
    * spawned when the worker threads encounter blocking code.
    */
   private[this] val activeHelperThreadGauge: AtomicInteger = new AtomicInteger(0)
+
+  /**
+   * An atomic counter used for tracking the number of suspended fibers (fibers
+   * whose asynchronous callback has not been executed yet). Does not include
+   * fibers which have not started execution at all.
+   */
+  private[this] val suspendedFiberCounter: LongAdder = new LongAdder()
 
   /**
    * The shutdown latch of the work stealing thread pool.
@@ -348,6 +355,26 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
+   * Called by a fiber about to suspend execution waiting for its asynchronous
+   * callback to be executed.
+   */
+  private[effect] def registerSuspendedFiber(): Unit = {
+    if (MetricsConstants.metricsEnabled) {
+      suspendedFiberCounter.increment()
+    }
+  }
+
+  /**
+   * Called by a fiber about to resume execution waiting after its asynchronous
+   * callback has been executed.
+   */
+  private[effect] def deregisterSuspendedFiber(): Unit = {
+    if (MetricsConstants.metricsEnabled) {
+      suspendedFiberCounter.decrement()
+    }
+  }
+
+  /**
    * Executes a fiber on this thread pool.
    *
    * If the request comes from a [[WorkerThread]], the fiber is enqueued on the
@@ -576,7 +603,7 @@ private[effect] final class WorkStealingThreadPool(
    *
    * @return the number of fibers enqueued on the batched queue
    */
-  def getBatchedQueueFiberCount: Int =
+  private[unsafe] def getBatchedQueueFiberCount: Int =
     batchedQueue.size() * OverflowBatchSize
 
   /**
@@ -589,7 +616,7 @@ private[effect] final class WorkStealingThreadPool(
    *
    * @return the number of fibers enqueued in the local queues
    */
-  def getLocalQueueFiberCount: Int = {
+  private[unsafe] def getLocalQueueFiberCount: Int = {
     var i = 0
     var count = 0
 
@@ -600,4 +627,17 @@ private[effect] final class WorkStealingThreadPool(
 
     count
   }
+
+  /**
+   * Returns the number of suspended fibers (fibers whose asynchronous callback
+   * has not been executed yet. Includes fibers executing `IO.async` or
+   * `IO#sleep` calls.
+   *
+   * @note This method is a part of the
+   *       [[cats.effect.unsafe.metrics.ComputePoolSamplerMBean]] interface.
+   *
+   * @return the number of suspended fibers
+   */
+  private[unsafe] def getSuspendedFiberCount: Int =
+    suspendedFiberCounter.intValue()
 }
