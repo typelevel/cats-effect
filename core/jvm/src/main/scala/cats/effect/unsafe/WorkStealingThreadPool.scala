@@ -640,4 +640,22 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[unsafe] def getSuspendedFiberCount: Int =
     suspendedFiberCounter.intValue()
+
+  /**
+   * Returns the number of fibers currently assigned to the monitored compute
+   * pool. This includes fibers enqueued on the local queues, the batched queue,
+   * the overflow queue and suspended fibers.
+   *
+   * @note This method is a part of the
+   *       [[cats.effect.unsafe.metrics.ComputePoolSamplerMBean]] interface.
+   *
+   * @return the number of fibers currently assigned to the compute pool
+   */
+  private[unsafe] def getActiveFiberCount: Int = {
+    val r1 = getLocalQueueFiberCount
+    val r2 = getBatchedQueueFiberCount
+    val r3 = getOverflowQueueFiberCount
+    val r4 = getSuspendedFiberCount
+    r1 + r2 + r3 + r4
+  }
 }

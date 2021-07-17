@@ -86,4 +86,13 @@ trait ComputePoolSamplerMBean {
    * @return the number of suspended fibers
    */
   def getSuspendedFiberCount: Int
+
+  /**
+   * Returns the number of fibers currently assigned to the monitored compute
+   * pool. This includes fibers enqueued on the local queues, the batched queue,
+   * the overflow queue and suspended fibers.
+   *
+   * @return the number of fibers currently assigned to the compute pool
+   */
+  def getActiveFiberCount: Int
 }
