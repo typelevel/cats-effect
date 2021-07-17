@@ -59,4 +59,13 @@ trait ComputePoolSamplerMBean {
    * @return the number of fibers enqueued on the overflow queue
    */
   def getOverflowQueueFiberCount: Int
+
+  /**
+   * Returns the number of fibers enqueued on the batched queue. This queue
+   * holds batches of fibers for more efficient transfer between worker threads.
+   * Each batch contains `129` fibers.
+   *
+   * @return the number of fibers enqueued on the batched queue
+   */
+  def getBatchedQueueFiberCount: Int
 }

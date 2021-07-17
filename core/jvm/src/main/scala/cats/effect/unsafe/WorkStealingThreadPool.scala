@@ -59,6 +59,7 @@ private[effect] final class WorkStealingThreadPool(
     self0: => IORuntime
 ) extends ExecutionContext {
 
+  import LocalQueueConstants.OverflowBatchSize
   import WorkStealingThreadPoolConstants._
 
   /**
@@ -564,4 +565,17 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[unsafe] def getOverflowQueueFiberCount: Int =
     overflowQueue.size()
+
+  /**
+   * Returns the number of fibers enqueued on the batched queue. This queue
+   * holds batches of fibers for more efficient transfer between worker threads.
+   * Each batch contains `129` fibers.
+   *
+   * @note This method is a part of the
+   *       [[cats.effect.unsafe.metrics.ComputePoolSamplerMBean]] interface.
+   *
+   * @return the number of fibers enqueued on the batched queue
+   */
+  def getBatchedQueueFiberCount: Int =
+    batchedQueue.size() * OverflowBatchSize
 }
