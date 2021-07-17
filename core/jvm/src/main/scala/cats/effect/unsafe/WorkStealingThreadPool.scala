@@ -545,6 +545,13 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
+   * A forwarder method to `localQueues`.
+   *
+   * @return a reference to the global array of local queues
+   */
+  private[unsafe] def getLocalQueues: Array[LocalQueue] = localQueues
+
+  /**
    * Returns the number of worker threads in this thread pool.
    *
    * @note This method is a part of the

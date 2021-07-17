@@ -16,7 +16,7 @@
 
 package cats.effect.unsafe
 
-import cats.effect.unsafe.metrics.ComputePoolSampler
+import cats.effect.unsafe.metrics.{ComputePoolSampler, LocalQueueSampler}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -61,12 +61,26 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
         if (mBeanServer ne null) {
           val computePoolSamplerName =
-            new ObjectName("cats.effect.metrics:type=ComputePoolSampler")
+            new ObjectName("cats.effect.unsafe.metrics:type=ComputePoolSampler")
           val computePoolSampler = new ComputePoolSampler(threadPool)
 
           try {
             mBeanServer.registerMBean(computePoolSampler, computePoolSamplerName)
             registeredObjects += computePoolSamplerName
+
+            val localQueues = threadPool.getLocalQueues
+            val len = localQueues.length
+            var i = 0
+            while (i < len) {
+              val localQueueSamplerName = new ObjectName(
+                s"cats.effect.unsafe.metrics:type=LocalPoolSampler-$i")
+              val localQueueSampler = new LocalQueueSampler(localQueues(i))
+
+              mBeanServer.registerMBean(localQueueSampler, localQueueSamplerName)
+              registeredObjects += localQueueSamplerName
+
+              i += 1
+            }
           } catch {
             case t: Throwable =>
               t.printStackTrace()
