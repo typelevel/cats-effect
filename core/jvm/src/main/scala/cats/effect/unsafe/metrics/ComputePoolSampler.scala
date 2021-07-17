@@ -23,7 +23,8 @@ package metrics
  * default [[cats.effect.unsafe.IORuntime]] compute pool backed by a
  * `cats.effect.unsafe.WorkStealingThreadPool`.
  */
-final class ComputePoolSampler(pool: WorkStealingThreadPool) extends ComputePoolSamplerMBean {
+private[unsafe] final class ComputePoolSampler(pool: WorkStealingThreadPool)
+    extends ComputePoolSamplerMBean {
   def getWorkerThreadCount: Int = pool.getWorkerThreadCount
   def getActiveThreadCount: Int = pool.getActiveThreadCount
   def getSearchingThreadCount: Int = pool.getSearchingThreadCount

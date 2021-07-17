@@ -19,4 +19,4 @@ package cats.effect.unsafe.metrics
 /**
  * An MBean interface for monitoring a single worker thread local queue.
  */
-trait LocalQueueSamplerMBean
+private[unsafe] trait LocalQueueSamplerMBean

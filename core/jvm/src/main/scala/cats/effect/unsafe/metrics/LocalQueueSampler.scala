@@ -17,7 +17,8 @@
 package cats.effect.unsafe
 package metrics
 
-final class LocalQueueSampler(queue: LocalQueue) extends LocalQueueSamplerMBean {
+private[unsafe] final class LocalQueueSampler(queue: LocalQueue)
+    extends LocalQueueSamplerMBean {
   locally {
     val _ = queue
   }
