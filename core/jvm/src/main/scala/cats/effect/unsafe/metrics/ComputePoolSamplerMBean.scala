@@ -95,4 +95,12 @@ trait ComputePoolSamplerMBean {
    * @return the number of fibers currently assigned to the compute pool
    */
   def getActiveFiberCount: Int
+
+  /**
+   * Returns the total number of fibers started on the compute pool during its
+   * whole lifetime.
+   *
+   * @return the total number of fibers started on the compute pool
+   */
+  def getLifetimeFiberCount: Long
 }

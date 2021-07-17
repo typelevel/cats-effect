@@ -33,4 +33,5 @@ final class ComputePoolSampler(pool: WorkStealingThreadPool) extends ComputePool
   def getLocalQueueFiberCount: Int = pool.getLocalQueueFiberCount
   def getSuspendedFiberCount: Int = pool.getSuspendedFiberCount
   def getActiveFiberCount: Int = pool.getActiveFiberCount
+  def getLifetimeFiberCount: Long = pool.getLifetimeFiberCount
 }

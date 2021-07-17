@@ -118,6 +118,12 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val suspendedFiberGauge: LongAdder = new LongAdder()
 
   /**
+   * An atomic counter used for tracking the number of fibers started on this
+   * pool during its whole lifetime.
+   */
+  private[this] val lifetimeFiberGauge: LongAdder = new LongAdder()
+
+  /**
    * The shutdown latch of the work stealing thread pool.
    */
   private[this] val done: AtomicBoolean = new AtomicBoolean(false)
@@ -371,6 +377,12 @@ private[effect] final class WorkStealingThreadPool(
   private[effect] def deregisterSuspendedFiber(): Unit = {
     if (MetricsConstants.metricsEnabled) {
       suspendedFiberGauge.decrement()
+    }
+  }
+
+  private[effect] def recordStartedFiber(): Unit = {
+    if (MetricsConstants.metricsEnabled) {
+      lifetimeFiberGauge.increment()
     }
   }
 
@@ -658,4 +670,16 @@ private[effect] final class WorkStealingThreadPool(
     val r4 = getSuspendedFiberCount
     r1 + r2 + r3 + r4
   }
+
+  /**
+   * Returns the total number of fibers started on the compute pool during its
+   * whole lifetime.
+   *
+   * @note This method is a part of the
+   *       [[cats.effect.unsafe.metrics.ComputePoolSamplerMBean]] interface.
+   *
+   * @return the total number of fibers started on the compute pool
+   */
+  private[unsafe] def getLifetimeFiberCount: Long =
+    lifetimeFiberGauge.longValue()
 }

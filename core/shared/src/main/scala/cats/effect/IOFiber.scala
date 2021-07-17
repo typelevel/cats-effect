@@ -1151,7 +1151,10 @@ private final class IOFiber[A](
   private[this] def execR(): Unit = {
     // println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
 
-    resumeTag = DoneR
+    if (currentCtx.isInstanceOf[WorkStealingThreadPool]) {
+      currentCtx.asInstanceOf[WorkStealingThreadPool].recordStartedFiber()
+    }
+
     if (canceled) {
       done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
     } else {
