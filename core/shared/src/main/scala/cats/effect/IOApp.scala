@@ -137,6 +137,10 @@ package cats.effect
  */
 trait IOApp extends IOAppPlatform {
 
+  {   // trick to force the synthesis of $init$ for bincompat
+    runtimeConfig
+  }
+
   /**
    * The entry point for your application. Will be called by the runtime
    * when the process is started. If the underlying runtime supports it,
