@@ -24,8 +24,7 @@ that a fiber executes during its lifetime, and knitting them together to produce
 a more coherent view of the fiber's execution path.
 
 However, fiber tracing isn't limited to just collecting and assembling
-meaningful stack traces. In fact, the first release of tracing support for the
-Cats Effect 3 release comes with the following features:
+meaningful stack traces:
 
 1. **Asynchronous stack tracing**. This is essentially what is described above,
 where stack frames are collected across asynchronous boundaries for a given
@@ -38,17 +37,16 @@ constructors such as `async`, which is a complex composition of many lower level
 implementation details, none of which are present in the final stack trace, as
 they are not relevant to the user.
 3. **JVM and GC safe trace information cache**. The trace information caching
-mechanism of Cats Effect 3 has been completely rewritten to take advantage of
-the `java.lang.ClassValue` platform APIs, a JVM-native caching solution with
-several appealing properties:
-   - Class-loader safety -- for the first time ever, long-running Cats Effect
-   applications fully respect dynamic class-loading environments, promptly
-   releasing references to unloaded classes when instructed by the JVM runtime,
-   thus helping with GC.
+mechanism of Cats Effect was completely rewritten in version 3.2 to take
+advantage of the `java.lang.ClassValue` platform APIs, a JVM-native caching
+solution with several appealing properties:
+   - Class-loader safety -- long-running Cats Effect applications fully respect
+   dynamic class-loading environments, promptly releasing references to unloaded
+   classes when instructed by the JVM runtime, thus helping with GC.
    - Lock-free caching data structures natively optimized by the JIT compiler
    for maximum performance. During the development of the cached asynchronous
-   stack tracing feature for Cats Effect 3, it was measured that the switch to
-   the JVM platform APIs resulted in a 5-10% (application dependent) performance
+   stack tracing feature for Cats Effect, it was measured that the switch to the
+   JVM platform APIs resulted in a 5-10% (application dependent) performance
    improvement compared to the previous tracing cache implementation.
 4. **Improvements to the full stack tracing performance**. With Cats Effect 3
 being a complete code rewrite of the project as a whole, we were able to revisit
@@ -77,8 +75,8 @@ being presented to the user.
 
 As a note of caution, fiber tracing generally introduces overhead to
 applications in the form of higher CPU usage, memory and GC pressure. Always
-remember to performance test your specific application with tracing enabled
-before deploying it to a production environment!
+remember to performance test your specific application with and without tracing
+enabled before deploying it to a production environment!
 
 ## Asynchronous stack tracing
 
@@ -107,7 +105,10 @@ specify the following system properties:
 ## Stack tracing modes
 
 ### `none`
-No tracing is instrumented by the program and thus incurs no performance impact.
+Tracing is fully disabled and all performance impacts are negated. Outside of
+some extremely small (~8-16 bytes) object footprint differences, this should be
+exactly identical to a hypothetical `IO` run-loop which lacks any support for
+tracing.
 
 ### `cached`
 When cached stack tracing is enabled, a stack trace is captured and cached for
@@ -127,8 +128,26 @@ Again, we strongly recommend benchmarking applications that make use of tracing,
 in order to avoid surprises and to get a realistic picture of the specific
 impact on your application.
 
-This is the recommended stack tracing mode to run in most production
-applications and is enabled by default.
+It's also worth qualifying the above numbers slightly. A "30% performance
+degradation" in this case is defined relative to `IO`'s evaluation *without any
+support for tracing*. This performance bar is extremely high, meaning that the
+absolute (as opposed to relative) difference between "tracing" and "no tracing
+at all" is measured in micro- and nanoseconds in most cases. To put all of this
+in perspective, even with tracing, `IO`'s evaluation is still multiple orders of
+magnitude faster than the equivalent program written using Scala's `Future` when
+measured using the same highly-synthetic benchmarks. All of which is not to say
+that `Future` is slow, but rather that these benchmarks are attempting to
+magnify even the slightest differences in `IO`'s performance and are not
+representative of most real-world scenarios.
+
+When tracing was first introduced in Cats Effect 2, its absolute performance
+impact was considerably higher than the impact of the rewritten implementation
+in Cats Effect 3.2. Despite this, even extremely performance-sensitive real
+world applications subjected to intensive benchmarking and stress testing did
+not observe differences in top-line metrics.
+
+It is for this reason that `cached` tracing is on by default, and is the
+recommended mode even when running in production.
 
 ### `full`
 As with cached stack tracing, when full stack tracing is enabled, a stack trace
@@ -140,8 +159,8 @@ performance hit. This mode is mainly useful for debugging in development
 environments.
 
 ## Enhanced exceptions
-The stack trace of an exception caught by the Cats Effect 3 `IO` runtime looks
-similar to the following:
+Without tracing, the stack trace of an exception caught by the `IO` runtime
+often looks similar to the following:
 ```
 Exception in thread "main" java.lang.Throwable: Boom!
         at Example$.$anonfun$program$5(Main.scala:23)
@@ -233,7 +252,7 @@ It can be disabled with the following configuration:
 
 ### Complete code
 Here is the code snippet that was used to generate the above examples:
-```scala
+```scala mdoc
 // Pass the following system property to your JVM:
 // -Dcats.effect.stackTracingMode=full
 // -Dcats.effect.traceBufferLogSize=6
