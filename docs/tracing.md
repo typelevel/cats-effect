@@ -257,8 +257,7 @@ Here is the code snippet that was used to generate the above examples:
 // -Dcats.effect.stackTracingMode=full
 // -Dcats.effect.traceBufferLogSize=6
 
-import cats.effect.{ExitCode, IO, IOApp}
-import cats.syntax.all._
+import cats.effect.{IO, IOApp}
 
 import scala.util.Random
 
