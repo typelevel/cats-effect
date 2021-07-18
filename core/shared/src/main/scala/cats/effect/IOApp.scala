@@ -137,7 +137,7 @@ package cats.effect
  */
 trait IOApp extends IOAppPlatform {
 
-  {   // trick to force the synthesis of $init$ for bincompat
+  { // trick to force the synthesis of $init$ for bincompat
     runtimeConfig
   }
 
