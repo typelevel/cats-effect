@@ -21,8 +21,8 @@ import cats.data.Kleisli
 import cats.syntax.all._
 import cats.effect.kernel.instances.spawn
 import cats.effect.kernel.implicits._
-
 import scala.annotation.tailrec
+import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
@@ -473,6 +473,96 @@ sealed abstract class Resource[F[_], +A] {
     new (F ~> F) {
       override def apply[B](gb: F[B]): F[B] = surround(gb)
     }
+
+  def forceR[B](that: Resource[F, B])(implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
+    Resource applyFull { poll =>
+      poll(this.use_ !> that.allocated) map { p =>
+        // map exists on tuple in Scala 3 and has the wrong type
+        Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+      }
+    }
+
+  def onCancel(fin: Resource[F, Unit])(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
+    Resource applyFull { poll =>
+      poll(this.allocated).onCancel(fin.use_) map { p =>
+        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+      }
+    }
+
+  /*
+   * 1. If the scope containing the *fiber* terminates:
+   *   a) if the fiber is incomplete, run its inner finalizers when it completes
+   *   b) if the fiber is succeeded, run its finalizers
+   * 2. If the fiber is canceled or errored, finalize
+   * 3. If the fiber succeeds and .cancel won the race, finalize eagerly and
+   *    `join` results in `Canceled()`
+   * 4. If the fiber succeeds and .cancel lost the race or wasn't called,
+   *    finalize naturally when the containing scope ends, `join` returns
+   *    the value
+   */
+  def start(implicit F: GenConcurrent[F, Throwable]): Resource[F, Fiber[Resource[F, *], Throwable, A@uncheckedVariance]] = {
+    final case class State(fin: F[Unit] = F.unit, finalizeOnComplete: Boolean = false)
+
+    Resource {
+      import Outcome._
+
+      F.ref[State](State()) flatMap { state =>
+        val finalized: F[Option[A]] = F uncancelable { poll =>
+          val ff: F[F[Option[A]]] =
+            poll(this.allocated) flatMap { // intentionally short-circuits in case of cancelation or error
+              case (a, rel) =>
+                state modify { s =>
+                  if (s.finalizeOnComplete)
+                    (s, rel.attempt.as(None))
+                  else
+                    (s.copy(fin = rel), F.pure(Some(a)))
+                }
+            }
+
+          ff.flatten
+        }
+
+        F.start(finalized) map { outer =>
+          val fiber = new Fiber[Resource[F, *], Throwable, A] {
+
+            def cancel =
+              Resource eval {
+                F uncancelable { poll =>
+                  // technically cancel is uncancelable, but separation of concerns and what not
+                  poll(outer.cancel) *> state.update(_.copy(finalizeOnComplete = true))
+                }
+              }
+
+            def join =
+              Resource eval {
+                outer.join.flatMap[Outcome[Resource[F, *], Throwable, A]] {
+                  case Canceled() =>
+                    Outcome.canceled[Resource[F, *], Throwable, A].pure[F]
+
+                  case Errored(e) =>
+                    Outcome.errored[Resource[F, *], Throwable, A](e).pure[F]
+
+                  case Succeeded(fp) =>
+                    fp map {
+                      case Some(a) =>
+                        a.pure[Outcome[Resource[F, *], Throwable, *]]
+
+                      case None =>
+                        Outcome.canceled[Resource[F, *], Throwable, A]
+                    }
+                }
+              }
+          }
+
+          val finalizeOuter =
+            state.modify(s => (s.copy(finalizeOnComplete = true), s.fin)).flatten
+
+          (fiber, finalizeOuter)
+        }
+      }
+    }
+  }
+
 }
 
 object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with ResourcePlatform {
@@ -682,6 +772,49 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
       rfb: Resource[F, B]
   ): Resource[F, Either[A, B]] =
     rfa.race(rfb)
+
+  def canceled[F[_]](implicit F: MonadCancel[F, Throwable]): Resource[F, Unit] =
+    Resource.eval(F.canceled)
+
+  def forceR[F[_], A, B](fa: Resource[F, A])(fb: Resource[F, B])(implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
+    fa.forceR(fb)
+
+  def onCancel[F[_], A](fa: Resource[F, A], fin: Resource[F, Unit])(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
+    fa.onCancel(fin)
+
+  def uncancelable[F[_], A](body: Poll[Resource[F, *]] => Resource[F, A])(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
+    Resource applyFull { poll =>
+      val inner = new Poll[Resource[F, *]] {
+        def apply[B](rfb: Resource[F, B]): Resource[F, B] =
+          Resource applyFull { innerPoll =>
+            innerPoll(poll(rfb.allocated)) map { p =>
+              Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+            }
+          }
+      }
+
+      body(inner).allocated map { p =>
+        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+      }
+    }
+
+  def unique[F[_]](implicit F: Unique[F]): Resource[F, Unique.Token] =
+    Resource.eval(F.unique)
+
+  def never[F[_], A](implicit F: GenSpawn[F, Throwable]): Resource[F, A] =
+    Resource.eval(F.never[A])
+
+  def cede[F[_]](implicit F: GenSpawn[F, Throwable]): Resource[F, Unit] =
+    Resource.eval(F.cede)
+
+  def start[F[_], A](fa: Resource[F, A])(implicit F: GenConcurrent[F, Throwable]): Resource[F, Fiber[Resource[F, *], Throwable, A]] =
+    fa.start
+
+  def deferred[F[_], A](implicit F: GenConcurrent[F, Throwable]): Resource[F, Deferred[Resource[F, *], A]] =
+    Resource.eval(F.deferred[A]).map(_.mapK(Resource.liftK[F]))
+
+  def ref[F[_], A](a: A)(implicit F: GenConcurrent[F, Throwable]): Resource[F, Ref[Resource[F, *], A]] =
+    Resource.eval(F.ref(a)).map(_.mapK(Resource.liftK[F]))
 
   /**
    * Creates a [[Resource]] by wrapping a Java
@@ -920,39 +1053,16 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
     with MonadCancel[Resource[F, *], Throwable] {
   implicit protected def F: MonadCancel[F, Throwable]
 
-  def canceled: Resource[F, Unit] =
-    Resource.eval(F.canceled)
+  def canceled: Resource[F, Unit] = Resource.canceled
 
   def forceR[A, B](fa: Resource[F, A])(fb: Resource[F, B]): Resource[F, B] =
-    Resource applyFull { poll =>
-      poll(fa.use_ !> fb.allocated) map { p =>
-        // map exists on tuple in Scala 3 and has the wrong type
-        Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
-    }
+    Resource.forceR(fa)(fb)
 
   def onCancel[A](fa: Resource[F, A], fin: Resource[F, Unit]): Resource[F, A] =
-    Resource applyFull { poll =>
-      poll(fa.allocated).onCancel(fin.use_) map { p =>
-        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
-    }
+    Resource.onCancel(fa, fin)
 
   def uncancelable[A](body: Poll[Resource[F, *]] => Resource[F, A]): Resource[F, A] =
-    Resource applyFull { poll =>
-      val inner = new Poll[Resource[F, *]] {
-        def apply[B](rfb: Resource[F, B]): Resource[F, B] =
-          Resource applyFull { innerPoll =>
-            innerPoll(poll(rfb.allocated)) map { p =>
-              Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-            }
-          }
-      }
-
-      body(inner).allocated map { p =>
-        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
-    }
+    Resource.uncancelable(body)
 }
 
 // note: Spawn alone isn't possible since we need Concurrent to implement start
@@ -961,94 +1071,20 @@ abstract private[effect] class ResourceConcurrent[F[_]]
     with GenConcurrent[Resource[F, *], Throwable] {
   implicit protected def F: Concurrent[F]
 
-  def unique: Resource[F, Unique.Token] =
-    Resource.eval(F.unique)
+  def unique: Resource[F, Unique.Token] = Resource.unique
 
-  def never[A]: Resource[F, A] =
-    Resource.eval(F.never[A])
+  def never[A]: Resource[F, A] = Resource.never
 
-  def cede: Resource[F, Unit] =
-    Resource.eval(F.cede)
+  def cede: Resource[F, Unit] = Resource.cede
 
-  /*
-   * 1. If the scope containing the *fiber* terminates:
-   *   a) if the fiber is incomplete, run its inner finalizers when it completes
-   *   b) if the fiber is succeeded, run its finalizers
-   * 2. If the fiber is canceled or errored, finalize
-   * 3. If the fiber succeeds and .cancel won the race, finalize eagerly and
-   *    `join` results in `Canceled()`
-   * 4. If the fiber succeeds and .cancel lost the race or wasn't called,
-   *    finalize naturally when the containing scope ends, `join` returns
-   *    the value
-   */
-  def start[A](fa: Resource[F, A]): Resource[F, Fiber[Resource[F, *], Throwable, A]] = {
-    final case class State(fin: F[Unit] = F.unit, finalizeOnComplete: Boolean = false)
-
-    Resource {
-      import Outcome._
-
-      F.ref[State](State()) flatMap { state =>
-        val finalized: F[Option[A]] = F uncancelable { poll =>
-          val ff: F[F[Option[A]]] =
-            poll(fa.allocated) flatMap { // intentionally short-circuits in case of cancelation or error
-              case (a, rel) =>
-                state modify { s =>
-                  if (s.finalizeOnComplete)
-                    (s, rel.attempt.as(None))
-                  else
-                    (s.copy(fin = rel), F.pure(Some(a)))
-                }
-            }
-
-          ff.flatten
-        }
-
-        F.start(finalized) map { outer =>
-          val fiber = new Fiber[Resource[F, *], Throwable, A] {
-
-            def cancel =
-              Resource eval {
-                F uncancelable { poll =>
-                  // technically cancel is uncancelable, but separation of concerns and what not
-                  poll(outer.cancel) *> state.update(_.copy(finalizeOnComplete = true))
-                }
-              }
-
-            def join =
-              Resource eval {
-                outer.join.flatMap[Outcome[Resource[F, *], Throwable, A]] {
-                  case Canceled() =>
-                    Outcome.canceled[Resource[F, *], Throwable, A].pure[F]
-
-                  case Errored(e) =>
-                    Outcome.errored[Resource[F, *], Throwable, A](e).pure[F]
-
-                  case Succeeded(fp) =>
-                    fp map {
-                      case Some(a) =>
-                        a.pure[Outcome[Resource[F, *], Throwable, *]]
-
-                      case None =>
-                        Outcome.canceled[Resource[F, *], Throwable, A]
-                    }
-                }
-              }
-          }
-
-          val finalizeOuter =
-            state.modify(s => (s.copy(finalizeOnComplete = true), s.fin)).flatten
-
-          (fiber, finalizeOuter)
-        }
-      }
-    }
-  }
+  def start[A](fa: Resource[F, A]): Resource[F, Fiber[Resource[F, *], Throwable, A]] =
+    fa.start
 
   def deferred[A]: Resource[F, Deferred[Resource[F, *], A]] =
-    Resource.eval(F.deferred[A]).map(_.mapK(Resource.liftK[F]))
+    Resource.deferred
 
   def ref[A](a: A): Resource[F, Ref[Resource[F, *], A]] =
-    Resource.eval(F.ref(a)).map(_.mapK(Resource.liftK[F]))
+    Resource.ref(a)
 
   override def both[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, (A, B)] =
     Resource.both(fa, fb)
