@@ -16,6 +16,10 @@
 
 package cats.effect
 
+import scala.concurrent.CancellationException
+import scala.concurrent.duration._
+import scala.scalajs.js
+
 /**
  * The primary entry point to a Cats Effect application. Extend this
  * trait rather than defining your own `main` method. This avoids the
@@ -135,11 +139,35 @@ package cats.effect
  * @see [[ResourceApp]]
  * @see [[IOApp.Simple]]
  */
-trait IOApp extends IOAppPlatform {
+trait IOApp {
 
-  { // trick to force the synthesis of $init$ for bincompat
-    runtimeConfig
-  }
+  private[this] var _runtime: unsafe.IORuntime = null
+
+  /**
+   * The runtime which will be used by `IOApp` to evaluate the
+   * [[IO]] produced by the `run` method. This may be overridden
+   * by `IOApp` implementations which have extremely specialized
+   * needs, but this is highly unlikely to ever be truly needed.
+   * As an example, if an application wishes to make use of an
+   * alternative compute thread pool (such as `Executors.fixedThreadPool`),
+   * it is almost always better to leverage [[IO.evalOn]] on the value
+   * produced by the `run` method, rather than directly overriding
+   * `runtime`.
+   *
+   * In other words, this method is made available to users, but its
+   * use is strongly discouraged in favor of other, more precise
+   * solutions to specific use-cases.
+   *
+   * This value is guaranteed to be equal to [[unsafe.IORuntime.global]].
+   */
+  protected def runtime: unsafe.IORuntime = _runtime
+
+  /**
+   * The configuration used to initialize the [[runtime]] which will
+   * evaluate the [[IO]] produced by `run`. It is very unlikely that
+   * users will need to override this method.
+   */
+  protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
   /**
    * The entry point for your application. Will be called by the runtime
@@ -156,6 +184,66 @@ trait IOApp extends IOAppPlatform {
    * @see [[IOApp.Simple!.run:cats\.effect\.IO[Unit]*]]
    */
   def run(args: List[String]): IO[ExitCode]
+
+  final def main(args: Array[String]): Unit = {
+    if (runtime == null) {
+      import unsafe.IORuntime
+
+      IORuntime installGlobal {
+        IORuntime(
+          IORuntime.defaultComputeExecutionContext,
+          IORuntime.defaultComputeExecutionContext,
+          IORuntime.defaultScheduler,
+          () => (),
+          runtimeConfig)
+      }
+
+      _runtime = IORuntime.global
+    }
+
+    // An infinite heartbeat to keep main alive.  This is similar to
+    // `IO.never`, except `IO.never` doesn't schedule any tasks and is
+    // insufficient to keep main alive.  The tick is fast enough that
+    // it isn't silently discarded, as longer ticks are, but slow
+    // enough that we don't interrupt often.  1 hour was chosen
+    // empirically.
+    lazy val keepAlive: IO[Nothing] =
+      IO.sleep(1.hour) >> keepAlive
+
+    val argList =
+      if (js.typeOf(js.Dynamic.global.process) != "undefined" && js.typeOf(
+          js.Dynamic.global.process.argv) != "undefined")
+        js.Dynamic.global.process.argv.asInstanceOf[js.Array[String]].toList.drop(2)
+      else
+        args.toList
+
+    Spawn[IO]
+      .raceOutcome[ExitCode, Nothing](run(argList), keepAlive)
+      .flatMap {
+        case Left(Outcome.Canceled()) =>
+          IO.raiseError(new CancellationException("IOApp main fiber was canceled"))
+        case Left(Outcome.Errored(t)) => IO.raiseError(t)
+        case Left(Outcome.Succeeded(code)) => code
+        case Right(Outcome.Errored(t)) => IO.raiseError(t)
+        case Right(_) => sys.error("impossible")
+      }
+      .unsafeRunAsync({
+        case Left(t) =>
+          t match {
+            case _: CancellationException =>
+              // Do not report cancelation exceptions but still exit with an error code.
+              reportExitCode(ExitCode(1))
+            case t: Throwable =>
+              throw t
+          }
+        case Right(code) => reportExitCode(code)
+      })(runtime)
+  }
+
+  private[this] def reportExitCode(code: ExitCode): Unit =
+    if (js.typeOf(js.Dynamic.global.process) != "undefined") {
+      js.Dynamic.global.process.exitCode = code.code
+    }
 }
 
 object IOApp {

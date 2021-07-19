@@ -312,14 +312,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Delay"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.apply"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.copy"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.this"),
-      // these appear to be a bug in mima, since they're actually still present by inheritence
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOApp.runtime"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOApp.runtimeConfig"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOApp.computeWorkerThreadCount"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOApp.main")
-    )
-  )
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.this")))
   .jvmSettings(
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
   )
