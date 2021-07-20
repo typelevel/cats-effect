@@ -104,7 +104,7 @@ import scala.util.{Failure, Success, Try}
  *   }
  * }}}
  *
- * @see [[IOApp]]
+ * @see [[IOApp]] for the preferred way of executing whole programs wrapped in `IO`
  */
 sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
@@ -124,7 +124,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * the other action won't run. Not suitable for use when the parameter
    * is a recursive reference to the current expression.
    *
-   * @see [[>>]]
+   * @see [[>>]] for the recursion-safe, lazily evaluated alternative
    */
   def *>[B](that: IO[B]): IO[B] =
     productR(that)
@@ -135,7 +135,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * If the source fails, the other action won't run. Evaluation of the
    * parameter is done lazily, making this suitable for recursion.
    *
-   * @see [*>]
+   * @see [*>] for the strictly evaluated alternative
    */
   def >>[B](that: => IO[B]): IO[B] =
     flatMap(_ => that)
@@ -188,8 +188,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * the outcomes. Both outcomes are produced, regardless of whether
    * they complete successfully.
    *
-   * @see [[both]]
-   * @see [[raceOutcome]]
+   * @see [[both]] for the version which embeds the outcomes to produce a pair
+   *               of the results
+   * @see [[raceOutcome]] for the version which produces the outcome of the
+   *                      winner and cancels the loser of the race
    */
   def bothOutcome[B](that: IO[B]): IO[(OutcomeIO[A @uncheckedVariance], OutcomeIO[B])] =
     IO.uncancelable { poll =>
@@ -204,8 +206,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * the results. If either fails with an error, the result of the whole
    * will be that error and the other will be canceled.
    *
-   * @see [[bothOutcome]]
-   * @see [[race]]
+   * @see [[bothOutcome]] for the version which produces the outcome of both
+   *                      effects executed in parallel
+   * @see [[race]] for the version which produces the result of the winner and
+   *               cancels the loser of the race
    */
   def both[B](that: IO[B]): IO[(A, B)] =
     IO.both(this, that)
@@ -357,7 +361,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * use of `evalOn` will override the specified pool. Once the execution fully
    * completes, default control will be shifted back to the enclosing (inherited) pool.
    *
-   * @see [[IO.executionContext]]
+   * @see [[IO.executionContext]] for obtaining the `ExecutionContext` on which
+   *                              the current `IO` is being executed
    */
   def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
 
@@ -643,7 +648,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Makes the source `IO` uninterruptible such that a [[cats.effect.kernel.Fiber#cancel]]
    * signal is ignored until completion.
    *
-   * @see [[IO.uncancelable]]
+   * @see [[IO.uncancelable]] for constructing uncancelable `IO` values with
+   *                          user-configurable cancelable regions
    */
   def uncancelable: IO[A] =
     IO.uncancelable(_ => this)
@@ -1014,14 +1020,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   /**
    * An IO that contains an empty Option.
    *
-   * @see [[some]]
+   * @see [[some]] for the non-empty Option variant
    */
   def none[A]: IO[Option[A]] = pure(None)
 
   /**
    * An IO that contains some Option of the given value.
    *
-   * @see [[none]]
+   * @see [[none]] for the empty Option variant
    */
   def some[A](a: A): IO[Option[A]] = pure(Some(a))
 
