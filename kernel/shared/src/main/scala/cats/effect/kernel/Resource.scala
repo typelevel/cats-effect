@@ -500,7 +500,8 @@ sealed abstract class Resource[F[_], +A] {
    *    finalize naturally when the containing scope ends, `join` returns
    *    the value
    */
-  def start(implicit F: GenConcurrent[F, Throwable]): Resource[F, Fiber[Resource[F, *], Throwable, A@uncheckedVariance]] = {
+  def start(implicit F: GenConcurrent[F, Throwable])
+      : Resource[F, Fiber[Resource[F, *], Throwable, A @uncheckedVariance]] = {
     final case class State(fin: F[Unit] = F.unit, finalizeOnComplete: Boolean = false)
 
     Resource {
@@ -562,6 +563,59 @@ sealed abstract class Resource[F[_], +A] {
       }
     }
   }
+
+  def evalOn(ec: ExecutionContext)(implicit F: Async[F]): Resource[F, A] =
+    Resource applyFull { poll =>
+      poll(this.allocated).evalOn(ec) map { p =>
+        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+      }
+    }
+
+  def attempt[E](implicit F: MonadError[F, E]): Resource[F, Either[E, A]] =
+    this match {
+      case Allocate(resource) =>
+        Resource.applyFull { poll =>
+          resource(poll).attempt.map {
+            case Left(error) => (Left(error), (_: ExitCase) => F.unit)
+            case Right((a, release)) => (Right(a), release)
+          }
+        }
+      case Bind(source, f) =>
+        MonadError[Resource[F, *], E].attempt(source).flatMap {
+          case Left(error) => Resource.pure(error.asLeft)
+          case Right(s) => f(s).attempt
+        }
+      case p @ Pure(_) =>
+        Resource.pure(p.a.asRight)
+      case e @ Eval(_) =>
+        Resource.eval(e.fa.attempt)
+    }
+
+  def handleErrorWith[E](f: E => Resource[F, A @uncheckedVariance])(
+      implicit F: MonadError[F, E]): Resource[F, A] =
+    attempt.flatMap {
+      case Right(a) => Resource.pure(a)
+      case Left(e) => f(e)
+    }
+
+  def combine(that: Resource[F, A @uncheckedVariance])(
+      implicit F: Monad[F],
+      A: Semigroup[A @uncheckedVariance]): Resource[F, A] =
+    for {
+      x <- this
+      y <- that
+    } yield A.combine(x, y)
+
+  def combineK(that: Resource[F, A @uncheckedVariance])(
+      implicit F: MonadCancel[F, Throwable],
+      K: SemigroupK[F],
+      G: Ref.Make[F]): Resource[F, A] =
+    Resource.make(Ref[F].of(F.unit))(_.get.flatten).evalMap { finalizers =>
+      def allocate(r: Resource[F, A]): F[A] =
+        r.fold(_.pure[F], (release: F[Unit]) => finalizers.update(_.guarantee(release)))
+
+      K.combineK(allocate(this), allocate(that))
+    }
 
 }
 
@@ -773,49 +827,6 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
   ): Resource[F, Either[A, B]] =
     rfa.race(rfb)
 
-  def canceled[F[_]](implicit F: MonadCancel[F, Throwable]): Resource[F, Unit] =
-    Resource.eval(F.canceled)
-
-  def forceR[F[_], A, B](fa: Resource[F, A])(fb: Resource[F, B])(implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
-    fa.forceR(fb)
-
-  def onCancel[F[_], A](fa: Resource[F, A], fin: Resource[F, Unit])(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
-    fa.onCancel(fin)
-
-  def uncancelable[F[_], A](body: Poll[Resource[F, *]] => Resource[F, A])(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
-    Resource applyFull { poll =>
-      val inner = new Poll[Resource[F, *]] {
-        def apply[B](rfb: Resource[F, B]): Resource[F, B] =
-          Resource applyFull { innerPoll =>
-            innerPoll(poll(rfb.allocated)) map { p =>
-              Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-            }
-          }
-      }
-
-      body(inner).allocated map { p =>
-        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
-    }
-
-  def unique[F[_]](implicit F: Unique[F]): Resource[F, Unique.Token] =
-    Resource.eval(F.unique)
-
-  def never[F[_], A](implicit F: GenSpawn[F, Throwable]): Resource[F, A] =
-    Resource.eval(F.never[A])
-
-  def cede[F[_]](implicit F: GenSpawn[F, Throwable]): Resource[F, Unit] =
-    Resource.eval(F.cede)
-
-  def start[F[_], A](fa: Resource[F, A])(implicit F: GenConcurrent[F, Throwable]): Resource[F, Fiber[Resource[F, *], Throwable, A]] =
-    fa.start
-
-  def deferred[F[_], A](implicit F: GenConcurrent[F, Throwable]): Resource[F, Deferred[Resource[F, *], A]] =
-    Resource.eval(F.deferred[A]).map(_.mapK(Resource.liftK[F]))
-
-  def ref[F[_], A](a: A)(implicit F: GenConcurrent[F, Throwable]): Resource[F, Ref[Resource[F, *], A]] =
-    Resource.eval(F.ref(a)).map(_.mapK(Resource.liftK[F]))
-
   /**
    * Creates a [[Resource]] by wrapping a Java
    * [[https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html AutoCloseable]].
@@ -841,8 +852,137 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    * @return a Resource that will automatically close after use
    */
   def fromAutoCloseable[F[_], A <: AutoCloseable](acquire: F[A])(
-      implicit F: Sync[F]): Resource[F, A] =
+    implicit F: Sync[F]): Resource[F, A] =
     Resource.make(acquire)(autoCloseable => F.blocking(autoCloseable.close()))
+
+  def canceled[F[_]](implicit F: MonadCancel[F, Throwable]): Resource[F, Unit] =
+    Resource.eval(F.canceled)
+
+  def forceR[F[_], A, B](fa: Resource[F, A])(fb: Resource[F, B])(
+      implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
+    fa.forceR(fb)
+
+  def onCancel[F[_], A](fa: Resource[F, A], fin: Resource[F, Unit])(
+      implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
+    fa.onCancel(fin)
+
+  def uncancelable[F[_], A](body: Poll[Resource[F, *]] => Resource[F, A])(
+      implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
+    Resource applyFull { poll =>
+      val inner = new Poll[Resource[F, *]] {
+        def apply[B](rfb: Resource[F, B]): Resource[F, B] =
+          Resource applyFull { innerPoll =>
+            innerPoll(poll(rfb.allocated)) map { p =>
+              Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+            }
+          }
+      }
+
+      body(inner).allocated map { p =>
+        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+      }
+    }
+
+  def unique[F[_]](implicit F: Unique[F]): Resource[F, Unique.Token] =
+    Resource.eval(F.unique)
+
+  def never[F[_], A](implicit F: GenSpawn[F, Throwable]): Resource[F, A] =
+    Resource.eval(F.never[A])
+
+  def cede[F[_]](implicit F: GenSpawn[F, Throwable]): Resource[F, Unit] =
+    Resource.eval(F.cede)
+
+  def start[F[_], A](fa: Resource[F, A])(
+      implicit
+      F: GenConcurrent[F, Throwable]): Resource[F, Fiber[Resource[F, *], Throwable, A]] =
+    fa.start
+
+  def deferred[F[_], A](
+      implicit F: GenConcurrent[F, Throwable]): Resource[F, Deferred[Resource[F, *], A]] =
+    Resource.eval(F.deferred[A]).map(_.mapK(Resource.liftK[F]))
+
+  def ref[F[_], A](a: A)(
+      implicit F: GenConcurrent[F, Throwable]): Resource[F, Ref[Resource[F, *], A]] =
+    Resource.eval(F.ref(a)).map(_.mapK(Resource.liftK[F]))
+
+  def monotonic[F[_]](implicit F: Clock[F]): Resource[F, FiniteDuration] =
+    Resource.eval(F.monotonic)
+
+  def realTime[F[_]](implicit F: Clock[F]): Resource[F, FiniteDuration] =
+    Resource.eval(F.realTime)
+
+  def suspend[F[_], A](hint: Sync.Type)(thunk: => A)(implicit F: Sync[F]): Resource[F, A] =
+    Resource.eval(F.suspend(hint)(thunk))
+
+  def sleep[F[_]](time: FiniteDuration)(
+      implicit F: GenTemporal[F, Throwable]): Resource[F, Unit] =
+    Resource.eval(F.sleep(time))
+
+  def cont[F[_], K, R](body: Cont[Resource[F, *], K, R])(implicit F: Async[F]): Resource[F, R] =
+    Resource applyFull { poll =>
+      poll {
+        F cont {
+          new Cont[F, K, (R, Resource.ExitCase => F[Unit])] {
+            def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (cb, ga, nt) =>
+              type D[A] = Kleisli[G, Ref[G, F[Unit]], A]
+
+              val nt2 = new (Resource[F, *] ~> D) {
+                def apply[A](rfa: Resource[F, A]) =
+                  Kleisli { r =>
+                    nt(rfa.allocated) flatMap { case (a, fin) => r.update(_ !> fin).as(a) }
+                  }
+              }
+
+              for {
+                r <- nt(F.ref(F.unit).map(_.mapK(nt)))
+
+                a <- G.guaranteeCase(body[D].apply(cb, Kleisli.liftF(ga), nt2).run(r)) {
+                  case Outcome.Canceled() | Outcome.Errored(_) => r.get.flatMap(nt(_))
+                  case Outcome.Succeeded(_) => G.unit
+                }
+
+                fin <- r.get
+              } yield (a, (_: Resource.ExitCase) => fin)
+            }
+          }
+        }
+      }
+    }
+
+  def evalOn[F[_], A](fa: Resource[F, A], ec: ExecutionContext)(
+      implicit F: Async[F]): Resource[F, A] =
+    fa.evalOn(ec)
+
+  def executionContext[F[_]](implicit F: Async[F]): Resource[F, ExecutionContext] =
+    Resource.eval(F.executionContext)
+
+  def attempt[F[_], A, E](fa: Resource[F, A])(
+      implicit F: MonadError[F, E]): Resource[F, Either[E, A]] =
+    fa.attempt
+
+  def handleErrorWith[F[_], A, E](fa: Resource[F, A])(f: E => Resource[F, A])(
+      implicit F: MonadError[F, E]): Resource[F, A] =
+    fa.handleErrorWith(f)
+
+  def raiseError[F[_], A, E](e: E)(implicit F: MonadError[F, E]): Resource[F, A] =
+    Resource.eval(F.raiseError[A](e))
+
+  def flatMap[F[_], A, B](fa: Resource[F, A])(f: A => Resource[F, B])(
+      implicit F: Monad[F]): Resource[F, B] =
+    fa.flatMap(f)
+
+  def empty[F[_], A](implicit A: Monoid[A]): Resource[F, A] = Resource.pure[F, A](A.empty)
+
+  def combine[F[_], A](rx: Resource[F, A], ry: Resource[F, A])(
+      implicit F: Monad[F],
+      A: Semigroup[A]): Resource[F, A] =
+    rx.combine(ry)
+
+  def combineK[F[_], A](ra: Resource[F, A], rb: Resource[F, A])(
+      implicit F: MonadCancel[F, Throwable],
+      K: SemigroupK[F],
+      G: Ref.Make[F]): Resource[F, A] =
+    ra.combineK(rb)
 
   /**
    * `Resource` data constructor that wraps an effect allocating a resource,
@@ -1053,16 +1193,16 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
     with MonadCancel[Resource[F, *], Throwable] {
   implicit protected def F: MonadCancel[F, Throwable]
 
-  def canceled: Resource[F, Unit] = Resource.canceled
+  def canceled: Resource[F, Unit] = Resource.canceled[F]
 
   def forceR[A, B](fa: Resource[F, A])(fb: Resource[F, B]): Resource[F, B] =
-    Resource.forceR(fa)(fb)
+    fa.forceR(fb)
 
   def onCancel[A](fa: Resource[F, A], fin: Resource[F, Unit]): Resource[F, A] =
-    Resource.onCancel(fa, fin)
+    fa.onCancel(fin)
 
   def uncancelable[A](body: Poll[Resource[F, *]] => Resource[F, A]): Resource[F, A] =
-    Resource.uncancelable(body)
+    Resource.uncancelable[F, A](body)
 }
 
 // note: Spawn alone isn't possible since we need Concurrent to implement start
@@ -1071,33 +1211,33 @@ abstract private[effect] class ResourceConcurrent[F[_]]
     with GenConcurrent[Resource[F, *], Throwable] {
   implicit protected def F: Concurrent[F]
 
-  def unique: Resource[F, Unique.Token] = Resource.unique
+  def unique: Resource[F, Unique.Token] = Resource.unique[F]
 
-  def never[A]: Resource[F, A] = Resource.never
+  def never[A]: Resource[F, A] = Resource.never[F, A]
 
-  def cede: Resource[F, Unit] = Resource.cede
+  def cede: Resource[F, Unit] = Resource.cede[F]
 
   def start[A](fa: Resource[F, A]): Resource[F, Fiber[Resource[F, *], Throwable, A]] =
-    fa.start
+    Resource.start[F, A](fa)
 
   def deferred[A]: Resource[F, Deferred[Resource[F, *], A]] =
-    Resource.deferred
+    Resource.deferred[F, A]
 
   def ref[A](a: A): Resource[F, Ref[Resource[F, *], A]] =
-    Resource.ref(a)
+    Resource.ref[F, A](a)
 
   override def both[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, (A, B)] =
-    Resource.both(fa, fb)
+    Resource.both[F, A, B](fa, fb)
 }
 
 private[effect] trait ResourceClock[F[_]] extends Clock[Resource[F, *]] {
   implicit protected def F: Clock[F]
 
   def monotonic: Resource[F, FiniteDuration] =
-    Resource.eval(F.monotonic)
+    Resource.monotonic[F]
 
   def realTime: Resource[F, FiniteDuration] =
-    Resource.eval(F.realTime)
+    Resource.realTime[F]
 }
 
 private[effect] trait ResourceSync[F[_]]
@@ -1107,7 +1247,7 @@ private[effect] trait ResourceSync[F[_]]
   implicit protected def F: Sync[F]
 
   def suspend[A](hint: Sync.Type)(thunk: => A): Resource[F, A] =
-    Resource.eval(F.suspend(hint)(thunk))
+    Resource.suspend[F, A](hint)(thunk)
 }
 
 private[effect] trait ResourceTemporal[F[_]]
@@ -1117,7 +1257,7 @@ private[effect] trait ResourceTemporal[F[_]]
   implicit protected def F: Temporal[F]
 
   def sleep(time: FiniteDuration): Resource[F, Unit] =
-    Resource.eval(F.sleep(time))
+    Resource.sleep[F](time)
 }
 
 abstract private[effect] class ResourceAsync[F[_]]
@@ -1126,91 +1266,38 @@ abstract private[effect] class ResourceAsync[F[_]]
     with Async[Resource[F, *]] { self =>
   implicit protected def F: Async[F]
 
-  override def applicative = this
+  override def applicative: ResourceAsync[F] = this
 
   override def unique: Resource[F, Unique.Token] =
-    Resource.eval(F.unique)
+    Resource.unique[F]
 
   override def never[A]: Resource[F, A] =
-    Resource.eval(F.never[A])
+    Resource.never[F, A]
 
   def cont[K, R](body: Cont[Resource[F, *], K, R]): Resource[F, R] =
-    Resource applyFull { poll =>
-      poll {
-        F cont {
-          new Cont[F, K, (R, Resource.ExitCase => F[Unit])] {
-            def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (cb, ga, nt) =>
-              type D[A] = Kleisli[G, Ref[G, F[Unit]], A]
-
-              val nt2 = new (Resource[F, *] ~> D) {
-                def apply[A](rfa: Resource[F, A]) =
-                  Kleisli { r =>
-                    nt(rfa.allocated) flatMap { case (a, fin) => r.update(_ !> fin).as(a) }
-                  }
-              }
-
-              for {
-                r <- nt(F.ref(F.unit).map(_.mapK(nt)))
-
-                a <- G.guaranteeCase(body[D].apply(cb, Kleisli.liftF(ga), nt2).run(r)) {
-                  case Outcome.Canceled() | Outcome.Errored(_) => r.get.flatMap(nt(_))
-                  case Outcome.Succeeded(_) => G.unit
-                }
-
-                fin <- r.get
-              } yield (a, (_: Resource.ExitCase) => fin)
-            }
-          }
-        }
-      }
-    }
+    Resource.cont[F, K, R](body)
 
   def evalOn[A](fa: Resource[F, A], ec: ExecutionContext): Resource[F, A] =
-    Resource applyFull { poll =>
-      poll(fa.allocated).evalOn(ec) map { p =>
-        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
-    }
+    Resource.evalOn[F, A](fa, ec)
 
   def executionContext: Resource[F, ExecutionContext] =
-    Resource.eval(F.executionContext)
+    Resource.executionContext[F]
 }
 
 abstract private[effect] class ResourceMonadError[F[_], E]
     extends ResourceMonad[F]
     with MonadError[Resource[F, *], E] {
-  import Resource._
 
   implicit protected def F: MonadError[F, E]
 
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
-    fa match {
-      case Allocate(resource) =>
-        Resource.applyFull { poll =>
-          resource(poll).attempt.map {
-            case Left(error) => (Left(error), (_: ExitCase) => F.unit)
-            case Right((a, release)) => (Right(a), release)
-          }
-        }
-      case Bind(source, f) =>
-        source.attempt.flatMap {
-          case Left(error) => Resource.pure(error.asLeft)
-          case Right(s) => f(s).attempt
-        }
-      case p @ Pure(_) =>
-        Resource.pure(p.a.asRight)
-      case e @ Eval(_) =>
-        Resource.eval(e.fa.attempt)
-    }
+    Resource.attempt[F, A, E](fa)
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
-    attempt(fa).flatMap {
-      case Right(a) => Resource.pure(a)
-      case Left(e) => f(e)
-    }
+    Resource.handleErrorWith[F, A, E](fa)(f)
 
   def raiseError[A](e: E): Resource[F, A] =
-    Resource.eval(F.raiseError[A](e))
+    Resource.raiseError[F, A, E](e)
 }
 
 abstract private[effect] class ResourceMonad[F[_]]
@@ -1220,10 +1307,10 @@ abstract private[effect] class ResourceMonad[F[_]]
   implicit protected def F: Monad[F]
 
   def pure[A](a: A): Resource[F, A] =
-    Resource.pure(a)
+    Resource.pure[F, A](a)
 
   def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
-    fa.flatMap(f)
+    Resource.flatMap[F, A, B](fa)(f)
 }
 
 abstract private[effect] class ResourceMonoid[F[_], A]
@@ -1231,7 +1318,7 @@ abstract private[effect] class ResourceMonoid[F[_], A]
     with Monoid[Resource[F, A]] {
   implicit protected def A: Monoid[A]
 
-  def empty: Resource[F, A] = Resource.pure[F, A](A.empty)
+  def empty: Resource[F, A] = Resource.empty[F, A]
 }
 
 abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Resource[F, A]] {
@@ -1239,10 +1326,7 @@ abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Reso
   implicit protected def A: Semigroup[A]
 
   def combine(rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
-    for {
-      x <- rx
-      y <- ry
-    } yield A.combine(x, y)
+    Resource.combine[F, A](rx, ry)
 }
 
 abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, *]] {
@@ -1251,10 +1335,5 @@ abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resou
   implicit protected def G: Ref.Make[F]
 
   def combineK[A](ra: Resource[F, A], rb: Resource[F, A]): Resource[F, A] =
-    Resource.make(Ref[F].of(F.unit))(_.get.flatten).evalMap { finalizers =>
-      def allocate(r: Resource[F, A]): F[A] =
-        r.fold(_.pure[F], (release: F[Unit]) => finalizers.update(_.guarantee(release)))
-
-      K.combineK(allocate(ra), allocate(rb))
-    }
+    Resource.combineK(ra, rb)
 }
