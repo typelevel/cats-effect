@@ -21,7 +21,6 @@ import cats.data.Kleisli
 import cats.syntax.all._
 import cats.effect.kernel.instances.spawn
 import cats.effect.kernel.implicits._
-
 import scala.annotation.tailrec
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
@@ -497,11 +496,12 @@ sealed abstract class Resource[F[_], +A] {
   def onCancel(fin: Resource[F, Unit])(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
     Resource applyFull { poll =>
       poll(this.allocated).onCancel(fin.use_) map { p =>
-        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+        Functor[(A @uncheckedVariance, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
       }
     }
 
-  def guaranteeCase(fin: Outcome[Resource[F, *], Throwable, A @uncheckedVariance] => Resource[F, Unit])(
+  def guaranteeCase(
+      fin: Outcome[Resource[F, *], Throwable, A @uncheckedVariance] => Resource[F, Unit])(
       implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
     Resource applyFull { poll =>
       val back = poll(this.allocated) guaranteeCase {
@@ -517,7 +517,8 @@ sealed abstract class Resource[F[_], +A] {
           fin(Outcome.Canceled()).use_
       }
 
-      back.map(p => Functor[(A, *)].map(p)(fu => (_: Resource.ExitCase) => fu))
+      back.map(p =>
+        Functor[(A @uncheckedVariance, *)].map(p)(fu => (_: Resource.ExitCase) => fu))
     }
 
   /*
@@ -609,7 +610,7 @@ sealed abstract class Resource[F[_], +A] {
   def evalOn(ec: ExecutionContext)(implicit F: Async[F]): Resource[F, A] =
     Resource applyFull { poll =>
       poll(this.allocated).evalOn(ec) map { p =>
-        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+        Functor[(A @uncheckedVariance, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
       }
     }
 
@@ -633,26 +634,25 @@ sealed abstract class Resource[F[_], +A] {
         Resource.eval(e.fa.attempt)
     }
 
-  def handleErrorWith[E](f: E => Resource[F, A @uncheckedVariance])(
-      implicit F: MonadError[F, E]): Resource[F, A] =
+  def handleErrorWith[B >: A, E](f: E => Resource[F, B])(
+      implicit F: MonadError[F, E]): Resource[F, B] =
     attempt.flatMap {
       case Right(a) => Resource.pure(a)
       case Left(e) => f(e)
     }
 
-  def combine(that: Resource[F, A @uncheckedVariance])(
-      implicit A: Semigroup[A @uncheckedVariance]): Resource[F, A] =
+  def combine[B >: A](that: Resource[F, B])(implicit A: Semigroup[B]): Resource[F, B] =
     for {
       x <- this
       y <- that
     } yield A.combine(x, y)
 
-  def combineK(that: Resource[F, A @uncheckedVariance])(
+  def combineK[B >: A](that: Resource[F, B])(
       implicit F: MonadCancel[F, Throwable],
       K: SemigroupK[F],
-      G: Ref.Make[F]): Resource[F, A] =
+      G: Ref.Make[F]): Resource[F, B] =
     Resource.make(Ref[F].of(F.unit))(_.get.flatten).evalMap { finalizers =>
-      def allocate(r: Resource[F, A]): F[A] =
+      def allocate(r: Resource[F, B]): F[B] =
         r.fold(_.pure[F], (release: F[Unit]) => finalizers.update(_.guarantee(release)))
 
       K.combineK(allocate(this), allocate(that))
