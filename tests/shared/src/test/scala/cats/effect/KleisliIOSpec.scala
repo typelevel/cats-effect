@@ -17,14 +17,15 @@
 package cats.effect
 
 import cats.{Eq, Order}
-import cats.data.Kleisli
+import cats.data.{Kleisli, OptionT}
 import cats.effect.laws.AsyncTests
+import cats.effect.syntax.all._
 import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.eq._
 import cats.syntax.all._
 
-import org.scalacheck.Prop
+import org.scalacheck.{Cogen, Prop}
 
 import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
@@ -51,6 +52,36 @@ class KleisliIOSpec
       List.fill(N)(0).traverse_(_ => Kleisli.liftF(IO(i += 1))).run("Go...") *>
         IO(i) must completeAs(N)
     }
+
+    "execute finalizers" in ticked { implicit ticker =>
+      type F[A] = Kleisli[IO, String, A]
+
+      val test = for {
+        gate <- Deferred[F, Unit]
+        _ <- Kleisli.ask[IO, String].guarantee(gate.complete(()).void).start
+        _ <- gate.get
+      } yield ()
+
+      test.run("kleisli") must completeAs(())
+    }
+
+    "execute finalizers when doubly nested" in ticked { implicit ticker =>
+      type F[A] = Kleisli[OptionT[IO, *], String, A]
+
+      val test = for {
+        gate1 <- Deferred[F, Unit]
+        gate2 <- Deferred[F, Unit]
+        _ <- Kleisli.ask[OptionT[IO, *], String].guarantee(gate1.complete(()).void).start
+        _ <- Kleisli
+          .liftF[OptionT[IO, *], String, Unit](OptionT.none[IO, Unit])
+          .guarantee(gate2.complete(()).void)
+          .start
+        _ <- gate1.get
+        _ <- gate2.get
+      } yield ()
+
+      test.run("kleisli").value must completeAs(Some(()))
+    }
   }
 
   implicit def kleisliEq[F[_], A, B](implicit ev: Eq[A => F[B]]): Eq[Kleisli[F, A, B]] =
@@ -70,6 +101,10 @@ class KleisliIOSpec
         _ => false,
         bO => bO.fold(false)(identity)
       ))
+
+  implicit def cogenForKleisli[F[_], A, B](
+      implicit F: Cogen[A => F[B]]): Cogen[Kleisli[F, A, B]] =
+    F.contramap(_.run)
 
   {
     implicit val ticker = Ticker()

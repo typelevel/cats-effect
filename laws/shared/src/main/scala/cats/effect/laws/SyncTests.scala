@@ -58,7 +58,39 @@ trait SyncTests[F[_]]
     new RuleSet {
       val name = "sync"
       val bases = Nil
-      val parents = Seq(monadCancel[A, B, C], clock, unique)
+      val parents = Seq(
+        monadCancel[A, B, C](
+          implicitly[Arbitrary[A]],
+          implicitly[Eq[A]],
+          implicitly[Arbitrary[B]],
+          implicitly[Eq[B]],
+          implicitly[Arbitrary[C]],
+          implicitly[Eq[C]],
+          ArbFA,
+          ArbFB,
+          ArbFC,
+          ArbFU,
+          ArbFAtoB,
+          ArbFBtoC,
+          ArbE,
+          CogenA,
+          CogenB,
+          CogenC,
+          CogenE,
+          EqFA,
+          EqFB,
+          EqFC,
+          EqFU,
+          EqE,
+          EqFEitherEU,
+          EqFEitherEA,
+          EqFABC,
+          EqFInt,
+          iso
+        ),
+        clock,
+        unique
+      )
 
       val props = Seq(
         "suspend value is pure" -> forAll(laws.suspendValueIsPure[A] _),

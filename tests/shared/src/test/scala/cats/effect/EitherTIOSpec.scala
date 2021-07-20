@@ -17,9 +17,11 @@
 package cats.effect
 
 import cats.Order
-import cats.data.EitherT
+import cats.data.{EitherT, OptionT}
 import cats.effect.laws.AsyncTests
+import cats.effect.syntax.all._
 import cats.laws.discipline.arbitrary._
+import cats.syntax.all._
 
 import org.scalacheck.Prop
 
@@ -38,6 +40,44 @@ class EitherTIOSpec
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
+
+  "EitherT" should {
+    "execute finalizers" in ticked { implicit ticker =>
+      type F[A] = EitherT[IO, String, A]
+
+      val test = for {
+        gate1 <- Deferred[F, Unit]
+        gate2 <- Deferred[F, Unit]
+        _ <- EitherT.leftT[IO, Unit]("boom").guarantee(gate1.complete(()).void).start
+        _ <- EitherT.rightT[IO, String](()).guarantee(gate2.complete(()).void).start
+        _ <- gate1.get
+        _ <- gate2.get
+      } yield ()
+
+      test.value must completeAs(Right(()))
+    }
+
+    "execute finalizers when doubly nested" in ticked { implicit ticker =>
+      type F[A] = EitherT[OptionT[IO, *], String, A]
+
+      val test = for {
+        gate1 <- Deferred[F, Unit]
+        gate2 <- Deferred[F, Unit]
+        gate3 <- Deferred[F, Unit]
+        _ <- EitherT
+          .leftT[OptionT[IO, *], Unit]("boom")
+          .guarantee(gate1.complete(()).void)
+          .start
+        _ <- EitherT.rightT[OptionT[IO, *], String](()).guarantee(gate2.complete(()).void).start
+        _ <- EitherT.liftF(OptionT.none[IO, Unit]).guarantee(gate3.complete(()).void).start
+        _ <- gate1.get
+        _ <- gate2.get
+        _ <- gate3.get
+      } yield ()
+
+      test.value.value must completeAs(Some(Right(())))
+    }
+  }
 
   implicit def ordEitherTIOFD(
       implicit ticker: Ticker): Order[EitherT[IO, Int, FiniteDuration]] =

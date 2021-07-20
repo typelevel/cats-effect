@@ -375,7 +375,13 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * @see [[Outcome]] for the various outcomes of evaluation
    */
   def guaranteeCase[A](fa: F[A])(fin: Outcome[F, E, A] => F[Unit]): F[A] =
-    bracketCase(unit)(_ => fa)((_, oc) => fin(oc))
+    uncancelable { poll =>
+      val finalized = onCancel(poll(fa), fin(Outcome.canceled))
+      val handled = onError(finalized) {
+        case e => handleError(fin(Outcome.errored(e)))(_ => ())
+      }
+      flatTap(handled)(a => fin(Outcome.succeeded(pure(a))))
+    }
 
   /**
    * A pattern for safely interacting with effectful lifecycles.
@@ -443,18 +449,10 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
   def bracketFull[A, B](acquire: Poll[F] => F[A])(use: A => F[B])(
       release: (A, Outcome[F, E, B]) => F[Unit]): F[B] =
     uncancelable { poll =>
-      val safeRelease: (A, Outcome[F, E, B]) => F[Unit] =
-        (a, out) => uncancelable(_ => release(a, out))
-
       acquire(poll).flatMap { a =>
         // we need to lazily evaluate `use` so that uncaught exceptions are caught within the effect
         // runtime, otherwise we'll throw here and the error handler will never be registered
-        val finalized = onCancel(poll(F.unit >> use(a)), safeRelease(a, Outcome.Canceled()))
-        val handled = finalized.onError {
-          case e =>
-            safeRelease(a, Outcome.Errored(e)).handleError(_ => ())
-        }
-        handled.flatMap { b => safeRelease(a, Outcome.Succeeded(b.pure)).as(b) }
+        guaranteeCase(poll(unit >> use(a)))(release(a, _))
       }
     }
 }
@@ -581,6 +579,16 @@ object MonadCancel {
         F.forceR(fa.value)(fb.value)
       )
 
+    override def guaranteeCase[A](fa: OptionT[F, A])(
+        fin: Outcome[OptionT[F, *], E, A] => OptionT[F, Unit]): OptionT[F, A] =
+      OptionT {
+        F.guaranteeCase(fa.value) {
+          case Outcome.Succeeded(fa) => fin(Outcome.succeeded(OptionT(fa))).value.void
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).value.void.handleError(_ => ())
+          case Outcome.Canceled() => fin(Outcome.canceled).value.void
+        }
+      }
+
     def pure[A](a: A): OptionT[F, A] = delegate.pure(a)
 
     def raiseError[A](e: E): OptionT[F, A] = delegate.raiseError(e)
@@ -624,6 +632,16 @@ object MonadCancel {
       EitherT(
         F.forceR(fa.value)(fb.value)
       )
+
+    override def guaranteeCase[A](fa: EitherT[F, E0, A])(
+        fin: Outcome[EitherT[F, E0, *], E, A] => EitherT[F, E0, Unit]): EitherT[F, E0, A] =
+      EitherT {
+        F.guaranteeCase(fa.value) {
+          case Outcome.Succeeded(fa) => fin(Outcome.succeeded(EitherT(fa))).value.void
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).value.void.handleError(_ => ())
+          case Outcome.Canceled() => fin(Outcome.canceled).value.void
+        }
+      }
 
     def pure[A](a: A): EitherT[F, E0, A] = delegate.pure(a)
 
@@ -669,6 +687,16 @@ object MonadCancel {
         F.forceR(fa.value)(fb.value)
       )
 
+    override def guaranteeCase[A](fa: IorT[F, L, A])(
+        fin: Outcome[IorT[F, L, *], E, A] => IorT[F, L, Unit]): IorT[F, L, A] =
+      IorT {
+        F.guaranteeCase(fa.value) {
+          case Outcome.Succeeded(fa) => fin(Outcome.succeeded(IorT(fa))).value.void
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).value.void.handleError(_ => ())
+          case Outcome.Canceled() => fin(Outcome.canceled).value.void
+        }
+      }
+
     def pure[A](a: A): IorT[F, L, A] = delegate.pure(a)
 
     def raiseError[A](e: E): IorT[F, L, A] = delegate.raiseError(e)
@@ -710,6 +738,16 @@ object MonadCancel {
 
     def forceR[A, B](fa: Kleisli[F, R, A])(fb: Kleisli[F, R, B]): Kleisli[F, R, B] =
       Kleisli(r => F.forceR(fa.run(r))(fb.run(r)))
+
+    override def guaranteeCase[A](fa: Kleisli[F, R, A])(
+        fin: Outcome[Kleisli[F, R, *], E, A] => Kleisli[F, R, Unit]): Kleisli[F, R, A] =
+      Kleisli { r =>
+        F.guaranteeCase(fa.run(r)) {
+          case Outcome.Succeeded(fa) => fin(Outcome.succeeded(Kleisli.liftF(fa))).run(r)
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).run(r).handleError(_ => ())
+          case Outcome.Canceled() => fin(Outcome.canceled).run(r)
+        }
+      }
 
     def pure[A](a: A): Kleisli[F, R, A] = delegate.pure(a)
 
@@ -756,6 +794,16 @@ object MonadCancel {
       WriterT(
         F.forceR(fa.run)(fb.run)
       )
+
+    override def guaranteeCase[A](fa: WriterT[F, L, A])(
+        fin: Outcome[WriterT[F, L, *], E, A] => WriterT[F, L, Unit]): WriterT[F, L, A] =
+      WriterT {
+        F.guaranteeCase(fa.run) {
+          case Outcome.Succeeded(fa) => fin(Outcome.succeeded(WriterT(fa))).run.void
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).run.void.handleError(_ => ())
+          case Outcome.Canceled() => fin(Outcome.canceled).run.void
+        }
+      }
 
     def pure[A](a: A): WriterT[F, L, A] = delegate.pure(a)
 
@@ -815,6 +863,16 @@ object MonadCancel {
           body(poll2).run(s)
         }
       }
+
+    override def guaranteeCase[A](fa: StateT[F, S, A])(
+        fin: Outcome[StateT[F, S, *], E, A] => StateT[F, S, Unit]): StateT[F, S, A] =
+      StateT { s =>
+        F.guaranteeCase(fa.run(s)) {
+          case Outcome.Succeeded(fa) => fin(Outcome.succeeded(StateT(_ => fa))).run(s).void
+          case Outcome.Errored(e) => fin(Outcome.errored(e)).run(s).void.handleError(_ => ())
+          case Outcome.Canceled() => fin(Outcome.canceled).run(s).void
+        }
+      }
   }
 
   private[kernel] trait ReaderWriterStateTMonadCancel[F[_], E0, L, S, E]
@@ -870,6 +928,23 @@ object MonadCancel {
           }
 
           body(poll2).run(e, s)
+        }
+      }
+
+    override def guaranteeCase[A](fa: ReaderWriterStateT[F, E0, L, S, A])(
+        fin: Outcome[ReaderWriterStateT[F, E0, L, S, *], E, A] => ReaderWriterStateT[
+          F,
+          E0,
+          L,
+          S,
+          Unit]): ReaderWriterStateT[F, E0, L, S, A] =
+      ReaderWriterStateT { (e0, s) =>
+        F.guaranteeCase(fa.run(e0, s)) {
+          case Outcome.Succeeded(fa) =>
+            fin(Outcome.succeeded(ReaderWriterStateT((_, _) => fa))).run(e0, s).void
+          case Outcome.Errored(e) =>
+            fin(Outcome.errored(e)).run(e0, s).void.handleError(_ => ())
+          case Outcome.Canceled() => fin(Outcome.canceled).run(e0, s).void
         }
       }
   }

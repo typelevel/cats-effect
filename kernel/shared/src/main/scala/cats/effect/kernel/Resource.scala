@@ -21,6 +21,7 @@ import cats.data.Kleisli
 import cats.syntax.all._
 import cats.effect.kernel.instances.spawn
 import cats.effect.kernel.implicits._
+
 import scala.annotation.tailrec
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
@@ -418,11 +419,22 @@ sealed abstract class Resource[F[_], +A] {
 
                 stack match {
                   case Nil =>
+                    /*
+                     * We *don't* poll here because this case represents the "there are no flatMaps"
+                     * scenario. If we poll in this scenario, then the following code will have a
+                     * masking gap (where F = Resource):
+                     *
+                     * F.uncancelable(_(F.uncancelable(_ => foo)))
+                     *
+                     * In this case, the inner uncancelable has no trailing flatMap, so it will hit
+                     * this case exactly. If we poll, we will create the masking gap and surface
+                     * cancelation improperly.
+                     */
                     F.pure((b, rel2))
 
                   case Frame(head, tail) =>
                     poll(continue(head(b), tail, rel2))
-                      .onCancel(rel(ExitCase.Canceled).handleError(_ => ()))
+                      .onCancel(rel(ExitCase.Canceled))
                       .onError { case e => rel(ExitCase.Errored(e)).handleError(_ => ()) }
                 }
             }
@@ -489,6 +501,25 @@ sealed abstract class Resource[F[_], +A] {
       }
     }
 
+  def guaranteeCase(fin: Outcome[Resource[F, *], Throwable, A @uncheckedVariance] => Resource[F, Unit])(
+      implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
+    Resource applyFull { poll =>
+      val back = poll(this.allocated) guaranteeCase {
+        case Outcome.Succeeded(ft) =>
+          fin(Outcome.Succeeded(Resource.eval(ft.map(_._1)))).use_ handleErrorWith { e =>
+            ft.flatMap(_._2).handleError(_ => ()) >> F.raiseError(e)
+          }
+
+        case Outcome.Errored(e) =>
+          fin(Outcome.Errored(e)).use_.handleError(_ => ())
+
+        case Outcome.Canceled() =>
+          fin(Outcome.Canceled()).use_
+      }
+
+      back.map(p => Functor[(A, *)].map(p)(fu => (_: Resource.ExitCase) => fu))
+    }
+
   /*
    * 1. If the scope containing the *fiber* terminates:
    *   a) if the fiber is incomplete, run its inner finalizers when it completes
@@ -500,32 +531,44 @@ sealed abstract class Resource[F[_], +A] {
    *    finalize naturally when the containing scope ends, `join` returns
    *    the value
    */
-  def start(implicit F: GenConcurrent[F, Throwable])
-      : Resource[F, Fiber[Resource[F, *], Throwable, A @uncheckedVariance]] = {
-    final case class State(fin: F[Unit] = F.unit, finalizeOnComplete: Boolean = false)
+  def start(
+      implicit
+      F: Concurrent[F]): Resource[F, Fiber[Resource[F, *], Throwable, A @uncheckedVariance]] = {
+    final case class State(
+        fin: F[Unit] = F.unit,
+        finalizeOnComplete: Boolean = false,
+        confirmedFinalizeOnComplete: Boolean = false)
 
     Resource {
       import Outcome._
 
       F.ref[State](State()) flatMap { state =>
-        val finalized: F[Option[A]] = F uncancelable { poll =>
-          val ff: F[F[Option[A]]] =
-            poll(this.allocated) flatMap { // intentionally short-circuits in case of cancelation or error
-              case (a, rel) =>
-                state modify { s =>
-                  if (s.finalizeOnComplete)
-                    (s, rel.attempt.as(None))
-                  else
-                    (s.copy(fin = rel), F.pure(Some(a)))
-                }
+        val finalized: F[A] = F uncancelable { poll =>
+          poll(this.allocated) guarantee {
+            // confirm that we completed and we were asked to clean up
+            // note that this will run even if the inner effect short-circuited
+            state update { s =>
+              if (s.finalizeOnComplete)
+                s.copy(confirmedFinalizeOnComplete = true)
+              else
+                s
             }
+          } flatMap {
+            // if the inner F has a zero, we lose the finalizers, but there's no avoiding that
+            case (a, rel) =>
+              val action = state modify { s =>
+                if (s.confirmedFinalizeOnComplete)
+                  (s, rel.handleError(_ => ()))
+                else
+                  (s.copy(fin = rel), F.unit)
+              }
 
-          ff.flatten
+              action.flatten.as(a)
+          }
         }
 
         F.start(finalized) map { outer =>
           val fiber = new Fiber[Resource[F, *], Throwable, A] {
-
             def cancel =
               Resource eval {
                 F uncancelable { poll =>
@@ -544,12 +587,11 @@ sealed abstract class Resource[F[_], +A] {
                     Outcome.errored[Resource[F, *], Throwable, A](e).pure[F]
 
                   case Succeeded(fp) =>
-                    fp map {
-                      case Some(a) =>
-                        a.pure[Outcome[Resource[F, *], Throwable, *]]
-
-                      case None =>
+                    state.get map { s =>
+                      if (s.confirmedFinalizeOnComplete)
                         Outcome.canceled[Resource[F, *], Throwable, A]
+                      else
+                        Outcome.succeeded(Resource.eval(fp))
                     }
                 }
               }
@@ -1152,7 +1194,7 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
     with MonadCancel[Resource[F, *], Throwable] {
   implicit protected def F: MonadCancel[F, Throwable]
 
-  def canceled: Resource[F, Unit] = Resource.canceled[F]
+  def canceled: Resource[F, Unit] = Resource.canceled
 
   def forceR[A, B](fa: Resource[F, A])(fb: Resource[F, B]): Resource[F, B] =
     fa.forceR(fb)
@@ -1161,7 +1203,11 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
     fa.onCancel(fin)
 
   def uncancelable[A](body: Poll[Resource[F, *]] => Resource[F, A]): Resource[F, A] =
-    Resource.uncancelable[F, A](body)
+    Resource.uncancelable(body)
+
+  override def guaranteeCase[A](rfa: Resource[F, A])(
+      fin: Outcome[Resource[F, *], Throwable, A] => Resource[F, Unit]): Resource[F, A] =
+    rfa.guaranteeCase(fin)
 }
 
 // note: Spawn alone isn't possible since we need Concurrent to implement start
@@ -1170,20 +1216,20 @@ abstract private[effect] class ResourceConcurrent[F[_]]
     with GenConcurrent[Resource[F, *], Throwable] {
   implicit protected def F: Concurrent[F]
 
-  def unique: Resource[F, Unique.Token] = Resource.unique[F]
+  def unique: Resource[F, Unique.Token] = Resource.unique
 
-  def never[A]: Resource[F, A] = Resource.never[F, A]
+  def never[A]: Resource[F, A] = Resource.never
 
-  def cede: Resource[F, Unit] = Resource.cede[F]
+  def cede: Resource[F, Unit] = Resource.cede
 
   def start[A](fa: Resource[F, A]): Resource[F, Fiber[Resource[F, *], Throwable, A]] =
     fa.start
 
   def deferred[A]: Resource[F, Deferred[Resource[F, *], A]] =
-    Resource.deferred[F, A]
+    Resource.deferred
 
   def ref[A](a: A): Resource[F, Ref[Resource[F, *], A]] =
-    Resource.ref[F, A](a)
+    Resource.ref(a)
 
   override def both[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, (A, B)] =
     fa.both(fb)
@@ -1193,10 +1239,10 @@ private[effect] trait ResourceClock[F[_]] extends Clock[Resource[F, *]] {
   implicit protected def F: Clock[F]
 
   def monotonic: Resource[F, FiniteDuration] =
-    Resource.monotonic[F]
+    Resource.monotonic
 
   def realTime: Resource[F, FiniteDuration] =
-    Resource.realTime[F]
+    Resource.realTime
 }
 
 private[effect] trait ResourceSync[F[_]]
@@ -1206,7 +1252,7 @@ private[effect] trait ResourceSync[F[_]]
   implicit protected def F: Sync[F]
 
   def suspend[A](hint: Sync.Type)(thunk: => A): Resource[F, A] =
-    Resource.suspend[F, A](hint)(thunk)
+    Resource.suspend(hint)(thunk)
 }
 
 private[effect] trait ResourceTemporal[F[_]]
@@ -1216,7 +1262,7 @@ private[effect] trait ResourceTemporal[F[_]]
   implicit protected def F: Temporal[F]
 
   def sleep(time: FiniteDuration): Resource[F, Unit] =
-    Resource.sleep[F](time)
+    Resource.sleep(time)
 }
 
 abstract private[effect] class ResourceAsync[F[_]]
@@ -1225,22 +1271,22 @@ abstract private[effect] class ResourceAsync[F[_]]
     with Async[Resource[F, *]] { self =>
   implicit protected def F: Async[F]
 
-  override def applicative: ResourceAsync[F] = this
+  override def applicative = this
 
   override def unique: Resource[F, Unique.Token] =
-    Resource.unique[F]
+    Resource.unique
 
   override def never[A]: Resource[F, A] =
-    Resource.never[F, A]
+    Resource.never
 
   def cont[K, R](body: Cont[Resource[F, *], K, R]): Resource[F, R] =
-    Resource.cont[F, K, R](body)
+    Resource.cont(body)
 
   def evalOn[A](fa: Resource[F, A], ec: ExecutionContext): Resource[F, A] =
     fa.evalOn(ec)
 
   def executionContext: Resource[F, ExecutionContext] =
-    Resource.executionContext[F]
+    Resource.executionContext
 }
 
 abstract private[effect] class ResourceMonadError[F[_], E]
@@ -1266,7 +1312,7 @@ abstract private[effect] class ResourceMonad[F[_]]
   implicit protected def F: Monad[F]
 
   def pure[A](a: A): Resource[F, A] =
-    Resource.pure[F, A](a)
+    Resource.pure(a)
 
   def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
     fa.flatMap(f)
@@ -1277,7 +1323,7 @@ abstract private[effect] class ResourceMonoid[F[_], A]
     with Monoid[Resource[F, A]] {
   implicit protected def A: Monoid[A]
 
-  def empty: Resource[F, A] = Resource.empty[F, A]
+  def empty: Resource[F, A] = Resource.empty
 }
 
 abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Resource[F, A]] {

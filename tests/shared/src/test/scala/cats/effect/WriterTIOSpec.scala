@@ -17,9 +17,11 @@
 package cats.effect
 
 import cats.Order
-import cats.data.WriterT
+import cats.data.{Chain, OptionT, WriterT}
 import cats.effect.laws.AsyncTests
+import cats.effect.syntax.all._
 import cats.laws.discipline.arbitrary._
+import cats.syntax.all._
 
 import org.scalacheck.Prop
 
@@ -38,6 +40,44 @@ class WriterTIOSpec
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
+
+  "WriterT" should {
+    "execute finalizers" in ticked { implicit ticker =>
+      type F[A] = WriterT[IO, Chain[String], A]
+
+      val test = for {
+        gate <- Deferred[F, Unit]
+        _ <- WriterT
+          .tell[IO, Chain[String]](Chain.one("hello"))
+          .guarantee(gate.complete(()).void)
+          .start
+        _ <- gate.get
+      } yield ()
+
+      test.run._2F must completeAs(())
+    }
+
+    "execute finalizers when doubly nested" in ticked { implicit ticker =>
+      type F[A] = WriterT[OptionT[IO, *], Chain[String], A]
+
+      val test = for {
+        gate1 <- Deferred[F, Unit]
+        gate2 <- Deferred[F, Unit]
+        _ <- WriterT
+          .tell[OptionT[IO, *], Chain[String]](Chain.one("hello"))
+          .guarantee(gate1.complete(()).void)
+          .start
+        _ <- WriterT
+          .liftF[OptionT[IO, *], Chain[String], Unit](OptionT.none)
+          .guarantee(gate2.complete(()).void)
+          .start
+        _ <- gate1.get
+        _ <- gate2.get
+      } yield ()
+
+      test.run._2F.value must completeAs(Some(()))
+    }
+  }
 
   implicit def ordWriterTIOFD(
       implicit ticker: Ticker): Order[WriterT[IO, Int, FiniteDuration]] =
