@@ -599,8 +599,7 @@ sealed abstract class Resource[F[_], +A] {
     }
 
   def combine(that: Resource[F, A @uncheckedVariance])(
-      implicit F: Monad[F],
-      A: Semigroup[A @uncheckedVariance]): Resource[F, A] =
+      implicit A: Semigroup[A @uncheckedVariance]): Resource[F, A] =
     for {
       x <- this
       y <- that
@@ -852,19 +851,11 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    * @return a Resource that will automatically close after use
    */
   def fromAutoCloseable[F[_], A <: AutoCloseable](acquire: F[A])(
-    implicit F: Sync[F]): Resource[F, A] =
+      implicit F: Sync[F]): Resource[F, A] =
     Resource.make(acquire)(autoCloseable => F.blocking(autoCloseable.close()))
 
   def canceled[F[_]](implicit F: MonadCancel[F, Throwable]): Resource[F, Unit] =
     Resource.eval(F.canceled)
-
-  def forceR[F[_], A, B](fa: Resource[F, A])(fb: Resource[F, B])(
-      implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
-    fa.forceR(fb)
-
-  def onCancel[F[_], A](fa: Resource[F, A], fin: Resource[F, Unit])(
-      implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
-    fa.onCancel(fin)
 
   def uncancelable[F[_], A](body: Poll[Resource[F, *]] => Resource[F, A])(
       implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
@@ -891,11 +882,6 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
 
   def cede[F[_]](implicit F: GenSpawn[F, Throwable]): Resource[F, Unit] =
     Resource.eval(F.cede)
-
-  def start[F[_], A](fa: Resource[F, A])(
-      implicit
-      F: GenConcurrent[F, Throwable]): Resource[F, Fiber[Resource[F, *], Throwable, A]] =
-    fa.start
 
   def deferred[F[_], A](
       implicit F: GenConcurrent[F, Throwable]): Resource[F, Deferred[Resource[F, *], A]] =
@@ -949,40 +935,13 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
       }
     }
 
-  def evalOn[F[_], A](fa: Resource[F, A], ec: ExecutionContext)(
-      implicit F: Async[F]): Resource[F, A] =
-    fa.evalOn(ec)
-
   def executionContext[F[_]](implicit F: Async[F]): Resource[F, ExecutionContext] =
     Resource.eval(F.executionContext)
-
-  def attempt[F[_], A, E](fa: Resource[F, A])(
-      implicit F: MonadError[F, E]): Resource[F, Either[E, A]] =
-    fa.attempt
-
-  def handleErrorWith[F[_], A, E](fa: Resource[F, A])(f: E => Resource[F, A])(
-      implicit F: MonadError[F, E]): Resource[F, A] =
-    fa.handleErrorWith(f)
 
   def raiseError[F[_], A, E](e: E)(implicit F: MonadError[F, E]): Resource[F, A] =
     Resource.eval(F.raiseError[A](e))
 
-  def flatMap[F[_], A, B](fa: Resource[F, A])(f: A => Resource[F, B])(
-      implicit F: Monad[F]): Resource[F, B] =
-    fa.flatMap(f)
-
   def empty[F[_], A](implicit A: Monoid[A]): Resource[F, A] = Resource.pure[F, A](A.empty)
-
-  def combine[F[_], A](rx: Resource[F, A], ry: Resource[F, A])(
-      implicit F: Monad[F],
-      A: Semigroup[A]): Resource[F, A] =
-    rx.combine(ry)
-
-  def combineK[F[_], A](ra: Resource[F, A], rb: Resource[F, A])(
-      implicit F: MonadCancel[F, Throwable],
-      K: SemigroupK[F],
-      G: Ref.Make[F]): Resource[F, A] =
-    ra.combineK(rb)
 
   /**
    * `Resource` data constructor that wraps an effect allocating a resource,
@@ -1218,7 +1177,7 @@ abstract private[effect] class ResourceConcurrent[F[_]]
   def cede: Resource[F, Unit] = Resource.cede[F]
 
   def start[A](fa: Resource[F, A]): Resource[F, Fiber[Resource[F, *], Throwable, A]] =
-    Resource.start[F, A](fa)
+    fa.start
 
   def deferred[A]: Resource[F, Deferred[Resource[F, *], A]] =
     Resource.deferred[F, A]
@@ -1227,7 +1186,7 @@ abstract private[effect] class ResourceConcurrent[F[_]]
     Resource.ref[F, A](a)
 
   override def both[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, (A, B)] =
-    Resource.both[F, A, B](fa, fb)
+    fa.both(fb)
 }
 
 private[effect] trait ResourceClock[F[_]] extends Clock[Resource[F, *]] {
@@ -1278,7 +1237,7 @@ abstract private[effect] class ResourceAsync[F[_]]
     Resource.cont[F, K, R](body)
 
   def evalOn[A](fa: Resource[F, A], ec: ExecutionContext): Resource[F, A] =
-    Resource.evalOn[F, A](fa, ec)
+    fa.evalOn(ec)
 
   def executionContext: Resource[F, ExecutionContext] =
     Resource.executionContext[F]
@@ -1291,10 +1250,10 @@ abstract private[effect] class ResourceMonadError[F[_], E]
   implicit protected def F: MonadError[F, E]
 
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
-    Resource.attempt[F, A, E](fa)
+    fa.attempt
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
-    Resource.handleErrorWith[F, A, E](fa)(f)
+    fa.handleErrorWith(f)
 
   def raiseError[A](e: E): Resource[F, A] =
     Resource.raiseError[F, A, E](e)
@@ -1310,7 +1269,7 @@ abstract private[effect] class ResourceMonad[F[_]]
     Resource.pure[F, A](a)
 
   def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
-    Resource.flatMap[F, A, B](fa)(f)
+    fa.flatMap(f)
 }
 
 abstract private[effect] class ResourceMonoid[F[_], A]
@@ -1326,7 +1285,7 @@ abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Reso
   implicit protected def A: Semigroup[A]
 
   def combine(rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
-    Resource.combine[F, A](rx, ry)
+    rx.combine(ry)
 }
 
 abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, *]] {
@@ -1335,5 +1294,5 @@ abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resou
   implicit protected def G: Ref.Make[F]
 
   def combineK[A](ra: Resource[F, A], rb: Resource[F, A]): Resource[F, A] =
-    Resource.combineK(ra, rb)
+    ra.combineK(rb)
 }
