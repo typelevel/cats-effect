@@ -614,7 +614,7 @@ sealed abstract class Resource[F[_], +A] {
       }
     }
 
-  def attempt[E](implicit F: MonadError[F, E]): Resource[F, Either[E, A]] =
+  def attempt[E](implicit F: ApplicativeError[F, E]): Resource[F, Either[E, A]] =
     this match {
       case Allocate(resource) =>
         Resource.applyFull { poll =>
@@ -624,7 +624,7 @@ sealed abstract class Resource[F[_], +A] {
           }
         }
       case Bind(source, f) =>
-        MonadError[Resource[F, *], E].attempt(source).flatMap {
+        ApplicativeError[Resource[F, *], E].attempt(source).flatMap {
           case Left(error) => Resource.pure(error.asLeft)
           case Right(s) => f(s).attempt
         }
@@ -635,7 +635,7 @@ sealed abstract class Resource[F[_], +A] {
     }
 
   def handleErrorWith[B >: A, E](f: E => Resource[F, B])(
-      implicit F: MonadError[F, E]): Resource[F, B] =
+      implicit F: ApplicativeError[F, E]): Resource[F, B] =
     attempt.flatMap {
       case Right(a) => Resource.pure(a)
       case Left(e) => f(e)
@@ -896,7 +896,7 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
       implicit F: Sync[F]): Resource[F, A] =
     Resource.make(acquire)(autoCloseable => F.blocking(autoCloseable.close()))
 
-  def canceled[F[_]](implicit F: MonadCancel[F, Throwable]): Resource[F, Unit] =
+  def canceled[F[_]](implicit F: MonadCancel[F, _]): Resource[F, Unit] =
     Resource.eval(F.canceled)
 
   def uncancelable[F[_], A](body: Poll[Resource[F, *]] => Resource[F, A])(
@@ -919,18 +919,17 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
   def unique[F[_]](implicit F: Unique[F]): Resource[F, Unique.Token] =
     Resource.eval(F.unique)
 
-  def never[F[_], A](implicit F: GenSpawn[F, Throwable]): Resource[F, A] =
+  def never[F[_], A](implicit F: GenSpawn[F, _]): Resource[F, A] =
     Resource.eval(F.never[A])
 
-  def cede[F[_]](implicit F: GenSpawn[F, Throwable]): Resource[F, Unit] =
+  def cede[F[_]](implicit F: GenSpawn[F, _]): Resource[F, Unit] =
     Resource.eval(F.cede)
 
   def deferred[F[_], A](
-      implicit F: GenConcurrent[F, Throwable]): Resource[F, Deferred[Resource[F, *], A]] =
+      implicit F: GenConcurrent[F, _]): Resource[F, Deferred[Resource[F, *], A]] =
     Resource.eval(F.deferred[A]).map(_.mapK(Resource.liftK[F]))
 
-  def ref[F[_], A](a: A)(
-      implicit F: GenConcurrent[F, Throwable]): Resource[F, Ref[Resource[F, *], A]] =
+  def ref[F[_], A](a: A)(implicit F: GenConcurrent[F, _]): Resource[F, Ref[Resource[F, *], A]] =
     Resource.eval(F.ref(a)).map(_.mapK(Resource.liftK[F]))
 
   def monotonic[F[_]](implicit F: Clock[F]): Resource[F, FiniteDuration] =
@@ -942,8 +941,7 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
   def suspend[F[_], A](hint: Sync.Type)(thunk: => A)(implicit F: Sync[F]): Resource[F, A] =
     Resource.eval(F.suspend(hint)(thunk))
 
-  def sleep[F[_]](time: FiniteDuration)(
-      implicit F: GenTemporal[F, Throwable]): Resource[F, Unit] =
+  def sleep[F[_]](time: FiniteDuration)(implicit F: GenTemporal[F, _]): Resource[F, Unit] =
     Resource.eval(F.sleep(time))
 
   def cont[F[_], K, R](body: Cont[Resource[F, *], K, R])(implicit F: Async[F]): Resource[F, R] =
@@ -980,7 +978,7 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
   def executionContext[F[_]](implicit F: Async[F]): Resource[F, ExecutionContext] =
     Resource.eval(F.executionContext)
 
-  def raiseError[F[_], A, E](e: E)(implicit F: MonadError[F, E]): Resource[F, A] =
+  def raiseError[F[_], A, E](e: E)(implicit F: ApplicativeError[F, E]): Resource[F, A] =
     Resource.eval(F.raiseError[A](e))
 
   def empty[F[_], A](implicit A: Monoid[A]): Resource[F, A] = Resource.pure[F, A](A.empty)
@@ -1162,30 +1160,42 @@ private[effect] trait ResourceHOInstances4 extends ResourceHOInstances5 {
     }
 }
 
-private[effect] trait ResourceHOInstances5 {
+private[effect] trait ResourceHOInstances5 extends ResourceHOInstances6 {
   implicit def catsEffectMonadForResource[F[_]](implicit F0: Monad[F]): Monad[Resource[F, *]] =
     new ResourceMonad[F] {
       def F = F0
     }
 }
 
+private[effect] trait ResourceHOInstances6 extends ResourceHOInstances7 {
+  implicit def catsEffectApplicativeErrorForResource[F[_], E](
+      implicit F0: ApplicativeError[F, E]): ApplicativeError[Resource[F, *], E] =
+    new ResourceApplicativeError[F, E] {
+      def F = F0
+    }
+}
+
+private[effect] trait ResourceHOInstances7 {
+  implicit def catsEffectApplicativeForResource[F[_]](
+      implicit F0: Applicative[F]): Applicative[Resource[F, *]] =
+    new ResourceApplicative[F] {
+      def F = F0
+    }
+}
+
 abstract private[effect] class ResourceFOInstances0 extends ResourceFOInstances1 {
   implicit def catsEffectMonoidForResource[F[_], A](
-      implicit F0: Monad[F],
-      A0: Monoid[A]): Monoid[Resource[F, A]] =
+      implicit A0: Monoid[A]): Monoid[Resource[F, A]] =
     new ResourceMonoid[F, A] {
       def A = A0
-      def F = F0
     }
 }
 
 abstract private[effect] class ResourceFOInstances1 {
   implicit def catsEffectSemigroupForResource[F[_], A](
-      implicit F0: Monad[F],
-      A0: Semigroup[A]): ResourceSemigroup[F, A] =
+      implicit A0: Semigroup[A]): ResourceSemigroup[F, A] =
     new ResourceSemigroup[F, A] {
       def A = A0
-      def F = F0
     }
 }
 
@@ -1290,10 +1300,16 @@ abstract private[effect] class ResourceAsync[F[_]]
 }
 
 abstract private[effect] class ResourceMonadError[F[_], E]
-    extends ResourceMonad[F]
+    extends ResourceApplicativeError[F, E]
+    with ResourceMonad[F]
     with MonadError[Resource[F, *], E] {
-
   implicit protected def F: MonadError[F, E]
+}
+
+abstract private[effect] class ResourceApplicativeError[F[_], E]
+    extends ResourceApplicative[F]
+    with ApplicativeError[Resource[F, *], E] {
+  implicit protected def F: ApplicativeError[F, E]
 
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
     fa.attempt
@@ -1305,17 +1321,25 @@ abstract private[effect] class ResourceMonadError[F[_], E]
     Resource.raiseError[F, A, E](e)
 }
 
-abstract private[effect] class ResourceMonad[F[_]]
-    extends Monad[Resource[F, *]]
+private[effect] trait ResourceMonad[F[_]]
+    extends ResourceApplicative[F]
+    with Monad[Resource[F, *]]
     with StackSafeMonad[Resource[F, *]] {
-
   implicit protected def F: Monad[F]
+
+  def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
+    fa.flatMap(f)
+}
+
+abstract private[effect] class ResourceApplicative[F[_]] extends Applicative[Resource[F, *]] {
+  implicit protected def F: Applicative[F]
 
   def pure[A](a: A): Resource[F, A] =
     Resource.pure(a)
 
-  def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
-    fa.flatMap(f)
+  override def ap[A, B](ff: Resource[F, A => B])(fa: Resource[F, A]): Resource[F, B] = {
+    fa.flatMap(a => ff.map(f => f(a)))
+  }
 }
 
 abstract private[effect] class ResourceMonoid[F[_], A]
@@ -1327,7 +1351,6 @@ abstract private[effect] class ResourceMonoid[F[_], A]
 }
 
 abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Resource[F, A]] {
-  implicit protected def F: Monad[F]
   implicit protected def A: Semigroup[A]
 
   def combine(rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
