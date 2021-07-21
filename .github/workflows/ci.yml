@@ -26,14 +26,14 @@ jobs:
         java:
           - adopt@1.8
           - adopt@1.11
-          - adopt@1.16
+          - zulu@1.17
           - graalvm-ce-java8@21.1
         ci: [ciJVM, ciJS, ciFirefox]
         exclude:
           - ci: ciJS
             java: adopt@1.11
           - ci: ciJS
-            java: adopt@1.16
+            java: zulu@1.17
           - ci: ciJS
             java: graalvm-ce-java8@21.1
           - os: windows-latest
@@ -45,7 +45,7 @@ jobs:
           - ci: ciFirefox
             java: adopt@1.11
           - ci: ciFirefox
-            java: adopt@1.16
+            java: zulu@1.17
           - ci: ciFirefox
             java: graalvm-ce-java8@21.1
           - os: windows-latest
@@ -54,7 +54,7 @@ jobs:
             scala: 2.12.14
           - os: windows-latest
             ci: ciFirefox
-          - java: adopt@1.16
+          - java: zulu@1.17
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:

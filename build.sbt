@@ -53,7 +53,7 @@ ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.14", Scala213)
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
 val LTSJava = "adopt@1.11"
-val LatestJava = "adopt@1.16"
+val LatestJava = "zulu@1.17"
 val GraalVM8 = "graalvm-ce-java8@21.1"
 
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
