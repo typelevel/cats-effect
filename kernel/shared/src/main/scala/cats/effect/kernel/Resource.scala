@@ -1185,17 +1185,21 @@ private[effect] trait ResourceHOInstances7 {
 
 abstract private[effect] class ResourceFOInstances0 extends ResourceFOInstances1 {
   implicit def catsEffectMonoidForResource[F[_], A](
-      implicit A0: Monoid[A]): Monoid[Resource[F, A]] =
+      implicit F0: Monad[F],
+      A0: Monoid[A]): Monoid[Resource[F, A]] =
     new ResourceMonoid[F, A] {
       def A = A0
+      def F = F0
     }
 }
 
 abstract private[effect] class ResourceFOInstances1 {
   implicit def catsEffectSemigroupForResource[F[_], A](
-      implicit A0: Semigroup[A]): ResourceSemigroup[F, A] =
+      implicit F0: Monad[F],
+      A0: Semigroup[A]): ResourceSemigroup[F, A] =
     new ResourceSemigroup[F, A] {
       def A = A0
+      def F = F0
     }
 }
 
@@ -1300,15 +1304,17 @@ abstract private[effect] class ResourceAsync[F[_]]
 }
 
 abstract private[effect] class ResourceMonadError[F[_], E]
-    extends ResourceApplicativeError[F, E]
-    with ResourceMonad[F]
+    extends ResourceMonad[F]
+    with ResourceApplicativeError[F, E]
     with MonadError[Resource[F, *], E] {
+
   implicit protected def F: MonadError[F, E]
 }
 
-abstract private[effect] class ResourceApplicativeError[F[_], E]
+private[effect] trait ResourceApplicativeError[F[_], E]
     extends ResourceApplicative[F]
     with ApplicativeError[Resource[F, *], E] {
+
   implicit protected def F: ApplicativeError[F, E]
 
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
@@ -1321,7 +1327,7 @@ abstract private[effect] class ResourceApplicativeError[F[_], E]
     Resource.raiseError[F, A, E](e)
 }
 
-private[effect] trait ResourceMonad[F[_]]
+abstract private[effect] class ResourceMonad[F[_]]
     extends ResourceApplicative[F]
     with Monad[Resource[F, *]]
     with StackSafeMonad[Resource[F, *]] {
@@ -1337,8 +1343,8 @@ abstract private[effect] class ResourceApplicative[F[_]] extends Applicative[Res
   def pure[A](a: A): Resource[F, A] =
     Resource.pure(a)
 
-  override def ap[A, B](ff: Resource[F, A => B])(fa: Resource[F, A]): Resource[F, B] = {
-    fa.flatMap(a => ff.map(f => f(a)))
+  def ap[A, B](ff: Resource[F, A => B])(fa: Resource[F, A]): Resource[F, B] = {
+    ff.flatMap(f => fa.map(a => f(a)))
   }
 }
 
@@ -1351,6 +1357,7 @@ abstract private[effect] class ResourceMonoid[F[_], A]
 }
 
 abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Resource[F, A]] {
+  implicit protected def F: Monad[F]
   implicit protected def A: Semigroup[A]
 
   def combine(rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
