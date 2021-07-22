@@ -111,7 +111,7 @@ It is quite common in most imperative language contexts (including Scala) to con
 
 ### Asynchronous
 
-In particular, "asynchronous" is the opposite of "synchronous", and it returns to a manner in which a given effect produces a value. Synchronous effects are defined using `apply` (also `delay` or `blocking` or `interruptible`) and produce their results using `return`, or alternatively raise errors using `throw`. These are the familiar "sequential" type of effects:
+In particular, "asynchronous" is the opposite of "synchronous", and it pertains to a manner in which a given effect produces a value. Synchronous effects are defined using `apply` (also `delay` or `blocking` or `interruptible`) and produce their results using `return`, or alternatively raise errors using `throw`. These are the familiar "sequential" type of effects:
 
 ```scala mdoc:silent
 IO(Thread.sleep(500))   // => IO[Unit]
@@ -144,7 +144,7 @@ It is critical to note that nothing in the definition of "asynchronous" implies 
 
 ### Concurrent
 
-In the parlance of Cats Effect, "concurrent" generally refers to two or more actions which are defined to be independent in their control flow. It is the opposite of "sequential", or rather, "sequential" implies that something *cannot* be "concurrent". Critically, it is possible for things that are "concurrent" to evaluate sequentially if the underlying runtime decides this is optimal, whereas actions which are sequential will always be evaluated one after the other.
+In the language of Cats Effect, "concurrent" generally refers to two or more actions which are defined to be independent in their control flow. It is the opposite of "sequential", or rather, "sequential" implies that something *cannot* be "concurrent". Critically, it is possible for things that are "concurrent" to evaluate sequentially if the underlying runtime decides this is optimal, whereas actions which are sequential will always be evaluated one after the other.
 
 Concurrency is often conflated with asynchronous execution due to the fact that, in practice, the *implementation* of concurrency often relies upon some mechanism for asynchronous evaluation. But as noted above, asynchrony is just that: an implementation detail, and one which says nothing about concurrent vs sequential semantics.
 
