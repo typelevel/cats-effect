@@ -2,6 +2,7 @@
   "docs": {
     "Overview": [
       "getting-started",
+      "concepts",
       "tutorial",
       "migration-guide",
       "thread-model",
