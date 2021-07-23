@@ -624,7 +624,7 @@ sealed abstract class Resource[F[_], +A] {
           }
         }
       case Bind(source, f) =>
-        source.attempt.flatMap {
+        Resource.unit.flatMap(_ => source.attempt).flatMap {
           case Left(error) => Resource.pure(error.asLeft)
           case Right(s) => f(s).attempt
         }
