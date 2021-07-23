@@ -46,7 +46,7 @@ class ResourceJVMSpec extends Specification with Runners {
 
     "verify use is stack-safe over binds" in ticked { implicit ticker =>
       val stackDepth = verifyThatSoeIsReproducibleWithStackDepth()
-      val r = (1 to stackDepth)
+      val r = (0 to stackDepth)
         .foldLeft(Resource.eval(IO.unit)) {
           case (r, _) =>
             r.flatMap(_ => Resource.eval(IO.unit))
@@ -73,7 +73,7 @@ class ResourceJVMSpec extends Specification with Runners {
 
     "verify mapK is stack-safe over binds" in ticked { implicit ticker =>
       val stackDepth = verifyThatSoeIsReproducibleWithStackDepth()
-      val r = (1 to stackDepth)
+      val r = (0 to stackDepth)
         .foldLeft(Resource.eval(IO.unit)) {
           case (r, _) =>
             r.flatMap(_ => Resource.eval(IO.unit))
@@ -82,6 +82,18 @@ class ResourceJVMSpec extends Specification with Runners {
         .use_
 
       r eqv IO.unit
+    }
+
+    "verify attempt is stack-safe over binds" in ticked { implicit ticker =>
+      val stackDepth = verifyThatSoeIsReproducibleWithStackDepth()
+      val r = (0 to stackDepth)
+        .foldLeft(Resource.eval(IO.unit)) {
+          case (r, _) =>
+            r.flatMap(_ => Resource.eval(IO.unit))
+        }
+        .attempt
+
+      r.use_ must completeAs(())
     }
   }
 }
