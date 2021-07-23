@@ -624,7 +624,7 @@ sealed abstract class Resource[F[_], +A] {
           }
         }
       case Bind(source, f) =>
-        ApplicativeError[Resource[F, *], E].attempt(source).flatMap {
+        source.attempt.flatMap {
           case Left(error) => Resource.pure(error.asLeft)
           case Right(s) => f(s).attempt
         }
@@ -1160,25 +1160,9 @@ private[effect] trait ResourceHOInstances4 extends ResourceHOInstances5 {
     }
 }
 
-private[effect] trait ResourceHOInstances5 extends ResourceHOInstances6 {
+private[effect] trait ResourceHOInstances5 {
   implicit def catsEffectMonadForResource[F[_]](implicit F0: Monad[F]): Monad[Resource[F, *]] =
     new ResourceMonad[F] {
-      def F = F0
-    }
-}
-
-private[effect] trait ResourceHOInstances6 extends ResourceHOInstances7 {
-  implicit def catsEffectApplicativeErrorForResource[F[_], E](
-      implicit F0: ApplicativeError[F, E]): ApplicativeError[Resource[F, *], E] =
-    new ResourceApplicativeError[F, E] {
-      def F = F0
-    }
-}
-
-private[effect] trait ResourceHOInstances7 {
-  implicit def catsEffectApplicativeForResource[F[_]](
-      implicit F0: Applicative[F]): Applicative[Resource[F, *]] =
-    new ResourceApplicative[F] {
       def F = F0
     }
 }
@@ -1305,17 +1289,9 @@ abstract private[effect] class ResourceAsync[F[_]]
 
 abstract private[effect] class ResourceMonadError[F[_], E]
     extends ResourceMonad[F]
-    with ResourceApplicativeError[F, E]
     with MonadError[Resource[F, *], E] {
 
   implicit protected def F: MonadError[F, E]
-}
-
-private[effect] trait ResourceApplicativeError[F[_], E]
-    extends ResourceApplicative[F]
-    with ApplicativeError[Resource[F, *], E] {
-
-  implicit protected def F: ApplicativeError[F, E]
 
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
     fa.attempt
@@ -1328,24 +1304,16 @@ private[effect] trait ResourceApplicativeError[F[_], E]
 }
 
 abstract private[effect] class ResourceMonad[F[_]]
-    extends ResourceApplicative[F]
-    with Monad[Resource[F, *]]
+    extends Monad[Resource[F, *]]
     with StackSafeMonad[Resource[F, *]] {
+
   implicit protected def F: Monad[F]
-
-  def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
-    fa.flatMap(f)
-}
-
-abstract private[effect] class ResourceApplicative[F[_]] extends Applicative[Resource[F, *]] {
-  implicit protected def F: Applicative[F]
 
   def pure[A](a: A): Resource[F, A] =
     Resource.pure(a)
 
-  def ap[A, B](ff: Resource[F, A => B])(fa: Resource[F, A]): Resource[F, B] = {
-    ff.flatMap(f => fa.map(a => f(a)))
-  }
+  def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
+    fa.flatMap(f)
 }
 
 abstract private[effect] class ResourceMonoid[F[_], A]
