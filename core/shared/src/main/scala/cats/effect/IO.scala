@@ -347,7 +347,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.FlatMap(this, f, Tracing.calculateTracingEvent(f.getClass))
 
   def flatten[B](implicit ev: A <:< IO[B]): IO[B] = flatMap(ev)
-  
+
   def flatTap[B](f: A => IO[B]): IO[A] = flatMap(a => f(a).as(a))
 
   /**
