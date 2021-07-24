@@ -53,7 +53,7 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
     "scala."
   )
 
-  def augmentThrowable(t: Throwable, events: RingBuffer): Unit = {
+  def augmentThrowable(enhancedExceptions: Boolean, t: Throwable, events: RingBuffer): Unit = {
     def applyRunLoopFilter(ste: StackTraceElement): Boolean = {
       val name = ste.getClassName
       var i = 0

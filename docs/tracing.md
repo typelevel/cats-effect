@@ -82,7 +82,7 @@ enabled before deploying it to a production environment!
 
 ### Configuration
 The stack tracing mode of an application is configured by the system property
-`cats.effect.stackTracingMode`. There are 3 stack tracing modes: `none`,
+`cats.effect.tracing.mode`. There are 3 stack tracing modes: `none`,
 `cached` and `full`. These values are case-insensitive. The default tracing mode
 is `cached`, which uses a global cache to avoid expensive recomputation of stack
 tracing information.
@@ -91,15 +91,14 @@ To prevent unbounded memory usage, stack tracing information for a given fiber
 is accumulated in an internal buffer as execution proceeds. If more traces are
 collected than the buffer can retain, the oldest trace information will be
 overwritten. The default size of the buffer is 16. This value can be configured
-via the system property `cats.effect.traceBufferLogSize`. Keep in mind that the
-provided value is a logarithm of the actual size of the buffer (i.e. the actual
-size of the tracing information buffer is
-2<sup>`cats.effect.traceBufferLogSize`</sup>).
+via the system property `cats.effect.tracing.buffer.size`. Keep in mind that the
+value configured by the system property must be a power of two and will be rounded to the nearest power if not.
 
 For example, to enable full stack tracing and a trace buffer of size 1024,
 specify the following system properties:
+
 ```
--Dcats.effect.stackTracingMode=full -Dcats.effect.traceBufferLogSize=10
+-Dcats.effect.tracing.mode=full -Dcats.effect.tracing.buffer.size=1024
 ```
 
 ## Stack tracing modes
@@ -239,23 +238,23 @@ deeply nested recursive `IO` programs like the one on this page, even with a
 fairly small buffer. The example was generated using the following stack tracing
 configuration:
 ```
--Dcats.effect.stackTracingMode=full -Dcats.effect.traceBufferLogSize=6
+-Dcats.effect.tracing.mode=full -Dcats.effect.tracing.buffer.size=64
 ```
 
 The enhanced exceptions feature is controlled by the system property
-`cats.effect.enhancedExceptions`. It is enabled by default.
+`cats.effect.tracing.exceptions.enhanced`. It is enabled by default.
 
 It can be disabled with the following configuration:
 ```
--Dcats.effect.enhancedExceptions=false
+-Dcats.effect.tracing.exceptions.enhanced=false
 ```
 
 ### Complete code
 Here is the code snippet that was used to generate the above examples:
 ```scala mdoc
 // Pass the following system property to your JVM:
-// -Dcats.effect.stackTracingMode=full
-// -Dcats.effect.traceBufferLogSize=6
+// -Dcats.effect.tracing.mode=full
+// -Dcats.effect.tracing.buffer.size=64
 
 import cats.effect.{IO, IOApp}
 
