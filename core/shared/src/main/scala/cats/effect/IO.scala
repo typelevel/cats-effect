@@ -348,6 +348,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def flatten[B](implicit ev: A <:< IO[B]): IO[B] = flatMap(ev)
 
+  def flatTap[B](f: A => IO[B]): IO[A] = flatMap(a => f(a).as(a))
+
   /**
    * Executes the given `finalizer` when the source is finished,
    * either in success or in error, or if canceled.
