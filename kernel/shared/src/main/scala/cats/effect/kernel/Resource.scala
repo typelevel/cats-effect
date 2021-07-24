@@ -981,8 +981,6 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
   def raiseError[F[_], A, E](e: E)(implicit F: ApplicativeError[F, E]): Resource[F, A] =
     Resource.eval(F.raiseError[A](e))
 
-  def empty[F[_], A](implicit A: Monoid[A]): Resource[F, A] = Resource.pure[F, A](A.empty)
-
   /**
    * `Resource` data constructor that wraps an effect allocating a resource,
    * along with its finalizers.
@@ -1321,7 +1319,7 @@ abstract private[effect] class ResourceMonoid[F[_], A]
     with Monoid[Resource[F, A]] {
   implicit protected def A: Monoid[A]
 
-  def empty: Resource[F, A] = Resource.empty
+  def empty: Resource[F, A] = Resource.pure[F, A](A.empty)
 }
 
 abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Resource[F, A]] {
