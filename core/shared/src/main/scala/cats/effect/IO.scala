@@ -876,7 +876,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *   IO.println("Hello, World!").foreverM    // continues printing forever
    * }}}
    */
-  def foreverM: IO[Nothing] = Monad[IO].foreverM[A, Nothing](this)
+  def foreverM: IO[Nothing] = IO.asyncForIO.foreverM[A, Nothing](this)
 
   def whileM[G[_]: Alternative, B >: A](p: IO[Boolean]): IO[G[B]] =
     Monad[IO].whileM[G, B](p)(this)
