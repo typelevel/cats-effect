@@ -30,7 +30,7 @@ package unsafe
  * @param initialCapacity the initial capacity of the hashtable, ''must'' be a
  *                        power of 2
  */
-private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
+private[effect] final class ThreadSafeHashtable(private[this] val initialCapacity: Int) {
   private[this] var hashtable: Array[Throwable => Unit] = new Array(initialCapacity)
   private[this] var size: Int = 0
   private[this] var mask: Int = initialCapacity - 1
@@ -107,6 +107,33 @@ private[effect] final class ThreadSafeHashtable(initialCapacity: Int) {
         // Mark the removed callback with the `Tombstone` reference.
         table(idx) = Tombstone
         size -= 1
+
+        val sz = size
+        val cap = capacity
+        if (cap > initialCapacity && (sz << 2) < cap) {
+          // halve the capacity of the table if it has been filled with less
+          // than 1/4 of the capacity
+          val newCap = cap >>> 1
+          val newMask = newCap - 1
+          val newHashtable = new Array[Throwable => Unit](newCap)
+
+          val table = hashtable
+          var i = 0
+          while (i < cap) {
+            val cur = table(i)
+            if ((cur ne null) && (cur ne Tombstone)) {
+              // Only re-insert references to actual callbacks.
+              // Filters out `Tombstone`s.
+              insert(newHashtable, newMask, cur, System.identityHashCode(cur) >> log2NumTables)
+            }
+            i += 1
+          }
+
+          hashtable = newHashtable
+          mask = newMask
+          capacity = newCap
+        }
+
         return
       } else if (cur ne null) {
         // Skip over references of other callbacks and `Tombstone` objects.
