@@ -77,7 +77,11 @@ class StripedHashtableSpec extends BaseSpec with Runners {
             .flatMap { _ =>
               IO.blocking {
                 rt.fiberErrorCbs.synchronized {
-                  rt.fiberErrorCbs.tables.forall(_.isEmpty) mustEqual true
+                  rt.fiberErrorCbs.tables.forall { table =>
+                    // check that each component hashtable of the larger striped
+                    // hashtable is empty and has shrunk to its initial capacity
+                    table.isEmpty && table.unsafeCapacity() == table.unsafeInitialCapacity()
+                  } mustEqual true
                 }
               }
             }
