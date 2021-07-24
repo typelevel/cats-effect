@@ -148,11 +148,16 @@ private[effect] final class ThreadSafeHashtable(private[this] val initialCapacit
 
   def unsafeHashtable(): Array[Throwable => Unit] = hashtable
 
-  /**
+  /*
    * Only used in testing.
    */
+
   private[unsafe] def isEmpty: Boolean =
     size == 0 && hashtable.forall(cb => (cb eq null) || (cb eq Tombstone))
+
+  private[unsafe] def unsafeCapacity(): Int = capacity
+
+  private[unsafe] def unsafeInitialCapacity(): Int = initialCapacity
 }
 
 private object ThreadSafeHashtable {
