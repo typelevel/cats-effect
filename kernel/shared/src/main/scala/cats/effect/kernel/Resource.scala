@@ -493,6 +493,9 @@ sealed abstract class Resource[F[_], +A] {
       }
     }
 
+  def !>[B](that: Resource[F, B])(implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
+    forceR(that)
+
   def onCancel(fin: Resource[F, Unit])(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
     Resource applyFull { poll =>
       poll(this.allocated).onCancel(fin.use_) map { p =>
