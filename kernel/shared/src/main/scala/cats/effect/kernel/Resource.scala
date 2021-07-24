@@ -21,8 +21,8 @@ import cats.data.Kleisli
 import cats.syntax.all._
 import cats.effect.kernel.instances.spawn
 import cats.effect.kernel.implicits._
-
 import scala.annotation.tailrec
+import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
@@ -484,6 +484,183 @@ sealed abstract class Resource[F[_], +A] {
     new (F ~> F) {
       override def apply[B](gb: F[B]): F[B] = surround(gb)
     }
+
+  def forceR[B](that: Resource[F, B])(implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
+    Resource applyFull { poll =>
+      poll(this.use_ !> that.allocated) map { p =>
+        // map exists on tuple in Scala 3 and has the wrong type
+        Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+      }
+    }
+
+  def !>[B](that: Resource[F, B])(implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
+    forceR(that)
+
+  def onCancel(fin: Resource[F, Unit])(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
+    Resource applyFull { poll =>
+      poll(this.allocated).onCancel(fin.use_) map { p =>
+        Functor[(A @uncheckedVariance, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+      }
+    }
+
+  def guaranteeCase(
+      fin: Outcome[Resource[F, *], Throwable, A @uncheckedVariance] => Resource[F, Unit])(
+      implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
+    Resource applyFull { poll =>
+      val back = poll(this.allocated) guaranteeCase {
+        case Outcome.Succeeded(ft) =>
+          fin(Outcome.Succeeded(Resource.eval(ft.map(_._1)))).use_ handleErrorWith { e =>
+            ft.flatMap(_._2).handleError(_ => ()) >> F.raiseError(e)
+          }
+
+        case Outcome.Errored(e) =>
+          fin(Outcome.Errored(e)).use_.handleError(_ => ())
+
+        case Outcome.Canceled() =>
+          fin(Outcome.Canceled()).use_
+      }
+
+      back.map(p =>
+        Functor[(A @uncheckedVariance, *)].map(p)(fu => (_: Resource.ExitCase) => fu))
+    }
+
+  /*
+   * 1. If the scope containing the *fiber* terminates:
+   *   a) if the fiber is incomplete, run its inner finalizers when it completes
+   *   b) if the fiber is succeeded, run its finalizers
+   * 2. If the fiber is canceled or errored, finalize
+   * 3. If the fiber succeeds and .cancel won the race, finalize eagerly and
+   *    `join` results in `Canceled()`
+   * 4. If the fiber succeeds and .cancel lost the race or wasn't called,
+   *    finalize naturally when the containing scope ends, `join` returns
+   *    the value
+   */
+  def start(
+      implicit
+      F: Concurrent[F]): Resource[F, Fiber[Resource[F, *], Throwable, A @uncheckedVariance]] = {
+    final case class State(
+        fin: F[Unit] = F.unit,
+        finalizeOnComplete: Boolean = false,
+        confirmedFinalizeOnComplete: Boolean = false)
+
+    Resource {
+      import Outcome._
+
+      F.ref[State](State()) flatMap { state =>
+        val finalized: F[A] = F uncancelable { poll =>
+          poll(this.allocated) guarantee {
+            // confirm that we completed and we were asked to clean up
+            // note that this will run even if the inner effect short-circuited
+            state update { s =>
+              if (s.finalizeOnComplete)
+                s.copy(confirmedFinalizeOnComplete = true)
+              else
+                s
+            }
+          } flatMap {
+            // if the inner F has a zero, we lose the finalizers, but there's no avoiding that
+            case (a, rel) =>
+              val action = state modify { s =>
+                if (s.confirmedFinalizeOnComplete)
+                  (s, rel.handleError(_ => ()))
+                else
+                  (s.copy(fin = rel), F.unit)
+              }
+
+              action.flatten.as(a)
+          }
+        }
+
+        F.start(finalized) map { outer =>
+          val fiber = new Fiber[Resource[F, *], Throwable, A] {
+            def cancel =
+              Resource eval {
+                F uncancelable { poll =>
+                  // technically cancel is uncancelable, but separation of concerns and what not
+                  poll(outer.cancel) *> state.update(_.copy(finalizeOnComplete = true))
+                }
+              }
+
+            def join =
+              Resource eval {
+                outer.join.flatMap[Outcome[Resource[F, *], Throwable, A]] {
+                  case Canceled() =>
+                    Outcome.canceled[Resource[F, *], Throwable, A].pure[F]
+
+                  case Errored(e) =>
+                    Outcome.errored[Resource[F, *], Throwable, A](e).pure[F]
+
+                  case Succeeded(fp) =>
+                    state.get map { s =>
+                      if (s.confirmedFinalizeOnComplete)
+                        Outcome.canceled[Resource[F, *], Throwable, A]
+                      else
+                        Outcome.succeeded(Resource.eval(fp))
+                    }
+                }
+              }
+          }
+
+          val finalizeOuter =
+            state.modify(s => (s.copy(finalizeOnComplete = true), s.fin)).flatten
+
+          (fiber, finalizeOuter)
+        }
+      }
+    }
+  }
+
+  def evalOn(ec: ExecutionContext)(implicit F: Async[F]): Resource[F, A] =
+    Resource applyFull { poll =>
+      poll(this.allocated).evalOn(ec) map { p =>
+        Functor[(A @uncheckedVariance, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+      }
+    }
+
+  def attempt[E](implicit F: ApplicativeError[F, E]): Resource[F, Either[E, A]] =
+    this match {
+      case Allocate(resource) =>
+        Resource.applyFull { poll =>
+          resource(poll).attempt.map {
+            case Left(error) => (Left(error), (_: ExitCase) => F.unit)
+            case Right((a, release)) => (Right(a), release)
+          }
+        }
+      case Bind(source, f) =>
+        Resource.unit.flatMap(_ => source.attempt).flatMap {
+          case Left(error) => Resource.pure(error.asLeft)
+          case Right(s) => f(s).attempt
+        }
+      case p @ Pure(_) =>
+        Resource.pure(p.a.asRight)
+      case e @ Eval(_) =>
+        Resource.eval(e.fa.attempt)
+    }
+
+  def handleErrorWith[B >: A, E](f: E => Resource[F, B])(
+      implicit F: ApplicativeError[F, E]): Resource[F, B] =
+    attempt.flatMap {
+      case Right(a) => Resource.pure(a)
+      case Left(e) => f(e)
+    }
+
+  def combine[B >: A](that: Resource[F, B])(implicit A: Semigroup[B]): Resource[F, B] =
+    for {
+      x <- this
+      y <- that
+    } yield A.combine(x, y)
+
+  def combineK[B >: A](that: Resource[F, B])(
+      implicit F: MonadCancel[F, Throwable],
+      K: SemigroupK[F],
+      G: Ref.Make[F]): Resource[F, B] =
+    Resource.make(Ref[F].of(F.unit))(_.get.flatten).evalMap { finalizers =>
+      def allocate(r: Resource[F, B]): F[B] =
+        r.fold(_.pure[F], (release: F[Unit]) => finalizers.update(_.guarantee(release)))
+
+      K.combineK(allocate(this), allocate(that))
+    }
+
 }
 
 object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with ResourcePlatform {
@@ -722,6 +899,91 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
       implicit F: Sync[F]): Resource[F, A] =
     Resource.make(acquire)(autoCloseable => F.blocking(autoCloseable.close()))
 
+  def canceled[F[_]](implicit F: MonadCancel[F, _]): Resource[F, Unit] =
+    Resource.eval(F.canceled)
+
+  def uncancelable[F[_], A](body: Poll[Resource[F, *]] => Resource[F, A])(
+      implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
+    Resource applyFull { poll =>
+      val inner = new Poll[Resource[F, *]] {
+        def apply[B](rfb: Resource[F, B]): Resource[F, B] =
+          Resource applyFull { innerPoll =>
+            innerPoll(poll(rfb.allocated)) map { p =>
+              Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+            }
+          }
+      }
+
+      body(inner).allocated map { p =>
+        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
+      }
+    }
+
+  def unique[F[_]](implicit F: Unique[F]): Resource[F, Unique.Token] =
+    Resource.eval(F.unique)
+
+  def never[F[_], A](implicit F: GenSpawn[F, _]): Resource[F, A] =
+    Resource.eval(F.never[A])
+
+  def cede[F[_]](implicit F: GenSpawn[F, _]): Resource[F, Unit] =
+    Resource.eval(F.cede)
+
+  def deferred[F[_], A](
+      implicit F: GenConcurrent[F, _]): Resource[F, Deferred[Resource[F, *], A]] =
+    Resource.eval(F.deferred[A]).map(_.mapK(Resource.liftK[F]))
+
+  def ref[F[_], A](a: A)(implicit F: GenConcurrent[F, _]): Resource[F, Ref[Resource[F, *], A]] =
+    Resource.eval(F.ref(a)).map(_.mapK(Resource.liftK[F]))
+
+  def monotonic[F[_]](implicit F: Clock[F]): Resource[F, FiniteDuration] =
+    Resource.eval(F.monotonic)
+
+  def realTime[F[_]](implicit F: Clock[F]): Resource[F, FiniteDuration] =
+    Resource.eval(F.realTime)
+
+  def suspend[F[_], A](hint: Sync.Type)(thunk: => A)(implicit F: Sync[F]): Resource[F, A] =
+    Resource.eval(F.suspend(hint)(thunk))
+
+  def sleep[F[_]](time: FiniteDuration)(implicit F: GenTemporal[F, _]): Resource[F, Unit] =
+    Resource.eval(F.sleep(time))
+
+  def cont[F[_], K, R](body: Cont[Resource[F, *], K, R])(implicit F: Async[F]): Resource[F, R] =
+    Resource applyFull { poll =>
+      poll {
+        F cont {
+          new Cont[F, K, (R, Resource.ExitCase => F[Unit])] {
+            def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (cb, ga, nt) =>
+              type D[A] = Kleisli[G, Ref[G, F[Unit]], A]
+
+              val nt2 = new (Resource[F, *] ~> D) {
+                def apply[A](rfa: Resource[F, A]) =
+                  Kleisli { r =>
+                    nt(rfa.allocated) flatMap { case (a, fin) => r.update(_ !> fin).as(a) }
+                  }
+              }
+
+              for {
+                r <- nt(F.ref(F.unit).map(_.mapK(nt)))
+
+                a <- G.guaranteeCase(body[D].apply(cb, Kleisli.liftF(ga), nt2).run(r)) {
+                  case Outcome.Canceled() | Outcome.Errored(_) => r.get.flatMap(nt(_))
+                  case Outcome.Succeeded(_) => G.unit
+                }
+
+                fin <- r.get
+              } yield (a, (_: Resource.ExitCase) => fin)
+            }
+          }
+        }
+      }
+    }
+
+  def executionContext[F[_]](implicit F: Async[F]): Resource[F, ExecutionContext] =
+    Resource.eval(F.executionContext)
+
+  def raiseError[F[_], A, E](e: E)(implicit F: ApplicativeError[F, E]): Resource[F, A] =
+    Resource.eval(F.raiseError[A](e))
+
   /**
    * `Resource` data constructor that wraps an effect allocating a resource,
    * along with its finalizers.
@@ -931,58 +1193,20 @@ abstract private[effect] class ResourceMonadCancel[F[_]]
     with MonadCancel[Resource[F, *], Throwable] {
   implicit protected def F: MonadCancel[F, Throwable]
 
-  def canceled: Resource[F, Unit] =
-    Resource.eval(F.canceled)
+  def canceled: Resource[F, Unit] = Resource.canceled
 
   def forceR[A, B](fa: Resource[F, A])(fb: Resource[F, B]): Resource[F, B] =
-    Resource applyFull { poll =>
-      poll(fa.use_ !> fb.allocated) map { p =>
-        // map exists on tuple in Scala 3 and has the wrong type
-        Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
-    }
+    fa.forceR(fb)
 
   def onCancel[A](fa: Resource[F, A], fin: Resource[F, Unit]): Resource[F, A] =
-    Resource applyFull { poll =>
-      poll(fa.allocated).onCancel(fin.use_) map { p =>
-        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
-    }
+    fa.onCancel(fin)
 
   def uncancelable[A](body: Poll[Resource[F, *]] => Resource[F, A]): Resource[F, A] =
-    Resource applyFull { poll =>
-      val inner = new Poll[Resource[F, *]] {
-        def apply[B](rfb: Resource[F, B]): Resource[F, B] =
-          Resource applyFull { innerPoll =>
-            innerPoll(poll(rfb.allocated)) map { p =>
-              Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-            }
-          }
-      }
-
-      body(inner).allocated map { p =>
-        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
-    }
+    Resource.uncancelable(body)
 
   override def guaranteeCase[A](rfa: Resource[F, A])(
       fin: Outcome[Resource[F, *], Throwable, A] => Resource[F, Unit]): Resource[F, A] =
-    Resource applyFull { poll =>
-      val back = poll(rfa.allocated) guaranteeCase {
-        case Outcome.Succeeded(ft) =>
-          fin(Outcome.Succeeded(Resource.eval(ft.map(_._1)))).use_ handleErrorWith { e =>
-            ft.flatMap(_._2).handleError(_ => ()) >> F.raiseError(e)
-          }
-
-        case Outcome.Errored(e) =>
-          fin(Outcome.Errored(e)).use_.handleError(_ => ())
-
-        case Outcome.Canceled() =>
-          fin(Outcome.Canceled()).use_
-      }
-
-      back.map(p => Functor[(A, *)].map(p)(fu => (_: Resource.ExitCase) => fu))
-    }
+    rfa.guaranteeCase(fin)
 }
 
 // note: Spawn alone isn't possible since we need Concurrent to implement start
@@ -991,117 +1215,33 @@ abstract private[effect] class ResourceConcurrent[F[_]]
     with GenConcurrent[Resource[F, *], Throwable] {
   implicit protected def F: Concurrent[F]
 
-  def unique: Resource[F, Unique.Token] =
-    Resource.eval(F.unique)
+  def unique: Resource[F, Unique.Token] = Resource.unique
 
-  def never[A]: Resource[F, A] =
-    Resource.eval(F.never[A])
+  def never[A]: Resource[F, A] = Resource.never
 
-  def cede: Resource[F, Unit] =
-    Resource.eval(F.cede)
+  def cede: Resource[F, Unit] = Resource.cede
 
-  /*
-   * 1. If the scope containing the *fiber* terminates:
-   *   a) if the fiber is incomplete, run its inner finalizers when it completes
-   *   b) if the fiber is succeeded, run its finalizers
-   * 2. If the fiber is canceled or errored, finalize
-   * 3. If the fiber succeeds and .cancel won the race, finalize eagerly and
-   *    `join` results in `Canceled()`
-   * 4. If the fiber succeeds and .cancel lost the race or wasn't called,
-   *    finalize naturally when the containing scope ends, `join` returns
-   *    the value
-   */
-  def start[A](fa: Resource[F, A]): Resource[F, Fiber[Resource[F, *], Throwable, A]] = {
-    final case class State(
-        fin: F[Unit] = F.unit,
-        finalizeOnComplete: Boolean = false,
-        confirmedFinalizeOnComplete: Boolean = false)
-
-    Resource {
-      import Outcome._
-
-      F.ref[State](State()) flatMap { state =>
-        val finalized: F[A] = F uncancelable { poll =>
-          poll(fa.allocated) guarantee {
-            // confirm that we completed and we were asked to clean up
-            // note that this will run even if the inner effect short-circuited
-            state update { s =>
-              if (s.finalizeOnComplete)
-                s.copy(confirmedFinalizeOnComplete = true)
-              else
-                s
-            }
-          } flatMap {
-            // if the inner F has a zero, we lose the finalizers, but there's no avoiding that
-            case (a, rel) =>
-              val action = state modify { s =>
-                if (s.confirmedFinalizeOnComplete)
-                  (s, rel.handleError(_ => ()))
-                else
-                  (s.copy(fin = rel), F.unit)
-              }
-
-              action.flatten.as(a)
-          }
-        }
-
-        F.start(finalized) map { outer =>
-          val fiber = new Fiber[Resource[F, *], Throwable, A] {
-            def cancel =
-              Resource eval {
-                F uncancelable { poll =>
-                  // technically cancel is uncancelable, but separation of concerns and what not
-                  poll(outer.cancel) *> state.update(_.copy(finalizeOnComplete = true))
-                }
-              }
-
-            def join =
-              Resource eval {
-                outer.join.flatMap[Outcome[Resource[F, *], Throwable, A]] {
-                  case Canceled() =>
-                    Outcome.canceled[Resource[F, *], Throwable, A].pure[F]
-
-                  case Errored(e) =>
-                    Outcome.errored[Resource[F, *], Throwable, A](e).pure[F]
-
-                  case Succeeded(fp) =>
-                    state.get map { s =>
-                      if (s.confirmedFinalizeOnComplete)
-                        Outcome.canceled[Resource[F, *], Throwable, A]
-                      else
-                        Outcome.succeeded(Resource.eval(fp))
-                    }
-                }
-              }
-          }
-
-          val finalizeOuter =
-            state.modify(s => (s.copy(finalizeOnComplete = true), s.fin)).flatten
-
-          (fiber, finalizeOuter)
-        }
-      }
-    }
-  }
+  def start[A](fa: Resource[F, A]): Resource[F, Fiber[Resource[F, *], Throwable, A]] =
+    fa.start
 
   def deferred[A]: Resource[F, Deferred[Resource[F, *], A]] =
-    Resource.eval(F.deferred[A]).map(_.mapK(Resource.liftK[F]))
+    Resource.deferred
 
   def ref[A](a: A): Resource[F, Ref[Resource[F, *], A]] =
-    Resource.eval(F.ref(a)).map(_.mapK(Resource.liftK[F]))
+    Resource.ref(a)
 
   override def both[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, (A, B)] =
-    Resource.both(fa, fb)
+    fa.both(fb)
 }
 
 private[effect] trait ResourceClock[F[_]] extends Clock[Resource[F, *]] {
   implicit protected def F: Clock[F]
 
   def monotonic: Resource[F, FiniteDuration] =
-    Resource.eval(F.monotonic)
+    Resource.monotonic
 
   def realTime: Resource[F, FiniteDuration] =
-    Resource.eval(F.realTime)
+    Resource.realTime
 }
 
 private[effect] trait ResourceSync[F[_]]
@@ -1111,7 +1251,7 @@ private[effect] trait ResourceSync[F[_]]
   implicit protected def F: Sync[F]
 
   def suspend[A](hint: Sync.Type)(thunk: => A): Resource[F, A] =
-    Resource.eval(F.suspend(hint)(thunk))
+    Resource.suspend(hint)(thunk)
 }
 
 private[effect] trait ResourceTemporal[F[_]]
@@ -1121,7 +1261,7 @@ private[effect] trait ResourceTemporal[F[_]]
   implicit protected def F: Temporal[F]
 
   def sleep(time: FiniteDuration): Resource[F, Unit] =
-    Resource.eval(F.sleep(time))
+    Resource.sleep(time)
 }
 
 abstract private[effect] class ResourceAsync[F[_]]
@@ -1133,88 +1273,35 @@ abstract private[effect] class ResourceAsync[F[_]]
   override def applicative = this
 
   override def unique: Resource[F, Unique.Token] =
-    Resource.eval(F.unique)
+    Resource.unique
 
   override def never[A]: Resource[F, A] =
-    Resource.eval(F.never[A])
+    Resource.never
 
   def cont[K, R](body: Cont[Resource[F, *], K, R]): Resource[F, R] =
-    Resource applyFull { poll =>
-      poll {
-        F cont {
-          new Cont[F, K, (R, Resource.ExitCase => F[Unit])] {
-            def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (cb, ga, nt) =>
-              type D[A] = Kleisli[G, Ref[G, F[Unit]], A]
-
-              val nt2 = new (Resource[F, *] ~> D) {
-                def apply[A](rfa: Resource[F, A]) =
-                  Kleisli { r =>
-                    nt(rfa.allocated) flatMap { case (a, fin) => r.update(_ !> fin).as(a) }
-                  }
-              }
-
-              for {
-                r <- nt(F.ref(F.unit).map(_.mapK(nt)))
-
-                a <- G.guaranteeCase(body[D].apply(cb, Kleisli.liftF(ga), nt2).run(r)) {
-                  case Outcome.Canceled() | Outcome.Errored(_) => r.get.flatMap(nt(_))
-                  case Outcome.Succeeded(_) => G.unit
-                }
-
-                fin <- r.get
-              } yield (a, (_: Resource.ExitCase) => fin)
-            }
-          }
-        }
-      }
-    }
+    Resource.cont(body)
 
   def evalOn[A](fa: Resource[F, A], ec: ExecutionContext): Resource[F, A] =
-    Resource applyFull { poll =>
-      poll(fa.allocated).evalOn(ec) map { p =>
-        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
-    }
+    fa.evalOn(ec)
 
   def executionContext: Resource[F, ExecutionContext] =
-    Resource.eval(F.executionContext)
+    Resource.executionContext
 }
 
 abstract private[effect] class ResourceMonadError[F[_], E]
     extends ResourceMonad[F]
     with MonadError[Resource[F, *], E] {
-  import Resource._
 
   implicit protected def F: MonadError[F, E]
 
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
-    fa match {
-      case Allocate(resource) =>
-        Resource.applyFull { poll =>
-          resource(poll).attempt.map {
-            case Left(error) => (Left(error), (_: ExitCase) => F.unit)
-            case Right((a, release)) => (Right(a), release)
-          }
-        }
-      case Bind(source, f) =>
-        source.attempt.flatMap {
-          case Left(error) => Resource.pure(error.asLeft)
-          case Right(s) => f(s).attempt
-        }
-      case p @ Pure(_) =>
-        Resource.pure(p.a.asRight)
-      case e @ Eval(_) =>
-        Resource.eval(e.fa.attempt)
-    }
+    fa.attempt
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
-    attempt(fa).flatMap {
-      case Right(a) => Resource.pure(a)
-      case Left(e) => f(e)
-    }
+    fa.handleErrorWith(f)
 
   def raiseError[A](e: E): Resource[F, A] =
-    Resource.eval(F.raiseError[A](e))
+    Resource.raiseError[F, A, E](e)
 }
 
 abstract private[effect] class ResourceMonad[F[_]]
@@ -1243,10 +1330,7 @@ abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Reso
   implicit protected def A: Semigroup[A]
 
   def combine(rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
-    for {
-      x <- rx
-      y <- ry
-    } yield A.combine(x, y)
+    rx.combine(ry)
 }
 
 abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, *]] {
@@ -1255,10 +1339,5 @@ abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resou
   implicit protected def G: Ref.Make[F]
 
   def combineK[A](ra: Resource[F, A], rb: Resource[F, A]): Resource[F, A] =
-    Resource.make(Ref[F].of(F.unit))(_.get.flatten).evalMap { finalizers =>
-      def allocate(r: Resource[F, A]): F[A] =
-        r.fold(_.pure[F], (release: F[Unit]) => finalizers.update(_.guarantee(release)))
-
-      K.combineK(allocate(ra), allocate(rb))
-    }
+    ra.combineK(rb)
 }

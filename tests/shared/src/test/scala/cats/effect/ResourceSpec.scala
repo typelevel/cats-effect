@@ -412,6 +412,17 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       r eqv IO.unit
     }
 
+    "attempt is stack-safe over binds" in ticked { implicit ticker =>
+      val r = (1 to 10000)
+        .foldLeft(Resource.eval(IO.unit)) {
+          case (r, _) =>
+            r.flatMap(_ => Resource.eval(IO.unit))
+        }
+        .attempt
+
+      r.use_ must completeAs(())
+    }
+
     "safe attempt suspended resource" in ticked { implicit ticker =>
       val exception = new Exception("boom!")
       val suspend = Resource.suspend[IO, Unit](IO.raiseError(exception))
