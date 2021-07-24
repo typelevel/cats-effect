@@ -6,7 +6,8 @@
       "migration-guide",
       "thread-model",
       "typeclasses",
-      "schedulers"
+      "schedulers",
+      "tracing"
     ],
     "Typeclasses": [
       "typeclasses",
