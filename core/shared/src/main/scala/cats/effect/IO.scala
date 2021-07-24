@@ -103,6 +103,8 @@ import scala.util.{Failure, Success, Try}
  *       IO.pure(a)
  *   }
  * }}}
+ *
+ * @see [[IOApp]] for the preferred way of executing whole programs wrapped in `IO`
  */
 sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
@@ -118,12 +120,23 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   /**
    * Runs the current IO, then runs the parameter, keeping its result.
-   * The result of the first action is ignored.
-   * If the source fails, the other action won't run.
+   * The result of the first action is ignored. If the source fails,
+   * the other action won't run. Not suitable for use when the parameter
+   * is a recursive reference to the current expression.
+   *
+   * @see [[>>]] for the recursion-safe, lazily evaluated alternative
    */
   def *>[B](that: IO[B]): IO[B] =
     productR(that)
 
+  /**
+   * Runs the current IO, then runs the parameter, keeping its result.
+   * The result of the first action is ignored.
+   * If the source fails, the other action won't run. Evaluation of the
+   * parameter is done lazily, making this suitable for recursion.
+   *
+   * @see [*>] for the strictly evaluated alternative
+   */
   def >>[B](that: => IO[B]): IO[B] =
     flatMap(_ => that)
 
@@ -170,6 +183,16 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def option: IO[Option[A]] =
     redeem(_ => None, Some(_))
 
+  /**
+   * Runs the current and given IO in parallel, producing the pair of
+   * the outcomes. Both outcomes are produced, regardless of whether
+   * they complete successfully.
+   *
+   * @see [[both]] for the version which embeds the outcomes to produce a pair
+   *               of the results
+   * @see [[raceOutcome]] for the version which produces the outcome of the
+   *                      winner and cancels the loser of the race
+   */
   def bothOutcome[B](that: IO[B]): IO[(OutcomeIO[A @uncheckedVariance], OutcomeIO[B])] =
     IO.uncancelable { poll =>
       racePair(that).flatMap {
@@ -178,6 +201,16 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       }
     }
 
+  /**
+   * Runs the current and given IO in parallel, producing the pair of
+   * the results. If either fails with an error, the result of the whole
+   * will be that error and the other will be canceled.
+   *
+   * @see [[bothOutcome]] for the version which produces the outcome of both
+   *                      effects executed in parallel
+   * @see [[race]] for the version which produces the result of the winner and
+   *               cancels the loser of the race
+   */
   def both[B](that: IO[B]): IO[(A, B)] =
     IO.both(this, that)
 
@@ -321,6 +354,16 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def bracketCase[B](use: A => IO[B])(release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
     IO.bracketFull(_ => this)(use)(release)
 
+  /**
+   * Shifts the execution of the current IO to the specified `ExecutionContext`.
+   * All stages of the execution will default to the pool in question, and any
+   * asynchronous callbacks will shift back to the pool upon completion. Any nested
+   * use of `evalOn` will override the specified pool. Once the execution fully
+   * completes, default control will be shifted back to the enclosing (inherited) pool.
+   *
+   * @see [[IO.executionContext]] for obtaining the `ExecutionContext` on which
+   *                              the current `IO` is being executed
+   */
   def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
 
   def startOn(ec: ExecutionContext): IO[FiberIO[A @uncheckedVariance]] = start.evalOn(ec)
@@ -613,7 +656,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   /**
    * Makes the source `IO` uninterruptible such that a [[cats.effect.kernel.Fiber#cancel]]
-   * signal has no effect.
+   * signal is ignored until completion.
+   *
+   * @see [[IO.uncancelable]] for constructing uncancelable `IO` values with
+   *                          user-configurable cancelable regions
    */
   def uncancelable: IO[A] =
     IO.uncancelable(_ => this)
@@ -813,6 +859,14 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     interpret(this)
   }
 
+  /**
+   * Evaluates the current `IO` in an infinite loop, terminating only on
+   * error or cancelation.
+   *
+   * {{{
+   *   IO.println("Hello, World!").foreverM    // continues printing forever
+   * }}}
+   */
   def foreverM: IO[Nothing] = IO.asyncForIO.foreverM[A, Nothing](this)
 
   def whileM[G[_]: Alternative, B >: A](p: IO[Boolean]): IO[G[B]] =
@@ -975,9 +1029,16 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   /**
    * An IO that contains an empty Option.
+   *
+   * @see [[some]] for the non-empty Option variant
    */
   def none[A]: IO[Option[A]] = pure(None)
 
+  /**
+   * An IO that contains some Option of the given value.
+   *
+   * @see [[none]] for the empty Option variant
+   */
   def some[A](a: A): IO[Option[A]] = pure(Some(a))
 
   /**
@@ -1108,8 +1169,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * finish, either in success or error. The loser of the race is
    * canceled.
    *
-   * The two tasks are executed in parallel if asynchronous,
-   * the winner being the first that signals a result.
+   * The two tasks are executed in parallel, the winner being the
+   * first that signals a result.
    *
    * As an example see [[IO.timeout]] and [[IO.timeoutTo]]
    *
