@@ -49,7 +49,5 @@ private[effect] final class RingBuffer private (logSize: Int) {
 }
 
 private[effect] object RingBuffer {
-  import TracingConstants.traceBufferLogSize
-
-  def empty: RingBuffer = new RingBuffer(traceBufferLogSize)
+  def empty(logSize: Int): RingBuffer = new RingBuffer(logSize)
 }

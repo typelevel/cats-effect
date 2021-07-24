@@ -118,7 +118,8 @@ private final class IOFiber[A](
   private[this] val cancelationCheckThreshold: Int = runtime.config.cancelationCheckThreshold
   private[this] val autoYieldThreshold: Int = runtime.config.autoYieldThreshold
 
-  private[this] val tracingEvents: RingBuffer = RingBuffer.empty
+  private[this] val tracingEvents: RingBuffer =
+    RingBuffer.empty(runtime.config.traceBufferLogSize)
 
   override def run(): Unit = {
     // insert a read barrier after every async boundary
@@ -1266,7 +1267,7 @@ private final class IOFiber[A](
   }
 
   private[this] def runTerminusFailureK(t: Throwable): IO[Any] = {
-    Tracing.augmentThrowable(t, tracingEvents)
+    Tracing.augmentThrowable(runtime.config.enhancedExceptions, t, tracingEvents)
     done(Outcome.Errored(t))
     IOEndFiber
   }

@@ -29,11 +29,16 @@ final case class IORuntimeConfig private (
       autoYieldThreshold,
       IORuntimeConfig.DefaultEnhancedExceptions,
       IORuntimeConfig.DefaultTraceBufferSize)
+
+  private[effect] val traceBufferLogSize: Int =
+    Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt
 }
 
 object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
-  private[unsafe] val DefaultEnhancedExceptions = true
-  private[unsafe] val DefaultTraceBufferSize = 16
+
+  // these have to be defs because we forward-reference them from the companion platform
+  private[unsafe] def DefaultEnhancedExceptions = true
+  private[unsafe] def DefaultTraceBufferSize = 16
 
   def apply(): IORuntimeConfig = Default
 
