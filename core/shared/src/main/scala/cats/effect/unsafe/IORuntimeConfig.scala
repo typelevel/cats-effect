@@ -80,7 +80,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
         cancelationCheckThreshold,
         autoYieldThreshold,
         enhancedExceptions,
-        2 << (Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt - 1))
+        1 << Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt)
     else
       throw new AssertionError(
         s"Auto yield threshold $autoYieldThreshold must be a multiple of cancelation check threshold $cancelationCheckThreshold")
