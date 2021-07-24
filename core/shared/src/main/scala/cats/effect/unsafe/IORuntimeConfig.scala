@@ -30,18 +30,29 @@ final case class IORuntimeConfig private (
       IORuntimeConfig.DefaultEnhancedExceptions,
       IORuntimeConfig.DefaultTraceBufferSize)
 
-  private[effect] val traceBufferLogSize: Int =
-    Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt
-
-  // shim for binary compat
-  private[unsafe] def copy(
+  def copy(
       cancelationCheckThreshold: Int = this.cancelationCheckThreshold,
-      autoYieldThreshold: Int = this.autoYieldThreshold): IORuntimeConfig =
+      autoYieldThreshold: Int = this.autoYieldThreshold,
+      enhancedExceptions: Boolean = this.enhancedExceptions,
+      traceBufferSize: Int = this.traceBufferSize): IORuntimeConfig =
     new IORuntimeConfig(
       cancelationCheckThreshold,
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize)
+
+  // shim for binary compat
+  private[unsafe] def copy(
+      cancelationCheckThreshold: Int,
+      autoYieldThreshold: Int): IORuntimeConfig =
+    new IORuntimeConfig(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize)
+
+  private[effect] val traceBufferLogSize: Int =
+    Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt
 }
 
 object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
