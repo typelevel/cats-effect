@@ -332,7 +332,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     Resource.make(startOn(ec))(_.cancel).map(_.join)
 
   def forceR[B](that: IO[B]): IO[B] =
-    handleError(_ => ()).productR(right)
+    handleError(_ => ()).productR(that)
 
   /**
    * Monadic bind on `IO`, used for sequentially composing two `IO`
@@ -415,6 +415,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       }
       handled.flatTap(a => finalizer(Outcome.succeeded(IO.pure(a))))
     }
+
+  def handleError[B >: A](f: Throwable => B): IO[B] =
+    handleErrorWith[B](t => IO.pure(f(t)))
 
   /**
    * Handle any error, potentially recovering from it, by mapping it to another
@@ -1369,6 +1372,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     override def guaranteeCase[A](fa: IO[A])(fin: OutcomeIO[A] => IO[Unit]): IO[A] =
       fa.guaranteeCase(fin)
+
+    override def handleError[A](fa: IO[A])(f: Throwable => A): IO[A] =
+      fa.handleError(f)
 
     def handleErrorWith[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
       fa.handleErrorWith(f)
