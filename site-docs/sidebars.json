@@ -3,11 +3,11 @@
     "Overview": [
       "getting-started",
       "tutorial",
+      "tracing",
       "migration-guide",
       "thread-model",
       "typeclasses",
-      "schedulers",
-      "tracing"
+      "schedulers"
     ],
     "Typeclasses": [
       "typeclasses",
