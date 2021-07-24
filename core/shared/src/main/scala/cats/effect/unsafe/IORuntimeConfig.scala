@@ -19,15 +19,42 @@ package unsafe
 
 final case class IORuntimeConfig private (
     val cancelationCheckThreshold: Int,
-    val autoYieldThreshold: Int)
+    val autoYieldThreshold: Int,
+    val enhancedExceptions: Boolean,
+    val traceBufferSize: Int) {
+
+  def this(cancelationCheckThreshold: Int, autoYieldThreshold: Int) =
+    this(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      IORuntimeConfig.DefaultEnhancedExceptions,
+      IORuntimeConfig.DefaultTraceBufferSize)
+}
 
 object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
+  private[unsafe] val DefaultEnhancedExceptions = true
+  private[unsafe] val DefaultTraceBufferSize = 16
 
   def apply(): IORuntimeConfig = Default
 
-  def apply(cancelationCheckThreshold: Int, autoYieldThreshold: Int): IORuntimeConfig = {
+  def apply(cancelationCheckThreshold: Int, autoYieldThreshold: Int): IORuntimeConfig =
+    apply(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      DefaultEnhancedExceptions,
+      DefaultTraceBufferSize)
+
+  def apply(
+      cancelationCheckThreshold: Int,
+      autoYieldThreshold: Int,
+      enhancedExceptions: Boolean,
+      traceBufferSize: Int): IORuntimeConfig = {
     if (autoYieldThreshold % cancelationCheckThreshold == 0)
-      new IORuntimeConfig(cancelationCheckThreshold, autoYieldThreshold)
+      new IORuntimeConfig(
+        cancelationCheckThreshold,
+        autoYieldThreshold,
+        enhancedExceptions,
+        2 << (Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt - 1))
     else
       throw new AssertionError(
         s"Auto yield threshold $autoYieldThreshold must be a multiple of cancelation check threshold $cancelationCheckThreshold")

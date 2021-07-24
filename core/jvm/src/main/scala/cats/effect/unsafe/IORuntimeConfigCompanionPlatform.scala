@@ -19,6 +19,7 @@ package unsafe
 
 private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
 
+  // TODO make the cancelation and auto-yield properties have saner names
   protected final val Default: IORuntimeConfig = {
     val cancelationCheckThreshold =
       System.getProperty("cats.effect.cancelation.check.threshold", "512").toInt
@@ -27,6 +28,15 @@ private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntim
       cancelationCheckThreshold,
       System
         .getProperty("cats.effect.auto.yield.threshold.multiplier", "2")
-        .toInt * cancelationCheckThreshold)
+        .toInt * cancelationCheckThreshold,
+      System
+        .getProperty(
+          "cats.effect.tracing.exceptions.enhanced",
+          DefaultEnhancedExceptions.toString)
+        .toBoolean,
+      System
+        .getProperty("cats.effect.tracing.buffer.size", DefaultTraceBufferSize.toString)
+        .toInt
+    )
   }
 }

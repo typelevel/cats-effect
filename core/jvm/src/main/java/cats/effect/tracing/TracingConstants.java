@@ -24,7 +24,7 @@ class TracingConstants {
    * Sets stack tracing mode for a JVM process, which controls how much stack
    * trace information is captured. Acceptable values are: NONE, CACHED, FULL.
    */
-  private static final String stackTracingMode = Optional.ofNullable(System.getProperty("cats.effect.stackTracingMode"))
+  private static final String stackTracingMode = Optional.ofNullable(System.getProperty("cats.effect.tracing.mode"))
       .filter(x -> !x.isEmpty()).orElse("cached");
 
   static final boolean isCachedStackTracing = stackTracingMode.equalsIgnoreCase("cached");
