@@ -105,9 +105,9 @@ Secondarily, cancelation can be suppressed within scoped regions. If a fiber is 
 
 Finally, due to the fact that the fiber model offers much more control and tighter guarantees around cancelation, it is possible and safe to dramatically increase the granularity of cancelation within the target fiber. In particular, every *step* of a fiber contains a cancelation check. This is similar to what `interrupt` would do if the JVM checked the interruption flag on every `;`. This is exactly how the `loop` fiber in the example above is canceled despite the fact that the thread never blocks. Anyone who has ever attempted to use `Thread#interrupt` on a `while`-loop understands how important this distinction is: in Cats Effect, canceling this kind of fiber is possible and indeed quite common.
 
-## "Asynchronous" vs "Concurrent" vs "Parallel"
+## Terminology
 
-It is quite common in most imperative language contexts (including Scala) to conflate these three terms. "Asynchronous" in particular is often taken to be synonymous with "parallel", when in fact all three have a very distinct definition which becomes significant in frameworks like Cats Effect.
+It is quite common in most imperative language contexts (including Scala) to conflate the terms "asynchronous", "concurrent", and "parallel". "Asynchronous" in particular is often taken to be synonymous with "parallel", when in fact all three have a very distinct definition which becomes significant in frameworks like Cats Effect.
 
 ### Asynchronous
 
@@ -184,7 +184,7 @@ As another implementation detail, it is worth noting that fibers are prevented f
 
 An effect is a description of an action (or actions) that will be taken when evaluation happens. One very common sort of effect is `IO`:
 
-```scala mdoc
+```scala mdoc:silent
 val printer: IO[Unit] = IO.println("Hello, World")
 val printAndRead: IO[String] = IO.print("Enter your name: ") >> IO.readLine
 
@@ -258,7 +258,7 @@ When side-effecting code is wrapped in one of these constructors, the code itsel
 
 For example, we can wrap the `System.out.println` side-effecting code from earlier to convert it into an effect value:
 
-```scala mdoc
+```scala mdoc:silent
 val wrapped: IO[Unit] = IO(System.out.println("Hello, World"))
 ```
 
