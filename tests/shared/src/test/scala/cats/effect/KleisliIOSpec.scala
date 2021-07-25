@@ -53,6 +53,14 @@ class KleisliIOSpec
         IO(i) must completeAs(N)
     }
 
+    "should be stack safe in long parTraverse chains" in ticked { implicit ticker =>
+      val N = 10000
+      var i = 0
+
+      List.fill(N)(0).parTraverse_(_ => Kleisli.liftF(IO(i += 1))).run("Go...") *>
+        IO(i) must completeAs(N)
+    }
+
     "execute finalizers" in ticked { implicit ticker =>
       type F[A] = Kleisli[IO, String, A]
 
