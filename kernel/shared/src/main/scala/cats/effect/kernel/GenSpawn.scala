@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.{~>, Applicative}
+import cats.{~>, Applicative, Eval}
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{Monoid, Semigroup}
 import cats.syntax.all._
@@ -434,6 +434,9 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
           }
       }
     }
+
+  def bothEval[A, B](fa: F[A], fb: Eval[F[B]]): Eval[F[(A, B)]] =
+    fb.map(fb => both(fa, fb))
 }
 
 object GenSpawn {
