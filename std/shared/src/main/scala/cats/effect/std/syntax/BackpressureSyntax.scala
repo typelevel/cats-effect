@@ -14,7 +14,17 @@
  * limitations under the License.
  */
 
-package cats.effect
-package std.syntax
+package cats.effect.std.syntax
 
-trait AllSyntax extends BackpressureSyntax with SupervisorSyntax
+import cats.effect.std.Backpressure
+
+trait BackpressureSyntax {
+  implicit def backpressureOps[F[_], A](wrapped: F[A]): BackpressureOps[F, A] =
+    new BackpressureOps(wrapped)
+}
+
+final class BackpressureOps[F[_], A] private[syntax] (private[syntax] val wrapped: F[A])
+    extends AnyVal {
+  def metered(backpressure: Backpressure[F]): F[Option[A]] =
+    backpressure.metered(wrapped)
+}
