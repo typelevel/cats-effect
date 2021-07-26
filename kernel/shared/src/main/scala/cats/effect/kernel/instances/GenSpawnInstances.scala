@@ -20,6 +20,7 @@ import cats.{~>, Align, Applicative, CommutativeApplicative, Functor, Monad, Par
 import cats.data.Ior
 import cats.implicits._
 import cats.effect.kernel.{GenSpawn, ParallelF}
+import cats.Eval
 
 trait GenSpawnInstances {
 
@@ -55,6 +56,11 @@ trait GenSpawnInstances {
         ParallelF(
           F.both(ParallelF.value(fa), ParallelF.value(fb)).map { case (a, b) => f(a, b) }
         )
+
+      final override def map2Eval[A, B, Z](fa: ParallelF[F, A], fb: Eval[ParallelF[F, B]])(
+          f: (A, B) => Z): Eval[ParallelF[F, Z]] =
+        F.bothEval(ParallelF.value(fa), fb.map(ParallelF.value))
+          .map(fp => ParallelF(fp.map(f.tupled)))
 
       final override def ap[A, B](ff: ParallelF[F, A => B])(
           fa: ParallelF[F, A]): ParallelF[F, B] =
