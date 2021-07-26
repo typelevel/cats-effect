@@ -125,6 +125,36 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
       }
     }
   }
+
+  override def mapBoth[A, B, C](fa: F[A], fb: F[B])(f: (A, B) => F[C]): F[C] = {
+    implicit val F: GenConcurrent[F, E] = this
+
+    uncancelable { poll =>
+      for {
+        resultA <- deferred[Outcome[F, E, A]]
+        resultB <- deferred[Outcome[F, E, B]]
+
+        fiberA <- start(guaranteeCase(fa)(outcome => resultA.complete(outcome).void))
+        fiberB <- start(guaranteeCase(fb)(outcome => resultB.complete(outcome).void))
+
+        _ <- poll(fiberA.join)
+        _ <- poll(fiberB.join)
+
+        outcomeA <- poll(resultA.get)
+        outcomeB <- poll(resultB.get)
+
+        resultC <- (outcomeA, outcomeB) match {
+          case (Outcome.Succeeded(fa), Outcome.Succeeded(fb)) =>
+            fa.product(fb).flatMap { case (a, b) => f(a, b) }
+
+          case (Outcome.Errored(e), _) => raiseError(e)
+          case (_, Outcome.Errored(e)) => raiseError(e)
+          case (Outcome.Canceled(), _) => F.canceled *> never
+          case (_, Outcome.Canceled()) => F.canceled *> never
+        }
+      } yield resultC
+    }
+  }
 }
 
 object GenConcurrent {
