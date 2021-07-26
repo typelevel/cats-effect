@@ -38,19 +38,19 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck with Ba
   import OutcomeGenerators._
 
   "PureConc" should {
-    def remainder3(n: Int): Int = {
-      val r = n % 3
-      if (r < 0) -r else r
-    }
-
-    def wrapEval(n: Int)(fb: PureConc[Int, Int]): Eval[PureConc[Int, Int]] =
-      remainder3(n) match {
-        case 0 => Eval.always(fb)
-        case 1 => Eval.later(fb)
-        case 2 => Eval.now(fb)
+    "respect the both and bothEval correspondence" in {
+      def remainder3(n: Int): Int = {
+        val r = n % 3
+        if (r < 0) -r else r
       }
 
-    "respect the both and bothEval correspondence" in {
+      def wrapEval(n: Int)(fb: PureConc[Int, Int]): Eval[PureConc[Int, Int]] =
+        remainder3(n) match {
+          case 0 => Eval.always(fb)
+          case 1 => Eval.later(fb)
+          case 2 => Eval.now(fb)
+        }
+
       forAll { (fa: PureConc[Int, Int], fb: PureConc[Int, Int], n: Int) =>
         val left =
           GenSpawn[PureConc[Int, *]].both(fa, fb)

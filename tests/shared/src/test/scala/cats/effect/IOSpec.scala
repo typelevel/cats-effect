@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.Eval
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{AlignTests, SemigroupKTests}
 import cats.laws.discipline.arbitrary._
@@ -476,6 +477,28 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
             l2 <- l.get
             r2 <- r.get
           } yield (l2 -> r2)) must completeAs(true -> true)
+        }
+
+        "correspond to bothEval" in ticked { implicit ticker =>
+          def remainder3(n: Int): Int = {
+            val r = n % 3
+            if (r < 0) -r else r
+          }
+
+          def wrapEval(n: Int)(fb: IO[Int]): Eval[IO[Int]] =
+            remainder3(n) match {
+              case 0 => Eval.always(fb)
+              case 1 => Eval.later(fb)
+              case 2 => Eval.now(fb)
+            }
+
+          forAll { (fa: IO[Int], fb: IO[Int], n: Int) =>
+            val left = IO.both(fa, fb)
+
+            val right = GenSpawn[IO].bothEval(fa, wrapEval(n)(fb))
+
+            left eqv right.value
+          }
         }
 
       }
