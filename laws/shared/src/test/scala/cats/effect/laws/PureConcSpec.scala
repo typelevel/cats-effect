@@ -17,11 +17,14 @@
 package cats.effect
 package laws
 
-import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._,
-TimeT._
+import cats.Eval
+import cats.effect.kernel.GenSpawn
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._
+import TimeT._
 import cats.laws.discipline.arbitrary._
+import cats.syntax.eq._
 
-import org.scalacheck.Prop
+import org.scalacheck.Prop, Prop.forAll
 
 import org.specs2.ScalaCheck
 import org.specs2.mutable._
@@ -33,6 +36,34 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 class PureConcSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
   import PureConcGenerators._
   import OutcomeGenerators._
+
+  "PureConc" should {
+    def remainder3(n: Int): Int = {
+      val r = n % 3
+      if (r < 0) -r else r
+    }
+
+    def wrapEval(n: Int)(fb: PureConc[Int, Int]): Eval[PureConc[Int, Int]] =
+      remainder3(n) match {
+        case 0 => Eval.always(fb)
+        case 1 => Eval.later(fb)
+        case 2 => Eval.now(fb)
+      }
+
+    "respect the both and bothEval correspondence" in {
+      forAll { (fa: PureConc[Int, Int], fb: PureConc[Int, Int], n: Int) =>
+        val left =
+          GenSpawn[PureConc[Int, *]].both(fa, fb)
+
+        val right =
+          GenSpawn[PureConc[Int, *]].bothEval(fa, wrapEval(n)(fb))
+
+        val result = pure.run(left) eqv pure.run(right.value)
+
+        result must beTrue
+      }
+    }
+  }
 
   implicit def exec(fb: TimeT[PureConc[Int, *], Boolean]): Prop =
     Prop(pure.run(TimeT.run(fb)).fold(false, _ => false, _.getOrElse(false)))
