@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 import cats.implicits._
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
-import cats.{~>, Monoid, Semigroup}
+import cats.{~>, Eval, Monoid, Semigroup}
 
 import cats.arrow.FunctionK
 import java.util.concurrent.atomic.AtomicReference
@@ -161,6 +161,9 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * Note that if you use `defaultCont` you _have_ to override `async`.
    */
   def cont[K, R](body: Cont[F, K, R]): F[R]
+
+  override def bothEval[A, B](fa: F[A], fb: Eval[F[B]]): Eval[F[(A, B)]] =
+    Eval.now(both(fa, defer(fb.value)))
 }
 
 object Async {
