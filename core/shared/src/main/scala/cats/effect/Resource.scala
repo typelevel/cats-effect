@@ -693,6 +693,8 @@ abstract private[effect] class ResourceParCommutativeApplicative[F[_]]
     map(product(fa, fb)) { case (a, b) => f(a, b) }
   final override def ap[A, B](ff: Par[F, A => B])(fa: Par[F, A]): Par[F, B] =
     map(product(ff, fa)) { case (ff, a) => ff(a) }
+  final override def map2Eval[A, B, Z](fa: Par[F, A], fb: Eval[Par[F, B]])(f: (A, B) => Z): Eval[Par[F, Z]] =
+    Eval.now(map2(fa, par(Resource.suspend(F0.delay(unwrap(fb.value)))))(f))
 }
 
 abstract private[effect] class ResourceParallel[F0[_]] extends Parallel[Resource[F0, *]] {
