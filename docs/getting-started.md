@@ -6,5 +6,5 @@ title: Installation
 Add the following dependencies to your `build.sbt`.
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect" % "2.5.1"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "2.5.2"
 ```
