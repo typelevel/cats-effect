@@ -45,30 +45,17 @@ import java.util.concurrent.TimeUnit
 @OutputTimeUnit(TimeUnit.SECONDS)
 class ParallelBenchmark {
 
-  @Param(Array("10000"))
+  @Param(Array("100", "1000", "10000"))
   var size: Int = _
 
-  @Benchmark
-  def parTraverseCpuTokens100(): Unit =
-    1.to(size).toList.parTraverse(_ => IO(Blackhole.consumeCPU(100L))).void.unsafeRunSync()
+  @Param(Array("100", "1000", "10000", "100000", "1000000"))
+  var cpuTokens: Long = _
 
   @Benchmark
-  def parTraverseCpuTokens1000(): Unit =
-    1.to(size).toList.parTraverse(_ => IO(Blackhole.consumeCPU(1000L))).void.unsafeRunSync()
+  def parTraverse(): Unit =
+    1.to(size).toList.parTraverse(_ => IO(Blackhole.consumeCPU(cpuTokens))).void.unsafeRunSync()
 
   @Benchmark
-  def parTraverseCpuTokens10000(): Unit =
-    1.to(size).toList.parTraverse(_ => IO(Blackhole.consumeCPU(10000L))).void.unsafeRunSync()
-
-  @Benchmark
-  def traverseCpuTokens100(): Unit =
-    1.to(size).toList.traverse(_ => IO(Blackhole.consumeCPU(100L))).void.unsafeRunSync()
-
-  @Benchmark
-  def traverseCpuTokens1000(): Unit =
-    1.to(size).toList.traverse(_ => IO(Blackhole.consumeCPU(1000L))).void.unsafeRunSync()
-
-  @Benchmark
-  def traverseCpuTokens10000(): Unit =
-    1.to(size).toList.traverse(_ => IO(Blackhole.consumeCPU(10000L))).void.unsafeRunSync()
+  def traverse(): Unit =
+    1.to(size).toList.traverse(_ => IO(Blackhole.consumeCPU(cpuTokens))).void.unsafeRunSync()
 }
