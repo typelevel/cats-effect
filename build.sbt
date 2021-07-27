@@ -96,7 +96,7 @@ ThisBuild / githubWorkflowBuild := Seq(
   )
 )
 
-val ciVariants = List("ciJVM", "ciJS", "ciFirefox")
+val ciVariants = List("ciJVM", "ciJS", "ciFirefox", "ciNative")
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
@@ -105,13 +105,16 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
       MatrixExclude(Map("os" -> Windows, "scala" -> scala))
     }
 
-  Seq("ciJS", "ciFirefox").flatMap { ci =>
+  val nativeScalaFilters = Seq(MatrixExclude(Map("ci" -> "ciNative", "scala" -> Scala3)))
+
+  Seq("ciJS", "ciFirefox", "ciNative").flatMap { ci =>
     val javaFilters =
       (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)).map { java =>
         MatrixExclude(Map("ci" -> ci, "java" -> java))
       }
 
-    javaFilters ++ windowsScalaFilters :+ MatrixExclude(Map("os" -> Windows, "ci" -> ci))
+    javaFilters ++ windowsScalaFilters ++ nativeScalaFilters :+ MatrixExclude(
+      Map("os" -> Windows, "ci" -> ci))
   }
 }
 
@@ -163,6 +166,7 @@ addCommandAlias(
   "ciJVM",
   "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues; root/unidoc213")
 addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; test")
+addCommandAlias("ciNative", "; project rootNative; headerCheck; scalafmtCheck; clean; test")
 
 // we do the firefox ci *only* on core because we're only really interested in IO here
 addCommandAlias(
@@ -175,12 +179,15 @@ addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/he
 val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.js, std.js, example.js)
 
+val nativeProjects: Seq[ProjectReference] =
+  Seq(kernel.native, std.native)
+
 val undocumentedRefs =
-  jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
+  jsProjects ++ nativeProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
 
 lazy val root = project
   .in(file("."))
-  .aggregate(rootJVM, rootJS)
+  .aggregate(rootJVM, rootJS, rootNative)
   .enablePlugins(NoPublishPlugin)
   .enablePlugins(ScalaUnidocPlugin)
   .settings(
@@ -213,11 +220,13 @@ lazy val rootJVM = project
 
 lazy val rootJS = project.aggregate(jsProjects: _*).enablePlugins(NoPublishPlugin)
 
+lazy val rootNative = project.aggregate(nativeProjects: _*).enablePlugins(NoPublishPlugin)
+
 /**
  * The core abstractions and syntax. This is the most general definition of Cats Effect,
  * without any concrete implementations. This is the "batteries not included" dependency.
  */
-lazy val kernel = crossProject(JSPlatform, JVMPlatform)
+lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("kernel"))
   .settings(
     name := "cats-effect-kernel",
@@ -231,12 +240,17 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
     else
       (Compile / doc / sources).value
   })
+  .nativeSettings(
+    Test / unmanagedSourceDirectories := Seq.empty,
+    libraryDependencies -= ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
+      .cross(CrossVersion.for3Use2_13)
+  )
 
 /**
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
  * generators, and useful tools for testing code written against Cats Effect.
  */
-lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
+lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("kernel-testkit"))
   .dependsOn(kernel)
   .settings(
@@ -252,7 +266,7 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
  * jar file and dependency issues. As a consequence of this split, some things
  * which are defined in kernelTestkit are *tested* in the Test scope of this project.
  */
-lazy val laws = crossProject(JSPlatform, JVMPlatform)
+lazy val laws = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("laws"))
   .dependsOn(kernel, kernelTestkit % Test)
   .settings(
@@ -360,7 +374,7 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform)
  * the *tests* for these implementations will require IO, and thus those tests
  * will be located within the core project.
  */
-lazy val std = crossProject(JSPlatform, JVMPlatform)
+lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("std"))
   .dependsOn(kernel)
   .settings(
@@ -375,6 +389,12 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
         "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     },
     libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test
+  )
+  .nativeSettings(
+    libraryDependencies ~= {
+      _.filterNot(_.organization == "org.specs2")
+    },
+    Test / unmanagedSourceDirectories := Seq.empty
   )
 
 /**

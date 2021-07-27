@@ -28,7 +28,7 @@ jobs:
           - adopt@1.11
           - adopt@1.16
           - graalvm-ce-java8@21.1
-        ci: [ciJVM, ciJS, ciFirefox]
+        ci: [ciJVM, ciJS, ciFirefox, ciNative]
         exclude:
           - ci: ciJS
             java: adopt@1.11
@@ -40,6 +40,8 @@ jobs:
             scala: 3.0.1
           - os: windows-latest
             scala: 2.12.14
+          - ci: ciNative
+            scala: 3.0.1
           - os: windows-latest
             ci: ciJS
           - ci: ciFirefox
@@ -52,8 +54,24 @@ jobs:
             scala: 3.0.1
           - os: windows-latest
             scala: 2.12.14
+          - ci: ciNative
+            scala: 3.0.1
           - os: windows-latest
             ci: ciFirefox
+          - ci: ciNative
+            java: adopt@1.11
+          - ci: ciNative
+            java: adopt@1.16
+          - ci: ciNative
+            java: graalvm-ce-java8@21.1
+          - os: windows-latest
+            scala: 3.0.1
+          - os: windows-latest
+            scala: 2.12.14
+          - ci: ciNative
+            scala: 3.0.1
+          - os: windows-latest
+            ci: ciNative
           - java: adopt@1.16
             os: windows-latest
     runs-on: ${{ matrix.os }}
