@@ -1540,7 +1540,7 @@ object IO extends IOInstances {
    *
    * {{{
    *  def fib(n: Int, a: Long, b: Long): IO[Long] =
-   *    IO.suspend {
+   *    IO.defer {
    *      if (n <= 0) IO.pure(a) else {
    *        val next = fib(n - 1, b, a + b)
    *
@@ -1700,7 +1700,7 @@ object IO extends IOInstances {
   /** Corresponds to [[IO.raiseError]]. */
   final private[effect] case class RaiseError(e: Throwable) extends IO[Nothing]
 
-  /** Corresponds to [[IO.suspend]]. */
+  /** Corresponds to [[IO.defer]]. */
   final private[effect] case class Suspend[+A](thunk: () => IO[A]) extends IO[A]
 
   /** Corresponds to [[IO.flatMap]]. */

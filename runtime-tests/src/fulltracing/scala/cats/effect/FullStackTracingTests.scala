@@ -94,7 +94,7 @@ class FullStackTracingTests extends CatsEffectSuite {
   }
 
   test("full stack tracing captures suspend frames") {
-    val task = IO.suspend(IO(1)).flatMap(a => IO.suspend(IO(a + 1)))
+    val task = IO.defer(IO(1)).flatMap(a => IO.defer(IO(a + 1)))
 
     for (r <- traced(task).unsafeToFuture()) yield {
       assertEquals(r.captured, 6)

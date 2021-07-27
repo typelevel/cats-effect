@@ -297,12 +297,12 @@ IO.race(lh, IO.never) <-> lh.map(Left(_))
 IO.race(IO.never, rh) <-> rh.map(Right(_))
 ```
 
-### Deferred Execution — IO.suspend
+### Deferred Execution — IO.defer (previously `suspend`)
 
-The `IO.suspend` builder has this equivalence:
+The `IO.defer` builder has this equivalence:
 
 ```scala
-IO.suspend(f) <-> IO(f).flatten
+IO.defer(f) <-> IO(f).flatten
 ```
 
 So it is useful for suspending effects, but that defers the completion
@@ -313,7 +313,7 @@ modeling stack safe, tail recursive loops:
 import cats.effect.IO
 
 def fib(n: Int, a: Long, b: Long): IO[Long] =
-  IO.suspend {
+  IO.defer {
     if (n > 0)
       fib(n - 1, b, a + b)
     else
@@ -322,7 +322,7 @@ def fib(n: Int, a: Long, b: Long): IO[Long] =
 ```
 
 Normally a function like this would eventually yield a stack overflow
-error on top of the JVM. By using `IO.suspend` and doing all of those
+error on top of the JVM. By using `IO.defer` and doing all of those
 cycles using `IO`'s run-loop, its evaluation is lazy and it's going to
 use constant memory. This would work with `flatMap` as well, of
 course, `suspend` being just nicer in this example.
@@ -335,7 +335,7 @@ asynchronous boundaries:
 import cats.effect._
 
 def fib(n: Int, a: Long, b: Long)(implicit cs: ContextShift[IO]): IO[Long] =
-  IO.suspend {
+  IO.defer {
     if (n == 0) IO.pure(a) else {
       val next = fib(n - 1, b, a + b)
       // Every 100 cycles, introduce a logical thread fork
@@ -741,7 +741,7 @@ This operation is very similar to `IO.shift`, as it can be dropped in
 import cats.effect.IO
 
 def fib(n: Int, a: Long, b: Long): IO[Long] =
-  IO.suspend {
+  IO.defer {
     if (n <= 0) IO.pure(a) else {
       val next = fib(n - 1, b, a + b)
 
@@ -1002,7 +1002,7 @@ def readFile(file: File): IO[String] = {
     
   // Suspended execution because we are going to mutate 
   // a shared variable
-  IO.suspend {
+  IO.defer {
     // Shared state meant to signal cancellation
     var isCanceled = false
     
@@ -1557,7 +1557,7 @@ IO.pure(123).flatMap { n =>
 }
 ```
 
-Note that as far as the actual behavior of `IO` is concerned, something like `IO.pure(x).map(f)` is equivalent with `IO(f(x))` and `IO.pure(x).flatMap(f)` is equivalent with `IO.suspend(f(x))`.
+Note that as far as the actual behavior of `IO` is concerned, something like `IO.pure(x).map(f)` is equivalent with `IO(f(x))` and `IO.pure(x).flatMap(f)` is equivalent with `IO.defer(f(x))`.
 
 But you should not rely on this behavior, because it is NOT described by the laws required by the `Sync` type class and those laws are the only guarantees of behavior that you get. For example the above equivalence might be broken in the future in regards to error handling. So this behavior is currently there for safety reasons, but you should regard it as an implementation detail that could change in the future.
 
