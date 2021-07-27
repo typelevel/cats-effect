@@ -19,7 +19,8 @@ package effect
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import cats.effect.concurrent.Deferred
+import cats.data.Kleisli
+import cats.effect.concurrent.{Deferred, Ref}
 import cats.effect.internals.{Callback, IOPlatform}
 import cats.effect.laws.discipline.{ConcurrentEffectTests, EffectTests}
 import cats.effect.laws.discipline.arbitrary._
@@ -1211,6 +1212,38 @@ class IOTests extends BaseTestsSuite {
 
     ec.tick()
     assertEquals(f.value, Some(Success(())))
+  }
+
+  testAsync("Should be stack safe in long traverse chains") { implicit ec =>
+    val N = 10000
+
+    val test = for {
+      ref <- Ref[IO].of(0)
+      _ <- List.fill(N)(0).traverse_(_ => Kleisli.liftF(ref.update(_ + 1))).run("Go...")
+      v <- ref.get
+    } yield v
+
+    val f = test.unsafeToFuture()
+
+    ec.tick()
+    assertEquals(f.value, Some(Success(N)))
+  }
+
+  testAsync("Should be stack safe in long parTraverse chains") { implicit ec =>
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
+
+    val N = 10000
+
+    val test = for {
+      ref <- Ref[IO].of(0)
+      _ <- List.fill(N)(0).parTraverse_(_ => Kleisli.liftF(ref.update(_ + 1))).run("Go...")
+      v <- ref.get
+    } yield v
+
+    val f = test.unsafeToFuture()
+
+    ec.tick()
+    assertEquals(f.value, Some(Success(N)))
   }
 }
 
