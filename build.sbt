@@ -250,7 +250,7 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
  * generators, and useful tools for testing code written against Cats Effect.
  */
-lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
   .in(file("kernel-testkit"))
   .dependsOn(kernel)
   .settings(
@@ -266,7 +266,7 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
  * jar file and dependency issues. As a consequence of this split, some things
  * which are defined in kernelTestkit are *tested* in the Test scope of this project.
  */
-lazy val laws = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+lazy val laws = crossProject(JSPlatform, JVMPlatform)
   .in(file("laws"))
   .dependsOn(kernel, kernelTestkit % Test)
   .settings(
