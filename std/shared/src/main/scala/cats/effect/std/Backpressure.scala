@@ -55,34 +55,31 @@ object Backpressure {
   def apply[F[_]](
       strategy: Strategy,
       bound: Int
-  )(implicit GC: GenConcurrent[F, Throwable]): F[Backpressure[F]] = {
+  )(implicit GC: GenConcurrent[F, _]): F[Backpressure[F]] = {
+    require(bound > 0)
     val notAcquired: F[None.type] = GC.pure(None)
 
-    GC.pure(bound > 0)
-      .ifM(
-        Semaphore[F](bound.toLong).map(sem =>
-          strategy match {
-            case Strategy.Lossy =>
-              new Backpressure[F] {
-                override def metered[A](f: F[A]): F[Option[A]] =
-                  sem
-                    .tryAcquire
-                    .bracket {
-                      case true => f.map(_.some)
-                      case false => notAcquired.widen[Option[A]]
-                    } {
-                      case true => sem.release
-                      case false => GC.unit
-                    }
-              }
-            case Strategy.Lossless =>
-              new Backpressure[F] {
-                override def metered[A](f: F[A]): F[Option[A]] =
-                  sem.permit.use(_ => f).map(_.some)
-              }
-          }),
-        GC.raiseError(new RuntimeException("Bound for Backpressure must be > 0"))
-      )
+    Semaphore[F](bound.toLong).map(sem =>
+      strategy match {
+        case Strategy.Lossy =>
+          new Backpressure[F] {
+            override def metered[A](f: F[A]): F[Option[A]] =
+              sem
+                .tryAcquire
+                .bracket {
+                  case true => f.map(_.some)
+                  case false => notAcquired.widen[Option[A]]
+                } {
+                  case true => sem.release
+                  case false => GC.unit
+                }
+          }
+        case Strategy.Lossless =>
+          new Backpressure[F] {
+            override def metered[A](f: F[A]): F[Option[A]] =
+              sem.acquire.bracket(_ => f.map(_.some))(_ => sem.release)
+          }
+      })
   }
 
   sealed trait Strategy
