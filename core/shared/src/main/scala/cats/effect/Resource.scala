@@ -648,6 +648,14 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
 
   def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] =
     Resource.tailRecM(a)(f)
+
+  override def map2Eval[A, B, Z](fa: Resource[F, A], fb: Eval[Resource[F, B]])(f: (A, B) => Z): Eval[Resource[F, Z]] =
+    Eval.now {
+      for {
+        a <- fa
+        b <- fb.value
+      } yield f(a, b)
+    }
 }
 
 abstract private[effect] class ResourceMonoid[F[_], A] extends ResourceSemigroup[F, A] with Monoid[Resource[F, A]] {
@@ -693,6 +701,8 @@ abstract private[effect] class ResourceParCommutativeApplicative[F[_]]
     map(product(fa, fb)) { case (a, b) => f(a, b) }
   final override def ap[A, B](ff: Par[F, A => B])(fa: Par[F, A]): Par[F, B] =
     map(product(ff, fa)) { case (ff, a) => ff(a) }
+  override def map2Eval[A, B, Z](fa: Par[F, A], fb: Eval[Par[F, B]])(f: (A, B) => Z): Eval[Par[F, Z]] =
+    Eval.now(map2(fa, par(Resource.suspend(F0.delay(unwrap(fb.value)))))(f))
 }
 
 abstract private[effect] class ResourceParallel[F0[_]] extends Parallel[Resource[F0, *]] {

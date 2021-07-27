@@ -845,6 +845,8 @@ abstract private[effect] class IOParallelNewtype extends internals.IOTimerRef wi
         par(unwrap(fa).map(f))
       final override def unit: IO.Par[Unit] =
         par(IO.unit)
+      override def map2Eval[A, B, Z](fa: IO.Par[A], fb: Eval[IO.Par[B]])(f: (A, B) => Z): Eval[IO.Par[Z]] =
+        Eval.now(map2(fa, par(IO.suspend(unwrap(fb.value))))(f))
     }
 }
 

@@ -621,4 +621,36 @@ class ResourceTests extends BaseTestsSuite {
       released <-> y :: acquired
     }
   }
+
+  testAsync("Should be stack safe in long traverse chains") { implicit ec =>
+    val N = 10000
+    var i = 0
+
+    val test = for {
+      _ <- List.fill(N)(0).traverse_(_ => Kleisli.liftF(Resource.eval(IO(i += 1)))).run("Go...")
+      v <- Resource.eval(IO(i))
+    } yield v
+
+    val f = test.use(IO.pure).unsafeToFuture()
+
+    ec.tick()
+    assertEquals(f.value, Some(Success(N)))
+  }
+
+  testAsync("Should be stack safe in long parTraverse chains") { implicit ec =>
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
+
+    val N = 10000
+    var i = 0
+
+    val test = for {
+      _ <- List.fill(N)(0).parTraverse_(_ => Kleisli.liftF(Resource.eval(IO(i += 1)))).run("Go...")
+      v <- Resource.eval(IO(i))
+    } yield v
+
+    val f = test.use(IO.pure).unsafeToFuture()
+
+    ec.tick()
+    assertEquals(f.value, Some(Success(N)))
+  }
 }
