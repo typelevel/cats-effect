@@ -441,17 +441,16 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
         fiberA <- start(fa)
         fiberB <- start(fb)
 
-        outcomeA <- poll(fiberA.join).onCancel(fiberB.cancel)
-        outcomeB <- poll(fiberB.join)
+        resultA <- poll(fiberA.join).flatMap[A] {
+          case Outcome.Succeeded(fa) => fa
+          case Outcome.Errored(e) => fiberB.cancel *> raiseError(e)
+          case Outcome.Canceled() => fiberB.cancel *> never
+        }
 
-        resultC <- (outcomeA, outcomeB) match {
-          case (Outcome.Succeeded(fa), Outcome.Succeeded(fb)) =>
-            fa.flatMap(a => fb.map(b => f(a, b)))
-
-          case (Outcome.Errored(e), _) => raiseError(e)
-          case (_, Outcome.Errored(e)) => raiseError(e)
-          case (Outcome.Canceled(), _) => F.canceled *> never
-          case (_, Outcome.Canceled()) => F.canceled *> never
+        resultC <- poll(fiberB.join).flatMap[C] {
+          case Outcome.Succeeded(fb) => fb.map(b => f(resultA, b))
+          case Outcome.Errored(e) => raiseError(e)
+          case Outcome.Canceled() => F.canceled *> never
         }
       } yield resultC
     }
