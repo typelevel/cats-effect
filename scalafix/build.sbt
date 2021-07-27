@@ -32,7 +32,7 @@ lazy val v2_4_0_output = project
 lazy val v2_4_0_tests = project
   .in(file("v2_4_0/tests"))
   .settings(
-    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % V.scalafixVersion % Test cross CrossVersion.full,
+    libraryDependencies += ("ch.epfl.scala" % "scalafix-testkit" % V.scalafixVersion % Test).cross(CrossVersion.full),
     (Compile / compile) :=
       (Compile / compile).dependsOn(v2_4_0_input / Compile / compile).value,
     scalafixTestkitOutputSourceDirectories :=
@@ -43,4 +43,36 @@ lazy val v2_4_0_tests = project
       (v2_4_0_input / Compile / fullClasspath).value
   )
   .dependsOn(v2_4_0_input, rules)
+  .enablePlugins(ScalafixTestkitPlugin)
+
+lazy val v2_5_2_input = project
+  .in(file("v2_5_2/input"))
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-effect" % "2.5.1"
+    )
+  )
+
+lazy val v2_5_2_output = project
+  .in(file("v2_5_2/output"))
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-effect" % "2.5.2"
+    )
+  )
+
+lazy val v2_5_2_tests = project
+  .in(file("v2_5_2/tests"))
+  .settings(
+    libraryDependencies += ("ch.epfl.scala" % "scalafix-testkit" % V.scalafixVersion % Test).cross(CrossVersion.full),
+    (Compile / compile) :=
+      (Compile / compile).dependsOn(v2_5_2_input / Compile / compile).value,
+    scalafixTestkitOutputSourceDirectories :=
+      (v2_5_2_output / Compile / sourceDirectories).value,
+    scalafixTestkitInputSourceDirectories :=
+      (v2_5_2_input / Compile / sourceDirectories).value,
+    scalafixTestkitInputClasspath :=
+      (v2_5_2_input / Compile / fullClasspath).value
+  )
+  .dependsOn(v2_5_2_input, rules)
   .enablePlugins(ScalafixTestkitPlugin)
