@@ -117,7 +117,7 @@ class IOJVMTests extends CatsEffectSuite {
 
     try {
       val latch = new java.util.concurrent.CountDownLatch(1)
-      def loop(): IO[Int] = IO.suspend(loop())
+      def loop(): IO[Int] = IO.defer(loop())
 
       implicit val ctx: ContextShift[IO] = IO.contextShift(ec)
       val task = IO.shift *> IO(latch.countDown()) *> loop()

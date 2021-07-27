@@ -846,7 +846,7 @@ abstract private[effect] class IOParallelNewtype extends internals.IOTimerRef wi
       final override def unit: IO.Par[Unit] =
         par(IO.unit)
       override def map2Eval[A, B, Z](fa: IO.Par[A], fb: Eval[IO.Par[B]])(f: (A, B) => Z): Eval[IO.Par[Z]] =
-        Eval.now(map2(fa, par(IO.suspend(unwrap(fb.value))))(f))
+        Eval.now(map2(fa, par(IO.defer(unwrap(fb.value))))(f))
     }
 }
 
@@ -918,7 +918,7 @@ abstract private[effect] class IOLowPriorityInstances extends IOParallelNewtype 
     final override def delay[A](thunk: => A): IO[A] =
       IO.delay(thunk)
     final override def suspend[A](thunk: => IO[A]): IO[A] =
-      IO.suspend(thunk)
+      IO.defer(thunk)
     final override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
       IO.async(k)
     final override def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
@@ -1144,6 +1144,23 @@ object IO extends IOInstances {
     delay(body)
 
   /**
+   * Suspends a synchronous side effect which produces an `IO` in `IO`.
+   *
+   * This is useful for trampolining (i.e. when the side effect is
+   * conceptually the allocation of a stack frame).  Any exceptions
+   * thrown by the side effect will be caught and sequenced into the
+   * `IO`.
+   */
+  def defer[A](thunk: => IO[A]): IO[A] = {
+    val nextIo = Suspend(() => thunk)
+    if (isFullStackTracing) {
+      IOTracing.decorated(nextIo)
+    } else {
+      nextIo
+    }
+  }
+
+  /**
    * Suspends a synchronous side effect in `IO`.
    *
    * Any exceptions thrown by the effect will be caught and sequenced
@@ -1166,14 +1183,8 @@ object IO extends IOInstances {
    * thrown by the side effect will be caught and sequenced into the
    * `IO`.
    */
-  def suspend[A](thunk: => IO[A]): IO[A] = {
-    val nextIo = Suspend(() => thunk)
-    if (isFullStackTracing) {
-      IOTracing.decorated(nextIo)
-    } else {
-      nextIo
-    }
-  }
+  @deprecated("use defer", "2.5.2")
+  def suspend[A](thunk: => IO[A]): IO[A] = defer(thunk)
 
   /**
    * Suspends a pure value in `IO`.
@@ -1529,7 +1540,7 @@ object IO extends IOInstances {
    *
    * {{{
    *  def fib(n: Int, a: Long, b: Long): IO[Long] =
-   *    IO.suspend {
+   *    IO.defer {
    *      if (n <= 0) IO.pure(a) else {
    *        val next = fib(n - 1, b, a + b)
    *
@@ -1689,7 +1700,7 @@ object IO extends IOInstances {
   /** Corresponds to [[IO.raiseError]]. */
   final private[effect] case class RaiseError(e: Throwable) extends IO[Nothing]
 
-  /** Corresponds to [[IO.suspend]]. */
+  /** Corresponds to [[IO.defer]]. */
   final private[effect] case class Suspend[+A](thunk: () => IO[A]) extends IO[A]
 
   /** Corresponds to [[IO.flatMap]]. */

@@ -150,7 +150,7 @@ private[effect] object IOBracket {
     def release(c: ExitCase[Throwable]): CancelToken[IO]
 
     private def applyRelease(e: ExitCase[Throwable]): IO[Unit] =
-      IO.suspend {
+      IO.defer {
         if (waitsForResult.compareAndSet(true, false))
           release(e)
             .redeemWith[Unit](ex => IO(p.success(())).flatMap(_ => IO.raiseError(ex)), _ => IO { p.success(()); () })

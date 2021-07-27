@@ -99,7 +99,7 @@ private[effect] object IOConnection {
     private[this] val state = new AtomicReference(List.empty[CancelToken[IO]])
     private[this] val p: Promise[Unit] = Promise()
 
-    val cancel = IO.suspend {
+    val cancel = IO.defer {
       state.getAndSet(null) match {
         case Nil  => IO { p.success(()); () }
         case null => IOFromFuture(p.future)

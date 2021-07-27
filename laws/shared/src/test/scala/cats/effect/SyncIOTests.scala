@@ -144,7 +144,7 @@ class SyncIOTests extends BaseTestsSuite {
   }
 
   test("suspend with unsafeRunSync") {
-    val io = SyncIO.suspend(SyncIO(1)).map(_ + 1)
+    val io = SyncIO.defer(SyncIO(1)).map(_ + 1)
     assertEquals(io.unsafeRunSync(), 2)
   }
 

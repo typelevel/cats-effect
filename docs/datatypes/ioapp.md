@@ -109,7 +109,7 @@ import scala.concurrent.duration._
 object Main extends IOApp {
 
   def loop(n: Int): IO[ExitCode] =
-    IO.suspend {
+    IO.defer {
       if (n < 10)
         IO.sleep(1.second) *> IO(println(s"Tick: $n")) *> loop(n + 1)
       else
