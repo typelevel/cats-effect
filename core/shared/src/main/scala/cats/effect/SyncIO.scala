@@ -337,7 +337,18 @@ object SyncIO extends SyncIOInstances {
    * thrown by the side effect will be caught and sequenced into the
    * `SyncIO`.
    */
-  def suspend[A](thunk: => SyncIO[A]): SyncIO[A] = new SyncIO(IO.defer(thunk.toIO))
+  def defer[A](thunk: => SyncIO[A]): SyncIO[A] = new SyncIO(IO.defer(thunk.toIO))
+
+  /**
+   * Suspends a synchronous side effect which produces a `SyncIO` in `SyncIO`.
+   *
+   * This is useful for trampolining (i.e. when the side effect is
+   * conceptually the allocation of a stack frame).  Any exceptions
+   * thrown by the side effect will be caught and sequenced into the
+   * `SyncIO`.
+   */
+  @deprecated("use defer", "2.5.2")
+  def suspend[A](thunk: => SyncIO[A]): SyncIO[A] = defer(thunk)
 
   /**
    * Suspends a pure value in `SyncIO`.
@@ -463,5 +474,5 @@ abstract private[effect] class SyncIOSync extends Sync[SyncIO] with StackSafeMon
   final override def delay[A](thunk: => A): SyncIO[A] =
     SyncIO(thunk)
   final override def suspend[A](thunk: => SyncIO[A]): SyncIO[A] =
-    SyncIO.suspend(thunk)
+    SyncIO.defer(thunk)
 }
