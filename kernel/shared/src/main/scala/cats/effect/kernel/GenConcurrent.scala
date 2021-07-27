@@ -131,21 +131,15 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
     uncancelable { poll =>
       for {
-        resultA <- deferred[Outcome[F, E, A]]
-        resultB <- deferred[Outcome[F, E, B]]
+        fiberA <- start(fa)
+        fiberB <- start(fb)
 
-        fiberA <- start(guaranteeCase(fa)(outcome => resultA.complete(outcome).void))
-        fiberB <- start(guaranteeCase(fb)(outcome => resultB.complete(outcome).void))
-
-        _ <- poll(fiberA.join)
-        _ <- poll(fiberB.join)
-
-        outcomeA <- poll(resultA.get)
-        outcomeB <- poll(resultB.get)
+        outcomeA <- poll(fiberA.join).onCancel(fiberB.cancel)
+        outcomeB <- poll(fiberB.join)
 
         resultC <- (outcomeA, outcomeB) match {
           case (Outcome.Succeeded(fa), Outcome.Succeeded(fb)) =>
-            fa.product(fb).flatMap { case (a, b) => f(a, b) }
+            fa.flatMap(a => fb.flatMap(b => f(a, b)))
 
           case (Outcome.Errored(e), _) => raiseError(e)
           case (_, Outcome.Errored(e)) => raiseError(e)
