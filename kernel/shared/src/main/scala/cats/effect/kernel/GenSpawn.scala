@@ -526,13 +526,6 @@ object GenSpawn {
     override def both[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[F, (A, B)] =
       OptionT(F.both(fa.value, fb.value).map(_.tupled))
 
-    override def mapBoth[A, B, C](fa: OptionT[F, A], fb: OptionT[F, B])(
-        f: (A, B) => OptionT[F, C]): OptionT[F, C] =
-      OptionT(F.mapBoth(fa.value, fb.value) {
-        case (Some(a), Some(b)) => f(a, b).value
-        case (_, _) => OptionT.none[F, C].value
-      })
-
     override def raceOutcome[A, B](fa: OptionT[F, A], fb: OptionT[F, B])
         : OptionT[F, Either[Outcome[OptionT[F, *], E, A], Outcome[OptionT[F, *], E, B]]] =
       OptionT.liftF(
@@ -596,14 +589,6 @@ object GenSpawn {
         fa: EitherT[F, E0, A],
         fb: EitherT[F, E0, B]): EitherT[F, E0, (A, B)] =
       EitherT(F.both(fa.value, fb.value).map(_.tupled))
-
-    override def mapBoth[A, B, C](fa: EitherT[F, E0, A], fb: EitherT[F, E0, B])(
-        f: (A, B) => EitherT[F, E0, C]): EitherT[F, E0, C] =
-      EitherT(F.mapBoth(fa.value, fb.value) {
-        case (Right(a), Right(b)) => f(a, b).value
-        case (Left(e), _) => EitherT.leftT[F, C](e).value
-        case (_, Left(e)) => EitherT.leftT[F, C](e).value
-      })
 
     override def raceOutcome[A, B](fa: EitherT[F, E0, A], fb: EitherT[F, E0, B]): EitherT[
       F,
@@ -670,19 +655,6 @@ object GenSpawn {
     override def both[A, B](fa: IorT[F, L, A], fb: IorT[F, L, B]): IorT[F, L, (A, B)] =
       IorT(F.both(fa.value, fb.value).map(_.tupled))
 
-    override def mapBoth[A, B, C](fa: IorT[F, L, A], fb: IorT[F, L, B])(
-        f: (A, B) => IorT[F, L, C]): IorT[F, L, C] =
-      IorT(F.mapBoth(fa.value, fb.value) {
-        case (Ior.Right(a), Ior.Right(b)) => f(a, b).value
-        case (Ior.Both(_, a), Ior.Both(_, b)) => f(a, b).value
-        case (Ior.Both(_, a), Ior.Right(b)) => f(a, b).value
-        case (Ior.Right(a), Ior.Both(_, b)) => f(a, b).value
-        case (Ior.Left(l), _) => IorT.leftT[F, C](l).value
-        case (_, Ior.Left(l)) => IorT.leftT[F, C](l).value
-        case (Ior.Both(l, _), _) => IorT.leftT[F, C](l).value
-        case (_, Ior.Both(l, _)) => IorT.leftT[F, C](l).value
-      })
-
     override def raceOutcome[A, B](fa: IorT[F, L, A], fb: IorT[F, L, B])
         : IorT[F, L, Either[Outcome[IorT[F, L, *], E, A], Outcome[IorT[F, L, *], E, B]]] =
       IorT.liftF(F.raceOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
@@ -744,10 +716,6 @@ object GenSpawn {
 
     override def both[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]): Kleisli[F, R, (A, B)] =
       Kleisli { r => F.both(fa.run(r), fb.run(r)) }
-
-    override def mapBoth[A, B, C](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B])(
-        f: (A, B) => Kleisli[F, R, C]): Kleisli[F, R, C] =
-      Kleisli { r => F.mapBoth(fa.run(r), fb.run(r)) { case (a, b) => f(a, b)(r) } }
 
     override def raceOutcome[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]): Kleisli[
       F,
@@ -818,12 +786,6 @@ object GenSpawn {
 
     override def both[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[F, L, (A, B)] =
       WriterT(F.both(fa.run, fb.run).map { case ((l1, a), (l2, b)) => (l1 |+| l2) -> (a -> b) })
-
-    override def mapBoth[A, B, C](fa: WriterT[F, L, A], fb: WriterT[F, L, B])(
-        f: (A, B) => WriterT[F, L, C]): WriterT[F, L, C] =
-      WriterT(F.mapBoth(fa.run, fb.run) {
-        case ((l1, a), (l2, b)) => f(a, b).map((l1 |+| l2) -> _).value
-      })
 
     override def raceOutcome[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[
       F,
