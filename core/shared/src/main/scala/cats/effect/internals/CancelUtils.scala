@@ -32,7 +32,7 @@ private[effect] object CancelUtils {
     if (cancelables.isEmpty) {
       IO.unit
     } else {
-      IO.suspend {
+      IO.defer {
         cancelAll(cancelables.iterator)
       }
     }
@@ -41,7 +41,7 @@ private[effect] object CancelUtils {
     if (cursor.isEmpty) {
       IO.unit
     } else {
-      IO.suspend {
+      IO.defer {
         val frame = new CancelAllFrame(cursor)
         frame.loop()
       }

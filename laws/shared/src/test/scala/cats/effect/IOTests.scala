@@ -512,7 +512,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   test("suspend with unsafeRunSync") {
-    val io = IO.suspend(IO(1)).map(_ + 1)
+    val io = IO.defer(IO(1)).map(_ + 1)
     assertEquals(io.unsafeRunSync(), 2)
   }
 

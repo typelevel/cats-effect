@@ -337,7 +337,7 @@ object SyncIO extends SyncIOInstances {
    * thrown by the side effect will be caught and sequenced into the
    * `SyncIO`.
    */
-  def suspend[A](thunk: => SyncIO[A]): SyncIO[A] = new SyncIO(IO.suspend(thunk.toIO))
+  def suspend[A](thunk: => SyncIO[A]): SyncIO[A] = new SyncIO(IO.defer(thunk.toIO))
 
   /**
    * Suspends a pure value in `SyncIO`.
