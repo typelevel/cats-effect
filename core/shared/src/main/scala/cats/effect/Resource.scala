@@ -648,6 +648,14 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
 
   def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] =
     Resource.tailRecM(a)(f)
+
+  override def map2Eval[A, B, Z](fa: Resource[F, A], fb: Eval[Resource[F, B]])(f: (A, B) => Z): Eval[Resource[F, Z]] =
+    Eval.now {
+      for {
+        a <- fa
+        b <- fb.value
+      } yield f(a, b)
+    }
 }
 
 abstract private[effect] class ResourceMonoid[F[_], A] extends ResourceSemigroup[F, A] with Monoid[Resource[F, A]] {
