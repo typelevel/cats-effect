@@ -81,7 +81,7 @@ object Backpressure {
                   sem.permit.use(_ => f).map(_.some)
               }
           }),
-          GC.raiseError(new RuntimeException("Bound for Backpressure must be > 0"))
+        GC.raiseError(new RuntimeException("Bound for Backpressure must be > 0"))
       )
   }
 
