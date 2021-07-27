@@ -435,8 +435,26 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
       }
     }
 
-  def mapBoth[A, B, C](fa: F[A], fb: F[B])(f: (A, B) => F[C]): F[C] =
-    both(fa, fb).flatMap { case (a, b) => f(a, b) }
+  def mapBoth[A, B, C](fa: F[A], fb: F[B])(f: (A, B) => C): F[C] =
+    uncancelable { poll =>
+      for {
+        fiberA <- start(fa)
+        fiberB <- start(fb)
+
+        outcomeA <- poll(fiberA.join).onCancel(fiberB.cancel)
+        outcomeB <- poll(fiberB.join)
+
+        resultC <- (outcomeA, outcomeB) match {
+          case (Outcome.Succeeded(fa), Outcome.Succeeded(fb)) =>
+            fa.flatMap(a => fb.map(b => f(a, b)))
+
+          case (Outcome.Errored(e), _) => raiseError(e)
+          case (_, Outcome.Errored(e)) => raiseError(e)
+          case (Outcome.Canceled(), _) => F.canceled *> never
+          case (_, Outcome.Canceled()) => F.canceled *> never
+        }
+      } yield resultC
+    }
 }
 
 object GenSpawn {

@@ -53,7 +53,7 @@ trait GenSpawnInstances {
       final override def map2[A, B, Z](fa: ParallelF[F, A], fb: ParallelF[F, B])(
           f: (A, B) => Z): ParallelF[F, Z] =
         ParallelF(
-          F.mapBoth(ParallelF.value(fa), ParallelF.value(fb)) { case (a, b) => F.pure(f(a, b)) }
+          F.mapBoth(ParallelF.value(fa), ParallelF.value(fb))((a, b) => f(a, b))
         )
 
       final override def ap[A, B](ff: ParallelF[F, A => B])(
