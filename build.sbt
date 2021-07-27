@@ -59,18 +59,25 @@ val GraalVM8 = "graalvm-ce-java8@21.1"
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
 
-ThisBuild / githubWorkflowBuildPreamble +=
-  WorkflowStep.Use(
-    UseRef.Public("actions", "setup-node", "v2.1.2"),
-    name = Some("Setup NodeJS v14 LTS"),
-    params = Map("node-version" -> "14"),
-    cond = Some("matrix.ci == 'ciJS'"))
+ThisBuild / githubWorkflowBuildPreamble ++=
+  Seq(
+    WorkflowStep.Use(
+      UseRef.Public("actions", "setup-node", "v2.1.2"),
+      name = Some("Setup NodeJS v14 LTS"),
+      params = Map("node-version" -> "14"),
+      cond = Some("matrix.ci == 'ciJS'")),
+    WorkflowStep.Run(
+      List("python3 -m http.server &"),
+      name = Some("Start static file server"),
+      cond = Some("matrix.ci == 'ciFirefox'"))
+  )
 
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
     List("docs/mdoc"),
-    cond = Some(s"(matrix.scala == '$Scala213' || matrix.scala == '$Scala3') && matrix.ci == 'ciJVM'")),
+    cond = Some(
+      s"(matrix.scala == '$Scala213' || matrix.scala == '$Scala3') && matrix.ci == 'ciJVM'")),
   WorkflowStep.Sbt(
     List("exampleJVM/compile"),
     cond = Some(s"matrix.ci == 'ciJVM' && matrix.os == '$PrimaryOS'")),
@@ -129,6 +136,7 @@ ThisBuild / Test / jsEnv := {
 
   if (useFirefoxEnv.value) {
     val options = new FirefoxOptions()
+    // options.getProfile().set ???
     options.addArguments("-headless")
     new SeleniumJSEnv(options)
   } else {
@@ -172,7 +180,16 @@ addCommandAlias(
 addCommandAlias("prePR", "; root/clean; +root/scalafmtAll; +root/headerCreate")
 
 val jsProjects: Seq[ProjectReference] =
-  Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.js, std.js, example.js)
+  Seq(
+    kernel.js,
+    kernelTestkit.js,
+    laws.js,
+    core.js,
+    testkit.js,
+    tests.js,
+    webWorkerTests,
+    std.js,
+    example.js)
 
 val undocumentedRefs =
   jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
@@ -222,14 +239,14 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
     name := "cats-effect-kernel",
     libraryDependencies ++= Seq(
       ("org.specs2" %%% "specs2-core" % Specs2Version % Test).cross(CrossVersion.for3Use2_13),
-      "org.typelevel" %%% "cats-core" % CatsVersion))
-  .jsSettings(
-    Compile / doc / sources := {
-      if (isDotty.value)
-        Seq()
-      else
-        (Compile / doc / sources).value
-    })
+      "org.typelevel" %%% "cats-core" % CatsVersion)
+  )
+  .jsSettings(Compile / doc / sources := {
+    if (isDotty.value)
+      Seq()
+    else
+      (Compile / doc / sources).value
+  })
 
 /**
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
@@ -278,16 +295,21 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation$"),
       // introduced by #1913, striped fiber callback hashtable, changes to package private code
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.FiberErrorHashtable"),
-      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.IORuntime.fiberErrorCbs"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem](
+        "cats.effect.unsafe.IORuntime.fiberErrorCbs"),
       ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.unsafe.IORuntime.this"),
-      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.IORuntime.<init>$default$6"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem](
+        "cats.effect.unsafe.IORuntime.<init>$default$6"),
       // introduced by #1928, wake up a worker thread before spawning a helper thread when blocking
       // changes to `cats.effect.unsafe` package private code
-      ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.unsafe.WorkStealingThreadPool.notifyParked"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem](
+        "cats.effect.unsafe.WorkStealingThreadPool.notifyParked"),
       // introduced by #2041, Rewrite and improve `ThreadSafeHashtable`
       // changes to `cats.effect.unsafe` package private code
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.ThreadSafeHashtable.hashtable"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.ThreadSafeHashtable.hashtable_="),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.ThreadSafeHashtable.hashtable"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.ThreadSafeHashtable.hashtable_="),
       // introduced by #2051, Tracing
       // changes to package private code
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Blocking.apply"),
@@ -299,7 +321,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#FlatMap.apply"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#FlatMap.copy"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#FlatMap.this"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#HandleErrorWith.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IO#HandleErrorWith.apply"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#HandleErrorWith.copy"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#HandleErrorWith.this"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#Map.apply"),
@@ -312,7 +335,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.SyncIO$Delay"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.apply"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.copy"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.this")))
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.this")
+    )
+  )
   .jvmSettings(
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
   )
@@ -344,6 +369,17 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform)
   .jvmSettings(
     Test / fork := true,
     Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
+
+lazy val webWorkerTests = project
+  .in(file("webworker-tests"))
+  .dependsOn(tests.js % "compile->test")
+  .enablePlugins(ScalaJSPlugin, NoPublishPlugin)
+  .settings(
+    name := "cats-effect-webworker-tests",
+    scalaJSUseMainModuleInitializer := true,
+    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.1.0",
+    (Test / test) := (Test / test).dependsOn(Compile / fastOptJS).value
+  )
 
 /**
  * Implementations lof standard functionality (e.g. Semaphore, Console, Queue)
@@ -388,7 +424,4 @@ lazy val benchmarks = project
   .settings(name := "cats-effect-benchmarks")
   .enablePlugins(NoPublishPlugin, JmhPlugin)
 
-lazy val docs = project
-  .in(file("site-docs"))
-  .dependsOn(core.jvm)
-  .enablePlugins(MdocPlugin)
+lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
