@@ -23,6 +23,8 @@ import cats.effect.std.internal.BankersQueue
 import cats.syntax.all._
 
 import scala.collection.immutable.{Queue => ScalaQueue}
+import cats.MonoidK
+import cats.Applicative
 
 trait Dequeue[F[_], A] extends Queue[F, A] with DequeueSource[F, A] with DequeueSink[F, A] {
   self =>
@@ -44,10 +46,12 @@ trait Dequeue[F[_], A] extends Queue[F, A] with DequeueSource[F, A] with Dequeue
       def offerBack(a: A): G[Unit] = f(self.offerBack(a))
       def tryOfferBack(a: A): G[Boolean] = f(self.tryOfferBack(a))
       def takeBack: G[A] = f(self.takeBack)
+      def takeBackN[H[_]: MonoidK: Applicative](n: Int): G[H[A]] = f(self.takeBackN[H](n))
       def tryTakeBack: G[Option[A]] = f(self.tryTakeBack)
       def offerFront(a: A): G[Unit] = f(self.offerFront(a))
       def tryOfferFront(a: A): G[Boolean] = f(self.tryOfferFront(a))
       def takeFront: G[A] = f(self.takeFront)
+      def takeFrontN[H[_]: MonoidK: Applicative](n: Int): G[H[A]] = f(self.takeFrontN[H](n))
       def tryTakeFront: G[Option[A]] = f(self.tryTakeFront)
       def reverse: G[Unit] = f(self.reverse)
       def size: G[Int] = f(self.size)
@@ -88,11 +92,17 @@ object Dequeue {
           override def takeBack: F[B] =
             fa.takeBack.map(f)
 
+          override def takeBackN[G[_]: MonoidK: Applicative](n: Int): F[G[B]] =
+            fa.takeBackN[G](n).map(_.map(f))
+
           override def tryTakeBack: F[Option[B]] =
             fa.tryTakeBack.map(_.map(f))
 
           override def takeFront: F[B] =
             fa.takeFront.map(f)
+
+          override def takeFrontN[G[_]: MonoidK: Applicative](n: Int): F[G[B]] =
+            fa.takeFrontN[G](n).map(_.map(f))
 
           override def tryTakeFront: F[Option[B]] =
             fa.tryTakeFront.map(_.map(f))
@@ -128,6 +138,15 @@ object Dequeue {
     override def takeBack: F[A] =
       _take(queue => queue.tryPopBack)
 
+    override def takeBackN[G[_]: MonoidK: Applicative](n: Int): F[G[A]] = {
+      require(n > 0)
+      F.tailRecM((MonoidK[G].empty[A], n)) {
+        case (acc, remaining) =>
+          if (remaining == 0) acc.asRight[(G[A], Int)].pure[F]
+          else takeBack.map(x => (acc <+> x.pure[G], remaining - 1).asLeft[G[A]])
+      }
+    }
+
     override def tryTakeBack: F[Option[A]] =
       _tryTake(queue => queue.tryPopBack)
 
@@ -139,6 +158,15 @@ object Dequeue {
 
     override def takeFront: F[A] =
       _take(queue => queue.tryPopFront)
+
+    override def takeFrontN[G[_]: MonoidK: Applicative](n: Int): F[G[A]] = {
+      require(n > 0)
+      F.tailRecM((MonoidK[G].empty[A], n)) {
+        case (acc, remaining) =>
+          if (remaining == 0) acc.asRight[(G[A], Int)].pure[F]
+          else takeFront.map(x => (acc <+> x.pure[G], remaining - 1).asLeft[G[A]])
+      }
+    }
 
     override def tryTakeFront: F[Option[A]] =
       _tryTake(queue => queue.tryPopFront)
@@ -266,6 +294,12 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
   def takeBack: F[A]
 
   /**
+   * Dequeues N elements from the back of the dequeue, possibly semantically
+   * blocking until an element becomes available.
+   */
+  def takeBackN[G[_]: MonoidK: Applicative](n: Int): F[G[A]]
+
+  /**
    * Attempts to dequeue an element from the back of the dequeue, if one is
    * available without semantically blocking.
    *
@@ -280,6 +314,12 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
    * blocking until an element becomes available.
    */
   def takeFront: F[A]
+
+  /**
+   * Dequeues N elements from the front of the dequeue, possibly semantically
+   * blocking until an element becomes available.
+   */
+  def takeFrontN[G[_]: MonoidK: Applicative](n: Int): F[G[A]]
 
   /**
    * Attempts to dequeue an element from the front of the dequeue, if one is
@@ -297,6 +337,11 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
   override def take: F[A] = takeFront
 
   /**
+   * Alias for takeFront in order to implement Queue
+   */
+  override def takeN[G[_]: MonoidK: Applicative](n: Int): F[G[A]] = takeFrontN[G](n)
+
+  /**
    * Alias for tryTakeFront in order to implement Queue
    */
   override def tryTake: F[Option[A]] = tryTakeFront
@@ -311,11 +356,17 @@ object DequeueSource {
           override def takeBack: F[B] =
             fa.takeBack.map(f)
 
+          override def takeBackN[G[_]: MonoidK: Applicative](n: Int): F[G[B]] =
+            fa.takeBackN[G](n).map(_.map(f))
+
           override def tryTakeBack: F[Option[B]] =
             fa.tryTakeBack.map(_.map(f))
 
           override def takeFront: F[B] =
             fa.takeFront.map(f)
+
+          override def takeFrontN[G[_]: MonoidK: Applicative](n: Int): F[G[B]] =
+            fa.takeFrontN[G](n).map(_.map(f))
 
           override def tryTakeFront: F[Option[B]] =
             fa.tryTakeFront.map(_.map(f))

@@ -51,6 +51,7 @@ abstract class Queue[F[_], A] extends QueueSource[F, A] with QueueSink[F, A] { s
       def tryOffer(a: A): G[Boolean] = f(self.tryOffer(a))
       def size: G[Int] = f(self.size)
       val take: G[A] = f(self.take)
+      def takeN[H[_]: MonoidK: Applicative](n: Int): G[H[A]] = f(self.takeN[H](n))
       val tryTake: G[Option[A]] = f(self.tryTake)
     }
 }
@@ -211,6 +212,15 @@ object Queue {
         }
       }
 
+    def takeN[G[_]: MonoidK: Applicative](n: Int): F[G[A]] = {
+      require(n > 0)
+      F.tailRecM((MonoidK[G].empty[A], n)) {
+        case (acc, remaining) =>
+          if (remaining == 0) acc.asRight[(G[A], Int)].pure[F]
+          else take.map(x => (acc <+> x.pure[G], remaining - 1).asLeft[G[A]])
+      }
+    }
+
     val tryTake: F[Option[A]] =
       state
         .modify {
@@ -319,6 +329,8 @@ object Queue {
             fa.tryOffer(g(b))
           override def take: F[B] =
             fa.take.map(f)
+          override def takeN[G[_]: MonoidK: Applicative](n: Int): F[G[B]] =
+            fa.takeN[G](n).map(_.map(f))
           override def tryTake: F[Option[B]] =
             fa.tryTake.map(_.map(f))
           override def size: F[Int] =
@@ -334,6 +346,12 @@ trait QueueSource[F[_], A] {
    * blocking until an element becomes available.
    */
   def take: F[A]
+
+  /**
+   * Dequeues N elements from the front of the queue, possibly semantically
+   * blocking until an element becomes available.
+   */
+  def takeN[G[_]: MonoidK: Applicative](n: Int): F[G[A]]
 
   /**
    * Attempts to dequeue an element from the front of the queue, if one is
@@ -355,6 +373,8 @@ object QueueSource {
         new QueueSource[F, B] {
           override def take: F[B] =
             fa.take.map(f)
+          override def takeN[G[_]: MonoidK: Applicative](n: Int): F[G[B]] =
+            fa.takeN[G](n).map(_.map(f))
           override def tryTake: F[Option[B]] = {
             fa.tryTake.map(_.map(f))
           }
