@@ -140,7 +140,7 @@ via a setting like <code>fork := true</code> in your sbt configuration.</p>
 <span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Main</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span> </span>{
 
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">loop</span></span>(n: <span class="hljs-type">Int</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">ExitCode</span>] =
-    <span class="hljs-type">IO</span>.suspend {
+    <span class="hljs-type">IO</span>.defer {
       <span class="hljs-keyword">if</span> (n &lt; <span class="hljs-number">10</span>)
         <span class="hljs-type">IO</span>.sleep(<span class="hljs-number">1.</span>second) *&gt; <span class="hljs-type">IO</span>(println(<span class="hljs-string">s"Tick: <span class="hljs-subst">$n</span>"</span>)) *&gt; loop(n + <span class="hljs-number">1</span>)
       <span class="hljs-keyword">else</span>
