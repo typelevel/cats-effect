@@ -898,6 +898,12 @@ private final class IOFiber[A](
           val (nextLocalState, value) = cur.f(localState)
           localState = nextLocalState
           runLoop(succeeded(value, 0), nextCancelation, nextAutoCede)
+
+        case 23 =>
+          runLoop(
+            succeeded(Trace(runtime.config.enhancedExceptions, tracingEvents), 0),
+            nextCancelation,
+            nextAutoCede)
       }
     }
   }

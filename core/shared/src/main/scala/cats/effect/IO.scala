@@ -37,8 +37,7 @@ import cats.data.Ior
 import cats.syntax.all._
 import cats.effect.instances.spawn
 import cats.effect.std.Console
-import cats.effect.tracing.{Tracing, TracingEvent}
-
+import cats.effect.tracing.{Trace, Tracing, TracingEvent}
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{
   CancellationException,
@@ -1117,6 +1116,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def sleep(delay: FiniteDuration): IO[Unit] =
     Sleep(delay)
 
+  def trace: IO[Trace] =
+    IOTrace
+
   def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
     Uncancelable(body, Tracing.calculateTracingEvent(body.getClass))
 
@@ -1467,6 +1469,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def sleep(time: FiniteDuration): IO[Unit] =
       IO.sleep(time)
 
+    def trace: IO[Trace] =
+      IO.trace
+
     override def timeoutTo[A](ioa: IO[A], duration: FiniteDuration, fallback: IO[A]): IO[A] =
       ioa.timeoutTo(duration, fallback)
 
@@ -1658,6 +1663,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   private[effect] final case class Local[+A](f: IOLocalState => (IOLocalState, A))
       extends IO[A] {
     def tag = 22
+  }
+
+  private[effect] final case object IOTrace extends IO[Trace] {
+    def tag = 23
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
