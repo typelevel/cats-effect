@@ -1,3 +1,4 @@
+import org.openqa.selenium.firefox.FirefoxProfile
 /*
  * Copyright 2020-2021 Typelevel
  *
@@ -135,8 +136,10 @@ ThisBuild / Test / jsEnv := {
   val old = (Test / jsEnv).value
 
   if (useFirefoxEnv.value) {
+    val profile = new FirefoxProfile()
+    profile.setPreference("privacy.file_unique_origin", false)
     val options = new FirefoxOptions()
-    // options.getProfile().set ???
+    options.setProfile(profile)
     options.addArguments("-headless")
     new SeleniumJSEnv(options)
   } else {
