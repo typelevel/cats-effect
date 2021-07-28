@@ -17,24 +17,34 @@
 package cats.effect
 
 import org.scalajs.dom.webworkers.DedicatedWorkerGlobalScope
-import org.specs2.runner.ClassRunner
-import org.specs2.specification.core.Env
-import org.specs2.runner.Runner
 import org.specs2.control.ExecuteActions
-import org.specs2.reporter.LineLogger
+import org.specs2.reporter.BufferedLineLogger
+import org.specs2.runner.ClassRunner
+import org.specs2.runner.Runner
+import org.specs2.specification.core.Env
+
+import scala.scalajs.js
 
 object IOSpecRunner extends IOApp.Simple with ClassRunner {
+
+  def postMessage(msg: js.Any): Unit = DedicatedWorkerGlobalScope.self.postMessage(msg)
 
   override def run: IO[Unit] = IO.fromFuture {
     IO {
       val spec = new IOSpec
-      val env = Env(lineLogger = LineLogger.consoleLogger)
+      val env = Env(lineLogger = new BufferedLineLogger {
+        override def infoLine(msg: String): Unit = postMessage(s"[info] $msg")
+        override def failureLine(msg: String): Unit = postMessage(s"[error] $msg")
+        override def errorLine(msg: String): Unit = postMessage(s"[error] $msg")
+        override def warnLine(msg: String): Unit = postMessage(s"[warn] $msg")
+      })
       val loader = new ClassLoader() {}
       val action = for {
         printers <- createPrinters(env.arguments, loader).toAction
         stats <- Runner.runSpecStructure(spec.structure(env), env, loader, printers)
         // TODO I have no idea how to suspend effects in this
-        _ = DedicatedWorkerGlobalScope.self.postMessage(stats.isSuccess)
+        _ = postMessage(stats.toString)
+        _ = postMessage(stats.isSuccess)
       } yield ()
       ExecuteActions.runActionFuture(action)(env.executionEnv)
     }

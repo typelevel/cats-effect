@@ -16,24 +16,32 @@
 
 package cats.effect
 
-import cats.syntax.all._
-import org.scalajs.dom.window
 import org.scalajs.dom.webworkers.Worker
+import org.scalajs.dom.window
 
+import scala.concurrent.duration._
 import scala.util.Try
 
 class WebWorkerIOSpec extends BaseSpec with WebWorkerIOSpecPlatform {
 
+  override def executionTimeout = 5.minutes // This is to run the _entire_ IOSpec
+
   Try(window).toOption.foreach { _ =>
     "io on webworker" should {
-      "pass the spec" in ticked { implicit ticker =>
-        IO(new Worker(
-          s"http://localhost:8000/webworker-tests/target/scala-${scalaVersion}/cats-effect-webworker-tests-fastopt/main.js"))
-          .flatMap { worker =>
-            IO.async_[Boolean] { cb =>
-              worker.onmessage = { event => cb(Right(event.data.asInstanceOf[Boolean])) }
+      "pass the spec" in real {
+        for {
+          worker <- IO(new Worker(
+            s"/webworker-tests/target/scala-${scalaVersion}/cats-effect-webworker-tests-fastopt/main.js"))
+          success <- IO.async_[Boolean] { cb =>
+            worker.onmessage = { event =>
+              event.data match {
+                case log: String => println(log)
+                case success: Boolean => cb(Right(success))
+                case _ => ()
+              }
             }
-          }.attempt.flatTap(IO.println).rethrow must completeAs(true)
+          }
+        } yield success mustEqual true
       }
     }
   }
