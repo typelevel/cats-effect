@@ -113,6 +113,21 @@ private[unsafe] object PolyfillExecutionContext extends ExecutionContext {
           js.Dynamic.global.postMessage(messagePrefix + handle, "*")
           ()
         }
+      } else if (js.typeOf(js.Dynamic.global.MessageChannel) != Undefined) {
+        val channel = js.Dynamic.newInstance(js.Dynamic.global.MessageChannel)()
+
+        channel.port1.onmessage = { event: js.Dynamic =>
+          runIfPresent(event.data.asInstanceOf[Int])
+        }
+
+        { k =>
+          val handle = nextHandle
+          nextHandle += 1
+
+          tasksByHandle += (handle -> k)
+          channel.port2.postMessage(handle)
+          ()
+        }
       } else {
         // we don't try to look for process.nextTick since scalajs doesn't support old node
         // we're also not going to bother fast-pathing for IE6; just fall through
