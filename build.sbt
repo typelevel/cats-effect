@@ -1,4 +1,3 @@
-import org.openqa.selenium.firefox.FirefoxProfile
 /*
  * Copyright 2020-2021 Typelevel
  *
@@ -19,6 +18,7 @@ import java.io.File
 
 import com.typesafe.tools.mima.core._
 import org.openqa.selenium.firefox.FirefoxOptions
+import org.openqa.selenium.firefox.FirefoxProfile
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
 
 ThisBuild / baseVersion := "3.1"
@@ -60,18 +60,12 @@ val GraalVM8 = "graalvm-ce-java8@21.1"
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
 
-ThisBuild / githubWorkflowBuildPreamble ++=
-  Seq(
-    WorkflowStep.Use(
-      UseRef.Public("actions", "setup-node", "v2.1.2"),
-      name = Some("Setup NodeJS v14 LTS"),
-      params = Map("node-version" -> "14"),
-      cond = Some("matrix.ci == 'ciJS'")),
-    WorkflowStep.Run(
-      List("python3 -m http.server &"),
-      name = Some("Start static file server"),
-      cond = Some("matrix.ci == 'ciFirefox'"))
-  )
+ThisBuild / githubWorkflowBuildPreamble +=
+  WorkflowStep.Use(
+    UseRef.Public("actions", "setup-node", "v2.1.2"),
+    name = Some("Setup NodeJS v14 LTS"),
+    params = Map("node-version" -> "14"),
+    cond = Some("matrix.ci == 'ciJS'"))
 
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
@@ -136,12 +130,12 @@ ThisBuild / Test / jsEnv := {
   val old = (Test / jsEnv).value
 
   if (useFirefoxEnv.value) {
+    val profile = new FirefoxProfile()
+    profile.setPreference("privacy.file_unique_origin", false)
     val options = new FirefoxOptions()
+    options.setProfile(profile)
     options.addArguments("-headless")
-    val config = SeleniumJSEnv
-      .Config()
-      .withMaterializeInServer("target/selenium/", "http://localhost:8000/target/selenium/")
-    new SeleniumJSEnv(options, config)
+    new SeleniumJSEnv(options)
   } else {
     old
   }
@@ -383,7 +377,7 @@ lazy val webWorkerTests = project
     libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "1.1.0")
       .cross(CrossVersion.for3Use2_13),
     (Test / test) := (Test / test).dependsOn(Compile / fastOptJS).value,
-    buildInfoKeys := Seq[BuildInfoKey](scalaVersion),
+    buildInfoKeys := Seq[BuildInfoKey](scalaVersion, baseDirectory),
     buildInfoPackage := "cats.effect"
   )
 

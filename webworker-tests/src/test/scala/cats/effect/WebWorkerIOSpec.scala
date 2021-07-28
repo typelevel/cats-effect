@@ -31,12 +31,14 @@ class WebWorkerIOSpec extends BaseSpec {
   else
     BuildInfo.scalaVersion
 
+  def targetDir = s"${BuildInfo.baseDirectory}/target/scala-${scalaVersion}"
+
   Try(window).toOption.foreach { _ =>
     "io on webworker" should {
       "pass the spec" in real {
         for {
-          worker <- IO(new Worker(
-            s"/webworker-tests/target/scala-${scalaVersion}/cats-effect-webworker-tests-fastopt/main.js"))
+          worker <- IO(
+            new Worker(s"file://${targetDir}/cats-effect-webworker-tests-fastopt/main.js"))
           success <- IO.async_[Boolean] { cb =>
             worker.onmessage = { event =>
               event.data match {
