@@ -20,7 +20,7 @@ import java.io.{ByteArrayOutputStream, PrintStream}
 import cats.effect.tracing.TracingEvent.StackTrace
 
 class Trace private (enhancedExceptions: Boolean, events: List[TracingEvent]) {
-  private val collector = new StackTrace
+  private[this] val collector = new StackTrace
   Tracing.augmentThrowable(enhancedExceptions, collector, events)
 
   override def toString: String = {
