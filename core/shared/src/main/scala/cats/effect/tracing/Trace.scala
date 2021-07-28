@@ -16,31 +16,23 @@
 
 package cats.effect.tracing
 
+import java.io.{ByteArrayOutputStream, PrintStream}
 import cats.effect.tracing.TracingEvent.StackTrace
 
 class Trace private (enhancedExceptions: Boolean, events: List[TracingEvent]) {
   private val collector = new StackTrace
   Tracing.augmentThrowable(enhancedExceptions, collector, events)
 
-  def enhanceException(t: Throwable): Throwable = {
-    Tracing.augmentThrowable(enhancedExceptions, t, events)
-    t
-  }
-  def pretty: String = {
-    collector.getStackTrace.mkString("\n")
-  }
-
-  def oneline: String = {
-    collector.toString
-    collector.getStackTrace.mkString
-  }
-
   override def toString: String = {
-    collector.getStackTrace.mkString("\n")
+    val baos = new ByteArrayOutputStream()
+    val ps = new PrintStream(baos)
+    collector.printStackTrace(ps)
+    baos.toString
   }
 }
 
 object Trace {
+
   def apply(enhancedExceptions: Boolean, events: RingBuffer): Trace = {
     new Trace(enhancedExceptions, events.toList.tail)
   }
