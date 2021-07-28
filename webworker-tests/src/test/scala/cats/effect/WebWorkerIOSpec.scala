@@ -22,9 +22,14 @@ import org.scalajs.dom.window
 import scala.concurrent.duration._
 import scala.util.Try
 
-class WebWorkerIOSpec extends BaseSpec with WebWorkerIOSpecPlatform {
+class WebWorkerIOSpec extends BaseSpec {
 
   override def executionTimeout = 5.minutes // This is to run the _entire_ IOSpec
+
+  def scalaVersion = if (BuildInfo.scalaVersion.startsWith("2"))
+    BuildInfo.scalaVersion.split("\\.").init.mkString(".")
+  else
+    BuildInfo.scalaVersion
 
   Try(window).toOption.foreach { _ =>
     "io on webworker" should {

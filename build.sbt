@@ -138,7 +138,9 @@ ThisBuild / Test / jsEnv := {
   if (useFirefoxEnv.value) {
     val options = new FirefoxOptions()
     options.addArguments("-headless")
-    val config = SeleniumJSEnv.Config().withMaterializeInServer("target/selenium/", "http://localhost:8000/target/selenium/")
+    val config = SeleniumJSEnv
+      .Config()
+      .withMaterializeInServer("target/selenium/", "http://localhost:8000/target/selenium/")
     new SeleniumJSEnv(options, config)
   } else {
     old
@@ -374,12 +376,15 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform)
 lazy val webWorkerTests = project
   .in(file("webworker-tests"))
   .dependsOn(tests.js % "compile->test")
-  .enablePlugins(ScalaJSPlugin, NoPublishPlugin)
+  .enablePlugins(ScalaJSPlugin, BuildInfoPlugin, NoPublishPlugin)
   .settings(
     name := "cats-effect-webworker-tests",
     scalaJSUseMainModuleInitializer := true,
-    libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "1.1.0").cross(CrossVersion.for3Use2_13),
-    (Test / test) := (Test / test).dependsOn(Compile / fastOptJS).value
+    libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "1.1.0")
+      .cross(CrossVersion.for3Use2_13),
+    (Test / test) := (Test / test).dependsOn(Compile / fastOptJS).value,
+    buildInfoKeys := Seq[BuildInfoKey](scalaVersion),
+    buildInfoPackage := "cats.effect"
   )
 
 /**
