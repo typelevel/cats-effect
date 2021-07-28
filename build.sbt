@@ -174,7 +174,7 @@ addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; te
 // we do the firefox ci *only* on core because we're only really interested in IO here
 addCommandAlias(
   "ciFirefox",
-  "; set Global / useFirefoxEnv := true; project rootJS; headerCheck; scalafmtCheck; clean; testsJS/test; set Global / useFirefoxEnv := false"
+  "; set Global / useFirefoxEnv := true; project rootJS; headerCheck; scalafmtCheck; clean; testsJS/test; webWorkerTests/test; set Global / useFirefoxEnv := false"
 )
 
 addCommandAlias("prePR", "; root/clean; +root/scalafmtAll; +root/headerCreate")
