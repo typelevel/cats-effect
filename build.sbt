@@ -1,4 +1,3 @@
-import org.openqa.selenium.remote.server.DriverFactory
 /*
  * Copyright 2020-2021 Typelevel
  *
@@ -20,6 +19,7 @@ import java.util.concurrent.TimeUnit
 
 import com.typesafe.tools.mima.core._
 import org.openqa.selenium.WebDriver
+`import org.openqa.selenium.remote.server.DriverFactory
 import org.openqa.selenium.remote.server.DriverProvider
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
@@ -129,7 +129,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
 lazy val unidoc213 = taskKey[Seq[File]]("Run unidoc but only on Scala 2.13")
 
 lazy val useBrowserEnv =
-  settingKey[Option[String]]("Use headless browser (via geckodriver) for running tests")
+  settingKey[Option[String]]("Use headless browser for running tests")
 Global / useBrowserEnv := None
 
 ThisBuild / Test / jsEnv := {
