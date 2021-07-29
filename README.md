@@ -12,7 +12,7 @@
 ## Getting Started
 
 - Wired: **3.2.0**
-- Tired: **2.5.1**
+- Tired: **2.5.2**
 
 ```scala
 libraryDependencies += "org.typelevel" %% "cats-effect" % "3.2.0"
