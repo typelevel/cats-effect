@@ -19,12 +19,14 @@ import java.util.concurrent.TimeUnit
 
 import com.typesafe.tools.mima.core._
 import org.openqa.selenium.WebDriver
-`import org.openqa.selenium.remote.server.DriverFactory
+import org.openqa.selenium.remote.server.DriverFactory
 import org.openqa.selenium.remote.server.DriverProvider
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.firefox.FirefoxOptions
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
+
+import JSEnv._
 
 ThisBuild / baseVersion := "3.1"
 
@@ -128,20 +130,20 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
 
 lazy val unidoc213 = taskKey[Seq[File]]("Run unidoc but only on Scala 2.13")
 
-lazy val useBrowserEnv =
-  settingKey[Option[String]]("Use headless browser for running tests")
-Global / useBrowserEnv := None
+lazy val useJSEnv =
+  settingKey[JSEnv]("Use Node.js or a headless browser for running Scala.js tests")
+Global / useJSEnv := NodeJS
 
 ThisBuild / Test / jsEnv := {
   val old = (Test / jsEnv).value
 
-  useBrowserEnv.value.map(_.toLowerCase) match {
-    case None => old
-    case Some("firefox") =>
+  useJSEnv.value match {
+    case NodeJS => old
+    case Firefox =>
       val options = new FirefoxOptions()
       options.setHeadless(true)
       new SeleniumJSEnv(options)
-    case Some("chrome") =>
+    case Chrome =>
       val options = new ChromeOptions()
       options.setHeadless(true)
       val factory = new DriverFactory {
@@ -156,8 +158,6 @@ ThisBuild / Test / jsEnv := {
           defaultFactory.registerDriverProvider(provider)
       }
       new SeleniumJSEnv(options, SeleniumJSEnv.Config().withDriverFactory(factory))
-    case Some(unknown) =>
-      throw new IllegalArgumentException(s"Unrecognized browser env: $unknown")
   }
 }
 
@@ -189,10 +189,10 @@ addCommandAlias(
 addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; test")
 
 // we do the browser ci *only* on core because we're only really interested in IO here
-def browserCiCommand(browser: String) =
-  s"""; set Global / useBrowserEnv := Some("$browser"); project rootJS; headerCheck; scalafmtCheck; clean; testsJS/test; set Global / useBrowserEnv := None"""
-addCommandAlias("ciFirefox", browserCiCommand("firefox"))
-addCommandAlias("ciChrome", browserCiCommand("chrome"))
+def browserCiCommand(browser: JSEnv) =
+  s"""; set Global / useJSEnv := JSEnv.$browser; project rootJS; headerCheck; scalafmtCheck; clean; testsJS/test; set Global / useJSEnv := NodeJS"""
+addCommandAlias("ciFirefox", browserCiCommand(Firefox))
+addCommandAlias("ciChrome", browserCiCommand(Chrome))
 
 addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
