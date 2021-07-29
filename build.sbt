@@ -190,7 +190,7 @@ addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; te
 
 // we do the browser ci *only* on core because we're only really interested in IO here
 def browserCiCommand(browser: JSEnv) =
-  s"""; set Global / useJSEnv := JSEnv.$browser; project rootJS; headerCheck; scalafmtCheck; clean; testsJS/test; set Global / useJSEnv := NodeJS"""
+  s"""; set Global / useJSEnv := JSEnv.$browser; project rootJS; headerCheck; scalafmtCheck; clean; testsJS/test; set Global / useJSEnv := JSEnv.NodeJS"""
 addCommandAlias("ciFirefox", browserCiCommand(Firefox))
 addCommandAlias("ciChrome", browserCiCommand(Chrome))
 
