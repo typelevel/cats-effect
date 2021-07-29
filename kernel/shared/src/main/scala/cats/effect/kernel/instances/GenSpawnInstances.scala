@@ -64,12 +64,12 @@ trait GenSpawnInstances {
                 case Outcome.Canceled() => fiberB.cancel *> F.never
               }
 
-              c <- poll(fiberB.join).flatMap[Z] {
+              z <- poll(fiberB.join).flatMap[Z] {
                 case Outcome.Succeeded(fb) => fb.map(b => f(a, b))
                 case Outcome.Errored(e) => F.raiseError(e)
                 case Outcome.Canceled() => F.canceled *> F.never
               }
-            } yield c
+            } yield z
           }
         )
 
@@ -88,12 +88,12 @@ trait GenSpawnInstances {
                   case Outcome.Canceled() => fiberB.cancel *> F.never
                 }
 
-                c <- poll(fiberB.join).flatMap[Z] {
+                z <- poll(fiberB.join).flatMap[Z] {
                   case Outcome.Succeeded(fb) => fb.map(b => f(a, b))
                   case Outcome.Errored(e) => F.raiseError(e)
                   case Outcome.Canceled() => F.canceled *> F.never
                 }
-              } yield c
+              } yield z
             }
           )
         )
