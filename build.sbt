@@ -150,6 +150,7 @@ ThisBuild / Test / jsEnv := {
     case Chrome =>
       val options = new ChromeOptions()
       options.setHeadless(true)
+      options.addArguments("--allow-file-access-from-files")
       val factory = new DriverFactory {
         val defaultFactory = SeleniumJSEnv.Config().driverFactory
         def newInstance(capabilities: org.openqa.selenium.Capabilities): WebDriver = {
