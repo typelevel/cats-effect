@@ -15,11 +15,19 @@
  */
 
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 import com.typesafe.tools.mima.core._
+import org.openqa.selenium.WebDriver
+import org.openqa.selenium.remote.server.DriverFactory
+import org.openqa.selenium.remote.server.DriverProvider
+import org.openqa.selenium.chrome.ChromeDriver
+import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.firefox.FirefoxOptions
 import org.openqa.selenium.firefox.FirefoxProfile
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
+
+import JSEnv._
 
 ThisBuild / baseVersion := "3.2"
 
@@ -51,6 +59,7 @@ val Scala3 = "3.0.1"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.14", Scala213)
 
+ThisBuild / githubWorkflowUseSbtThinClient := false
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
 val LTSJava = "adopt@1.11"
@@ -97,7 +106,8 @@ ThisBuild / githubWorkflowBuild := Seq(
   )
 )
 
-val ciVariants = List("ciJVM", "ciJS", "ciFirefox")
+val ciVariants = List("ciJVM", "ciJS", "ciFirefox", "ciChrome")
+val jsCiVariants = ciVariants.tail
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
@@ -106,7 +116,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
       MatrixExclude(Map("os" -> Windows, "scala" -> scala))
     }
 
-  Seq("ciJS", "ciFirefox").flatMap { ci =>
+  jsCiVariants.flatMap { ci =>
     val javaFilters =
       (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)).map { java =>
         MatrixExclude(Map("ci" -> ci, "java" -> java))
@@ -122,22 +132,38 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
 
 lazy val unidoc213 = taskKey[Seq[File]]("Run unidoc but only on Scala 2.13")
 
-lazy val useFirefoxEnv =
-  settingKey[Boolean]("Use headless Firefox (via geckodriver) for running tests")
-Global / useFirefoxEnv := false
+lazy val useJSEnv =
+  settingKey[JSEnv]("Use Node.js or a headless browser for running Scala.js tests")
+Global / useJSEnv := NodeJS
 
 ThisBuild / Test / jsEnv := {
   val old = (Test / jsEnv).value
 
-  if (useFirefoxEnv.value) {
-    val profile = new FirefoxProfile()
-    profile.setPreference("privacy.file_unique_origin", false)
-    val options = new FirefoxOptions()
-    options.setProfile(profile)
-    options.addArguments("-headless")
-    new SeleniumJSEnv(options)
-  } else {
-    old
+  useJSEnv.value match {
+    case NodeJS => old
+    case Firefox =>
+      val profile = new FirefoxProfile()
+      profile.setPreference("privacy.file_unique_origin", false)
+      val options = new FirefoxOptions()
+      options.setProfile(profile)
+      options.addArguments("-headless")
+      new SeleniumJSEnv(options)
+    case Chrome =>
+      val options = new ChromeOptions()
+      options.setHeadless(true)
+      options.addArguments("--allow-file-access-from-files")
+      val factory = new DriverFactory {
+        val defaultFactory = SeleniumJSEnv.Config().driverFactory
+        def newInstance(capabilities: org.openqa.selenium.Capabilities): WebDriver = {
+          val driver = defaultFactory.newInstance(capabilities).asInstanceOf[ChromeDriver]
+          driver.manage().timeouts().pageLoadTimeout(1, TimeUnit.HOURS)
+          driver.manage().timeouts().setScriptTimeout(1, TimeUnit.HOURS)
+          driver
+        }
+        def registerDriverProvider(provider: DriverProvider): Unit =
+          defaultFactory.registerDriverProvider(provider)
+      }
+      new SeleniumJSEnv(options, SeleniumJSEnv.Config().withDriverFactory(factory))
   }
 }
 
@@ -168,11 +194,11 @@ addCommandAlias(
   "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues; root/unidoc213")
 addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; test")
 
-// we do the firefox ci *only* on core because we're only really interested in IO here
-addCommandAlias(
-  "ciFirefox",
-  "; set Global / useFirefoxEnv := true; project rootJS; headerCheck; scalafmtCheck; clean; testsJS/test; webWorkerTests/test; set Global / useFirefoxEnv := false"
-)
+// we do the browser ci *only* on core because we're only really interested in IO here
+def browserCiCommand(browser: JSEnv) =
+  s"; set Global / useJSEnv := JSEnv.$browser; project rootJS; headerCheck; scalafmtCheck; clean; testsJS/test; webWorkerTests/test; set Global / useJSEnv := JSEnv.NodeJS"
+addCommandAlias("ciFirefox", browserCiCommand(Firefox))
+addCommandAlias("ciChrome", browserCiCommand(Chrome))
 
 addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
