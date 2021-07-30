@@ -47,10 +47,26 @@ class KleisliIOSpec
   "Kleisli[IO, R, *]" >> {
     "should be stack safe in long traverse chains" in ticked { implicit ticker =>
       val N = 10000
-      var i = 0
 
-      List.fill(N)(0).traverse_(_ => Kleisli.liftF(IO(i += 1))).run("Go...") *>
-        IO(i) must completeAs(N)
+      val test = for {
+        ref <- Ref[IO].of(0)
+        _ <- List.fill(N)(0).traverse_(_ => Kleisli.liftF(ref.update(_ + 1))).run("Go...")
+        v <- ref.get
+      } yield v
+
+      test must completeAs(N)
+    }
+
+    "should be stack safe in long parTraverse chains" in ticked { implicit ticker =>
+      val N = 10000
+
+      val test = for {
+        ref <- Ref[IO].of(0)
+        _ <- List.fill(N)(0).parTraverse_(_ => Kleisli.liftF(ref.update(_ + 1))).run("Go...")
+        v <- ref.get
+      } yield v
+
+      test must completeAs(N)
     }
 
     "execute finalizers" in ticked { implicit ticker =>
