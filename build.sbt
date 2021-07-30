@@ -59,6 +59,7 @@ val Scala3 = "3.0.1"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.14", Scala213)
 
+ThisBuild / githubWorkflowUseSbtThinClient := false
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
 val LTSJava = "adopt@1.11"

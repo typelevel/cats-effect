@@ -105,22 +105,22 @@ jobs:
 
       - name: Check that workflows are up to date
         shell: bash
-        run: sbt --client '++${{ matrix.scala }}; githubWorkflowCheck'
+        run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
       - shell: bash
-        run: sbt --client '++${{ matrix.scala }}; ${{ matrix.ci }}'
+        run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
 
       - if: (matrix.scala == '2.13.6' || matrix.scala == '3.0.1') && matrix.ci == 'ciJVM'
         shell: bash
-        run: sbt --client '++${{ matrix.scala }}; docs/mdoc'
+        run: sbt ++${{ matrix.scala }} docs/mdoc
 
       - if: matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
         shell: bash
-        run: sbt --client '++${{ matrix.scala }}; exampleJVM/compile'
+        run: sbt ++${{ matrix.scala }} exampleJVM/compile
 
       - if: matrix.ci == 'ciJS' && matrix.os == 'ubuntu-latest'
         shell: bash
-        run: sbt --client '++${{ matrix.scala }}; exampleJS/compile'
+        run: sbt ++${{ matrix.scala }} exampleJS/compile
 
       - name: Test Example JVM App Within Sbt
         if: matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
