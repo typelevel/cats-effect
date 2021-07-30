@@ -116,7 +116,7 @@ private[unsafe] object PolyfillExecutionContext extends ExecutionContext {
       } else if (js.typeOf(js.Dynamic.global.MessageChannel) != Undefined) {
         val channel = js.Dynamic.newInstance(js.Dynamic.global.MessageChannel)()
 
-        channel.port1.onmessage = { event: js.Dynamic =>
+        channel.port1.onmessage = { (event: js.Dynamic) =>
           runIfPresent(event.data.asInstanceOf[Int])
         }
 
