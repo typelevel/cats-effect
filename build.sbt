@@ -24,11 +24,12 @@ import org.openqa.selenium.remote.server.DriverProvider
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.firefox.FirefoxOptions
+import org.openqa.selenium.firefox.FirefoxProfile
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
 
 import JSEnv._
 
-ThisBuild / baseVersion := "3.1"
+ThisBuild / baseVersion := "3.2"
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
@@ -140,8 +141,11 @@ ThisBuild / Test / jsEnv := {
   useJSEnv.value match {
     case NodeJS => old
     case Firefox =>
+      val profile = new FirefoxProfile()
+      profile.setPreference("privacy.file_unique_origin", false)
       val options = new FirefoxOptions()
-      options.setHeadless(true)
+      options.setProfile(profile)
+      options.addArguments("-headless")
       new SeleniumJSEnv(options)
     case Chrome =>
       val options = new ChromeOptions()
@@ -190,14 +194,23 @@ addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; te
 
 // we do the browser ci *only* on core because we're only really interested in IO here
 def browserCiCommand(browser: JSEnv) =
-  s"; set Global / useJSEnv := JSEnv.$browser; project rootJS; headerCheck; scalafmtCheck; clean; testsJS/test; set Global / useJSEnv := JSEnv.NodeJS"
+  s"; set Global / useJSEnv := JSEnv.$browser; project rootJS; headerCheck; scalafmtCheck; clean; testsJS/test; webWorkerTests/test; set Global / useJSEnv := JSEnv.NodeJS"
 addCommandAlias("ciFirefox", browserCiCommand(Firefox))
 addCommandAlias("ciChrome", browserCiCommand(Chrome))
 
 addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
 val jsProjects: Seq[ProjectReference] =
-  Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.js, std.js, example.js)
+  Seq(
+    kernel.js,
+    kernelTestkit.js,
+    laws.js,
+    core.js,
+    testkit.js,
+    tests.js,
+    webWorkerTests,
+    std.js,
+    example.js)
 
 val undocumentedRefs =
   jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
@@ -377,6 +390,20 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform)
   .jvmSettings(
     Test / fork := true,
     Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
+
+lazy val webWorkerTests = project
+  .in(file("webworker-tests"))
+  .dependsOn(tests.js % "compile->test")
+  .enablePlugins(ScalaJSPlugin, BuildInfoPlugin, NoPublishPlugin)
+  .settings(
+    name := "cats-effect-webworker-tests",
+    scalaJSUseMainModuleInitializer := true,
+    libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "1.1.0")
+      .cross(CrossVersion.for3Use2_13),
+    (Test / test) := (Test / test).dependsOn(Compile / fastOptJS).value,
+    buildInfoKeys := Seq[BuildInfoKey](scalaVersion, baseDirectory),
+    buildInfoPackage := "cats.effect"
+  )
 
 /**
  * Implementations lof standard functionality (e.g. Semaphore, Console, Queue)
