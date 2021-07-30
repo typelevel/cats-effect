@@ -58,16 +58,18 @@ trait GenSpawnInstances {
               fiberA <- F.start(ParallelF.value(fa))
               fiberB <- F.start(ParallelF.value(fb))
 
-              a <- F.onCancel(poll(fiberA.join), fiberB.cancel).flatMap[A] {
-                case Outcome.Succeeded(fa) => fa
-                case Outcome.Errored(e) => fiberB.cancel *> F.raiseError(e)
-                case Outcome.Canceled() => fiberB.cancel *> F.never
-              }
+              a <- F
+                .onCancel(poll(fiberA.join), F.both(fiberA.cancel, fiberB.cancel).void)
+                .flatMap[A] {
+                  case Outcome.Succeeded(fa) => fa
+                  case Outcome.Errored(e) => fiberB.cancel *> F.raiseError(e)
+                  case Outcome.Canceled() => poll(fiberB.cancel *> F.canceled *> F.never)
+                }
 
-              z <- poll(fiberB.join).flatMap[Z] {
+              z <- F.onCancel(poll(fiberB.join), fiberB.cancel).flatMap[Z] {
                 case Outcome.Succeeded(fb) => fb.map(b => f(a, b))
                 case Outcome.Errored(e) => F.raiseError(e)
-                case Outcome.Canceled() => F.canceled *> F.never
+                case Outcome.Canceled() => poll(F.canceled *> F.never)
               }
             } yield z
           }
@@ -82,16 +84,18 @@ trait GenSpawnInstances {
                 fiberA <- F.start(ParallelF.value(fa))
                 fiberB <- F.start(ParallelF.value(fb.value))
 
-                a <- F.onCancel(poll(fiberA.join), fiberB.cancel).flatMap[A] {
-                  case Outcome.Succeeded(fa) => fa
-                  case Outcome.Errored(e) => fiberB.cancel *> F.raiseError(e)
-                  case Outcome.Canceled() => fiberB.cancel *> F.never
-                }
+                a <- F
+                  .onCancel(poll(fiberA.join), F.both(fiberA.cancel, fiberB.cancel).void)
+                  .flatMap[A] {
+                    case Outcome.Succeeded(fa) => fa
+                    case Outcome.Errored(e) => fiberB.cancel *> F.raiseError(e)
+                    case Outcome.Canceled() => poll(fiberB.cancel *> F.canceled *> F.never)
+                  }
 
-                z <- poll(fiberB.join).flatMap[Z] {
+                z <- F.onCancel(poll(fiberB.join), fiberB.cancel).flatMap[Z] {
                   case Outcome.Succeeded(fb) => fb.map(b => f(a, b))
                   case Outcome.Errored(e) => F.raiseError(e)
-                  case Outcome.Canceled() => F.canceled *> F.never
+                  case Outcome.Canceled() => poll(F.canceled *> F.never)
                 }
               } yield z
             }
