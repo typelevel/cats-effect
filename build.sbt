@@ -18,6 +18,7 @@ import java.io.File
 
 import com.typesafe.tools.mima.core._
 import org.openqa.selenium.firefox.FirefoxOptions
+import org.openqa.selenium.firefox.FirefoxProfile
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
 
 ThisBuild / baseVersion := "3.2"
@@ -129,7 +130,10 @@ ThisBuild / Test / jsEnv := {
   val old = (Test / jsEnv).value
 
   if (useFirefoxEnv.value) {
+    val profile = new FirefoxProfile()
+    profile.setPreference("privacy.file_unique_origin", false)
     val options = new FirefoxOptions()
+    options.setProfile(profile)
     options.addArguments("-headless")
     new SeleniumJSEnv(options)
   } else {
@@ -167,13 +171,22 @@ addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; te
 // we do the firefox ci *only* on core because we're only really interested in IO here
 addCommandAlias(
   "ciFirefox",
-  "; set Global / useFirefoxEnv := true; project rootJS; headerCheck; scalafmtCheck; clean; testsJS/test; set Global / useFirefoxEnv := false"
+  "; set Global / useFirefoxEnv := true; project rootJS; headerCheck; scalafmtCheck; clean; testsJS/test; webWorkerTests/test; set Global / useFirefoxEnv := false"
 )
 
 addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
 val jsProjects: Seq[ProjectReference] =
-  Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.js, std.js, example.js)
+  Seq(
+    kernel.js,
+    kernelTestkit.js,
+    laws.js,
+    core.js,
+    testkit.js,
+    tests.js,
+    webWorkerTests,
+    std.js,
+    example.js)
 
 val undocumentedRefs =
   jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
@@ -353,6 +366,20 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform)
   .jvmSettings(
     Test / fork := true,
     Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
+
+lazy val webWorkerTests = project
+  .in(file("webworker-tests"))
+  .dependsOn(tests.js % "compile->test")
+  .enablePlugins(ScalaJSPlugin, BuildInfoPlugin, NoPublishPlugin)
+  .settings(
+    name := "cats-effect-webworker-tests",
+    scalaJSUseMainModuleInitializer := true,
+    libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "1.1.0")
+      .cross(CrossVersion.for3Use2_13),
+    (Test / test) := (Test / test).dependsOn(Compile / fastOptJS).value,
+    buildInfoKeys := Seq[BuildInfoKey](scalaVersion, baseDirectory),
+    buildInfoPackage := "cats.effect"
+  )
 
 /**
  * Implementations lof standard functionality (e.g. Semaphore, Console, Queue)
