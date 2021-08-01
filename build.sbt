@@ -82,12 +82,6 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("docs/mdoc"),
     cond = Some(
       s"(matrix.scala == '$Scala213' || matrix.scala == '$Scala3') && matrix.ci == 'ciJVM'")),
-  WorkflowStep.Sbt(
-    List("exampleJVM/compile"),
-    cond = Some(s"matrix.ci == 'ciJVM' && matrix.os == '$PrimaryOS'")),
-  WorkflowStep.Sbt(
-    List("exampleJS/compile"),
-    cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")),
   WorkflowStep.Run(
     List("example/test-jvm.sh ${{ matrix.scala }}"),
     name = Some("Test Example JVM App Within Sbt"),
@@ -191,8 +185,10 @@ replaceCommandAlias(
 
 addCommandAlias(
   "ciJVM",
-  "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues; root/unidoc213")
-addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; test")
+  "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues; root/unidoc213; exampleJVM/compile")
+addCommandAlias(
+  "ciJS",
+  "; project rootJS; headerCheck; scalafmtCheck; clean; test; exampleJS/compile")
 
 // we do the browser ci *only* on core because we're only really interested in IO here
 def browserCiCommand(browser: JSEnv) =
