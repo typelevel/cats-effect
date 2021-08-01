@@ -143,7 +143,7 @@ ThisBuild / Test / jsEnv := {
       profile.setPreference("privacy.file_unique_origin", false)
       val options = new FirefoxOptions()
       options.setProfile(profile)
-      options.addArguments("-headless")
+      options.setHeadless(true)
       new SeleniumJSEnv(options)
     case Chrome =>
       val options = new ChromeOptions()
