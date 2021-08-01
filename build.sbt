@@ -19,12 +19,9 @@ import java.util.concurrent.TimeUnit
 
 import com.typesafe.tools.mima.core._
 import org.openqa.selenium.WebDriver
-import org.openqa.selenium.remote.server.DriverFactory
-import org.openqa.selenium.remote.server.DriverProvider
-import org.openqa.selenium.chrome.ChromeDriver
-import org.openqa.selenium.chrome.ChromeOptions
-import org.openqa.selenium.firefox.FirefoxOptions
-import org.openqa.selenium.firefox.FirefoxProfile
+import org.openqa.selenium.chrome.{ChromeDriver, ChromeOptions}
+import org.openqa.selenium.firefox.{FirefoxOptions, FirefoxProfile}
+import org.openqa.selenium.remote.server.{DriverFactory, DriverProvider}
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
 
 import JSEnv._
@@ -140,7 +137,7 @@ ThisBuild / Test / jsEnv := {
       profile.setPreference("privacy.file_unique_origin", false)
       val options = new FirefoxOptions()
       options.setProfile(profile)
-      options.addArguments("-headless")
+      options.setHeadless(true)
       new SeleniumJSEnv(options)
     case Chrome =>
       val options = new ChromeOptions()
