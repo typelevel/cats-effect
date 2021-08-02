@@ -25,7 +25,6 @@ import scala.util.Random
  * Based on https://github.com/YuzuJS/setImmediate
  */
 private[unsafe] object PolyfillExecutionContext extends ExecutionContext {
-  private[this] val Undefined = "undefined"
 
   def execute(runnable: Runnable): Unit =
     setImmediate(() => runnable.run())
@@ -33,8 +32,15 @@ private[unsafe] object PolyfillExecutionContext extends ExecutionContext {
   def reportFailure(cause: Throwable): Unit =
     cause.printStackTrace()
 
+  private[this] def isAvailable(a: => js.Dynamic): Boolean =
+    try {
+      a.asInstanceOf[js.UndefOr[Any]].isDefined
+    } catch {
+      case _: Throwable => false
+    }
+
   private[this] val setImmediate: (() => Unit) => Unit = {
-    if (js.typeOf(js.Dynamic.global.setImmediate) == Undefined) {
+    if (!isAvailable(js.Dynamic.global.setImmediate)) {
       var nextHandle = 1
       val tasksByHandle = mutable.Map[Int, () => Unit]()
       var currentlyRunningATask = false
@@ -42,8 +48,7 @@ private[unsafe] object PolyfillExecutionContext extends ExecutionContext {
       def canUsePostMessage(): Boolean = {
         // The test against `importScripts` prevents this implementation from being installed inside a web worker,
         // where `global.postMessage` means something completely different and can't be used for this purpose.
-        if (js.typeOf(js.Dynamic.global.postMessage) != Undefined && js.typeOf(
-            js.Dynamic.global.importScripts) == Undefined) {
+        if (isAvailable(js.Dynamic.global.postMessage) && !isAvailable(js.Dynamic.global.importScripts)) {
           var postMessageIsAsynchronous = true
           val oldOnMessage = js.Dynamic.global.onmessage
 
@@ -99,7 +104,7 @@ private[unsafe] object PolyfillExecutionContext extends ExecutionContext {
           }
         }
 
-        if (js.typeOf(js.Dynamic.global.addEventListener) != Undefined) {
+        if (isAvailable(js.Dynamic.global.addEventListener)) {
           js.Dynamic.global.addEventListener("message", onGlobalMessage _, false)
         } else {
           js.Dynamic.global.attachEvent("onmessage", onGlobalMessage _)
@@ -113,7 +118,7 @@ private[unsafe] object PolyfillExecutionContext extends ExecutionContext {
           js.Dynamic.global.postMessage(messagePrefix + handle, "*")
           ()
         }
-      } else if (js.typeOf(js.Dynamic.global.MessageChannel) != Undefined) {
+      } else if (isAvailable(js.Dynamic.global.MessageChannel)) {
         val channel = js.Dynamic.newInstance(js.Dynamic.global.MessageChannel)()
 
         channel.port1.onmessage = { (event: js.Dynamic) =>
