@@ -17,3 +17,7 @@ tags
 .bloop/
 metals.sbt
 .vscode
+
+# npm
+node_modules/
+package-lock.json

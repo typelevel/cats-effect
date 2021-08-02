@@ -22,6 +22,7 @@ import org.openqa.selenium.WebDriver
 import org.openqa.selenium.chrome.{ChromeDriver, ChromeOptions}
 import org.openqa.selenium.firefox.{FirefoxOptions, FirefoxProfile}
 import org.openqa.selenium.remote.server.{DriverFactory, DriverProvider}
+import org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
 
 import JSEnv._
@@ -66,12 +67,19 @@ val GraalVM8 = "graalvm-ce-java8@21.1"
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
 
-ThisBuild / githubWorkflowBuildPreamble +=
+ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Use(
     UseRef.Public("actions", "setup-node", "v2.1.2"),
     name = Some("Setup NodeJS v14 LTS"),
     params = Map("node-version" -> "14"),
-    cond = Some("matrix.ci == 'ciJS'"))
+    cond = Some("matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'")
+  ),
+  WorkflowStep.Run(
+    List("npm install jsdom"),
+    name = Some("Install jsdom"),
+    cond = Some("matrix.ci == 'ciJSDOMNodeJS'")
+  )
+)
 
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
@@ -97,7 +105,7 @@ ThisBuild / githubWorkflowBuild := Seq(
   )
 )
 
-val ciVariants = List("ciJVM", "ciJS", "ciFirefox", "ciChrome")
+val ciVariants = List("ciJVM", "ciJS", "ciFirefox", "ciChrome", "ciJSDOMNodeJS")
 val jsCiVariants = ciVariants.tail
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
@@ -132,6 +140,7 @@ ThisBuild / Test / jsEnv := {
 
   useJSEnv.value match {
     case NodeJS => old
+    case JSDOMNodeJS => new JSDOMNodeJSEnv()
     case Firefox =>
       val profile = new FirefoxProfile()
       profile.setPreference("privacy.file_unique_origin", false)
@@ -192,6 +201,7 @@ def browserCiCommand(browser: JSEnv) =
   s"; set Global / useJSEnv := JSEnv.$browser; project rootJS; headerCheck; scalafmtCheck; clean; testsJS/test; webWorkerTests/test; set Global / useJSEnv := JSEnv.NodeJS"
 addCommandAlias("ciFirefox", browserCiCommand(Firefox))
 addCommandAlias("ciChrome", browserCiCommand(Chrome))
+addCommandAlias("ciJSDOMNodeJS", browserCiCommand(JSDOMNodeJS))
 
 addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
