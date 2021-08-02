@@ -48,7 +48,8 @@ private[unsafe] object PolyfillExecutionContext extends ExecutionContext {
       def canUsePostMessage(): Boolean = {
         // The test against `importScripts` prevents this implementation from being installed inside a web worker,
         // where `global.postMessage` means something completely different and can't be used for this purpose.
-        if (isAvailable(js.Dynamic.global.postMessage) && !isAvailable(js.Dynamic.global.importScripts)) {
+        if (isAvailable(js.Dynamic.global.postMessage) && !isAvailable(
+            js.Dynamic.global.importScripts)) {
           var postMessageIsAsynchronous = true
           val oldOnMessage = js.Dynamic.global.onmessage
 
