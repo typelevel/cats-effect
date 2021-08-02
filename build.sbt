@@ -186,7 +186,7 @@ val CoopVersion = "1.1.1"
 
 replaceCommandAlias(
   "ci",
-  "; project /; headerCheck; scalafmtSbtCheck; scalafmtCheck; clean; test; coreJVM/mimaReportBinaryIssues; root/unidoc213; set Global / useJSEnv := JSEnv.Firefox; testsJS/test; webWorkerTests/test; set Global / useJSEnv := JSEnv.Chrome; testsJS/test; webWorkerTests/test; set Global / useJSEnv := JSEnv.NodeJS"
+  "; project /; headerCheck; scalafmtSbtCheck; scalafmtCheck; clean; test; coreJVM/mimaReportBinaryIssues; root/unidoc213; set Global / useJSEnv := JSEnv.Firefox; testsJS/test; webWorkerTests/test; set Global / useJSEnv := JSEnv.Chrome; testsJS/test; webWorkerTests/test; set Global / useJSEnv := JSEnv.JSDOMNodeJS; testsJS/test; set Global / useJSEnv := JSEnv.NodeJS"
 )
 
 addCommandAlias(
