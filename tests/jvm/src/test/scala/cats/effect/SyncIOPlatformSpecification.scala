@@ -16,9 +16,7 @@
 
 package cats.effect
 
-import org.specs2.mutable.Specification
-
-abstract class SyncIOPlatformSpecification extends Specification with Runners {
+abstract class SyncIOPlatformSpecification extends BaseSpec {
   def platformSpecs = {
     "platform" should {
       "realTimeInstant should return an Instant constructed from realTime" in {

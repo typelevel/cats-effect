@@ -26,11 +26,7 @@ import Prop.forAll
 import org.specs2.ScalaCheck
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class SyncIOSpec
-    extends SyncIOPlatformSpecification
-    with Discipline
-    with ScalaCheck
-    with BaseSpec {
+class SyncIOSpec extends SyncIOPlatformSpecification with ScalaCheck {
 
   "sync io monad" should {
     "produce a pure value when run" in {
@@ -227,26 +223,17 @@ class SyncIOSpec
     }
   }
 
-  {
-    checkAll(
-      "SyncIO",
-      SyncTests[SyncIO].sync[Int, Int, Int]
-    )
-  }
-
-  {
-    checkAll(
-      "SyncIO[Int]",
-      MonoidTests[SyncIO[Int]].monoid
-    )
-  }
-
-  {
-    checkAll(
-      "SyncIO",
-      AlignTests[SyncIO].align[Int, Int, Int, Int]
-    )
-  }
-
   platformSpecs
+}
+
+class SyncIOSyncLawsSpec extends BaseSpec with Discipline {
+  checkAll("SyncIO", SyncTests[SyncIO].sync[Int, Int, Int])
+}
+
+class SyncIOMonoidLawsSpec extends BaseSpec with Discipline {
+  checkAll("SyncIO[Int]", MonoidTests[SyncIO[Int]].monoid)
+}
+
+class SyncIOAlignLawsSpec extends BaseSpec with Discipline {
+  checkAll("SyncIO", AlignTests[SyncIO].align[Int, Int, Int, Int])
 }
