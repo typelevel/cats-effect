@@ -25,17 +25,11 @@ import cats.syntax.all._
 
 import org.scalacheck.Prop
 
-import org.specs2.ScalaCheck
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class IorTIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
-  outer =>
-
-  // we just need this because of the laws testing, since the prop runs can interfere with each other
-  sequential
+class IorTIOSpec extends BaseSpec { outer =>
 
   "IorT" should {
     "execute finalizers" in ticked { implicit ticker =>
@@ -77,6 +71,11 @@ class IorTIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck
       test.value.value must completeAs(Some(Ior.right(())))
     }
   }
+}
+
+class IorTIOAsyncLawsSpec extends BaseSpec with Discipline {
+  // we just need this because of the laws testing, since the prop runs can interfere with each other
+  sequential
 
   implicit def ordIorTIOFD(implicit ticker: Ticker): Order[IorT[IO, Int, FiniteDuration]] =
     Order by { ioaO => unsafeRun(ioaO.value).fold(None, _ => None, fa => fa) }
@@ -97,5 +96,4 @@ class IorTIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck
       AsyncTests[IorT[IO, Int, *]].async[Int, Int, Int](10.millis)
     )
   }
-
 }
