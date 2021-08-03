@@ -27,22 +27,13 @@ import cats.syntax.all._
 
 import org.scalacheck.{Cogen, Prop}
 
-import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class KleisliIOSpec
-    extends IOPlatformSpecification
-    with Discipline
-    with ScalaCheck
-    with BaseSpec {
-  outer =>
-
-  // we just need this because of the laws testing, since the prop runs can interfere with each other
-  sequential
+class KleisliIOSpec extends BaseSpec { outer =>
 
   "Kleisli[IO, R, *]" >> {
     "should be stack safe in long traverse chains" in ticked { implicit ticker =>
@@ -99,6 +90,11 @@ class KleisliIOSpec
       test.run("kleisli").value must completeAs(Some(()))
     }
   }
+}
+
+class KleisliIOAsyncLawsSpec extends BaseSpec with Discipline {
+  // we just need this because of the laws testing, since the prop runs can interfere with each other
+  sequential
 
   implicit def kleisliEq[F[_], A, B](implicit ev: Eq[A => F[B]]): Eq[Kleisli[F, A, B]] =
     Eq.by[Kleisli[F, A, B], A => F[B]](_.run)
@@ -122,13 +118,9 @@ class KleisliIOSpec
       implicit F: Cogen[A => F[B]]): Cogen[Kleisli[F, A, B]] =
     F.contramap(_.run)
 
-  {
-    implicit val ticker = Ticker()
-
-    checkAll(
-      "Kleisli[IO]",
-      AsyncTests[Kleisli[IO, MiniInt, *]].async[Int, Int, Int](10.millis)
-    )(Parameters(minTestsOk = 25))
-  }
-
+  implicit val ticker = Ticker()
+  checkAll(
+    "Kleisli[IO]",
+    AsyncTests[Kleisli[IO, MiniInt, *]].async[Int, Int, Int](10.millis)
+  )(Parameters(minTestsOk = 25))
 }
