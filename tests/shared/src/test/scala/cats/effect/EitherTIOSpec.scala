@@ -25,21 +25,11 @@ import cats.syntax.all._
 
 import org.scalacheck.Prop
 
-import org.specs2.ScalaCheck
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class EitherTIOSpec
-    extends IOPlatformSpecification
-    with Discipline
-    with ScalaCheck
-    with BaseSpec {
-  outer =>
-
-  // we just need this because of the laws testing, since the prop runs can interfere with each other
-  sequential
+class EitherTIOSpec extends BaseSpec { outer =>
 
   "EitherT" should {
     "execute finalizers" in ticked { implicit ticker =>
@@ -78,6 +68,11 @@ class EitherTIOSpec
       test.value.value must completeAs(Some(Right(())))
     }
   }
+}
+
+class EitherTIOAsyncLawsSpec extends BaseSpec with Discipline {
+  // we just need this because of the laws testing, since the prop runs can interfere with each other
+  sequential
 
   implicit def ordEitherTIOFD(
       implicit ticker: Ticker): Order[EitherT[IO, Int, FiniteDuration]] =
@@ -99,5 +94,4 @@ class EitherTIOSpec
       AsyncTests[EitherT[IO, Int, *]].async[Int, Int, Int](10.millis)
     ) /*(Parameters(seed = Some(Seed.fromBase64("XidlR_tu11X7_v51XojzZJsm6EaeU99RAEL9vzbkWBD=").get)))*/
   }
-
 }
