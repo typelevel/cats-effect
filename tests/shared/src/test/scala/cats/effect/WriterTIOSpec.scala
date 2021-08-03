@@ -25,21 +25,11 @@ import cats.syntax.all._
 
 import org.scalacheck.Prop
 
-import org.specs2.ScalaCheck
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class WriterTIOSpec
-    extends IOPlatformSpecification
-    with Discipline
-    with ScalaCheck
-    with BaseSpec {
-  outer =>
-
-  // we just need this because of the laws testing, since the prop runs can interfere with each other
-  sequential
+class WriterTIOSpec extends BaseSpec { outer =>
 
   "WriterT" should {
     "execute finalizers" in ticked { implicit ticker =>
@@ -78,6 +68,11 @@ class WriterTIOSpec
       test.run._2F.value must completeAs(Some(()))
     }
   }
+}
+
+class WriterTIOAsyncLawsSpec extends BaseSpec with Discipline {
+  // we just need this because of the laws testing, since the prop runs can interfere with each other
+  sequential
 
   implicit def ordWriterTIOFD(
       implicit ticker: Ticker): Order[WriterT[IO, Int, FiniteDuration]] =
@@ -92,13 +87,9 @@ class WriterTIOSpec
       )
     )
 
-  {
-    implicit val ticker = Ticker()
-
-    checkAll(
-      "WriterT[IO]",
-      AsyncTests[WriterT[IO, Int, *]].async[Int, Int, Int](10.millis)
-    )
-  }
-
+  implicit val ticker = Ticker()
+  checkAll(
+    "WriterT[IO]",
+    AsyncTests[WriterT[IO, Int, *]].async[Int, Int, Int](10.millis)
+  )
 }
