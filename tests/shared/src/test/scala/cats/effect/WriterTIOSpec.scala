@@ -87,7 +87,7 @@ class WriterTIOAsyncLawsSpec extends BaseSpec with Discipline {
       )
     )
 
-  implicit val ticker = Ticker()
+  implicit val ticker: Ticker = Ticker()
   checkAll(
     "WriterT[IO]",
     AsyncTests[WriterT[IO, Int, *]].async[Int, Int, Int](10.millis)

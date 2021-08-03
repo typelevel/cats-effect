@@ -85,8 +85,7 @@ class OptionTIOAsyncLawsSpec extends BaseSpec with Discipline {
         bO => bO.flatten.fold(false)(b => b)
       ))
 
-  implicit val ticker = Ticker()
-
+  implicit val ticker: Ticker = Ticker()
   checkAll(
     "OptionT[IO]",
     AsyncTests[OptionT[IO, *]].async[Int, Int, Int](10.millis)

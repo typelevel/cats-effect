@@ -1306,7 +1306,7 @@ class IOAsyncLawsSpec extends BaseSpec with Discipline {
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
 
-  implicit val ticker = Ticker()
+  implicit val ticker: Ticker = Ticker()
   checkAll(
     "IO",
     AsyncTests[IO].async[Int, Int, Int](10.millis)
@@ -1317,7 +1317,7 @@ class IOMonoidLawsSpec extends BaseSpec with Discipline {
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
 
-  implicit val ticker = Ticker()
+  implicit val ticker: Ticker = Ticker()
   checkAll(
     "IO[Int]",
     MonoidTests[IO[Int]].monoid
@@ -1328,7 +1328,7 @@ class IOSemigroupKLawsSpec extends BaseSpec with Discipline {
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
 
-  implicit val ticker = Ticker()
+  implicit val ticker: Ticker = Ticker()
   checkAll("IO[Int]", SemigroupKTests[IO].semigroupK[Int])
 }
 
@@ -1336,6 +1336,6 @@ class IOAlignLawsSpec extends BaseSpec with Discipline {
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
 
-  implicit val ticker = Ticker()
+  implicit val ticker: Ticker = Ticker()
   checkAll("IO", AlignTests[IO].align[Int, Int, Int, Int])
 }

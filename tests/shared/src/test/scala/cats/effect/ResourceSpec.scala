@@ -961,7 +961,7 @@ class ResourceIOAsyncLawsSpec extends BaseSpec with Discipline {
       F: MonadCancel[F, Throwable]): Cogen[Resource[F, A]] =
     C.contramap(_.allocated)
 
-  implicit val ticker = Ticker(TestContext())
+  implicit val ticker: Ticker = Ticker(TestContext())
 
   checkAll(
     "Resource[IO, *]",
@@ -974,7 +974,7 @@ class ResourceIOMonoidLawsSpec extends BaseSpec with Discipline {
   // We need this for testing laws: prop runs can interfere with each other
   sequential
 
-  implicit val ticker = Ticker(TestContext())
+  implicit val ticker: Ticker = Ticker(TestContext())
   checkAll(
     "Resource[IO, Int]",
     MonoidTests[Resource[IO, Int]].monoid
@@ -985,7 +985,7 @@ class ResourceIOSemigroupKLawsSpec extends BaseSpec with Discipline {
   // We need this for testing laws: prop runs can interfere with each other
   sequential
 
-  implicit val ticker = Ticker(TestContext())
+  implicit val ticker: Ticker = Ticker(TestContext())
   checkAll(
     "Resource[IO, *]",
     SemigroupKTests[Resource[IO, *]].semigroupK[Int]
@@ -996,7 +996,7 @@ class ResourceIOParallelLawsSpec extends BaseSpec with Discipline {
   // We need this for testing laws: prop runs can interfere with each other
   sequential
 
-  implicit val ticker = Ticker(TestContext())
+  implicit val ticker: Ticker = Ticker(TestContext())
   checkAll(
     "Resource[IO, *]",
     ParallelTests[Resource[IO, *]].parallel[Int, Int]

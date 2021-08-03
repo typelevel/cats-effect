@@ -118,7 +118,7 @@ class KleisliIOAsyncLawsSpec extends BaseSpec with Discipline {
       implicit F: Cogen[A => F[B]]): Cogen[Kleisli[F, A, B]] =
     F.contramap(_.run)
 
-  implicit val ticker = Ticker()
+  implicit val ticker: Ticker = Ticker()
   checkAll(
     "Kleisli[IO]",
     AsyncTests[Kleisli[IO, MiniInt, *]].async[Int, Int, Int](10.millis)
