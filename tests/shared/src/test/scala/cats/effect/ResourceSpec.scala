@@ -38,9 +38,7 @@ import scala.concurrent.duration._
 
 import java.util.concurrent.atomic.AtomicBoolean
 
-class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
-  // We need this for testing laws: prop runs can interfere with each other
-  sequential
+class ResourceSpec extends BaseSpec with ScalaCheck {
 
   "Resource[IO, *]" >> {
     "releases resources in reverse order of acquisition" in ticked { implicit ticker =>
@@ -952,46 +950,55 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       results mustEqual "ab"
     }
   }
+}
 
-  {
-    implicit def cogenForResource[F[_], A](
-        implicit C: Cogen[F[(A, F[Unit])]],
-        F: MonadCancel[F, Throwable]): Cogen[Resource[F, A]] =
-      C.contramap(_.allocated)
+class ResourceIOAsyncLawsSpec extends BaseSpec with Discipline {
+  // We need this for testing laws: prop runs can interfere with each other
+  sequential
 
-    implicit val ticker = Ticker(TestContext())
+  implicit def cogenForResource[F[_], A](
+      implicit C: Cogen[F[(A, F[Unit])]],
+      F: MonadCancel[F, Throwable]): Cogen[Resource[F, A]] =
+    C.contramap(_.allocated)
 
-    checkAll(
-      "Resource[IO, *]",
-      AsyncTests[Resource[IO, *]].async[Int, Int, Int](10.millis)
-    ) /*(Parameters(seed =
+  implicit val ticker = Ticker(TestContext())
+
+  checkAll(
+    "Resource[IO, *]",
+    AsyncTests[Resource[IO, *]].async[Int, Int, Int](10.millis)
+  ) /*(Parameters(seed =
       Some(Seed.fromBase64("75d9nzLIEobZ3mfn0DvzUkMv-Jt7o7IyQyIvjqwkeVJ=").get)))*/
-  }
+}
 
-  {
-    implicit val ticker = Ticker(TestContext())
+class ResourceIOMonoidLawsSpec extends BaseSpec with Discipline {
+  // We need this for testing laws: prop runs can interfere with each other
+  sequential
 
-    checkAll(
-      "Resource[IO, Int]",
-      MonoidTests[Resource[IO, Int]].monoid
-    )
-  }
+  implicit val ticker = Ticker(TestContext())
+  checkAll(
+    "Resource[IO, Int]",
+    MonoidTests[Resource[IO, Int]].monoid
+  )
+}
 
-  {
-    implicit val ticker = Ticker(TestContext())
+class ResourceIOSemigroupKLawsSpec extends BaseSpec with Discipline {
+  // We need this for testing laws: prop runs can interfere with each other
+  sequential
 
-    checkAll(
-      "Resource[IO, *]",
-      SemigroupKTests[Resource[IO, *]].semigroupK[Int]
-    )
-  }
+  implicit val ticker = Ticker(TestContext())
+  checkAll(
+    "Resource[IO, *]",
+    SemigroupKTests[Resource[IO, *]].semigroupK[Int]
+  )
+}
 
-  /*{
-    implicit val ticker = Ticker(TestContext())
+class ResourceIOParallelLawsSpec extends BaseSpec with Discipline {
+  // We need this for testing laws: prop runs can interfere with each other
+  sequential
 
-    checkAll(
-      "Resource[IO, *]",
-      ParallelTests[Resource[IO, *]].parallel[Int, Int]
-    )
-  }*/
+  implicit val ticker = Ticker(TestContext())
+  checkAll(
+    "Resource[IO, *]",
+    ParallelTests[Resource[IO, *]].parallel[Int, Int]
+  )
 }
