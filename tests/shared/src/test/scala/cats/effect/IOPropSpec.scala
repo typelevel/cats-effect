@@ -22,17 +22,12 @@ import cats.effect.std.Queue
 
 import org.scalacheck.Arbitrary.arbitrary
 
-import org.specs2.ScalaCheck
-
-import org.typelevel.discipline.specs2.mutable.Discipline
-
 import org.scalacheck.Gen
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
 
 //We allow these tests to have a longer timeout than IOSpec as they run lots of iterations
-class IOPropSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
-  outer =>
+class IOPropSpec extends BaseSpec { outer =>
 
   override def executionTimeout: FiniteDuration = 30.second
 
@@ -82,5 +77,4 @@ class IOPropSpec extends IOPlatformSpecification with Discipline with ScalaCheck
       }
     }
   }
-
 }
