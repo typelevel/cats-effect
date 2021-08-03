@@ -26,22 +26,13 @@ import cats.syntax.all._
 import org.scalacheck.Prop
 // import org.scalacheck.rng.Seed
 
-import org.specs2.ScalaCheck
 // import org.specs2.scalacheck.Parameters
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class OptionTIOSpec
-    extends IOPlatformSpecification
-    with Discipline
-    with ScalaCheck
-    with BaseSpec {
-  outer =>
-
-  // we just need this because of the laws testing, since the prop runs can interfere with each other
-  sequential
+class OptionTIOSpec extends BaseSpec { outer =>
 
   "OptionT" should {
     "execute finalizers" in ticked { implicit ticker =>
@@ -77,6 +68,11 @@ class OptionTIOSpec
       test.value.value must completeAs(Some(Some(())))
     }
   }
+}
+
+class OptionTIOAsyncLawsSpec extends BaseSpec with Discipline {
+  // we just need this because of the laws testing, since the prop runs can interfere with each other
+  sequential
 
   implicit def ordOptionTIOFD(implicit ticker: Ticker): Order[OptionT[IO, FiniteDuration]] =
     Order by { ioaO => unsafeRun(ioaO.value).fold(None, _ => None, fa => fa) }
@@ -89,13 +85,10 @@ class OptionTIOSpec
         bO => bO.flatten.fold(false)(b => b)
       ))
 
-  {
-    implicit val ticker = Ticker()
+  implicit val ticker = Ticker()
 
-    checkAll(
-      "OptionT[IO]",
-      AsyncTests[OptionT[IO, *]].async[Int, Int, Int](10.millis)
-    ) /*(Parameters(seed = Some(Seed.fromBase64("xuJLKQlO7U9WUCzxlh--IB-5ppu1VpQkCFAmUX3tIrM=").get)))*/
-  }
-
+  checkAll(
+    "OptionT[IO]",
+    AsyncTests[OptionT[IO, *]].async[Int, Int, Int](10.millis)
+  ) /*(Parameters(seed = Some(Seed.fromBase64("xuJLKQlO7U9WUCzxlh--IB-5ppu1VpQkCFAmUX3tIrM=").get)))*/
 }
