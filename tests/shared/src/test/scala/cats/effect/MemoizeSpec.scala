@@ -23,14 +23,10 @@ import org.scalacheck.Prop, Prop.forAll
 
 import org.specs2.ScalaCheck
 
-import org.typelevel.discipline.specs2.mutable.Discipline
-
 import scala.concurrent.duration._
 import scala.util.Success
 
-class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
-
-  sequential
+class MemoizeSpec extends BaseSpec with ScalaCheck {
 
   "Concurrent.memoize" >> {
 
