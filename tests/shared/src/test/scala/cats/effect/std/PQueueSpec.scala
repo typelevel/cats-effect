@@ -111,7 +111,6 @@ class BoundedPQueueSpec extends BaseSpec with PQueueTests {
 }
 
 class UnboundedPQueueSpec extends BaseSpec with PQueueTests {
-  sequential
 
   implicit val orderForInt: Order[Int] = Order.fromLessThan((x, y) => x < y)
 

@@ -26,7 +26,6 @@ import org.scalacheck.Arbitrary, Arbitrary.arbitrary
 import scala.collection.immutable.{Queue => ScalaQueue}
 
 class BoundedDequeueSpec extends BaseSpec with DequeueTests {
-  sequential
 
   "BoundedDequeue" should {
     boundedDequeueTests(
@@ -140,7 +139,6 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
 }
 
 class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
-  sequential
 
   "UnboundedDequeue" should {
     unboundedDequeueTests(

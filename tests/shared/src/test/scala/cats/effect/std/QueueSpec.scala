@@ -105,7 +105,6 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
 }
 
 class UnboundedQueueSpec extends BaseSpec with QueueTests[Queue] {
-  sequential
 
   "UnboundedQueue" should {
     unboundedQueueTests("UnboundedQueue", Queue.unbounded)
@@ -122,7 +121,6 @@ class UnboundedQueueSpec extends BaseSpec with QueueTests[Queue] {
 }
 
 class DroppingQueueSpec extends BaseSpec with QueueTests[Queue] {
-  sequential
 
   "DroppingQueue" should {
     droppingQueueTests("DroppingQueue", Queue.dropping)
@@ -145,7 +143,6 @@ class DroppingQueueSpec extends BaseSpec with QueueTests[Queue] {
 }
 
 class CircularBufferQueueSpec extends BaseSpec with QueueTests[Queue] {
-  sequential
 
   "CircularBuffer" should {
     slidingQueueTests("CircularBuffer", Queue.circularBuffer)

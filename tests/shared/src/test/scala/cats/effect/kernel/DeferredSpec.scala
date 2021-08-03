@@ -22,8 +22,6 @@ import scala.concurrent.duration._
 
 class DeferredSpec extends BaseSpec { outer =>
 
-  sequential
-
   "Deferred" >> {
 
     "complete" in real {
