@@ -340,7 +340,7 @@ private final class IOFiber[A](
               runLoop(next(ec), nextCancelation - 1, nextAutoCede)
 
             case 23 =>
-              val trace = Trace(runtime.config.enhancedExceptions, tracingEvents)
+              val trace = Trace(tracingEvents)
               runLoop(next(trace), nextCancelation - 1, nextAutoCede)
 
             case _ =>
@@ -405,7 +405,7 @@ private final class IOFiber[A](
               runLoop(next(ec), nextCancelation - 1, nextAutoCede)
 
             case 23 =>
-              val trace = Trace(runtime.config.enhancedExceptions, tracingEvents)
+              val trace = Trace(tracingEvents)
               runLoop(next(trace), nextCancelation - 1, nextAutoCede)
 
             case _ =>
@@ -461,7 +461,7 @@ private final class IOFiber[A](
               runLoop(succeeded(Right(ec), 0), nextCancelation - 1, nextAutoCede)
 
             case 23 =>
-              val trace = Trace(runtime.config.enhancedExceptions, tracingEvents)
+              val trace = Trace(tracingEvents)
               runLoop(succeeded(Right(trace), 0), nextCancelation - 1, nextAutoCede)
 
             case _ =>
@@ -912,10 +912,7 @@ private final class IOFiber[A](
           runLoop(succeeded(value, 0), nextCancelation, nextAutoCede)
 
         case 23 =>
-          runLoop(
-            succeeded(Trace(runtime.config.enhancedExceptions, tracingEvents), 0),
-            nextCancelation,
-            nextAutoCede)
+          runLoop(succeeded(Trace(tracingEvents), 0), nextCancelation, nextAutoCede)
       }
     }
   }

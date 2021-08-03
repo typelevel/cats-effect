@@ -19,9 +19,9 @@ package cats.effect.tracing
 import java.io.{ByteArrayOutputStream, PrintStream}
 import cats.effect.tracing.TracingEvent.StackTrace
 
-final class Trace private (enhancedExceptions: Boolean, events: RingBuffer) {
+final class Trace private (events: RingBuffer) {
   private[this] val collector = new StackTrace
-  Tracing.augmentThrowable(enhancedExceptions, collector, events)
+  Tracing.augmentThrowable(true, collector, events)
 
   override def toString: String = {
     val baos = new ByteArrayOutputStream()
@@ -33,8 +33,8 @@ final class Trace private (enhancedExceptions: Boolean, events: RingBuffer) {
 
 object Trace {
 
-  private[effect] def apply(enhancedExceptions: Boolean, events: RingBuffer): Trace = {
-    new Trace(enhancedExceptions, events)
+  private[effect] def apply(events: RingBuffer): Trace = {
+    new Trace(events)
   }
 
 }
