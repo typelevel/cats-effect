@@ -22,7 +22,6 @@ import cats.effect.std.Semaphore
 import org.scalacheck.Prop.forAll
 
 import org.specs2.ScalaCheck
-import org.specs2.mutable.Specification
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -30,7 +29,7 @@ import scala.concurrent.duration._
 import java.util.concurrent.{CancellationException, CountDownLatch, Executors}
 import java.util.concurrent.CompletableFuture
 
-abstract class IOPlatformSpecification extends Specification with ScalaCheck with Runners {
+abstract class IOPlatformSpecification extends BaseSpec with ScalaCheck {
 
   def platformSpecs = {
     "platform" should {

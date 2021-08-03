@@ -28,7 +28,6 @@ import cats.syntax.all._
 import org.scalacheck.Prop, Prop.forAll
 // import org.scalacheck.rng.Seed
 
-import org.specs2.ScalaCheck
 // import org.specs2.scalacheck.Parameters
 
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -36,11 +35,7 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 import scala.concurrent.{ExecutionContext, TimeoutException}
 import scala.concurrent.duration._
 
-class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
-  outer =>
-
-  // we just need this because of the laws testing, since the prop runs can interfere with each other
-  sequential
+class IOSpec extends IOPlatformSpecification { outer =>
 
   "io monad" should {
 
@@ -1305,41 +1300,42 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     platformSpecs
   }
+}
 
-  {
-    implicit val ticker = Ticker()
+class IOAsyncLawsSpec extends BaseSpec with Discipline {
+  // we just need this because of the laws testing, since the prop runs can interfere with each other
+  sequential
 
-    checkAll(
-      "IO",
-      AsyncTests[IO].async[Int, Int, Int](10.millis)
-    ) /*(Parameters(seed = Some(Seed.fromBase64("ZxDXpm7_3Pdkl-Fvt8M90Cxfam9wKuzcifQ1QsIJxND=").get)))*/
-  }
+  implicit val ticker = Ticker()
+  checkAll(
+    "IO",
+    AsyncTests[IO].async[Int, Int, Int](10.millis)
+  ) /*(Parameters(seed = Some(Seed.fromBase64("ZxDXpm7_3Pdkl-Fvt8M90Cxfam9wKuzcifQ1QsIJxND=").get)))*/
+}
 
-  {
-    implicit val ticker = Ticker()
+class IOMonoidLawsSpec extends BaseSpec with Discipline {
+  // we just need this because of the laws testing, since the prop runs can interfere with each other
+  sequential
 
-    checkAll(
-      "IO[Int]",
-      MonoidTests[IO[Int]].monoid
-    ) /*(Parameters(seed = Some(Seed.fromBase64("_1deH2u9O-z6PmkYMBgZT-3ofsMEAMStR9x0jKlFgyO=").get)))*/
-  }
+  implicit val ticker = Ticker()
+  checkAll(
+    "IO[Int]",
+    MonoidTests[IO[Int]].monoid
+  ) /*(Parameters(seed = Some(Seed.fromBase64("_1deH2u9O-z6PmkYMBgZT-3ofsMEAMStR9x0jKlFgyO=").get)))*/
+}
 
-  {
-    implicit val ticker = Ticker()
+class IOSemigroupKLawsSpec extends BaseSpec with Discipline {
+  // we just need this because of the laws testing, since the prop runs can interfere with each other
+  sequential
 
-    checkAll(
-      "IO[Int]",
-      SemigroupKTests[IO].semigroupK[Int]
-    )
-  }
+  implicit val ticker = Ticker()
+  checkAll("IO[Int]", SemigroupKTests[IO].semigroupK[Int])
+}
 
-  {
-    implicit val ticker = Ticker()
+class IOAlignLawsSpec extends BaseSpec with Discipline {
+  // we just need this because of the laws testing, since the prop runs can interfere with each other
+  sequential
 
-    checkAll(
-      "IO",
-      AlignTests[IO].align[Int, Int, Int, Int]
-    )
-  }
-
+  implicit val ticker = Ticker()
+  checkAll("IO", AlignTests[IO].align[Int, Int, Int, Int])
 }
