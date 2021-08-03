@@ -54,13 +54,6 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
   )
 
   def augmentThrowable(enhancedExceptions: Boolean, t: Throwable, events: RingBuffer): Unit = {
-    augmentThrowable(enhancedExceptions, t, events.toList)
-  }
-
-  def augmentThrowable(
-      enhancedExceptions: Boolean,
-      t: Throwable,
-      events: List[TracingEvent]): Unit = {
     def applyRunLoopFilter(ste: StackTraceElement): Boolean = {
       val name = ste.getClassName
       var i = 0
@@ -139,6 +132,7 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
         if (!augmented) {
           val prefix = dropRunLoopFrames(stackTrace)
           val suffix = events
+            .toList
             .collect { case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace) }
             .filter(_ ne null)
             .toArray
