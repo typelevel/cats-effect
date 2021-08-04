@@ -28,7 +28,6 @@ import cats.syntax.all._
 import org.scalacheck.Prop, Prop.forAll
 // import org.scalacheck.rng.Seed
 
-import org.specs2.ScalaCheck
 // import org.specs2.scalacheck.Parameters
 
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -36,8 +35,7 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 import scala.concurrent.{ExecutionContext, TimeoutException}
 import scala.concurrent.duration._
 
-class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
-  outer =>
+class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential

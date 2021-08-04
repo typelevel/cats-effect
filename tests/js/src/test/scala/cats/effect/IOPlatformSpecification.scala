@@ -21,9 +21,8 @@ import cats.syntax.all._
 import org.scalacheck.Prop.forAll
 
 import org.specs2.ScalaCheck
-import org.specs2.mutable.Specification
 
-abstract class IOPlatformSpecification extends Specification with ScalaCheck with Runners {
+trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
   def platformSpecs =
     "platform" should {

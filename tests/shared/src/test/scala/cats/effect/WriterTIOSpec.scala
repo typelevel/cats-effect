@@ -22,21 +22,12 @@ import cats.effect.laws.AsyncTests
 import cats.effect.syntax.all._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
-
 import org.scalacheck.Prop
-
-import org.specs2.ScalaCheck
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class WriterTIOSpec
-    extends IOPlatformSpecification
-    with Discipline
-    with ScalaCheck
-    with BaseSpec {
-  outer =>
+class WriterTIOSpec extends BaseSpec with Discipline {
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential

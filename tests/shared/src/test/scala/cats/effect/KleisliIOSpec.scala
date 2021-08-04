@@ -24,22 +24,13 @@ import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.eq._
 import cats.syntax.all._
-
 import org.scalacheck.{Cogen, Prop}
-
-import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class KleisliIOSpec
-    extends IOPlatformSpecification
-    with Discipline
-    with ScalaCheck
-    with BaseSpec {
-  outer =>
+class KleisliIOSpec extends BaseSpec with Discipline {
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
