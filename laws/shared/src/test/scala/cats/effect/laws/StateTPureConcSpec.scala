@@ -21,16 +21,12 @@ import cats.{Eq, FlatMap}
 import cats.data.StateT
 import cats.effect.kernel.testkit.{pure, PureConcGenerators}, pure._
 import cats.laws.discipline.{arbitrary, eq, MiniInt}, arbitrary._, eq._
-
 // import org.scalacheck.rng.Seed
-
-import org.specs2.ScalaCheck
 import org.specs2.mutable._
 // import org.specs2.scalacheck.Parameters
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class StateTPureConcSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
+class StateTPureConcSpec extends Specification with Discipline with BaseSpec {
   import PureConcGenerators._
 
   implicit def stateTEq[F[_]: FlatMap, S, A](

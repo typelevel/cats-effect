@@ -21,18 +21,11 @@ import cats.{Eq, Monad}
 import cats.data.ReaderWriterStateT
 import cats.effect.kernel.testkit.{pure, PureConcGenerators}, pure._
 import cats.laws.discipline.{arbitrary, eq, MiniInt}, arbitrary._, eq._
-
-import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
 import org.specs2.mutable._
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class ReaderWriterStateTPureConcSpec
-    extends Specification
-    with Discipline
-    with ScalaCheck
-    with BaseSpec {
+class ReaderWriterStateTPureConcSpec extends Specification with Discipline with BaseSpec {
   import PureConcGenerators._
 
   implicit def rwstEq[F[_]: Monad, E, L, S, A](
