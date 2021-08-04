@@ -10,3 +10,9 @@
 ```sh
 sbt ";scalafixEnable ;scalafixAll github:typelevel/cats-effect/v2_4_0?sha=v2.4.0"
 ```
+
+## Migration to Cats Effect 2.5.3
+
+```sh
+sbt ";scalafixEnable ;scalafixAll github:typelevel/cats-effect/v2_5_3?sha=v2.5.3"
+```
