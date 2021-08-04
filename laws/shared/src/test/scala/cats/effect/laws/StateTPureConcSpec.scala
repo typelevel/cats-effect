@@ -26,7 +26,7 @@ import cats.laws.discipline.{arbitrary, eq, MiniInt}, arbitrary._, eq._
 
 import org.specs2.ScalaCheck
 import org.specs2.mutable._
-// import org.specs2.scalacheck.Parameters
+import org.specs2.scalacheck.Parameters
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
@@ -40,5 +40,7 @@ class StateTPureConcSpec extends Specification with Discipline with ScalaCheck w
   checkAll(
     "StateT[PureConc]",
     MonadCancelTests[StateT[PureConc[Int, *], MiniInt, *], Int].monadCancel[Int, Int, Int]
+  )(
+    Parameters(minTestsOk = 25)
   ) /*(Parameters(minTestsOk = 25, seed = Some(Seed.fromBase64("Ky43MND8m5h-10MZTckMFFAW6ea2pXWkFDE2A7ddtML=").get)))*/
 }
