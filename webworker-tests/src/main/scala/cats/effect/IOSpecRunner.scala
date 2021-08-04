@@ -18,6 +18,7 @@ package cats.effect
 
 import org.scalajs.dom.webworkers.DedicatedWorkerGlobalScope
 import org.specs2.control.ExecuteActions
+import org.specs2.control.eff.all._
 import org.specs2.reporter.BufferedLineLogger
 import org.specs2.runner.ClassRunner
 import org.specs2.runner.Runner
@@ -31,7 +32,12 @@ object IOSpecRunner extends IOApp.Simple with ClassRunner {
 
   override def run: IO[Unit] = IO.fromFuture {
     IO {
-      val spec = new IOSpec
+      val specs = List(
+        new IOSpec,
+        new IOAsyncLawsSpec,
+        new IOMonoidLawsSpec,
+        new IOSemigroupKLawsSpec,
+        new IOAlignLawsSpec)
       val env = Env(lineLogger = new BufferedLineLogger {
         override def infoLine(msg: String): Unit = postMessage(s"[info] $msg")
         override def failureLine(msg: String): Unit = postMessage(s"[error] $msg")
@@ -39,15 +45,20 @@ object IOSpecRunner extends IOApp.Simple with ClassRunner {
         override def warnLine(msg: String): Unit = postMessage(s"[warn] $msg")
       })
       val loader = new ClassLoader() {}
+      var result = true
       val action = for {
         printers <- createPrinters(env.arguments, loader).toAction
-        stats <- Runner.runSpecStructure(spec.structure(env), env, loader, printers)
-        // TODO I have no idea how to suspend effects in this
-        _ = postMessage(stats.toString)
-        _ = postMessage(stats.isSuccess)
+        _ <- traverseA(specs) { spec =>
+          for {
+            stats <- Runner.runSpecStructure(spec.structure(env), env, loader, printers)
+            // TODO I have no idea how to suspend effects in this
+            _ = postMessage(stats.toString)
+            _ = (result = result && stats.isSuccess)
+          } yield ()
+        }
+        _ = postMessage(result)
       } yield ()
       ExecuteActions.runActionFuture(action)(env.executionEnv)
     }
   }
-
 }
