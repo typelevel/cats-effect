@@ -347,7 +347,7 @@ object SyncIO extends SyncIOInstances {
    * thrown by the side effect will be caught and sequenced into the
    * `SyncIO`.
    */
-  @deprecated("use defer", "2.5.2")
+  @deprecated("use defer", "2.5.3")
   def suspend[A](thunk: => SyncIO[A]): SyncIO[A] = defer(thunk)
 
   /**
