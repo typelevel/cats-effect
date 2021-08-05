@@ -17,9 +17,9 @@
 package cats.effect
 
 import org.scalajs.dom.webworkers.Worker
-import org.scalajs.dom.window
 
 import scala.concurrent.duration._
+import scala.scalajs.js
 import scala.util.Try
 
 class WebWorkerIOSpec extends BaseSpec {
@@ -33,24 +33,25 @@ class WebWorkerIOSpec extends BaseSpec {
 
   def targetDir = s"${BuildInfo.baseDirectory}/target/scala-${scalaVersion}"
 
-  Try(window).toOption.foreach { _ =>
-    "io on webworker" should {
-      "pass the spec" in real {
-        for {
-          worker <- IO(
-            new Worker(s"file://${targetDir}/cats-effect-webworker-tests-fastopt/main.js"))
-          success <- IO.async_[Boolean] { cb =>
-            worker.onmessage = { event =>
-              event.data match {
-                case log: String => println(log)
-                case success: Boolean => cb(Right(success))
-                case _ => ()
+  Try(js.isUndefined(js.Dynamic.global.window.Worker)).toOption.filterNot(identity).foreach {
+    _ =>
+      "io on webworker" should {
+        "pass the spec" in real {
+          for {
+            worker <- IO(
+              new Worker(s"file://${targetDir}/cats-effect-webworker-tests-fastopt/main.js"))
+            success <- IO.async_[Boolean] { cb =>
+              worker.onmessage = { event =>
+                event.data match {
+                  case log: String => println(log)
+                  case success: Boolean => cb(Right(success))
+                  case _ => ()
+                }
               }
             }
-          }
-        } yield success mustEqual true
+          } yield success mustEqual true
+        }
       }
-    }
   }
 
 }

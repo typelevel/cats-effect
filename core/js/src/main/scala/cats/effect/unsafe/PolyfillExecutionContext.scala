@@ -20,6 +20,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.scalajs.js
 import scala.util.Random
+import scala.util.control.NonFatal
 
 /**
  * Based on https://github.com/YuzuJS/setImmediate
@@ -47,11 +48,16 @@ private[unsafe] object PolyfillExecutionContext extends ExecutionContext {
           var postMessageIsAsynchronous = true
           val oldOnMessage = js.Dynamic.global.onmessage
 
-          js.Dynamic.global.onmessage = { () => postMessageIsAsynchronous = false }
-
-          js.Dynamic.global.postMessage("", "*")
-          js.Dynamic.global.onmessage = oldOnMessage
-          postMessageIsAsynchronous
+          try {
+            // This line throws `ReferenceError: onmessage is not defined` in JSDOMNodeJS environment
+            js.Dynamic.global.onmessage = { () => postMessageIsAsynchronous = false }
+            js.Dynamic.global.postMessage("", "*")
+            js.Dynamic.global.onmessage = oldOnMessage
+            postMessageIsAsynchronous
+          } catch {
+            case NonFatal(_) =>
+              false
+          }
         } else {
           false
         }
