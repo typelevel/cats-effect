@@ -23,14 +23,9 @@ import cats.effect.laws.SyncTests
 import cats.syntax.all._
 import org.scalacheck.Prop
 import Prop.forAll
-import org.specs2.ScalaCheck
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class SyncIOSpec
-    extends SyncIOPlatformSpecification
-    with Discipline
-    with ScalaCheck
-    with BaseSpec {
+class SyncIOSpec extends BaseSpec with Discipline with SyncIOPlatformSpecification {
 
   "sync io monad" should {
     "produce a pure value when run" in {

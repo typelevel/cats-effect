@@ -20,16 +20,13 @@ package laws
 import cats.Order
 import cats.data.Kleisli
 import cats.effect.kernel.Outcome
-import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, Time, TimeT},
-pure._, TimeT._
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, Time, TimeT}
+import cats.effect.kernel.testkit.pure._
+import cats.effect.kernel.testkit.TimeT._
 import cats.laws.discipline.{arbitrary, MiniInt}
-
 import org.scalacheck.{Arbitrary, Cogen, Prop}
-
-import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
 import org.specs2.mutable._
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
@@ -37,7 +34,6 @@ import scala.concurrent.duration._
 class KleisliPureConcSpec
     extends Specification
     with Discipline
-    with ScalaCheck
     with BaseSpec
     with LowPriorityKleisliInstances {
   import PureConcGenerators._

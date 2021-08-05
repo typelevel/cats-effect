@@ -17,20 +17,16 @@
 package cats.effect
 package laws
 
-import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._,
-TimeT._
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._
+import cats.effect.kernel.testkit.TimeT._
 import cats.laws.discipline.arbitrary._
-
 import org.scalacheck.Prop
-
-import org.specs2.ScalaCheck
 import org.specs2.mutable._
+import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-import org.typelevel.discipline.specs2.mutable.Discipline
-
-class PureConcSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
+class PureConcSpec extends Specification with Discipline with BaseSpec {
   import PureConcGenerators._
   import OutcomeGenerators._
 
