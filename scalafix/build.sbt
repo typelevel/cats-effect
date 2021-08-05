@@ -45,34 +45,34 @@ lazy val v2_4_0_tests = project
   .dependsOn(v2_4_0_input, rules)
   .enablePlugins(ScalafixTestkitPlugin)
 
-lazy val v2_5_2_input = project
-  .in(file("v2_5_2/input"))
+lazy val v2_5_3_input = project
+  .in(file("v2_5_3/input"))
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-effect" % "2.5.1"
     )
   )
 
-lazy val v2_5_2_output = project
-  .in(file("v2_5_2/output"))
+lazy val v2_5_3_output = project
+  .in(file("v2_5_3/output"))
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "2.5.2"
+      "org.typelevel" %% "cats-effect" % "2.5.3"
     )
   )
 
-lazy val v2_5_2_tests = project
-  .in(file("v2_5_2/tests"))
+lazy val v2_5_3_tests = project
+  .in(file("v2_5_3/tests"))
   .settings(
     libraryDependencies += ("ch.epfl.scala" % "scalafix-testkit" % V.scalafixVersion % Test).cross(CrossVersion.full),
     (Compile / compile) :=
-      (Compile / compile).dependsOn(v2_5_2_input / Compile / compile).value,
+      (Compile / compile).dependsOn(v2_5_3_input / Compile / compile).value,
     scalafixTestkitOutputSourceDirectories :=
-      (v2_5_2_output / Compile / sourceDirectories).value,
+      (v2_5_3_output / Compile / sourceDirectories).value,
     scalafixTestkitInputSourceDirectories :=
-      (v2_5_2_input / Compile / sourceDirectories).value,
+      (v2_5_3_input / Compile / sourceDirectories).value,
     scalafixTestkitInputClasspath :=
-      (v2_5_2_input / Compile / fullClasspath).value
+      (v2_5_3_input / Compile / fullClasspath).value
   )
-  .dependsOn(v2_5_2_input, rules)
+  .dependsOn(v2_5_3_input, rules)
   .enablePlugins(ScalafixTestkitPlugin)

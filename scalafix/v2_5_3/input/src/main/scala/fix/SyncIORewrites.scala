@@ -1,5 +1,5 @@
 /*
-rule = "scala:fix.v2_5_2"
+rule = "scala:fix.v2_5_3"
  */
 package fix
 

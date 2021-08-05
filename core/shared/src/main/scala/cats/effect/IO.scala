@@ -1183,7 +1183,7 @@ object IO extends IOInstances {
    * thrown by the side effect will be caught and sequenced into the
    * `IO`.
    */
-  @deprecated("use defer", "2.5.2")
+  @deprecated("use defer", "2.5.3")
   def suspend[A](thunk: => IO[A]): IO[A] = defer(thunk)
 
   /**
