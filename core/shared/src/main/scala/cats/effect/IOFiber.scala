@@ -1036,6 +1036,8 @@ private final class IOFiber[A](
     }
 
   private[this] def failed(error: Throwable, depth: Int): IO[Any] = {
+    Tracing.augmentThrowable(runtime.config.enhancedExceptions, error, tracingEvents)
+
     // println(s"<$name> failed() with $error")
     val buffer = conts.unsafeBuffer()
 
@@ -1267,7 +1269,6 @@ private final class IOFiber[A](
   }
 
   private[this] def runTerminusFailureK(t: Throwable): IO[Any] = {
-    Tracing.augmentThrowable(runtime.config.enhancedExceptions, t, tracingEvents)
     done(Outcome.Errored(t))
     IOEndFiber
   }
