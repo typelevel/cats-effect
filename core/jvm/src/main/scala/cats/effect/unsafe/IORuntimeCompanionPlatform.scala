@@ -63,9 +63,13 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
   // we don't need to synchronize this with IOApp, because we control the main thread
   // so instead we just yolo it since the lazy val already synchronizes its own initialization
-  private[effect] def installGlobal(global: IORuntime): Unit = {
-    require(_global == null)
-    _global = global
+  private[effect] def installGlobal(global: => IORuntime): Boolean = {
+    if (_global == null) {
+      _global = global
+      true
+    } else {
+      false
+    }
   }
 
   private[effect] def resetGlobal(): Unit =
