@@ -75,7 +75,7 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
     cond = Some("matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'")
   ),
   WorkflowStep.Run(
-    List("npm install jsdom"),
+    List("npm install"),
     name = Some("Install jsdom"),
     cond = Some("matrix.ci == 'ciJSDOMNodeJS'")
   )
