@@ -17,7 +17,6 @@
 package cats.effect.tracing
 
 import scala.collection.mutable.ArrayBuffer
-
 import scala.reflect.NameTransformer
 
 private[effect] object Tracing extends ClassValue[TracingEvent] {
@@ -53,6 +52,47 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
     "scala."
   )
 
+  private[this] def applyStackTraceFilter(callSiteClassName: String): Boolean = {
+    val len = stackTraceFilter.length
+    var idx = 0
+    while (idx < len) {
+      if (callSiteClassName.startsWith(stackTraceFilter(idx))) {
+        return true
+      }
+
+      idx += 1
+    }
+
+    false
+  }
+
+  private[this] def getOpAndCallSite(
+      stackTrace: Array[StackTraceElement]): StackTraceElement = {
+    val len = stackTrace.length
+    var idx = 1
+    while (idx < len) {
+      val methodSite = stackTrace(idx - 1)
+      val callSite = stackTrace(idx)
+      val callSiteClassName = callSite.getClassName
+
+      if (!applyStackTraceFilter(callSiteClassName)) {
+        val methodSiteMethodName = methodSite.getMethodName
+        val op = NameTransformer.decode(methodSiteMethodName)
+
+        return new StackTraceElement(
+          op + " @ " + callSiteClassName,
+          callSite.getMethodName,
+          callSite.getFileName,
+          callSite.getLineNumber
+        )
+      }
+
+      idx += 1
+    }
+
+    null
+  }
+
   def augmentThrowable(enhancedExceptions: Boolean, t: Throwable, events: RingBuffer): Unit = {
     def applyRunLoopFilter(ste: StackTraceElement): Boolean = {
       val name = ste.getClassName
@@ -85,46 +125,6 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
       buffer.toArray
     }
 
-    def applyStackTraceFilter(callSiteClassName: String): Boolean = {
-      val len = stackTraceFilter.length
-      var idx = 0
-      while (idx < len) {
-        if (callSiteClassName.startsWith(stackTraceFilter(idx))) {
-          return true
-        }
-
-        idx += 1
-      }
-
-      false
-    }
-
-    def getOpAndCallSite(stackTrace: Array[StackTraceElement]): StackTraceElement = {
-      val len = stackTrace.length
-      var idx = 1
-      while (idx < len) {
-        val methodSite = stackTrace(idx - 1)
-        val callSite = stackTrace(idx)
-        val callSiteClassName = callSite.getClassName
-
-        if (!applyStackTraceFilter(callSiteClassName)) {
-          val methodSiteMethodName = methodSite.getMethodName
-          val op = NameTransformer.decode(methodSiteMethodName)
-
-          return new StackTraceElement(
-            op + " @ " + callSiteClassName,
-            callSite.getMethodName,
-            callSite.getFileName,
-            callSite.getLineNumber
-          )
-        }
-
-        idx += 1
-      }
-
-      null
-    }
-
     if (isStackTracing && enhancedExceptions) {
       val stackTrace = t.getStackTrace
       if (!stackTrace.isEmpty) {
@@ -140,5 +140,40 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
         }
       }
     }
+  }
+
+  def showFiberTrace(events: RingBuffer): String = {
+    def renderStackTraceElement(ste: StackTraceElement): String = {
+      s"${ste.getClassName}.${ste.getMethodName} (${ste.getFileName}:${ste.getLineNumber})"
+    }
+
+    val TurnRight = "╰"
+    val Junction = "├"
+    var captured = 0
+    val indexedStackTraces = events.toList.collect {
+      case e: TracingEvent.StackTrace =>
+        val res = (e, captured)
+        captured += 1
+        res
+    }
+
+    val acc0 = s"Trace: ${captured} frames captured\n"
+    val acc1 = indexedStackTraces
+      .map {
+        case (st, index) =>
+          val trace = getOpAndCallSite(st.getStackTrace)
+          if (trace eq null) { null }
+          else {
+            val tag = renderStackTraceElement(trace)
+
+            if (index == 0) s"$Junction $tag"
+            else if (index == captured - 1) s"$TurnRight $tag"
+            else s"$Junction $tag"
+          }
+      }
+      .filter(_ ne null)
+      .mkString("\n")
+
+    acc0 + acc1
   }
 }

@@ -16,20 +16,9 @@
 
 package cats.effect.tracing
 
-import java.io.{ByteArrayOutputStream, PrintStream}
-import cats.effect.tracing.TracingEvent.StackTrace
+import cats.Show
 
-final class Trace private (events: RingBuffer) {
-  private[this] val collector = new StackTrace
-  Tracing.augmentThrowable(true, collector, events)
-
-  override def toString: String = {
-    val baos = new ByteArrayOutputStream()
-    val ps = new PrintStream(baos)
-    collector.printStackTrace(ps)
-    baos.toString
-  }
-}
+final class Trace private (private val events: RingBuffer)
 
 object Trace {
 
@@ -37,4 +26,6 @@ object Trace {
     new Trace(events)
   }
 
+  implicit val showForTrace: Show[Trace] =
+    Show.show(trace => Tracing.showFiberTrace(trace.events))
 }
