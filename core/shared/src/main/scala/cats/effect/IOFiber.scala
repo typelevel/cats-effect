@@ -418,7 +418,11 @@ private final class IOFiber[A](
 
             case 1 =>
               val error = ioa.asInstanceOf[Error]
-              runLoop(succeeded(Left(error.t), 0), nextCancelation - 1, nextAutoCede)
+              val t = error.t
+              // We need to augment the exception here because it doesn't get
+              // forwarded to the `failed` path.
+              Tracing.augmentThrowable(runtime.config.enhancedExceptions, t, tracingEvents)
+              runLoop(succeeded(Left(t), 0), nextCancelation - 1, nextAutoCede)
 
             case 2 =>
               val delay = ioa.asInstanceOf[Delay[Any]]
@@ -431,6 +435,12 @@ private final class IOFiber[A](
                 try delay.thunk()
                 catch {
                   case NonFatal(t) =>
+                    // We need to augment the exception here because it doesn't
+                    // get forwarded to the `failed` path.
+                    Tracing.augmentThrowable(
+                      runtime.config.enhancedExceptions,
+                      t,
+                      tracingEvents)
                     error = t
                   case t: Throwable =>
                     onFatalFailure(t)
