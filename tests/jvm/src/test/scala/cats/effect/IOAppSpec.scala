@@ -200,10 +200,13 @@ package examples {
 
   object GlobalRacingInit extends IOApp {
 
-    {
+    def foo(): Unit = {
       // touch the global runtime to force its initialization
       val _ = cats.effect.unsafe.implicits.global
+      ()
     }
+
+    foo()
 
     // indirect assertion that we *don't* use the custom config
     override def runtimeConfig = sys.error("boom")
