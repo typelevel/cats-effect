@@ -18,13 +18,10 @@ package cats.effect.tracing
 
 private object TracingConstants {
 
-  final val isCachedStackTracing: Boolean = false
+  var isCachedStackTracing: Boolean = false
 
-  final val isFullStackTracing: Boolean = false
+  var isFullStackTracing: Boolean = false
 
-  final val isStackTracing: Boolean = false
+  var isStackTracing: Boolean = false
 
-  final val traceBufferLogSize: Int = 0
-
-  final val enhancedExceptions: Boolean = false
 }
