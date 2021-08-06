@@ -213,7 +213,7 @@ trait IOApp {
     if (runtime == null) {
       import unsafe.IORuntime
 
-      IORuntime installGlobal {
+      val installed = IORuntime installGlobal {
         val (compute, compDown) =
           IORuntime.createDefaultComputeThreadPool(runtime, threads = computeWorkerThreadCount)
 
@@ -233,6 +233,13 @@ trait IOApp {
             schedDown()
           },
           runtimeConfig)
+      }
+
+      if (!installed) {
+        System
+          .err
+          .println(
+            "WARNING: Cats Effect global runtime already initialized; custom configurations will be ignored")
       }
 
       _runtime = IORuntime.global

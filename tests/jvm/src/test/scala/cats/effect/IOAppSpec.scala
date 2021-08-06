@@ -113,6 +113,14 @@ class IOAppSpec extends Specification {
         val h = java(Canceled, List.empty)
         h.awaitStatus() mustEqual 1
       }
+
+      "warn on global runtime collision" in {
+        val h = java(GlobalRacingInit, List.empty)
+        h.awaitStatus() mustEqual 0
+        h.stderr() must contain(
+          "Cats Effect global runtime already initialized; custom configurations will be ignored")
+        h.stderr() must not(contain("boom"))
+      }
     }
   }
 
@@ -188,5 +196,22 @@ package examples {
   object Canceled extends IOApp {
     def run(args: List[String]): IO[ExitCode] =
       IO.canceled.as(ExitCode.Success)
+  }
+
+  object GlobalRacingInit extends IOApp {
+
+    def foo(): Unit = {
+      // touch the global runtime to force its initialization
+      val _ = cats.effect.unsafe.implicits.global
+      ()
+    }
+
+    foo()
+
+    // indirect assertion that we *don't* use the custom config
+    override def runtimeConfig = sys.error("boom")
+
+    def run(args: List[String]): IO[ExitCode] =
+      IO.pure(ExitCode.Success)
   }
 }

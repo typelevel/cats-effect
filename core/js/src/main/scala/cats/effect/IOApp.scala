@@ -189,13 +189,20 @@ trait IOApp {
     if (runtime == null) {
       import unsafe.IORuntime
 
-      IORuntime installGlobal {
+      val installed = IORuntime installGlobal {
         IORuntime(
           IORuntime.defaultComputeExecutionContext,
           IORuntime.defaultComputeExecutionContext,
           IORuntime.defaultScheduler,
           () => (),
           runtimeConfig)
+      }
+
+      if (!installed) {
+        System
+          .err
+          .println(
+            "WARNING: Cats Effect global runtime already initialized; custom configurations will be ignored")
       }
 
       _runtime = IORuntime.global

@@ -40,9 +40,13 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
   private[this] var _global: IORuntime = null
 
-  private[effect] def installGlobal(global: IORuntime): Unit = {
-    require(_global == null)
-    _global = global
+  private[effect] def installGlobal(global: => IORuntime): Boolean = {
+    if (_global == null) {
+      _global = global
+      true
+    } else {
+      false
+    }
   }
 
   private[effect] def resetGlobal(): Unit =
