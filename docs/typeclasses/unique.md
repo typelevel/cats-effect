@@ -23,7 +23,7 @@ After a token becomes eligible for garbage collection, a subsequent evaluation
 of `unique` may produce a new token with the same hash. Similarly, the guarantee 
 of uniqueness only applies within a single JVM or JavaScript runtime. If you 
 need a token that is unique across all space and time, use a 
-[UUID](https://docs.oracle.com/javase/7/docs/api/java/util/UUID.html) instead.
+[UUID](https://docs.oracle.com/javase/8/docs/api/java/util/UUID.html) instead.
 
 Both `Sync[F]` and `Spawn[F]` extend `Unique[F]` as both typeclasses trivially
 have the ability to create unique values via `delay(new Unique.Token())` and
