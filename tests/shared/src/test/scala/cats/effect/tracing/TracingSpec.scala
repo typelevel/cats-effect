@@ -19,13 +19,11 @@ package tracing // Get out of the CE package so our traces don't get filtered
 import cats.effect.testkit.TestInstances
 import cats.effect.BaseSpec
 import cats.effect.IO
-import cats.effect.tracing.TracingConfig
 
-class TracingSpec extends BaseSpec with TestInstances {
+class TracingSpec extends BaseSpec with TestInstances with TracingSpecPlatform {
 
   "IO" should {
     "have nice traces" in realWithRuntime { rt =>
-      TracingConfig.mode = TracingConfig.TracingMode.Full
       def loop(i: Int): IO[Int] =
         IO.pure(i).flatMap { j =>
           if (j == 0)
