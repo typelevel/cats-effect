@@ -16,16 +16,45 @@
 
 package cats.effect.tracing
 
-import cats.Show
+final class Trace private (events: RingBuffer) {
 
-final class Trace private (private val events: RingBuffer)
+  private[this] def renderStackTraceElement(ste: StackTraceElement): String = {
+    s"${ste.getClassName}.${ste.getMethodName} (${ste.getFileName}:${ste.getLineNumber})"
+  }
+
+  def pretty: String = {
+    val TurnRight = "╰"
+    val Junction = "├"
+    var captured = 0
+    val indexedRenderedStackTrace = Tracing.getFrames(events).map { frame =>
+      val res = renderStackTraceElement(frame) -> captured
+      captured += 1
+      res
+    }
+
+    val acc0 = s"Trace: ${captured} frames captured\n"
+    val acc1 = indexedRenderedStackTrace
+      .map {
+        case (tag, index) =>
+          if (index == 0) s"$Junction $tag"
+          else if (index == captured - 1) s"$TurnRight $tag"
+          else s"$Junction $tag"
+      }
+      .mkString("\n")
+
+    acc0 + acc1
+  }
+
+  def compact: String = Tracing.getFrames(events).map(renderStackTraceElement).mkString
+
+  def toList: List[StackTraceElement] = Tracing.getFrames(events)
+
+  override def toString: String = compact
+}
 
 object Trace {
 
   private[effect] def apply(events: RingBuffer): Trace = {
     new Trace(events)
   }
-
-  implicit val showForTrace: Show[Trace] =
-    Show.show(trace => Tracing.showFiberTrace(trace.events))
 }

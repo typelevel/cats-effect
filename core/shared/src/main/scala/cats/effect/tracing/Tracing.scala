@@ -131,49 +131,18 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
         val augmented = stackTrace.last.getClassName.indexOf('@') != -1
         if (!augmented) {
           val prefix = dropRunLoopFrames(stackTrace)
-          val suffix = events
-            .toList
-            .collect { case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace) }
-            .filter(_ ne null)
-            .toArray
+          val suffix = getFrames(events).toArray
+
           t.setStackTrace(prefix ++ suffix)
         }
       }
     }
   }
 
-  def showFiberTrace(events: RingBuffer): String = {
-    def renderStackTraceElement(ste: StackTraceElement): String = {
-      s"${ste.getClassName}.${ste.getMethodName} (${ste.getFileName}:${ste.getLineNumber})"
-    }
-
-    val TurnRight = "╰"
-    val Junction = "├"
-    var captured = 0
-    val indexedStackTraces = events.toList.collect {
-      case e: TracingEvent.StackTrace =>
-        val res = (e, captured)
-        captured += 1
-        res
-    }
-
-    val acc0 = s"Trace: ${captured} frames captured\n"
-    val acc1 = indexedStackTraces
-      .map {
-        case (st, index) =>
-          val trace = getOpAndCallSite(st.getStackTrace)
-          if (trace eq null) { null }
-          else {
-            val tag = renderStackTraceElement(trace)
-
-            if (index == 0) s"$Junction $tag"
-            else if (index == captured - 1) s"$TurnRight $tag"
-            else s"$Junction $tag"
-          }
-      }
+  def getFrames(events: RingBuffer): List[StackTraceElement] =
+    events
+      .toList
+      .collect { case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace) }
       .filter(_ ne null)
-      .mkString("\n")
 
-    acc0 + acc1
-  }
 }
