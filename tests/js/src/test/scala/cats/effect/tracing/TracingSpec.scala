@@ -36,7 +36,9 @@ class TracingSpec extends BaseSpec with TestInstances {
       loop(100).attempt.map {
         case Left(ex) =>
           ex.getStackTrace.count { e =>
-            e.getClassName() == "flatMap @ tracing.TracingSpec" && e.getMethodName() == "loop$1"
+            e.getClassName() == "flatMap @ tracing.TracingSpec" && e
+              .getMethodName()
+              .startsWith("loop$")
           } == rt.config.traceBufferSize
         case _ => false
       }
