@@ -18,10 +18,10 @@ package cats.effect.tracing
 
 private object TracingConstants {
 
-  var isCachedStackTracing: Boolean = false
+  var isCachedStackTracing: Boolean = true
 
   var isFullStackTracing: Boolean = false
 
-  var isStackTracing: Boolean = false
+  var isStackTracing: Boolean = true
 
 }

@@ -19,7 +19,7 @@ package cats.effect.tracing
 object TracingConfig {
   import TracingMode._
 
-  private var _mode: TracingMode = Off
+  private var _mode: TracingMode = Cached
 
   def mode: TracingMode = _mode
   def mode_=(mode: TracingMode): Unit = {
@@ -43,7 +43,7 @@ object TracingConfig {
   sealed abstract class TracingMode
   object TracingMode {
     object Off extends TracingMode
-    private[tracing] object Cached extends TracingMode
+    object Cached extends TracingMode
     object Full extends TracingMode
   }
 }

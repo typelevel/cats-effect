@@ -20,25 +20,11 @@ import scala.collection.mutable.ArrayBuffer
 
 import scala.reflect.NameTransformer
 
-private[effect] object Tracing extends ClassValue[TracingEvent] {
+private[effect] object Tracing extends TracingPlatform {
 
   import TracingConstants._
 
-  override protected def computeValue(cls: Class[_]): TracingEvent = {
-    buildEvent()
-  }
-
-  def calculateTracingEvent(cls: Class[_]): TracingEvent = {
-    if (isCachedStackTracing) {
-      get(cls)
-    } else if (isFullStackTracing) {
-      buildEvent()
-    } else {
-      null
-    }
-  }
-
-  private[this] def buildEvent(): TracingEvent = {
+  private[tracing] def buildEvent(): TracingEvent = {
     new TracingEvent.StackTrace()
   }
 

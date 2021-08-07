@@ -14,6 +14,26 @@
  * limitations under the License.
  */
 
-package tracing
+package cats.effect.tracing
 
-trait TracingSpecPlatform
+private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent] {
+  self: Tracing.type =>
+
+  import TracingConstants._
+
+  override protected def computeValue(cls: Class[_]): TracingEvent = {
+    buildEvent()
+  }
+
+  def calculateTracingEvent(key: Any): TracingEvent = {
+    val cls = key.getClass
+    if (isCachedStackTracing) {
+      get(cls)
+    } else if (isFullStackTracing) {
+      buildEvent()
+    } else {
+      null
+    }
+  }
+
+}

@@ -20,7 +20,7 @@ import cats.effect.testkit.TestInstances
 import cats.effect.BaseSpec
 import cats.effect.IO
 
-class TracingSpec extends BaseSpec with TestInstances with TracingSpecPlatform {
+class TracingSpec extends BaseSpec with TestInstances {
 
   "IO" should {
     "have nice traces" in realWithRuntime { rt =>
