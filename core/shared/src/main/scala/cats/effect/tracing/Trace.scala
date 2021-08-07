@@ -45,7 +45,7 @@ final class Trace private (events: RingBuffer) {
     acc0 + acc1
   }
 
-  def compact: String = Tracing.getFrames(events).map(renderStackTraceElement).mkString
+  def compact: String = toList.map(renderStackTraceElement).mkString
 
   def toList: List[StackTraceElement] = Tracing.getFrames(events)
 
