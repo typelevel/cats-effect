@@ -362,7 +362,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.apply"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.copy"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.this"),
-      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.unsafe.IORuntimeCompanionPlatform.installGlobal")
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.unsafe.IORuntimeCompanionPlatform.installGlobal"),
+      // introduced by #2207, tracing for js
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.tracing.Tracing.calculateTracingEvent")
     )
   )
   .jvmSettings(
