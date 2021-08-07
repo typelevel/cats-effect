@@ -44,13 +44,18 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
 
   private[this] final val runLoopFilter: Array[String] = Array("cats.effect.", "scala.runtime.")
 
-  private[this] final val stackTraceFilter: Array[String] = Array(
+  private[this] final val stackTraceClassNameFilter: Array[String] = Array(
     "cats.effect.",
     "cats.",
     "sbt.",
     "java.",
     "sun.",
     "scala."
+  )
+
+  private[this] final val stackTraceMethodNameFilter: Array[String] = Array(
+    "$c_jl_",
+    "$c_Lcats_effect_"
   )
 
   def augmentThrowable(enhancedExceptions: Boolean, t: Throwable, events: RingBuffer): Unit = {
@@ -85,15 +90,29 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
       buffer.toArray
     }
 
-    def applyStackTraceFilter(callSiteClassName: String): Boolean = {
-      val len = stackTraceFilter.length
-      var idx = 0
-      while (idx < len) {
-        if (callSiteClassName.startsWith(stackTraceFilter(idx))) {
-          return true
-        }
+    def applyStackTraceFilter(
+        callSiteClassName: String,
+        callSiteMethodName: String): Boolean = {
+      if (callSiteClassName == "<jscode>") {
+        val len = stackTraceMethodNameFilter.length
+        var idx = 0
+        while (idx < len) {
+          if (callSiteMethodName.startsWith(stackTraceMethodNameFilter(idx))) {
+            return true
+          }
 
-        idx += 1
+          idx += 1
+        }
+      } else {
+        val len = stackTraceClassNameFilter.length
+        var idx = 0
+        while (idx < len) {
+          if (callSiteClassName.startsWith(stackTraceClassNameFilter(idx))) {
+            return true
+          }
+
+          idx += 1
+        }
       }
 
       false
@@ -106,8 +125,9 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
         val methodSite = stackTrace(idx - 1)
         val callSite = stackTrace(idx)
         val callSiteClassName = callSite.getClassName
+        val callSiteMethodName = callSite.getMethodName
 
-        if (!applyStackTraceFilter(callSiteClassName)) {
+        if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName)) {
           val methodSiteMethodName = methodSite.getMethodName
           val op = NameTransformer.decode(methodSiteMethodName)
 
