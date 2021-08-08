@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package cats.effect.tracing
+package cats.effect
+
+import cats.effect.tracing.{RingBuffer, Tracing}
 
 final class Trace private (frames: List[StackTraceElement]) {
 

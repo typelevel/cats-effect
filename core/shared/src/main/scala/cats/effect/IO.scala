@@ -37,7 +37,7 @@ import cats.data.Ior
 import cats.syntax.all._
 import cats.effect.instances.spawn
 import cats.effect.std.Console
-import cats.effect.tracing.{Trace, Tracing, TracingEvent}
+import cats.effect.tracing.{Tracing, TracingEvent}
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{
   CancellationException,
