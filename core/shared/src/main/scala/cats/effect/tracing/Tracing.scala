@@ -139,7 +139,7 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
     }
   }
 
-  def getFrames(events: RingBuffer): List[StackTraceElement] =
+  private[tracing] def getFrames(events: RingBuffer): List[StackTraceElement] =
     events
       .toList
       .collect { case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace) }
