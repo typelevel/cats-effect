@@ -45,7 +45,7 @@ final class Trace private (frames: List[StackTraceElement]) {
     acc0 + acc1
   }
 
-  def compact: String = frames.map(renderStackTraceElement).mkString
+  def compact: String = frames.map(renderStackTraceElement).mkString(", ")
 
   def toList: List[StackTraceElement] = frames
 
