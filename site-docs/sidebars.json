@@ -30,6 +30,7 @@
       "std/hotswap",
       "std/pqueue",
       "std/queue",
+      "std/random",
       "std/ref",
       "std/resource",
       "std/semaphore",
