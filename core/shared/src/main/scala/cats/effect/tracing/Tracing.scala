@@ -17,7 +17,6 @@
 package cats.effect.tracing
 
 import scala.collection.mutable.ArrayBuffer
-
 import scala.reflect.NameTransformer
 
 private[effect] object Tracing extends TracingPlatform {
@@ -137,14 +136,18 @@ private[effect] object Tracing extends TracingPlatform {
         val augmented = stackTrace.last.getClassName.indexOf('@') != -1
         if (!augmented) {
           val prefix = dropRunLoopFrames(stackTrace)
-          val suffix = events
-            .toList
-            .collect { case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace) }
-            .filter(_ ne null)
-            .toArray
+          val suffix = getFrames(events).toArray
+
           t.setStackTrace(prefix ++ suffix)
         }
       }
     }
   }
+
+  def getFrames(events: RingBuffer): List[StackTraceElement] =
+    events
+      .toList
+      .collect { case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace) }
+      .filter(_ ne null)
+
 }

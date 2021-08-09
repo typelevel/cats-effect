@@ -184,24 +184,12 @@ val ScalaCheckVersion = "1.15.4"
 val DisciplineVersion = "1.1.6"
 val CoopVersion = "1.1.1"
 
-replaceCommandAlias(
-  "ci",
-  "; project /; headerCheck; scalafmtSbtCheck; scalafmtCheck; clean; test; coreJVM/mimaReportBinaryIssues; root/unidoc213; set Global / useJSEnv := JSEnv.Firefox; testsJS/test; webWorkerTests/test; set Global / useJSEnv := JSEnv.Chrome; testsJS/test; webWorkerTests/test; set Global / useJSEnv := JSEnv.JSDOMNodeJS; testsJS/test; set Global / useJSEnv := JSEnv.NodeJS"
-)
-
-addCommandAlias(
-  "ciJVM",
-  "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues; root/unidoc213; exampleJVM/compile")
-addCommandAlias(
-  "ciJS",
-  "; project rootJS; headerCheck; scalafmtCheck; clean; test; exampleJS/compile")
-
-// we do the browser ci *only* on core because we're only really interested in IO here
-def browserCiCommand(browser: JSEnv) =
-  s"; set Global / useJSEnv := JSEnv.$browser; project rootJS; headerCheck; scalafmtCheck; clean; testsJS/test; webWorkerTests/test; set Global / useJSEnv := JSEnv.NodeJS"
-addCommandAlias("ciFirefox", browserCiCommand(Firefox))
-addCommandAlias("ciChrome", browserCiCommand(Chrome))
-addCommandAlias("ciJSDOMNodeJS", browserCiCommand(JSDOMNodeJS))
+replaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
+addCommandAlias("ciJVM", CI.JVM.toString)
+addCommandAlias("ciJS", CI.JS.toString)
+addCommandAlias("ciFirefox", CI.Firefox.toString)
+addCommandAlias("ciChrome", CI.Chrome.toString)
+addCommandAlias("ciJSDOMNodeJS", CI.JSDOMNodeJS.toString)
 
 addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
