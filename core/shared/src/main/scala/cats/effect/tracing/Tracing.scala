@@ -43,6 +43,62 @@ private[effect] object Tracing extends TracingPlatform {
     "$c_Lcats_effect_"
   )
 
+  private[this] def applyStackTraceFilter(
+      callSiteClassName: String,
+      callSiteMethodName: String): Boolean = {
+    if (callSiteClassName == "<jscode>") {
+      val len = stackTraceMethodNameFilter.length
+      var idx = 0
+      while (idx < len) {
+        if (callSiteMethodName.startsWith(stackTraceMethodNameFilter(idx))) {
+          return true
+        }
+
+        idx += 1
+      }
+    } else {
+      val len = stackTraceClassNameFilter.length
+      var idx = 0
+      while (idx < len) {
+        if (callSiteClassName.startsWith(stackTraceClassNameFilter(idx))) {
+          return true
+        }
+
+        idx += 1
+      }
+    }
+
+    false
+  }
+
+  private[this] def getOpAndCallSite(
+      stackTrace: Array[StackTraceElement]): StackTraceElement = {
+    val len = stackTrace.length
+    var idx = 1
+    while (idx < len) {
+      val methodSite = stackTrace(idx - 1)
+      val callSite = stackTrace(idx)
+      val callSiteClassName = callSite.getClassName
+      val callSiteMethodName = callSite.getMethodName
+
+      if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName)) {
+        val methodSiteMethodName = methodSite.getMethodName
+        val op = NameTransformer.decode(methodSiteMethodName)
+
+        return new StackTraceElement(
+          op + " @ " + callSiteClassName,
+          callSite.getMethodName,
+          callSite.getFileName,
+          callSite.getLineNumber
+        )
+      }
+
+      idx += 1
+    }
+
+    null
+  }
+
   def augmentThrowable(enhancedExceptions: Boolean, t: Throwable, events: RingBuffer): Unit = {
     def applyRunLoopFilter(ste: StackTraceElement): Boolean = {
       val name = ste.getClassName
@@ -73,61 +129,6 @@ private[effect] object Tracing extends TracingPlatform {
       }
 
       buffer.toArray
-    }
-
-    def applyStackTraceFilter(
-        callSiteClassName: String,
-        callSiteMethodName: String): Boolean = {
-      if (callSiteClassName == "<jscode>") {
-        val len = stackTraceMethodNameFilter.length
-        var idx = 0
-        while (idx < len) {
-          if (callSiteMethodName.startsWith(stackTraceMethodNameFilter(idx))) {
-            return true
-          }
-
-          idx += 1
-        }
-      } else {
-        val len = stackTraceClassNameFilter.length
-        var idx = 0
-        while (idx < len) {
-          if (callSiteClassName.startsWith(stackTraceClassNameFilter(idx))) {
-            return true
-          }
-
-          idx += 1
-        }
-      }
-
-      false
-    }
-
-    def getOpAndCallSite(stackTrace: Array[StackTraceElement]): StackTraceElement = {
-      val len = stackTrace.length
-      var idx = 1
-      while (idx < len) {
-        val methodSite = stackTrace(idx - 1)
-        val callSite = stackTrace(idx)
-        val callSiteClassName = callSite.getClassName
-        val callSiteMethodName = callSite.getMethodName
-
-        if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName)) {
-          val methodSiteMethodName = methodSite.getMethodName
-          val op = NameTransformer.decode(methodSiteMethodName)
-
-          return new StackTraceElement(
-            op + " @ " + callSiteClassName,
-            callSite.getMethodName,
-            callSite.getFileName,
-            callSite.getLineNumber
-          )
-        }
-
-        idx += 1
-      }
-
-      null
     }
 
     if (isStackTracing && enhancedExceptions) {
