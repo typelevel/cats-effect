@@ -501,6 +501,7 @@ private final class IOFiber[A](
 
         case 11 =>
           val cur = cur0.asInstanceOf[OnCancel[Any]]
+          pushTracingEvent(cur.event)
 
           finalizers.push(EvalOn(cur.fin, currentCtx))
           // println(s"pushed onto finalizers: length = ${finalizers.unsafeIndex()}")

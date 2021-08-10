@@ -488,7 +488,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def map[B](f: A => B): IO[B] = IO.Map(this, f, Tracing.calculateTracingEvent(f.getClass))
 
   def onCancel(fin: IO[Unit]): IO[A] =
-    IO.OnCancel(this, fin)
+    IO.OnCancel(this, fin, Tracing.calculateTracingEvent(fin.getClass))
 
   def onError(f: Throwable => IO[Unit]): IO[A] =
     handleErrorWith(t => f(t).attempt *> IO.raiseError(t))
@@ -1599,7 +1599,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 10
   }
 
-  private[effect] final case class OnCancel[+A](ioa: IO[A], fin: IO[Unit]) extends IO[A] {
+  private[effect] final case class OnCancel[+A](ioa: IO[A], fin: IO[Unit], event: TracingEvent) extends IO[A] {
     def tag = 11
   }
 
