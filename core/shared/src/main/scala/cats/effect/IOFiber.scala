@@ -268,6 +268,9 @@ private final class IOFiber[A](
 
         /* Monotonic */
         case 4 =>
+          val cur = cur0.asInstanceOf[Monotonic.type]
+          pushTracingEvent(cur.event)
+
           runLoop(
             succeeded(runtime.scheduler.monotonicNanos().nanos, 0),
             nextCancelation,
@@ -332,6 +335,9 @@ private final class IOFiber[A](
               runLoop(next(realTime), nextCancelation - 1, nextAutoCede)
 
             case 4 =>
+              val cur = ioe.asInstanceOf[Monotonic.type]
+              pushTracingEvent(cur.event)
+
               val monotonic = runtime.scheduler.monotonicNanos().nanos
               runLoop(next(monotonic), nextCancelation - 1, nextAutoCede)
 
@@ -397,6 +403,9 @@ private final class IOFiber[A](
               runLoop(next(realTime), nextCancelation - 1, nextAutoCede)
 
             case 4 =>
+              val cur = ioe.asInstanceOf[Monotonic.type]
+              pushTracingEvent(cur.event)
+
               val monotonic = runtime.scheduler.monotonicNanos().nanos
               runLoop(next(monotonic), nextCancelation - 1, nextAutoCede)
 
@@ -463,6 +472,9 @@ private final class IOFiber[A](
               runLoop(succeeded(Right(realTime), 0), nextCancelation - 1, nextAutoCede)
 
             case 4 =>
+              val cur = ioa.asInstanceOf[Monotonic.type]
+              pushTracingEvent(cur.event)
+
               val monotonic = runtime.scheduler.monotonicNanos().nanos
               runLoop(succeeded(Right(monotonic), 0), nextCancelation - 1, nextAutoCede)
 

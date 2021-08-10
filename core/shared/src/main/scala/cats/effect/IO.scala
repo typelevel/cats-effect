@@ -1564,6 +1564,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] case object Monotonic extends IO[FiniteDuration] {
     def tag = 4
+    val event: TracingEvent = Tracing.calculateTracingEvent(this.getClass)
   }
 
   private[effect] case object ReadEC extends IO[ExecutionContext] {
