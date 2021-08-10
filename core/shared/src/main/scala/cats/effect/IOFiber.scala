@@ -261,7 +261,7 @@ private final class IOFiber[A](
 
         /* RealTime */
         case 3 =>
-          val cur = cur0.asInstanceOf[RealTime.type]
+          val cur = cur0.asInstanceOf[RealTime]
           pushTracingEvent(cur.event)
 
           runLoop(
@@ -271,7 +271,7 @@ private final class IOFiber[A](
 
         /* Monotonic */
         case 4 =>
-          val cur = cur0.asInstanceOf[Monotonic.type]
+          val cur = cur0.asInstanceOf[Monotonic]
           pushTracingEvent(cur.event)
 
           runLoop(
@@ -334,14 +334,14 @@ private final class IOFiber[A](
               runLoop(nextIO, nextCancelation - 1, nextAutoCede)
 
             case 3 =>
-              val cur = ioe.asInstanceOf[RealTime.type]
+              val cur = ioe.asInstanceOf[RealTime]
               pushTracingEvent(cur.event)
 
               val realTime = runtime.scheduler.nowMillis().millis
               runLoop(next(realTime), nextCancelation - 1, nextAutoCede)
 
             case 4 =>
-              val cur = ioe.asInstanceOf[Monotonic.type]
+              val cur = ioe.asInstanceOf[Monotonic]
               pushTracingEvent(cur.event)
 
               val monotonic = runtime.scheduler.monotonicNanos().nanos
@@ -405,14 +405,14 @@ private final class IOFiber[A](
               runLoop(result, nextCancelation - 1, nextAutoCede)
 
             case 3 =>
-              val cur = ioe.asInstanceOf[RealTime.type]
+              val cur = ioe.asInstanceOf[RealTime]
               pushTracingEvent(cur.event)
 
               val realTime = runtime.scheduler.nowMillis().millis
               runLoop(next(realTime), nextCancelation - 1, nextAutoCede)
 
             case 4 =>
-              val cur = ioe.asInstanceOf[Monotonic.type]
+              val cur = ioe.asInstanceOf[Monotonic]
               pushTracingEvent(cur.event)
 
               val monotonic = runtime.scheduler.monotonicNanos().nanos
@@ -477,14 +477,14 @@ private final class IOFiber[A](
               runLoop(next, nextCancelation - 1, nextAutoCede)
 
             case 3 =>
-              val cur = ioa.asInstanceOf[RealTime.type]
+              val cur = ioa.asInstanceOf[RealTime]
               pushTracingEvent(cur.event)
 
               val realTime = runtime.scheduler.nowMillis().millis
               runLoop(succeeded(Right(realTime), 0), nextCancelation - 1, nextAutoCede)
 
             case 4 =>
-              val cur = ioa.asInstanceOf[Monotonic.type]
+              val cur = ioa.asInstanceOf[Monotonic]
               pushTracingEvent(cur.event)
 
               val monotonic = runtime.scheduler.monotonicNanos().nanos
@@ -824,7 +824,7 @@ private final class IOFiber[A](
 
         /* Cede */
         case 16 =>
-          val cur = cur0.asInstanceOf[Cede.type]
+          val cur = cur0.asInstanceOf[Cede]
           pushTracingEvent(cur.event)
 
           resumeTag = CedeR

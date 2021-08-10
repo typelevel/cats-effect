@@ -830,8 +830,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case IO.Pure(a) => SyncIO.pure(Right(a))
         case IO.Error(t) => SyncIO.raiseError(t)
         case IO.Delay(thunk, _) => SyncIO.delay(thunk()).map(Right(_))
-        case IO.RealTime => SyncIO.realTime.map(Right(_))
-        case IO.Monotonic => SyncIO.monotonic.map(Right(_))
+        case IO.RealTime(_) => SyncIO.realTime.map(Right(_))
+        case IO.Monotonic(_) => SyncIO.monotonic.map(Right(_))
 
         case IO.Map(ioe, f, _) =>
           interpret(ioe).map {
@@ -1016,7 +1016,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def canceled: IO[Unit] = Canceled
 
-  def cede: IO[Unit] = Cede
+  def cede: IO[Unit] = Cede(Tracing.calculateTracingEvent(this.getClass))
 
   /**
    * This is a low-level API which is meant for implementors,
@@ -1028,7 +1028,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def executionContext: IO[ExecutionContext] = ReadEC
 
-  def monotonic: IO[FiniteDuration] = Monotonic
+  def monotonic: IO[FiniteDuration] = Monotonic(Tracing.calculateTracingEvent(this.getClass))
 
   /**
    * A non-terminating `IO`, alias for `async(_ => ())`.
@@ -1085,7 +1085,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    */
   def raiseError[A](t: Throwable): IO[A] = Error(t)
 
-  def realTime: IO[FiniteDuration] = RealTime
+  def realTime: IO[FiniteDuration] = RealTime(Tracing.calculateTracingEvent(this.getClass))
 
   /**
    * Creates an asynchronous task that on evaluation sleeps for the
@@ -1114,7 +1114,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *         the specified duration and then finally emit a tick
    */
   def sleep(delay: FiniteDuration): IO[Unit] =
-    Sleep(delay)
+    Sleep(delay, Tracing.calculateTracingEvent(this.getClass))
 
   def trace: IO[Trace] =
     IOTrace
@@ -1558,14 +1558,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 2
   }
 
-  private[effect] case object RealTime extends IO[FiniteDuration] {
+  private[effect] final case class RealTime(event: TracingEvent) extends IO[FiniteDuration] {
     def tag = 3
-    val event: TracingEvent = Tracing.calculateTracingEvent(this.getClass)
   }
 
-  private[effect] case object Monotonic extends IO[FiniteDuration] {
+  private[effect] final case class Monotonic(event: TracingEvent) extends IO[FiniteDuration] {
     def tag = 4
-    val event: TracingEvent = Tracing.calculateTracingEvent(this.getClass)
   }
 
   private[effect] case object ReadEC extends IO[ExecutionContext] {
@@ -1630,9 +1628,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     }
   }
 
-  private[effect] case object Cede extends IO[Unit] {
+  private[effect] final case class Cede(event: TracingEvent) extends IO[Unit] {
     def tag = 16
-    val event: TracingEvent = Tracing.calculateTracingEvent(this.getClass)
   }
 
   private[effect] final case class Start[A](ioa: IO[A]) extends IO[FiberIO[A]] {
@@ -1644,9 +1641,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 18
   }
 
-  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
+  private[effect] final case class Sleep(delay: FiniteDuration, event: TracingEvent) extends IO[Unit] {
     def tag = 19
-    val event: TracingEvent = Tracing.calculateTracingEvent(this.getClass)
   }
 
   private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {
