@@ -281,6 +281,9 @@ private final class IOFiber[A](
 
         /* ReadEC */
         case 5 =>
+          val cur = cur0.asInstanceOf[ReadEC]
+          pushTracingEvent(cur.event)
+
           runLoop(succeeded(currentCtx, 0), nextCancelation, nextAutoCede)
 
         case 6 =>
@@ -348,6 +351,9 @@ private final class IOFiber[A](
               runLoop(next(monotonic), nextCancelation - 1, nextAutoCede)
 
             case 5 =>
+              val cur = ioe.asInstanceOf[ReadEC]
+              pushTracingEvent(cur.event)
+
               val ec = currentCtx
               runLoop(next(ec), nextCancelation - 1, nextAutoCede)
 
@@ -419,6 +425,9 @@ private final class IOFiber[A](
               runLoop(next(monotonic), nextCancelation - 1, nextAutoCede)
 
             case 5 =>
+              val cur = ioe.asInstanceOf[ReadEC]
+              pushTracingEvent(cur.event)
+
               val ec = currentCtx
               runLoop(next(ec), nextCancelation - 1, nextAutoCede)
 
@@ -491,6 +500,9 @@ private final class IOFiber[A](
               runLoop(succeeded(Right(monotonic), 0), nextCancelation - 1, nextAutoCede)
 
             case 5 =>
+              val cur = ioa.asInstanceOf[ReadEC]
+              pushTracingEvent(cur.event)
+
               val ec = currentCtx
               runLoop(succeeded(Right(ec), 0), nextCancelation - 1, nextAutoCede)
 

@@ -1026,7 +1026,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def cont[K, R](body: Cont[IO, K, R]): IO[R] =
     IOCont[K, R](body, Tracing.calculateTracingEvent(body.getClass))
 
-  def executionContext: IO[ExecutionContext] = ReadEC
+  def executionContext: IO[ExecutionContext] = ReadEC(Tracing.calculateTracingEvent(this.getClass))
 
   def monotonic: IO[FiniteDuration] = Monotonic(Tracing.calculateTracingEvent(this.getClass))
 
@@ -1566,7 +1566,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 4
   }
 
-  private[effect] case object ReadEC extends IO[ExecutionContext] {
+  private[effect] final case class ReadEC(event: TracingEvent) extends IO[ExecutionContext] {
     def tag = 5
   }
 
