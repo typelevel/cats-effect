@@ -1560,6 +1560,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] case object RealTime extends IO[FiniteDuration] {
     def tag = 3
+    val event: TracingEvent = Tracing.calculateTracingEvent(this.getClass)
   }
 
   private[effect] case object Monotonic extends IO[FiniteDuration] {

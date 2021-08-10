@@ -261,6 +261,9 @@ private final class IOFiber[A](
 
         /* RealTime */
         case 3 =>
+          val cur = cur0.asInstanceOf[RealTime.type]
+          pushTracingEvent(cur.event)
+
           runLoop(
             succeeded(runtime.scheduler.nowMillis().millis, 0),
             nextCancelation,
@@ -331,6 +334,9 @@ private final class IOFiber[A](
               runLoop(nextIO, nextCancelation - 1, nextAutoCede)
 
             case 3 =>
+              val cur = ioe.asInstanceOf[RealTime.type]
+              pushTracingEvent(cur.event)
+
               val realTime = runtime.scheduler.nowMillis().millis
               runLoop(next(realTime), nextCancelation - 1, nextAutoCede)
 
@@ -399,6 +405,9 @@ private final class IOFiber[A](
               runLoop(result, nextCancelation - 1, nextAutoCede)
 
             case 3 =>
+              val cur = ioe.asInstanceOf[RealTime.type]
+              pushTracingEvent(cur.event)
+
               val realTime = runtime.scheduler.nowMillis().millis
               runLoop(next(realTime), nextCancelation - 1, nextAutoCede)
 
@@ -468,6 +477,9 @@ private final class IOFiber[A](
               runLoop(next, nextCancelation - 1, nextAutoCede)
 
             case 3 =>
+              val cur = ioa.asInstanceOf[RealTime.type]
+              pushTracingEvent(cur.event)
+
               val realTime = runtime.scheduler.nowMillis().millis
               runLoop(succeeded(Right(realTime), 0), nextCancelation - 1, nextAutoCede)
 
