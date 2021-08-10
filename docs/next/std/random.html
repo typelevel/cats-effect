@@ -1,0 +1,105 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Random · Cats Effect</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="A purely-functional implementation of a source of random information."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Random · Cats Effect"/><meta property="og:type" content="website"/><meta property="og:url" content="https://typelevel.org/cats-effect/"/><meta property="og:description" content="A purely-functional implementation of a source of random information."/><meta property="og:image" content="https://typelevel.org/cats-effect/img/undraw_online.svg"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/undraw_tweetstorm.svg"/><link rel="shortcut icon" href="/cats-effect/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github-gist.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="/cats-effect/js/scrollSpy.js"></script><link rel="stylesheet" href="/cats-effect/css/main.css"/><script src="/cats-effect/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/cats-effect/"><img class="logo" src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect"/><h2 class="headerTitleWithLogo">Cats Effect</h2></a><a href="/cats-effect/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/cats-effect/docs/next/getting-started" target="_self">Docs</a></li><li class=""><a href="/cats-effect/api/3.x/cats/effect/index.html" target="_self">API</a></li><li class=""><a target="_self"></a></li><li class=""><a href="https://github.com/typelevel/cats-effect" target="_blank">GitHub</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Standard Library</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Overview<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/getting-started">Getting Started</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concepts">Concepts</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/tutorial">Tutorial</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/tracing">Tracing</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/migration-guide">Migration Guide</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/thread-model">Thread Model</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/schedulers">Schedulers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Typeclasses<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses">Overview</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/monadcancel">MonadCancel</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/spawn">Spawn</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/unique">Unique</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/clock">Clock</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/concurrent">Concurrent</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/temporal">Temporal</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/sync">Sync</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/async">Async</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Standard Library<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/countdown-latch">Count Down Latch</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/cyclic-barrier">Cyclic Barrier</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/deferred">Deferred</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/dequeue">Dequeue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/dispatcher">Dispatcher</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/hotswap">Hotswap</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/pqueue">Priority Queue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/queue">Queue</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/cats-effect/docs/next/std/random">Random</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/ref">Ref</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/resource">Resource</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/semaphore">Semaphore</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/supervisor">Supervisor</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/std/async-await">Async/Await (Experimental)</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Random</h1></header><article><div><span><p>A purely-functional implementation of a source of random information.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Random</span>[<span class="hljs-type">F</span>[_]] </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">nextInt</span></span>: <span class="hljs-type">F</span>[<span class="hljs-type">Int</span>]
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">shuffleList</span></span>[<span class="hljs-type">A</span>](list: <span class="hljs-type">List</span>[<span class="hljs-type">A</span>]): <span class="hljs-type">F</span>[<span class="hljs-type">List</span>[<span class="hljs-type">A</span>]]
+
+  <span class="hljs-comment">// ... and more</span>
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="api"></a><a href="#api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>API</h2>
+<p>The API of <code>Random</code> is created to closely resemble the <code>scala.util.Random</code> API,
+so it should be fairly approachable to people familiar with the
+<a href="https://www.scala-lang.org/api/2.13.6/scala/util/Random.html">standard library</a>.</p>
+<p>Users can expect to find all methods available on a Scala standard library
+<code>Random</code> instance also available on instances of this type class (with some
+minor renamings to avoid method overloading, e.g. <code>betweenLong</code>,
+<code>betweenDouble</code>, etc).</p>
+<h2><a class="anchor" aria-hidden="true" id="customizing-the-source-of-randomness"></a><a href="#customizing-the-source-of-randomness" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Customizing the source of randomness</h2>
+<p><code>cats.effect.std.Random</code> can be backed by a variety of random sources available
+on the JVM:</p>
+<ul>
+<li><code>scala.util.Random</code> (<code>Random.scalaUtilRandom[F: Sync]</code>)
+<ul>
+<li>Individual instances can be customized with an initial seed, or load
+balanced between several <code>scala.util.Random</code> instances</li>
+</ul></li>
+<li><code>java.util.Random</code></li>
+<li><code>java.security.SecureRandom</code></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="creating-a-random-instance"></a><a href="#creating-a-random-instance" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Creating a <code>Random</code> instance</h2>
+<p>Obtaining an instance of <code>Random</code> can be as simple as:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
+<span class="hljs-keyword">import</span> cats.effect.std.<span class="hljs-type">Random</span>
+
+<span class="hljs-type">Random</span>.scalaUtilRandom[<span class="hljs-type">IO</span>]
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="using-random"></a><a href="#using-random" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Using <code>Random</code></h2>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.<span class="hljs-type">Functor</span>
+<span class="hljs-keyword">import</span> cats.syntax.functor._
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">dieRoll</span></span>[<span class="hljs-type">F</span>[_]: <span class="hljs-type">Functor</span>: <span class="hljs-type">Random</span>]: <span class="hljs-type">F</span>[<span class="hljs-type">Int</span>] =
+  <span class="hljs-type">Random</span>[<span class="hljs-type">F</span>].betweenInt(<span class="hljs-number">0</span>, <span class="hljs-number">6</span>).map(_ + <span class="hljs-number">1</span>) <span class="hljs-comment">// `6` is excluded from the range</span>
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="derivation"></a><a href="#derivation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Derivation</h2>
+<p>An instance of <code>cats.effect.std.Random</code> can be created by any data type
+capable of synchronously suspending side effects (i.e. <code>Sync</code>). Furthermore,
+<code>Random</code> instances for monad transformers can be automatically derived for any
+data type for which an instance of <code>Random</code> can already be derived.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/next/std/queue"><span class="arrow-prev">← </span><span>Queue</span></a><a class="docs-next button" href="/cats-effect/docs/next/std/ref"><span>Ref</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#api">API</a></li><li><a href="#customizing-the-source-of-randomness">Customizing the source of randomness</a></li><li><a href="#creating-a-random-instance">Creating a <code>Random</code> instance</a></li><li><a href="#using-random">Using <code>Random</code></a></li><li><a href="#derivation">Derivation</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/getting-started">Getting Started</a><a href="/cats-effect/docs/tutorial">Tutorial</a><a href="/cats-effect/docs/typeclasses">Typeclasses</a><a href="/cats-effect/docs/schedulers">Schedulers</a></div><div><h5>Community</h5><a target="_blank" href="https://typelevel.org/blog/">Blog</a><a target="_blank" href="https://discord.gg/HmPs7rAtEY">Discord</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2021 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
