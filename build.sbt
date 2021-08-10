@@ -78,6 +78,22 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
     List("npm install"),
     name = Some("Install jsdom"),
     cond = Some("matrix.ci == 'ciJSDOMNodeJS'")
+  ),
+  WorkflowStep.Run(
+    List(s"""cat > .jvmopts <<EOF
+            |-Xmx7G
+            |-XX:+UseG1GC
+            |EOF""".stripMargin),
+    name = Some("Let sbt use all available memory"),
+    cond = Some(s"matrix.ci == 'ciJVM' && matrix.os != '$Windows'")
+  ),
+  WorkflowStep.Run(
+    List(s"""cat > .jvmopts <<EOF
+            |-Xmx3G
+            |-XX:+UseG1GC
+            |EOF""".stripMargin),
+    name = Some("Let browsers and node use more memory"),
+    cond = Some("matrix.ci != 'ciJVM'")
   )
 )
 

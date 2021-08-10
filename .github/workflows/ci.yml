@@ -120,6 +120,24 @@ jobs:
         shell: bash
         run: npm install
 
+      - name: Let sbt use all available memory
+        if: matrix.ci == 'ciJVM' && matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          cat > .jvmopts <<EOF
+          -Xmx7G
+          -XX:+UseG1GC
+          EOF
+
+      - name: Let browsers and node use more memory
+        if: matrix.ci != 'ciJVM'
+        shell: bash
+        run: |
+          cat > .jvmopts <<EOF
+          -Xmx3G
+          -XX:+UseG1GC
+          EOF
+
       - name: Check that workflows are up to date
         shell: bash
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
