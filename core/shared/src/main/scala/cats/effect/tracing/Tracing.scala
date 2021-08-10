@@ -67,21 +67,16 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
   }
 
   private[this] def getOpAndCallSite(
-      stackTrace: Array[StackTraceElement]): StackTraceElement = {
+    stackTrace: Array[StackTraceElement]): StackTraceElement = {
     val len = stackTrace.length
     var idx = 1
     while (idx < len) {
+      val methodSite = stackTrace(idx - 1)
       val callSite = stackTrace(idx)
       val callSiteClassName = callSite.getClassName
 
       if (!applyStackTraceFilter(callSiteClassName)) {
-        var mIdx = idx - 1
-        var methodSiteMethodName = stackTrace(mIdx).getMethodName
-        while ((methodSiteMethodName == "<init>" || methodSiteMethodName == "<clinit>") && mIdx > 0) {
-          mIdx -= 1
-          methodSiteMethodName = stackTrace(mIdx).getMethodName
-        }
-
+        val methodSiteMethodName = methodSite.getMethodName
         val op = NameTransformer.decode(methodSiteMethodName)
 
         return new StackTraceElement(
