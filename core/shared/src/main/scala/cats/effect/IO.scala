@@ -1644,6 +1644,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
     def tag = 19
+    val event: TracingEvent = Tracing.calculateTracingEvent(this.getClass)
   }
 
   private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {

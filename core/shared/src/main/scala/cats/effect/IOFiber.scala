@@ -876,6 +876,7 @@ private final class IOFiber[A](
 
         case 19 =>
           val cur = cur0.asInstanceOf[Sleep]
+          pushTracingEvent(cur.event)
 
           val next = IO.async[Unit] { cb =>
             IO {
