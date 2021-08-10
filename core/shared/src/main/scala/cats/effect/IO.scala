@@ -366,7 +366,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @see [[IO.executionContext]] for obtaining the `ExecutionContext` on which
    *                              the current `IO` is being executed
    */
-  def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
+  def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec, Tracing.calculateTracingEvent(this.getClass))
 
   def startOn(ec: ExecutionContext): IO[FiberIO[A @uncheckedVariance]] = start.evalOn(ec)
 
@@ -1645,7 +1645,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 19
   }
 
-  private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {
+  private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext, event: TracingEvent) extends IO[A] {
     def tag = 20
   }
 

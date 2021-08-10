@@ -542,7 +542,7 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[OnCancel[Any]]
           pushTracingEvent(cur.event)
 
-          finalizers.push(EvalOn(cur.fin, currentCtx))
+          finalizers.push(EvalOn(cur.fin, currentCtx, Tracing.calculateTracingEvent(cur.fin.getClass)))
           // println(s"pushed onto finalizers: length = ${finalizers.unsafeIndex()}")
 
           /*
@@ -929,6 +929,7 @@ private final class IOFiber[A](
 
         case 20 =>
           val cur = cur0.asInstanceOf[EvalOn[Any]]
+          pushTracingEvent(cur.event)
 
           /* fast-path when it's an identity transformation */
           if (cur.ec eq currentCtx) {
