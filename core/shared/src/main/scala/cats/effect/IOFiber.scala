@@ -799,6 +799,9 @@ private final class IOFiber[A](
 
         /* Cede */
         case 16 =>
+          val cur = cur0.asInstanceOf[Cede.type]
+          pushTracingEvent(cur.event)
+
           resumeTag = CedeR
           rescheduleFiber(currentCtx)(this)
 

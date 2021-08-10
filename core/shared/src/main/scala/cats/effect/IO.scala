@@ -1630,6 +1630,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] case object Cede extends IO[Unit] {
     def tag = 16
+    val event: TracingEvent = Tracing.calculateTracingEvent(this.getClass)
   }
 
   private[effect] final case class Start[A](ioa: IO[A]) extends IO[FiberIO[A]] {
