@@ -527,6 +527,9 @@ private final class IOFiber[A](
 
         /* Canceled */
         case 10 =>
+          val cur = cur0.asInstanceOf[Canceled]
+          pushTracingEvent(cur.event)
+
           canceled = true
           if (isUnmasked()) {
             /* run finalizers immediately */

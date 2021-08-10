@@ -1014,7 +1014,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     IOCont(body, Tracing.calculateTracingEvent(k.getClass))
   }
 
-  def canceled: IO[Unit] = Canceled
+  def canceled: IO[Unit] = Canceled(Tracing.calculateTracingEvent(this.getClass))
 
   def cede: IO[Unit] = Cede(Tracing.calculateTracingEvent(this.getClass))
 
@@ -1595,7 +1595,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 9
   }
 
-  private[effect] case object Canceled extends IO[Unit] {
+  private[effect] final case class Canceled(event: TracingEvent) extends IO[Unit] {
     def tag = 10
   }
 
