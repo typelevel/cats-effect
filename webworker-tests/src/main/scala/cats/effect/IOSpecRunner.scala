@@ -42,7 +42,6 @@ object IOSpecRunner extends IOApp.Simple with ClassRunner {
       val action = for {
         printers <- createPrinters(env.arguments, loader).toAction
         stats <- Runner.runSpecStructure(spec.structure(env), env, loader, printers)
-        _ <- Actions.delayed(postMessage(stats.toString))
         _ <- Actions.delayed(postMessage(stats.isSuccess))
       } yield ()
       ExecuteActions.runActionFuture(action)(env.executionEnv)
