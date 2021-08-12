@@ -32,11 +32,11 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
   import TracingConstants._
 
   def calculateTracingEvent[A](f: Function0[A]): TracingEvent = {
-    calculateTracingEvent(f.asInstanceOf[js.Dictionary[js.Any]](function0Property).toString())
+    calculateTracingEvent(f.asInstanceOf[js.Dynamic].selectDynamic(function0Property).toString())
   }
 
   def calculateTracingEvent[A, B](f: Function1[A, B]): TracingEvent = {
-    calculateTracingEvent(f.asInstanceOf[js.Dictionary[js.Any]](function1Property).toString())
+    calculateTracingEvent(f.asInstanceOf[js.Dynamic].selectDynamic(function1Property).toString())
   }
 
   // We could have a catch-all for non-functions, but explicitly enumerating makes sure we handle each case correctly
