@@ -48,4 +48,44 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
       null
   }
 
+  private[this] final val stackTraceClassNameFilter: Array[String] = Array(
+    "cats.effect.",
+    "cats.",
+    "java.",
+    "scala."
+  )
+
+  private[this] final val stackTraceMethodNameFilter: Array[String] = Array(
+    "$c_jl_",
+    "$c_Lcats_effect_"
+  )
+
+  private[tracing] def applyStackTraceFilter(
+      callSiteClassName: String,
+      callSiteMethodName: String): Boolean = {
+    if (callSiteClassName == "<jscode>") {
+      val len = stackTraceMethodNameFilter.length
+      var idx = 0
+      while (idx < len) {
+        if (callSiteMethodName.startsWith(stackTraceMethodNameFilter(idx))) {
+          return true
+        }
+
+        idx += 1
+      }
+    } else {
+      val len = stackTraceClassNameFilter.length
+      var idx = 0
+      while (idx < len) {
+        if (callSiteClassName.startsWith(stackTraceClassNameFilter(idx))) {
+          return true
+        }
+
+        idx += 1
+      }
+    }
+
+    false
+  }
+
 }

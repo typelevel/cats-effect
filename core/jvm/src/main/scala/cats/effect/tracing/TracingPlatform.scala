@@ -16,6 +16,8 @@
 
 package cats.effect.tracing
 
+import scala.annotation.nowarn
+
 private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent] {
   self: Tracing.type =>
 
@@ -34,6 +36,32 @@ private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent]
     } else {
       null
     }
+  }
+
+  private[this] final val stackTraceFilter: Array[String] = Array(
+    "cats.effect.",
+    "cats.",
+    "sbt.",
+    "java.",
+    "sun.",
+    "scala."
+  )
+
+  @nowarn("cat=unused")
+  private[tracing] def applyStackTraceFilter(
+      callSiteClassName: String,
+      callSiteMethodName: String): Boolean = {
+    val len = stackTraceFilter.length
+    var idx = 0
+    while (idx < len) {
+      if (callSiteClassName.startsWith(stackTraceFilter(idx))) {
+        return true
+      }
+
+      idx += 1
+    }
+
+    false
   }
 
 }
