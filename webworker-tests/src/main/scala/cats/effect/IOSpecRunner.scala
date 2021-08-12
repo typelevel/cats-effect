@@ -17,7 +17,7 @@
 package cats.effect
 
 import org.scalajs.dom.webworkers.DedicatedWorkerGlobalScope
-import org.specs2.control.ExecuteActions
+import org.specs2.control.{Actions, ExecuteActions}
 import org.specs2.reporter.BufferedLineLogger
 import org.specs2.runner.ClassRunner
 import org.specs2.runner.Runner
@@ -42,9 +42,7 @@ object IOSpecRunner extends IOApp.Simple with ClassRunner {
       val action = for {
         printers <- createPrinters(env.arguments, loader).toAction
         stats <- Runner.runSpecStructure(spec.structure(env), env, loader, printers)
-        // TODO I have no idea how to suspend effects in this
-        _ = postMessage(stats.toString)
-        _ = postMessage(stats.isSuccess)
+        _ <- Actions.delayed(postMessage(stats.isSuccess))
       } yield ()
       ExecuteActions.runActionFuture(action)(env.executionEnv)
     }
