@@ -19,7 +19,6 @@ package cats.effect.tracing
 import cats.effect.kernel.Cont
 
 import scala.scalajs.js
-import scala.util.Try
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
@@ -41,18 +40,12 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
   }
 
   private def calculateTracingEvent(key: String): TracingEvent = {
-    if (isCachedStackTracing) {
-      Try(cache(key)).recover {
-        case _ =>
-          val event = buildEvent()
-          cache(key) = event
-          event
-      }.get
-    } else if (isFullStackTracing) {
+    if (isCachedStackTracing)
+      cache.getOrElseUpdate(key, buildEvent())
+    else if (isFullStackTracing)
       buildEvent()
-    } else {
+    else
       null
-    }
   }
 
 }
