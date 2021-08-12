@@ -116,7 +116,7 @@ jobs:
           node-version: 14
 
       - name: Install jsdom
-        if: matrix.ci == 'ciJSDOMNodeJS'
+        if: matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'
         shell: bash
         run: npm install
 
