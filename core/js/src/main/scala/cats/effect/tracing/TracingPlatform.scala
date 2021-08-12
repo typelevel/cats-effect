@@ -18,20 +18,23 @@ package cats.effect.tracing
 
 import cats.effect.kernel.Cont
 
+import scala.reflect.NameTransformer
 import scala.scalajs.js
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
   private val cache = js.Dictionary.empty[TracingEvent]
+  private val function0Property = js.Object.getOwnPropertyNames((() => ()).asInstanceOf[js.Object])(0)
+  private val function1Property = js.Object.getOwnPropertyNames(((_: Unit) => ()).asInstanceOf[js.Object])(0)
 
   import TracingConstants._
 
   def calculateTracingEvent[A](f: Function0[A]): TracingEvent = {
-    calculateTracingEvent(f.asInstanceOf[scalajs.js.Dynamic].sjsr_AnonFunction0__f_f.toString())
+    calculateTracingEvent(f.asInstanceOf[js.Dictionary[js.Any]](function0Property).toString())
   }
 
   def calculateTracingEvent[A, B](f: Function1[A, B]): TracingEvent = {
-    calculateTracingEvent(f.asInstanceOf[scalajs.js.Dynamic].sjsr_AnonFunction1__f_f.toString())
+    calculateTracingEvent(f.asInstanceOf[js.Dictionary[js.Any]](function1Property).toString())
   }
 
   // We could have a catch-all for non-functions, but explicitly enumerating makes sure we handle each case correctly
@@ -56,8 +59,8 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
   )
 
   private[this] final val stackTraceMethodNameFilter: Array[String] = Array(
-    "$c_jl_",
-    "$c_Lcats_effect_"
+    "_jl_",
+    "_Lcats_effect_"
   )
 
   private[tracing] def applyStackTraceFilter(
@@ -67,7 +70,7 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
       val len = stackTraceMethodNameFilter.length
       var idx = 0
       while (idx < len) {
-        if (callSiteMethodName.startsWith(stackTraceMethodNameFilter(idx))) {
+        if (callSiteMethodName.contains(stackTraceMethodNameFilter(idx))) {
           return true
         }
 
@@ -86,6 +89,11 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     }
 
     false
+  }
+
+  private[tracing] def decodeMethodName(name: String): String = {
+    val junk = name.indexOf("__")
+    NameTransformer.decode(if (junk == -1) name else name.substring(0, junk))
   }
 
 }

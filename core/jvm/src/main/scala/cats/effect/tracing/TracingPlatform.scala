@@ -17,6 +17,7 @@
 package cats.effect.tracing
 
 import scala.annotation.nowarn
+import scala.reflect.NameTransformer
 
 private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent] {
   self: Tracing.type =>
@@ -63,5 +64,8 @@ private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent]
 
     false
   }
+
+  private[tracing] def decodeMethodName(name: String): String =
+    NameTransformer.decode(name)
 
 }

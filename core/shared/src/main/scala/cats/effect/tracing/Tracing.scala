@@ -17,7 +17,6 @@
 package cats.effect.tracing
 
 import scala.collection.mutable.ArrayBuffer
-import scala.reflect.NameTransformer
 
 private[effect] object Tracing extends TracingPlatform {
 
@@ -41,7 +40,7 @@ private[effect] object Tracing extends TracingPlatform {
 
       if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName)) {
         val methodSiteMethodName = methodSite.getMethodName
-        val op = NameTransformer.decode(methodSiteMethodName)
+        val op = decodeMethodName(methodSiteMethodName)
 
         return new StackTraceElement(
           op + " @ " + callSiteClassName,
