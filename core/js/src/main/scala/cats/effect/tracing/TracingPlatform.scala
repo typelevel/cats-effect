@@ -23,10 +23,10 @@ import scala.scalajs.js
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
-  private val cache = js.Dictionary.empty[TracingEvent]
-  private val function0Property =
+  private[this] val cache = js.Dictionary.empty[TracingEvent]
+  private[this] val function0Property =
     js.Object.getOwnPropertyNames((() => ()).asInstanceOf[js.Object])(0)
-  private val function1Property =
+  private[this] val function1Property =
     js.Object.getOwnPropertyNames(((_: Unit) => ()).asInstanceOf[js.Object])(0)
 
   import TracingConstants._
@@ -44,7 +44,7 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     calculateTracingEvent(cont.getClass().getName())
   }
 
-  private def calculateTracingEvent(key: String): TracingEvent = {
+  private[this] def calculateTracingEvent(key: String): TracingEvent = {
     if (isCachedStackTracing)
       cache.getOrElseUpdate(key, buildEvent())
     else if (isFullStackTracing)
