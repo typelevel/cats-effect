@@ -203,10 +203,11 @@ val jsProjects: Seq[ProjectReference] =
     tests.js,
     webWorkerTests,
     std.js,
-    example.js)
+    example.js,
+    benchmarks.js)
 
 val undocumentedRefs =
-  jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
+  jsProjects ++ Seq[ProjectReference](benchmarks.jvm, example.jvm)
 
 lazy val root = project
   .in(file("."))
@@ -238,7 +239,7 @@ lazy val rootJVM = project
     tests.jvm,
     std.jvm,
     example.jvm,
-    benchmarks)
+    benchmarks.jvm)
   .enablePlugins(NoPublishPlugin)
 
 lazy val rootJS = project.aggregate(jsProjects: _*).enablePlugins(NoPublishPlugin)
@@ -437,10 +438,13 @@ lazy val example = crossProject(JSPlatform, JVMPlatform)
 /**
  * JMH benchmarks for IO and other things.
  */
-lazy val benchmarks = project
+lazy val benchmarks = crossProject(JSPlatform, JVMPlatform)
   .in(file("benchmarks"))
-  .dependsOn(core.jvm)
+  .dependsOn(core)
   .settings(name := "cats-effect-benchmarks")
-  .enablePlugins(NoPublishPlugin, JmhPlugin)
+  .jvmEnablePlugins(NoPublishPlugin, JmhPlugin)
+  .jsSettings(
+    libraryDependencies += "com.github.japgolly.scalajs-benchmark" %%% "benchmark" % "0.10.0-RC1"
+  )
 
 lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
