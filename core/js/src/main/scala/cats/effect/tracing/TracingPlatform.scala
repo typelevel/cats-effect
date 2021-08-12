@@ -24,8 +24,10 @@ import scala.scalajs.js
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
   private val cache = js.Dictionary.empty[TracingEvent]
-  private val function0Property = js.Object.getOwnPropertyNames((() => ()).asInstanceOf[js.Object])(0)
-  private val function1Property = js.Object.getOwnPropertyNames(((_: Unit) => ()).asInstanceOf[js.Object])(0)
+  private val function0Property =
+    js.Object.getOwnPropertyNames((() => ()).asInstanceOf[js.Object])(0)
+  private val function1Property =
+    js.Object.getOwnPropertyNames(((_: Unit) => ()).asInstanceOf[js.Object])(0)
 
   import TracingConstants._
 
