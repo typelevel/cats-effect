@@ -23,6 +23,7 @@ import org.openqa.selenium.chrome.{ChromeDriver, ChromeOptions}
 import org.openqa.selenium.firefox.{FirefoxOptions, FirefoxProfile}
 import org.openqa.selenium.remote.server.{DriverFactory, DriverProvider}
 import org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv
+import org.scalajs.jsenv.nodejs.NodeJSEnv
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
 
 import JSEnv._
@@ -136,10 +137,8 @@ lazy val useJSEnv =
 Global / useJSEnv := NodeJS
 
 ThisBuild / Test / jsEnv := {
-  val old = (Test / jsEnv).value
-
   useJSEnv.value match {
-    case NodeJS => old
+    case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
     case JSDOMNodeJS => new JSDOMNodeJSEnv()
     case Firefox =>
       val profile = new FirefoxProfile()
