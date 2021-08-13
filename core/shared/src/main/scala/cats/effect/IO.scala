@@ -931,7 +931,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    */
   def apply[A](thunk: => A): IO[A] = {
     val fn = () => thunk
-    Delay(fn, Tracing.calculateTracingEvent(fn.getClass))
+    Delay(fn, Tracing.calculateTracingEvent(tracing.ThunkClassRetriever(thunk)))
   }
 
   /**
