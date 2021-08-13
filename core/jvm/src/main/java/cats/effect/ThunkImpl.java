@@ -14,8 +14,15 @@
  * limitations under the License.
  */
 
-package cats.effect.util
+package cats.effect;
 
-private class ThunkImpl extends Thunk {
-  override def asFunction0[A](thunk: => A) = () => thunk
+/**
+ * A utility to convert a by-name `thunk: => A` to a `Function0[A]` (its binary representation).
+ * Scala 2 performs this optimization automatically but on Scala 3 the thunk is wrapped inside of a new `Function0`.
+ * See https://github.com/typelevel/cats-effect/pull/2226
+ */
+class ThunkImpl extends Thunk {
+  public <A> scala.Function0<A> asFunction0(scala.Function0<A> thunk) {
+    return thunk;
+  }
 }

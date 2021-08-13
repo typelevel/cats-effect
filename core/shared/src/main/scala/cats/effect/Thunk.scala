@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-package cats.effect.util;
+package cats.effect
 
-class ThunkImpl extends Thunk {
-  public <A> scala.Function0<A> asFunction0(scala.Function0<A> thunk) {
-    return thunk;
-  }
+private abstract class Thunk {
+  def asFunction0[A](thunk: => A): Function0[A]
+}
+
+private object Thunk {
+  private[this] val impl: Thunk = new ThunkImpl
+  def asFunction0[A](thunk: => A): Function0[A] = impl.asFunction0(thunk)
 }
