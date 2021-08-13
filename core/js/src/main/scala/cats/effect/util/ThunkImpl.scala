@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-package cats.effect.tracing;
+package cats.effect.util
 
-class ThunkClassRetrieverImpl extends ThunkClassRetriever {
-  public <A> Class<?> getClassOf(scala.Function0<A> thunk) {
-    return thunk.getClass();
-  }
+private class ThunkImpl extends Thunk {
+  override def asFunction0[A](thunk: => A) = () => thunk
 }

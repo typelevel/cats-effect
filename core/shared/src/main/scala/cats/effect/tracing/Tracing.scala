@@ -20,15 +20,12 @@ import scala.collection.mutable.ArrayBuffer
 import scala.reflect.NameTransformer
 
 private[effect] object Tracing extends ClassValue[TracingEvent] {
-  private[this] val thunkClassRetriever: ThunkClassRetriever = new ThunkClassRetrieverImpl
 
   import TracingConstants._
 
   override protected def computeValue(cls: Class[_]): TracingEvent = {
     buildEvent()
   }
-
-  def getThunkClass[A](thunk: => A): Class[_] = thunkClassRetriever.getClassOf(thunk)
 
   def calculateTracingEvent(cls: Class[_]): TracingEvent = {
     if (isCachedStackTracing) {

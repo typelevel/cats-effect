@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.tracing
+package cats.effect.util;
 
-private class ThunkClassRetrieverImpl extends ThunkClassRetriever {
-  override def getClassOf[A](thunk: => A): Class[_] = classOf[Function0[A]] // placeholder
+class ThunkImpl extends Thunk {
+  public <A> scala.Function0<A> asFunction0(scala.Function0<A> thunk) {
+    return thunk;
+  }
 }
