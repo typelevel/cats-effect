@@ -16,6 +16,6 @@
 
 package cats.effect.tracing
 
-private[tracing] abstract class ThunkClassRetriever {
+private abstract class ThunkClassRetriever {
   def getClassOf[A](thunk: => A): Class[_]
 }

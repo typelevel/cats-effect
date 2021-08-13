@@ -16,6 +16,6 @@
 
 package cats.effect.tracing
 
-private[tracing] class ThunkClassRetrieverImpl extends ThunkClassRetriever {
+private class ThunkClassRetrieverImpl extends ThunkClassRetriever {
   override def getClassOf[A](thunk: => A): Class[_] = classOf[Function0[A]] // placeholder
 }
