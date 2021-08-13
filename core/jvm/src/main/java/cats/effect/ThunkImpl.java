@@ -22,6 +22,7 @@ package cats.effect;
  * See https://github.com/typelevel/cats-effect/pull/2226
  */
 class ThunkImpl extends Thunk {
+  @Override
   public <A> scala.Function0<A> asFunction0(scala.Function0<A> thunk) {
     return thunk;
   }
