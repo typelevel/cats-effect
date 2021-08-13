@@ -20,6 +20,16 @@ package tracing
 class TracingSpec extends BaseSpec {
 
   "IO.delay" should {
+    "generate identical traces" in {
+      val f = () => println("foo")
+      val a = IO(f())
+      val b = IO(f())
+      (a, b) match {
+        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA == eventB
+        case _ => false
+      }
+    }
+
     "generate unique traces" in {
       val a = IO(println("foo"))
       val b = IO(println("bar"))
@@ -31,6 +41,16 @@ class TracingSpec extends BaseSpec {
   }
 
   "Async.delay" should {
+    "generate identical traces" in {
+      val f = () => println("foo")
+      val a = IO(f())
+      val b = IO(f())
+      (a, b) match {
+        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA == eventB
+        case _ => false
+      }
+    }
+
     "generate unique traces" in {
       val a = Async[IO].delay(println("foo"))
       val b = Async[IO].delay(println("bar"))
