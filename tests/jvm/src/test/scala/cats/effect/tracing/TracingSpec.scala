@@ -25,7 +25,7 @@ class TracingSpec extends BaseSpec {
       val a = IO(f())
       val b = IO(f())
       (a, b) match {
-        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA == eventB
+        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA eq eventB
         case _ => false
       }
     }
@@ -34,7 +34,7 @@ class TracingSpec extends BaseSpec {
       val a = IO(println("foo"))
       val b = IO(println("bar"))
       (a, b) match {
-        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA != eventB
+        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA ne eventB
         case _ => false
       }
     }
@@ -46,7 +46,7 @@ class TracingSpec extends BaseSpec {
       val a = Async[IO].delay(f())
       val b = Async[IO].delay(f())
       (a, b) match {
-        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA == eventB
+        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA eq eventB
         case _ => false
       }
     }
@@ -55,7 +55,7 @@ class TracingSpec extends BaseSpec {
       val a = Async[IO].delay(println("foo"))
       val b = Async[IO].delay(println("bar"))
       (a, b) match {
-        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA != eventB
+        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA ne eventB
         case _ => false
       }
     }
