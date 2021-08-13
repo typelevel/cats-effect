@@ -16,12 +16,6 @@
 
 package cats.effect.tracing
 
-private abstract class ThunkClassRetriever {
-  def getClassOf[A](thunk: => A): Class[_]
-}
-
-private[effect] object ThunkClassRetriever {
-  private val impl: ThunkClassRetriever = new ThunkClassRetrieverImpl
-
-  def apply[A](thunk: => A): Class[_] = impl.getClassOf(thunk)
+private[tracing] class ThunkClassRetrieverImpl extends ThunkClassRetriever {
+  override def getClassOf[A](thunk: => A): Class[_] = classOf[Function0[A]] // placeholder
 }
