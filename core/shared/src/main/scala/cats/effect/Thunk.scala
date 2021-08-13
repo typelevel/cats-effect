@@ -16,11 +16,9 @@
 
 package cats.effect
 
-private abstract class Thunk {
-  def asFunction0[A](thunk: => A): Function0[A]
-}
-
 private object Thunk {
-  private[this] val impl: Thunk = new ThunkImpl
-  def asFunction0[A](thunk: => A): Function0[A] = impl.asFunction0(thunk)
+  private[this] val impl =
+    ((x: Any) => x).asInstanceOf[(=> Any) => Function0[Any]]
+
+  def asFunction0[A](thunk: => A): Function0[A] = impl(thunk).asInstanceOf[Function0[A]]
 }
