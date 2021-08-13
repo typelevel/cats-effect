@@ -43,8 +43,8 @@ class TracingSpec extends BaseSpec {
   "Async.delay" should {
     "generate identical traces" in {
       val f = () => println("foo")
-      val a = IO(f())
-      val b = IO(f())
+      val a = Async[IO].delay(f())
+      val b = Async[IO].delay(f())
       (a, b) match {
         case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA == eventB
         case _ => false
