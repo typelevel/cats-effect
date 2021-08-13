@@ -1662,7 +1662,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 22
   }
 
-  private[effect] final case object IOTrace extends IO[Trace] {
+  private[effect] case object IOTrace extends IO[Trace] {
     def tag = 23
   }
 
