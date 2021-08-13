@@ -17,7 +17,7 @@
 package cats.effect.tracing;
 
 class ThunkClassRetrieverImpl extends ThunkClassRetriever {
-  public  <A> Class<?> getClassOf(scala.Function0<A> thunk) {
+  public <A> Class<?> getClassOf(scala.Function0<A> thunk) {
     return thunk.getClass();
   }
 }
