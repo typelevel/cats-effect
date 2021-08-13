@@ -149,7 +149,3 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
       .filter(_ ne null)
 
 }
-
-private abstract class ThunkClassRetriever {
-  def getClassOf[A](thunk: => A): Class[_]
-}
