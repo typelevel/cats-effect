@@ -54,9 +54,7 @@ final class Trace private (frames: List[StackTraceElement]) {
   override def toString: String = compact
 }
 
-object Trace {
-
-  private[effect] def apply(events: RingBuffer): Trace = {
+private object Trace {
+  def apply(events: RingBuffer): Trace =
     new Trace(Tracing.getFrames(events))
-  }
 }

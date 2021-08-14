@@ -52,7 +52,7 @@ ThisBuild / developers := List(
 val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
 
-val ScalaJSJava = "adopt@1.8"
+val ScalaJSJava = "adoptium@8"
 val Scala213 = "2.13.6"
 val Scala3 = "3.0.1"
 
@@ -61,11 +61,12 @@ ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.14", Scala213)
 ThisBuild / githubWorkflowUseSbtThinClient := false
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
-val LTSJava = "adopt@1.11"
-val LatestJava = "adopt@1.16"
-val GraalVM8 = "graalvm-ce-java8@21.1"
+val LTSJava = "adoptium@11"
+val LatestJava = "adoptium@16"
+val GraalVM8 = "graalvm-ce-java8@21.2"
 
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
+ThisBuild / githubWorkflowEnv += ("JABBA_INDEX" -> "https://github.com/vasilmkd/jdk-index/raw/main/index.json")
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
