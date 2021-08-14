@@ -442,9 +442,12 @@ lazy val benchmarks = crossProject(JSPlatform, JVMPlatform)
   .in(file("benchmarks"))
   .dependsOn(core)
   .settings(name := "cats-effect-benchmarks")
-  .jvmEnablePlugins(NoPublishPlugin, JmhPlugin)
+  .enablePlugins(NoPublishPlugin)
+  .jvmEnablePlugins(JmhPlugin)
+  .jsEnablePlugins(ScalaJSBundlerPlugin)
   .jsSettings(
-    libraryDependencies += "com.github.japgolly.scalajs-benchmark" %%% "benchmark" % "0.10.0-RC1"
+    resolvers += "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
+    libraryDependencies += "com.armanbilge" %%% "scalajs-benchmark" % "0.10.0-RC1+10-1753f735-SNAPSHOT"
   )
 
 lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
