@@ -171,7 +171,14 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.Effect#ops.<clinit>"),
       exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#ops.<clinit>"),
       // abstract method defined in all subtypes of sealed abstract class
-      exclude[ReversedMissingMethodProblem]("cats.effect.Resource.invariant")
+      exclude[ReversedMissingMethodProblem]("cats.effect.Resource.invariant"),
+      // add cached tracing support for `IO.delay` and `IO.defer`
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Delay.apply"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Delay.copy"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Delay.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Suspend.apply"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Suspend.copy"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Suspend.this")
     )
   }
 )
