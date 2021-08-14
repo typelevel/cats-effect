@@ -24,4 +24,4 @@ object Main extends BenchmarkIOApp {
     DeepBindSuite.plan
   )
 
-} 
+}
