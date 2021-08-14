@@ -930,7 +930,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Alias for `IO.delay(body)`.
    */
   def apply[A](thunk: => A): IO[A] = {
-    val fn = () => thunk
+    val fn = Thunk.asFunction0(thunk)
     Delay(fn, Tracing.calculateTracingEvent(fn.getClass))
   }
 
