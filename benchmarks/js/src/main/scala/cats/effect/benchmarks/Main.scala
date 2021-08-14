@@ -21,7 +21,8 @@ import japgolly.scalajs.benchmark.BenchmarkIOApp
 object Main extends BenchmarkIOApp {
 
   override def plans = List(
-    DeepBindSuite.plan
+    DeepBindSuite.plan,
+    ShallowBindSuite.plan
   )
 
 }
