@@ -1167,12 +1167,16 @@ object IO extends IOInstances {
    * into the `IO`.
    */
   def delay[A](body: => A): IO[A] = {
-    val nextIo = Delay(Thunk.asFunction0(body))
-    if (isFullStackTracing) {
-      IOTracing.decorated(nextIo)
+    val fn = Thunk.asFunction0(body)
+    val trace = if (isCachedStackTracing) {
+      IOTracing.cached(fn.getClass)
+    } else if (isFullStackTracing) {
+      IOTracing.uncached()
     } else {
-      nextIo
+      null
     }
+
+    Delay(fn, trace)
   }
 
   /**
@@ -1695,7 +1699,7 @@ object IO extends IOInstances {
   final private[effect] case class Pure[+A](a: A) extends IO[A]
 
   /** Corresponds to [[IO.apply]]. */
-  final private[effect] case class Delay[+A](thunk: () => A) extends IO[A]
+  final private[effect] case class Delay[+A](thunk: () => A, trace: AnyRef) extends IO[A]
 
   /** Corresponds to [[IO.raiseError]]. */
   final private[effect] case class RaiseError(e: Throwable) extends IO[Nothing]

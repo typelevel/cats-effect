@@ -99,8 +99,12 @@ private[effect] object IORunLoop {
           unboxed = value.asInstanceOf[AnyRef]
           hasUnboxed = true
 
-        case Delay(thunk) =>
+        case Delay(thunk, trace) =>
           try {
+            if (isStackTracing) {
+              if (ctx eq null) ctx = new IOContext()
+              if (trace ne null) ctx.pushEvent(trace.asInstanceOf[IOEvent])
+            }
             unboxed = thunk().asInstanceOf[AnyRef]
             hasUnboxed = true
             currentIO = null
@@ -236,8 +240,12 @@ private[effect] object IORunLoop {
           unboxed = value.asInstanceOf[AnyRef]
           hasUnboxed = true
 
-        case Delay(thunk) =>
+        case Delay(thunk, trace) =>
           try {
+            if (isStackTracing) {
+              if (ctx eq null) ctx = new IOContext()
+              if (trace ne null) ctx.pushEvent(trace.asInstanceOf[IOEvent])
+            }
             unboxed = thunk().asInstanceOf[AnyRef]
             hasUnboxed = true
             currentIO = null

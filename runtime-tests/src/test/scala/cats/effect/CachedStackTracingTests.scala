@@ -45,7 +45,7 @@ class CachedStackTracingTests extends CatsEffectSuite {
     val task = IO.pure(0).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      assertEquals(r.captured, 3)
+      assertEquals(r.captured, 5)
       assertEquals(r.events
                      .collect { case e: IOEvent.StackTrace => e }
                      .filter(_.stackTrace.exists(_.getMethodName == "flatMap"))
@@ -58,7 +58,7 @@ class CachedStackTracingTests extends CatsEffectSuite {
     val task = IO.async[Int](_(Right(0))).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      assertEquals(r.captured, 4)
+      assertEquals(r.captured, 6)
       assertEquals(r.events
                      .collect { case e: IOEvent.StackTrace => e }
                      .filter(_.stackTrace.exists(_.getMethodName == "async"))
@@ -71,7 +71,7 @@ class CachedStackTracingTests extends CatsEffectSuite {
     val task = IO.unit.bracket(_ => IO.pure(10))(_ => IO.unit).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      assertEquals(r.captured, 6)
+      assertEquals(r.captured, 9)
       assertEquals(r.events
                      .collect { case e: IOEvent.StackTrace => e }
                      .filter(_.stackTrace.exists(_.getMethodName == "bracket"))
@@ -84,7 +84,7 @@ class CachedStackTracingTests extends CatsEffectSuite {
     val task = IO.unit.bracketCase(_ => IO.pure(10))((_, _) => IO.unit).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      assertEquals(r.captured, 6)
+      assertEquals(r.captured, 9)
       assertEquals(r.events
                      .collect { case e: IOEvent.StackTrace => e }
                      .filter(_.stackTrace.exists(_.getMethodName == "bracketCase"))
