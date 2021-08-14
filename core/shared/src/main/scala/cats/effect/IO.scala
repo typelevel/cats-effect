@@ -1152,7 +1152,7 @@ object IO extends IOInstances {
    * `IO`.
    */
   def defer[A](thunk: => IO[A]): IO[A] = {
-    val nextIo = Suspend(() => thunk)
+    val nextIo = Suspend(Thunk.asFunction0(thunk))
     if (isFullStackTracing) {
       IOTracing.decorated(nextIo)
     } else {
@@ -1167,7 +1167,7 @@ object IO extends IOInstances {
    * into the `IO`.
    */
   def delay[A](body: => A): IO[A] = {
-    val nextIo = Delay(() => body)
+    val nextIo = Delay(Thunk.asFunction0(body))
     if (isFullStackTracing) {
       IOTracing.decorated(nextIo)
     } else {
