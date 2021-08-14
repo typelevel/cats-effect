@@ -71,7 +71,7 @@ class CachedStackTracingTests extends CatsEffectSuite {
     val task = IO.unit.bracket(_ => IO.pure(10))(_ => IO.unit).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      assertEquals(r.captured, 9)
+      assertEquals(r.captured, 10)
       assertEquals(r.events
                      .collect { case e: IOEvent.StackTrace => e }
                      .filter(_.stackTrace.exists(_.getMethodName == "bracket"))
@@ -84,7 +84,7 @@ class CachedStackTracingTests extends CatsEffectSuite {
     val task = IO.unit.bracketCase(_ => IO.pure(10))((_, _) => IO.unit).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      assertEquals(r.captured, 9)
+      assertEquals(r.captured, 10)
       assertEquals(r.events
                      .collect { case e: IOEvent.StackTrace => e }
                      .filter(_.stackTrace.exists(_.getMethodName == "bracketCase"))

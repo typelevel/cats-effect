@@ -113,10 +113,15 @@ private[effect] object IORunLoop {
               currentIO = RaiseError(e)
           }
 
-        case Suspend(thunk) =>
+        case Suspend(thunk, trace) =>
           currentIO =
-            try thunk()
-            catch { case NonFatal(ex) => RaiseError(ex) }
+            try {
+              if (isStackTracing) {
+                if (ctx eq null) ctx = new IOContext()
+                if (trace ne null) ctx.pushEvent(trace.asInstanceOf[IOEvent])
+              }
+              thunk()
+            } catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
           if (isStackTracing && enhancedExceptions && ctx != null) {
@@ -254,9 +259,13 @@ private[effect] object IORunLoop {
               currentIO = RaiseError(e)
           }
 
-        case Suspend(thunk) =>
+        case Suspend(thunk, trace) =>
           currentIO =
             try {
+              if (isStackTracing) {
+                if (ctx eq null) ctx = new IOContext()
+                if (trace ne null) ctx.pushEvent(trace.asInstanceOf[IOEvent])
+              }
               thunk()
             } catch { case NonFatal(ex) => RaiseError(ex) }
 
