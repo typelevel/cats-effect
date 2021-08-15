@@ -21,8 +21,10 @@ import scala.scalajs.js
 private object TracingConstants {
 
   @inline def stackTracingMode: String =
-    Option(js.Dynamic.global.process)
-      .filterNot(js.isUndefined)
+    // This style of check is needed only for global variables
+    (if (js.typeOf(js.Dynamic.global.process) != "undefined")
+       Some(js.Dynamic.global.process)
+     else None)
       .flatMap(p => Option(p.env).filterNot(js.isUndefined))
       .flatMap { env =>
         Option(env.CATS_EFFECT_TRACING_MODE)
