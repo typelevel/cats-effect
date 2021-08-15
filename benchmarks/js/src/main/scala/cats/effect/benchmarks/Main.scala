@@ -22,6 +22,7 @@ object Main extends BenchmarkIOApp {
 
   override def plans = List(
     DeepBindSuite.plan,
+    ParallelSuite.plan,
     ShallowBindSuite.plan
   )
 

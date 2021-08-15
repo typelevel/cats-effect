@@ -447,7 +447,7 @@ lazy val benchmarks = crossProject(JSPlatform, JVMPlatform)
   .jsEnablePlugins(ScalaJSBundlerPlugin)
   .jsSettings(
     resolvers += "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
-    libraryDependencies += "com.armanbilge" %%% "scalajs-benchmark" % "0.10.0-RC1+13-98ac1227-SNAPSHOT",
+    libraryDependencies += "com.armanbilge" %%% "scalajs-benchmark" % "0.10.0-RC1+14-d454452f-SNAPSHOT",
     scalaJSUseMainModuleInitializer := true,
     useYarn := true,
     yarnExtraArgs += "--frozen-lockfile",
