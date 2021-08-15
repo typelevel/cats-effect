@@ -16,7 +16,7 @@
 
 package cats.effect.tracing
 
-import scala.scalajs.js
+// import scala.scalajs.js
 // import scala.util.Try
 
 private object TracingConstants {
