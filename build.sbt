@@ -444,7 +444,6 @@ lazy val benchmarks = crossProject(JSPlatform, JVMPlatform)
   .settings(name := "cats-effect-benchmarks")
   .enablePlugins(NoPublishPlugin)
   .jvmEnablePlugins(JmhPlugin)
-  .jsEnablePlugins(ScalaJSBundlerPlugin)
   .jsSettings(
     resolvers += "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
     libraryDependencies += "com.armanbilge" %%% "scalajs-benchmark" % "0.10.0-RC1+16-dd8eb252-SNAPSHOT",
