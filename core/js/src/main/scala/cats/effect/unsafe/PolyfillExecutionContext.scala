@@ -18,6 +18,7 @@ package cats.effect.unsafe
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
+import scala.scalajs.LinkingInfo
 import scala.scalajs.js
 import scala.util.Random
 import scala.util.control.NonFatal
@@ -37,7 +38,11 @@ private[unsafe] object PolyfillExecutionContext extends ExecutionContext {
   private[this] val setImmediate: (() => Unit) => Unit = {
     if (js.typeOf(js.Dynamic.global.setImmediate) == Undefined) {
       var nextHandle = 1
-      val tasksByHandle = mutable.Map[Int, () => Unit]()
+      val tasksByHandle: mutable.Map[Int, () => Unit] =
+        if (LinkingInfo.esVersion >= LinkingInfo.ESVersion.ES2015)
+          js.Map[Int, () => Unit]()
+        else
+          mutable.Map[Int, () => Unit]()
       var currentlyRunningATask = false
 
       def canUsePostMessage(): Boolean = {
