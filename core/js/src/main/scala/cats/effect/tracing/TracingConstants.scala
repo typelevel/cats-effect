@@ -16,24 +16,12 @@
 
 package cats.effect.tracing
 
-// import scala.scalajs.js
-// import scala.util.Try
-
 private object TracingConstants {
 
-  @inline def stackTracingMode: String = "cached"
-  // Try(js.Dynamic.global.process.env.CATS_EFFECT_TRACING_MODE)
-  //   .toOption
-  //   .filterNot(js.isUndefined)
-  //   .orElse(Try(js.Dynamic.global.process.env.REACT_APP_CATS_EFFECT_TRACING_MODE).toOption.filterNot(js.isUndefined))
-  //   .map(_.asInstanceOf[String])
-  //   .filterNot(_.isEmpty)
-  //   .getOrElse("cached")
+  var isCachedStackTracing: Boolean = true
 
-  @inline def isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
+  var isFullStackTracing: Boolean = false
 
-  @inline def isFullStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("full")
-
-  @inline def isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
+  var isStackTracing: Boolean = true
 
 }
