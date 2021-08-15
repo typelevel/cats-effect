@@ -193,6 +193,53 @@ private final class LocalQueue {
    */
   private[this] val tailPublisher: AtomicInteger = new AtomicInteger(0)
 
+  /*
+   * What follows is a collection of counters exposed through the
+   * `cats.effect.unsafe.metrics.LocalQueueSamplerMBean` interface.
+   */
+
+  /**
+   * A running counter of the number of fibers enqueued on this [[LocalQueue]]
+   * during the lifetime of the queue. This variable is published through the
+   * `tail` of the queue. In order to observe the latest value, the
+   * `tailPublisher` atomic field should be loaded first.
+   */
+  private[this] var totalFiberCount: Long = 0
+
+  /**
+   * A running counter of the number of fibers spilt over from this
+   * [[LocalQueue]] into the single-fiber overflow queue during the lifetime of
+   * the queue. This variable is published through the `tail` of the queue. In
+   * order to observe the latest value, the `tailPublisher` atomic field should
+   * be loaded first.
+   */
+  private[this] var overflowSpilloverCount: Long = 0
+
+  /**
+   * A running counter of the number of fibers spilt over from this
+   * [[LocalQueue]] into the batched queue during the lifetime of the queue.
+   * This variable is published through the `tail` of the queue. In order to
+   * observe the latest value, the `tailPublisher` atomic field should be loaded
+   * first.
+   */
+  private[this] var batchedSpilloverCount: Long = 0
+
+  /**
+   * A running counter of the number of successful steal attempts by other
+   * [[WorkerThread]]s during the lifetime of the queue. This variable
+   * is published through the `head` of the queue. In order to observe the
+   * latest value, the `head` atomic field should be loaded first.
+   */
+  private[this] var successfulStealAttemptCount: Long = 0
+
+  /**
+   * A running counter of the number of fibers stolen by other [[WorkerThread]]s
+   * during the lifetime of the queue. This variable is published through the
+   * `head` of the queue. In order to observe the latest value, the `head`
+   * atomic field should be loaded first.
+   */
+  private[this] var stolenFiberCount: Long = 0
+
   /**
    * Enqueues a fiber for execution at the back of this queue.
    *
@@ -246,6 +293,7 @@ private final class LocalQueue {
         // value, publish it for other threads and break out of the loop.
         val idx = index(tl)
         buffer(idx) = fiber
+        totalFiberCount += 1
         val newTl = unsignedShortAddition(tl, 1)
         tailPublisher.lazySet(newTl)
         tail = newTl
@@ -258,6 +306,8 @@ private final class LocalQueue {
         // Outcome 2, there is a concurrent stealer and there is no available
         // capacity for the new fiber. Proceed to enqueue the fiber on the
         // overflow queue and break out of the loop.
+        overflowSpilloverCount += 1
+        tailPublisher.lazySet(tl)
         overflow.offer(fiber, random)
         return
       }
@@ -290,6 +340,8 @@ private final class LocalQueue {
         batch(i) = fiber
         // Enqueue all of the fibers on the batched queue with a bulk add
         // operation.
+        batchedSpilloverCount += OverflowBatchSize
+        tailPublisher.lazySet(tl)
         batched.offer(batch, random)
         // The incoming fiber has been enqueued on the batched queue. Proceed
         // to break out of the loop.
@@ -543,6 +595,9 @@ private final class LocalQueue {
           i += 1
         }
 
+        successfulStealAttemptCount += 1
+        stolenFiberCount += n
+
         // After transferring the stolen fibers, it is time to announce that the
         // stealing operation is done, by moving the "steal" tag to match the
         // "real" value of the head. Opportunistically try to set it without
@@ -676,6 +731,20 @@ private final class LocalQueue {
   def nonEmpty(): Boolean = !isEmpty()
 
   /**
+   * Returns the number of fibers currently enqueued on this [[LocalQueue]].
+   *
+   * @note This number is an approximation and may not be correct while
+   *       stealing is taking place.
+   *
+   * @return the number of fibers currently enqueued on this local queue
+   */
+  def size(): Int = {
+    val hd = head.get()
+    val tl = tailPublisher.get()
+    unsignedShortSubtraction(tl, lsb(hd))
+  }
+
+  /**
    * A ''plain'' load of the `tail` of the queue.
    *
    * Serves mostly as a forwarder method such that `tail` can remain
@@ -771,4 +840,140 @@ private final class LocalQueue {
    * @return the unsigned 16 bit difference as a 32 bit integer value
    */
   private[this] def unsignedShortSubtraction(x: Int, y: Int): Int = lsb(x - y)
+
+  /*
+   * What follows is a collection of methods used in the implementation of the
+   * `cats.effect.unsafe.metrics.LocalQueueSamplerMBean` interface.
+   */
+
+  /**
+   * Returns the number of fibers enqueued on this [[LocalQueue]].
+   *
+   * @return the number of fibers enqueued on this local queue
+   */
+  def getFiberCount(): Int = size()
+
+  /**
+   * Returns the index into the circular buffer backing this [[LocalQueue]]
+   * which represents the head of the queue.
+   *
+   * @return the index representing the head of the queue
+   */
+  def getHeadIndex(): Int = {
+    val hd = head.get()
+    index(lsb(hd))
+  }
+
+  /**
+   * Returns the index into the circular buffer backing this [[LocalQueue]]
+   * which represents the tail of the queue.
+   *
+   * @return the index representing the tail of the queue
+   */
+  def getTailIndex(): Int = {
+    val tl = tailPublisher.get()
+    index(tl)
+  }
+
+  /**
+   * Returns the total number of fibers enqueued on this [[LocalQueue]]
+   * during its lifetime.
+   *
+   * @return the total number of fibers enqueued during the lifetime of this
+   *         local queue
+   */
+  def getTotalFiberCount(): Long = {
+    val _ = tailPublisher.get()
+    totalFiberCount
+  }
+
+  /**
+   * Returns the total number of fibers spilt over to the single-fiber overflow
+   * queue during the lifetime of this [[LocalQueue]].
+   *
+   * @return the total number of fibers spilt over to the overflow queue
+   */
+  def getOverflowSpilloverCount(): Long = {
+    val _ = tailPublisher.get()
+    overflowSpilloverCount
+  }
+
+  /**
+   * Returns the total number of fibers spilt over to the batched queue during
+   * the lifetime of this [[LocalQueue]].
+   *
+   * @return the total number of fibers spilt over to the batched queue
+   */
+  def getBatchedSpilloverCount(): Long = {
+    val _ = tailPublisher.get()
+    batchedSpilloverCount
+  }
+
+  /**
+   * Returns the total number of successful steal attempts by other worker
+   * threads from this [[LocalQueue]] during its lifetime.
+   *
+   * @return the total number of successful steal attempts by other worker
+   *         threads
+   */
+  def getSuccessfulStealAttemptCount(): Long = {
+    val _ = head.get()
+    successfulStealAttemptCount
+  }
+
+  /**
+   * Returns the total number of stolen fibers by other worker threads from this
+   * [[LocalQueue]] during its lifetime.
+   *
+   * @return the total number of stolen fibers by other worker threads
+   */
+  def getStolenFiberCount(): Long = {
+    val _ = head.get()
+    stolenFiberCount
+  }
+
+  /**
+   * Exposes the "real" value of the head of this [[LocalQueue]]. This
+   * value represents the state of the head which is valid for the owner worker
+   * thread. This is an unsigned 16 bit integer.
+   *
+   * @note For more details, consult the comments in the source code for
+   *       [[cats.effect.unsafe.LocalQueue]].
+   *
+   * @return the "real" value of the head of the local queue
+   */
+  def getRealHeadTag(): Int = {
+    val hd = head.get()
+    lsb(hd)
+  }
+
+  /**
+   * Exposes the "steal" tag of the head of this [[LocalQueue]]. This
+   * value represents the state of the head which is valid for any worker thread
+   * looking to steal work from this local queue. This is an unsigned 16 bit
+   * integer.
+   *
+   * @note For more details, consult the comments in the source code for
+   *       [[cats.effect.unsafe.LocalQueue]].
+   *
+   * @return the "steal" tag of the head of the local queue
+   */
+  def getStealHeadTag(): Int = {
+    val hd = head.get()
+    msb(hd)
+  }
+
+  /**
+   * Exposes the "tail" tag of the tail of this [[LocalQueue]]. This
+   * value represents the state of the tail which is valid for the owner worker
+   * thread, used for enqueuing fibers into the local queue, as well as any
+   * other worker thread looking to steal work from this local queue, used for
+   * calculating how many fibers to steal. This is an unsigned 16 bit integer.
+   *
+   * @note For more details, consult the comments in the source code for
+   *       [[cats.effect.unsafe.LocalQueue]].
+   *
+   * @return the "tail" tag of the tail of the local queue
+   */
+  def getTailTag(): Int = tailPublisher.get()
 }
