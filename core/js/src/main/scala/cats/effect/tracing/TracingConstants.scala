@@ -17,28 +17,21 @@
 package cats.effect.tracing
 
 import scala.scalajs.js
+import scala.util.Try
 
 private object TracingConstants {
 
   @inline def stackTracingMode: String =
-    (if (js.typeOf(js.Dynamic.global.process) != "undefined")
-       Option(js.Dynamic.global.process)
-     else
-       None)
-      .flatMap(p =>
-        if (js.typeOf(p.env) != "undefined")
-          Option(p.env)
-        else
-          None)
+    Try(js.Dynamic.global.process)
+      .toOption
+      .filterNot(js.isUndefined)
+      .flatMap(p => Try(p.env).toOption.filterNot(js.isUndefined))
       .flatMap { env =>
-        (if (js.typeOf(env.CATS_EFFECT_TRACING_MODE) != "undefined")
-           Option(env.CATS_EFFECT_TRACING_MODE)
-         else
-           None).orElse(
-          if (js.typeOf(env.REACT_APP_CATS_EFFECT_TRACING_MODE) != "undefined")
-            Option(env.REACT_APP_CATS_EFFECT_TRACING_MODE)
-          else
-            None)
+        Try(env.CATS_EFFECT_TRACING_MODE)
+          .toOption
+          .filterNot(js.isUndefined)
+          .orElse(
+            Try(env.REACT_APP_CATS_EFFECT_TRACING_MODE).toOption.filterNot(js.isUndefined))
       }
       .map(_.asInstanceOf[String])
       .filterNot(_.isEmpty)
