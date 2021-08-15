@@ -20,16 +20,18 @@ import scala.scalajs.js
 
 private object TracingConstants {
 
+  @inline private[this] def definedOrNone[A <: js.Any](x: => A): Option[A] =
+    if (js.typeOf(x) != "undefined")
+      Option(x) // Option constructor checks for null
+    else
+      None
+
   @inline def stackTracingMode: String =
-    // This style of check is needed only for global variables
-    (if (js.typeOf(js.Dynamic.global.process) != "undefined")
-       Some(js.Dynamic.global.process)
-     else None)
-      .flatMap(p => Option(p.env).filterNot(js.isUndefined))
+    definedOrNone(js.Dynamic.global.process)
+      .flatMap(p => definedOrNone(p.env))
       .flatMap { env =>
-        Option(env.CATS_EFFECT_TRACING_MODE)
-          .filterNot(js.isUndefined)
-          .orElse(Option(env.REACT_APP_CATS_EFFECT_TRACING_MODE).filterNot(js.isUndefined))
+        definedOrNone(env.CATS_EFFECT_TRACING_MODE).orElse(
+          definedOrNone(env.REACT_APP_CATS_EFFECT_TRACING_MODE))
       }
       .map(_.asInstanceOf[String])
       .filterNot(_.isEmpty)
