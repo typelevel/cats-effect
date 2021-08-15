@@ -17,25 +17,18 @@
 package cats.effect.tracing
 
 import scala.scalajs.js
-import scala.util.Try
+// import scala.util.Try
 
 private object TracingConstants {
 
-  @inline def stackTracingMode: String =
-    Try(js.Dynamic.global.process)
-      .toOption
-      .filterNot(js.isUndefined)
-      .flatMap(p => Try(p.env).toOption.filterNot(js.isUndefined))
-      .flatMap { env =>
-        Try(env.CATS_EFFECT_TRACING_MODE)
-          .toOption
-          .filterNot(js.isUndefined)
-          .orElse(
-            Try(env.REACT_APP_CATS_EFFECT_TRACING_MODE).toOption.filterNot(js.isUndefined))
-      }
-      .map(_.asInstanceOf[String])
-      .filterNot(_.isEmpty)
-      .getOrElse("cached")
+  @inline def stackTracingMode: String = "cached"
+  // Try(js.Dynamic.global.process.env.CATS_EFFECT_TRACING_MODE)
+  //   .toOption
+  //   .filterNot(js.isUndefined)
+  //   .orElse(Try(js.Dynamic.global.process.env.REACT_APP_CATS_EFFECT_TRACING_MODE).toOption.filterNot(js.isUndefined))
+  //   .map(_.asInstanceOf[String])
+  //   .filterNot(_.isEmpty)
+  //   .getOrElse("cached")
 
   @inline def isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
 
