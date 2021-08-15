@@ -135,7 +135,7 @@ lazy val useJSEnv =
   settingKey[JSEnv]("Use Node.js or a headless browser for running Scala.js tests")
 Global / useJSEnv := NodeJS
 
-ThisBuild / Test / jsEnv := {
+ThisBuild / Zero / jsEnv := {
   val old = (Test / jsEnv).value
 
   useJSEnv.value match {
@@ -447,10 +447,8 @@ lazy val benchmarks = crossProject(JSPlatform, JVMPlatform)
   .jsEnablePlugins(ScalaJSBundlerPlugin)
   .jsSettings(
     resolvers += "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
-    libraryDependencies += "com.armanbilge" %%% "scalajs-benchmark" % "0.10.0-RC1+14-d454452f-SNAPSHOT",
-    scalaJSUseMainModuleInitializer := true,
-    useYarn := true,
-    yarnExtraArgs += "--frozen-lockfile",
+    libraryDependencies += "com.armanbilge" %%% "scalajs-benchmark" % "0.10.0-RC1+16-dd8eb252-SNAPSHOT",
+    scalaJSUseMainModuleInitializer := true
   )
 
 lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
