@@ -58,18 +58,57 @@ trait GenSpawnInstances {
               fiberA <- F.start(ParallelF.value(fa))
               fiberB <- F.start(ParallelF.value(fb))
 
+              // start a pair of supervisors to ensure that the opposite is canceled on error
+              _ <- F start {
+                fiberB.join flatMap {
+                  case Outcome.Succeeded(_) => F.unit
+                  case _ => fiberA.cancel
+                }
+              }
+
+              _ <- F start {
+                fiberA.join flatMap {
+                  case Outcome.Succeeded(_) => F.unit
+                  case _ => fiberB.cancel
+                }
+              }
+
               a <- F
                 .onCancel(poll(fiberA.join), F.both(fiberA.cancel, fiberB.cancel).void)
                 .flatMap[A] {
-                  case Outcome.Succeeded(fa) => fa
-                  case Outcome.Errored(e) => fiberB.cancel *> F.raiseError(e)
-                  case Outcome.Canceled() => fiberB.cancel *> poll(F.canceled *> F.never)
+                  case Outcome.Succeeded(fa) =>
+                    fa
+
+                  case Outcome.Errored(e) =>
+                    fiberB.cancel *> F.raiseError(e)
+
+                  case Outcome.Canceled() =>
+                    fiberB.cancel *> poll {
+                      fiberB.join flatMap {
+                        case Outcome.Succeeded(_) | Outcome.Canceled() =>
+                          F.canceled *> F.never
+                        case Outcome.Errored(e) =>
+                          F.raiseError(e)
+                      }
+                    }
                 }
 
               z <- F.onCancel(poll(fiberB.join), fiberB.cancel).flatMap[Z] {
-                case Outcome.Succeeded(fb) => fb.map(b => f(a, b))
-                case Outcome.Errored(e) => F.raiseError(e)
-                case Outcome.Canceled() => poll(F.canceled *> F.never)
+                case Outcome.Succeeded(fb) =>
+                  fb.map(b => f(a, b))
+
+                case Outcome.Errored(e) =>
+                  F.raiseError(e)
+
+                case Outcome.Canceled() =>
+                  poll {
+                    fiberA.join flatMap {
+                      case Outcome.Succeeded(_) | Outcome.Canceled() =>
+                        F.canceled *> F.never
+                      case Outcome.Errored(e) =>
+                        F.raiseError(e)
+                    }
+                  }
               }
             } yield z
           }
@@ -84,18 +123,57 @@ trait GenSpawnInstances {
                 fiberA <- F.start(ParallelF.value(fa))
                 fiberB <- F.start(ParallelF.value(fb.value))
 
+                // start a pair of supervisors to ensure that the opposite is canceled on error
+                _ <- F start {
+                  fiberB.join flatMap {
+                    case Outcome.Succeeded(_) => F.unit
+                    case _ => fiberA.cancel
+                  }
+                }
+
+                _ <- F start {
+                  fiberA.join flatMap {
+                    case Outcome.Succeeded(_) => F.unit
+                    case _ => fiberB.cancel
+                  }
+                }
+
                 a <- F
                   .onCancel(poll(fiberA.join), F.both(fiberA.cancel, fiberB.cancel).void)
                   .flatMap[A] {
-                    case Outcome.Succeeded(fa) => fa
-                    case Outcome.Errored(e) => fiberB.cancel *> F.raiseError(e)
-                    case Outcome.Canceled() => fiberB.cancel *> poll(F.canceled *> F.never)
+                    case Outcome.Succeeded(fa) =>
+                      fa
+
+                    case Outcome.Errored(e) =>
+                      fiberB.cancel *> F.raiseError(e)
+
+                    case Outcome.Canceled() =>
+                      fiberB.cancel *> poll {
+                        fiberB.join flatMap {
+                          case Outcome.Succeeded(_) | Outcome.Canceled() =>
+                            F.canceled *> F.never
+                          case Outcome.Errored(e) =>
+                            F.raiseError(e)
+                        }
+                      }
                   }
 
                 z <- F.onCancel(poll(fiberB.join), fiberB.cancel).flatMap[Z] {
-                  case Outcome.Succeeded(fb) => fb.map(b => f(a, b))
-                  case Outcome.Errored(e) => F.raiseError(e)
-                  case Outcome.Canceled() => poll(F.canceled *> F.never)
+                  case Outcome.Succeeded(fb) =>
+                    fb.map(b => f(a, b))
+
+                  case Outcome.Errored(e) =>
+                    F.raiseError(e)
+
+                  case Outcome.Canceled() =>
+                    poll {
+                      fiberA.join flatMap {
+                        case Outcome.Succeeded(_) | Outcome.Canceled() =>
+                          F.canceled *> F.never
+                        case Outcome.Errored(e) =>
+                          F.raiseError(e)
+                      }
+                    }
                 }
               } yield z
             }
