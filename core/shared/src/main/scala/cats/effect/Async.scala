@@ -303,9 +303,9 @@ object Async {
    */
   def liftIO[F[_], A](io: IO[A])(implicit F: Async[F]): F[A] =
     io match {
-      case Pure(a)       => F.pure(a)
-      case RaiseError(e) => F.raiseError(e)
-      case Delay(thunk)  => F.delay(thunk())
+      case Pure(a)         => F.pure(a)
+      case RaiseError(e)   => F.raiseError(e)
+      case Delay(thunk, _) => F.delay(thunk())
       case _ =>
         F.defer {
           IORunLoop.step(io) match {

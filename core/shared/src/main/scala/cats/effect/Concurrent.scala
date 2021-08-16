@@ -401,9 +401,9 @@ object Concurrent {
    */
   def liftIO[F[_], A](ioa: IO[A])(implicit F: Concurrent[F]): F[A] =
     ioa match {
-      case Pure(a)       => F.pure(a)
-      case RaiseError(e) => F.raiseError(e)
-      case Delay(thunk)  => F.delay(thunk())
+      case Pure(a)         => F.pure(a)
+      case RaiseError(e)   => F.raiseError(e)
+      case Delay(thunk, _) => F.delay(thunk())
       case _ =>
         F.defer {
           IORunLoop.step(ioa) match {

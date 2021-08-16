@@ -1152,12 +1152,16 @@ object IO extends IOInstances {
    * `IO`.
    */
   def defer[A](thunk: => IO[A]): IO[A] = {
-    val nextIo = Suspend(Thunk.asFunction0(thunk))
-    if (isFullStackTracing) {
-      IOTracing.decorated(nextIo)
+    val fn = Thunk.asFunction0(thunk)
+    val trace = if (isCachedStackTracing) {
+      IOTracing.cached(fn.getClass)
+    } else if (isFullStackTracing) {
+      IOTracing.uncached()
     } else {
-      nextIo
+      null
     }
+
+    Suspend(fn, trace)
   }
 
   /**
@@ -1167,12 +1171,16 @@ object IO extends IOInstances {
    * into the `IO`.
    */
   def delay[A](body: => A): IO[A] = {
-    val nextIo = Delay(Thunk.asFunction0(body))
-    if (isFullStackTracing) {
-      IOTracing.decorated(nextIo)
+    val fn = Thunk.asFunction0(body)
+    val trace = if (isCachedStackTracing) {
+      IOTracing.cached(fn.getClass)
+    } else if (isFullStackTracing) {
+      IOTracing.uncached()
     } else {
-      nextIo
+      null
     }
+
+    Delay(fn, trace)
   }
 
   /**
@@ -1695,13 +1703,13 @@ object IO extends IOInstances {
   final private[effect] case class Pure[+A](a: A) extends IO[A]
 
   /** Corresponds to [[IO.apply]]. */
-  final private[effect] case class Delay[+A](thunk: () => A) extends IO[A]
+  final private[effect] case class Delay[+A](thunk: () => A, trace: AnyRef) extends IO[A]
 
   /** Corresponds to [[IO.raiseError]]. */
   final private[effect] case class RaiseError(e: Throwable) extends IO[Nothing]
 
   /** Corresponds to [[IO.defer]]. */
-  final private[effect] case class Suspend[+A](thunk: () => IO[A]) extends IO[A]
+  final private[effect] case class Suspend[+A](thunk: () => IO[A], trace: AnyRef) extends IO[A]
 
   /** Corresponds to [[IO.flatMap]]. */
   final private[effect] case class Bind[E, +A](source: IO[E], f: E => IO[A], trace: AnyRef) extends IO[A]
