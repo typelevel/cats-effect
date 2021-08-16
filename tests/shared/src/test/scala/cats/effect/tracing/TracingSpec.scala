@@ -14,30 +14,62 @@
  * limitations under the License.
  */
 
-package tracing // Get out of the CE package so our traces don't get filtered
+package cats.effect.tracing
 
-import cats.effect.testkit.TestInstances
+import cats.effect.Async
 import cats.effect.BaseSpec
 import cats.effect.IO
+import cats.effect.testkit.TestInstances
 
 class TracingSpec extends BaseSpec with TestInstances {
 
-  "IO" should {
-    "have nice traces" in realWithRuntime { rt =>
-      def loop(i: Int): IO[Int] =
-        IO.pure(i).flatMap { j =>
-          if (j == 0)
-            IO.raiseError(new Exception)
-          else
-            loop(i - 1)
-        }
-      loop(100).attempt.map {
-        case Left(ex) =>
-          ex.getStackTrace.count { e =>
-            e.getClassName() == "flatMap @ tracing.TracingSpec" && e
-              .getMethodName()
-              .startsWith("loop$")
-          } == rt.config.traceBufferSize
+  "IO.delay" should {
+    "generate identical traces" in {
+      val f = () => println("foo")
+      val a = IO(f())
+      val b = IO(f())
+      (a, b) match {
+        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA eq eventB
+        case _ => false
+      }
+    }
+
+    "generate unique traces" in {
+      val a = IO(println("foo"))
+      val b = IO(println("bar"))
+      (a, b) match {
+        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA ne eventB
+        case _ => false
+      }
+    }
+
+    // This test is targeted to Scala.js, where we distinguish thunks by their source code
+    "generate unique traces even if thunk source is identical" in {
+      val a = IO(println("foo"))
+      val b = IO(println("foo"))
+      (a, b) match {
+        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA ne eventB
+        case _ => false
+      }
+    }
+  }
+
+  "Async.delay" should {
+    "generate identical traces" in {
+      val f = () => println("foo")
+      val a = Async[IO].delay(f())
+      val b = Async[IO].delay(f())
+      (a, b) match {
+        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA eq eventB
+        case _ => false
+      }
+    }
+
+    "generate unique traces" in {
+      val a = Async[IO].delay(println("foo"))
+      val b = Async[IO].delay(println("bar"))
+      (a, b) match {
+        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA ne eventB
         case _ => false
       }
     }
