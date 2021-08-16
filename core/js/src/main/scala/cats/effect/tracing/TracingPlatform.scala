@@ -24,7 +24,7 @@ import scala.scalajs.js
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
-  private[this] val cache = mutable.Map[String, TracingEvent]()
+  private[this] val cache = mutable.Map[Any, TracingEvent]()
   private[this] val function0Property =
     js.Object.getOwnPropertyNames((() => ()).asInstanceOf[js.Object])(0)
   private[this] val function1Property =
@@ -44,10 +44,10 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
   // We could have a catch-all for non-functions, but explicitly enumerating makes sure we handle each case correctly
   def calculateTracingEvent[F[_], A, B](cont: Cont[F, A, B]): TracingEvent = {
-    calculateTracingEvent(cont.getClass().getName())
+    calculateTracingEvent(cont.getClass())
   }
 
-  private[this] def calculateTracingEvent(key: String): TracingEvent = {
+  private[this] def calculateTracingEvent(key: Any): TracingEvent = {
     if (isCachedStackTracing)
       cache.getOrElseUpdate(key, buildEvent())
     else if (isFullStackTracing)
