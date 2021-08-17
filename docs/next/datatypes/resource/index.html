@@ -21,8 +21,34 @@
 
 <span class="hljs-keyword">val</span> acquire: <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = <span class="hljs-type">IO</span>(println(<span class="hljs-string">"Acquire cats..."</span>)) *&gt; <span class="hljs-type">IO</span>(<span class="hljs-string">"cats"</span>)
 <span class="hljs-comment">// acquire: IO[String] = Bind(</span>
-<span class="hljs-comment">//   source = Delay(thunk = &lt;function0&gt;),</span>
-<span class="hljs-comment">//   f = cats.effect.IO$$Lambda$10273/415734440@2d6aeb11,</span>
+<span class="hljs-comment">//   source = Delay(</span>
+<span class="hljs-comment">//     thunk = &lt;function0&gt;,</span>
+<span class="hljs-comment">//     trace = StackTrace(</span>
+<span class="hljs-comment">//       stackTrace = List(</span>
+<span class="hljs-comment">//         cats.effect.internals.IOTracing$.buildFrame(IOTracing.scala:48),</span>
+<span class="hljs-comment">//         cats.effect.internals.IOTracing$.buildCachedFrame(IOTracing.scala:39),</span>
+<span class="hljs-comment">//         cats.effect.internals.IOTracing$.cached(IOTracing.scala:34),</span>
+<span class="hljs-comment">//         cats.effect.IO$.delay(IO.scala:1176),</span>
+<span class="hljs-comment">//         cats.effect.IO$.apply(IO.scala:1144),</span>
+<span class="hljs-comment">//         repl.MdocSession$App2.&lt;init&gt;(resource.md:40),</span>
+<span class="hljs-comment">//         repl.MdocSession$App0.&lt;init&gt;(resource.md:31),</span>
+<span class="hljs-comment">//         repl.MdocSession$App.&lt;init&gt;(resource.md:16),</span>
+<span class="hljs-comment">//         repl.MdocSession$.app(resource.md:3),</span>
+<span class="hljs-comment">//         mdoc.internal.document.DocumentBuilder$$doc$.$anonfun$build$2(DocumentBuilder.scala:89),</span>
+<span class="hljs-comment">//         scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.scala:18),</span>
+<span class="hljs-comment">//         scala.util.DynamicVariable.withValue(DynamicVariable.scala:59),</span>
+<span class="hljs-comment">//         scala.Console$.withErr(Console.scala:193),</span>
+<span class="hljs-comment">//         mdoc.internal.document.DocumentBuilder$$doc$.$anonfun$build$1(DocumentBuilder.scala:89),</span>
+<span class="hljs-comment">//         scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.scala:18),</span>
+<span class="hljs-comment">//         scala.util.DynamicVariable.withValue(DynamicVariable.scala:59),</span>
+<span class="hljs-comment">//         scala.Console$.withOut(Console.scala:164),</span>
+<span class="hljs-comment">//         mdoc.internal.document.DocumentBuilder$$doc$.build(DocumentBuilder.scala:88),</span>
+<span class="hljs-comment">//         mdoc.internal.markdown.MarkdownBuilder$.$anonfun$buildDocument$2(MarkdownBuilder.scala:47),</span>
+<span class="hljs-comment">//         mdoc.internal.markdown.MarkdownBuilder$$anon$1.run(MarkdownBuilder.scala:103)</span>
+<span class="hljs-comment">//       )</span>
+<span class="hljs-comment">//     )</span>
+<span class="hljs-comment">//   ),</span>
+<span class="hljs-comment">//   f = cats.effect.IO$$Lambda$11120/1924874375@81b07c1,</span>
 <span class="hljs-comment">//   trace = StackTrace(</span>
 <span class="hljs-comment">//     stackTrace = List(</span>
 <span class="hljs-comment">//       cats.effect.internals.IOTracing$.buildFrame(IOTracing.scala:48),</span>
@@ -37,18 +63,7 @@
 <span class="hljs-comment">//       repl.MdocSession$.app(io.md:3),</span>
 <span class="hljs-comment">//       mdoc.internal.document.DocumentBuilder$$doc$.$anonfun$build$2(DocumentBuilder.scala:89),</span>
 <span class="hljs-comment">//       scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.scala:18),</span>
-<span class="hljs-comment">//       scala.util.DynamicVariable.withValue(DynamicVariable.scala:59),</span>
-<span class="hljs-comment">//       scala.Console$.withErr(Console.scala:193),</span>
-<span class="hljs-comment">//       mdoc.internal.document.DocumentBuilder$$doc$.$anonfun$build$1(DocumentBuilder.scala:89),</span>
-<span class="hljs-comment">//       scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.scala:18),</span>
-<span class="hljs-comment">//       scala.util.DynamicVariable.withValue(DynamicVariable.scala:59),</span>
-<span class="hljs-comment">//       scala.Console$.withOut(Console.scala:164),</span>
-<span class="hljs-comment">//       mdoc.internal.document.DocumentBuilder$$doc$.build(DocumentBuilder.scala:88),</span>
-<span class="hljs-comment">//       mdoc.internal.markdown.MarkdownBuilder$.$anonfun$buildDocument$2(MarkdownBuilder.scala:47),</span>
-<span class="hljs-comment">//       mdoc.internal.markdown.MarkdownBuilder$$anon$1.run(MarkdownBuilder.scala:103)</span>
-<span class="hljs-comment">//     )</span>
-<span class="hljs-comment">//   )</span>
-<span class="hljs-comment">// )</span>
+<span class="hljs-comment">// ...</span>
 <span class="hljs-keyword">val</span> release: <span class="hljs-type">String</span> =&gt; <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = _ =&gt; <span class="hljs-type">IO</span>(println(<span class="hljs-string">"...release everything"</span>))
 <span class="hljs-comment">// release: String =&gt; IO[Unit] = &lt;function1&gt;</span>
 <span class="hljs-keyword">val</span> addDogs: <span class="hljs-type">String</span> =&gt; <span class="hljs-type">IO</span>[<span class="hljs-type">String</span>] = x =&gt;

@@ -79,9 +79,34 @@
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
 
 <span class="hljs-keyword">val</span> ioa: <span class="hljs-type">SyncIO</span>[<span class="hljs-type">Unit</span>] = <span class="hljs-type">SyncIO</span>(println(<span class="hljs-string">"Hello world!"</span>))
-<span class="hljs-comment">// ioa: SyncIO[Unit] = SyncIO$775789979</span>
+<span class="hljs-comment">// ioa: SyncIO[Unit] = SyncIO$1521861322</span>
 <span class="hljs-keyword">val</span> iob: <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = ioa.to[<span class="hljs-type">IO</span>]
-<span class="hljs-comment">// iob: IO[Unit] = Delay(thunk = &lt;function0&gt;)</span>
+<span class="hljs-comment">// iob: IO[Unit] = Delay(</span>
+<span class="hljs-comment">//   thunk = &lt;function0&gt;,</span>
+<span class="hljs-comment">//   trace = StackTrace(</span>
+<span class="hljs-comment">//     stackTrace = List(</span>
+<span class="hljs-comment">//       cats.effect.internals.IOTracing$.buildFrame(IOTracing.scala:48),</span>
+<span class="hljs-comment">//       cats.effect.internals.IOTracing$.buildCachedFrame(IOTracing.scala:39),</span>
+<span class="hljs-comment">//       cats.effect.internals.IOTracing$.cached(IOTracing.scala:34),</span>
+<span class="hljs-comment">//       cats.effect.IO$.delay(IO.scala:1176),</span>
+<span class="hljs-comment">//       cats.effect.IO$.apply(IO.scala:1144),</span>
+<span class="hljs-comment">//       cats.effect.SyncIO$.apply(SyncIO.scala:330),</span>
+<span class="hljs-comment">//       repl.MdocSession$App.&lt;init&gt;(syncio.md:35),</span>
+<span class="hljs-comment">//       repl.MdocSession$.app(syncio.md:3),</span>
+<span class="hljs-comment">//       mdoc.internal.document.DocumentBuilder$$doc$.$anonfun$build$2(DocumentBuilder.scala:89),</span>
+<span class="hljs-comment">//       scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.scala:18),</span>
+<span class="hljs-comment">//       scala.util.DynamicVariable.withValue(DynamicVariable.scala:59),</span>
+<span class="hljs-comment">//       scala.Console$.withErr(Console.scala:193),</span>
+<span class="hljs-comment">//       mdoc.internal.document.DocumentBuilder$$doc$.$anonfun$build$1(DocumentBuilder.scala:89),</span>
+<span class="hljs-comment">//       scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.scala:18),</span>
+<span class="hljs-comment">//       scala.util.DynamicVariable.withValue(DynamicVariable.scala:59),</span>
+<span class="hljs-comment">//       scala.Console$.withOut(Console.scala:164),</span>
+<span class="hljs-comment">//       mdoc.internal.document.DocumentBuilder$$doc$.build(DocumentBuilder.scala:88),</span>
+<span class="hljs-comment">//       mdoc.internal.markdown.MarkdownBuilder$.$anonfun$buildDocument$2(MarkdownBuilder.scala:47),</span>
+<span class="hljs-comment">//       mdoc.internal.markdown.MarkdownBuilder$$anon$1.run(MarkdownBuilder.scala:103)</span>
+<span class="hljs-comment">//     )</span>
+<span class="hljs-comment">//   )</span>
+<span class="hljs-comment">// )</span>
 
 iob.unsafeRunAsync(_ =&gt; ())
 <span class="hljs-comment">// Hello world!</span>

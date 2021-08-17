@@ -1167,7 +1167,41 @@ parFailure.attempt.unsafeRunSync()
 <pre><code class="hljs css language-scala"><span class="hljs-type">IO</span>(println(<span class="hljs-string">"Potentially cancelable!"</span>)).unsafeRunCancelable(_ =&gt; ())
 <span class="hljs-comment">// Potentially cancelable!</span>
 <span class="hljs-comment">// res59: cats.effect.package.CancelToken[IO] = Suspend(</span>
-<span class="hljs-comment">//   thunk = cats.effect.internals.IOConnection$Impl$$Lambda$10274/2082294829@18b86120</span>
+<span class="hljs-comment">//   thunk = cats.effect.internals.IOConnection$Impl$$Lambda$11121/219825033@4a46e14e,</span>
+<span class="hljs-comment">//   trace = StackTrace(</span>
+<span class="hljs-comment">//     stackTrace = List(</span>
+<span class="hljs-comment">//       cats.effect.internals.IOTracing$.buildFrame(IOTracing.scala:48),</span>
+<span class="hljs-comment">//       cats.effect.internals.IOTracing$.buildCachedFrame(IOTracing.scala:39),</span>
+<span class="hljs-comment">//       cats.effect.internals.IOTracing$.cached(IOTracing.scala:34),</span>
+<span class="hljs-comment">//       cats.effect.IO$.defer(IO.scala:1157),</span>
+<span class="hljs-comment">//       cats.effect.internals.IOConnection$Impl.&lt;init&gt;(IOConnection.scala:103),</span>
+<span class="hljs-comment">//       cats.effect.internals.IOConnection$.apply(IOConnection.scala:81),</span>
+<span class="hljs-comment">//       cats.effect.IO.unsafeRunCancelable(IO.scala:304),</span>
+<span class="hljs-comment">//       repl.MdocSession$App15.&lt;init&gt;(io.md:468),</span>
+<span class="hljs-comment">//       repl.MdocSession$App13.&lt;init&gt;(io.md:446),</span>
+<span class="hljs-comment">//       repl.MdocSession$App12.&lt;init&gt;(io.md:414),</span>
+<span class="hljs-comment">//       repl.MdocSession$App11.&lt;init&gt;(io.md:372),</span>
+<span class="hljs-comment">//       repl.MdocSession$App10.&lt;init&gt;(io.md:343),</span>
+<span class="hljs-comment">//       repl.MdocSession$App9.&lt;init&gt;(io.md:289),</span>
+<span class="hljs-comment">//       repl.MdocSession$App8.&lt;init&gt;(io.md:233),</span>
+<span class="hljs-comment">//       repl.MdocSession$App7.&lt;init&gt;(io.md:206),</span>
+<span class="hljs-comment">//       repl.MdocSession$App6.&lt;init&gt;(io.md:177),</span>
+<span class="hljs-comment">//       repl.MdocSession$App5.&lt;init&gt;(io.md:155),</span>
+<span class="hljs-comment">//       repl.MdocSession$App.&lt;init&gt;(io.md:137),</span>
+<span class="hljs-comment">//       repl.MdocSession$.app(io.md:3),</span>
+<span class="hljs-comment">//       mdoc.internal.document.DocumentBuilder$$doc$.$anonfun$build$2(DocumentBuilder.scala:89),</span>
+<span class="hljs-comment">//       scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.scala:18),</span>
+<span class="hljs-comment">//       scala.util.DynamicVariable.withValue(DynamicVariable.scala:59),</span>
+<span class="hljs-comment">//       scala.Console$.withErr(Console.scala:193),</span>
+<span class="hljs-comment">//       mdoc.internal.document.DocumentBuilder$$doc$.$anonfun$build$1(DocumentBuilder.scala:89),</span>
+<span class="hljs-comment">//       scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.scala:18),</span>
+<span class="hljs-comment">//       scala.util.DynamicVariable.withValue(DynamicVariable.scala:59),</span>
+<span class="hljs-comment">//       scala.Console$.withOut(Console.scala:164),</span>
+<span class="hljs-comment">//       mdoc.internal.document.DocumentBuilder$$doc$.build(DocumentBuilder.scala:88),</span>
+<span class="hljs-comment">//       mdoc.internal.markdown.MarkdownBuilder$.$anonfun$buildDocument$2(MarkdownBuilder.scala:47),</span>
+<span class="hljs-comment">//       mdoc.internal.markdown.MarkdownBuilder$$anon$1.run(MarkdownBuilder.scala:103)</span>
+<span class="hljs-comment">//     )</span>
+<span class="hljs-comment">//   )</span>
 <span class="hljs-comment">// )</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="unsaferuntimed"></a><a href="#unsaferuntimed" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>unsafeRunTimed</h3>
