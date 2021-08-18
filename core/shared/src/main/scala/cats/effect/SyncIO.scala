@@ -215,10 +215,10 @@ sealed abstract class SyncIO[+A] private () {
   def unsafeRunSync(): A = {
     import SyncIOConstants._
 
-    val conts = new ByteStack(16)
+    var conts = ByteStack.create(8)
     val objectState = new ArrayStack[AnyRef](16)
 
-    conts.push(RunTerminusK)
+    conts = ByteStack.push(conts, RunTerminusK)
 
     @tailrec
     def runLoop(cur0: SyncIO[Any]): A =
@@ -251,7 +251,7 @@ sealed abstract class SyncIO[+A] private () {
           val cur = cur0.asInstanceOf[SyncIO.Map[Any, Any]]
 
           objectState.push(cur.f)
-          conts.push(MapK)
+          conts = ByteStack.push(conts, MapK)
 
           runLoop(cur.ioe)
 
@@ -259,7 +259,7 @@ sealed abstract class SyncIO[+A] private () {
           val cur = cur0.asInstanceOf[SyncIO.FlatMap[Any, Any]]
 
           objectState.push(cur.f)
-          conts.push(FlatMapK)
+          conts = ByteStack.push(conts, FlatMapK)
 
           runLoop(cur.ioe)
 
@@ -267,7 +267,7 @@ sealed abstract class SyncIO[+A] private () {
           val cur = cur0.asInstanceOf[SyncIO.HandleErrorWith[Any]]
 
           objectState.push(cur.f)
-          conts.push(HandleErrorWithK)
+          conts = ByteStack.push(conts, HandleErrorWithK)
 
           runLoop(cur.ioa)
 
@@ -282,7 +282,7 @@ sealed abstract class SyncIO[+A] private () {
         case 8 =>
           val cur = cur0.asInstanceOf[SyncIO.Attempt[Any]]
 
-          conts.push(AttemptK)
+          conts = ByteStack.push(conts, AttemptK)
           runLoop(cur.ioa)
 
         case 9 =>
@@ -294,7 +294,7 @@ sealed abstract class SyncIO[+A] private () {
 
     @tailrec
     def succeeded(result: Any, depth: Int): SyncIO[Any] =
-      (conts.pop(): @switch) match {
+      (ByteStack.pop(conts): @switch) match {
         case 0 => mapK(result, depth)
         case 1 => flatMapK(result, depth)
         case 2 =>
@@ -307,7 +307,7 @@ sealed abstract class SyncIO[+A] private () {
       }
 
     def failed(error: Throwable, depth: Int): SyncIO[Any] = {
-      val buffer = conts.unsafeBuffer()
+      /*val buffer = conts.unsafeBuffer()
 
       var i = conts.unsafeIndex() - 1
       val orig = i
@@ -321,9 +321,12 @@ sealed abstract class SyncIO[+A] private () {
       }
 
       conts.unsafeSet(i)
-      objectState.unsafeSet(objectState.unsafeIndex() - (orig - i))
+      objectState.unsafeSet(objectState.unsafeIndex() - (orig - i))*/
 
-      (k: @switch) match {
+      (ByteStack.pop(conts): @switch) match {
+        case 0 | 1 =>
+          objectState.pop()
+          failed(error, depth)
         case 2 => handleErrorWithK(error, depth)
         case 3 => SyncIO.Failure(error)
         case 4 => succeeded(Left(error), depth + 1)

@@ -16,65 +16,64 @@
 
 package cats.effect
 
-private[effect] final class ByteStack(
-    private[this] var buffer: Array[Byte],
-    private[this] var index: Int) {
+private[effect] object ByteStack {
 
-  def this(initBound: Int) =
-    this(new Array[Byte](initBound), 0)
-
-  def this() = this(null, 0)
-
-  def init(bound: Int): Unit = {
-    buffer = new Array(bound)
-    index = 0
+  final def toDebugString(stack: Array[Int], translate: Byte => String = _.toString): String = {
+    val count = size(stack)
+    ((count - 1) to 0 by -1).foldLeft(
+      new StringBuilder()
+      .append("Stack:")
+      .append(" capacity = ").append((stack.length - 1) * 8).append(',')
+      .append(" count = ").append(count).append(',')
+      .append(" content (top-first) = [ ")
+    ){
+      (b, i) =>  b.append(translate(ByteStack.read(stack, i))).append(' ')
+    }.append(']').toString
   }
 
-  def push(b: Byte): Unit = {
-    checkAndGrow()
-    buffer(index) = b
-    index += 1
-  }
+  final def create(initialMaxOps: Int): Array[Int] =
+    new Array[Int](1 + 1 + ((initialMaxOps - 1) >> 3)) // count-slot + 1 for each set of 8 ops
 
-  // TODO remove bounds check
-  def pop(): Byte = {
-    index -= 1
-    buffer(index)
-  }
-
-  def peek(): Byte = buffer(index - 1)
-
-  def isEmpty(): Boolean = index <= 0
-
-  // to allow for external iteration
-  def unsafeBuffer(): Array[Byte] = buffer
-  def unsafeIndex(): Int = index
-
-  def unsafeSet(newI: Int): Unit =
-    index = newI
-
-  def invalidate(): Unit = {
-    index = 0
-    buffer = null
-  }
-
-  def copy(): ByteStack = {
-    val buffer2 = if (index == 0) {
-      new Array[Byte](buffer.length)
+  final def growIfNeeded(stack: Array[Int], count: Int): Array[Int] = {
+    if ((1 + ((count + 1) >> 3)) < stack.length) {
+      stack
     } else {
-      val buffer2 = new Array[Byte](buffer.length)
-      System.arraycopy(buffer, 0, buffer2, 0, buffer.length)
-      buffer2
+      val bigger = new Array[Int](stack.length << 1)
+      System.arraycopy(stack, 0, bigger, 0, stack.length) // Count in stack(0) copied "for free"
+      bigger
     }
-
-    new ByteStack(buffer2, index)
   }
 
-  private[this] def checkAndGrow(): Unit =
-    if (index >= buffer.length) {
-      val len = buffer.length
-      val buffer2 = new Array[Byte](len * 2)
-      System.arraycopy(buffer, 0, buffer2, 0, len)
-      buffer = buffer2
-    }
+  final def push(stack: Array[Int], op: Byte): Array[Int] = {
+    val c = stack(0)                                           // current count of elements
+    val use = growIfNeeded(stack, c)                           // alias so we add to the right place
+    val s = (c >> 3) + 1                                       // current slot in `use`
+    val shift = (c & 7) << 2                                   // BEGIN MAGIC
+    use(s) = (use(s) & ~(0xFFFFFFFF << shift)) | (op << shift) // END MAGIC
+    use(0) += 1                                                // write the new count
+    use
+  }
+
+  final def size(stack: Array[Int]): Int =
+    stack(0)
+
+  final def isEmpty(stack: Array[Int]): Boolean =
+    stack(0) < 1
+
+  final def read(stack: Array[Int], pos: Int): Byte = {
+    if (pos < 0 || pos >= stack(0)) throw new ArrayIndexOutOfBoundsException()
+      ((stack((pos >> 3) + 1) >>> ((pos & 7) << 2)) & 0x0000000F).toByte
+  }
+
+  final def peek(stack: Array[Int]): Byte = {
+    val c = stack(0) - 1
+    if (c < 0) throw new ArrayIndexOutOfBoundsException()
+      ((stack((c >> 3) + 1) >>> ((c & 7) << 2)) & 0x0000000F).toByte
+  }
+
+  final def pop(stack: Array[Int]): Byte = {
+    val op = peek(stack)
+    stack(0) -= 1
+    op
+  }
 }
