@@ -17,10 +17,9 @@
 package cats.effect.unsafe
 
 /**
- * A conceptual hash table which balances between several
- * [[ThreadSafeHashtable]]s, in order to reduce the contention on the single
- * lock by spreading it to several different locks controlling parts of the
- * hash table.
+ * A conceptual hash table which balances between several [[ThreadSafeHashtable]] s, in order to
+ * reduce the contention on the single lock by spreading it to several different locks
+ * controlling parts of the hash table.
  */
 private[effect] final class StripedHashtable {
   private[this] val log2NumTables: Int = StripedHashtable.log2NumTables

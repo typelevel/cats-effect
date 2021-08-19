@@ -25,10 +25,11 @@ class ResourceJVMSpec extends Specification with Runners {
   "platform" should {
 
     /**
-     * Recursively calls itself until a [[StackOverflowError]] is encountered,
-     * at which point, the current depth is returned.
+     * Recursively calls itself until a [[StackOverflowError]] is encountered, at which point,
+     * the current depth is returned.
      *
-     * @return the stack depth at which [[StackOverflowError]] occurs
+     * @return
+     *   the stack depth at which [[StackOverflowError]] occurs
      */
     def verifyThatSoeIsReproducibleWithStackDepth(): Int = {
       var depth = 0

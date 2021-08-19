@@ -24,9 +24,8 @@ import scala.util.Random
 import scala.util.control.NonFatal
 
 /**
- * A `scala.concurrent.ExecutionContext` implementation and a provider
- * of `cats.effect.Timer` instances, that can simulate async boundaries
- * and time passage, useful for testing purposes.
+ * A `scala.concurrent.ExecutionContext` implementation and a provider of `cats.effect.Timer`
+ * instances, that can simulate async boundaries and time passage, useful for testing purposes.
  *
  * Usage for simulating an `ExecutionContext`):
  * {{{
@@ -52,9 +51,8 @@ import scala.util.control.NonFatal
  *   assert(ec.state.lastReportedFailure == None)
  * }}}
  *
- * Our `TestContext` can also simulate time passage, as we are able
- * to builds a `cats.effect.Timer` instance for any data type that
- * has a `LiftIO` instance:
+ * Our `TestContext` can also simulate time passage, as we are able to builds a
+ * `cats.effect.Timer` instance for any data type that has a `LiftIO` instance:
  *
  * {{{
  *   val ctx = TestContext()
@@ -101,26 +99,19 @@ import scala.util.control.NonFatal
  *   assert(f.value, Some(Failure(timeoutError)))
  * }}}
  *
- * @define timerExample {{{
- *   val ctx = TestContext()
- *   // Building a Timer[IO] from this:
- *   implicit val timer: Timer[IO] = ctx.timer[IO]
+ * @define timerExample
+ *   {{{ val ctx = TestContext() // Building a Timer[IO] from this: implicit val timer:
+ *   Timer[IO] = ctx.timer[IO]
  *
- *   // Can now simulate time
- *   val io = timer.sleep(10.seconds) *> IO(1 + 1)
- *   val f = io.unsafeToFuture()
+ * // Can now simulate time val io = timer.sleep(10.seconds) *> IO(1 + 1) val f =
+ * io.unsafeToFuture()
  *
- *   // This invariant holds true, because our IO is async
- *   assert(f.value == None)
+ * // This invariant holds true, because our IO is async assert(f.value == None)
  *
- *   // Not yet completed, because this does not simulate time passing:
- *   ctx.tick()
- *   assert(f.value == None)
+ * // Not yet completed, because this does not simulate time passing: ctx.tick() assert(f.value
+ * == None)
  *
- *   // Simulating time passing:
- *   ctx.tick(10.seconds)
- *   assert(f.value == Some(Success(2))
- * }}}
+ * // Simulating time passing: ctx.tick(10.seconds) assert(f.value == Some(Success(2)) }}}
  */
 final class TestContext private () extends ExecutionContext { self =>
   import TestContext.{State, Task}
@@ -134,8 +125,7 @@ final class TestContext private () extends ExecutionContext { self =>
   )
 
   /**
-   * Inherited from `ExecutionContext`, schedules a runnable
-   * for execution.
+   * Inherited from `ExecutionContext`, schedules a runnable for execution.
    */
   def execute(r: Runnable): Unit =
     synchronized {
@@ -151,19 +141,18 @@ final class TestContext private () extends ExecutionContext { self =>
     }
 
   /**
-   * Returns the internal state of the `TestContext`, useful for testing
-   * that certain execution conditions have been met.
+   * Returns the internal state of the `TestContext`, useful for testing that certain execution
+   * conditions have been met.
    */
   def state: State =
     synchronized(stateRef)
 
   /**
-   * Executes just one tick, one task, from the internal queue, useful
-   * for testing that a some runnable will definitely be executed next.
+   * Executes just one tick, one task, from the internal queue, useful for testing that a some
+   * runnable will definitely be executed next.
    *
-   * Returns a boolean indicating that tasks were available and that
-   * the head of the queue has been executed, so normally you have
-   * this equivalence:
+   * Returns a boolean indicating that tasks were available and that the head of the queue has
+   * been executed, so normally you have this equivalence:
    *
    * {{{
    *   while (ec.tickOne()) {}
@@ -171,12 +160,13 @@ final class TestContext private () extends ExecutionContext { self =>
    *   ec.tick()
    * }}}
    *
-   * Note that ask extraction has a random factor, the behavior being like
-   * [[tick]], in order to simulate nondeterminism. So you can't rely on
-   * some ordering of execution if multiple tasks are waiting execution.
+   * Note that ask extraction has a random factor, the behavior being like [[tick]], in order to
+   * simulate nondeterminism. So you can't rely on some ordering of execution if multiple tasks
+   * are waiting execution.
    *
-   * @return `true` if a task was available in the internal queue, and
-   *        was executed, or `false` otherwise
+   * @return
+   *   `true` if a task was available in the internal queue, and was executed, or `false`
+   *   otherwise
    */
   def tickOne(): Boolean =
     synchronized {
@@ -196,12 +186,11 @@ final class TestContext private () extends ExecutionContext { self =>
     }
 
   /**
-   * Triggers execution by going through the queue of scheduled tasks and
-   * executing them all, until no tasks remain in the queue to execute.
+   * Triggers execution by going through the queue of scheduled tasks and executing them all,
+   * until no tasks remain in the queue to execute.
    *
-   * Order of execution isn't guaranteed, the queued `Runnable`s are
-   * being shuffled in order to simulate the needed nondeterminism
-   * that happens with multi-threading.
+   * Order of execution isn't guaranteed, the queued `Runnable`s are being shuffled in order to
+   * simulate the needed nondeterminism that happens with multi-threading.
    *
    * {{{
    *   implicit val ec = TestContext()
@@ -215,7 +204,8 @@ final class TestContext private () extends ExecutionContext { self =>
    *   assert(f.value, Some(Success(2)))
    * }}}
    *
-   * @param time is an optional parameter for simulating time passing;
+   * @param time
+   *   is an optional parameter for simulating time passing;
    */
   def tick(time: FiniteDuration = Duration.Zero): Unit = {
     val targetTime = this.stateRef.clock + time
@@ -299,8 +289,8 @@ object TestContext {
     new TestContext
 
   /**
-   * Used internally by [[TestContext]], represents the internal
-   * state used for task scheduling and execution.
+   * Used internally by [[TestContext]], represents the internal state used for task scheduling
+   * and execution.
    */
   final case class State(
       lastID: Long,
@@ -344,8 +334,7 @@ object TestContext {
   }
 
   /**
-   * Used internally by [[TestContext]], represents a unit of work
-   * pending execution.
+   * Used internally by [[TestContext]], represents a unit of work pending execution.
    */
   final case class Task(id: Long, task: Runnable, runsAt: FiniteDuration)
 

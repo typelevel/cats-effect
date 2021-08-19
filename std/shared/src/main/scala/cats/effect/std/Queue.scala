@@ -25,25 +25,24 @@ import cats.syntax.all._
 import scala.collection.immutable.{Queue => ScalaQueue}
 
 /**
- * A purely functional, concurrent data structure which allows insertion and
- * retrieval of elements of type `A` in a first-in-first-out (FIFO) manner.
+ * A purely functional, concurrent data structure which allows insertion and retrieval of
+ * elements of type `A` in a first-in-first-out (FIFO) manner.
  *
- * Depending on the type of queue constructed, the [[Queue#offer]] operation can
- * block semantically until sufficient capacity in the queue becomes available.
+ * Depending on the type of queue constructed, the [[Queue#offer]] operation can block
+ * semantically until sufficient capacity in the queue becomes available.
  *
  * The [[Queue#take]] operation semantically blocks when the queue is empty.
  *
- * The [[Queue#tryOffer]] and [[Queue#tryTake]] allow for usecases which want to
- * avoid semantically blocking a fiber.
+ * The [[Queue#tryOffer]] and [[Queue#tryTake]] allow for usecases which want to avoid
+ * semantically blocking a fiber.
  */
 abstract class Queue[F[_], A] extends QueueSource[F, A] with QueueSink[F, A] { self =>
 
   /**
-   * Modifies the context in which this queue is executed using the natural
-   * transformation `f`.
+   * Modifies the context in which this queue is executed using the natural transformation `f`.
    *
-   * @return a queue in the new context obtained by mapping the current one
-   *         using `f`
+   * @return
+   *   a queue in the new context obtained by mapping the current one using `f`
    */
   def mapK[G[_]](f: F ~> G): Queue[G, A] =
     new Queue[G, A] {
@@ -58,13 +57,15 @@ abstract class Queue[F[_], A] extends QueueSource[F, A] with QueueSink[F, A] { s
 object Queue {
 
   /**
-   * Constructs an empty, bounded queue holding up to `capacity` elements for
-   * `F` data types that are [[cats.effect.kernel.GenConcurrent]]. When the queue is full (contains
-   * exactly `capacity` elements), every next [[Queue#offer]] will be
-   * backpressured (i.e. the [[Queue#offer]] blocks semantically).
+   * Constructs an empty, bounded queue holding up to `capacity` elements for `F` data types
+   * that are [[cats.effect.kernel.GenConcurrent]]. When the queue is full (contains exactly
+   * `capacity` elements), every next [[Queue#offer]] will be backpressured (i.e. the
+   * [[Queue#offer]] blocks semantically).
    *
-   * @param capacity the maximum capacity of the queue
-   * @return an empty, bounded queue
+   * @param capacity
+   *   the maximum capacity of the queue
+   * @return
+   *   an empty, bounded queue
    */
   def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
     assertNonNegative(capacity)
@@ -72,37 +73,40 @@ object Queue {
   }
 
   /**
-   * Constructs a queue through which a single element can pass only in the case
-   * when there are at least one taking fiber and at least one offering fiber
-   * for `F` data types that are [[cats.effect.kernel.GenConcurrent]]. Both [[Queue#offer]] and
-   * [[Queue#take]] semantically block until there is a fiber executing the
-   * opposite action, at which point both fibers are freed.
+   * Constructs a queue through which a single element can pass only in the case when there are
+   * at least one taking fiber and at least one offering fiber for `F` data types that are
+   * [[cats.effect.kernel.GenConcurrent]]. Both [[Queue#offer]] and [[Queue#take]] semantically
+   * block until there is a fiber executing the opposite action, at which point both fibers are
+   * freed.
    *
-   * @return a synchronous queue
+   * @return
+   *   a synchronous queue
    */
   def synchronous[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     bounded(0)
 
   /**
    * Constructs an empty, unbounded queue for `F` data types that are
-   * [[cats.effect.kernel.GenConcurrent]]. [[Queue#offer]] never blocks semantically, as there is
-   * always spare capacity in the queue.
+   * [[cats.effect.kernel.GenConcurrent]]. [[Queue#offer]] never blocks semantically, as there
+   * is always spare capacity in the queue.
    *
-   * @return an empty, unbounded queue
+   * @return
+   *   an empty, unbounded queue
    */
   def unbounded[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     bounded(Int.MaxValue)
 
   /**
-   * Constructs an empty, bounded, dropping queue holding up to `capacity`
-   * elements for `F` data types that are [[cats.effect.kernel.GenConcurrent]]. When the queue is full
-   * (contains exactly `capacity` elements), every next [[Queue#offer]] will be
-   * ignored, i.e. no other elements can be enqueued until there is sufficient
-   * capacity in the queue, and the offer effect itself will not semantically
-   * block.
+   * Constructs an empty, bounded, dropping queue holding up to `capacity` elements for `F` data
+   * types that are [[cats.effect.kernel.GenConcurrent]]. When the queue is full (contains
+   * exactly `capacity` elements), every next [[Queue#offer]] will be ignored, i.e. no other
+   * elements can be enqueued until there is sufficient capacity in the queue, and the offer
+   * effect itself will not semantically block.
    *
-   * @param capacity the maximum capacity of the queue
-   * @return an empty, bounded, dropping queue
+   * @param capacity
+   *   the maximum capacity of the queue
+   * @return
+   *   an empty, bounded, dropping queue
    */
   def dropping[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
     assertPositive(capacity, "Dropping")
@@ -110,15 +114,16 @@ object Queue {
   }
 
   /**
-   * Constructs an empty, bounded, circular buffer queue holding up to
-   * `capacity` elements for `F` data types that are [[cats.effect.kernel.GenConcurrent]]. The queue
-   * always keeps at most `capacity` number of elements, with the oldest
-   * element in the queue always being dropped in favor of a new elements
-   * arriving in the queue, and the offer effect itself will not semantically
-   * block.
+   * Constructs an empty, bounded, circular buffer queue holding up to `capacity` elements for
+   * `F` data types that are [[cats.effect.kernel.GenConcurrent]]. The queue always keeps at
+   * most `capacity` number of elements, with the oldest element in the queue always being
+   * dropped in favor of a new elements arriving in the queue, and the offer effect itself will
+   * not semantically block.
    *
-   * @param capacity the maximum capacity of the queue
-   * @return an empty, bounded, sliding queue
+   * @param capacity
+   *   the maximum capacity of the queue
+   * @return
+   *   an empty, bounded, sliding queue
    */
   def circularBuffer[F[_], A](capacity: Int)(
       implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
@@ -330,18 +335,18 @@ object Queue {
 trait QueueSource[F[_], A] {
 
   /**
-   * Dequeues an element from the front of the queue, possibly semantically
-   * blocking until an element becomes available.
+   * Dequeues an element from the front of the queue, possibly semantically blocking until an
+   * element becomes available.
    */
   def take: F[A]
 
   /**
-   * Attempts to dequeue an element from the front of the queue, if one is
-   * available without semantically blocking.
+   * Attempts to dequeue an element from the front of the queue, if one is available without
+   * semantically blocking.
    *
-   * @return an effect that describes whether the dequeueing of an element from
-   *         the queue succeeded without blocking, with `None` denoting that no
-   *         element was available
+   * @return
+   *   an effect that describes whether the dequeueing of an element from the queue succeeded
+   *   without blocking, with `None` denoting that no element was available
    */
   def tryTake: F[Option[A]]
 
@@ -367,20 +372,23 @@ object QueueSource {
 trait QueueSink[F[_], A] {
 
   /**
-   * Enqueues the given element at the back of the queue, possibly semantically
-   * blocking until sufficient capacity becomes available.
+   * Enqueues the given element at the back of the queue, possibly semantically blocking until
+   * sufficient capacity becomes available.
    *
-   * @param a the element to be put at the back of the queue
+   * @param a
+   *   the element to be put at the back of the queue
    */
   def offer(a: A): F[Unit]
 
   /**
-   * Attempts to enqueue the given element at the back of the queue without
-   * semantically blocking.
+   * Attempts to enqueue the given element at the back of the queue without semantically
+   * blocking.
    *
-   * @param a the element to be put at the back of the queue
-   * @return an effect that describes whether the enqueuing of the given
-   *         element succeeded without blocking
+   * @param a
+   *   the element to be put at the back of the queue
+   * @return
+   *   an effect that describes whether the enqueuing of the given element succeeded without
+   *   blocking
    */
   def tryOffer(a: A): F[Boolean]
 }

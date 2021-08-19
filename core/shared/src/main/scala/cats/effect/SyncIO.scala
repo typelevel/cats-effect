@@ -29,17 +29,14 @@ import scala.util.Try
 import scala.util.control.NonFatal
 
 /**
- * A pure abstraction representing the intention to perform a
- * side effect, where the result of that side effect is obtained
- * synchronously.
+ * A pure abstraction representing the intention to perform a side effect, where the result of
+ * that side effect is obtained synchronously.
  *
- * `SyncIO` is similar to [[IO]], but does not support asynchronous
- * computations. Consequently, a `SyncIO` can be run synchronously
- * on any platform to obtain a result via `unsafeRunSync`. This is unlike
- * `IO#unsafeRunSync`, which cannot be safely called in general --
- * doing so on the JVM blocks the calling thread while the
- * async part of the computation is run and doing so on Scala.js
- * is not supported.
+ * `SyncIO` is similar to [[IO]], but does not support asynchronous computations. Consequently,
+ * a `SyncIO` can be run synchronously on any platform to obtain a result via `unsafeRunSync`.
+ * This is unlike `IO#unsafeRunSync`, which cannot be safely called in general -- doing so on
+ * the JVM blocks the calling thread while the async part of the computation is run and doing so
+ * on Scala.js is not supported.
  */
 sealed abstract class SyncIO[+A] private () {
 
@@ -48,7 +45,8 @@ sealed abstract class SyncIO[+A] private () {
   /**
    * Alias for `productL`.
    *
-   * @see [[SyncIO#productL]]
+   * @see
+   *   [[SyncIO#productL]]
    */
   def <*[B](that: SyncIO[B]): SyncIO[A] =
     productL(that)
@@ -56,7 +54,8 @@ sealed abstract class SyncIO[+A] private () {
   /**
    * Alias for `productR`.
    *
-   * @see [[SyncIO#productR]]
+   * @see
+   *   [[SyncIO#productR]]
    */
   def *>[B](that: SyncIO[B]): SyncIO[B] =
     productR(that)
@@ -64,7 +63,8 @@ sealed abstract class SyncIO[+A] private () {
   /**
    * Alias for `flatMap(_ => that)`.
    *
-   * @see [[SyncIO#flatMap]]
+   * @see
+   *   [[SyncIO#flatMap]]
    */
   def >>[B](that: => SyncIO[B]): SyncIO[B] =
     flatMap(_ => that)
@@ -76,48 +76,49 @@ sealed abstract class SyncIO[+A] private () {
   /**
    * Alias for `map(_ => b)`.
    *
-   * @see [[SyncIO#map]]
+   * @see
+   *   [[SyncIO#map]]
    */
   def as[B](b: B): SyncIO[B] =
     map(_ => b)
 
   /**
-   * Materializes any sequenced exceptions into value space, where
-   * they may be handled.
+   * Materializes any sequenced exceptions into value space, where they may be handled.
    *
-   * This is analogous to the `catch` clause in `try`/`catch`, being
-   * the inverse of `SyncIO.raiseError`. Thus:
+   * This is analogous to the `catch` clause in `try`/`catch`, being the inverse of
+   * `SyncIO.raiseError`. Thus:
    *
    * {{{
    * SyncIO.raiseError(ex).attempt.unsafeRunSync === Left(ex)
    * }}}
    *
-   * @see [[SyncIO.raiseError]]
+   * @see
+   *   [[SyncIO.raiseError]]
    */
   def attempt: SyncIO[Either[Throwable, A]] =
     SyncIO.Attempt(this)
 
   /**
-   * Monadic bind on `SyncIO`, used for sequentially composing two `SyncIO`
-   * actions, where the value produced by the first `SyncIO` is passed as
-   * input to a function producing the second `SyncIO` action.
+   * Monadic bind on `SyncIO`, used for sequentially composing two `SyncIO` actions, where the
+   * value produced by the first `SyncIO` is passed as input to a function producing the second
+   * `SyncIO` action.
    *
-   * Due to this operation's signature, `flatMap` forces a data
-   * dependency between two `SyncIO` actions, thus ensuring sequencing
-   * (e.g. one action to be executed before another one).
+   * Due to this operation's signature, `flatMap` forces a data dependency between two `SyncIO`
+   * actions, thus ensuring sequencing (e.g. one action to be executed before another one).
    *
-   * Any exceptions thrown within the function will be caught and
-   * sequenced in to the result `SyncIO[B]`.
+   * Any exceptions thrown within the function will be caught and sequenced in to the result
+   * `SyncIO[B]`.
    *
-   * @param f the bind function
-   * @return `SyncIO` produced by applying `f` to the result of the current `SyncIO`
+   * @param f
+   *   the bind function
+   * @return
+   *   `SyncIO` produced by applying `f` to the result of the current `SyncIO`
    */
   def flatMap[B](f: A => SyncIO[B]): SyncIO[B] =
     SyncIO.FlatMap(this, f)
 
   /**
-   * Handle any error, potentially recovering from it, by mapping it to another
-   * `SyncIO` value.
+   * Handle any error, potentially recovering from it, by mapping it to another `SyncIO` value.
    *
    * Implements `ApplicativeError.handleErrorWith`.
    *
@@ -128,14 +129,17 @@ sealed abstract class SyncIO[+A] private () {
     SyncIO.HandleErrorWith(this, f)
 
   /**
-   * Functor map on `SyncIO`. Given a mapping function, it transforms
-   * the value produced by the source, while keeping the `SyncIO` context.
+   * Functor map on `SyncIO`. Given a mapping function, it transforms the value produced by the
+   * source, while keeping the `SyncIO` context.
    *
-   * Any exceptions thrown within the function will be caught and
-   * sequenced into the result `SyncIO[B]`.
+   * Any exceptions thrown within the function will be caught and sequenced into the result
+   * `SyncIO[B]`.
    *
-   * @param f the mapping function
-   * @return `SyncIO` that evaluates to the value obtained by applying `f` to the result of the current `SyncIO`
+   * @param f
+   *   the mapping function
+   * @return
+   *   `SyncIO` that evaluates to the value obtained by applying `f` to the result of the
+   *   current `SyncIO`
    */
   def map[B](f: A => B): SyncIO[B] =
     SyncIO.Map(this, f)
@@ -143,8 +147,11 @@ sealed abstract class SyncIO[+A] private () {
   /**
    * Executes `that` only for the side effects.
    *
-   * @param that `SyncIO` to be executed after this `SyncIO`
-   * @return `SyncIO` which sequences the effects of `that` but evaluates to the result of this `SyncIO`
+   * @param that
+   *   `SyncIO` to be executed after this `SyncIO`
+   * @return
+   *   `SyncIO` which sequences the effects of `that` but evaluates to the result of this
+   *   `SyncIO`
    */
   def productL[B](that: SyncIO[B]): SyncIO[A] =
     flatMap(a => that.as(a))
@@ -152,8 +159,10 @@ sealed abstract class SyncIO[+A] private () {
   /**
    * Sequences `that` without propagating the value of the current `SyncIO`.
    *
-   * @param that `SyncIO` to be executed after this `SyncIO`
-   * @return `SyncIO` which sequences the effects of `that`
+   * @param that
+   *   `SyncIO` to be executed after this `SyncIO`
+   * @return
+   *   `SyncIO` which sequences the effects of `that`
    */
   def productR[B](that: SyncIO[B]): SyncIO[B] =
     flatMap(_ => that)
@@ -167,7 +176,8 @@ sealed abstract class SyncIO[+A] private () {
   /**
    * Alias for `map(_ => ())`.
    *
-   * @see [[SyncIO#map]]
+   * @see
+   *   [[SyncIO#map]]
    */
   def void: SyncIO[Unit] =
     map(_ => ())
@@ -175,8 +185,7 @@ sealed abstract class SyncIO[+A] private () {
   override def toString(): String = "SyncIO(...)"
 
   /**
-   * Translates this [[SyncIO]] to any `F[_]` data type that implements
-   * [[Sync]].
+   * Translates this [[SyncIO]] to any `F[_]` data type that implements [[Sync]].
    */
   def to[F[_]](implicit F: Sync[F]): F[A @uncheckedVariance] = {
     def interpret[B](sio: SyncIO[B]): F[B] =
@@ -200,17 +209,16 @@ sealed abstract class SyncIO[+A] private () {
   // unsafe
 
   /**
-   * Produces the result by running the encapsulated effects as impure
-   * side effects.
+   * Produces the result by running the encapsulated effects as impure side effects.
    *
-   * Any exceptions raised within the effect will be re-thrown during
-   * evaluation.
+   * Any exceptions raised within the effect will be re-thrown during evaluation.
    *
-   * As the name says, this is an UNSAFE function as it is impure and
-   * performs side effects and throws exceptions. You should ideally
-   * only call this function *once*, at the very end of your program.
+   * As the name says, this is an UNSAFE function as it is impure and performs side effects and
+   * throws exceptions. You should ideally only call this function *once*, at the very end of
+   * your program.
    *
-   * @return the result of evaluating this `SyncIO`
+   * @return
+   *   the result of evaluating this `SyncIO`
    */
   def unsafeRunSync(): A = {
     import SyncIOConstants._
@@ -392,11 +400,12 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
   /**
    * Suspends a synchronous side effect in `SyncIO`.
    *
-   * Any exceptions thrown by the effect will be caught and sequenced
-   * into the `SyncIO`.
+   * Any exceptions thrown by the effect will be caught and sequenced into the `SyncIO`.
    *
-   * @param thunk side effectful expression to be suspended in `SyncIO`
-   * @return a `SyncIO` that will be evaluated to the side effectful expression `thunk`
+   * @param thunk
+   *   side effectful expression to be suspended in `SyncIO`
+   * @return
+   *   a `SyncIO` that will be evaluated to the side effectful expression `thunk`
    */
   def apply[A](thunk: => A): SyncIO[A] =
     Suspend(Delay, () => thunk)
@@ -404,13 +413,14 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
   /**
    * Suspends a synchronous side effect which produces a `SyncIO` in `SyncIO`.
    *
-   * This is useful for trampolining (i.e. when the side effect is
-   * conceptually the allocation of a stack frame).  Any exceptions
-   * thrown by the side effect will be caught and sequenced into the
-   * `SyncIO`.
+   * This is useful for trampolining (i.e. when the side effect is conceptually the allocation
+   * of a stack frame). Any exceptions thrown by the side effect will be caught and sequenced
+   * into the `SyncIO`.
    *
-   * @param thunk `SyncIO` expression to be suspended in `SyncIO`
-   * @return a `SyncIO` that will be evaluated to the value of the suspended `thunk`
+   * @param thunk
+   *   `SyncIO` expression to be suspended in `SyncIO`
+   * @return
+   *   a `SyncIO` that will be evaluated to the value of the suspended `thunk`
    */
   def defer[A](thunk: => SyncIO[A]): SyncIO[A] =
     apply(thunk).flatMap(identity)
@@ -418,7 +428,8 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
   /**
    * Alias for `apply`.
    *
-   * @see [[SyncIO.apply]]
+   * @see
+   *   [[SyncIO.apply]]
    */
   def delay[A](thunk: => A): SyncIO[A] =
     apply(thunk)
@@ -426,13 +437,14 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
   /**
    * Lifts an `Eval` into `SyncIO`.
    *
-   * This function will preserve the evaluation semantics of any
-   * actions that are lifted into the pure `SyncIO`.  Eager `Eval`
-   * instances will be converted into thunk-less `SyncIO` (i.e. eager
-   * `SyncIO`), while lazy eval and memoized will be executed as such.
+   * This function will preserve the evaluation semantics of any actions that are lifted into
+   * the pure `SyncIO`. Eager `Eval` instances will be converted into thunk-less `SyncIO` (i.e.
+   * eager `SyncIO`), while lazy eval and memoized will be executed as such.
    *
-   * @param fa `Eval` instance to be lifted in `SyncIO`
-   * @return `SyncIO` that will be evaluated to the value of the lifted `fa`
+   * @param fa
+   *   `Eval` instance to be lifted in `SyncIO`
+   * @return
+   *   `SyncIO` that will be evaluated to the value of the lifted `fa`
    */
   def eval[A](fa: Eval[A]): SyncIO[A] =
     fa match {
@@ -446,15 +458,15 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
   /**
    * Suspends a pure value in `SyncIO`.
    *
-   * This should ''only'' be used if the value in question has
-   * "already" been computed!  In other words, something like
-   * `SyncIO.pure(readLine)` is most definitely not the right thing to do!
-   * However, `SyncIO.pure(42)` is correct and will be more efficient
-   * (when evaluated) than `SyncIO(42)`, due to avoiding the allocation of
-   * extra thunks.
+   * This should ''only'' be used if the value in question has "already" been computed! In other
+   * words, something like `SyncIO.pure(readLine)` is most definitely not the right thing to do!
+   * However, `SyncIO.pure(42)` is correct and will be more efficient (when evaluated) than
+   * `SyncIO(42)`, due to avoiding the allocation of extra thunks.
    *
-   * @param value precomputed value used as the result of the `SyncIO`
-   * @return an already evaluated `SyncIO` holding `value`
+   * @param value
+   *   precomputed value used as the result of the `SyncIO`
+   * @return
+   *   an already evaluated `SyncIO` holding `value`
    */
   def pure[A](value: A): SyncIO[A] =
     Pure(value)
@@ -462,14 +474,16 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
   /**
    * Constructs a `SyncIO` which sequences the specified exception.
    *
-   * If this `SyncIO` is run using `unsafeRunSync` the exception will
-   * be thrown.  This exception can be "caught" (or rather, materialized
-   * into value-space) using the `attempt` method.
+   * If this `SyncIO` is run using `unsafeRunSync` the exception will be thrown. This exception
+   * can be "caught" (or rather, materialized into value-space) using the `attempt` method.
    *
-   * @see [[SyncIO#attempt]]
+   * @see
+   *   [[SyncIO#attempt]]
    *
-   * @param t [[java.lang.Throwable]] value to fail with
-   * @return a `SyncIO` that results in failure with value `t`
+   * @param t
+   *   [[java.lang.Throwable]] value to fail with
+   * @return
+   *   a `SyncIO` that results in failure with value `t`
    */
   def raiseError[A](t: Throwable): SyncIO[A] =
     Error(t)
@@ -483,29 +497,33 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
   /**
    * Alias for `SyncIO.pure(())`
    *
-   * @see [[SyncIO.pure]]
+   * @see
+   *   [[SyncIO.pure]]
    */
   def unit: SyncIO[Unit] = _unit
 
   // utilities
 
   /**
-   * Lifts an `Either[Throwable, A]` into `SyncIO`, raising the throwable if
-   * it exists.
+   * Lifts an `Either[Throwable, A]` into `SyncIO`, raising the throwable if it exists.
    *
-   * @param e either value to be lifted
-   * @return `SyncIO` that evaluates to the value of `e` or fail with its `Throwable` instance
+   * @param e
+   *   either value to be lifted
+   * @return
+   *   `SyncIO` that evaluates to the value of `e` or fail with its `Throwable` instance
    */
   def fromEither[A](e: Either[Throwable, A]): SyncIO[A] =
     e.fold(raiseError, pure)
 
   /**
-   * Lifts an `Option[A]` into `SyncIO`, raising `orElse` if the provided
-   * option value is empty.
+   * Lifts an `Option[A]` into `SyncIO`, raising `orElse` if the provided option value is empty.
    *
-   * @param o option value to be lifted
-   * @param orElse expression that evaluates to `Throwable`
-   * @return `SyncIO` that evaluates to the optional value `o` or fail with the `orElse` expression
+   * @param o
+   *   option value to be lifted
+   * @param orElse
+   *   expression that evaluates to `Throwable`
+   * @return
+   *   `SyncIO` that evaluates to the optional value `o` or fail with the `orElse` expression
    */
   def fromOption[A](o: Option[A])(orElse: => Throwable): SyncIO[A] =
     o.fold(raiseError[A](orElse))(pure)
@@ -513,8 +531,11 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
   /**
    * Lifts a `Try[A]` into `SyncIO`, raising the throwable if it exists.
    *
-   * @param t try value to be lifted
-   * @return `SyncIO` that evaluates to the value of `t` if successful, or fails with its `Throwable` instance
+   * @param t
+   *   try value to be lifted
+   * @return
+   *   `SyncIO` that evaluates to the value of `t` if successful, or fails with its `Throwable`
+   *   instance
    */
   def fromTry[A](t: Try[A]): SyncIO[A] =
     t.fold(raiseError, pure)

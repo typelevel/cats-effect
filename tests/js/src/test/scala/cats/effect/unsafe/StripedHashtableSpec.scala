@@ -71,8 +71,8 @@ class StripedHashtableSpec extends BaseSpec with Runners {
   }
 
   /**
-   * This implementation only works on Scala.js as it relies on a single
-   * threaded execution model.
+   * This implementation only works on Scala.js as it relies on a single threaded execution
+   * model.
    */
   private final class CountDownLatch(private var counter: Int) {
     private val promise: Promise[Unit] = Promise()

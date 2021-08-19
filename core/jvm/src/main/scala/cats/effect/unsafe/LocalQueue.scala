@@ -32,164 +32,142 @@ import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Fixed length, FIFO, single producer, multiple consumer, lock-free, circular
- * buffer queue local to a single [[WorkerThread]].
+ * Fixed length, FIFO, single producer, multiple consumer, lock-free, circular buffer queue
+ * local to a single [[WorkerThread]].
  *
- * The queue supports exclusive write access '''only''' by the owner
- * [[WorkerThread]] to the `tail`, which represents the pointer for updating the
- * underlying `buffer` of [[cats.effect.IOFiber]] object references.
+ * The queue supports exclusive write access '''only''' by the owner [[WorkerThread]] to the
+ * `tail`, which represents the pointer for updating the underlying `buffer` of
+ * [[cats.effect.IOFiber]] object references.
  *
- * The queue supports multi-threaded reading from the `head` pointer, both for
- * local dequeue operations by the owner [[WorkerThread]], as well as for work
- * stealing purposes by other contending [[WorkerThread]]s.
+ * The queue supports multi-threaded reading from the `head` pointer, both for local dequeue
+ * operations by the owner [[WorkerThread]], as well as for work stealing purposes by other
+ * contending [[WorkerThread]] s.
  *
  * The synchronization is achieved through atomic operations on
- * [[java.util.concurrent.atomic.AtomicInteger]] (used for representing the
- * `head` and the `tail` pointers).
+ * [[java.util.concurrent.atomic.AtomicInteger]] (used for representing the `head` and the
+ * `tail` pointers).
  *
- * The code makes heavy use of the
- * [[java.util.concurrent.atomic.AtomicInteger#lazySet]] atomic operation to
- * achieve relaxed memory ordering guarantees when compared to a JVM `volatile`
+ * The code makes heavy use of the [[java.util.concurrent.atomic.AtomicInteger#lazySet]] atomic
+ * operation to achieve relaxed memory ordering guarantees when compared to a JVM `volatile`
  * variable.
  *
  * General implementation details and notes:
  *
- *   1. Loads with ''plain'' memory semantics are all direct accesses of
- *      non-volatile fields. These loads have absolutely no memory
- *      synchronization effects on their own, and the JIT compiler is completely
- *      free to instruct the CPU to reorder them for optimization purposes,
- *      cache the value or outright decide not to load them again. Therefore,
- *      these loads are '''not''' suitable for multi-threaded code. For more
- *      details, please consult the section explaining ''plain'' mode in the
- *      following amazing resource on the
+ *   1. Loads with ''plain'' memory semantics are all direct accesses of non-volatile fields.
+ *      These loads have absolutely no memory synchronization effects on their own, and the JIT
+ *      compiler is completely free to instruct the CPU to reorder them for optimization
+ *      purposes, cache the value or outright decide not to load them again. Therefore, these
+ *      loads are '''not''' suitable for multi-threaded code. For more details, please consult
+ *      the section explaining ''plain'' mode in the following amazing resource on the
  *      [[http://gee.cs.oswego.edu/dl/html/j9mm.html#plainsec Java 9+ memory model]].
  *
- *      The `tail` of the queue is loaded with ''plain'' memory semantics
- *      whenever it is accessed by the owner [[WorkerThread]], since it is the
- *      only thread that is allowed to update the field, and therefore always
- *      has the most recent value, making memory synchronization unnecessary.
+ * The `tail` of the queue is loaded with ''plain'' memory semantics whenever it is accessed by
+ * the owner [[WorkerThread]], since it is the only thread that is allowed to update the field,
+ * and therefore always has the most recent value, making memory synchronization unnecessary.
  *
- *      ''Plain'' loads of `volatile` or
- *      [[java.util.concurrent.atomic.AtomicInteger]] are unfortunately
- *      unavailable on Java 8. These however are simulated with a specialized
- *      subclass of [[java.util.concurrent.atomic.AtomicInteger]] which
- *      additionally keeps a non-volatile field which the owner [[WorkerThread]]
- *      reads in order to avoid ''acquire'' memory barriers which are
- *      unavoidable when reading a `volatile` field or using
- *      [[java.util.concurrent.atomic.AtomicInteger#get]].
+ * ''Plain'' loads of `volatile` or [[java.util.concurrent.atomic.AtomicInteger]] are
+ * unfortunately unavailable on Java 8. These however are simulated with a specialized subclass
+ * of [[java.util.concurrent.atomic.AtomicInteger]] which additionally keeps a non-volatile
+ * field which the owner [[WorkerThread]] reads in order to avoid ''acquire'' memory barriers
+ * which are unavoidable when reading a `volatile` field or using
+ * [[java.util.concurrent.atomic.AtomicInteger#get]].
  *
- *   2. Loads with ''acquire'' memory semantics are achieved on the JVM either
- *      by a direct load of a `volatile` field or by using
- *      [[java.util.concurrent.atomic.AtomicInteger#get]].
+ * 2. Loads with ''acquire'' memory semantics are achieved on the JVM either by a direct load of
+ * a `volatile` field or by using [[java.util.concurrent.atomic.AtomicInteger#get]].
  *
- *      The `head` of the queue is '''always''' loaded using ''acquire'' memory
- *      semantics and stored using compare-and-swap operations which provide
- *      (among other properties) ''release'' memory semantics, the synchronizing
- *      counterpart which ensures proper publishing of memory location changes
- *      between threads.
+ * The `head` of the queue is '''always''' loaded using ''acquire'' memory semantics and stored
+ * using compare-and-swap operations which provide (among other properties) ''release'' memory
+ * semantics, the synchronizing counterpart which ensures proper publishing of memory location
+ * changes between threads.
  *
- *      The `tail` of the queue is loaded using ''acquire'' memory semantics
- *      whenever it is accessed from another [[WorkerThread]]. That way, the
- *      most recently published value of the tail is obtained and can be used to
- *      calculate the number of fibers available for stealing.
+ * The `tail` of the queue is loaded using ''acquire'' memory semantics whenever it is accessed
+ * from another [[WorkerThread]]. That way, the most recently published value of the tail is
+ * obtained and can be used to calculate the number of fibers available for stealing.
  *
- *      For more details, please consult the section explaining
- *      ''acquire/release'' mode in the following amazing resource on the
- *      [[http://gee.cs.oswego.edu/dl/html/j9mm.html#plainsec Java 9+ memory model]].
+ * For more details, please consult the section explaining ''acquire/release'' mode in the
+ * following amazing resource on the
+ * [[http://gee.cs.oswego.edu/dl/html/j9mm.html#plainsec Java 9+ memory model]].
  *
- *   3. Stores with ''release'' memory semantics are achieved on the JVM using
- *      the [[java.util.concurrent.atomic.AtomicInteger#lazySet]] operation.
- *      Prior to Java 9, this is a unique, underdocumented and often
- *      misunderstood operation. It is a `volatile` write without a full memory
- *      fence, allowing for much higher throughput under heavy contention,
- *      provided that it is used in a single producer environment, such as this
- *      queue. The value of the `tail` published using ''release'' semantics can
- *      be properly detected by other threads using loads with ''acquire''
- *      memory semantics, which is always the case whenever non-owner
- *      [[WorkerThread]]s load the value of the tail of another
- *      [[WorkerThread]]'s local queue. All of the credit for this invaluable
- *      discovery goes to Nitsan Wakart and their phenomenal
- *      [[http://psy-lob-saw.blogspot.com/2012/12/atomiclazyset-is-performance-win-for.html blog post]].
+ * 3. Stores with ''release'' memory semantics are achieved on the JVM using the
+ * [[java.util.concurrent.atomic.AtomicInteger#lazySet]] operation. Prior to Java 9, this is a
+ * unique, underdocumented and often misunderstood operation. It is a `volatile` write without a
+ * full memory fence, allowing for much higher throughput under heavy contention, provided that
+ * it is used in a single producer environment, such as this queue. The value of the `tail`
+ * published using ''release'' semantics can be properly detected by other threads using loads
+ * with ''acquire'' memory semantics, which is always the case whenever non-owner
+ * [[WorkerThread]] s load the value of the tail of another [[WorkerThread]] 's local queue. All
+ * of the credit for this invaluable discovery goes to Nitsan Wakart and their phenomenal
+ * [[http://psy-lob-saw.blogspot.com/2012/12/atomiclazyset-is-performance-win-for.html blog post]].
  *
- *      The post also contains more details on the fascinating history of
- *      [[java.util.concurrent.atomic.AtomicInteger#lazySet]], with comments and
- *      quotes from Doug Lea.
+ * The post also contains more details on the fascinating history of
+ * [[java.util.concurrent.atomic.AtomicInteger#lazySet]], with comments and quotes from Doug
+ * Lea.
  *
- *   4. Even though usage of `sun.misc.Unsafe` in these classes was heavily
- *      experimented with, it was decided to ultimately settle on standard Java
- *      APIs. We believe that being a good JVM citizen (using official APIs),
- *      making it easier for users to create GraalVM native images and having
- *      generally more maintainable code vastly outweigh the marginal
- *      improvements to performance that `Unsafe` would bring. The inherent
- *      contention that arises under thread synchronization in the
- *      multi-threaded cats-effect runtime is still much more costly such that
- *      the performance gains with `Unsafe` pale in comparison. We have found
- *      that algorithm improvements and smarter data structures bring much
- *      larger performance gains.
+ * 4. Even though usage of `sun.misc.Unsafe` in these classes was heavily experimented with, it
+ * was decided to ultimately settle on standard Java APIs. We believe that being a good JVM
+ * citizen (using official APIs), making it easier for users to create GraalVM native images and
+ * having generally more maintainable code vastly outweigh the marginal improvements to
+ * performance that `Unsafe` would bring. The inherent contention that arises under thread
+ * synchronization in the multi-threaded cats-effect runtime is still much more costly such that
+ * the performance gains with `Unsafe` pale in comparison. We have found that algorithm
+ * improvements and smarter data structures bring much larger performance gains.
  *
- *      Should a discovery be made which proves that direct usage of `Unsafe`
- *      brings dramatic improvements in performance, this decision to not use it
- *      might be reversed. This is however, very unlikely, as
- *      [[java.util.concurrent.atomic.AtomicInteger]] is just a thin wrapper
- *      around `Unsafe`. And `Unsafe` is only really needed on JVM 8. JVM 9+
- *      introduce much richer and better APIs and tools for building
- *      high-performance concurrent systems (e.g. `VarHandle`).
+ * Should a discovery be made which proves that direct usage of `Unsafe` brings dramatic
+ * improvements in performance, this decision to not use it might be reversed. This is however,
+ * very unlikely, as [[java.util.concurrent.atomic.AtomicInteger]] is just a thin wrapper around
+ * `Unsafe`. And `Unsafe` is only really needed on JVM 8. JVM 9+ introduce much richer and
+ * better APIs and tools for building high-performance concurrent systems (e.g. `VarHandle`).
  */
 private final class LocalQueue {
 
   import LocalQueueConstants._
 
   /**
-   * The array of [[cats.effect.IOFiber]] object references physically backing
-   * the circular buffer queue.
+   * The array of [[cats.effect.IOFiber]] object references physically backing the circular
+   * buffer queue.
    */
   private[this] val buffer: Array[IOFiber[_]] = new Array(LocalQueueCapacity)
 
   /**
    * The head of the queue.
    *
-   * Concurrently updated by many [[WorkerThread]]s.
+   * Concurrently updated by many [[WorkerThread]] s.
    *
-   * Conceptually, it is a concatenation of two unsigned 16 bit values. Since
-   * the capacity of the local queue is less than (2^16 - 1), the extra unused
-   * values are used to distinguish between the case where the queue is empty
-   * (`head` == `tail`) and (`head` - `tail` ==
-   * [[LocalQueueConstants.LocalQueueCapacity]]), which is an important
-   * distinction for other [[WorkerThread]]s trying to steal work from the
-   * queue.
+   * Conceptually, it is a concatenation of two unsigned 16 bit values. Since the capacity of
+   * the local queue is less than (2^16 - 1), the extra unused values are used to distinguish
+   * between the case where the queue is empty (`head` == `tail`) and (`head` - `tail` ==
+   * [[LocalQueueConstants.LocalQueueCapacity]]), which is an important distinction for other
+   * [[WorkerThread]] s trying to steal work from the queue.
    *
-   * The least significant 16 bits of the integer value represent the ''real''
-   * value of the head, pointing to the next [[cats.effect.IOFiber]] instance
-   * to be dequeued from the queue.
+   * The least significant 16 bits of the integer value represent the ''real'' value of the
+   * head, pointing to the next [[cats.effect.IOFiber]] instance to be dequeued from the queue.
    *
-   * The most significant 16 bits of the integer value represent the ''steal''
-   * tag of the head. This value is altered by another [[WorkerThread]] which
-   * has managed to win the race and become the exclusive ''stealer'' of the
-   * queue. During the period in which the ''steal'' tag differs from the
-   * ''real'' value, no other [[WorkerThread]] can steal from the queue, and
-   * the owner [[WorkerThread]] also takes special care to not mangle the
-   * ''steal'' tag set by the ''stealer''. The stealing [[WorkerThread]] is free
-   * to transfer half of the available [[cats.effect.IOFiber]] object references
-   * from this queue into its own [[LocalQueue]] during this period, making sure
-   * to undo the changes to the ''steal'' tag of the head on completion, action
-   * which ultimately signals that stealing is finished.
+   * The most significant 16 bits of the integer value represent the ''steal'' tag of the head.
+   * This value is altered by another [[WorkerThread]] which has managed to win the race and
+   * become the exclusive ''stealer'' of the queue. During the period in which the ''steal'' tag
+   * differs from the ''real'' value, no other [[WorkerThread]] can steal from the queue, and
+   * the owner [[WorkerThread]] also takes special care to not mangle the ''steal'' tag set by
+   * the ''stealer''. The stealing [[WorkerThread]] is free to transfer half of the available
+   * [[cats.effect.IOFiber]] object references from this queue into its own [[LocalQueue]]
+   * during this period, making sure to undo the changes to the ''steal'' tag of the head on
+   * completion, action which ultimately signals that stealing is finished.
    */
   private[this] val head: AtomicInteger = new AtomicInteger(0)
 
   /**
    * The tail of the queue.
    *
-   * Only ever updated by the owner [[WorkerThread]], but also read by other
-   * threads to determine the current size of the queue, for work stealing
-   * purposes. Denotes the next available free slot in the `buffer` array.
+   * Only ever updated by the owner [[WorkerThread]], but also read by other threads to
+   * determine the current size of the queue, for work stealing purposes. Denotes the next
+   * available free slot in the `buffer` array.
    *
-   * Conceptually, it is an unsigned 16 bit value (the most significant 16
-   * bits of the integer value are ignored in most operations).
+   * Conceptually, it is an unsigned 16 bit value (the most significant 16 bits of the integer
+   * value are ignored in most operations).
    */
   private[this] var tail: Int = 0
 
   /**
-   * The publisher for the tail of the queue. Accessed by other [[WorkerThread]]s.
+   * The publisher for the tail of the queue. Accessed by other [[WorkerThread]] s.
    */
   private[this] val tailPublisher: AtomicInteger = new AtomicInteger(0)
 
@@ -199,75 +177,73 @@ private final class LocalQueue {
    */
 
   /**
-   * A running counter of the number of fibers enqueued on this [[LocalQueue]]
-   * during the lifetime of the queue. This variable is published through the
-   * `tail` of the queue. In order to observe the latest value, the
-   * `tailPublisher` atomic field should be loaded first.
+   * A running counter of the number of fibers enqueued on this [[LocalQueue]] during the
+   * lifetime of the queue. This variable is published through the `tail` of the queue. In order
+   * to observe the latest value, the `tailPublisher` atomic field should be loaded first.
    */
   private[this] var totalFiberCount: Long = 0
 
   /**
-   * A running counter of the number of fibers spilt over from this
-   * [[LocalQueue]] into the single-fiber overflow queue during the lifetime of
-   * the queue. This variable is published through the `tail` of the queue. In
-   * order to observe the latest value, the `tailPublisher` atomic field should
-   * be loaded first.
+   * A running counter of the number of fibers spilt over from this [[LocalQueue]] into the
+   * single-fiber overflow queue during the lifetime of the queue. This variable is published
+   * through the `tail` of the queue. In order to observe the latest value, the `tailPublisher`
+   * atomic field should be loaded first.
    */
   private[this] var overflowSpilloverCount: Long = 0
 
   /**
-   * A running counter of the number of fibers spilt over from this
-   * [[LocalQueue]] into the batched queue during the lifetime of the queue.
-   * This variable is published through the `tail` of the queue. In order to
-   * observe the latest value, the `tailPublisher` atomic field should be loaded
-   * first.
+   * A running counter of the number of fibers spilt over from this [[LocalQueue]] into the
+   * batched queue during the lifetime of the queue. This variable is published through the
+   * `tail` of the queue. In order to observe the latest value, the `tailPublisher` atomic field
+   * should be loaded first.
    */
   private[this] var batchedSpilloverCount: Long = 0
 
   /**
-   * A running counter of the number of successful steal attempts by other
-   * [[WorkerThread]]s during the lifetime of the queue. This variable
-   * is published through the `head` of the queue. In order to observe the
-   * latest value, the `head` atomic field should be loaded first.
+   * A running counter of the number of successful steal attempts by other [[WorkerThread]] s
+   * during the lifetime of the queue. This variable is published through the `head` of the
+   * queue. In order to observe the latest value, the `head` atomic field should be loaded
+   * first.
    */
   private[this] var successfulStealAttemptCount: Long = 0
 
   /**
-   * A running counter of the number of fibers stolen by other [[WorkerThread]]s
-   * during the lifetime of the queue. This variable is published through the
-   * `head` of the queue. In order to observe the latest value, the `head`
-   * atomic field should be loaded first.
+   * A running counter of the number of fibers stolen by other [[WorkerThread]] s during the
+   * lifetime of the queue. This variable is published through the `head` of the queue. In order
+   * to observe the latest value, the `head` atomic field should be loaded first.
    */
   private[this] var stolenFiberCount: Long = 0
 
   /**
    * Enqueues a fiber for execution at the back of this queue.
    *
-   * @note Can '''only''' be correctly called by the owner [[WorkerThread]].
+   * @note
+   *   Can '''only''' be correctly called by the owner [[WorkerThread]].
    *
    * There are three possible outcomes from the execution of this method:
    *
-   *   1. There is enough free capacity in this queue, taking care to account
-   *      for a competing thread which is concurrently stealing from this queue,
-   *      in which case the fiber will be added to the back of the queue.
+   *   1. There is enough free capacity in this queue, taking care to account for a competing
+   *      thread which is concurrently stealing from this queue, in which case the fiber will be
+   *      added to the back of the queue.
    *
-   *   2. There is not enough free capacity and some other thread is
-   *      concurrently stealing from this queue, in which case the fiber will be
-   *      enqueued on the `overflow` queue.
+   * 2. There is not enough free capacity and some other thread is concurrently stealing from
+   * this queue, in which case the fiber will be enqueued on the `overflow` queue.
    *
-   *   3. There is not enough free capacity in this queue and no other thread is
-   *      stealing from it, in which case, half of this queue, including the new
-   *      fiber will be offloaded to the `batched` queue as a bulk operation.
+   * 3. There is not enough free capacity in this queue and no other thread is stealing from it,
+   * in which case, half of this queue, including the new fiber will be offloaded to the
+   * `batched` queue as a bulk operation.
    *
-   * @param fiber the fiber to be added to the local queue
-   * @param batched a reference to a striped concurrent queue where half of the
-   *                queue can be spilled over as one bulk operation
-   * @param overflow a reference to a striped concurrent queue where excess
-   *                 fibers can be enqueued in the case that there is not enough
-   *                 capacity in the local queue
-   * @param random a reference to an uncontended source of randomness, to be
-   *               passed along to the striped concurrent queues when executing
-   *               their enqueue operations
+   * @param fiber
+   *   the fiber to be added to the local queue
+   * @param batched
+   *   a reference to a striped concurrent queue where half of the queue can be spilled over as
+   *   one bulk operation
+   * @param overflow
+   *   a reference to a striped concurrent queue where excess fibers can be enqueued in the case
+   *   that there is not enough capacity in the local queue
+   * @param random
+   *   a reference to an uncontended source of randomness, to be passed along to the striped
+   *   concurrent queues when executing their enqueue operations
    */
   def enqueue(
       fiber: IOFiber[_],
@@ -356,44 +332,45 @@ private final class LocalQueue {
   }
 
   /**
-   * Enqueues a batch of fibers to the local queue as a single operation without
-   * the enqueue overhead for each fiber. It a fiber from the batch to be
-   * directly executed without first enqueueing it on the local queue.
+   * Enqueues a batch of fibers to the local queue as a single operation without the enqueue
+   * overhead for each fiber. It a fiber from the batch to be directly executed without first
+   * enqueueing it on the local queue.
    *
-   * @note Can '''only''' be correctly called by the owner [[WorkerThread]] when
-   *       this queue is '''empty'''.
+   * @note
+   *   Can '''only''' be correctly called by the owner [[WorkerThread]] when this queue is
+   *   '''empty'''.
    *
-   * @note By convention, each batch of fibers contains exactly
-   * `LocalQueueConstants.OverflowBatchSize` number of fibers.
+   * @note
+   *   By convention, each batch of fibers contains exactly
+   *   `LocalQueueConstants.OverflowBatchSize` number of fibers.
    *
-   * @note The references inside the batch are not nulled out. It is important
-   *       to never reference the batch after this usage, so that it can be
-   *       garbage collected, and ultimately, the referenced fibers.
+   * @note
+   *   The references inside the batch are not nulled out. It is important to never reference
+   *   the batch after this usage, so that it can be garbage collected, and ultimately, the
+   *   referenced fibers.
    *
-   * @note In an ideal world, this method would involve only a single publishing
-   *       of the `tail` of the queue to carry out the enqueueing of the whole
-   *       batch of fibers. However, there must exist some synchronization with
-   *       other threads, especially in situations where there are many more
-   *       worker threads compared to the number of processors. In particular,
-   *       there is one very unlucky interleaving where another worker thread
-   *       can begin a steal operation from this queue, while this queue is
-   *       filled to capacity. In that situation, the other worker thread would
-   *       reserve half of the fibers in this queue, to transfer them to its own
-   *       local queue. While that stealing operation is in place, this queue
-   *       effectively operates with half of its capacity for the purposes of
-   *       enqueueing new fibers. Should the stealing thread be preempted while
-   *       the stealing operation is still underway, and the worker thread which
-   *       owns this local queue executes '''every''' other fiber and tries
-   *       enqueueing a batch, doing so without synchronization can end up
-   *       overwriting the stolen fibers, simply because the size of the batch
-   *       is larger than half of the queue. However, in normal operation with a
-   *       properly sized thread pool, this pathological interleaving should
-   *       never occur, and is also the reason why this operation has the same
-   *       performance impact as the ideal non-synchronized version of this
-   *       method.
+   * @note
+   *   In an ideal world, this method would involve only a single publishing of the `tail` of
+   *   the queue to carry out the enqueueing of the whole batch of fibers. However, there must
+   *   exist some synchronization with other threads, especially in situations where there are
+   *   many more worker threads compared to the number of processors. In particular, there is
+   *   one very unlucky interleaving where another worker thread can begin a steal operation
+   *   from this queue, while this queue is filled to capacity. In that situation, the other
+   *   worker thread would reserve half of the fibers in this queue, to transfer them to its own
+   *   local queue. While that stealing operation is in place, this queue effectively operates
+   *   with half of its capacity for the purposes of enqueueing new fibers. Should the stealing
+   *   thread be preempted while the stealing operation is still underway, and the worker thread
+   *   which owns this local queue executes '''every''' other fiber and tries enqueueing a
+   *   batch, doing so without synchronization can end up overwriting the stolen fibers, simply
+   *   because the size of the batch is larger than half of the queue. However, in normal
+   *   operation with a properly sized thread pool, this pathological interleaving should never
+   *   occur, and is also the reason why this operation has the same performance impact as the
+   *   ideal non-synchronized version of this method.
    *
-   * @param batch the batch of fibers to be enqueued on this local queue
-   * @return a fiber to be executed directly
+   * @param batch
+   *   the batch of fibers to be enqueued on this local queue
+   * @return
+   *   a fiber to be executed directly
    */
   def enqueueBatch(batch: Array[IOFiber[_]]): IOFiber[_] = {
     // A plain, unsynchronized load of the tail of the local queue.
@@ -437,20 +414,21 @@ private final class LocalQueue {
   /**
    * Dequeues a fiber from the head of the local queue.
    *
-   * @note Can '''only''' be correctly called by the owner [[WorkerThread]].
+   * @note
+   *   Can '''only''' be correctly called by the owner [[WorkerThread]].
    *
-   * The method returns only when it has successfully "stolen" a fiber from
-   * the head of the queue (even in the presence of a concurrent stealer), or
-   * the queue is empty, in which case `null` is returned.
+   * The method returns only when it has successfully "stolen" a fiber from the head of the
+   * queue (even in the presence of a concurrent stealer), or the queue is empty, in which case
+   * `null` is returned.
    *
-   * Dequeueing even in the presence of a concurrent stealer works because
-   * stealing is defined as movement of the "real" value of the head of the
-   * queue, even before any fibers are taken. Dequeueing only operates on this
-   * value. Special care needs to be take to not overwrite the "steal" tag
-   * in the presence of a concurrent stealer.
+   * Dequeueing even in the presence of a concurrent stealer works because stealing is defined
+   * as movement of the "real" value of the head of the queue, even before any fibers are taken.
+   * Dequeueing only operates on this value. Special care needs to be take to not overwrite the
+   * "steal" tag in the presence of a concurrent stealer.
    *
-   * @return the fiber at the head of the queue, or `null` if the queue is
-   *         empty (in order to avoid unnecessary allocations)
+   * @return
+   *   the fiber at the head of the queue, or `null` if the queue is empty (in order to avoid
+   *   unnecessary allocations)
    */
   def dequeue(): IOFiber[_] = {
     // A plain, unsynchronized load of the tail of the local queue.
@@ -497,29 +475,30 @@ private final class LocalQueue {
   }
 
   /**
-   * Steals half of the enqueued fibers from this queue and places them into the
-   * destination [[LocalQueue]].
+   * Steals half of the enqueued fibers from this queue and places them into the destination
+   * [[LocalQueue]].
    *
-   * @note Can '''only''' be correctly called by a concurrent [[WorkerThread]]
-   *       which owns `dst`.
+   * @note
+   *   Can '''only''' be correctly called by a concurrent [[WorkerThread]] which owns `dst`.
    *
-   * Stealing is defined as calculating the half of the available fibers in the
-   * local queue and moving the "real" value of the head, while keeping the
-   * "steal" tag where it is. This signals to other threads that the executing
-   * thread has obtained exclusive access to the local queue and is in the
-   * process of transferring fibers. All fibers between the "steal" and "real"
-   * values are transferred, and finally, the "steal" tag is updated to match
-   * the "real" value of the head. To completely announce that the stealing
-   * operation is done, the tail of the destination queue is published. This
-   * prevents other threads from stealing from `dst` in the meantime.
+   * Stealing is defined as calculating the half of the available fibers in the local queue and
+   * moving the "real" value of the head, while keeping the "steal" tag where it is. This
+   * signals to other threads that the executing thread has obtained exclusive access to the
+   * local queue and is in the process of transferring fibers. All fibers between the "steal"
+   * and "real" values are transferred, and finally, the "steal" tag is updated to match the
+   * "real" value of the head. To completely announce that the stealing operation is done, the
+   * tail of the destination queue is published. This prevents other threads from stealing from
+   * `dst` in the meantime.
    *
-   * This contract allows the other methods in this class to observe whenever
-   * a stealing operation is ongoing and be extra careful not to overwrite the
-   * current state maintained by the stealing [[WorkerThread]].
+   * This contract allows the other methods in this class to observe whenever a stealing
+   * operation is ongoing and be extra careful not to overwrite the current state maintained by
+   * the stealing [[WorkerThread]].
    *
-   * @param dst the destination local queue where the stole fibers will end up
-   * @return a reference to the first fiber to be executed by the stealing
-   *         [[WorkerThread]], or `null` if the stealing was unsuccessful
+   * @param dst
+   *   the destination local queue where the stole fibers will end up
+   * @return
+   *   a reference to the first fiber to be executed by the stealing [[WorkerThread]], or `null`
+   *   if the stealing was unsuccessful
    */
   def stealInto(dst: LocalQueue): IOFiber[_] = {
     // A plain, unsynchronized load of the tail of the destination queue, owned
@@ -647,26 +626,25 @@ private final class LocalQueue {
   /**
    * Steals all enqueued fibers and transfers them to the provided array.
    *
-   * This method is called by the runtime when blocking is detected in order to
-   * give a chance to the fibers enqueued behind the `head` of the queue to run
-   * on another thread. More often than not, these fibers are the ones that will
-   * ultimately unblock the blocking fiber currently executing. Ideally, other
-   * [[WorkerThread]]s would steal the contents of this [[LocalQueue]].
-   * Unfortunately, in practice, careless blocking has a tendency to quickly
-   * spread around the [[WorkerThread]]s (and there's a fixed number of them) in
-   * the runtime and halt any and all progress. For that reason, this method is
-   * used to completely drain any remaining fibers and transfer them to other
-   * helper threads which will continue executing fibers until the blocked thread
-   * has been unblocked.
+   * This method is called by the runtime when blocking is detected in order to give a chance to
+   * the fibers enqueued behind the `head` of the queue to run on another thread. More often
+   * than not, these fibers are the ones that will ultimately unblock the blocking fiber
+   * currently executing. Ideally, other [[WorkerThread]] s would steal the contents of this
+   * [[LocalQueue]]. Unfortunately, in practice, careless blocking has a tendency to quickly
+   * spread around the [[WorkerThread]] s (and there's a fixed number of them) in the runtime
+   * and halt any and all progress. For that reason, this method is used to completely drain any
+   * remaining fibers and transfer them to other helper threads which will continue executing
+   * fibers until the blocked thread has been unblocked.
    *
-   * Conceptually, this method is identical to [[LocalQueue#dequeue]], with the
-   * main difference being that the `head` of the queue is moved forward to
-   * match the `tail` of the queue, thus securing ''all'' remaining fibers.
+   * Conceptually, this method is identical to [[LocalQueue#dequeue]], with the main difference
+   * being that the `head` of the queue is moved forward to match the `tail` of the queue, thus
+   * securing ''all'' remaining fibers.
    *
-   * @note Can '''only''' be correctly called by the owner [[WorkerThread]].
+   * @note
+   *   Can '''only''' be correctly called by the owner [[WorkerThread]].
    *
-   * @param dst the destination array in which all remaining fibers are
-   *            transferred
+   * @param dst
+   *   the destination array in which all remaining fibers are transferred
    */
   def drain(dst: Array[IOFiber[_]]): Unit = {
     // A plain, unsynchronized load of the tail of the local queue.
@@ -715,7 +693,8 @@ private final class LocalQueue {
   /**
    * Checks whether the local queue is empty.
    *
-   * @return `true` if the queue is empty, `false` otherwise
+   * @return
+   *   `true` if the queue is empty, `false` otherwise
    */
   def isEmpty(): Boolean = {
     val hd = head.get()
@@ -726,17 +705,19 @@ private final class LocalQueue {
   /**
    * Checks whether the local queue contains some fibers.
    *
-   * @return `true` if the queue is '''not''' empty, `false` otherwise
+   * @return
+   *   `true` if the queue is '''not''' empty, `false` otherwise
    */
   def nonEmpty(): Boolean = !isEmpty()
 
   /**
    * Returns the number of fibers currently enqueued on this [[LocalQueue]].
    *
-   * @note This number is an approximation and may not be correct while
-   *       stealing is taking place.
+   * @note
+   *   This number is an approximation and may not be correct while stealing is taking place.
    *
-   * @return the number of fibers currently enqueued on this local queue
+   * @return
+   *   the number of fibers currently enqueued on this local queue
    */
   def size(): Int = {
     val hd = head.get()
@@ -747,18 +728,17 @@ private final class LocalQueue {
   /**
    * A ''plain'' load of the `tail` of the queue.
    *
-   * Serves mostly as a forwarder method such that `tail` can remain
-   * `private[this]`.
+   * Serves mostly as a forwarder method such that `tail` can remain `private[this]`.
    *
-   * @return the value of the tail of the queue
+   * @return
+   *   the value of the tail of the queue
    */
   private def plainLoadTail(): Int = tail
 
   /**
    * A ''plain'' store of the `tail` of the queue.
    *
-   * Serves mostly as a forwarder method such that `tail` can remain
-   * `private[this]`.
+   * Serves mostly as a forwarder method such that `tail` can remain `private[this]`.
    */
   private def plainStoreTail(tl: Int): Unit = {
     tail = tl
@@ -767,77 +747,93 @@ private final class LocalQueue {
   /**
    * Forwarder method for accessing the backing buffer of another [[LocalQueue]].
    *
-   * @return a reference to [[LocalQueue#buf]]
+   * @return
+   *   a reference to [[LocalQueue#buf]]
    */
   def bufferForwarder: Array[IOFiber[_]] = buffer
 
   /**
    * A forwarder method to the `head` of the queue.
    *
-   * @return a reference to the `head` of the queue
+   * @return
+   *   a reference to the `head` of the queue
    */
   private def headForwarder: AtomicInteger = head
 
   /**
    * A forwarder method to the `tailPublisher`.
    *
-   * @return a reference to the `tailPublisher`
+   * @return
+   *   a reference to the `tailPublisher`
    */
   private def tailPublisherForwarder: AtomicInteger = tailPublisher
 
   /**
    * Computes the index into the circular buffer for a given integer value.
    *
-   * @param n the integer value
-   * @return the index into the circular buffer
+   * @param n
+   *   the integer value
+   * @return
+   *   the index into the circular buffer
    */
   private[this] def index(n: Int): Int = n & LocalQueueCapacityMask
 
   /**
    * Extracts the 16 least significant bits from a 32 bit integer value.
    *
-   * @param n the integer value
-   * @return the 16 least significant bits as an integer value
+   * @param n
+   *   the integer value
+   * @return
+   *   the 16 least significant bits as an integer value
    */
   private[this] def lsb(n: Int): Int = n & UnsignedShortMask
 
   /**
    * Extracts the 16 most significant bits from a 32 bit integer value.
    *
-   * @param n the integer value
-   * @return the 16 most significant bits as an integer value
+   * @param n
+   *   the integer value
+   * @return
+   *   the 16 most significant bits as an integer value
    */
   private[this] def msb(n: Int): Int = n >>> 16
 
   /**
-   * Concatenates two integer values which represent the most significant and
-   * least significant 16 bits respectively, into a single 32 bit integer value.
+   * Concatenates two integer values which represent the most significant and least significant
+   * 16 bits respectively, into a single 32 bit integer value.
    *
-   * @param msb an integer value that represents the 16 most significant bits
-   * @param lsb an integer value that represents the 16 least significant bits
-   * @return a 32 bit integer value which is a concatenation of the input values
+   * @param msb
+   *   an integer value that represents the 16 most significant bits
+   * @param lsb
+   *   an integer value that represents the 16 least significant bits
+   * @return
+   *   a 32 bit integer value which is a concatenation of the input values
    */
   private[this] def pack(msb: Int, lsb: Int): Int = (msb << 16) | lsb
 
   /**
-   * Encodes addition of unsigned 16 bit values as an operation on 32 bit
-   * integers. After performing the addition, only the 16 least significant
-   * bits are returned.
+   * Encodes addition of unsigned 16 bit values as an operation on 32 bit integers. After
+   * performing the addition, only the 16 least significant bits are returned.
    *
-   * @param x the augend
-   * @param y the addend
-   * @return the unsigned 16 bit sum as a 32 bit integer value
+   * @param x
+   *   the augend
+   * @param y
+   *   the addend
+   * @return
+   *   the unsigned 16 bit sum as a 32 bit integer value
    */
   private[this] def unsignedShortAddition(x: Int, y: Int): Int = lsb(x + y)
 
   /**
-   * Encodes subtraction of unsigned 16 bit values as an operation on 32 bit
-   * integers. After performing the subtraction, only the 16 least significant
-   * bits are returned.
+   * Encodes subtraction of unsigned 16 bit values as an operation on 32 bit integers. After
+   * performing the subtraction, only the 16 least significant bits are returned.
    *
-   * @param x the minuend
-   * @param y the subtrahend
-   * @return the unsigned 16 bit difference as a 32 bit integer value
+   * @param x
+   *   the minuend
+   * @param y
+   *   the subtrahend
+   * @return
+   *   the unsigned 16 bit difference as a 32 bit integer value
    */
   private[this] def unsignedShortSubtraction(x: Int, y: Int): Int = lsb(x - y)
 
@@ -849,15 +845,17 @@ private final class LocalQueue {
   /**
    * Returns the number of fibers enqueued on this [[LocalQueue]].
    *
-   * @return the number of fibers enqueued on this local queue
+   * @return
+   *   the number of fibers enqueued on this local queue
    */
   def getFiberCount(): Int = size()
 
   /**
-   * Returns the index into the circular buffer backing this [[LocalQueue]]
-   * which represents the head of the queue.
+   * Returns the index into the circular buffer backing this [[LocalQueue]] which represents the
+   * head of the queue.
    *
-   * @return the index representing the head of the queue
+   * @return
+   *   the index representing the head of the queue
    */
   def getHeadIndex(): Int = {
     val hd = head.get()
@@ -865,10 +863,11 @@ private final class LocalQueue {
   }
 
   /**
-   * Returns the index into the circular buffer backing this [[LocalQueue]]
-   * which represents the tail of the queue.
+   * Returns the index into the circular buffer backing this [[LocalQueue]] which represents the
+   * tail of the queue.
    *
-   * @return the index representing the tail of the queue
+   * @return
+   *   the index representing the tail of the queue
    */
   def getTailIndex(): Int = {
     val tl = tailPublisher.get()
@@ -876,11 +875,10 @@ private final class LocalQueue {
   }
 
   /**
-   * Returns the total number of fibers enqueued on this [[LocalQueue]]
-   * during its lifetime.
+   * Returns the total number of fibers enqueued on this [[LocalQueue]] during its lifetime.
    *
-   * @return the total number of fibers enqueued during the lifetime of this
-   *         local queue
+   * @return
+   *   the total number of fibers enqueued during the lifetime of this local queue
    */
   def getTotalFiberCount(): Long = {
     val _ = tailPublisher.get()
@@ -888,10 +886,11 @@ private final class LocalQueue {
   }
 
   /**
-   * Returns the total number of fibers spilt over to the single-fiber overflow
-   * queue during the lifetime of this [[LocalQueue]].
+   * Returns the total number of fibers spilt over to the single-fiber overflow queue during the
+   * lifetime of this [[LocalQueue]].
    *
-   * @return the total number of fibers spilt over to the overflow queue
+   * @return
+   *   the total number of fibers spilt over to the overflow queue
    */
   def getOverflowSpilloverCount(): Long = {
     val _ = tailPublisher.get()
@@ -899,10 +898,11 @@ private final class LocalQueue {
   }
 
   /**
-   * Returns the total number of fibers spilt over to the batched queue during
-   * the lifetime of this [[LocalQueue]].
+   * Returns the total number of fibers spilt over to the batched queue during the lifetime of
+   * this [[LocalQueue]].
    *
-   * @return the total number of fibers spilt over to the batched queue
+   * @return
+   *   the total number of fibers spilt over to the batched queue
    */
   def getBatchedSpilloverCount(): Long = {
     val _ = tailPublisher.get()
@@ -910,11 +910,11 @@ private final class LocalQueue {
   }
 
   /**
-   * Returns the total number of successful steal attempts by other worker
-   * threads from this [[LocalQueue]] during its lifetime.
+   * Returns the total number of successful steal attempts by other worker threads from this
+   * [[LocalQueue]] during its lifetime.
    *
-   * @return the total number of successful steal attempts by other worker
-   *         threads
+   * @return
+   *   the total number of successful steal attempts by other worker threads
    */
   def getSuccessfulStealAttemptCount(): Long = {
     val _ = head.get()
@@ -922,10 +922,11 @@ private final class LocalQueue {
   }
 
   /**
-   * Returns the total number of stolen fibers by other worker threads from this
-   * [[LocalQueue]] during its lifetime.
+   * Returns the total number of stolen fibers by other worker threads from this [[LocalQueue]]
+   * during its lifetime.
    *
-   * @return the total number of stolen fibers by other worker threads
+   * @return
+   *   the total number of stolen fibers by other worker threads
    */
   def getStolenFiberCount(): Long = {
     val _ = head.get()
@@ -933,14 +934,16 @@ private final class LocalQueue {
   }
 
   /**
-   * Exposes the "real" value of the head of this [[LocalQueue]]. This
-   * value represents the state of the head which is valid for the owner worker
-   * thread. This is an unsigned 16 bit integer.
+   * Exposes the "real" value of the head of this [[LocalQueue]]. This value represents the
+   * state of the head which is valid for the owner worker thread. This is an unsigned 16 bit
+   * integer.
    *
-   * @note For more details, consult the comments in the source code for
-   *       [[cats.effect.unsafe.LocalQueue]].
+   * @note
+   *   For more details, consult the comments in the source code for
+   *   [[cats.effect.unsafe.LocalQueue]].
    *
-   * @return the "real" value of the head of the local queue
+   * @return
+   *   the "real" value of the head of the local queue
    */
   def getRealHeadTag(): Int = {
     val hd = head.get()
@@ -948,15 +951,16 @@ private final class LocalQueue {
   }
 
   /**
-   * Exposes the "steal" tag of the head of this [[LocalQueue]]. This
-   * value represents the state of the head which is valid for any worker thread
-   * looking to steal work from this local queue. This is an unsigned 16 bit
-   * integer.
+   * Exposes the "steal" tag of the head of this [[LocalQueue]]. This value represents the state
+   * of the head which is valid for any worker thread looking to steal work from this local
+   * queue. This is an unsigned 16 bit integer.
    *
-   * @note For more details, consult the comments in the source code for
-   *       [[cats.effect.unsafe.LocalQueue]].
+   * @note
+   *   For more details, consult the comments in the source code for
+   *   [[cats.effect.unsafe.LocalQueue]].
    *
-   * @return the "steal" tag of the head of the local queue
+   * @return
+   *   the "steal" tag of the head of the local queue
    */
   def getStealHeadTag(): Int = {
     val hd = head.get()
@@ -964,16 +968,17 @@ private final class LocalQueue {
   }
 
   /**
-   * Exposes the "tail" tag of the tail of this [[LocalQueue]]. This
-   * value represents the state of the tail which is valid for the owner worker
-   * thread, used for enqueuing fibers into the local queue, as well as any
-   * other worker thread looking to steal work from this local queue, used for
-   * calculating how many fibers to steal. This is an unsigned 16 bit integer.
+   * Exposes the "tail" tag of the tail of this [[LocalQueue]]. This value represents the state
+   * of the tail which is valid for the owner worker thread, used for enqueuing fibers into the
+   * local queue, as well as any other worker thread looking to steal work from this local
+   * queue, used for calculating how many fibers to steal. This is an unsigned 16 bit integer.
    *
-   * @note For more details, consult the comments in the source code for
-   *       [[cats.effect.unsafe.LocalQueue]].
+   * @note
+   *   For more details, consult the comments in the source code for
+   *   [[cats.effect.unsafe.LocalQueue]].
    *
-   * @return the "tail" tag of the tail of the local queue
+   * @return
+   *   the "tail" tag of the tail of the local queue
    */
   def getTailTag(): Int = tailPublisher.get()
 }

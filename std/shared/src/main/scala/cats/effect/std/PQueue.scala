@@ -26,8 +26,7 @@ import cats.effect.std.internal.BinomialHeap
 import scala.collection.immutable.{Queue => ScalaQueue}
 
 /**
- * A purely functional Priority Queue implementation based
- * on a binomial heap (Okasaki)
+ * A purely functional Priority Queue implementation based on a binomial heap (Okasaki)
  *
  * Assumes an `Order` instance is in scope for `A`
  */
@@ -35,13 +34,12 @@ import scala.collection.immutable.{Queue => ScalaQueue}
 abstract class PQueue[F[_], A] extends PQueueSource[F, A] with PQueueSink[F, A] { self =>
 
   /**
-   * Modifies the context in which this PQueue is executed using the natural
-   * transformation `f`.
+   * Modifies the context in which this PQueue is executed using the natural transformation `f`.
    *
    * O(1)
    *
-   * @return a PQueue in the new context obtained by mapping the current one
-   *         using `f`
+   * @return
+   *   a PQueue in the new context obtained by mapping the current one using `f`
    */
   def mapK[G[_]](f: F ~> G): PQueue[G, A] =
     new PQueue[G, A] {
@@ -206,22 +204,22 @@ object PQueue {
 trait PQueueSource[F[_], A] {
 
   /**
-   * Dequeues the least element from the PQueue, possibly semantically
-   * blocking until an element becomes available.
+   * Dequeues the least element from the PQueue, possibly semantically blocking until an element
+   * becomes available.
    *
    * O(log(n))
    */
   def take: F[A]
 
   /**
-   * Attempts to dequeue the least element from the PQueue, if one is
-   * available without semantically blocking.
+   * Attempts to dequeue the least element from the PQueue, if one is available without
+   * semantically blocking.
    *
    * O(log(n))
    *
-   * @return an effect that describes whether the dequeueing of an element from
-   *         the PQueue succeeded without blocking, with `None` denoting that no
-   *         element was available
+   * @return
+   *   an effect that describes whether the dequeueing of an element from the PQueue succeeded
+   *   without blocking, with `None` denoting that no element was available
    */
   def tryTake: F[Option[A]]
 
@@ -246,24 +244,26 @@ object PQueueSource {
 trait PQueueSink[F[_], A] {
 
   /**
-   * Enqueues the given element, possibly semantically
-   * blocking until sufficient capacity becomes available.
+   * Enqueues the given element, possibly semantically blocking until sufficient capacity
+   * becomes available.
    *
    * O(log(n))
    *
-   * @param a the element to be put in the PQueue
+   * @param a
+   *   the element to be put in the PQueue
    */
   def offer(a: A): F[Unit]
 
   /**
-   * Attempts to enqueue the given element without
-   * semantically blocking.
+   * Attempts to enqueue the given element without semantically blocking.
    *
    * O(log(n))
    *
-   * @param a the element to be put in the PQueue
-   * @return an effect that describes whether the enqueuing of the given
-   *         element succeeded without blocking
+   * @param a
+   *   the element to be put in the PQueue
+   * @return
+   *   an effect that describes whether the enqueuing of the given element succeeded without
+   *   blocking
    */
   def tryOffer(a: A): F[Boolean]
 }
