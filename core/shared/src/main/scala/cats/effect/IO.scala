@@ -39,13 +39,7 @@ import cats.effect.instances.spawn
 import cats.effect.std.Console
 import cats.effect.tracing.{Tracing, TracingEvent}
 import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.{
-  CancellationException,
-  ExecutionContext,
-  Future,
-  Promise,
-  TimeoutException
-}
+import scala.concurrent.{CancellationException, ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -578,22 +572,29 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * the specified time `duration` or otherwise raises a `TimeoutException`.
    *
    * The source is canceled in the event that it takes longer than
-   * the specified time duration to complete.
+   * the specified time duration to complete. Once the source has been
+   * successfully canceled (and has completed its finalizers), the
+   * `TimeoutException` will be raised. If the source is uncancelable,
+   * the resulting effect will wait for it to complete before raising
+   * the exception.
    *
    * @param duration is the time span for which we wait for the source to
    *        complete; in the event that the specified time has passed without
    *        the source completing, a `TimeoutException` is raised
    */
   def timeout[A2 >: A](duration: FiniteDuration): IO[A2] =
-    timeoutTo(duration, IO.raiseError(new TimeoutException(duration.toString)))
+    Temporal[IO].timeout(this, duration)
 
   /**
    * Returns an IO that either completes with the result of the source within
    * the specified time `duration` or otherwise evaluates the `fallback`.
    *
    * The source is canceled in the event that it takes longer than
-   * the `FiniteDuration` to complete, the evaluation of the fallback
-   * happening immediately after that.
+   * the specified time duration to complete. Once the source has been
+   * successfully canceled (and has completed its finalizers), the
+   * fallback will be sequenced. If the source is uncancelable,
+   * the resulting effect will wait for it to complete before evaluating
+   * the fallback.
    *
    * @param duration is the time span for which we wait for the source to
    *        complete; in the event that the specified time has passed without
@@ -603,10 +604,29 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *        the source canceled
    */
   def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2]): IO[A2] =
-    race(IO.sleep(duration)).flatMap {
-      case Right(_) => fallback
-      case Left(value) => IO.pure(value)
-    }
+    Temporal[IO].timeoutTo(this, duration, fallback)
+
+  /**
+   * Returns an IO that either completes with the result of the source within
+   * the specified time `duration` or otherwise raises a `TimeoutException`.
+   *
+   * The source is canceled in the event that it takes longer than
+   * the specified time duration to complete. Unlike [[timeout]],
+   * the cancelation of the source will be ''requested'' but not
+   * awaited, and the exception will be raised immediately upon the
+   * completion of the timer. This may more closely match intuitions
+   * about timeouts, but it also violates backpressure guarantees
+   * and intentionally leaks fibers.
+   *
+   * This combinator should be applied very carefully.
+   *
+   * @param duration The time span for which we wait for the source to
+   *        complete; in the event that the specified time has passed without
+   *        the source completing, a `TimeoutException` is raised
+   * @see [[timeout]] for a variant which respects backpressure and does not leak fibers
+   */
+  def timeoutAndAbandon(duration: FiniteDuration): IO[A] =
+    Temporal[IO].timeoutAndAbandon(this, duration)
 
   def timed: IO[(FiniteDuration, A)] =
     Clock[IO].timed(this)
@@ -1468,9 +1488,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     def sleep(time: FiniteDuration): IO[Unit] =
       IO.sleep(time)
-
-    override def timeoutTo[A](ioa: IO[A], duration: FiniteDuration, fallback: IO[A]): IO[A] =
-      ioa.timeoutTo(duration, fallback)
 
     def canceled: IO[Unit] =
       IO.canceled

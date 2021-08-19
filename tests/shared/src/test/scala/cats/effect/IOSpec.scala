@@ -1080,8 +1080,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "short-circuit on error" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
 
-        (IO.never[Unit], IO.raiseError[Unit](TestException)).parTupled.void must failAs(TestException)
-        (IO.raiseError[Unit](TestException), IO.never[Unit]).parTupled.void must failAs(TestException)
+        (IO.never[Unit], IO.raiseError[Unit](TestException)).parTupled.void must failAs(
+          TestException)
+        (IO.raiseError[Unit](TestException), IO.never[Unit]).parTupled.void must failAs(
+          TestException)
       }
     }
 
@@ -1200,6 +1202,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             r <- IO(v must beTrue)
           } yield r
         }
+
+        "non-terminate on an uncancelable fiber" in ticked { implicit ticker =>
+          IO.never.uncancelable.timeout(1.second) must nonTerminate
+        }
       }
 
       "timeoutTo" should {
@@ -1222,6 +1228,16 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           op.flatMap { res =>
             IO {
               res must beTrue
+            }
+          }
+        }
+      }
+
+      "timeoutAndAbandon" should {
+        "terminate on an uncancelable fiber" in real {
+          IO.never.uncancelable.timeoutAndAbandon(1.second).attempt flatMap { e =>
+            IO {
+              e must beLike { case Left(e) => e must haveClass[TimeoutException] }
             }
           }
         }
