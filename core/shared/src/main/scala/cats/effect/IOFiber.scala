@@ -85,7 +85,7 @@ private final class IOFiber[A](
    * Ideally these would be on the stack, but they can't because we sometimes need to
    * relocate our runloop to another fiber.
    */
-  private[this] var conts = ByteStack.create(16)   // use ByteStack to interact
+  private[this] var conts = ByteStack.create(16) // use ByteStack to interact
   private[this] val objectState: ArrayStack[AnyRef] = new ArrayStack()
 
   /* fast-path to head */

@@ -20,15 +20,20 @@ private[effect] object ByteStack {
 
   final def toDebugString(stack: Array[Int], translate: Byte => String = _.toString): String = {
     val count = size(stack)
-    ((count - 1) to 0 by -1).foldLeft(
-      new StringBuilder()
-      .append("Stack:")
-      .append(" capacity = ").append((stack.length - 1) * 8).append(',')
-      .append(" count = ").append(count).append(',')
-      .append(" content (top-first) = [ ")
-    ){
-      (b, i) =>  b.append(translate(ByteStack.read(stack, i))).append(' ')
-    }.append(']').toString
+    ((count - 1) to 0 by -1)
+      .foldLeft(
+        new StringBuilder()
+          .append("Stack:")
+          .append(" capacity = ")
+          .append((stack.length - 1) * 8)
+          .append(',')
+          .append(" count = ")
+          .append(count)
+          .append(',')
+          .append(" content (top-first) = [ ")
+      ) { (b, i) => b.append(translate(ByteStack.read(stack, i))).append(' ') }
+      .append(']')
+      .toString
   }
 
   final def create(initialMaxOps: Int): Array[Int] =
@@ -45,12 +50,12 @@ private[effect] object ByteStack {
   }
 
   final def push(stack: Array[Int], op: Byte): Array[Int] = {
-    val c = stack(0)                                           // current count of elements
-    val use = growIfNeeded(stack, c)                           // alias so we add to the right place
-    val s = (c >> 3) + 1                                       // current slot in `use`
-    val shift = (c & 7) << 2                                   // BEGIN MAGIC
-    use(s) = (use(s) & ~(0xFFFFFFFF << shift)) | (op << shift) // END MAGIC
-    use(0) += 1                                                // write the new count
+    val c = stack(0) // current count of elements
+    val use = growIfNeeded(stack, c) // alias so we add to the right place
+    val s = (c >> 3) + 1 // current slot in `use`
+    val shift = (c & 7) << 2 // BEGIN MAGIC
+    use(s) = (use(s) & ~(0xffffffff << shift)) | (op << shift) // END MAGIC
+    use(0) += 1 // write the new count
     use
   }
 
@@ -62,13 +67,13 @@ private[effect] object ByteStack {
 
   final def read(stack: Array[Int], pos: Int): Byte = {
     if (pos < 0 || pos >= stack(0)) throw new ArrayIndexOutOfBoundsException()
-      ((stack((pos >> 3) + 1) >>> ((pos & 7) << 2)) & 0x0000000F).toByte
+    ((stack((pos >> 3) + 1) >>> ((pos & 7) << 2)) & 0x0000000f).toByte
   }
 
   final def peek(stack: Array[Int]): Byte = {
     val c = stack(0) - 1
     if (c < 0) throw new ArrayIndexOutOfBoundsException()
-      ((stack((c >> 3) + 1) >>> ((c & 7) << 2)) & 0x0000000F).toByte
+    ((stack((c >> 3) + 1) >>> ((c & 7) << 2)) & 0x0000000f).toByte
   }
 
   final def pop(stack: Array[Int]): Byte = {
