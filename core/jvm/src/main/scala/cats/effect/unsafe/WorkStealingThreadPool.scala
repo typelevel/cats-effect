@@ -31,6 +31,7 @@ package cats.effect
 package unsafe
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
@@ -427,6 +428,18 @@ private[effect] final class WorkStealingThreadPool(
     overflowQueue.offer(fiber, random)
     notifyParked(random)
     ()
+  }
+
+  private[effect] def sleep(
+      delay: FiniteDuration,
+      callback: Runnable,
+      fallback: Scheduler): Runnable = {
+    val thread = Thread.currentThread()
+    if (thread.isInstanceOf[WorkerThread]) {
+      thread.asInstanceOf[WorkerThread].sleep(delay, callback)
+    } else {
+      fallback.sleep(delay, callback)
+    }
   }
 
   /**
