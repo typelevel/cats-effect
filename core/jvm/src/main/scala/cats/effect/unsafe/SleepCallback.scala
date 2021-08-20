@@ -16,7 +16,6 @@
 
 package cats.effect.unsafe
 
-import scala.collection.mutable.PriorityQueue
 import scala.concurrent.duration.FiniteDuration
 
 private final class SleepCallback private (val triggerTime: Long, val callback: Runnable) {
@@ -30,11 +29,12 @@ private object SleepCallback {
       delay: FiniteDuration,
       callback: Runnable,
       now: Long,
-      sleepers: PriorityQueue[SleepCallback]): SleepCallback = {
+      sleepers: SleepersQueue): SleepCallback = {
+
     def overflowFree(delay: Long, now: Long): Long =
       if (sleepers.isEmpty) delay
       else {
-        val head = sleepers.head
+        val head = sleepers.head()
         val headDelay = head.triggerTime - now
         if (headDelay < 0 && (delay - headDelay < 0))
           Long.MaxValue + headDelay

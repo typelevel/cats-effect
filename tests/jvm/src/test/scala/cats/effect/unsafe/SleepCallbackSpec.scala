@@ -18,14 +18,13 @@ package cats.effect.unsafe
 
 import org.specs2.mutable.Specification
 
-import scala.collection.mutable.PriorityQueue
 import scala.concurrent.duration._
 
 class SleepCallbackSpec extends Specification {
 
   "SleepCallback" should {
     "have a trigger time in the future" in {
-      val sleepers = PriorityQueue.empty[SleepCallback]
+      val sleepers = SleepersQueue.empty
       val now = 100.millis.toNanos
       val delay = 500.millis
       val scb = SleepCallback.create(delay, () => (), now, sleepers)
@@ -35,7 +34,7 @@ class SleepCallbackSpec extends Specification {
     }
 
     "be ordered according to the trigger time" in {
-      val sleepers = PriorityQueue.empty[SleepCallback]
+      val sleepers = SleepersQueue.empty
 
       val now1 = 100.millis.toNanos
       val delay1 = 500.millis
@@ -70,10 +69,26 @@ class SleepCallbackSpec extends Specification {
       sleepers += scb2
       sleepers += scb3
 
-      val ordering = sleepers.dequeueAll
+      sleepers.isEmpty must beFalse
+
+      def dequeueAll(sleepers: SleepersQueue): List[SleepCallback] = {
+        def loop(sleepers: SleepersQueue, acc: List[SleepCallback]): List[SleepCallback] =
+          if (sleepers.isEmpty) acc.reverse
+          else {
+            val head = sleepers.head()
+            sleepers.popHead()
+            loop(sleepers, head :: acc)
+          }
+
+        loop(sleepers, Nil)
+      }
+
+      val ordering = dequeueAll(sleepers)
       val expectedOrdering = List(scb2, scb3, scb1)
 
       ordering mustEqual expectedOrdering
+      ordering.map(_.triggerTime) mustEqual List(300, 350, 600).map(_.millis.toNanos)
+      sleepers.isEmpty must beTrue
     }
 
     "summon the implicit ordering evidence" in {
