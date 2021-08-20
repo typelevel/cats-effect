@@ -18,9 +18,17 @@ package cats.effect.unsafe
 
 import scala.concurrent.duration.FiniteDuration
 
-private final class SleepCallback private (val triggerTime: Long, val callback: Runnable) {
+import java.util.concurrent.atomic.AtomicBoolean
+
+private final class SleepCallback private (val triggerTime: Long, val callback: Runnable)
+    extends AtomicBoolean(true)
+    with Runnable {
   override def toString: String =
     s"SleepCallback(triggerTime = $triggerTime, callback = $callback)"
+
+  override def run(): Unit = {
+    lazySet(false)
+  }
 }
 
 private object SleepCallback {
