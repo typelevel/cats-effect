@@ -263,8 +263,8 @@ private final class WorkerThread(
 
     def sleep(): Unit = {
       if (!isInterrupted()) {
-        val head = sleepers.head()
         val now = System.nanoTime()
+        val head = sleepers.head()
         val nanos = head.triggerTime - now
         LockSupport.parkNanos(pool, nanos)
 
@@ -274,6 +274,26 @@ private final class WorkerThread(
     }
 
     while (!isInterrupted()) {
+      if (sleepers.nonEmpty) {
+        val now = System.nanoTime()
+
+        var cont = true
+        while (cont) {
+          val head = sleepers.head()
+
+          if (!head.get()) {
+            sleepers.popHead()
+            cont = sleepers.nonEmpty
+          } else if (head.triggerTime - now <= 0) {
+            head.callback.run()
+            sleepers.popHead()
+            cont = sleepers.nonEmpty
+          } else {
+            cont = false
+          }
+        }
+      }
+
       ((state & OverflowQueueTicksMask): @switch) match {
         case 0 =>
           // Alternate between checking the overflow and batched queues with a
