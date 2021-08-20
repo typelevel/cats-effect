@@ -339,6 +339,11 @@ private[effect] final class WorkStealingThreadPool(
     ()
   }
 
+  private[unsafe] def doneSleeping(): Unit = {
+    state.getAndAdd(DeltaSearching)
+    ()
+  }
+
   /**
    * Schedules a fiber on this thread pool.
    *

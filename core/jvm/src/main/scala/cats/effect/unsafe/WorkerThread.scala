@@ -82,6 +82,8 @@ private final class WorkerThread(
    */
   private[this] var cedeBypass: IOFiber[_] = null
 
+  private[this] val sleepersQueue: SleepersQueue = SleepersQueue.empty
+
   // Constructor code.
   {
     // Worker threads are daemon threads.
@@ -145,6 +147,7 @@ private final class WorkerThread(
   override def run(): Unit = {
     random = ThreadLocalRandom.current()
     val rnd = random
+    val sleepers = sleepersQueue
 
     /*
      * A counter (modulo `OverflowQueueTicks`) which represents the
@@ -234,6 +237,19 @@ private final class WorkerThread(
 
     var fairness: Int = 0
 
+    def emptyAfterPruningSleepers(): Boolean = {
+      while (sleepers.nonEmpty) {
+        val head = sleepers.head()
+        if (!head.get()) {
+          sleepers.popHead()
+        } else {
+          return false
+        }
+      }
+
+      true
+    }
+
     def parkLoop(): Unit = {
       var cont = true
       while (cont && !isInterrupted()) {
@@ -242,6 +258,18 @@ private final class WorkerThread(
 
         // Spurious wakeup check.
         cont = parked.get()
+      }
+    }
+
+    def sleep(): Unit = {
+      if (!isInterrupted()) {
+        val head = sleepers.head()
+        val now = System.nanoTime()
+        val nanos = head.triggerTime - now
+        LockSupport.parkNanos(pool, nanos)
+
+        parked.lazySet(false)
+        pool.doneSleeping()
       }
     }
 
@@ -336,7 +364,12 @@ private final class WorkerThread(
             // Announce that the worker thread is parking.
             pool.transitionWorkerToParked()
             // Park the thread.
-            parkLoop()
+            if (emptyAfterPruningSleepers()) {
+              parkLoop()
+            } else {
+              sleep()
+            }
+
             // After the worker thread has been unparked, look for work in the
             // batched queue.
             state = 5
@@ -368,7 +401,11 @@ private final class WorkerThread(
               pool.notifyIfWorkPending(rnd)
             }
             // Park the thread.
-            parkLoop()
+            if (emptyAfterPruningSleepers()) {
+              parkLoop()
+            } else {
+              sleep()
+            }
             // After the worker thread has been unparked, look for work in the
             // batched queue.
             state = 5

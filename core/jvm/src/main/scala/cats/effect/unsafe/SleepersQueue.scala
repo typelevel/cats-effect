@@ -25,6 +25,9 @@ private final class SleepersQueue private () {
   def isEmpty: Boolean =
     count == 0
 
+  def nonEmpty: Boolean =
+    !isEmpty
+
   def head(): SleepCallback =
     queue.head
 
