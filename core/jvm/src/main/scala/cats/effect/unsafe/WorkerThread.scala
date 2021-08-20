@@ -19,6 +19,7 @@ package unsafe
 
 import scala.annotation.switch
 import scala.concurrent.{BlockContext, CanAwait}
+import scala.concurrent.duration.FiniteDuration
 
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
@@ -125,6 +126,13 @@ private final class WorkerThread(
     } else {
       schedule(fiber)
     }
+  }
+
+  def sleep(delay: FiniteDuration, callback: Runnable): Runnable = {
+    val sleepers = sleepersQueue
+    val scb = SleepCallback.create(delay, callback, System.nanoTime(), sleepers)
+    sleepers += scb
+    scb
   }
 
   /**
