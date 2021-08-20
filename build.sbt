@@ -352,7 +352,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.copy"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.this"),
       ProblemFilters.exclude[IncompatibleMethTypeProblem](
-        "cats.effect.unsafe.IORuntimeCompanionPlatform.installGlobal")
+        "cats.effect.unsafe.IORuntimeCompanionPlatform.installGlobal"),
+      ProblemFilters.exclude[Problem]("cats.effect.ByteStack.*")
     )
   )
   .jvmSettings(
