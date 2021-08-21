@@ -47,9 +47,7 @@ object SleepDrift extends IOApp.Simple {
         }
       }
 
-    val allocate = List
-      .range(0, 1000000)
-      .traverse(fiber(_).start)
+    val allocate = List.range(0, 1000000).traverse(fiber(_).start)
 
     allocate.bracket(_.traverse(_.joinWithNever))(_.traverse_(_.cancel)).map(_.sum)
   }
@@ -64,7 +62,7 @@ object SleepDrift extends IOApp.Simple {
   val run =
     for {
       _ <- IO.println("Warming up...")
-      _ <- delayTwoMinutes    // warmup
+      _ <- delayTwoMinutes // warmup
 
       _ <- IO.println("Measuring unloaded...")
       unloadedOverhead <- measure
@@ -79,7 +77,10 @@ object SleepDrift extends IOApp.Simple {
       _ <- IO.println(s"Unloaded overhead 100x: ${unloaded100Overhead.max}\n")
 
       _ <- IO.println("Measuring heavily loaded 100x...")
-      loaded100Overhead <- createPressure.foreverM.background.use(_ => List.fill(100)(measure).parSequence)
+      loaded100Overhead <- createPressure
+        .foreverM
+        .background
+        .use(_ => List.fill(100)(measure).parSequence)
       _ <- IO.println(s"Loaded overhead: ${loaded100Overhead.max}\n")
     } yield ()
 }
