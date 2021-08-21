@@ -386,9 +386,14 @@ private final class WorkerThread(
               sleep()
             }
 
-            // After the worker thread has been unparked, look for work in the
-            // batched queue.
-            state = 5
+            if ((cedeBypass ne null) || queue.nonEmpty()) {
+              pool.transitionWorkerFromSearching(rnd)
+              state = 7
+            } else {
+              // After the worker thread has been unparked, look for work in the
+              // batched queue.
+              state = 5
+            }
           }
 
         case 4 =>
@@ -422,9 +427,15 @@ private final class WorkerThread(
             } else {
               sleep()
             }
-            // After the worker thread has been unparked, look for work in the
-            // batched queue.
-            state = 5
+
+            if ((cedeBypass ne null) || queue.nonEmpty()) {
+              pool.transitionWorkerFromSearching(rnd)
+              state = 7
+            } else {
+              // After the worker thread has been unparked, look for work in the
+              // batched queue.
+              state = 5
+            }
           }
 
         case 5 =>
