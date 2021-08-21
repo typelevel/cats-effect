@@ -263,8 +263,9 @@ private final class WorkerThread(
         val nanos = head.triggerTime - now
         LockSupport.parkNanos(pool, nanos)
 
-        parked.lazySet(false)
-        pool.doneSleeping()
+        if (parked.getAndSet(false)) {
+          pool.doneSleeping()
+        }
       }
     }
 
