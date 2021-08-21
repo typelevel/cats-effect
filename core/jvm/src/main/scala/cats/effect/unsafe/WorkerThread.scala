@@ -256,7 +256,7 @@ private final class WorkerThread(
       }
     }
 
-    def sleep(): Unit = {
+    def parkUntilNextSleeper(): Unit = {
       if (!isInterrupted()) {
         val now = System.nanoTime()
         val head = sleepers.head()
@@ -383,7 +383,7 @@ private final class WorkerThread(
             if (sleepers.isEmpty) {
               parkLoop()
             } else {
-              sleep()
+              parkUntilNextSleeper()
             }
 
             if ((cedeBypass ne null) || queue.nonEmpty()) {
@@ -425,7 +425,7 @@ private final class WorkerThread(
             if (sleepers.isEmpty) {
               parkLoop()
             } else {
-              sleep()
+              parkUntilNextSleeper()
             }
 
             if ((cedeBypass ne null) || queue.nonEmpty()) {
