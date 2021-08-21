@@ -245,19 +245,6 @@ private final class WorkerThread(
 
     var fairness: Int = 0
 
-    def emptyAfterPruningSleepers(): Boolean = {
-      while (sleepers.nonEmpty) {
-        val head = sleepers.head()
-        if (!head.get()) {
-          sleepers.popHead()
-        } else {
-          return false
-        }
-      }
-
-      true
-    }
-
     def parkLoop(): Unit = {
       var cont = true
       while (cont && !isInterrupted()) {
@@ -289,11 +276,11 @@ private final class WorkerThread(
         while (cont) {
           val head = sleepers.head()
 
-          if (!head.get()) {
-            sleepers.popHead()
-            cont = sleepers.nonEmpty
-          } else if (head.triggerTime - now <= 0) {
-            head.callback.run()
+          val delay = head.triggerTime - now
+          if (delay <= 0) {
+            if (head.get()) {
+              head.callback.run()
+            }
             sleepers.popHead()
             cont = sleepers.nonEmpty
           } else {
@@ -392,7 +379,7 @@ private final class WorkerThread(
             // Announce that the worker thread is parking.
             pool.transitionWorkerToParked()
             // Park the thread.
-            if (emptyAfterPruningSleepers()) {
+            if (sleepers.isEmpty) {
               parkLoop()
             } else {
               sleep()
@@ -429,7 +416,7 @@ private final class WorkerThread(
               pool.notifyIfWorkPending(rnd)
             }
             // Park the thread.
-            if (emptyAfterPruningSleepers()) {
+            if (sleepers.isEmpty) {
               parkLoop()
             } else {
               sleep()
