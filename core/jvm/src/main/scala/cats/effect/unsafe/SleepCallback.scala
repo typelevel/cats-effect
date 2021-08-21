@@ -33,6 +33,10 @@ private final class SleepCallback private (val triggerTime: Long, val callback: 
 
 private object SleepCallback {
 
+  /**
+   * Translated to Scala from:
+   * https://github.com/openjdk/jdk/blob/04a806ec86a388b8de31d42f904c4321beb69e14/src/java.base/share/classes/java/util/concurrent/ScheduledThreadPoolExecutor.java#L527-L547
+   */
   def create(
       delay: FiniteDuration,
       callback: Runnable,
