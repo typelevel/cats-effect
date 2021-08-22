@@ -340,32 +340,6 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Executes a fiber on this thread pool.
-   *
-   * If the request comes from a [[WorkerThread]], the fiber is enqueued on the
-   * local queue of that thread.
-   *
-   * If the request comes from a [[HelperTread]] or an external thread, the
-   * fiber is enqueued on the overflow queue. Furthermore, if the request comes
-   * from an external thread, worker threads are notified of new work.
-   *
-   * @param fiber the fiber to be executed on the thread pool
-   */
-  private[effect] def executeFiber(fiber: IOFiber[_]): Unit = {
-    val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread]) {
-      thread.asInstanceOf[WorkerThread].schedule(fiber)
-    } else if (thread.isInstanceOf[HelperThread]) {
-      thread.asInstanceOf[HelperThread].schedule(fiber)
-    } else {
-      val random = ThreadLocalRandom.current()
-      overflowQueue.offer(fiber, random)
-      notifyParked(random)
-      ()
-    }
-  }
-
-  /**
    * Schedules a fiber on this thread pool.
    *
    * If the request comes from a [[WorkerThread]], the fiber is enqueued on the
@@ -445,13 +419,13 @@ private[effect] final class WorkStealingThreadPool(
   override def execute(runnable: Runnable): Unit = {
     if (runnable.isInstanceOf[IOFiber[_]]) {
       // Fast-path scheduling of a fiber without wrapping.
-      executeFiber(runnable.asInstanceOf[IOFiber[_]])
+      scheduleFiber(runnable.asInstanceOf[IOFiber[_]])
     } else {
       // Executing a general purpose computation on the thread pool.
       // Wrap the runnable in an `IO` and execute it as a fiber.
       val io = IO.delay(runnable.run())
       val fiber = new IOFiber[Unit](0, Map.empty, outcomeToUnit, io, this, self)
-      executeFiber(fiber)
+      scheduleFiber(fiber)
     }
   }
 
