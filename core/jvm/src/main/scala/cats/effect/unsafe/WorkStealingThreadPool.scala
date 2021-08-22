@@ -355,17 +355,22 @@ private[effect] final class WorkStealingThreadPool(
     val pool = this
     val thread = Thread.currentThread()
 
-    if (thread.isInstanceOf[WorkerThread] &&
-      thread.asInstanceOf[WorkerThread].isOwnedBy(pool)) {
-      thread.asInstanceOf[WorkerThread].reschedule(fiber)
-    } else if (thread.isInstanceOf[HelperThread] &&
-      thread.asInstanceOf[HelperThread].isOwnedBy(pool)) {
-      thread.asInstanceOf[HelperThread].schedule(fiber)
+    if (thread.isInstanceOf[WorkerThread]) {
+      val worker = thread.asInstanceOf[WorkerThread]
+      if (worker.isOwnedBy(pool)) {
+        worker.reschedule(fiber)
+      } else {
+        scheduleExternal(fiber)
+      }
+    } else if (thread.isInstanceOf[HelperThread]) {
+      val helper = thread.asInstanceOf[HelperThread]
+      if (helper.isOwnedBy(pool)) {
+        helper.schedule(fiber)
+      } else {
+        scheduleExternal(fiber)
+      }
     } else {
-      val random = ThreadLocalRandom.current()
-      overflowQueue.offer(fiber, random)
-      notifyParked(random)
-      ()
+      scheduleExternal(fiber)
     }
   }
 
@@ -387,18 +392,36 @@ private[effect] final class WorkStealingThreadPool(
     val pool = this
     val thread = Thread.currentThread()
 
-    if (thread.isInstanceOf[WorkerThread] &&
-      thread.asInstanceOf[WorkerThread].isOwnedBy(pool)) {
-      thread.asInstanceOf[WorkerThread].schedule(fiber)
-    } else if (thread.isInstanceOf[HelperThread] &&
-      thread.asInstanceOf[HelperThread].isOwnedBy(pool)) {
-      thread.asInstanceOf[HelperThread].schedule(fiber)
+    if (thread.isInstanceOf[WorkerThread]) {
+      val worker = thread.asInstanceOf[WorkerThread]
+      if (worker.isOwnedBy(pool)) {
+        worker.schedule(fiber)
+      } else {
+        scheduleExternal(fiber)
+      }
+    } else if (thread.isInstanceOf[HelperThread]) {
+      val helper = thread.asInstanceOf[HelperThread]
+      if (helper.isOwnedBy(pool)) {
+        helper.schedule(fiber)
+      } else {
+        scheduleExternal(fiber)
+      }
     } else {
-      val random = ThreadLocalRandom.current()
-      overflowQueue.offer(fiber, random)
-      notifyParked(random)
-      ()
+      scheduleExternal(fiber)
     }
+  }
+
+  /**
+   * Schedules a fiber for execution on this thread pool originating from an
+   * external thread (a thread which is not owned by this thread pool).
+   *
+   * @param fiber the fiber to be executed on the thread pool
+   */
+  private[this] def scheduleExternal(fiber: IOFiber[_]): Unit = {
+    val random = ThreadLocalRandom.current()
+    overflowQueue.offer(fiber, random)
+    notifyParked(random)
+    ()
   }
 
   /**
