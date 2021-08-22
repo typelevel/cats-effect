@@ -353,7 +353,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.this"),
       ProblemFilters.exclude[IncompatibleMethTypeProblem](
         "cats.effect.unsafe.IORuntimeCompanionPlatform.installGlobal"),
-      // introduced by #, Check `WorkerThread` ownership before scheduling
+      // introduced by #2254, Check `WorkerThread` ownership before scheduling
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.WorkStealingThreadPool.executeFiber")
