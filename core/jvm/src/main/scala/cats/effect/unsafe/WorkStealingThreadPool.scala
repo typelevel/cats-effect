@@ -353,18 +353,19 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit = {
     val pool = this
-    Thread.currentThread() match {
-      case worker: WorkerThread if worker.isOwnedBy(pool) =>
-        worker.reschedule(fiber)
+    val thread = Thread.currentThread()
 
-      case helper: HelperThread if helper.isOwnedBy(pool) =>
-        helper.schedule(fiber)
-
-      case _ =>
-        val random = ThreadLocalRandom.current()
-        overflowQueue.offer(fiber, random)
-        notifyParked(random)
-        ()
+    if (thread.isInstanceOf[WorkerThread] &&
+      thread.asInstanceOf[WorkerThread].isOwnedBy(pool)) {
+      thread.asInstanceOf[WorkerThread].reschedule(fiber)
+    } else if (thread.isInstanceOf[HelperThread] &&
+      thread.asInstanceOf[HelperThread].isOwnedBy(pool)) {
+      thread.asInstanceOf[HelperThread].schedule(fiber)
+    } else {
+      val random = ThreadLocalRandom.current()
+      overflowQueue.offer(fiber, random)
+      notifyParked(random)
+      ()
     }
   }
 
@@ -384,18 +385,19 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit = {
     val pool = this
-    Thread.currentThread() match {
-      case worker: WorkerThread if worker.isOwnedBy(pool) =>
-        worker.schedule(fiber)
+    val thread = Thread.currentThread()
 
-      case helper: HelperThread if helper.isOwnedBy(pool) =>
-        helper.schedule(fiber)
-
-      case _ =>
-        val random = ThreadLocalRandom.current()
-        overflowQueue.offer(fiber, random)
-        notifyParked(random)
-        ()
+    if (thread.isInstanceOf[WorkerThread] &&
+      thread.asInstanceOf[WorkerThread].isOwnedBy(pool)) {
+      thread.asInstanceOf[WorkerThread].schedule(fiber)
+    } else if (thread.isInstanceOf[HelperThread] &&
+      thread.asInstanceOf[HelperThread].isOwnedBy(pool)) {
+      thread.asInstanceOf[HelperThread].schedule(fiber)
+    } else {
+      val random = ThreadLocalRandom.current()
+      overflowQueue.offer(fiber, random)
+      notifyParked(random)
+      ()
     }
   }
 
