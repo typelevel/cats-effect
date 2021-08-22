@@ -366,11 +366,16 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Reschedules the given fiber directly on the local work stealing queue on the same thread,
-   * but with the possibility to skip notifying other fibers of a potential steal target, which
-   * reduces contention in workloads running on fewer worker threads. This method executes an
-   * unchecked cast to a `WorkerThread` and should only ever be called directly from a
-   * `WorkerThread`.
+   * Schedules a fiber on this thread pool.
+   *
+   * If the request comes from a [[WorkerThread]], the fiber is enqueued on the
+   * local queue of that thread.
+   *
+   * If the request comes from a [[HelperTread]] or an external thread, the
+   * fiber is enqueued on the overflow queue. Furthermore, if the request comes
+   * from an external thread, worker threads are notified of new work.
+   *
+   * @param fiber the fiber to be executed on the thread pool
    */
   private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit = {
     val pool = this
@@ -390,9 +395,18 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Reschedules the given fiber directly on the local work stealing queue on the same thread.
-   * This method executes an unchecked cast to a `WorkerThread` and should only ever be called
-   * directly from a `WorkerThread`.
+   * Reschedules a fiber on this thread pool.
+   *
+   * If the request comes from a [[WorkerThread]], depending on the current
+   * load, the fiber can be scheduled for immediate execution on the worker
+   * thread, potentially bypassing the local queue and reducing the stealing
+   * pressure.
+   *
+   * If the request comes from a [[HelperTread]] or an external thread, the
+   * fiber is enqueued on the overflow queue. Furthermore, if the request comes
+   * from an external thread, worker threads are notified of new work.
+   *
+   * @param fiber the fiber to be executed on the thread pool
    */
   private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit = {
     val pool = this
