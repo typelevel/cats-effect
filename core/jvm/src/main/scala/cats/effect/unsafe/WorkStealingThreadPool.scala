@@ -387,11 +387,19 @@ private[effect] final class WorkStealingThreadPool(
    * directly from a `WorkerThread`.
    */
   private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit = {
-    val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread]) {
-      thread.asInstanceOf[WorkerThread].schedule(fiber)
-    } else {
-      thread.asInstanceOf[HelperThread].schedule(fiber)
+    val pool = this
+    Thread.currentThread() match {
+      case worker: WorkerThread if worker.isOwnedBy(pool) =>
+        worker.schedule(fiber)
+
+      case helper: HelperThread if helper.isOwnedBy(pool) =>
+        helper.schedule(fiber)
+
+      case _ =>
+        val random = ThreadLocalRandom.current()
+        overflowQueue.offer(fiber, random)
+        notifyParked(random)
+        ()
     }
   }
 
