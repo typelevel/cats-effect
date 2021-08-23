@@ -16,11 +16,11 @@
 
 package cats.effect.kernel
 
-import scala.scalajs.js.{|, defined, Function1, JavaScriptException, Promise, Thenable}
+import scala.scalajs.js.{|, defined, Function1, JavaScriptException, Thenable}
 
 private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
 
-  def fromPromise[A](iop: F[Promise[A]]): F[A] =
+  def fromPromise[A](iop: F[Thenable[A]]): F[A] =
     flatMap(iop) { p =>
       async_[A] { cb =>
         val onFulfilled: Function1[A, Unit | Thenable[Unit]] =

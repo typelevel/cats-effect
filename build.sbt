@@ -354,7 +354,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
         "cats.effect.unsafe.IORuntimeCompanionPlatform.installGlobal"),
       // introduced by #2207, tracing for js
       ProblemFilters.exclude[IncompatibleMethTypeProblem](
-        "cats.effect.tracing.Tracing.calculateTracingEvent")
+        "cats.effect.tracing.Tracing.calculateTracingEvent"),
+      // introduced by #2254, Check `WorkerThread` ownership before scheduling
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.WorkStealingThreadPool.executeFiber")
     )
   )
   .jvmSettings(

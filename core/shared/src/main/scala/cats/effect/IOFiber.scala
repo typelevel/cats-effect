@@ -1101,7 +1101,7 @@ private final class IOFiber[A](
 
   private[this] def execute(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
-      ec.asInstanceOf[WorkStealingThreadPool].executeFiber(fiber)
+      ec.asInstanceOf[WorkStealingThreadPool].scheduleFiber(fiber)
     } else {
       scheduleOnForeignEC(ec)(fiber)
     }
