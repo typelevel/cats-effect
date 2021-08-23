@@ -336,7 +336,7 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Executes a fiber on this thread pool.
+   * Schedules a fiber on this thread pool.
    *
    * If the request comes from a [[WorkerThread]], the fiber is enqueued on the local queue of
    * that thread.
@@ -348,48 +348,77 @@ private[effect] final class WorkStealingThreadPool(
    * @param fiber
    *   the fiber to be executed on the thread pool
    */
-  private[effect] def executeFiber(fiber: IOFiber[_]): Unit = {
-    val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread]) {
-      thread.asInstanceOf[WorkerThread].schedule(fiber)
-    } else if (thread.isInstanceOf[HelperThread]) {
-      thread.asInstanceOf[HelperThread].schedule(fiber)
-    } else {
-      val random = ThreadLocalRandom.current()
-      overflowQueue.offer(fiber, random)
-      notifyParked(random)
-      ()
-    }
-  }
-
-  /**
-   * Reschedules the given fiber directly on the local work stealing queue on the same thread,
-   * but with the possibility to skip notifying other fibers of a potential steal target, which
-   * reduces contention in workloads running on fewer worker threads. This method executes an
-   * unchecked cast to a `WorkerThread` and should only ever be called directly from a
-   * `WorkerThread`.
-   */
   private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit = {
+    val pool = this
     val thread = Thread.currentThread()
+
     if (thread.isInstanceOf[WorkerThread]) {
-      thread.asInstanceOf[WorkerThread].reschedule(fiber)
+      val worker = thread.asInstanceOf[WorkerThread]
+      if (worker.isOwnedBy(pool)) {
+        worker.reschedule(fiber)
+      } else {
+        scheduleExternal(fiber)
+      }
+    } else if (thread.isInstanceOf[HelperThread]) {
+      val helper = thread.asInstanceOf[HelperThread]
+      if (helper.isOwnedBy(pool)) {
+        helper.schedule(fiber)
+      } else {
+        scheduleExternal(fiber)
+      }
     } else {
-      thread.asInstanceOf[HelperThread].schedule(fiber)
+      scheduleExternal(fiber)
     }
   }
 
   /**
-   * Reschedules the given fiber directly on the local work stealing queue on the same thread.
-   * This method executes an unchecked cast to a `WorkerThread` and should only ever be called
-   * directly from a `WorkerThread`.
+   * Reschedules a fiber on this thread pool.
+   *
+   * If the request comes from a [[WorkerThread]], depending on the current
+   * load, the fiber can be scheduled for immediate execution on the worker
+   * thread, potentially bypassing the local queue and reducing the stealing
+   * pressure.
+   *
+   * If the request comes from a [[HelperTread]] or an external thread, the
+   * fiber is enqueued on the overflow queue. Furthermore, if the request comes
+   * from an external thread, worker threads are notified of new work.
+   *
+   * @param fiber the fiber to be executed on the thread pool
    */
   private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit = {
+    val pool = this
     val thread = Thread.currentThread()
+
     if (thread.isInstanceOf[WorkerThread]) {
-      thread.asInstanceOf[WorkerThread].schedule(fiber)
+      val worker = thread.asInstanceOf[WorkerThread]
+      if (worker.isOwnedBy(pool)) {
+        worker.schedule(fiber)
+      } else {
+        scheduleExternal(fiber)
+      }
+    } else if (thread.isInstanceOf[HelperThread]) {
+      val helper = thread.asInstanceOf[HelperThread]
+      if (helper.isOwnedBy(pool)) {
+        helper.schedule(fiber)
+      } else {
+        scheduleExternal(fiber)
+      }
     } else {
-      thread.asInstanceOf[HelperThread].schedule(fiber)
+      scheduleExternal(fiber)
     }
+  }
+
+  /**
+   * Schedules a fiber for execution on this thread pool originating from an
+   * external thread (a thread which is not owned by this thread pool).
+   *
+   * @param fiber the fiber to be executed on the thread pool
+   */
+  private[this] def scheduleExternal(fiber: IOFiber[_]): Unit = {
+    val random = ThreadLocalRandom.current()
+    overflowQueue.offer(fiber, random)
+    notifyParked(random)
+    ()
   }
 
   /**
@@ -412,13 +441,13 @@ private[effect] final class WorkStealingThreadPool(
   override def execute(runnable: Runnable): Unit = {
     if (runnable.isInstanceOf[IOFiber[_]]) {
       // Fast-path scheduling of a fiber without wrapping.
-      executeFiber(runnable.asInstanceOf[IOFiber[_]])
+      scheduleFiber(runnable.asInstanceOf[IOFiber[_]])
     } else {
       // Executing a general purpose computation on the thread pool.
       // Wrap the runnable in an `IO` and execute it as a fiber.
       val io = IO.delay(runnable.run())
       val fiber = new IOFiber[Unit](0, Map.empty, outcomeToUnit, io, this, self)
-      executeFiber(fiber)
+      scheduleFiber(fiber)
     }
   }
 

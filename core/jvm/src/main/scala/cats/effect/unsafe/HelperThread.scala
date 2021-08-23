@@ -95,7 +95,7 @@ private final class HelperThread(
    * [[HelperThread]] that the [[WorkerThread]] is finished blocking and is returning to normal
    * operation. The [[HelperThread]] should finalize and die.
    */
-  private[unsafe] def setSignal(): Unit = {
+  def setSignal(): Unit = {
     signal.lazySet(true)
   }
 
@@ -112,9 +112,24 @@ private final class HelperThread(
   }
 
   /**
-   * The run loop of the [[HelperThread]]. A loop iteration consists of checking the `overflow`
-   * queue for available work. If it cannot secure a fiber from the `overflow` queue, the
-   * [[HelperThread]] exits its runloop and dies. If a fiber is secured, it is executed.
+   * Checks whether this [[HelperThread]] operates within the
+   * [[WorkStealingThreadPool]] provided as an argument to this method. The
+   * implementation checks whether the provided [[WorkStealingThreadPool]]
+   * matches the reference of the pool provided when this [[HelperThread]] was
+   * constructed.
+   *
+   * @param threadPool a work stealing thread pool reference
+   * @return `true` if this helper thread is owned by the provided work stealing
+   *         thread pool, `false` otherwise
+   */
+  def isOwnedBy(threadPool: WorkStealingThreadPool): Boolean =
+    pool eq threadPool
+
+  /**
+   * The run loop of the [[HelperThread]]. A loop iteration consists of
+   * checking the `overflow` queue for available work. If it cannot secure a
+   * fiber from the `overflow` queue, the [[HelperThread]] exits its runloop
+   * and dies. If a fiber is secured, it is executed.
    *
    * Each iteration of the loop is preceded with a global check of the status of the pool, as
    * well as a check of the `signal` variable. In the case that any of these two variables have
