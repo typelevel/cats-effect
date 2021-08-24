@@ -434,9 +434,16 @@ private[effect] final class WorkStealingThreadPool(
       delay: FiniteDuration,
       callback: Runnable,
       fallback: Scheduler): Runnable = {
+    val pool = this
     val thread = Thread.currentThread()
+
     if (thread.isInstanceOf[WorkerThread]) {
-      thread.asInstanceOf[WorkerThread].sleep(delay, callback)
+      val worker = thread.asInstanceOf[WorkerThread]
+      if (worker.isOwnedBy(pool)) {
+        worker.sleep(delay, callback)
+      } else {
+        fallback.sleep(delay, callback)
+      }
     } else {
       fallback.sleep(delay, callback)
     }
