@@ -806,10 +806,21 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       }
 
       "cancel a long sleep with a short one" in real {
-        IO.sleep(10.seconds).race(IO.sleep(50.millis)).flatMap { res =>
+        (IO.executionContext.flatMap(IO.println) *> IO
+          .sleep(10.seconds)
+          .race(IO.sleep(50.millis))).flatMap { res =>
           IO {
             res must beRight(())
           }
+        }
+      }
+
+      "cancel a long sleep with a short one through evalOn" in real {
+        IO.sleep(10.seconds).race(IO.sleep(50.millis)).evalOn(ExecutionContext.global).flatMap {
+          res =>
+            IO {
+              res must beRight(())
+            }
         }
       }
 
