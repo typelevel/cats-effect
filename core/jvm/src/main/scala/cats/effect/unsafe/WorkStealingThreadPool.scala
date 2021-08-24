@@ -58,7 +58,8 @@ private[effect] final class WorkStealingThreadPool(
     threadCount: Int, // number of worker threads
     threadPrefix: String, // prefix for the name of worker threads
     self0: => IORuntime
-) extends ExecutionContext {
+) extends ExecutionContext
+    with Scheduler {
 
   import WorkStealingThreadPoolConstants._
 
@@ -430,25 +431,6 @@ private[effect] final class WorkStealingThreadPool(
     ()
   }
 
-  private[effect] def sleep(
-      delay: FiniteDuration,
-      callback: Runnable,
-      fallback: Scheduler): Runnable = {
-    val pool = this
-    val thread = Thread.currentThread()
-
-    if (thread.isInstanceOf[WorkerThread]) {
-      val worker = thread.asInstanceOf[WorkerThread]
-      if (worker.isOwnedBy(pool)) {
-        worker.sleep(delay, callback)
-      } else {
-        fallback.sleep(delay, callback)
-      }
-    } else {
-      fallback.sleep(delay, callback)
-    }
-  }
-
   /**
    * Executes a [[java.lang.Runnable]] on the [[WorkStealingThreadPool]].
    *
@@ -498,6 +480,38 @@ private[effect] final class WorkStealingThreadPool(
    */
   override def reportFailure(cause: Throwable): Unit = {
     cause.printStackTrace()
+  }
+
+  override def monotonicNanos(): Long = System.nanoTime()
+
+  override def nowMillis(): Long = System.currentTimeMillis()
+
+  override def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
+    val pool = this
+    val thread = Thread.currentThread()
+
+    if (thread.isInstanceOf[WorkerThread]) {
+      val worker = thread.asInstanceOf[WorkerThread]
+      if (worker.isOwnedBy(pool)) {
+        worker.sleep(delay, task)
+      } else {
+        sleepFallback(delay, task)
+      }
+    } else {
+      sleepFallback(delay, task)
+    }
+  }
+
+  private[this] def sleepFallback(delay: FiniteDuration, task: Runnable): Runnable = {
+    val io = IO.uncancelable(poll => poll(IO.sleep(delay)).flatMap(_ => IO.delay(task.run())))
+    val fiber = new IOFiber[Unit](0, Map.empty, outcomeToUnit, io, this, self)
+    scheduleFiber(fiber)
+
+    () => {
+      val cancel = fiber.cancel
+      val cancelFiber = new IOFiber[Unit](0, Map.empty, outcomeToUnit, cancel, this, self)
+      scheduleFiber(cancelFiber)
+    }
   }
 
   /**
