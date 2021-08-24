@@ -32,15 +32,15 @@ This may be useful if you have a pre-existing fixed thread pool and/or scheduler
 wish to use to execute IO programs. Please be sure to review thread pool best practices to
 avoid unintentionally degrading your application performance.
 """)
-// Constructor visible in the effect package for use in benchmarks.
-final class IORuntime private[effect] (
+final class IORuntime private (
     val compute: ExecutionContext,
     private[effect] val blocking: ExecutionContext,
     val scheduler: Scheduler,
     val shutdown: () => Unit,
-    val config: IORuntimeConfig,
-    private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
+    val config: IORuntimeConfig
 ) {
+  private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
+
   override def toString: String = s"IORuntime($compute, $scheduler, $config)"
 }
 
