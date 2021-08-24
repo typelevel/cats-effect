@@ -220,17 +220,13 @@ trait IOApp {
         val (blocking, blockDown) =
           IORuntime.createDefaultBlockingExecutionContext()
 
-        val (scheduler, schedDown) =
-          IORuntime.createDefaultScheduler()
-
         IORuntime(
           compute,
           blocking,
-          scheduler,
+          compute,
           { () =>
             compDown()
             blockDown()
-            schedDown()
           },
           runtimeConfig)
       }

@@ -157,17 +157,6 @@ class WorkStealingBenchmark {
       (ExecutionContext.fromExecutor(executor), () => executor.shutdown())
     }
 
-    val (scheduler, schedDown) = {
-      val executor = Executors.newSingleThreadScheduledExecutor { r =>
-        val t = new Thread(r)
-        t.setName("io-scheduler")
-        t.setDaemon(true)
-        t.setPriority(Thread.MAX_PRIORITY)
-        t
-      }
-      (Scheduler.fromScheduledExecutor(executor), () => executor.shutdown())
-    }
-
     val compute = new WorkStealingThreadPool(256, "io-compute", manyThreadsRuntime)
 
     val cancelationCheckThreshold =
@@ -176,11 +165,10 @@ class WorkStealingBenchmark {
     IORuntime(
       compute,
       blocking,
-      scheduler,
+      compute,
       () => {
         compute.shutdown()
         blockDown()
-        schedDown()
       },
       IORuntimeConfig(
         cancelationCheckThreshold,

@@ -80,9 +80,8 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       installGlobal {
         val (compute, _) = createDefaultComputeThreadPool(global)
         val (blocking, _) = createDefaultBlockingExecutionContext()
-        val (scheduler, _) = createDefaultScheduler()
 
-        IORuntime(compute, blocking, scheduler, () => (), IORuntimeConfig())
+        IORuntime(compute, blocking, compute, () => (), IORuntimeConfig())
       }
     }
 

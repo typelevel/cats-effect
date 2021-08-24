@@ -30,8 +30,6 @@ trait RunnersPlatform extends BeforeAfterAll {
     val (blocking, blockDown) =
       IORuntime.createDefaultBlockingExecutionContext(threadPrefix =
         s"io-blocking-${getClass.getName}")
-    val (scheduler, schedDown) =
-      IORuntime.createDefaultScheduler(threadPrefix = s"io-scheduler-${getClass.getName}")
     val (compute, compDown) =
       IORuntime.createDefaultComputeThreadPool(
         runtime0,
@@ -40,11 +38,10 @@ trait RunnersPlatform extends BeforeAfterAll {
     runtime0 = IORuntime(
       compute,
       blocking,
-      scheduler,
+      compute,
       { () =>
         compDown()
         blockDown()
-        schedDown()
       },
       IORuntimeConfig()
     )
