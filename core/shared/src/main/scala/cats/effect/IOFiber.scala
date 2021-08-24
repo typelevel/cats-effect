@@ -26,6 +26,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
+import java.lang.ref.WeakReference
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -104,6 +105,9 @@ private final class IOFiber[A](
 
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
+
+  @volatile
+  private[IOFiber] var monitorIndex: Int = _
 
   /* mutable state for resuming the fiber in different states */
   private[this] var resumeTag: Byte = ExecR
@@ -998,21 +1002,30 @@ private final class IOFiber[A](
   private[this] def isUnmasked(): Boolean =
     masks == initMask
 
-  /*
-   * You should probably just read this as `suspended.compareAndSet(true, false)`.
-   * This implementation has the same semantics as the above, except that it guarantees
-   * a write memory barrier in all cases, even when resumption fails. This in turn
-   * makes it suitable as a publication mechanism (as we're using it).
-   *
-   * On x86, this should have almost exactly the same performance as a CAS even taking
-   * into account the extra barrier (which x86 doesn't need anyway). On ARM without LSE
-   * it should actually be *faster* because CAS isn't primitive but get-and-set is.
-   */
-  private[this] def resume(): Boolean =
-    suspended.getAndSet(false)
+  private[this] def resume(): Boolean = {
+    /*
+     * You should probably just read this as `suspended.compareAndSet(true, false)`.
+     * This implementation has the same semantics as the above, except that it guarantees
+     * a write memory barrier in all cases, even when resumption fails. This in turn
+     * makes it suitable as a publication mechanism (as we're using it).
+     *
+     * On x86, this should have almost exactly the same performance as a CAS even taking
+     * into account the extra barrier (which x86 doesn't need anyway). On ARM without LSE
+     * it should actually be *faster* because CAS isn't primitive but get-and-set is.
+     */
+    val acquired = suspended.getAndSet(false)
 
-  private[this] def suspend(): Unit =
+    if (acquired) {
+      IOFiber.unmonitor(this)
+    }
+
+    acquired
+  }
+
+  private[this] def suspend(): Unit = {
+    IOFiber.monitor(this)
     suspended.set(true)
+  }
 
   /* returns the *new* context, not the old */
   private[this] def popContext(): ExecutionContext = {
@@ -1414,4 +1427,77 @@ private object IOFiber {
   private[IOFiber] val TypeBlocking = Sync.Type.Blocking
   private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
   private[effect] val RightUnit = Right(())
+
+  // this is a best-effort structure and may lose data depending on thread publication
+  private[this] var buffer: Array[WeakReference[IOFiber[_]]] =
+    new Array[WeakReference[IOFiber[_]]](16)
+  private[this] var index: Int = 0
+  private[this] var fragments: Int = 0
+
+  def suspended(): List[IOFiber[_]] = {
+    var back: List[IOFiber[_]] = Nil
+    val buf = buffer
+    val max = index
+
+    var i = 0
+    while (i < max) {
+      val ref = buf(i)
+      if (ref != null) {
+        val fiber = ref.get()
+        if (fiber != null) {
+          back ::= fiber
+        }
+      }
+      i += 1
+    }
+
+    back
+  }
+
+  private[IOFiber] def monitor(self: IOFiber[_]): Unit = {
+    checkAndGrow()
+    val idx = index
+    buffer(idx) = new WeakReference(self)
+    index += 1
+    self.monitorIndex = idx
+  }
+
+  private[IOFiber] def unmonitor(self: IOFiber[_]): Unit = {
+    buffer(self.monitorIndex) = null
+    fragments += 1
+  }
+
+  private[this] def checkAndGrow(): Unit = {
+    if (index >= buffer.length) {
+      if (fragments > index / 2) {
+        val len = buffer.length
+        val buffer2 = new Array[WeakReference[IOFiber[_]]](len)
+
+        var i = 0
+        var index2 = 0
+        while (i < len) {
+          val ref = buffer(i)
+          if (ref != null && ref.get() != null) {
+            val fiber = ref.get()
+            if (fiber != null) {
+              buffer2(index2) = ref
+              index2 += 1
+              fiber.monitorIndex = index2
+            }
+          }
+          i += 1
+        }
+
+        buffer = buffer2
+        index = index2
+        fragments = 0
+        checkAndGrow()
+      } else {
+        val len = buffer.length
+        val buffer2 = new Array[WeakReference[IOFiber[_]]](len * 2)
+        System.arraycopy(buffer, 0, buffer2, 0, len)
+        buffer = buffer2
+      }
+    }
+  }
 }
