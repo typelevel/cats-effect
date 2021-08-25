@@ -255,6 +255,19 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         } must completeAs(true)
       }
 
+      "enumerate suspended fibers" in realWithRuntime { runtime =>
+        for {
+          f1 <- IO.never.void.start
+          f2 <- IO.sleep(1.hour).start
+
+          _ <- IO.sleep(1.second)   // wait for the fibers to register themselves
+          fibers <- IO(runtime.suspended())
+
+          _ <- IO {
+            fibers must contain(f1, f2)
+          }
+        } yield ok
+      }
     }
   }
 }

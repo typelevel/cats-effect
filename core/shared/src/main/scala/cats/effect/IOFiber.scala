@@ -735,6 +735,7 @@ private final class IOFiber[A](
              * for `canceled` in `shouldFinalize`, ensuring no finalisation leaks
              */
             suspended.getAndSet(true)
+            monitorIndex = runtime.monitor(this)
 
             /*
              * race condition check: we may have been canceled

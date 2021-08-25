@@ -29,8 +29,13 @@ private[unsafe] abstract class IORuntimePlatform { this: IORuntime =>
   // used to lazily defragment the buffer (in particular, when (fragments / index) > 0.5)
   private[this] var fragments: Int = 0
 
-  private[effect] def suspended(): List[IOFiber[_]] = {
-    var back: List[IOFiber[_]] = Nil
+  val shutdown: () => Unit = { () =>
+    this._shutdown()
+    buffer = null
+  }
+
+  private[effect] def suspended(): Set[IOFiber[_]] = {
+    var back = Set[IOFiber[_]]()
     val buf = buffer
     val max = index
 
@@ -40,7 +45,7 @@ private[unsafe] abstract class IORuntimePlatform { this: IORuntime =>
       if (ref != null) {
         val fiber = ref.get()
         if (fiber != null) {
-          back ::= fiber
+          back += fiber
         }
       }
       i += 1

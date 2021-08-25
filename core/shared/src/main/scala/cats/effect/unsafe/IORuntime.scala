@@ -36,7 +36,7 @@ final class IORuntime private (
     val compute: ExecutionContext,
     private[effect] val blocking: ExecutionContext,
     val scheduler: Scheduler,
-    val shutdown: () => Unit,
+    private[unsafe] val _shutdown: () => Unit,
     val config: IORuntimeConfig
 ) extends IORuntimePlatform {
 

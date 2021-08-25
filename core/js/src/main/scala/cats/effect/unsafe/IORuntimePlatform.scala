@@ -19,6 +19,8 @@ package unsafe
 
 private[unsafe] abstract class IORuntimePlatform { this: IORuntime =>
 
+  val shutdown: () => Unit = _shutdown
+
   private[effect] def suspended(): List[IOFiber[_]] = Nil
 
   private[effect] def monitor(self: IOFiber[_]): Int = {
