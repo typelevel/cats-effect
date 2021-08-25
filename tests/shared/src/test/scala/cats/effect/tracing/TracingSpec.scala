@@ -42,16 +42,6 @@ class TracingSpec extends BaseSpec with TestInstances {
         case _ => false
       }
     }
-
-    // This test is targeted to Scala.js, where we distinguish thunks by their source code
-    "generate unique traces even if thunk source is identical" in {
-      val a = IO(println("foo"))
-      val b = IO(println("foo"))
-      (a, b) match {
-        case (IO.Delay(_, eventA), IO.Delay(_, eventB)) => eventA ne eventB
-        case _ => false
-      }
-    }
   }
 
   "Async.delay" should {
