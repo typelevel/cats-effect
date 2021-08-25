@@ -37,8 +37,9 @@ private[effect] object Tracing extends TracingPlatform {
       val callSite = stackTrace(idx)
       val callSiteClassName = callSite.getClassName
       val callSiteMethodName = callSite.getMethodName
+      val callSiteFileName = callSite.getFileName
 
-      if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName)) {
+      if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName, callSiteFileName)) {
         val methodSiteMethodName = methodSite.getMethodName
         val op = decodeMethodName(methodSiteMethodName)
 

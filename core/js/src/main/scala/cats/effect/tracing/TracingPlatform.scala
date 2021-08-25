@@ -64,23 +64,46 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
   )
 
   private[this] final val stackTraceMethodNameFilter: Array[String] = Array(
-    "_jl_",
-    "_Lcats_effect_"
+    "_Lcats_effect_",
+    "_jl_"
+  )
+
+  private[this] final val stackTraceFileNameFilter: Array[String] = Array(
+    "githubusercontent.com/typelevel/cats-effect/",
+    "githubusercontent.com/typelevel/cats/",
+    "githubusercontent.com/scala-js/",
+    "githubusercontent.com/scala/"
   )
 
   private[tracing] def applyStackTraceFilter(
       callSiteClassName: String,
-      callSiteMethodName: String): Boolean = {
+      callSiteMethodName: String,
+      callSiteFileName: String): Boolean = {
     if (callSiteClassName == "<jscode>") {
-      val len = stackTraceMethodNameFilter.length
-      var idx = 0
-      while (idx < len) {
-        if (callSiteMethodName.contains(stackTraceMethodNameFilter(idx))) {
-          return true
-        }
+      {
+        val len = stackTraceMethodNameFilter.length
+        var idx = 0
+        while (idx < len) {
+          if (callSiteMethodName.contains(stackTraceMethodNameFilter(idx))) {
+            return true
+          }
 
-        idx += 1
+          idx += 1
+        }
       }
+
+      {
+        val len = stackTraceFileNameFilter.length
+        var idx = 0
+        while (idx < len) {
+          if (callSiteFileName.contains(stackTraceFileNameFilter(idx))) {
+            return true
+          }
+
+          idx += 1
+        }
+      }
+
     } else {
       val len = stackTraceClassNameFilter.length
       var idx = 0

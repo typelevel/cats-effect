@@ -51,7 +51,8 @@ private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent]
   @nowarn("cat=unused")
   private[tracing] def applyStackTraceFilter(
       callSiteClassName: String,
-      callSiteMethodName: String): Boolean = {
+      callSiteMethodName: String,
+      callSiteFileName: String): Boolean = {
     val len = stackTraceFilter.length
     var idx = 0
     while (idx < len) {
