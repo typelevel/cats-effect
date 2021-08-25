@@ -26,7 +26,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
-import java.lang.ref.WeakReference
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -107,7 +106,7 @@ private final class IOFiber[A](
   private[this] var outcome: OutcomeIO[A] = _
 
   @volatile
-  private[IOFiber] var monitorIndex: Int = _
+  private[this] var monitorIndex: Int = _
 
   /* mutable state for resuming the fiber in different states */
   private[this] var resumeTag: Byte = ExecR
@@ -1016,16 +1015,19 @@ private final class IOFiber[A](
     val acquired = suspended.getAndSet(false)
 
     if (acquired) {
-      IOFiber.unmonitor(this)
+      runtime.unmonitor(monitorIndex)
     }
 
     acquired
   }
 
   private[this] def suspend(): Unit = {
-    IOFiber.monitor(this)
+    monitorIndex = runtime.monitor(this)
     suspended.set(true)
   }
+
+  private[effect] def updateMonitorIndex(idx: Int): Unit =
+    monitorIndex = idx
 
   /* returns the *new* context, not the old */
   private[this] def popContext(): ExecutionContext = {
@@ -1427,77 +1429,4 @@ private object IOFiber {
   private[IOFiber] val TypeBlocking = Sync.Type.Blocking
   private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
   private[effect] val RightUnit = Right(())
-
-  // this is a best-effort structure and may lose data depending on thread publication
-  private[this] var buffer: Array[WeakReference[IOFiber[_]]] =
-    new Array[WeakReference[IOFiber[_]]](16)
-  private[this] var index: Int = 0
-  private[this] var fragments: Int = 0
-
-  def suspended(): List[IOFiber[_]] = {
-    var back: List[IOFiber[_]] = Nil
-    val buf = buffer
-    val max = index
-
-    var i = 0
-    while (i < max) {
-      val ref = buf(i)
-      if (ref != null) {
-        val fiber = ref.get()
-        if (fiber != null) {
-          back ::= fiber
-        }
-      }
-      i += 1
-    }
-
-    back
-  }
-
-  private[IOFiber] def monitor(self: IOFiber[_]): Unit = {
-    checkAndGrow()
-    val idx = index
-    buffer(idx) = new WeakReference(self)
-    index += 1
-    self.monitorIndex = idx
-  }
-
-  private[IOFiber] def unmonitor(self: IOFiber[_]): Unit = {
-    buffer(self.monitorIndex) = null
-    fragments += 1
-  }
-
-  private[this] def checkAndGrow(): Unit = {
-    if (index >= buffer.length) {
-      if (fragments > index / 2) {
-        val len = buffer.length
-        val buffer2 = new Array[WeakReference[IOFiber[_]]](len)
-
-        var i = 0
-        var index2 = 0
-        while (i < len) {
-          val ref = buffer(i)
-          if (ref != null && ref.get() != null) {
-            val fiber = ref.get()
-            if (fiber != null) {
-              buffer2(index2) = ref
-              index2 += 1
-              fiber.monitorIndex = index2
-            }
-          }
-          i += 1
-        }
-
-        buffer = buffer2
-        index = index2
-        fragments = 0
-        checkAndGrow()
-      } else {
-        val len = buffer.length
-        val buffer2 = new Array[WeakReference[IOFiber[_]]](len * 2)
-        System.arraycopy(buffer, 0, buffer2, 0, len)
-        buffer = buffer2
-      }
-    }
-  }
 }
