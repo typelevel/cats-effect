@@ -1080,8 +1080,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "short-circuit on error" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
 
-        (IO.never[Unit], IO.raiseError[Unit](TestException)).parTupled.void must failAs(TestException)
-        (IO.raiseError[Unit](TestException), IO.never[Unit]).parTupled.void must failAs(TestException)
+        (IO.never[Unit], IO.raiseError[Unit](TestException)).parTupled.void must failAs(
+          TestException)
+        (IO.raiseError[Unit](TestException), IO.never[Unit]).parTupled.void must failAs(
+          TestException)
       }
     }
 

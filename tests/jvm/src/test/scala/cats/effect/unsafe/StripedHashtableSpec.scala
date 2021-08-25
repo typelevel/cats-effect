@@ -39,7 +39,7 @@ class StripedHashtableSpec extends BaseSpec with Runners {
           rt,
           threadPrefix = s"io-compute-${getClass.getName}")
 
-      new IORuntime(
+      IORuntime(
         compute,
         blocking,
         scheduler,
