@@ -1403,6 +1403,12 @@ private final class IOFiber[A](
     Thread.currentThread().interrupt()
     null
   }
+
+  // overrides the AtomicReference#toString
+  override def toString: String = {
+    val state = if (suspended.get()) "SUSPENDED" else "RUNNING"
+    s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state"
+  }
 }
 
 private object IOFiber {
