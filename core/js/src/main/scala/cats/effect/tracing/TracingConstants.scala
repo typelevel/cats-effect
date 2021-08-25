@@ -30,10 +30,10 @@ private object TracingConstants {
       .filterNot(_.isEmpty)
       .getOrElse("cached")
 
-  @inline def isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
+  val isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
 
-  @inline def isFullStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("full")
+  val isFullStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("full")
 
-  @inline def isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
+  val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
 
 }
