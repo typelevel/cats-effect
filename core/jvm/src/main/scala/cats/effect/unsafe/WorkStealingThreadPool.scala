@@ -486,7 +486,7 @@ private[effect] final class WorkStealingThreadPool(
 
   override def nowMillis(): Long = System.currentTimeMillis()
 
-  private[this] val RightUnit = Right(())
+  private[this] val RightUnit = IOFiber.RightUnit
 
   def sleepInternal(delay: FiniteDuration, callback: Right[Nothing, Unit] => Unit): Runnable = {
     val pool = this

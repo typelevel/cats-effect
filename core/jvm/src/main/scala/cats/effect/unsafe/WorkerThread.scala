@@ -156,7 +156,7 @@ private final class WorkerThread(
     random = ThreadLocalRandom.current()
     val rnd = random
     val sleepers = sleepersQueue
-    val RightUnit = Right(())
+    val RightUnit = IOFiber.RightUnit
 
     /*
      * A counter (modulo `OverflowQueueTicks`) which represents the
