@@ -61,7 +61,7 @@ ThisBuild / githubWorkflowUseSbtThinClient := false
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
 val LTSJava = "adoptium@11"
-val LatestJava = "adoptium@16"
+val LatestJava = "adoptium@17"
 val GraalVM8 = "graalvm-ce-java8@21.2"
 
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
