@@ -353,6 +353,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.this"),
       ProblemFilters.exclude[IncompatibleMethTypeProblem](
         "cats.effect.unsafe.IORuntimeCompanionPlatform.installGlobal"),
+      ProblemFilters.exclude[Problem]("cats.effect.ByteStack.*"),
       // introduced by #2254, Check `WorkerThread` ownership before scheduling
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[DirectMissingMethodProblem](
@@ -450,7 +451,9 @@ lazy val example = crossProject(JSPlatform, JVMPlatform)
 lazy val benchmarks = project
   .in(file("benchmarks"))
   .dependsOn(core.jvm)
-  .settings(name := "cats-effect-benchmarks")
+  .settings(
+    name := "cats-effect-benchmarks",
+    javaOptions ++= Seq("-Dcats.effect.tracing.mode=none", "-Dcats.effect.tracing.exceptions.enhanced=false"))
   .enablePlugins(NoPublishPlugin, JmhPlugin)
 
 lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
