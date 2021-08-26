@@ -128,7 +128,7 @@ private final class WorkerThread(
     }
   }
 
-  def sleep(delay: FiniteDuration, callback: Runnable): Runnable = {
+  def sleep(delay: FiniteDuration, callback: Right[Nothing, Unit] => Unit): Runnable = {
     val sleepers = sleepersQueue
     val scb = SleepCallback.create(delay, callback, System.nanoTime(), sleepers)
     sleepers += scb
@@ -156,6 +156,7 @@ private final class WorkerThread(
     random = ThreadLocalRandom.current()
     val rnd = random
     val sleepers = sleepersQueue
+    val RightUnit = Right(())
 
     /*
      * A counter (modulo `OverflowQueueTicks`) which represents the
@@ -280,7 +281,7 @@ private final class WorkerThread(
           val delay = head.triggerTime - now
           if (delay <= 0) {
             if (head.get()) {
-              head.callback.run()
+              head.callback(RightUnit)
             }
             sleepers.popHead()
             cont = sleepers.nonEmpty

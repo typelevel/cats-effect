@@ -27,7 +27,7 @@ class SleepCallbackSpec extends Specification {
       val sleepers = SleepersQueue.empty
       val now = 100.millis.toNanos
       val delay = 500.millis
-      val scb = SleepCallback.create(delay, () => (), now, sleepers)
+      val scb = SleepCallback.create(delay, _ => (), now, sleepers)
       val expected = 600.millis.toNanos // delay.toNanos + now
 
       scb.triggerTime mustEqual expected
@@ -48,9 +48,9 @@ class SleepCallbackSpec extends Specification {
       val delay3 = 50.millis
       val expected3 = 350.millis.toNanos // delay3.toNanos + now3
 
-      val scb1 = SleepCallback.create(delay1, () => (), now1, sleepers)
-      val scb2 = SleepCallback.create(delay2, () => (), now2, sleepers)
-      val scb3 = SleepCallback.create(delay3, () => (), now3, sleepers)
+      val scb1 = SleepCallback.create(delay1, _ => (), now1, sleepers)
+      val scb2 = SleepCallback.create(delay2, _ => (), now2, sleepers)
+      val scb3 = SleepCallback.create(delay3, _ => (), now3, sleepers)
 
       scb1.triggerTime mustEqual expected1
       scb2.triggerTime mustEqual expected2

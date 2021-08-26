@@ -20,12 +20,11 @@ import scala.concurrent.duration.FiniteDuration
 
 import java.util.concurrent.atomic.AtomicBoolean
 
-private final class SleepCallback private (val triggerTime: Long, val callback: Runnable)
+private final class SleepCallback private (
+    val triggerTime: Long,
+    val callback: Right[Nothing, Unit] => Unit)
     extends AtomicBoolean(true)
     with Runnable {
-  override def toString: String =
-    s"SleepCallback(triggerTime = $triggerTime, callback = $callback)"
-
   override def run(): Unit = {
     lazySet(false)
   }
@@ -39,7 +38,7 @@ private object SleepCallback {
    */
   def create(
       delay: FiniteDuration,
-      callback: Runnable,
+      callback: Right[Nothing, Unit] => Unit,
       now: Long,
       sleepers: SleepersQueue): SleepCallback = {
 

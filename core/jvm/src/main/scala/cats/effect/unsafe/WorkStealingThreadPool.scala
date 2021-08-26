@@ -486,23 +486,25 @@ private[effect] final class WorkStealingThreadPool(
 
   override def nowMillis(): Long = System.currentTimeMillis()
 
-  override def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
+  private[this] val RightUnit = Right(())
+
+  def sleepInternal(delay: FiniteDuration, callback: Right[Nothing, Unit] => Unit): Runnable = {
     val pool = this
     val thread = Thread.currentThread()
 
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
       if (worker.isOwnedBy(pool)) {
-        worker.sleep(delay, task)
+        worker.sleep(delay, callback)
       } else {
-        sleepFallback(delay, task)
+        sleep(delay, () => callback(RightUnit))
       }
     } else {
-      sleepFallback(delay, task)
+      sleep(delay, () => callback(RightUnit))
     }
   }
 
-  private[this] def sleepFallback(delay: FiniteDuration, task: Runnable): Runnable = {
+  override def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
     val io = IO.uncancelable(poll => poll(IO.sleep(delay)).flatMap(_ => IO.delay(task.run())))
     val fiber = new IOFiber[Unit](0, Map.empty, outcomeToUnit, io, this, self)
     scheduleFiber(fiber)
