@@ -644,6 +644,36 @@ private final class LocalQueue {
     null
   }
 
+  def drainBatch(batched: ScalQueue[Array[IOFiber[_]]], random: ThreadLocalRandom): Unit = {
+    val tl = tail
+
+    while (true) {
+      val hd = head.get()
+
+      val real = lsb(hd)
+
+      val realPlusHalf = unsignedShortAddition(real, OverflowBatchSize)
+      val newHd = pack(realPlusHalf, realPlusHalf)
+      if (head.compareAndSet(hd, newHd)) {
+        val batch = new Array[IOFiber[_]](OverflowBatchSize)
+        var i = 0
+
+        while (i < OverflowBatchSize) {
+          val idx = index(real + i)
+          val f = buffer(idx)
+          buffer(idx) = null
+          batch(i) = f
+          i += 1
+        }
+
+        batchedSpilloverCount += OverflowBatchSize
+        tailPublisher.lazySet(tl)
+        batched.offer(batch, random)
+        return
+      }
+    }
+  }
+
   /**
    * Steals all enqueued fibers and transfers them to the provided array.
    *
