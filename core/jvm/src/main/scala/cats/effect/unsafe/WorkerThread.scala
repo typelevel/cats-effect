@@ -232,6 +232,8 @@ private final class WorkerThread(
      */
     var state = 0
 
+    var fairness: Int = 0
+
     def parkLoop(): Unit = {
       var cont = true
       while (cont && !isInterrupted()) {
@@ -246,13 +248,30 @@ private final class WorkerThread(
     while (!isInterrupted()) {
       ((state & OverflowQueueTicksMask): @switch) match {
         case 0 =>
-          // Dequeue a fiber from the overflow queue.
-          val fiber = overflow.poll(rnd)
-          if (fiber ne null) {
-            // Run the fiber.
-            fiber.run()
+          ((fairness & 3): @switch) match {
+            case 0 =>
+              val batch = batched.poll(rnd)
+              if (batch ne null) {
+                if (queue.size() > HalfLocalQueueCapacity) {
+                  // make room for the batch
+                  queue.drainBatch(batched, rnd)
+                }
+
+                val fiber = queue.enqueueBatch(batch)
+
+                fiber.run()
+              }
+
+            case _ =>
+              // Dequeue a fiber from the overflow queue.
+              val fiber = overflow.poll(rnd)
+              if (fiber ne null) {
+                // Run the fiber.
+                fiber.run()
+              }
           }
-          // Transition to checking for fibers from the batched queue.
+
+          fairness += 1
           state = 7
 
         case 1 =>
@@ -270,7 +289,7 @@ private final class WorkerThread(
             // Directly run a fiber from the batch.
             fiber.run()
             // Transition to executing fibers from the local queue.
-            state = 8
+            state = 7
           } else {
             // Could not obtain a batch of fibers. Proceed to check for single
             // fibers in the overflow queue.
@@ -285,7 +304,7 @@ private final class WorkerThread(
             // Run the fiber.
             fiber.run()
             // Transition to executing fibers from the local queue.
-            state = 8
+            state = 7
           } else {
             // Ask for permission to steal fibers from other `WorkerThread`s.
             state = 3
@@ -319,7 +338,7 @@ private final class WorkerThread(
             // Run the stolen fiber.
             fiber.run()
             // Transition to executing fibers from the local queue.
-            state = 8
+            state = 7
           } else {
             // Stealing attempt is unsuccessful. Park.
             // Set the worker thread parked signal.
@@ -356,7 +375,7 @@ private final class WorkerThread(
             // Directly run a fiber from the batch.
             fiber.run()
             // Transition to executing fibers from the local queue.
-            state = 8
+            state = 7
           } else {
             // Could not obtain a batch of fibers. Proceed to check for single
             // fibers in the overflow queue.
@@ -372,29 +391,13 @@ private final class WorkerThread(
             // Run the fiber.
             fiber.run()
             // Transition to executing fibers from the local queue.
-            state = 8
+            state = 7
           } else {
             // Transition to stealing fibers from other `WorkerThread`s.
             // The permission is held implicitly by threads right after they
             // have been woken up.
             state = 4
           }
-
-        case 7 =>
-          val batch = batched.poll(rnd)
-          if (batch ne null) {
-            if (queue.size() > HalfLocalQueueCapacity) {
-              // make room for the batch
-              queue.drainBatch(batched, rnd)
-            }
-
-            val fiber = queue.enqueueBatch(batch)
-
-            fiber.run()
-          }
-
-          // Transition to executing fibers from the local queue.
-          state = 8
 
         case _ =>
           // Check the queue bypass reference before dequeueing from the local
