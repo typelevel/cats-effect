@@ -1316,17 +1316,17 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       def yieldUntil(ref: Ref[IO, Boolean]): IO[Unit] =
         ref.get.flatMap(b => if (b) IO.unit else IO.cede *> yieldUntil(ref))
 
-        for {
-          n    <- IO(java.lang.Runtime.getRuntime.availableProcessors)
-          done <- Ref.of[IO, Boolean](false)
-          fibers <- List.range(0, n - 1).traverse(_ => yieldUntil(done).start)
-          _ <- IO.unit.start.replicateA(200)
-          _ <- done.set(true).start
-          _ <- IO.unit.start.replicateA(1000)
-          _ <- yieldUntil(done)
-          _ <- fibers.traverse(_.join)
-          res <- IO(ok)
-        } yield res
+      for {
+        n <- IO(java.lang.Runtime.getRuntime.availableProcessors)
+        done <- Ref.of[IO, Boolean](false)
+        fibers <- List.range(0, n - 1).traverse(_ => yieldUntil(done).start)
+        _ <- IO.unit.start.replicateA(200)
+        _ <- done.set(true).start
+        _ <- IO.unit.start.replicateA(1000)
+        _ <- yieldUntil(done)
+        _ <- fibers.traverse(_.join)
+        res <- IO(ok)
+      } yield res
     }
 
     platformSpecs
