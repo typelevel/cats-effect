@@ -153,8 +153,8 @@ private final class WorkerThread(
      *
      *   0: To increase the fairness towards fibers scheduled by threads which
      *      are external to the `WorkStealingThreadPool`, every
-     *      `OverflowQueueTicks` number of iterations, the overflow queue takes
-     *      precedence over the local queue.
+     *      `OverflowQueueTicks` number of iterations, the overflow and batched
+     *      queues take precedence over the local queue.
      *
      *      If a fiber is successfully dequeued from the overflow queue, it will
      *      be executed. The `WorkerThread` unconditionally transitions to
@@ -248,17 +248,22 @@ private final class WorkerThread(
     while (!isInterrupted()) {
       ((state & OverflowQueueTicksMask): @switch) match {
         case 0 =>
-          ((fairness & 3): @switch) match {
+          // Alternate between checking the overflow and batched queues with a
+          // 2:1 ration in favor of the overflow queue, for now.
+          ((fairness % 3): @switch) match {
             case 0 =>
+              // Look into the batched queue for a batch of fibers.
               val batch = batched.poll(rnd)
               if (batch ne null) {
                 if (queue.size() > HalfLocalQueueCapacity) {
-                  // make room for the batch
+                  // Make room for the batch if the local queue cannot
+                  // accommodate the batch as is.
                   queue.drainBatch(batched, rnd)
                 }
 
+                // Enqueue the batch at the back of the local queue and execute
+                // the first fiber.
                 val fiber = queue.enqueueBatch(batch)
-
                 fiber.run()
               }
 
@@ -272,6 +277,7 @@ private final class WorkerThread(
           }
 
           fairness += 1
+          // Transition to executing fibers from the local queue.
           state = 7
 
         case 1 =>
