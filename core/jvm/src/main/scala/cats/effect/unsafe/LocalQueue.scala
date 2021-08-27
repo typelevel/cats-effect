@@ -645,6 +645,80 @@ private final class LocalQueue {
   }
 
   /**
+   * Steals a batch of enqueued fibers and transfers the whole batch to the
+   * batched queue.
+   *
+   * This method is called by the runtime to restore fairness guarantees between
+   * fibers in the local queue compared to fibers on the overflow and batched
+   * queues. Every few iterations, the overflow and batched queues are checked
+   * for fibers and those fibers are executed. In the case of the batched queue,
+   * a batch of fibers might be obtained, which cannot fully fit into the local
+   * queue due to insufficient capacity. In that case, this method is called to
+   * drain one full batch of fibers, which in turn creates space for the fibers
+   * arriving from the batched queue.
+   *
+   * Conceptually, this method is identical to [[LocalQueue#dequeue]], with the
+   * main difference being that the `head` of the queue is moved forward by as
+   * many places as there are in a batch, thus securing all those fibers and
+   * transferring them to the batched queue.
+   *
+   * @note Can '''only''' be correctly called by the owner [[WorkerThread]].
+   *
+   * @param batched the batched queue to transfer a batch of fibers into
+   * @param random a reference to an uncontended source of randomness, to be
+   *               passed along to the striped concurrent queues when executing
+   *               their enqueue operations
+   */
+  def drainBatch(batched: ScalQueue[Array[IOFiber[_]]], random: ThreadLocalRandom): Unit = {
+    // A plain, unsynchronized load of the tail of the local queue.
+    val tl = tail
+
+    while (true) {
+      // A load of the head of the queue using `acquire` semantics.
+      val hd = head.get()
+
+      val real = lsb(hd)
+
+      if (tl == real) {
+        // The tail and the "real" value of the head are equal. The queue is
+        // empty. There is nothing more to be done.
+        return
+      }
+
+      // Move the "real" value of the head by the size of a batch.
+      val newReal = unsignedShortAddition(real, OverflowBatchSize)
+
+      // Make sure to preserve the "steal" tag in the presence of a concurrent
+      // stealer. Otherwise, move the "steal" tag along with the "real" value.
+      val steal = msb(hd)
+      val newHd = if (steal == real) pack(newReal, newReal) else pack(steal, newReal)
+
+      if (head.compareAndSet(hd, newHd)) {
+        // The head has been successfully moved forward and a batch of fibers
+        // secured. Proceed to null out the references to the fibers and
+        // transfer them to the batch.
+        val batch = new Array[IOFiber[_]](OverflowBatchSize)
+        var i = 0
+
+        while (i < OverflowBatchSize) {
+          val idx = index(real + i)
+          val f = buffer(idx)
+          buffer(idx) = null
+          batch(i) = f
+          i += 1
+        }
+
+        // The fibers have been transferred, enqueue the whole batch on the
+        // batched queue.
+        batchedSpilloverCount += OverflowBatchSize
+        tailPublisher.lazySet(tl)
+        batched.offer(batch, random)
+        return
+      }
+    }
+  }
+
+  /**
    * Steals all enqueued fibers and transfers them to the provided array.
    *
    * This method is called by the runtime when blocking is detected in order to
