@@ -17,17 +17,14 @@
 package cats.effect.std.internal
 
 /**
- * A banker's dequeue a la Okasaki. The front list is
- * in order, the back list is in reversed order.
- * Therefore (aside from the edge case where one of the
- * lists is empty and the other is of size 1)
- * the first element of the queue is at the head of the
- * front list and the last element of the queue is at
- * the head of the back list.
+ * A banker's dequeue a la Okasaki. The front list is in order, the back list is in reversed
+ * order. Therefore (aside from the edge case where one of the lists is empty and the other is
+ * of size 1) the first element of the queue is at the head of the front list and the last
+ * element of the queue is at the head of the back list.
  *
  * Maintains the invariants that:
- * - frontLen <= rebalanceConstant * backLen + 1
- * - backLen <= rebalanceConstant * frontLen + 1
+ *   - frontLen <= rebalanceConstant * backLen + 1
+ *   - backLen <= rebalanceConstant * frontLen + 1
  */
 private[std] final case class BankersQueue[A](
     front: List[A],

@@ -28,8 +28,9 @@ object ExitCode {
   /**
    * Creates an `ExitCode`.
    *
-   * @param i the value whose 8 least significant bits are used to
-   * construct an exit code within the valid range.
+   * @param i
+   *   the value whose 8 least significant bits are used to construct an exit code within the
+   *   valid range.
    */
   def apply(i: Int): ExitCode = new ExitCode(i & 0xff) {}
 

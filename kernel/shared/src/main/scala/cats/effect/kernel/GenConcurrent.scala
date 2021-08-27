@@ -34,12 +34,12 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
   /**
    * Caches the result of `fa`.
    *
-   * The returned inner effect, hence referred to as `get`, when sequenced, will
-   * evaluate `fa` and cache the result. If `get` is sequenced multiple times
-   * `fa` will only be evaluated once.
+   * The returned inner effect, hence referred to as `get`, when sequenced, will evaluate `fa`
+   * and cache the result. If `get` is sequenced multiple times `fa` will only be evaluated
+   * once.
    *
-   * If all `get`s are canceled prior to `fa` completing, it will be canceled
-   * and evaluated again the next time `get` is sequenced.
+   * If all `get`s are canceled prior to `fa` completing, it will be canceled and evaluated
+   * again the next time `get` is sequenced.
    */
   def memoize[A](fa: F[A]): F[F[A]] = {
     import Memoize._
@@ -85,10 +85,9 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
     parTraverseN(n)(tma)(identity)
 
   /**
-   * Like `Parallel.parTraverse`, but limits the degree of parallelism.
-   * Note that the semantics of this operation aim to maximise
-   * fairness: when a spot to execute becomes available, every task
-   * has a chance to claim it, and not only the next `n` tasks in `ta`
+   * Like `Parallel.parTraverse`, but limits the degree of parallelism. Note that the semantics
+   * of this operation aim to maximise fairness: when a spot to execute becomes available, every
+   * task has a chance to claim it, and not only the next `n` tasks in `ta`
    */
   def parTraverseN[T[_]: Traverse, A, B](n: Int)(ta: T[A])(f: A => F[B]): F[T[B]] = {
     require(n >= 1, s"Concurrency limit should be at least 1, was: $n")
