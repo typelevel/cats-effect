@@ -680,8 +680,8 @@ private final class LocalQueue {
       val real = lsb(hd)
 
       if (unsignedShortSubtraction(tl, real) < OverflowBatchSize) {
-        // The tail and the "real" value of the head are equal. The queue is
-        // empty. There is nothing more to be done.
+        // The current remaining capacity of the local queue is enough to
+        // accommodate the new incoming batch. There is nothing more to be done.
         return
       }
 
