@@ -679,7 +679,7 @@ private final class LocalQueue {
 
       val real = lsb(hd)
 
-      if (tl == real) {
+      if (unsignedShortSubtraction(tl, real) < OverflowBatchSize) {
         // The tail and the "real" value of the head are equal. The queue is
         // empty. There is nothing more to be done.
         return
