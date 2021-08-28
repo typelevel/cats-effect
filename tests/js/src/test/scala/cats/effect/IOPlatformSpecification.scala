@@ -22,6 +22,8 @@ import org.scalacheck.Prop.forAll
 
 import org.specs2.ScalaCheck
 
+import scala.scalajs.js
+
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
   def platformSpecs =
@@ -30,6 +32,15 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
       "round trip through js.Promise" in ticked { implicit ticker =>
         forAll { (ioa: IO[Int]) =>
           ioa.eqv(IO.fromPromise(IO(ioa.unsafeToPromise())))
+        }.pendingUntilFixed // "callback scheduling gets in the way here since Promise doesn't use TestContext"
+      }
+
+      "round trip through js.Promise via Async" in ticked { implicit ticker =>
+        def lossy[F[_]: Async, A](fa: F[A])(f: F[A] => js.Promise[A]): F[A] =
+          Async[F].fromPromise(Sync[F].delay(f(fa))).map(x => x)
+
+        forAll { (ioa: IO[Int]) =>
+          ioa.eqv(lossy(ioa)(_.unsafeToPromise()))
         }.pendingUntilFixed // "callback scheduling gets in the way here since Promise doesn't use TestContext"
       }
 

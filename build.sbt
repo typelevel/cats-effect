@@ -453,7 +453,9 @@ lazy val benchmarks = project
   .dependsOn(core.jvm)
   .settings(
     name := "cats-effect-benchmarks",
-    javaOptions ++= Seq("-Dcats.effect.tracing.mode=none", "-Dcats.effect.tracing.exceptions.enhanced=false"))
+    javaOptions ++= Seq(
+      "-Dcats.effect.tracing.mode=none",
+      "-Dcats.effect.tracing.exceptions.enhanced=false"))
   .enablePlugins(NoPublishPlugin, JmhPlugin)
 
 lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
