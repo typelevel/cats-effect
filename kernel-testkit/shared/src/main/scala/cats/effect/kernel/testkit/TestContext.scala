@@ -17,6 +17,7 @@
 package cats.effect.kernel
 package testkit
 
+import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -158,6 +159,27 @@ final class TestContext private () extends ExecutionContext { self =>
     synchronized(stateRef)
 
   /**
+   * Returns the current interval between "now" and the earliest scheduled
+   * task. If there are tasks which will run immediately, this will return
+   * `Duration.Zero`. Passing this value to [[tick]] will guarantee
+   * minimum time-oriented progress on the task queue (e.g. `tick(nextInterval())`).
+   */
+  def nextInterval(): FiniteDuration = {
+    val s = state
+    s.tasks.min.runsAt - s.clock
+  }
+
+  def advance(time: FiniteDuration): Unit =
+    synchronized {
+      stateRef = stateRef.copy(clock = stateRef.clock + time)
+    }
+
+  def advanceAndTick(time: FiniteDuration): Unit = {
+    advance(time)
+    tick()
+  }
+
+  /**
    * Executes just one tick, one task, from the internal queue, useful
    * for testing that a some runnable will definitely be executed next.
    *
@@ -190,65 +212,50 @@ final class TestContext private () extends ExecutionContext { self =>
           try head.task.run()
           catch { case NonFatal(ex) => reportFailure(ex) }
           true
+
         case None =>
           false
       }
     }
 
+  @tailrec
+  def tick(): Unit =
+    if (tickOne()) {
+      tick()
+    }
+
+  private[testkit] def tick(time: FiniteDuration): Unit = {
+    advance(time)
+    tick()
+  }
+
+  private[testkit] def tick$default$1(): FiniteDuration = Duration.Zero
+
   /**
-   * Triggers execution by going through the queue of scheduled tasks and
-   * executing them all, until no tasks remain in the queue to execute.
+   * Repeatedly runs `tick(nextInterval())` until all work has completed.
+   * This is useful for emulating the quantized passage of time. For any
+   * discrete tick, the scheduler will randomly pick from all eligible tasks
+   * until the only remaining work is delayed. At that point, the scheduler
+   * will then advance the minimum delay (to the next time interval) and
+   * the process repeats.
    *
-   * Order of execution isn't guaranteed, the queued `Runnable`s are
-   * being shuffled in order to simulate the needed nondeterminism
-   * that happens with multi-threading.
-   *
-   * {{{
-   *   implicit val ec = TestContext()
-   *
-   *   val f = Future(1 + 1).flatMap(_ + 1)
-   *   // Execution is momentarily suspended in TestContext
-   *   assert(f.value == None)
-   *
-   *   // Simulating async execution:
-   *   ec.tick()
-   *   assert(f.value, Some(Success(2)))
-   * }}}
-   *
-   * @param time is an optional parameter for simulating time passing;
+   * This is intuitively equivalent to "running to completion".
    */
-  def tick(time: FiniteDuration = Duration.Zero): Unit = {
-    val targetTime = this.stateRef.clock + time
-    var hasTasks = true
-
-    while (hasTasks) synchronized {
-      val current = this.stateRef
-
-      extractOneTask(current, targetTime) match {
-        case Some((head, rest)) =>
-          stateRef = current.copy(clock = head.runsAt, tasks = rest)
-          // execute task
-          try head.task.run()
-          catch {
-            case ex if NonFatal(ex) =>
-              reportFailure(ex)
-          }
-
-        case None =>
-          stateRef = current.copy(clock = targetTime)
-          hasTasks = false
-      }
+  @tailrec
+  def tickAll(): Unit = {
+    tick()
+    if (!stateRef.tasks.isEmpty) {
+      advance(nextInterval())
+      tickAll()
     }
   }
 
-  def tickAll(time: FiniteDuration = Duration.Zero): Unit = {
-    tick(time)
-
-    // some of our tasks may have enqueued more tasks
-    if (!this.stateRef.tasks.isEmpty) {
-      tickAll(time)
-    }
+  private[testkit] def tickAll(time: FiniteDuration): Unit = {
+    val _ = time
+    tickAll()
   }
+
+  private[testkit] def tickAll$default$1(): FiniteDuration = Duration.Zero
 
   def schedule(delay: FiniteDuration, r: Runnable): () => Unit =
     synchronized {
@@ -307,9 +314,6 @@ object TestContext {
       clock: FiniteDuration,
       tasks: SortedSet[Task],
       lastReportedFailure: Option[Throwable]) {
-    assert(
-      !tasks.headOption.exists(_.runsAt < clock),
-      "The runsAt for any task must never be in the past")
 
     /**
      * Returns a new state with the runnable scheduled for execution.
