@@ -15,6 +15,7 @@ on:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  JABBA_INDEX: 'https://github.com/vasilmkd/jdk-index/raw/main/index.json'
 
 jobs:
   build:
@@ -23,7 +24,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         scala: [3.0.1, 2.12.14, 2.13.6]
-        java: [adopt@1.8, adopt@1.11]
+        java: [adoptium@8, adoptium@11, adoptium@17]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout current branch (full)
@@ -32,7 +33,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Java and Scala
-        uses: olafurpg/setup-scala@v10
+        uses: olafurpg/setup-scala@v13
         with:
           java-version: ${{ matrix.java }}
 
@@ -49,12 +50,12 @@ jobs:
           key: ${{ runner.os }}-sbt-cache-v2-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Check that workflows are up to date
-        run: sbt --client '++${{ matrix.scala }}; githubWorkflowCheck'
+        run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
-      - run: sbt --client '++${{ matrix.scala }}; ci'
+      - run: sbt ++${{ matrix.scala }} ci
 
       - if: matrix.scala == '2.13.6'
-        run: sbt --client '++${{ matrix.scala }}; docs/mdoc'
+        run: sbt ++${{ matrix.scala }} docs/mdoc
 
       - name: Scalafix tests
         if: matrix.scala == '2.13.6'

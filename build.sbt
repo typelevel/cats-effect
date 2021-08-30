@@ -28,7 +28,8 @@ val Scala3 = "3.0.1"
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
 ThisBuild / scalaVersion := (ThisBuild / crossScalaVersions).value.last
 
-ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11")
+ThisBuild / githubWorkflowJavaVersions := Seq("adoptium@8", "adoptium@11", "adoptium@17")
+ThisBuild / githubWorkflowEnv += ("JABBA_INDEX" -> "https://github.com/vasilmkd/jdk-index/raw/main/index.json")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/2.x")
 
