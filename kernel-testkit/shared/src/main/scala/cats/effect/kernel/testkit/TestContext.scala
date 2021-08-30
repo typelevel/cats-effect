@@ -134,8 +134,7 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
 
   private[this] var stateRef = State(
     lastID = 0,
-    // our epoch is negative! this is just to give us an extra 263 years of space for Prop shrinking to play
-    clock = (Long.MinValue + 1).nanos,
+    clock = Duration.Zero,
     tasks = SortedSet.empty[Task],
     lastReportedFailure = None
   )
