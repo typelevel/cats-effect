@@ -166,11 +166,12 @@ final class TestContext private () extends ExecutionContext { self =>
    */
   def nextInterval(): FiniteDuration = {
     val s = state
-    s.tasks.min.runsAt - s.clock
+    (s.tasks.min.runsAt - s.clock).max(Duration.Zero)
   }
 
   def advance(time: FiniteDuration): Unit =
     synchronized {
+      require(time > Duration.Zero)
       stateRef = stateRef.copy(clock = stateRef.clock + time)
     }
 
