@@ -20,7 +20,7 @@ package testkit
 import scala.annotation.tailrec
 
 import scala.collection.immutable.SortedSet
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{blocking, ExecutionContext}
 import scala.concurrent.duration._
 
 import scala.util.Random
@@ -145,16 +145,20 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
    * for execution.
    */
   def execute(r: Runnable): Unit =
-    synchronized {
-      stateRef = stateRef.execute(r)
+    blocking {
+      synchronized {
+        stateRef = stateRef.execute(r)
+      }
     }
 
   /**
    * Inherited from `ExecutionContext`, reports uncaught errors.
    */
   def reportFailure(cause: Throwable): Unit =
-    synchronized {
-      stateRef = stateRef.copy(lastReportedFailure = Some(cause))
+    blocking {
+      synchronized {
+        stateRef = stateRef.copy(lastReportedFailure = Some(cause))
+      }
     }
 
   /**
@@ -162,7 +166,7 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
    * that certain execution conditions have been met.
    */
   def state: State =
-    synchronized(stateRef)
+    blocking(synchronized(stateRef))
 
   /**
    * Returns the current interval between "now" and the earliest scheduled
@@ -175,11 +179,15 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
     (s.tasks.min.runsAt - s.clock).max(Duration.Zero)
   }
 
-  def advance(time: FiniteDuration): Unit =
-    synchronized {
-      require(time > Duration.Zero)
-      stateRef = stateRef.copy(clock = stateRef.clock + time)
+  def advance(time: FiniteDuration): Unit = {
+    require(time > Duration.Zero)
+
+    blocking {
+      synchronized {
+        stateRef = stateRef.copy(clock = stateRef.clock + time)
+      }
     }
+  }
 
   def advanceAndTick(time: FiniteDuration): Unit = {
     advance(time)
@@ -208,20 +216,22 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
    *        was executed, or `false` otherwise
    */
   def tickOne(): Boolean =
-    synchronized {
-      val current = stateRef
+    blocking {
+      synchronized {
+        val current = stateRef
 
-      // extracting one task by taking the immediate tasks
-      extractOneTask(current, current.clock, random) match {
-        case Some((head, rest)) =>
-          stateRef = current.copy(tasks = rest)
-          // execute task
-          try head.task.run()
-          catch { case NonFatal(ex) => reportFailure(ex) }
-          true
+        // extracting one task by taking the immediate tasks
+        extractOneTask(current, current.clock, random) match {
+          case Some((head, rest)) =>
+            stateRef = current.copy(tasks = rest)
+            // execute task
+            try head.task.run()
+            catch { case NonFatal(ex) => reportFailure(ex) }
+            true
 
-        case None =>
-          false
+          case None =>
+            false
+        }
       }
     }
 
@@ -265,11 +275,13 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
   private[testkit] def tickAll$default$1(): FiniteDuration = Duration.Zero
 
   def schedule(delay: FiniteDuration, r: Runnable): () => Unit =
-    synchronized {
-      val current: State = stateRef
-      val (cancelable, newState) = current.scheduleOnce(delay, r, cancelTask)
-      stateRef = newState
-      cancelable
+    blocking {
+      synchronized {
+        val current: State = stateRef
+        val (cancelable, newState) = current.scheduleOnce(delay, r, cancelTask)
+        stateRef = newState
+        cancelable
+      }
     }
 
   def derive(): ExecutionContext =
@@ -303,8 +315,10 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
     }
 
   private def cancelTask(t: Task): Unit =
-    synchronized {
-      stateRef = stateRef.copy(tasks = stateRef.tasks - t)
+    blocking {
+      synchronized {
+        stateRef = stateRef.copy(tasks = stateRef.tasks - t)
+      }
     }
 }
 
