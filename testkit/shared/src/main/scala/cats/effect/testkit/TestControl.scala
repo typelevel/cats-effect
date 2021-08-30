@@ -124,8 +124,8 @@ final class TestControl private (config: IORuntimeConfig, _seed: Option[String])
     }
 
   /**
-   * An [[IORuntime]] which is controlled by the side-effecting
-   * methods on this class.
+   * An [[cats.effect.unsafe.IORuntime]] which is controlled by the
+   * side-effecting methods on this class.
    *
    * @see [[tickAll]]
    */
