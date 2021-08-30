@@ -17,7 +17,6 @@
 package cats.effect
 package testkit
 
-import cats.effect.kernel.testkit.TestContext
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 
 import scala.concurrent.duration.FiniteDuration
