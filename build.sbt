@@ -275,8 +275,10 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-free" % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      "org.typelevel" %%% "coop" % CoopVersion)
-  )
+      "org.typelevel" %%% "coop" % CoopVersion),
+
+    mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.kernel.testkit.TestContext.this")))
 
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid
