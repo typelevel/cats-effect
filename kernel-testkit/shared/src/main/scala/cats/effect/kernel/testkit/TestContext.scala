@@ -232,8 +232,8 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
     }
 
   private[testkit] def tick(time: FiniteDuration): Unit = {
-    advance(time)
     tick()
+    advanceAndTick(time)
   }
 
   private[testkit] def tick$default$1(): FiniteDuration = Duration.Zero
