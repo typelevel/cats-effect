@@ -116,9 +116,13 @@ import scala.concurrent.duration.FiniteDuration
  * @see [[cats.effect.kernel.Clock]]
  * @see [[tickAll]]
  */
-final class TestControl private (config: IORuntimeConfig) {
+final class TestControl private (config: IORuntimeConfig, _seed: Option[String]) {
 
-  private[this] val ctx = TestContext()
+  private[this] val ctx =
+    _seed match {
+      case Some(seed) => TestContext(seed)
+      case None => TestContext()
+    }
 
   /**
    * An [[IORuntime]] which is controlled by the side-effecting
@@ -142,7 +146,8 @@ final class TestControl private (config: IORuntimeConfig) {
         ctx.now().toNanos
     },
     () => (),
-    config)
+    config
+  )
 
   /**
    * Returns the minimum time which must elapse for a fiber to become
@@ -239,9 +244,18 @@ final class TestControl private (config: IORuntimeConfig) {
    */
   def isDeadlocked(): Boolean =
     ctx.state.tasks.isEmpty
+
+  /**
+   * Produces the base64-encoded seed which governs the random task interleaving
+   * during each [[tick]]. This is useful for reproducing test failures which
+   * came about due to some unexpected (though clearly plausible) execution order.
+   */
+  def seed: String = ctx.seed
 }
 
 object TestControl {
-  def apply(config: IORuntimeConfig = IORuntimeConfig()): TestControl =
-    new TestControl(config)
+  def apply(
+      config: IORuntimeConfig = IORuntimeConfig(),
+      seed: Option[String] = None): TestControl =
+    new TestControl(config, seed)
 }

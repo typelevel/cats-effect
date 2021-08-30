@@ -18,11 +18,15 @@ package cats.effect.kernel
 package testkit
 
 import scala.annotation.tailrec
+
 import scala.collection.immutable.SortedSet
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+
 import scala.util.Random
 import scala.util.control.NonFatal
+
+import java.util.Base64
 
 /**
  * A `scala.concurrent.ExecutionContext` implementation and a provider
@@ -123,8 +127,10 @@ import scala.util.control.NonFatal
  *   assert(f.value == Some(Success(2))
  * }}}
  */
-final class TestContext private () extends ExecutionContext { self =>
-  import TestContext.{State, Task}
+final class TestContext private (_seed: Long) extends ExecutionContext { self =>
+  import TestContext.{Encoder, State, Task}
+
+  private[this] val random = new Random(_seed)
 
   private[this] var stateRef = State(
     lastID = 0,
@@ -206,7 +212,7 @@ final class TestContext private () extends ExecutionContext { self =>
       val current = stateRef
 
       // extracting one task by taking the immediate tasks
-      extractOneTask(current, current.clock) match {
+      extractOneTask(current, current.clock, random) match {
         case Some((head, rest)) =>
           stateRef = current.copy(tasks = rest)
           // execute task
@@ -274,15 +280,19 @@ final class TestContext private () extends ExecutionContext { self =>
 
   def now(): FiniteDuration = stateRef.clock
 
+  def seed: String =
+    new String(Encoder.encode(_seed.toString.getBytes))
+
   private def extractOneTask(
       current: State,
-      clock: FiniteDuration): Option[(Task, SortedSet[Task])] =
+      clock: FiniteDuration,
+      random: Random): Option[(Task, SortedSet[Task])] =
     current.tasks.headOption.filter(_.runsAt <= clock) match {
       case Some(value) =>
         val firstTick = value.runsAt
         val forExecution = {
           val arr = current.tasks.iterator.takeWhile(_.runsAt == firstTick).take(10).toArray
-          arr(Random.nextInt(arr.length))
+          arr(random.nextInt(arr.length))
         }
 
         val remaining = current.tasks - forExecution
@@ -300,11 +310,33 @@ final class TestContext private () extends ExecutionContext { self =>
 
 object TestContext {
 
+  private val Decoder = Base64.getDecoder()
+  private val Encoder = Base64.getEncoder()
+
   /**
-   * Builder for [[TestContext]] instances.
+   * Builder for [[TestContext]] instances. Utilizes a random seed,
+   * which may be obtained from the [[TestContext#seed]] method.
    */
   def apply(): TestContext =
-    new TestContext
+    new TestContext(Random.nextLong())
+
+  /**
+   * Constructs a new [[TestContext]] using the given seed, which
+   * must be encoded as base64. Assuming this seed was produced by
+   * another `TestContext`, running the same program against the
+   * new context will result in the exact same task interleaving
+   * as happened in the previous context, provided that the same
+   * tasks are interleaved. Note that subtle differences between
+   * different runs of identical programs are possible,
+   * particularly if one program auto-`cede`s in a different place
+   * than the other one. This is an excellent and reliable mechanism
+   * for small, tightly-controlled programs with entirely deterministic
+   * side-effects, and a completely useless mechanism for anything
+   * where the scheduler ticks see different task lists despite
+   * identical configuration.
+   */
+  def apply(seed: String): TestContext =
+    new TestContext(new String(Decoder.decode(seed)).toLong)
 
   /**
    * Used internally by [[TestContext]], represents the internal
