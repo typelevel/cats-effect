@@ -17,6 +17,9 @@
 package cats.effect
 package unsafe
 
+import scala.annotation.tailrec
+import scala.collection.mutable
+
 import java.lang.ref.WeakReference
 
 private[unsafe] abstract class IORuntimePlatform { this: IORuntime =>
@@ -35,23 +38,23 @@ private[unsafe] abstract class IORuntimePlatform { this: IORuntime =>
   }
 
   private[effect] def suspended(): Set[IOFiber[_]] = {
-    var back = Set[IOFiber[_]]()
+    val back = mutable.Set[IOFiber[_]]()
     val buf = buffer
     val max = index
 
     var i = 0
     while (i < max) {
       val ref = buf(i)
-      if (ref != null) {
+      if (ref ne null) {
         val fiber = ref.get()
-        if (fiber != null) {
+        if (fiber ne null) {
           back += fiber
         }
       }
       i += 1
     }
 
-    back
+    back.toSet
   }
 
   private[effect] def monitor(self: IOFiber[_]): Int = {
@@ -67,6 +70,7 @@ private[unsafe] abstract class IORuntimePlatform { this: IORuntime =>
     fragments += 1
   }
 
+  @tailrec
   private[this] def checkAndGrow(): Unit = {
     if (index >= buffer.length) {
       if (fragments > index / 2) {
@@ -77,9 +81,9 @@ private[unsafe] abstract class IORuntimePlatform { this: IORuntime =>
         var index2 = 0
         while (i < len) {
           val ref = buffer(i)
-          if (ref != null && ref.get() != null) {
+          if ((ref ne null) && (ref.get() ne null)) {
             val fiber = ref.get()
-            if (fiber != null) {
+            if (fiber ne null) {
               buffer2(index2) = ref
               fiber.updateMonitorIndex(index2)
               index2 += 1
