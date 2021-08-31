@@ -126,6 +126,20 @@ private final class WorkerThread(
   }
 
   /**
+   * Checks whether this [[WorkerThread]] operates within the
+   * [[WorkStealingThreadPool]] provided as an argument to this method. The
+   * implementation checks whether the provided [[WorkStealingThreadPool]]
+   * matches the reference of the pool provided when this [[WorkerThread]] was
+   * constructed.
+   *
+   * @param threadPool a work stealing thread pool reference
+   * @return `true` if this worker thread is owned by the provided work stealing
+   *         thread pool, `false` otherwise
+   */
+  def isOwnedBy(threadPool: WorkStealingThreadPool): Boolean =
+    pool eq threadPool
+
+  /**
    * The run loop of the [[WorkerThread]].
    */
   override def run(): Unit = {
@@ -139,8 +153,8 @@ private final class WorkerThread(
      *
      *   0: To increase the fairness towards fibers scheduled by threads which
      *      are external to the `WorkStealingThreadPool`, every
-     *      `OverflowQueueTicks` number of iterations, the overflow queue takes
-     *      precedence over the local queue.
+     *      `OverflowQueueTicks` number of iterations, the overflow and batched
+     *      queues take precedence over the local queue.
      *
      *      If a fiber is successfully dequeued from the overflow queue, it will
      *      be executed. The `WorkerThread` unconditionally transitions to
@@ -218,6 +232,8 @@ private final class WorkerThread(
      */
     var state = 0
 
+    var fairness: Int = 0
+
     def parkLoop(): Unit = {
       var cont = true
       while (cont && !isInterrupted()) {
@@ -232,12 +248,43 @@ private final class WorkerThread(
     while (!isInterrupted()) {
       ((state & OverflowQueueTicksMask): @switch) match {
         case 0 =>
-          // Dequeue a fiber from the overflow queue.
-          val fiber = overflow.poll(rnd)
-          if (fiber ne null) {
-            // Run the fiber.
-            fiber.run()
+          // Alternate between checking the overflow and batched queues with a
+          // 2:1 ration in favor of the overflow queue, for now.
+          (fairness: @switch) match {
+            case 0 =>
+              // Dequeue a fiber from the overflow queue.
+              val fiber = overflow.poll(rnd)
+              if (fiber ne null) {
+                // Run the fiber.
+                fiber.run()
+              }
+              fairness = 1
+
+            case 1 =>
+              // Look into the batched queue for a batch of fibers.
+              val batch = batched.poll(rnd)
+              if (batch ne null) {
+                // Make room for the batch if the local queue cannot
+                // accommodate the batch as is.
+                queue.drainBatch(batched, rnd)
+
+                // Enqueue the batch at the back of the local queue and execute
+                // the first fiber.
+                val fiber = queue.enqueueBatch(batch)
+                fiber.run()
+              }
+              fairness = 2
+
+            case 2 =>
+              // Dequeue a fiber from the overflow queue.
+              val fiber = overflow.poll(rnd)
+              if (fiber ne null) {
+                // Run the fiber.
+                fiber.run()
+              }
+              fairness = 0
           }
+
           // Transition to executing fibers from the local queue.
           state = 7
 
