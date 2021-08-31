@@ -31,7 +31,7 @@ object ParallelSuite {
   case class Params(size: Int, cpuTokens: Int)
   lazy val params = (for {
     size <- List(100, 1000)
-    cpuTokens <- List(100, 1000, 10000)
+    cpuTokens <- List(100, 1000)
     if size * cpuTokens <= 1000000
   } yield Params(size, cpuTokens)).toVector
 
