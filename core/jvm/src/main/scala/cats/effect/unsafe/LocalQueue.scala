@@ -585,13 +585,15 @@ private final class LocalQueue {
         // announced. Proceed to transfer all of the fibers between the old
         // "steal" tag and the new "real" value, nulling out the references for
         // garbage collection purposes.
+        val dstBuffer = dst.bufferForwarder
+
         var i = 0
         while (i < n) {
           val srcIdx = index(steal + i)
           val dstIdx = index(dstTl + i)
           val fiber = buffer(srcIdx)
           buffer(srcIdx) = null
-          dst.bufferForwarder(dstIdx) = fiber
+          dstBuffer(dstIdx) = fiber
           i += 1
         }
 
@@ -613,8 +615,8 @@ private final class LocalQueue {
             n -= 1
             val newDstTl = unsignedShortAddition(dstTl, n)
             val idx = index(newDstTl)
-            val fiber = dst.bufferForwarder(idx)
-            dst.bufferForwarder(idx) = null
+            val fiber = dstBuffer(idx)
+            dstBuffer(idx) = null
 
             if (n == 0) {
               // Only 1 fiber has been stolen. No need for any memory
