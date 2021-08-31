@@ -173,7 +173,7 @@ class WorkStealingBenchmark {
     val cancelationCheckThreshold =
       System.getProperty("cats.effect.cancelation.check.threshold", "512").toInt
 
-    new IORuntime(
+    IORuntime(
       compute,
       blocking,
       scheduler,

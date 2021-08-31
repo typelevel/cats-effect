@@ -62,7 +62,7 @@ ThisBuild / githubWorkflowUseSbtThinClient := false
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
 val LTSJava = "adoptium@11"
-val LatestJava = "adoptium@16"
+val LatestJava = "adoptium@17"
 val GraalVM8 = "graalvm-ce-java8@21.2"
 
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
@@ -179,7 +179,7 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.6.1"
-val Specs2Version = "4.12.3"
+val Specs2Version = "4.12.6"
 val ScalaCheckVersion = "1.15.4"
 val DisciplineVersion = "1.1.6"
 val CoopVersion = "1.1.1"
@@ -355,10 +355,16 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       // introduced by #2207, tracing for js
       ProblemFilters.exclude[IncompatibleMethTypeProblem](
         "cats.effect.tracing.Tracing.calculateTracingEvent"),
+      ProblemFilters.exclude[Problem]("cats.effect.ByteStack.*"),
       // introduced by #2254, Check `WorkerThread` ownership before scheduling
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.WorkStealingThreadPool.executeFiber")
+        "cats.effect.unsafe.WorkStealingThreadPool.executeFiber"),
+      // introduced by #2256, Hide the package private constructor for `IORuntime`
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.IORuntime.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.IORuntime.<init>$default$6")
     )
   )
   .jvmSettings(
@@ -400,7 +406,7 @@ lazy val webWorkerTests = project
   .settings(
     name := "cats-effect-webworker-tests",
     scalaJSUseMainModuleInitializer := true,
-    libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "1.1.0")
+    libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "1.2.0")
       .cross(CrossVersion.for3Use2_13),
     (Test / test) := (Test / test).dependsOn(Compile / fastOptJS).value,
     buildInfoKeys := Seq[BuildInfoKey](scalaVersion, baseDirectory),
@@ -447,7 +453,11 @@ lazy val example = crossProject(JSPlatform, JVMPlatform)
 lazy val benchmarks = project
   .in(file("benchmarks"))
   .dependsOn(core.jvm)
-  .settings(name := "cats-effect-benchmarks")
+  .settings(
+    name := "cats-effect-benchmarks",
+    javaOptions ++= Seq(
+      "-Dcats.effect.tracing.mode=none",
+      "-Dcats.effect.tracing.exceptions.enhanced=false"))
   .enablePlugins(NoPublishPlugin, JmhPlugin)
 
 lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)

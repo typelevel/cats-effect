@@ -27,14 +27,14 @@ jobs:
         java:
           - adoptium@8
           - adoptium@11
-          - adoptium@16
+          - adoptium@17
           - graalvm-ce-java8@21.2
         ci: [ciJVM, ciJS, ciFirefox, ciChrome, ciJSDOMNodeJS]
         exclude:
           - ci: ciJS
             java: adoptium@11
           - ci: ciJS
-            java: adoptium@16
+            java: adoptium@17
           - ci: ciJS
             java: graalvm-ce-java8@21.2
           - os: windows-latest
@@ -46,7 +46,7 @@ jobs:
           - ci: ciFirefox
             java: adoptium@11
           - ci: ciFirefox
-            java: adoptium@16
+            java: adoptium@17
           - ci: ciFirefox
             java: graalvm-ce-java8@21.2
           - os: windows-latest
@@ -58,7 +58,7 @@ jobs:
           - ci: ciChrome
             java: adoptium@11
           - ci: ciChrome
-            java: adoptium@16
+            java: adoptium@17
           - ci: ciChrome
             java: graalvm-ce-java8@21.2
           - os: windows-latest
@@ -70,7 +70,7 @@ jobs:
           - ci: ciJSDOMNodeJS
             java: adoptium@11
           - ci: ciJSDOMNodeJS
-            java: adoptium@16
+            java: adoptium@17
           - ci: ciJSDOMNodeJS
             java: graalvm-ce-java8@21.2
           - os: windows-latest
@@ -79,7 +79,7 @@ jobs:
             scala: 2.12.14
           - os: windows-latest
             ci: ciJSDOMNodeJS
-          - java: adoptium@16
+          - java: adoptium@17
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
@@ -94,7 +94,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Java and Scala
-        uses: olafurpg/setup-scala@v10
+        uses: olafurpg/setup-scala@v13
         with:
           java-version: ${{ matrix.java }}
 
