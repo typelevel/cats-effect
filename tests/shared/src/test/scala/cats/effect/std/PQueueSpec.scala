@@ -116,6 +116,8 @@ class BoundedPQueueSpec extends BaseSpec with PQueueTests {
 class UnboundedPQueueSpec extends BaseSpec with PQueueTests {
   sequential
 
+  override def executionTimeout = 20.seconds
+
   implicit val orderForInt: Order[Int] = Order.fromLessThan((x, y) => x < y)
 
   "UnboundedPQueue" should {
