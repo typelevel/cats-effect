@@ -15,17 +15,15 @@
  */
 
 package cats.effect
-package unsafe
 
-import scala.concurrent.ExecutionContext
+class ThunkSpec extends BaseSpec {
 
-// Can you imagine a thread pool on JS? Have fun trying to extend or instantiate
-// this class. Unfortunately, due to the explicit branching, this type leaks
-// into the shared source code of IOFiber.scala.
-private[effect] sealed abstract class WorkStealingThreadPool private ()
-    extends ExecutionContext {
-  def execute(runnable: Runnable): Unit
-  def reportFailure(cause: Throwable): Unit
-  private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit
-  private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit
+  "Thunk.asFunction0" should {
+    "return the same function" in {
+      var i = 0
+      val f = () => i += 1
+      Thunk.asFunction0(f()) eq f
+    }
+  }
+
 }

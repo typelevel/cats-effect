@@ -33,6 +33,20 @@ class PureConcSpec extends Specification with Discipline with BaseSpec {
   implicit def exec(fb: TimeT[PureConc[Int, *], Boolean]): Prop =
     Prop(pure.run(TimeT.run(fb)).fold(false, _ => false, _.getOrElse(false)))
 
+  "parallel utilities" should {
+    import cats.effect.kernel.{GenConcurrent, Outcome}
+    import cats.effect.kernel.implicits._
+    import cats.syntax.all._
+
+    type F[A] = PureConc[Int, A]
+    val F = GenConcurrent[F]
+
+    "short-circuit on error" in {
+      pure.run((F.never[Unit], F.raiseError[Unit](42)).parTupled) mustEqual Outcome.Errored(42)
+      pure.run((F.raiseError[Unit](42), F.never[Unit]).parTupled) mustEqual Outcome.Errored(42)
+    }
+  }
+
   checkAll(
     "TimeT[PureConc]",
     GenTemporalTests[TimeT[PureConc[Int, *], *], Int].temporal[Int, Int, Int](10.millis)

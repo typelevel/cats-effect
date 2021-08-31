@@ -1065,6 +1065,28 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
     }
 
+    "parallel" should {
+      "run parallel actually in parallel" in real {
+        val x = IO.sleep(2.seconds) >> IO.pure(1)
+        val y = IO.sleep(2.seconds) >> IO.pure(2)
+
+        List(x, y).parSequence.timeout(3.seconds).flatMap { res =>
+          IO {
+            res mustEqual List(1, 2)
+          }
+        }
+      }
+
+      "short-circuit on error" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        (IO.never[Unit], IO.raiseError[Unit](TestException)).parTupled.void must failAs(
+          TestException)
+        (IO.raiseError[Unit](TestException), IO.never[Unit]).parTupled.void must failAs(
+          TestException)
+      }
+    }
+
     "miscellaneous" should {
 
       "round trip non-canceled through s.c.Future" in ticked { implicit ticker =>
@@ -1079,17 +1101,6 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           IO.fromFuture(IO(IO.canceled.as(-1).unsafeToFuture())).handleError(_ => 42)
 
         test must completeAs(42)
-      }
-
-      "run parallel actually in parallel" in real {
-        val x = IO.sleep(2.seconds) >> IO.pure(1)
-        val y = IO.sleep(2.seconds) >> IO.pure(2)
-
-        List(x, y).parSequence.timeout(3.seconds).flatMap { res =>
-          IO {
-            res mustEqual List(1, 2)
-          }
-        }
       }
 
       "run a synchronous IO" in ticked { implicit ticker =>
@@ -1299,6 +1310,23 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             case Right(_) => SyncIO.raiseError[Unit](new RuntimeException("Boom!"))
           } must completeAsSync(())
       }
+    }
+
+    "fiber repeated yielding test" in real {
+      def yieldUntil(ref: Ref[IO, Boolean]): IO[Unit] =
+        ref.get.flatMap(b => if (b) IO.unit else IO.cede *> yieldUntil(ref))
+
+      for {
+        n <- IO(java.lang.Runtime.getRuntime.availableProcessors)
+        done <- Ref.of[IO, Boolean](false)
+        fibers <- List.range(0, n - 1).traverse(_ => yieldUntil(done).start)
+        _ <- IO.unit.start.replicateA(200)
+        _ <- done.set(true).start
+        _ <- IO.unit.start.replicateA(1000)
+        _ <- yieldUntil(done)
+        _ <- fibers.traverse(_.join)
+        res <- IO(ok)
+      } yield res
     }
 
     platformSpecs

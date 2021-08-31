@@ -15,6 +15,7 @@ on:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  JABBA_INDEX: 'https://github.com/vasilmkd/jdk-index/raw/main/index.json'
 
 jobs:
   build:
@@ -24,18 +25,18 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         scala: [3.0.1, 2.12.14, 2.13.6]
         java:
-          - adopt@1.8
-          - adopt@1.11
-          - adopt@1.16
-          - graalvm-ce-java8@21.1
+          - adoptium@8
+          - adoptium@11
+          - adoptium@17
+          - graalvm-ce-java8@21.2
         ci: [ciJVM, ciJS, ciFirefox, ciChrome, ciJSDOMNodeJS]
         exclude:
           - ci: ciJS
-            java: adopt@1.11
+            java: adoptium@11
           - ci: ciJS
-            java: adopt@1.16
+            java: adoptium@17
           - ci: ciJS
-            java: graalvm-ce-java8@21.1
+            java: graalvm-ce-java8@21.2
           - os: windows-latest
             scala: 3.0.1
           - os: windows-latest
@@ -43,11 +44,11 @@ jobs:
           - os: windows-latest
             ci: ciJS
           - ci: ciFirefox
-            java: adopt@1.11
+            java: adoptium@11
           - ci: ciFirefox
-            java: adopt@1.16
+            java: adoptium@17
           - ci: ciFirefox
-            java: graalvm-ce-java8@21.1
+            java: graalvm-ce-java8@21.2
           - os: windows-latest
             scala: 3.0.1
           - os: windows-latest
@@ -55,11 +56,11 @@ jobs:
           - os: windows-latest
             ci: ciFirefox
           - ci: ciChrome
-            java: adopt@1.11
+            java: adoptium@11
           - ci: ciChrome
-            java: adopt@1.16
+            java: adoptium@17
           - ci: ciChrome
-            java: graalvm-ce-java8@21.1
+            java: graalvm-ce-java8@21.2
           - os: windows-latest
             scala: 3.0.1
           - os: windows-latest
@@ -67,18 +68,18 @@ jobs:
           - os: windows-latest
             ci: ciChrome
           - ci: ciJSDOMNodeJS
-            java: adopt@1.11
+            java: adoptium@11
           - ci: ciJSDOMNodeJS
-            java: adopt@1.16
+            java: adoptium@17
           - ci: ciJSDOMNodeJS
-            java: graalvm-ce-java8@21.1
+            java: graalvm-ce-java8@21.2
           - os: windows-latest
             scala: 3.0.1
           - os: windows-latest
             scala: 2.12.14
           - os: windows-latest
             ci: ciJSDOMNodeJS
-          - java: adopt@1.16
+          - java: adoptium@17
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
@@ -93,7 +94,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Java and Scala
-        uses: olafurpg/setup-scala@v10
+        uses: olafurpg/setup-scala@v13
         with:
           java-version: ${{ matrix.java }}
 

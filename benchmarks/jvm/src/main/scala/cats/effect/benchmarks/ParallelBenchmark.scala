@@ -45,10 +45,10 @@ import java.util.concurrent.TimeUnit
 @OutputTimeUnit(TimeUnit.SECONDS)
 class ParallelBenchmark {
 
-  @Param(Array("100", "1000", "10000"))
+  @Param(Array( /*"100", */ "1000" /*, "10000"*/ ))
   var size: Int = _
 
-  @Param(Array("100", "1000", "10000", "100000", "1000000"))
+  @Param(Array( /*"100", "1000", */ "10000" /*, "100000", "1000000"*/ ))
   var cpuTokens: Long = _
 
   @Benchmark

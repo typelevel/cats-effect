@@ -15,17 +15,15 @@
  */
 
 package cats.effect
-package unsafe
 
-import scala.concurrent.ExecutionContext
+/**
+ * A utility to convert a by-name `thunk: => A` to a `Function0[A]` (its binary representation).
+ * Scala 2 performs this optimization automatically but on Scala 3 the thunk is wrapped inside of a new `Function0`.
+ * See https://github.com/typelevel/cats-effect/pull/2226
+ */
+private object Thunk {
+  private[this] val impl =
+    ((x: Any) => x).asInstanceOf[(=> Any) => Function0[Any]]
 
-// Can you imagine a thread pool on JS? Have fun trying to extend or instantiate
-// this class. Unfortunately, due to the explicit branching, this type leaks
-// into the shared source code of IOFiber.scala.
-private[effect] sealed abstract class WorkStealingThreadPool private ()
-    extends ExecutionContext {
-  def execute(runnable: Runnable): Unit
-  def reportFailure(cause: Throwable): Unit
-  private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit
-  private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit
+  def asFunction0[A](thunk: => A): Function0[A] = impl(thunk).asInstanceOf[Function0[A]]
 }

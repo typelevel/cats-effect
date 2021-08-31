@@ -17,7 +17,7 @@
 package cats.effect
 package unsafe
 
-import cats.syntax.parallel._
+import cats.syntax.traverse._
 
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
@@ -27,7 +27,7 @@ class StripedHashtableSpec extends BaseSpec with Runners {
   override def executionTimeout: FiniteDuration = 30.seconds
 
   def hashtableRuntime(): IORuntime =
-    new IORuntime(
+    IORuntime(
       IORuntime.defaultComputeExecutionContext,
       IORuntime.defaultComputeExecutionContext,
       IORuntime.defaultScheduler,
@@ -52,7 +52,7 @@ class StripedHashtableSpec extends BaseSpec with Runners {
         IO(new CountDownLatch(iterations)).flatMap { counter =>
           (0 until iterations)
             .toList
-            .parTraverse { n => IO(io(n).unsafeRunAsync { _ => counter.countDown() }(rt)) }
+            .traverse { n => IO(io(n).unsafeRunAsync { _ => counter.countDown() }(rt)) }
             .flatMap { _ => IO.fromFuture(IO.delay(counter.await())) }
             .flatMap { _ =>
               IO.blocking {

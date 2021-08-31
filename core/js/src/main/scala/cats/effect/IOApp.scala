@@ -23,7 +23,7 @@ import scala.scalajs.js
 /**
  * The primary entry point to a Cats Effect application. Extend this
  * trait rather than defining your own `main` method. This avoids the
- * need to run [[IO.unsafeRunSync]] (or similar) on your own.
+ * need to run [[IO.unsafeRunAsync]] (or similar) on your own.
  *
  * `IOApp` takes care of the messy details of properly setting up
  * (and tearing down) the [[unsafe.IORuntime]] needed to run the [[IO]]
