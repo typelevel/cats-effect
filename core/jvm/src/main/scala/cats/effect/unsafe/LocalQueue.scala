@@ -410,9 +410,10 @@ private final class LocalQueue {
       val len = unsignedShortSubtraction(tl, steal)
       if (len <= HalfLocalQueueCapacity) {
         // It is safe to transfer the fibers from the batch to the queue.
-        var i = 0
-        while (i < HalfLocalQueueCapacity) {
-          val idx = index(tl + i)
+        val startPos = tl - 1
+        var i = 1
+        while (i < OverflowBatchSize) {
+          val idx = index(startPos + i)
           buffer(idx) = batch(i)
           i += 1
         }
@@ -423,7 +424,7 @@ private final class LocalQueue {
         tail = newTl
         // Return a fiber to be directly executed, withouth enqueueing it first
         // on the local queue.
-        return batch(i)
+        return batch(0)
       }
     }
 
