@@ -587,9 +587,19 @@ private final class LocalQueue {
         // garbage collection purposes.
         val dstBuffer = dst.bufferForwarder
 
+        // Obtain a reference to the first fiber. This fiber will not be
+        // transferred to the destination local queue and will instead be
+        // executed directly.
+        val headFiberIdx = index(steal)
+        val headFiber = buffer(headFiberIdx)
+        buffer(headFiberIdx) = null
+
+        // All other fibers need to be transferred to the destination queue.
+        val sourcePos = steal + 1
+        val end = n - 1
         var i = 0
-        while (i < n) {
-          val srcIdx = index(steal + i)
+        while (i < end) {
+          val srcIdx = index(sourcePos + i)
           val dstIdx = index(dstTl + i)
           val fiber = buffer(srcIdx)
           buffer(srcIdx) = null
@@ -612,23 +622,24 @@ private final class LocalQueue {
             // The "steal" tag now matches the "real" head value. Proceed to
             // return a fiber that can immediately be executed by the stealing
             // `WorkerThread`.
-            n -= 1
-            val newDstTl = unsignedShortAddition(dstTl, n)
-            val idx = index(newDstTl)
-            val fiber = dstBuffer(idx)
-            dstBuffer(idx) = null
 
-            if (n == 0) {
+            if (n == 1) {
               // Only 1 fiber has been stolen. No need for any memory
               // synchronization operations.
-              return fiber
+              return headFiber
             }
+
+            // Calculate the new tail of the destination local queue. The first
+            // stolen fiber is not put into the queue at all and is instead
+            // executed directly.
+            n -= 1
+            val newDstTl = unsignedShortAddition(dstTl, n)
 
             // Publish the new tail of the destination queue. That way the
             // destination queue also becomes eligible for stealing.
             dst.tailPublisherForwarder.lazySet(newDstTl)
             dst.plainStoreTail(newDstTl)
-            return fiber
+            return headFiber
           } else {
             // Failed to opportunistically restore the value of the `head`. Load
             // it again and retry.
