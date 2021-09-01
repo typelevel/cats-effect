@@ -375,7 +375,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * on evaluation.
    */
   def flatMap[B](f: A => IO[B]): IO[B] =
-    IO.FlatMap(this, f, Tracing.calculateTracingEvent(f.getClass))
+    IO.FlatMap(this, f, Tracing.calculateTracingEvent(f))
 
   def flatten[B](implicit ev: A <:< IO[B]): IO[B] = flatMap(ev)
 
@@ -451,7 +451,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Implements `ApplicativeError.handleErrorWith`.
    */
   def handleErrorWith[B >: A](f: Throwable => IO[B]): IO[B] =
-    IO.HandleErrorWith(this, f, Tracing.calculateTracingEvent(f.getClass))
+    IO.HandleErrorWith(this, f, Tracing.calculateTracingEvent(f))
 
   def ifM[B](ifTrue: => IO[B], ifFalse: => IO[B])(implicit ev: A <:< Boolean): IO[B] =
     flatMap(a => if (ev(a)) ifTrue else ifFalse)
@@ -464,7 +464,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * to the nature of asynchronous processes, without catching and handling exceptions, failures
    * would be completely silent and `IO` references would never terminate on evaluation.
    */
-  def map[B](f: A => B): IO[B] = IO.Map(this, f, Tracing.calculateTracingEvent(f.getClass))
+  def map[B](f: A => B): IO[B] = IO.Map(this, f, Tracing.calculateTracingEvent(f))
 
   def onCancel(fin: IO[Unit]): IO[A] =
     IO.OnCancel(this, fin)
@@ -899,7 +899,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    */
   def apply[A](thunk: => A): IO[A] = {
     val fn = Thunk.asFunction0(thunk)
-    Delay(fn, Tracing.calculateTracingEvent(fn.getClass))
+    Delay(fn, Tracing.calculateTracingEvent(fn))
   }
 
   /**
@@ -931,7 +931,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       }
     }
 
-    IOCont(body, Tracing.calculateTracingEvent(k.getClass))
+    IOCont(body, Tracing.calculateTracingEvent(k))
   }
 
   /**
@@ -974,7 +974,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       }
     }
 
-    IOCont(body, Tracing.calculateTracingEvent(k.getClass))
+    IOCont(body, Tracing.calculateTracingEvent(k))
   }
 
   def canceled: IO[Unit] = Canceled
@@ -986,7 +986,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * `async`, or `Deferred` instead, depending on the use case
    */
   def cont[K, R](body: Cont[IO, K, R]): IO[R] =
-    IOCont[K, R](body, Tracing.calculateTracingEvent(body.getClass))
+    IOCont[K, R](body, Tracing.calculateTracingEvent(body))
 
   def executionContext: IO[ExecutionContext] = ReadEC
 
@@ -1084,7 +1084,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     IOTrace
 
   def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
-    Uncancelable(body, Tracing.calculateTracingEvent(body.getClass))
+    Uncancelable(body, Tracing.calculateTracingEvent(body))
 
   private[this] val _unit: IO[Unit] = Pure(())
 

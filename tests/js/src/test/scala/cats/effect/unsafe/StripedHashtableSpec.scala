@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 
 class StripedHashtableSpec extends BaseSpec with Runners {
 
-  override def executionTimeout: FiniteDuration = 30.seconds
+  override def executionTimeout: FiniteDuration = 2.minutes
 
   def hashtableRuntime(): IORuntime =
     IORuntime(

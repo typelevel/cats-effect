@@ -23,11 +23,12 @@ import org.openqa.selenium.chrome.{ChromeDriver, ChromeOptions}
 import org.openqa.selenium.firefox.{FirefoxOptions, FirefoxProfile}
 import org.openqa.selenium.remote.server.{DriverFactory, DriverProvider}
 import org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv
+import org.scalajs.jsenv.nodejs.NodeJSEnv
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
 
 import JSEnv._
 
-ThisBuild / baseVersion := "3.2"
+ThisBuild / baseVersion := "3.3"
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
@@ -53,7 +54,7 @@ val Windows = "windows-latest"
 
 val ScalaJSJava = "adoptium@8"
 val Scala213 = "2.13.6"
-val Scala3 = "3.0.1"
+val Scala3 = "3.0.2"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.14", Scala213)
 
@@ -77,8 +78,8 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   ),
   WorkflowStep.Run(
     List("npm install"),
-    name = Some("Install jsdom"),
-    cond = Some("matrix.ci == 'ciJSDOMNodeJS'")
+    name = Some("Install jsdom and source-map-support"),
+    cond = Some("matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'")
   )
 )
 
@@ -137,10 +138,8 @@ lazy val useJSEnv =
 Global / useJSEnv := NodeJS
 
 ThisBuild / Test / jsEnv := {
-  val old = (Test / jsEnv).value
-
   useJSEnv.value match {
-    case NodeJS => old
+    case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
     case JSDOMNodeJS => new JSDOMNodeJSEnv()
     case Firefox =>
       val profile = new FirefoxProfile()
@@ -180,7 +179,7 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.6.1"
-val Specs2Version = "4.12.3"
+val Specs2Version = "4.12.6"
 val ScalaCheckVersion = "1.15.4"
 val DisciplineVersion = "1.1.6"
 val CoopVersion = "1.1.1"
@@ -294,10 +293,10 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
   )
 
 /**
- * Concrete, production-grade implementations of the abstractions. Or, more simply-put: IO and
- * Resource. Also contains some general datatypes built on top of IO which are useful in their
- * own right, as well as some utilities (such as IOApp). This is the "batteries included"
- * dependency.
+ * Concrete, production-grade implementations of the abstractions. Or, more
+ * simply-put: IO. Also contains some general datatypes built
+ * on top of IO which are useful in their own right, as well as some utilities
+ * (such as IOApp). This is the "batteries included" dependency.
  */
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
@@ -353,6 +352,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.this"),
       ProblemFilters.exclude[IncompatibleMethTypeProblem](
         "cats.effect.unsafe.IORuntimeCompanionPlatform.installGlobal"),
+      // introduced by #2207, tracing for js
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.tracing.Tracing.calculateTracingEvent"),
       ProblemFilters.exclude[Problem]("cats.effect.ByteStack.*"),
       // introduced by #2254, Check `WorkerThread` ownership before scheduling
       // changes to `cats.effect.unsafe` package private code

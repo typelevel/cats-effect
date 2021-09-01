@@ -263,11 +263,9 @@ private final class WorkerThread(
               // Look into the batched queue for a batch of fibers.
               val batch = batched.poll(rnd)
               if (batch ne null) {
-                if (queue.size() > HalfLocalQueueCapacity) {
-                  // Make room for the batch if the local queue cannot
-                  // accommodate the batch as is.
-                  queue.drainBatch(batched, rnd)
-                }
+                // Make room for the batch if the local queue cannot
+                // accommodate the batch as is.
+                queue.drainBatch(batched, rnd)
 
                 // Enqueue the batch at the back of the local queue and execute
                 // the first fiber.

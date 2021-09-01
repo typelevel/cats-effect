@@ -1,6 +1,7 @@
 {
   "private": true,
   "devDependencies": {
-    "jsdom": "^16.7.0"
+    "jsdom": "^16.7.0",
+    "source-map-support": "^0.5.19"
   }
 }
