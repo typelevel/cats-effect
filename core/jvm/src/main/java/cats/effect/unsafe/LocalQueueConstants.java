@@ -45,7 +45,9 @@ class LocalQueueConstants {
   /**
    * Overflow fiber batch size.
    */
-  static final int OverflowBatchSize = HalfLocalQueueCapacity;
+  static final int OverflowBatchSize = 32;
+
+  static final int BatchesInHalfQueueCapacity = HalfLocalQueueCapacity / OverflowBatchSize;
 
   /**
    * Bitmask used to extract the 16 least significant bits of a 32 bit integer

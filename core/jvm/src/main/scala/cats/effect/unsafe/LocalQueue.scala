@@ -319,27 +319,36 @@ private final class LocalQueue {
       // fibers to be executed may spawn new fibers, which can quickly be
       // enqueued to the local queue, instead of always being delegated to the
       // overflow queue one by one.
-      val realPlusHalf = unsignedShortAddition(real, OverflowBatchSize)
+      val realPlusHalf = unsignedShortAddition(real, HalfLocalQueueCapacity)
       val newHd = pack(realPlusHalf, realPlusHalf)
       if (head.compareAndSet(hd, newHd)) {
         // Outcome 3, half of the queue has been claimed by the owner
         // `WorkerThread`, to be transferred to the batched queue.
-        val batch = new Array[IOFiber[_]](OverflowBatchSize)
-        var i = 0
-        // Transfer half of the buffer into the batch for a final bulk add
-        // operation into the batched queue. References in the buffer are nulled
-        // out for garbage collection purposes.
-        while (i < OverflowBatchSize) {
-          val idx = index(real + i)
-          val f = buffer(idx)
-          buffer(idx) = null
-          batch(i) = f
-          i += 1
+        val batches = new Array[Array[IOFiber[_]]](BatchesInHalfQueueCapacity)
+        var b = 0
+        var offset = 0
+        while (b < BatchesInHalfQueueCapacity) {
+          val batch = new Array[IOFiber[_]](OverflowBatchSize)
+          // Transfer half of the buffer into the batch for a final bulk add
+          // operation into the batched queue. References in the buffer are nulled
+          // out for garbage collection purposes.
+          var i = 0
+          while (i < OverflowBatchSize) {
+            val idx = index(real + offset)
+            val f = buffer(idx)
+            buffer(idx) = null
+            batch(i) = f
+            i += 1
+            offset += 1
+          }
+          batchedSpilloverCount += OverflowBatchSize
+          batches(b) = batch
+          b += 1
         }
+
         // Enqueue all of the fibers on the batched queue with a bulk add
         // operation.
-        batchedSpilloverCount += OverflowBatchSize
-        batched.offer(batch, random)
+        batched.offerAll(batches, random)
         // Loop again.
       }
 
