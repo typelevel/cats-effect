@@ -23,11 +23,12 @@ import org.openqa.selenium.chrome.{ChromeDriver, ChromeOptions}
 import org.openqa.selenium.firefox.{FirefoxOptions, FirefoxProfile}
 import org.openqa.selenium.remote.server.{DriverFactory, DriverProvider}
 import org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv
+import org.scalajs.jsenv.nodejs.NodeJSEnv
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
 
 import JSEnv._
 
-ThisBuild / baseVersion := "3.2"
+ThisBuild / baseVersion := "3.3"
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
@@ -77,8 +78,8 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   ),
   WorkflowStep.Run(
     List("npm install"),
-    name = Some("Install jsdom"),
-    cond = Some("matrix.ci == 'ciJSDOMNodeJS'")
+    name = Some("Install jsdom and source-map-support"),
+    cond = Some("matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'")
   )
 )
 
@@ -137,10 +138,8 @@ lazy val useJSEnv =
 Global / useJSEnv := NodeJS
 
 ThisBuild / Test / jsEnv := {
-  val old = (Test / jsEnv).value
-
   useJSEnv.value match {
-    case NodeJS => old
+    case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
     case JSDOMNodeJS => new JSDOMNodeJSEnv()
     case Firefox =>
       val profile = new FirefoxProfile()
@@ -353,6 +352,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO#IOCont.this"),
       ProblemFilters.exclude[IncompatibleMethTypeProblem](
         "cats.effect.unsafe.IORuntimeCompanionPlatform.installGlobal"),
+      // introduced by #2207, tracing for js
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.tracing.Tracing.calculateTracingEvent"),
       ProblemFilters.exclude[Problem]("cats.effect.ByteStack.*"),
       // introduced by #2254, Check `WorkerThread` ownership before scheduling
       // changes to `cats.effect.unsafe` package private code

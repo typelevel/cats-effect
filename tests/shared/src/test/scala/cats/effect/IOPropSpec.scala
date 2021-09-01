@@ -28,7 +28,7 @@ import scala.concurrent.duration._
 //We allow these tests to have a longer timeout than IOSpec as they run lots of iterations
 class IOPropSpec extends BaseSpec with Discipline {
 
-  override def executionTimeout: FiniteDuration = 60.second
+  override def executionTimeout: FiniteDuration = 2.minutes
 
   "io monad" should {
 

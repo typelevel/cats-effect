@@ -116,8 +116,8 @@ jobs:
         with:
           node-version: 14
 
-      - name: Install jsdom
-        if: matrix.ci == 'ciJSDOMNodeJS'
+      - name: Install jsdom and source-map-support
+        if: matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'
         shell: bash
         run: npm install
 
