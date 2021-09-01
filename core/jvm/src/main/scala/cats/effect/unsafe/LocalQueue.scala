@@ -319,7 +319,7 @@ private final class LocalQueue {
       // fibers to be executed may spawn new fibers, which can quickly be
       // enqueued to the local queue, instead of always being delegated to the
       // overflow queue one by one.
-      val realPlusHalf = unsignedShortAddition(real, HalfLocalQueueCapacity)
+      val realPlusHalf = unsignedShortAddition(real, OverflowBatchSize)
       val newHd = pack(realPlusHalf, realPlusHalf)
       if (head.compareAndSet(hd, newHd)) {
         // Outcome 3, half of the queue has been claimed by the owner
@@ -329,23 +329,18 @@ private final class LocalQueue {
         // Transfer half of the buffer into the batch for a final bulk add
         // operation into the batched queue. References in the buffer are nulled
         // out for garbage collection purposes.
-        while (i < HalfLocalQueueCapacity) {
+        while (i < OverflowBatchSize) {
           val idx = index(real + i)
           val f = buffer(idx)
           buffer(idx) = null
           batch(i) = f
           i += 1
         }
-        // Also add the incoming fiber to the batch.
-        batch(i) = fiber
         // Enqueue all of the fibers on the batched queue with a bulk add
         // operation.
         batchedSpilloverCount += OverflowBatchSize
-        tailPublisher.lazySet(tl)
         batched.offer(batch, random)
-        // The incoming fiber has been enqueued on the batched queue. Proceed
-        // to break out of the loop.
-        return
+        // Loop again.
       }
 
       // None of the three final outcomes have been reached, loop again for a
@@ -408,7 +403,7 @@ private final class LocalQueue {
       // described in the scaladoc for this class, this number will be equal to
       // `LocalQueueCapacity`.
       val len = unsignedShortSubtraction(tl, steal)
-      if (len <= HalfLocalQueueCapacity) {
+      if (len <= LocalQueueCapacity - OverflowBatchSize + 1) {
         // It is safe to transfer the fibers from the batch to the queue.
         val startPos = tl - 1
         var i = 1
@@ -419,7 +414,7 @@ private final class LocalQueue {
         }
 
         // Publish the new tail.
-        val newTl = unsignedShortAddition(tl, HalfLocalQueueCapacity)
+        val newTl = unsignedShortAddition(tl, OverflowBatchSize - 1)
         tailPublisher.lazySet(newTl)
         tail = newTl
         // Return a fiber to be directly executed, withouth enqueueing it first
@@ -693,7 +688,7 @@ private final class LocalQueue {
 
       val real = lsb(hd)
 
-      if (unsignedShortSubtraction(tl, real) < OverflowBatchSize) {
+      if (unsignedShortSubtraction(tl, real) <= LocalQueueCapacity - OverflowBatchSize + 1) {
         // The current remaining capacity of the local queue is enough to
         // accommodate the new incoming batch. There is nothing more to be done.
         return
