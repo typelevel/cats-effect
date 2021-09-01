@@ -368,7 +368,7 @@ private final class LocalQueue {
    *       this queue is '''empty'''.
    *
    * @note By convention, each batch of fibers contains exactly
-   * `LocalQueueConstants.OverflowBatchSize` number of fibers.
+   *       `LocalQueueConstants.OverflowBatchSize` number of fibers.
    *
    * @note The references inside the batch are not nulled out. It is important
    *       to never reference the batch after this usage, so that it can be
@@ -412,7 +412,7 @@ private final class LocalQueue {
       // described in the scaladoc for this class, this number will be equal to
       // `LocalQueueCapacity`.
       val len = unsignedShortSubtraction(tl, steal)
-      if (len <= LocalQueueCapacity - OverflowBatchSize + 1) {
+      if (len <= LocalQueueCapacityMinusBatch) {
         // It is safe to transfer the fibers from the batch to the queue.
         val startPos = tl - 1
         var i = 1
@@ -697,7 +697,7 @@ private final class LocalQueue {
 
       val real = lsb(hd)
 
-      if (unsignedShortSubtraction(tl, real) <= LocalQueueCapacity - OverflowBatchSize + 1) {
+      if (unsignedShortSubtraction(tl, real) <= LocalQueueCapacityMinusBatch) {
         // The current remaining capacity of the local queue is enough to
         // accommodate the new incoming batch. There is nothing more to be done.
         return

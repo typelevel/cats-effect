@@ -47,7 +47,17 @@ class LocalQueueConstants {
    */
   static final int OverflowBatchSize = 32;
 
+  /**
+   * Number of batches that fit into one half of the local queue.
+   */
   static final int BatchesInHalfQueueCapacity = HalfLocalQueueCapacity / OverflowBatchSize;
+
+  /**
+   * The maximum current capacity of the local queue which can still accept a
+   * full batch to be added to the queue (remembering that one fiber from the
+   * batch is executed by directly and not enqueued on the local queue).
+   */
+  static final int LocalQueueCapacityMinusBatch = LocalQueueCapacity - OverflowBatchSize + 1;
 
   /**
    * Bitmask used to extract the 16 least significant bits of a 32 bit integer
