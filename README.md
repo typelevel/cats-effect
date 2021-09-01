@@ -112,7 +112,7 @@ If you follow these rules, and you use libraries and frameworks which also follo
 
 [The benchmark](https://github.com/typelevel/cats-effect/blob/220d0106ca0ff6106746a41504b6ab07d8fc9199/benchmarks/src/main/scala/cats/effect/benchmarks/WorkStealingBenchmark.scala) measures the performance of a typical "disruptor pattern" application written using a fixed thread pool (from `java.util.concurrent.Executors`) compared to the same workflow implemented using Cats Effect (specifically version 3.0). The scores are not a typo: Cats Effect is *almost 55x faster* than the typical disruptor-style, hand-tuned implementation. Similarly dramatic results are consistently observed when comparing Cats Effect with other popular asynchronous and functional frameworks.
 
-As always, benchmarks are one thing, and your application is its own special snowflake with its own performance profile. Always measure and test *your application* before assuming that someone else's performance results apply in your use-case. When in doubt, [come talk with us](https://gitter.im/typelevel/cats-effect) and we'll give you an honest opinion!
+As always, benchmarks are one thing, and your application is its own special snowflake with its own performance profile. Always measure and test *your application* before assuming that someone else's performance results apply in your use-case. When in doubt, [come talk with us](https://discord.gg/QNnHKHq5Ts) and we'll give you an honest opinion!
 
 ## Abstraction
 
@@ -128,7 +128,7 @@ And, just as with arithmetic, even when you don't directly leverage the nature o
 
 ## Contributing
 
-There's always lots to do! This is an incredibly exciting project used by countless teams and companies around the world. Ask in the [Gitter channel](https://gitter.im/typelevel/cats-effect-dev) if you are unsure where to begin, or check out our [issue tracker](https://github.com/typelevel/cats-effect/issues) and try your hand at something that looks interesting! Please note that all of the Cats Effect maintainers are, unfortunately, extremely busy most of the time, so don't get discouraged if you don't get a response right away! We love you and we want you to join us, we just may have our hair on fire inside a melting production server at the exact moment you asked.
+There's always lots to do! This is an incredibly exciting project used by countless teams and companies around the world. Ask in the [Discord development channel](https://discord.gg/QNnHKHq5Ts) (make sure to select the **dev** role in the **role-selection** channel) if you are unsure where to begin, or check out our [issue tracker](https://github.com/typelevel/cats-effect/issues) and try your hand at something that looks interesting! Please note that all of the Cats Effect maintainers are, unfortunately, extremely busy most of the time, so don't get discouraged if you don't get a response right away! We love you and we want you to join us, we just may have our hair on fire inside a melting production server at the exact moment you asked.
 
 Cats Effect is built with [sbt](https://github.com/sbt/sbt), and you should be able to jump right in by running `sbt test`. I will note, however, that `sbt +test` takes about two hours on my laptop, so you probably *shouldn't* start there...
 
