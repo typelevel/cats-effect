@@ -19,11 +19,7 @@ package unsafe
 
 import cats.effect.std.Queue
 
-import scala.concurrent.duration._
-
 class DrainBatchSpec extends BaseSpec with Runners {
-
-  override implicit val executionTimeout: FiniteDuration = 1.minute
 
   "Batch draining" should {
     "work correctly in the presence of concurrent stealers" in real {
