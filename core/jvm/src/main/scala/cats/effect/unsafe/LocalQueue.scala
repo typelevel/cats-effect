@@ -300,28 +300,35 @@ private final class LocalQueue {
       if (head.compareAndSet(hd, newHd)) {
         // Outcome 3, half of the queue has been claimed by the owner
         // `WorkerThread`, to be transferred to the batched queue.
-        val batch = new Array[IOFiber[_]](OverflowBatchSize)
-        var i = 0
-        // Transfer half of the buffer into the batch for a final bulk add
-        // operation into the batched queue. References in the buffer are nulled
-        // out for garbage collection purposes.
-        while (i < HalfLocalQueueCapacity) {
-          val idx = index(real + i)
-          val f = buffer(idx)
-          buffer(idx) = null
-          batch(i) = f
-          i += 1
+        // Due to the new tuning, half of the local queue does not equal a
+        // single batch anymore, so several batches are created.
+        val batches = new Array[Array[IOFiber[_]]](BatchesInHalfQueueCapacity)
+        var b = 0
+        var offset = 0
+
+        // Each batch is populated with fibers from the local queue. References
+        // in the buffer are nulled out for garbage collection purposes.
+        while (b < BatchesInHalfQueueCapacity) {
+          val batch = new Array[IOFiber[_]](OverflowBatchSize)
+          var i = 0
+          while (i < OverflowBatchSize) {
+            val idx = index(real + offset)
+            val f = buffer(idx)
+            buffer(idx) = null
+            batch(i) = f
+            i += 1
+            offset += 1
+          }
+          batchedSpilloverCount += OverflowBatchSize
+          batches(b) = batch
+          b += 1
         }
-        // Also add the incoming fiber to the batch.
-        batch(i) = fiber
-        // Enqueue all of the fibers on the batched queue with a bulk add
-        // operation.
-        batchedSpilloverCount += OverflowBatchSize
-        tailPublisher.lazySet(tl)
-        batched.offer(batch, random)
-        // The incoming fiber has been enqueued on the batched queue. Proceed
-        // to break out of the loop.
-        return
+
+        // Enqueue all of the batches of fibers on the batched queue with a bulk
+        // add operation.
+        batched.offerAll(batches, random)
+        // Loop again for a chance to insert the original fiber to be enqueued
+        // on the local queue.
       }
 
       // None of the three final outcomes have been reached, loop again for a
@@ -340,9 +347,8 @@ private final class LocalQueue {
    *   Can '''only''' be correctly called by the owner [[WorkerThread]] when this queue is
    *   '''empty'''.
    *
-   * @note
-   *   By convention, each batch of fibers contains exactly
-   *   `LocalQueueConstants.OverflowBatchSize` number of fibers.
+   * @note By convention, each batch of fibers contains exactly
+   *       `LocalQueueConstants.OverflowBatchSize` number of fibers.
    *
    * @note
    *   The references inside the batch are not nulled out. It is important to never reference
@@ -385,22 +391,28 @@ private final class LocalQueue {
       // described in the scaladoc for this class, this number will be equal to
       // `LocalQueueCapacity`.
       val len = unsignedShortSubtraction(tl, steal)
-      if (len <= HalfLocalQueueCapacity) {
+      if (len <= LocalQueueCapacityMinusBatch) {
         // It is safe to transfer the fibers from the batch to the queue.
-        var i = 0
-        while (i < HalfLocalQueueCapacity) {
-          val idx = index(tl + i)
+        val startPos = tl - 1
+        var i = 1
+        while (i < OverflowBatchSize) {
+          val idx = index(startPos + i)
           buffer(idx) = batch(i)
           i += 1
         }
 
         // Publish the new tail.
-        val newTl = unsignedShortAddition(tl, HalfLocalQueueCapacity)
+        val newTl = unsignedShortAddition(tl, OverflowBatchSize - 1)
         tailPublisher.lazySet(newTl)
         tail = newTl
         // Return a fiber to be directly executed, withouth enqueueing it first
-        // on the local queue.
-        return batch(i)
+        // on the local queue. This does sacrifice some fairness, because the
+        // returned fiber might not be at the head of the local queue, but it is
+        // nevertheless an optimization to reduce contention on the local queue
+        // should other threads be looking to steal from it, as the returned
+        // fiber is already obtained using relatively expensive volatile store
+        // operations.
+        return batch(0)
       }
     }
 
@@ -564,13 +576,25 @@ private final class LocalQueue {
         // announced. Proceed to transfer all of the fibers between the old
         // "steal" tag and the new "real" value, nulling out the references for
         // garbage collection purposes.
+        val dstBuffer = dst.bufferForwarder
+
+        // Obtain a reference to the first fiber. This fiber will not be
+        // transferred to the destination local queue and will instead be
+        // executed directly.
+        val headFiberIdx = index(steal)
+        val headFiber = buffer(headFiberIdx)
+        buffer(headFiberIdx) = null
+
+        // All other fibers need to be transferred to the destination queue.
+        val sourcePos = steal + 1
+        val end = n - 1
         var i = 0
-        while (i < n) {
-          val srcIdx = index(steal + i)
+        while (i < end) {
+          val srcIdx = index(sourcePos + i)
           val dstIdx = index(dstTl + i)
           val fiber = buffer(srcIdx)
           buffer(srcIdx) = null
-          dst.bufferForwarder(dstIdx) = fiber
+          dstBuffer(dstIdx) = fiber
           i += 1
         }
 
@@ -589,23 +613,24 @@ private final class LocalQueue {
             // The "steal" tag now matches the "real" head value. Proceed to
             // return a fiber that can immediately be executed by the stealing
             // `WorkerThread`.
-            n -= 1
-            val newDstTl = unsignedShortAddition(dstTl, n)
-            val idx = index(newDstTl)
-            val fiber = dst.bufferForwarder(idx)
-            dst.bufferForwarder(idx) = null
 
-            if (n == 0) {
+            if (n == 1) {
               // Only 1 fiber has been stolen. No need for any memory
               // synchronization operations.
-              return fiber
+              return headFiber
             }
+
+            // Calculate the new tail of the destination local queue. The first
+            // stolen fiber is not put into the queue at all and is instead
+            // executed directly.
+            n -= 1
+            val newDstTl = unsignedShortAddition(dstTl, n)
 
             // Publish the new tail of the destination queue. That way the
             // destination queue also becomes eligible for stealing.
             dst.tailPublisherForwarder.lazySet(newDstTl)
             dst.plainStoreTail(newDstTl)
-            return fiber
+            return headFiber
           } else {
             // Failed to opportunistically restore the value of the `head`. Load
             // it again and retry.
@@ -657,7 +682,7 @@ private final class LocalQueue {
 
       val real = lsb(hd)
 
-      if (unsignedShortSubtraction(tl, real) < OverflowBatchSize) {
+      if (unsignedShortSubtraction(tl, real) <= LocalQueueCapacityMinusBatch) {
         // The current remaining capacity of the local queue is enough to
         // accommodate the new incoming batch. There is nothing more to be done.
         return

@@ -231,7 +231,7 @@ private final class WorkerThread(
      */
     var state = 0
 
-    var fairness: Int = 0
+    var checkOverflowQueue: Boolean = true
 
     def parkLoop(): Unit = {
       var cont = true
@@ -247,43 +247,30 @@ private final class WorkerThread(
     while (!isInterrupted()) {
       ((state & OverflowQueueTicksMask): @switch) match {
         case 0 =>
-          // Alternate between checking the overflow and batched queues with a
-          // 2:1 ration in favor of the overflow queue, for now.
-          (fairness: @switch) match {
-            case 0 =>
-              // Dequeue a fiber from the overflow queue.
-              val fiber = overflow.poll(rnd)
-              if (fiber ne null) {
-                // Run the fiber.
-                fiber.run()
-              }
-              fairness = 1
+          // Alternate between checking the overflow and batched queues.
+          if (checkOverflowQueue) {
+            // Dequeue a fiber from the overflow queue.
+            val fiber = overflow.poll(rnd)
+            if (fiber ne null) {
+              // Run the fiber.
+              fiber.run()
+            }
+          } else {
+            // Look into the batched queue for a batch of fibers.
+            val batch = batched.poll(rnd)
+            if (batch ne null) {
+              // Make room for the batch if the local queue cannot
+              // accommodate the batch as is.
+              queue.drainBatch(batched, rnd)
 
-            case 1 =>
-              // Look into the batched queue for a batch of fibers.
-              val batch = batched.poll(rnd)
-              if (batch ne null) {
-                // Make room for the batch if the local queue cannot
-                // accommodate the batch as is.
-                queue.drainBatch(batched, rnd)
-
-                // Enqueue the batch at the back of the local queue and execute
-                // the first fiber.
-                val fiber = queue.enqueueBatch(batch)
-                fiber.run()
-              }
-              fairness = 2
-
-            case 2 =>
-              // Dequeue a fiber from the overflow queue.
-              val fiber = overflow.poll(rnd)
-              if (fiber ne null) {
-                // Run the fiber.
-                fiber.run()
-              }
-              fairness = 0
+              // Enqueue the batch at the back of the local queue and execute
+              // the first fiber.
+              val fiber = queue.enqueueBatch(batch)
+              fiber.run()
+            }
           }
 
+          checkOverflowQueue = !checkOverflowQueue
           // Transition to executing fibers from the local queue.
           state = 7
 
