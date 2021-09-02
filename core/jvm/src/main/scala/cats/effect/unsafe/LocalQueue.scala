@@ -324,14 +324,16 @@ private final class LocalQueue {
       if (head.compareAndSet(hd, newHd)) {
         // Outcome 3, half of the queue has been claimed by the owner
         // `WorkerThread`, to be transferred to the batched queue.
+        // Due to the new tuning, half of the local queue does not equal a
+        // single batch anymore, so several batches are created.
         val batches = new Array[Array[IOFiber[_]]](BatchesInHalfQueueCapacity)
         var b = 0
         var offset = 0
+
+        // Each batch is populated with fibers from the local queue. References
+        // in the buffer are nulled out for garbage collection purposes.
         while (b < BatchesInHalfQueueCapacity) {
           val batch = new Array[IOFiber[_]](OverflowBatchSize)
-          // Transfer half of the buffer into the batch for a final bulk add
-          // operation into the batched queue. References in the buffer are nulled
-          // out for garbage collection purposes.
           var i = 0
           while (i < OverflowBatchSize) {
             val idx = index(real + offset)
@@ -346,10 +348,11 @@ private final class LocalQueue {
           b += 1
         }
 
-        // Enqueue all of the fibers on the batched queue with a bulk add
-        // operation.
+        // Enqueue all of the batches of fibers on the batched queue with a bulk
+        // add operation.
         batched.offerAll(batches, random)
-        // Loop again.
+        // Loop again for a chance to insert the original fiber to be enqueued
+        // on the local queue.
       }
 
       // None of the three final outcomes have been reached, loop again for a
@@ -427,7 +430,12 @@ private final class LocalQueue {
         tailPublisher.lazySet(newTl)
         tail = newTl
         // Return a fiber to be directly executed, withouth enqueueing it first
-        // on the local queue.
+        // on the local queue. This does sacrifice some fairness, because the
+        // returned fiber might not be at the head of the local queue, but it is
+        // nevertheless an optimization to reduce contention on the local queue
+        // should other threads be looking to steal from it, as the returned
+        // fiber is already obtained using relatively expensive volatile store
+        // operations.
         return batch(0)
       }
     }

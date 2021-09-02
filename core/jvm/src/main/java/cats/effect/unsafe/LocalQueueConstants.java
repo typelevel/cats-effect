@@ -43,7 +43,8 @@ class LocalQueueConstants {
   static final int HalfLocalQueueCapacity = LocalQueueCapacity / 2;
 
   /**
-   * Overflow fiber batch size.
+   * Overflow fiber batch size. The runtime relies on the assumption that this
+   * number fully divides `HalfLocalQueueCapacity`.
    */
   static final int OverflowBatchSize = 32;
 
