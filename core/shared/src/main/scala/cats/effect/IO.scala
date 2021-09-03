@@ -585,7 +585,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *        the source completing, a `TimeoutException` is raised
    */
   def timeout[A2 >: A](duration: FiniteDuration): IO[A2] =
-    timeoutTo(duration, IO.pure(duration).flatMap(d => IO.raiseError(new TimeoutException(d.toString))))
+    timeoutTo(duration, IO.defer(IO.raiseError(new TimeoutException(duration.toString))))
 
   /**
    * Returns an IO that either completes with the result of the source within
