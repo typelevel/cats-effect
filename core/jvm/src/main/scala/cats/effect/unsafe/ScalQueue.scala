@@ -19,24 +19,24 @@ package cats.effect.unsafe
 import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
 
 /**
- * A striped queue implementation inspired by the
- * [[https://scal.cs.uni-salzburg.at/dq/ Scal]] project. The whole queue
- * consists of several [[java.util.concurrent.ConcurrentLinkedQueue]] instances
- * (the number of queues is a power of 2 for optimization purposes) which are
- * load balanced between using random index generation.
+ * A striped queue implementation inspired by the [[https://scal.cs.uni-salzburg.at/dq/ Scal]]
+ * project. The whole queue consists of several [[java.util.concurrent.ConcurrentLinkedQueue]]
+ * instances (the number of queues is a power of 2 for optimization purposes) which are load
+ * balanced between using random index generation.
  *
- * The Scal queue does not guarantee any ordering of dequeued elements and is
- * more akin to the data structure known as '''bag'''. The naming is kept to
- * honor the original development efforts.
+ * The Scal queue does not guarantee any ordering of dequeued elements and is more akin to the
+ * data structure known as '''bag'''. The naming is kept to honor the original development
+ * efforts.
  *
- * @param threadCount the number of threads to load balance between
+ * @param threadCount
+ *   the number of threads to load balance between
  */
 private final class ScalQueue[A <: AnyRef](threadCount: Int) {
 
   /**
-   * Calculates the next power of 2 using bitwise operations. This value
-   * actually represents the bitmask for the next power of 2 and can be used
-   * for indexing into the array of concurrent queues.
+   * Calculates the next power of 2 using bitwise operations. This value actually represents the
+   * bitmask for the next power of 2 and can be used for indexing into the array of concurrent
+   * queues.
    */
   private[this] val mask: Int = {
     // Bit twiddling hacks.
@@ -50,9 +50,8 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
   }
 
   /**
-   * The number of queues to load balance between (a power of 2 equal to
-   * `threadCount` if `threadCount` is a power of 2, otherwise the next power of
-   * 2 larger than `threadCount`).
+   * The number of queues to load balance between (a power of 2 equal to `threadCount` if
+   * `threadCount` is a power of 2, otherwise the next power of 2 larger than `threadCount`).
    */
   private[this] val numQueues: Int = mask + 1
 
@@ -73,9 +72,10 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
   /**
    * Enqueues a single element on the Scal queue.
    *
-   * @param a the element to be enqueued
-   * @param random an uncontended source of randomness, used for randomly
-   *               choosing a destination queue
+   * @param a
+   *   the element to be enqueued
+   * @param random
+   *   an uncontended source of randomness, used for randomly choosing a destination queue
    */
   def offer(a: A, random: ThreadLocalRandom): Unit = {
     val idx = random.nextInt(numQueues)
@@ -86,23 +86,23 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
   /**
    * Enqueues a batch of elements in a striped fashion.
    *
-   * @note By convention, the array of elements cannot contain any null
-   *       references, which are unsupported by the underlying concurrent
-   *       queues.
+   * @note
+   *   By convention, the array of elements cannot contain any null references, which are
+   *   unsupported by the underlying concurrent queues.
    *
-   * @note This method has a somewhat high overhead when enqueueing every single
-   *       element. However, this is acceptable in practice because this method
-   *       is only used on the slowest path when blocking operations are
-   *       anticipated, which is not what the fiber runtime is optimized for.
-   *       This overhead can be substituted for the overhead of allocation of
-   *       array list instances which contain some of the fibers of the batch,
-   *       so that they can be enqueued with a bulk operation on each of the
-   *       concurrent queues. Maybe this can be explored in the future, but
-   *       remains to be seen if it is a worthwhile tradeoff.
+   * @note
+   *   This method has a somewhat high overhead when enqueueing every single element. However,
+   *   this is acceptable in practice because this method is only used on the slowest path when
+   *   blocking operations are anticipated, which is not what the fiber runtime is optimized
+   *   for. This overhead can be substituted for the overhead of allocation of array list
+   *   instances which contain some of the fibers of the batch, so that they can be enqueued
+   *   with a bulk operation on each of the concurrent queues. Maybe this can be explored in the
+   *   future, but remains to be seen if it is a worthwhile tradeoff.
    *
-   * @param as the batch of elements to be enqueued
-   * @param random an uncontended source of randomness, used for randomly
-   *               choosing a destination queue
+   * @param as
+   *   the batch of elements to be enqueued
+   * @param random
+   *   an uncontended source of randomness, used for randomly choosing a destination queue
    */
   def offerAll(as: Array[A], random: ThreadLocalRandom): Unit = {
     val nq = numQueues
@@ -121,9 +121,11 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
   /**
    * Dequeues an element from this Scal queue.
    *
-   * @param random an uncontended source of randomness, used for randomly
-   *               selecting the first queue to look for elements
-   * @return an element from this Scal queue or `null` if this queue is empty
+   * @param random
+   *   an uncontended source of randomness, used for randomly selecting the first queue to look
+   *   for elements
+   * @return
+   *   an element from this Scal queue or `null` if this queue is empty
    */
   def poll(random: ThreadLocalRandom): A = {
     val nq = numQueues
@@ -143,10 +145,11 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
   /**
    * Checks if this Scal queue is empty.
    *
-   * The Scal queue is defined as empty if '''all''' concurrent queues report
-   * that they contain no elements.
+   * The Scal queue is defined as empty if '''all''' concurrent queues report that they contain
+   * no elements.
    *
-   * @return `true` if this Scal queue is empty, `false` otherwise
+   * @return
+   *   `true` if this Scal queue is empty, `false` otherwise
    */
   def isEmpty(): Boolean = {
     val nq = numQueues
@@ -164,10 +167,11 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
   /**
    * Checks if this Scal queue is '''not''' empty.
    *
-   * The Scal queue is defined as not empty if '''any''' concurrent queue
-   * reports that it contains some elements.
+   * The Scal queue is defined as not empty if '''any''' concurrent queue reports that it
+   * contains some elements.
    *
-   * @return `true` if this Scal queue is '''not''' empty, `false` otherwise
+   * @return
+   *   `true` if this Scal queue is '''not''' empty, `false` otherwise
    */
   def nonEmpty(): Boolean =
     !isEmpty()

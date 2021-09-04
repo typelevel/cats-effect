@@ -21,25 +21,25 @@ import cats.effect.kernel.implicits._
 import cats.syntax.all._
 
 /**
- * Utility to apply backpressure semantics to the execution of an Effect.
- * Backpressure instances will apply a [[Backpressure.Strategy]] to the
- * execution where each strategy works as follows:
+ * Utility to apply backpressure semantics to the execution of an Effect. Backpressure instances
+ * will apply a [[Backpressure.Strategy]] to the execution where each strategy works as follows:
  *
- * [[Backpressure.Strategy.Lossy]] will mean that effects will not be run in
- * the presence of backpressure, meaning the result will be None
+ * [[Backpressure.Strategy.Lossy]] will mean that effects will not be run in the presence of
+ * backpressure, meaning the result will be None
  *
- * [[Backpressure.Strategy.Lossless]] will mean that effects will run in the
- * presence of backpressure, meaning the effect will semantically block until
- * backpressure is alleviated
+ * [[Backpressure.Strategy.Lossless]] will mean that effects will run in the presence of
+ * backpressure, meaning the effect will semantically block until backpressure is alleviated
  */
 trait Backpressure[F[_]] {
 
   /**
    * Applies rate limiting to an effect based on backpressure semantics
    *
-   * @param f the effect that backpressure is applied to
-   * @return an Option where Option denotes if the effect was run or not
-   * according to backpressure semantics
+   * @param f
+   *   the effect that backpressure is applied to
+   * @return
+   *   an Option where Option denotes if the effect was run or not according to backpressure
+   *   semantics
    */
   def metered[A](f: F[A]): F[Option[A]]
 }
@@ -48,9 +48,12 @@ object Backpressure {
 
   /**
    * Creates an instance of Backpressure that can be used to rate limit effects
-   * @param strategy strategy to apply for this backpressure instance
-   * @param bound depth of the queue that the backpressure instance should manage
-   * @return a [[Backpressure]] instance
+   * @param strategy
+   *   strategy to apply for this backpressure instance
+   * @param bound
+   *   depth of the queue that the backpressure instance should manage
+   * @return
+   *   a [[Backpressure]] instance
    */
   def apply[F[_]](
       strategy: Strategy,

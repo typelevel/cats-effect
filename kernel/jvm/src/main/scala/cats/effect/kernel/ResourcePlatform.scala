@@ -38,11 +38,16 @@ private[effect] trait ResourcePlatform {
    *       getPassword.map(new PasswordProtection(_))
    *     )
    * }}}
-   * @param acquire The effect with the resource to acquire.
-   * @param F the effect type in which the resource was acquired and will be released
-   * @tparam F the type of the effect
-   * @tparam A the type of the destroyable resource
-   * @return a Resource that will automatically destroy after use
+   * @param acquire
+   *   The effect with the resource to acquire.
+   * @param F
+   *   the effect type in which the resource was acquired and will be released
+   * @tparam F
+   *   the type of the effect
+   * @tparam A
+   *   the type of the destroyable resource
+   * @return
+   *   a Resource that will automatically destroy after use
    */
   def fromDestroyable[F[_], A <: Destroyable](acquire: F[A])(
       implicit F: Sync[F]): Resource[F, A] =

@@ -22,17 +22,16 @@ import scala.annotation.tailrec
 
 /**
  * A binomial heap is a list of trees maintaining the following invariants:
- * - The list is strictly monotonically increasing in the rank of the trees,
- *   where the rank of a tree is defined as the height of the tree ie the
- *   number of nodes on the longest path from the root to a leaf
- *   In fact, a binomial heap built from n elements has is a tree of rank i
- *   iff there is a 1 in the ith digit of the binary representation of n
- *   Consequently, the length of the list is <= 1 + log(n)
- * - Each tree satisfies the heap property (the value at any node is greater
- *   than that of its parent). This means that the smallest element of the
- *   heap is found at one of the roots of the trees
- * - The ranks of the children of a node are strictly monotonically decreasing
- *   (in fact the rank of the ith child is r - i)
+ *   - The list is strictly monotonically increasing in the rank of the trees, where the rank of
+ *     a tree is defined as the height of the tree ie the number of nodes on the longest path
+ *     from the root to a leaf In fact, a binomial heap built from n elements has is a tree of
+ *     rank i iff there is a 1 in the ith digit of the binary representation of n Consequently,
+ *     the length of the list is <= 1 + log(n)
+ *   - Each tree satisfies the heap property (the value at any node is greater than that of its
+ *     parent). This means that the smallest element of the heap is found at one of the roots of
+ *     the trees
+ *   - The ranks of the children of a node are strictly monotonically decreasing (in fact the
+ *     rank of the ith child is r - i)
  */
 private[std] abstract case class BinomialHeap[A](trees: List[BinomialTree[A]]) { self =>
 
@@ -48,8 +47,7 @@ private[std] abstract case class BinomialHeap[A](trees: List[BinomialTree[A]]) {
   def insert(a: A): BinomialHeap[A] = insert(BinomialTree(0, a, Nil))
 
   /**
-   * Assumes heap is non-empty. Used in Dequeue where we track
-   * size externally
+   * Assumes heap is non-empty. Used in Dequeue where we track size externally
    */
   def take: (BinomialHeap[A], A) = {
     val (ts, head) = BinomialHeap.take(trees)
@@ -127,8 +125,8 @@ private[std] object BinomialHeap {
 }
 
 /**
- * Children are stored in strictly monotonically decreasing order of rank
- * A tree of rank r will have children of ranks r-1, r-2, ..., 1
+ * Children are stored in strictly monotonically decreasing order of rank A tree of rank r will
+ * have children of ranks r-1, r-2, ..., 1
  */
 private[std] final case class BinomialTree[A](
     rank: Int,

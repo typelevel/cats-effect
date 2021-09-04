@@ -21,8 +21,8 @@ import scala.concurrent.duration.FiniteDuration
 trait Scheduler {
 
   /**
-   * Schedules a side-effect to run after the delay interval. Produces
-   * another side-effect which cancels the scheduling.
+   * Schedules a side-effect to run after the delay interval. Produces another side-effect which
+   * cancels the scheduling.
    */
   def sleep(delay: FiniteDuration, task: Runnable): Runnable
 
