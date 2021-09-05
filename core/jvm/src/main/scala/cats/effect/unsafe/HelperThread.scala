@@ -199,54 +199,69 @@ private final class HelperThread(
    * A mechanism for executing support code before executing a blocking action.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
-    if (blocking) {
-      // This `HelperThread` is already inside an enclosing blocking region.
-      // There is no need to spawn another `HelperThread`. Instead, directly
-      // execute the blocking action.
-      thunk
-    } else {
-      // Spawn a new `HelperThread` to take the place of this thread, as the
-      // current thread prepares to execute a blocking action.
+    val rnd = random
+    if (pool.notifyParked(rnd)) {
+      if (blocking) {
+        thunk
+      } else {
+        blocking = true
 
-      // Logically enter the blocking region.
-      blocking = true
+        val result = thunk
 
-      // Spawn a new `HelperThread`.
-      val helper =
-        new HelperThread(threadPrefix, blockingThreadCounter, batched, overflow, pool)
-      helper.start()
+        blocking = false
 
-      // With another `HelperThread` started, it is time to execute the blocking
-      // action.
-      val result = thunk
-
-      // Blocking is finished. Time to signal the spawned helper thread.
-      helper.signalExit()
-      pool.removeParkedHelper(helper, random)
-
-      // Do not proceed until the helper thread has fully died. This is terrible
-      // for performance, but it is justified in this case as the stability of
-      // the `WorkStealingThreadPool` is of utmost importance in the face of
-      // blocking, which in itself is **not** what the pool is optimized for.
-      // In practice however, unless looking at a completely pathological case
-      // of propagating blocking actions on every spawned helper thread, this is
-      // not an issue, as the `HelperThread`s are all executing `IOFiber[_]`
-      // instances, which mostly consist of non-blocking code.
-      try helper.join()
-      catch {
-        case _: InterruptedException =>
-          // Propagate interruption to the helper thread.
-          Thread.interrupted()
-          helper.interrupt()
-          helper.join()
-          this.interrupt()
+        result
       }
+    } else {
+      if (blocking) {
+        // This `HelperThread` is already inside an enclosing blocking region.
+        // There is no need to spawn another `HelperThread`. Instead, directly
+        // execute the blocking action.
+        thunk
+      } else {
+        // Spawn a new `HelperThread` to take the place of this thread, as the
+        // current thread prepares to execute a blocking action.
 
-      // Logically exit the blocking region.
-      blocking = false
+        // Logically enter the blocking region.
+        blocking = true
 
-      // Return the computed result from the blocking operation
-      result
+        // Spawn a new `HelperThread`.
+        val helper =
+          new HelperThread(threadPrefix, blockingThreadCounter, batched, overflow, pool)
+        helper.start()
+
+        // With another `HelperThread` started, it is time to execute the blocking
+        // action.
+        val result = thunk
+
+        // Blocking is finished. Time to signal the spawned helper thread.
+        helper.signalExit()
+        pool.removeParkedHelper(helper, random)
+
+        // Do not proceed until the helper thread has fully died. This is terrible
+        // for performance, but it is justified in this case as the stability of
+        // the `WorkStealingThreadPool` is of utmost importance in the face of
+        // blocking, which in itself is **not** what the pool is optimized for.
+        // In practice however, unless looking at a completely pathological case
+        // of propagating blocking actions on every spawned helper thread, this is
+        // not an issue, as the `HelperThread`s are all executing `IOFiber[_]`
+        // instances, which mostly consist of non-blocking code.
+        try helper.join()
+        catch {
+          case _: InterruptedException =>
+            // Propagate interruption to the helper thread.
+            Thread.interrupted()
+            helper.interrupt()
+            helper.join()
+            this.interrupt()
+        }
+
+        // Logically exit the blocking region.
+        blocking = false
+
+        // Return the computed result from the blocking operation
+        result
+      }
     }
   }
 }
