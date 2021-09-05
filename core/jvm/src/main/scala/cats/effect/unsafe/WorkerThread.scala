@@ -512,7 +512,7 @@ private final class WorkerThread(
         val result = thunk
 
         // Blocking is finished. Time to signal the spawned helper thread.
-        helper.signalExit()
+        helper.setSignal()
         pool.removeParkedHelper(helper, rnd)
 
         // Do not proceed until the helper thread has fully died. This is terrible

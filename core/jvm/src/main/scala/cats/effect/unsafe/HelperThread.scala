@@ -105,7 +105,7 @@ private final class HelperThread(
    * and is returning to normal operation. The [[HelperThread]] should finalize
    * and die.
    */
-  def signalExit(): Unit = {
+  def setSignal(): Unit = {
     signal.lazySet(true)
     unpark()
     LockSupport.unpark(this)
@@ -235,7 +235,7 @@ private final class HelperThread(
         val result = thunk
 
         // Blocking is finished. Time to signal the spawned helper thread.
-        helper.signalExit()
+        helper.setSignal()
         pool.removeParkedHelper(helper, random)
 
         // Do not proceed until the helper thread has fully died. This is terrible
