@@ -65,6 +65,9 @@ private final class HelperThread(
     extends Thread
     with BlockContext {
 
+  /**
+   * The status of this [[HelperThread]] (parked/unparked).
+   */
   private[this] val parked: AtomicBoolean = new AtomicBoolean(false)
 
   /**
@@ -107,8 +110,6 @@ private final class HelperThread(
    */
   def setSignal(): Unit = {
     signal.lazySet(true)
-    unpark()
-    LockSupport.unpark(this)
   }
 
   /**
@@ -235,6 +236,8 @@ private final class HelperThread(
 
         // Blocking is finished. Time to signal the spawned helper thread.
         helper.setSignal()
+        helper.unpark()
+        LockSupport.unpark(helper)
         pool.removeParkedHelper(helper, random)
 
         // Do not proceed until the helper thread has fully died. This is terrible

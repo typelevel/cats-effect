@@ -513,6 +513,8 @@ private final class WorkerThread(
 
         // Blocking is finished. Time to signal the spawned helper thread.
         helper.setSignal()
+        helper.unpark()
+        LockSupport.unpark(helper)
         pool.removeParkedHelper(helper, rnd)
 
         // Do not proceed until the helper thread has fully died. This is terrible
