@@ -21,6 +21,7 @@ import scala.concurrent.{BlockContext, CanAwait}
 
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.locks.LockSupport
 
 /**
  * A helper thread which is spawned whenever a blocking action is being executed
@@ -64,6 +65,8 @@ private final class HelperThread(
     extends Thread
     with BlockContext {
 
+  private[this] val parked: AtomicBoolean = new AtomicBoolean(false)
+
   /**
    * Uncontented source of randomness. By default, `java.util.Random` is thread
    * safe, which is a feature we do not need in this class, as the source of
@@ -102,8 +105,10 @@ private final class HelperThread(
    * and is returning to normal operation. The [[HelperThread]] should finalize
    * and die.
    */
-  def setSignal(): Unit = {
+  def signalExit(): Unit = {
     signal.lazySet(true)
+    unpark()
+    LockSupport.unpark(this)
   }
 
   /**
@@ -113,8 +118,11 @@ private final class HelperThread(
    * @param fiber the fiber to be scheduled on the `overflow` queue
    */
   def schedule(fiber: IOFiber[_]): Unit = {
-    overflow.offer(fiber, random)
-    ()
+    val rnd = random
+    overflow.offer(fiber, rnd)
+    if (!pool.notifyParked(rnd)) {
+      pool.notifyHelper(rnd)
+    }
   }
 
   /**
@@ -131,6 +139,11 @@ private final class HelperThread(
   def isOwnedBy(threadPool: WorkStealingThreadPool): Boolean =
     pool eq threadPool
 
+  def unpark(): Unit = {
+    parked.getAndSet(false)
+    ()
+  }
+
   /**
    * The run loop of the [[HelperThread]]. A loop iteration consists of
    * checking the `overflow` queue for available work. If it cannot secure a
@@ -146,6 +159,17 @@ private final class HelperThread(
     random = ThreadLocalRandom.current()
     val rnd = random
 
+    def parkLoop(): Unit = {
+      var cont = true
+      while (cont && !isInterrupted()) {
+        // Park the thread until further notice.
+        LockSupport.park(pool)
+
+        // Spurious wakeup check.
+        cont = parked.get()
+      }
+    }
+
     // Check for exit condition. Do not continue if the `WorkStealingPool` has
     // been shut down, or the `WorkerThread` which spawned this `HelperThread`
     // has finished blocking.
@@ -155,22 +179,24 @@ private final class HelperThread(
         // Fall back to checking the batched queue.
         val batch = batched.poll(rnd)
         if (batch eq null) {
-          // There are no more fibers neither in the overflow queue, nor in the
-          // batched queue. Since the queues are not a blocking queue, there is
-          // no point in busy waiting, especially since there is no guarantee
-          // that the `WorkerThread` which spawned this `HelperThread` will ever
-          // exit the blocking region, and new external work may never arrive on
-          // the `overflow` queue. This pathological case is not handled as it
-          // is a case of uncontrolled blocking on a fixed thread pool, an
-          // inherently careless and unsafe situation.
-          return
+          parked.lazySet(true)
+          pool.transitionHelperToParked(this, rnd)
+          pool.notifyIfWorkPending(rnd)
+          parkLoop()
         } else {
           overflow.offerAll(batch, rnd)
+          if (!pool.notifyParked(rnd)) {
+            pool.notifyHelper(rnd)
+          }
         }
       } else {
         fiber.run()
       }
     }
+
+    Thread.interrupted()
+    pool.removeParkedHelper(this, rnd)
+    this.interrupt()
   }
 
   /**
@@ -199,7 +225,7 @@ private final class HelperThread(
       val result = thunk
 
       // Blocking is finished. Time to signal the spawned helper thread.
-      helper.setSignal()
+      helper.signalExit()
 
       // Do not proceed until the helper thread has fully died. This is terrible
       // for performance, but it is justified in this case as the stability of

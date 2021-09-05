@@ -140,6 +140,17 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     a
   }
 
+  def remove(a: A): Unit = {
+    val nq = numQueues
+    var i = 0
+    var cont = true
+
+    while (cont && i < nq) {
+      cont = queues(i).remove(a)
+      i += 1
+    }
+  }
+
   /**
    * Checks if this Scal queue is empty.
    *

@@ -512,7 +512,7 @@ private final class WorkerThread(
         val result = thunk
 
         // Blocking is finished. Time to signal the spawned helper thread.
-        helper.setSignal()
+        helper.signalExit()
 
         // Do not proceed until the helper thread has fully died. This is terrible
         // for performance, but it is justified in this case as the stability of

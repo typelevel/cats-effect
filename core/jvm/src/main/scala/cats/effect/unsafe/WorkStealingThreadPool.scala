@@ -76,6 +76,11 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
 
   /**
+   * References to helper threads.
+   */
+  private[this] val helperThreads: ScalQueue[HelperThread] = new ScalQueue(threadCount)
+
+  /**
    * The batched queue on which spillover work from other local queues can end
    * up.
    */
@@ -222,6 +227,14 @@ private[effect] final class WorkStealingThreadPool(
     false
   }
 
+  private[unsafe] def notifyHelper(random: ThreadLocalRandom): Unit = {
+    val helper = helperThreads.poll(random)
+    if (helper ne null) {
+      helper.unpark()
+      LockSupport.unpark(helper)
+    }
+  }
+
   /**
    * Checks the number of active and searching worker threads and decides
    * whether another thread should be notified of new work.
@@ -258,15 +271,14 @@ private[effect] final class WorkStealingThreadPool(
 
     // If no work was found in the local queues of the worker threads, look for
     // work in the batched queue.
-    if (batchedQueue.nonEmpty()) {
-      notifyParked(random)
+    if (batchedQueue.nonEmpty() && !notifyParked(random)) {
+      notifyHelper(random)
     }
 
     // If no work was found in the local queues of the worker threads or in the
     // batched queue, look for work in the external queue.
-    if (overflowQueue.nonEmpty()) {
-      notifyParked(random)
-      ()
+    if (overflowQueue.nonEmpty() && !notifyParked(random)) {
+      notifyHelper(random)
     }
   }
 
@@ -337,6 +349,21 @@ private[effect] final class WorkStealingThreadPool(
     // Decrement the number of unparked threads only.
     state.getAndAdd(-DeltaNotSearching)
     ()
+  }
+
+  private[unsafe] def transitionHelperToParked(
+      helper: HelperThread,
+      random: ThreadLocalRandom): Unit = {
+    helperThreads.offer(helper, random)
+  }
+
+  private[unsafe] def removeParkedHelper(
+      helper: HelperThread,
+      random: ThreadLocalRandom): Unit = {
+    helperThreads.remove(helper)
+    if (!notifyParked(random)) {
+      notifyHelper(random)
+    }
   }
 
   /**
@@ -420,8 +447,9 @@ private[effect] final class WorkStealingThreadPool(
   private[this] def scheduleExternal(fiber: IOFiber[_]): Unit = {
     val random = ThreadLocalRandom.current()
     overflowQueue.offer(fiber, random)
-    notifyParked(random)
-    ()
+    if (!notifyParked(random)) {
+      notifyHelper(random)
+    }
   }
 
   /**
