@@ -140,8 +140,7 @@ private final class HelperThread(
     pool eq threadPool
 
   def unpark(): Unit = {
-    parked.getAndSet(false)
-    ()
+    parked.set(false)
   }
 
   /**
