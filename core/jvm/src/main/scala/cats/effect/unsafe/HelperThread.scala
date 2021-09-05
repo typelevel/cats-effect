@@ -140,6 +140,9 @@ private final class HelperThread(
   def isOwnedBy(threadPool: WorkStealingThreadPool): Boolean =
     pool eq threadPool
 
+  /**
+   * Marks the [[HelperThread]] as eligible for resuming work.
+   */
   def unpark(): Unit = {
     parked.set(false)
   }
@@ -179,6 +182,12 @@ private final class HelperThread(
         // Fall back to checking the batched queue.
         val batch = batched.poll(rnd)
         if (batch eq null) {
+          // There are currently no more fibers available on the overflow or
+          // batched queues. However, the thread that originally started this
+          // helper thread has not been unblocked. The fibers that will
+          // eventually unblock that original thread might not have arrived on
+          // the pool yet. The helper thread should suspend and await for a
+          // notification of incoming work.
           parked.lazySet(true)
           pool.transitionHelperToParked(this, rnd)
           pool.notifyIfWorkPending(rnd)
@@ -197,19 +206,34 @@ private final class HelperThread(
 
   /**
    * A mechanism for executing support code before executing a blocking action.
+   *
+   * @note There is no reason to enclose any code in a `try/catch` block because
+   *       the only way this code path can be exercised is through `IO.delay`,
+   *       which already handles exceptions.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+    // Try waking up a `WorkerThread` to handle fibers from the overflow and
+    // batched queues.
     val rnd = random
     if (pool.notifyParked(rnd)) {
+      // Successfully woke up another `WorkerThread` to help out with the
+      // anticipated blocking. Even if this thread ends up being blocked for
+      // some time, the other worker would be able to handle fibers on the
+      // overflow queue.
+
       if (blocking) {
+        // This `HelperThread` is already inside an enclosing blocking region.
         thunk
       } else {
+        // Logically enter the blocking region.
         blocking = true
 
         val result = thunk
 
+        // Logically exit the blocking region.
         blocking = false
 
+        // Return the computed result from the blocking operation.
         result
       }
     } else {
@@ -234,7 +258,12 @@ private final class HelperThread(
         // action.
         val result = thunk
 
-        // Blocking is finished. Time to signal the spawned helper thread.
+        // Blocking is finished. Time to signal the spawned helper thread and
+        // unpark it. Furthermore, the thread needs to be removed from the
+        // parked helper threads queue in the pool so that other threads don't
+        // mistakenly depend on it to bail them out of blocking situations, and
+        // of course, this also removes the last strong reference to the fiber,
+        // which needs to be released for gc purposes.
         helper.setSignal()
         helper.unpark()
         LockSupport.unpark(helper)
