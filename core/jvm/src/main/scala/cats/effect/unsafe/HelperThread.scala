@@ -166,7 +166,7 @@ private final class HelperThread(
         LockSupport.park(pool)
 
         // Spurious wakeup check.
-        cont = parked.get()
+        cont = !signal.get() && parked.get()
       }
     }
 
@@ -193,10 +193,6 @@ private final class HelperThread(
         fiber.run()
       }
     }
-
-    Thread.interrupted()
-    pool.removeParkedHelper(this, rnd)
-    this.interrupt()
   }
 
   /**
@@ -226,6 +222,7 @@ private final class HelperThread(
 
       // Blocking is finished. Time to signal the spawned helper thread.
       helper.signalExit()
+      pool.removeParkedHelper(helper, random)
 
       // Do not proceed until the helper thread has fully died. This is terrible
       // for performance, but it is justified in this case as the stability of
