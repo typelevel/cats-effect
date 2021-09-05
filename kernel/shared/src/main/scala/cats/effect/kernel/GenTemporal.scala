@@ -92,8 +92,10 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    */
   def timeout[A](fa: F[A], duration: FiniteDuration)(
       implicit ev: TimeoutException <:< E): F[A] = {
-    val timeoutException = raiseError[A](ev(new TimeoutException(duration.toString)))
-    timeoutTo(fa, duration, timeoutException)
+    flatMap(race(fa, sleep(duration))) {
+      case Left(a)  => pure(a)
+      case Right(_) => raiseError[A](ev(new TimeoutException(duration.toString())))
+    }
   }
 }
 
