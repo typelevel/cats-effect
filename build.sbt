@@ -53,12 +53,12 @@ val Windows = "windows-latest"
 
 val ScalaJSJava = "adoptium@8"
 val Scala213 = "2.13.6"
-val Scala3 = "3.0.1"
+val Scala3 = "3.0.2"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.14", Scala213)
 
 ThisBuild / githubWorkflowUseSbtThinClient := false
-ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
+ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
 
 val LTSJava = "adoptium@11"
 val LatestJava = "adoptium@17"
