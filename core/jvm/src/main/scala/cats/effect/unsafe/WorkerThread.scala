@@ -132,12 +132,16 @@ private final class WorkerThread(
    * matches the reference of the pool provided when this [[WorkerThread]] was
    * constructed.
    *
+   * @note When blocking code is being executed on this worker thread, it is
+   *       important to delegate all scheduling operation to the overflow queue
+   *       from which all [[HelperThread]] instances operate.
+   *
    * @param threadPool a work stealing thread pool reference
    * @return `true` if this worker thread is owned by the provided work stealing
    *         thread pool, `false` otherwise
    */
   def isOwnedBy(threadPool: WorkStealingThreadPool): Boolean =
-    pool eq threadPool
+    (pool eq threadPool) && !blocking
 
   /**
    * The run loop of the [[WorkerThread]].
@@ -443,7 +447,7 @@ private final class WorkerThread(
    * A mechanism for executing support code before executing a blocking action.
    *
    * This is a slightly more involved implementation of the support code in
-   * anticipation of running blocking code, also implemented in [[WorkerThread]].
+   * anticipation of running blocking code, also implemented in [[HelperThread]].
    *
    * For a more detailed discussion on the design principles behind the support
    * for running blocking actions on the [[WorkStealingThreadPool]], check the
