@@ -131,9 +131,7 @@ class UnboundedPQueueSpec extends BaseSpec with PQueueTests {
 
       PQueue.unbounded[IO, E].flatMap { q =>
         results.traverse(q.offer) >>
-        q.take.replicateA(results.length).flatMap { out =>
-          IO(out must beEqualTo(results))
-        }
+          q.take.replicateA(results.length).flatMap { out => IO(out must beEqualTo(results)) }
       }
     }
   }
