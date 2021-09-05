@@ -146,7 +146,9 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     var cont = true
 
     while (cont && i < nq) {
-      cont = queues(i).remove(a)
+      // Remove returns `true` when an element has been removed from the
+      // concurrent linked queue. We want to stop in that case.
+      cont = !queues(i).remove(a)
       i += 1
     }
   }
