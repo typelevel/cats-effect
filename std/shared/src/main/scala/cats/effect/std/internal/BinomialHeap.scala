@@ -139,7 +139,7 @@ private[std] final case class BinomialTree[A](
    * Link two trees of rank r to produce a tree of rank r + 1
    */
   def link(other: BinomialTree[A])(implicit Ord: Order[A]): BinomialTree[A] = {
-    if (Ord.lt(value, other.value))
+    if (Ord.lteqv(value, other.value))
       BinomialTree(rank + 1, value, other :: children)
     else BinomialTree(rank + 1, other.value, this :: other.children)
   }

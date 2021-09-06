@@ -120,20 +120,6 @@ class UnboundedPQueueSpec extends BaseSpec with PQueueTests {
     unboundedPQueueTests(
       "UnboundedPQueue mapK",
       PQueue.unbounded[IO, Int].map(_.mapK(FunctionK.id)))
-
-    "degenerate to a normal queue if all priorities are the same" in real {
-      case class E(name: String, index: Int)
-      object E {
-        implicit val orderForE: Order[E] = Order.by(_.index)
-      }
-
-      val results = List(E("a", 0), E("b", 0), E("c", 0), E("d", 0))
-
-      PQueue.unbounded[IO, E].flatMap { q =>
-        results.traverse(q.offer) >>
-          q.take.replicateA(results.length).flatMap { out => IO(out must beEqualTo(results)) }
-      }
-    }
   }
 
   private def unboundedPQueueTests(
