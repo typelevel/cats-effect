@@ -56,7 +56,6 @@ private final class WorkerThread(
     extends Thread
     with BlockContext {
 
-  import LocalQueueConstants._
   import WorkStealingThreadPoolConstants._
 
   /**
@@ -482,8 +481,7 @@ private final class WorkerThread(
       }
     } else {
       // Drain the local queue to the `overflow` queue.
-      val drain = new Array[IOFiber[_]](LocalQueueCapacity)
-      queue.drain(drain)
+      val drain = queue.drain()
       overflow.offerAll(drain, random)
 
       if (blocking) {
