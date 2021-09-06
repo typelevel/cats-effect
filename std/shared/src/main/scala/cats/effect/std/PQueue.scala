@@ -30,7 +30,6 @@ import scala.collection.immutable.{Queue => ScalaQueue}
  * on a binomial heap (Okasaki)
  *
  * Assumes an `Order` instance is in scope for `A`
- *
  */
 
 abstract class PQueue[F[_], A] extends PQueueSource[F, A] with PQueueSink[F, A] { self =>
@@ -218,7 +217,6 @@ trait PQueueSource[F[_], A] {
    * If you want to break ties with FIFO order you will need an additional
    * `Ref[F, Long]` to track insertion, and embed that information into
    * your instance for `Order[A]`.
-   *
    */
   def take: F[A]
 
