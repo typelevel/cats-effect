@@ -113,7 +113,9 @@ private final class HelperThread(
    * @param fiber the fiber to be scheduled on the `overflow` queue
    */
   def schedule(fiber: IOFiber[_]): Unit = {
-    overflow.offer(fiber, random)
+    val rnd = random
+    overflow.offer(fiber, rnd)
+    pool.notifyParked(rnd)
     ()
   }
 
@@ -166,6 +168,7 @@ private final class HelperThread(
           return
         } else {
           overflow.offerAll(batch, rnd)
+          pool.notifyParked(rnd)
         }
       } else {
         fiber.run()

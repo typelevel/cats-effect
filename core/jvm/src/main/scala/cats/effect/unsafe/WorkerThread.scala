@@ -274,6 +274,7 @@ private final class WorkerThread(
                 // Enqueue the batch at the back of the local queue and execute
                 // the first fiber.
                 val fiber = queue.enqueueBatch(batch)
+                pool.notifyParked(random)
                 fiber.run()
               }
               fairness = 2
@@ -469,6 +470,8 @@ private final class WorkerThread(
       cedeBypass = null
       overflow.offer(cedeFiber, rnd)
     }
+
+    pool.notifyParked(rnd)
 
     if (blocking) {
       // This `WorkerThread` is already inside an enclosing blocking region.
