@@ -106,7 +106,11 @@ private[effect] object Tracing extends TracingPlatform {
   def getFrames(events: RingBuffer): List[StackTraceElement] =
     events
       .toList
-      .collect { case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace) }
+      .collect {
+        case ev: TracingEvent.StackTrace =>
+          ev.printStackTrace(); 
+          getOpAndCallSite(ev.getStackTrace)
+      }
       .filter(_ ne null)
 
 }
