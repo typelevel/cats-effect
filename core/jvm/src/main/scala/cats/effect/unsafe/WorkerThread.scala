@@ -461,8 +461,14 @@ private final class WorkerThread(
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
     // Drain the local queue to the `overflow` queue.
+    val rnd = random
     val drain = queue.drain()
-    overflow.offerAll(drain, random)
+    overflow.offerAll(drain, rnd)
+    val cedeFiber = cedeBypass
+    if (cedeFiber ne null) {
+      cedeBypass = null
+      overflow.offer(cedeFiber, rnd)
+    }
 
     if (blocking) {
       // This `WorkerThread` is already inside an enclosing blocking region.
