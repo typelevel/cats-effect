@@ -465,91 +465,67 @@ private final class WorkerThread(
    *       which already handles exceptions.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
-    // Try waking up a `WorkerThread` to steal fibers from the `LocalQueue` of
-    // this thread.
     val rnd = random
-    if (pool.notifyParked(rnd)) {
-      // Successfully woke up another `WorkerThread` to help out with the
-      // anticipated blocking. Even if this thread ends up being blocked for
-      // some time, the other worker would be able to steal its fibers.
+    // Drain the local queue to the `overflow` queue.
+    val drain = new Array[IOFiber[_]](LocalQueueCapacity)
+    queue.drain(drain)
+    overflow.offerAll(drain, rnd)
 
-      if (blocking) {
-        // This `WorkerThread` is already inside an enclosing blocking region.
-        thunk
-      } else {
-        // Logically enter the blocking region.
-        blocking = true
-
-        val result = thunk
-
-        // Logically exit the blocking region.
-        blocking = false
-
-        // Return the computed result from the blocking operation.
-        result
-      }
+    if (blocking) {
+      // This `WorkerThread` is already inside an enclosing blocking region.
+      // There is no need to spawn another `HelperThread`. Instead, directly
+      // execute the blocking action.
+      thunk
     } else {
-      // Drain the local queue to the `overflow` queue.
-      val drain = new Array[IOFiber[_]](LocalQueueCapacity)
-      queue.drain(drain)
-      overflow.offerAll(drain, random)
+      // Spawn a new `HelperThread` to take the place of this thread, as the
+      // current thread prepares to execute a blocking action.
 
-      if (blocking) {
-        // This `WorkerThread` is already inside an enclosing blocking region.
-        // There is no need to spawn another `HelperThread`. Instead, directly
-        // execute the blocking action.
-        thunk
-      } else {
-        // Spawn a new `HelperThread` to take the place of this thread, as the
-        // current thread prepares to execute a blocking action.
+      // Logically enter the blocking region.
+      blocking = true
 
-        // Logically enter the blocking region.
-        blocking = true
+      // Spawn a new `HelperThread`.
+      val helper =
+        new HelperThread(threadPrefix, blockingThreadCounter, batched, overflow, pool)
+      helper.start()
 
-        // Spawn a new `HelperThread`.
-        val helper =
-          new HelperThread(threadPrefix, blockingThreadCounter, batched, overflow, pool)
-        helper.start()
+      // With another `HelperThread` started, it is time to execute the blocking
+      // action.
+      val result = thunk
 
-        // With another `HelperThread` started, it is time to execute the blocking
-        // action.
-        val result = thunk
+      // Blocking is finished. Time to signal the spawned helper thread and
+      // unpark it. Furthermore, the thread needs to be removed from the
+      // parked helper threads queue in the pool so that other threads don't
+      // mistakenly depend on it to bail them out of blocking situations, and
+      // of course, this also removes the last strong reference to the fiber,
+      // which needs to be released for gc purposes.
+      helper.setSignal()
+      helper.unpark()
+      LockSupport.unpark(helper)
+      pool.removeParkedHelper(helper, rnd)
 
-        // Blocking is finished. Time to signal the spawned helper thread and
-        // unpark it. Furthermore, the thread needs to be removed from the
-        // parked helper threads queue in the pool so that other threads don't
-        // mistakenly depend on it to bail them out of blocking situations, and
-        // of course, this also removes the last strong reference to the fiber,
-        // which needs to be released for gc purposes.
-        helper.setSignal()
-        helper.unpark()
-        LockSupport.unpark(helper)
-        pool.removeParkedHelper(helper, rnd)
-
-        // Do not proceed until the helper thread has fully died. This is terrible
-        // for performance, but it is justified in this case as the stability of
-        // the `WorkStealingThreadPool` is of utmost importance in the face of
-        // blocking, which in itself is **not** what the pool is optimized for.
-        // In practice however, unless looking at a completely pathological case
-        // of propagating blocking actions on every spawned helper thread, this is
-        // not an issue, as the `HelperThread`s are all executing `IOFiber[_]`
-        // instances, which mostly consist of non-blocking code.
-        try helper.join()
-        catch {
-          case _: InterruptedException =>
-            // Propagate interruption to the helper thread.
-            Thread.interrupted()
-            helper.interrupt()
-            helper.join()
-            this.interrupt()
-        }
-
-        // Logically exit the blocking region.
-        blocking = false
-
-        // Return the computed result from the blocking operation
-        result
+      // Do not proceed until the helper thread has fully died. This is terrible
+      // for performance, but it is justified in this case as the stability of
+      // the `WorkStealingThreadPool` is of utmost importance in the face of
+      // blocking, which in itself is **not** what the pool is optimized for.
+      // In practice however, unless looking at a completely pathological case
+      // of propagating blocking actions on every spawned helper thread, this is
+      // not an issue, as the `HelperThread`s are all executing `IOFiber[_]`
+      // instances, which mostly consist of non-blocking code.
+      try helper.join()
+      catch {
+        case _: InterruptedException =>
+          // Propagate interruption to the helper thread.
+          Thread.interrupted()
+          helper.interrupt()
+          helper.join()
+          this.interrupt()
       }
+
+      // Logically exit the blocking region.
+      blocking = false
+
+      // Return the computed result from the blocking operation
+      result
     }
   }
 }
