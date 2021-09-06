@@ -351,6 +351,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .jvmSettings(
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
   )
+  .jsSettings(
+    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % "0.1.0"
+  )
 
 /**
  * Test support for the core project, providing various helpful instances
