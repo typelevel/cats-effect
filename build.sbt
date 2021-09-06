@@ -147,6 +147,22 @@ ThisBuild / Test / jsEnv := {
       options.setProfile(profile)
       options.setHeadless(true)
       new SeleniumJSEnv(options)
+    case Chrome =>
+      val options = new ChromeOptions()
+      options.setHeadless(true)
+      options.addArguments("--allow-file-access-from-files")
+      val factory = new DriverFactory {
+        val defaultFactory = SeleniumJSEnv.Config().driverFactory
+        def newInstance(capabilities: org.openqa.selenium.Capabilities): WebDriver = {
+          val driver = defaultFactory.newInstance(capabilities).asInstanceOf[ChromeDriver]
+          driver.manage().timeouts().pageLoadTimeout(1, TimeUnit.HOURS)
+          driver.manage().timeouts().setScriptTimeout(1, TimeUnit.HOURS)
+          driver
+        }
+        def registerDriverProvider(provider: DriverProvider): Unit =
+          defaultFactory.registerDriverProvider(provider)
+      }
+      new SeleniumJSEnv(options, SeleniumJSEnv.Config().withDriverFactory(factory))
   }
 }
 

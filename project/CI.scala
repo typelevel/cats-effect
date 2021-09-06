@@ -69,10 +69,19 @@ object CI {
         command = "ciFirefox",
         rootProject = "rootJS",
         jsEnv = Some(JSEnv.Firefox),
-        testCommands = List("testsJS/test"),
+        testCommands = List("testOnly *tracing*"),
         mimaReport = false,
         suffixCommands = List())
 
-  val AllJSCIs: List[CI] = List(JS, Firefox)
+  case object Chrome
+      extends CI(
+        command = "ciChrome",
+        rootProject = "rootJS",
+        jsEnv = Some(JSEnv.Chrome),
+        testCommands = List("testOnly *tracing*"),
+        mimaReport = false,
+        suffixCommands = List())
+
+  val AllJSCIs: List[CI] = List(JS, Firefox, Chrome)
   val AllCIs: List[CI] = JVM :: AllJSCIs
 }
