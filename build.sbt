@@ -107,8 +107,8 @@ ThisBuild / githubWorkflowBuild := Seq(
   )
 )
 
-val ciVariants = List("ciJVM", "ciJS", "ciFirefox", "ciChrome", "ciJSDOMNodeJS")
-val jsCiVariants = ciVariants.tail
+val ciVariants = CI.AllCIs.map(_.command)
+val jsCiVariants = CI.AllJSCIs.map(_.command)
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
@@ -140,7 +140,6 @@ Global / useJSEnv := NodeJS
 ThisBuild / Test / jsEnv := {
   useJSEnv.value match {
     case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
-    case JSDOMNodeJS => new JSDOMNodeJSEnv()
     case Firefox =>
       val profile = new FirefoxProfile()
       profile.setPreference("privacy.file_unique_origin", false)
@@ -148,22 +147,6 @@ ThisBuild / Test / jsEnv := {
       options.setProfile(profile)
       options.setHeadless(true)
       new SeleniumJSEnv(options)
-    case Chrome =>
-      val options = new ChromeOptions()
-      options.setHeadless(true)
-      options.addArguments("--allow-file-access-from-files")
-      val factory = new DriverFactory {
-        val defaultFactory = SeleniumJSEnv.Config().driverFactory
-        def newInstance(capabilities: org.openqa.selenium.Capabilities): WebDriver = {
-          val driver = defaultFactory.newInstance(capabilities).asInstanceOf[ChromeDriver]
-          driver.manage().timeouts().pageLoadTimeout(1, TimeUnit.HOURS)
-          driver.manage().timeouts().setScriptTimeout(1, TimeUnit.HOURS)
-          driver
-        }
-        def registerDriverProvider(provider: DriverProvider): Unit =
-          defaultFactory.registerDriverProvider(provider)
-      }
-      new SeleniumJSEnv(options, SeleniumJSEnv.Config().withDriverFactory(factory))
   }
 }
 
@@ -185,11 +168,10 @@ val DisciplineVersion = "1.1.6"
 val CoopVersion = "1.1.1"
 
 replaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
-addCommandAlias("ciJVM", CI.JVM.toString)
-addCommandAlias("ciJS", CI.JS.toString)
-addCommandAlias("ciFirefox", CI.Firefox.toString)
-addCommandAlias("ciChrome", CI.Chrome.toString)
-addCommandAlias("ciJSDOMNodeJS", CI.JSDOMNodeJS.toString)
+
+addCommandAlias(CI.JVM.command, CI.JVM.toString)
+addCommandAlias(CI.JS.command, CI.JS.toString)
+addCommandAlias(CI.Firefox.command, CI.Firefox.toString)
 
 addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
@@ -201,7 +183,6 @@ val jsProjects: Seq[ProjectReference] =
     core.js,
     testkit.js,
     tests.js,
-    webWorkerTests,
     std.js,
     example.js)
 
@@ -398,20 +379,6 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform)
   .jvmSettings(
     Test / fork := true,
     Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
-
-lazy val webWorkerTests = project
-  .in(file("webworker-tests"))
-  .dependsOn(tests.js % "compile->test")
-  .enablePlugins(ScalaJSPlugin, BuildInfoPlugin, NoPublishPlugin)
-  .settings(
-    name := "cats-effect-webworker-tests",
-    scalaJSUseMainModuleInitializer := true,
-    libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "1.2.0")
-      .cross(CrossVersion.for3Use2_13),
-    (Test / test) := (Test / test).dependsOn(Compile / fastOptJS).value,
-    buildInfoKeys := Seq[BuildInfoKey](scalaVersion, baseDirectory),
-    buildInfoPackage := "cats.effect"
-  )
 
 /**
  * Implementations lof standard functionality (e.g. Semaphore, Console, Queue)
