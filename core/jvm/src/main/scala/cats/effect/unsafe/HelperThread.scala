@@ -182,15 +182,10 @@ private final class HelperThread(
       val fiber = overflow.poll(rnd)
       if (fiber ne null) {
         fiber.run()
-      } else {
-        val cur = signal.get()
-        if (cur == 2) {
-          return
-        } else if (signal.compareAndSet(1, 0)) {
-          pool.transitionHelperToParked(this, rnd)
-          pool.notifyIfWorkPending(rnd)
-          parkLoop()
-        }
+      } else if (signal.compareAndSet(1, 0)) {
+        pool.transitionHelperToParked(this, rnd)
+        pool.notifyIfWorkPending(rnd)
+        parkLoop()
       }
     }
   }
