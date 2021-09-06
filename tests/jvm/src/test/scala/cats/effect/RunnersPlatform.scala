@@ -35,7 +35,8 @@ trait RunnersPlatform extends BeforeAfterAll {
     val (compute, compDown) =
       IORuntime.createDefaultComputeThreadPool(
         runtime0,
-        threadPrefix = s"io-compute-${getClass.getName}")
+        threadPrefix = s"io-compute-${getClass.getName}",
+        threads = 2)
 
     runtime0 = IORuntime(
       compute,

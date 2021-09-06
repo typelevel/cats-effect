@@ -467,7 +467,14 @@ private final class WorkerThread(
     val rnd = random
     // Drain the local queue to the `overflow` queue.
     val drain = queue.drain()
+
+    println(s"drain ${drain.mkString("[", ", ", "]")}")
+
     overflow.offerAll(drain, rnd)
+
+    println(s"offered all ${drain.mkString("[", ", ", "]")}")
+
+    pool.notifyHelper(random)
 
     if (blocking) {
       // This `WorkerThread` is already inside an enclosing blocking region.
@@ -484,6 +491,7 @@ private final class WorkerThread(
       // Spawn a new `HelperThread`.
       val helper =
         new HelperThread(threadPrefix, blockingThreadCounter, batched, overflow, pool)
+      println(s"$this spawns helper $helper")
       helper.start()
 
       // With another `HelperThread` started, it is time to execute the blocking
@@ -497,7 +505,6 @@ private final class WorkerThread(
       // of course, this also removes the last strong reference to the fiber,
       // which needs to be released for gc purposes.
       helper.setSignal()
-      helper.unpark()
       LockSupport.unpark(helper)
       pool.removeParkedHelper(helper, rnd)
 

@@ -110,6 +110,7 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     var i = 0
     while (i < len) {
       val fiber = as(i)
+      println(s"SQ offering $fiber")
       val idx = random.nextInt(nq)
       queues(idx).offer(fiber)
       i += 1

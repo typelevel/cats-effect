@@ -81,6 +81,11 @@ private final class IOFiber[A](
   import IO._
   import IOFiberConstants._
 
+  private val _toString: String =
+    s"IOFiber@${System.identityHashCode(this).toHexString}"
+
+  override def toString = _toString
+
   /*
    * Ideally these would be on the stack, but they can't because we sometimes need to
    * relocate our runloop to another fiber.

@@ -20,7 +20,7 @@ package unsafe
 import scala.concurrent.{BlockContext, CanAwait}
 
 import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -68,7 +68,7 @@ private final class HelperThread(
   /**
    * The status of this [[HelperThread]] (parked/unparked).
    */
-  private[this] val parked: AtomicBoolean = new AtomicBoolean(false)
+  private[this] val status: AtomicInteger = new AtomicInteger(1)
 
   /**
    * Uncontented source of randomness. By default, `java.util.Random` is thread
@@ -78,13 +78,6 @@ private final class HelperThread(
    * the cost of the `ThreadLocal` mechanism at runtime.
    */
   private[this] var random: ThreadLocalRandom = _
-
-  /**
-   * Signalling mechanism through which the [[WorkerThread]] which spawned this
-   * [[HelperThread]] signals that it has successfully exited the blocking code
-   * region and that this [[HelperThread]] should finalize.
-   */
-  private[this] val signal: AtomicBoolean = new AtomicBoolean(false)
 
   /**
    * A flag which is set whenever a blocking code region is entered. This is
@@ -109,7 +102,8 @@ private final class HelperThread(
    * and die.
    */
   def setSignal(): Unit = {
-    signal.lazySet(true)
+    status.set(2)
+    println(s"called set signal on $this")
   }
 
   /**
@@ -144,7 +138,10 @@ private final class HelperThread(
    * Marks the [[HelperThread]] as eligible for resuming work.
    */
   def unpark(): Unit = {
-    parked.set(false)
+    while ({
+      val cur = status.get()
+      cur == 0 && !status.compareAndSet(0, 1)
+    }) ()
   }
 
   /**
@@ -169,14 +166,14 @@ private final class HelperThread(
         LockSupport.park(pool)
 
         // Spurious wakeup check.
-        cont = !signal.get() && parked.get()
+        cont = status.get() == 0
       }
     }
 
     // Check for exit condition. Do not continue if the `WorkStealingPool` has
     // been shut down, or the `WorkerThread` which spawned this `HelperThread`
     // has finished blocking.
-    while (!isInterrupted() && !signal.get()) {
+    while (!isInterrupted() && status.get() != 2) {
       val fiber = overflow.poll(rnd)
       if (fiber eq null) {
         // Fall back to checking the batched queue.
@@ -188,10 +185,13 @@ private final class HelperThread(
           // eventually unblock that original thread might not have arrived on
           // the pool yet. The helper thread should suspend and await for a
           // notification of incoming work.
-          parked.lazySet(true)
-          pool.transitionHelperToParked(this, rnd)
-          pool.notifyIfWorkPending(rnd)
-          parkLoop()
+          // while ({
+          //   val cur = status.get()
+          //   cur == 1 && !status.compareAndSet(1, 0)
+          // }) ()
+          // pool.transitionHelperToParked(this, rnd)
+          // pool.notifyIfWorkPending(rnd)
+          // parkLoop()
         } else {
           overflow.offerAll(batch, rnd)
           if (!pool.notifyParked(rnd)) {
@@ -216,7 +216,13 @@ private final class HelperThread(
       // This `HelperThread` is already inside an enclosing blocking region.
       // There is no need to spawn another `HelperThread`. Instead, directly
       // execute the blocking action.
-      thunk
+      val r = thunk
+
+      if (!pool.notifyParked(random)) {
+        pool.notifyHelper(random)
+      }
+
+      r
     } else {
       // Spawn a new `HelperThread` to take the place of this thread, as the
       // current thread prepares to execute a blocking action.
@@ -227,11 +233,16 @@ private final class HelperThread(
       // Spawn a new `HelperThread`.
       val helper =
         new HelperThread(threadPrefix, blockingThreadCounter, batched, overflow, pool)
+      println(s"$this spawns helper $helper")
       helper.start()
 
       // With another `HelperThread` started, it is time to execute the blocking
       // action.
       val result = thunk
+
+      if (!pool.notifyParked(random)) {
+        pool.notifyHelper(random)
+      }
 
       // Blocking is finished. Time to signal the spawned helper thread and
       // unpark it. Furthermore, the thread needs to be removed from the
@@ -240,7 +251,6 @@ private final class HelperThread(
       // of course, this also removes the last strong reference to the fiber,
       // which needs to be released for gc purposes.
       helper.setSignal()
-      helper.unpark()
       LockSupport.unpark(helper)
       pool.removeParkedHelper(helper, random)
 
