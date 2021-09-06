@@ -56,7 +56,6 @@ private final class WorkerThread(
     extends Thread
     with BlockContext {
 
-  import LocalQueueConstants._
   import WorkStealingThreadPoolConstants._
 
   /**
@@ -467,8 +466,7 @@ private final class WorkerThread(
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
     val rnd = random
     // Drain the local queue to the `overflow` queue.
-    val drain = new Array[IOFiber[_]](LocalQueueCapacity)
-    queue.drain(drain)
+    val drain = queue.drain()
     overflow.offerAll(drain, rnd)
 
     if (blocking) {
