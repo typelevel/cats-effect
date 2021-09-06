@@ -471,7 +471,9 @@ private final class WorkerThread(
       overflow.offer(cedeFiber, rnd)
     }
 
-    pool.notifyParked(rnd)
+    if (!pool.notifyParked(rnd)) {
+      pool.notifyHelper(rnd)
+    }
 
     if (blocking) {
       // This `WorkerThread` is already inside an enclosing blocking region.
@@ -495,7 +497,9 @@ private final class WorkerThread(
       val result = thunk
 
       // Blocking is finished. Time to signal the spawned helper thread.
+      pool.removeParkedHelper(helper, random)
       helper.setSignal()
+      LockSupport.unpark(helper)
 
       // Do not proceed until the helper thread has fully died. This is terrible
       // for performance, but it is justified in this case as the stability of

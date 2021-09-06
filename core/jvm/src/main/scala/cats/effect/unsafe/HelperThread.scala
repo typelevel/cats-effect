@@ -17,10 +17,12 @@
 package cats.effect
 package unsafe
 
+import scala.annotation.tailrec
 import scala.concurrent.{BlockContext, CanAwait}
 
 import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.LockSupport
 
 /**
  * A helper thread which is spawned whenever a blocking action is being executed
@@ -78,7 +80,7 @@ private final class HelperThread(
    * [[HelperThread]] signals that it has successfully exited the blocking code
    * region and that this [[HelperThread]] should finalize.
    */
-  private[this] val signal: AtomicBoolean = new AtomicBoolean(false)
+  private[this] val signal: AtomicInteger = new AtomicInteger(1)
 
   /**
    * A flag which is set whenever a blocking code region is entered. This is
@@ -103,7 +105,7 @@ private final class HelperThread(
    * and die.
    */
   def setSignal(): Unit = {
-    signal.lazySet(true)
+    signal.set(2)
   }
 
   /**
@@ -115,8 +117,15 @@ private final class HelperThread(
   def schedule(fiber: IOFiber[_]): Unit = {
     val rnd = random
     overflow.offer(fiber, rnd)
-    pool.notifyParked(rnd)
-    ()
+    if (!pool.notifyParked(rnd)) {
+      pool.notifyHelper(rnd)
+    }
+  }
+
+  @tailrec
+  def unpark(): Unit = {
+    if (signal.get() == 0 && !signal.compareAndSet(0, 1))
+      unpark()
   }
 
   /**
@@ -148,23 +157,40 @@ private final class HelperThread(
     random = ThreadLocalRandom.current()
     val rnd = random
 
+    def parkLoop(): Unit = {
+      var cont = true
+      while (cont && !isInterrupted()) {
+        LockSupport.park(pool)
+
+        cont = signal.get() == 0
+      }
+    }
+
     // Check for exit condition. Do not continue if the `WorkStealingPool` has
     // been shut down, or the `WorkerThread` which spawned this `HelperThread`
     // has finished blocking.
-    while (!isInterrupted() && !signal.get()) {
+    while (!isInterrupted() && signal.get() != 2) {
       // Check the batched queue.
       val batch = batched.poll(rnd)
       if (batch ne null) {
         overflow.offerAll(batch, rnd)
-        pool.notifyParked(rnd)
+        if (!pool.notifyParked(rnd)) {
+          pool.notifyHelper(rnd)
+        }
       }
 
       val fiber = overflow.poll(rnd)
       if (fiber ne null) {
         fiber.run()
       } else {
-        // Park.
-        return
+        val cur = signal.get()
+        if (cur == 2) {
+          return
+        } else if (signal.compareAndSet(1, 0)) {
+          pool.transitionHelperToParked(this, rnd)
+          pool.notifyIfWorkPending(rnd)
+          parkLoop()
+        }
       }
     }
   }
@@ -195,7 +221,9 @@ private final class HelperThread(
       val result = thunk
 
       // Blocking is finished. Time to signal the spawned helper thread.
+      pool.removeParkedHelper(helper, random)
       helper.setSignal()
+      LockSupport.unpark(helper)
 
       // Do not proceed until the helper thread has fully died. This is terrible
       // for performance, but it is justified in this case as the stability of
