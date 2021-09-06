@@ -109,7 +109,6 @@ private[effect] object Tracing extends TracingPlatform {
       .collect {
         case ev: TracingEvent.StackTrace =>
           ev.printStackTrace();
-          sys.exit()
           getOpAndCallSite(ev.getStackTrace)
       }
       .filter(_ ne null)
