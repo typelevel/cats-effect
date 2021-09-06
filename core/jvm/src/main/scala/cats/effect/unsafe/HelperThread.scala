@@ -152,26 +152,19 @@ private final class HelperThread(
     // been shut down, or the `WorkerThread` which spawned this `HelperThread`
     // has finished blocking.
     while (!isInterrupted() && !signal.get()) {
+      // Check the batched queue.
+      val batch = batched.poll(rnd)
+      if (batch ne null) {
+        overflow.offerAll(batch, rnd)
+        pool.notifyParked(rnd)
+      }
+
       val fiber = overflow.poll(rnd)
-      if (fiber eq null) {
-        // Fall back to checking the batched queue.
-        val batch = batched.poll(rnd)
-        if (batch eq null) {
-          // There are no more fibers neither in the overflow queue, nor in the
-          // batched queue. Since the queues are not a blocking queue, there is
-          // no point in busy waiting, especially since there is no guarantee
-          // that the `WorkerThread` which spawned this `HelperThread` will ever
-          // exit the blocking region, and new external work may never arrive on
-          // the `overflow` queue. This pathological case is not handled as it
-          // is a case of uncontrolled blocking on a fixed thread pool, an
-          // inherently careless and unsafe situation.
-          return
-        } else {
-          overflow.offerAll(batch, rnd)
-          pool.notifyParked(rnd)
-        }
-      } else {
+      if (fiber ne null) {
         fiber.run()
+      } else {
+        // Park.
+        return
       }
     }
   }
