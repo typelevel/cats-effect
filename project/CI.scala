@@ -15,6 +15,7 @@
  */
 
 sealed abstract class CI(
+    val command: String,
     rootProject: String,
     jsEnv: Option[JSEnv],
     testCommands: List[String],
@@ -42,6 +43,7 @@ sealed abstract class CI(
 object CI {
   case object JVM
       extends CI(
+        command = "ciJVM",
         rootProject = "rootJVM",
         jsEnv = None,
         testCommands = List("test"),
@@ -50,6 +52,7 @@ object CI {
 
   case object JS
       extends CI(
+        command = "ciJS",
         rootProject = "rootJS",
         jsEnv = Some(JSEnv.NodeJS),
         testCommands = List(
@@ -63,27 +66,22 @@ object CI {
 
   case object Firefox
       extends CI(
+        command = "ciFirefox",
         rootProject = "rootJS",
         jsEnv = Some(JSEnv.Firefox),
-        testCommands = List("testsJS/test", "webWorkerTests/test"),
+        testCommands = List("testOnly *tracing*"),
         mimaReport = false,
         suffixCommands = List())
 
   case object Chrome
       extends CI(
+        command = "ciChrome",
         rootProject = "rootJS",
         jsEnv = Some(JSEnv.Chrome),
-        testCommands = List("testsJS/test", "webWorkerTests/test"),
+        testCommands = List("testOnly *tracing*"),
         mimaReport = false,
         suffixCommands = List())
 
-  case object JSDOMNodeJS
-      extends CI(
-        rootProject = "rootJS",
-        jsEnv = Some(JSEnv.JSDOMNodeJS),
-        testCommands = List("testsJS/test"),
-        mimaReport = false,
-        suffixCommands = List())
-
-  val AllCIs: List[CI] = List(JVM, JS, Firefox, Chrome, JSDOMNodeJS)
+  val AllJSCIs: List[CI] = List(JS, Firefox, Chrome)
+  val AllCIs: List[CI] = JVM :: AllJSCIs
 }
