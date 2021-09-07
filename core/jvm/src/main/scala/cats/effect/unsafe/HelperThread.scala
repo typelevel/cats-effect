@@ -225,24 +225,6 @@ private final class HelperThread(
       helper.setSignal()
       LockSupport.unpark(helper)
 
-      // Do not proceed until the helper thread has fully died. This is terrible
-      // for performance, but it is justified in this case as the stability of
-      // the `WorkStealingThreadPool` is of utmost importance in the face of
-      // blocking, which in itself is **not** what the pool is optimized for.
-      // In practice however, unless looking at a completely pathological case
-      // of propagating blocking actions on every spawned helper thread, this is
-      // not an issue, as the `HelperThread`s are all executing `IOFiber[_]`
-      // instances, which mostly consist of non-blocking code.
-      try helper.join()
-      catch {
-        case _: InterruptedException =>
-          // Propagate interruption to the helper thread.
-          Thread.interrupted()
-          helper.interrupt()
-          helper.join()
-          this.interrupt()
-      }
-
       // Logically exit the blocking region.
       blocking = false
 
