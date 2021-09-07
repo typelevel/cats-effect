@@ -158,7 +158,7 @@ ThisBuild / autoAPIMappings := true
 val CatsVersion = "2.6.1"
 val Specs2Version = "4.12.10"
 val ScalaCheckVersion = "1.15.4"
-val DisciplineVersion = "1.1.6"
+val DisciplineVersion = "1.2.0"
 val CoopVersion = "1.1.1"
 
 replaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
