@@ -459,6 +459,10 @@ private final class WorkerThread(
    *
    * The reason why this code is duplicated, instead of inherited is to keep the
    * monomorphic callsites in the `IOFiber` runloop.
+   *
+   * @note There is no reason to enclose any code in a `try/catch` block because
+   *       the only way this code path can be exercised is through `IO.delay`,
+   *       which already handles exceptions.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
     // Drain the local queue to the `overflow` queue.
@@ -496,7 +500,12 @@ private final class WorkerThread(
       // action.
       val result = thunk
 
-      // Blocking is finished. Time to signal the spawned helper thread.
+      // Blocking is finished. Time to signal the spawned helper thread and
+      // unpark it. Furthermore, the thread needs to be removed from the
+      // parked helper threads queue in the pool so that other threads don't
+      // mistakenly depend on it to bail them out of blocking situations, and
+      // of course, this also removes the last strong reference to the fiber,
+      // which needs to be released for gc purposes.
       pool.removeParkedHelper(helper, random)
       helper.setSignal()
       LockSupport.unpark(helper)

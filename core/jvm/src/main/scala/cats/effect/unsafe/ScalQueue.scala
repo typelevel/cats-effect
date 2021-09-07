@@ -138,6 +138,20 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     a
   }
 
+  /**
+   * Removes an element from this queue.
+   *
+   * @note The implementation delegates to the
+   *       [[java.util.concurrent.ConcurrentLinkedQueue#remove remove]] method.
+   *
+   * @note This method runs in linear time relative to the size of the queue,
+   *       which is not ideal and generally should not be used. However, this
+   *       functionality is necessary for the blocking mechanism of the
+   *       [[WorkStealingThreadPool]]. The runtime complexity of this method is
+   *       acceptable for that purpose because threads are limited resources.
+   *
+   * @param a the element to be removed
+   */
   def remove(a: A): Unit = {
     val nq = numQueues
     var i = 0

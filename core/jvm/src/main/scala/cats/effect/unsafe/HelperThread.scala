@@ -122,6 +122,9 @@ private final class HelperThread(
     }
   }
 
+  /**
+   * Marks the [[HelperThread]] as eligible for resuming work.
+   */
   @tailrec
   def unpark(): Unit = {
     if (signal.get() == 0 && !signal.compareAndSet(0, 1))
@@ -160,8 +163,10 @@ private final class HelperThread(
     def parkLoop(): Unit = {
       var cont = true
       while (cont && !isInterrupted()) {
+        // Park the thread until further notice.
         LockSupport.park(pool)
 
+        // Spurious wakeup check.
         cont = signal.get() == 0
       }
     }
@@ -183,6 +188,12 @@ private final class HelperThread(
       if (fiber ne null) {
         fiber.run()
       } else if (signal.compareAndSet(1, 0)) {
+        // There are currently no more fibers available on the overflow or
+        // batched queues. However, the thread that originally started this
+        // helper thread has not been unblocked. The fibers that will
+        // eventually unblock that original thread might not have arrived on
+        // the pool yet. The helper thread should suspend and await for a
+        // notification of incoming work.
         pool.transitionHelperToParked(this, rnd)
         pool.notifyIfWorkPending(rnd)
         parkLoop()
@@ -192,8 +203,14 @@ private final class HelperThread(
 
   /**
    * A mechanism for executing support code before executing a blocking action.
+   *
+   * @note There is no reason to enclose any code in a `try/catch` block because
+   *       the only way this code path can be exercised is through `IO.delay`,
+   *       which already handles exceptions.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+    // Try waking up a `WorkerThread` to handle fibers from the overflow and
+    // batched queues.
     val rnd = random
     if (!pool.notifyParked(rnd)) {
       pool.notifyHelper(rnd)
@@ -220,7 +237,12 @@ private final class HelperThread(
       // action.
       val result = thunk
 
-      // Blocking is finished. Time to signal the spawned helper thread.
+      // Blocking is finished. Time to signal the spawned helper thread and
+      // unpark it. Furthermore, the thread needs to be removed from the
+      // parked helper threads queue in the pool so that other threads don't
+      // mistakenly depend on it to bail them out of blocking situations, and
+      // of course, this also removes the last strong reference to the fiber,
+      // which needs to be released for gc purposes.
       pool.removeParkedHelper(helper, rnd)
       helper.setSignal()
       LockSupport.unpark(helper)
