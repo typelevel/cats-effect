@@ -79,6 +79,13 @@ private final class HelperThread(
    * Signalling mechanism through which the [[WorkerThread]] which spawned this
    * [[HelperThread]] signals that it has successfully exited the blocking code
    * region and that this [[HelperThread]] should finalize.
+   *
+   * This atomic integer encodes a state machine with 3 states.
+   * Value 0: the thread is parked
+   * Value 1: the thread is unparked and executing fibers
+   * Value 2: the thread has been signalled to finish up and exit
+   *
+   * The thread is spawned in the running state.
    */
   private[this] val signal: AtomicInteger = new AtomicInteger(1)
 
