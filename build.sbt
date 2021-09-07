@@ -124,10 +124,6 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   }
 }
 
-ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
-  MatrixExclude(Map("java" -> LatestJava, "os" -> Windows))
-)
-
 lazy val unidoc213 = taskKey[Seq[File]]("Run unidoc but only on Scala 2.13")
 
 lazy val useJSEnv =
@@ -175,15 +171,7 @@ addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
 addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
 val jsProjects: Seq[ProjectReference] =
-  Seq(
-    kernel.js,
-    kernelTestkit.js,
-    laws.js,
-    core.js,
-    testkit.js,
-    tests.js,
-    std.js,
-    example.js)
+  Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.js, std.js, example.js)
 
 val undocumentedRefs =
   jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
