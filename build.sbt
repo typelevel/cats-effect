@@ -188,6 +188,7 @@ replaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 addCommandAlias(CI.JVM.command, CI.JVM.toString)
 addCommandAlias(CI.JS.command, CI.JS.toString)
 addCommandAlias(CI.Firefox.command, CI.Firefox.toString)
+addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
 
 addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
