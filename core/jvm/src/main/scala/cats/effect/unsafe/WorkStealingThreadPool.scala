@@ -76,6 +76,21 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
 
   /**
+   * References to helper threads. Helper threads must have a parking mechanism
+   * to address the situation where all worker threads are executing blocking
+   * actions, but the pool has been completely exhausted and the work that
+   * will unblock the worker threads has not arrived on the pool yet. Obviously,
+   * the helper threads cannot busy wait in this case, so they need to park and
+   * await a notification of newly arrived work. This queue also helps with the
+   * thundering herd problem. Namely, when only a single unit of work arrives
+   * and needs to be executed by a helper thread because all worker threads are
+   * blocked, only a single helper thread can be woken up. That thread can wake
+   * other helper threads in the future as the work available on the pool
+   * increases.
+   */
+  private[this] val helperThreads: ScalQueue[HelperThread] = new ScalQueue(threadCount)
+
+  /**
    * The batched queue on which spillover work from other local queues can end
    * up.
    */
@@ -223,6 +238,21 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
+   * Potentially unparks a helper thread.
+   *
+   * @param random a reference to an uncontended source of randomness, to be
+   *               passed along to the striped concurrent queues when executing
+   *               their operations
+   */
+  private[unsafe] def notifyHelper(random: ThreadLocalRandom): Unit = {
+    val helper = helperThreads.poll(random)
+    if (helper ne null) {
+      helper.unpark()
+      LockSupport.unpark(helper)
+    }
+  }
+
+  /**
    * Checks the number of active and searching worker threads and decides
    * whether another thread should be notified of new work.
    *
@@ -258,15 +288,15 @@ private[effect] final class WorkStealingThreadPool(
 
     // If no work was found in the local queues of the worker threads, look for
     // work in the batched queue.
-    if (batchedQueue.nonEmpty()) {
-      notifyParked(random)
+    if (batchedQueue.nonEmpty() && !notifyParked(random)) {
+      notifyHelper(random)
+      return
     }
 
     // If no work was found in the local queues of the worker threads or in the
     // batched queue, look for work in the external queue.
-    if (overflowQueue.nonEmpty()) {
-      notifyParked(random)
-      ()
+    if (overflowQueue.nonEmpty() && !notifyParked(random)) {
+      notifyHelper(random)
     }
   }
 
@@ -337,6 +367,44 @@ private[effect] final class WorkStealingThreadPool(
     // Decrement the number of unparked threads only.
     state.getAndAdd(-DeltaNotSearching)
     ()
+  }
+
+  /**
+   * Enqueues the provided helper thread on the queue of parked helper threads.
+   *
+   * @param helper the helper thread to enqueue on the queue of parked threads
+   * @param random a reference to an uncontended source of randomness, to be
+   *               passed along to the striped concurrent queues when executing
+   *               their operations
+   */
+  private[unsafe] def transitionHelperToParked(
+      helper: HelperThread,
+      random: ThreadLocalRandom): Unit = {
+    helperThreads.offer(helper, random)
+  }
+
+  /**
+   * Removes the provided helper thread from the parked helper thread queue.
+   *
+   * This method is necessary for the situation when a worker/helper thread has
+   * finished executing the blocking actions and needs to signal its helper
+   * thread to end. At that point in time, the helper thread might be parked and
+   * enqueued. Furthermore, this method signals to other worker and helper
+   * threads that there could still be some leftover work on the pool and that
+   * they need to replace the exiting helper thread.
+   *
+   * @param helper the helper thread to remove from the queue of parked threads
+   * @param random a reference to an uncontended source of randomness, to be
+   *               passed along to the striped concurrent queues when executing
+   *               their operations
+   */
+  private[unsafe] def removeParkedHelper(
+      helper: HelperThread,
+      random: ThreadLocalRandom): Unit = {
+    helperThreads.remove(helper)
+    if (!notifyParked(random)) {
+      notifyHelper(random)
+    }
   }
 
   /**
@@ -420,8 +488,9 @@ private[effect] final class WorkStealingThreadPool(
   private[this] def scheduleExternal(fiber: IOFiber[_]): Unit = {
     val random = ThreadLocalRandom.current()
     overflowQueue.offer(fiber, random)
-    notifyParked(random)
-    ()
+    if (!notifyParked(random)) {
+      notifyHelper(random)
+    }
   }
 
   /**
