@@ -27,7 +27,10 @@ import java.util.concurrent.CountDownLatch
 
 class BlockingStressSpec extends BaseSpec {
 
-  private val count = 171
+  override def executionTimeout: FiniteDuration = 30.seconds
+
+  // This test spawns a lot of helper threads.
+  private val count = 1000
 
   "Blocking" should {
     "work properly with many blocking actions and helper threads" in realWithRuntime { rt =>
@@ -38,7 +41,7 @@ class BlockingStressSpec extends BaseSpec {
         _ <- (IO.sleep(d1.millis) *> IO(
           rt.scheduler.sleep(d2.millis, () => p.success(())))).start
         _ <- IO(Await.result(p.future, Duration.Inf))
-        _ <- IO(latch.countDown())
+        _ <- IO(blocking(latch.countDown()))
       } yield ()
 
       for {
