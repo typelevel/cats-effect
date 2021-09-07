@@ -19,9 +19,8 @@ import java.util.concurrent.TimeUnit
 
 import com.typesafe.tools.mima.core._
 import org.openqa.selenium.WebDriver
-import org.openqa.selenium.chrome.{ChromeDriver, ChromeOptions}
-import org.openqa.selenium.firefox.{FirefoxOptions, FirefoxProfile}
-import org.openqa.selenium.remote.server.{DriverFactory, DriverProvider}
+import org.openqa.selenium.chrome.ChromeOptions
+import org.openqa.selenium.firefox.FirefoxOptions
 import org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv
 import org.scalajs.jsenv.nodejs.NodeJSEnv
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
@@ -141,28 +140,13 @@ ThisBuild / Test / jsEnv := {
   useJSEnv.value match {
     case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
     case Firefox =>
-      val profile = new FirefoxProfile()
-      profile.setPreference("privacy.file_unique_origin", false)
       val options = new FirefoxOptions()
-      options.setProfile(profile)
       options.setHeadless(true)
       new SeleniumJSEnv(options)
     case Chrome =>
       val options = new ChromeOptions()
       options.setHeadless(true)
-      options.addArguments("--allow-file-access-from-files")
-      val factory = new DriverFactory {
-        val defaultFactory = SeleniumJSEnv.Config().driverFactory
-        def newInstance(capabilities: org.openqa.selenium.Capabilities): WebDriver = {
-          val driver = defaultFactory.newInstance(capabilities).asInstanceOf[ChromeDriver]
-          driver.manage().timeouts().pageLoadTimeout(1, TimeUnit.HOURS)
-          driver.manage().timeouts().setScriptTimeout(1, TimeUnit.HOURS)
-          driver
-        }
-        def registerDriverProvider(provider: DriverProvider): Unit =
-          defaultFactory.registerDriverProvider(provider)
-      }
-      new SeleniumJSEnv(options, SeleniumJSEnv.Config().withDriverFactory(factory))
+      new SeleniumJSEnv(options)
   }
 }
 
