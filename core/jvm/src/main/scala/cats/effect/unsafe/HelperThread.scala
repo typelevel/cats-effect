@@ -194,6 +194,11 @@ private final class HelperThread(
    * A mechanism for executing support code before executing a blocking action.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+    val rnd = random
+    if (!pool.notifyParked(rnd)) {
+      pool.notifyHelper(rnd)
+    }
+
     if (blocking) {
       // This `HelperThread` is already inside an enclosing blocking region.
       // There is no need to spawn another `HelperThread`. Instead, directly
@@ -216,7 +221,7 @@ private final class HelperThread(
       val result = thunk
 
       // Blocking is finished. Time to signal the spawned helper thread.
-      pool.removeParkedHelper(helper, random)
+      pool.removeParkedHelper(helper, rnd)
       helper.setSignal()
       LockSupport.unpark(helper)
 
