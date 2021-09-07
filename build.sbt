@@ -362,7 +362,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.IORuntime.this"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.IORuntime.<init>$default$6")
+        "cats.effect.unsafe.IORuntime.<init>$default$6"),
+      // introduced by #3182, Address issues with the blocking mechanism of the thread pool
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain")
     )
   )
   .jvmSettings(
