@@ -67,8 +67,6 @@ jobs:
             scala: 2.12.14
           - os: windows-latest
             ci: ciChrome
-          - java: adoptium@17
-            os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
       - name: Ignore line ending differences in git
