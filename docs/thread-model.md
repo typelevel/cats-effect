@@ -138,7 +138,7 @@ So we've seen that best performance is achieved when we dedicate use of the comp
 to evaluating `IO` fiber runloops and ensure that we shift _all_ blocking operations
 to a separate blocking threadpool. We've also seen that many things do not need to
 block a thread at all - cats effect provides semantic blocking abstractions for waiting
-for arbtirary conditions to be satisifed. Now it's time to see the details of how we achieve
+for arbitrary conditions to be satisifed. Now it's time to see the details of how we achieve
 this in cats effect 2 and 3.
 
 ## Cats Effect 2

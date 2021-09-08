@@ -18,11 +18,8 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 import com.typesafe.tools.mima.core._
-import org.openqa.selenium.WebDriver
-import org.openqa.selenium.chrome.{ChromeDriver, ChromeOptions}
-import org.openqa.selenium.firefox.{FirefoxOptions, FirefoxProfile}
-import org.openqa.selenium.remote.server.{DriverFactory, DriverProvider}
-import org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv
+import org.openqa.selenium.chrome.ChromeOptions
+import org.openqa.selenium.firefox.FirefoxOptions
 import org.scalajs.jsenv.nodejs.NodeJSEnv
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
 
@@ -59,7 +56,7 @@ val Scala3 = "3.0.2"
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.14", Scala213)
 
 ThisBuild / githubWorkflowUseSbtThinClient := false
-ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
+ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
 
 val LTSJava = "adoptium@11"
 val LatestJava = "adoptium@17"
@@ -107,8 +104,8 @@ ThisBuild / githubWorkflowBuild := Seq(
   )
 )
 
-val ciVariants = List("ciJVM", "ciJS", "ciFirefox", "ciChrome", "ciJSDOMNodeJS")
-val jsCiVariants = ciVariants.tail
+val ciVariants = CI.AllCIs.map(_.command)
+val jsCiVariants = CI.AllJSCIs.map(_.command)
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
@@ -127,10 +124,6 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   }
 }
 
-ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
-  MatrixExclude(Map("java" -> LatestJava, "os" -> Windows))
-)
-
 lazy val unidoc213 = taskKey[Seq[File]]("Run unidoc but only on Scala 2.13")
 
 lazy val useJSEnv =
@@ -140,30 +133,14 @@ Global / useJSEnv := NodeJS
 ThisBuild / Test / jsEnv := {
   useJSEnv.value match {
     case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
-    case JSDOMNodeJS => new JSDOMNodeJSEnv()
     case Firefox =>
-      val profile = new FirefoxProfile()
-      profile.setPreference("privacy.file_unique_origin", false)
       val options = new FirefoxOptions()
-      options.setProfile(profile)
       options.setHeadless(true)
       new SeleniumJSEnv(options)
     case Chrome =>
       val options = new ChromeOptions()
       options.setHeadless(true)
-      options.addArguments("--allow-file-access-from-files")
-      val factory = new DriverFactory {
-        val defaultFactory = SeleniumJSEnv.Config().driverFactory
-        def newInstance(capabilities: org.openqa.selenium.Capabilities): WebDriver = {
-          val driver = defaultFactory.newInstance(capabilities).asInstanceOf[ChromeDriver]
-          driver.manage().timeouts().pageLoadTimeout(1, TimeUnit.HOURS)
-          driver.manage().timeouts().setScriptTimeout(1, TimeUnit.HOURS)
-          driver
-        }
-        def registerDriverProvider(provider: DriverProvider): Unit =
-          defaultFactory.registerDriverProvider(provider)
-      }
-      new SeleniumJSEnv(options, SeleniumJSEnv.Config().withDriverFactory(factory))
+      new SeleniumJSEnv(options)
   }
 }
 
@@ -179,31 +156,22 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.6.1"
-val Specs2Version = "4.12.8"
+val Specs2Version = "4.12.10"
 val ScalaCheckVersion = "1.15.4"
 val DisciplineVersion = "1.1.6"
 val CoopVersion = "1.1.1"
 
 replaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
-addCommandAlias("ciJVM", CI.JVM.toString)
-addCommandAlias("ciJS", CI.JS.toString)
-addCommandAlias("ciFirefox", CI.Firefox.toString)
-addCommandAlias("ciChrome", CI.Chrome.toString)
-addCommandAlias("ciJSDOMNodeJS", CI.JSDOMNodeJS.toString)
+
+addCommandAlias(CI.JVM.command, CI.JVM.toString)
+addCommandAlias(CI.JS.command, CI.JS.toString)
+addCommandAlias(CI.Firefox.command, CI.Firefox.toString)
+addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
 
 addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
 val jsProjects: Seq[ProjectReference] =
-  Seq(
-    kernel.js,
-    kernelTestkit.js,
-    laws.js,
-    core.js,
-    testkit.js,
-    tests.js,
-    webWorkerTests,
-    std.js,
-    example.js)
+  Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.js, std.js, example.js)
 
 val undocumentedRefs =
   jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
@@ -363,11 +331,17 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.IORuntime.this"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.IORuntime.<init>$default$6")
+        "cats.effect.unsafe.IORuntime.<init>$default$6"),
+      // introduced by #3182, Address issues with the blocking mechanism of the thread pool
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain")
     )
   )
   .jvmSettings(
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
+  )
+  .jsSettings(
+    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % "0.1.0"
   )
 
 /**
@@ -397,20 +371,6 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform)
   .jvmSettings(
     Test / fork := true,
     Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
-
-lazy val webWorkerTests = project
-  .in(file("webworker-tests"))
-  .dependsOn(tests.js % "compile->test")
-  .enablePlugins(ScalaJSPlugin, BuildInfoPlugin, NoPublishPlugin)
-  .settings(
-    name := "cats-effect-webworker-tests",
-    scalaJSUseMainModuleInitializer := true,
-    libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "1.2.0")
-      .cross(CrossVersion.for3Use2_13),
-    (Test / test) := (Test / test).dependsOn(Compile / fastOptJS).value,
-    buildInfoKeys := Seq[BuildInfoKey](scalaVersion, baseDirectory),
-    buildInfoPackage := "cats.effect"
-  )
 
 /**
  * Implementations lof standard functionality (e.g. Semaphore, Console, Queue) purely in terms

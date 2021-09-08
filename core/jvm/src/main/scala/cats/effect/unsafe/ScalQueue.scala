@@ -110,10 +110,8 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     var i = 0
     while (i < len) {
       val fiber = as(i)
-      if (fiber ne null) {
-        val idx = random.nextInt(nq)
-        queues(idx).offer(fiber)
-      }
+      val idx = random.nextInt(nq)
+      queues(idx).offer(fiber)
       i += 1
     }
   }
@@ -140,6 +138,31 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     }
 
     a
+  }
+
+  /**
+   * Removes an element from this queue.
+   *
+   * @note The implementation delegates to the
+   *       [[java.util.concurrent.ConcurrentLinkedQueue#remove remove]] method.
+   *
+   * @note This method runs in linear time relative to the size of the queue,
+   *       which is not ideal and generally should not be used. However, this
+   *       functionality is necessary for the blocking mechanism of the
+   *       [[WorkStealingThreadPool]]. The runtime complexity of this method is
+   *       acceptable for that purpose because threads are limited resources.
+   *
+   * @param a the element to be removed
+   */
+  def remove(a: A): Unit = {
+    val nq = numQueues
+    var i = 0
+    var done = false
+
+    while (!done && i < nq) {
+      done = queues(i).remove(a)
+      i += 1
+    }
   }
 
   /**

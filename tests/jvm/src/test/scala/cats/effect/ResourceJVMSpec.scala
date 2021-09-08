@@ -18,9 +18,8 @@ package cats.effect
 
 import cats.arrow.FunctionK
 import cats.syntax.eq._
-import org.specs2.mutable.Specification
 
-class ResourceJVMSpec extends Specification with Runners {
+class ResourceJVMSpec extends BaseSpec {
 
   "platform" should {
 

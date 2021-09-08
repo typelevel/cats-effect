@@ -120,6 +120,7 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 private final class LocalQueue {
 
+  import LocalQueue._
   import LocalQueueConstants._
 
   /**
@@ -742,10 +743,10 @@ private final class LocalQueue {
    * @note
    *   Can '''only''' be correctly called by the owner [[WorkerThread]].
    *
-   * @param dst
-   *   the destination array in which all remaining fibers are transferred
+   * @return the destination array which contains all of the fibers previously
+   *         enqueued on the local queue
    */
-  def drain(dst: Array[IOFiber[_]]): Unit = {
+  def drain(): Array[IOFiber[_]] = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -761,7 +762,7 @@ private final class LocalQueue {
       if (tl == real) {
         // The tail and the "real" value of the head are equal. The queue is
         // empty. There is nothing more to be done.
-        return
+        return EmptyDrain
       }
 
       // Make sure to preserve the "steal" tag in the presence of a concurrent
@@ -774,6 +775,7 @@ private final class LocalQueue {
         // secured. Proceed to null out the references to the fibers and
         // transfer them to the destination list.
         val n = unsignedShortSubtraction(tl, real)
+        val dst = new Array[IOFiber[_]](n)
         var i = 0
         while (i < n) {
           val idx = index(real + i)
@@ -784,9 +786,12 @@ private final class LocalQueue {
         }
 
         // The fibers have been transferred. Break out of the loop.
-        return
+        return dst
       }
     }
+
+    // Unreachable code.
+    EmptyDrain
   }
 
   /**
@@ -1080,4 +1085,8 @@ private final class LocalQueue {
    *   the "tail" tag of the tail of the local queue
    */
   def getTailTag(): Int = tailPublisher.get()
+}
+
+private object LocalQueue {
+  private[LocalQueue] val EmptyDrain: Array[IOFiber[_]] = new Array(0)
 }

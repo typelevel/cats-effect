@@ -563,7 +563,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *   specified time has passed without the source completing, a `TimeoutException` is raised
    */
   def timeout[A2 >: A](duration: FiniteDuration): IO[A2] =
-    timeoutTo(duration, IO.raiseError(new TimeoutException(duration.toString)))
+    timeoutTo(duration, IO.defer(IO.raiseError(new TimeoutException(duration.toString))))
 
   /**
    * Returns an IO that either completes with the result of the source within the specified time
@@ -1402,6 +1402,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     override def handleError[A](fa: IO[A])(f: Throwable => A): IO[A] =
       fa.handleError(f)
+
+    override def timeout[A](fa: IO[A], duration: FiniteDuration)(
+        implicit ev: TimeoutException <:< Throwable): IO[A] = {
+      fa.timeout(duration)
+    }
 
     def handleErrorWith[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
       fa.handleErrorWith(f)

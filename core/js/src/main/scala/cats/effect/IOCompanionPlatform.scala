@@ -18,7 +18,7 @@ package cats.effect
 
 import scalajs.js
 
-import scala.scalajs.js.Promise
+import scala.scalajs.js.{Promise, Thenable}
 
 private[effect] abstract class IOCompanionPlatform { this: IO.type =>
 
@@ -34,6 +34,9 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
     val _ = hint
     apply(thunk)
   }
+
+  def fromThenable[A](iot: IO[Thenable[A]]): IO[A] =
+    asyncForIO.fromThenable(iot)
 
   def fromPromise[A](iop: IO[Promise[A]]): IO[A] =
     asyncForIO.fromPromise(iop)
