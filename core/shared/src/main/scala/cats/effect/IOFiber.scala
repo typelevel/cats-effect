@@ -1150,8 +1150,6 @@ private final class IOFiber[A](
 
   private[this] def execR(): Unit = {
     // println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
-
-    resumeTag = DoneR
     if (canceled) {
       done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
     } else {
