@@ -210,6 +210,13 @@ trait PQueueSource[F[_], A] {
    * blocking until an element becomes available.
    *
    * O(log(n))
+   *
+   * Note:
+   * If there are multiple elements with least priority, the order in
+   * which they are dequeued is undefined.
+   * If you want to break ties with FIFO order you will need an additional
+   * `Ref[F, Long]` to track insertion, and embed that information into
+   * your instance for `Order[A]`.
    */
   def take: F[A]
 
@@ -222,6 +229,13 @@ trait PQueueSource[F[_], A] {
    * @return an effect that describes whether the dequeueing of an element from
    *         the PQueue succeeded without blocking, with `None` denoting that no
    *         element was available
+   *
+   * Note:
+   * If there are multiple elements with least priority, the order in
+   * which they are dequeued is undefined.
+   * If you want to break ties with FIFO order you will need an additional
+   * `Ref[F, Long]` to track insertion, and embed that information into
+   * your instance for `Order[A]`.
    */
   def tryTake: F[Option[A]]
 
