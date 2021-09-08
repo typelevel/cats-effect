@@ -21,20 +21,18 @@ import cats.syntax.all._
 import cats.effect.kernel.{Deferred, GenConcurrent, Ref}
 
 /**
- * Concurrency abstraction that supports semantically blocking
- * until n latches are released.
- * Note that this has 'one-shot' semantics - once the counter
- * reaches 0 then [[release]] and [[await]] will forever be no-ops
+ * Concurrency abstraction that supports semantically blocking until n latches are released.
+ * Note that this has 'one-shot' semantics - once the counter reaches 0 then [[release]] and
+ * [[await]] will forever be no-ops
  *
- * See https://typelevel.org/blog/2020/10/30/concurrency-in-ce3.html
- * for a walkthrough of building something like this
+ * See https://typelevel.org/blog/2020/10/30/concurrency-in-ce3.html for a walkthrough of
+ * building something like this
  */
 abstract class CountDownLatch[F[_]] { self =>
 
   /**
-   * Release a latch, decrementing the remaining count and
-   * releasing any fibers that are blocked if the count
-   * reaches 0
+   * Release a latch, decrementing the remaining count and releasing any fibers that are blocked
+   * if the count reaches 0
    */
   def release: F[Unit]
 

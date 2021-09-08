@@ -25,16 +25,15 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
 
 /**
- * Implementation of the worker thread at the heart of the
- * [[WorkStealingThreadPool]].
+ * Implementation of the worker thread at the heart of the [[WorkStealingThreadPool]].
  *
- * Each worker thread is assigned exclusive write access to a single
- * [[LocalQueue]] instance of [[IOFiber]] references which other worker threads
- * can steal when they run out of work in their local queue.
+ * Each worker thread is assigned exclusive write access to a single [[LocalQueue]] instance of
+ * [[IOFiber]] references which other worker threads can steal when they run out of work in
+ * their local queue.
  *
- * The existence of multiple work queues dramatically reduces contention in a
- * highly parallel system when compared to a fixed size thread pool whose worker
- * threads all draw tasks from a single global work queue.
+ * The existence of multiple work queues dramatically reduces contention in a highly parallel
+ * system when compared to a fixed size thread pool whose worker threads all draw tasks from a
+ * single global work queue.
  */
 private final class WorkerThread(
     // Index assigned by the `WorkStealingThreadPool` for identification purposes.
@@ -59,25 +58,24 @@ private final class WorkerThread(
   import WorkStealingThreadPoolConstants._
 
   /**
-   * Uncontented source of randomness. By default, `java.util.Random` is thread
-   * safe, which is a feature we do not need in this class, as the source of
-   * randomness is completely isolated to each instance of `WorkerThread`. The
-   * instance is obtained only once at the beginning of this method, to avoid
-   * the cost of the `ThreadLocal` mechanism at runtime.
+   * Uncontented source of randomness. By default, `java.util.Random` is thread safe, which is a
+   * feature we do not need in this class, as the source of randomness is completely isolated to
+   * each instance of `WorkerThread`. The instance is obtained only once at the beginning of
+   * this method, to avoid the cost of the `ThreadLocal` mechanism at runtime.
    */
   private[this] var random: ThreadLocalRandom = _
 
   /**
-   * A flag which is set whenever a blocking code region is entered. This is
-   * useful for detecting nested blocking regions, in order to avoid
-   * unnecessarily spawning extra [[HelperThread]]s.
+   * A flag which is set whenever a blocking code region is entered. This is useful for
+   * detecting nested blocking regions, in order to avoid unnecessarily spawning extra
+   * [[HelperThread]] s.
    */
   private[this] var blocking: Boolean = false
 
   /**
-   * A mutable reference to a fiber which is used to bypass the local queue when
-   * a `cede` operation would enqueue a fiber to the empty local queue and then
-   * proceed to dequeue the same fiber again from the queue.
+   * A mutable reference to a fiber which is used to bypass the local queue when a `cede`
+   * operation would enqueue a fiber to the empty local queue and then proceed to dequeue the
+   * same fiber again from the queue.
    */
   private[this] var cedeBypass: IOFiber[_] = null
 
@@ -91,10 +89,11 @@ private final class WorkerThread(
   }
 
   /**
-   * Schedules the fiber for execution at the back of the local queue and
-   * notifies the work stealing pool of newly available work.
+   * Schedules the fiber for execution at the back of the local queue and notifies the work
+   * stealing pool of newly available work.
    *
-   * @param fiber the fiber to be scheduled on the local queue
+   * @param fiber
+   *   the fiber to be scheduled on the local queue
    */
   def schedule(fiber: IOFiber[_]): Unit = {
     val rnd = random
@@ -104,17 +103,16 @@ private final class WorkerThread(
   }
 
   /**
-   * Specifically supports the `cede` and `autoCede` mechanisms of the
-   * [[cats.effect.IOFiber]] runloop. In the case where the local queue is
-   * empty prior to enqueuing the argument fiber, the local queue is bypassed,
-   * which saves a lot of unnecessary atomic load/store operations as well as a
-   * costly wake up of another thread for which there is no actual work. On the
-   * other hand, if the local queue is not empty, this method enqueues the
-   * argument fiber on the local queue, wakes up another thread to potentially
-   * help out with the available fibers and continues with the worker thread run
-   * loop.
+   * Specifically supports the `cede` and `autoCede` mechanisms of the [[cats.effect.IOFiber]]
+   * runloop. In the case where the local queue is empty prior to enqueuing the argument fiber,
+   * the local queue is bypassed, which saves a lot of unnecessary atomic load/store operations
+   * as well as a costly wake up of another thread for which there is no actual work. On the
+   * other hand, if the local queue is not empty, this method enqueues the argument fiber on the
+   * local queue, wakes up another thread to potentially help out with the available fibers and
+   * continues with the worker thread run loop.
    *
-   * @param fiber the fiber that `cede`s/`autoCede`s
+   * @param fiber
+   *   the fiber that `cede`s/`autoCede`s
    */
   def reschedule(fiber: IOFiber[_]): Unit = {
     if ((cedeBypass eq null) && queue.isEmpty()) {
@@ -125,19 +123,21 @@ private final class WorkerThread(
   }
 
   /**
-   * Checks whether this [[WorkerThread]] operates within the
-   * [[WorkStealingThreadPool]] provided as an argument to this method. The
-   * implementation checks whether the provided [[WorkStealingThreadPool]]
-   * matches the reference of the pool provided when this [[WorkerThread]] was
-   * constructed.
+   * Checks whether this [[WorkerThread]] operates within the [[WorkStealingThreadPool]]
+   * provided as an argument to this method. The implementation checks whether the provided
+   * [[WorkStealingThreadPool]] matches the reference of the pool provided when this
+   * [[WorkerThread]] was constructed.
    *
-   * @note When blocking code is being executed on this worker thread, it is
-   *       important to delegate all scheduling operation to the overflow queue
-   *       from which all [[HelperThread]] instances operate.
+   * @note
+   *   When blocking code is being executed on this worker thread, it is important to delegate
+   *   all scheduling operation to the overflow queue from which all [[HelperThread]] instances
+   *   operate.
    *
-   * @param threadPool a work stealing thread pool reference
-   * @return `true` if this worker thread is owned by the provided work stealing
-   *         thread pool, `false` otherwise
+   * @param threadPool
+   *   a work stealing thread pool reference
+   * @return
+   *   `true` if this worker thread is owned by the provided work stealing thread pool, `false`
+   *   otherwise
    */
   def isOwnedBy(threadPool: WorkStealingThreadPool): Boolean =
     (pool eq threadPool) && !blocking
@@ -432,23 +432,23 @@ private final class WorkerThread(
   /**
    * A mechanism for executing support code before executing a blocking action.
    *
-   * This is a slightly more involved implementation of the support code in
-   * anticipation of running blocking code, also implemented in [[HelperThread]].
+   * This is a slightly more involved implementation of the support code in anticipation of
+   * running blocking code, also implemented in [[HelperThread]].
    *
-   * For a more detailed discussion on the design principles behind the support
-   * for running blocking actions on the [[WorkStealingThreadPool]], check the
-   * code comments for [[HelperThread]].
+   * For a more detailed discussion on the design principles behind the support for running
+   * blocking actions on the [[WorkStealingThreadPool]], check the code comments for
+   * [[HelperThread]].
    *
-   * The main difference between this and the implementation in [[HelperThread]]
-   * is that [[WorkerThread]]s need to take care of draining their
-   * [[LocalQueue]] to the `overflow` queue before entering the blocking region.
+   * The main difference between this and the implementation in [[HelperThread]] is that
+   * [[WorkerThread]] s need to take care of draining their [[LocalQueue]] to the `overflow`
+   * queue before entering the blocking region.
    *
-   * The reason why this code is duplicated, instead of inherited is to keep the
-   * monomorphic callsites in the `IOFiber` runloop.
+   * The reason why this code is duplicated, instead of inherited is to keep the monomorphic
+   * callsites in the `IOFiber` runloop.
    *
-   * @note There is no reason to enclose any code in a `try/catch` block because
-   *       the only way this code path can be exercised is through `IO.delay`,
-   *       which already handles exceptions.
+   * @note
+   *   There is no reason to enclose any code in a `try/catch` block because the only way this
+   *   code path can be exercised is through `IO.delay`, which already handles exceptions.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
     // Drain the local queue to the `overflow` queue.

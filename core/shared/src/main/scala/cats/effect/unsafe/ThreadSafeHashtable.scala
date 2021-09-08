@@ -18,17 +18,16 @@ package cats.effect
 package unsafe
 
 /**
- * A primitive thread safe hash table implementation specialized for a single
- * purpose, to hold references to the error callbacks of fibers. The hashing
- * function is [[System.identityHashCode]] simply because the callbacks are
- * functions and therefore have no defined notion of [[Object#hashCode]]. The
- * thread safety is achieved by pessimistically locking the whole structure.
- * This is fine in practice because this data structure is only accessed when
- * running [[cats.effect.IO#unsafeRunFiber]], which is not expected to be
- * executed often in a realistic system.
+ * A primitive thread safe hash table implementation specialized for a single purpose, to hold
+ * references to the error callbacks of fibers. The hashing function is
+ * [[System.identityHashCode]] simply because the callbacks are functions and therefore have no
+ * defined notion of [[Object#hashCode]]. The thread safety is achieved by pessimistically
+ * locking the whole structure. This is fine in practice because this data structure is only
+ * accessed when running [[cats.effect.IO#unsafeRunFiber]], which is not expected to be executed
+ * often in a realistic system.
  *
- * @param initialCapacity the initial capacity of the hashtable, ''must'' be a
- *                        power of 2
+ * @param initialCapacity
+ *   the initial capacity of the hashtable, ''must'' be a power of 2
  */
 private[effect] final class ThreadSafeHashtable(private[this] val initialCapacity: Int) {
   private[this] var hashtable: Array[Throwable => Unit] = new Array(initialCapacity)
@@ -68,9 +67,8 @@ private[effect] final class ThreadSafeHashtable(private[this] val initialCapacit
   }
 
   /**
-   * ''Must'' be called with the lock on the whole `ThreadSafeHashtable` object
-   * already held. The `table` should contain at least one empty space to
-   * place the callback in.
+   * ''Must'' be called with the lock on the whole `ThreadSafeHashtable` object already held.
+   * The `table` should contain at least one empty space to place the callback in.
    */
   private[this] def insert(
       table: Array[Throwable => Unit],
@@ -163,8 +161,8 @@ private[effect] final class ThreadSafeHashtable(private[this] val initialCapacit
 private object ThreadSafeHashtable {
 
   /**
-   * Sentinel object for marking removed callbacks. Used to keep the linear
-   * probing chain intact.
+   * Sentinel object for marking removed callbacks. Used to keep the linear probing chain
+   * intact.
    */
   private[ThreadSafeHashtable] final val Tombstone: Throwable => Unit = _ => ()
 }

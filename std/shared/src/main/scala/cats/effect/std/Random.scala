@@ -33,42 +33,45 @@ import cats.effect.kernel._
 import scala.util.{Random => SRandom}
 
 /**
- * Random is the ability to get random information, each time getting
- * a different result.
+ * Random is the ability to get random information, each time getting a different result.
  *
  * Alumnus of the Davenverse.
  */
 trait Random[F[_]] { self =>
 
   /**
-   * Returns the next pseudorandom, uniformly distributed double value between min (inclusive) and max (exclusive) from this random number generator's sequence.
+   * Returns the next pseudorandom, uniformly distributed double value between min (inclusive)
+   * and max (exclusive) from this random number generator's sequence.
    */
   def betweenDouble(minInclusive: Double, maxExclusive: Double): F[Double]
 
   /**
-   * Returns the next pseudorandom, uniformly distributed float value between min (inclusive) and max (exclusive) from this random number generator's sequence.
+   * Returns the next pseudorandom, uniformly distributed float value between min (inclusive)
+   * and max (exclusive) from this random number generator's sequence.
    */
   def betweenFloat(minInclusive: Float, maxExclusive: Float): F[Float]
 
   /**
-   * Returns a pseudorandom, uniformly distributed int value between min (inclusive) and the specified value max (exclusive),
-   * drawn from this random number generator's sequence.
+   * Returns a pseudorandom, uniformly distributed int value between min (inclusive) and the
+   * specified value max (exclusive), drawn from this random number generator's sequence.
    */
   def betweenInt(minInclusive: Int, maxExclusive: Int): F[Int]
 
   /**
-   * Returns a pseudorandom, uniformly distributed long value between min (inclusive) and the specified value max (exclusive),
-   * drawn from this random number generator's sequence.
+   * Returns a pseudorandom, uniformly distributed long value between min (inclusive) and the
+   * specified value max (exclusive), drawn from this random number generator's sequence.
    */
   def betweenLong(minInclusive: Long, maxExclusive: Long): F[Long]
 
   /**
-   * Returns a pseudorandomly chosen alphanumeric character, equally chosen from A-Z, a-z, and 0-9.
+   * Returns a pseudorandomly chosen alphanumeric character, equally chosen from A-Z, a-z, and
+   * 0-9.
    */
   def nextAlphaNumeric: F[Char]
 
   /**
-   * Returns the next pseudorandom, uniformly distributed boolean value from this random number generator's sequence.
+   * Returns the next pseudorandom, uniformly distributed boolean value from this random number
+   * generator's sequence.
    */
   def nextBoolean: F[Boolean]
 
@@ -78,39 +81,44 @@ trait Random[F[_]] { self =>
   def nextBytes(n: Int): F[Array[Byte]]
 
   /**
-   * Returns the next pseudorandom, uniformly distributed double value between 0.0 and 1.0 from this random number generator's sequence.
+   * Returns the next pseudorandom, uniformly distributed double value between 0.0 and 1.0 from
+   * this random number generator's sequence.
    */
   def nextDouble: F[Double]
 
   /**
-   * Returns the next pseudorandom, uniformly distributed float value between 0.0 and 1.0 from this random number generator's sequence.
+   * Returns the next pseudorandom, uniformly distributed float value between 0.0 and 1.0 from
+   * this random number generator's sequence.
    */
   def nextFloat: F[Float]
 
   /**
-   * Returns the next pseudorandom, Gaussian ("normally") distributed double value with mean 0.0 and standard deviation 1.0 from this random number generator's sequence
+   * Returns the next pseudorandom, Gaussian ("normally") distributed double value with mean 0.0
+   * and standard deviation 1.0 from this random number generator's sequence
    */
   def nextGaussian: F[Double]
 
   /**
-   * Returns the next pseudorandom, uniformly distributed int value from this random number generator's sequence.
+   * Returns the next pseudorandom, uniformly distributed int value from this random number
+   * generator's sequence.
    */
   def nextInt: F[Int]
 
   /**
-   * Returns a pseudorandom, uniformly distributed int value between 0 (inclusive)
-   * and the specified value (exclusive), drawn from this random number generator's sequence.
+   * Returns a pseudorandom, uniformly distributed int value between 0 (inclusive) and the
+   * specified value (exclusive), drawn from this random number generator's sequence.
    */
   def nextIntBounded(n: Int): F[Int]
 
   /**
-   * Returns the next pseudorandom, uniformly distributed long value from this random number generator's sequence.
+   * Returns the next pseudorandom, uniformly distributed long value from this random number
+   * generator's sequence.
    */
   def nextLong: F[Long]
 
   /**
-   * Returns a pseudorandom, uniformly distributed long value between 0 (inclusive)
-   * and the specified value (exclusive), drawn from this random number generator's sequence.
+   * Returns a pseudorandom, uniformly distributed long value between 0 (inclusive) and the
+   * specified value (exclusive), drawn from this random number generator's sequence.
    */
   def nextLongBounded(n: Long): F[Long]
 
@@ -135,11 +143,11 @@ trait Random[F[_]] { self =>
   def shuffleVector[A](v: Vector[A]): F[Vector[A]]
 
   /**
-   * Modifies the context in which this [[Random]] operates using the natural
-   * transformation `f`.
+   * Modifies the context in which this [[Random]] operates using the natural transformation
+   * `f`.
    *
-   * @return a [[Random]] in the new context obtained by mapping the current one
-   *         using `f`
+   * @return
+   *   a [[Random]] in the new context obtained by mapping the current one using `f`
    */
   def mapK[G[_]](f: F ~> G): Random[G] =
     new Random[G] {
@@ -214,37 +222,37 @@ object Random {
     }
 
   /**
-   * [[Random]] instance built for `cats.data.EitherT` values initialized with
-   * any `F` data type that also implements `Random`.
+   * [[Random]] instance built for `cats.data.EitherT` values initialized with any `F` data type
+   * that also implements `Random`.
    */
   implicit def catsEitherTRandom[F[_]: Random: Functor, L]: Random[EitherT[F, L, *]] =
     Random[F].mapK(EitherT.liftK)
 
   /**
-   * [[Random]] instance built for `cats.data.Kleisli` values initialized with
-   * any `F` data type that also implements `Random`.
+   * [[Random]] instance built for `cats.data.Kleisli` values initialized with any `F` data type
+   * that also implements `Random`.
    */
   implicit def catsKleisliRandom[F[_]: Random, R]: Random[Kleisli[F, R, *]] =
     Random[F].mapK(Kleisli.liftK)
 
   /**
-   * [[Random]] instance built for `cats.data.OptionT` values initialized with
-   * any `F` data type that also implements `Random`.
+   * [[Random]] instance built for `cats.data.OptionT` values initialized with any `F` data type
+   * that also implements `Random`.
    */
   implicit def catsOptionTRandom[F[_]: Random: Functor]: Random[OptionT[F, *]] =
     Random[F].mapK(OptionT.liftK)
 
   /**
-   * [[Random]] instance built for `cats.data.IndexedStateT` values initialized with
-   * any `F` data type that also implements `Random`.
+   * [[Random]] instance built for `cats.data.IndexedStateT` values initialized with any `F`
+   * data type that also implements `Random`.
    */
   implicit def catsIndexedStateTRandom[F[_]: Random: Applicative, S]
       : Random[IndexedStateT[F, S, S, *]] =
     Random[F].mapK(IndexedStateT.liftK)
 
   /**
-   * [[Random]] instance built for `cats.data.WriterT` values initialized with
-   * any `F` data type that also implements `Random`.
+   * [[Random]] instance built for `cats.data.WriterT` values initialized with any `F` data type
+   * that also implements `Random`.
    */
   implicit def catsWriterTRandom[
       F[_]: Random: Applicative,
@@ -253,15 +261,15 @@ object Random {
     Random[F].mapK(WriterT.liftK)
 
   /**
-   * [[Random]] instance built for `cats.data.IorT` values initialized with any
-   * `F` data type that also implements `Random`.
+   * [[Random]] instance built for `cats.data.IorT` values initialized with any `F` data type
+   * that also implements `Random`.
    */
   implicit def catsIorTRandom[F[_]: Random: Functor, L]: Random[IorT[F, L, *]] =
     Random[F].mapK(IorT.liftK)
 
   /**
-   * [[Random]] instance built for `cats.data.IndexedReaderWriterStateT` values
-   * initialized with any `F` data type that also implements `Random`.
+   * [[Random]] instance built for `cats.data.IndexedReaderWriterStateT` values initialized with
+   * any `F` data type that also implements `Random`.
    */
   implicit def catsIndexedReaderWriterStateTRandom[
       F[_]: Random: Applicative,
@@ -272,16 +280,15 @@ object Random {
     Random[F].mapK(IndexedReaderWriterStateT.liftK)
 
   /**
-   * Creates Several Random Number Generators and equally
-   * allocates the load across those instances.
+   * Creates Several Random Number Generators and equally allocates the load across those
+   * instances.
    *
    * From the java class docs:
    * https://docs.oracle.com/javase/8/docs/api/java/util/Random.html#java.util.Random
    *
-   * Instances of java.util.Random are threadsafe.
-   * However, the concurrent use of the same java.util.Random instance
-   * across threads may encounter contention and consequent poor performance.
-   * Consider instead using ThreadLocalRandom in multithreaded designs.
+   * Instances of java.util.Random are threadsafe. However, the concurrent use of the same
+   * java.util.Random instance across threads may encounter contention and consequent poor
+   * performance. Consider instead using ThreadLocalRandom in multithreaded designs.
    */
   def scalaUtilRandomN[F[_]: Sync](n: Int): F[Random[F]] =
     for {
@@ -312,9 +319,8 @@ object Random {
     }
 
   /**
-   * Lift Java Random to this algebra.
-   * Note: this implies the ability for external locations to manipulate
-   * the underlying state without referential transparency.
+   * Lift Java Random to this algebra. Note: this implies the ability for external locations to
+   * manipulate the underlying state without referential transparency.
    */
   def javaUtilRandom[F[_]: Sync](random: java.util.Random): F[Random[F]] =
     Sync[F].delay {

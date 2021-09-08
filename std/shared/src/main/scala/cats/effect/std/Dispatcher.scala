@@ -29,41 +29,39 @@ import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 /**
- * A fiber-based supervisor utility for evaluating effects across an impure
- * boundary. This is useful when working with reactive interfaces that produce
- * potentially many values (as opposed to one), and for each value, some effect
- * in `F` must be performed (like inserting it into a queue).
+ * A fiber-based supervisor utility for evaluating effects across an impure boundary. This is
+ * useful when working with reactive interfaces that produce potentially many values (as opposed
+ * to one), and for each value, some effect in `F` must be performed (like inserting it into a
+ * queue).
  *
- * [[Dispatcher]] is a kind of [[Supervisor]] and accordingly follows the same
- * scoping and lifecycle rules with respect to submitted effects.
+ * [[Dispatcher]] is a kind of [[Supervisor]] and accordingly follows the same scoping and
+ * lifecycle rules with respect to submitted effects.
  *
- * Performance note: all clients of a single [[Dispatcher]] instance will
- * contend with each other when submitting effects. However, [[Dispatcher]]
- * instances are cheap to create and have minimal overhead (a single fiber),
- * so they can be allocated on-demand if necessary.
+ * Performance note: all clients of a single [[Dispatcher]] instance will contend with each
+ * other when submitting effects. However, [[Dispatcher]] instances are cheap to create and have
+ * minimal overhead (a single fiber), so they can be allocated on-demand if necessary.
  *
- * Notably, [[Dispatcher]] replaces Effect and ConcurrentEffect from Cats
- * Effect 2 while only requiring an [[cats.effect.kernel.Async]] constraint.
+ * Notably, [[Dispatcher]] replaces Effect and ConcurrentEffect from Cats Effect 2 while only
+ * requiring an [[cats.effect.kernel.Async]] constraint.
  */
 trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 
   /**
-   * Submits an effect to be executed, returning a `Future` that holds the
-   * result of its evaluation, along with a cancelation token that can be
-   * used to cancel the original effect.
+   * Submits an effect to be executed, returning a `Future` that holds the result of its
+   * evaluation, along with a cancelation token that can be used to cancel the original effect.
    */
   def unsafeToFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit])
 
   /**
-   * Submits an effect to be executed, returning a `Future` that holds the
-   * result of its evaluation.
+   * Submits an effect to be executed, returning a `Future` that holds the result of its
+   * evaluation.
    */
   def unsafeToFuture[A](fa: F[A]): Future[A] =
     unsafeToFutureCancelable(fa)._1
 
   /**
-   * Submits an effect to be executed, returning a cancelation token that
-   * can be used to cancel it.
+   * Submits an effect to be executed, returning a cancelation token that can be used to cancel
+   * it.
    */
   def unsafeRunCancelable[A](fa: F[A]): () => Future[Unit] =
     unsafeToFutureCancelable(fa)._2
@@ -99,9 +97,9 @@ object Dispatcher {
   private[this] val Completed: Either[Throwable, Unit] = Right(())
 
   /**
-   * Create a [[Dispatcher]] that can be used within a resource scope.
-   * Once the resource scope exits, all active effects will be canceled, and
-   * attempts to submit new effects will throw an exception.
+   * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
+   * exits, all active effects will be canceled, and attempts to submit new effects will throw
+   * an exception.
    */
   def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] = {
     final case class Registration(action: F[Unit], prepareCancel: F[Unit] => Unit)

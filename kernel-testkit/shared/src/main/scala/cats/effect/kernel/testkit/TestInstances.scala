@@ -65,9 +65,8 @@ trait TestInstances {
   }
 
   /**
-   * Defines equality for a `Resource`.  Two resources are deemed
-   * equivalent if they allocate an equivalent resource.  Cleanup,
-   * which is run purely for effect, is not considered.
+   * Defines equality for a `Resource`. Two resources are deemed equivalent if they allocate an
+   * equivalent resource. Cleanup, which is run purely for effect, is not considered.
    */
   implicit def eqResource[F[_], A](
       implicit E: Eq[F[A]],

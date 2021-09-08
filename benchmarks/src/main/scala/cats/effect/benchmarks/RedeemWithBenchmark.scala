@@ -26,17 +26,17 @@ import java.util.concurrent.TimeUnit
 /**
  * To do comparative benchmarks between versions:
  *
- *     benchmarks/run-benchmark RedeemWithBenchmark
+ * benchmarks/run-benchmark RedeemWithBenchmark
  *
  * This will generate results in `benchmarks/results`.
  *
  * Or to run the benchmark from within sbt:
  *
- *     jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.RedeemWithBenchmark
+ * jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.RedeemWithBenchmark
  *
- * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
- * Please note that benchmarks should be usually executed at least in
- * 10 iterations (as a rule of thumb), but more is better.
+ * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread". Please note that
+ * benchmarks should be usually executed at least in 10 iterations (as a rule of thumb), but
+ * more is better.
  */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))

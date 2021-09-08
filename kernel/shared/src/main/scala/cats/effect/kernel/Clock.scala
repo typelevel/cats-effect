@@ -25,16 +25,15 @@ import cats.kernel.{Monoid, Semigroup}
 import cats.{Defer, Monad}
 
 /**
- * A typeclass which encodes various notions of time. Analogous
- * to some of the time functions exposed by [[java.lang.System]].
+ * A typeclass which encodes various notions of time. Analogous to some of the time functions
+ * exposed by [[java.lang.System]].
  */
 trait Clock[F[_]] extends ClockPlatform[F] {
 
   def applicative: Applicative[F]
 
   /**
-   * Monotonic time subject to the law that
-   * (monotonic, monotonic).mapN(_ <= _)
+   * Monotonic time subject to the law that (monotonic, monotonic).mapN(_ <= _)
    *
    * Analogous to [[java.lang.System.nanoTime]]
    */
@@ -48,10 +47,11 @@ trait Clock[F[_]] extends ClockPlatform[F] {
   def realTime: F[FiniteDuration]
 
   /**
-   * Returns an effect that completes with the result of the source together
-   * with the duration that it took to complete.
+   * Returns an effect that completes with the result of the source together with the duration
+   * that it took to complete.
    *
-   * @param fa The effect which we wish to time the execution of
+   * @param fa
+   *   The effect which we wish to time the execution of
    */
   def timed[A](fa: F[A]): F[(FiniteDuration, A)] =
     applicative.map3(monotonic, fa, monotonic)((startTime, a, endTime) =>

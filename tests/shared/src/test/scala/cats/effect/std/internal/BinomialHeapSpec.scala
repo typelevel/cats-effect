@@ -41,8 +41,8 @@ class BinomialHeapSpec extends Specification with ScalaCheck {
     }
 
     /**
-     * The root of a heap must be <= any of its children and all of its children
-     * must also be heaps
+     * The root of a heap must be <= any of its children and all of its children must also be
+     * heaps
      */
     "maintain the heap property" in prop { (ops: List[Op[Int]]) =>
       val heap = Op.toHeap(ops)
@@ -51,15 +51,13 @@ class BinomialHeapSpec extends Specification with ScalaCheck {
     }
 
     /**
-     * The rank of the top-level trees should be strictly monotonically increasing,
-     * where the rank of a tree is defined as the height of the tree ie the
-     * number of nodes on the longest path from the root to a leaf.
-     * There is one binomial tree for each nonzero bit in the binary representation
-     * of the number of elements n
+     * The rank of the top-level trees should be strictly monotonically increasing, where the
+     * rank of a tree is defined as the height of the tree ie the number of nodes on the longest
+     * path from the root to a leaf. There is one binomial tree for each nonzero bit in the
+     * binary representation of the number of elements n
      *
-     * The children of a top-level tree of rank i
-     * should be trees of monotonically decreasing rank
-     * i-1, i-2, ..., 1
+     * The children of a top-level tree of rank i should be trees of monotonically decreasing
+     * rank i-1, i-2, ..., 1
      */
     "maintain correct subtree ranks" in prop { (ops: List[Op[Int]]) =>
       val heap = Op.toHeap(ops)
@@ -76,8 +74,8 @@ class BinomialHeapSpec extends Specification with ScalaCheck {
   }
 
   /**
-   * The root of a heap must be <= any of its children and all of its children
-   * must also be heaps
+   * The root of a heap must be <= any of its children and all of its children must also be
+   * heaps
    */
   private def validHeap[A](tree: BinomialTree[A])(implicit Ord: Order[A]): Boolean = {
     def validHeap(parent: A, tree: BinomialTree[A]): Boolean =
@@ -105,8 +103,7 @@ class BinomialHeapSpec extends Specification with ScalaCheck {
     }
 
   /**
-   * A tree of rank i should have children of rank i-1, i-2, ..., 1
-   * in that order
+   * A tree of rank i should have children of rank i-1, i-2, ..., 1 in that order
    */
   private def checkRank[A](rank: Int, tree: BinomialTree[A]): Boolean =
     tree.children match {
