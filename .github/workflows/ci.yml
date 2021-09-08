@@ -98,7 +98,7 @@ jobs:
 
       - name: Setup NodeJS v14 LTS
         if: matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'
-        uses: actions/setup-node@v2.1.2
+        uses: actions/setup-node@v2.4.0
         with:
           node-version: 14
 
