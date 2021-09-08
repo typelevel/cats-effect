@@ -56,7 +56,7 @@ val Scala3 = "3.0.2"
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.14", Scala213)
 
 ThisBuild / githubWorkflowUseSbtThinClient := false
-ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
+ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
 
 val LTSJava = "adoptium@11"
 val LatestJava = "adoptium@17"
@@ -68,7 +68,7 @@ ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Use(
-    UseRef.Public("actions", "setup-node", "v2.1.2"),
+    UseRef.Public("actions", "setup-node", "v2.4.0"),
     name = Some("Setup NodeJS v14 LTS"),
     params = Map("node-version" -> "14"),
     cond = Some("matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'")
@@ -212,8 +212,8 @@ lazy val rootJVM = project
 lazy val rootJS = project.aggregate(jsProjects: _*).enablePlugins(NoPublishPlugin)
 
 /**
- * The core abstractions and syntax. This is the most general definition of Cats Effect,
- * without any concrete implementations. This is the "batteries not included" dependency.
+ * The core abstractions and syntax. This is the most general definition of Cats Effect, without
+ * any concrete implementations. This is the "batteries not included" dependency.
  */
 lazy val kernel = crossProject(JSPlatform, JVMPlatform)
   .in(file("kernel"))
@@ -246,9 +246,9 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
   )
 
 /**
- * The laws which constrain the abstractions. This is split from kernel to avoid
- * jar file and dependency issues. As a consequence of this split, some things
- * which are defined in kernelTestkit are *tested* in the Test scope of this project.
+ * The laws which constrain the abstractions. This is split from kernel to avoid jar file and
+ * dependency issues. As a consequence of this split, some things which are defined in
+ * kernelTestkit are *tested* in the Test scope of this project.
  */
 lazy val laws = crossProject(JSPlatform, JVMPlatform)
   .in(file("laws"))
@@ -261,10 +261,9 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
   )
 
 /**
- * Concrete, production-grade implementations of the abstractions. Or, more
- * simply-put: IO. Also contains some general datatypes built
- * on top of IO which are useful in their own right, as well as some utilities
- * (such as IOApp). This is the "batteries included" dependency.
+ * Concrete, production-grade implementations of the abstractions. Or, more simply-put: IO. Also
+ * contains some general datatypes built on top of IO which are useful in their own right, as
+ * well as some utilities (such as IOApp). This is the "batteries included" dependency.
  */
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
@@ -332,7 +331,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.IORuntime.this"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.IORuntime.<init>$default$6")
+        "cats.effect.unsafe.IORuntime.<init>$default$6"),
+      // introduced by #3182, Address issues with the blocking mechanism of the thread pool
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain")
     )
   )
   .jvmSettings(
@@ -343,8 +345,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   )
 
 /**
- * Test support for the core project, providing various helpful instances
- * like ScalaCheck generators for IO and SyncIO.
+ * Test support for the core project, providing various helpful instances like ScalaCheck
+ * generators for IO and SyncIO.
  */
 lazy val testkit = crossProject(JSPlatform, JVMPlatform)
   .in(file("testkit"))
@@ -371,10 +373,10 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform)
     Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
 
 /**
- * Implementations lof standard functionality (e.g. Semaphore, Console, Queue)
- * purely in terms of the typeclasses, with no dependency on IO. In most cases,
- * the *tests* for these implementations will require IO, and thus those tests
- * will be located within the core project.
+ * Implementations lof standard functionality (e.g. Semaphore, Console, Queue) purely in terms
+ * of the typeclasses, with no dependency on IO. In most cases, the *tests* for these
+ * implementations will require IO, and thus those tests will be located within the core
+ * project.
  */
 lazy val std = crossProject(JSPlatform, JVMPlatform)
   .in(file("std"))
@@ -394,8 +396,8 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
   )
 
 /**
- * A trivial pair of trivial example apps primarily used to show that IOApp
- * works as a practical runtime on both target platforms.
+ * A trivial pair of trivial example apps primarily used to show that IOApp works as a practical
+ * runtime on both target platforms.
  */
 lazy val example = crossProject(JSPlatform, JVMPlatform)
   .in(file("example"))

@@ -19,13 +19,12 @@ package cats.effect
 import cats.syntax.all._
 
 /**
- * A convenience trait for defining applications which are entirely within
- * [[Resource]]. This is implemented as a relatively straightforward wrapper
- * around [[IOApp]] and thus inherits most of its functionality and semantics.
+ * A convenience trait for defining applications which are entirely within [[Resource]]. This is
+ * implemented as a relatively straightforward wrapper around [[IOApp]] and thus inherits most
+ * of its functionality and semantics.
  *
- * This trait should generally be used for any application which would otherwise
- * trivially end with [[cats.effect.kernel.Resource!.use]] (or one of its
- * variants). For example:
+ * This trait should generally be used for any application which would otherwise trivially end
+ * with [[cats.effect.kernel.Resource!.use]] (or one of its variants). For example:
  *
  * {{{
  *   object HttpExample extends IOApp {
@@ -42,12 +41,12 @@ import cats.syntax.all._
  *   }
  * }}}
  *
- * This example assumes some underlying libraries like [[https://tpolecat.github.io/skunk/ Skunk]]
- * and [[https://http4s.org Http4s]], but otherwise it represents a relatively
- * typical example of what the main class for a realistic Cats Effect application
- * might look like. Notably, the whole thing is enclosed in `Resource`, which is
- * `use`d at the very end. This kind of pattern is so common that `ResourceApp`
- * defines a special trait which represents it. We can rewrite the above example:
+ * This example assumes some underlying libraries like
+ * [[https://tpolecat.github.io/skunk/ Skunk]] and [[https://http4s.org Http4s]], but otherwise
+ * it represents a relatively typical example of what the main class for a realistic Cats Effect
+ * application might look like. Notably, the whole thing is enclosed in `Resource`, which is
+ * `use`d at the very end. This kind of pattern is so common that `ResourceApp` defines a
+ * special trait which represents it. We can rewrite the above example:
  *
  * {{{
  *   object HttpExample extends ResourceApp.Forever {
@@ -63,14 +62,18 @@ import cats.syntax.all._
  *
  * These two programs are equivalent.
  *
- * @see [[run]]
- * @see [[ResourceApp.Simple]]
- * @see [[ResourceApp.Forever]]
+ * @see
+ *   [[run]]
+ * @see
+ *   [[ResourceApp.Simple]]
+ * @see
+ *   [[ResourceApp.Forever]]
  */
 trait ResourceApp { self =>
 
   /**
-   * @see [[IOApp.run]]
+   * @see
+   *   [[IOApp.run]]
    */
   def run(args: List[String]): Resource[IO, ExitCode]
 
@@ -87,15 +90,17 @@ trait ResourceApp { self =>
 object ResourceApp {
 
   /**
-   * A [[ResourceApp]] which takes no process arguments and always produces
-   * [[ExitCode.Success]] except when an exception is raised.
+   * A [[ResourceApp]] which takes no process arguments and always produces [[ExitCode.Success]]
+   * except when an exception is raised.
    *
-   * @see [[IOApp.Simple]]
+   * @see
+   *   [[IOApp.Simple]]
    */
   trait Simple extends ResourceApp {
 
     /**
-     * @see [[cats.effect.IOApp.Simple!.run:cats\.effect\.IO[Unit]*]]
+     * @see
+     *   [[cats.effect.IOApp.Simple!.run:cats\.effect\.IO[Unit]*]]
      */
     def run: Resource[IO, Unit]
 
@@ -103,12 +108,13 @@ object ResourceApp {
   }
 
   /**
-   * A [[ResourceApp]] which runs until externally interrupted (with `SIGINT`),
-   * at which point all finalizers will be run and the application will shut
-   * down upon completion. This is an extremely common pattern in practical
-   * Cats Effect applications and is particularly applicable to network servers.
+   * A [[ResourceApp]] which runs until externally interrupted (with `SIGINT`), at which point
+   * all finalizers will be run and the application will shut down upon completion. This is an
+   * extremely common pattern in practical Cats Effect applications and is particularly
+   * applicable to network servers.
    *
-   * @see [[cats.effect.kernel.Resource!.useForever]]
+   * @see
+   *   [[cats.effect.kernel.Resource!.useForever]]
    */
   trait Forever { self =>
 
@@ -117,7 +123,8 @@ object ResourceApp {
      * [[cats.effect.kernel.Resource!.useForever]] instead of
      * [[cats.effect.kernel.Resource!.use]].
      *
-     * @see [[ResourceApp.run]]
+     * @see
+     *   [[ResourceApp.run]]
      */
     def run(args: List[String]): Resource[IO, Unit]
 

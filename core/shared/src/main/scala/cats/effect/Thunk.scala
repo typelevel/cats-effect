@@ -18,8 +18,8 @@ package cats.effect
 
 /**
  * A utility to convert a by-name `thunk: => A` to a `Function0[A]` (its binary representation).
- * Scala 2 performs this optimization automatically but on Scala 3 the thunk is wrapped inside of a new `Function0`.
- * See https://github.com/typelevel/cats-effect/pull/2226
+ * Scala 2 performs this optimization automatically but on Scala 3 the thunk is wrapped inside
+ * of a new `Function0`. See https://github.com/typelevel/cats-effect/pull/2226
  */
 private object Thunk {
   private[this] val impl =
