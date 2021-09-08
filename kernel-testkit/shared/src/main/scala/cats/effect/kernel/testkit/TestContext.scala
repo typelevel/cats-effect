@@ -20,7 +20,7 @@ package testkit
 import scala.annotation.tailrec
 
 import scala.collection.immutable.SortedSet
-import scala.concurrent.{blocking, ExecutionContext}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 import scala.util.Random
@@ -144,20 +144,16 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
    * for execution.
    */
   def execute(r: Runnable): Unit =
-    blocking {
-      synchronized {
-        stateRef = stateRef.execute(r)
-      }
+    synchronized {
+      stateRef = stateRef.execute(r)
     }
 
   /**
    * Inherited from `ExecutionContext`, reports uncaught errors.
    */
   def reportFailure(cause: Throwable): Unit =
-    blocking {
-      synchronized {
-        stateRef = stateRef.copy(lastReportedFailure = Some(cause))
-      }
+    synchronized {
+      stateRef = stateRef.copy(lastReportedFailure = Some(cause))
     }
 
   /**
@@ -181,10 +177,8 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
   def advance(time: FiniteDuration): Unit = {
     require(time > Duration.Zero)
 
-    blocking {
-      synchronized {
-        stateRef = stateRef.copy(clock = stateRef.clock + time)
-      }
+    synchronized {
+      stateRef = stateRef.copy(clock = stateRef.clock + time)
     }
   }
 
@@ -215,22 +209,20 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
    *        was executed, or `false` otherwise
    */
   def tickOne(): Boolean =
-    blocking {
-      synchronized {
-        val current = stateRef
+    synchronized {
+      val current = stateRef
 
-        // extracting one task by taking the immediate tasks
-        extractOneTask(current, current.clock, random) match {
-          case Some((head, rest)) =>
-            stateRef = current.copy(tasks = rest)
-            // execute task
-            try head.task.run()
-            catch { case NonFatal(ex) => reportFailure(ex) }
-            true
+      // extracting one task by taking the immediate tasks
+      extractOneTask(current, current.clock, random) match {
+        case Some((head, rest)) =>
+          stateRef = current.copy(tasks = rest)
+          // execute task
+          try head.task.run()
+          catch { case NonFatal(ex) => reportFailure(ex) }
+          true
 
-          case None =>
-            false
-        }
+        case None =>
+          false
       }
     }
 
@@ -274,13 +266,11 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
   private[testkit] def tickAll$default$1(): FiniteDuration = Duration.Zero
 
   def schedule(delay: FiniteDuration, r: Runnable): () => Unit =
-    blocking {
-      synchronized {
-        val current: State = stateRef
-        val (cancelable, newState) = current.scheduleOnce(delay, r, cancelTask)
-        stateRef = newState
-        cancelable
-      }
+    synchronized {
+      val current: State = stateRef
+      val (cancelable, newState) = current.scheduleOnce(delay, r, cancelTask)
+      stateRef = newState
+      cancelable
     }
 
   def derive(): ExecutionContext =
@@ -314,10 +304,8 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
     }
 
   private def cancelTask(t: Task): Unit =
-    blocking {
-      synchronized {
-        stateRef = stateRef.copy(tasks = stateRef.tasks - t)
-      }
+    synchronized {
+      stateRef = stateRef.copy(tasks = stateRef.tasks - t)
     }
 }
 
