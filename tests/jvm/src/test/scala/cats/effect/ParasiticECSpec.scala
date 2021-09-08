@@ -28,10 +28,12 @@ class ParasiticECSpec extends BaseSpec with TestInstances {
 
   "IO monad" should {
     "evaluate fibers correctly in presence of a parasitic execution context" in real {
-      implicit val ticker = Ticker()
+      val test = {
+        implicit val ticker = Ticker()
 
-      val test = IO(implicitly[Arbitrary[IO[Int]]].arbitrary.sample.get).flatMap { io =>
-        IO.delay(io.eqv(io))
+        IO(implicitly[Arbitrary[IO[Int]]].arbitrary.sample.get).flatMap { io =>
+          IO.delay(io.eqv(io))
+        }
       }
 
       val iterations = 15000
