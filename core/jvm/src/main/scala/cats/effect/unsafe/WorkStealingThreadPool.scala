@@ -73,23 +73,20 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
 
   /**
-   * References to helper threads. Helper threads must have a parking mechanism
-   * to address the situation where all worker threads are executing blocking
-   * actions, but the pool has been completely exhausted and the work that
-   * will unblock the worker threads has not arrived on the pool yet. Obviously,
-   * the helper threads cannot busy wait in this case, so they need to park and
-   * await a notification of newly arrived work. This queue also helps with the
-   * thundering herd problem. Namely, when only a single unit of work arrives
-   * and needs to be executed by a helper thread because all worker threads are
-   * blocked, only a single helper thread can be woken up. That thread can wake
-   * other helper threads in the future as the work available on the pool
-   * increases.
+   * References to helper threads. Helper threads must have a parking mechanism to address the
+   * situation where all worker threads are executing blocking actions, but the pool has been
+   * completely exhausted and the work that will unblock the worker threads has not arrived on
+   * the pool yet. Obviously, the helper threads cannot busy wait in this case, so they need to
+   * park and await a notification of newly arrived work. This queue also helps with the
+   * thundering herd problem. Namely, when only a single unit of work arrives and needs to be
+   * executed by a helper thread because all worker threads are blocked, only a single helper
+   * thread can be woken up. That thread can wake other helper threads in the future as the work
+   * available on the pool increases.
    */
   private[this] val helperThreads: ScalQueue[HelperThread] = new ScalQueue(threadCount)
 
   /**
-   * The batched queue on which spillover work from other local queues can end
-   * up.
+   * The batched queue on which spillover work from other local queues can end up.
    */
   private[this] val batchedQueue: ScalQueue[Array[IOFiber[_]]] =
     new ScalQueue(threadCount)
@@ -235,9 +232,9 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * Potentially unparks a helper thread.
    *
-   * @param random a reference to an uncontended source of randomness, to be
-   *               passed along to the striped concurrent queues when executing
-   *               their operations
+   * @param random
+   *   a reference to an uncontended source of randomness, to be passed along to the striped
+   *   concurrent queues when executing their operations
    */
   private[unsafe] def notifyHelper(random: ThreadLocalRandom): Unit = {
     val helper = helperThreads.poll(random)
@@ -248,8 +245,8 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Checks the number of active and searching worker threads and decides
-   * whether another thread should be notified of new work.
+   * Checks the number of active and searching worker threads and decides whether another thread
+   * should be notified of new work.
    *
    * Should wake up another worker thread when there are 0 searching threads and fewer than
    * `threadCount` active threads.
@@ -369,10 +366,11 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * Enqueues the provided helper thread on the queue of parked helper threads.
    *
-   * @param helper the helper thread to enqueue on the queue of parked threads
-   * @param random a reference to an uncontended source of randomness, to be
-   *               passed along to the striped concurrent queues when executing
-   *               their operations
+   * @param helper
+   *   the helper thread to enqueue on the queue of parked threads
+   * @param random
+   *   a reference to an uncontended source of randomness, to be passed along to the striped
+   *   concurrent queues when executing their operations
    */
   private[unsafe] def transitionHelperToParked(
       helper: HelperThread,
@@ -383,17 +381,17 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * Removes the provided helper thread from the parked helper thread queue.
    *
-   * This method is necessary for the situation when a worker/helper thread has
-   * finished executing the blocking actions and needs to signal its helper
-   * thread to end. At that point in time, the helper thread might be parked and
-   * enqueued. Furthermore, this method signals to other worker and helper
-   * threads that there could still be some leftover work on the pool and that
-   * they need to replace the exiting helper thread.
+   * This method is necessary for the situation when a worker/helper thread has finished
+   * executing the blocking actions and needs to signal its helper thread to end. At that point
+   * in time, the helper thread might be parked and enqueued. Furthermore, this method signals
+   * to other worker and helper threads that there could still be some leftover work on the pool
+   * and that they need to replace the exiting helper thread.
    *
-   * @param helper the helper thread to remove from the queue of parked threads
-   * @param random a reference to an uncontended source of randomness, to be
-   *               passed along to the striped concurrent queues when executing
-   *               their operations
+   * @param helper
+   *   the helper thread to remove from the queue of parked threads
+   * @param random
+   *   a reference to an uncontended source of randomness, to be passed along to the striped
+   *   concurrent queues when executing their operations
    */
   private[unsafe] def removeParkedHelper(
       helper: HelperThread,

@@ -128,13 +128,16 @@ private final class WorkerThread(
    * [[WorkStealingThreadPool]] matches the reference of the pool provided when this
    * [[WorkerThread]] was constructed.
    *
-   * @note When blocking code is being executed on this worker thread, it is
-   *       important to delegate all scheduling operation to the overflow queue
-   *       from which all [[HelperThread]] instances operate.
+   * @note
+   *   When blocking code is being executed on this worker thread, it is important to delegate
+   *   all scheduling operation to the overflow queue from which all [[HelperThread]] instances
+   *   operate.
    *
-   * @param threadPool a work stealing thread pool reference
-   * @return `true` if this worker thread is owned by the provided work stealing
-   *         thread pool, `false` otherwise
+   * @param threadPool
+   *   a work stealing thread pool reference
+   * @return
+   *   `true` if this worker thread is owned by the provided work stealing thread pool, `false`
+   *   otherwise
    */
   def isOwnedBy(threadPool: WorkStealingThreadPool): Boolean =
     (pool eq threadPool) && !blocking
@@ -429,8 +432,8 @@ private final class WorkerThread(
   /**
    * A mechanism for executing support code before executing a blocking action.
    *
-   * This is a slightly more involved implementation of the support code in
-   * anticipation of running blocking code, also implemented in [[HelperThread]].
+   * This is a slightly more involved implementation of the support code in anticipation of
+   * running blocking code, also implemented in [[HelperThread]].
    *
    * For a more detailed discussion on the design principles behind the support for running
    * blocking actions on the [[WorkStealingThreadPool]], check the code comments for
@@ -440,12 +443,12 @@ private final class WorkerThread(
    * [[WorkerThread]] s need to take care of draining their [[LocalQueue]] to the `overflow`
    * queue before entering the blocking region.
    *
-   * The reason why this code is duplicated, instead of inherited is to keep the
-   * monomorphic callsites in the `IOFiber` runloop.
+   * The reason why this code is duplicated, instead of inherited is to keep the monomorphic
+   * callsites in the `IOFiber` runloop.
    *
-   * @note There is no reason to enclose any code in a `try/catch` block because
-   *       the only way this code path can be exercised is through `IO.delay`,
-   *       which already handles exceptions.
+   * @note
+   *   There is no reason to enclose any code in a `try/catch` block because the only way this
+   *   code path can be exercised is through `IO.delay`, which already handles exceptions.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
     // Drain the local queue to the `overflow` queue.

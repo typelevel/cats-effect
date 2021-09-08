@@ -70,14 +70,13 @@ private final class HelperThread(
   private[this] var random: ThreadLocalRandom = _
 
   /**
-   * Signalling mechanism through which the [[WorkerThread]] which spawned this
-   * [[HelperThread]] signals that it has successfully exited the blocking code
-   * region and that this [[HelperThread]] should finalize.
+   * Signalling mechanism through which the [[WorkerThread]] which spawned this [[HelperThread]]
+   * signals that it has successfully exited the blocking code region and that this
+   * [[HelperThread]] should finalize.
    *
-   * This atomic integer encodes a state machine with 3 states.
-   * Value 0: the thread is parked
-   * Value 1: the thread is unparked and executing fibers
-   * Value 2: the thread has been signalled to finish up and exit
+   * This atomic integer encodes a state machine with 3 states. Value 0: the thread is parked
+   * Value 1: the thread is unparked and executing fibers Value 2: the thread has been signalled
+   * to finish up and exit
    *
    * The thread is spawned in the running state.
    */
@@ -205,9 +204,9 @@ private final class HelperThread(
   /**
    * A mechanism for executing support code before executing a blocking action.
    *
-   * @note There is no reason to enclose any code in a `try/catch` block because
-   *       the only way this code path can be exercised is through `IO.delay`,
-   *       which already handles exceptions.
+   * @note
+   *   There is no reason to enclose any code in a `try/catch` block because the only way this
+   *   code path can be exercised is through `IO.delay`, which already handles exceptions.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
     // Try waking up a `WorkerThread` to handle fibers from the overflow and

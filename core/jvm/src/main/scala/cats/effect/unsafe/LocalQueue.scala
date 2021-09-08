@@ -743,8 +743,9 @@ private final class LocalQueue {
    * @note
    *   Can '''only''' be correctly called by the owner [[WorkerThread]].
    *
-   * @return the destination array which contains all of the fibers previously
-   *         enqueued on the local queue
+   * @return
+   *   the destination array which contains all of the fibers previously enqueued on the local
+   *   queue
    */
   def drain(): Array[IOFiber[_]] = {
     // A plain, unsynchronized load of the tail of the local queue.
