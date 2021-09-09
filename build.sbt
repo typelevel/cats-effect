@@ -39,8 +39,16 @@ ThisBuild / developers := List(
     "Daniel Spiewak",
     "djspiewak@gmail.com",
     url("https://github.com/djspiewak")),
-  Developer("SystemFw", "Fabio Labella", "", url("https://github.com/SystemFw")),
-  Developer("RaasAhsan", "Raas Ahsan", "", url("https://github.com/RaasAhsan")),
+  Developer(
+    "SystemFw",
+    "Fabio Labella",
+    "fabio.labella2@gmail.com",
+    url("https://github.com/SystemFw")),
+  Developer(
+    "RaasAhsan",
+    "Raas Ahsan",
+    "raas.ahsan@gmail.com",
+    url("https://github.com/RaasAhsan")),
   Developer(
     "TimWSpence",
     "Tim Spence",
