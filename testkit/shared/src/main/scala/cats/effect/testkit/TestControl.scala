@@ -239,8 +239,54 @@ final class TestControl private (config: IORuntimeConfig, _seed: Option[String])
 }
 
 object TestControl {
+
   def apply(
       config: IORuntimeConfig = IORuntimeConfig(),
       seed: Option[String] = None): TestControl =
     new TestControl(config, seed)
+
+  /**
+   * Executes a given [[IO]] under fully mocked runtime control. This is a convenience method
+   * wrapping the process of creating a new `TestControl` runtime, then using it to evaluate the
+   * given `IO`, with the `body` in control of the actual ticking process. This method is very
+   * useful when writing assertions about program state ''between'' clock ticks, and even more
+   * so when time must be explicitly advanced by set increments. If your assertions are entirely
+   * intrinsic (within the program) and the test is such that time should advance in an
+   * automatic fashion, the [[executeFully]] method may be a more convenient option.
+   *
+   * The `TestControl` parameter of the `body` provides control over the mock runtime which is
+   * executing the program. The second parameter produces the ''results'' of the program, if the
+   * program has completed. If the program has not yet completed, this function will return
+   * `None`.
+   */
+  def execute[A, B](
+      program: IO[A],
+      config: IORuntimeConfig = IORuntimeConfig(),
+      seed: Option[String] = None)(
+      body: (TestControl, () => Option[Either[Throwable, A]]) => B): B = {
+
+    val control = TestControl(config = config, seed = seed)
+    val f = program.unsafeToFuture()(control.runtime)
+    body(control, () => f.value.map(_.toEither))
+  }
+
+  /**
+   * Executes an [[IO]] under fully mocked runtime control, returning the final results. This is
+   * very similar to calling `unsafeRunSync` on the program, except that the scheduler will use
+   * a mocked and quantized notion of time, all while executing on a singleton worker thread.
+   * This can cause some programs to deadlock which would otherwise complete normally, but it
+   * also allows programs which involve [[IO.sleep]] s of any length to complete almost
+   * instantly with correct semantics.
+   *
+   * @return
+   *   `None` if `program` does not complete, otherwise `Some` of the results.
+   */
+  def executeFully[A](
+      program: IO[A],
+      config: IORuntimeConfig = IORuntimeConfig(),
+      seed: Option[String] = None): Option[Either[Throwable, A]] =
+    execute(program, config = config, seed = seed) { (control, result) =>
+      control.tickAll()
+      result()
+    }
 }
