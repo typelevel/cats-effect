@@ -72,6 +72,11 @@ ThisBuild / developers := List(
     "ingersoll@gmail.com",
     url("https://github.com/wemrysi")),
   Developer(
+    "armanbilge",
+    "Arman Bilge",
+    "armanbilge@gmail.com",
+    url("https://github.com/armanbilge")),
+  Developer(
     "gvolpe",
     "Gabriel Volpe",
     "volpegabriel@gmail.com",
