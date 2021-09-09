@@ -219,16 +219,22 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
   .in(file("kernel"))
   .settings(
     name := "cats-effect-kernel",
-    libraryDependencies ++= Seq(
-      ("org.specs2" %%% "specs2-core" % Specs2Version % Test).cross(CrossVersion.for3Use2_13),
-      "org.typelevel" %%% "cats-core" % CatsVersion)
-  )
-  .jsSettings(Compile / doc / sources := {
-    if (isDotty.value)
-      Seq()
-    else
-      (Compile / doc / sources).value
-  })
+    libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion,
+    libraryDependencies += {
+      if (isDotty.value)
+        ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
+          .cross(CrossVersion.for3Use2_13)
+          .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1")
+      else
+        "org.specs2" %%% "specs2-core" % Specs2Version % Test
+    })
+  .jsSettings(
+    Compile / doc / sources := {
+      if (isDotty.value)
+        Seq()
+      else
+        (Compile / doc / sources).value
+    })
 
 /**
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
@@ -355,10 +361,15 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core, kernelTestkit)
   .settings(
     name := "cats-effect-testkit",
-    libraryDependencies ++= Seq(
-      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
-          .cross(CrossVersion.for3Use2_13)))
+    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
+    libraryDependencies += {
+      if (isDotty.value)
+        ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
+          .cross(CrossVersion.for3Use2_13)
+          .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1")
+      else
+        "org.specs2" %%% "specs2-core" % Specs2Version % Test
+    })
 
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
@@ -392,6 +403,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
       if (isDotty.value)
         ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
           .cross(CrossVersion.for3Use2_13)
+          .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1")
           .exclude("org.scalacheck", "scalacheck_2.13")
           .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
       else
