@@ -545,6 +545,19 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def redeemWith[B](recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
     attempt.flatMap(_.fold(recover, bind))
 
+  def replicateA(n: Int): IO[List[A]] =
+    if (n <= 0)
+      IO.pure(Nil)
+    else
+      flatMap(a => replicateA(n - 1).map(a :: _))
+
+  // TODO PR to cats
+  def replicateA_(n: Int): IO[Unit] =
+    if (n <= 0)
+      IO.unit
+    else
+      flatMap(_ => replicateA_(n - 1))
+
   /**
    * Returns an IO that will delay the execution of the source by the given duration.
    */

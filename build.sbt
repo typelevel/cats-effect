@@ -355,7 +355,10 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core, kernelTestkit)
   .settings(
     name := "cats-effect-testkit",
-    libraryDependencies ++= Seq("org.scalacheck" %%% "scalacheck" % ScalaCheckVersion))
+    libraryDependencies ++= Seq(
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
+      ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
+          .cross(CrossVersion.for3Use2_13)))
 
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
