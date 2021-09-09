@@ -35,8 +35,8 @@ object LiftIO {
     new (IO ~> F) { def apply[A](fa: IO[A]): F[A] = F.liftIO(fa) }
 
   /**
-   * [[LiftIO]] instance built for `cats.data.EitherT` values initialized
-   * with any `F` data type that also implements `LiftIO`.
+   * [[LiftIO]] instance built for `cats.data.EitherT` values initialized with any `F` data type
+   * that also implements `LiftIO`.
    */
   implicit def catsEitherTLiftIO[F[_], L](
       implicit F: LiftIO[F],
@@ -47,8 +47,8 @@ object LiftIO {
     }
 
   /**
-   * [[LiftIO]] instance built for `cats.data.Kleisli` values initialized
-   * with any `F` data type that also implements `LiftIO`.
+   * [[LiftIO]] instance built for `cats.data.Kleisli` values initialized with any `F` data type
+   * that also implements `LiftIO`.
    */
   implicit def catsKleisliLiftIO[F[_], R](implicit F: LiftIO[F]): LiftIO[Kleisli[F, R, *]] =
     new LiftIO[Kleisli[F, R, *]] {
@@ -57,8 +57,8 @@ object LiftIO {
     }
 
   /**
-   * [[LiftIO]] instance built for `cats.data.OptionT` values initialized
-   * with any `F` data type that also implements `LiftIO`.
+   * [[LiftIO]] instance built for `cats.data.OptionT` values initialized with any `F` data type
+   * that also implements `LiftIO`.
    */
   implicit def catsOptionTLiftIO[F[_]](
       implicit F: LiftIO[F],
@@ -69,8 +69,8 @@ object LiftIO {
     }
 
   /**
-   * [[LiftIO]] instance built for `cats.data.StateT` values initialized
-   * with any `F` data type that also implements `LiftIO`.
+   * [[LiftIO]] instance built for `cats.data.StateT` values initialized with any `F` data type
+   * that also implements `LiftIO`.
    */
   implicit def catsStateTLiftIO[F[_], S](
       implicit F: LiftIO[F],
@@ -81,8 +81,8 @@ object LiftIO {
     }
 
   /**
-   * [[LiftIO]] instance built for `cats.data.WriterT` values initialized
-   * with any `F` data type that also implements `LiftIO`.
+   * [[LiftIO]] instance built for `cats.data.WriterT` values initialized with any `F` data type
+   * that also implements `LiftIO`.
    */
   implicit def catsWriterTLiftIO[F[_], L](
       implicit F: LiftIO[F],
@@ -94,8 +94,8 @@ object LiftIO {
     }
 
   /**
-   * [[LiftIO]] instance built for `cats.data.IorT` values initialized
-   * with any `F` data type that also implements `LiftIO`.
+   * [[LiftIO]] instance built for `cats.data.IorT` values initialized with any `F` data type
+   * that also implements `LiftIO`.
    */
   implicit def catsIorTLiftIO[F[_], L](
       implicit F: LiftIO[F],
@@ -106,8 +106,8 @@ object LiftIO {
     }
 
   /**
-   * [[LiftIO]] instance built for `cats.data.ReaderWriterStateT` values initialized
-   * with any `F` data type that also implements `LiftIO`.
+   * [[LiftIO]] instance built for `cats.data.ReaderWriterStateT` values initialized with any
+   * `F` data type that also implements `LiftIO`.
    */
   implicit def catsReaderWriterStateTLiftIO[F[_], E, L, S](
       implicit F: LiftIO[F],
@@ -119,8 +119,8 @@ object LiftIO {
     }
 
   /**
-   * [[LiftIO]] instance built for `cats.data.ContT` values initialized
-   * with any `F` data type that also implements `LiftIO`.
+   * [[LiftIO]] instance built for `cats.data.ContT` values initialized with any `F` data type
+   * that also implements `LiftIO`.
    */
   implicit def catsContTLiftIO[F[_], R](
       implicit F: LiftIO[F],

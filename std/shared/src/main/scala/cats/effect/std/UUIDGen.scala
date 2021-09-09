@@ -29,7 +29,8 @@ trait UUIDGen[F[_]] {
 
   /**
    * Generates a UUID in a pseudorandom manner.
-   * @return randomly generated UUID
+   * @return
+   *   randomly generated UUID
    */
   def randomUUID: F[UUID]
 }
