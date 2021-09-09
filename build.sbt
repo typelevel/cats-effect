@@ -224,7 +224,7 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
       if (isDotty.value)
         ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
           .cross(CrossVersion.for3Use2_13)
-          .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1")
+          .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
       else
         "org.specs2" %%% "specs2-core" % Specs2Version % Test
     })
@@ -366,7 +366,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
       if (isDotty.value)
         ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
           .cross(CrossVersion.for3Use2_13)
-          .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1")
+          .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
       else
         "org.specs2" %%% "specs2-core" % Specs2Version % Test
     })
@@ -403,7 +403,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
       if (isDotty.value)
         ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
           .cross(CrossVersion.for3Use2_13)
-          .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1")
+          .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
           .exclude("org.scalacheck", "scalacheck_2.13")
           .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
       else
