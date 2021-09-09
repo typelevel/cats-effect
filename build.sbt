@@ -219,7 +219,16 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
   .in(file("kernel"))
   .settings(
     name := "cats-effect-kernel",
-    libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion,
+    libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion)
+  .jvmSettings(
+    libraryDependencies += {
+      if (isDotty.value)
+        ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
+          .cross(CrossVersion.for3Use2_13)
+      else
+        "org.specs2" %%% "specs2-core" % Specs2Version % Test
+    })
+  .jsSettings(
     libraryDependencies += {
       if (isDotty.value)
         ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
@@ -227,8 +236,7 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
           .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
       else
         "org.specs2" %%% "specs2-core" % Specs2Version % Test
-    })
-  .jsSettings(
+    },
     Compile / doc / sources := {
       if (isDotty.value)
         Seq()
@@ -361,7 +369,16 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core, kernelTestkit)
   .settings(
     name := "cats-effect-testkit",
-    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
+    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion)
+  .jvmSettings(
+    libraryDependencies += {
+      if (isDotty.value)
+        ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
+          .cross(CrossVersion.for3Use2_13)
+      else
+        "org.specs2" %%% "specs2-core" % Specs2Version % Test
+    })
+  .jsSettings(
     libraryDependencies += {
       if (isDotty.value)
         ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
@@ -399,6 +416,18 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(kernel)
   .settings(
     name := "cats-effect-std",
+    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test)
+  .jvmSettings(
+    libraryDependencies += {
+      if (isDotty.value)
+        ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
+          .cross(CrossVersion.for3Use2_13)
+          .exclude("org.scalacheck", "scalacheck_2.13")
+          .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
+      else
+        "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
+    })
+  .jsSettings(
     libraryDependencies += {
       if (isDotty.value)
         ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
@@ -408,9 +437,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
           .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
       else
         "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
-    },
-    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test
-  )
+    })
 
 /**
  * A trivial pair of trivial example apps primarily used to show that IOApp works as a practical
