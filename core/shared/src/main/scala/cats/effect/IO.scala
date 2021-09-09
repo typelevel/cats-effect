@@ -1463,6 +1463,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def productR[A, B](left: IO[A])(right: IO[B]): IO[B] =
       left.productR(right)
 
+    override def replicateA[A](n: Int, fa: IO[A]): IO[List[A]] =
+      fa.replicateA(n)
+
     def start[A](fa: IO[A]): IO[FiberIO[A]] =
       fa.start
 
