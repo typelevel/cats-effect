@@ -151,7 +151,7 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
    * conditions have been met.
    */
   def state: State =
-    blocking(synchronized(stateRef))
+    synchronized(stateRef)
 
   /**
    * Returns the current interval between "now" and the earliest scheduled task. If there are
