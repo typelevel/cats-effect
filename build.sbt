@@ -436,7 +436,8 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
       else
         "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     },
-    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test)
+    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
+  )
 
 /**
  * A trivial pair of trivial example apps primarily used to show that IOApp works as a practical

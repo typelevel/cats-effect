@@ -29,10 +29,13 @@ import scala.util.control.NonFatal
 import java.util.Base64
 
 /**
- * A `scala.concurrent.ExecutionContext` implementation and a provider of `cats.effect.Timer`
- * instances, that can simulate async boundaries and time passage, useful for testing purposes.
+ * A [[scala.concurrent.ExecutionContext]] implementation that can simulate async boundaries and
+ * time passage, useful for law testing purposes. This is intended primarily for datatype
+ * implementors. Most end-users will be better served by the `cats.effect.testkit.TestControl`
+ * utility, rather than using `TestContext` directly.
  *
  * Usage for simulating an `ExecutionContext`):
+ *
  * {{{
  *   implicit val ec = TestContext()
  *
@@ -55,68 +58,6 @@ import java.util.Base64
  *   assert(ec.state.tasks.isEmpty)
  *   assert(ec.state.lastReportedFailure == None)
  * }}}
- *
- * Our `TestContext` can also simulate time passage, as we are able to builds a
- * `cats.effect.Timer` instance for any data type that has a `LiftIO` instance:
- *
- * {{{
- *   val ctx = TestContext()
- *
- *   val timer: Timer[IO] = ctx.timer[IO]
- * }}}
- *
- * We can now simulate actual time:
- *
- * {{{
- *   val io = timer.sleep(10.seconds) *> IO(1 + 1)
- *   val f = io.unsafeToFuture()
- *
- *   // This invariant holds true, because our IO is async
- *   assert(f.value == None)
- *
- *   // Not yet completed, because this does not simulate time passing:
- *   ctx.tick()
- *   assert(f.value == None)
- *
- *   // Simulating time passing:
- *   ctx.tick(10.seconds)
- *   assert(f.value == Some(Success(2))
- * }}}
- *
- * Simulating time makes this pretty useful for testing race conditions:
- *
- * {{{
- *   val never = IO.async[Int](_ => {})
- *   val timeoutError = new TimeoutException
- *   val timeout = timer.sleep(10.seconds) *> IO.raiseError[Int](timeoutError)
- *
- *   val pair = (never, timeout).parMapN(_ + _)
- *
- *   // Not yet
- *   ctx.tick()
- *   assert(f.value == None)
- *   // Not yet
- *   ctx.tick(5.seconds)
- *   assert(f.value == None)
- *
- *   // Good to go:
- *   ctx.tick(5.seconds)
- *   assert(f.value, Some(Failure(timeoutError)))
- * }}}
- *
- * @define timerExample
- *   {{{ val ctx = TestContext() // Building a Timer[IO] from this: implicit val timer:
- *   Timer[IO] = ctx.timer[IO]
- *
- * // Can now simulate time val io = timer.sleep(10.seconds) *> IO(1 + 1) val f =
- * io.unsafeToFuture()
- *
- * // This invariant holds true, because our IO is async assert(f.value == None)
- *
- * // Not yet completed, because this does not simulate time passing: ctx.tick() assert(f.value
- * == None)
- *
- * // Simulating time passing: ctx.tick(10.seconds) assert(f.value == Some(Success(2)) }}}
  */
 final class TestContext private (_seed: Long) extends ExecutionContext { self =>
   import TestContext.{Encoder, State, Task}
@@ -130,17 +71,11 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
     lastReportedFailure = None
   )
 
-  /**
-   * Inherited from `ExecutionContext`, schedules a runnable for execution.
-   */
   def execute(r: Runnable): Unit =
     synchronized {
       stateRef = stateRef.execute(r)
     }
 
-  /**
-   * Inherited from `ExecutionContext`, reports uncaught errors.
-   */
   def reportFailure(cause: Throwable): Unit =
     synchronized {
       stateRef = stateRef.copy(lastReportedFailure = Some(cause))
@@ -150,8 +85,7 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
    * Returns the internal state of the `TestContext`, useful for testing that certain execution
    * conditions have been met.
    */
-  def state: State =
-    synchronized(stateRef)
+  def state: State = synchronized(stateRef)
 
   /**
    * Returns the current interval between "now" and the earliest scheduled task. If there are
@@ -268,6 +202,10 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
       def reportFailure(cause: Throwable): Unit = self.reportFailure(cause)
     }
 
+  /**
+   * Derives a new `ExecutionContext` which delegates to `this`, but wrapping all tasks in
+   * [[scala.concurrent.blocking]].
+   */
   def deriveBlocking(): ExecutionContext =
     new ExecutionContext {
       import scala.concurrent.blocking

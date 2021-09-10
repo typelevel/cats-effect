@@ -111,9 +111,7 @@ class TestControlSpec extends BaseSpec {
 
   "executeFully" should {
     "run a simple IO" in real {
-      TestControl.executeFully(simple) flatMap { r =>
-        IO(r must beSome(beRight(())))
-      }
+      TestControl.executeFully(simple) flatMap { r => IO(r must beSome(beRight(()))) }
     }
 
     "run an IO with long sleeps" in real {
@@ -123,9 +121,7 @@ class TestControlSpec extends BaseSpec {
     }
 
     "detect a deadlock" in real {
-      TestControl.executeFully(deadlock) flatMap { r =>
-        IO(r must beNone)
-      }
+      TestControl.executeFully(deadlock) flatMap { r => IO(r must beNone) }
     }
   }
 }
