@@ -307,7 +307,7 @@ object TestControl {
 
       val runtime: IORuntime = IORuntime(
         ctx,
-        ctx,
+        ctx.deriveBlocking(),
         new Scheduler {
           def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
             val cancel = ctx.schedule(delay, task)

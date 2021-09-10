@@ -268,6 +268,14 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
       def reportFailure(cause: Throwable): Unit = self.reportFailure(cause)
     }
 
+  def deriveBlocking(): ExecutionContext =
+    new ExecutionContext {
+      import scala.concurrent.blocking
+
+      def execute(runnable: Runnable): Unit = blocking(self.execute(runnable))
+      def reportFailure(cause: Throwable): Unit = self.reportFailure(cause)
+    }
+
   def now(): FiniteDuration = stateRef.clock
 
   def seed: String =
