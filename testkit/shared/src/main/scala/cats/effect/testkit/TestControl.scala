@@ -19,19 +19,35 @@ package testkit
 
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 
+import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
 /**
- * Implements a fully functional single-threaded runtime for [[cats.effect.IO]]. When using the
- * [[runtime]] provided by this type, `IO` programs will be executed on a single JVM thread,
- * ''similar'' to how they would behave if the production runtime were configured to use a
- * single worker thread regardless of underlying physical thread count. Calling one of the
- * `unsafeRun` methods on an `IO` will submit it to the runtime for execution, but nothing will
- * actually evaluate until one of the ''tick'' methods on this class are called. If the desired
- * behavior is to simply run the `IO` fully to completion within the mock environment,
- * respecting monotonic time, then [[tickAll]] is likely the desired method.
+ * Implements a fully functional single-threaded runtime for a [[cats.effect.IO]] program. When
+ * using this control system, `IO` programs will be executed on a single JVM thread, ''similar''
+ * to how they would behave if the production runtime were configured to use a single worker
+ * thread regardless of underlying physical thread count. The results of the underlying `IO`
+ * will be produced by the [[results]] effect when ready, but nothing will actually evaluate
+ * until one of the ''tick'' effects on this class are sequenced. If the desired behavior is to
+ * simply run the `IO` fully to completion within the mock environment, respecting monotonic
+ * time, then [[tickAll]] is likely the desired effect (or, alternatively,
+ * [[TestControl.executeFully]]).
  *
- * Where things ''differ'' from the production runtime is in two critical areas.
+ * In other words, `TestControl` is sort of like a "handle" to the runtime internals within the
+ * context of a specific `IO`'s execution. It makes it possible for users to manipulate and
+ * observe the execution of the `IO` under test from an external vantage point. It is important
+ * to understand that the ''outer'' `IO`s (e.g. those returned by the [[tick]] or [[results]]
+ * methods) are ''not'' running under the test control environment, and instead they are meant
+ * to be run by some outer runtime. Interactions between the outer runtime and the inner runtime
+ * (potentially via mechanisms like [[cats.effect.std.Queue]] or
+ * [[cats.effect.kernel.Deferred]]) are quite tricky and should only be done with extreme care.
+ * The likely outcome in such scenarios is that the `TestControl` runtime will detect the inner
+ * `IO` as being deadlocked whenever it is actually waiting on the external runtime. This could
+ * result in strange effects such as [[tickAll]] or `executeFully` terminating early. Do not
+ * construct such scenarios unless you're very confident you understand the implications of what
+ * you're doing.
+ *
+ * Where things ''differ'' from a single-threaded production runtime is in two critical areas.
  *
  * First, whenever multiple fibers are outstanding and ready to be resumed, the `TestControl`
  * runtime will ''randomly'' choose between them, rather than taking them in a first-in,
@@ -59,11 +75,11 @@ import scala.concurrent.duration.FiniteDuration
  * which is ''intended'' to bring the loop to a halt. However, because the immediate task queue
  * will never be empty, the test runtime will never advance time, meaning that the 10
  * milliseconds will never elapse and the timeout will not be hit. This will manifest as the
- * [[tick]] and [[tickAll]] functions simply running forever and not returning if called.
- * [[tickOne]] is safe to call on the above program, but it will always return `true`.
+ * [[tick]] and [[tickAll]] effects simply running forever and not returning if called.
+ * [[tickOne]] is safe to call on the above program, but it will always produce `true`.
  *
- * In order to advance time, you must use the [[advance]] method to move the clock forward by a
- * specified offset (which must be greater than 0). If you use the `tickAll` method, the clock
+ * In order to advance time, you must use the [[advance]] effect to move the clock forward by a
+ * specified offset (which must be greater than 0). If you use the `tickAll` effect, the clock
  * will be automatically advanced by the minimum amount necessary to reach the next pending
  * task. For example, if the program contains an [[IO.sleep]] for `500.millis`, and there are no
  * shorter sleeps, then time will need to be advanced by 500 milliseconds in order to make that
@@ -86,8 +102,8 @@ import scala.concurrent.duration.FiniteDuration
  * and exclusively through the [[IO.realTime]], [[IO.monotonic]], and [[IO.sleep]] functions
  * (and other functions built on top of these). From the perspective of these functions, all
  * computation is infinitely fast, and the only effect which advances time is [[IO.sleep]] (or
- * if something external, such as the test harness, calls the [[advance]] method). However, an
- * effect such as `IO(System.currentTimeMillis())` will "see through" the illusion, since the
+ * if something external, such as the test harness, sequences the [[advance]] effect). However,
+ * an effect such as `IO(System.currentTimeMillis())` will "see through" the illusion, since the
  * system clock is unaffected by this runtime. This is one reason why it is important to always
  * and exclusively rely on `realTime` and `monotonic`, either directly on `IO` or via the
  * typeclass abstractions.
@@ -96,63 +112,32 @@ import scala.concurrent.duration.FiniteDuration
  * runtime will detect this situation as an asynchronous deadlock.
  *
  * @see
- *   [[cats.effect.unsafe.IORuntime]]
- * @see
  *   [[cats.effect.kernel.Clock]]
  * @see
  *   [[tickAll]]
  */
-final class TestControl private (config: IORuntimeConfig, _seed: Option[String]) {
+final class TestControl[+A] private (ctx: TestContext, _results: Future[A]) {
 
-  private[this] val ctx =
-    _seed match {
-      case Some(seed) => TestContext(seed)
-      case None => TestContext()
-    }
+  val results: IO[Option[Either[Throwable, A]]] =
+    IO(_results.value.map(_.toEither))
 
   /**
-   * An [[cats.effect.unsafe.IORuntime]] which is controlled by the side-effecting methods on
-   * this class.
-   *
-   * @see
-   *   [[tickAll]]
+   * Produces the minimum time which must elapse for a fiber to become eligible for execution.
+   * If fibers are currently eligible for execution, the result will be `Duration.Zero`.
    */
-  val runtime: IORuntime = IORuntime(
-    ctx,
-    ctx,
-    new Scheduler {
-      def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-        val cancel = ctx.schedule(delay, task)
-        () => cancel()
-      }
-
-      def nowMillis() =
-        ctx.now().toMillis
-
-      def monotonicNanos() =
-        ctx.now().toNanos
-    },
-    () => (),
-    config
-  )
-
-  /**
-   * Returns the minimum time which must elapse for a fiber to become eligible for execution. If
-   * fibers are currently eligible for execution, the result will be `Duration.Zero`.
-   */
-  def nextInterval(): FiniteDuration =
-    ctx.nextInterval()
+  val nextInterval: IO[FiniteDuration] =
+    IO(ctx.nextInterval())
 
   /**
    * Advances the runtime clock by the specified amount (which must be positive). Does not
    * execute any fibers, though may result in some previously-sleeping fibers to become pending
    * and eligible for execution in the next [[tick]].
    */
-  def advance(time: FiniteDuration): Unit =
-    ctx.advance(time)
+  def advance(time: FiniteDuration): IO[Unit] =
+    IO(ctx.advance(time))
 
   /**
-   * A convenience method which advances time by the specified amount and then ticks once. Note
+   * A convenience effect which advances time by the specified amount and then ticks once. Note
    * that this method is very subtle and will often ''not'' do what you think it should. For
    * example:
    *
@@ -160,10 +145,7 @@ final class TestControl private (config: IORuntimeConfig, _seed: Option[String])
    *   // will never print!
    *   val program = IO.sleep(100.millis) *> IO.println("Hello, World!")
    *
-   *   val control = TestControl()
-   *   program.unsafeRunAndForget()(control.runtime)
-   *
-   *   control.advanceAndTick(1.second)
+   *   TestControl.execute(program).flatMap(_.advanceAndTick(1.second))
    * }}}
    *
    * This is very subtle, but the problem is that time is advanced ''before'' the [[IO.sleep]]
@@ -173,24 +155,25 @@ final class TestControl private (config: IORuntimeConfig, _seed: Option[String])
    * only been advanced by `1.second`, thus the `sleep` never completes and the `println` cannot
    * ever run.
    *
-   * There are two possible solutions to this problem: either call [[tick]] ''first'' (before
-   * calling `advanceAndTick`) to ensure that the `sleep` has a chance to schedule itself, or
-   * simply use [[tickAll]] if you do not need to run assertions between time windows.
+   * There are two possible solutions to this problem: either sequence [[tick]] ''first''
+   * (before sequencing `advanceAndTick`) to ensure that the `sleep` has a chance to schedule
+   * itself, or simply use [[tickAll]] if you do not need to run assertions between time
+   * windows.
    *
    * @see
    *   [[advance]]
    * @see
    *   [[tick]]
    */
-  def advanceAndTick(time: FiniteDuration): Unit =
-    ctx.advanceAndTick(time)
+  def advanceAndTick(time: FiniteDuration): IO[Unit] =
+    IO(ctx.advanceAndTick(time))
 
   /**
-   * Executes a single pending fiber and returns immediately. Does not advance time. Returns
+   * Executes a single pending fiber and returns immediately. Does not advance time. Produces
    * `false` if no fibers are pending.
    */
-  def tickOne(): Boolean =
-    ctx.tickOne()
+  val tickOne: IO[Boolean] =
+    IO(ctx.tickOne())
 
   /**
    * Executes all pending fibers in a random order, repeating on new tasks enqueued by those
@@ -202,13 +185,13 @@ final class TestControl private (config: IORuntimeConfig, _seed: Option[String])
    * @see
    *   [[tickAll]]
    */
-  def tick(): Unit =
-    ctx.tick()
+  val tick: IO[Unit] =
+    IO(ctx.tick())
 
   /**
    * Drives the runtime until all fibers have been executed, then advances time until the next
    * fiber becomes available (if relevant), and repeats until no further fibers are scheduled.
-   * Analogous to, though critically not the same as, running an [[IO]] ] on a single-threaded
+   * Analogous to, though critically not the same as, running an [[IO]] on a single-threaded
    * production runtime.
    *
    * This function will terminate for `IO`s which deadlock ''asynchronously'', but any program
@@ -219,19 +202,19 @@ final class TestControl private (config: IORuntimeConfig, _seed: Option[String])
    * @see
    *   [[tick]]
    */
-  def tickAll(): Unit =
-    ctx.tickAll()
+  val tickAll: IO[Unit] =
+    IO(ctx.tickAll())
 
   /**
-   * Returns `true` if the runtime has no remaining fibers, sleeping or otherwise, indicating an
-   * asynchronous deadlock has occurred. Or rather, ''either'' an asynchronous deadlock, or some
-   * interaction with an external asynchronous scheduler (such as another thread pool).
+   * Produces `true` if the runtime has no remaining fibers, sleeping or otherwise, indicating
+   * an asynchronous deadlock has occurred. Or rather, ''either'' an asynchronous deadlock, or
+   * some interaction with an external asynchronous scheduler (such as another thread pool).
    */
-  def isDeadlocked(): Boolean =
-    ctx.state.tasks.isEmpty
+  val isDeadlocked: IO[Boolean] =
+    IO(ctx.state.tasks.isEmpty)
 
   /**
-   * Produces the base64-encoded seed which governs the random task interleaving during each
+   * Returns the base64-encoded seed which governs the random task interleaving during each
    * [[tick]]. This is useful for reproducing test failures which came about due to some
    * unexpected (though clearly plausible) execution order.
    */
@@ -240,53 +223,130 @@ final class TestControl private (config: IORuntimeConfig, _seed: Option[String])
 
 object TestControl {
 
-  def apply(
-      config: IORuntimeConfig = IORuntimeConfig(),
-      seed: Option[String] = None): TestControl =
-    new TestControl(config, seed)
-
   /**
-   * Executes a given [[IO]] under fully mocked runtime control. This is a convenience method
-   * wrapping the process of creating a new `TestControl` runtime, then using it to evaluate the
-   * given `IO`, with the `body` in control of the actual ticking process. This method is very
-   * useful when writing assertions about program state ''between'' clock ticks, and even more
-   * so when time must be explicitly advanced by set increments. If your assertions are entirely
-   * intrinsic (within the program) and the test is such that time should advance in an
-   * automatic fashion, the [[executeFully]] method may be a more convenient option.
+   * Executes a given [[IO]] under fully mocked runtime control. Produces a `TestControl` which
+   * can be used to manipulate the mocked runtime and retrieve the results. Note that the outer
+   * `IO` (and the `IO`s produced by the `TestControl`) do ''not'' evaluate under mocked runtime
+   * control and must be evaluated by some external harness, usually some test framework
+   * integration.
    *
-   * The `TestControl` parameter of the `body` provides control over the mock runtime which is
-   * executing the program. The second parameter produces the ''results'' of the program, if the
-   * program has completed. If the program has not yet completed, this function will return
-   * `None`.
+   * A simple example (returns an `IO` which must, itself, be run) using MUnit assertion syntax:
+   *
+   * {{{
+   *   val program = for {
+   *     first <- IO.realTime   // IO.monotonic also works
+   *     _ <- IO.println("it is currently " + first)
+   *
+   *     _ <- IO.sleep(100.milis)
+   *     second <- IO.realTime
+   *     _ <- IO.println("we slept and now it is " + second)
+   *
+   *     _ <- IO.sleep(1.hour).timeout(1.minute)
+   *     third <- IO.realTime
+   *     _ <- IO.println("we slept a second time and now it is " + third)
+   *   } yield ()
+   *
+   *   TestControl.execute(program) flatMap { control =>
+   *     for {
+   *       first <- control.results
+   *       _ <- IO(assert(first == None))   // we haven't finished yet
+   *
+   *       _ <- control.tick
+   *       // at this point, the "it is currently ..." line will have printed
+   *
+   *       next1 <- control.nextInterval
+   *       _ <- IO(assert(next1 == 100.millis))
+   *
+   *       _ <- control.advance(100.millis)
+   *       // nothing has happened yet!
+   *       _ <- control.tick
+   *       // now the "we slept and now it is ..." line will have printed
+   *
+   *       second <- control.results
+   *       _ <- IO(assert(second == None))  // we're still not done yet
+   *
+   *       next2 <- control.nextInterval
+   *       _ <- IO(assert(next2 == 1.minute))   // we need to wait one minute for our next task, since we will hit the timeout
+   *
+   *       _ <- control.advance(15.seconds)
+   *       _ <- control.tick
+   *       // nothing happens!
+   *
+   *       next3 <- control.nextInterval
+   *       _ <- IO(assert(next3 == 45.seconds))   // haven't gone far enough to hit the timeout
+   *
+   *       _ <- control.advanceAndTick(45.seconds)
+   *       // at this point, nothing will print because we hit the timeout exception!
+   *
+   *       third <- control.results
+   *
+   *       _ <- IO {
+   *         assert(third.isDefined)
+   *         assert(third.get.isLeft)   // an exception, not a value!
+   *         assert(third.get.left.get.isInstanceOf[TimeoutException])
+   *       }
+   *     } yield ()
+   *   }
+   * }}}
+   *
+   * The above will run to completion within milliseconds.
+   *
+   * If your assertions are entirely intrinsic (within the program) and the test is such that
+   * time should advance in an automatic fashion, [[executeFully]] may be a more convenient
+   * option.
    */
-  def execute[A, B](
+  def execute[A](
       program: IO[A],
       config: IORuntimeConfig = IORuntimeConfig(),
-      seed: Option[String] = None)(
-      body: (TestControl, () => Option[Either[Throwable, A]]) => B): B = {
+      seed: Option[String] = None): IO[TestControl[A]] =
+    IO {
+      val ctx = seed match {
+        case Some(seed) => TestContext(seed)
+        case None => TestContext()
+      }
 
-    val control = TestControl(config = config, seed = seed)
-    val f = program.unsafeToFuture()(control.runtime)
-    body(control, () => f.value.map(_.toEither))
-  }
+      val runtime: IORuntime = IORuntime(
+        ctx,
+        ctx,
+        new Scheduler {
+          def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
+            val cancel = ctx.schedule(delay, task)
+            () => cancel()
+          }
+
+          def nowMillis() =
+            ctx.now().toMillis
+
+          def monotonicNanos() =
+            ctx.now().toNanos
+        },
+        () => (),
+        config
+      )
+
+      val results = program.unsafeToFuture()(runtime)
+      new TestControl(ctx, results)
+    }
 
   /**
    * Executes an [[IO]] under fully mocked runtime control, returning the final results. This is
-   * very similar to calling `unsafeRunSync` on the program, except that the scheduler will use
-   * a mocked and quantized notion of time, all while executing on a singleton worker thread.
-   * This can cause some programs to deadlock which would otherwise complete normally, but it
-   * also allows programs which involve [[IO.sleep]] s of any length to complete almost
-   * instantly with correct semantics.
+   * very similar to calling `unsafeRunSync` on the program and wrapping it in an `IO`, except
+   * that the scheduler will use a mocked and quantized notion of time, all while executing on a
+   * singleton worker thread. This can cause some programs to deadlock which would otherwise
+   * complete normally, but it also allows programs which involve [[IO.sleep]] s of any length
+   * to complete almost instantly with correct semantics.
+   *
+   * Note that any program which involves an [[IO.async]] that waits for some external thread
+   * (including [[IO.evalOn]]) will be detected as a deadlock and will result in the
+   * `executeFully` effect immediately producing `None`.
    *
    * @return
-   *   `None` if `program` does not complete, otherwise `Some` of the results.
+   *   An `IO` which produces `None` if `program` does not complete, otherwise `Some` of the
+   *   results.
    */
   def executeFully[A](
       program: IO[A],
       config: IORuntimeConfig = IORuntimeConfig(),
-      seed: Option[String] = None): Option[Either[Throwable, A]] =
-    execute(program, config = config, seed = seed) { (control, result) =>
-      control.tickAll()
-      result()
-    }
+      seed: Option[String] = None): IO[Option[Either[Throwable, A]]] =
+    execute(program, config = config, seed = seed).flatMap(c => c.tickAll *> c.results)
 }
