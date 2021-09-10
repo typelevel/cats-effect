@@ -1466,8 +1466,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     override def blocking[A](thunk: => A): IO[A] = IO.blocking(thunk)
 
-    override def interruptible[A](many: Boolean)(thunk: => A): IO[A] =
-      IO.interruptible(many)(thunk)
+    override def interruptible[A](thunk: => A): IO[A] = IO.interruptible(false)(thunk)
+
+    override def interruptibleMany[A](thunk: => A): IO[A] = IO.interruptible(true)(thunk)
 
     def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
       IO.suspend(hint)(thunk)

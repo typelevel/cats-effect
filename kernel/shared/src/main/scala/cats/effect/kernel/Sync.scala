@@ -88,8 +88,12 @@ trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Unique[F] 
    *   The side effect which is to be suspended in `F[_]` and evaluated on a blocking execution
    *   context
    */
-  def interruptible[A](many: Boolean)(thunk: => A): F[A] =
+  private[effect] def interruptible[A](many: Boolean)(thunk: => A): F[A] =
     suspend(if (many) InterruptibleMany else InterruptibleOnce)(thunk)
+
+  def interruptible[A](thunk: => A): F[A] = interruptible(false)(thunk)
+
+  def interruptibleMany[A](thunk: => A): F[A] = interruptible(true)(thunk)
 
   def suspend[A](hint: Sync.Type)(thunk: => A): F[A]
 }
