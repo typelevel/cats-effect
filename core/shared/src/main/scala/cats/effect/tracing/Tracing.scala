@@ -17,54 +17,16 @@
 package cats.effect.tracing
 
 import scala.collection.mutable.ArrayBuffer
-import scala.reflect.NameTransformer
 
-private[effect] object Tracing extends ClassValue[TracingEvent] {
+private[effect] object Tracing extends TracingPlatform {
 
   import TracingConstants._
 
-  override protected def computeValue(cls: Class[_]): TracingEvent = {
-    buildEvent()
-  }
-
-  def calculateTracingEvent(cls: Class[_]): TracingEvent = {
-    if (isCachedStackTracing) {
-      get(cls)
-    } else if (isFullStackTracing) {
-      buildEvent()
-    } else {
-      null
-    }
-  }
-
-  private[this] def buildEvent(): TracingEvent = {
+  private[tracing] def buildEvent(): TracingEvent = {
     new TracingEvent.StackTrace()
   }
 
   private[this] final val runLoopFilter: Array[String] = Array("cats.effect.", "scala.runtime.")
-
-  private[this] final val stackTraceFilter: Array[String] = Array(
-    "cats.effect.",
-    "cats.",
-    "sbt.",
-    "java.",
-    "sun.",
-    "scala."
-  )
-
-  private[this] def applyStackTraceFilter(callSiteClassName: String): Boolean = {
-    val len = stackTraceFilter.length
-    var idx = 0
-    while (idx < len) {
-      if (callSiteClassName.startsWith(stackTraceFilter(idx))) {
-        return true
-      }
-
-      idx += 1
-    }
-
-    false
-  }
 
   private[this] def getOpAndCallSite(
       stackTrace: Array[StackTraceElement]): StackTraceElement = {
@@ -74,10 +36,12 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
       val methodSite = stackTrace(idx - 1)
       val callSite = stackTrace(idx)
       val callSiteClassName = callSite.getClassName
+      val callSiteMethodName = callSite.getMethodName
+      val callSiteFileName = callSite.getFileName
 
-      if (!applyStackTraceFilter(callSiteClassName)) {
+      if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName, callSiteFileName)) {
         val methodSiteMethodName = methodSite.getMethodName
-        val op = NameTransformer.decode(methodSiteMethodName)
+        val op = decodeMethodName(methodSiteMethodName)
 
         return new StackTraceElement(
           op + " @ " + callSiteClassName,

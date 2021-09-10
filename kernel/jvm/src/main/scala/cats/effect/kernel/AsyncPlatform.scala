@@ -22,11 +22,10 @@ import java.util.concurrent.CompletionException
 private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
 
   /**
-   * Suspend a [[java.util.concurrent.CompletableFuture]] into the `F[_]`
-   * context.
+   * Suspend a [[java.util.concurrent.CompletableFuture]] into the `F[_]` context.
    *
-   * @param fut The [[java.util.concurrent.CompletableFuture]] to
-   * suspend in `F[_]`
+   * @param fut
+   *   The [[java.util.concurrent.CompletableFuture]] to suspend in `F[_]`
    */
   def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] =
     flatMap(fut) { cf =>
