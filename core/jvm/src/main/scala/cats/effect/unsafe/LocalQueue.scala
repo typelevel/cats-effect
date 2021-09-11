@@ -227,29 +227,26 @@ private final class LocalQueue {
    *      thread which is concurrently stealing from this queue, in which case the fiber will be
    *      added to the back of the queue.
    *
-   * 2. There is not enough free capacity and some other thread is concurrently stealing from
-   * this queue, in which case the fiber will be enqueued on the `overflow` queue.
+   *   1. There is not enough free capacity and some other thread is concurrently stealing from
+   *      this queue, in which case the fiber will be enqueued on the `external` queue.
    *
-   * 3. There is not enough free capacity in this queue and no other thread is stealing from it,
-   * in which case, half of this queue, including the new fiber will be offloaded to the
-   * `batched` queue as a bulk operation.
+   *   1. There is not enough free capacity in this queue and no other thread is stealing from
+   *      it, in which case, half of this queue, including the new fiber will be offloaded to
+   *      the `batched` queue as a bulk operation.
    *
    * @param fiber
    *   the fiber to be added to the local queue
-   * @param batched
-   *   a reference to a striped concurrent queue where half of the queue can be spilled over as
-   *   one bulk operation
-   * @param overflow
-   *   a reference to a striped concurrent queue where excess fibers can be enqueued in the case
-   *   that there is not enough capacity in the local queue
+   * @param external
+   *   a reference to a striped concurrent queue where excess fibers can be enqueued (either
+   *   individually or in batches) in the case that there is not enough leftover capacity in the
+   *   local queue
    * @param random
    *   a reference to an uncontended source of randomness, to be passed along to the striped
    *   concurrent queues when executing their enqueue operations
    */
   def enqueue(
       fiber: IOFiber[_],
-      batched: ScalQueue[Array[IOFiber[_]]],
-      overflow: ScalQueue[IOFiber[_]],
+      external: ScalQueue[AnyRef],
       random: ThreadLocalRandom): Unit = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
@@ -282,10 +279,10 @@ private final class LocalQueue {
       if (steal != real) {
         // Outcome 2, there is a concurrent stealer and there is no available
         // capacity for the new fiber. Proceed to enqueue the fiber on the
-        // overflow queue and break out of the loop.
+        // external queue and break out of the loop.
         overflowSpilloverCount += 1
         tailPublisher.lazySet(tl)
-        overflow.offer(fiber, random)
+        external.offer(fiber, random)
         return
       }
 
@@ -295,7 +292,7 @@ private final class LocalQueue {
       // the queue into the batched queue. This is necessary because the next
       // fibers to be executed may spawn new fibers, which can quickly be
       // enqueued to the local queue, instead of always being delegated to the
-      // overflow queue one by one.
+      // external queue one by one.
       val realPlusHalf = unsignedShortAddition(real, HalfLocalQueueCapacity)
       val newHd = pack(realPlusHalf, realPlusHalf)
       if (head.compareAndSet(hd, newHd)) {
@@ -327,7 +324,7 @@ private final class LocalQueue {
 
         // Enqueue all of the batches of fibers on the batched queue with a bulk
         // add operation.
-        batched.offerAll(batches, random)
+        external.offerAll(batches, random)
         // Loop again for a chance to insert the original fiber to be enqueued
         // on the local queue.
       }
@@ -654,8 +651,8 @@ private final class LocalQueue {
    * Steals a batch of enqueued fibers and transfers the whole batch to the batched queue.
    *
    * This method is called by the runtime to restore fairness guarantees between fibers in the
-   * local queue compared to fibers on the overflow and batched queues. Every few iterations,
-   * the overflow and batched queues are checked for fibers and those fibers are executed. In
+   * local queue compared to fibers on the external and batched queues. Every few iterations,
+   * the external and batched queues are checked for fibers and those fibers are executed. In
    * the case of the batched queue, a batch of fibers might be obtained, which cannot fully fit
    * into the local queue due to insufficient capacity. In that case, this method is called to
    * drain one full batch of fibers, which in turn creates space for the fibers arriving from
