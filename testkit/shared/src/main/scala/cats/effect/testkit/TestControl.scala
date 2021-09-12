@@ -17,10 +17,12 @@
 package cats.effect
 package testkit
 
+import cats.Id
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 
-import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
+
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Implements a fully functional single-threaded runtime for a [[cats.effect.IO]] program. When
@@ -116,10 +118,11 @@ import scala.concurrent.duration.FiniteDuration
  * @see
  *   [[tickAll]]
  */
-final class TestControl[+A] private (ctx: TestContext, _results: Future[A]) {
+final class TestControl[A] private (
+    ctx: TestContext,
+    _results: AtomicReference[Option[Outcome[Id, Throwable, A]]]) {
 
-  val results: IO[Option[Either[Throwable, A]]] =
-    IO(_results.value.map(_.toEither))
+  val results: IO[Option[Outcome[Id, Throwable, A]]] = IO(_results.get)
 
   /**
    * Produces the minimum time which must elapse for a fiber to become eligible for execution.
@@ -282,8 +285,8 @@ object TestControl {
    *
    *       _ <- IO {
    *         assert(third.isDefined)
-   *         assert(third.get.isLeft)   // an exception, not a value!
-   *         assert(third.get.left.get.isInstanceOf[TimeoutException])
+   *         assert(third.get.isError)   // an exception, not a value!
+   *         assert(third.get.fold(false, _.isInstanceOf[TimeoutException], _ => false))
    *       }
    *     } yield ()
    *   }
@@ -324,7 +327,8 @@ object TestControl {
         config
       )
 
-      val results = program.unsafeToFuture()(runtime)
+      val results = new AtomicReference[Option[Outcome[Id, Throwable, A]]](None)
+      program.unsafeRunAsyncOutcome(oc => results.set(Some(oc)))(runtime)
       new TestControl(ctx, results)
     }
 
@@ -347,6 +351,6 @@ object TestControl {
   def executeFully[A](
       program: IO[A],
       config: IORuntimeConfig = IORuntimeConfig(),
-      seed: Option[String] = None): IO[Option[Either[Throwable, A]]] =
+      seed: Option[String] = None): IO[Option[Outcome[Id, Throwable, A]]] =
     execute(program, config = config, seed = seed).flatMap(c => c.tickAll *> c.results)
 }

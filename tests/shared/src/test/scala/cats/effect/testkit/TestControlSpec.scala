@@ -17,6 +17,10 @@
 package cats.effect
 package testkit
 
+import cats.Id
+
+import org.specs2.matcher.Matcher
+
 import scala.concurrent.duration._
 
 class TestControlSpec extends BaseSpec {
@@ -33,7 +37,7 @@ class TestControlSpec extends BaseSpec {
     third <- IO.monotonic
   } yield (first.toCoarsest, second.toCoarsest, third.toCoarsest)
 
-  val deadlock = IO.never
+  val deadlock: IO[Unit] = IO.never
 
   "execute" should {
     "run a simple IO" in real {
@@ -45,7 +49,7 @@ class TestControlSpec extends BaseSpec {
           _ <- control.tick
 
           r2 <- control.results
-          _ <- IO(r2 must beSome(beRight(())))
+          _ <- IO(r2 must beSome(beSucceeded(())))
         } yield ok
       }
     }
@@ -59,7 +63,7 @@ class TestControlSpec extends BaseSpec {
           _ <- control.tick
 
           r2 <- control.results
-          _ <- IO(r2 must beSome(beRight(())))
+          _ <- IO(r2 must beSome(beSucceeded(())))
         } yield ok
       }
     }
@@ -87,7 +91,7 @@ class TestControlSpec extends BaseSpec {
           _ <- control.advanceAndTick(1.day)
 
           r4 <- control.results
-          _ <- IO(r4 must beSome(beRight((0.nanoseconds, 1.hour, 25.hours))))
+          _ <- IO(r4 must beSome(beSucceeded((0.nanoseconds, 1.hour, 25.hours))))
         } yield ok
       }
     }
@@ -111,17 +115,38 @@ class TestControlSpec extends BaseSpec {
 
   "executeFully" should {
     "run a simple IO" in real {
-      TestControl.executeFully(simple) flatMap { r => IO(r must beSome(beRight(()))) }
+      TestControl.executeFully(simple) flatMap { r => IO(r must beSome(beSucceeded(()))) }
     }
 
     "run an IO with long sleeps" in real {
       TestControl.executeFully(longSleeps) flatMap { r =>
-        IO(r must beSome(beRight((0.nanoseconds, 1.hour, 25.hours))))
+        IO(r must beSome(beSucceeded((0.nanoseconds, 1.hour, 25.hours))))
       }
     }
 
     "detect a deadlock" in real {
       TestControl.executeFully(deadlock) flatMap { r => IO(r must beNone) }
     }
+
+    "run an IO which produces an error" in real {
+      case object TestException extends RuntimeException
+
+      TestControl.executeFully(IO.raiseError[Unit](TestException)) flatMap { r =>
+        IO(r must beSome(beErrored[Unit](TestException)))
+      }
+    }
+
+    "run an IO which self-cancels" in real {
+      TestControl.executeFully(IO.canceled) flatMap { r => IO(r must beSome(beCanceled[Unit])) }
+    }
   }
+
+  private def beSucceeded[A](value: A): Matcher[Outcome[Id, Throwable, A]] =
+    (_: Outcome[Id, Throwable, A]) == Outcome.succeeded[Id, Throwable, A](value)
+
+  private def beErrored[A](t: Throwable): Matcher[Outcome[Id, Throwable, A]] =
+    (_: Outcome[Id, Throwable, A]) == Outcome.errored[Id, Throwable, A](t)
+
+  private def beCanceled[A]: Matcher[Outcome[Id, Throwable, A]] =
+    (_: Outcome[Id, Throwable, A]) == Outcome.canceled[Id, Throwable, A]
 }
