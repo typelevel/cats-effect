@@ -353,6 +353,9 @@ private final class WorkerThread(
           // queue (due to the local queue being empty).
           val element = external.poll(rnd)
           if (element ne null) {
+            // Announce that the current thread is no longer looking for work.
+            pool.transitionWorkerFromSearching(rnd)
+
             if (element.isInstanceOf[Array[IOFiber[_]]]) {
               // The dequeued element was a batch of fibers. Enqueue the whole
               // batch on the local queue and execute the first fiber.

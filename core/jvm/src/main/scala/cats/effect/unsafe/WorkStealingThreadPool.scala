@@ -86,7 +86,7 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val helperThreads: ScalQueue[HelperThread] = new ScalQueue(threadCount)
 
   private[this] val externalQueue: ScalQueue[AnyRef] =
-    new ScalQueue(threadCount >>> 2)
+    new ScalQueue(threadCount << 2)
 
   /**
    * Represents two unsigned 16 bit integers. The 16 most significant bits track the number of
