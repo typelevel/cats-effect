@@ -34,16 +34,61 @@ ThisBuild / startYear := Some(2020)
 ThisBuild / endYear := Some(2021)
 
 ThisBuild / developers := List(
-  Developer("djspiewak", "Daniel Spiewak", "@djspiewak", url("https://github.com/djspiewak")),
-  Developer("SystemFw", "Fabio Labella", "", url("https://github.com/SystemFw")),
-  Developer("RaasAhsan", "Raas Ahsan", "", url("https://github.com/RaasAhsan")),
-  Developer("TimWSpence", "Tim Spence", "@TimWSpence", url("https://github.com/TimWSpence")),
-  Developer("kubukoz", "Jakub Kozłowski", "@kubukoz", url("https://github.com/kubukoz")),
-  Developer("mpilquist", "Michael Pilquist", "@mpilquist", url("https://github.com/mpilquist")),
-  Developer("vasilmkd", "Vasil Vasilev", "@vasilvasilev97", url("https://github.com/vasilmkd")),
-  Developer("bplommer", "Ben Plommer", "@bplommer", url("https://github.com/bplommer")),
-  Developer("wemrysi", "Emrys Ingersoll", "@wemrysi", url("https://github.com/wemrysi")),
-  Developer("gvolpe", "Gabriel Volpe", "@volpegabriel87", url("https://github.com/gvolpe"))
+  Developer(
+    "djspiewak",
+    "Daniel Spiewak",
+    "djspiewak@gmail.com",
+    url("https://github.com/djspiewak")),
+  Developer(
+    "SystemFw",
+    "Fabio Labella",
+    "fabio.labella2@gmail.com",
+    url("https://github.com/SystemFw")),
+  Developer(
+    "RaasAhsan",
+    "Raas Ahsan",
+    "raas.ahsan@gmail.com",
+    url("https://github.com/RaasAhsan")),
+  Developer(
+    "TimWSpence",
+    "Tim Spence",
+    "timothywspence@gmail.com",
+    url("https://github.com/TimWSpence")),
+  Developer(
+    "kubukoz",
+    "Jakub Kozłowski",
+    "kubukoz@gmail.com",
+    url("https://github.com/kubukoz")),
+  Developer(
+    "mpilquist",
+    "Michael Pilquist",
+    "mpilquist@gmail.com",
+    url("https://github.com/mpilquist")),
+  Developer(
+    "vasilmkd",
+    "Vasil Vasilev",
+    "vasil@vasilev.io",
+    url("https://github.com/vasilmkd")),
+  Developer(
+    "bplommer",
+    "Ben Plommer",
+    "ben.plommer@gmail.com",
+    url("https://github.com/bplommer")),
+  Developer(
+    "wemrysi",
+    "Emrys Ingersoll",
+    "ingersoll@gmail.com",
+    url("https://github.com/wemrysi")),
+  Developer(
+    "armanbilge",
+    "Arman Bilge",
+    "armanbilge@gmail.com",
+    url("https://github.com/armanbilge")),
+  Developer(
+    "gvolpe",
+    "Gabriel Volpe",
+    "volpegabriel@gmail.com",
+    url("https://github.com/gvolpe"))
 )
 
 val PrimaryOS = "ubuntu-latest"
@@ -156,12 +201,12 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.6.1"
-val Specs2Version = "4.12.11"
+val Specs2Version = "4.12.12"
 val ScalaCheckVersion = "1.15.4"
-val DisciplineVersion = "1.1.6"
+val DisciplineVersion = "1.2.2"
 val CoopVersion = "1.1.1"
 
-val MacrotaskExecutorVersion = "0.1.0"
+val MacrotaskExecutorVersion = "0.2.0"
 
 replaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 
@@ -237,13 +282,7 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
       else
         "org.specs2" %%% "specs2-core" % Specs2Version % Test
     },
-    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test,
-    Compile / doc / sources := {
-      if (isDotty.value)
-        Seq()
-      else
-        (Compile / doc / sources).value
-    }
+    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
 
 /**
