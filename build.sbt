@@ -268,12 +268,6 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
       ("org.specs2" %%% "specs2-core" % Specs2Version % Test).cross(CrossVersion.for3Use2_13),
       "org.typelevel" %%% "cats-core" % CatsVersion)
   )
-  .jsSettings(Compile / doc / sources := {
-    if (isDotty.value)
-      Seq()
-    else
-      (Compile / doc / sources).value
-  })
 
 /**
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
