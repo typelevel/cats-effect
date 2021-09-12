@@ -17,9 +17,11 @@
 package cats.effect
 package testkit
 
-import cats.Id
+import cats.{~>, Id}
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
+import cats.syntax.all._
 
+import scala.concurrent.CancellationException
 import scala.concurrent.duration.FiniteDuration
 
 import java.util.concurrent.atomic.AtomicReference
@@ -33,7 +35,7 @@ import java.util.concurrent.atomic.AtomicReference
  * until one of the ''tick'' effects on this class are sequenced. If the desired behavior is to
  * simply run the `IO` fully to completion within the mock environment, respecting monotonic
  * time, then [[tickAll]] is likely the desired effect (or, alternatively,
- * [[TestControl.executeFully]]).
+ * [[TestControl.executeEmbed]]).
  *
  * In other words, `TestControl` is sort of like a "handle" to the runtime internals within the
  * context of a specific `IO`'s execution. It makes it possible for users to manipulate and
@@ -45,7 +47,7 @@ import java.util.concurrent.atomic.AtomicReference
  * [[cats.effect.kernel.Deferred]]) are quite tricky and should only be done with extreme care.
  * The likely outcome in such scenarios is that the `TestControl` runtime will detect the inner
  * `IO` as being deadlocked whenever it is actually waiting on the external runtime. This could
- * result in strange effects such as [[tickAll]] or `executeFully` terminating early. Do not
+ * result in strange effects such as [[tickAll]] or `executeEmbed` terminating early. Do not
  * construct such scenarios unless you're very confident you understand the implications of what
  * you're doing.
  *
@@ -295,7 +297,7 @@ object TestControl {
    * The above will run to completion within milliseconds.
    *
    * If your assertions are entirely intrinsic (within the program) and the test is such that
-   * time should advance in an automatic fashion, [[executeFully]] may be a more convenient
+   * time should advance in an automatic fashion, [[executeEmbed]] may be a more convenient
    * option.
    */
   def execute[A](
@@ -342,15 +344,23 @@ object TestControl {
    *
    * Note that any program which involves an [[IO.async]] that waits for some external thread
    * (including [[IO.evalOn]]) will be detected as a deadlock and will result in the
-   * `executeFully` effect immediately producing `None`.
+   * `executeEmbed` effect immediately producing `None`.
    *
    * @return
    *   An `IO` which produces `None` if `program` does not complete, otherwise `Some` of the
-   *   results.
+   *   results. If the program is canceled, a [[scala.concurrent.CancellationException]] is
+   *   raised.
    */
-  def executeFully[A](
+  def executeEmbed[A](
       program: IO[A],
       config: IORuntimeConfig = IORuntimeConfig(),
-      seed: Option[String] = None): IO[Option[Outcome[Id, Throwable, A]]] =
-    execute(program, config = config, seed = seed).flatMap(c => c.tickAll *> c.results)
+      seed: Option[String] = None): IO[Option[A]] =
+    execute(program, config = config, seed = seed) flatMap { c =>
+      val nt = new (Id ~> IO) { def apply[E](e: E) = IO.pure(e) }
+
+      val onCancel = IO.defer(IO.raiseError(new CancellationException))
+      val embedded = c.results.flatMap(_.traverse(_.mapK(nt).embed(onCancel)))
+
+      c.tickAll *> embedded
+    }
 }

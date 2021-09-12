@@ -21,6 +21,7 @@ import cats.Id
 
 import org.specs2.matcher.Matcher
 
+import scala.concurrent.CancellationException
 import scala.concurrent.duration._
 
 class TestControlSpec extends BaseSpec {
@@ -115,38 +116,38 @@ class TestControlSpec extends BaseSpec {
 
   "executeFully" should {
     "run a simple IO" in real {
-      TestControl.executeFully(simple) flatMap { r => IO(r must beSome(beSucceeded(()))) }
+      TestControl.executeEmbed(simple) flatMap { r =>
+        IO(r must beSome(()))
+      }
     }
 
     "run an IO with long sleeps" in real {
-      TestControl.executeFully(longSleeps) flatMap { r =>
-        IO(r must beSome(beSucceeded((0.nanoseconds, 1.hour, 25.hours))))
+      TestControl.executeEmbed(longSleeps) flatMap { r =>
+        IO(r must beSome((0.nanoseconds, 1.hour, 25.hours)))
       }
     }
 
     "detect a deadlock" in real {
-      TestControl.executeFully(deadlock) flatMap { r => IO(r must beNone) }
+      TestControl.executeEmbed(deadlock) flatMap { r =>
+        IO(r must beNone)
+      }
     }
 
     "run an IO which produces an error" in real {
       case object TestException extends RuntimeException
 
-      TestControl.executeFully(IO.raiseError[Unit](TestException)) flatMap { r =>
-        IO(r must beSome(beErrored[Unit](TestException)))
+      TestControl.executeEmbed(IO.raiseError[Unit](TestException)).attempt flatMap { r =>
+        IO(r must beLeft(TestException: Throwable))
       }
     }
 
     "run an IO which self-cancels" in real {
-      TestControl.executeFully(IO.canceled) flatMap { r => IO(r must beSome(beCanceled[Unit])) }
+      TestControl.executeEmbed(IO.canceled).attempt flatMap { r =>
+        IO(r must beLike { case Left(_: CancellationException) => ok })
+      }
     }
   }
 
   private def beSucceeded[A](value: A): Matcher[Outcome[Id, Throwable, A]] =
     (_: Outcome[Id, Throwable, A]) == Outcome.succeeded[Id, Throwable, A](value)
-
-  private def beErrored[A](t: Throwable): Matcher[Outcome[Id, Throwable, A]] =
-    (_: Outcome[Id, Throwable, A]) == Outcome.errored[Id, Throwable, A](t)
-
-  private def beCanceled[A]: Matcher[Outcome[Id, Throwable, A]] =
-    (_: Outcome[Id, Throwable, A]) == Outcome.canceled[Id, Throwable, A]
 }
