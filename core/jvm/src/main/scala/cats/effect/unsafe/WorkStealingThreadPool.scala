@@ -85,17 +85,8 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[this] val helperThreads: ScalQueue[HelperThread] = new ScalQueue(threadCount)
 
-  /**
-   * The batched queue on which spillover work from other local queues can end up.
-   */
-  private[this] val batchedQueue: ScalQueue[Array[IOFiber[_]]] =
-    new ScalQueue(threadCount)
-
-  /**
-   * The overflow queue on which fibers coming from outside the pool are enqueued.
-   */
-  private[this] val overflowQueue: ScalQueue[IOFiber[_]] =
-    new ScalQueue(threadCount)
+  private[this] val externalQueue: ScalQueue[AnyRef] =
+    new ScalQueue(threadCount >>> 2)
 
   /**
    * Represents two unsigned 16 bit integers. The 16 most significant bits track the number of
@@ -132,8 +123,7 @@ private[effect] final class WorkStealingThreadPool(
           blockingThreadCounter,
           queue,
           parkedSignal,
-          batchedQueue,
-          overflowQueue,
+          externalQueue,
           this)
       workerThreads(i) = thread
       i += 1
@@ -184,8 +174,14 @@ private[effect] final class WorkStealingThreadPool(
       i += 1
     }
 
-    // The worker thread could not steal any work. Fall back to checking the external queue.
-    overflowQueue.poll(random)
+    // The worker thread could not steal any work. Fall back to checking the
+    // external queue.
+    val element = externalQueue.poll(random)
+    if (element.isInstanceOf[Array[IOFiber[_]]]) {
+      destQueue.enqueueBatch(element.asInstanceOf[Array[IOFiber[_]]])
+    } else {
+      element.asInstanceOf[IOFiber[_]]
+    }
   }
 
   /**
@@ -279,15 +275,8 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // If no work was found in the local queues of the worker threads, look for
-    // work in the batched queue.
-    if (batchedQueue.nonEmpty() && !notifyParked(random)) {
-      notifyHelper(random)
-      return
-    }
-
-    // If no work was found in the local queues of the worker threads or in the
-    // batched queue, look for work in the external queue.
-    if (overflowQueue.nonEmpty() && !notifyParked(random)) {
+    // work in the external queue.
+    if (externalQueue.nonEmpty() && !notifyParked(random)) {
       notifyHelper(random)
     }
   }
@@ -484,7 +473,7 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[this] def scheduleExternal(fiber: IOFiber[_]): Unit = {
     val random = ThreadLocalRandom.current()
-    overflowQueue.offer(fiber, random)
+    externalQueue.offer(fiber, random)
     if (!notifyParked(random)) {
       notifyHelper(random)
     }
@@ -587,7 +576,7 @@ private[effect] final class WorkStealingThreadPool(
       state.lazySet(0)
 
       // Shutdown and drain the external queue.
-      overflowQueue.clear()
+      externalQueue.clear()
       Thread.currentThread().interrupt()
     }
   }
