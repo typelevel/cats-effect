@@ -665,13 +665,13 @@ private final class LocalQueue {
    * @note
    *   Can '''only''' be correctly called by the owner [[WorkerThread]].
    *
-   * @param batched
-   *   the batched queue to transfer a batch of fibers into
+   * @param external
+   *   the external queue to transfer a batch of fibers into
    * @param random
    *   a reference to an uncontended source of randomness, to be passed along to the striped
    *   concurrent queues when executing their enqueue operations
    */
-  def drainBatch(batched: ScalQueue[Array[IOFiber[_]]], random: ThreadLocalRandom): Unit = {
+  def drainBatch(external: ScalQueue[AnyRef], random: ThreadLocalRandom): Unit = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -714,7 +714,7 @@ private final class LocalQueue {
         // batched queue.
         batchedSpilloverCount += OverflowBatchSize
         tailPublisher.lazySet(tl)
-        batched.offer(batch, random)
+        external.offer(batch, random)
         return
       }
     }
