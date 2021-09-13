@@ -193,7 +193,13 @@ private final class WorkerThread(
      *      that it was unable to find any work and parks.
      *
      *   3: The `WorkerThread` has been unparked an is looking for work in the
-     *      external queue.
+     *      external queue. If it manages to find work there, it announces to
+     *      the work stealing thread pool that it is no longer searching for
+     *      work and continues to execute fibers from the local queue (state
+     *      value 4 and larger). Otherwise, it transitions to searching for work
+     *      to steal from the local queues of other worker threads because the
+     *      permission to steal is implicitly held by threads that have been
+     *      unparked (state value 2).
      *
      *   4 and larger: Look for fibers to execute in the local queue. In case
      *      of a successful dequeue from the local queue, increment the state
