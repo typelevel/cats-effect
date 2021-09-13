@@ -22,9 +22,9 @@ import cats.syntax.traverse._
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
 
-class StripedHashtableSpec extends BaseSpec with Runners {
+class StripedHashtableSpec extends BaseSpec {
 
-  override def executionTimeout: FiniteDuration = 30.seconds
+  override def executionTimeout: FiniteDuration = 2.minutes
 
   def hashtableRuntime(): IORuntime =
     IORuntime(
@@ -71,8 +71,8 @@ class StripedHashtableSpec extends BaseSpec with Runners {
   }
 
   /**
-   * This implementation only works on Scala.js as it relies on a single
-   * threaded execution model.
+   * This implementation only works on Scala.js as it relies on a single threaded execution
+   * model.
    */
   private final class CountDownLatch(private var counter: Int) {
     private val promise: Promise[Unit] = Promise()

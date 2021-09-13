@@ -19,7 +19,7 @@ package unsafe
 
 import cats.effect.std.Queue
 
-class DrainBatchSpec extends BaseSpec with Runners {
+class DrainBatchSpec extends BaseSpec {
 
   "Batch draining" should {
     "work correctly in the presence of concurrent stealers" in real {

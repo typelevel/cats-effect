@@ -23,7 +23,7 @@ import scala.concurrent.duration._
 
 import java.util.concurrent.CountDownLatch
 
-class StripedHashtableSpec extends BaseSpec with Runners {
+class StripedHashtableSpec extends BaseSpec {
 
   override def executionTimeout: FiniteDuration = 30.seconds
 

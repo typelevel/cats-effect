@@ -29,20 +29,20 @@ import scala.annotation.tailrec
 /**
  * A thread-safe, concurrent mutable reference.
  *
- * Provides safe concurrent access and modification of its content, but no
- * functionality for synchronisation, which is instead handled by [[Deferred]].
- * For this reason, a `Ref` is always initialised to a value.
+ * Provides safe concurrent access and modification of its content, but no functionality for
+ * synchronisation, which is instead handled by [[Deferred]]. For this reason, a `Ref` is always
+ * initialised to a value.
  *
- * The default implementation is nonblocking and lightweight, consisting essentially
- * of a purely functional wrapper over an `AtomicReference`.
+ * The default implementation is nonblocking and lightweight, consisting essentially of a purely
+ * functional wrapper over an `AtomicReference`.
  */
 abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
 
   /**
    * Updates the current value using `f` and returns the previous value.
    *
-   * In case of retries caused by concurrent modifications,
-   * the returned value will be the last one before a successful update.
+   * In case of retries caused by concurrent modifications, the returned value will be the last
+   * one before a successful update.
    */
   def getAndUpdate(f: A => A): F[A] = modify { a => (f(a), a) }
 
@@ -61,39 +61,36 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
     }
 
   /**
-   * Obtains a snapshot of the current value, and a setter for updating it.
-   * The setter may noop (in which case `false` is returned) if another concurrent
-   * call to `access` uses its setter first.
+   * Obtains a snapshot of the current value, and a setter for updating it. The setter may noop
+   * (in which case `false` is returned) if another concurrent call to `access` uses its setter
+   * first.
    *
    * Once it has noop'd or been used once, a setter never succeeds again.
    *
-   * Satisfies:
-   *   `r.access.map(_._1) == r.get`
-   *   `r.access.flatMap { case (v, setter) => setter(f(v)) } == r.tryUpdate(f).map(_.isDefined)`
+   * Satisfies: `r.access.map(_._1) == r.get` `r.access.flatMap { case (v, setter) =>
+   * setter(f(v)) } == r.tryUpdate(f).map(_.isDefined)`
    */
   def access: F[(A, A => F[Boolean])]
 
   /**
-   * Attempts to modify the current value once, returning `false` if another
-   * concurrent modification completes between the time the variable is
-   * read and the time it is set.
+   * Attempts to modify the current value once, returning `false` if another concurrent
+   * modification completes between the time the variable is read and the time it is set.
    */
   def tryUpdate(f: A => A): F[Boolean]
 
   /**
-   * Like `tryUpdate` but allows the update function to return an output value of
-   * type `B`. The returned action completes with `None` if the value is not updated
-   * successfully and `Some(b)` otherwise.
+   * Like `tryUpdate` but allows the update function to return an output value of type `B`. The
+   * returned action completes with `None` if the value is not updated successfully and
+   * `Some(b)` otherwise.
    */
   def tryModify[B](f: A => (A, B)): F[Option[B]]
 
   /**
    * Modifies the current value using the supplied update function. If another modification
-   * occurs between the time the current value is read and subsequently updated, the modification
-   * is retried using the new value. Hence, `f` may be invoked multiple times.
+   * occurs between the time the current value is read and subsequently updated, the
+   * modification is retried using the new value. Hence, `f` may be invoked multiple times.
    *
-   * Satisfies:
-   *   `r.update(_ => a) == r.set(a)`
+   * Satisfies: `r.update(_ => a) == r.set(a)`
    */
   def update(f: A => A): F[Unit]
 
@@ -105,9 +102,9 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
   /**
    * Update the value of this ref with a state computation.
    *
-   * The current value of this ref is used as the initial state and the computed output state
-   * is stored in this ref after computation completes. If a concurrent modification occurs,
-   * `None` is returned.
+   * The current value of this ref is used as the initial state and the computed output state is
+   * stored in this ref after computation completes. If a concurrent modification occurs, `None`
+   * is returned.
    */
   def tryModifyState[B](state: State[A, B]): F[Option[B]]
 
@@ -158,7 +155,8 @@ object Ref {
    *   Ref[IO].of(10) <-> Ref.of[IO, Int](10)
    * }}}
    *
-   * @see [[of]]
+   * @see
+   *   [[of]]
    */
   def apply[F[_]](implicit mk: Make[F]): ApplyBuilders[F] = new ApplyBuilders(mk)
 
@@ -180,7 +178,8 @@ object Ref {
   /**
    * Creates a Ref starting with the value of the one in `source`.
    *
-   * Updates of either of the Refs will not have an effect on the other (assuming A is immutable).
+   * Updates of either of the Refs will not have an effect on the other (assuming A is
+   * immutable).
    */
   def copyOf[F[_]: Make: FlatMap, A](source: Ref[F, A]): F[Ref[F, A]] =
     ofEffect(source.get)
@@ -192,11 +191,12 @@ object Ref {
     FlatMap[F].flatMap(fa)(of(_))
 
   /**
-   * Like `apply` but returns the newly allocated ref directly instead of wrapping it in `F.delay`.
-   * This method is considered unsafe because it is not referentially transparent -- it allocates
-   * mutable state.
+   * Like `apply` but returns the newly allocated ref directly instead of wrapping it in
+   * `F.delay`. This method is considered unsafe because it is not referentially transparent --
+   * it allocates mutable state.
    *
-   * This method uses the [[http://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially Applied Type Params technique]],
+   * This method uses the
+   * [[http://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially Applied Type Params technique]],
    * so only effect type needs to be specified explicitly.
    *
    * Some care must be taken to preserve referential transparency:
@@ -217,7 +217,8 @@ object Ref {
    *   }
    * }}}
    *
-   * Such usage is safe, as long as the class constructor is not accessible and the public one suspends creation in IO
+   * Such usage is safe, as long as the class constructor is not accessible and the public one
+   * suspends creation in IO
    *
    * The recommended alternative is accepting a `Ref[F, A]` as a parameter:
    *
@@ -235,15 +236,15 @@ object Ref {
     new SyncRef[F, A](new AtomicReference[A](a))
 
   /**
-   *  Builds a `Ref` value for data types that are [[Sync]]
-   *  Like [[of]] but initializes state using another effect constructor
+   * Builds a `Ref` value for data types that are [[Sync]] Like [[of]] but initializes state
+   * using another effect constructor
    */
   def in[F[_], G[_], A](a: A)(implicit F: Sync[F], G: Sync[G]): F[Ref[G, A]] =
     F.delay(unsafe(a))
 
   /**
-   * Creates an instance focused on a component of another Ref's value.
-   * Delegates every get and modification to underlying Ref, so both instances are always in sync.
+   * Creates an instance focused on a component of another Ref's value. Delegates every get and
+   * modification to underlying Ref, so both instances are always in sync.
    *
    * Example:
    *
@@ -264,7 +265,8 @@ object Ref {
     /**
      * Creates a thread-safe, concurrent mutable reference initialized to the supplied value.
      *
-     * @see [[Ref.of]]
+     * @see
+     *   [[Ref.of]]
      */
     def of[A](a: A): F[Ref[F, A]] = mk.refOf(a)
   }
@@ -467,8 +469,8 @@ trait RefSource[F[_], A] {
   /**
    * Obtains the current value.
    *
-   * Since `Ref` is always guaranteed to have a value, the returned action
-   * completes immediately after being bound.
+   * Since `Ref` is always guaranteed to have a value, the returned action completes immediately
+   * after being bound.
    */
   def get: F[A]
 }
@@ -491,8 +493,7 @@ trait RefSink[F[_], A] {
    *
    * The returned action completes after the reference has been successfully set.
    *
-   * Satisfies:
-   *   `r.set(fa) *> r.get == fa`
+   * Satisfies: `r.set(fa) *> r.get == fa`
    */
   def set(a: A): F[Unit]
 }

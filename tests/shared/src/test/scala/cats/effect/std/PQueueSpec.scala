@@ -29,8 +29,11 @@ import org.scalacheck.Arbitrary.arbitrary
 import org.specs2.specification.core.Fragments
 
 import scala.collection.immutable.{Queue => ScalaQueue}
+import scala.concurrent.duration._
 
 class BoundedPQueueSpec extends BaseSpec with PQueueTests {
+
+  override def executionTimeout = 20.seconds
 
   implicit val orderForInt: Order[Int] = Order.fromLessThan((x, y) => x < y)
 
@@ -112,6 +115,8 @@ class BoundedPQueueSpec extends BaseSpec with PQueueTests {
 
 class UnboundedPQueueSpec extends BaseSpec with PQueueTests {
   sequential
+
+  override def executionTimeout = 20.seconds
 
   implicit val orderForInt: Order[Int] = Order.fromLessThan((x, y) => x < y)
 

@@ -26,17 +26,16 @@ import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
- * A typeclass that encodes the notion of suspending asynchronous
- * side effects in the `F[_]` context
+ * A typeclass that encodes the notion of suspending asynchronous side effects in the `F[_]`
+ * context
  *
- * An asynchronous task is one whose results are computed somewhere else (eg
- * by a [[scala.concurrent.Future]] running on some other threadpool). We await
- * the results of that execution by giving it a callback to be invoked with the
- * result.
+ * An asynchronous task is one whose results are computed somewhere else (eg by a
+ * [[scala.concurrent.Future]] running on some other threadpool). We await the results of that
+ * execution by giving it a callback to be invoked with the result.
  *
- * That computation may fail hence the callback is of type
- * `Either[Throwable, A] => ()`. This awaiting  is semantic only - no threads are
- * blocked, the current fiber is simply descheduled until the callback completes.
+ * That computation may fail hence the callback is of type `Either[Throwable, A] => ()`. This
+ * awaiting is semantic only - no threads are blocked, the current fiber is simply descheduled
+ * until the callback completes.
  *
  * This leads us directly to the simplest asynchronous FFI
  * {{{
@@ -45,31 +44,30 @@ import scala.concurrent.{ExecutionContext, Future}
  *
  * {{{async(k)}}} is semantically blocked until the callback is invoked.
  *
- * `async_` is somewhat contrained however. We can't perform any `F[_]` effects
- * in the process of registering the callback and we also can't register
- * a finalizer to eg cancel the asynchronous task in the event that the fiber
- * running `async_` is canceled.
+ * `async_` is somewhat contrained however. We can't perform any `F[_]` effects in the process
+ * of registering the callback and we also can't register a finalizer to eg cancel the
+ * asynchronous task in the event that the fiber running `async_` is canceled.
  *
  * This leads us directly to the more general asynchronous FFI
  * {{{
  * def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A]
  * }}}
  *
- * As evidenced by the type signature, `k` may perform `F[_]` effects and it returns
- * an `Option[F[Unit]]` which is an optional finalizer to be run in the event that
- * the fiber running {{{async(k)}}} is canceled.
+ * As evidenced by the type signature, `k` may perform `F[_]` effects and it returns an
+ * `Option[F[Unit]]` which is an optional finalizer to be run in the event that the fiber
+ * running {{{async(k)}}} is canceled.
  */
 trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
 
   /**
    * The asynchronous FFI.
    *
-   * `k` takes a callback of type `Either[Throwable, A] => Unit` to signal
-   * the result of the asynchronous computation. The execution of `async(k)`
-   * is semantically blocked until the callback is invoked.
+   * `k` takes a callback of type `Either[Throwable, A] => Unit` to signal the result of the
+   * asynchronous computation. The execution of `async(k)` is semantically blocked until the
+   * callback is invoked.
    *
-   * `k` returns an `Option[F[Unit]]` which is an optional finalizer to be
-   * run in the event that the fiber running {{{async(k)}}} is canceled.
+   * `k` returns an `Option[F[Unit]]` which is an optional finalizer to be run in the event that
+   * the fiber running {{{async(k)}}} is canceled.
    */
   def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
     val body = new Cont[F, A, A] {
@@ -87,9 +85,8 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   }
 
   /**
-   * A convenience version of [[Async.async]] for when we don't need to
-   * perform `F[_]` effects or perform finalization in the event of
-   * cancelation.
+   * A convenience version of [[Async.async]] for when we don't need to perform `F[_]` effects
+   * or perform finalization in the event of cancelation.
    */
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): F[A] =
     async[A](cb => as(delay(k(cb)), None))
@@ -97,15 +94,14 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   /**
    * An effect that never terminates.
    *
-   * Polymorphic so it can be used in situations where an arbitrary
-   * effect is expected eg [[Fiber.joinWithNever]]
+   * Polymorphic so it can be used in situations where an arbitrary effect is expected eg
+   * [[Fiber.joinWithNever]]
    */
   def never[A]: F[A] = async(_ => pure(none[F[Unit]]))
 
   /**
-   * Shift execution of the effect `fa` to the execution context
-   * `ec`. Execution is shifted back to the previous execution
-   * context when `fa` completes.
+   * Shift execution of the effect `fa` to the execution context `ec`. Execution is shifted back
+   * to the previous execution context when `fa` completes.
    *
    * evalOn(executionContext, ec) <-> pure(ec)
    */
