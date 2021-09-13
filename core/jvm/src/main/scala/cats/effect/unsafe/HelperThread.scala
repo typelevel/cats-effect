@@ -177,15 +177,15 @@ private final class HelperThread(
     // has finished blocking.
     while (!isInterrupted() && signal.get() != 2) {
       val element = external.poll(rnd)
-      if (element ne null) {
-        if (element.isInstanceOf[Array[IOFiber[_]]]) {
-          external.offerAll(element.asInstanceOf[Array[IOFiber[_]]], rnd)
-          if (!pool.notifyParked(rnd)) {
-            pool.notifyHelper(rnd)
-          }
-        } else if (element.isInstanceOf[IOFiber[_]]) {
-          element.asInstanceOf[IOFiber[_]].run()
+      if (element.isInstanceOf[Array[IOFiber[_]]]) {
+        val batch = element.asInstanceOf[Array[IOFiber[_]]]
+        external.offerAll(batch, rnd)
+        if (!pool.notifyParked(rnd)) {
+          pool.notifyHelper(rnd)
         }
+      } else if (element.isInstanceOf[IOFiber[_]]) {
+        val fiber = element.asInstanceOf[IOFiber[_]]
+        fiber.run()
       } else if (signal.compareAndSet(1, 0)) {
         // There are currently no more fibers available on the external queue.
         // However, the thread that originally started this helper thread has
