@@ -187,12 +187,11 @@ private final class HelperThread(
           element.asInstanceOf[IOFiber[_]].run()
         }
       } else if (signal.compareAndSet(1, 0)) {
-        // There are currently no more fibers available on the external or
-        // batched queues. However, the thread that originally started this
-        // helper thread has not been unblocked. The fibers that will
-        // eventually unblock that original thread might not have arrived on
-        // the pool yet. The helper thread should suspend and await for a
-        // notification of incoming work.
+        // There are currently no more fibers available on the external queue.
+        // However, the thread that originally started this helper thread has
+        // not been unblocked. The fibers that will eventually unblock that
+        // original thread might not have arrived on the pool yet. The helper
+        // thread should suspend and await for a notification of incoming work.
         pool.transitionHelperToParked(this, rnd)
         pool.notifyIfWorkPending(rnd)
         parkLoop()
@@ -208,8 +207,7 @@ private final class HelperThread(
    *   code path can be exercised is through `IO.delay`, which already handles exceptions.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
-    // Try waking up a `WorkerThread` to handle fibers from the external and
-    // batched queues.
+    // Try waking up a `WorkerThread` to handle fibers from the external queue.
     val rnd = random
     if (!pool.notifyParked(rnd)) {
       pool.notifyHelper(rnd)

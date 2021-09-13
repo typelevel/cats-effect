@@ -42,7 +42,7 @@ import java.util.concurrent.locks.LockSupport
  *
  * The thread pool starts with `threadCount` worker threads in the active state, looking to find
  * fibers to execute in their own local work stealing queues, or externally scheduled work
- * coming from the overflow queue.
+ * coming from the external queue.
  *
  * In the case that a worker thread cannot find work to execute in its own queue, or the
  * external queue, it asks for permission from the pool to enter the searching state, which
@@ -140,7 +140,7 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * Tries to steal work from other worker threads. This method does a linear search of the
    * worker threads starting at a random index. If the stealing attempt was unsuccessful, this
-   * method falls back to checking the overflow queue.
+   * method falls back to checking the external queue.
    *
    * @param dest
    *   the index of the worker thread attempting to steal work from other worker threads (used
@@ -257,7 +257,7 @@ private[effect] final class WorkStealingThreadPool(
 
   /**
    * Notifies a thread if there are fibers available for stealing in any of the local queues, or
-   * in the overflow queue.
+   * in the external queue.
    *
    * @param random
    *   a reference to an uncontended source of randomness, to be passed along to the striped
@@ -398,7 +398,7 @@ private[effect] final class WorkStealingThreadPool(
    * that thread.
    *
    * If the request comes from a [[HelperTread]] or an external thread, the fiber is enqueued on
-   * the overflow queue. Furthermore, if the request comes from an external thread, worker
+   * the external queue. Furthermore, if the request comes from an external thread, worker
    * threads are notified of new work.
    *
    * @param fiber
@@ -435,7 +435,7 @@ private[effect] final class WorkStealingThreadPool(
    * queue and reducing the stealing pressure.
    *
    * If the request comes from a [[HelperTread]] or an external thread, the fiber is enqueued on
-   * the overflow queue. Furthermore, if the request comes from an external thread, worker
+   * the external queue. Furthermore, if the request comes from an external thread, worker
    * threads are notified of new work.
    *
    * @param fiber
