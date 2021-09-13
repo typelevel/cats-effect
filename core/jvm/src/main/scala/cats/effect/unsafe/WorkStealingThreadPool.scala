@@ -178,9 +178,13 @@ private[effect] final class WorkStealingThreadPool(
     // external queue.
     val element = externalQueue.poll(random)
     if (element.isInstanceOf[Array[IOFiber[_]]]) {
-      destQueue.enqueueBatch(element.asInstanceOf[Array[IOFiber[_]]])
+      val batch = element.asInstanceOf[Array[IOFiber[_]]]
+      destQueue.enqueueBatch(batch)
+    } else if (element.isInstanceOf[IOFiber[_]]) {
+      val fiber = element.asInstanceOf[IOFiber[_]]
+      fiber
     } else {
-      element.asInstanceOf[IOFiber[_]]
+      null
     }
   }
 
