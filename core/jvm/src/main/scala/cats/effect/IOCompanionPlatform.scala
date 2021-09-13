@@ -41,6 +41,10 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
       Tracing.calculateTracingEvent(fn.getClass))
   }
 
+  def interruptible[A](thunk: => A): IO[A] = interruptible(false)(thunk)
+
+  def interruptibleMany[A](thunk: => A): IO[A] = interruptible(true)(thunk)
+
   def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
     if (hint eq TypeDelay)
       apply(thunk)

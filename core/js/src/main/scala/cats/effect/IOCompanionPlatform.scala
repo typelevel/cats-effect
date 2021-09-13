@@ -30,6 +30,10 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
     apply(thunk)
   }
 
+  def interruptible[A](thunk: => A): IO[A] = interruptible(false)(thunk)
+
+  def interruptibleMany[A](thunk: => A): IO[A] = interruptible(true)(thunk)
+
   def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] = {
     val _ = hint
     apply(thunk)
