@@ -231,24 +231,24 @@ private final class WorkerThread(
         case 0 =>
           // Obtain a fiber or batch of fibers from the external queue.
           val element = external.poll(rnd)
-          if (element ne null) {
-            if (element.isInstanceOf[Array[IOFiber[_]]]) {
-              // The dequeued element was a batch of fibers. Enqueue the whole
-              // batch on the local queue and execute the first fiber.
+          if (element.isInstanceOf[Array[IOFiber[_]]]) {
+            val batch = element.asInstanceOf[Array[IOFiber[_]]]
+            // The dequeued element was a batch of fibers. Enqueue the whole
+            // batch on the local queue and execute the first fiber.
 
-              // Make room for the batch if the local queue cannot accomodate
-              // all of the fibers as is.
-              queue.drainBatch(external, rnd)
+            // Make room for the batch if the local queue cannot accomodate
+            // all of the fibers as is.
+            queue.drainBatch(external, rnd)
 
-              val fiber = queue.enqueueBatch(element.asInstanceOf[Array[IOFiber[_]]])
-              // Many fibers have been exchanged between the external and the
-              // local queue. Notify other worker threads.
-              pool.notifyParked(rnd)
-              fiber.run()
-            } else {
-              // The dequeued element is a single fiber. Execute it immediately.
-              element.asInstanceOf[IOFiber[_]].run()
-            }
+            val fiber = queue.enqueueBatch(batch)
+            // Many fibers have been exchanged between the external and the
+            // local queue. Notify other worker threads.
+            pool.notifyParked(rnd)
+            fiber.run()
+          } else if (element.isInstanceOf[IOFiber[_]]) {
+            val fiber = element.asInstanceOf[IOFiber[_]]
+            // The dequeued element is a single fiber. Execute it immediately.
+            fiber.run()
           }
 
           // Transition to executing fibers from the local queue.
@@ -258,22 +258,25 @@ private final class WorkerThread(
           // Check the external queue after a failed dequeue from the local
           // queue (due to the local queue being empty).
           val element = external.poll(rnd)
-          if (element ne null) {
-            if (element.isInstanceOf[Array[IOFiber[_]]]) {
-              // The dequeued element was a batch of fibers. Enqueue the whole
-              // batch on the local queue and execute the first fiber.
-              // It is safe to directly enqueue the whole batch because we know
-              // that in this state of the worker thread state machine, the
-              // local queue is empty.
-              val fiber = queue.enqueueBatch(element.asInstanceOf[Array[IOFiber[_]]])
-              // Many fibers have been exchanged between the external and the
-              // local queue. Notify other worker threads.
-              pool.notifyParked(rnd)
-              fiber.run()
-            } else {
-              // The dequeued element is a single fiber. Execute it immediately.
-              element.asInstanceOf[IOFiber[_]].run()
-            }
+          if (element.isInstanceOf[Array[IOFiber[_]]]) {
+            val batch = element.asInstanceOf[Array[IOFiber[_]]]
+            // The dequeued element was a batch of fibers. Enqueue the whole
+            // batch on the local queue and execute the first fiber.
+            // It is safe to directly enqueue the whole batch because we know
+            // that in this state of the worker thread state machine, the
+            // local queue is empty.
+            val fiber = queue.enqueueBatch(batch)
+            // Many fibers have been exchanged between the external and the
+            // local queue. Notify other worker threads.
+            pool.notifyParked(rnd)
+            fiber.run()
+
+            // Transition to executing fibers from the local queue.
+            state = 4
+          } else if (element.isInstanceOf[IOFiber[_]]) {
+            val fiber = element.asInstanceOf[IOFiber[_]]
+            // The dequeued element is a single fiber. Execute it immediately.
+            fiber.run()
 
             // Transition to executing fibers from the local queue.
             state = 4
