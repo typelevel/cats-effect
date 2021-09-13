@@ -29,12 +29,12 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
 
   def blocking[A](thunk: => A): IO[A] = {
-    val fn = () => thunk
+    val fn = Thunk.asFunction0(thunk)
     Blocking(TypeBlocking, fn, Tracing.calculateTracingEvent(fn.getClass))
   }
 
   def interruptible[A](many: Boolean)(thunk: => A): IO[A] = {
-    val fn = () => thunk
+    val fn = Thunk.asFunction0(thunk)
     Blocking(
       if (many) TypeInterruptibleMany else TypeInterruptibleOnce,
       fn,
