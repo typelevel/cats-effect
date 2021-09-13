@@ -198,7 +198,7 @@ private final class WorkerThread(
      *   4 and larger: Look for fibers to execute in the local queue. In case
      *      of a successful dequeue from the local queue, increment the state
      *      value. In case of a failed dequeue from the local queue, transition
-     *      to looking for fibers in the batched queue (state value 1).
+     *      to looking for fibers in the external queue (state value 1).
      *
      * A note on the implementation. Some of the states seem like they have
      * overlapping logic. This is indeed true, but it is a conscious decision.
@@ -312,14 +312,14 @@ private final class WorkerThread(
             if (pool.transitionWorkerToParkedWhenSearching()) {
               // If this was indeed the last actively searching thread, do another
               // global check of the pool. Other threads might be busy with their
-              // local queues or new work might have arrived on the overflow
+              // local queues or new work might have arrived on the external
               // queue. Another thread might be able to help.
               pool.notifyIfWorkPending(rnd)
             }
             // Park the thread.
             parkLoop()
             // After the worker thread has been unparked, look for work in the
-            // batched queue.
+            // external queue.
             state = 3
           }
 
@@ -375,7 +375,7 @@ private final class WorkerThread(
             // Continue executing fibers from the local queue.
             state += 1
           } else {
-            // Transition to checking the batched queue.
+            // Transition to checking the external queue.
             state = 1
           }
       }
@@ -393,7 +393,7 @@ private final class WorkerThread(
    * [[HelperThread]].
    *
    * The main difference between this and the implementation in [[HelperThread]] is that
-   * [[WorkerThread]] s need to take care of draining their [[LocalQueue]] to the `overflow`
+   * [[WorkerThread]] s need to take care of draining their [[LocalQueue]] to the `external`
    * queue before entering the blocking region.
    *
    * The reason why this code is duplicated, instead of inherited is to keep the monomorphic
@@ -404,7 +404,7 @@ private final class WorkerThread(
    *   code path can be exercised is through `IO.delay`, which already handles exceptions.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
-    // Drain the local queue to the `overflow` queue.
+    // Drain the local queue to the `external` queue.
     val rnd = random
     val drain = queue.drain()
     external.offerAll(drain, rnd)
