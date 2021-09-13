@@ -118,7 +118,7 @@ private final class IOFiber[A](
   private[this] val cancelationCheckThreshold: Int = runtime.config.cancelationCheckThreshold
   private[this] val autoYieldThreshold: Int = runtime.config.autoYieldThreshold
 
-  private[this] val tracingEvents: RingBuffer =
+  private[this] var tracingEvents: RingBuffer =
     RingBuffer.empty(runtime.config.traceBufferLogSize)
 
   override def run(): Unit = {
@@ -961,6 +961,7 @@ private final class IOFiber[A](
     finalizers.invalidate()
     ctxs.invalidate()
     currentCtx = null
+    tracingEvents = null
   }
 
   private[this] def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
