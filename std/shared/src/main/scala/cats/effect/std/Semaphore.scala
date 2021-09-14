@@ -227,7 +227,7 @@ object Semaphore {
                   val (newN, waitingNow, wakeup) = fulfil(n, waiting, Q())
                   State(newN, waitingNow) -> wakeup.traverse_(_.complete)
                 }
-            }.flatten
+            }.flatten.uncancelable
         }
 
         def available: F[Long] = state.get.map(_.permits)
