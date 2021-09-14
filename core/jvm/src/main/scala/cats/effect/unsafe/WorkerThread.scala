@@ -227,7 +227,7 @@ private final class WorkerThread(
     }
 
     while (!isInterrupted()) {
-      ((state & OverflowQueueTicksMask): @switch) match {
+      ((state & ExternalQueueTicksMask): @switch) match {
         case 0 =>
           // Obtain a fiber or batch of fibers from the external queue.
           val element = external.poll(rnd)
