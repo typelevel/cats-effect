@@ -23,7 +23,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        scala: [3.0.2, 2.12.14, 2.13.6]
+        scala: [3.0.2, 2.12.15, 2.13.6]
         java:
           - adoptium@8
           - adoptium@11
@@ -40,7 +40,7 @@ jobs:
           - os: windows-latest
             scala: 3.0.2
           - os: windows-latest
-            scala: 2.12.14
+            scala: 2.12.15
           - os: windows-latest
             ci: ciJS
           - ci: ciFirefox
@@ -52,7 +52,7 @@ jobs:
           - os: windows-latest
             scala: 3.0.2
           - os: windows-latest
-            scala: 2.12.14
+            scala: 2.12.15
           - os: windows-latest
             ci: ciFirefox
           - ci: ciChrome
@@ -64,7 +64,7 @@ jobs:
           - os: windows-latest
             scala: 3.0.2
           - os: windows-latest
-            scala: 2.12.14
+            scala: 2.12.15
           - os: windows-latest
             ci: ciChrome
     runs-on: ${{ matrix.os }}
