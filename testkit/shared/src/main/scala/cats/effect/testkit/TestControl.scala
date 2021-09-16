@@ -19,7 +19,6 @@ package testkit
 
 import cats.{~>, Id}
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
-import cats.syntax.all._
 
 import scala.concurrent.CancellationException
 import scala.concurrent.duration.FiniteDuration
@@ -344,23 +343,35 @@ object TestControl {
    *
    * Note that any program which involves an [[IO.async]] that waits for some external thread
    * (including [[IO.evalOn]]) will be detected as a deadlock and will result in the
-   * `executeEmbed` effect immediately producing `None`.
+   * `executeEmbed` effect immediately producing a [[NonTerminationException]].
    *
    * @return
-   *   An `IO` which produces `None` if `program` does not complete, otherwise `Some` of the
-   *   results. If the program is canceled, a [[scala.concurrent.CancellationException]] is
-   *   raised.
+   *   An `IO` which runs the given program under a mocked runtime, producing the result or an
+   *   error if the program runs to completion. If the program is canceled, a
+   *   [[scala.concurrent.CancellationException]] will be raised within the `IO`. If the program
+   *   fails to terminate with either a result or an error, a [[NonTerminationException]] will
+   *   be raised.
    */
   def executeEmbed[A](
       program: IO[A],
       config: IORuntimeConfig = IORuntimeConfig(),
-      seed: Option[String] = None): IO[Option[A]] =
+      seed: Option[String] = None): IO[A] =
     execute(program, config = config, seed = seed) flatMap { c =>
       val nt = new (Id ~> IO) { def apply[E](e: E) = IO.pure(e) }
 
-      val onCancel = IO.defer(IO.raiseError(new CancellationException))
-      val embedded = c.results.flatMap(_.traverse(_.mapK(nt).embed(onCancel)))
+      val onCancel = IO.defer(IO.raiseError(new CancellationException()))
+      val onNever = IO.raiseError(new NonTerminationException())
+      val embedded = c.results.flatMap(_.map(_.mapK(nt).embed(onCancel)).getOrElse(onNever))
 
       c.tickAll *> embedded
     }
+
+  final class NonTerminationException
+      extends RuntimeException(
+        "Program under test failed produce a result (either a value or an error) and has no further " +
+          "actions to take, likely indicating an asynchronous deadlock. This may also indicate some " +
+          "interaction with an external thread, potentially via IO.async or IO#evalOn. If this is the " +
+          "case, then it is likely you cannot use TestControl to correctly evaluate this program, and " +
+          "you should either use the production IORuntime (ideally via some integration with your " +
+          "testing framework), or attempt to refactor the program into smaller, more testable components.")
 }

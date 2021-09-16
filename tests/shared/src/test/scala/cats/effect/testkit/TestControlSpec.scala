@@ -116,20 +116,20 @@ class TestControlSpec extends BaseSpec {
 
   "executeFully" should {
     "run a simple IO" in real {
-      TestControl.executeEmbed(simple) flatMap { r =>
-        IO(r must beSome(()))
-      }
+      TestControl.executeEmbed(simple) flatMap { r => IO(r mustEqual (())) }
     }
 
     "run an IO with long sleeps" in real {
       TestControl.executeEmbed(longSleeps) flatMap { r =>
-        IO(r must beSome((0.nanoseconds, 1.hour, 25.hours)))
+        IO(r mustEqual ((0.nanoseconds, 1.hour, 25.hours)))
       }
     }
 
     "detect a deadlock" in real {
-      TestControl.executeEmbed(deadlock) flatMap { r =>
-        IO(r must beNone)
+      TestControl.executeEmbed(deadlock).attempt flatMap { r =>
+        IO {
+          r must beLike { case Left(_: TestControl.NonTerminationException) => ok }
+        }
       }
     }
 
@@ -143,7 +143,9 @@ class TestControlSpec extends BaseSpec {
 
     "run an IO which self-cancels" in real {
       TestControl.executeEmbed(IO.canceled).attempt flatMap { r =>
-        IO(r must beLike { case Left(_: CancellationException) => ok })
+        IO {
+          r must beLike { case Left(_: CancellationException) => ok }
+        }
       }
     }
   }
