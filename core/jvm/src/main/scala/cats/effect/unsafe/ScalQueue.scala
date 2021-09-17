@@ -104,7 +104,7 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
    * @param random
    *   an uncontended source of randomness, used for randomly choosing a destination queue
    */
-  def offerAll(as: Array[A], random: ThreadLocalRandom): Unit = {
+  def offerAll(as: Array[_ <: A], random: ThreadLocalRandom): Unit = {
     val nq = numQueues
     val len = as.length
     var i = 0

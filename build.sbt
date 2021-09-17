@@ -371,9 +371,16 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.IORuntime.this"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.IORuntime.<init>$default$6"),
-      // introduced by #3182, Address issues with the blocking mechanism of the thread pool
+      // introduced by #2312, Address issues with the blocking mechanism of the thread pool
       // changes to `cats.effect.unsafe` package private code
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain"),
+      // introduced by #2345, Overflow and batched queue unification
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.HelperThread.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.enqueue"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.WorkerThread.this")
     )
   )
   .jvmSettings(

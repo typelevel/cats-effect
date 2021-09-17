@@ -42,7 +42,7 @@ import java.util.concurrent.locks.LockSupport
  *
  * The thread pool starts with `threadCount` worker threads in the active state, looking to find
  * fibers to execute in their own local work stealing queues, or externally scheduled work
- * coming from the overflow queue.
+ * coming from the external queue.
  *
  * In the case that a worker thread cannot find work to execute in its own queue, or the
  * external queue, it asks for permission from the pool to enter the searching state, which
@@ -85,17 +85,8 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[this] val helperThreads: ScalQueue[HelperThread] = new ScalQueue(threadCount)
 
-  /**
-   * The batched queue on which spillover work from other local queues can end up.
-   */
-  private[this] val batchedQueue: ScalQueue[Array[IOFiber[_]]] =
-    new ScalQueue(threadCount)
-
-  /**
-   * The overflow queue on which fibers coming from outside the pool are enqueued.
-   */
-  private[this] val overflowQueue: ScalQueue[IOFiber[_]] =
-    new ScalQueue(threadCount)
+  private[this] val externalQueue: ScalQueue[AnyRef] =
+    new ScalQueue(threadCount << 2)
 
   /**
    * Represents two unsigned 16 bit integers. The 16 most significant bits track the number of
@@ -132,8 +123,7 @@ private[effect] final class WorkStealingThreadPool(
           blockingThreadCounter,
           queue,
           parkedSignal,
-          batchedQueue,
-          overflowQueue,
+          externalQueue,
           this)
       workerThreads(i) = thread
       i += 1
@@ -150,7 +140,7 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * Tries to steal work from other worker threads. This method does a linear search of the
    * worker threads starting at a random index. If the stealing attempt was unsuccessful, this
-   * method falls back to checking the overflow queue.
+   * method falls back to checking the external queue.
    *
    * @param dest
    *   the index of the worker thread attempting to steal work from other worker threads (used
@@ -184,8 +174,18 @@ private[effect] final class WorkStealingThreadPool(
       i += 1
     }
 
-    // The worker thread could not steal any work. Fall back to checking the external queue.
-    overflowQueue.poll(random)
+    // The worker thread could not steal any work. Fall back to checking the
+    // external queue.
+    val element = externalQueue.poll(random)
+    if (element.isInstanceOf[Array[IOFiber[_]]]) {
+      val batch = element.asInstanceOf[Array[IOFiber[_]]]
+      destQueue.enqueueBatch(batch)
+    } else if (element.isInstanceOf[IOFiber[_]]) {
+      val fiber = element.asInstanceOf[IOFiber[_]]
+      fiber
+    } else {
+      null
+    }
   }
 
   /**
@@ -261,7 +261,7 @@ private[effect] final class WorkStealingThreadPool(
 
   /**
    * Notifies a thread if there are fibers available for stealing in any of the local queues, or
-   * in the overflow queue.
+   * in the external queue.
    *
    * @param random
    *   a reference to an uncontended source of randomness, to be passed along to the striped
@@ -279,15 +279,8 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // If no work was found in the local queues of the worker threads, look for
-    // work in the batched queue.
-    if (batchedQueue.nonEmpty() && !notifyParked(random)) {
-      notifyHelper(random)
-      return
-    }
-
-    // If no work was found in the local queues of the worker threads or in the
-    // batched queue, look for work in the external queue.
-    if (overflowQueue.nonEmpty() && !notifyParked(random)) {
+    // work in the external queue.
+    if (externalQueue.nonEmpty() && !notifyParked(random)) {
       notifyHelper(random)
     }
   }
@@ -409,7 +402,7 @@ private[effect] final class WorkStealingThreadPool(
    * that thread.
    *
    * If the request comes from a [[HelperTread]] or an external thread, the fiber is enqueued on
-   * the overflow queue. Furthermore, if the request comes from an external thread, worker
+   * the external queue. Furthermore, if the request comes from an external thread, worker
    * threads are notified of new work.
    *
    * @param fiber
@@ -446,7 +439,7 @@ private[effect] final class WorkStealingThreadPool(
    * queue and reducing the stealing pressure.
    *
    * If the request comes from a [[HelperTread]] or an external thread, the fiber is enqueued on
-   * the overflow queue. Furthermore, if the request comes from an external thread, worker
+   * the external queue. Furthermore, if the request comes from an external thread, worker
    * threads are notified of new work.
    *
    * @param fiber
@@ -484,7 +477,7 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[this] def scheduleExternal(fiber: IOFiber[_]): Unit = {
     val random = ThreadLocalRandom.current()
-    overflowQueue.offer(fiber, random)
+    externalQueue.offer(fiber, random)
     if (!notifyParked(random)) {
       notifyHelper(random)
     }
@@ -587,7 +580,7 @@ private[effect] final class WorkStealingThreadPool(
       state.lazySet(0)
 
       // Shutdown and drain the external queue.
-      overflowQueue.clear()
+      externalQueue.clear()
       Thread.currentThread().interrupt()
     }
   }
