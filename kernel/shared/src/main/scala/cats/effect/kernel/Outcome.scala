@@ -163,12 +163,11 @@ object Outcome extends LowPriorityImplicits {
     either.fold(Errored(_), a => Succeeded(a.pure[F]))
 
   /**
-    * embedError allows the restoration to a normal development flow from an Outcome.
-    * 
-    * This can be useful for storing the state of a running computation and then
-    * waiters for that data can act and continue forward on that shared
-    * outcome.
-    */
+   * embedError allows the restoration to a normal development flow from an Outcome.
+   *
+   * This can be useful for storing the state of a running computation and then waiters for that
+   * data can act and continue forward on that shared outcome.
+   */
   def embedError[F[_], A](outcome: Outcome[F, Throwable, A])(
       implicit F: MonadCancel[F, Throwable]): F[A] =
     outcome.embed(
