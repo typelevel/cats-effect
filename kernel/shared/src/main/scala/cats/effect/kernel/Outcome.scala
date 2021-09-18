@@ -162,11 +162,13 @@ object Outcome extends LowPriorityImplicits {
   def fromEither[F[_]: Applicative, E, A](either: Either[E, A]): Outcome[F, E, A] =
     either.fold(Errored(_), a => Succeeded(a.pure[F]))
 
-  def embedError[F[_], A](outcome: Outcome[F, Throwable, A])(implicit F: ApplicativeError[F, Throwable]): F[A] = 
+  def embedError[F[_], A](outcome: Outcome[F, Throwable, A])(
+      implicit F: ApplicativeError[F, Throwable]): F[A] =
     outcome match {
       case Succeeded(fa) => fa
       case Errored(e) => F.raiseError(e)
-      case Canceled() => F.raiseError(new java.util.concurrent.CancellationException("Outcome was Canceled"))
+      case Canceled() =>
+        F.raiseError(new java.util.concurrent.CancellationException("Outcome was Canceled"))
     }
 
   implicit def order[F[_], E: Order, A](implicit FA: Order[F[A]]): Order[Outcome[F, E, A]] =
