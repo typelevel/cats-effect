@@ -166,7 +166,8 @@ object Outcome extends LowPriorityImplicits {
    * embedError allows the restoration to a normal development flow from an Outcome.
    *
    * This can be useful for storing the state of a running computation and then waiters for that
-   * data can act and continue forward on that shared outcome.
+   * data can act and continue forward on that shared outcome. Cancelation is encoded
+   * as an exception.
    */
   def embedError[F[_], A](outcome: Outcome[F, Throwable, A])(
       implicit F: MonadCancel[F, Throwable]): F[A] =
