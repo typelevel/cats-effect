@@ -400,6 +400,11 @@ private[effect] final class WorkStealingThreadPool(
     }
   }
 
+  private[unsafe] def replaceWorker(index: Int, newWorker: WorkerThread): Unit = {
+    workerThreads(index) = newWorker
+    workerThreadPublisher.set(true)
+  }
+
   /**
    * Schedules a fiber on this thread pool.
    *

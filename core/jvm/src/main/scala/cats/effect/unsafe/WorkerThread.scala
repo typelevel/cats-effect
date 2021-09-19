@@ -38,7 +38,7 @@ import java.util.concurrent.locks.LockSupport
 private final class WorkerThread(
     // Index assigned by the `WorkStealingThreadPool` for identification purposes.
     private[unsafe] val index: Int,
-    // Thread prefix string used for naming new instances of `WorkerThread` and `HelperThread`.
+    // Thread prefix string used for naming new instances of `WorkerThread`.
     private[this] val threadPrefix: String,
     // Instance to a global counter used when naming new instances of `HelperThread`.
     private[this] val blockingThreadCounter: AtomicInteger,
@@ -67,7 +67,7 @@ private final class WorkerThread(
   /**
    * A flag which is set whenever a blocking code region is entered. This is useful for
    * detecting nested blocking regions, in order to avoid unnecessarily spawning extra
-   * [[HelperThread]] s.
+   * [[WorkerThread]] s.
    */
   private[this] var blocking: Boolean = false
 
@@ -129,8 +129,9 @@ private final class WorkerThread(
    *
    * @note
    *   When blocking code is being executed on this worker thread, it is important to delegate
-   *   all scheduling operation to the external queue from which all [[HelperThread]] instances
-   *   operate.
+   *   all scheduling operation to the external queue because at that point, the blocked worker
+   *   thread has already been replaced by a new worker thread instance which owns the local
+   *   queue and so, the current worker thread must be treated as an external thread.
    *
    * @param threadPool
    *   a work stealing thread pool reference
@@ -226,7 +227,7 @@ private final class WorkerThread(
       }
     }
 
-    while (!isInterrupted()) {
+    while (!blocking && !isInterrupted()) {
       ((state & ExternalQueueTicksMask): @switch) match {
         case 0 =>
           // Obtain a fiber or batch of fibers from the external queue.
@@ -419,15 +420,7 @@ private final class WorkerThread(
    *   code path can be exercised is through `IO.delay`, which already handles exceptions.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
-    // Drain the local queue to the `external` queue.
     val rnd = random
-    val drain = queue.drain()
-    external.offerAll(drain, rnd)
-    val cedeFiber = cedeBypass
-    if (cedeFiber ne null) {
-      cedeBypass = null
-      external.offer(cedeFiber, rnd)
-    }
 
     if (!pool.notifyParked(rnd)) {
       pool.notifyHelper(rnd)
@@ -435,40 +428,35 @@ private final class WorkerThread(
 
     if (blocking) {
       // This `WorkerThread` is already inside an enclosing blocking region.
-      // There is no need to spawn another `HelperThread`. Instead, directly
+      // There is no need to spawn another `WorkerThread`. Instead, directly
       // execute the blocking action.
       thunk
     } else {
-      // Spawn a new `HelperThread` to take the place of this thread, as the
+      // Spawn a new `WorkerThread` to take the place of this thread, as the
       // current thread prepares to execute a blocking action.
 
-      // Logically enter the blocking region.
+      // Logically enter the blocking region. This also serves as a signal that
+      // this worker thread has run its course and it is time to die, after the
+      // blocking code has been successfully executed.
       blocking = true
 
-      // Spawn a new `HelperThread`.
-      val helper =
-        new HelperThread(threadPrefix, blockingThreadCounter, external, pool)
-      helper.start()
+      // Spawn a new `WorkerThread`, a literal clone of this one.
+      val idx = index
+      val clone =
+        new WorkerThread(
+          idx,
+          threadPrefix,
+          blockingThreadCounter,
+          queue,
+          parked,
+          external,
+          pool)
+      pool.replaceWorker(idx, clone)
+      clone.start()
 
-      // With another `HelperThread` started, it is time to execute the blocking
+      // With another `WorkerThread` started, it is time to execute the blocking
       // action.
-      val result = thunk
-
-      // Blocking is finished. Time to signal the spawned helper thread and
-      // unpark it. Furthermore, the thread needs to be removed from the
-      // parked helper threads queue in the pool so that other threads don't
-      // mistakenly depend on it to bail them out of blocking situations, and
-      // of course, this also removes the last strong reference to the fiber,
-      // which needs to be released for gc purposes.
-      pool.removeParkedHelper(helper, random)
-      helper.setSignal()
-      LockSupport.unpark(helper)
-
-      // Logically exit the blocking region.
-      blocking = false
-
-      // Return the computed result from the blocking operation
-      result
+      thunk
     }
   }
 }
