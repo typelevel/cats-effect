@@ -83,7 +83,6 @@ private[effect] final class WorkStealingThreadPool(
    * thread can be woken up. That thread can wake other helper threads in the future as the work
    * available on the pool increases.
    */
-  private[this] val helperThreads: ScalQueue[HelperThread] = new ScalQueue(threadCount)
 
   private[this] val externalQueue: ScalQueue[AnyRef] =
     new ScalQueue(threadCount << 2)
@@ -237,11 +236,11 @@ private[effect] final class WorkStealingThreadPool(
    *   concurrent queues when executing their operations
    */
   private[unsafe] def notifyHelper(random: ThreadLocalRandom): Unit = {
-    val helper = helperThreads.poll(random)
-    if (helper ne null) {
-      helper.unpark()
-      LockSupport.unpark(helper)
-    }
+    // val helper = helperThreads.poll(random)
+    // if (helper ne null) {
+    //   helper.unpark()
+    //   LockSupport.unpark(helper)
+    // }
   }
 
   /**
@@ -368,7 +367,7 @@ private[effect] final class WorkStealingThreadPool(
   private[unsafe] def transitionHelperToParked(
       helper: HelperThread,
       random: ThreadLocalRandom): Unit = {
-    helperThreads.offer(helper, random)
+    // helperThreads.offer(helper, random)
   }
 
   /**
@@ -389,7 +388,7 @@ private[effect] final class WorkStealingThreadPool(
   private[unsafe] def removeParkedHelper(
       helper: HelperThread,
       random: ThreadLocalRandom): Unit = {
-    helperThreads.remove(helper)
+    // helperThreads.remove(helper)
     if (!notifyParked(random)) {
       notifyHelper(random)
     }
