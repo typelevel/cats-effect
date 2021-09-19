@@ -72,6 +72,8 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val localQueues: Array[LocalQueue] = new Array(threadCount)
   private[this] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
 
+  private[this] val workerThreadPublisher: AtomicBoolean = new AtomicBoolean(false)
+
   /**
    * References to helper threads. Helper threads must have a parking mechanism to address the
    * situation where all worker threads are executing blocking actions, but the pool has been
@@ -127,6 +129,9 @@ private[effect] final class WorkStealingThreadPool(
       workerThreads(i) = thread
       i += 1
     }
+
+    // Publish the worker threads.
+    workerThreadPublisher.set(true)
 
     // Start the worker threads.
     i = 0
@@ -217,6 +222,7 @@ private[effect] final class WorkStealingThreadPool(
         // allowed to search for work in the local queues of other worker
         // threads).
         state.getAndAdd(DeltaSearching)
+        workerThreadPublisher.get()
         val worker = workerThreads(index)
         LockSupport.unpark(worker)
         return true
@@ -541,6 +547,7 @@ private[effect] final class WorkStealingThreadPool(
     // Execute the shutdown logic only once.
     if (done.compareAndSet(false, true)) {
       // Send an interrupt signal to each of the worker threads.
+      workerThreadPublisher.get()
 
       // Note: while loops and mutable variables are used throughout this method
       // to avoid allocations of objects, since this method is expected to be
