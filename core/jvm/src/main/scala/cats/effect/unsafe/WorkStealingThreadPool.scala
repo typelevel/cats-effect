@@ -74,18 +74,6 @@ private[effect] final class WorkStealingThreadPool(
 
   private[this] val workerThreadPublisher: AtomicBoolean = new AtomicBoolean(false)
 
-  /**
-   * References to helper threads. Helper threads must have a parking mechanism to address the
-   * situation where all worker threads are executing blocking actions, but the pool has been
-   * completely exhausted and the work that will unblock the worker threads has not arrived on
-   * the pool yet. Obviously, the helper threads cannot busy wait in this case, so they need to
-   * park and await a notification of newly arrived work. This queue also helps with the
-   * thundering herd problem. Namely, when only a single unit of work arrives and needs to be
-   * executed by a helper thread because all worker threads are blocked, only a single helper
-   * thread can be woken up. That thread can wake other helper threads in the future as the work
-   * available on the pool increases.
-   */
-
   private[this] val externalQueue: ScalQueue[AnyRef] =
     new ScalQueue(threadCount << 2)
 
@@ -95,12 +83,6 @@ private[effect] final class WorkStealingThreadPool(
    * threads that are searching for work to steal from other worker threads.
    */
   private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
-
-  /**
-   * An atomic counter used for generating unique indices for distinguishing and naming helper
-   * threads.
-   */
-  private[this] val blockingThreadCounter: AtomicInteger = new AtomicInteger(0)
 
   /**
    * The shutdown latch of the work stealing thread pool.
@@ -118,14 +100,7 @@ private[effect] final class WorkStealingThreadPool(
       parkedSignals(i) = parkedSignal
       val index = i
       val thread =
-        new WorkerThread(
-          index,
-          threadPrefix,
-          blockingThreadCounter,
-          queue,
-          parkedSignal,
-          externalQueue,
-          this)
+        new WorkerThread(index, threadPrefix, queue, parkedSignal, externalQueue, this)
       workerThreads(i) = thread
       i += 1
     }

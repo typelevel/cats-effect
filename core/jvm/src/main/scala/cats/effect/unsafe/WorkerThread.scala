@@ -21,7 +21,7 @@ import scala.annotation.switch
 import scala.concurrent.{BlockContext, CanAwait}
 
 import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -40,8 +40,6 @@ private final class WorkerThread(
     private[unsafe] val index: Int,
     // Thread prefix string used for naming new instances of `WorkerThread`.
     private[this] val threadPrefix: String,
-    // Instance to a global counter used when naming new instances of `HelperThread`.
-    private[this] val blockingThreadCounter: AtomicInteger,
     // Local queue instance with exclusive write access.
     private[this] val queue: LocalQueue,
     // The state of the `WorkerThread` (parked/unparked).
@@ -401,20 +399,6 @@ private final class WorkerThread(
   /**
    * A mechanism for executing support code before executing a blocking action.
    *
-   * This is a slightly more involved implementation of the support code in anticipation of
-   * running blocking code, also implemented in [[HelperThread]].
-   *
-   * For a more detailed discussion on the design principles behind the support for running
-   * blocking actions on the [[WorkStealingThreadPool]], check the code comments for
-   * [[HelperThread]].
-   *
-   * The main difference between this and the implementation in [[HelperThread]] is that
-   * [[WorkerThread]] s need to take care of draining their [[LocalQueue]] to the `external`
-   * queue before entering the blocking region.
-   *
-   * The reason why this code is duplicated, instead of inherited is to keep the monomorphic
-   * callsites in the `IOFiber` runloop.
-   *
    * @note
    *   There is no reason to enclose any code in a `try/catch` block because the only way this
    *   code path can be exercised is through `IO.delay`, which already handles exceptions.
@@ -441,14 +425,7 @@ private final class WorkerThread(
       // Spawn a new `WorkerThread`, a literal clone of this one.
       val idx = index
       val clone =
-        new WorkerThread(
-          idx,
-          threadPrefix,
-          blockingThreadCounter,
-          queue,
-          parked,
-          external,
-          pool)
+        new WorkerThread(idx, threadPrefix, queue, parked, external, pool)
       pool.replaceWorker(idx, clone)
       clone.start()
 
