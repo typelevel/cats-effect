@@ -407,7 +407,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
         "cats.effect.unsafe.LocalQueue.getOverflowSpilloverCount"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.LocalQueue.getBatchedSpilloverCount"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain"),
+      // introduced by #2361, Bye bye helper thread
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.HelperThread"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.LocalQueue$")
     )
   )
   .jvmSettings(
