@@ -167,7 +167,7 @@ object Outcome extends LowPriorityImplicits {
    *
    * This can be useful for storing the state of a running computation and then waiters for that
    * data can act and continue forward on that shared outcome. Cancelation is encoded
-   * as an exception.
+   * as a `CancellationException`.
    */
   def embedError[F[_], A](outcome: Outcome[F, Throwable, A])(
       implicit F: MonadCancel[F, Throwable]): F[A] =
