@@ -26,12 +26,12 @@ import scala.collection.immutable.SortedMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
-trait GenK[F[_]] {
+trait GenK[F[_]] extends Serializable {
   def apply[A: Arbitrary: Cogen]: Gen[F[A]]
 }
 
 // Generators for * -> * kinded types
-trait Generators1[F[_]] {
+trait Generators1[F[_]] extends Serializable {
   protected val maxDepth: Int = 10
 
   //todo: uniqueness based on... names, I guess. Have to solve the diamond problem somehow

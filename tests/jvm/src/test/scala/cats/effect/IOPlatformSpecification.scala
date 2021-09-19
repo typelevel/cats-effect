@@ -29,6 +29,8 @@ import scala.concurrent.duration._
 import java.util.concurrent.{CancellationException, CountDownLatch, Executors}
 import java.util.concurrent.CompletableFuture
 
+import cats.effect.testkit.TestException
+
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 
   def platformSpecs = {
@@ -253,6 +255,44 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
           case Left(t) => t.isInstanceOf[CancellationException]
           case Right(_) => false
         } must completeAs(true)
+      }
+
+      "serialise IO when not including evalOn" in ticked { implicit ticker =>
+        import SerializationUtil._
+
+        def testSerialization[A](io: IO[A]): IO[A] =
+          IO.fromTry(serialize(io) >>= deserialize[IO[A]]).flatten
+
+        val ls = List(
+          IO.pure(42),
+          IO.raiseError(TestException(42)),
+          IO.delay(42),
+          IO.realTime,
+          IO.monotonic,
+          IO.executionContext,
+          IO.pure(42).map(_ + 1),
+          IO.pure(42).flatMap(_ => IO.pure(42)),
+          IO.pure(42).attempt,
+          IO.raiseError(new RuntimeException("Err")).handleErrorWith(_ => IO.pure(42)),
+          IO.canceled,
+          IO.pure(42).onCancel(IO.pure(42)),
+          IO.pure(42).uncancelable,
+          IO.pure(42).start,
+          IO.racePair(IO.pure(42), IO.pure(42)),
+          IO.sleep(0.second),
+          IO.trace
+        ).map(_.as(42)).zipWithIndex
+
+        forall(ls){ case (io, _) => io.attempt eqv testSerialization(io).attempt }
+      }
+
+      "serialize SyncIO" in {
+        import SerializationUtil._
+
+        def testSerialization[A](io: SyncIO[A]): SyncIO[A] =
+          SyncIO.fromTry(serialize(io) >>= deserialize[SyncIO[A]]).flatten
+
+        forAll { (io: SyncIO[Int]) => io.attempt eqv testSerialization(io).attempt }
       }
 
     }
