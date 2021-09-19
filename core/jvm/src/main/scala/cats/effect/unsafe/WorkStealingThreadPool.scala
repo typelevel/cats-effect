@@ -235,21 +235,6 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Potentially unparks a helper thread.
-   *
-   * @param random
-   *   a reference to an uncontended source of randomness, to be passed along to the striped
-   *   concurrent queues when executing their operations
-   */
-  private[unsafe] def notifyHelper(random: ThreadLocalRandom): Unit = {
-    // val helper = helperThreads.poll(random)
-    // if (helper ne null) {
-    //   helper.unpark()
-    //   LockSupport.unpark(helper)
-    // }
-  }
-
-  /**
    * Checks the number of active and searching worker threads and decides whether another thread
    * should be notified of new work.
    *
@@ -285,8 +270,9 @@ private[effect] final class WorkStealingThreadPool(
 
     // If no work was found in the local queues of the worker threads, look for
     // work in the external queue.
-    if (externalQueue.nonEmpty() && !notifyParked(random)) {
-      notifyHelper(random)
+    if (externalQueue.nonEmpty()) {
+      notifyParked(random)
+      ()
     }
   }
 
@@ -361,45 +347,6 @@ private[effect] final class WorkStealingThreadPool(
     ()
   }
 
-  /**
-   * Enqueues the provided helper thread on the queue of parked helper threads.
-   *
-   * @param helper
-   *   the helper thread to enqueue on the queue of parked threads
-   * @param random
-   *   a reference to an uncontended source of randomness, to be passed along to the striped
-   *   concurrent queues when executing their operations
-   */
-  private[unsafe] def transitionHelperToParked(
-      helper: HelperThread,
-      random: ThreadLocalRandom): Unit = {
-    // helperThreads.offer(helper, random)
-  }
-
-  /**
-   * Removes the provided helper thread from the parked helper thread queue.
-   *
-   * This method is necessary for the situation when a worker/helper thread has finished
-   * executing the blocking actions and needs to signal its helper thread to end. At that point
-   * in time, the helper thread might be parked and enqueued. Furthermore, this method signals
-   * to other worker and helper threads that there could still be some leftover work on the pool
-   * and that they need to replace the exiting helper thread.
-   *
-   * @param helper
-   *   the helper thread to remove from the queue of parked threads
-   * @param random
-   *   a reference to an uncontended source of randomness, to be passed along to the striped
-   *   concurrent queues when executing their operations
-   */
-  private[unsafe] def removeParkedHelper(
-      helper: HelperThread,
-      random: ThreadLocalRandom): Unit = {
-    // helperThreads.remove(helper)
-    if (!notifyParked(random)) {
-      notifyHelper(random)
-    }
-  }
-
   private[unsafe] def replaceWorker(index: Int, newWorker: WorkerThread): Unit = {
     workerThreads(index) = newWorker
     workerThreadPublisher.set(true)
@@ -426,13 +373,6 @@ private[effect] final class WorkStealingThreadPool(
       val worker = thread.asInstanceOf[WorkerThread]
       if (worker.isOwnedBy(pool)) {
         worker.reschedule(fiber)
-      } else {
-        scheduleExternal(fiber)
-      }
-    } else if (thread.isInstanceOf[HelperThread]) {
-      val helper = thread.asInstanceOf[HelperThread]
-      if (helper.isOwnedBy(pool)) {
-        helper.schedule(fiber)
       } else {
         scheduleExternal(fiber)
       }
@@ -466,13 +406,6 @@ private[effect] final class WorkStealingThreadPool(
       } else {
         scheduleExternal(fiber)
       }
-    } else if (thread.isInstanceOf[HelperThread]) {
-      val helper = thread.asInstanceOf[HelperThread]
-      if (helper.isOwnedBy(pool)) {
-        helper.schedule(fiber)
-      } else {
-        scheduleExternal(fiber)
-      }
     } else {
       scheduleExternal(fiber)
     }
@@ -488,9 +421,8 @@ private[effect] final class WorkStealingThreadPool(
   private[this] def scheduleExternal(fiber: IOFiber[_]): Unit = {
     val random = ThreadLocalRandom.current()
     externalQueue.offer(fiber, random)
-    if (!notifyParked(random)) {
-      notifyHelper(random)
-    }
+    notifyParked(random)
+    ()
   }
 
   /**

@@ -422,9 +422,7 @@ private final class WorkerThread(
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
     val rnd = random
 
-    if (!pool.notifyParked(rnd)) {
-      pool.notifyHelper(rnd)
-    }
+    pool.notifyParked(rnd)
 
     if (blocking) {
       // This `WorkerThread` is already inside an enclosing blocking region.
