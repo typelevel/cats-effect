@@ -118,7 +118,7 @@ private final class IOFiber[A](
   private[this] val cancelationCheckThreshold: Int = runtime.config.cancelationCheckThreshold
   private[this] val autoYieldThreshold: Int = runtime.config.autoYieldThreshold
 
-  private[this] val tracingEvents: RingBuffer =
+  private[this] var tracingEvents: RingBuffer =
     RingBuffer.empty(runtime.config.traceBufferLogSize)
 
   override def run(): Unit = {
@@ -616,7 +616,7 @@ private final class IOFiber[A](
                         resumeTag = AsyncContinueSuccessfulR
                         objectState.push(a.asInstanceOf[AnyRef])
                     }
-                    execute(ec)(this)
+                    scheduleFiber(ec)(this)
                   } else {
                     /*
                      * we were canceled, but since we have won the race on `suspended`
@@ -897,7 +897,7 @@ private final class IOFiber[A](
 
             resumeTag = EvalOnR
             resumeIO = cur.ioa
-            execute(ec)(this)
+            scheduleFiber(ec)(this)
           }
 
         case 21 =>
@@ -961,6 +961,7 @@ private final class IOFiber[A](
     finalizers.invalidate()
     ctxs.invalidate()
     currentCtx = null
+    tracingEvents = null
   }
 
   private[this] def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
@@ -1099,14 +1100,6 @@ private final class IOFiber[A](
       case 7 => uncancelableFailureK(error, depth)
       case 8 => unmaskFailureK(error, depth)
       case 9 => succeeded(Left(error), depth) // attemptK
-    }
-  }
-
-  private[this] def execute(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
-    if (ec.isInstanceOf[WorkStealingThreadPool]) {
-      ec.asInstanceOf[WorkStealingThreadPool].scheduleFiber(fiber)
-    } else {
-      scheduleOnForeignEC(ec)(fiber)
     }
   }
 
@@ -1305,7 +1298,7 @@ private final class IOFiber[A](
     if (!shouldFinalize()) {
       resumeTag = AfterBlockingSuccessfulR
       objectState.push(result.asInstanceOf[AnyRef])
-      execute(ec)(this)
+      scheduleFiber(ec)(this)
     } else {
       asyncCancel(null)
     }
@@ -1319,7 +1312,7 @@ private final class IOFiber[A](
     if (!shouldFinalize()) {
       resumeTag = AfterBlockingFailedR
       objectState.push(t)
-      execute(ec)(this)
+      scheduleFiber(ec)(this)
     } else {
       asyncCancel(null)
     }

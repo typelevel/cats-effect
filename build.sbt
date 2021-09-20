@@ -34,16 +34,61 @@ ThisBuild / startYear := Some(2020)
 ThisBuild / endYear := Some(2021)
 
 ThisBuild / developers := List(
-  Developer("djspiewak", "Daniel Spiewak", "@djspiewak", url("https://github.com/djspiewak")),
-  Developer("SystemFw", "Fabio Labella", "", url("https://github.com/SystemFw")),
-  Developer("RaasAhsan", "Raas Ahsan", "", url("https://github.com/RaasAhsan")),
-  Developer("TimWSpence", "Tim Spence", "@TimWSpence", url("https://github.com/TimWSpence")),
-  Developer("kubukoz", "Jakub Kozłowski", "@kubukoz", url("https://github.com/kubukoz")),
-  Developer("mpilquist", "Michael Pilquist", "@mpilquist", url("https://github.com/mpilquist")),
-  Developer("vasilmkd", "Vasil Vasilev", "@vasilvasilev97", url("https://github.com/vasilmkd")),
-  Developer("bplommer", "Ben Plommer", "@bplommer", url("https://github.com/bplommer")),
-  Developer("wemrysi", "Emrys Ingersoll", "@wemrysi", url("https://github.com/wemrysi")),
-  Developer("gvolpe", "Gabriel Volpe", "@volpegabriel87", url("https://github.com/gvolpe"))
+  Developer(
+    "djspiewak",
+    "Daniel Spiewak",
+    "djspiewak@gmail.com",
+    url("https://github.com/djspiewak")),
+  Developer(
+    "SystemFw",
+    "Fabio Labella",
+    "fabio.labella2@gmail.com",
+    url("https://github.com/SystemFw")),
+  Developer(
+    "RaasAhsan",
+    "Raas Ahsan",
+    "raas.ahsan@gmail.com",
+    url("https://github.com/RaasAhsan")),
+  Developer(
+    "TimWSpence",
+    "Tim Spence",
+    "timothywspence@gmail.com",
+    url("https://github.com/TimWSpence")),
+  Developer(
+    "kubukoz",
+    "Jakub Kozłowski",
+    "kubukoz@gmail.com",
+    url("https://github.com/kubukoz")),
+  Developer(
+    "mpilquist",
+    "Michael Pilquist",
+    "mpilquist@gmail.com",
+    url("https://github.com/mpilquist")),
+  Developer(
+    "vasilmkd",
+    "Vasil Vasilev",
+    "vasil@vasilev.io",
+    url("https://github.com/vasilmkd")),
+  Developer(
+    "bplommer",
+    "Ben Plommer",
+    "ben.plommer@gmail.com",
+    url("https://github.com/bplommer")),
+  Developer(
+    "wemrysi",
+    "Emrys Ingersoll",
+    "ingersoll@gmail.com",
+    url("https://github.com/wemrysi")),
+  Developer(
+    "armanbilge",
+    "Arman Bilge",
+    "armanbilge@gmail.com",
+    url("https://github.com/armanbilge")),
+  Developer(
+    "gvolpe",
+    "Gabriel Volpe",
+    "volpegabriel@gmail.com",
+    url("https://github.com/gvolpe"))
 )
 
 val PrimaryOS = "ubuntu-latest"
@@ -53,7 +98,7 @@ val ScalaJSJava = "adoptium@8"
 val Scala213 = "2.13.6"
 val Scala3 = "3.0.2"
 
-ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.14", Scala213)
+ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
 
 ThisBuild / githubWorkflowUseSbtThinClient := false
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
@@ -156,10 +201,12 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.6.1"
-val Specs2Version = "4.12.11"
+val Specs2Version = "4.12.12"
 val ScalaCheckVersion = "1.15.4"
-val DisciplineVersion = "1.1.6"
+val DisciplineVersion = "1.2.2"
 val CoopVersion = "1.1.1"
+
+val MacrotaskExecutorVersion = "0.2.0"
 
 replaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 
@@ -219,16 +266,24 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
   .in(file("kernel"))
   .settings(
     name := "cats-effect-kernel",
-    libraryDependencies ++= Seq(
-      ("org.specs2" %%% "specs2-core" % Specs2Version % Test).cross(CrossVersion.for3Use2_13),
-      "org.typelevel" %%% "cats-core" % CatsVersion)
-  )
-  .jsSettings(Compile / doc / sources := {
+    libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion)
+  .jvmSettings(libraryDependencies += {
     if (isDotty.value)
-      Seq()
+      ("org.specs2" %%% "specs2-core" % Specs2Version % Test).cross(CrossVersion.for3Use2_13)
     else
-      (Compile / doc / sources).value
+      "org.specs2" %%% "specs2-core" % Specs2Version % Test
   })
+  .jsSettings(
+    libraryDependencies += {
+      if (isDotty.value)
+        ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
+          .cross(CrossVersion.for3Use2_13)
+          .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
+      else
+        "org.specs2" %%% "specs2-core" % Specs2Version % Test
+    },
+    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
+  )
 
 /**
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
@@ -242,7 +297,10 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-free" % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      "org.typelevel" %%% "coop" % CoopVersion)
+      "org.typelevel" %%% "coop" % CoopVersion),
+    mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext.this"))
   )
 
 /**
@@ -332,8 +390,14 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.IORuntime.this"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.IORuntime.<init>$default$6"),
-      // introduced by #3182, Address issues with the blocking mechanism of the thread pool
+      // introduced by #2312, Address issues with the blocking mechanism of the thread pool
       // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain"),
+      // introduced by #2345, Overflow and batched queue unification
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.HelperThread.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.enqueue"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.WorkerThread.this"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain"),
       // introduced by #2343. this is only the static forwarder overload on IO, but mima won't let us be that specific
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO.interruptible")
@@ -343,8 +407,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
   )
   .jsSettings(
-    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % "0.1.0"
-  )
+    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion)
 
 /**
  * Test support for the core project, providing various helpful instances like ScalaCheck
@@ -355,7 +418,21 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core, kernelTestkit)
   .settings(
     name := "cats-effect-testkit",
-    libraryDependencies ++= Seq("org.scalacheck" %%% "scalacheck" % ScalaCheckVersion))
+    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion)
+  .jvmSettings(libraryDependencies += {
+    if (isDotty.value)
+      ("org.specs2" %%% "specs2-core" % Specs2Version % Test).cross(CrossVersion.for3Use2_13)
+    else
+      "org.specs2" %%% "specs2-core" % Specs2Version % Test
+  })
+  .jsSettings(libraryDependencies += {
+    if (isDotty.value)
+      ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
+        .cross(CrossVersion.for3Use2_13)
+        .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
+    else
+      "org.specs2" %%% "specs2-core" % Specs2Version % Test
+  })
 
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
@@ -385,16 +462,28 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(kernel)
   .settings(
     name := "cats-effect-std",
+    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test)
+  .jvmSettings(libraryDependencies += {
+    if (isDotty.value)
+      ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
+        .cross(CrossVersion.for3Use2_13)
+        .exclude("org.scalacheck", "scalacheck_2.13")
+        .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
+    else
+      "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
+  })
+  .jsSettings(
     libraryDependencies += {
       if (isDotty.value)
         ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
           .cross(CrossVersion.for3Use2_13)
+          .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
           .exclude("org.scalacheck", "scalacheck_2.13")
           .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
       else
         "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     },
-    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test
+    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
 
 /**
