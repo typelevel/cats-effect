@@ -334,7 +334,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
         "cats.effect.unsafe.IORuntime.<init>$default$6"),
       // introduced by #3182, Address issues with the blocking mechanism of the thread pool
       // changes to `cats.effect.unsafe` package private code
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain"),
+      // introduced by #2343. this is only the static forwarder overload on IO, but mima won't let us be that specific
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO.interruptible")
     )
   )
   .jvmSettings(

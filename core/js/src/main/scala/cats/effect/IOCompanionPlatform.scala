@@ -25,7 +25,7 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   def blocking[A](thunk: => A): IO[A] =
     apply(thunk)
 
-  def interruptible[A](many: Boolean)(thunk: => A): IO[A] = {
+  private[effect] def interruptible[A](many: Boolean, thunk: => A): IO[A] = {
     val _ = many
     apply(thunk)
   }
