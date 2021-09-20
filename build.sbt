@@ -206,6 +206,8 @@ val ScalaCheckVersion = "1.15.4"
 val DisciplineVersion = "1.2.2"
 val CoopVersion = "1.1.1"
 
+val MacrotaskExecutorVersion = "0.2.0"
+
 replaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 
 addCommandAlias(CI.JVM.command, CI.JVM.toString)
@@ -264,9 +266,23 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
   .in(file("kernel"))
   .settings(
     name := "cats-effect-kernel",
-    libraryDependencies ++= Seq(
-      ("org.specs2" %%% "specs2-core" % Specs2Version % Test).cross(CrossVersion.for3Use2_13),
-      "org.typelevel" %%% "cats-core" % CatsVersion)
+    libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion)
+  .jvmSettings(libraryDependencies += {
+    if (isDotty.value)
+      ("org.specs2" %%% "specs2-core" % Specs2Version % Test).cross(CrossVersion.for3Use2_13)
+    else
+      "org.specs2" %%% "specs2-core" % Specs2Version % Test
+  })
+  .jsSettings(
+    libraryDependencies += {
+      if (isDotty.value)
+        ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
+          .cross(CrossVersion.for3Use2_13)
+          .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
+      else
+        "org.specs2" %%% "specs2-core" % Specs2Version % Test
+    },
+    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
 
 /**
@@ -281,7 +297,10 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-free" % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      "org.typelevel" %%% "coop" % CoopVersion)
+      "org.typelevel" %%% "coop" % CoopVersion),
+    mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext.this"))
   )
 
 /**
@@ -387,8 +406,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
   )
   .jsSettings(
-    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % "0.2.0"
-  )
+    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion)
 
 /**
  * Test support for the core project, providing various helpful instances like ScalaCheck
@@ -399,7 +417,21 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core, kernelTestkit)
   .settings(
     name := "cats-effect-testkit",
-    libraryDependencies ++= Seq("org.scalacheck" %%% "scalacheck" % ScalaCheckVersion))
+    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion)
+  .jvmSettings(libraryDependencies += {
+    if (isDotty.value)
+      ("org.specs2" %%% "specs2-core" % Specs2Version % Test).cross(CrossVersion.for3Use2_13)
+    else
+      "org.specs2" %%% "specs2-core" % Specs2Version % Test
+  })
+  .jsSettings(libraryDependencies += {
+    if (isDotty.value)
+      ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
+        .cross(CrossVersion.for3Use2_13)
+        .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
+    else
+      "org.specs2" %%% "specs2-core" % Specs2Version % Test
+  })
 
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
@@ -429,16 +461,28 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(kernel)
   .settings(
     name := "cats-effect-std",
+    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test)
+  .jvmSettings(libraryDependencies += {
+    if (isDotty.value)
+      ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
+        .cross(CrossVersion.for3Use2_13)
+        .exclude("org.scalacheck", "scalacheck_2.13")
+        .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
+    else
+      "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
+  })
+  .jsSettings(
     libraryDependencies += {
       if (isDotty.value)
         ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
           .cross(CrossVersion.for3Use2_13)
+          .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
           .exclude("org.scalacheck", "scalacheck_2.13")
           .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
       else
         "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     },
-    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test
+    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
 
 /**
