@@ -257,7 +257,7 @@ this has an impact on users who have used polymorphic effects with an <code>F[_]
 <p>The blocking thread pool, similarly to the compute pool, is provided in <code>IORuntime</code> when you run your <code>IO</code>.
 For other effect systems it could be a <code>Runtime</code> or <code>Scheduler</code>, etc. You can learn more about CE3 <a href="/cats-effect/docs/next/schedulers">schedulers</a> and <a href="/cats-effect/docs/next/thread-model">the thread model in comparison to CE2's</a>.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> runtime = cats.effect.unsafe.<span class="hljs-type">IORuntime</span>.global
-<span class="hljs-comment">// runtime: cats.effect.unsafe.IORuntime = IORuntime(cats.effect.unsafe.WorkStealingThreadPool@46661e12, cats.effect.unsafe.SchedulerCompanionPlatform$$anon$1@63c2aa5c, IORuntimeConfig(512,1024,true,16))</span>
+<span class="hljs-comment">// runtime: cats.effect.unsafe.IORuntime = IORuntime(cats.effect.unsafe.WorkStealingThreadPool@36f7c065, cats.effect.unsafe.SchedulerCompanionPlatform$$anon$1@559a16d0, IORuntimeConfig(512,1024,true,16))</span>
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">showThread</span></span>() = java.lang.<span class="hljs-type">Thread</span>.currentThread().getName()
 
@@ -335,7 +335,7 @@ instead of having the user provide the time unit and getting a <code>Long</code>
 <span class="hljs-comment">// )</span>
 
 clocks.unsafeRunSync()
-<span class="hljs-comment">// res1: concurrent.duration.FiniteDuration = 1399319 nanoseconds</span>
+<span class="hljs-comment">// res1: concurrent.duration.FiniteDuration = 1050488 nanoseconds</span>
 </code></pre>
 <p>Because <code>Clock</code> is no longer a &quot;usual&quot; value but a type class, it's not possible to create new values of it through <code>create</code> and <code>mapK</code>.</p>
 <p><code>Clock</code> is a part of <code>Sync</code> and thus it should be easy to get an instance inductively for any monad transformer, or directly for any effect that is a <code>Sync</code>.</p>
