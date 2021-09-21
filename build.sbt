@@ -395,9 +395,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain"),
       // introduced by #2345, Overflow and batched queue unification
       // changes to `cats.effect.unsafe` package private code
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.HelperThread.this"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.enqueue"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.WorkerThread.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.HelperThread.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.enqueue"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.WorkerThread.this"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain")
     )
   )
