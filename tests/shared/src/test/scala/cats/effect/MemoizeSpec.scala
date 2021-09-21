@@ -40,7 +40,7 @@ class MemoizeSpec extends BaseSpec with Discipline {
         } yield v
 
         val result = op.unsafeToFuture()
-        ticker.ctx.tickAll()
+        ticker.ctx.tick()
 
         result.value mustEqual Some(Success(0))
     }
@@ -60,7 +60,7 @@ class MemoizeSpec extends BaseSpec with Discipline {
         } yield (x, y, v)
 
         val result = op.unsafeToFuture()
-        ticker.ctx.tickAll()
+        ticker.ctx.tick()
 
         result.value mustEqual Some(Success((1, 1, 1)))
     }
@@ -76,12 +76,12 @@ class MemoizeSpec extends BaseSpec with Discipline {
           memoized <- Concurrent[IO].memoize(action)
           _ <- memoized.start
           x <- memoized
-          _ <- IO(ticker.ctx.tickAll())
+          _ <- IO(ticker.ctx.tick())
           v <- ref.get
         } yield x -> v
 
         val result = op.unsafeToFuture()
-        ticker.ctx.tickAll()
+        ticker.ctx.tick()
 
         result.value mustEqual Some(Success((1, 1)))
     }
@@ -104,7 +104,7 @@ class MemoizeSpec extends BaseSpec with Discipline {
         } yield res
 
         val result = op.unsafeToFuture()
-        ticker.ctx.tickAll(500.millis)
+        ticker.ctx.tickAll()
 
         result.value mustEqual Some(Success(false))
     }
@@ -126,7 +126,7 @@ class MemoizeSpec extends BaseSpec with Discipline {
         } yield res
 
         val result = op.unsafeToFuture()
-        ticker.ctx.tickAll(600.millis)
+        ticker.ctx.tickAll()
 
         result.value mustEqual Some(Success(false))
     }
@@ -148,7 +148,7 @@ class MemoizeSpec extends BaseSpec with Discipline {
         } yield res
 
         val result = op.unsafeToFuture()
-        ticker.ctx.tickAll(600.millis)
+        ticker.ctx.tickAll()
 
         result.value mustEqual Some(Success(false))
     }
@@ -169,7 +169,7 @@ class MemoizeSpec extends BaseSpec with Discipline {
         } yield v1 -> v2
 
         val result = op.unsafeToFuture()
-        ticker.ctx.tickAll(500.millis)
+        ticker.ctx.tickAll()
 
         result.value mustEqual Some(Success((2, 1)))
     }
@@ -190,7 +190,7 @@ class MemoizeSpec extends BaseSpec with Discipline {
         } yield v
 
         val result = op.unsafeToFuture()
-        ticker.ctx.tickAll(500.millis)
+        ticker.ctx.tickAll()
 
         result.value mustEqual Some(Success(true))
     }

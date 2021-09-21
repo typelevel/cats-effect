@@ -190,7 +190,7 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
         .unsafeRunAsyncOutcome { oc => results = oc.mapK(someK) }(unsafe
           .IORuntime(ticker.ctx, ticker.ctx, scheduler, () => (), unsafe.IORuntimeConfig()))
 
-      ticker.ctx.tickAll(1.second)
+      ticker.ctx.tickAll()
 
       /*println("====================================")
       println(s"completed ioa with $results")

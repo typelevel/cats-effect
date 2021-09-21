@@ -21,7 +21,7 @@ import cats.syntax.all._
 
 import scala.concurrent.duration._
 
-class BackpressureTests extends BaseSpec {
+class BackpressureSpec extends BaseSpec {
 
   "Backpressure" should {
     "Lossy Strategy should return IO[None] when no permits are available" in ticked {

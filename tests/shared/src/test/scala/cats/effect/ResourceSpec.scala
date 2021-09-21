@@ -469,7 +469,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         // after 1 second:
         //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
         //  resources are still open during `use` (correctness)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(1.second)
         leftAllocated must beTrue
         rightAllocated must beTrue
         leftReleasing must beFalse
@@ -477,7 +478,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 2 seconds:
         //  both resources have started cleanup (correctness)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftReleasing must beTrue
         rightReleasing must beTrue
         leftReleased must beFalse
@@ -485,7 +486,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 3 seconds:
         //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftReleased must beTrue
         rightReleased must beTrue
       }
@@ -518,7 +519,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         // after 1 second:
         //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
         //  resources are still open during `flatMap` (correctness)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(1.second)
         leftAllocated must beTrue
         rightAllocated must beTrue
         leftReleasing must beFalse
@@ -526,7 +528,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 2 seconds:
         //  both resources have started cleanup (interruption, or rhs would start releasing after 3 seconds)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftReleasing must beTrue
         rightReleasing must beTrue
         leftReleased must beFalse
@@ -534,7 +536,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 3 seconds:
         //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftReleased must beTrue
         rightReleased must beTrue
       }
@@ -565,7 +567,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 1 second:
         //  rhs has partially allocated, lhs executing
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(1.second)
         leftAllocated must beFalse
         rightAllocated must beTrue
         rightErrored must beFalse
@@ -574,7 +577,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 2 seconds:
         //  rhs has failed, release blocked since lhs is in uninterruptible allocation
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftAllocated must beFalse
         rightAllocated must beTrue
         rightErrored must beTrue
@@ -584,7 +587,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         // after 3 seconds:
         //  lhs completes allocation (concurrency, serially it would happen after 4 seconds)
         //  both resources have started cleanup (correctness, error propagates to both sides)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftAllocated must beTrue
         leftReleasing must beTrue
         rightReleasing must beTrue
@@ -593,7 +596,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 4 seconds:
         //  both resource have terminated cleanup (concurrency, serially it would happen after 5 seconds)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftReleased must beTrue
         rightReleased must beTrue
       }
@@ -679,7 +682,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           (Resource.eval(IO.canceled)).uncancelable.onCancel(Resource.eval(IO { fired = true }))
 
         test.use_.unsafeToFuture()
-        ticker.ctx.tickAll()
+        ticker.ctx.tick()
 
         fired must beFalse
       }
@@ -699,11 +702,12 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         (outerInit *> async *> waitR).use_.unsafeToFuture()
 
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(1.second)
         innerClosed must beFalse
         outerClosed must beFalse
 
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         innerClosed must beTrue
         outerClosed must beTrue
       }
@@ -720,11 +724,12 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         target.use_.unsafeToFuture()
 
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(1.second)
         leftClosed must beTrue
         rightClosed must beFalse
 
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         rightClosed must beTrue
       }
     }
@@ -790,25 +795,26 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
           target.use_.unsafeToFuture()
 
-          ticker.ctx.tick(50.millis)
+          ticker.ctx.tick()
+          ticker.ctx.advanceAndTick(50.millis)
           winnerClosed must beFalse
           loserClosed must beFalse
           completed must beFalse
           results must beNull
 
-          ticker.ctx.tick(50.millis)
+          ticker.ctx.advanceAndTick(50.millis)
           winnerClosed must beFalse
           loserClosed must beTrue
           completed must beFalse
           results must beLeft("winner")
 
-          ticker.ctx.tick(50.millis)
+          ticker.ctx.advanceAndTick(50.millis)
           winnerClosed must beFalse
           loserClosed must beTrue
           completed must beFalse
           results must beLeft("winner")
 
-          ticker.ctx.tick(1.second)
+          ticker.ctx.advanceAndTick(1.second)
           winnerClosed must beTrue
           completed must beTrue
       }
@@ -820,7 +826,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         val target = waitR.start *> waitR *> Resource.eval(IO { completed = true })
 
         target.use_.unsafeToFuture()
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tickAll()
         completed must beTrue
       }
 
@@ -843,12 +849,12 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           val target = Resource.make(wait)(_ => IO(i += 1)).start *> finish
 
           target.use_.unsafeToFuture()
-          ticker.ctx.tick(50.millis)
+          ticker.ctx.advanceAndTick(50.millis)
 
           completed must beTrue
           i mustEqual 0
 
-          ticker.ctx.tick(1.second)
+          ticker.ctx.advanceAndTick(1.second)
           i mustEqual 1
       }
 
@@ -860,10 +866,11 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         target.use_.unsafeToFuture()
 
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(1.second)
         i mustEqual 1
 
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         i mustEqual 1
       }
 
@@ -880,14 +887,15 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         target.use_.unsafeToFuture()
 
-        ticker.ctx.tick(100.millis)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(100.millis)
         i mustEqual 0
 
-        ticker.ctx.tick(900.millis)
+        ticker.ctx.advanceAndTick(900.millis)
         i mustEqual 0
         completed must beFalse
 
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         i mustEqual 1
         completed must beTrue
       }
@@ -917,7 +925,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         // after 1 second:
         //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
         //  resources are still open during `use` (correctness)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(1.second)
         leftAllocated must beTrue
         rightAllocated must beTrue
         leftReleasing must beFalse
@@ -925,7 +934,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 2 seconds:
         //  both resources have started cleanup (correctness)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftReleasing must beTrue
         rightReleasing must beTrue
         leftReleased must beFalse
@@ -933,7 +942,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 3 seconds:
         //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftReleased must beTrue
         rightReleased must beTrue
       }

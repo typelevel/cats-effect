@@ -30,15 +30,17 @@ import java.util.concurrent.locks.LockSupport
  * blocked [[WorkerThread]], one of which might ultimately unblock the currently blocked thread.
  * Since all [[WorkerThreads]] drain their local queues before entering a blocking region, the
  * helper threads do not actually steal fibers from the [[WorkerThread]] s. Instead, they
- * operate solely on the `overflow` queue, where all drained fibers end up, as well as incoming
+ * operate solely on the `external` queue, where all drained fibers end up, as well as incoming
  * fibers scheduled from outside the runtime. The helper thread loops until the [[WorkerThread]]
  * which spawned it has exited the blocking section (by setting the `signal` variable of this
- * thread), or until the `overflow` queue has been exhausted, whichever comes first.
+ * thread). In the case that the `external` queue has been exhausted, the helper thread parks,
+ * awaiting further work which may arrive at a later point in time, but could end up unblocking
+ * the other threads.
  *
  * The helper thread itself extends [[scala.concurrent.BlockContext]], which means that it also
  * has the ability to anticipate blocking actions. If blocking does occur on a helper thread,
  * another helper thread is started to take its place. Similarly, that thread sticks around
- * until it has been signalled to go away, or the `overflow` queue has been exhausted.
+ * until it has been signalled to go away.
  *
  * As for why we're not simply using other [[WorkerThread]] s to take the place of other blocked
  * [[WorkerThreads]], it comes down to optimization and simplicity of implementation. Blocking
@@ -49,14 +51,13 @@ import java.util.concurrent.locks.LockSupport
  * finalization of the threads) would be much more complex. This way, both [[WorkerThread]] and
  * [[HelperThread]] get to enjoy a somewhat simpler, more maintainable implementation. The
  * [[WorkStealingThreadPool]] itself is heavily optimized for operating with a fixed number of
- * [[WorkerThread]] s, and having a dynamic number of [[WorkerThread]] instances introduces more
- * logic on the hot path.
+ * [[WorkerThread]] instances, and having a dynamic number of [[WorkerThread]] instances
+ * introduces more logic on the hot path.
  */
 private final class HelperThread(
     private[this] val threadPrefix: String,
     private[this] val blockingThreadCounter: AtomicInteger,
-    private[this] val batched: ScalQueue[Array[IOFiber[_]]],
-    private[this] val overflow: ScalQueue[IOFiber[_]],
+    private[this] val external: ScalQueue[AnyRef],
     private[this] val pool: WorkStealingThreadPool)
     extends Thread
     with BlockContext {
@@ -108,15 +109,15 @@ private final class HelperThread(
   }
 
   /**
-   * Schedules a fiber on the `overflow` queue. [[HelperThread]] s exclusively work with fibers
-   * from the `overflow` queue.
+   * Schedules a fiber on the `external` queue. [[HelperThread]] s exclusively work with fibers
+   * from the `external` queue.
    *
    * @param fiber
-   *   the fiber to be scheduled on the `overflow` queue
+   *   the fiber to be scheduled on the `external` queue
    */
   def schedule(fiber: IOFiber[_]): Unit = {
     val rnd = random
-    overflow.offer(fiber, rnd)
+    external.offer(fiber, rnd)
     if (!pool.notifyParked(rnd)) {
       pool.notifyHelper(rnd)
     }
@@ -147,8 +148,8 @@ private final class HelperThread(
     pool eq threadPool
 
   /**
-   * The run loop of the [[HelperThread]]. A loop iteration consists of checking the `overflow`
-   * queue for available work. If it cannot secure a fiber from the `overflow` queue, the
+   * The run loop of the [[HelperThread]]. A loop iteration consists of checking the `external`
+   * queue for available work. If it cannot secure a fiber from the `external` queue, the
    * [[HelperThread]] exits its runloop and dies. If a fiber is secured, it is executed.
    *
    * Each iteration of the loop is preceded with a global check of the status of the pool, as
@@ -175,25 +176,22 @@ private final class HelperThread(
     // been shut down, or the `WorkerThread` which spawned this `HelperThread`
     // has finished blocking.
     while (!isInterrupted() && signal.get() != 2) {
-      // Check the batched queue.
-      val batch = batched.poll(rnd)
-      if (batch ne null) {
-        overflow.offerAll(batch, rnd)
+      val element = external.poll(rnd)
+      if (element.isInstanceOf[Array[IOFiber[_]]]) {
+        val batch = element.asInstanceOf[Array[IOFiber[_]]]
+        external.offerAll(batch, rnd)
         if (!pool.notifyParked(rnd)) {
           pool.notifyHelper(rnd)
         }
-      }
-
-      val fiber = overflow.poll(rnd)
-      if (fiber ne null) {
+      } else if (element.isInstanceOf[IOFiber[_]]) {
+        val fiber = element.asInstanceOf[IOFiber[_]]
         fiber.run()
       } else if (signal.compareAndSet(1, 0)) {
-        // There are currently no more fibers available on the overflow or
-        // batched queues. However, the thread that originally started this
-        // helper thread has not been unblocked. The fibers that will
-        // eventually unblock that original thread might not have arrived on
-        // the pool yet. The helper thread should suspend and await for a
-        // notification of incoming work.
+        // There are currently no more fibers available on the external queue.
+        // However, the thread that originally started this helper thread has
+        // not been unblocked. The fibers that will eventually unblock that
+        // original thread might not have arrived on the pool yet. The helper
+        // thread should suspend and await for a notification of incoming work.
         pool.transitionHelperToParked(this, rnd)
         pool.notifyIfWorkPending(rnd)
         parkLoop()
@@ -209,8 +207,7 @@ private final class HelperThread(
    *   code path can be exercised is through `IO.delay`, which already handles exceptions.
    */
   override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
-    // Try waking up a `WorkerThread` to handle fibers from the overflow and
-    // batched queues.
+    // Try waking up a `WorkerThread` to handle fibers from the external queue.
     val rnd = random
     if (!pool.notifyParked(rnd)) {
       pool.notifyHelper(rnd)
@@ -230,7 +227,7 @@ private final class HelperThread(
 
       // Spawn a new `HelperThread`.
       val helper =
-        new HelperThread(threadPrefix, blockingThreadCounter, batched, overflow, pool)
+        new HelperThread(threadPrefix, blockingThreadCounter, external, pool)
       helper.start()
 
       // With another `HelperThread` started, it is time to execute the blocking
