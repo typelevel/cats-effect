@@ -17,27 +17,29 @@
 package cats.effect
 package unsafe
 
+import scala.util.Try
+
 private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
   // TODO make the cancelation and auto-yield properties have saner names
   protected final val Default: IORuntimeConfig = {
     val cancelationCheckThreshold = process
       .env("CATS_EFFECT_CANCELATION_CHECK_THRESHOLD")
-      .flatMap(_.toIntOption)
+      .flatMap(x => Try(x.toInt).toOption)
       .getOrElse(512)
 
     val autoYieldThreshold = process
       .env("CATS_EFFECT_AUTO_YIELD_THRESHOLD_MULTIPLIER")
-      .flatMap(_.toIntOption)
+      .flatMap(x => Try(x.toInt).toOption)
       .getOrElse(2) * cancelationCheckThreshold
 
     val enhancedExceptions = process
       .env("CATS_EFFECT_TRACING_EXCEPTIONS_ENHANCED")
-      .flatMap(_.toBooleanOption)
+      .flatMap(x => Try(x.toBoolean).toOption)
       .getOrElse(DefaultEnhancedExceptions)
 
     val traceBufferSize = process
       .env("CATS_EFFECT_TRACING_BUFFER_SIZE")
-      .flatMap(_.toIntOption)
+      .flatMap(x => Try(x.toInt).toOption)
       .getOrElse(DefaultTraceBufferSize)
 
     apply(cancelationCheckThreshold, autoYieldThreshold, enhancedExceptions, traceBufferSize)
