@@ -922,9 +922,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    */
   def delay[A](thunk: => A): IO[A] = apply(thunk)
 
-  override private[effect] def interruptible[A](many: Boolean, thunk: => A): IO[A] =
-    super.interruptible(many, thunk)
-
   /**
    * Suspends a synchronous side effect which produces an `IO` in `IO`.
    *

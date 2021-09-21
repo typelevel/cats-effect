@@ -398,9 +398,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.HelperThread.this"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.enqueue"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.WorkerThread.this"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain"),
-      // introduced by #2343. this is only the static forwarder overload on IO, but mima won't let us be that specific
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO.interruptible")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain")
     )
   )
   .jvmSettings(
