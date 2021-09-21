@@ -72,6 +72,13 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val localQueues: Array[LocalQueue] = new Array(threadCount)
   private[this] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
 
+  /**
+   * Atomic variable for used for publishing changes to the references in the `workerThreads`
+   * array. Worker threads can be changed whenever blocking code is encountered on the pool.
+   * When a worker thread is about to block, it spawns a new worker thread that would replace
+   * it, transfers the local queue to it and proceeds to run the blocking code, after which it
+   * exits.
+   */
   private[this] val workerThreadPublisher: AtomicBoolean = new AtomicBoolean(false)
 
   private[this] val externalQueue: ScalQueue[AnyRef] =
@@ -197,6 +204,13 @@ private[effect] final class WorkStealingThreadPool(
         // allowed to search for work in the local queues of other worker
         // threads).
         state.getAndAdd(DeltaSearching)
+        // Fetch the latest references to the worker threads before doing the
+        // actual unparking. There is no danger of a race condition where the
+        // parked signal has been successfully marked as unparked but the
+        // underlying worker thread reference has changed, because a worker thread
+        // can only be replaced right before executing blocking code, at which
+        // point it is already unparked and entering this code region is thus
+        // impossible.
         workerThreadPublisher.get()
         val worker = workerThreads(index)
         LockSupport.unpark(worker)

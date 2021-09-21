@@ -399,6 +399,21 @@ private final class WorkerThread(
   /**
    * A mechanism for executing support code before executing a blocking action.
    *
+   * The current thread creates a replacement worker thread that will take its place in the pool
+   * and does a complete transfer of ownership of the index, the parked signal and the local
+   * queue. It then replaces the reference that the pool has of this worker thread with the
+   * reference of the new worker thread. At this point, the replacement worker thread is
+   * started, and this thread is no longer recognized as a worker thread of the work stealing
+   * thread pool. This is done by setting the `blocking` flag, which signifies that the blocking
+   * region of code has been entered. This flag is respected when scheduling fibers (it can
+   * happen that the blocking region or the fiber run loop right after it wants to execute a
+   * scheduling call) and since this thread is now treated as an external thread, all fibers are
+   * scheduled on the external queue. The `blocking` flag is also respected by the `run()`
+   * method of this thread such that the next time that the main loop needs to continue, it will
+   * exit instead. Finally, the `blocking` flag is useful when entering nested blocking regions.
+   * In this case, there is no need to spawn a replacement worker thread because it has already
+   * been done.
+   *
    * @note
    *   There is no reason to enclose any code in a `try/catch` block because the only way this
    *   code path can be exercised is through `IO.delay`, which already handles exceptions.
@@ -422,7 +437,15 @@ private final class WorkerThread(
       // blocking code has been successfully executed.
       blocking = true
 
-      // Spawn a new `WorkerThread`, a literal clone of this one.
+      // Spawn a new `WorkerThread`, a literal clone of this one. It is safe to
+      // transfer ownership of the local queue and the parked signal to the new
+      // thread because the current one will only execute the blocking action
+      // and die. Any other worker threads trying to steal from the local queue
+      // being transferred need not know of the fact that the underlying worker
+      // thread is being changed. Transferring the parked signal is safe because
+      // a worker thread about to run blocking code is **not** parked, and
+      // therefore, another worker thread would not even see it as a candidate
+      // for unparking.
       val idx = index
       val clone =
         new WorkerThread(idx, threadPrefix, queue, parked, external, pool)
