@@ -18,6 +18,28 @@ package cats.effect
 package unsafe
 
 private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
-  protected final val Default: IORuntimeConfig =
-    apply(512, 1024)
+  // TODO make the cancelation and auto-yield properties have saner names
+  protected final val Default: IORuntimeConfig = {
+    val cancelationCheckThreshold = process
+      .env("CATS_EFFECT_CANCELATION_CHECK_THRESHOLD")
+      .flatMap(_.toIntOption)
+      .getOrElse(512)
+
+    val autoYieldThreshold = process
+      .env("CATS_EFFECT_AUTO_YIELD_THRESHOLD_MULTIPLIER")
+      .flatMap(_.toIntOption)
+      .getOrElse(2) * cancelationCheckThreshold
+
+    val enhancedExceptions = process
+      .env("CATS_EFFECT_TRACING_EXCEPTIONS_ENHANCED")
+      .flatMap(_.toBooleanOption)
+      .getOrElse(DefaultEnhancedExceptions)
+
+    val traceBufferSize = process
+      .env("CATS_EFFECT_TRACING_BUFFER_SIZE")
+      .flatMap(_.toIntOption)
+      .getOrElse(DefaultTraceBufferSize)
+
+    apply(cancelationCheckThreshold, autoYieldThreshold, enhancedExceptions, traceBufferSize)
+  }
 }
