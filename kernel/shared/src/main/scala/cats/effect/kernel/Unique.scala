@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 import cats.{Applicative, Hash}
 
-trait Unique[F[_]] {
+trait Unique[F[_]] extends Serializable {
   def applicative: Applicative[F]
   def unique: F[Unique.Token]
 }
@@ -27,7 +27,7 @@ object Unique {
 
   def apply[F[_]](implicit F: Unique[F]): F.type = F
 
-  final class Token
+  final class Token extends Serializable
 
   object Token {
     implicit val tokenHash: Hash[Token] =

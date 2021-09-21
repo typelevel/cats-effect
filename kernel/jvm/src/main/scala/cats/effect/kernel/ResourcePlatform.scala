@@ -21,7 +21,7 @@ import javax.security.auth.Destroyable
 /**
  * JVM-specific Resource methods
  */
-private[effect] trait ResourcePlatform {
+private[effect] trait ResourcePlatform extends Serializable {
 
   /**
    * Creates a [[Resource]] by wrapping a Java

@@ -17,15 +17,15 @@
 package cats.effect
 
 import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.{AlignTests, SemigroupKTests}
+import cats.kernel.laws.SerializableLaws.serializable
+import cats.laws.discipline.{AlignTests, SemigroupKTests, SerializableTests}
 import cats.laws.discipline.arbitrary._
-
 import cats.effect.implicits._
 import cats.effect.laws.AsyncTests
 import cats.effect.testkit.TestContext
 import cats.syntax.all._
-
-import org.scalacheck.Prop, Prop.forAll
+import org.scalacheck.Prop
+import Prop.forAll
 // import org.scalacheck.rng.Seed
 
 // import org.specs2.scalacheck.Parameters
@@ -1327,6 +1327,14 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         _ <- fibers.traverse(_.join)
         res <- IO(ok)
       } yield res
+    }
+
+    "serialize" in {
+      forAll { (io: IO[Int]) => serializable(io) }(
+        implicitly,
+        arbitraryIOWithoutContextShift,
+        implicitly,
+        implicitly)
     }
 
     platformSpecs

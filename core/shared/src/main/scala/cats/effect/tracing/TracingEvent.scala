@@ -16,7 +16,7 @@
 
 package cats.effect.tracing
 
-private[effect] sealed trait TracingEvent
+private[effect] sealed trait TracingEvent extends Serializable
 
 private[effect] object TracingEvent {
   final class StackTrace extends Throwable with TracingEvent

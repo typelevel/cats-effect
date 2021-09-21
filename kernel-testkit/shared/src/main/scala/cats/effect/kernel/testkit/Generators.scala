@@ -308,6 +308,27 @@ trait AsyncGenerators[F[_]] extends GenTemporalGenerators[F, Throwable] with Syn
     } yield F.evalOn(fa, ec)
 }
 
+
+trait AsyncGeneratorsWithoutEvalShift[F[_]] extends GenTemporalGenerators[F, Throwable] with SyncGenerators[F] {
+  implicit val F: Async[F]
+  implicit protected val cogenFU: Cogen[F[Unit]] = Cogen[Unit].contramap(_ => ())
+
+  override protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]) =
+    ("async" -> genAsync[A](deeper)) :: super.recursiveGen[A](deeper)
+
+  private def genAsync[A: Arbitrary](deeper: GenK[F]) =
+    for {
+      result <- arbitrary[Either[Throwable, A]]
+
+      fo <- deeper[Option[F[Unit]]](
+        Arbitrary(Gen.option[F[Unit]](deeper[Unit])),
+        Cogen.cogenOption(cogenFU))
+    } yield F
+      .async[A](k => F.delay(k(result)) >> fo)
+      .flatMap(F.pure(_))
+      .handleErrorWith(F.raiseError(_))
+}
+
 trait ParallelFGenerators {
   implicit def arbitraryParallelF[F[_], A](
       implicit ArbF: Arbitrary[F[A]]): Arbitrary[ParallelF[F, A]] =

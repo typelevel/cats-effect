@@ -28,7 +28,7 @@ import cats.{Defer, Monad}
  * A typeclass which encodes various notions of time. Analogous to some of the time functions
  * exposed by [[java.lang.System]].
  */
-trait Clock[F[_]] extends ClockPlatform[F] {
+trait Clock[F[_]] extends ClockPlatform[F] with Serializable {
 
   def applicative: Applicative[F]
 

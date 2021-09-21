@@ -19,7 +19,7 @@ package cats.effect.kernel
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 
-private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
+private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] =>
 
   /**
    * Suspend a [[java.util.concurrent.CompletableFuture]] into the `F[_]` context.

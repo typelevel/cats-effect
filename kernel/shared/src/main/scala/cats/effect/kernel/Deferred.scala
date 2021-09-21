@@ -213,7 +213,7 @@ object Deferred {
   }
 }
 
-trait DeferredSource[F[_], A] {
+trait DeferredSource[F[_], A] extends Serializable {
 
   /**
    * Obtains the value of the `Deferred`, or waits until it has been completed. The returned
@@ -240,7 +240,7 @@ object DeferredSource {
     }
 }
 
-trait DeferredSink[F[_], A] {
+trait DeferredSink[F[_], A] extends Serializable {
 
   /**
    * If this `Deferred` is empty, sets the current value to `a`, and notifies any and all

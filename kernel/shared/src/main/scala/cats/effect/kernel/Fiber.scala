@@ -25,7 +25,7 @@ import cats.syntax.all._
  * @see
  *   [[GenSpawn]] documentation for more detailed information on the concurrency of fibers.
  */
-trait Fiber[F[_], E, A] {
+trait Fiber[F[_], E, A] extends Serializable {
 
   /**
    * Requests the cancelation of the fiber bound to this `Fiber` handle and awaits its

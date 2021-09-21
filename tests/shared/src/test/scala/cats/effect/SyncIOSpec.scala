@@ -17,6 +17,7 @@
 package cats.effect
 
 import cats.kernel.laws.discipline.MonoidTests
+import cats.kernel.laws.SerializableLaws.serializable
 import cats.laws.discipline.AlignTests
 import cats.laws.discipline.arbitrary._
 import cats.effect.laws.SyncTests
@@ -219,6 +220,10 @@ class SyncIOSpec extends BaseSpec with Discipline with SyncIOPlatformSpecificati
         res2 <- io.attempt
         res <- IO.delay(res1 mustEqual res2)
       } yield res
+    }
+
+    "serialize" in {
+      forAll { (io: SyncIO[Int]) => serializable(io) }
     }
   }
 

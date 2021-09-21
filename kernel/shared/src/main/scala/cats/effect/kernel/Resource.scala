@@ -147,7 +147,7 @@ import scala.concurrent.duration.FiniteDuration
  * @tparam A
  *   the type of resource
  */
-sealed abstract class Resource[F[_], +A] {
+sealed abstract class Resource[F[_], +A] extends Serializable {
   import Resource._
 
   private[effect] def fold[B](
