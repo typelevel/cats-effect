@@ -27,7 +27,7 @@ private[effect] object process {
   def env(key: String): Option[String] =
     Try(js.Dynamic.global.process.env.selectDynamic(key))
       .orElse(Try(js.Dynamic.global.process.env.selectDynamic(s"REACT_APP_$key")))
-      .map(_.asInstanceOf[String])
       .toOption
       .filterNot(js.isUndefined)
+      .flatMap(x => Try(x.asInstanceOf[String]).toOption)
 }
