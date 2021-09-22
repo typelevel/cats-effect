@@ -736,7 +736,7 @@ private final class IOFiber[A](
              * which ensures we will always see the most up-to-date value
              * for `canceled` in `shouldFinalize`, ensuring no finalisation leaks
              */
-            monitor()
+            monitor(state)
             suspended.getAndSet(true)
 
             /*
@@ -1023,10 +1023,9 @@ private final class IOFiber[A](
   private[this] def suspend(): Unit =
     suspended.set(true)
 
-  private[this] def monitor(): Unit = {
+  private[this] def monitor(key: AnyRef): Unit = {
     val ec = currentCtx
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
-      val key = new AnyRef()
       bagKey = key
       ec.asInstanceOf[WorkStealingThreadPool].monitor(key, this)
     }
