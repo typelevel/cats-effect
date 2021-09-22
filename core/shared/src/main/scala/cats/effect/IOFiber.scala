@@ -122,7 +122,7 @@ private final class IOFiber[A](
     RingBuffer.empty(runtime.config.traceBufferLogSize)
 
   // GC fiber bag bookkeeping
-  private[this] var bagKey: AnyRef = _
+  // private[this] var bagKey: AnyRef = _
 
   override def run(): Unit = {
     // insert a read barrier after every async boundary
@@ -1026,13 +1026,13 @@ private final class IOFiber[A](
   private[this] def monitor(key: AnyRef): Unit = {
     val ec = currentCtx
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
-      bagKey = key
+      // bagKey = key
       ec.asInstanceOf[WorkStealingThreadPool].monitor(key, this)
     }
   }
 
   private[this] def unmonitor(): Unit = {
-    bagKey = null
+    // bagKey = null
   }
 
   /* returns the *new* context, not the old */
