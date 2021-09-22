@@ -121,6 +121,9 @@ private final class IOFiber[A](
   private[this] var tracingEvents: RingBuffer =
     RingBuffer.empty(runtime.config.traceBufferLogSize)
 
+  // GC fiber bag bookkeeping
+  private[this] var bagKey: AnyRef = _
+
   override def run(): Unit = {
     // insert a read barrier after every async boundary
     readBarrier()
@@ -148,6 +151,7 @@ private final class IOFiber[A](
       if (resume()) {
         /* ...it was! was it masked? */
         if (isUnmasked()) {
+          unmonitor()
           /* ...nope! take over the target fiber's runloop and run the finalizers */
           // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
@@ -605,6 +609,7 @@ private final class IOFiber[A](
                 // `resume()` is a volatile read of `suspended` through which
                 // `wasFinalizing` is published
                 if (finalizing == state.wasFinalizing) {
+                  unmonitor()
                   if (!shouldFinalize()) {
                     /* we weren't canceled or completed, so schedule the runloop for execution */
                     val ec = currentCtx
@@ -731,6 +736,7 @@ private final class IOFiber[A](
              * which ensures we will always see the most up-to-date value
              * for `canceled` in `shouldFinalize`, ensuring no finalisation leaks
              */
+            monitor()
             suspended.getAndSet(true)
 
             /*
@@ -747,10 +753,12 @@ private final class IOFiber[A](
                * finalisers.
                */
               if (resume()) {
-                if (shouldFinalize())
+                if (shouldFinalize()) {
+                  unmonitor()
                   asyncCancel(null)
-                else
+                } else {
                   suspend()
+                }
               }
             }
           } else {
@@ -1014,6 +1022,19 @@ private final class IOFiber[A](
 
   private[this] def suspend(): Unit =
     suspended.set(true)
+
+  private[this] def monitor(): Unit = {
+    val ec = currentCtx
+    if (ec.isInstanceOf[WorkStealingThreadPool]) {
+      val key = new AnyRef()
+      bagKey = key
+      ec.asInstanceOf[WorkStealingThreadPool].monitor(key, this)
+    }
+  }
+
+  private[this] def unmonitor(): Unit = {
+    bagKey = null
+  }
 
   /* returns the *new* context, not the old */
   private[this] def popContext(): ExecutionContext = {

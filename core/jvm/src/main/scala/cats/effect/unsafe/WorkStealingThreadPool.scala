@@ -468,6 +468,20 @@ private[effect] final class WorkStealingThreadPool(
     }
   }
 
+  private[effect] def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {
+    val pool = this
+    val thread = Thread.currentThread()
+
+    if (thread.isInstanceOf[WorkerThread]) {
+      val worker = thread.asInstanceOf[WorkerThread]
+      if (worker.isOwnedBy(pool)) {
+        worker.monitor(key, fiber)
+      }
+    } else {
+      // demonstration, do nothing for now
+    }
+  }
+
   /**
    * Schedules a fiber for execution on this thread pool originating from an external thread (a
    * thread which is not owned by this thread pool).
