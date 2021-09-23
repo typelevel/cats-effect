@@ -257,8 +257,8 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    *
    * Masks can also be stacked or nested within each other. If multiple masks are active, all
    * masks must be undone so that cancelation can be observed. In order to completely unmask
-   * within a multi-masked region, the poll corresponding to each mask must be applied,
-   * innermost-first.
+   * within a multi-masked region the poll corresponding to each mask must be applied to the
+   * effect, outermost-first.
    *
    * {{{
    *
@@ -273,7 +273,8 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * The following operations are no-ops:
    *
    *   1. Polling in the wrong order
-   *   1. Applying the same poll more than once: `poll(poll(fa))`
+   *   1. Subsequent polls when applying the same poll more than once: `poll(poll(fa))` is
+   *      equivalent to `poll(fa)`
    *   1. Applying a poll bound to one fiber within another fiber
    *
    * @param body
