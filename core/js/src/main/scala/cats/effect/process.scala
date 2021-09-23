@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import cats.syntax.all._
+
 import scala.scalajs.js
 import scala.util.Try
 
@@ -27,7 +29,8 @@ private[effect] object process {
   def env(key: String): Option[String] =
     Try(js.Dynamic.global.process.env.selectDynamic(key))
       .orElse(Try(js.Dynamic.global.process.env.selectDynamic(s"REACT_APP_$key")))
+      .widen[Any]
+      .collect { case v: String if !js.isUndefined(v) => v }
       .toOption
-      .filterNot(js.isUndefined)
-      .flatMap(x => Try(x.asInstanceOf[String]).toOption)
+
 }
