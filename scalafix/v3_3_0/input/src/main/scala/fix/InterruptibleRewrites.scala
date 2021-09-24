@@ -5,7 +5,7 @@ package fix
 
 import cats.effect.{ IO, Sync }
 
-object IORewrites {
+object InterruptibleRewrites {
   IO.interruptible(true)(IO.unit)
 
   IO.interruptible(false)(IO.unit)

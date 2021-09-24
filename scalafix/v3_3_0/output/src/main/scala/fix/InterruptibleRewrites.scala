@@ -2,7 +2,7 @@ package fix
 
 import cats.effect.{ IO, Sync }
 
-object IORewrites {
+object InterruptibleRewrites {
   IO.interruptibleMany(IO.unit)
 
   IO.interruptible(IO.unit)
