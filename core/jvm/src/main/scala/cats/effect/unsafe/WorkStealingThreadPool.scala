@@ -336,6 +336,14 @@ private[effect] final class WorkStealingThreadPool(
     ()
   }
 
+  /**
+   * Replaces the blocked worker thread with the provided index with a clone.
+   *
+   * @param index
+   *   the worker thread index at which the replacement will take place
+   * @param newWorker
+   *   the new worker thread instance to be installed at the provided index
+   */
   private[unsafe] def replaceWorker(index: Int, newWorker: WorkerThread): Unit = {
     workerThreads(index) = newWorker
     workerThreadPublisher.lazySet(true)
