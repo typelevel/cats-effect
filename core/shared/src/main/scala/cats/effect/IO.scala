@@ -545,6 +545,19 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def redeemWith[B](recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
     attempt.flatMap(_.fold(recover, bind))
 
+  def replicateA(n: Int): IO[List[A]] =
+    if (n <= 0)
+      IO.pure(Nil)
+    else
+      flatMap(a => replicateA(n - 1).map(a :: _))
+
+  // TODO PR to cats
+  def replicateA_(n: Int): IO[Unit] =
+    if (n <= 0)
+      IO.unit
+    else
+      flatMap(_ => replicateA_(n - 1))
+
   /**
    * Returns an IO that will delay the execution of the source by the given duration.
    */
@@ -1450,6 +1463,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def productR[A, B](left: IO[A])(right: IO[B]): IO[B] =
       left.productR(right)
 
+    override def replicateA[A](n: Int, fa: IO[A]): IO[List[A]] =
+      fa.replicateA(n)
+
     def start[A](fa: IO[A]): IO[FiberIO[A]] =
       fa.start
 
@@ -1465,9 +1481,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def delay[A](thunk: => A): IO[A] = IO(thunk)
 
     override def blocking[A](thunk: => A): IO[A] = IO.blocking(thunk)
-
-    private[effect] override def interruptible[A](many: Boolean)(thunk: => A): IO[A] =
-      IO.interruptible(many)(thunk)
 
     override def interruptible[A](thunk: => A): IO[A] = IO.interruptible(thunk)
 

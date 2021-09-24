@@ -76,7 +76,7 @@ trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Unique[F] 
   def blocking[A](thunk: => A): F[A] =
     suspend(Blocking)(thunk)
 
-  private[effect] def interruptible[A](many: Boolean)(thunk: => A): F[A] =
+  private[effect] def interruptible[A](many: Boolean, thunk: => A): F[A] =
     if (many) interruptibleMany(thunk) else interruptible(thunk)
 
   /**
