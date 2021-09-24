@@ -23,7 +23,7 @@ The above represents the core, stable dependency which brings in the entirety of
 Or, if you prefer a less bare-bones starting point, you can try the Giter8 template:
 
 ```bash
-$ sbt new typelevel/ce3.g8
+$ sbt -Dsbt.version=1.5.0 new typelevel/ce3.g8
 ```
 
 Depending on your use-case, you may want to consider one of the several other modules which are made available within the Cats Effect release. If you're a datatype implementer (like Monix), you probably only want to depend on **kernel** (the typeclasses) in your compile scope and **laws** in your test scope:
