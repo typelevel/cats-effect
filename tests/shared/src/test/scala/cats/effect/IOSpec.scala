@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.{AlignTests, SemigroupKTests}
+import cats.laws.discipline.{AlignTests, CommutativeApplicativeTests, SemigroupKTests}
 import cats.laws.discipline.arbitrary._
 
 import cats.effect.implicits._
@@ -1365,6 +1365,15 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
     checkAll(
       "IO",
       AlignTests[IO].align[Int, Int, Int, Int]
+    )
+  }
+
+  {
+    implicit val ticker = Ticker()
+
+    checkAll(
+      "IO.Par",
+      CommutativeApplicativeTests[IO.Par].commutativeApplicative[Int, Int, Int]
     )
   }
 
