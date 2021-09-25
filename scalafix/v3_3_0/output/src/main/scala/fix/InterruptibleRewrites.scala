@@ -10,4 +10,6 @@ object InterruptibleRewrites {
   Sync[IO].interruptibleMany(IO.unit)
 
   Sync[IO].interruptible(IO.unit)
+
+  def f[F[_]](implicit F: Sync[F]): F[Unit] = Sync[F].interruptibleMany(IO.unit)
 }

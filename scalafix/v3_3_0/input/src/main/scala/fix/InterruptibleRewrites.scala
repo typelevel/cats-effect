@@ -13,4 +13,6 @@ object InterruptibleRewrites {
   Sync[IO].interruptible(true)(IO.unit)
 
   Sync[IO].interruptible(false)(IO.unit)
+
+  def f[F[_]](implicit F: Sync[F]): F[Unit] = F.interruptible(true)(IO.unit)
 }
