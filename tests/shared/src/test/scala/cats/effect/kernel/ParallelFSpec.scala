@@ -20,14 +20,26 @@ package kernel
 import cats.effect.kernel.instances.all._
 import cats.effect.kernel.testkit.PureConcGenerators._
 import cats.effect.kernel.testkit.pure._
+import cats.laws.discipline.AlignTests
 import cats.laws.discipline.CommutativeApplicativeTests
+import cats.laws.discipline.ParallelTests
+import cats.laws.discipline.arbitrary.catsLawsCogenForIor
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class ParallelFSpec extends BaseSpec with Discipline {
+
+  checkAll("Parallel[F, ParallelF]",
+    ParallelTests[PureConc[Throwable, *], ParallelF[PureConc[Throwable, *], *]].parallel[Int, Int]
+  )
 
   checkAll(
     "CommutativeApplicative[ParallelF]",
     CommutativeApplicativeTests[ParallelF[PureConc[Throwable, *], *]]
       .commutativeApplicative[Int, Int, Int])
+
+  checkAll(
+    "Align[ParallelF]",
+    AlignTests[ParallelF[PureConc[Throwable, *], *]]
+      .align[Int, Int, Int, Int])
 
 }
