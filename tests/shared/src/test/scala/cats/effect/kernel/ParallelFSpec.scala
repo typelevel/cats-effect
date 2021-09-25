@@ -28,18 +28,17 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 class ParallelFSpec extends BaseSpec with Discipline {
 
-  checkAll("Parallel[F, ParallelF]",
-    ParallelTests[PureConc[Throwable, *], ParallelF[PureConc[Throwable, *], *]].parallel[Int, Int]
-  )
+  checkAll(
+    "Parallel[F, ParallelF]",
+    ParallelTests[PureConc[Int, *], ParallelF[PureConc[Int, *], *]].parallel[Int, Int])
 
   checkAll(
     "CommutativeApplicative[ParallelF]",
-    CommutativeApplicativeTests[ParallelF[PureConc[Throwable, *], *]]
+    CommutativeApplicativeTests[ParallelF[PureConc[Int, *], *]]
       .commutativeApplicative[Int, Int, Int])
 
   checkAll(
     "Align[ParallelF]",
-    AlignTests[ParallelF[PureConc[Throwable, *], *]]
-      .align[Int, Int, Int, Int])
+    AlignTests[ParallelF[PureConc[Int, *], *]].align[Int, Int, Int, Int])
 
 }
