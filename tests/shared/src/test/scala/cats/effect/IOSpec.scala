@@ -1387,7 +1387,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
     checkAll(
       "IO.Par",
-      CommutativeApplicativeTests[IO.Par].commutativeApplicative[Int, Int, Int]
+      CommutativeApplicativeTests[IO.Par].applicative[Int, Int, Int]
     )
   }
 
