@@ -34,8 +34,7 @@ class ParallelFSpec extends BaseSpec with Discipline {
 
   checkAll(
     "CommutativeApplicative[ParallelF]",
-    CommutativeApplicativeTests[ParallelF[PureConc[Int, *], *]]
-      .commutativeApplicative[Int, Int, Int])
+    CommutativeApplicativeTests[ParallelF[PureConc[Int, *], *]].applicative[Int, Int, Int])
 
   checkAll(
     "Align[ParallelF]",
