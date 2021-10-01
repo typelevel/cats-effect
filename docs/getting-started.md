@@ -104,7 +104,7 @@ class ExampleSuite extends CatsEffectSuite {
 
 [![weaver-cats Scala version support](https://index.scala-lang.org/disneystreaming/weaver-test/weaver-cats/latest-by-scala-version.svg)](https://index.scala-lang.org/disneystreaming/weaver-test/weaver-cats)
 
-[Weaver](https://github.com/disneystreaming/weaver-test) is a test-framework build directly on top of cats-effect. It is designed specifically to handle thousands of tests exercising I/O layers (http, database calls) concurrently. Weaver makes heavy use of the concurrency constructs and abstractions provided by cats-effect to safely share resources (clients) across tests and suite, and runs all tests in parallel by default.
+[Weaver](https://github.com/disneystreaming/weaver-test) is a test-framework built directly on top of Cats Effect. It is designed specifically to handle thousands of tests exercising I/O layers (http, database calls) concurrently. Weaver makes heavy use of the concurrency constructs and abstractions provided by Cats Effect to safely share resources (clients) across tests and suite, and runs all tests in parallel by default.
 
 To get started, add the following to your **build.sbt**:
 
@@ -119,7 +119,7 @@ Similarly to MUnit, this setup allows you to write your tests directly against `
 import cats.effect.IO
 import weaver._
 
-class ExampleSuite extends SimpleIOSuite {
+object ExampleSuite extends SimpleIOSuite {
   test("make sure IO computes the right result") {
     IO.pure(1).map(_ + 2) map { result =>
       expect.eql(result, 3)
