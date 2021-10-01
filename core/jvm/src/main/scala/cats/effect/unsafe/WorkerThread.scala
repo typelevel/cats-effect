@@ -212,7 +212,7 @@ private final class WorkerThread(
      * has lead to a non-negligible 15-20% increase in single-threaded
      * performance.
      */
-    var state = 0
+    var state = 4
 
     def parkLoop(): Unit = {
       var cont = true
