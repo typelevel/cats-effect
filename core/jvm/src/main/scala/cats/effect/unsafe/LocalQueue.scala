@@ -186,19 +186,11 @@ private final class LocalQueue {
 
   /**
    * A running counter of the number of fibers spilt over from this [[LocalQueue]] into the
-   * single-fiber overflow queue during the lifetime of the queue. This variable is published
-   * through the `tail` of the queue. In order to observe the latest value, the `tailPublisher`
-   * atomic field should be loaded first.
-   */
-  private[this] var overflowSpilloverCount: Long = 0
-
-  /**
-   * A running counter of the number of fibers spilt over from this [[LocalQueue]] into the
-   * batched queue during the lifetime of the queue. This variable is published through the
+   * external queue during the lifetime of the queue. This variable is published through the
    * `tail` of the queue. In order to observe the latest value, the `tailPublisher` atomic field
    * should be loaded first.
    */
-  private[this] var batchedSpilloverCount: Long = 0
+  private[this] var totalSpilloverCount: Long = 0
 
   /**
    * A running counter of the number of successful steal attempts by other [[WorkerThread]] s
@@ -280,7 +272,7 @@ private final class LocalQueue {
         // Outcome 2, there is a concurrent stealer and there is no available
         // capacity for the new fiber. Proceed to enqueue the fiber on the
         // external queue and break out of the loop.
-        overflowSpilloverCount += 1
+        totalSpilloverCount += 1
         tailPublisher.lazySet(tl)
         external.offer(fiber, random)
         return
@@ -317,7 +309,7 @@ private final class LocalQueue {
             i += 1
             offset += 1
           }
-          batchedSpilloverCount += OverflowBatchSize
+          totalSpilloverCount += OverflowBatchSize
           batches(b) = batch
           b += 1
         }
@@ -712,7 +704,7 @@ private final class LocalQueue {
 
         // The fibers have been transferred, enqueue the whole batch on the
         // batched queue.
-        batchedSpilloverCount += OverflowBatchSize
+        totalSpilloverCount += OverflowBatchSize
         tailPublisher.lazySet(tl)
         external.offer(batch, random)
         return
@@ -988,27 +980,15 @@ private final class LocalQueue {
   }
 
   /**
-   * Returns the total number of fibers spilt over to the single-fiber overflow queue during the
-   * lifetime of this [[LocalQueue]].
-   *
-   * @return
-   *   the total number of fibers spilt over to the overflow queue
-   */
-  def getOverflowSpilloverCount(): Long = {
-    val _ = tailPublisher.get()
-    overflowSpilloverCount
-  }
-
-  /**
-   * Returns the total number of fibers spilt over to the batched queue during the lifetime of
+   * Returns the total number of fibers spilt over to the external queue during the lifetime of
    * this [[LocalQueue]].
    *
    * @return
-   *   the total number of fibers spilt over to the batched queue
+   *   the total number of fibers spilt over to the external queue
    */
-  def getBatchedSpilloverCount(): Long = {
+  def getTotalSpilloverCount(): Long = {
     val _ = tailPublisher.get()
-    batchedSpilloverCount
+    totalSpilloverCount
   }
 
   /**
