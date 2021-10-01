@@ -39,7 +39,7 @@ import scala.concurrent.duration._
 
 // obviously this isn't actually the problem definition, but it's kinda fun
 object StupidFizzBuzz extends IOApp.Simple {
-  val run = 
+  val run =
     for {
       ctr <- IO.ref(0)
 
@@ -64,21 +64,25 @@ Of course, the easiest way to play with Cats Effect is to try it out in a Scala 
 ```scala
 import $ivy.`org.typelevel::cats-effect:3.2.9`
 
-import cats.effect.unsafe.implicits._ 
-import cats.effect.IO 
+import cats.effect.unsafe.implicits._
+import cats.effect.IO
 
-val program = IO.println("Hello, World!") 
-program.unsafeRunSync() 
+val program = IO.println("Hello, World!")
+program.unsafeRunSync()
 ```
 
 Congratulations, you've just run your first `IO` within the REPL! The `unsafeRunSync()` function is not meant to be used within a normal application. As the name suggests, its implementation is unsafe in several ways, but it is very useful for REPL-based experimentation and sometimes useful for testing.
 
 ## Testing
 
+### Munit
+
+[![munit-cats-effect Scala version support](https://index.scala-lang.org/typelevel/munit-cats-effect/munit-cats-effect-3/latest-by-scala-version.svg)](https://index.scala-lang.org/typelevel/munit-cats-effect/munit-cats-effect)
+
 The easiest way to write unit tests which use Cats Effect is with [MUnit](https://scalameta.org/munit/) and [MUnit Cats Effect](https://github.com/typelevel/munit-cats-effect). To get started, add the following to your **build.sbt**:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "munit-cats-effect-3" % "1.0.3" % Test
+libraryDependencies += "org.typelevel" %% "munit-cats-effect-3" % "x.y.z" % Test
 ```
 
 With this dependency, you can now write unit tests which directly return `IO` programs without being forced to run them using one of the `unsafe` functions. This is particularly useful if you're either using ScalaJS (where the fact that the `unsafe` functions block the event dispatcher would result in deadlock), or if you simply want your tests to run more efficiently (since MUnit can run them in parallel):
@@ -96,9 +100,40 @@ class ExampleSuite extends CatsEffectSuite {
 }
 ```
 
+### Weaver-test
+
+[![weaver-cats Scala version support](https://index.scala-lang.org/disneystreaming/weaver-test/weaver-cats/latest-by-scala-version.svg)](https://index.scala-lang.org/disneystreaming/weaver-test/weaver-cats)
+
+[Weaver](https://github.com/disneystreaming/weaver-test) is a test-framework build directly on top of cats-effect. It is designed specifically to handle thousands of tests exercising I/O layers (http, database calls) concurrently. Weaver makes heavy use of the concurrency constructs and abstractions provided by cats-effect to safely share resources (clients) across tests and suite, and runs all tests in parallel by default.
+
+To get started, add the following to your **build.sbt**:
+
+```scala
+libraryDependencies += "com.disneystreaming" %% "weaver-cats" % "x.y.z" % Test
+testFrameworks += new TestFramework("weaver.framework.CatsEffect")
+```
+
+Similarly to MUnit, this setup allows you to write your tests directly against `IO`.
+
+```scala
+import cats.effect.IO
+import weaver._
+
+class ExampleSuite extends SimpleIOSuite {
+  test("make sure IO computes the right result") {
+    IO.pure(1).map(_ + 2) map { result =>
+      expect.eql(result, 3)
+    }
+  }
+}
+```
+
+
 ### Other Testing Frameworks
 
-If MUnit isn't your speed, the [Cats Effect Testing](https://github.com/typelevel/cats-effect-testing) library provides seamless integration with most major test frameworks. Specifically:
+[![core Scala version support](https://index.scala-lang.org/typelevel/cats-effect-testing/core/latest-by-scala-version.svg)](https://index.scala-lang.org/typelevel/cats-effect-testing/core)
+
+If neither MUnit nor Weaver are your speed, the [Cats Effect Testing](https://github.com/typelevel/cats-effect-testing) library provides seamless integration with most major test frameworks. Specifically:
 
 - ScalaTest
 - Specs2
@@ -108,7 +143,7 @@ If MUnit isn't your speed, the [Cats Effect Testing](https://github.com/typeleve
 Simply add a dependency on the module which is appropriate to your test framework of choice. For example, Specs2:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect-testing-specs2" % "1.1.1" % Test
+libraryDependencies += "org.typelevel" %% "cats-effect-testing-specs2" % "x.y.z" % Test
 ```
 
 Once this is done, you can write specifications in the familiar Specs2 style, except where each example may now return in `IO`:
