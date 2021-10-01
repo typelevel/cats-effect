@@ -82,7 +82,7 @@ Congratulations, you've just run your first `IO` within the REPL! The `unsafeRun
 The easiest way to write unit tests which use Cats Effect is with [MUnit](https://scalameta.org/munit/) and [MUnit Cats Effect](https://github.com/typelevel/munit-cats-effect). To get started, add the following to your **build.sbt**:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "munit-cats-effect-3" % "x.y.z" % Test
+libraryDependencies += "org.typelevel" %% "munit-cats-effect-3" % "1.0.6" % Test
 ```
 
 With this dependency, you can now write unit tests which directly return `IO` programs without being forced to run them using one of the `unsafe` functions. This is particularly useful if you're either using ScalaJS (where the fact that the `unsafe` functions block the event dispatcher would result in deadlock), or if you simply want your tests to run more efficiently (since MUnit can run them in parallel):
@@ -109,7 +109,7 @@ class ExampleSuite extends CatsEffectSuite {
 To get started, add the following to your **build.sbt**:
 
 ```scala
-libraryDependencies += "com.disneystreaming" %% "weaver-cats" % "x.y.z" % Test
+libraryDependencies += "com.disneystreaming" %% "weaver-cats" % "0.7.6" % Test
 testFrameworks += new TestFramework("weaver.framework.CatsEffect")
 ```
 
@@ -143,7 +143,7 @@ If neither MUnit nor Weaver are your speed, the [Cats Effect Testing](https://gi
 Simply add a dependency on the module which is appropriate to your test framework of choice. For example, Specs2:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect-testing-specs2" % "x.y.z" % Test
+libraryDependencies += "org.typelevel" %% "cats-effect-testing-specs2" % "1.2.0" % Test
 ```
 
 Once this is done, you can write specifications in the familiar Specs2 style, except where each example may now return in `IO`:
