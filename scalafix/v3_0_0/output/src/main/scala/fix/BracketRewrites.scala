@@ -2,7 +2,7 @@ package fix
 
 import cats.effect.IO
 import cats.effect.Sync
-import cats.effect.{ MonadCancel, MonadCancelThrow }
+import cats.effect.{MonadCancel, MonadCancelThrow}
 
 object BracketRewrites {
   MonadCancel.apply[IO, Throwable]
@@ -16,8 +16,7 @@ object BracketRewrites {
   Sync[IO].guarantee(IO.unit, /* comment2 */ IO.unit)
 
   Sync[IO].guarantee(
-    IO.unit
-  ,
+    IO.unit,
     IO.unit
   )
 

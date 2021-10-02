@@ -1,8 +1,8 @@
 package fix
 
 import cats.effect.IO
-import cats.{ ApplicativeThrow, MonadThrow }
-import cats.effect.{ Deferred, Ref }
+import cats.{ApplicativeThrow, MonadThrow}
+import cats.effect.{Deferred, Ref}
 import cats.effect.std.Semaphore
 
 object PkgRewrites {
