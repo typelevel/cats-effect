@@ -20,10 +20,11 @@ import scala.concurrent.duration._
 import scala.scalajs.js.timers
 
 private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
+  private[this] val maxTimeout = Int.MaxValue.millis
+
   def createDefaultScheduler(): (Scheduler, () => Unit) =
     (
       new Scheduler {
-        private[this] val maxTimeout = Int.MaxValue.millis
 
         def sleep(delay: FiniteDuration, task: Runnable): Runnable =
           if (delay <= maxTimeout) {
