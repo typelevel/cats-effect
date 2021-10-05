@@ -23,7 +23,11 @@ class SchedulerSpec extends BaseSpec {
 
   "Default scheduler" should {
     "correctly handle very long sleeps" in real {
-      IO.sleep(Long.MaxValue.nanos).race(IO.sleep(1.second)) mustEqual Right(())
+      // When the provided timeout in milliseconds overflows a signed 32-bit int, the implementation defaults to 1 millisecond
+      IO.sleep(Long.MaxValue.nanos).race(IO.sleep(100.millis)) mustEqual Right(())
+    }
+    "is using the correct max timeout" in real {
+      IO.sleep(Int.MaxValue.millis).race(IO.sleep(100.millis)) mustEqual Right(())
     }
   }
 
