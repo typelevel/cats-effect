@@ -16,17 +16,24 @@
 
 package cats.effect.unsafe
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import scala.scalajs.js.timers
 
 private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
   def createDefaultScheduler(): (Scheduler, () => Unit) =
     (
       new Scheduler {
-        def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-          val handle = timers.setTimeout(delay)(task.run())
-          () => timers.clearTimeout(handle)
-        }
+        private[this] val maxTimeout = Int.MaxValue.millis
+
+        def sleep(delay: FiniteDuration, task: Runnable): Runnable =
+          if (delay <= maxTimeout) {
+            val handle = timers.setTimeout(delay)(task.run())
+            () => timers.clearTimeout(handle)
+          } else {
+            var cancel: Runnable = () => ()
+            cancel = sleep(maxTimeout, () => cancel = sleep(delay - maxTimeout, task))
+            () => cancel.run()
+          }
 
         def nowMillis() = System.currentTimeMillis()
         def monotonicNanos() = System.nanoTime()
