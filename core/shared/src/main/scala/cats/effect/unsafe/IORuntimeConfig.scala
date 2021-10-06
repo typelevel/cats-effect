@@ -37,10 +37,7 @@ final case class IORuntimeConfig private (
       IORuntimeConfig.DefaultTraceBufferSize,
       IORuntimeConfig.DefaultShutdownHookTimeout)
 
-  @deprecated(
-    "Use IORuntimeConfig.apply(cancelationCheckThreshold, autoYieldThreshold, enhancedExceptions, traceBufferSize, shutdownHookTimeout",
-    "3.3.0")
-  def this(
+  private[unsafe] def this(
       cancelationCheckThreshold: Int,
       autoYieldThreshold: Int,
       enhancedExceptions: Boolean,
