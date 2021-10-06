@@ -26,6 +26,9 @@ final case class IORuntimeConfig private (
     val traceBufferSize: Int,
     val shutdownHookTimeout: Duration) {
 
+  @deprecated(
+    "Use IORuntimeConfig.apply(cancelationCheckThreshold, autoYieldThreshold, enhancedExceptions, traceBufferSize, shutdownHookTimeout",
+    "3.3.0")
   def this(cancelationCheckThreshold: Int, autoYieldThreshold: Int) =
     this(
       cancelationCheckThreshold,
@@ -34,11 +37,27 @@ final case class IORuntimeConfig private (
       IORuntimeConfig.DefaultTraceBufferSize,
       IORuntimeConfig.DefaultShutdownHookTimeout)
 
+  @deprecated(
+    "Use IORuntimeConfig.apply(cancelationCheckThreshold, autoYieldThreshold, enhancedExceptions, traceBufferSize, shutdownHookTimeout",
+    "3.3.0")
+  def this(
+      cancelationCheckThreshold: Int,
+      autoYieldThreshold: Int,
+      enhancedExceptions: Boolean,
+      traceBufferSize: Int) =
+    this(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize,
+      IORuntimeConfig.DefaultShutdownHookTimeout)
+
   def copy(
       cancelationCheckThreshold: Int = this.cancelationCheckThreshold,
       autoYieldThreshold: Int = this.autoYieldThreshold,
       enhancedExceptions: Boolean = this.enhancedExceptions,
-      traceBufferSize: Int = this.traceBufferSize): IORuntimeConfig =
+      traceBufferSize: Int = this.traceBufferSize,
+      shutdownHookTimeout: Duration = this.shutdownHookTimeout): IORuntimeConfig =
     new IORuntimeConfig(
       cancelationCheckThreshold,
       autoYieldThreshold,
@@ -46,7 +65,19 @@ final case class IORuntimeConfig private (
       traceBufferSize,
       shutdownHookTimeout)
 
-  // shim for binary compat
+  // shims for binary compat
+  private[unsafe] def copy(
+      cancelationCheckThreshold: Int,
+      autoYieldThreshold: Int,
+      enhancedExceptions: Boolean,
+      traceBufferSize: Int): IORuntimeConfig =
+    new IORuntimeConfig(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize,
+      shutdownHookTimeout)
+
   private[unsafe] def copy(
       cancelationCheckThreshold: Int,
       autoYieldThreshold: Int): IORuntimeConfig =
@@ -70,12 +101,30 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
 
   def apply(): IORuntimeConfig = Default
 
+  @deprecated(
+    "Use IORuntimeConfig.apply(cancelationCheckThreshold, autoYieldThreshold, enhancedExceptions, traceBufferSize, shutdownHookTimeout",
+    "3.3.0")
   def apply(cancelationCheckThreshold: Int, autoYieldThreshold: Int): IORuntimeConfig =
     apply(
       cancelationCheckThreshold,
       autoYieldThreshold,
       DefaultEnhancedExceptions,
       DefaultTraceBufferSize,
+      DefaultShutdownHookTimeout)
+
+  @deprecated(
+    "Use IORuntimeConfig.apply(cancelationCheckThreshold, autoYieldThreshold, enhancedExceptions, traceBufferSize, shutdownHookTimeout",
+    "3.3.0")
+  def apply(
+      cancelationCheckThreshold: Int,
+      autoYieldThreshold: Int,
+      enhancedExceptions: Boolean,
+      traceBufferSize: Int): IORuntimeConfig =
+    apply(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize,
       DefaultShutdownHookTimeout)
 
   def apply(
