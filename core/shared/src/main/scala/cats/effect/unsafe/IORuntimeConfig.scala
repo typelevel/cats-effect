@@ -17,18 +17,22 @@
 package cats.effect
 package unsafe
 
+import scala.concurrent.duration._
+
 final case class IORuntimeConfig private (
     val cancelationCheckThreshold: Int,
     val autoYieldThreshold: Int,
     val enhancedExceptions: Boolean,
-    val traceBufferSize: Int) {
+    val traceBufferSize: Int,
+    val shutdownHookTimeout: Duration) {
 
   def this(cancelationCheckThreshold: Int, autoYieldThreshold: Int) =
     this(
       cancelationCheckThreshold,
       autoYieldThreshold,
       IORuntimeConfig.DefaultEnhancedExceptions,
-      IORuntimeConfig.DefaultTraceBufferSize)
+      IORuntimeConfig.DefaultTraceBufferSize,
+      IORuntimeConfig.DefaultShutdownHookTimeout)
 
   def copy(
       cancelationCheckThreshold: Int = this.cancelationCheckThreshold,
@@ -39,7 +43,8 @@ final case class IORuntimeConfig private (
       cancelationCheckThreshold,
       autoYieldThreshold,
       enhancedExceptions,
-      traceBufferSize)
+      traceBufferSize,
+      shutdownHookTimeout)
 
   // shim for binary compat
   private[unsafe] def copy(
@@ -49,7 +54,8 @@ final case class IORuntimeConfig private (
       cancelationCheckThreshold,
       autoYieldThreshold,
       enhancedExceptions,
-      traceBufferSize)
+      traceBufferSize,
+      shutdownHookTimeout)
 
   private[effect] val traceBufferLogSize: Int =
     Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt
@@ -60,6 +66,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
   // these have to be defs because we forward-reference them from the companion platform
   private[unsafe] def DefaultEnhancedExceptions = true
   private[unsafe] def DefaultTraceBufferSize = 16
+  private[unsafe] def DefaultShutdownHookTimeout = Duration.Inf
 
   def apply(): IORuntimeConfig = Default
 
@@ -68,19 +75,22 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       cancelationCheckThreshold,
       autoYieldThreshold,
       DefaultEnhancedExceptions,
-      DefaultTraceBufferSize)
+      DefaultTraceBufferSize,
+      DefaultShutdownHookTimeout)
 
   def apply(
       cancelationCheckThreshold: Int,
       autoYieldThreshold: Int,
       enhancedExceptions: Boolean,
-      traceBufferSize: Int): IORuntimeConfig = {
+      traceBufferSize: Int,
+      shutdownHookTimeout: Duration): IORuntimeConfig = {
     if (autoYieldThreshold % cancelationCheckThreshold == 0)
       new IORuntimeConfig(
         cancelationCheckThreshold,
         autoYieldThreshold,
         enhancedExceptions,
-        1 << Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt)
+        1 << Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt,
+        shutdownHookTimeout)
     else
       throw new AssertionError(
         s"Auto yield threshold $autoYieldThreshold must be a multiple of cancelation check threshold $cancelationCheckThreshold")
