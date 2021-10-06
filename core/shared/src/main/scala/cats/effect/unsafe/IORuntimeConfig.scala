@@ -37,18 +37,6 @@ final case class IORuntimeConfig private (
       IORuntimeConfig.DefaultTraceBufferSize,
       IORuntimeConfig.DefaultShutdownHookTimeout)
 
-  private[unsafe] def this(
-      cancelationCheckThreshold: Int,
-      autoYieldThreshold: Int,
-      enhancedExceptions: Boolean,
-      traceBufferSize: Int) =
-    this(
-      cancelationCheckThreshold,
-      autoYieldThreshold,
-      enhancedExceptions,
-      traceBufferSize,
-      IORuntimeConfig.DefaultShutdownHookTimeout)
-
   def copy(
       cancelationCheckThreshold: Int = this.cancelationCheckThreshold,
       autoYieldThreshold: Int = this.autoYieldThreshold,
@@ -63,6 +51,18 @@ final case class IORuntimeConfig private (
       shutdownHookTimeout)
 
   // shims for binary compat
+  private[unsafe] def this(
+      cancelationCheckThreshold: Int,
+      autoYieldThreshold: Int,
+      enhancedExceptions: Boolean,
+      traceBufferSize: Int) =
+    this(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize,
+      IORuntimeConfig.DefaultShutdownHookTimeout)
+
   private[unsafe] def copy(
       cancelationCheckThreshold: Int,
       autoYieldThreshold: Int,
