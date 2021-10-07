@@ -9,7 +9,7 @@ There are multiple ways to spawn a fiber to run an action:
 
 `Spawn[F]#start`: start and forget, no lifecycle management for the spawned fiber 
 
-`Concurrent[F]#background`: ties the lifecycle of the spawned fiber to that of the fiber that invoked `background`
+`Spawn[F]#background`: ties the lifecycle of the spawned fiber to that of the fiber that invoked `background`
 
 But what if we want to spawn a fiber that should outlive the scope that created
 it, but we still want to control its lifecycle?
