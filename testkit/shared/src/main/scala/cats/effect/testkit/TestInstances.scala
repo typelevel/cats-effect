@@ -145,9 +145,8 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
     Eq.by(unsafeRun(_))
 
   /**
-   * Defines equality for a `Resource`.  Two resources are deemed
-   * equivalent if they allocate an equivalent resource.  Cleanup,
-   * which is run purely for effect, is not considered.
+   * Defines equality for a `Resource`. Two resources are deemed equivalent if they allocate an
+   * equivalent resource. Cleanup, which is run purely for effect, is not considered.
    */
   implicit def eqResource[F[_], A](
       implicit E: Eq[F[A]],
@@ -191,7 +190,7 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
         .unsafeRunAsyncOutcome { oc => results = oc.mapK(someK) }(unsafe
           .IORuntime(ticker.ctx, ticker.ctx, scheduler, () => (), unsafe.IORuntimeConfig()))
 
-      ticker.ctx.tickAll(1.second)
+      ticker.ctx.tickAll()
 
       /*println("====================================")
       println(s"completed ioa with $results")
@@ -243,12 +242,11 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
 }
 
 /**
- * This object exists for the keeping binary compatibility in the
- * `TestInstances` trait by forwarding to the implementaions coming from
- * `cats-effect-kernel-testkit`.
+ * This object exists for the keeping binary compatibility in the `TestInstances` trait by
+ * forwarding to the implementaions coming from `cats-effect-kernel-testkit`.
  *
- * This object must exist as a standalone top-level object because any attempt
- * to hide it inside the `TestInstances` trait ends up generating synthetic
- * forwarder methods which break binary compatibility.
+ * This object must exist as a standalone top-level object because any attempt to hide it inside
+ * the `TestInstances` trait ends up generating synthetic forwarder methods which break binary
+ * compatibility.
  */
 private object KernelTestkitInstances extends KernelTestkitTestInstances

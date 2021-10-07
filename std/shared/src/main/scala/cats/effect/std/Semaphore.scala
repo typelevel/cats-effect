@@ -27,47 +27,45 @@ import scala.collection.immutable.{Queue => Q}
 /**
  * A purely functional semaphore.
  *
- * A semaphore has a non-negative number of permits available. Acquiring a permit
- * decrements the current number of permits and releasing a permit increases
- * the current number of permits. An acquire that occurs when there are no
- * permits available results in semantic blocking until a permit becomes available.
+ * A semaphore has a non-negative number of permits available. Acquiring a permit decrements the
+ * current number of permits and releasing a permit increases the current number of permits. An
+ * acquire that occurs when there are no permits available results in semantic blocking until a
+ * permit becomes available.
  */
 abstract class Semaphore[F[_]] {
 
   /**
    * Returns the number of permits currently available. Always non-negative.
    *
-   * May be out of date the instant after it is retrieved.
-   * Use `[[tryAcquire]]` or `[[tryAcquireN]]` if you wish to attempt an
-   * acquire, returning immediately if the current count is not high enough
-   * to satisfy the request.
+   * May be out of date the instant after it is retrieved. Use `[[tryAcquire]]` or
+   * `[[tryAcquireN]]` if you wish to attempt an acquire, returning immediately if the current
+   * count is not high enough to satisfy the request.
    */
   def available: F[Long]
 
   /**
    * Obtains a snapshot of the current count. May be negative.
    *
-   * Like [[available]] when permits are available but returns the number of permits
-   * callers are waiting for when there are no permits available.
+   * Like [[available]] when permits are available but returns the number of permits callers are
+   * waiting for when there are no permits available.
    */
   def count: F[Long]
 
   /**
    * Acquires `n` permits.
    *
-   * The returned effect semantically blocks until all requested permits are
-   * available. Note that acquires are statisfied in strict FIFO order, so given
-   * `s: Semaphore[F]` with 2 permits available, an `acquireN(3)` will
-   * always be satisfied before a later call to `acquireN(1)`.
+   * The returned effect semantically blocks until all requested permits are available. Note
+   * that acquires are statisfied in strict FIFO order, so given `s: Semaphore[F]` with 2
+   * permits available, an `acquireN(3)` will always be satisfied before a later call to
+   * `acquireN(1)`.
    *
-   * This method is interruptible, and in case of interruption it will
-   * take care of restoring any permits it has acquired. If it does
-   * succeed however, managing permits correctly is the user's
-   * responsibility.
-   * Use `[[permit]]` for a safer but less flexible alternative, when
-   * you are using Semaphore merely as a lock.
+   * This method is interruptible, and in case of interruption it will take care of restoring
+   * any permits it has acquired. If it does succeed however, managing permits correctly is the
+   * user's responsibility. Use `[[permit]]` for a safer but less flexible alternative, when you
+   * are using Semaphore merely as a lock.
    *
-   * @param n number of permits to acquire - must be >= 0
+   * @param n
+   *   number of permits to acquire - must be >= 0
    */
   def acquireN(n: Long): F[Unit]
 
@@ -77,9 +75,11 @@ abstract class Semaphore[F[_]] {
   def acquire: F[Unit] = acquireN(1)
 
   /**
-   * Acquires `n` permits now and returns `true`, or returns `false` immediately. Error if `n < 0`.
+   * Acquires `n` permits now and returns `true`, or returns `false` immediately. Error if `n <
+   * 0`.
    *
-   * @param n number of permits to acquire - must be >= 0
+   * @param n
+   *   number of permits to acquire - must be >= 0
    */
   def tryAcquireN(n: Long): F[Boolean]
 
@@ -91,7 +91,8 @@ abstract class Semaphore[F[_]] {
   /**
    * Releases `n` permits, potentially unblocking up to `n` outstanding acquires.
    *
-   * @param n number of permits to release - must be >= 0
+   * @param n
+   *   number of permits to release - must be >= 0
    */
   def releaseN(n: Long): F[Unit]
 
@@ -101,8 +102,8 @@ abstract class Semaphore[F[_]] {
   def release: F[Unit] = releaseN(1)
 
   /**
-   * Returns a [[cats.effect.kernel.Resource]] that acquires a permit, holds it for the lifetime of the resource, then
-   * releases the permit.
+   * Returns a [[cats.effect.kernel.Resource]] that acquires a permit, holds it for the lifetime
+   * of the resource, then releases the permit.
    */
   def permit: Resource[F, Unit]
 
@@ -123,8 +124,8 @@ object Semaphore {
   }
 
   /**
-   * Creates a new `Semaphore`, initialized with `n` available permits.
-   * like `apply` but initializes state using another effect constructor
+   * Creates a new `Semaphore`, initialized with `n` available permits. like `apply` but
+   * initializes state using another effect constructor
    */
   def in[F[_], G[_]](n: Long)(implicit F: Sync[F], G: Async[G]): F[Semaphore[G]] = {
     val impl = new impl[G](n)
@@ -220,14 +221,17 @@ object Semaphore {
 
           if (n == 0) F.unit
           else
-            state.modify {
-              case State(permits, waiting) =>
-                if (waiting.isEmpty) State(permits + n, waiting) -> F.unit
-                else {
-                  val (newN, waitingNow, wakeup) = fulfil(n, waiting, Q())
-                  State(newN, waitingNow) -> wakeup.traverse_(_.complete)
-                }
-            }.flatten
+            state
+              .modify {
+                case State(permits, waiting) =>
+                  if (waiting.isEmpty) State(permits + n, waiting) -> F.unit
+                  else {
+                    val (newN, waitingNow, wakeup) = fulfil(n, waiting, Q())
+                    State(newN, waitingNow) -> wakeup.traverse_(_.complete)
+                  }
+              }
+              .flatten
+              .uncancelable
         }
 
         def available: F[Long] = state.get.map(_.permits)

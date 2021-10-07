@@ -18,17 +18,17 @@ package cats.effect
 
 import cats.arrow.FunctionK
 import cats.syntax.eq._
-import org.specs2.mutable.Specification
 
-class ResourceJVMSpec extends Specification with Runners {
+class ResourceJVMSpec extends BaseSpec {
 
   "platform" should {
 
     /**
-     * Recursively calls itself until a [[StackOverflowError]] is encountered,
-     * at which point, the current depth is returned.
+     * Recursively calls itself until a [[StackOverflowError]] is encountered, at which point,
+     * the current depth is returned.
      *
-     * @return the stack depth at which [[StackOverflowError]] occurs
+     * @return
+     *   the stack depth at which [[StackOverflowError]] occurs
      */
     def verifyThatSoeIsReproducibleWithStackDepth(): Int = {
       var depth = 0

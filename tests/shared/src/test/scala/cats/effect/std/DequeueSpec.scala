@@ -24,9 +24,12 @@ import org.specs2.specification.core.Fragments
 import org.scalacheck.Arbitrary, Arbitrary.arbitrary
 
 import scala.collection.immutable.{Queue => ScalaQueue}
+import scala.concurrent.duration._
 
 class BoundedDequeueSpec extends BaseSpec with DequeueTests {
   sequential
+
+  override def executionTimeout = 20.seconds
 
   "BoundedDequeue" should {
     boundedDequeueTests(
