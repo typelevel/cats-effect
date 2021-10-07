@@ -27,7 +27,7 @@ final case class IORuntimeConfig private (
     val shutdownHookTimeout: Duration) {
 
   @deprecated(
-    "Use IORuntimeConfig.apply(cancelationCheckThreshold, autoYieldThreshold, enhancedExceptions, traceBufferSize, shutdownHookTimeout",
+    "Use IORuntimeConfig.apply(cancelationCheckThreshold, autoYieldThreshold, enhancedExceptions, traceBufferSize, shutdownHookTimeout)",
     "3.3.0")
   def this(cancelationCheckThreshold: Int, autoYieldThreshold: Int) =
     this(
@@ -99,7 +99,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
   def apply(): IORuntimeConfig = Default
 
   @deprecated(
-    "Use IORuntimeConfig.apply(cancelationCheckThreshold, autoYieldThreshold, enhancedExceptions, traceBufferSize, shutdownHookTimeout",
+    "Use IORuntimeConfig.apply(cancelationCheckThreshold, autoYieldThreshold, enhancedExceptions, traceBufferSize, shutdownHookTimeout)",
     "3.3.0")
   def apply(cancelationCheckThreshold: Int, autoYieldThreshold: Int): IORuntimeConfig =
     apply(
@@ -110,7 +110,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       DefaultShutdownHookTimeout)
 
   @deprecated(
-    "Use IORuntimeConfig.apply(cancelationCheckThreshold, autoYieldThreshold, enhancedExceptions, traceBufferSize, shutdownHookTimeout",
+    "Use IORuntimeConfig.apply(cancelationCheckThreshold, autoYieldThreshold, enhancedExceptions, traceBufferSize, shutdownHookTimeout)",
     "3.3.0")
   def apply(
       cancelationCheckThreshold: Int,
