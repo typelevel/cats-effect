@@ -107,7 +107,7 @@ private[effect] final class WorkStealingThreadPool(
       parkedSignals(i) = parkedSignal
       val index = i
       val thread =
-        new WorkerThread(index, threadPrefix, queue, parkedSignal, externalQueue, this)
+        new WorkerThread(index, threadPrefix, queue, parkedSignal, externalQueue, null, this)
       workerThreads(i) = thread
       i += 1
     }

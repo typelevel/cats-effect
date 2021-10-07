@@ -47,6 +47,13 @@ private final class WorkerThread(
     // External queue used by the local queue for offloading excess fibers, as well as
     // for drawing fibers when the local queue is exhausted.
     private[this] val external: ScalQueue[AnyRef],
+    // A mutable reference to a fiber which is used to bypass the local queue
+    // when a `cede` operation would enqueue a fiber to the empty local queue
+    // and then proceed to dequeue the same fiber again from the queue. This not
+    // only avoids unnecessary synchronization, but also avoids notifying other
+    // worker threads that new work has become available, even though that's not
+    // true in tis case.
+    private[this] var cedeBypass: IOFiber[_],
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
     private[this] val pool: WorkStealingThreadPool)
     extends Thread
@@ -68,13 +75,6 @@ private final class WorkerThread(
    * [[WorkerThread]] s.
    */
   private[this] var blocking: Boolean = false
-
-  /**
-   * A mutable reference to a fiber which is used to bypass the local queue when a `cede`
-   * operation would enqueue a fiber to the empty local queue and then proceed to dequeue the
-   * same fiber again from the queue.
-   */
-  private[this] var cedeBypass: IOFiber[_] = null
 
   // Constructor code.
   {
@@ -448,7 +448,8 @@ private final class WorkerThread(
       // for unparking.
       val idx = index
       val clone =
-        new WorkerThread(idx, threadPrefix, queue, parked, external, pool)
+        new WorkerThread(idx, threadPrefix, queue, parked, external, cedeBypass, pool)
+      cedeBypass = null
       pool.replaceWorker(idx, clone)
       clone.start()
 
