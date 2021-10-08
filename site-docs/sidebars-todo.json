@@ -1,19 +1,30 @@
+// https://github.com/typelevel/cats-effect/issues/1715
 {
   "docs": {
     "Overview": [
-      // TODO performance
+      // TODO IO Documentation https://github.com/typelevel/cats-effect/pull/1877
+      // TODO performance https://github.com/typelevel/cats-effect/issues/1107
     ],
     "Typeclasses": [
+      // Document the behavior changes to bracket/guarantee between CE2 and CE3
+      // https://github.com/typelevel/cats-effect/issues/2242
     ],
     "Standard Library": [
       // TODO std/console
     ],
-    /* TODO
+    /* TODOs
     "Leveling Up": [
       // this is where we talk about patterns and best practices, tagless, etc
+      // https://github.com/typelevel/cats-effect/issues/1143
     ],
     "Ecosystem": [
       // let's throw some pages in here focused on use-cases, like HTTP clients, Redis things, etc
+      // https://github.com/typelevel/cats-effect/issues/1177
+      // https://github.com/typelevel/cats-effect/pull/1809
+    ],
+    "Resources" :[
+      // training, posts, video, etc
+      // https://github.com/typelevel/cats-effect/issues/1098
     ],
     "Scaling and Tuning": [
       // some advanced advice for operating Cats Effect services at scale
