@@ -28,6 +28,7 @@
     ],
     "Scaling and Tuning": [
       // some advanced advice for operating Cats Effect services at scale
+      // https://github.com/typelevel/cats-effect/issues/1127
     ]
     */
   }
