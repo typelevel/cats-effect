@@ -29,16 +29,28 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
 
   def blocking[A](thunk: => A): IO[A] = {
-    val fn = () => thunk
+    val fn = Thunk.asFunction0(thunk)
     Blocking(TypeBlocking, fn, Tracing.calculateTracingEvent(fn.getClass))
   }
 
-  def interruptible[A](many: Boolean)(thunk: => A): IO[A] = {
-    val fn = () => thunk
+  // this cannot be marked private[effect] because of static forwarders in Java
+  @deprecated("use interruptible / interruptibleMany instead", "3.3.0")
+  def interruptible[A](many: Boolean, thunk: => A): IO[A] = {
+    val fn = Thunk.asFunction0(thunk)
     Blocking(
       if (many) TypeInterruptibleMany else TypeInterruptibleOnce,
       fn,
       Tracing.calculateTracingEvent(fn.getClass))
+  }
+
+  def interruptible[A](thunk: => A): IO[A] = {
+    val fn = Thunk.asFunction0(thunk)
+    Blocking(TypeInterruptibleOnce, fn, Tracing.calculateTracingEvent(fn.getClass))
+  }
+
+  def interruptibleMany[A](thunk: => A): IO[A] = {
+    val fn = Thunk.asFunction0(thunk)
+    Blocking(TypeInterruptibleMany, fn, Tracing.calculateTracingEvent(fn.getClass))
   }
 
   def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =

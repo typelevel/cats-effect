@@ -25,10 +25,14 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   def blocking[A](thunk: => A): IO[A] =
     apply(thunk)
 
-  def interruptible[A](many: Boolean)(thunk: => A): IO[A] = {
+  private[effect] def interruptible[A](many: Boolean, thunk: => A): IO[A] = {
     val _ = many
     apply(thunk)
   }
+
+  def interruptible[A](thunk: => A): IO[A] = interruptible(false, thunk)
+
+  def interruptibleMany[A](thunk: => A): IO[A] = interruptible(true, thunk)
 
   def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] = {
     val _ = hint
