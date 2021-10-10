@@ -406,7 +406,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.LocalQueue.getOverflowSpilloverCount"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.LocalQueue.getBatchedSpilloverCount")
+        "cats.effect.unsafe.LocalQueue.getBatchedSpilloverCount"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain")
     )
   )
   .jvmSettings(

@@ -114,7 +114,7 @@ class TestControlSpec extends BaseSpec {
     }
   }
 
-  "executeFully" should {
+  "executeEmbed" should {
     "run a simple IO" in real {
       TestControl.executeEmbed(simple) flatMap { r => IO(r mustEqual (())) }
     }

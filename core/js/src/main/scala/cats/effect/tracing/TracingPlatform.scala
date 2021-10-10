@@ -20,6 +20,7 @@ import cats.effect.kernel.Cont
 
 import scala.collection.mutable
 import scala.reflect.NameTransformer
+import scala.scalajs.LinkingInfo
 import scala.scalajs.js
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
@@ -47,14 +48,15 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     calculateTracingEvent(cont.getClass())
   }
 
-  private[this] def calculateTracingEvent(key: Any): TracingEvent = {
-    if (isCachedStackTracing)
-      cache.getOrElseUpdate(key, buildEvent())
-    else if (isFullStackTracing)
-      buildEvent()
-    else
-      null
-  }
+  private[this] def calculateTracingEvent(key: Any): TracingEvent =
+    if (LinkingInfo.developmentMode) {
+      if (isCachedStackTracing)
+        cache.getOrElseUpdate(key, buildEvent())
+      else if (isFullStackTracing)
+        buildEvent()
+      else
+        null
+    } else null
 
   private[this] final val stackTraceClassNameFilter: Array[String] = Array(
     "cats.effect.",

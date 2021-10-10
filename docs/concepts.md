@@ -250,7 +250,8 @@ In Cats Effect, code containing side-effects should always be wrapped in one of 
 - **Synchronous** (`return`s or `throw`s)
   + `IO(...)` or `IO.delay(...)`
   + `IO.blocking(...)`
-  + `IO.interruptible(true/false)(...)`
+  + `IO.interruptible(...)`
+  + `IO.interruptibleMany(...)`
 - **Asynchronous** (invokes a callback)
   + `IO.async` or `IO.async_`
 

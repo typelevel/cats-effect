@@ -8,7 +8,7 @@ title: Dispatcher
 ## Motivation
 
 Users of cats effect 2 may be familiar with the `Effect` and `ConcurrentEffect`
-typeclasses. These have been removed as they contrained implementations of the
+typeclasses. These have been removed as they constrained implementations of the
 typeclasses too much by forcing them to be embeddable in `IO` via `def
 toIO[A](fa: F[A]): IO[A]`. However, these typeclasses also had a valid use-case
 for unsafe running of effects to interface with impure APIs (`Future`, `NIO`,
