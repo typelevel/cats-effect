@@ -74,7 +74,7 @@ trait GenSpawnInstances {
               }
 
               a <- F
-                .onCancel(poll(fiberA.join), F.both(fiberA.cancel, fiberB.cancel).void)
+                .onCancel(poll(fiberA.join), bothUnit(fiberA.cancel, fiberB.cancel))
                 .flatMap[A] {
                   case Outcome.Succeeded(fa) =>
                     fa
@@ -139,7 +139,7 @@ trait GenSpawnInstances {
                 }
 
                 a <- F
-                  .onCancel(poll(fiberA.join), F.both(fiberA.cancel, fiberB.cancel).void)
+                  .onCancel(poll(fiberA.join), bothUnit(fiberA.cancel, fiberB.cancel))
                   .flatMap[A] {
                     case Outcome.Succeeded(fa) =>
                       fa
@@ -194,6 +194,12 @@ trait GenSpawnInstances {
 
       final override def unit: ParallelF[F, Unit] =
         ParallelF(F.unit)
+
+      // assumed to be uncancelable
+      private[this] def bothUnit(a: F[Unit], b: F[Unit]): F[Unit] =
+        F.start(a) flatMap { fiberA =>
+          b *> fiberA.join.void
+        }
     }
 
   implicit def alignForParallelF[F[_], E](implicit F: GenSpawn[F, E]): Align[ParallelF[F, *]] =
