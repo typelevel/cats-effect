@@ -52,7 +52,17 @@ class PureConcSpec extends Specification with Discipline with BaseSpec {
       val fa: F[String] = F.pure("a")
       val fb: F[String] = F.pure("b")
       val fc: F[Unit] = F.raiseError[Unit](42)
-      pure.run(ParallelF.value(ParallelF(fa).product(ParallelF(fb)).product(ParallelF(fc)))) mustEqual Outcome.Errored(42)
+      pure.run(
+        ParallelF.value(
+          ParallelF(fa).product(ParallelF(fb)).product(ParallelF(fc)))) mustEqual Outcome
+        .Errored(42)
+    }
+
+    "ignore unmasking in finalizers" in {
+      val fa = F.uncancelable { poll => F.onCancel(poll(F.unit), poll(F.unit)) }
+
+      pure.run(fa.start.flatMap(_.cancel))
+      ok
     }
   }
 
