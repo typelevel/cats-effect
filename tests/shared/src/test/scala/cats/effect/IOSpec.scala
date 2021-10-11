@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.kernel.Eq
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{
   AlignTests,
@@ -1374,30 +1375,42 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
   }
 
   {
-    implicit val ticker = Ticker()
+    // an alley-eq
+    implicit def eqIOA[A: Eq](implicit ticker: Ticker): Eq[IO[A]] = { (x, y) =>
+      import Outcome._
+      (unsafeRun(x), unsafeRun(y)) match {
+        case (Succeeded(Some(a)), Succeeded(Some(b))) => a eqv b
+        case (Succeeded(Some(_)), _) | (_, Succeeded(Some(_))) => false
+        case _ => true
+      }
+    }
 
-    checkAll(
-      "IO.Par",
-      ParallelTests[IO, IO.Par].parallel[Int, Int]
-    )
-  }
+    {
+      implicit val ticker = Ticker()
 
-  {
-    implicit val ticker = Ticker()
+      checkAll(
+        "IO.Par",
+        ParallelTests[IO, IO.Par].parallel[Int, Int]
+      )
+    }
 
-    checkAll(
-      "IO.Par",
-      CommutativeApplicativeTests[IO.Par].commutativeApplicative[Int, Int, Int]
-    )
-  }
+    {
+      implicit val ticker = Ticker()
 
-  {
-    implicit val ticker = Ticker()
+      checkAll(
+        "IO.Par",
+        CommutativeApplicativeTests[IO.Par].commutativeApplicative[Int, Int, Int]
+      )
+    }
 
-    checkAll(
-      "IO.Par",
-      AlignTests[IO.Par].align[Int, Int, Int, Int]
-    )
+    {
+      implicit val ticker = Ticker()
+
+      checkAll(
+        "IO.Par",
+        AlignTests[IO.Par].align[Int, Int, Int, Int]
+      )
+    }
   }
 
 }
