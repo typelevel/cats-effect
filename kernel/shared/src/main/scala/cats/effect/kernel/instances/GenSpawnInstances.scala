@@ -197,7 +197,7 @@ trait GenSpawnInstances {
 
       // assumed to be uncancelable
       private[this] def bothUnit(a: F[Unit], b: F[Unit]): F[Unit] =
-        F.start(a) flatMap { fiberA => b *> fiberA.join.void }
+        F.start(a).flatMap(f => b *> f.join.void)
     }
 
   implicit def alignForParallelF[F[_], E](implicit F: GenSpawn[F, E]): Align[ParallelF[F, *]] =
