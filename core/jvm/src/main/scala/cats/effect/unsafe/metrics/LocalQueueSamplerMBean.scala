@@ -57,32 +57,13 @@ private[unsafe] trait LocalQueueSamplerMBean {
   def getTotalFiberCount(): Long
 
   /**
-   * Returns the total number of fibers spilt over to the single-fiber overflow queue during the
-   * lifetime of the monitored [[LocalQueue]].
-   *
-   * @return
-   *   the total number of fibers spilt over to the overflow queue
-   */
-  def getOverflowSpilloverCount(): Long
-
-  /**
-   * Returns the total number of fibers spilt over to the batched queue during the lifetime of
+   * Returns the total number of fibers spilt over to the external queue during the lifetime of
    * the monitored [[LocalQueue]].
    *
    * @return
-   *   the total number of fibers spilt over to the batched queue
+   *   the total number of fibers spilt over to the external queue
    */
-  def getBatchedSpilloverCount(): Long
-
-  /**
-   * Returns the total number of fibers spilt over to the overflow or batched queues during the
-   * lifetime of the monitored [[LocalQueue]].
-   *
-   * @return
-   *   the total number of fibers spilt over to the overflow or batched queue
-   */
-  def getTotalSpilloverCount(): Long =
-    getOverflowSpilloverCount() + getBatchedSpilloverCount()
+  def getTotalSpilloverCount(): Long
 
   /**
    * Returns the total number of successful steal attempts by other worker threads from the

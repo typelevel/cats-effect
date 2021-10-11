@@ -43,22 +43,22 @@ class LocalQueueConstants {
   static final int HalfLocalQueueCapacity = LocalQueueCapacity / 2;
 
   /**
-   * Overflow fiber batch size. The runtime relies on the assumption that this
-   * number fully divides `HalfLocalQueueCapacity`.
+   * Spillover batch size. The runtime relies on the assumption that this number
+   * fully divides `HalfLocalQueueCapacity`.
    */
-  static final int OverflowBatchSize = 32;
+  static final int SpilloverBatchSize = 32;
 
   /**
    * Number of batches that fit into one half of the local queue.
    */
-  static final int BatchesInHalfQueueCapacity = HalfLocalQueueCapacity / OverflowBatchSize;
+  static final int BatchesInHalfQueueCapacity = HalfLocalQueueCapacity / SpilloverBatchSize;
 
   /**
-   * The maximum current capacity of the local queue which can still accept a
-   * full batch to be added to the queue (remembering that one fiber from the
-   * batch is executed by directly and not enqueued on the local queue).
+   * The maximum current capacity of the local queue which can still accept a full
+   * batch to be added to the queue (remembering that one fiber from the batch is
+   * executed by directly and not enqueued on the local queue).
    */
-  static final int LocalQueueCapacityMinusBatch = LocalQueueCapacity - OverflowBatchSize + 1;
+  static final int LocalQueueCapacityMinusBatch = LocalQueueCapacity - SpilloverBatchSize + 1;
 
   /**
    * Bitmask used to extract the 16 least significant bits of a 32 bit integer

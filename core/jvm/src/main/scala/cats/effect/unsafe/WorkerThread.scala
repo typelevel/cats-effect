@@ -149,13 +149,13 @@ private final class WorkerThread(
     val rnd = random
 
     /*
-     * A counter (modulo `OverflowQueueTicks`) which represents the
+     * A counter (modulo `ExternalQueueTicks`) which represents the
      * `WorkerThread` finite state machine. The following values have special
      * semantics explained here:
      *
      *   0: To increase the fairness towards fibers scheduled by threads which
      *      are external to the `WorkStealingThreadPool`, every
-     *      `OverflowQueueTicks` number of iterations, the external queue takes
+     *      `ExternalQueueTicks` number of iterations, the external queue takes
      *      precedence over the local queue.
      *
      *      If a fiber is successfully dequeued from the external queue, it will
@@ -167,7 +167,7 @@ private final class WorkerThread(
      *
      *      This state occurs "naturally" after a certain number of executions
      *      from the local queue (when the state value wraps around modulo
-     *      `OverflowQueueTicks`).
+     *      `ExternalQueueTicks`).
      *
      *   1: Fall back to checking the external queue after a failed dequeue from
      *      the local queue. Depending on the outcome of this check, the

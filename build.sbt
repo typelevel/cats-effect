@@ -401,6 +401,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
         "cats.effect.unsafe.LocalQueue.enqueue"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.WorkerThread.this"),
+      // introduced by #2383, Revised `LocalQueue` metrics
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.getOverflowSpilloverCount"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.getBatchedSpilloverCount"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.LocalQueue.drain")
     )
   )
