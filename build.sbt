@@ -206,7 +206,7 @@ val ScalaCheckVersion = "1.15.4"
 val DisciplineVersion = "1.2.2"
 val CoopVersion = "1.1.1"
 
-val MacrotaskExecutorVersion = "0.2.0"
+val MacrotaskExecutorVersion = "1.0.0"
 
 replaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 
