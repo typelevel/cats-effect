@@ -17,9 +17,11 @@
 package cats.effect
 package kernel
 
+import cats.syntax.all._
 import cats.effect.kernel.instances.all._
 import cats.effect.kernel.testkit.PureConcGenerators._
-import cats.effect.kernel.testkit.pure._
+import cats.effect.kernel.testkit.pure.{orderForPureConc => _, _}
+import cats.kernel.Eq
 import cats.laws.discipline.AlignTests
 import cats.laws.discipline.CommutativeApplicativeTests
 import cats.laws.discipline.ParallelTests
@@ -28,17 +30,26 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 class ParallelFSpec extends BaseSpec with Discipline {
 
-  checkAll(
-    "Parallel[F, ParallelF]",
-    ParallelTests[PureConc[Int, *], ParallelF[PureConc[Int, *], *]].parallel[Int, Int])
+  implicit def alleyEq[A: Eq]: Eq[PureConc[Unit, A]] = { (x, y) =>
+    import Outcome._
+    (run(x), run(y)) match {
+      case (Succeeded(Some(a)), Succeeded(Some(b))) => a eqv b
+      case (Succeeded(Some(_)), _) | (_, Succeeded(Some(_))) => false
+      case _ => true
+    }
+  }
 
   checkAll(
-    "CommutativeApplicative[ParallelF]",
-    CommutativeApplicativeTests[ParallelF[PureConc[Int, *], *]]
+    "ParallelF[PureConc]",
+    ParallelTests[PureConc[Unit, *], ParallelF[PureConc[Unit, *], *]].parallel[Int, Int])
+
+  checkAll(
+    "ParallelF[PureConc]",
+    CommutativeApplicativeTests[ParallelF[PureConc[Unit, *], *]]
       .commutativeApplicative[Int, Int, Int])
 
   checkAll(
-    "Align[ParallelF]",
-    AlignTests[ParallelF[PureConc[Int, *], *]].align[Int, Int, Int, Int])
+    "ParallelF[PureConc]",
+    AlignTests[ParallelF[PureConc[Unit, *], *]].align[Int, Int, Int, Int])
 
 }
