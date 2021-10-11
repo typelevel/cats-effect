@@ -55,12 +55,7 @@ object CI {
         command = "ciJS",
         rootProject = "rootJS",
         jsEnv = Some(JSEnv.NodeJS),
-        testCommands = List(
-          "test",
-          "set Global / scalaJSStage := FullOptStage",
-          "testOnly *tracing*",
-          "set Global / scalaJSStage := FastOptStage"
-        ),
+        testCommands = List("test"),
         mimaReport = false,
         suffixCommands = List("exampleJS/compile"))
 

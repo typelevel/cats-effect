@@ -15,17 +15,20 @@
  */
 
 package cats.effect
-package tracing
+package unsafe
 
-private object TracingConstants {
+import scala.concurrent.duration._
 
-  private[this] val stackTracingMode: String =
-    process.env("CATS_EFFECT_TRACING_MODE").filterNot(_.isEmpty).getOrElse("cached")
+class SchedulerSpec extends BaseSpec {
 
-  val isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
-
-  val isFullStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("full")
-
-  val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
+  "Default scheduler" should {
+    "correctly handle very long sleeps" in real {
+      // When the provided timeout in milliseconds overflows a signed 32-bit int, the implementation defaults to 1 millisecond
+      IO.sleep(Long.MaxValue.nanos).race(IO.sleep(100.millis)) mustEqual Right(())
+    }
+    "is using the correct max timeout" in real {
+      IO.sleep(Int.MaxValue.millis).race(IO.sleep(100.millis)) mustEqual Right(())
+    }
+  }
 
 }

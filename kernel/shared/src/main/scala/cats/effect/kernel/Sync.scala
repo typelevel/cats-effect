@@ -76,20 +76,29 @@ trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Unique[F] 
   def blocking[A](thunk: => A): F[A] =
     suspend(Blocking)(thunk)
 
+  private[effect] def interruptible[A](many: Boolean, thunk: => A): F[A] =
+    if (many) interruptibleMany(thunk) else interruptible(thunk)
+
   /**
    * Like [[Sync.blocking]] but will attempt to abort the blocking operation using thread
-   * interrupts in the event of cancelation.
-   *
-   * @param many
-   *   Whether interruption via thread interrupt should be attempted once or repeatedly until
-   *   the blocking operation completes or exits.
+   * interrupts in the event of cancelation. The interrupt will be attempted only once.
    *
    * @param thunk
    *   The side effect which is to be suspended in `F[_]` and evaluated on a blocking execution
    *   context
    */
-  def interruptible[A](many: Boolean)(thunk: => A): F[A] =
-    suspend(if (many) InterruptibleMany else InterruptibleOnce)(thunk)
+  def interruptible[A](thunk: => A): F[A] = suspend(InterruptibleOnce)(thunk)
+
+  /**
+   * Like [[Sync.blocking]] but will attempt to abort the blocking operation using thread
+   * interrupts in the event of cancelation. The interrupt will be attempted repeatedly until
+   * the blocking operation completes or exits.
+   *
+   * @param thunk
+   *   The side effect which is to be suspended in `F[_]` and evaluated on a blocking execution
+   *   context
+   */
+  def interruptibleMany[A](thunk: => A): F[A] = suspend(InterruptibleMany)(thunk)
 
   def suspend[A](hint: Sync.Type)(thunk: => A): F[A]
 }

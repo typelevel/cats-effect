@@ -15,17 +15,22 @@
  */
 
 package cats.effect
-package tracing
 
-private object TracingConstants {
+import cats.syntax.all._
 
-  private[this] val stackTracingMode: String =
-    process.env("CATS_EFFECT_TRACING_MODE").filterNot(_.isEmpty).getOrElse("cached")
+import scala.scalajs.js
+import scala.util.Try
 
-  val isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
+private[effect] object process {
 
-  val isFullStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("full")
+  def argv: Option[List[String]] = Try(
+    js.Dynamic.global.process.argv.asInstanceOf[js.Array[String]].toList.drop(2)).toOption
 
-  val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
+  def env(key: String): Option[String] =
+    Try(js.Dynamic.global.process.env.selectDynamic(key))
+      .orElse(Try(js.Dynamic.global.process.env.selectDynamic(s"REACT_APP_$key")))
+      .widen[Any]
+      .collect { case v: String if !js.isUndefined(v) => v }
+      .toOption
 
 }

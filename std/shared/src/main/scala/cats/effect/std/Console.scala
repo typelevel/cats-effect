@@ -246,7 +246,7 @@ object Console {
 
   private final class SyncConsole[F[_]](implicit F: Sync[F]) extends Console[F] {
     def readLineWithCharset(charset: Charset): F[String] =
-      F.interruptible(false) {
+      F.interruptible {
         val in = System.in
         val decoder = charset
           .newDecoder()
