@@ -48,7 +48,7 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     calculateTracingEvent(cont.getClass())
   }
 
-  private[this] val calculateTracingEvent: Any => TracingEvent = {
+  private[this] final val calculateTracingEvent: Any => TracingEvent = {
     if (LinkingInfo.developmentMode) {
       if (isCachedStackTracing) { key =>
         val current = cache(key)
