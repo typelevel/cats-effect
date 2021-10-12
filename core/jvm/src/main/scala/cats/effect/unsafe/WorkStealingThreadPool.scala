@@ -73,17 +73,13 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
 
   /**
-   * References to helper threads. Helper threads must have a parking mechanism to address the
-   * situation where all worker threads are executing blocking actions, but the pool has been
-   * completely exhausted and the work that will unblock the worker threads has not arrived on
-   * the pool yet. Obviously, the helper threads cannot busy wait in this case, so they need to
-   * park and await a notification of newly arrived work. This queue also helps with the
-   * thundering herd problem. Namely, when only a single unit of work arrives and needs to be
-   * executed by a helper thread because all worker threads are blocked, only a single helper
-   * thread can be woken up. That thread can wake other helper threads in the future as the work
-   * available on the pool increases.
+   * Atomic variable for used for publishing changes to the references in the `workerThreads`
+   * array. Worker threads can be changed whenever blocking code is encountered on the pool.
+   * When a worker thread is about to block, it spawns a new worker thread that would replace
+   * it, transfers the local queue to it and proceeds to run the blocking code, after which it
+   * exits.
    */
-  private[this] val helperThreads: ScalQueue[HelperThread] = new ScalQueue(threadCount)
+  private[this] val workerThreadPublisher: AtomicBoolean = new AtomicBoolean(false)
 
   private[this] val externalQueue: ScalQueue[AnyRef] =
     new ScalQueue(threadCount << 2)
@@ -94,12 +90,6 @@ private[effect] final class WorkStealingThreadPool(
    * threads that are searching for work to steal from other worker threads.
    */
   private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
-
-  /**
-   * An atomic counter used for generating unique indices for distinguishing and naming helper
-   * threads.
-   */
-  private[this] val blockingThreadCounter: AtomicInteger = new AtomicInteger(0)
 
   /**
    * The shutdown latch of the work stealing thread pool.
@@ -117,17 +107,13 @@ private[effect] final class WorkStealingThreadPool(
       parkedSignals(i) = parkedSignal
       val index = i
       val thread =
-        new WorkerThread(
-          index,
-          threadPrefix,
-          blockingThreadCounter,
-          queue,
-          parkedSignal,
-          externalQueue,
-          this)
+        new WorkerThread(index, threadPrefix, queue, parkedSignal, externalQueue, null, this)
       workerThreads(i) = thread
       i += 1
     }
+
+    // Publish the worker threads.
+    workerThreadPublisher.set(true)
 
     // Start the worker threads.
     i = 0
@@ -218,6 +204,14 @@ private[effect] final class WorkStealingThreadPool(
         // allowed to search for work in the local queues of other worker
         // threads).
         state.getAndAdd(DeltaSearching)
+        // Fetch the latest references to the worker threads before doing the
+        // actual unparking. There is no danger of a race condition where the
+        // parked signal has been successfully marked as unparked but the
+        // underlying worker thread reference has changed, because a worker thread
+        // can only be replaced right before executing blocking code, at which
+        // point it is already unparked and entering this code region is thus
+        // impossible.
+        workerThreadPublisher.get()
         val worker = workerThreads(index)
         LockSupport.unpark(worker)
         return true
@@ -227,21 +221,6 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     false
-  }
-
-  /**
-   * Potentially unparks a helper thread.
-   *
-   * @param random
-   *   a reference to an uncontended source of randomness, to be passed along to the striped
-   *   concurrent queues when executing their operations
-   */
-  private[unsafe] def notifyHelper(random: ThreadLocalRandom): Unit = {
-    val helper = helperThreads.poll(random)
-    if (helper ne null) {
-      helper.unpark()
-      LockSupport.unpark(helper)
-    }
   }
 
   /**
@@ -280,8 +259,9 @@ private[effect] final class WorkStealingThreadPool(
 
     // If no work was found in the local queues of the worker threads, look for
     // work in the external queue.
-    if (externalQueue.nonEmpty() && !notifyParked(random)) {
-      notifyHelper(random)
+    if (externalQueue.nonEmpty()) {
+      notifyParked(random)
+      ()
     }
   }
 
@@ -357,42 +337,16 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Enqueues the provided helper thread on the queue of parked helper threads.
+   * Replaces the blocked worker thread with the provided index with a clone.
    *
-   * @param helper
-   *   the helper thread to enqueue on the queue of parked threads
-   * @param random
-   *   a reference to an uncontended source of randomness, to be passed along to the striped
-   *   concurrent queues when executing their operations
+   * @param index
+   *   the worker thread index at which the replacement will take place
+   * @param newWorker
+   *   the new worker thread instance to be installed at the provided index
    */
-  private[unsafe] def transitionHelperToParked(
-      helper: HelperThread,
-      random: ThreadLocalRandom): Unit = {
-    helperThreads.offer(helper, random)
-  }
-
-  /**
-   * Removes the provided helper thread from the parked helper thread queue.
-   *
-   * This method is necessary for the situation when a worker/helper thread has finished
-   * executing the blocking actions and needs to signal its helper thread to end. At that point
-   * in time, the helper thread might be parked and enqueued. Furthermore, this method signals
-   * to other worker and helper threads that there could still be some leftover work on the pool
-   * and that they need to replace the exiting helper thread.
-   *
-   * @param helper
-   *   the helper thread to remove from the queue of parked threads
-   * @param random
-   *   a reference to an uncontended source of randomness, to be passed along to the striped
-   *   concurrent queues when executing their operations
-   */
-  private[unsafe] def removeParkedHelper(
-      helper: HelperThread,
-      random: ThreadLocalRandom): Unit = {
-    helperThreads.remove(helper)
-    if (!notifyParked(random)) {
-      notifyHelper(random)
-    }
+  private[unsafe] def replaceWorker(index: Int, newWorker: WorkerThread): Unit = {
+    workerThreads(index) = newWorker
+    workerThreadPublisher.lazySet(true)
   }
 
   /**
@@ -416,13 +370,6 @@ private[effect] final class WorkStealingThreadPool(
       val worker = thread.asInstanceOf[WorkerThread]
       if (worker.isOwnedBy(pool)) {
         worker.reschedule(fiber)
-      } else {
-        scheduleExternal(fiber)
-      }
-    } else if (thread.isInstanceOf[HelperThread]) {
-      val helper = thread.asInstanceOf[HelperThread]
-      if (helper.isOwnedBy(pool)) {
-        helper.schedule(fiber)
       } else {
         scheduleExternal(fiber)
       }
@@ -456,13 +403,6 @@ private[effect] final class WorkStealingThreadPool(
       } else {
         scheduleExternal(fiber)
       }
-    } else if (thread.isInstanceOf[HelperThread]) {
-      val helper = thread.asInstanceOf[HelperThread]
-      if (helper.isOwnedBy(pool)) {
-        helper.schedule(fiber)
-      } else {
-        scheduleExternal(fiber)
-      }
     } else {
       scheduleExternal(fiber)
     }
@@ -478,9 +418,8 @@ private[effect] final class WorkStealingThreadPool(
   private[this] def scheduleExternal(fiber: IOFiber[_]): Unit = {
     val random = ThreadLocalRandom.current()
     externalQueue.offer(fiber, random)
-    if (!notifyParked(random)) {
-      notifyHelper(random)
-    }
+    notifyParked(random)
+    ()
   }
 
   /**
@@ -542,6 +481,7 @@ private[effect] final class WorkStealingThreadPool(
     // Execute the shutdown logic only once.
     if (done.compareAndSet(false, true)) {
       // Send an interrupt signal to each of the worker threads.
+      workerThreadPublisher.get()
 
       // Note: while loops and mutable variables are used throughout this method
       // to avoid allocations of objects, since this method is expected to be
