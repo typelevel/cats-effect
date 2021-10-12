@@ -25,7 +25,7 @@ import scala.scalajs.js
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
-  private[this] val cache = mutable.Map[Any, TracingEvent]()
+  private[this] val cache = mutable.Map.empty[Any, TracingEvent].withDefaultValue(null)
   private[this] val function0Property =
     js.Object.getOwnPropertyNames((() => ()).asInstanceOf[js.Object])(0)
   private[this] val function1Property =
@@ -48,15 +48,21 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     calculateTracingEvent(cont.getClass())
   }
 
-  private[this] def calculateTracingEvent(key: Any): TracingEvent =
+  private[this] def calculateTracingEvent(key: Any): TracingEvent = {
     if (LinkingInfo.developmentMode) {
-      if (isCachedStackTracing)
-        cache.getOrElseUpdate(key, buildEvent())
-      else if (isFullStackTracing)
+      if (isCachedStackTracing) {
+        val current = cache(key)
+        if (current eq null) {
+          val event = buildEvent()
+          cache(key) = event
+          event
+        } else current
+      } else if (isFullStackTracing)
         buildEvent()
       else
         null
     } else null
+  }
 
   private[this] final val stackTraceClassNameFilter: Array[String] = Array(
     "cats.effect.",
