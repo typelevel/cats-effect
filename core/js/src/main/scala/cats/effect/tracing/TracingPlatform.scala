@@ -48,9 +48,9 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     calculateTracingEvent(cont.getClass())
   }
 
-  private[this] def calculateTracingEvent(key: Any): TracingEvent = {
+  private[this] val calculateTracingEvent: Any => TracingEvent = {
     if (LinkingInfo.developmentMode) {
-      if (isCachedStackTracing) {
+      if (isCachedStackTracing) { key =>
         val current = cache(key)
         if (current eq null) {
           val event = buildEvent()
@@ -58,10 +58,11 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
           event
         } else current
       } else if (isFullStackTracing)
-        buildEvent()
+        _ => buildEvent()
       else
-        null
-    } else null
+        _ => null
+    } else
+      _ => null
   }
 
   private[this] final val stackTraceClassNameFilter: Array[String] = Array(
