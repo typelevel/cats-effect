@@ -1014,6 +1014,8 @@ private final class IOFiber[A](
   private[this] def suspend(): Unit =
     suspended.set(true)
 
+  private[effect] def runtimeForwarder: IORuntime = runtime
+
   /* returns the *new* context, not the old */
   private[this] def popContext(): ExecutionContext = {
     ctxs.pop()
