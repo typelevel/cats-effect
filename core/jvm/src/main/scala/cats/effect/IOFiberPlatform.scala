@@ -27,11 +27,21 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
 
   private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
 
+  /**
+   * Registers the suspended fiber in the global suspended fiber bag.
+   */
   protected final def monitor(key: AnyRef): Unit = {
     val fiber = this
     fiber.runtimeForwarder.suspendedFiberBag.monitor(key, fiber)
   }
 
+  /**
+   * Deregisters the suspended fiber from the global suspended fiber bag.
+   *
+   * @note
+   *   This method is a no-op because this functionality is native to `java.util.WeakHashMap`
+   *   and we rely on the GC automatically clearing the resumed fibers from the data structure.
+   */
   protected final def unmonitor(): Unit = {}
 
   protected final def interruptibleImpl(
