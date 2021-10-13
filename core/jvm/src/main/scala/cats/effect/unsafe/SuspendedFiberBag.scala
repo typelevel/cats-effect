@@ -46,7 +46,7 @@ import java.util.concurrent.ThreadLocalRandom
  *   The `unmonitor` method is a no-op, but it needs to exist to keep source compatibility with
  *   Scala.js. The removal of a resumed fiber is done automatically by the GC.
  */
-private final class SuspendedFiberBag {
+private[effect] final class SuspendedFiberBag {
 
   private[this] val size: Int = Runtime.getRuntime().availableProcessors() << 2
   private[this] val bags: Array[Map[AnyRef, WeakReference[IOFiber[_]]]] =

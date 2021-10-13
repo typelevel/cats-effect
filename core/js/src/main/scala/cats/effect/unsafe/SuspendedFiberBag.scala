@@ -27,7 +27,7 @@ import scala.collection.mutable
  * a `java.util.WeakHashMap` so that the removal of resumed fibers is handled automatically, but
  * weak references are still not available in Scala.js.
  */
-private final class SuspendedFiberBag {
+private[effect] final class SuspendedFiberBag {
   private[this] val bag: mutable.Map[AnyRef, IOFiber[_]] =
     mutable.Map.empty
 
