@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
   this: IOFiber[A] =>
 
-  protected final var suspensionKey: AnyRef = null
+  private[this] final var suspensionKey: AnyRef = null
 
   protected final def monitor(key: AnyRef): Unit = {
     val fiber = this
