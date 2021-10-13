@@ -146,6 +146,7 @@ private final class IOFiber[A](
       if (resume()) {
         /* ...it was! was it masked? */
         if (isUnmasked()) {
+          unmonitor()
           /* ...nope! take over the target fiber's runloop and run the finalizers */
           // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
@@ -603,6 +604,7 @@ private final class IOFiber[A](
                 // `resume()` is a volatile read of `suspended` through which
                 // `wasFinalizing` is published
                 if (finalizing == state.wasFinalizing) {
+                  unmonitor()
                   if (!shouldFinalize()) {
                     /* we weren't canceled or completed, so schedule the runloop for execution */
                     val ec = currentCtx
@@ -729,6 +731,7 @@ private final class IOFiber[A](
              * which ensures we will always see the most up-to-date value
              * for `canceled` in `shouldFinalize`, ensuring no finalisation leaks
              */
+            monitor(state)
             suspended.getAndSet(true)
 
             /*
@@ -745,10 +748,12 @@ private final class IOFiber[A](
                * finalisers.
                */
               if (resume()) {
-                if (shouldFinalize())
+                if (shouldFinalize()) {
+                  unmonitor()
                   asyncCancel(null)
-                else
+                } else {
                   suspend()
+                }
               }
             }
           } else {
