@@ -23,14 +23,27 @@ import java.util.concurrent.atomic.AtomicBoolean
 private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
   this: IOFiber[A] =>
 
+  /**
+   * Explicit suspension key object reference due to lack of `WeakHashMap` support in Scala.js.
+   * This reference is set when a fiber is suspended (and the key is used to register the fiber
+   * in the global suspended fiber bag), and cleared when the fiber is resumed.
+   */
   private[this] final var suspensionKey: AnyRef = null
 
+  /**
+   * Registers the suspended fiber in the global suspended fiber bag and sets the suspension key
+   * object reference.
+   */
   protected final def monitor(key: AnyRef): Unit = {
     val fiber = this
     fiber.runtimeForwarder.suspendedFiberBag.monitor(key, fiber)
     suspensionKey = key
   }
 
+  /**
+   * Deregisters the suspended fiber from the global suspended fiber bag and clears the
+   * suspension key object reference.
+   */
   protected final def unmonitor(): Unit = {
     val fiber = this
     val key = suspensionKey
