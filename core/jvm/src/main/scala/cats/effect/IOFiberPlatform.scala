@@ -27,6 +27,13 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
 
   private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
 
+  protected final def monitor(key: AnyRef): Unit = {
+    val fiber = this
+    fiber.runtimeForwarder.suspendedFiberBag.monitor(key, fiber)
+  }
+
+  protected final def unmonitor(): Unit = {}
+
   protected final def interruptibleImpl(
       cur: IO.Blocking[Any],
       blockingEc: ExecutionContext): IO[Any] = {
