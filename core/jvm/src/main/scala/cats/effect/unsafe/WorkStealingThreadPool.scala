@@ -441,8 +441,9 @@ private[effect] final class WorkStealingThreadPool(
    */
   override def execute(runnable: Runnable): Unit = {
     if (runnable.isInstanceOf[IOFiber[_]]) {
+      val fiber = runnable.asInstanceOf[IOFiber[_]]
       // Fast-path scheduling of a fiber without wrapping.
-      scheduleFiber(runnable.asInstanceOf[IOFiber[_]])
+      scheduleFiber(fiber)
     } else {
       // Executing a general purpose computation on the thread pool.
       // Wrap the runnable in an `IO` and execute it as a fiber.
@@ -503,7 +504,8 @@ private[effect] final class WorkStealingThreadPool(
       // threads.
       val thread = Thread.currentThread()
       val workerIndex = if (thread.isInstanceOf[WorkerThread]) {
-        thread.asInstanceOf[WorkerThread].index
+        val worker = thread.asInstanceOf[WorkerThread]
+        worker.index
       } else {
         -1
       }
