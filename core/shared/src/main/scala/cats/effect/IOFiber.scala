@@ -1105,7 +1105,8 @@ private final class IOFiber[A](
 
   private[this] def rescheduleFiber(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
-      ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiber(fiber)
+      val wstp = ec.asInstanceOf[WorkStealingThreadPool]
+      wstp.rescheduleFiber(fiber)
     } else {
       scheduleOnForeignEC(ec)(fiber)
     }
@@ -1113,7 +1114,8 @@ private final class IOFiber[A](
 
   private[this] def scheduleFiber(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
-      ec.asInstanceOf[WorkStealingThreadPool].scheduleFiber(fiber)
+      val wstp = ec.asInstanceOf[WorkStealingThreadPool]
+      wstp.scheduleFiber(fiber)
     } else {
       scheduleOnForeignEC(ec)(fiber)
     }
