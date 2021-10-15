@@ -82,6 +82,11 @@ private final class IOFiber[A](
   import IOFiberConstants._
 
   /*
+   * The tracing event for the IO that starts this fiber.
+   */
+  private[this] val startEvent = startIO.event
+
+  /*
    * Ideally these would be on the stack, but they can't because we sometimes need to
    * relocate our runloop to another fiber.
    */
@@ -1407,15 +1412,8 @@ private final class IOFiber[A](
   // overrides the AtomicReference#toString
   override def toString: String = {
     val state = if (suspended.get()) "SUSPENDED" else "RUNNING"
-    val resumeIO = this.resumeIO
-    val tracingEvents = this.tracingEvents
 
-    val event =
-      if ((resumeIO ne null))
-        resumeIO.event
-      else if (tracingEvents ne null)
-        tracingEvents.peek
-      else null
+    val event = startEvent
     var frame: StackTraceElement = null
     if (event ne null) {
       frame = Tracing.getFrame(event)
