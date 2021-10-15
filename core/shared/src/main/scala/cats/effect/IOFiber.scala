@@ -910,7 +910,7 @@ private final class IOFiber[A](
             resumeTag = BlockingR
             resumeIO = cur
             val ec = runtime.blocking
-            scheduleOnForeignEC(ec)(this)
+            scheduleOnForeignEC(ec, this)
           } else {
             runLoop(interruptibleImpl(cur, runtime.blocking), nextCancelation, nextAutoCede)
           }
@@ -1109,7 +1109,7 @@ private final class IOFiber[A](
       val wstp = ec.asInstanceOf[WorkStealingThreadPool]
       wstp.rescheduleFiber(fiber)
     } else {
-      scheduleOnForeignEC(ec)(fiber)
+      scheduleOnForeignEC(ec, fiber)
     }
   }
 
@@ -1118,11 +1118,11 @@ private final class IOFiber[A](
       val wstp = ec.asInstanceOf[WorkStealingThreadPool]
       wstp.scheduleFiber(fiber)
     } else {
-      scheduleOnForeignEC(ec)(fiber)
+      scheduleOnForeignEC(ec, fiber)
     }
   }
 
-  private[this] def scheduleOnForeignEC(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
+  private[this] def scheduleOnForeignEC(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
     try {
       ec.execute(fiber)
     } catch {
