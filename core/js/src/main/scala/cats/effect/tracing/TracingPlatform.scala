@@ -74,7 +74,8 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
   private[this] final val stackTraceMethodNameFilter: Array[String] = Array(
     "_Lcats_effect_",
-    "_jl_"
+    "_jl_",
+    "{anonymous}"
   )
 
   private[this] final val stackTraceFileNameFilter: Array[String] = Array(

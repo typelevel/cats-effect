@@ -129,11 +129,9 @@ private[effect] object Tracing extends TracingPlatform {
   def getUnfilteredFrame(event: TracingEvent): StackTraceElement = event match {
     case ev: TracingEvent.StackTrace =>
       val stackTrace = ev.getStackTrace
-      var idx = 1
+      var idx = 0
       while (idx < stackTrace.length && !tracedMethods.contains(
-          stackTrace(idx).getMethodName())) {
-        idx += 1
-      }
+          stackTrace(idx).getMethodName())) idx += 1
       if (idx + 1 < stackTrace.length)
         combineOpAndCallSite(stackTrace(idx), stackTrace(idx + 1))
       else null

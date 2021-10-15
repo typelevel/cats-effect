@@ -41,8 +41,8 @@ class IOFiberSpec extends BaseSpec {
     }
 
     "toString a suspended fiber" in real {
-      val pattern =
-        raw"cats.effect.IOFiber@[0-9a-f]+ SUSPENDED"
+      // This is capturing the `delay` inside the implementation of `async_`
+      val pattern = raw"cats.effect.IOFiber@[0-9a-f]+ SUSPENDED delay @.*"
       for {
         f <- IO.async_[Unit](_ => ()).start
         _ <- IO.sleep(1.milli)
