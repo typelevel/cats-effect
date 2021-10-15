@@ -222,7 +222,7 @@ private final class IOFiber[A](
     } else if (autoCedeIterations <= 0) {
       resumeIO = cur0
       resumeTag = AutoCedeR
-      rescheduleFiber(currentCtx)(this)
+      rescheduleFiber(currentCtx, this)
     } else {
       // System.out.println(s"looping on $cur0")
       /*
@@ -800,7 +800,7 @@ private final class IOFiber[A](
         /* Cede */
         case 16 =>
           resumeTag = CedeR
-          rescheduleFiber(currentCtx)(this)
+          rescheduleFiber(currentCtx, this)
 
         case 17 =>
           val cur = cur0.asInstanceOf[Start[Any]]
@@ -1104,7 +1104,7 @@ private final class IOFiber[A](
     }
   }
 
-  private[this] def rescheduleFiber(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
+  private[this] def rescheduleFiber(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
       val wstp = ec.asInstanceOf[WorkStealingThreadPool]
       wstp.rescheduleFiber(fiber)
