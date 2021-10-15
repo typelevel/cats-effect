@@ -1409,13 +1409,20 @@ private final class IOFiber[A](
     val state = if (suspended.get()) "SUSPENDED" else "RUNNING"
     val resumeIO = this.resumeIO
     val tracingEvents = this.tracingEvents
+
     val event =
       if ((resumeIO ne null))
         resumeIO.event
       else if (tracingEvents ne null)
         tracingEvents.peek
       else null
-    val frame = if (event ne null) Tracing.getFrame(event) else null
+    var frame: StackTraceElement = null
+    if (event ne null) {
+      frame = Tracing.getFrame(event)
+      if (frame eq null)
+        frame = Tracing.getUnfilteredFrame(event)
+    }
+
     val opAndCallSite = if (frame ne null) s" $frame" else ""
     s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
   }

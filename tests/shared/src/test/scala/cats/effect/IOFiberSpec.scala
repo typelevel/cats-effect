@@ -23,14 +23,17 @@ import scala.concurrent.duration._
 
 class IOFiberSpec extends BaseSpec {
 
+  sequential
+
   "IOFiber" should {
 
     "toString a running fiber" in real {
       def loop: IO[Unit] = IO.unit >> loop
       val pattern =
-        raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ RUNNING >> @ fiber.IOFiberSpec.loop\$$1\(IOFiberSpec.scala:[0-9]{2}\)"
+        raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ RUNNING >> @ fiber.IOFiberSpec.loop\$$1\(.*IOFiberSpec.scala:[0-9]{2}\)"
       for {
         f <- loop.start
+        _ <- IO.sleep(1.milli)
         s <- IO(f.toString)
         _ <- IO.println(s)
         _ <- f.cancel
@@ -41,7 +44,7 @@ class IOFiberSpec extends BaseSpec {
       val pattern =
         raw"cats.effect.IOFiber@[0-9a-f]+ SUSPENDED"
       for {
-        f <- IO.sleep(1.hour).start
+        f <- IO.async_[Unit](_ => ()).start
         _ <- IO.sleep(1.milli)
         s <- IO(f.toString)
         _ <- IO.println(s)

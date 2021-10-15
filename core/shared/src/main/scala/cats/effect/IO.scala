@@ -912,17 +912,17 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    * Alias for `IO.delay(body)`.
    */
-  def apply[A](thunk: => A): IO[A] = {
-    val fn = Thunk.asFunction0(thunk)
-    Delay(fn, Tracing.calculateTracingEvent(fn))
-  }
+  def apply[A](thunk: => A): IO[A] = delay(thunk)
 
   /**
    * Suspends a synchronous side effect in `IO`.
    *
    * Any exceptions thrown by the effect will be caught and sequenced into the `IO`.
    */
-  def delay[A](thunk: => A): IO[A] = apply(thunk)
+  def delay[A](thunk: => A): IO[A] = {
+    val fn = Thunk.asFunction0(thunk)
+    Delay(fn, Tracing.calculateTracingEvent(fn))
+  }
 
   /**
    * Suspends a synchronous side effect which produces an `IO` in `IO`.

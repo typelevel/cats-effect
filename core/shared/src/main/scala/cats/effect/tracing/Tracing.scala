@@ -28,6 +28,20 @@ private[effect] object Tracing extends TracingPlatform {
 
   private[this] final val runLoopFilter: Array[String] = Array("cats.effect.", "scala.runtime.")
 
+  private[this] def combineOpAndCallSite(
+      methodSite: StackTraceElement,
+      callSite: StackTraceElement): StackTraceElement = {
+    val methodSiteMethodName = methodSite.getMethodName
+    val op = decodeMethodName(methodSiteMethodName)
+
+    new StackTraceElement(
+      op + " @ " + callSite.getClassName,
+      callSite.getMethodName,
+      callSite.getFileName,
+      callSite.getLineNumber
+    )
+  }
+
   private[this] def getOpAndCallSite(
       stackTrace: Array[StackTraceElement]): StackTraceElement = {
     val len = stackTrace.length
@@ -39,17 +53,8 @@ private[effect] object Tracing extends TracingPlatform {
       val callSiteMethodName = callSite.getMethodName
       val callSiteFileName = callSite.getFileName
 
-      if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName, callSiteFileName)) {
-        val methodSiteMethodName = methodSite.getMethodName
-        val op = decodeMethodName(methodSiteMethodName)
-
-        return new StackTraceElement(
-          op + " @ " + callSiteClassName,
-          callSite.getMethodName,
-          callSite.getFileName,
-          callSite.getLineNumber
-        )
-      }
+      if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName, callSiteFileName))
+        return combineOpAndCallSite(methodSite, callSite)
 
       idx += 1
     }
@@ -108,6 +113,30 @@ private[effect] object Tracing extends TracingPlatform {
 
   def getFrame(event: TracingEvent): StackTraceElement = event match {
     case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace)
+    case _ => null
+  }
+
+  private[this] val tracedMethods =
+    Array(
+      "async",
+      "async_",
+      "cont",
+      "delay",
+      "flatMap",
+      "handleErrorWith",
+      "map",
+      "uncancelable")
+  def getUnfilteredFrame(event: TracingEvent): StackTraceElement = event match {
+    case ev: TracingEvent.StackTrace =>
+      val stackTrace = ev.getStackTrace
+      var idx = 1
+      while (idx < stackTrace.length && !tracedMethods.contains(
+          stackTrace(idx).getMethodName())) {
+        idx += 1
+      }
+      if (idx + 1 < stackTrace.length)
+        combineOpAndCallSite(stackTrace(idx), stackTrace(idx + 1))
+      else null
     case _ => null
   }
 
