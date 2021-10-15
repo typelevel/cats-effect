@@ -909,7 +909,8 @@ private final class IOFiber[A](
           if (cur.hint eq IOFiber.TypeBlocking) {
             resumeTag = BlockingR
             resumeIO = cur
-            runtime.blocking.execute(this)
+            val ec = runtime.blocking
+            scheduleOnForeignEC(ec)(this)
           } else {
             runLoop(interruptibleImpl(cur, runtime.blocking), nextCancelation, nextAutoCede)
           }
@@ -1193,7 +1194,8 @@ private final class IOFiber[A](
       resumeTag = AfterBlockingFailedR
       objectState.push(error)
     }
-    currentCtx.execute(this)
+    val ec = currentCtx
+    scheduleFiber(ec)(this)
   }
 
   private[this] def afterBlockingSuccessfulR(): Unit = {
