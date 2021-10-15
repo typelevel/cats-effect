@@ -1407,7 +1407,15 @@ private final class IOFiber[A](
   // overrides the AtomicReference#toString
   override def toString: String = {
     val state = if (suspended.get()) "SUSPENDED" else "RUNNING"
-    s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state"
+    val resumeIO = this.resumeIO
+    val event =
+      if ((resumeIO ne null))
+        resumeIO.event
+      else
+        tracingEvents.peek
+    val frame = if (event ne null) Tracing.getFrame(event) else null
+    val opAndCallSite = if (frame ne null) s" $frame" else ""
+    s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
   }
 }
 
