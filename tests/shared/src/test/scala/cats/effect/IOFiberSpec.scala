@@ -32,6 +32,7 @@ class IOFiberSpec extends BaseSpec {
       for {
         f <- loop.start
         s <- IO(f.toString)
+        _ <- IO.println(s)
         _ <- f.cancel
       } yield s.matches(pattern)
     }
