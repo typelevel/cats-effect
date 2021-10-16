@@ -1407,23 +1407,18 @@ private final class IOFiber[A](
   // overrides the AtomicReference#toString
   override def toString: String = {
     val state = if (suspended.get()) "SUSPENDED" else "RUNNING"
-    val resumeIO = this.resumeIO
     val tracingEvents = this.tracingEvents
 
-    val event =
-      if ((resumeIO ne null))
-        resumeIO.event
-      else if (tracingEvents ne null)
-        tracingEvents.peek
-      else null
-    var frame: StackTraceElement = null
-    if (event ne null) {
-      frame = Tracing.getFrame(event)
-      if (frame eq null)
-        frame = Tracing.getUnfilteredFrame(event)
-    }
+    // There are race conditions here since a running fiber is writing to `tracingEvents`,
+    // but we don't worry about those since we are just looking for a single `TraceEvent`
+    // which references user-land code
+    val opAndCallSite = Tracing
+      .getFrames(tracingEvents)
+      .headOption
+      .orElse(Option(tracingEvents.peek).map(Tracing.getUnfilteredFrame))
+      .map(frame => s" $frame")
+      .getOrElse("")
 
-    val opAndCallSite = if (frame ne null) s" $frame" else ""
     s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
   }
 }

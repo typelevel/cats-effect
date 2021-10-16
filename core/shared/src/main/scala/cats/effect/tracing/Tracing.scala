@@ -109,12 +109,10 @@ private[effect] object Tracing extends TracingPlatform {
   }
 
   def getFrames(events: RingBuffer): List[StackTraceElement] =
-    events.toList.map(getFrame).filter(_ ne null)
-
-  def getFrame(event: TracingEvent): StackTraceElement = event match {
-    case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace)
-    case _ => null
-  }
+    events
+      .toList
+      .collect { case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace) }
+      .filter(_ ne null)
 
   private[this] val tracedMethods =
     Array(
@@ -126,6 +124,7 @@ private[effect] object Tracing extends TracingPlatform {
       "handleErrorWith",
       "map",
       "uncancelable")
+
   def getUnfilteredFrame(event: TracingEvent): StackTraceElement = event match {
     case ev: TracingEvent.StackTrace =>
       val stackTrace = ev.getStackTrace
