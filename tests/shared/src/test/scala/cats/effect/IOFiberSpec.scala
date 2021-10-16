@@ -29,22 +29,24 @@ class IOFiberSpec extends BaseSpec {
 
     "toString a running fiber" in real {
       def loop: IO[Unit] = IO.unit >> loop
-      val pattern =
+      val pattern1 =
         raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ RUNNING >> @ fiber.IOFiberSpec.loop\$$1\(.*IOFiberSpec.scala:[0-9]{2}\)"
+      val pattern2 =
+        raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ RUNNING flatMap @ cats.effect.IO.$$greater$$greater\(.*IOFiberSpec.scala:[0-9]{2}\)"
       for {
         f <- loop.start
+        _ <- IO.sleep(1.milli)
         s <- IO(f.toString)
         _ <- IO.println(s)
         _ <- f.cancel
-      } yield s.matches(pattern)
+      } yield s.matches(s"($pattern1)|($pattern2)")
     }
 
     "toString a suspended fiber" in real {
-      def foreverNever = IO.async_[Unit](_ => ())
-      val pattern =
-        raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ SUSPENDED async_? @ fiber.IOFiberSpec.foreverNever\$$1\(.*IOFiberSpec.scala:[0-9]{2}\)"
+      // This is capturing the `delay` inside the implementation of `async_`
+      val pattern = raw"cats.effect.IOFiber@[0-9a-f]+ SUSPENDED delay @.*"
       for {
-        f <- foreverNever.start
+        f <- IO.async_[Unit](_ => ()).start
         _ <- IO.sleep(1.milli)
         s <- IO(f.toString)
         _ <- IO.println(s)
