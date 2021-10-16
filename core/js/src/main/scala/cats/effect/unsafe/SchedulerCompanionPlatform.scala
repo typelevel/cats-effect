@@ -38,6 +38,7 @@ private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type
 
         def nowMillis() = System.currentTimeMillis()
         def monotonicNanos() = System.nanoTime()
+        override def nowMicros(): Long = nowMillis() * 1000
       },
       () => ())
 
