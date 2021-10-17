@@ -31,7 +31,7 @@ A number of programming languages offer this syntax as a solution to the problem
 
 This construct works for any effect type that has an associated [Async](../typeclasses/async.md) instance (including but not limited to `IO`, `Resource`, and any combination of those with `EitherT`, `Kleisli`, ...).
 
-```scala
+```scala mdoc:silent
 import cats.effect.IO
 import cats.effect.cps._
 
@@ -46,7 +46,7 @@ Under the hood, the `async` block is rewritten into non-blocking code that calls
 
 Semantically speaking, the `program` value above is equivalent to
 
-```scala
+```scala mdoc:nest:silent
 val program: IO[Int] = for {
   x1 <- io
   x2 <- io
@@ -57,8 +57,10 @@ val program: IO[Int] = for {
 
 `await` cannot be called from within local methods or lambdas (which prevents its use in `for` loops (that get translated to a `foreach` call)).
 
-```scala
+```scala mdoc:nest:fail
 import cats.effect.IO
+import cats.effect.cps._
+
 
 val program: IO[Int] = async[IO] {
   var n = 0
@@ -69,18 +71,22 @@ val program: IO[Int] = async[IO] {
 
 This constraint is implemented in the Scala compiler (not in cats-effect), for good reason : the Scala language does not provide the capability to guarantee that such methods/lambdas will only be called during the runtime lifecycle of the `async` block. These lambdas could indeed be passed to other constructs that would use them asynchronously, thus **escaping** the lifecycle of the `async` block :
 
-```scala
+```scala mdoc:nest:fail
+import cats.effect.IO
+import cats.effect.cps._
+import scala.concurrent.ExecutionContext.Implicits.global
+
 async[IO] {
   // executes asynchronously on a separate thread, completes after 1 second.
   scala.concurrent.Future(IO.sleep(1.second).await)
   // returns instantly, closing the "async" scope
   true
 }
-``` 
+```
 
 **However**, it is possible to call `await` within an imperative `while` loop:
 
-```scala
+```scala mdoc
 import cats.effect.IO
 import cats.effect.cps._
 

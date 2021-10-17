@@ -521,4 +521,9 @@ lazy val benchmarks = project
       "-Dcats.effect.tracing.exceptions.enhanced=false"))
   .enablePlugins(NoPublishPlugin, JmhPlugin)
 
-lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
+lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).settings(
+  libraryDependencies ++= Seq(
+    "org.typelevel" %% "cats-effect-cps" % "0.3.0"
+  ),
+  scalacOptions += "-Xasync" 
+).enablePlugins(MdocPlugin)
