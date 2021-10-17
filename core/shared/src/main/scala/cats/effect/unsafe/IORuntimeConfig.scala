@@ -95,9 +95,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
 
   def apply(): IORuntimeConfig = Default
 
-  private[unsafe] def apply(
-      cancelationCheckThreshold: Int,
-      autoYieldThreshold: Int): IORuntimeConfig =
+  def apply(cancelationCheckThreshold: Int, autoYieldThreshold: Int): IORuntimeConfig =
     apply(
       cancelationCheckThreshold,
       autoYieldThreshold,
@@ -105,7 +103,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       DefaultTraceBufferSize,
       DefaultShutdownHookTimeout)
 
-  private[unsafe] def apply(
+  def apply(
       cancelationCheckThreshold: Int,
       autoYieldThreshold: Int,
       enhancedExceptions: Boolean,
