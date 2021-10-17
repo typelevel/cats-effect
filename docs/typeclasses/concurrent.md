@@ -13,8 +13,10 @@ primitives necessary to implement arbitrarily complicated concurrent state machi
 
 We can memoize an effect so that it's only run once and the result used repeatedly.
 
-```scala
-def memoize[A](fa: F[A]): F[F[A]]
+```scala mdoc:silent
+def example[F[_]]= {
+  def memoize[A](fa: F[A]): F[F[A]] = ???
+}
 ```
 
 Usage looks like this:
@@ -46,7 +48,8 @@ implementing a `CountDownLatch`, which is instantiated with `n > 0` latches and
 allows fibers to semantically block until all `n` latches are released. We can
 model this situation with the following state
 
-```scala
+```scala mdoc:silent
+import cats.effect.kernel.Deferred
 sealed trait State[F[_]]
 case class Awaiting[F[_]](latches: Int, signal: Deferred[F, Unit]) extends State[F]
 case class Done[F[_]]() extends State[F]
@@ -58,26 +61,41 @@ latches have been released and the countdown latch is done.
 
 We can store this state in a `state: Ref[F, State[F]]` to allow for concurrent
 modification. Then the implementation of await looks like this:
-```scala
-def await: F[Unit] =
-  state.get.flatMap {
-    case Awaiting(_, signal) => signal.get
-    case Done() => F.unit
-  }
+```scala mdoc:invisible
+import cats.Monad
+import cats.effect.Ref
+```
+
+```scala mdoc:nest:silent
+
+def example[F[_]](implicit F: Monad[F]) = {
+  val state:Ref[F,State[F]] = ???
+  
+  def await: F[Unit] =
+  F.flatMap(state.get) {
+      case Awaiting(_, signal) => signal.get
+      case Done() => F.unit
+    }
+}
+
 ```
 As you can see, if we're still waiting for some of the latches to be released then we 
 use `signal` to block. Otherwise we just pass through with `F.unit`.
 
 Similarly the implementation of `release` is:
-```scala
-def release: F[Unit] =
-  F.uncancelable { _ =>
-    state.modify {
-      case Awaiting(n, signal) =>
-        if (n > 1) (Awaiting(n - 1, signal), F.unit) else (Done(), signal.complete(()).void)
-      case d @ Done() => (d, F.unit)
-    }.flatten
-  }
+```scala mdoc:invisible
+```
+```scala mdoc:nest:silent
+def state:Ref[IO,State[IO]] = ???
+
+def release: IO[Unit] =
+IO.uncancelable { _ =>
+  state.modify {
+    case Awaiting(n, signal) =>
+      if (n > 1) (Awaiting(n - 1, signal), IO.unit) else (Done(), signal.complete(()).void)
+    case d @ Done() => (d, IO.unit)
+  }.flatten
+}
 ```
 
 Ignoring subtleties around cancelation, the implementation is straightforward. If there is more

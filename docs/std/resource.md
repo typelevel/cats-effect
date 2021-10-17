@@ -11,8 +11,10 @@ regardless of the outcome of the action.
 
 This can be achieved with `MonadCancel#bracket`
 
-```scala
-def bracket[A, B](acquire: F[A])(use: A => F[B])(release: A => F[Unit]): F[B]
+```scala mdoc
+def example[F[_]] = {
+  def bracket[A, B](acquire: F[A])(use: A => F[B])(release: A => F[Unit]): F[B] = ???
+}
 ```
 
 However, composing this quickly becomes unwieldy
@@ -45,22 +47,31 @@ The simplest way to construct a `Resource` is with `Resource#make` and the simpl
 consume a resource is with `Resource#use`. Arbitrary actions can also be lifted to
 resources with `Resource#eval`
 
-```scala
+```scala mdoc:silent:reset
 object Resource {
-  def make[F[_], A](acquire: F[A])(release: A => F[Unit]): Resource[F, A]
+  def make[F[_], A](acquire: F[A])(release: A => F[Unit]): Resource[F, A] = ???
 
-  def eval[F[_], A](fa: F[A]): Resource[F, A]
+  def eval[F[_], A](fa: F[A]): Resource[F, A] = ???
 }
 
-abstract class Resource[F, A] {
+abstract class Resource[F[_], A] {
   def use[B](f: A => F[B]): F[B]
 }
 ```
 
 Our concat example then becomes:
+```scala mdoc:invisible:reset
+```
 
-```scala
-def file(name: String): Resource[IO, File] = Resource.make(openFile(name)))(file => close(file))
+```scala mdoc:compile-only
+import cats.effect.Resource
+import cats.effect.IO
+import java.io.File
+def openFile(name:String):IO[File] = ???
+def close(file:File) :IO[Unit] = ???
+def read(file:File):IO[Array[Byte]] = ???
+def write(file:File,bytes:Array[Byte]) :IO[Unit] = ???
+def file(name: String): Resource[IO, File] = Resource.make(openFile(name))(file => close(file))
 
 val concat: IO[Unit] =
   (

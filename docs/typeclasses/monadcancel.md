@@ -5,7 +5,7 @@ title: MonadCancel
 
 A fiber can terminate in three different states, reflected by the different subtypes of `Outcome`:
 
-```scala
+```scala mdoc:nest:silent
 sealed trait Outcome[F[_], E, A]
 final case class Succeeded[F[_], E, A](fa: F[A]) extends Outcome[F, E, A]
 final case class Errored[F[_], E, A](e: E) extends Outcome[F, E, A]
@@ -86,7 +86,12 @@ MonadCancel[F] uncancelable { outer =>
 The `inner` poll eliminates the inner `uncancelable`, but the *outer* `uncancelable` still applies, meaning that this whole thing is equivalent to `MonadCancel[F].uncancelable(_ => fa)`. Indeed these
 must be the semantics to preserve local reasoning about cancelation. Suppose `poll` had the effect
 of making its interior cancelable. Then if we had
-```scala
+```scala mdoc:invisible
+import cats.effect.IO
+def cleanupImportantResource :IO[Unit] = ???
+```
+
+```scala mdoc:nest
 def foo[A](inner: IO[A]) = IO.uncancelable( _ =>
   // Relies on inner being uncancelable so we can clean up the resource after
   inner <* cleanupImportantResource
@@ -100,7 +105,8 @@ val x: IO[String] = foo(bar)
 ```
 
 If we inline the execution we see that we have:
-```scala
+```scala mdoc:silent:nest
+
 val x: IO[String] = IO.uncancelable( _ =>
   IO.uncancelable( poll =>
     //Oh dear! If poll makes us cancelable then we could be canceled here
