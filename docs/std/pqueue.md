@@ -6,8 +6,9 @@ title: Priority Queue
 A purely-functional concurrent implementation of a priority queue, using
 a cats `Order` instance to determine the relative priority of elements.
 
-```scala
-trait PQueue[F[_], A : Order] {
+```scala mdoc:nest:silent
+
+trait PQueue[F[_], A] {
 
   def take: F[A]
 
@@ -24,7 +25,7 @@ A `PQueue` may be constructed as `bounded` or `unbounded`. If bounded then
 `offer` may semantically block if the pqueue is already full. `take` is
 semantically blocking if the pqueue is empty.
 
-```scala mdoc
+```scala mdoc:compile-only
 import cats.Order
 import cats.implicits._
 import cats.effect._
@@ -53,7 +54,7 @@ absurdlyOverengineeredSort(list).flatMap(IO.println(_)).unsafeRunSync()
 treat a `PQueue[F, A]` as a `PQueueSource[F, B]` by mapping with `A => B` 
 or as a `PQueueSink[F, B]` by contramapping with `B => A`.
 
-```scala mdoc:reset
+```scala mdoc:compile-only
 import cats.Order
 import cats.{Contravariant, Functor}
 import cats.implicits._

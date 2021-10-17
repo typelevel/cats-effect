@@ -18,7 +18,9 @@ the next one in the sequence using `Hotswap#swap`. An error may be raised if
 the previous resource in the sequence is referenced after `swap` is invoked
 (as the resource will have been finalized).
 
-```scala
+
+```scala mdoc
+import cats.effect.Resource
 sealed trait Hotswap[F[_], R] {
 
   def swap(next: Resource[F, R]): F[R]
@@ -26,8 +28,16 @@ sealed trait Hotswap[F[_], R] {
 ```
 
 A rotating logger would then look something like this:
+```scala mdoc:invisible
+trait Logger[F[_]] {
+  def log(msg:String):F[_]
+}
+```
+```scala mdoc:silent
+import java.io.File
+import cats.effect.{Ref,IO}
+import cats.effect.std.Hotswap
 
-```scala
 def rotating(n: Int): Resource[IO, Logger[IO]] =
   Hotswap.create[IO, File].flatMap { hs =>
     def file(name: String): Resource[IO, File] = ???

@@ -6,7 +6,7 @@ title: Cyclic Barrier
 A re-usable synchronization primitive that allows a set of
 fibers to wait until they've all reached the same point.
 
-```scala
+```scala mdoc:silent
 
 trait CyclicBarrier[F[_]] {
 
@@ -23,7 +23,7 @@ and the cyclic barrier is reset.
 `await` cancelation is supported, in which case the number of
 fibers required to unblock the cyclic barrier is incremented again.
 
-```scala mdoc
+```scala mdoc:compile-only
 import cats.implicits._
 import cats.effect._
 import cats.effect.std.CyclicBarrier

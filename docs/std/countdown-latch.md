@@ -8,7 +8,7 @@ it. It is initialized with a positive integer `n` latches and waiting
 fibers are semantically blocked until all `n` latches are released.
 After this, further `await`s are no-ops (equivalent to `IO.unit`).
 
-```scala
+```scala mdoc:silent
 trait CountDownLatch[F[_]] {
 
   def release: F[Unit]
@@ -20,7 +20,7 @@ trait CountDownLatch[F[_]] {
 
 Cancelation of `await` is supported.
 
-```scala mdoc
+```scala mdoc:silent
 import cats.implicits._
 import cats.effect._
 import cats.effect.std.CountDownLatch

@@ -35,7 +35,7 @@ arbitrary code on it so it is a very unreliable basis for your compute pool.
 ## The IO runloop
 
 A simplified `IO` might look something like this:
-```scala
+```scala mdoc:nest
 sealed abstract class IO[A] {
   def flatMap[B](f: A => IO[B]): IO[B] = FlatMap(this, f)
   
@@ -71,9 +71,13 @@ issue as fibers automatically yield at asynchronous boundaries (eg I/O) but it
 does means that it is actually possible for a fiber to take control of a CPU
 core and never give it back if it executes a tight CPU-bound loop like
 
-```scala
+```scala mdoc:reset:height=5
+import cats.effect.unsafe.implicits.global
+import cats.effect.IO
+val zero = BigInt(0)
+
 def factorial(n: BigInt): IO[BigInt] = n match {
-   case 0 => IO.pure(1)
+   case `zero` => IO.pure(BigInt(1))
    case n => factorial(n-1).flatMap {
       m => IO.pure(m * n)
    }
@@ -120,7 +124,7 @@ whereas `IO.sleep` is only semantically blocking.
 The building block for arbitrary semantic blocking is `Deferred`, which is a
 purely functional promise that can only be completed once
 
-```scala
+```scala mdoc:compile-only
 trait Deferred[F[_], A] {
   def get: F[A]
   
@@ -152,7 +156,9 @@ shifting work to other pools.
 
 `ContextShift` is a pure representation of a threadpool and looks a bit like this:
 
-```scala
+```scala mdoc:silent
+import scala.concurrent.ExecutionContext
+
 trait ContextShift[F[_]] {
 
   def shift: F[Unit]
@@ -168,7 +174,10 @@ provides an instance which is backed by the default compute pool it provides.
 `evalOn` allows us to shift an operation onto another pool and have the
 continuation be automatically shifted back eg
 
-```scala
+```scala mdoc:compile-only
+val CS: ContextShift[IO] = ???
+val blockingPool :ExecutionContext = ???
+
 CS.evalOn(blockingPool)(
     IO(println("I run on the blocking pool"))
   ) >> IO(println("I am shifted onto the pool that CS represents"))
@@ -177,7 +186,10 @@ CS.evalOn(blockingPool)(
 `shift` is a uni-directional shift of thread pool so that the continuation runs on the pool that
 the `ContextShift` represents
 
-```scala
+```scala mdoc:compile-only
+val CS: ContextShift[IO] = ???
+val blockingPool :ExecutionContext = ???
+
 IO(println("I run on some pool")) >> CS.shift >> IO(println("I run on the pool that CS represents"))
 ```
 
@@ -187,11 +199,20 @@ IO(println("I run on some pool")) >> CS.shift >> IO(println("I run on the pool t
 It relies upon `ContextShift` for its actual behaviour and is simply a marker for a threadpool
 that is suitable for blocking operations.
 
-```scala
+```scala mdoc:silent
 trait Blocker {
   def blockOn[F[_], A](fa: F[A])(implicit cs: ContextShift[F]): F[A]
 }
 
+```
+
+```scala mdoc:invisible
+def blocker:Blocker = ???
+def readFile: Unit = ???
+implicit def cs :ContextShift[IO] = ???
+```
+
+```scala mdoc:compile-only
 blocker.blockOn(IO(readFile)) >> IO(println("Shifted back to the pool that CS represents"))
 ```
 
@@ -206,8 +227,11 @@ identify them should you be unfortunate enough to be looking at thread dumps.
 A common pattern in libraries for CE2 is to have an API which asks for a `Blocker`
 and an implicit `ContextShift`
 
-```scala
-def api[F[_] : ContextShift](blocker: Blocker): F[Api]
+```scala mdoc:invisible
+type Api = Nothing
+```
+```scala mdoc:silent
+def api[F[_] : ContextShift](blocker: Blocker): F[Api] = ???
 ```
 
 In this case you _must_ provide the `ContextShift` given to you by `IOApp`
@@ -221,7 +245,7 @@ the provided `Blocker`.
 Unfortunately there are some problems with these abstractions - we lose the ability to reason
 locally about what thread pool effects are running on.
 
-```scala
+```scala mdoc:nest
 def prog(inner: IO[Unit]): IO[Unit] =
   for {
     _ <- IO(println("Running on the default pool"))
@@ -245,9 +269,9 @@ What we need is the ability to locally change the threadpool with
 the guarantee that the continuation will be shifted to the previous
 pool afterwards. If you are familiar with `MonadReader`
 
-```scala
+```scala mdoc:silent
 trait MonadReader[F[_], R] {
-  def ask: F[R_] //get the current execution context
+  def ask: F[R] //get the current execution context
   
   def local[A](alter: R => R)(inner: F[A]): F[A] //run an inner effect with a different execution 
                                                  //context and then restore the previous
@@ -301,7 +325,7 @@ Notably, `ContextShift` and `Blocker` are no more.
 
 CE3 introduces a re-designed typeclass `Async`
 
-```scala
+```scala mdoc:nest:silent
 trait Async[F[_]] {
   def evalOn[A](fa: F[A], ec: ExecutionContext): F[A]
 
@@ -321,7 +345,7 @@ CE3 has a builtin `blocking` which will shift execution to an internal
 blocking threadpool and shift it back afterwards using `Async`.
 
 This means that we can simply write
-```scala
+```scala mdoc:silent
 IO.println("current pool") >> IO.blocking(println("blocking pool")) >> IO.println("current pool")
 ```
 

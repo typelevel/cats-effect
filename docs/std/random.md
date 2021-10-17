@@ -5,7 +5,7 @@ title: Random
 
 A purely-functional implementation of a source of random information.
 
-```scala
+```scala mdoc
 trait Random[F[_]] {
   def nextInt: F[Int]
 
@@ -47,9 +47,10 @@ Random.scalaUtilRandom[IO]
 ```
 
 ## Using `Random`
-```scala mdoc
+```scala mdoc:reset
 import cats.Functor
 import cats.syntax.functor._
+import cats.effect.std.Random
 
 def dieRoll[F[_]: Functor: Random]: F[Int] =
   Random[F].betweenInt(0, 6).map(_ + 1) // `6` is excluded from the range

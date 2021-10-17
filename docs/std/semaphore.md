@@ -7,7 +7,7 @@ title:  Semaphore
 
 A semaphore has a non-negative number of permits available. Acquiring a permit decrements the current number of permits and releasing a permit increases the current number of permits. An acquire that occurs when there are no permits available results in semantic blocking until a permit becomes available.
 
-```scala
+```scala mdoc
 abstract class Semaphore[F[_]] {
   def available: F[Long]
   def acquire: F[Unit]

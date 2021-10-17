@@ -18,14 +18,15 @@ it, but we still want to control its lifecycle?
 
 A supervisor spawns fibers whose lifecycles are bound to that of the supervisor.
 
-```scala
+```scala mdoc:nest
+import cats.effect.{Fiber,Resource,Concurrent}
 trait Supervisor[F[_]] {
 
   def supervise[A](fa: F[A]): F[Fiber[F, Throwable, A]]
 }
 
 object Supervisor {
-  def apply[F[_]](implicit F: Concurrent[F]): Resource[F, Supervisor[F]]
+  def apply[F[_]](implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = ???
 }
 ```
 

@@ -45,8 +45,10 @@ File I/O is effectively unavoidable in any application, but it too means blockin
 
 Clearly, we cannot simply pretend this problem does not exist. This is why the `blocking` and `interruptible` functions on `IO` are so important: they declare to the `IO` runtime that the effect in question will block a thread, and it *must* be shifted to the blocking worker pool:
 
-```scala
-IO.blocking(url1 == url2) // => IO[Boolean]
+```scala mdoc
+import cats.effect._
+import java.net.URL
+IO.blocking(new URL("http://example.com") == new URL("http://example.org")) // => IO[Boolean]
 ```
 
 In the above, `URL#equals` effect (along with its associated blocking DNS resolution) is moved off of the precious thread-stealing compute pool and onto an unbounded blocking pool. This worker thread then blocks (which causes the kernel to remove it from the processor) for as long as necessary to complete the DNS resolution, after which it returns and completes the boolean comparison. As soon as this effect completes, `IO` *immediately* shifts the fiber back to the work-stealing compute pool, ensuring all of the benefits are applied and the blocking worker thread can be returned to its pool.
@@ -113,7 +115,8 @@ Even better still, `Promise` is *already* wrapped by ScalaJS itself in a thread 
 
 Unfortunately, this doesn't work well for a very "JavaScript" set of reasons. The following example demonstrates the problem fairly clearly:
 
-```scala
+```scala mdoc:silent
+import scala.concurrent.duration._
 IO.cede.foreverM.start flatMap { fiber =>
   IO.sleep(5.seconds) >> fiber.cancel
 }

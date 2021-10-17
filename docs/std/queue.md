@@ -5,7 +5,7 @@ title: Queue
 
 A purely-functional concurrent implementation of a queue.
 
-```scala
+```scala mdoc
 trait Queue[F[_], A] {
 
   def take: F[A]

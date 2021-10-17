@@ -170,7 +170,7 @@ have to be cancelable to pass the laws.
 
 A major outcome of this decision is that the `async` method supports cancelation. Here's the new signature:
 
-```scala
+```scala mdoc:compile-only
 trait Async[F[_]] {
   def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A]
 }
@@ -404,7 +404,10 @@ def continual[F[_]: MonadCancelThrow, A, B](fa: F[A])(
 The actual abstraction isn't `Concurrent` anymore, but rather a generalization of it for arbitrary error types, `GenConcurrent[F, E]`.
 There are aliases set up in `cats.effect` and `cats.effect.kernel` to make it easier to use with `Throwable`, e.g.
 
-```scala
+```scala mdoc:invisible
+import cats.effect.GenConcurrent
+```
+```scala mdoc:silent:nest
 type Concurrent[F[_]] = GenConcurrent[F, Throwable]
 ```
 
@@ -522,7 +525,7 @@ In CE2, completing a `Deferred` after it's already been completed would result i
 
 Before:
 
-```scala
+```scala mdoc:nest
 // CE2
 trait Deferred[F[_], A] {
   def complete(a: A): F[Unit]
@@ -531,7 +534,7 @@ trait Deferred[F[_], A] {
 
 After:
 
-```scala
+```scala mdoc:nest
 // CE3
 trait Deferred[F[_], A] {
   def complete(a: A): F[Boolean]
@@ -556,7 +559,7 @@ the method's type is now `F[Boolean]`, which will complete with `false` if there
 
 In CE2, the final status of an effect's execution was represented as `ExitCase`:
 
-```scala
+```scala mdoc
 // CE2
 sealed trait ExitCase[+E]
 case object Completed extends ExitCase[Nothing]
@@ -566,7 +569,7 @@ case object Canceled extends ExitCase[Nothing]
 
 The closest type corresponding to it in CE3 is `Outcome`:
 
-```scala
+```scala mdoc
 // CE3
 sealed trait Outcome[F[_], E, A]
 final case class Succeeded[F[_], E, A](fa: F[A]) extends Outcome[F, E, A]
@@ -584,7 +587,7 @@ should get you to a compiling state. For more information about Outcome, see [`S
 
 Mostly unchanged, `Fiber` still has a `cancel` method, and a `join` method:
 
-```scala
+```scala mdoc
 trait Fiber[F[_], E, A] {
   def cancel: F[Unit]
   def join: F[Outcome[F, E, A]]
@@ -617,27 +620,12 @@ Most changes in `IO` are straightforward, with the exception of the "unsafe" met
 
 Aside from the renamings of these methods, they all now take an implicit `IORuntime`.
 
-```scala
+```scala mdoc:reset:fail
 import cats.effect.IO
 
 def io: IO[Unit] = ???
 
 io.unsafeRunSync()
-// error: Could not find an implicit IORuntime.
-// 
-// Instead of calling unsafe methods directly, consider using cats.effect.IOApp, which
-// runs your IO. If integrating with non-functional code or experimenting in a REPL / Worksheet,
-// add the following import:
-// 
-// import cats.effect.unsafe.implicits.global
-// 
-// Alternatively, you can create an explicit IORuntime value and put it in implicit scope.
-// This may be useful if you have a pre-existing fixed thread pool and/or scheduler which you
-// wish to use to execute IO programs. Please be sure to review thread pool best practices to
-// avoid unintentionally degrading your application performance.
-// 
-// io.unsafeRunSync()
-// ^^^^^^^^^^^^^^^^^^
 ```
 
 Follow the advice from the "missing implicit" error message whenever you need this functionality.

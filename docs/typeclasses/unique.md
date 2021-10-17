@@ -4,8 +4,11 @@ title: Unique
 ---
 
 A typeclass which is a source of unique tokens via `unique`
+```scala mdoc:invisible
+import cats.effect.kernel.Unique
+```
 
-```scala
+```scala mdoc:silent
 trait Unique[F[_]] {
   def unique: F[Unique.Token]
 }

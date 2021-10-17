@@ -5,7 +5,9 @@ title: Dequeue
 
 A purely-functional concurrent implementation of a double-ended queue.
 
-```scala
+```scala mdoc:silent
+import cats.effect.std.Queue
+
 trait Dequeue[F[_], A] extends Queue[F, A] {
 
   def offerBack(a: A): F[Unit]
@@ -48,7 +50,7 @@ semantically blocking if the pqueue is empty.
 `Dequeue[F, A]` as a `DequeueSource[F, B]` by mapping with `A => B`  or as a
 `DequeueSink[F, B]` by contramapping with `B => A`.
 
-```scala mdoc:reset
+```scala mdoc:compile-only
 import cats.{Contravariant, Functor}
 import cats.implicits._
 import cats.effect._

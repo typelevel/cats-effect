@@ -6,7 +6,16 @@ title: Temporal
 `Temporal` extends `Concurrent` with the ability to suspend a fiber by sleeping for
 a specified duration.
 
-```scala
+```scala mdoc:invisible
+import cats.effect.IO
+type F[Unit] = IO[Unit]
+import cats.effect.Temporal
+import scala.concurrent.duration._
+val firstThing = IO(())
+val secondThing = IO(())
+```
+
+```scala mdoc:silent
 firstThing >> Temporal[F].sleep(5.seconds) >> secondThing
 ```
 
@@ -21,6 +30,12 @@ the specified duration before rescheduling the fiber.
 The ability to sleep for a specified duration enables us to define powerful
 time-dependent derived combinators like `timeoutTo`:
 
-```scala
-val data = fetchFromRemoteService.timeoutTo(2.seconds, cachedValue)
+```scala mdoc:invisible
+type Response = Any
+def fetchFromRemoteService : IO[Response] = ???
+def cachedValue:IO[Response] = IO(())
+```
+
+```scala mdoc:silent
+def data = fetchFromRemoteService.timeoutTo(2.seconds, cachedValue)
 ```

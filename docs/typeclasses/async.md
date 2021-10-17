@@ -18,7 +18,7 @@ result. That computation may fail hence the callback is of type
 blocked, the current fiber is simply descheduled until the callback completes.
 
 This leads us directly to the simplest asynchronous FFI
-```scala
+```scala mdoc:compile-only
 trait Async[F[_]] {
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): F[A]
 }
@@ -41,9 +41,9 @@ a finalizer to cancel the asynchronous task in the event that the fiber
 running `async_` is canceled.
 
 `Async` therefore provides the more general `async` as well
-```scala
+```scala mdoc:silent
 trait Async[F[_]] {
-  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
+  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = ???
 }
 ```
 
@@ -74,7 +74,8 @@ def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] =
 
 `Async` has the ability to shift execution to a different threadpool.
 
-```scala
+```scala mdoc:reset:silent
+import scala.concurrent.ExecutionContext
 trait Async[F[_]] {
   //Get the current execution context
   def executionContext: F[ExecutionContext]
@@ -92,13 +93,17 @@ If you are familiar with the reader monad then this is very similar -
 context for a given computation. After this computation is complete,
 execution will return to the context specified by `executionContext`
 
-```scala
+```scala mdoc
+import cats.effect.IO
+import cats.effect.Async
+import scala.concurrent.ExecutionContext
+
 val printThread: IO[Unit] =
   IO.executionContext.flatMap(IO.println(_))
-
+def someEc:ExecutionContext = ???
 for {
   _ <- printThread //io-compute-1
-  _ <- IO.evalOn(printThread, someEc) //some-ec-thread
+  _ <- Async[IO].evalOn(printThread, someEc) //some-ec-thread
   _ <- printThread //io-compute-1
 } yield ()
 ```
@@ -110,9 +115,10 @@ called from user code. You also _absolutely do not_ need to understand it in
 order to use `Async`. The design is however very instructive for the curious
 reader. To start with, consider the definition of `async` again
 
-```scala
+```scala mdoc:reset:silent
 trait Async[F[_]] {
-  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A]
+  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = ???
+}
 ```
 
 Suppose we try to implement the inductive instance of this for `OptionT`. We

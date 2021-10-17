@@ -103,7 +103,7 @@ Even more importantly, this cancelation mechanism is the same one that is descri
 
 In practice, this kind of cancelation is often handled for you (the user) in the form of cleanup when unexpected things happen. For example, imagine the following code:
 
-```scala
+```scala mdoc:silent
 import cats.syntax.all._
 
 (-10 to 10).toList.parTraverse(i => IO(5f / i))
