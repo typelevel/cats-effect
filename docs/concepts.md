@@ -58,7 +58,7 @@ IO.println("Hello") >> IO.println("World")
 
 We can even use Scala's macros to build our own convenience syntax on top of `flatMap`. For example, using [typelevel/cats-effect-cps](https://github.com/typelevel/cats-effect-cps), it is possible to define fibers in a fashion reminiscent of the `async`/`await` syntax present in other languages like JavaScript and Rust:
 
-```scala
+```scala mdoc:silent
 import cats.effect.cps._
 
 async[IO] {
@@ -150,11 +150,33 @@ Concurrency is often conflated with asynchronous execution due to the fact that,
 
 Cats Effect has numerous mechanisms for defining concurrent effects. One of the most straightforward of these is `parTupled`, which evaluates a pair of independent effects and produces a tuple of their results:
 
-```scala
-(callServiceA(params1), callServiceB(params2)).parTupled   // => IO[(Response, Response)]
+```scala mdoc
+import scala.concurrent.duration._
+import cats.syntax.all._
+
+val callServiceA = (params:String)=> IO.sleep(1.second) *> IO(s"ServiceA: got $params")
+val callServiceB = (params:String) => IO.sleep(2.seconds) *> IO(s"SerciceB: got $params")
+val requestsInParallel = (callServiceA("params1"),callServiceB("params2")).parTupled
+```
+
+```scala mdoc:nest
+import cats.effect.unsafe.implicits.global
+// This takes at least 2 seconds. 
+requestsInParallel.unsafeRunSync()
 ```
 
 As with all concurrency support, `parTupled` is a way of *declaring* to the underlying runtime that two effects (`callServiceA(params1)` and `callServiceB(params2)`) are independent and can be evaluated in parallel. Cats Effect will never *assume* that two effects can be evaluated in parallel.
+
+Another way of declaring concurrent effect is `IO.both`.
+
+```scala mdoc:nest
+import cats.effect.unsafe.implicits.global
+val requestsInParallel = IO.both(callServiceA("params1"),callServiceB("params2"))
+
+// or use `&>` alias like `callServiceA("params1") &> callService("params2")`
+
+requestsInParallel.unsafeRunSync()
+```
 
 All concurrency in Cats Effect is implemented in terms of underlying primitives which create and manipulate fibers: `start` and `join`. These concurrency primitives are very similar to the equivalently-named operations on `Thread`, but as with most things in Cats Effect, they are considerably faster and safer.
 
@@ -195,7 +217,7 @@ In the above snippet, `printer` and `printAndRead` are both effects: they descri
 
 This is very distinct from saying that `foo` is a function which *performs effects*, in the same way that the `printer` effect is very distinct from *actually printing*. This is illustrated neatly if we write something like the following:
 
-```scala
+```scala mdoc
 printer
 printer
 printer
@@ -203,14 +225,22 @@ printer
 
 When this code is evaluated, the text "Hello, World" will be printed exactly *zero* times, since `printer` is just a descriptive value; it doesn't *do* anything on its own. Cats Effect is all about making it possible to express effects *as values*.
 
+
 Notably, this is something that `Future` cannot do:
 
-```scala
+```scala mdoc:silent:nest
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+
 val printer: Future[Unit] = Future(println("Hello, World"))
 
 printer
+// Hello, World
+// res: Future[Unit] = Future(Success(()))
 printer
+// res: Future[Unit] = Future(Success(()))
 printer
+// res: Future[Unit] = Future(Success(()))
 ```
 
 This will print "Hello, World" exactly once, meaning that `printer` does not represent a *description* of an action, but rather the results of that action (which was already acted upon outside of our control). Critically, swapping `val` for `def` in the above would result in printing three times, which is a source of bugs and unexpected behavior more often than you might expect when working with `Future`.
@@ -234,11 +264,16 @@ In the above, `example` is an effectful function, and `printer` is an effect (as
 
 When running a piece of code causes changes outside of just returning a value, we generally say that code "has side-effects". More intuitively, code where you care whether it runs more than once, and/or *when* it runs, almost always has side-effects. The classic example of this is `System.out.println`:
 
-```scala mdoc
+```scala mdoc:compile-only
 def double(x: Int): Int = {
   System.out.println("Hello, World")
   x + x
 }
+
+double(21)
+
+// Hello,World
+// res: Int = 42
 ```
 
 The `double` function takes an `Int` and returns that same `Int` added to itself... and it prints "Hello, World" to standard out. This is what is meant by the "side" in "side-effect": something else is being done "on the side". The same thing could be said about logging, changing the value of a `var`, making a network call, etc etc.
@@ -259,7 +294,8 @@ When side-effecting code is wrapped in one of these constructors, the code itsel
 
 For example, we can wrap the `System.out.println` side-effecting code from earlier to convert it into an effect value:
 
-```scala mdoc:silent
+```scala mdoc
+
 val wrapped: IO[Unit] = IO(System.out.println("Hello, World"))
 ```
 

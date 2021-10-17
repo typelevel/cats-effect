@@ -184,9 +184,9 @@ We can divide the parameter `k` into the following:
 
 The most similar method to this in CE2 would be `Concurrent.cancelableF`:
 
-```scala
+```scala mdoc:nest:silent
 // CE2!
-def cancelableF[F[_], A](k: (Either[Throwable, A] => Unit) => F[F[Unit]])
+def cancelableF[F[_], A](k: (Either[Throwable, A] => Unit) => F[F[Unit]]) = ???
 ```
 
 The only difference being that there was always an effect for cancelation - now it's optional (the `F` inside `F`).
@@ -434,9 +434,13 @@ This is something you might want to do in a situation where you have an effect, 
 
 You can get an instance of it with `Dispatcher.apply[F]` for any `F[_]: Async`:
 
-```scala
+```scala mdoc:nest:silent
+
+import cats.effect.{Resource,Async}
+import cats.effect.std.Dispatcher
+
 object Dispatcher {
-  def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]]
+  def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] = ???
 }
 ```
 

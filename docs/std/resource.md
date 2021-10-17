@@ -11,7 +11,7 @@ regardless of the outcome of the action.
 
 This can be achieved with `MonadCancel#bracket`
 
-```scala mdoc
+```scala mdoc:compile-only
 def example[F[_]] = {
   def bracket[A, B](acquire: F[A])(use: A => F[B])(release: A => F[Unit]): F[B] = ???
 }
@@ -98,8 +98,15 @@ lifecycle of an inner resource.
 Also note that finalization happens as soon as the `use` block finishes and
 hence the following will throw an error as the file is already closed when we
 attempt to read it:
-```scala
-open(file1).use(IO.pure).flatMap(readFile)
+```scala mdoc:invisible
+import java.io.File
+import cats.effect.{IO,Resource}
+def open(name:String):Resource[IO,File] = ???
+def readFile(f:File):IO[Unit] = ???
+```
+
+```scala mdoc:compile-only
+open("file1").use(IO.pure).flatMap(readFile)
 ```
 As a corollary, this means that the resource is acquired every time `use` is invoked.
 So `file.use(read) >> file.use(read)` opens the file twice whereas

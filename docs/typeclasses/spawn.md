@@ -50,7 +50,13 @@ def endpoint[F[_]: Spawn](
 
 There's a *lot* going on in this example, but thanks to the power of functional programming, we can break it down into tiny chunks that we analyze and understand one at a time. Let's start at the very end:
 
-```scala
+```scala mdoc:reset:invisible
+import cats.effect.IO
+import cats.effect.syntax.all._
+import cats.syntax.all._
+def handler:IO[Unit] = ???
+```
+```scala mdoc:compile-only
 handler.foreverM
 ```
 
@@ -84,7 +90,8 @@ Probably the most significant benefit that fibers provide, above and beyond thei
 
 We can demonstrate this property relatively easily using the `IO` monad:
 
-```scala mdoc
+```scala mdoc:silent
+import cats.effect.Spawn
 import scala.concurrent.duration._
 import cats.effect.IO
 
