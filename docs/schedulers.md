@@ -59,14 +59,14 @@ While JavaScript runtimes are single-threaded, and thus do not have the *m:n* pr
 
 Ultimately, though, `IO` is able to achieve this with exceptionally high performance, and without interfering with other mechanisms which leverage the event loop (such as animations in the browser or I/O on the server). The techniques which are used by `IO` to achieve this run across all platforms which support ScalaJS. However, optimal performance is available only in the following environments:
 
-- NodeJS 0.9.1+
-- [Any browser providing `window.postMessage()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#browser_compatibility), including:
+- [NodeJS 0.9.1+](https://nodejs.org/api/timers.html#timers_setimmediate_callback_args)
+- [Any browser implementing `window.postMessage()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#browser_compatibility), including:
   - Chrome 1+
   - Safari 4+
   - Internet Explorer 9+ (including Edge)
   - Firefox 3+
   - Opera 9.5+
-- Web Workers [in all major browsers](https://developer.mozilla.org/en-US/docs/Web/API/MessageChannel#browser_compatibility)
+- [Web Workers implementing `MessageChannel`](https://developer.mozilla.org/en-US/docs/Web/API/MessageChannel#browser_compatibility)
 
 ### Yielding
 
