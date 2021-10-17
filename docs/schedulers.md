@@ -59,12 +59,14 @@ While JavaScript runtimes are single-threaded, and thus do not have the *m:n* pr
 
 Ultimately, though, `IO` is able to achieve this with exceptionally high performance, and without interfering with other mechanisms which leverage the event loop (such as animations in the browser or I/O on the server). The techniques which are used by `IO` to achieve this run across all platforms which support ScalaJS. However, optimal performance is available only in the following environments:
 
-- NodeJS (all versions)
-- Internet Explorer 9+ (including Edge)
-- Firefox 3+
-- Opera 9.5+
-- *All WebKit browsers*
-- Web Workers
+- NodeJS 0.9.1+
+- [Any browser providing `window.postMessage()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#browser_compatibility), including:
+  - Chrome 1+
+  - Safari 4+
+  - Internet Explorer 9+ (including Edge)
+  - Firefox 3+
+  - Opera 9.5+
+- Web Workers [in all major browsers](https://developer.mozilla.org/en-US/docs/Web/API/MessageChannel#browser_compatibility)
 
 ### Yielding
 
@@ -140,7 +142,6 @@ The only elements of the polyfill which are *not* implemented by Cats Effect are
 
 - `process.nextTick` is used by the JavaScript polyfill when running on NodeJS versions below 0.9. However, ScalaJS itself does not support NodeJS 0.9 or below, so there's really no point in supporting this case.
 - Similarly, older versions of IE (6 through 8, specifically) allow a particular exploitation of the `onreadystatechange` event fired when a `<script>` element is inserted into the DOM. However, ScalaJS does not support these environments *either*, and so there is no benefit to implementing this case.
-- Web workers have entirely alien semantics for task queuing and no access to the DOM, but they do have `MessageChannel` which accomplishes exactly what we need. However, they're very hard to test in CI (apparently), and so Cats Effect does not yet implement this leg of the polyfill. There are plans to fix this.
 
 On environments where the polyfill is unsupported, `setTimeout` is still used as a final fallback.
 
