@@ -37,4 +37,10 @@ final class AsyncObjOps[F[_]](private val F: Async[F]) extends AnyVal {
    */
   def parSequenceN[T[_], A](n: Long)(tma: T[F[A]])(implicit T: Traverse[T], P: Parallel[F]): F[T[A]] =
     Async.parSequenceN(n)(tma)(T, F, P)
+
+  /**
+   * Like `Parallel.parReplicateA`, but limits the degree of parallelism.
+   */
+  def parReplicateAN[A](n: Long)(replicas: Int, fa: F[A])(implicit P: Parallel[F]): F[List[A]] =
+    Async.parReplicateAN(n)(replicas, fa)(F, P)
 }

@@ -57,9 +57,12 @@ object SyntaxTests extends AllCatsEffectSyntax {
     val ta = mock[T[A]]
     val f = mock[A => F[B]]
     val tma = mock[T[F[A]]]
+    val ma = mock[F[A]]
+    val replicas = mock[Int]
 
     typed[F[T[B]]](F.parTraverseN(n)(ta)(f))
     typed[F[T[A]]](F.parSequenceN(n)(tma))
+    typed[F[List[A]]](F.parReplicateAN(n)(replicas, ma))
   }
 
   def concurrentSyntax[T[_]: Traverse, F[_], A, B](implicit F: Concurrent[F], P: Parallel[F], timer: Timer[F]) = {
@@ -77,9 +80,12 @@ object SyntaxTests extends AllCatsEffectSyntax {
     val ta = mock[T[A]]
     val f = mock[A => F[B]]
     val tma = mock[T[F[A]]]
+    val ma = mock[F[A]]
+    val replicas = mock[Int]
 
     typed[F[T[B]]](F.parTraverseN(n)(ta)(f))
     typed[F[T[A]]](F.parSequenceN(n)(tma))
+    typed[F[List[A]]](F.parReplicateAN(n)(replicas, ma))
   }
 
   def effectSyntax[F[_]: Effect, A] = {

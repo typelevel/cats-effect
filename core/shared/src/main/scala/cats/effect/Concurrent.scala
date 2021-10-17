@@ -641,6 +641,16 @@ object Concurrent {
     } yield mta
 
   /**
+   * Like `Parallel.parReplicateA`, but limits the degree of parallelism.
+   */
+  def parReplicateAN[M[_], A](n: Long)(replicas: Int, ma: M[A])(implicit M: Concurrent[M], P: Parallel[M]): M[List[A]] =
+    for {
+      semaphore <- Semaphore(n)(M)
+      // TODO replace with semaphore.withPermit(ma).parReplicateA(replicas)(P)
+      mla <- parSequenceN(n)(List.fill(replicas)(semaphore.withPermit(ma)))
+    } yield mla
+
+  /**
    * [[Concurrent]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `Concurrent`.
    */

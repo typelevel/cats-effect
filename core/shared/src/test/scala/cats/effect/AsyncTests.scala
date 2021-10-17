@@ -48,4 +48,11 @@ class AsyncTests extends CatsEffectSuite {
     val modifies = implicitly[Async[IO]].parSequenceN(3)(list)
     (IO.shift *> modifies.start *> awaitEqual(r.get, finalValue)).as(assert(true))
   }
+
+  test("F.parReplicateAN(n)(collection)") {
+    val finalValue = 100
+    val r = Ref.unsafe[IO, Int](0)
+    val modifies = implicitly[Async[IO]].parReplicateAN(3)(finalValue, IO.shift *> r.update(_ + 1))
+    (IO.shift *> modifies.start *> awaitEqual(r.get, finalValue)).as(assert(true))
+  }
 }
