@@ -19,7 +19,7 @@ package cats.effect;
 // defined in Java since Scala doesn't let us define static fields
 final class IOFiberConstants {
 
-  public static final int MaxStackDepth = 512;
+  static final int MaxStackDepth = 512;
 
   /*
    * allow for 255 masks before conflicting; 255 chosen because it is a familiar
@@ -27,35 +27,35 @@ final class IOFiberConstants {
    * gives us 16,843,009 (~2^24) potential derived fibers before masks can
    * conflict
    */
-  public static final int ChildMaskOffset = 255;
+  static final int ChildMaskOffset = 255;
 
   // continuation ids (should all be inlined)
-  public static final byte MapK = 0;
-  public static final byte FlatMapK = 1;
-  public static final byte CancelationLoopK = 2;
-  public static final byte RunTerminusK = 3;
-  public static final byte EvalOnK = 4;
-  public static final byte HandleErrorWithK = 5;
-  public static final byte OnCancelK = 6;
-  public static final byte UncancelableK = 7;
-  public static final byte UnmaskK = 8;
-  public static final byte AttemptK = 9;
+  static final byte MapK = 0;
+  static final byte FlatMapK = 1;
+  static final byte CancelationLoopK = 2;
+  static final byte RunTerminusK = 3;
+  static final byte EvalOnK = 4;
+  static final byte HandleErrorWithK = 5;
+  static final byte OnCancelK = 6;
+  static final byte UncancelableK = 7;
+  static final byte UnmaskK = 8;
+  static final byte AttemptK = 9;
 
   // resume ids
-  public static final byte ExecR = 0;
-  public static final byte AsyncContinueSuccessfulR = 1;
-  public static final byte AsyncContinueFailedR = 2;
-  public static final byte BlockingR = 3;
-  public static final byte AfterBlockingSuccessfulR = 4;
-  public static final byte AfterBlockingFailedR = 5;
-  public static final byte EvalOnR = 6;
-  public static final byte CedeR = 7;
-  public static final byte AutoCedeR = 8;
-  public static final byte DoneR = 9;
+  static final byte ExecR = 0;
+  static final byte AsyncContinueSuccessfulR = 1;
+  static final byte AsyncContinueFailedR = 2;
+  static final byte BlockingR = 3;
+  static final byte AfterBlockingSuccessfulR = 4;
+  static final byte AfterBlockingFailedR = 5;
+  static final byte EvalOnR = 6;
+  static final byte CedeR = 7;
+  static final byte AutoCedeR = 8;
+  static final byte DoneR = 9;
 
   // ContState tags
-  public static final int ContStateInitial = 0;
-  public static final int ContStateWaiting = 1;
-  public static final int ContStateWinner = 2;
-  public static final int ContStateResult = 3;
+  static final int ContStateInitial = 0;
+  static final int ContStateWaiting = 1;
+  static final int ContStateWinner = 2;
+  static final int ContStateResult = 3;
 }
