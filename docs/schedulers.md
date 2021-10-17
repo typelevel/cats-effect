@@ -64,10 +64,7 @@ Ultimately, though, `IO` is able to achieve this with exceptionally high perform
 - Firefox 3+
 - Opera 9.5+
 - *All WebKit browsers*
-
-Notably, at the present time, web workers are *not* supported at maximum performance. Cats Effect `IO` does run under web workers, but with degraded performance on operations involving fibers. There's a known fix for this bug, and the only blocker is really just setting up CI infrastructure which can run the `IO` test suite within a web worker.
-
-**Also note:** At present, a bug in Dotty prevents the use of the high performance scheduler in ScalaJS applications compiled with Scala 0.27.0-RC1. This is expected to be fixed in Scala 3.0.0-M1.
+- Web Workers
 
 ### Yielding
 
