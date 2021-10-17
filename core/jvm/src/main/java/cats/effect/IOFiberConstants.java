@@ -46,12 +46,10 @@ final class IOFiberConstants {
   static final byte AsyncContinueSuccessfulR = 1;
   static final byte AsyncContinueFailedR = 2;
   static final byte BlockingR = 3;
-  static final byte AfterBlockingSuccessfulR = 4;
-  static final byte AfterBlockingFailedR = 5;
-  static final byte EvalOnR = 6;
-  static final byte CedeR = 7;
-  static final byte AutoCedeR = 8;
-  static final byte DoneR = 9;
+  static final byte EvalOnR = 4;
+  static final byte CedeR = 5;
+  static final byte AutoCedeR = 6;
+  static final byte DoneR = 7;
 
   // ContState tags
   static final int ContStateInitial = 0;

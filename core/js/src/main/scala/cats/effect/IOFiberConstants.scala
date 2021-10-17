@@ -45,12 +45,10 @@ private object IOFiberConstants {
   final val AsyncContinueSuccessfulR: Byte = 1
   final val AsyncContinueFailedR: Byte = 2
   final val BlockingR: Byte = 3
-  final val AfterBlockingSuccessfulR: Byte = 4
-  final val AfterBlockingFailedR: Byte = 5
-  final val EvalOnR: Byte = 6
-  final val CedeR: Byte = 7
-  final val AutoCedeR: Byte = 8
-  final val DoneR: Byte = 9
+  final val EvalOnR: Byte = 4
+  final val CedeR: Byte = 5
+  final val AutoCedeR: Byte = 6
+  final val DoneR: Byte = 7
 
   // ContState tags
   final val ContStateInitial: Int = 0
