@@ -129,12 +129,10 @@ private final class IOFiber[A](
       case 1 => asyncContinueSuccessfulR()
       case 2 => asyncContinueFailedR()
       case 3 => blockingR()
-      case 4 => afterBlockingSuccessfulR()
-      case 5 => afterBlockingFailedR()
-      case 6 => evalOnR()
-      case 7 => cedeR()
-      case 8 => autoCedeR()
-      case 9 => ()
+      case 4 => evalOnR()
+      case 5 => cedeR()
+      case 6 => autoCedeR()
+      case 7 => ()
     }
   }
 
@@ -1188,24 +1186,14 @@ private final class IOFiber[A](
       }
 
     if (error == null) {
-      resumeTag = AfterBlockingSuccessfulR
+      resumeTag = AsyncContinueSuccessfulR
       objectState.push(r.asInstanceOf[AnyRef])
     } else {
-      resumeTag = AfterBlockingFailedR
+      resumeTag = AsyncContinueFailedR
       objectState.push(error)
     }
     val ec = currentCtx
     scheduleFiber(ec, this)
-  }
-
-  private[this] def afterBlockingSuccessfulR(): Unit = {
-    val result = objectState.pop()
-    runLoop(succeeded(result, 0), cancelationCheckThreshold, autoYieldThreshold)
-  }
-
-  private[this] def afterBlockingFailedR(): Unit = {
-    val error = objectState.pop().asInstanceOf[Throwable]
-    runLoop(failed(error, 0), cancelationCheckThreshold, autoYieldThreshold)
   }
 
   private[this] def evalOnR(): Unit = {
@@ -1300,7 +1288,7 @@ private final class IOFiber[A](
     val ec = popContext()
 
     if (!shouldFinalize()) {
-      resumeTag = AfterBlockingSuccessfulR
+      resumeTag = AsyncContinueSuccessfulR
       objectState.push(result.asInstanceOf[AnyRef])
       scheduleFiber(ec, this)
     } else {
@@ -1314,7 +1302,7 @@ private final class IOFiber[A](
     val ec = popContext()
 
     if (!shouldFinalize()) {
-      resumeTag = AfterBlockingFailedR
+      resumeTag = AsyncContinueFailedR
       objectState.push(t)
       scheduleFiber(ec, this)
     } else {
