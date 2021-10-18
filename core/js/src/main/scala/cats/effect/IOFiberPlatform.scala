@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import scala.annotation.nowarn
 import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -24,32 +25,17 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
   this: IOFiber[A] =>
 
   /**
-   * Explicit suspension key object reference due to lack of `WeakHashMap` support in Scala.js.
-   * This reference is set when a fiber is suspended (and the key is used to register the fiber
-   * in the global suspended fiber bag), and cleared when the fiber is resumed.
-   */
-  private[this] final var suspensionKey: AnyRef = null
-
-  /**
    * Registers the suspended fiber in the global suspended fiber bag and sets the suspension key
    * object reference.
    */
-  protected final def monitor(key: AnyRef): Unit = {
-    val fiber = this
-    fiber.runtimeForwarder.suspendedFiberBag.monitor(key, fiber)
-    suspensionKey = key
-  }
+  @nowarn("cat=unused-params")
+  protected final def monitor(key: AnyRef): Unit = {}
 
   /**
    * Deregisters the suspended fiber from the global suspended fiber bag and clears the
    * suspension key object reference.
    */
-  protected final def unmonitor(): Unit = {
-    val fiber = this
-    val key = suspensionKey
-    fiber.runtimeForwarder.suspendedFiberBag.unmonitor(key)
-    suspensionKey = null
-  }
+  protected final def unmonitor(): Unit = {}
 
   // in theory this code should never be hit due to the override in IOCompanionPlatform
   def interruptibleImpl(cur: IO.Blocking[Any], blockingEc: ExecutionContext): IO[Any] = {
