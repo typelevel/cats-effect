@@ -79,7 +79,7 @@ which uses <code>Future#onComplete</code> to invoke the supplied callback</p>
     }
   }
 </code></pre>
-<p><code>async_</code> is somewhat contrained however. We can't perform any <code>F</code> effects
+<p><code>async_</code> is somewhat constrained however. We can't perform any <code>F</code> effects
 in the process of registering the callback and we also can't register
 a finalizer to cancel the asynchronous task in the event that the fiber
 running <code>async_</code> is canceled.</p>

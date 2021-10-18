@@ -86,14 +86,17 @@
 <p>While JavaScript runtimes are single-threaded, and thus do not have the <em>m:n</em> problem that gives rise to the complexity of work-stealing pools and such on the JVM, the extreme heterogeneity of JavaScript runtime environments presents its own series of problems. Additionally, fibers are literally a form of multi-threading, and emulating multi-threading on top of a single-threaded runtime is a surprisingly complicated task.</p>
 <p>Ultimately, though, <code>IO</code> is able to achieve this with exceptionally high performance, and without interfering with other mechanisms which leverage the event loop (such as animations in the browser or I/O on the server). The techniques which are used by <code>IO</code> to achieve this run across all platforms which support ScalaJS. However, optimal performance is available only in the following environments:</p>
 <ul>
-<li>NodeJS (all versions)</li>
+<li><a href="https://nodejs.org/api/timers.html#timers_setimmediate_callback_args">NodeJS 0.9.1+</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#browser_compatibility">Browsers implementing <code>window.postMessage()</code></a>, including:
+<ul>
+<li>Chrome 1+</li>
+<li>Safari 4+</li>
 <li>Internet Explorer 9+ (including Edge)</li>
 <li>Firefox 3+</li>
 <li>Opera 9.5+</li>
-<li><em>All WebKit browsers</em></li>
+</ul></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/API/MessageChannel#browser_compatibility">Web Workers implementing <code>MessageChannel</code></a></li>
 </ul>
-<p>Notably, at the present time, web workers are <em>not</em> supported at maximum performance. Cats Effect <code>IO</code> does run under web workers, but with degraded performance on operations involving fibers. There's a known fix for this bug, and the only blocker is really just setting up CI infrastructure which can run the <code>IO</code> test suite within a web worker.</p>
-<p><strong>Also note:</strong> At present, a bug in Dotty prevents the use of the high performance scheduler in ScalaJS applications compiled with Scala 0.27.0-RC1. This is expected to be fixed in Scala 3.0.0-M1.</p>
 <h3><a class="anchor" aria-hidden="true" id="yielding"></a><a href="#yielding" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Yielding</h3>
 <p>The primary mechanism which needs to be provided for <code>IO</code> to successfully implement fibers is often referred to as a <em>yield</em>. In JavaScript terms, this means the ability to submit a callback to the event loop which will be invoked at some point in the future when the event loop has capacity. In a sense, it's submitting a callback which &quot;goes to the back of the queue&quot;, waiting for everything else to have its turn before running again.</p>
 <p>This mechanism, by the way, corresponds <em>precisely</em> to the <code>IO.cede</code> effect: it cooperatively releases control to the other fibers, allowing them a chance to run before resuming the current fiber.</p>
@@ -139,7 +142,6 @@
 <ul>
 <li><code>process.nextTick</code> is used by the JavaScript polyfill when running on NodeJS versions below 0.9. However, ScalaJS itself does not support NodeJS 0.9 or below, so there's really no point in supporting this case.</li>
 <li>Similarly, older versions of IE (6 through 8, specifically) allow a particular exploitation of the <code>onreadystatechange</code> event fired when a <code>&lt;script&gt;</code> element is inserted into the DOM. However, ScalaJS does not support these environments <em>either</em>, and so there is no benefit to implementing this case.</li>
-<li>Web workers have entirely alien semantics for task queuing and no access to the DOM, but they do have <code>MessageChannel</code> which accomplishes exactly what we need. However, they're very hard to test in CI (apparently), and so Cats Effect does not yet implement this leg of the polyfill. There are plans to fix this.</li>
 </ul>
 <p>On environments where the polyfill is unsupported, <code>setTimeout</code> is still used as a final fallback.</p>
 <p>For the most part, you should never have to worry about any of this. Just understand that Cats Effect <code>IO</code> schedules fibers with macrotask semantics while avoiding overhead and clamping, ensuring that it plays nicely with other asynchronous events such as I/O or DOM changes.</p>
