@@ -42,6 +42,8 @@ final class IORuntime private (
   private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
 
   private[effect] val suspendedFiberBag: SuspendedFiberBag = new SuspendedFiberBag()
+  
+  private[effect] def fiberDump(): String = "insert hardcore fiber dumping..."
 
   override def toString: String = s"IORuntime($compute, $scheduler, $config)"
 }

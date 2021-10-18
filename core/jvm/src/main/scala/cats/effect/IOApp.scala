@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import sun.misc.Signal
+
 import scala.concurrent.{blocking, CancellationException}
 
 import java.util.concurrent.CountDownLatch
@@ -229,6 +231,22 @@ trait IOApp {
       }
 
       _runtime = IORuntime.global
+    }
+
+    // TODO is it worth it to factor this out reflectively?
+    val DumpSignalName = sys.props.get("os.name").map(_.toLowerCase) flatMap { os =>
+      if (os == "linux")
+        Some("USR1")  // INFO is unavailable on Linux, and USR1 is unavailable elsewhere
+      else if (os.contains("windows"))
+        None    // nothing is available on windows
+      else
+        Some("INFO")    // ctrl-t on macos and bsd
+    }
+
+    DumpSignalName.map(new Signal(_)) foreach { sig =>
+      Signal.handle(sig, { _ =>
+        System.err.println(runtime.fiberDump())
+      })
     }
 
     val rt = Runtime.getRuntime()
