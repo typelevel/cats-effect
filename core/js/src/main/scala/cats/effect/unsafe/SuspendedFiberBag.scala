@@ -17,19 +17,13 @@
 package cats.effect
 package unsafe
 
-import scala.collection.mutable
+import scala.annotation.nowarn
 
 /**
- * A simple implementation of an unordered bag used for tracking asynchronously suspended fiber
- * instances on Scala.js. This bag is backed by a mutable hash map and delegates all
- * functionality to it. Because Scala.js runs in a single-threaded environment, there's no need
- * for any synchronization. Ideally, we would have liked the Scala.js implementation to also use
- * a `java.util.WeakHashMap` so that the removal of resumed fibers is handled automatically, but
- * weak references are still not available in Scala.js.
+ * A no-op implementation of an unordered bag used for tracking asynchronously suspended fiber
+ * instances on Scala.js. We will iterate on this in the future.
  */
 private[effect] final class SuspendedFiberBag {
-  private[this] val bag: mutable.Map[AnyRef, IOFiber[_]] =
-    mutable.Map.empty
 
   /**
    * Registers a suspended fiber, tracked by the provided key which is an opaque object which
@@ -40,9 +34,8 @@ private[effect] final class SuspendedFiberBag {
    * @param fiber
    *   the suspended fiber to be registered
    */
-  def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {
-    bag(key) = fiber
-  }
+  @nowarn("cat=unused-params")
+  def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {}
 
   /**
    * Deregisters a resumed fiber, tracked by the provided key which is an opaque object which
@@ -51,7 +44,6 @@ private[effect] final class SuspendedFiberBag {
    * @param key
    *   an opaque identifier for the resumed fiber
    */
-  def unmonitor(key: AnyRef): Unit = {
-    bag -= key
-  }
+  @nowarn("cat=unused-params")
+  def unmonitor(key: AnyRef): Unit = {}
 }
