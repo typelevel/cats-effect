@@ -50,4 +50,10 @@ final class ConcurrentObjOps[F[_]](private val F: Concurrent[F]) extends AnyVal 
    */
   def parSequenceN[T[_], A](n: Long)(tma: T[F[A]])(implicit T: Traverse[T], P: Parallel[F]): F[T[A]] =
     Concurrent.parSequenceN(n)(tma)(T, F, P)
+
+  /**
+   * Like `Parallel.parReplicateA`, but limits the degree of parallelism.
+   */
+  def parReplicateAN[A](n: Long)(replicas: Int, fa: F[A])(implicit P: Parallel[F]): F[List[A]] =
+    Concurrent.parReplicateAN(n)(replicas, fa)(F, P)
 }

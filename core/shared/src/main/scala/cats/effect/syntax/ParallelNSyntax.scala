@@ -33,6 +33,11 @@ trait ParallelNSyntax {
   implicit final def catsSyntaxParallelSequenceNConcurrent[T[_]: Traverse, M[_]: Monad, A](
     tma: T[M[A]]
   ): ParallelSequenceNConcurrentOps[T, M, A] = new ParallelSequenceNConcurrentOps[T, M, A](tma)
+
+  @nowarn("msg=never used")
+  implicit final def catsSyntaxParallelReplicateANConcurrent[M[_]: Monad, A](
+    ma: M[A]
+  ): ParallelReplicableNConcurrentOps[M, A] = new ParallelReplicableNConcurrentOps[M, A](ma)
 }
 
 final class ParallelSequenceNConcurrentOps[T[_], M[_], A](private val tma: T[M[A]]) extends AnyVal {
@@ -43,4 +48,9 @@ final class ParallelSequenceNConcurrentOps[T[_], M[_], A](private val tma: T[M[A
 final class ParallelTraversableNConcurrentOps[T[_], A](private val ta: T[A]) extends AnyVal {
   def parTraverseN[M[_], B](n: Long)(f: A => M[B])(implicit M: Concurrent[M], T: Traverse[T], P: Parallel[M]): M[T[B]] =
     M.parTraverseN(n)(ta)(f)
+}
+
+final class ParallelReplicableNConcurrentOps[M[_], A](private val ma: M[A]) extends AnyVal {
+  def parReplicateAN(n: Long)(replicas: Int)(implicit M: Concurrent[M], P: Parallel[M]): M[List[A]] =
+    M.parReplicateAN(n)(replicas, ma)(P)
 }

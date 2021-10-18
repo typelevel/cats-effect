@@ -64,4 +64,20 @@ class ConcurrentTests extends CatsEffectSuite {
     val modifies = list.parSequenceN(3)
     (IO.shift *> modifies.start *> awaitEqual(r.get, finalValue)).as(assert(true))
   }
+
+  test("F.parReplicateAN(n)(replicas, fa)") {
+    val finalValue = 100
+    val r = Ref.unsafe[IO, Int](0)
+    val fa = IO.shift *> r.update(_ + 1)
+    val modifies = implicitly[Concurrent[IO]].parReplicateAN(3)(finalValue, fa)
+    (IO.shift *> modifies.start *> awaitEqual(r.get, finalValue)).as(assert(true))
+  }
+
+  test("fa.parSequenceN(n)(replicas)") {
+    val finalValue = 100
+    val r = Ref.unsafe[IO, Int](0)
+    val fa = IO.shift *> r.update(_ + 1)
+    val modifies = catsSyntaxParallelReplicateANConcurrent(fa).parReplicateAN(3)(finalValue)
+    (IO.shift *> modifies.start *> awaitEqual(r.get, finalValue)).as(assert(true))
+  }
 }
