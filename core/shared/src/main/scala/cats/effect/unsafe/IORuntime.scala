@@ -43,7 +43,8 @@ final class IORuntime private (
 
   private[effect] val suspendedFiberBag: SuspendedFiberBag = new SuspendedFiberBag()
   
-  private[effect] def fiberDump(): String = "insert hardcore fiber dumping..."
+  private[effect] def fiberDump(): Option[String] =
+    Some(compute) collect { case compute: WorkStealingThreadPool => compute.fiberDump() }
 
   override def toString: String = s"IORuntime($compute, $scheduler, $config)"
 }

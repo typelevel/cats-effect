@@ -990,4 +990,6 @@ private final class LocalQueue {
    *   the "tail" tag of the tail of the local queue
    */
   def getTailTag(): Int = tailPublisher.get()
+
+  def contents(): Set[IOFiber[_]] = buffer.toSet
 }

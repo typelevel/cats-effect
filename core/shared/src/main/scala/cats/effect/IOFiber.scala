@@ -1406,6 +1406,8 @@ private final class IOFiber[A](
     val state = if (suspended.get()) "SUSPENDED" else "RUNNING"
     s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state"
   }
+
+  private[effect] def trace(): RingBuffer = tracingEvents
 }
 
 private object IOFiber {

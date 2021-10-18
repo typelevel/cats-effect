@@ -212,4 +212,6 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
       i += 1
     }
   }
+
+  def contents(): Set[AnyRef] = queues.flatMap(_.toArray).toSet
 }

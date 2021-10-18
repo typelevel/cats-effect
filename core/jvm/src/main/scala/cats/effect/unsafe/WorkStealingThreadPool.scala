@@ -506,4 +506,27 @@ private[effect] final class WorkStealingThreadPool(
       Thread.currentThread().interrupt()
     }
   }
+
+  // TODO the living and the dead
+  private[unsafe] def contents(): Set[IOFiber[_]] = {
+    // check the external first since workers inadvertently publish on it, so we get more up to date results
+    val ext = externalQueue.contents() flatMap {
+      case arr: Array[_] => arr.asInstanceOf[Array[IOFiber[_]]].toSet
+      case iof: IOFiber[_] => Set(iof)
+    }
+
+    val int = localQueues.map(_.contents()).toSet.flatten
+    val live = ext ++ int - null
+    val suspended = Set() // TODO
+
+    live ++ suspended
+  }
+
+  private[unsafe] def fiberDump(): String = {
+    val strings = contents() map { fiber =>
+      fiber.toString + tracing.Tracing.prettyPrint(fiber.trace())
+    }
+
+    strings.mkString("\n\n")
+  }
 }

@@ -236,17 +236,15 @@ trait IOApp {
     // TODO is it worth it to factor this out reflectively?
     val DumpSignalName = sys.props.get("os.name").map(_.toLowerCase) flatMap { os =>
       if (os == "linux")
-        Some("USR1")  // INFO is unavailable on Linux, and USR1 is unavailable elsewhere
+        Some("USR1") // INFO is unavailable on Linux, and USR1 is unavailable elsewhere
       else if (os.contains("windows"))
-        None    // nothing is available on windows
+        None // nothing is available on windows
       else
-        Some("INFO")    // ctrl-t on macos and bsd
+        Some("INFO") // ctrl-t on macos and bsd
     }
 
     DumpSignalName.map(new Signal(_)) foreach { sig =>
-      Signal.handle(sig, { _ =>
-        System.err.println(runtime.fiberDump())
-      })
+      Signal.handle(sig, _ => runtime.fiberDump().foreach(System.err.println(_)))
     }
 
     val rt = Runtime.getRuntime()
