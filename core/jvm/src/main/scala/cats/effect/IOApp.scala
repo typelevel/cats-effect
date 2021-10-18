@@ -258,7 +258,15 @@ trait IOApp {
       if (latch.getCount() > 0) {
         val cancelLatch = new CountDownLatch(1)
         fiber.cancel.unsafeRunAsync(_ => cancelLatch.countDown())(runtime)
-        blocking(cancelLatch.await())
+
+        blocking {
+          val timeout = runtimeConfig.shutdownHookTimeout
+          if (timeout.isFinite) {
+            cancelLatch.await(timeout.length, timeout.unit)
+          } else {
+            cancelLatch.await()
+          }
+        }
       }
 
       // Clean up after ourselves, relevant for running IOApps in sbt,

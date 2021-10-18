@@ -20,6 +20,7 @@ import cats.syntax.all._
 
 import org.specs2.mutable.Specification
 
+import scala.concurrent.duration.Duration
 import scala.io.Source
 import scala.sys.process.{BasicIO, Process}
 
@@ -121,6 +122,11 @@ class IOAppSpec extends Specification {
           "Cats Effect global runtime already initialized; custom configurations will be ignored")
         h.stderr() must not(contain("boom"))
       }
+
+      "abort awaiting shutdown hooks" in {
+        val h = java(ShutdownHookImmediateTimeout, List.empty)
+        h.awaitStatus() mustEqual 0
+      }
     }
   }
 
@@ -213,5 +219,14 @@ package examples {
 
     def run(args: List[String]): IO[ExitCode] =
       IO.pure(ExitCode.Success)
+  }
+
+  object ShutdownHookImmediateTimeout extends IOApp.Simple {
+
+    override protected def runtimeConfig =
+      super.runtimeConfig.copy(shutdownHookTimeout = Duration.Zero)
+
+    val run: IO[Unit] =
+      IO(System.exit(0)).uncancelable
   }
 }
