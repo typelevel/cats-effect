@@ -1039,6 +1039,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     _asyncForIO.parSequenceN(n)(tma)
 
   /**
+   * Like `Parallel.parReplicateA`, but limits the degree of parallelism.
+   */
+  def parReplicateAN[A](n: Int)(replicas: Int, ma: IO[A]): IO[List[A]] =
+    _asyncForIO.parReplicateAN(n)(replicas, ma)
+
+  /**
    * Lifts a pure value into `IO`.
    *
    * This should ''only'' be used if the value in question has "already" been computed! In other
