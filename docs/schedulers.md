@@ -57,16 +57,7 @@ This scheduling dance is handled for you entirely automatically, and the only ex
 
 While JavaScript runtimes are single-threaded, and thus do not have the *m:n* problem that gives rise to the complexity of work-stealing pools and such on the JVM, the extreme heterogeneity of JavaScript runtime environments presents its own series of problems. Additionally, fibers are literally a form of multi-threading, and emulating multi-threading on top of a single-threaded runtime is a surprisingly complicated task.
 
-Ultimately, though, `IO` is able to achieve this with exceptionally high performance, and without interfering with other mechanisms which leverage the event loop (such as animations in the browser or I/O on the server). The techniques which are used by `IO` to achieve this run across all platforms which support ScalaJS. However, optimal performance is available only in the following environments:
-
-- [NodeJS 0.9.1+](https://nodejs.org/api/timers.html#timers_setimmediate_callback_args)
-- [Browsers implementing `window.postMessage()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#browser_compatibility), including:
-  - Chrome 1+
-  - Safari 4+
-  - Internet Explorer 9+ (including Edge)
-  - Firefox 3+
-  - Opera 9.5+
-- [Web Workers implementing `MessageChannel`](https://developer.mozilla.org/en-US/docs/Web/API/MessageChannel#browser_compatibility)
+Ultimately, though, `IO` is able to achieve this with exceptionally high performance, and without interfering with other mechanisms which leverage the event loop (such as animations in the browser or I/O on the server). The techniques which are used by `IO` to achieve this have been extracted into the [scala-js-macrotask-executor](https://github.com/scala-js/scala-js-macrotask-executor) project that runs across all platforms which support ScalaJS.
 
 ### Yielding
 
@@ -76,73 +67,6 @@ This mechanism, by the way, corresponds *precisely* to the `IO.cede` effect: it 
 
 With this primitive, fibers can be implemented by simply scheduling each one at a time. Each fiber runs until it reaches a *yield point* (usually an asynchronous call or a `cede` effect), at which point it yields back to the event loop and allows the other fibers to run. Eventually, those fibers will yield back around the queue until the first fiber has a chance to run again, and the process continues. Nothing is actually running *simultaneously*, but parallelism is still expressed as a concept in a way which is semantically compatible with the JVM, which allows libraries and application code to fully cross-compile despite the the differences in platform semantics.
 
-The *problem* is how to implement this yield operation in a fashion which is highly performant, compatible across all JavaScript environments, and doesn't interfere with other JavaScript functionality. Perhaps unsurprisingly, this is quite hard.
+The *problem* is how to implement this yield operation in a fashion which is highly performant, compatible across all JavaScript environments, and doesn't interfere with other JavaScript functionality. Perhaps unsurprisingly, this is quite hard. Find the full story in the [scala-js-macrotask-executor](https://github.com/scala-js/scala-js-macrotask-executor) project's README.
 
-### `setTimeout`
-
-The most obvious mechanism for achieving this yield semantic is the `setTimeout` function. Available in all browsers since the dawn of time, `setTimeout` takes two arguments: a time delay and a callback to invoke. The callback is invoked by the event loop once the time delay expires, and this is implemented by pushing the callback onto the back of the event queue at the appropriate time. In fact, this is precisely how `IO.sleep` is implemented. Calling `setTimeout` with a delay of `0` would seem to achieve *exactly* the semantics we want: yield back to the event loop and allow it to resume our callback when it's our turn once again.
-
-Unfortunately, `setTimeout` is slow. Very, very, very slow. The timing mechanism imposes quite a bit of overhead, even when the delay is `0`, and there are other complexities which ultimately impose a performance penalty too severe to accept. Any significant application of fibers, backed by `setTimeout`, would be almost unusable.
-
-To make matters worse, *browsers* clamp the resolution of `setTimeout` to four milliseconds once the number of nested timer invocations exceeds four. By nested timer invocations, we mean something like this:
-
-```javascript
-setTimeout(() => {
-  setTimeout(() => {
-    setTimeout(() => {
-      setTimeout(() => {
-        setTimeout(() => {
-          // this one (and all after it) are clamped!
-        }, 0);
-      }, 0);
-    }, 0);
-  }, 0);
-}, 0);
-```
-
-Each timeout sets a new timeout, and so on and so on. This is exactly the sort of situation that fibers are in, where each yield resumes a fiber which, in turn will yield... and when resumed, will eventually yield again, etc etc. This is exactly where we see clamping. In particular, the innermost `setTimeout` in this example will be clamped to 4 milliseconds (meaning there is no difference between `setTimeout(.., 0)` and `setTimeout(.., 4)`), which would slow down fiber evaluation *even more*.
-
-### `Promise`
-
-Clearly another solution is required. Fortunately, recent browser and NodeJS versions have just such a solution: `Promise`.
-
-`Promise` has a lot of problems associated with its API design (its `then` method functions as a dynamically typed combination of `map` and `flatMap`), but the *concept* behind it is very similar to the `Future` monad: it represents a running asynchronous computation which you can chain together with other such computations. JavaScript even now has a special syntax for working with promises (since it lacks anything like `for`-comprehensions), in the form of `async` and `await`.
-
-Even better still, `Promise` is *already* wrapped by ScalaJS itself in a thread pool-like API. Specifically, if you evaluate `ExecutionContext.global` on a platform which supports `Promise`, the resulting executor will use `Promise.then` under the surface to run your action when you call the `execute` method. (in case you were wondering, the `global` executor on non-`Promise` platforms is backed by `setTimeout` as a fallback)
-
-Unfortunately, this doesn't work well for a very "JavaScript" set of reasons. The following example demonstrates the problem fairly clearly:
-
-```scala
-IO.cede.foreverM.start flatMap { fiber =>
-  IO.sleep(5.seconds) >> fiber.cancel
-}
-```
-
-This program does not terminate if fibers are implemented in terms of `Promise` (which, again, is the default `ExecutionContext` on ScalaJS).
-
-Intuitively, it seems like this program should behave just fine on JavaScript. We have a single fiber which is repeatedly yielding (using `cede`) and doing nothing else, which means that the other fiber should have more than enough chances to execute even on a single-threaded runtime. The other fiber sleeps for five seconds, and then cancels the first fiber. However, if you instrument what's going on here, when `cede` is backed by `Promise`, the `sleep` never has a chance to evaluate!
-
-The problem is the fact that JavaScript has *two* event queues: the *macrotask* queue and the *microtask* queue. The macrotask queue is used for `setTimeout`, network I/O (in NodeJS), DOM events, and so on. The microtask queue is used for `Promise`. (also, confusingly, there are some things which use the macrotask queue but have microtask semantics; we'll come back to this) The problem is that, when the microtask queue has work to perform, it starts an event loop which is enqueued *on the macrotask queue* and fully runs until the microtask queue is empty, preventing the *next* macrotask queue entry from ever evaluating! So in our example, the microtask queue is constantly full because our `IO.cede.foreverM` fiber is just looping around and yielding over and over and over, meaning that the macrotask `IO.sleep` never has a chance to run.
-
-This is horrible, even by JavaScript standards. And it's also unusable for fibers, since we need `IO.sleep` to work (not to mention all other events).
-
-### `setImmediate`
-
-Fortunately, we aren't the only ones to have this problem. What we *want* is something which uses the macrotask queue (so we play nicely with `IO.sleep` and other async events), but which doesn't have as much overhead as `setTimeout`. The answer is `setImmediate`.
-
-The `setImmediate` function was first introduced in NodeJS, and its purpose is to solve *exactly* this problem: a faster `setTimeout(..., 0)`. It doesn't include a delay mechanism of any sort, it simply takes a callback and immediately submits it to the event loop, which in turn will run the callback as soon as its turn comes up. These are precisely the semantics needed to implement fibers.
-
-Unfortunately, `setImmediate` isn't available on every platform. For reasons of... their own, Mozilla, Google, and Apple have all strenuously objected to the inclusion of `setImmediate` in the W3C standard set, despite the proposal (which originated at Microsoft) and obvious usefulness. This in turn has resulted in an all-too familiar patchwork of inconsistency across the JavaScript space.
-
-That's the bad news. The good news is that all modern browsers include *some* sort of functionality which can be exploited to emulate `setImmediate` with similar performance characteristics. If you're interested in the nitty-gritty details of how this works, you are referred to [this excellent readme](https://github.com/YuzuJS/setImmediate#the-tricks).
-
-Cats Effect implements *most* of the `setImmediate` polyfill in terms of ScalaJS, wrapped up in an `ExecutionContext` interface to be compatible with user-land code. If you evaluate `IO.executionContext` on ScalaJS, this is the executor you will receive.
-
-The only elements of the polyfill which are *not* implemented by Cats Effect are as follows:
-
-- `process.nextTick` is used by the JavaScript polyfill when running on NodeJS versions below 0.9. However, ScalaJS itself does not support NodeJS 0.9 or below, so there's really no point in supporting this case.
-- Similarly, older versions of IE (6 through 8, specifically) allow a particular exploitation of the `onreadystatechange` event fired when a `<script>` element is inserted into the DOM. However, ScalaJS does not support these environments *either*, and so there is no benefit to implementing this case.
-
-On environments where the polyfill is unsupported, `setTimeout` is still used as a final fallback.
-
-For the most part, you should never have to worry about any of this. Just understand that Cats Effect `IO` schedules fibers with macrotask semantics while avoiding overhead and clamping, ensuring that it plays nicely with other asynchronous events such as I/O or DOM changes.
+For the most part, you should never have to worry about any of this. Just understand that Cats Effect `IO` schedules fibers to play nicely with other asynchronous events such as I/O or DOM changes while avoiding overhead.
