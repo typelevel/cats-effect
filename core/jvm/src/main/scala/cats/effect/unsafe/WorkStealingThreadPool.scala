@@ -523,8 +523,8 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   private[unsafe] def fiberDump(): String = {
-    val strings = contents() map { fiber =>
-      fiber.toString + tracing.Tracing.prettyPrint(fiber.trace())
+    val strings = contents().toList map { fiber =>
+      fiber.toString + "\n" + tracing.Tracing.prettyPrint(fiber.trace())
     }
 
     strings.mkString("\n\n")
