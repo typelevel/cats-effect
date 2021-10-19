@@ -42,9 +42,16 @@ final class IORuntime private (
   private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
 
   private[effect] val suspendedFiberBag: SuspendedFiberBag = new SuspendedFiberBag()
-  
+
   private[effect] def fiberDump(): Option[String] =
-    Some(compute) collect { case compute: WorkStealingThreadPool => compute.fiberDump() }
+    Some(compute) collect {
+      case compute: WorkStealingThreadPool =>
+        val strings = (compute.contents() ++ suspendedFiberBag.contents()).toList map { fiber =>
+          fiber.toString + "\n" + tracing.Tracing.prettyPrint(fiber.trace())
+        }
+
+        strings.mkString("\n \n")
+    }
 
   override def toString: String = s"IORuntime($compute, $scheduler, $config)"
 }

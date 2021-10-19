@@ -18,9 +18,10 @@ package cats.effect
 package unsafe
 
 import scala.annotation.nowarn
+import scala.collection.mutable.ArrayBuffer
 
 import java.lang.ref.WeakReference
-import java.util.{Collections, Map, WeakHashMap}
+import java.util.{ConcurrentModificationException, Collections, Map, WeakHashMap}
 import java.util.concurrent.ThreadLocalRandom
 
 /**
@@ -86,5 +87,24 @@ private[effect] final class SuspendedFiberBag {
   @nowarn("cat=unused-params")
   def unmonitor(key: AnyRef): Unit = {
     // no-op
+  }
+
+  def contents(): Set[IOFiber[_]] = {
+    try {
+      val buffer = new ArrayBuffer[IOFiber[_]]
+      bags foreach { bag =>
+        if (bag != null) {
+          val itr = bag.values().iterator()
+          while (itr.hasNext()) {
+            buffer += itr.next().get()
+          }
+        }
+      }
+
+      buffer.toSet - null
+    } catch {
+      case _: ConcurrentModificationException =>
+        contents()
+    }
   }
 }

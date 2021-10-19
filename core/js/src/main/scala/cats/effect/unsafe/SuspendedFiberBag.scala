@@ -46,4 +46,6 @@ private[effect] final class SuspendedFiberBag {
    */
   @nowarn("cat=unused-params")
   def unmonitor(key: AnyRef): Unit = {}
+
+  def contents(): Set[IOFiber[_]] = Set()
 }
