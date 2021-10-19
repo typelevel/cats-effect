@@ -507,17 +507,18 @@ private[effect] final class WorkStealingThreadPool(
     }
   }
 
-  // TODO the living and the dead
   private[unsafe] def contents(): (Set[IOFiber[_]], Map[IOFiber[_], Thread]) = {
     // check the external first since workers inadvertently publish on it, so we get more up to date results
     val ext = externalQueue.contents() flatMap {
-      case arr: Array[_] => arr.asInstanceOf[Array[IOFiber[_]]].toSet
-      case iof: IOFiber[_] => Set(iof)
+      case arr: Array[_] => arr.asInstanceOf[Array[IOFiber[Any]]].toSet: Set[IOFiber[_]]
+      case iof: IOFiber[_] => Set[IOFiber[_]](iof)
+      case _ => sys.error("assertion failed")
     }
 
     val int = localQueues.map(_.contents()).toSet.flatten
     val yielding = ext ++ int - null
-    val active = workerThreads.map(t => t.active -> t).toMap - null
+    val active =
+      (workerThreads.map(t => t.active -> t): Array[(IOFiber[_], Thread)]).toMap - null
 
     (yielding, active)
   }
