@@ -17,6 +17,8 @@
 package cats.effect
 package unsafe
 
+import scala.scalajs.js
+
 /**
  * A no-op implementation of an unordered bag used for tracking asynchronously suspended fiber
  * instances on Scala.js. We will iterate on this in the future.
@@ -44,12 +46,15 @@ private[effect] sealed abstract class SuspendedFiberBag {
   def unmonitor(key: AnyRef): Unit
 }
 
+// Relies on features *standardized* in ES2021, although already offered in many environments
 private final class ES2021SuspendedFiberBag extends SuspendedFiberBag {
+  private[this] val bag = new IterableWeakMap[AnyRef, js.WeakRef[IOFiber[_]]]
 
-  override def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = ()
+  override def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {
+    bag.set(key, new js.WeakRef(fiber))
+  }
 
   override def unmonitor(key: AnyRef): Unit = ()
-
 }
 
 private final class NoOpSuspendedFiberBag extends SuspendedFiberBag {
@@ -57,6 +62,12 @@ private final class NoOpSuspendedFiberBag extends SuspendedFiberBag {
   override def unmonitor(key: AnyRef): Unit = ()
 }
 
-object SuspendedFiberBag {
-  def apply(): SuspendedFiberBag = ???
+private[effect] object SuspendedFiberBag {
+  private[this] final val Undefined = "undefined"
+
+  def apply(): SuspendedFiberBag =
+    if (IterableWeakMap.isAvailable)
+      new ES2021SuspendedFiberBag
+    else
+      new NoOpSuspendedFiberBag
 }

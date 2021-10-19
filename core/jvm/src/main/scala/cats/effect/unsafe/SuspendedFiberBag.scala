@@ -89,6 +89,6 @@ private[effect] final class SuspendedFiberBag {
   }
 }
 
-object SuspendedFiberBag {
+private[effect] object SuspendedFiberBag {
   def apply(): SuspendedFiberBag = new SuspendedFiberBag
 }
