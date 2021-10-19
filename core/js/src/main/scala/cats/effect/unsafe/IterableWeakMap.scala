@@ -23,7 +23,7 @@ import IterableWeakMap._
 
 // https://github.com/tc39/proposal-weakrefs#iterable-weakmaps
 private[unsafe] class IterableWeakMap[K, V] {
-  private[this] val weakMap = new WeakMap[K, Entry[K, V]]
+  private[this] val weakMap = new WeakMap[K, V]
   private[this] val refSet = mutable.Set[js.WeakRef[K]]()
   private[this] val finalizationGroup =
     new js.FinalizationRegistry[K, Finalizer[K], js.WeakRef[K]](_.cleanup())
@@ -31,27 +31,19 @@ private[unsafe] class IterableWeakMap[K, V] {
   def set(key: K, value: V): Unit = {
     val ref = new js.WeakRef(key)
 
-    weakMap.set(key, Entry(value, ref))
+    weakMap.set(key, value)
     refSet.add(ref)
     finalizationGroup.register(key, Finalizer(refSet, ref), ref)
   }
 
-  def get(key: K): Option[V] = weakMap.get(key).toOption.map(_.value)
-
-  def delete(key: K): Boolean =
-    weakMap.get(key).fold(false) { entry =>
-      weakMap.delete(key)
-      refSet.remove(entry.ref)
-      finalizationGroup.unregister(entry.ref)
-      true
-    }
+  def get(key: K): Option[V] = weakMap.get(key).toOption
 
   def entries(): Iterator[(K, V)] =
     refSet.iterator.flatMap { ref =>
       (for {
         key <- ref.deref()
-        entry <- weakMap.get(key)
-      } yield (key, entry.value)).toOption
+        value <- weakMap.get(key)
+      } yield (key, value)).toOption
     }
 
 }
@@ -62,8 +54,6 @@ private[unsafe] object IterableWeakMap {
     js.typeOf(js.Dynamic.global.WeakMap) != Undefined &&
       js.typeOf(js.Dynamic.global.WeakRef) != Undefined &&
       js.typeOf(js.Dynamic.global.FinalizationRegistry) != Undefined
-
-  private final case class Entry[K, V](value: V, ref: js.WeakRef[K])
 
   private final case class Finalizer[K](set: mutable.Set[js.WeakRef[K]], ref: js.WeakRef[K]) {
     def cleanup(): Unit = {
