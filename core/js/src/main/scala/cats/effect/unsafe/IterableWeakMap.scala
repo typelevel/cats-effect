@@ -59,9 +59,9 @@ private[unsafe] class IterableWeakMap[K, V] {
 private[unsafe] object IterableWeakMap {
   private[this] final val Undefined = "undefined"
   def isAvailable: Boolean =
-    js.typeOf(js.Dynamic.global.WeakMap) != "undefined" &&
-      js.typeOf(js.Dynamic.global.WeakRef) != "undefined" &&
-      js.typeOf(js.Dynamic.global.FinalizationRegistry) != "undefined"
+    js.typeOf(js.Dynamic.global.WeakMap) != Undefined &&
+      js.typeOf(js.Dynamic.global.WeakRef) != Undefined &&
+      js.typeOf(js.Dynamic.global.FinalizationRegistry) != Undefined
 
   private final case class Entry[K, V](value: V, ref: js.WeakRef[K])
 
