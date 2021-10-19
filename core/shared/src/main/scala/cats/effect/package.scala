@@ -80,4 +80,6 @@ package object effect {
   val Ref = cekernel.Ref
 
   private[effect] type IOLocalState = scala.collection.immutable.Map[IOLocal[_], Any]
+
+  private[effect] type ByteStack = Array[Int]
 }
