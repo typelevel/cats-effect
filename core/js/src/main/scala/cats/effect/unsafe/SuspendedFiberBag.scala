@@ -63,8 +63,6 @@ private final class NoOpSuspendedFiberBag extends SuspendedFiberBag {
 }
 
 private[effect] object SuspendedFiberBag {
-  private[this] final val Undefined = "undefined"
-
   def apply(): SuspendedFiberBag =
     if (IterableWeakMap.isAvailable)
       new ES2021SuspendedFiberBag
