@@ -41,7 +41,7 @@ final class IORuntime private (
 ) {
   private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
 
-  private[effect] val suspendedFiberBag: SuspendedFiberBag = new SuspendedFiberBag()
+  private[effect] val suspendedFiberBag: SuspendedFiberBag = SuspendedFiberBag()
 
   override def toString: String = s"IORuntime($compute, $scheduler, $config)"
 }
