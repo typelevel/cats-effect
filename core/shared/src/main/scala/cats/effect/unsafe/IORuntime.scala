@@ -49,14 +49,18 @@ final class IORuntime private (
         val (yielding, active) = compute.contents()
         val suspended = suspendedFiberBag.contents()
 
-        val strings = (yielding ++ active ++ suspended).toList map { fiber =>
+        val strings = (yielding ++ active.keys ++ suspended).toList map { fiber =>
           val status =
-            if (yielding(fiber))
+            if (yielding.contains(fiber)) {
               "YIELDING"
-            else if (active(fiber))
-              "RUNNING"
-            else
+            } else if (active.contains(fiber)) {
+              if (active(fiber).getState() == Thread.State.RUNNABLE)
+                "RUNNING"
+              else
+                "BLOCKED"
+            } else {
               "WAITING"
+            }
 
           val id = System.identityHashCode(fiber)
 

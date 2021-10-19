@@ -28,5 +28,5 @@ private[effect] sealed abstract class WorkStealingThreadPool private ()
   def reportFailure(cause: Throwable): Unit
   private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit
   private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit
-  private[unsafe] def contents(): (Set[IOFiber[_]], Set[IOFiber[_]])
+  private[unsafe] def contents(): (Set[IOFiber[_]], Map[IOFiber[_], Thread])
 }
