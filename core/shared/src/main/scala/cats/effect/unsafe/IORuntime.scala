@@ -46,8 +46,20 @@ final class IORuntime private (
   private[effect] def fiberDump(): Option[String] =
     Some(compute) collect {
       case compute: WorkStealingThreadPool =>
-        val strings = (compute.contents() ++ suspendedFiberBag.contents()).toList map { fiber =>
-          fiber.toString + "\n" + tracing.Tracing.prettyPrint(fiber.trace())
+        val (yielding, active) = compute.contents()
+        val suspended = suspendedFiberBag.contents()
+
+        val strings = (yielding ++ active ++ suspended).toList map { fiber =>
+          val status = if (yielding(fiber))
+            "YIELDING"
+          else if (active(fiber))
+            "RUNNING"
+          else
+            "WAITING"
+
+          val id = System.identityHashCode(fiber)
+
+          s"cats.effect.IOFiber@$id $status\n" + tracing.Tracing.prettyPrint(fiber.trace())
         }
 
         strings.mkString("\n \n")

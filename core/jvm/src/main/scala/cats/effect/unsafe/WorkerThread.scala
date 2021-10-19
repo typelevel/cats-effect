@@ -76,6 +76,9 @@ private final class WorkerThread(
    */
   private[this] var blocking: Boolean = false
 
+  // best-effort reporting of the currently-active fiber
+  private[unsafe] var active: IOFiber[_] = _
+
   // Constructor code.
   {
     // Worker threads are daemon threads.
@@ -243,11 +246,15 @@ private final class WorkerThread(
             // Many fibers have been exchanged between the external and the
             // local queue. Notify other worker threads.
             pool.notifyParked(rnd)
+            active = fiber
             fiber.run()
+            active = null
           } else if (element.isInstanceOf[IOFiber[_]]) {
             val fiber = element.asInstanceOf[IOFiber[_]]
             // The dequeued element is a single fiber. Execute it immediately.
+            active = fiber
             fiber.run()
+            active = null
           }
 
           // Transition to executing fibers from the local queue.
@@ -268,14 +275,18 @@ private final class WorkerThread(
             // Many fibers have been exchanged between the external and the
             // local queue. Notify other worker threads.
             pool.notifyParked(rnd)
+            active = fiber
             fiber.run()
+            active = null
 
             // Transition to executing fibers from the local queue.
             state = 4
           } else if (element.isInstanceOf[IOFiber[_]]) {
             val fiber = element.asInstanceOf[IOFiber[_]]
             // The dequeued element is a single fiber. Execute it immediately.
+            active = fiber
             fiber.run()
+            active = null
 
             // Transition to executing fibers from the local queue.
             state = 4
@@ -307,7 +318,9 @@ private final class WorkerThread(
             // looking for work.
             pool.transitionWorkerFromSearching(rnd)
             // Run the stolen fiber.
+            active = fiber
             fiber.run()
+            active = null
             // Transition to executing fibers from the local queue.
             state = 4
           } else {
@@ -349,7 +362,9 @@ private final class WorkerThread(
             // Many fibers have been exchanged between the external and the
             // local queue. Notify other worker threads.
             pool.notifyParked(rnd)
+            active = fiber
             fiber.run()
+            active = null
 
             // Transition to executing fibers from the local queue.
             state = 4
@@ -359,7 +374,9 @@ private final class WorkerThread(
             pool.transitionWorkerFromSearching(rnd)
 
             // The dequeued element is a single fiber. Execute it immediately.
+            active = fiber
             fiber.run()
+            active = null
 
             // Transition to executing fibers from the local queue.
             state = 4
@@ -385,7 +402,9 @@ private final class WorkerThread(
           }
           if (fiber ne null) {
             // Run the fiber.
+            active = fiber
             fiber.run()
+            active = null
             // Continue executing fibers from the local queue.
             state += 1
           } else {
