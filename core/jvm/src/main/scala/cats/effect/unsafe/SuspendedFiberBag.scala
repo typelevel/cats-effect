@@ -21,7 +21,7 @@ import scala.annotation.nowarn
 import scala.collection.mutable.ArrayBuffer
 
 import java.lang.ref.WeakReference
-import java.util.{ConcurrentModificationException, Collections, Map, WeakHashMap}
+import java.util.{Collections, ConcurrentModificationException, Map, WeakHashMap}
 import java.util.concurrent.ThreadLocalRandom
 
 /**

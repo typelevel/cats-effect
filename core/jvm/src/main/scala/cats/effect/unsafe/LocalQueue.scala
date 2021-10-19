@@ -992,7 +992,7 @@ private final class LocalQueue {
   def getTailTag(): Int = tailPublisher.get()
 
   def contents(): Set[IOFiber[_]] = {
-    val _ = size()      // read fence to get a more updated snapshot on this thread
+    val _ = size() // read fence to get a more updated snapshot on this thread
     buffer.toSet
   }
 }

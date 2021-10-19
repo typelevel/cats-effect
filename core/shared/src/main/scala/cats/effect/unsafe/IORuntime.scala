@@ -50,12 +50,13 @@ final class IORuntime private (
         val suspended = suspendedFiberBag.contents()
 
         val strings = (yielding ++ active ++ suspended).toList map { fiber =>
-          val status = if (yielding(fiber))
-            "YIELDING"
-          else if (active(fiber))
-            "RUNNING"
-          else
-            "WAITING"
+          val status =
+            if (yielding(fiber))
+              "YIELDING"
+            else if (active(fiber))
+              "RUNNING"
+            else
+              "WAITING"
 
           val id = System.identityHashCode(fiber)
 
