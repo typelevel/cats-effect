@@ -21,7 +21,7 @@ private[effect] final class RingBuffer private (logSize: Int) {
   private[this] val length = 1 << logSize
   private[this] val mask = length - 1
 
-  private[this] val buffer: Array[TracingEvent] = new Array(length)
+  private[this] var buffer: Array[TracingEvent] = new Array(length)
   private[this] var index: Int = 0
 
   def push(te: TracingEvent): Unit = {
@@ -45,6 +45,11 @@ private[effect] final class RingBuffer private (logSize: Int) {
       i += 1
     }
     result
+  }
+
+  def invalidate(): Unit = {
+    index = 0
+    buffer = null
   }
 }
 
