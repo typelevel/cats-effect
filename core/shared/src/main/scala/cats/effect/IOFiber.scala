@@ -128,11 +128,13 @@ private final class IOFiber[A](
       case 0 => execR()
       case 1 => asyncContinueSuccessfulR()
       case 2 => asyncContinueFailedR()
-      case 3 => blockingR()
-      case 4 => evalOnR()
-      case 5 => cedeR()
-      case 6 => autoCedeR()
-      case 7 => ()
+      case 3 => asyncContinueCanceledR()
+      case 4 => asyncContinueCanceledWithFinalizerR()
+      case 5 => blockingR()
+      case 6 => evalOnR()
+      case 7 => cedeR()
+      case 8 => autoCedeR()
+      case 9 => ()
     }
   }
 
@@ -153,7 +155,10 @@ private final class IOFiber[A](
           /* if we have async finalizers, runLoop may return early */
           IO.async_[Unit] { fin =>
             // println(s"${name}: canceller started at ${Thread.currentThread().getName} + ${suspended.get()}")
-            asyncCancel(fin)
+            val ec = currentCtx
+            resumeTag = AsyncContinueCanceledWithFinalizerR
+            objectState.push(fin)
+            scheduleFiber(ec, this)
           }
         } else {
           /*
@@ -605,9 +610,9 @@ private final class IOFiber[A](
                 // `wasFinalizing` is published
                 if (finalizing == state.wasFinalizing) {
                   unmonitor()
+                  val ec = currentCtx
                   if (!shouldFinalize()) {
                     /* we weren't canceled or completed, so schedule the runloop for execution */
-                    val ec = currentCtx
                     e match {
                       case Left(t) =>
                         resumeTag = AsyncContinueFailedR
@@ -616,14 +621,14 @@ private final class IOFiber[A](
                         resumeTag = AsyncContinueSuccessfulR
                         objectState.push(a.asInstanceOf[AnyRef])
                     }
-                    scheduleFiber(ec, this)
                   } else {
                     /*
                      * we were canceled, but since we have won the race on `suspended`
                      * via `resume`, `cancel` cannot run the finalisers, and we have to.
                      */
-                    asyncCancel(null)
+                    resumeTag = AsyncContinueCanceledR
                   }
+                  scheduleFiber(ec, this)
                 } else {
                   /*
                    * we were canceled while suspended, then our finalizer suspended,
@@ -1177,6 +1182,15 @@ private final class IOFiber[A](
   private[this] def asyncContinueFailedR(): Unit = {
     val t = objectState.pop().asInstanceOf[Throwable]
     runLoop(failed(t, 0), cancelationCheckThreshold, autoYieldThreshold)
+  }
+
+  private[this] def asyncContinueCanceledR(): Unit = {
+    asyncCancel(null)
+  }
+
+  private[this] def asyncContinueCanceledWithFinalizerR(): Unit = {
+    val fin = objectState.pop().asInstanceOf[Either[Throwable, Unit] => Unit]
+    asyncCancel(fin)
   }
 
   private[this] def blockingR(): Unit = {
