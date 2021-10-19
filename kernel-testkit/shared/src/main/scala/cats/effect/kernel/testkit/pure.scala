@@ -142,9 +142,8 @@ object pure {
   }
 
   /**
-   * Produces Succeeded(None) when the main fiber is deadlocked. Note that
-   * deadlocks outside of the main fiber are ignored when results are
-   * appropriately produced (i.e. daemon semantics).
+   * Produces Succeeded(None) when the main fiber is deadlocked. Note that deadlocks outside of
+   * the main fiber are ignored when results are appropriately produced (i.e. daemon semantics).
    */
   def run[E, A](pc: PureConc[E, A]): Outcome[Option, E, A] = {
     val scheduled = ThreadT.roundRobin {
@@ -377,7 +376,7 @@ object pure {
         checkM.ifM(
           canceled.ifM(
             // if unmasked and canceled, finalize
-            ctx.finalizers.sequence_.as(true),
+            allocateForPureConc[E].uncancelable(_ => ctx.finalizers.sequence_.as(true)),
             // if unmasked but not canceled, ignore
             false.pure[PureConc[E, *]]
           ),

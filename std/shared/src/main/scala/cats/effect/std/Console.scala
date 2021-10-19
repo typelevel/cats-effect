@@ -35,92 +35,87 @@ import java.nio.{ByteBuffer, CharBuffer}
 import java.nio.charset.{Charset, CodingErrorAction, MalformedInputException}
 
 /**
- * Effect type agnostic `Console` with common methods to write to and read from
- * the standard console. Suited only for extremely simple console input and
- * output.
+ * Effect type agnostic `Console` with common methods to write to and read from the standard
+ * console. Suited only for extremely simple console input and output.
  *
- * @example {{{
- *   import cats.effect.std.Console
- *   import cats.effect.kernel.Sync
- *   import cats.syntax.all._
+ * @example
+ *   {{{ import cats.effect.std.Console import cats.effect.kernel.Sync import cats.syntax.all._
  *
- *   implicit val console = Console.sync[F]
+ * implicit val console = Console.sync[F]
  *
- *   def myProgram[F[_]: Console]: F[Unit] =
- *     for {
- *       _ <- Console[F].println("Please enter your name: ")
- *       n <- Console[F].readLine
- *       _ <- if (n.nonEmpty) Console[F].println("Hello, " + n)
- *            else Console[F].errorln("Name is empty!")
- *     } yield ()
- * }}}
+ * def myProgram[F[_]: Console]: F[Unit] = for { _ <- Console[F].println("Please enter your
+ * name: ") n <- Console[F].readLine _ <- if (n.nonEmpty) Console[F].println("Hello, " + n) else
+ * Console[F].errorln("Name is empty!") } yield () }}}
  */
 trait Console[F[_]] { self =>
 
   /**
-   * Reads a line as a string from the standard input using the platform's
-   * default charset, as per `java.nio.charset.Charset.defaultCharset()`.
+   * Reads a line as a string from the standard input using the platform's default charset, as
+   * per `java.nio.charset.Charset.defaultCharset()`.
    *
-   * The effect can raise a `java.io.EOFException` if no input has been consumed
-   * before the EOF is observed. This should never happen with the standard
-   * input, unless it has been replaced with a finite `java.io.InputStream`
-   * through `java.lang.System#setIn` or similar.
+   * The effect can raise a `java.io.EOFException` if no input has been consumed before the EOF
+   * is observed. This should never happen with the standard input, unless it has been replaced
+   * with a finite `java.io.InputStream` through `java.lang.System#setIn` or similar.
    *
-   * @return an effect that describes reading the user's input from the standard
-   *         input as a string
+   * @return
+   *   an effect that describes reading the user's input from the standard input as a string
    */
   def readLine: F[String] =
     readLineWithCharset(Charset.defaultCharset())
 
   /**
-   * Reads a line as a string from the standard input using the provided
-   * charset.
+   * Reads a line as a string from the standard input using the provided charset.
    *
-   * The effect can raise a `java.io.EOFException` if no input has been consumed
-   * before the EOF is observed. This should never happen with the standard
-   * input, unless it has been replaced with a finite `java.io.InputStream`
-   * through `java.lang.System#setIn` or similar.
+   * The effect can raise a `java.io.EOFException` if no input has been consumed before the EOF
+   * is observed. This should never happen with the standard input, unless it has been replaced
+   * with a finite `java.io.InputStream` through `java.lang.System#setIn` or similar.
    *
-   * @param charset the `java.nio.charset.Charset` to be used when decoding the
-   *                input stream
-   * @return an effect that describes reading the user's input from the standard
-   *         input as a string
+   * @param charset
+   *   the `java.nio.charset.Charset` to be used when decoding the input stream
+   * @return
+   *   an effect that describes reading the user's input from the standard input as a string
    */
   def readLineWithCharset(charset: Charset): F[String]
 
   /**
-   * Prints a value to the standard output using the implicit `cats.Show`
-   * instance.
+   * Prints a value to the standard output using the implicit `cats.Show` instance.
    *
-   * @param a value to be printed to the standard output
-   * @param S implicit `cats.Show[A]` instance, defaults to `cats.Show.fromToString`
+   * @param a
+   *   value to be printed to the standard output
+   * @param S
+   *   implicit `cats.Show[A]` instance, defaults to `cats.Show.fromToString`
    */
   def print[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit]
 
   /**
-   * Prints a value to the standard output followed by a new line using the
-   * implicit `cats.Show` instance.
+   * Prints a value to the standard output followed by a new line using the implicit `cats.Show`
+   * instance.
    *
-   * @param a value to be printed to the standard output
-   * @param S implicit `cats.Show[A]` instance, defaults to `cats.Show.fromToString`
+   * @param a
+   *   value to be printed to the standard output
+   * @param S
+   *   implicit `cats.Show[A]` instance, defaults to `cats.Show.fromToString`
    */
   def println[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit]
 
   /**
-   * Prints a value to the standard error output using the implicit `cats.Show`
-   * instance.
+   * Prints a value to the standard error output using the implicit `cats.Show` instance.
    *
-   * @param a value to be printed to the standard error output
-   * @param S implicit `cats.Show[A]` instance, defaults to `cats.Show.fromToString`
+   * @param a
+   *   value to be printed to the standard error output
+   * @param S
+   *   implicit `cats.Show[A]` instance, defaults to `cats.Show.fromToString`
    */
   def error[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit]
 
   /**
-   * Prints a value to the standard error output followed by a new line using
-   * the implicit `cast.Show` instance.
+   * Prints a value to the standard error output followed by a new line using the implicit
+   * `cast.Show` instance.
    *
-   * @param a value to be printed to the standard error output
-   * @param S implicit `cats.Show[A]` instance, defaults to `cats.Show.fromToString`
+   * @param a
+   *   value to be printed to the standard error output
+   * @param S
+   *   implicit `cats.Show[A]` instance, defaults to `cats.Show.fromToString`
    */
   def errorln[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit]
 
@@ -135,11 +130,10 @@ trait Console[F[_]] { self =>
   }
 
   /**
-   * Modifies the context in which this console operates using the natural
-   * transformation `f`.
+   * Modifies the context in which this console operates using the natural transformation `f`.
    *
-   * @return a console in the new context obtained by mapping the current one
-   *         using `f`
+   * @return
+   *   a console in the new context obtained by mapping the current one using `f`
    */
   def mapK[G[_]](f: F ~> G): Console[G] =
     new Console[G] {
@@ -194,36 +188,36 @@ object Console {
     new SyncConsole[F]
 
   /**
-   * [[Console]] instance built for `cats.data.EitherT` values initialized with
-   * any `F` data type that also implements `Console`.
+   * [[Console]] instance built for `cats.data.EitherT` values initialized with any `F` data
+   * type that also implements `Console`.
    */
   implicit def catsEitherTConsole[F[_]: Console: Functor, L]: Console[EitherT[F, L, *]] =
     Console[F].mapK(EitherT.liftK)
 
   /**
-   * [[Console]] instance built for `cats.data.Kleisli` values initialized with
-   * any `F` data type that also implements `Console`.
+   * [[Console]] instance built for `cats.data.Kleisli` values initialized with any `F` data
+   * type that also implements `Console`.
    */
   implicit def catsKleisliConsole[F[_]: Console, R]: Console[Kleisli[F, R, *]] =
     Console[F].mapK(Kleisli.liftK)
 
   /**
-   * [[Console]] instance built for `cats.data.OptionT` values initialized with
-   * any `F` data type that also implements `Console`.
+   * [[Console]] instance built for `cats.data.OptionT` values initialized with any `F` data
+   * type that also implements `Console`.
    */
   implicit def catsOptionTConsole[F[_]: Console: Functor]: Console[OptionT[F, *]] =
     Console[F].mapK(OptionT.liftK)
 
   /**
-   * [[Console]] instance built for `cats.data.StateT` values initialized with
-   * any `F` data type that also implements `Console`.
+   * [[Console]] instance built for `cats.data.StateT` values initialized with any `F` data type
+   * that also implements `Console`.
    */
   implicit def catsStateTConsole[F[_]: Console: Applicative, S]: Console[StateT[F, S, *]] =
     Console[F].mapK(StateT.liftK)
 
   /**
-   * [[Console]] instance built for `cats.data.WriterT` values initialized with
-   * any `F` data type that also implements `Console`.
+   * [[Console]] instance built for `cats.data.WriterT` values initialized with any `F` data
+   * type that also implements `Console`.
    */
   implicit def catsWriterTConsole[
       F[_]: Console: Applicative,
@@ -232,15 +226,15 @@ object Console {
     Console[F].mapK(WriterT.liftK)
 
   /**
-   * [[Console]] instance built for `cats.data.IorT` values initialized with any
-   * `F` data type that also implements `Console`.
+   * [[Console]] instance built for `cats.data.IorT` values initialized with any `F` data type
+   * that also implements `Console`.
    */
   implicit def catsIorTConsole[F[_]: Console: Functor, L]: Console[IorT[F, L, *]] =
     Console[F].mapK(IorT.liftK)
 
   /**
-   * [[Console]] instance built for `cats.data.ReaderWriterStateT` values
-   * initialized with any `F` data type that also implements `Console`.
+   * [[Console]] instance built for `cats.data.ReaderWriterStateT` values initialized with any
+   * `F` data type that also implements `Console`.
    */
   implicit def catsReaderWriterStateTConsole[
       F[_]: Console: Applicative,
@@ -252,7 +246,7 @@ object Console {
 
   private final class SyncConsole[F[_]](implicit F: Sync[F]) extends Console[F] {
     def readLineWithCharset(charset: Charset): F[String] =
-      F.interruptible(false) {
+      F.interruptible {
         val in = System.in
         val decoder = charset
           .newDecoder()

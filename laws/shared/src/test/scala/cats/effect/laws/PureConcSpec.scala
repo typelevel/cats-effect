@@ -45,6 +45,25 @@ class PureConcSpec extends Specification with Discipline with BaseSpec {
       pure.run((F.never[Unit], F.raiseError[Unit](42)).parTupled) mustEqual Outcome.Errored(42)
       pure.run((F.raiseError[Unit](42), F.never[Unit]).parTupled) mustEqual Outcome.Errored(42)
     }
+
+    "not run forever on chained product" in {
+      import cats.effect.kernel.Par.ParallelF
+
+      val fa: F[String] = F.pure("a")
+      val fb: F[String] = F.pure("b")
+      val fc: F[Unit] = F.raiseError[Unit](42)
+      pure.run(
+        ParallelF.value(
+          ParallelF(fa).product(ParallelF(fb)).product(ParallelF(fc)))) mustEqual Outcome
+        .Errored(42)
+    }
+
+    "ignore unmasking in finalizers" in {
+      val fa = F.uncancelable { poll => F.onCancel(poll(F.unit), poll(F.unit)) }
+
+      pure.run(fa.start.flatMap(_.cancel))
+      ok
+    }
   }
 
   checkAll(

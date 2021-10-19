@@ -48,9 +48,9 @@ final class WorkStealingThreadPoolConstants {
   static final int UnparkMask = ~SearchMask;
 
   /**
-   * Used for checking for new fibers from the overflow queue every few
+   * Used for checking for new fibers from the external queue every few
    * iterations.
    */
-  static final int OverflowQueueTicks = 64;
-  static final int OverflowQueueTicksMask = OverflowQueueTicks - 1;
+  static final int ExternalQueueTicks = 64;
+  static final int ExternalQueueTicksMask = ExternalQueueTicks - 1;
 }

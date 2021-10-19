@@ -18,24 +18,31 @@ package cats.effect
 
 import scalajs.js
 
-import scala.scalajs.js.Thenable
+import scala.scalajs.js.{Promise, Thenable}
 
 private[effect] abstract class IOCompanionPlatform { this: IO.type =>
 
   def blocking[A](thunk: => A): IO[A] =
     apply(thunk)
 
-  def interruptible[A](many: Boolean)(thunk: => A): IO[A] = {
+  private[effect] def interruptible[A](many: Boolean, thunk: => A): IO[A] = {
     val _ = many
     apply(thunk)
   }
+
+  def interruptible[A](thunk: => A): IO[A] = interruptible(false, thunk)
+
+  def interruptibleMany[A](thunk: => A): IO[A] = interruptible(true, thunk)
 
   def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] = {
     val _ = hint
     apply(thunk)
   }
 
-  def fromPromise[A](iop: IO[Thenable[A]]): IO[A] =
+  def fromThenable[A](iot: IO[Thenable[A]]): IO[A] =
+    asyncForIO.fromThenable(iot)
+
+  def fromPromise[A](iop: IO[Promise[A]]): IO[A] =
     asyncForIO.fromPromise(iop)
 
   def realTimeDate: IO[js.Date] = asyncForIO.realTimeDate

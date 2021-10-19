@@ -24,114 +24,106 @@ private[unsafe] trait LocalQueueSamplerMBean {
   /**
    * Returns the number of fibers enqueued on the monitored [[LocalQueue]].
    *
-   * @return the number of fibers enqueued on the local queue
+   * @return
+   *   the number of fibers enqueued on the local queue
    */
   def getFiberCount(): Int
 
   /**
-   * Returns the index into the circular buffer backing the monitored
-   * [[LocalQueue]] which represents the head of the queue.
+   * Returns the index into the circular buffer backing the monitored [[LocalQueue]] which
+   * represents the head of the queue.
    *
-   * @return the index representing the head of the queue
+   * @return
+   *   the index representing the head of the queue
    */
   def getHeadIndex(): Int
 
   /**
-   * Returns the index into the circular buffer backing the monitored
-   * [[LocalQueue]] which represents the tail of the queue.
+   * Returns the index into the circular buffer backing the monitored [[LocalQueue]] which
+   * represents the tail of the queue.
    *
-   * @return the index representing the tail of the queue
+   * @return
+   *   the index representing the tail of the queue
    */
   def getTailIndex(): Int
 
   /**
-   * Returns the total number of fibers enqueued on the monitored [[LocalQueue]]
-   * during its lifetime.
+   * Returns the total number of fibers enqueued on the monitored [[LocalQueue]] during its
+   * lifetime.
    *
-   * @return the total number of fibers enqueued during the lifetime of the
-   *         local queue
+   * @return
+   *   the total number of fibers enqueued during the lifetime of the local queue
    */
   def getTotalFiberCount(): Long
 
   /**
-   * Returns the total number of fibers spilt over to the single-fiber overflow
-   * queue during the lifetime of the monitored [[LocalQueue]].
+   * Returns the total number of fibers spilt over to the external queue during the lifetime of
+   * the monitored [[LocalQueue]].
    *
-   * @return the total number of fibers spilt over to the overflow queue
+   * @return
+   *   the total number of fibers spilt over to the external queue
    */
-  def getOverflowSpilloverCount(): Long
+  def getTotalSpilloverCount(): Long
 
   /**
-   * Returns the total number of fibers spilt over to the batched queue during
-   * the lifetime of the monitored [[LocalQueue]].
+   * Returns the total number of successful steal attempts by other worker threads from the
+   * monitored [[LocalQueue]] during its lifetime.
    *
-   * @return the total number of fibers spilt over to the batched queue
-   */
-  def getBatchedSpilloverCount(): Long
-
-  /**
-   * Returns the total number of fibers spilt over to the overflow or batched
-   * queues during the lifetime of the monitored [[LocalQueue]].
-   *
-   * @return the total number of fibers spilt over to the overflow or batched
-   *         queue
-   */
-  def getTotalSpilloverCount(): Long =
-    getOverflowSpilloverCount() + getBatchedSpilloverCount()
-
-  /**
-   * Returns the total number of successful steal attempts by other worker
-   * threads from the monitored [[LocalQueue]] during its lifetime.
-   *
-   * @return the total number of successful steal attempts by other worker
-   *         threads
+   * @return
+   *   the total number of successful steal attempts by other worker threads
    */
   def getSuccessfulStealAttemptCount(): Long
 
   /**
-   * Returns the total number of stolen fibers by other worker threads from the
-   * monitored [[LocalQueue]] during its lifetime.
+   * Returns the total number of stolen fibers by other worker threads from the monitored
+   * [[LocalQueue]] during its lifetime.
    *
-   * @return the total number of stolen fibers by other worker threads
+   * @return
+   *   the total number of stolen fibers by other worker threads
    */
   def getStolenFiberCount(): Long
 
   /**
-   * Exposes the "real" value of the head of the monitored [[LocalQueue]]. This
-   * value represents the state of the head which is valid for the owner worker
-   * thread. This is an unsigned 16 bit integer.
+   * Exposes the "real" value of the head of the monitored [[LocalQueue]]. This value represents
+   * the state of the head which is valid for the owner worker thread. This is an unsigned 16
+   * bit integer.
    *
-   * @note For more details, consult the comments in the source code for
-   *       [[cats.effect.unsafe.LocalQueue]].
+   * @note
+   *   For more details, consult the comments in the source code for
+   *   [[cats.effect.unsafe.LocalQueue]].
    *
-   * @return the "real" value of the head of the local queue
+   * @return
+   *   the "real" value of the head of the local queue
    */
   def getRealHeadTag(): Int
 
   /**
-   * Exposes the "steal" tag of the head of the monitored [[LocalQueue]]. This
-   * value represents the state of the head which is valid for any worker thread
-   * looking to steal work from this local queue. This is an unsigned 16 bit
-   * integer.
+   * Exposes the "steal" tag of the head of the monitored [[LocalQueue]]. This value represents
+   * the state of the head which is valid for any worker thread looking to steal work from this
+   * local queue. This is an unsigned 16 bit integer.
    *
-   * @note For more details, consult the comments in the source code for
-   *       [[cats.effect.unsafe.LocalQueue]].
+   * @note
+   *   For more details, consult the comments in the source code for
+   *   [[cats.effect.unsafe.LocalQueue]].
    *
-   * @return the "steal" tag of the head of the local queue
+   * @return
+   *   the "steal" tag of the head of the local queue
    */
   def getStealHeadTag(): Int
 
   /**
-   * Exposes the "tail" tag of the tail of the monitored [[LocalQueue]]. This
-   * value represents the state of the tail which is valid for the owner worker
-   * thread, used for enqueuing fibers into the local queue, as well as any
-   * other worker thread looking to steal work from this local queue, used for
-   * calculating how many fibers to steal. This is an unsigned 16 bit integer.
+   * Exposes the "tail" tag of the tail of the monitored [[LocalQueue]]. This value represents
+   * the state of the tail which is valid for the owner worker thread, used for enqueuing fibers
+   * into the local queue, as well as any other worker thread looking to steal work from this
+   * local queue, used for calculating how many fibers to steal. This is an unsigned 16 bit
+   * integer.
    *
-   * @note For more details, consult the comments in the source code for
-   *       [[cats.effect.unsafe.LocalQueue]].
+   * @note
+   *   For more details, consult the comments in the source code for
+   *   [[cats.effect.unsafe.LocalQueue]].
    *
-   * @return the "tail" tag of the tail of the local queue
+   * @return
+   *   the "tail" tag of the tail of the local queue
    */
   def getTailTag(): Int
 }

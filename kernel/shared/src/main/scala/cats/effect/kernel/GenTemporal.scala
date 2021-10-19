@@ -24,10 +24,9 @@ import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
 
 /**
- * A typeclass that encodes the notion of suspending fibers for
- * a given duration. Analogous to `Thread.sleep` but is
- * only semantically blocking rather than blocking an underlying
- * OS pthread.
+ * A typeclass that encodes the notion of suspending fibers for a given duration. Analogous to
+ * `Thread.sleep` but is only semantically blocking rather than blocking an underlying OS
+ * pthread.
  */
 trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
   override def applicative: Applicative[F] = this
@@ -35,33 +34,37 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
   /**
    * Semantically block the fiber for the specified duration.
    *
-   * @param time The duration to semantically block for
+   * @param time
+   *   The duration to semantically block for
    */
   def sleep(time: FiniteDuration): F[Unit]
 
   /**
    * Delay the execution of `fa` by a given duration.
    *
-   * @param fa The effect to execute
+   * @param fa
+   *   The effect to execute
    *
-   * @param time The duration to wait before executing fa
+   * @param time
+   *   The duration to wait before executing fa
    */
   def delayBy[A](fa: F[A], time: FiniteDuration): F[A] =
     productR(sleep(time))(fa)
 
   /**
-   * Wait for the specified duration after the execution of `fa`
-   * before returning the result.
+   * Wait for the specified duration after the execution of `fa` before returning the result.
    *
-   * @param fa The effect to execute
-   * @param time The duration to wait after executing fa
+   * @param fa
+   *   The effect to execute
+   * @param time
+   *   The duration to wait after executing fa
    */
   def andWait[A](fa: F[A], time: FiniteDuration): F[A] =
     productL(fa)(sleep(time))
 
   /**
-   * Returns an effect that either completes with the result of the source within
-   * the specified time `duration` or otherwise evaluates the `fallback`.
+   * Returns an effect that either completes with the result of the source within the specified
+   * time `duration` or otherwise evaluates the `fallback`.
    *
    * The source is canceled in the event that it takes longer than
    * the specified time duration to complete. Once the source has been
@@ -70,12 +73,12 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * the resulting effect will wait for it to complete before evaluating
    * the fallback.
    *
-   * @param duration The time span for which we wait for the source to
-   *        complete; in the event that the specified time has passed without
-   *        the source completing, the `fallback` gets evaluated
+   * @param duration
+   *   The time span for which we wait for the source to complete; in the event that the
+   *   specified time has passed without the source completing, the `fallback` gets evaluated
    *
-   * @param fallback The task evaluated after the duration has passed and
-   *        the source canceled
+   * @param fallback
+   *   The task evaluated after the duration has passed and the source canceled
    */
   def timeoutTo[A](fa: F[A], duration: FiniteDuration, fallback: F[A]): F[A] =
     flatMap(race(fa, sleep(duration))) {
@@ -84,8 +87,8 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
     }
 
   /**
-   * Returns an effect that either completes with the result of the source within
-   * the specified time `duration` or otherwise raises a `TimeoutException`.
+   * Returns an effect that either completes with the result of the source within the specified
+   * time `duration` or otherwise raises a `TimeoutException`.
    *
    * The source is canceled in the event that it takes longer than
    * the specified time duration to complete. Once the source has been
@@ -94,14 +97,16 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * the resulting effect will wait for it to complete before raising
    * the exception.
    *
-   * @param duration The time span for which we wait for the source to
-   *        complete; in the event that the specified time has passed without
-   *        the source completing, a `TimeoutException` is raised
+   * @param duration
+   *   The time span for which we wait for the source to complete; in the event that the
+   *   specified time has passed without the source completing, a `TimeoutException` is raised
    */
   def timeout[A](fa: F[A], duration: FiniteDuration)(
       implicit ev: TimeoutException <:< E): F[A] = {
-    val timeoutException = raiseError[A](ev(new TimeoutException(duration.toString)))
-    timeoutTo(fa, duration, timeoutException)
+    flatMap(race(fa, sleep(duration))) {
+      case Left(a) => pure(a)
+      case Right(_) => raiseError[A](ev(new TimeoutException(duration.toString())))
+    }
   }
 
   /**

@@ -23,7 +23,7 @@ to 3.0.0.
 
 ### 🤔 Need Help?
 
-If any point of the migration turns out to be difficult and you feel like you need help, feel free to [explain your problem on Gitter](https://gitter.im/typelevel/cats-effect) and we will do our best to assist you.
+If any point of the migration turns out to be difficult and you feel like you need help, feel free to [explain your problem in Discord](https://discord.gg/QNnHKHq5Ts) and we will do our best to assist you.
 If you spot a mistake in the guide or the library itself, you can [report an issue on GitHub](https://github.com/typelevel/cats-effect/issues/new)
 or [fix it with a pull request](https://github.com/typelevel/cats-effect/compare).
 
@@ -242,7 +242,7 @@ It is now possible to make the blocking task interruptible using [`Sync`](./type
 ```scala mdoc
 // many: whether it's okay to try interrupting more than once
 val programInterruptible =
-  Sync[IO].interruptible(many = false)(println("hello Sync blocking!"))
+  Sync[IO].interruptible(println("hello Sync blocking!"))
 ```
 
 #### Where Does The Blocking Pool Come From?

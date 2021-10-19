@@ -139,7 +139,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         var interrupted = true
         val latch = new CountDownLatch(1)
 
-        val await = IO.interruptible(false) {
+        val await = IO.interruptible {
           latch.countDown()
           Thread.sleep(15000)
           interrupted = false
@@ -157,7 +157,7 @@ trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
         var interrupted = true
         val latch = new CountDownLatch(1)
 
-        val await = IO.interruptible(true) {
+        val await = IO.interruptibleMany {
           latch.countDown()
 
           try {

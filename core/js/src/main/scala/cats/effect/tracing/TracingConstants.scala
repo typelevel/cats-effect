@@ -14,17 +14,18 @@
  * limitations under the License.
  */
 
-package cats.effect.tracing
+package cats.effect
+package tracing
 
 private object TracingConstants {
 
-  final val isCachedStackTracing: Boolean = false
+  private[this] val stackTracingMode: String =
+    process.env("CATS_EFFECT_TRACING_MODE").filterNot(_.isEmpty).getOrElse("cached")
 
-  final val isFullStackTracing: Boolean = false
+  val isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
 
-  final val isStackTracing: Boolean = false
+  val isFullStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("full")
 
-  final val traceBufferLogSize: Int = 0
+  val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
 
-  final val enhancedExceptions: Boolean = false
 }

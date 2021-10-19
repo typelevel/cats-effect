@@ -37,21 +37,19 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
 
 /**
- * Work-stealing thread pool which manages a pool of [[WorkerThread]]s for the
- * specific purpose of executing [[cats.effect.IOFiber]] instancess with
- * work-stealing scheduling semantics.
+ * Work-stealing thread pool which manages a pool of [[WorkerThread]] s for the specific purpose
+ * of executing [[cats.effect.IOFiber]] instancess with work-stealing scheduling semantics.
  *
- * The thread pool starts with `threadCount` worker threads in the active state,
- * looking to find fibers to execute in their own local work stealing queues,
- * or externally scheduled work coming from the overflow queue.
+ * The thread pool starts with `threadCount` worker threads in the active state, looking to find
+ * fibers to execute in their own local work stealing queues, or externally scheduled work
+ * coming from the external queue.
  *
- * In the case that a worker thread cannot find work to execute in its own
- * queue, or the external queue, it asks for permission from the pool to enter
- * the searching state, which allows that thread to try and steal work from the
- * other worker threads. The pool tries to maintain at most
- * `threadCount / 2` worker threads which are searching for work, to reduce
- * contention. Work stealing is tried using a linear search starting from a
- * random worker thread index.
+ * In the case that a worker thread cannot find work to execute in its own queue, or the
+ * external queue, it asks for permission from the pool to enter the searching state, which
+ * allows that thread to try and steal work from the other worker threads. The pool tries to
+ * maintain at most `threadCount / 2` worker threads which are searching for work, to reduce
+ * contention. Work stealing is tried using a linear search starting from a random worker thread
+ * index.
  */
 private[effect] final class WorkStealingThreadPool(
     threadCount: Int, // number of worker threads
@@ -62,9 +60,8 @@ private[effect] final class WorkStealingThreadPool(
   import WorkStealingThreadPoolConstants._
 
   /**
-   * A forward reference to the [[cats.effect.unsafe.IORuntime]] of which this
-   * thread pool is a part. Used for starting fibers in
-   * [[WorkStealingThreadPool#execute]].
+   * A forward reference to the [[cats.effect.unsafe.IORuntime]] of which this thread pool is a
+   * part. Used for starting fibers in [[WorkStealingThreadPool#execute]].
    */
   private[this] lazy val self: IORuntime = self0
 
@@ -76,32 +73,23 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
 
   /**
-   * The batched queue on which spillover work from other local queues can end
-   * up.
+   * Atomic variable for used for publishing changes to the references in the `workerThreads`
+   * array. Worker threads can be changed whenever blocking code is encountered on the pool.
+   * When a worker thread is about to block, it spawns a new worker thread that would replace
+   * it, transfers the local queue to it and proceeds to run the blocking code, after which it
+   * exits.
    */
-  private[this] val batchedQueue: ScalQueue[Array[IOFiber[_]]] =
-    new ScalQueue(threadCount)
+  private[this] val workerThreadPublisher: AtomicBoolean = new AtomicBoolean(false)
+
+  private[this] val externalQueue: ScalQueue[AnyRef] =
+    new ScalQueue(threadCount << 2)
 
   /**
-   * The overflow queue on which fibers coming from outside the pool are
-   * enqueued.
-   */
-  private[this] val overflowQueue: ScalQueue[IOFiber[_]] =
-    new ScalQueue(threadCount)
-
-  /**
-   * Represents two unsigned 16 bit integers.
-   * The 16 most significant bits track the number of active (unparked) worker threads.
-   * The 16 least significant bits track the number of worker threads that are searching
-   * for work to steal from other worker threads.
+   * Represents two unsigned 16 bit integers. The 16 most significant bits track the number of
+   * active (unparked) worker threads. The 16 least significant bits track the number of worker
+   * threads that are searching for work to steal from other worker threads.
    */
   private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
-
-  /**
-   * An atomic counter used for generating unique indices for distinguishing and
-   * naming helper threads.
-   */
-  private[this] val blockingThreadCounter: AtomicInteger = new AtomicInteger(0)
 
   /**
    * The shutdown latch of the work stealing thread pool.
@@ -119,18 +107,13 @@ private[effect] final class WorkStealingThreadPool(
       parkedSignals(i) = parkedSignal
       val index = i
       val thread =
-        new WorkerThread(
-          index,
-          threadPrefix,
-          blockingThreadCounter,
-          queue,
-          parkedSignal,
-          batchedQueue,
-          overflowQueue,
-          this)
+        new WorkerThread(index, threadPrefix, queue, parkedSignal, externalQueue, null, this)
       workerThreads(i) = thread
       i += 1
     }
+
+    // Publish the worker threads.
+    workerThreadPublisher.set(true)
 
     // Start the worker threads.
     i = 0
@@ -141,18 +124,18 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Tries to steal work from other worker threads. This method does a linear
-   * search of the worker threads starting at a random index. If the stealing
-   * attempt was unsuccessful, this method falls back to checking the overflow
-   * queue.
+   * Tries to steal work from other worker threads. This method does a linear search of the
+   * worker threads starting at a random index. If the stealing attempt was unsuccessful, this
+   * method falls back to checking the external queue.
    *
-   * @param dest the index of the worker thread attempting to steal work from
-   *             other worker threads (used to avoid stealing from its own local
-   *             queue)
-   * @param random a reference to an uncontended source of randomness, to be
-   *               passed along to the striped concurrent queues when executing
-   *               their enqueue operations
-   * @return a fiber instance to execute instantly in case of a successful steal
+   * @param dest
+   *   the index of the worker thread attempting to steal work from other worker threads (used
+   *   to avoid stealing from its own local queue)
+   * @param random
+   *   a reference to an uncontended source of randomness, to be passed along to the striped
+   *   concurrent queues when executing their enqueue operations
+   * @return
+   *   a fiber instance to execute instantly in case of a successful steal
    */
   private[unsafe] def stealFromOtherWorkerThread(
       dest: Int,
@@ -177,16 +160,26 @@ private[effect] final class WorkStealingThreadPool(
       i += 1
     }
 
-    // The worker thread could not steal any work. Fall back to checking the external queue.
-    overflowQueue.poll(random)
+    // The worker thread could not steal any work. Fall back to checking the
+    // external queue.
+    val element = externalQueue.poll(random)
+    if (element.isInstanceOf[Array[IOFiber[_]]]) {
+      val batch = element.asInstanceOf[Array[IOFiber[_]]]
+      destQueue.enqueueBatch(batch)
+    } else if (element.isInstanceOf[IOFiber[_]]) {
+      val fiber = element.asInstanceOf[IOFiber[_]]
+      fiber
+    } else {
+      null
+    }
   }
 
   /**
    * Potentially unparks a worker thread.
    *
-   * @param random a reference to an uncontended source of randomness, to be
-   *               passed along to the striped concurrent queues when executing
-   *               their enqueue operations
+   * @param random
+   *   a reference to an uncontended source of randomness, to be passed along to the striped
+   *   concurrent queues when executing their enqueue operations
    */
   private[unsafe] def notifyParked(random: ThreadLocalRandom): Boolean = {
     // Find a worker thread to unpark.
@@ -211,6 +204,14 @@ private[effect] final class WorkStealingThreadPool(
         // allowed to search for work in the local queues of other worker
         // threads).
         state.getAndAdd(DeltaSearching)
+        // Fetch the latest references to the worker threads before doing the
+        // actual unparking. There is no danger of a race condition where the
+        // parked signal has been successfully marked as unparked but the
+        // underlying worker thread reference has changed, because a worker thread
+        // can only be replaced right before executing blocking code, at which
+        // point it is already unparked and entering this code region is thus
+        // impossible.
+        workerThreadPublisher.get()
         val worker = workerThreads(index)
         LockSupport.unpark(worker)
         return true
@@ -223,14 +224,14 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Checks the number of active and searching worker threads and decides
-   * whether another thread should be notified of new work.
+   * Checks the number of active and searching worker threads and decides whether another thread
+   * should be notified of new work.
    *
-   * Should wake up another worker thread when there are 0 searching threads and
-   * fewer than `threadCount` active threads.
+   * Should wake up another worker thread when there are 0 searching threads and fewer than
+   * `threadCount` active threads.
    *
-   * @return `true` if a parked worker thread should be woken up,
-   *         `false` otherwise
+   * @return
+   *   `true` if a parked worker thread should be woken up, `false` otherwise
    */
   private[this] def notifyShouldWakeup(): Boolean = {
     val st = state.get()
@@ -238,12 +239,12 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Notifies a thread if there are fibers available for stealing in any of the
-   * local queues, or in the overflow queue.
+   * Notifies a thread if there are fibers available for stealing in any of the local queues, or
+   * in the external queue.
    *
-   * @param random a reference to an uncontended source of randomness, to be
-   *               passed along to the striped concurrent queues when executing
-   *               their enqueue operations
+   * @param random
+   *   a reference to an uncontended source of randomness, to be passed along to the striped
+   *   concurrent queues when executing their enqueue operations
    */
   private[unsafe] def notifyIfWorkPending(random: ThreadLocalRandom): Unit = {
     var i = 0
@@ -257,25 +258,20 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     // If no work was found in the local queues of the worker threads, look for
-    // work in the batched queue.
-    if (batchedQueue.nonEmpty()) {
-      notifyParked(random)
-    }
-
-    // If no work was found in the local queues of the worker threads or in the
-    // batched queue, look for work in the external queue.
-    if (overflowQueue.nonEmpty()) {
+    // work in the external queue.
+    if (externalQueue.nonEmpty()) {
       notifyParked(random)
       ()
     }
   }
 
   /**
-   * Decides whether a worker thread is allowed to enter the searching state
-   * where it can look for work to steal from other worker threads.
+   * Decides whether a worker thread is allowed to enter the searching state where it can look
+   * for work to steal from other worker threads.
    *
-   * @return `true` if the requesting worker thread should be allowed to search
-   *         for work to steal from other worker threads, `false` otherwise
+   * @return
+   *   `true` if the requesting worker thread should be allowed to search for work to steal from
+   *   other worker threads, `false` otherwise
    */
   private[unsafe] def transitionWorkerToSearching(): Boolean = {
     val st = state.get()
@@ -296,12 +292,12 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Deregisters the current worker thread from the set of searching threads and
-   * asks for help with the local queue if necessary.
+   * Deregisters the current worker thread from the set of searching threads and asks for help
+   * with the local queue if necessary.
    *
-   * @param random a reference to an uncontended source of randomness, to be
-   *               passed along to the striped concurrent queues when executing
-   *               their enqueue operations
+   * @param random
+   *   a reference to an uncontended source of randomness, to be passed along to the striped
+   *   concurrent queues when executing their enqueue operations
    */
   private[unsafe] def transitionWorkerFromSearching(random: ThreadLocalRandom): Unit = {
     // Decrement the number of searching worker threads.
@@ -317,8 +313,8 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * Updates the internal state to mark the given worker thread as parked.
    *
-   * @return `true` if the given worker thread was the last searching thread,
-   *         `false` otherwise
+   * @return
+   *   `true` if the given worker thread was the last searching thread, `false` otherwise
    */
   private[unsafe] def transitionWorkerToParkedWhenSearching(): Boolean = {
     // Decrement the number of unparked and searching threads simultaneously
@@ -330,8 +326,9 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * Updates the internal state to mark the given worker thread as parked.
    *
-   * @note This method is intentionally duplicated, to accomodate the
-   *       unconditional code paths in the [[WorkerThread]] runloop.
+   * @note
+   *   This method is intentionally duplicated, to accomodate the unconditional code paths in
+   *   the [[WorkerThread]] runloop.
    */
   private[unsafe] def transitionWorkerToParked(): Unit = {
     // Decrement the number of unparked threads only.
@@ -340,94 +337,125 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Executes a fiber on this thread pool.
+   * Replaces the blocked worker thread with the provided index with a clone.
    *
-   * If the request comes from a [[WorkerThread]], the fiber is enqueued on the
-   * local queue of that thread.
-   *
-   * If the request comes from a [[HelperTread]] or an external thread, the
-   * fiber is enqueued on the overflow queue. Furthermore, if the request comes
-   * from an external thread, worker threads are notified of new work.
-   *
-   * @param fiber the fiber to be executed on the thread pool
+   * @param index
+   *   the worker thread index at which the replacement will take place
+   * @param newWorker
+   *   the new worker thread instance to be installed at the provided index
    */
-  private[effect] def executeFiber(fiber: IOFiber[_]): Unit = {
-    val thread = Thread.currentThread()
-    if (thread.isInstanceOf[WorkerThread]) {
-      thread.asInstanceOf[WorkerThread].schedule(fiber)
-    } else if (thread.isInstanceOf[HelperThread]) {
-      thread.asInstanceOf[HelperThread].schedule(fiber)
-    } else {
-      val random = ThreadLocalRandom.current()
-      overflowQueue.offer(fiber, random)
-      notifyParked(random)
-      ()
-    }
+  private[unsafe] def replaceWorker(index: Int, newWorker: WorkerThread): Unit = {
+    workerThreads(index) = newWorker
+    workerThreadPublisher.lazySet(true)
   }
 
   /**
-   * Reschedules the given fiber directly on the local work stealing queue on the same thread,
-   * but with the possibility to skip notifying other fibers of a potential steal target, which
-   * reduces contention in workloads running on fewer worker threads. This method executes an
-   * unchecked cast to a `WorkerThread` and should only ever be called directly from a
-   * `WorkerThread`.
+   * Schedules a fiber on this thread pool.
+   *
+   * If the request comes from a [[WorkerThread]], the fiber is enqueued on the local queue of
+   * that thread.
+   *
+   * If the request comes from a [[HelperTread]] or an external thread, the fiber is enqueued on
+   * the external queue. Furthermore, if the request comes from an external thread, worker
+   * threads are notified of new work.
+   *
+   * @param fiber
+   *   the fiber to be executed on the thread pool
    */
   private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit = {
+    val pool = this
     val thread = Thread.currentThread()
+
     if (thread.isInstanceOf[WorkerThread]) {
-      thread.asInstanceOf[WorkerThread].reschedule(fiber)
+      val worker = thread.asInstanceOf[WorkerThread]
+      if (worker.isOwnedBy(pool)) {
+        worker.reschedule(fiber)
+      } else {
+        scheduleExternal(fiber)
+      }
     } else {
-      thread.asInstanceOf[HelperThread].schedule(fiber)
+      scheduleExternal(fiber)
     }
   }
 
   /**
-   * Reschedules the given fiber directly on the local work stealing queue on the same thread.
-   * This method executes an unchecked cast to a `WorkerThread` and should only ever be called
-   * directly from a `WorkerThread`.
+   * Reschedules a fiber on this thread pool.
+   *
+   * If the request comes from a [[WorkerThread]], depending on the current load, the fiber can
+   * be scheduled for immediate execution on the worker thread, potentially bypassing the local
+   * queue and reducing the stealing pressure.
+   *
+   * If the request comes from a [[HelperTread]] or an external thread, the fiber is enqueued on
+   * the external queue. Furthermore, if the request comes from an external thread, worker
+   * threads are notified of new work.
+   *
+   * @param fiber
+   *   the fiber to be executed on the thread pool
    */
   private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit = {
+    val pool = this
     val thread = Thread.currentThread()
+
     if (thread.isInstanceOf[WorkerThread]) {
-      thread.asInstanceOf[WorkerThread].schedule(fiber)
+      val worker = thread.asInstanceOf[WorkerThread]
+      if (worker.isOwnedBy(pool)) {
+        worker.schedule(fiber)
+      } else {
+        scheduleExternal(fiber)
+      }
     } else {
-      thread.asInstanceOf[HelperThread].schedule(fiber)
+      scheduleExternal(fiber)
     }
+  }
+
+  /**
+   * Schedules a fiber for execution on this thread pool originating from an external thread (a
+   * thread which is not owned by this thread pool).
+   *
+   * @param fiber
+   *   the fiber to be executed on the thread pool
+   */
+  private[this] def scheduleExternal(fiber: IOFiber[_]): Unit = {
+    val random = ThreadLocalRandom.current()
+    externalQueue.offer(fiber, random)
+    notifyParked(random)
+    ()
   }
 
   /**
    * Executes a [[java.lang.Runnable]] on the [[WorkStealingThreadPool]].
    *
-   * If the submitted `runnable` is a general purpose computation, it is
-   * suspended in [[cats.effect.IO]] and executed as a fiber on this pool.
+   * If the submitted `runnable` is a general purpose computation, it is suspended in
+   * [[cats.effect.IO]] and executed as a fiber on this pool.
    *
-   * On the other hand, if the submitted `runnable` is an instance of
-   * [[cats.effect.IOFiber]], it is directly executed on this pool without any
-   * wrapping or indirection. This functionality is used as a fast path in the
-   * [[cats.effect.IOFiber]] runloop for quick scheduling of fibers which are
-   * resumed on the thread pool as part of the asynchronous node of
-   * [[cats.effect.IO]].
+   * On the other hand, if the submitted `runnable` is an instance of [[cats.effect.IOFiber]],
+   * it is directly executed on this pool without any wrapping or indirection. This
+   * functionality is used as a fast path in the [[cats.effect.IOFiber]] runloop for quick
+   * scheduling of fibers which are resumed on the thread pool as part of the asynchronous node
+   * of [[cats.effect.IO]].
    *
    * This method fulfills the `ExecutionContext` interface.
    *
-   * @param runnable the runnable to be executed
+   * @param runnable
+   *   the runnable to be executed
    */
   override def execute(runnable: Runnable): Unit = {
     if (runnable.isInstanceOf[IOFiber[_]]) {
+      val fiber = runnable.asInstanceOf[IOFiber[_]]
       // Fast-path scheduling of a fiber without wrapping.
-      executeFiber(runnable.asInstanceOf[IOFiber[_]])
+      scheduleFiber(fiber)
     } else {
       // Executing a general purpose computation on the thread pool.
       // Wrap the runnable in an `IO` and execute it as a fiber.
       val io = IO.delay(runnable.run())
       val fiber = new IOFiber[Unit](0, Map.empty, outcomeToUnit, io, this, self)
-      executeFiber(fiber)
+      scheduleFiber(fiber)
     }
   }
 
   /**
-   * Preallocated fiber callback function for transforming
-   * [[java.lang.Runnable]] values into [[cats.effect.IOFiber]] instances.
+   * Preallocated fiber callback function for transforming [[java.lang.Runnable]] values into
+   * [[cats.effect.IOFiber]] instances.
    */
   private[this] val outcomeToUnit: OutcomeIO[Unit] => Unit = {
     case Outcome.Errored(t) => reportFailure(t)
@@ -435,25 +463,26 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Reports unhandled exceptions and errors by printing them to the error
-   * stream.
+   * Reports unhandled exceptions and errors by printing them to the error stream.
    *
    * This method fulfills the `ExecutionContext` interface.
    *
-   * @param cause the unhandled throwable instances
+   * @param cause
+   *   the unhandled throwable instances
    */
   override def reportFailure(cause: Throwable): Unit = {
     cause.printStackTrace()
   }
 
   /**
-   * Shut down the thread pool and clean up the pool state. Calling this method
-   * after the pool has been shut down has no effect.
+   * Shut down the thread pool and clean up the pool state. Calling this method after the pool
+   * has been shut down has no effect.
    */
   def shutdown(): Unit = {
     // Execute the shutdown logic only once.
     if (done.compareAndSet(false, true)) {
       // Send an interrupt signal to each of the worker threads.
+      workerThreadPublisher.get()
 
       // Note: while loops and mutable variables are used throughout this method
       // to avoid allocations of objects, since this method is expected to be
@@ -469,30 +498,11 @@ private[effect] final class WorkStealingThreadPool(
       // Clear the interrupt flag.
       Thread.interrupted()
 
-      // Check if a worker thread is shutting down the thread pool, to avoid a
-      // self join, which hangs forever. Any other thread shutting down the pool
-      // will receive an index of `-1`, which means that it will join all worker
-      // threads.
-      val thread = Thread.currentThread()
-      val workerIndex = if (thread.isInstanceOf[WorkerThread]) {
-        thread.asInstanceOf[WorkerThread].index
-      } else {
-        -1
-      }
-
-      i = 0
-      while (i < threadCount) {
-        if (workerIndex != i) {
-          workerThreads(i).join()
-        }
-        i += 1
-      }
-
       // It is now safe to clean up the state of the thread pool.
       state.lazySet(0)
 
       // Shutdown and drain the external queue.
-      overflowQueue.clear()
+      externalQueue.clear()
       Thread.currentThread().interrupt()
     }
   }

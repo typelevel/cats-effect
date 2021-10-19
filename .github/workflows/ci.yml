@@ -9,13 +9,13 @@ name: Continuous Integration
 
 on:
   pull_request:
-    branches: [series/3.x]
+    branches: [series/3.*]
   push:
-    branches: [series/3.x]
+    branches: [series/3.*]
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  JABBA_INDEX: 'https://github.com/vasilmkd/jdk-index/raw/main/index.json'
+  JABBA_INDEX: 'https://github.com/typelevel/jdk-index/raw/main/index.json'
 
 jobs:
   build:
@@ -23,64 +23,50 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        scala: [3.0.1, 2.12.14, 2.13.6]
+        scala: [3.0.2, 2.12.15, 2.13.6]
         java:
           - adoptium@8
           - adoptium@11
-          - adoptium@16
+          - adoptium@17
           - graalvm-ce-java8@21.2
-        ci: [ciJVM, ciJS, ciFirefox, ciChrome, ciJSDOMNodeJS]
+        ci: [ciJVM, ciJS, ciFirefox, ciChrome]
         exclude:
           - ci: ciJS
             java: adoptium@11
           - ci: ciJS
-            java: adoptium@16
+            java: adoptium@17
           - ci: ciJS
             java: graalvm-ce-java8@21.2
           - os: windows-latest
-            scala: 3.0.1
+            scala: 3.0.2
           - os: windows-latest
-            scala: 2.12.14
+            scala: 2.12.15
           - os: windows-latest
             ci: ciJS
           - ci: ciFirefox
             java: adoptium@11
           - ci: ciFirefox
-            java: adoptium@16
+            java: adoptium@17
           - ci: ciFirefox
             java: graalvm-ce-java8@21.2
           - os: windows-latest
-            scala: 3.0.1
+            scala: 3.0.2
           - os: windows-latest
-            scala: 2.12.14
+            scala: 2.12.15
           - os: windows-latest
             ci: ciFirefox
           - ci: ciChrome
             java: adoptium@11
           - ci: ciChrome
-            java: adoptium@16
+            java: adoptium@17
           - ci: ciChrome
             java: graalvm-ce-java8@21.2
           - os: windows-latest
-            scala: 3.0.1
+            scala: 3.0.2
           - os: windows-latest
-            scala: 2.12.14
+            scala: 2.12.15
           - os: windows-latest
             ci: ciChrome
-          - ci: ciJSDOMNodeJS
-            java: adoptium@11
-          - ci: ciJSDOMNodeJS
-            java: adoptium@16
-          - ci: ciJSDOMNodeJS
-            java: graalvm-ce-java8@21.2
-          - os: windows-latest
-            scala: 3.0.1
-          - os: windows-latest
-            scala: 2.12.14
-          - os: windows-latest
-            ci: ciJSDOMNodeJS
-          - java: adoptium@16
-            os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
       - name: Ignore line ending differences in git
@@ -94,7 +80,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Java and Scala
-        uses: olafurpg/setup-scala@v10
+        uses: olafurpg/setup-scala@v13
         with:
           java-version: ${{ matrix.java }}
 
@@ -112,12 +98,12 @@ jobs:
 
       - name: Setup NodeJS v14 LTS
         if: matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'
-        uses: actions/setup-node@v2.1.2
+        uses: actions/setup-node@v2.4.0
         with:
           node-version: 14
 
-      - name: Install jsdom
-        if: matrix.ci == 'ciJSDOMNodeJS'
+      - name: Install jsdom and source-map-support
+        if: matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'
         shell: bash
         run: npm install
 
@@ -128,7 +114,7 @@ jobs:
       - shell: bash
         run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.6' || matrix.scala == '3.0.1') && matrix.ci == 'ciJVM'
+      - if: (matrix.scala == '2.13.6' || matrix.scala == '3.0.2') && matrix.ci == 'ciJVM'
         shell: bash
         run: sbt ++${{ matrix.scala }} docs/mdoc
 

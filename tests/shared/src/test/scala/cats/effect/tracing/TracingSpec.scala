@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
-package cats.effect
-package tracing
+package cats.effect.tracing
 
-class TracingSpec extends BaseSpec {
+import cats.effect.Async
+import cats.effect.BaseSpec
+import cats.effect.IO
+import cats.effect.testkit.TestInstances
+
+class TracingSpec extends BaseSpec with TestInstances {
 
   "IO.delay" should {
     "generate identical traces" in {

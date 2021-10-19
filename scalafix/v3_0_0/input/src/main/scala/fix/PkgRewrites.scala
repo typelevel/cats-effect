@@ -3,8 +3,8 @@ rule = "scala:fix.v3_0_0"
  */
 package fix
 
-import cats.effect.concurrent.{ Deferred, Ref, Semaphore }
-import cats.effect.{ ApplicativeThrow, IO, MonadThrow }
+import cats.effect.concurrent.{Deferred, Ref, Semaphore}
+import cats.effect.{ApplicativeThrow, IO, MonadThrow}
 
 object PkgRewrites {
   locally(Deferred)

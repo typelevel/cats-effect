@@ -16,27 +16,15 @@
 
 package cats.effect.unsafe
 
+import org.scalajs.macrotaskexecutor.MacrotaskExecutor
+
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
-// import scala.scalajs.concurrent.QueueExecutionContext
-import scala.scalajs.js.timers
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
-  // the promises executor doesn't yield (scala-js/scala-js#4129)
-  def defaultComputeExecutionContext: ExecutionContext =
-    PolyfillExecutionContext
+  def defaultComputeExecutionContext: ExecutionContext = MacrotaskExecutor
 
-  def defaultScheduler: Scheduler =
-    new Scheduler {
-      def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-        val handle = timers.setTimeout(delay)(task.run())
-        () => timers.clearTimeout(handle)
-      }
-
-      def nowMillis() = System.currentTimeMillis()
-      def monotonicNanos() = System.nanoTime()
-    }
+  def defaultScheduler: Scheduler = Scheduler.createDefaultScheduler()._1
 
   private[this] var _global: IORuntime = null
 

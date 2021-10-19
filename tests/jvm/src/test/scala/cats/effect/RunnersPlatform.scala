@@ -37,7 +37,7 @@ trait RunnersPlatform extends BeforeAfterAll {
         runtime0,
         threadPrefix = s"io-compute-${getClass.getName}")
 
-    runtime0 = new IORuntime(
+    runtime0 = IORuntime(
       compute,
       blocking,
       scheduler,

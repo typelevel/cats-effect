@@ -37,80 +37,83 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
       "cats/effect/concurrent/Ref." -> "cats/effect/Ref.",
       "cats/effect/concurrent/Semaphore." -> "cats/effect/std/Semaphore."
     ) +
-      doc.tree.collect {
-        // Bracket#guarantee(a)(b) -> MonadCancel#guarantee(a, b)
-        case t @ q"${Bracket_guarantee_M(_)}($a)($b)" =>
-          fuseParameterLists(t, a, b)
+      doc
+        .tree
+        .collect {
+          // Bracket#guarantee(a)(b) -> MonadCancel#guarantee(a, b)
+          case t @ q"${Bracket_guarantee_M(_)}($a)($b)" =>
+            fuseParameterLists(t, a, b)
 
-        // Bracket#uncancelable(a) -> MonadCancel#uncancelable(_ => a)
-        case q"${Bracket_uncancelable_M(_)}($a)" =>
-          Patch.addLeft(a, "_ => ")
+          // Bracket#uncancelable(a) -> MonadCancel#uncancelable(_ => a)
+          case q"${Bracket_uncancelable_M(_)}($a)" =>
+            Patch.addLeft(a, "_ => ")
 
-        // Blocker[F] -> Resource.unit[F]
-        case t @ Term.ApplyType(Blocker_M(_), List(typeF)) =>
-          Patch.addGlobalImport(Resource_S) +
-            Patch.replaceTree(t, s"${Resource_S.displayName}.unit[$typeF]")
+          // Blocker[F] -> Resource.unit[F]
+          case t @ Term.ApplyType(Blocker_M(_), List(typeF)) =>
+            Patch.addGlobalImport(Resource_S) +
+              Patch.replaceTree(t, s"${Resource_S.displayName}.unit[$typeF]")
 
-        // Blocker#delay[F, A] -> Sync[F].blocking
-        case t @ Term.ApplyType(Blocker_delay_M(_), List(typeF, _)) =>
-          Patch.addGlobalImport(Sync_S) +
-            Patch.replaceTree(t, s"${Sync_S.displayName}[$typeF].blocking")
+          // Blocker#delay[F, A] -> Sync[F].blocking
+          case t @ Term.ApplyType(Blocker_delay_M(_), List(typeF, _)) =>
+            Patch.addGlobalImport(Sync_S) +
+              Patch.replaceTree(t, s"${Sync_S.displayName}[$typeF].blocking")
 
-        // Blocker#delay -> Sync[F].blocking
-        case t @ Term.Select(blocker, Blocker_delay_M(_)) =>
-          t.synthetics match {
-            case TypeApplyTree(_, UniversalType(_, TypeRef(_, symbol, _)) :: _) :: _ =>
-              Patch.addGlobalImport(Sync_S) +
-                Patch.replaceTree(t, s"${Sync_S.displayName}[${symbol.displayName}].blocking")
-            case _ => Patch.empty
-          }
+          // Blocker#delay -> Sync[F].blocking
+          case t @ Term.Select(blocker, Blocker_delay_M(_)) =>
+            t.synthetics match {
+              case TypeApplyTree(_, UniversalType(_, TypeRef(_, symbol, _)) :: _) :: _ =>
+                Patch.addGlobalImport(Sync_S) +
+                  Patch.replaceTree(t, s"${Sync_S.displayName}[${symbol.displayName}].blocking")
+              case _ => Patch.empty
+            }
 
-        // ContextShift#shift -> Spawn[F].cede
-        case t @ Term.Select(cs, ContextShift_shift_M(_)) =>
-          cs.symbol.info.map(_.signature) match {
-            case Some(ValueSignature(TypeRef(_, _, TypeRef(_, symbol, _) :: _))) =>
-              Patch.addGlobalImport(Spawn_S) +
-                Patch.replaceTree(t, s"${Spawn_S.displayName}[${symbol.displayName}].cede")
-            case _ => Patch.empty
-          }
+          // ContextShift#shift -> Spawn[F].cede
+          case t @ Term.Select(cs, ContextShift_shift_M(_)) =>
+            cs.symbol.info.map(_.signature) match {
+              case Some(ValueSignature(TypeRef(_, _, TypeRef(_, symbol, _) :: _))) =>
+                Patch.addGlobalImport(Spawn_S) +
+                  Patch.replaceTree(t, s"${Spawn_S.displayName}[${symbol.displayName}].cede")
+              case _ => Patch.empty
+            }
 
-        case t @ ImporteeNameOrRename(Blocker_M(_)) =>
-          Patch.removeImportee(t)
+          case t @ ImporteeNameOrRename(Blocker_M(_)) =>
+            Patch.removeImportee(t)
 
-        case t @ ImporteeNameOrRename(ContextShift_M(_)) =>
-          Patch.removeImportee(t)
+          case t @ ImporteeNameOrRename(ContextShift_M(_)) =>
+            Patch.removeImportee(t)
 
-        case d: Defn.Def =>
-          List(
-            removeParam(d, _.decltpe.exists(Blocker_M.matches)),
-            removeParam(d, _.decltpe.exists(ContextShift_M.matches)),
-            // implicit Concurrent[IO] ->
-            removeParam(
-              d,
-              p =>
-                p.mods.nonEmpty && p.decltpe.exists {
-                  case Type.Apply(Concurrent_M(_), List(IO_M(_))) => true
-                  case _                                          => false
-                }
-            ),
-            // implicit Parallel[F] -> if implicit Concurrent[F] + import cats.effect.implicits._
-            removeParam(
-              d,
-              ps =>
-                ps.exists(p => isImplicit(p) && p.decltpe.exists(Concurrent_M.matches)) &&
-                  ps.exists(p => isImplicit(p) && p.decltpe.exists(Parallel_M.matches)),
-              p => isImplicit(p) && p.decltpe.exists(Parallel_M.matches)
-            ).map(_ + Patch.addGlobalImport(wildcardImport(q"cats.effect.implicits")))
-          ).flatten.asPatch
-      }.asPatch
+          case d: Defn.Def =>
+            List(
+              removeParam(d, _.decltpe.exists(Blocker_M.matches)),
+              removeParam(d, _.decltpe.exists(ContextShift_M.matches)),
+              // implicit Concurrent[IO] ->
+              removeParam(
+                d,
+                p =>
+                  p.mods.nonEmpty && p.decltpe.exists {
+                    case Type.Apply(Concurrent_M(_), List(IO_M(_))) => true
+                    case _ => false
+                  }
+              ),
+              // implicit Parallel[F] -> if implicit Concurrent[F] + import cats.effect.implicits._
+              removeParam(
+                d,
+                ps =>
+                  ps.exists(p => isImplicit(p) && p.decltpe.exists(Concurrent_M.matches)) &&
+                    ps.exists(p => isImplicit(p) && p.decltpe.exists(Parallel_M.matches)),
+                p => isImplicit(p) && p.decltpe.exists(Parallel_M.matches)
+              ).map(_ + Patch.addGlobalImport(wildcardImport(q"cats.effect.implicits")))
+            ).flatten.asPatch
+        }
+        .asPatch
   }
 
   private object ImporteeNameOrRename {
     def unapply(importee: Importee): Option[Name] =
       importee match {
-        case Importee.Name(x)      => Some(x)
+        case Importee.Name(x) => Some(x)
         case Importee.Rename(x, _) => Some(x)
-        case _                     => None
+        case _ => None
       }
   }
 
@@ -138,9 +141,9 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
     }
 
   // f(p1, p2, p3) -> f(p1, p3) if paramMatcher(p2)
-  private def removeParam(d: Defn.Def, paramMatcher: Term.Param => Boolean)(implicit
-      doc: SemanticDocument
-  ): Option[Patch] = removeParam(d, _.exists(paramMatcher), paramMatcher)
+  private def removeParam(d: Defn.Def, paramMatcher: Term.Param => Boolean)(
+      implicit doc: SemanticDocument): Option[Patch] =
+    removeParam(d, _.exists(paramMatcher), paramMatcher)
 
   private def removeParam(
       d: Defn.Def,
@@ -152,20 +155,21 @@ class v3_0_0 extends SemanticRule("v3_0_0") {
       case param :: Nil =>
         cutUntilDelims(d, param, _.is[LeftParen], _.is[RightParen])
       case params =>
-        params.zipWithIndex.find { case (p, _) => paramMatcher(p) } flatMap { case (p, idx) =>
-          // Remove the first parameter.
-          if (idx == 0) {
-            if (isImplicit(p))
-              cutUntilDelims(d, p, _.is[KwImplicit], _.is[Comma], keepL = true)
+        params.zipWithIndex.find { case (p, _) => paramMatcher(p) } flatMap {
+          case (p, idx) =>
+            // Remove the first parameter.
+            if (idx == 0) {
+              if (isImplicit(p))
+                cutUntilDelims(d, p, _.is[KwImplicit], _.is[Comma], keepL = true)
+              else
+                cutUntilDelims(d, p, _.is[LeftParen], _.is[Ident], keepL = true, keepR = true)
+            }
+            // Remove the last parameter.
+            else if (params.size == idx + 1)
+              cutUntilDelims(d, p, _.is[Comma], _.is[RightParen], keepR = true)
+            // Remove inside the parameter list.
             else
-              cutUntilDelims(d, p, _.is[LeftParen], _.is[Ident], keepL = true, keepR = true)
-          }
-          // Remove the last parameter.
-          else if (params.size == idx + 1)
-            cutUntilDelims(d, p, _.is[Comma], _.is[RightParen], keepR = true)
-          // Remove inside the parameter list.
-          else
-            cutUntilDelims(d, p, _.is[Comma], _.is[Comma], keepL = true)
+              cutUntilDelims(d, p, _.is[Comma], _.is[Comma], keepL = true)
         }
     }
   }

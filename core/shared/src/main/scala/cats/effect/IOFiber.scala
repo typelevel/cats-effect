@@ -85,7 +85,7 @@ private final class IOFiber[A](
    * Ideally these would be on the stack, but they can't because we sometimes need to
    * relocate our runloop to another fiber.
    */
-  private[this] val conts: ByteStack = new ByteStack()
+  private[this] var conts = ByteStack.create(16) // use ByteStack to interact
   private[this] val objectState: ArrayStack[AnyRef] = new ArrayStack()
 
   /* fast-path to head */
@@ -118,7 +118,7 @@ private final class IOFiber[A](
   private[this] val cancelationCheckThreshold: Int = runtime.config.cancelationCheckThreshold
   private[this] val autoYieldThreshold: Int = runtime.config.autoYieldThreshold
 
-  private[this] val tracingEvents: RingBuffer =
+  private[this] var tracingEvents: RingBuffer =
     RingBuffer.empty(runtime.config.traceBufferLogSize)
 
   override def run(): Unit = {
@@ -129,12 +129,10 @@ private final class IOFiber[A](
       case 1 => asyncContinueSuccessfulR()
       case 2 => asyncContinueFailedR()
       case 3 => blockingR()
-      case 4 => afterBlockingSuccessfulR()
-      case 5 => afterBlockingFailedR()
-      case 6 => evalOnR()
-      case 7 => cedeR()
-      case 8 => autoCedeR()
-      case 9 => ()
+      case 4 => evalOnR()
+      case 5 => cedeR()
+      case 6 => autoCedeR()
+      case 7 => ()
     }
   }
 
@@ -148,6 +146,7 @@ private final class IOFiber[A](
       if (resume()) {
         /* ...it was! was it masked? */
         if (isUnmasked()) {
+          unmonitor()
           /* ...nope! take over the target fiber's runloop and run the finalizers */
           // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
@@ -222,7 +221,7 @@ private final class IOFiber[A](
     } else if (autoCedeIterations <= 0) {
       resumeIO = cur0
       resumeTag = AutoCedeR
-      rescheduleFiber(currentCtx)(this)
+      rescheduleFiber(currentCtx, this)
     } else {
       // System.out.println(s"looping on $cur0")
       /*
@@ -345,7 +344,7 @@ private final class IOFiber[A](
 
             case _ =>
               objectState.push(f)
-              conts.push(MapK)
+              conts = ByteStack.push(conts, MapK)
               runLoop(ioe, nextCancelation, nextAutoCede)
           }
 
@@ -410,7 +409,7 @@ private final class IOFiber[A](
 
             case _ =>
               objectState.push(f)
-              conts.push(FlatMapK)
+              conts = ByteStack.push(conts, FlatMapK)
               runLoop(ioe, nextCancelation, nextAutoCede)
           }
 
@@ -475,7 +474,7 @@ private final class IOFiber[A](
               runLoop(succeeded(Right(trace), 0), nextCancelation - 1, nextAutoCede)
 
             case _ =>
-              conts.push(AttemptK)
+              conts = ByteStack.push(conts, AttemptK)
               runLoop(ioa, nextCancelation, nextAutoCede)
           }
 
@@ -485,7 +484,7 @@ private final class IOFiber[A](
           pushTracingEvent(cur.event)
 
           objectState.push(cur.f)
-          conts.push(HandleErrorWithK)
+          conts = ByteStack.push(conts, HandleErrorWithK)
 
           runLoop(cur.ioa, nextCancelation, nextAutoCede)
 
@@ -509,7 +508,7 @@ private final class IOFiber[A](
            * the OnCancelK marker is used by `succeeded` to remove the
            * finalizer when `ioa` completes uninterrupted.
            */
-          conts.push(OnCancelK)
+          conts = ByteStack.push(conts, OnCancelK)
           runLoop(cur.ioa, nextCancelation, nextAutoCede)
 
         case 12 =>
@@ -527,7 +526,7 @@ private final class IOFiber[A](
            * The uncancelableK marker is used by `succeeded` and `failed`
            * to unmask once body completes.
            */
-          conts.push(UncancelableK)
+          conts = ByteStack.push(conts, UncancelableK)
           runLoop(cur.body(poll), nextCancelation, nextAutoCede)
 
         case 13 =>
@@ -543,7 +542,7 @@ private final class IOFiber[A](
              * The UnmaskK marker gets used by `succeeded` and `failed`
              * to restore masking state after `cur.ioa` has finished
              */
-            conts.push(UnmaskK)
+            conts = ByteStack.push(conts, UnmaskK)
           }
 
           runLoop(cur.ioa, nextCancelation, nextAutoCede)
@@ -605,6 +604,7 @@ private final class IOFiber[A](
                 // `resume()` is a volatile read of `suspended` through which
                 // `wasFinalizing` is published
                 if (finalizing == state.wasFinalizing) {
+                  unmonitor()
                   if (!shouldFinalize()) {
                     /* we weren't canceled or completed, so schedule the runloop for execution */
                     val ec = currentCtx
@@ -616,7 +616,7 @@ private final class IOFiber[A](
                         resumeTag = AsyncContinueSuccessfulR
                         objectState.push(a.asInstanceOf[AnyRef])
                     }
-                    execute(ec)(this)
+                    scheduleFiber(ec, this)
                   } else {
                     /*
                      * we were canceled, but since we have won the race on `suspended`
@@ -708,7 +708,7 @@ private final class IOFiber[A](
             ()
           }
           finalizers.push(fin)
-          conts.push(OnCancelK)
+          conts = ByteStack.push(conts, OnCancelK)
 
           if (state.compareAndSet(ContStateInitial, ContStateWaiting)) {
             /*
@@ -731,6 +731,7 @@ private final class IOFiber[A](
              * which ensures we will always see the most up-to-date value
              * for `canceled` in `shouldFinalize`, ensuring no finalisation leaks
              */
+            monitor(state)
             suspended.getAndSet(true)
 
             /*
@@ -747,10 +748,12 @@ private final class IOFiber[A](
                * finalisers.
                */
               if (resume()) {
-                if (shouldFinalize())
+                if (shouldFinalize()) {
+                  unmonitor()
                   asyncCancel(null)
-                else
+                } else {
                   suspend()
+                }
               }
             }
           } else {
@@ -800,7 +803,7 @@ private final class IOFiber[A](
         /* Cede */
         case 16 =>
           resumeTag = CedeR
-          rescheduleFiber(currentCtx)(this)
+          rescheduleFiber(currentCtx, this)
 
         case 17 =>
           val cur = cur0.asInstanceOf[Start[Any]]
@@ -818,7 +821,7 @@ private final class IOFiber[A](
 
           // println(s"<$name> spawning <$childName>")
 
-          scheduleFiber(ec)(fiber)
+          scheduleFiber(ec, fiber)
 
           runLoop(succeeded(fiber, 0), nextCancelation, nextAutoCede)
 
@@ -854,8 +857,8 @@ private final class IOFiber[A](
                   fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
                   fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
 
-                  scheduleFiber(ec)(fiberA)
-                  scheduleFiber(ec)(fiberB)
+                  scheduleFiber(ec, fiberA)
+                  scheduleFiber(ec, fiberB)
 
                   val cancel =
                     for {
@@ -893,11 +896,11 @@ private final class IOFiber[A](
             val ec = cur.ec
             currentCtx = ec
             ctxs.push(ec)
-            conts.push(EvalOnK)
+            conts = ByteStack.push(conts, EvalOnK)
 
             resumeTag = EvalOnR
             resumeIO = cur.ioa
-            execute(ec)(this)
+            scheduleFiber(ec, this)
           }
 
         case 21 =>
@@ -909,7 +912,8 @@ private final class IOFiber[A](
           if (cur.hint eq IOFiber.TypeBlocking) {
             resumeTag = BlockingR
             resumeIO = cur
-            runtime.blocking.execute(this)
+            val ec = runtime.blocking
+            scheduleOnForeignEC(ec, this)
           } else {
             runLoop(interruptibleImpl(cur, runtime.blocking), nextCancelation, nextAutoCede)
           }
@@ -956,11 +960,12 @@ private final class IOFiber[A](
 
     /* clear out literally everything to avoid any possible memory leaks */
 
-    conts.invalidate()
+    conts = null
     objectState.invalidate()
     finalizers.invalidate()
     ctxs.invalidate()
     currentCtx = null
+    tracingEvents = null
   }
 
   private[this] def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
@@ -968,8 +973,8 @@ private final class IOFiber[A](
     finalizing = true
 
     if (!finalizers.isEmpty()) {
-      conts.init(16)
-      conts.push(CancelationLoopK)
+      conts = ByteStack.create(8)
+      conts = ByteStack.push(conts, CancelationLoopK)
 
       objectState.init(16)
       objectState.push(cb)
@@ -1014,6 +1019,8 @@ private final class IOFiber[A](
   private[this] def suspend(): Unit =
     suspended.set(true)
 
+  private[effect] def runtimeForwarder: IORuntime = runtime
+
   /* returns the *new* context, not the old */
   private[this] def popContext(): ExecutionContext = {
     ctxs.pop()
@@ -1043,7 +1050,7 @@ private final class IOFiber[A](
 
   @tailrec
   private[this] def succeeded(result: Any, depth: Int): IO[Any] =
-    (conts.pop(): @switch) match {
+    (ByteStack.pop(conts): @switch) match {
       case 0 => mapK(result, depth)
       case 1 => flatMapK(result, depth)
       case 2 => cancelationLoopSuccessK()
@@ -1064,16 +1071,16 @@ private final class IOFiber[A](
     Tracing.augmentThrowable(runtime.config.enhancedExceptions, error, tracingEvents)
 
     // println(s"<$name> failed() with $error")
-    val buffer = conts.unsafeBuffer()
+    /*val buffer = conts.unsafeBuffer()
 
     var i = conts.unsafeIndex() - 1
     val orig = i
     var k: Byte = -1
 
-    /*
+
      * short circuit on error by dropping map and flatMap continuations
      * until we hit a continuation that needs to deal with errors.
-     */
+
     while (i >= 0 && k < 0) {
       if (buffer(i) <= FlatMapK)
         i -= 1
@@ -1082,12 +1089,15 @@ private final class IOFiber[A](
     }
 
     conts.unsafeSet(i)
-    objectState.unsafeSet(objectState.unsafeIndex() - (orig - i))
+    objectState.unsafeSet(objectState.unsafeIndex() - (orig - i))*/
 
     /* has to be duplicated from succeeded to ensure call-site monomorphism */
-    (k: @switch) match {
+    (ByteStack.pop(conts): @switch) match {
       /* (case 0) will never continue to mapK */
       /* (case 1) will never continue to flatMapK */
+      case 0 | 1 =>
+        objectState.pop()
+        failed(error, depth)
       case 2 => cancelationLoopFailureK(error)
       case 3 => runTerminusFailureK(error)
       case 4 => evalOnFailureK(error)
@@ -1099,31 +1109,25 @@ private final class IOFiber[A](
     }
   }
 
-  private[this] def execute(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
+  private[this] def rescheduleFiber(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
-      ec.asInstanceOf[WorkStealingThreadPool].executeFiber(fiber)
+      val wstp = ec.asInstanceOf[WorkStealingThreadPool]
+      wstp.rescheduleFiber(fiber)
     } else {
-      scheduleOnForeignEC(ec)(fiber)
+      scheduleOnForeignEC(ec, fiber)
     }
   }
 
-  private[this] def rescheduleFiber(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
+  private[this] def scheduleFiber(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
-      ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiber(fiber)
+      val wstp = ec.asInstanceOf[WorkStealingThreadPool]
+      wstp.scheduleFiber(fiber)
     } else {
-      scheduleOnForeignEC(ec)(fiber)
+      scheduleOnForeignEC(ec, fiber)
     }
   }
 
-  private[this] def scheduleFiber(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
-    if (ec.isInstanceOf[WorkStealingThreadPool]) {
-      ec.asInstanceOf[WorkStealingThreadPool].scheduleFiber(fiber)
-    } else {
-      scheduleOnForeignEC(ec)(fiber)
-    }
-  }
-
-  private[this] def scheduleOnForeignEC(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
+  private[this] def scheduleOnForeignEC(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
     try {
       ec.execute(fiber)
     } catch {
@@ -1147,13 +1151,11 @@ private final class IOFiber[A](
 
   private[this] def execR(): Unit = {
     // println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
-
-    resumeTag = DoneR
     if (canceled) {
       done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
     } else {
-      conts.init(16)
-      conts.push(RunTerminusK)
+      conts = ByteStack.create(8)
+      conts = ByteStack.push(conts, RunTerminusK)
 
       objectState.init(16)
       finalizers.init(16)
@@ -1191,23 +1193,14 @@ private final class IOFiber[A](
       }
 
     if (error == null) {
-      resumeTag = AfterBlockingSuccessfulR
+      resumeTag = AsyncContinueSuccessfulR
       objectState.push(r.asInstanceOf[AnyRef])
     } else {
-      resumeTag = AfterBlockingFailedR
+      resumeTag = AsyncContinueFailedR
       objectState.push(error)
     }
-    currentCtx.execute(this)
-  }
-
-  private[this] def afterBlockingSuccessfulR(): Unit = {
-    val result = objectState.pop()
-    runLoop(succeeded(result, 0), cancelationCheckThreshold, autoYieldThreshold)
-  }
-
-  private[this] def afterBlockingFailedR(): Unit = {
-    val error = objectState.pop().asInstanceOf[Throwable]
-    runLoop(failed(error, 0), cancelationCheckThreshold, autoYieldThreshold)
+    val ec = currentCtx
+    scheduleFiber(ec, this)
   }
 
   private[this] def evalOnR(): Unit = {
@@ -1267,7 +1260,7 @@ private final class IOFiber[A](
 
   private[this] def cancelationLoopSuccessK(): IO[Any] = {
     if (!finalizers.isEmpty()) {
-      conts.push(CancelationLoopK)
+      conts = ByteStack.push(conts, CancelationLoopK)
       runLoop(finalizers.pop(), cancelationCheckThreshold, autoYieldThreshold)
     } else {
       /* resume external canceller */
@@ -1302,9 +1295,9 @@ private final class IOFiber[A](
     val ec = popContext()
 
     if (!shouldFinalize()) {
-      resumeTag = AfterBlockingSuccessfulR
+      resumeTag = AsyncContinueSuccessfulR
       objectState.push(result.asInstanceOf[AnyRef])
-      execute(ec)(this)
+      scheduleFiber(ec, this)
     } else {
       asyncCancel(null)
     }
@@ -1316,9 +1309,9 @@ private final class IOFiber[A](
     val ec = popContext()
 
     if (!shouldFinalize()) {
-      resumeTag = AfterBlockingFailedR
+      resumeTag = AsyncContinueFailedR
       objectState.push(t)
-      execute(ec)(this)
+      scheduleFiber(ec, this)
     } else {
       asyncCancel(null)
     }
@@ -1406,6 +1399,12 @@ private final class IOFiber[A](
 
     Thread.currentThread().interrupt()
     null
+  }
+
+  // overrides the AtomicReference#toString
+  override def toString: String = {
+    val state = if (suspended.get()) "SUSPENDED" else "RUNNING"
+    s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state"
   }
 }
 

@@ -25,32 +25,25 @@ import scala.util.{Either, Left, Right}
 
 /**
  * Represents the result of the execution of a fiber. It may terminate in one of 3 states:
- * 1. Succeeded(fa)
- *    The fiber completed with a value.
+ *   1. Succeeded(fa) The fiber completed with a value.
  *
- *    A commonly asked question is why this wraps a value of type `F[A]` rather
- *    than one of type `A`. This is to support monad transformers. Consider
+ * A commonly asked question is why this wraps a value of type `F[A]` rather than one of type
+ * `A`. This is to support monad transformers. Consider
  *
- *    ```scala
- *    val oc: OutcomeIO[Int] =
- *      for {
- *        fiber <- Spawn[OptionT[IO, *]].start(OptionT.none[IO, Int])
- *        oc <- fiber.join
- *      } yield oc
- *    ```
+ * ```scala val oc: OutcomeIO[Int] = for { fiber <- Spawn[OptionT[IO, *]].start(OptionT.none[IO,
+ * Int]) oc <- fiber.join } yield oc ```
  *
- *    If the fiber succeeds then there is no value of type `Int` to be wrapped in `Succeeded`,
- *    hence `Succeeded` contains a value of type `OptionT[IO, Int]` instead.
+ * If the fiber succeeds then there is no value of type `Int` to be wrapped in `Succeeded`,
+ * hence `Succeeded` contains a value of type `OptionT[IO, Int]` instead.
  *
- *    In general you can assume that binding on the value of type `F[A]` contained in
- *    `Succeeded` does not perform further effects. In the case of `IO` that means
- *    that the outcome has been constructed as `Outcome.Succeeded(IO.pure(result))`.
+ * In general you can assume that binding on the value of type `F[A]` contained in `Succeeded`
+ * does not perform further effects. In the case of `IO` that means that the outcome has been
+ * constructed as `Outcome.Succeeded(IO.pure(result))`.
  *
- * 2. Errored(e)
- *    The fiber exited with an error.
+ * 2. Errored(e) The fiber exited with an error.
  *
- * 3. Canceled()
- *    The fiber was canceled, either externally or self-canceled via `MonadCancel[F]#canceled`.
+ * 3. Canceled() The fiber was canceled, either externally or self-canceled via
+ * `MonadCancel[F]#canceled`.
  */
 sealed trait Outcome[F[_], E, A] extends Product with Serializable {
   import Outcome._
@@ -102,7 +95,7 @@ private[kernel] trait LowPriorityImplicits {
     Show show {
       case Canceled() => "Canceled"
       case Errored(left) => s"Errored(${left.show})"
-      case Succeeded(_) => s"Succeeded(<unknown>)"
+      case Succeeded(_) => s"Succeeded(...)"
     }
 
   implicit def eq[F[_], E: Eq, A](implicit FA: Eq[F[A]]): Eq[Outcome[F, E, A]] =
