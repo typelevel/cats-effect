@@ -1075,20 +1075,62 @@ private final class IOFiber[A](
   @tailrec
   private[this] def succeeded(result: Any, depth: Int): IO[Any] =
     (ByteStack.pop(conts): @switch) match {
-      case 0 => mapK(result, depth)
-      case 1 => flatMapK(result, depth)
+      case 0 => // mapK
+        val f = objectState.pop().asInstanceOf[Any => Any]
+
+        var error: Throwable = null
+
+        val transformed =
+          try f(result)
+          catch {
+            case NonFatal(t) =>
+              error = t
+            case t: Throwable =>
+              onFatalFailure(t)
+          }
+
+        if (depth > MaxStackDepth) {
+          if (error == null) IO.Pure(transformed)
+          else IO.Error(error)
+        } else {
+          if (error == null) succeeded(transformed, depth + 1)
+          else failed(error, depth + 1)
+        }
+
+      case 1 => // flatMapK
+        val f = objectState.pop().asInstanceOf[Any => IO[Any]]
+
+        try f(result)
+        catch {
+          case NonFatal(t) =>
+            failed(t, depth + 1)
+          case t: Throwable =>
+            onFatalFailure(t)
+        }
+
       case 2 => cancelationLoopSuccessK()
       case 3 => runTerminusSuccessK(result)
       case 4 => evalOnSuccessK(result)
-      case 5 =>
-        /* handleErrorWithK */
+
+      case 5 => // handleErrorWithK
         // this is probably faster than the pre-scan we do in failed, since handlers are rarer than flatMaps
         objectState.pop()
         succeeded(result, depth)
-      case 6 => onCancelSuccessK(result, depth)
-      case 7 => uncancelableSuccessK(result, depth)
-      case 8 => unmaskSuccessK(result, depth)
-      case 9 => succeeded(Right(result), depth)
+
+      case 6 => // onCancelSuccessK
+        finalizers.pop()
+        succeeded(result, depth + 1)
+
+      case 7 => // uncancelableSuccessK
+        masks -= 1
+        succeeded(result, depth + 1)
+
+      case 8 => // unmaskSuccessK
+        masks += 1
+        succeeded(result, depth + 1)
+
+      case 9 => // attemptK
+        succeeded(Right(result), depth)
     }
 
   private[this] def failed(error: Throwable, depth: Int): IO[Any] = {
@@ -1122,13 +1164,34 @@ private final class IOFiber[A](
       case 0 | 1 =>
         objectState.pop()
         failed(error, depth)
+
       case 2 => cancelationLoopFailureK(error)
       case 3 => runTerminusFailureK(error)
       case 4 => evalOnFailureK(error)
-      case 5 => handleErrorWithK(error, depth)
-      case 6 => onCancelFailureK(error, depth)
-      case 7 => uncancelableFailureK(error, depth)
-      case 8 => unmaskFailureK(error, depth)
+
+      case 5 => // handleErrorWithK
+        val f = objectState.pop().asInstanceOf[Throwable => IO[Any]]
+
+        try f(error)
+        catch {
+          case NonFatal(t) =>
+            failed(t, depth + 1)
+          case t: Throwable =>
+            onFatalFailure(t)
+        }
+
+      case 6 => // onCancelFailureK
+        finalizers.pop()
+        failed(error, depth + 1)
+
+      case 7 => // uncancelableFailureK
+        masks -= 1
+        failed(error, depth + 1)
+
+      case 8 => // unmaskFailureK
+        masks += 1
+        failed(error, depth + 1)
+
       case 9 => succeeded(Left(error), depth) // attemptK
     }
   }
@@ -1258,41 +1321,6 @@ private final class IOFiber[A](
   // Implementations of continuations //
   //////////////////////////////////////
 
-  private[this] def mapK(result: Any, depth: Int): IO[Any] = {
-    val f = objectState.pop().asInstanceOf[Any => Any]
-
-    var error: Throwable = null
-
-    val transformed =
-      try f(result)
-      catch {
-        case NonFatal(t) =>
-          error = t
-        case t: Throwable =>
-          onFatalFailure(t)
-      }
-
-    if (depth > MaxStackDepth) {
-      if (error == null) IO.Pure(transformed)
-      else IO.Error(error)
-    } else {
-      if (error == null) succeeded(transformed, depth + 1)
-      else failed(error, depth + 1)
-    }
-  }
-
-  private[this] def flatMapK(result: Any, depth: Int): IO[Any] = {
-    val f = objectState.pop().asInstanceOf[Any => IO[Any]]
-
-    try f(result)
-    catch {
-      case NonFatal(t) =>
-        failed(t, depth + 1)
-      case t: Throwable =>
-        onFatalFailure(t)
-    }
-  }
-
   private[this] def cancelationLoopSuccessK(): IO[Any] = {
     if (!finalizers.isEmpty()) {
       // There are still remaining finalizers to execute. Continue.
@@ -1354,50 +1382,6 @@ private final class IOFiber[A](
     } else {
       prepareFiberForCancelation(null)
     }
-  }
-
-  private[this] def handleErrorWithK(t: Throwable, depth: Int): IO[Any] = {
-    val f = objectState.pop().asInstanceOf[Throwable => IO[Any]]
-
-    try f(t)
-    catch {
-      case NonFatal(t) =>
-        failed(t, depth + 1)
-      case t: Throwable =>
-        onFatalFailure(t)
-    }
-  }
-
-  private[this] def onCancelSuccessK(result: Any, depth: Int): IO[Any] = {
-    finalizers.pop()
-    succeeded(result, depth + 1)
-  }
-
-  private[this] def onCancelFailureK(t: Throwable, depth: Int): IO[Any] = {
-    finalizers.pop()
-    failed(t, depth + 1)
-  }
-
-  private[this] def uncancelableSuccessK(result: Any, depth: Int): IO[Any] = {
-    masks -= 1
-    // System.out.println(s"unmasking after uncancelable (isUnmasked = ${isUnmasked()})")
-    succeeded(result, depth + 1)
-  }
-
-  private[this] def uncancelableFailureK(t: Throwable, depth: Int): IO[Any] = {
-    masks -= 1
-    // System.out.println(s"unmasking after uncancelable (isUnmasked = ${isUnmasked()})")
-    failed(t, depth + 1)
-  }
-
-  private[this] def unmaskSuccessK(result: Any, depth: Int): IO[Any] = {
-    masks += 1
-    succeeded(result, depth + 1)
-  }
-
-  private[this] def unmaskFailureK(t: Throwable, depth: Int): IO[Any] = {
-    masks += 1
-    failed(t, depth + 1)
   }
 
   private[this] def pushTracingEvent(te: TracingEvent): Unit = {

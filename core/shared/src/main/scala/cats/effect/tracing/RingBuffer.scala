@@ -57,6 +57,8 @@ private[effect] object RingBuffer {
   def empty(logSize: Int): RingBuffer = {
     if (TracingConstants.isStackTracing) {
       new RingBuffer(logSize)
-    } else null
+    } else NullBuffer
   }
+
+  private[this] val NullBuffer = new RingBuffer(0)
 }
