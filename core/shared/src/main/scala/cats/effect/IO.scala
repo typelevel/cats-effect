@@ -620,8 +620,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @see
    *   [[timeout]] for a variant which respects backpressure and does not leak fibers
    */
-  def timeoutAndAbandon(duration: FiniteDuration): IO[A] =
-    Temporal[IO].timeoutAndAbandon(this, duration)
+  def timeoutAndForget(duration: FiniteDuration): IO[A] =
+    Temporal[IO].timeoutAndForget(this, duration)
 
   def timed: IO[(FiniteDuration, A)] =
     Clock[IO].timed(this)

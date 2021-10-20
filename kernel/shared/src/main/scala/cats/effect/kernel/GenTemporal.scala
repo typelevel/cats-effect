@@ -123,7 +123,7 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * @see
    *   [[timeout]] for a variant which respects backpressure and does not leak fibers
    */
-  def timeoutAndAbandon[A](fa: F[A], duration: FiniteDuration)(
+  def timeoutAndForget[A](fa: F[A], duration: FiniteDuration)(
       implicit ev: TimeoutException <:< E): F[A] =
     uncancelable { poll =>
       implicit val F: GenTemporal[F, E] = this
