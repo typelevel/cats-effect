@@ -411,7 +411,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       // introduced by #2361, Bye bye helper thread
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.HelperThread"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.LocalQueue$")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.LocalQueue$"),
+      // introduced by #2434, Initialize tracing buffer if needed
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ArrayStack.copy")
     )
   )
   .jvmSettings(

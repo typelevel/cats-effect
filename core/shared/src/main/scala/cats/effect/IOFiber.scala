@@ -85,7 +85,7 @@ private final class IOFiber[A](
    * Ideally these would be on the stack, but they can't because we sometimes need to
    * relocate our runloop to another fiber.
    */
-  private[this] var conts = ByteStack.create(16) // use ByteStack to interact
+  private[this] var conts: ByteStack = _
   private[this] val objectState: ArrayStack[AnyRef] = new ArrayStack()
 
   /* fast-path to head */
@@ -118,7 +118,7 @@ private final class IOFiber[A](
   private[this] val cancelationCheckThreshold: Int = runtime.config.cancelationCheckThreshold
   private[this] val autoYieldThreshold: Int = runtime.config.autoYieldThreshold
 
-  private[this] var tracingEvents: RingBuffer =
+  private[this] val tracingEvents: RingBuffer =
     RingBuffer.empty(runtime.config.traceBufferLogSize)
 
   override def run(): Unit = {
@@ -970,7 +970,7 @@ private final class IOFiber[A](
     finalizers.invalidate()
     ctxs.invalidate()
     currentCtx = null
-    tracingEvents = null
+    tracingEvents.invalidate()
   }
 
   private[this] def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
@@ -1159,7 +1159,7 @@ private final class IOFiber[A](
     if (canceled) {
       done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
     } else {
-      conts = ByteStack.create(8)
+      conts = ByteStack.create(16)
       conts = ByteStack.push(conts, RunTerminusK)
 
       objectState.init(16)

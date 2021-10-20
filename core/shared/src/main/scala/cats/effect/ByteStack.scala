@@ -16,7 +16,7 @@
 
 package cats.effect
 
-private[effect] object ByteStack {
+private object ByteStack {
 
   final def toDebugString(stack: Array[Int], translate: Byte => String = _.toString): String = {
     val count = size(stack)
