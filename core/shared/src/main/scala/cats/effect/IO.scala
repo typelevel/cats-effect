@@ -39,7 +39,13 @@ import cats.effect.instances.spawn
 import cats.effect.std.Console
 import cats.effect.tracing.{Tracing, TracingEvent}
 import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.{CancellationException, ExecutionContext, Future, Promise}
+import scala.concurrent.{
+  CancellationException,
+  ExecutionContext,
+  Future,
+  Promise,
+  TimeoutException
+}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
