@@ -44,7 +44,6 @@ lazy val v3_0_0_tests = project
   .dependsOn(v3_0_0_input, rules)
   .enablePlugins(ScalafixTestkitPlugin)
 
-
 lazy val v3_3_0_input = project
   .in(file("v3_3_0/input"))
   .settings(

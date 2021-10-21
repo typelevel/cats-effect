@@ -3,7 +3,7 @@ rule = "scala:fix.v3_3_0"
  */
 package fix
 
-import cats.effect.{ IO, Sync }
+import cats.effect.{IO, Sync}
 
 object InterruptibleRewrites {
   IO.interruptible(true)(IO.unit)
