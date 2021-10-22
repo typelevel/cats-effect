@@ -16,15 +16,17 @@
 
 package cats.effect.std
 
+import cats.Show
 import cats.syntax.all._
 import cats.effect.kernel.Async
 
-import java.nio.charset.Charset
+import java.nio.charset.{Charset, CodingErrorAction, MalformedInputException}
 import scala.scalajs.js
 
 private[std] trait ConsoleCompanionPlatform { this: Console.type =>
 
-  final class NodeJSConsole[F[_]](process: js.Dynamic)(implicit F: Async[F])
+  final class NodeJSConsole[F[_]](out: js.Dynamic, err: js.Dynamic, in: js.Dynamic)(
+      implicit F: Async[F])
       extends Console[F] {
 
     private def write(writable: js.Dynamic, s: String): F[Unit] =
@@ -39,17 +41,40 @@ private[std] trait ConsoleCompanionPlatform { this: Console.type =>
       F.delay(writable.cork()) *> // buffers until uncork
         write(writable, s) *>
         write(writable, "\n") *>
-        F.delay(writable.uncork()).void
+        F.delay(writable.uncork().asInstanceOf[Unit])
 
-    def error[A](a: A)(implicit S: cats.Show[A]): F[Unit] = write(process.stderr, S.show(a))
+    def error[A](a: A)(implicit S: Show[A]): F[Unit] = write(err, S.show(a))
 
-    def errorln[A](a: A)(implicit S: cats.Show[A]): F[Unit] = writeln(process.stderr, S.show(a))
+    def errorln[A](a: A)(implicit S: Show[A]): F[Unit] = writeln(err, S.show(a))
 
-    def print[A](a: A)(implicit S: cats.Show[A]): F[Unit] = write(process.stdout, S.show(a))
+    def print[A](a: A)(implicit S: Show[A]): F[Unit] = write(out, S.show(a))
 
-    def println[A](a: A)(implicit S: cats.Show[A]): F[Unit] = writeln(process.stdout, S.show(a))
+    def println[A](a: A)(implicit S: Show[A]): F[Unit] = writeln(out, S.show(a))
 
-    def readLineWithCharset(charset: Charset): F[String] = ???
+    def readLineWithCharset(charset: Charset): F[String] = {
+      val decoder = charset
+        .newDecoder()
+        .onMalformedInput(CodingErrorAction.REPORT)
+        .onUnmappableCharacter(CodingErrorAction.REPLACE)
+      F.async_[String] { cb =>
+        var onceData: js.Function1[js.typedarray.Uint8Array, Unit] = null
+        var onceError: js.Function1[js.Error, Unit] = null
+        onceData = { buffer =>
+          val int8buffer =
+            new js.typedarray.Int8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+          val chars = Either.catchNonFatal(decoder.decode(js.typedarray.TypedArrayBuffer.wrap(int8buffer)))
+          in.off("error", onceError)
+          ()
+        }
+        onceError = { e =>
+          cb(Left(js.JavaScriptException(e)))
+          in.off("data", onceData)
+          ()
+        }
+        ???
+      }
+
+    }
   }
 
 }
