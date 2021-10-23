@@ -776,7 +776,6 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       success: A => Unit)(implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber[A](
-      0,
       Map(),
       oc =>
         oc.fold(
@@ -1595,7 +1594,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
   private[effect] object Uncancelable {
     // INTERNAL, it's only created by the runloop itself during the execution of `Uncancelable`
-    final case class UnmaskRunLoop[+A](ioa: IO[A], id: Int) extends IO[A] {
+    final case class UnmaskRunLoop[+A](ioa: IO[A], id: Int, self: IOFiber[_]) extends IO[A] {
       def tag = 13
     }
   }

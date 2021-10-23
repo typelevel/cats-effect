@@ -66,7 +66,6 @@ import java.util.concurrent.atomic.AtomicBoolean
  * merely a fast-path and are not necessary for correctness.
  */
 private final class IOFiber[A](
-    private[this] val initMask: Int,
     initLocalState: IOLocalState,
     cb: OutcomeIO[A] => Unit,
     startIO: IO[A],
@@ -93,7 +92,7 @@ private final class IOFiber[A](
   private[this] val ctxs: ArrayStack[ExecutionContext] = new ArrayStack()
 
   private[this] var canceled: Boolean = false
-  private[this] var masks: Int = initMask
+  private[this] var masks: Int = 0
   private[this] var finalizing: Boolean = false
 
   private[this] val finalizers: ArrayStack[IO[Unit]] = new ArrayStack()
@@ -514,7 +513,7 @@ private final class IOFiber[A](
           masks += 1
           val id = masks
           val poll = new Poll[IO] {
-            def apply[B](ioa: IO[B]) = IO.Uncancelable.UnmaskRunLoop(ioa, id)
+            def apply[B](ioa: IO[B]) = IO.Uncancelable.UnmaskRunLoop(ioa, id, IOFiber.this)
           }
 
           /*
@@ -526,12 +525,13 @@ private final class IOFiber[A](
 
         case 13 =>
           val cur = cur0.asInstanceOf[Uncancelable.UnmaskRunLoop[Any]]
+          val self = this
 
           /*
            * we keep track of nested uncancelable sections.
            * The outer block wins.
            */
-          if (masks == cur.id) {
+          if (masks == cur.id && (self eq cur.self)) {
             masks -= 1
             /*
              * The UnmaskK marker gets used by `succeeded` and `failed`
@@ -805,10 +805,8 @@ private final class IOFiber[A](
         case 17 =>
           val cur = cur0.asInstanceOf[Start[Any]]
 
-          val childMask = initMask + ChildMaskOffset
           val ec = currentCtx
           val fiber = new IOFiber[Any](
-            childMask,
             localState,
             null,
             cur.ioa,
@@ -829,12 +827,10 @@ private final class IOFiber[A](
             IO.async[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
               cb =>
                 IO {
-                  val childMask = initMask + ChildMaskOffset
                   val ec = currentCtx
                   val rt = runtime
 
                   val fiberA = new IOFiber[Any](
-                    childMask,
                     localState,
                     null,
                     cur.ioa,
@@ -843,7 +839,6 @@ private final class IOFiber[A](
                   )
 
                   val fiberB = new IOFiber[Any](
-                    childMask,
                     localState,
                     null,
                     cur.iob,
@@ -949,7 +944,7 @@ private final class IOFiber[A](
      * need to reset masks to 0 to terminate async callbacks
      * in `cont` busy spinning in `loop` on the `!shouldFinalize` check.
      */
-    masks = initMask
+    masks = 0
 
     resumeTag = DoneR
     resumeIO = null
@@ -1013,7 +1008,7 @@ private final class IOFiber[A](
     canceled && isUnmasked()
 
   private[this] def isUnmasked(): Boolean =
-    masks == initMask
+    masks == 0
 
   /*
    * You should probably just read this as `suspended.compareAndSet(true, false)`.

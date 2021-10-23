@@ -21,14 +21,6 @@ final class IOFiberConstants {
 
   static final int MaxStackDepth = 512;
 
-  /*
-   * allow for 255 masks before conflicting; 255 chosen because it is a familiar
-   * bound, and because it's evenly divides UnsignedInt.MaxValue. This scheme
-   * gives us 16,843,009 (~2^24) potential derived fibers before masks can
-   * conflict
-   */
-  static final int ChildMaskOffset = 255;
-
   // continuation ids (should all be inlined)
   static final byte MapK = 0;
   static final byte FlatMapK = 1;
