@@ -712,6 +712,24 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         passed must beTrue
       }
 
+      "polls from unrelated fibers are no-ops" in ticked { implicit ticker =>
+        var canceled = false
+        val test = for {
+          deferred <- Deferred[IO, Poll[IO]]
+          started <- Deferred[IO, Unit]
+          _ <- IO.uncancelable(deferred.complete).void.start
+          f <- (started.complete(()) *>
+            deferred.get.flatMap(poll => poll(IO.never[Unit]).onCancel(IO { canceled = true })))
+            .uncancelable
+            .start
+          _ <- started.get
+          _ <- f.cancel
+        } yield ()
+
+        test must nonTerminate
+        canceled must beFalse
+      }
+
       "run three finalizers when an async is canceled while suspended" in ticked {
         implicit ticker =>
           var results = List[Int]()
