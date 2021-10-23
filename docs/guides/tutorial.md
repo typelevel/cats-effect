@@ -750,10 +750,20 @@ def run(args: List[String]): IO[ExitCode] =
   } yield ExitCode.Error
 ```
 
-Problem is, if there is an error in any of the fibers the `join` call will not
-hint it, nor it will return. In contrast `parMapN` does promote the error it
-finds to the caller. _In general, if possible, programmers should prefer to use
-higher level commands such as `parMapN` or `parSequence` to deal with fibers_.
+Note the code above does not include error handling. Errors in the underlying
+fiber are promoted by `join`, meaning that if the fiber throws an error the
+call to `join` will forward it to the main flow. Problem is, we need to call to
+`join` first, so if for example the `consumerFiber` throws an exception while
+`producerFiber` is still running then the exception will not interrupt the main
+flow until it reaches `consumerFiber.join`. Also, a fiber throwing an error
+does not cancel the execution of the other fibers. Taking care of cancelling
+the reamining fibers is the responsability of the programmer.
+
+In contrast `parMapN` not only promotes errors raised by fibers to the main
+flow, it also take care of cancelling the other fibers. This way `parMapN`
+leads to simpler and more concise code. _Thus, if possible, programmers should
+prefer to use higher level commands such as `parMapN` or `parSequence` to deal
+with fibers_.
 
 Ok, we stick to our implementation based on `.parMapN`. Are we done? Does it
 Work? Well, it works... but it is far from ideal. If we run it we will find that
