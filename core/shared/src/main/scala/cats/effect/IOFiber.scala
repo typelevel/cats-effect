@@ -344,10 +344,6 @@ private final class IOFiber[A](
               val ec = currentCtx
               runLoop(next(ec), nextCancelation - 1, nextAutoCede)
 
-            case 23 =>
-              val trace = Trace(tracingEvents)
-              runLoop(next(trace), nextCancelation - 1, nextAutoCede)
-
             case _ =>
               objectState.push(f)
               conts = ByteStack.push(conts, MapK)
@@ -408,10 +404,6 @@ private final class IOFiber[A](
             case 5 =>
               val ec = currentCtx
               runLoop(next(ec), nextCancelation - 1, nextAutoCede)
-
-            case 23 =>
-              val trace = Trace(tracingEvents)
-              runLoop(next(trace), nextCancelation - 1, nextAutoCede)
 
             case _ =>
               objectState.push(f)
@@ -474,10 +466,6 @@ private final class IOFiber[A](
             case 5 =>
               val ec = currentCtx
               runLoop(succeeded(Right(ec), 0), nextCancelation - 1, nextAutoCede)
-
-            case 23 =>
-              val trace = Trace(tracingEvents)
-              runLoop(succeeded(Right(trace), 0), nextCancelation - 1, nextAutoCede)
 
             case _ =>
               conts = ByteStack.push(conts, AttemptK)
