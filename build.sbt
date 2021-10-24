@@ -169,8 +169,6 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   }
 }
 
-lazy val unidoc213 = taskKey[Seq[File]]("Run unidoc but only on Scala 2.13")
-
 lazy val useJSEnv =
   settingKey[JSEnv]("Use Node.js or a headless browser for running Scala.js tests")
 Global / useJSEnv := NodeJS
@@ -231,16 +229,7 @@ lazy val root = project
   .settings(
     ScalaUnidoc / unidoc / unidocProjectFilter := {
       undocumentedRefs.foldLeft(inAnyProject)((acc, a) => acc -- inProjects(a))
-    },
-    Compile / unidoc213 := Def.taskDyn {
-      if (scalaVersion.value.startsWith("2.13"))
-        Def.task((Compile / unidoc).value)
-      else
-        Def.task {
-          streams.value.log.warn(s"Skipping unidoc execution in Scala ${scalaVersion.value}")
-          Seq.empty[File]
-        }
-    }.value
+    }
   )
 
 lazy val rootJVM = project

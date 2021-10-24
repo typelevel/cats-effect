@@ -48,7 +48,7 @@ object CI {
         jsEnv = None,
         testCommands = List("test"),
         mimaReport = true,
-        suffixCommands = List("root/unidoc213", "exampleJVM/compile"))
+        suffixCommands = List("root/unidoc", "exampleJVM/compile"))
 
   case object JS
       extends CI(
