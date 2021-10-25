@@ -130,22 +130,22 @@ class MapRefTrieSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    // test("MapRef.ofScalaConcurrentTrieMap - tryUpdate - should fail to update if modification has occurred" ) {
-    //   val updateRefUnsafely: Ref[IO, Option[Int]] => Unit = _.update(_.map(_ + 1)).unsafeRunSync()
+    "MapRef.ofScalaConcurrentTrieMap - tryUpdate - should fail to update if modification has occurred" in real {
+      import cats.effect.unsafe.implicits.global
+      val updateRefUnsafely: Ref[IO, Option[Int]] => Unit =
+        _.update(_.map(_ + 1)).unsafeRunSync()
 
-    //   val op = for {
-    //     r <- MapRef.ofScalaConcurrentTrieMap[IO, Unit, Int]
-    //     _ <- r(()).set(Some(0))
-    //     result <- r(()).tryUpdate(
-    //       currentValue => {
-    //         updateRefUnsafely(r(()))
-    //         currentValue.map(_ + 1)
-    //       }
-    //     )
-    //   } yield result
+      val op = for {
+        r <- MapRef.ofScalaConcurrentTrieMap[IO, Unit, Int]
+        _ <- r(()).set(Some(0))
+        result <- r(()).tryUpdate(currentValue => {
+          updateRefUnsafely(r(()))
+          currentValue.map(_ + 1)
+        })
+      } yield result
 
-    //   op.map(a => assert(a === false))
-    // }
+      op.map(a => a must_=== false)
+    }
 
     "MapRef.ofScalaConcurrentTrieMap - tryModifyState - modification occurs successfully" in real {
       val op = for {
