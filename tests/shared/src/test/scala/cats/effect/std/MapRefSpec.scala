@@ -26,10 +26,10 @@ import scala.concurrent.duration._
 class MapRefSpec extends BaseSpec {
   private val smallDelay: IO[Unit] = IO.sleep(20.millis)
   private def awaitEqual[A: Eq](t: IO[A], success: A): IO[Unit] =
-      t.flatMap(a => if (Eq[A].eqv(a, success)) IO.unit else smallDelay *> awaitEqual(t, success))
+    t.flatMap(a => if (Eq[A].eqv(a, success)) IO.unit else smallDelay *> awaitEqual(t, success))
 
   "MapRef" should {
-  
+
     "MapRef.ofSingleImmutableMapRef - concurrent modifications" in real {
       val finalValue = 100
       val r = MapRef.inSingleImmutableMap[SyncIO, IO, Unit, Int]().unsafeRunSync()
@@ -122,7 +122,7 @@ class MapRefSpec extends BaseSpec {
       val op = for {
         r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
-        result <- r(()).tryUpdate(_.map(_+ 1))
+        result <- r(()).tryUpdate(_.map(_ + 1))
         value <- r(()).get
       } yield result && value == Some(1)
 
@@ -166,7 +166,6 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-
     "MapRef.ofShardedImmutableMapRef - return an updated value" in real {
       val size = 10
       val key = 3
@@ -180,19 +179,18 @@ class MapRefSpec extends BaseSpec {
     }
 
     "MapRef.ofShardedImmutableMapRef - work with convenience ops" in real {
-        import cats.effect.std.syntax.mapref._
-        val size = 10
-        val key = 3
-        val expect = "Foo"
-        val test = for {
-          map <- MapRef.ofShardedImmutableMap[IO, Int, String](size)
-          _ <- map.setKeyValue(key, expect)
-          out <- map(key).get
-        } yield out
+      import cats.effect.std.syntax.mapref._
+      val size = 10
+      val key = 3
+      val expect = "Foo"
+      val test = for {
+        map <- MapRef.ofShardedImmutableMap[IO, Int, String](size)
+        _ <- map.setKeyValue(key, expect)
+        out <- map(key).get
+      } yield out
 
-        test.map(a => a must_=== Some(expect))
+      test.map(a => a must_=== Some(expect))
     }
-
 
     "MapRef.ofConcurrentHashMap - concurrent modifications" in real {
       val finalValue = 100
@@ -286,7 +284,7 @@ class MapRefSpec extends BaseSpec {
       val op = for {
         r <- MapRef.ofConcurrentHashMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
-        result <- r(()).tryUpdate(_.map(_+ 1))
+        result <- r(()).tryUpdate(_.map(_ + 1))
         value <- r(()).get
       } yield result && value == Some(1)
 

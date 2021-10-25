@@ -27,7 +27,7 @@ class MapRefTrieSpec extends BaseSpec {
 
   private val smallDelay: IO[Unit] = IO.sleep(20.millis)
   private def awaitEqual[A: Eq](t: IO[A], success: A): IO[Unit] =
-      t.flatMap(a => if (Eq[A].eqv(a, success)) IO.unit else smallDelay *> awaitEqual(t, success))
+    t.flatMap(a => if (Eq[A].eqv(a, success)) IO.unit else smallDelay *> awaitEqual(t, success))
 
   "MapRef TrieMap" should {
 
@@ -123,7 +123,7 @@ class MapRefTrieSpec extends BaseSpec {
       val op = for {
         r <- MapRef.ofScalaConcurrentTrieMap[IO, Unit, Int]
         _ <- r(()).set(Some(0))
-        result <- r(()).tryUpdate(_.map(_+ 1))
+        result <- r(()).tryUpdate(_.map(_ + 1))
         value <- r(()).get
       } yield result && value == Some(1)
 

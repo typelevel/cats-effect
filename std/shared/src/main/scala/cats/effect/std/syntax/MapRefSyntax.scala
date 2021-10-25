@@ -20,21 +20,22 @@ import cats.effect.std.MapRef
 import cats.syntax.all._
 
 trait MapRefSyntax {
-  implicit def mapRefOptionSyntax[F[_], K, V](mRef: MapRef[F, K, Option[V]]): MapRefOptionOps[F, K, V] =
+  implicit def mapRefOptionSyntax[F[_], K, V](
+      mRef: MapRef[F, K, Option[V]]): MapRefOptionOps[F, K, V] =
     new MapRefOptionOps(mRef)
 }
 
-
-final class MapRefOptionOps[F[_], K, V] private[syntax] (private[syntax] val mRef: MapRef[F, K, Option[V]]){
+final class MapRefOptionOps[F[_], K, V] private[syntax] (
+    private[syntax] val mRef: MapRef[F, K, Option[V]]) {
   def unsetKey(k: K): F[Unit] =
     mRef(k).set(None)
-  def setKeyValue(k: K, v: V): F[Unit] = 
+  def setKeyValue(k: K, v: V): F[Unit] =
     mRef(k).set(v.some)
-  def getAndSetKeyValue(k: K, v: V): F[Option[V]] = 
+  def getAndSetKeyValue(k: K, v: V): F[Option[V]] =
     mRef(k).getAndSet(v.some)
 
-  def updateKeyValueIfSet(k: K, f: V => V): F[Unit] = 
-    mRef(k).update{
+  def updateKeyValueIfSet(k: K, f: V => V): F[Unit] =
+    mRef(k).update {
       case None => None
       case Some(v) => f(v).some
     }
@@ -42,7 +43,7 @@ final class MapRefOptionOps[F[_], K, V] private[syntax] (private[syntax] val mRe
   def modifyKeyValueIfSet[B](k: K, f: V => (V, B)): F[Option[B]] =
     mRef(k).modify {
       case None => (None, None)
-      case Some(v) => 
+      case Some(v) =>
         val (set, out) = f(v)
         (set.some, out.some)
     }

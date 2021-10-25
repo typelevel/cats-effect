@@ -16,6 +16,4 @@
 
 package cats.effect.std
 
-private[std] trait MapRefCompanionPlatform {
-  
-}
+private[std] trait MapRefCompanionPlatform {}
