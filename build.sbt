@@ -402,7 +402,16 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.HelperThread"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.LocalQueue$"),
       // introduced by #2434, Initialize tracing buffer if needed
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ArrayStack.copy")
+      // changes to `cats.effect` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ArrayStack.copy"),
+      // introduced by #2453, Masking without an `initMask` field
+      // changes to `cats.effect` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IO#Uncancelable#UnmaskRunLoop.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IO#Uncancelable#UnmaskRunLoop.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IO#Uncancelable#UnmaskRunLoop.this")
     )
   )
   .jvmSettings(
