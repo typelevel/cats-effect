@@ -113,9 +113,6 @@ private final class IOFiber[A](
   /* similar prefetch for EndFiber */
   private[this] val IOEndFiber: IO.EndFiber.type = IO.EndFiber
 
-  private[this] val cancelationCheckThreshold: Int = runtime.config.cancelationCheckThreshold
-  private[this] val autoYieldThreshold: Int = runtime.config.autoYieldThreshold
-
   private[this] val tracingEvents: RingBuffer =
     RingBuffer.empty(runtime.config.traceBufferLogSize)
 
@@ -214,7 +211,7 @@ private final class IOFiber[A](
     if (cancelationIterations <= 0) {
       // Ensure that we see cancelation.
       readBarrier()
-      nextCancelation = cancelationCheckThreshold
+      nextCancelation = runtime.cancelationCheckThreshold
       // automatic yielding threshold is always a multiple of the cancelation threshold
       nextAutoCede -= nextCancelation
     }
@@ -1226,29 +1223,29 @@ private final class IOFiber[A](
 
       val io = resumeIO
       resumeIO = null
-      runLoop(io, cancelationCheckThreshold, autoYieldThreshold)
+      runLoop(io, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
     }
   }
 
   private[this] def asyncContinueSuccessfulR(): Unit = {
     val a = objectState.pop().asInstanceOf[Any]
-    runLoop(succeeded(a, 0), cancelationCheckThreshold, autoYieldThreshold)
+    runLoop(succeeded(a, 0), runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
 
   private[this] def asyncContinueFailedR(): Unit = {
     val t = objectState.pop().asInstanceOf[Throwable]
-    runLoop(failed(t, 0), cancelationCheckThreshold, autoYieldThreshold)
+    runLoop(failed(t, 0), runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
 
   private[this] def asyncContinueCanceledR(): Unit = {
     val fin = prepareFiberForCancelation(null)
-    runLoop(fin, cancelationCheckThreshold, autoYieldThreshold)
+    runLoop(fin, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
 
   private[this] def asyncContinueCanceledWithFinalizerR(): Unit = {
     val cb = objectState.pop().asInstanceOf[Either[Throwable, Unit] => Unit]
     val fin = prepareFiberForCancelation(cb)
-    runLoop(fin, cancelationCheckThreshold, autoYieldThreshold)
+    runLoop(fin, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
 
   private[this] def blockingR(): Unit = {
@@ -1278,17 +1275,17 @@ private final class IOFiber[A](
   private[this] def evalOnR(): Unit = {
     val ioa = resumeIO
     resumeIO = null
-    runLoop(ioa, cancelationCheckThreshold, autoYieldThreshold)
+    runLoop(ioa, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
 
   private[this] def cedeR(): Unit = {
-    runLoop(succeeded((), 0), cancelationCheckThreshold, autoYieldThreshold)
+    runLoop(succeeded((), 0), runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
 
   private[this] def autoCedeR(): Unit = {
     val io = resumeIO
     resumeIO = null
-    runLoop(io, cancelationCheckThreshold, autoYieldThreshold)
+    runLoop(io, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
 
   //////////////////////////////////////
