@@ -88,9 +88,7 @@ private final class IOFiber[A](
   private[this] var conts: ByteStack = _
   private[this] val objectState: ArrayStack[AnyRef] = new ArrayStack()
 
-  /* fast-path to head */
   private[this] var currentCtx: ExecutionContext = startEC
-  private[this] val ctxs: ArrayStack[ExecutionContext] = new ArrayStack()
 
   private[this] var canceled: Boolean = false
   private[this] var masks: Int = initMask
@@ -891,8 +889,8 @@ private final class IOFiber[A](
             runLoop(cur.ioa, nextCancelation, nextAutoCede)
           } else {
             val ec = cur.ec
+            objectState.push(currentCtx)
             currentCtx = ec
-            ctxs.push(ec)
             conts = ByteStack.push(conts, EvalOnK)
 
             resumeTag = EvalOnR
@@ -960,7 +958,6 @@ private final class IOFiber[A](
     conts = null
     objectState.invalidate()
     finalizers.invalidate()
-    ctxs.invalidate()
     currentCtx = null
     tracingEvents.invalidate()
   }
@@ -1032,14 +1029,6 @@ private final class IOFiber[A](
     suspended.set(true)
 
   private[effect] def runtimeForwarder: IORuntime = runtime
-
-  /* returns the *new* context, not the old */
-  private[this] def popContext(): ExecutionContext = {
-    ctxs.pop()
-    val ec = ctxs.peek()
-    currentCtx = ec
-    ec
-  }
 
   /* can return null, meaning that no CallbackStack needs to be later invalidated */
   private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
@@ -1235,9 +1224,6 @@ private final class IOFiber[A](
       objectState.init(16)
       finalizers.init(16)
 
-      ctxs.init(2)
-      ctxs.push(currentCtx)
-
       val io = resumeIO
       resumeIO = null
       runLoop(io, cancelationCheckThreshold, autoYieldThreshold)
@@ -1347,7 +1333,8 @@ private final class IOFiber[A](
   }
 
   private[this] def evalOnSuccessK(result: Any): IO[Any] = {
-    val ec = popContext()
+    val ec = objectState.pop().asInstanceOf[ExecutionContext]
+    currentCtx = ec
 
     if (!shouldFinalize()) {
       resumeTag = AsyncContinueSuccessfulR
@@ -1360,7 +1347,8 @@ private final class IOFiber[A](
   }
 
   private[this] def evalOnFailureK(t: Throwable): IO[Any] = {
-    val ec = popContext()
+    val ec = objectState.pop().asInstanceOf[ExecutionContext]
+    currentCtx = ec
 
     if (!shouldFinalize()) {
       resumeTag = AsyncContinueFailedR
