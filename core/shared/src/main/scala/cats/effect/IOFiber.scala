@@ -114,7 +114,7 @@ private final class IOFiber[A](
   private[this] val IOEndFiber: IO.EndFiber.type = IO.EndFiber
 
   private[this] val tracingEvents: RingBuffer =
-    RingBuffer.empty(runtime.config.traceBufferLogSize)
+    RingBuffer.empty(runtime.traceBufferLogSize)
 
   override def run(): Unit = {
     // insert a read barrier after every async boundary
@@ -421,7 +421,7 @@ private final class IOFiber[A](
               val t = error.t
               // We need to augment the exception here because it doesn't get
               // forwarded to the `failed` path.
-              Tracing.augmentThrowable(runtime.config.enhancedExceptions, t, tracingEvents)
+              Tracing.augmentThrowable(runtime.enhancedExceptions, t, tracingEvents)
               runLoop(succeeded(Left(t), 0), nextCancelation - 1, nextAutoCede)
 
             case 2 =>
@@ -437,10 +437,7 @@ private final class IOFiber[A](
                   case NonFatal(t) =>
                     // We need to augment the exception here because it doesn't
                     // get forwarded to the `failed` path.
-                    Tracing.augmentThrowable(
-                      runtime.config.enhancedExceptions,
-                      t,
-                      tracingEvents)
+                    Tracing.augmentThrowable(runtime.enhancedExceptions, t, tracingEvents)
                     error = t
                   case t: Throwable =>
                     onFatalFailure(t)
@@ -1108,7 +1105,7 @@ private final class IOFiber[A](
     }
 
   private[this] def failed(error: Throwable, depth: Int): IO[Any] = {
-    Tracing.augmentThrowable(runtime.config.enhancedExceptions, error, tracingEvents)
+    Tracing.augmentThrowable(runtime.enhancedExceptions, error, tracingEvents)
 
     // println(s"<$name> failed() with $error")
     /*val buffer = conts.unsafeBuffer()
