@@ -158,6 +158,7 @@ Learn more about `global` [in the `IO` section](#io).
 | `Async.memoize`                   | `Concurrent[F].memoize`                            |
 | `Async.parTraverseN`              | `Concurrent[F].parTraverseN`                       |
 | `Async.parSequenceN`              | `Concurrent[F].parSequenceN`                       |
+| `Async.parReplicateAN`            | `Concurrent[F].parReplicateAN`                     |
 | `Async[F].liftIO`, `Async.liftIO` | `LiftIO[F].liftIO`                                 |
 | `Async <: LiftIO`                 | No subtyping relationship                          |
 
@@ -356,6 +357,7 @@ Because `Clock` is no longer a "usual" value but a type class, it's not possible
 | `Concurrent.memoize`                        | `Concurrent[F].memoize`         |                                                |
 | `Concurrent.parTraverseN`                   | `Concurrent[F].parTraverseN`    |                                                |
 | `Concurrent.parSequenceN`                   | `Concurrent[F].parSequenceN`    |                                                |
+| `Concurrent.parReplicateAN`                 | `Concurrent[F].parReplicateAN`  |                                                |
 
 This is arguably the most changed type class. Similarly to `Async`, it is [no longer related to `LiftIO`](#relationship-with-liftio).
 

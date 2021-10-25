@@ -33,12 +33,16 @@ trait GenConcurrentSyntax {
       wrapped: T[F[A]]
   ): ConcurrentParSequenceNOps[T, F, A] =
     new ConcurrentParSequenceNOps(wrapped)
+
 }
 
 final class GenConcurrentOps_[F[_], A] private[syntax] (private val wrapped: F[A])
     extends AnyVal {
   def memoize(implicit F: GenConcurrent[F, _]): F[F[A]] =
     F.memoize(wrapped)
+
+  def parReplicateAN(n: Int)(replicas: Int)(implicit F: GenConcurrent[F, _]): F[List[A]] =
+    F.parReplicateAN(n)(replicas, wrapped)
 }
 
 final class ConcurrentParTraverseNOps[T[_], A] private[syntax] (
