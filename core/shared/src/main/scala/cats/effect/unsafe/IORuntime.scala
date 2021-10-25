@@ -43,7 +43,7 @@ final class IORuntime private (
 
   private[effect] val suspendedFiberBag: SuspendedFiberBag = new SuspendedFiberBag()
 
-  /**
+  /*
    * Forwarder methods for `IOFiber`.
    */
   private[effect] val cancelationCheckThreshold: Int = config.cancelationCheckThreshold
