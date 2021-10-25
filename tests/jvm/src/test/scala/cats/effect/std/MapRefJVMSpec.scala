@@ -23,7 +23,7 @@ import cats.effect._
 
 import scala.concurrent.duration._
 
-class MapRefTrieSpec extends BaseSpec {
+class MapRefJVMSpec extends BaseSpec {
 
   private val smallDelay: IO[Unit] = IO.sleep(20.millis)
   private def awaitEqual[A: Eq](t: IO[A], success: A): IO[Unit] =
@@ -167,6 +167,42 @@ class MapRefTrieSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
+  }
+
+  "MapRef" should { // Requires unsafeRunSync so doesn't work with JS
+    "MapRef.ofSingleImmutableMapRef - tryUpdate - should fail to update if modification has occurred" in real {
+      import cats.effect.unsafe.implicits.global
+      val updateRefUnsafely: Ref[IO, Option[Int]] => Unit =
+        _.update(_.map(_ + 1)).unsafeRunSync()
+
+      val op = for {
+        r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
+        _ <- r(()).set(Some(0))
+        result <- r(()).tryUpdate(currentValue => {
+          updateRefUnsafely(r(()))
+          currentValue.map(_ + 1)
+        })
+      } yield result
+
+      op.map(a => a must_=== false)
+    }
+
+    "MapRef.ofConcurrentHashMap - tryUpdate - should fail to update if modification has occurred" in real {
+      import cats.effect.unsafe.implicits.global
+      val updateRefUnsafely: Ref[IO, Option[Int]] => Unit =
+        _.update(_.map(_ + 1)).unsafeRunSync()
+
+      val op = for {
+        r <- MapRef.ofConcurrentHashMap[IO, Unit, Int]()
+        _ <- r(()).set(Some(0))
+        result <- r(()).tryUpdate(currentValue => {
+          updateRefUnsafely(r(()))
+          currentValue.map(_ + 1)
+        })
+      } yield result
+
+      op.map(a => a must_=== false)
+    }
   }
 
 }

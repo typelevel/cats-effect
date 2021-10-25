@@ -129,23 +129,6 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofSingleImmutableMapRef - tryUpdate - should fail to update if modification has occurred" in real {
-      import cats.effect.unsafe.implicits.global
-      val updateRefUnsafely: Ref[IO, Option[Int]] => Unit =
-        _.update(_.map(_ + 1)).unsafeRunSync()
-
-      val op = for {
-        r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
-        _ <- r(()).set(Some(0))
-        result <- r(()).tryUpdate(currentValue => {
-          updateRefUnsafely(r(()))
-          currentValue.map(_ + 1)
-        })
-      } yield result
-
-      op.map(a => a must_=== false)
-    }
-
     "MapRef.ofSingleImmutableMapRef - tryModifyState - modification occurs successfully" in real {
       val op = for {
         r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
@@ -289,23 +272,6 @@ class MapRefSpec extends BaseSpec {
       } yield result && value == Some(1)
 
       op.map(a => a must_=== true)
-    }
-
-    "MapRef.ofConcurrentHashMap - tryUpdate - should fail to update if modification has occurred" in real {
-      import cats.effect.unsafe.implicits.global
-      val updateRefUnsafely: Ref[IO, Option[Int]] => Unit =
-        _.update(_.map(_ + 1)).unsafeRunSync()
-
-      val op = for {
-        r <- MapRef.ofConcurrentHashMap[IO, Unit, Int]()
-        _ <- r(()).set(Some(0))
-        result <- r(()).tryUpdate(currentValue => {
-          updateRefUnsafely(r(()))
-          currentValue.map(_ + 1)
-        })
-      } yield result
-
-      op.map(a => a must_=== false)
     }
 
     "MapRef.ofConcurrentHashMap - tryModifyState - modification occurs successfully" in real {
