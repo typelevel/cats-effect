@@ -757,7 +757,7 @@ call to `join` will forward it to the main flow. Problem is, we need to call to
 `producerFiber` is still running then the exception will not interrupt the main
 flow until it reaches `consumerFiber.join`. Also, a fiber throwing an error
 does not cancel the execution of the other fibers. Taking care of cancelling
-the reamining fibers is the responsability of the programmer.
+the remaining fibers is the responsibility of the programmer.
 
 In contrast `parMapN` not only promotes errors raised by fibers to the main
 flow, it also take care of cancelling the other fibers. This way `parMapN`
