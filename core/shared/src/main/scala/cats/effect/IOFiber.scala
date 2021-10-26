@@ -109,9 +109,6 @@ private final class IOFiber[A](
 
   private[this] var localState: IOLocalState = initLocalState
 
-  @volatile
-  private[this] var outcome: OutcomeIO[A] = _
-
   /* mutable state for resuming the fiber in different states */
   private[this] var resumeIO: IO[Any] = startIO
 
@@ -631,7 +628,7 @@ private final class IOFiber[A](
                    */
                   suspend()
                 }
-              } else if (finalizing == state.wasFinalizing && !shouldFinalize() && outcome == null) {
+              } else if (finalizing == state.wasFinalizing && !shouldFinalize() && resumeTag != DoneR) {
                 /*
                  * If we aren't canceled or completed, and we're
                  * still in the same finalization state, loop on
@@ -792,7 +789,7 @@ private final class IOFiber[A](
               }
 
               runLoop(next, nextCancelation, nextAutoCede)
-            } else if (outcome == null) {
+            } else if (resumeTag != DoneR) {
               /*
                * we were canceled, but `cancel` cannot run the finalisers
                * because the runloop was not suspended, so we have to run them
@@ -937,14 +934,6 @@ private final class IOFiber[A](
     join = IO.pure(oc)
     cancel = IO.unit
 
-    outcome = oc
-
-    try {
-      callbacks(oc)
-    } finally {
-      callbacks.lazySet(null) /* avoid leaks */
-    }
-
     /*
      * need to reset masks to 0 to terminate async callbacks
      * in `cont` busy spinning in `loop` on the `!shouldFinalize` check.
@@ -953,7 +942,6 @@ private final class IOFiber[A](
 
     resumeTag = DoneR
     resumeIO = null
-    suspended.set(false)
 
     /* clear out literally everything to avoid any possible memory leaks */
 
@@ -962,6 +950,14 @@ private final class IOFiber[A](
     finalizers.invalidate()
     currentCtx = null
     tracingEvents.invalidate()
+
+    suspended.set(false)
+
+    try {
+      callbacks(oc)
+    } finally {
+      callbacks.lazySet(null) /* avoid leaks */
+    }
   }
 
   /**
@@ -1049,18 +1045,23 @@ private final class IOFiber[A](
 
   /* can return null, meaning that no CallbackStack needs to be later invalidated */
   private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
-    if (outcome == null) {
+    readBarrier()
+
+    if (resumeTag != DoneR) {
       val back = callbacks.push(listener)
 
       /* double-check */
-      if (outcome != null) {
+      readBarrier()
+      if (resumeTag == DoneR) {
         back.clearCurrent()
+        val outcome = join.asInstanceOf[Pure[OutcomeIO[A]]].value
         listener(outcome) /* the implementation of async saves us from double-calls */
         null
       } else {
         back
       }
     } else {
+      val outcome = join.asInstanceOf[Pure[OutcomeIO[A]]].value
       listener(outcome)
       null
     }
