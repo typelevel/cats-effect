@@ -627,7 +627,7 @@ private final class IOFiber[A](
                    */
                   suspend()
                 }
-              } else if (finalizing == state.wasFinalizing && !shouldFinalize() && resumeTag != DoneR) {
+              } else if (finalizing == state.wasFinalizing && !shouldFinalize() && !isOutcomeSet()) {
                 /*
                  * If we aren't canceled or completed, and we're
                  * still in the same finalization state, loop on
@@ -788,7 +788,7 @@ private final class IOFiber[A](
               }
 
               runLoop(next, nextCancelation, nextAutoCede)
-            } else if (resumeTag != DoneR) {
+            } else if (!isOutcomeSet()) {
               /*
                * we were canceled, but `cancel` cannot run the finalisers
                * because the runloop was not suspended, so we have to run them
@@ -1048,18 +1048,20 @@ private final class IOFiber[A](
     status = (m << MasksShift) | st
   }
 
+  private[this] def isOutcomeSet(): Boolean = {
+    readBarrier()
+    resumeTag == DoneR
+  }
+
   private[effect] def runtimeForwarder: IORuntime = runtime
 
   /* can return null, meaning that no CallbackStack needs to be later invalidated */
   private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
-    readBarrier()
-
-    if (resumeTag != DoneR) {
+    if (!isOutcomeSet()) {
       val back = callbacks.push(listener)
 
       /* double-check */
-      readBarrier()
-      if (resumeTag == DoneR) {
+      if (isOutcomeSet()) {
         back.clearCurrent()
         val outcome = join.asInstanceOf[Pure[OutcomeIO[A]]].value
         listener(outcome) /* the implementation of async saves us from double-calls */
