@@ -117,7 +117,6 @@ private final class IOFiber[A](
   private[this] var outcome: OutcomeIO[A] = _
 
   /* mutable state for resuming the fiber in different states */
-  private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: IO[Any] = startIO
 
   /* prefetch for Right(()) */
@@ -1034,6 +1033,13 @@ private final class IOFiber[A](
 
   private[this] def suspend(): Unit =
     suspended.set(true)
+
+  private[this] def resumeTag: Byte =
+    (status & LowerBits).toByte
+
+  private[this] def resumeTag_=(tag: Byte): Unit = {
+    status = ((status & UpperBits) | tag).toByte
+  }
 
   private[effect] def runtimeForwarder: IORuntime = runtime
 

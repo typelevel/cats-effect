@@ -50,4 +50,8 @@ final class IOFiberConstants {
   static final int ContStateWaiting = 1;
   static final int ContStateWinner = 2;
   static final int ContStateResult = 3;
+
+  // Bitmasks
+  static final byte LowerBits = 15;
+  static final byte UpperBits = ~LowerBits;
 }

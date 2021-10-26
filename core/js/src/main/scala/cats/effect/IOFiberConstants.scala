@@ -50,4 +50,8 @@ private object IOFiberConstants {
   final val ContStateWaiting: Int = 1
   final val ContStateWinner: Int = 2
   final val ContStateResult: Int = 3
+
+  // Bitmasks
+  final val LowerBits: Byte = 15
+  final val UpperBits: Byte = (~LowerBits).toByte
 }
