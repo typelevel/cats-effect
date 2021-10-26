@@ -172,6 +172,7 @@ but you can access them through <code>cats.effect.&lt;the typeclass&gt;</code> t
 <tr><td><code>Async.memoize</code></td><td><code>Concurrent[F].memoize</code></td></tr>
 <tr><td><code>Async.parTraverseN</code></td><td><code>Concurrent[F].parTraverseN</code></td></tr>
 <tr><td><code>Async.parSequenceN</code></td><td><code>Concurrent[F].parSequenceN</code></td></tr>
+<tr><td><code>Async.parReplicateAN</code></td><td><code>Concurrent[F].parReplicateAN</code></td></tr>
 <tr><td><code>Async[F].liftIO</code>, <code>Async.liftIO</code></td><td><code>LiftIO[F].liftIO</code></td></tr>
 <tr><td><code>Async &lt;: LiftIO</code></td><td>No subtyping relationship</td></tr>
 </tbody>
@@ -257,7 +258,7 @@ this has an impact on users who have used polymorphic effects with an <code>F[_]
 <p>The blocking thread pool, similarly to the compute pool, is provided in <code>IORuntime</code> when you run your <code>IO</code>.
 For other effect systems it could be a <code>Runtime</code> or <code>Scheduler</code>, etc. You can learn more about CE3 <a href="/cats-effect/docs/schedulers">schedulers</a> and <a href="/cats-effect/docs/thread-model">the thread model in comparison to CE2's</a>.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> runtime = cats.effect.unsafe.<span class="hljs-type">IORuntime</span>.global
-<span class="hljs-comment">// runtime: cats.effect.unsafe.IORuntime = IORuntime(cats.effect.unsafe.WorkStealingThreadPool@1c320e8, cats.effect.unsafe.SchedulerCompanionPlatform$$anon$1@35adbd0b, IORuntimeConfig(512,1024,true,16,Duration.Inf))</span>
+<span class="hljs-comment">// runtime: cats.effect.unsafe.IORuntime = IORuntime(cats.effect.unsafe.WorkStealingThreadPool@3aa37c6a, cats.effect.unsafe.SchedulerCompanionPlatform$$anon$1@2b6148c1, IORuntimeConfig(512,1024,true,16,Duration.Inf))</span>
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">showThread</span></span>() = java.lang.<span class="hljs-type">Thread</span>.currentThread().getName()
 
@@ -335,7 +336,7 @@ instead of having the user provide the time unit and getting a <code>Long</code>
 <span class="hljs-comment">// )</span>
 
 clocks.unsafeRunSync()
-<span class="hljs-comment">// res1: concurrent.duration.FiniteDuration = 3296341 nanoseconds</span>
+<span class="hljs-comment">// res1: concurrent.duration.FiniteDuration = 970613 nanoseconds</span>
 </code></pre>
 <p>Because <code>Clock</code> is no longer a &quot;usual&quot; value but a type class, it's not possible to create new values of it through <code>create</code> and <code>mapK</code>.</p>
 <p><code>Clock</code> is a part of <code>Sync</code> and thus it should be easy to get an instance inductively for any monad transformer, or directly for any effect that is a <code>Sync</code>.</p>
@@ -360,6 +361,7 @@ clocks.unsafeRunSync()
 <tr><td><code>Concurrent.memoize</code></td><td><code>Concurrent[F].memoize</code></td><td></td></tr>
 <tr><td><code>Concurrent.parTraverseN</code></td><td><code>Concurrent[F].parTraverseN</code></td><td></td></tr>
 <tr><td><code>Concurrent.parSequenceN</code></td><td><code>Concurrent[F].parSequenceN</code></td><td></td></tr>
+<tr><td><code>Concurrent.parReplicateAN</code></td><td><code>Concurrent[F].parReplicateAN</code></td><td></td></tr>
 </tbody>
 </table>
 <p>This is arguably the most changed type class. Similarly to <code>Async</code>, it is <a href="#relationship-with-liftio">no longer related to <code>LiftIO</code></a>.</p>
