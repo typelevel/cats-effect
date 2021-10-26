@@ -55,4 +55,6 @@ final class IOFiberConstants {
   static final byte LowerBits = 15;
   static final byte UpperBits = ~LowerBits;
   static final byte FinalizingMask = 16;
+  static final int MasksShift = 5;
+  static final int StatusMask = 31;
 }

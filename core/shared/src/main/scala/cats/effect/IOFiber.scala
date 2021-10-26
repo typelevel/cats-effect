@@ -96,12 +96,11 @@ private final class IOFiber[A](
    * The 5th bit (from the end) is used to signal finalization. If set, the old `finalizing`
    * boolean value has been set.
    *
-   * The 6th, 7th and 8th bit (from the end) are currently unused.
+   * All of the remaining 27 bits are used to encode the current mask of the fiber.
    */
-  private[this] var status: Byte = 0
+  private[this] var status: Int = 0
 
   private[this] var canceled: Boolean = false
-  private[this] var masks: Int = 0
 
   private[this] val finalizers: ArrayStack[IO[Unit]] = new ArrayStack()
 
@@ -1030,7 +1029,7 @@ private final class IOFiber[A](
     (status & LowerBits).toByte
 
   private[this] def resumeTag_=(tag: Byte): Unit = {
-    status = ((status & UpperBits) | tag).toByte
+    status = (status & UpperBits) | tag
   }
 
   private[this] def finalizing: Boolean =
@@ -1038,7 +1037,15 @@ private final class IOFiber[A](
 
   @nowarn("cat=unused-params")
   private[this] def finalizing_=(f: Boolean): Unit = {
-    status = (status | FinalizingMask).toByte
+    status |= FinalizingMask
+  }
+
+  private[this] def masks: Int =
+    status >>> MasksShift
+
+  private[this] def masks_=(m: Int): Unit = {
+    val st = status & StatusMask
+    status = (m << MasksShift) | st
   }
 
   private[effect] def runtimeForwarder: IORuntime = runtime

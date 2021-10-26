@@ -55,4 +55,6 @@ private object IOFiberConstants {
   final val LowerBits: Byte = 15
   final val UpperBits: Byte = (~LowerBits).toByte
   final val FinalizingMask: Byte = 16
+  final val MasksShift: Int = 5
+  final val StatusMask: Int = 31
 }
