@@ -89,6 +89,20 @@ private final class IOFiber[A](
 
   private[this] var currentCtx: ExecutionContext = startEC
 
+  /**
+   * The low 4 bits encode the resume tag value from 0 to 9 (inclusive), which is used in
+   * `run()` to properly restore the fiber state after an asynchronous boundary.
+   *
+   * The 5th bit (from the end) is used to signal cancelation. If set, the old `canceled`
+   * boolean value has been set.
+   *
+   * The 6th bit (from the end) is used to signal finalization. If set, the old `finalizing`
+   * boolean value has been set.
+   *
+   * The 7th and 8th bit (from the end) are currently unused.
+   */
+  private[this] var status: Byte = 0
+
   private[this] var canceled: Boolean = false
   private[this] var masks: Int = 0
   private[this] var finalizing: Boolean = false
