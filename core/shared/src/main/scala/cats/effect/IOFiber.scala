@@ -198,31 +198,35 @@ private final class IOFiber[A](
       return
     }
 
-    /* Null IO, blow up but keep the failure within IO */
-    val cur0: IO[Any] = if (_cur0 == null) {
-      IO.Error(new NullPointerException())
-    } else {
-      _cur0
-    }
-
     var nextCancelation = cancelationIterations - 1
     var nextAutoCede = autoCedeIterations
-    if (cancelationIterations <= 0) {
+    if (nextCancelation <= 0) {
       // Ensure that we see cancelation.
       readBarrier()
       nextCancelation = runtime.cancelationCheckThreshold
       // automatic yielding threshold is always a multiple of the cancelation threshold
       nextAutoCede -= nextCancelation
+
+      if (nextAutoCede <= 0) {
+        resumeTag = AutoCedeR
+        resumeIO = _cur0
+        val ec = currentCtx
+        rescheduleFiber(ec, this)
+        return
+      }
     }
 
     if (shouldFinalize()) {
       val fin = prepareFiberForCancelation(null)
       runLoop(fin, nextCancelation, nextAutoCede)
-    } else if (autoCedeIterations <= 0) {
-      resumeIO = cur0
-      resumeTag = AutoCedeR
-      rescheduleFiber(currentCtx, this)
     } else {
+      /* Null IO, blow up but keep the failure within IO */
+      val cur0: IO[Any] = if (_cur0 == null) {
+        IO.Error(new NullPointerException())
+      } else {
+        _cur0
+      }
+
       // System.out.println(s"looping on $cur0")
       /*
        * The cases have to use continuous constants to generate a `tableswitch`.
