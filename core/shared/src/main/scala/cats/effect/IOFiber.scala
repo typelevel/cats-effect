@@ -99,9 +99,6 @@ private final class IOFiber[A](
 
   private[this] var localState: IOLocalState = initLocalState
 
-  @volatile
-  private[this] var outcome: OutcomeIO[A] = _
-
   /* mutable state for resuming the fiber in different states */
   private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: IO[Any] = startIO
@@ -622,7 +619,8 @@ private final class IOFiber[A](
                    */
                   suspend()
                 }
-              } else if (finalizing == state.wasFinalizing && !shouldFinalize() && outcome == null) {
+              } else if (finalizing == state.wasFinalizing && !shouldFinalize() && !join
+                  .isInstanceOf[Pure[_]]) {
                 /*
                  * If we aren't canceled or completed, and we're
                  * still in the same finalization state, loop on
@@ -783,7 +781,7 @@ private final class IOFiber[A](
               }
 
               runLoop(next, nextCancelation, nextAutoCede)
-            } else if (outcome == null) {
+            } else if (!join.isInstanceOf[Pure[_]]) {
               /*
                * we were canceled, but `cancel` cannot run the finalisers
                * because the runloop was not suspended, so we have to run them
@@ -928,8 +926,6 @@ private final class IOFiber[A](
     join = IO.pure(oc)
     cancel = IO.unit
 
-    outcome = oc
-
     try {
       callbacks(oc)
     } finally {
@@ -1025,20 +1021,22 @@ private final class IOFiber[A](
 
   /* can return null, meaning that no CallbackStack needs to be later invalidated */
   private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
-    if (outcome == null) {
+    if (join.isInstanceOf[Pure[OutcomeIO[A]]]) {
+      val pureJoin = join.asInstanceOf[Pure[OutcomeIO[A]]]
+      listener(pureJoin.value)
+      null
+    } else {
       val back = callbacks.push(listener)
 
       /* double-check */
-      if (outcome != null) {
+      if (join.isInstanceOf[Pure[OutcomeIO[A]]]) {
+        val pureJoin = join.asInstanceOf[Pure[OutcomeIO[A]]]
         back.clearCurrent()
-        listener(outcome) /* the implementation of async saves us from double-calls */
+        listener(pureJoin.value) /* the implementation of async saves us from double-calls */
         null
       } else {
         back
       }
-    } else {
-      listener(outcome)
-      null
     }
   }
 
