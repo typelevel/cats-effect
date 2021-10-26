@@ -21,7 +21,7 @@ import cats.effect.unsafe._
 
 import cats.arrow.FunctionK
 
-import scala.annotation.{switch, tailrec}
+import scala.annotation.{nowarn, switch, tailrec}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
@@ -93,19 +93,15 @@ private final class IOFiber[A](
    * The low 4 bits encode the resume tag value from 0 to 9 (inclusive), which is used in
    * `run()` to properly restore the fiber state after an asynchronous boundary.
    *
-   * The 5th bit (from the end) is used to signal cancelation. If set, the old `canceled`
+   * The 5th bit (from the end) is used to signal finalization. If set, the old `finalizing`
    * boolean value has been set.
    *
-   * The 6th bit (from the end) is used to signal finalization. If set, the old `finalizing`
-   * boolean value has been set.
-   *
-   * The 7th and 8th bit (from the end) are currently unused.
+   * The 6th, 7th and 8th bit (from the end) are currently unused.
    */
   private[this] var status: Byte = 0
 
   private[this] var canceled: Boolean = false
   private[this] var masks: Int = 0
-  private[this] var finalizing: Boolean = false
 
   private[this] val finalizers: ArrayStack[IO[Unit]] = new ArrayStack()
 
@@ -1039,6 +1035,14 @@ private final class IOFiber[A](
 
   private[this] def resumeTag_=(tag: Byte): Unit = {
     status = ((status & UpperBits) | tag).toByte
+  }
+
+  private[this] def finalizing: Boolean =
+    (status & FinalizingMask) != 0
+
+  @nowarn("cat=unused-params")
+  private[this] def finalizing_=(f: Boolean): Unit = {
+    status = (status | FinalizingMask).toByte
   }
 
   private[effect] def runtimeForwarder: IORuntime = runtime

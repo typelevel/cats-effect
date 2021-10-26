@@ -54,4 +54,5 @@ final class IOFiberConstants {
   // Bitmasks
   static final byte LowerBits = 15;
   static final byte UpperBits = ~LowerBits;
+  static final byte FinalizingMask = 16;
 }
