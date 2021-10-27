@@ -105,9 +105,9 @@ ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
 
 val LTSJava = "adoptium@11"
 val LatestJava = "adoptium@17"
-val GraalVM8 = "graalvm-ce-java8@21.2"
+val GraalVM = "graalvm-ce-java11@21.3"
 
-ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
+ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM)
 ThisBuild / githubWorkflowEnv += ("JABBA_INDEX" -> "https://github.com/typelevel/jdk-index/raw/main/index.json")
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
 
