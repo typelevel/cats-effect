@@ -80,7 +80,6 @@ private final class IOFiber[A](
     private[this] var resumeTag: Byte,
     private[this] var resumeIO: IO[Any],
     private[this] val finalizers: ArrayStack[IO[Unit]],
-    @volatile private[this] var outcome: OutcomeIO[A],
     private[this] val callbacks: CallbackStack[A],
     private[this] var localState: IOLocalState,
     private[this] val tracingEvents: RingBuffer,
@@ -93,6 +92,8 @@ private final class IOFiber[A](
 
   import IO._
   import IOFiberConstants._
+
+  @volatile private[this] var outcome: OutcomeIO[A] = _
 
   def this(
       initLocalState: IOLocalState,
@@ -110,7 +111,6 @@ private final class IOFiber[A](
     IOFiberConstants.ExecR,
     startIO,
     new ArrayStack[IO[Unit]](),
-    null,
     new CallbackStack[A](cb),
     initLocalState,
     RingBuffer.empty(runtime.traceBufferLogSize),
