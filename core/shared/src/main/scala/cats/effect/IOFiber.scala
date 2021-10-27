@@ -134,56 +134,67 @@ private final class IOFiber[A](
     }
   }
 
-  var cancel: IO[Unit] = IO uncancelable { _ =>
-    IO defer {
-      canceled = true
+  def cancel: IO[Unit] = {
+    if (outcome ne null) {
+      IO.unit
+    } else {
+      IO uncancelable { _ =>
+        IO defer {
+          canceled = true
 
-      // println(s"${name}: attempting cancelation")
+          // println(s"${name}: attempting cancelation")
 
-      /* check to see if the target fiber is suspended */
-      if (resume()) {
-        /* ...it was! was it masked? */
-        if (isUnmasked()) {
-          unmonitor()
-          /* ...nope! take over the target fiber's runloop and run the finalizers */
-          // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
+          /* check to see if the target fiber is suspended */
+          if (resume()) {
+            /* ...it was! was it masked? */
+            if (isUnmasked()) {
+              unmonitor()
+              /* ...nope! take over the target fiber's runloop and run the finalizers */
+              // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
-          /* if we have async finalizers, runLoop may return early */
-          IO.async_[Unit] { fin =>
-            // println(s"${name}: canceller started at ${Thread.currentThread().getName} + ${suspended.get()}")
-            val ec = currentCtx
-            resumeTag = AsyncContinueCanceledWithFinalizerR
-            objectState.push(fin)
-            scheduleFiber(ec, this)
+              /* if we have async finalizers, runLoop may return early */
+              IO.async_[Unit] { fin =>
+                // println(s"${name}: canceller started at ${Thread.currentThread().getName} + ${suspended.get()}")
+                val ec = currentCtx
+                resumeTag = AsyncContinueCanceledWithFinalizerR
+                objectState.push(fin)
+                scheduleFiber(ec, this)
+              }
+            } else {
+              /*
+               * it was masked, so we need to wait for it to finish whatever
+               * it was doing  and cancel itself
+               */
+              suspend() /* allow someone else to take the runloop */
+              join.void
+            }
+          } else {
+            // println(s"${name}: had to join")
+            /* it's already being run somewhere; await the finalizers */
+            join.void
           }
-        } else {
-          /*
-           * it was masked, so we need to wait for it to finish whatever
-           * it was doing  and cancel itself
-           */
-          suspend() /* allow someone else to take the runloop */
-          join.void
         }
-      } else {
-        // println(s"${name}: had to join")
-        /* it's already being run somewhere; await the finalizers */
-        join.void
       }
     }
   }
 
   /* this is swapped for an `IO.pure(outcome)` when we complete */
-  var join: IO[OutcomeIO[A]] =
-    IO.async { cb =>
-      IO {
-        val handle = registerListener(oc => cb(Right(oc)))
+  def join: IO[OutcomeIO[A]] = {
+    if (outcome ne null) {
+      IO.Pure(outcome)
+    } else {
+      IO.async { cb =>
+        IO {
+          val handle = registerListener(oc => cb(Right(oc)))
 
-        if (handle == null)
-          None /* we were already invoked, so no `CallbackStack` needs to be managed */
-        else
-          Some(IO(handle.clearCurrent()))
+          if (handle == null)
+            None /* we were already invoked, so no `CallbackStack` needs to be managed */
+          else
+            Some(IO(handle.clearCurrent()))
+        }
       }
     }
+  }
 
   /* masks encoding: initMask => no masks, ++ => push, -- => pop */
   @tailrec
@@ -927,9 +938,6 @@ private final class IOFiber[A](
    */
   private[this] def done(oc: OutcomeIO[A]): Unit = {
     // println(s"<$name> invoking done($oc); callback = ${callback.get()}")
-    join = IO.pure(oc)
-    cancel = IO.unit
-
     outcome = oc
 
     try {
