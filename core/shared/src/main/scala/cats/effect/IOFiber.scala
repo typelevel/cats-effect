@@ -66,10 +66,24 @@ import java.util.concurrent.atomic.AtomicBoolean
  * merely a fast-path and are not necessary for correctness.
  */
 private final class IOFiber[A](
-    initLocalState: IOLocalState,
-    cb: OutcomeIO[A] => Unit,
-    startIO: IO[A],
-    startEC: ExecutionContext,
+    /*
+     * Ideally these would be on the stack, but they can't because we sometimes need to
+     * relocate our runloop to another fiber.
+     */
+    private[this] var conts: ByteStack,
+    private[this] val objectState: ArrayStack[AnyRef],
+    private[this] var currentCtx: ExecutionContext,
+    private[this] var masks: Int,
+    private[this] var canceled: Boolean,
+    private[this] var finalizing: Boolean,
+    /* mutable state for resuming the fiber in different states */
+    private[this] var resumeTag: Byte,
+    private[this] var resumeIO: IO[Any],
+    private[this] val finalizers: ArrayStack[IO[Unit]],
+    @volatile private[this] var outcome: OutcomeIO[A],
+    private[this] val callbacks: CallbackStack[A],
+    private[this] var localState: IOLocalState,
+    private[this] val tracingEvents: RingBuffer,
     private[this] val runtime: IORuntime
 ) extends IOFiberPlatform[A]
     with FiberIO[A]
@@ -80,40 +94,28 @@ private final class IOFiber[A](
   import IO._
   import IOFiberConstants._
 
-  /*
-   * Ideally these would be on the stack, but they can't because we sometimes need to
-   * relocate our runloop to another fiber.
-   */
-  private[this] var conts: ByteStack = _
-  private[this] val objectState: ArrayStack[AnyRef] = new ArrayStack()
-
-  private[this] var currentCtx: ExecutionContext = startEC
-
-  private[this] var canceled: Boolean = false
-  private[this] var masks: Int = 0
-  private[this] var finalizing: Boolean = false
-
-  private[this] val finalizers: ArrayStack[IO[Unit]] = new ArrayStack()
-
-  private[this] val callbacks: CallbackStack[A] = new CallbackStack(cb)
-
-  private[this] var localState: IOLocalState = initLocalState
-
-  @volatile
-  private[this] var outcome: OutcomeIO[A] = _
-
-  /* mutable state for resuming the fiber in different states */
-  private[this] var resumeTag: Byte = ExecR
-  private[this] var resumeIO: IO[Any] = startIO
-
-  /* prefetch for Right(()) */
-  private[this] val RightUnit: Either[Throwable, Unit] = IOFiber.RightUnit
-
-  /* similar prefetch for EndFiber */
-  private[this] val IOEndFiber: IO.EndFiber.type = IO.EndFiber
-
-  private[this] val tracingEvents: RingBuffer =
-    RingBuffer.empty(runtime.traceBufferLogSize)
+  def this(
+      initLocalState: IOLocalState,
+      cb: OutcomeIO[A] => Unit,
+      startIO: IO[A],
+      startEC: ExecutionContext,
+      runtime: IORuntime
+  ) = this(
+    null,
+    new ArrayStack[AnyRef](),
+    startEC,
+    0,
+    false,
+    false,
+    IOFiberConstants.ExecR,
+    startIO,
+    new ArrayStack[IO[Unit]](),
+    null,
+    new CallbackStack[A](cb),
+    initLocalState,
+    RingBuffer.empty(runtime.traceBufferLogSize),
+    runtime
+  )
 
   override def run(): Unit = {
     // insert a read barrier after every async boundary
@@ -194,7 +196,7 @@ private final class IOFiber[A](
      * either because the entire IO is done, or because this branch is done
      * and execution is continuing asynchronously in a different runloop invocation.
      */
-    if (_cur0 eq IOEndFiber) {
+    if (_cur0 eq IO.EndFiber) {
       return
     }
 
@@ -867,7 +869,7 @@ private final class IOFiber[A](
 
           val next = IO.async[Unit] { cb =>
             IO {
-              val cancel = runtime.scheduler.sleep(cur.delay, () => cb(RightUnit))
+              val cancel = runtime.scheduler.sleep(cur.delay, () => cb(IOFiber.RightUnit))
               Some(IO(cancel.run()))
             }
           }
@@ -982,14 +984,14 @@ private final class IOFiber[A](
 
       // Unblock the canceler of this fiber.
       if (cb ne null) {
-        cb(RightUnit)
+        cb(IOFiber.RightUnit)
       }
 
       // Unblock the joiners of this fiber.
       done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
 
       // Exit from the run loop after this. The fiber is finished.
-      IOEndFiber
+      IO.EndFiber
     }
   }
 
@@ -1299,14 +1301,14 @@ private final class IOFiber[A](
       // Unblock the canceler of this fiber.
       val cb = objectState.pop()
       if (cb != null) {
-        cb.asInstanceOf[Either[Throwable, Unit] => Unit](RightUnit)
+        cb.asInstanceOf[Either[Throwable, Unit] => Unit](IOFiber.RightUnit)
       }
 
       // Unblock the joiners of this fiber.
       done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
 
       // Exit from the run loop after this. The fiber is finished.
-      IOEndFiber
+      IO.EndFiber
     }
   }
 
@@ -1317,12 +1319,12 @@ private final class IOFiber[A](
 
   private[this] def runTerminusSuccessK(result: Any): IO[Any] = {
     done(Outcome.Succeeded(IO.pure(result.asInstanceOf[A])))
-    IOEndFiber
+    IO.EndFiber
   }
 
   private[this] def runTerminusFailureK(t: Throwable): IO[Any] = {
     done(Outcome.Errored(t))
-    IOEndFiber
+    IO.EndFiber
   }
 
   private[this] def evalOnSuccessK(result: Any): IO[Any] = {
@@ -1333,7 +1335,7 @@ private final class IOFiber[A](
       resumeTag = AsyncContinueSuccessfulR
       objectState.push(result.asInstanceOf[AnyRef])
       scheduleFiber(ec, this)
-      IOEndFiber
+      IO.EndFiber
     } else {
       prepareFiberForCancelation(null)
     }
@@ -1347,7 +1349,7 @@ private final class IOFiber[A](
       resumeTag = AsyncContinueFailedR
       objectState.push(t)
       scheduleFiber(ec, this)
-      IOEndFiber
+      IO.EndFiber
     } else {
       prepareFiberForCancelation(null)
     }
