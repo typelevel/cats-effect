@@ -114,8 +114,8 @@ ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Use(
     UseRef.Public("actions", "setup-node", "v2.4.0"),
-    name = Some("Setup NodeJS v14 LTS"),
-    params = Map("node-version" -> "14"),
+    name = Some("Setup NodeJS v16 LTS"),
+    params = Map("node-version" -> "16"),
     cond = Some("matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'")
   ),
   WorkflowStep.Run(
