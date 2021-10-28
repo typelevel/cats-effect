@@ -116,12 +116,12 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
     UseRef.Public("actions", "setup-node", "v2.4.0"),
     name = Some("Setup NodeJS v16 LTS"),
     params = Map("node-version" -> "16"),
-    cond = Some("matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'")
+    cond = Some("matrix.ci == 'ciJS'")
   ),
   WorkflowStep.Run(
     List("npm install"),
     name = Some("Install jsdom and source-map-support"),
-    cond = Some("matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'")
+    cond = Some("matrix.ci == 'ciJS'")
   )
 )
 
