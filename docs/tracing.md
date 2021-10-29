@@ -81,8 +81,8 @@ enabled before deploying it to a production environment!
 ## Asynchronous stack tracing
 
 ### Configuration
-The stack tracing mode of an application is configured by the system property
-`cats.effect.tracing.mode`. There are 3 stack tracing modes: `none`,
+The stack tracing mode of an application is configured by the JVM system property
+`cats.effect.tracing.mode` (environment variable `CATS_EFFECT_TRACING_MODE` for JS). There are 3 stack tracing modes: `none`,
 `cached` and `full`. These values are case-insensitive. The default tracing mode
 is `cached`, which uses a global cache to avoid expensive recomputation of stack
 tracing information.
@@ -91,15 +91,17 @@ To prevent unbounded memory usage, stack tracing information for a given fiber
 is accumulated in an internal buffer as execution proceeds. If more traces are
 collected than the buffer can retain, the oldest trace information will be
 overwritten. The default size of the buffer is 16. This value can be configured
-via the system property `cats.effect.tracing.buffer.size`. Keep in mind that the
+via the JVM system property `cats.effect.tracing.buffer.size` (environment variable `CATS_EFFECT_TRACING_BUFFER_SIZE` for JS). Keep in mind that the
 value configured by the system property must be a power of two and will be rounded to the nearest power if not.
 
 For example, to enable full stack tracing and a trace buffer of size 1024,
-specify the following system properties:
+specify the following JVM system properties:
 
 ```
 -Dcats.effect.tracing.mode=full -Dcats.effect.tracing.buffer.size=1024
 ```
+
+For instructions how to configure these settings on JS see the [`IORuntime` configuration page](scaling-and-tuning/io-runtime-config.md).
 
 ## Stack tracing modes
 
