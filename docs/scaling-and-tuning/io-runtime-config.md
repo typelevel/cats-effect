@@ -1,5 +1,5 @@
 ---
-id: io-runtime-configuration
+id: io-runtime-config
 title: `IORuntime` Configuration
 ---
 # `IORuntime` Configuration
