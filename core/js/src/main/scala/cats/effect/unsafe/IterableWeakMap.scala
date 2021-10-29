@@ -57,7 +57,7 @@ private[unsafe] class IterableWeakMap[K, V] {
     refSet.add(ref)
 
     // Register a finalizer to remove the ref from the set when the key is GCed
-    finalizationGroup.register(key, Finalizer(refSet, ref), ref)
+    finalizationGroup.register(key, Finalizer(refSet, ref))
   }
 
   def get(key: K): Option[V] = weakMap.get(key).toOption
