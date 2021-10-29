@@ -699,6 +699,14 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     ()
   }
 
+  def unsafeRunHereAsync(cb: Either[Throwable, A] => Unit)(
+      implicit runtime: unsafe.IORuntime): Unit =
+    syncStep.attempt.unsafeRunSync() match {
+      case Left(ex) => cb(Left(ex))
+      case Right(Right(a)) => cb(Right(a))
+      case Right(Left(ioa)) => ioa.unsafeRunAsync(cb)
+    }
+
   def unsafeRunAsyncOutcome(cb: Outcome[Id, Throwable, A @uncheckedVariance] => Unit)(
       implicit runtime: unsafe.IORuntime): Unit = {
     unsafeRunFiber(
