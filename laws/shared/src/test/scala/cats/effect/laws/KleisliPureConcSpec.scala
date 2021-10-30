@@ -39,11 +39,11 @@ class KleisliPureConcSpec
   import PureConcGenerators._
   import arbitrary.{catsLawsArbitraryForKleisli => _, _}
 
-  //This is highly dubious
+  // This is highly dubious
   implicit def orderKleisli[F[_], A](implicit Ord: Order[F[A]]): Order[Kleisli[F, MiniInt, A]] =
     Order.by(_.run(MiniInt.unsafeFromInt(0)))
 
-  //This is highly dubious
+  // This is highly dubious
   implicit def exec(sbool: Kleisli[TimeT[PureConc[Int, *], *], MiniInt, Boolean]): Prop =
     Prop(
       pure
