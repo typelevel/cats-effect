@@ -102,6 +102,8 @@ specify the following JVM system properties:
 ```
 
 For instructions how to configure these settings on JS see the [`IORuntime` configuration page](scaling-and-tuning/io-runtime-config.md).
+Note that tracing is currently only supported on Scala.js in `fastLinkJS` (aka `fastOptJS`) mode.
+For performance, tracing is completely disabled in `fullLinkJS` (aka `fullOptJS`) and the relevant code is eliminated from the emitted JS.
 
 ## Stack tracing modes
 
