@@ -40,7 +40,7 @@ object IOLocal {
 
   def inSyncIO[A](default: A): SyncIO[IOLocal[A]] = in[SyncIO, A](default)
 
-  def in[F[_], A](default: A)(implicit F: Sync[F]): F[IOLocal[A]] =
+  private def in[F[_], A](default: A)(implicit F: Sync[F]): F[IOLocal[A]] =
     F delay {
       new IOLocal[A] { self =>
         override def get: IO[A] =
