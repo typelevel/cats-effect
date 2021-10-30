@@ -61,7 +61,7 @@ private[effect] object TimeT {
   def run[F[_], A](tfa: TimeT[F, A]): F[A] =
     tfa.run(new Time(0.millis))
 
-  //THis possibly shouldn't be here but all the tests using TimeT import TimeT._ anyway
+  // THis possibly shouldn't be here but all the tests using TimeT import TimeT._ anyway
   implicit def arbPositiveFiniteDuration: Arbitrary[FiniteDuration] = {
     import TimeUnit._
 

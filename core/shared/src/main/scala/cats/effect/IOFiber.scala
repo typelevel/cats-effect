@@ -1202,9 +1202,9 @@ private final class IOFiber[A](
     ()
   }
 
-  ///////////////////////////////////////
+  // /////////////////////////////////////
   // Implementations of resume methods //
-  ///////////////////////////////////////
+  // /////////////////////////////////////
 
   private[this] def execR(): Unit = {
     // println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
@@ -1284,9 +1284,9 @@ private final class IOFiber[A](
     runLoop(io, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
 
-  //////////////////////////////////////
+  // ////////////////////////////////////
   // Implementations of continuations //
-  //////////////////////////////////////
+  // ////////////////////////////////////
 
   private[this] def cancelationLoopSuccessK(): IO[Any] = {
     if (!finalizers.isEmpty()) {

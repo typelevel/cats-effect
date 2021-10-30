@@ -787,7 +787,7 @@ object MonadCancel {
 
     def canceled: WriterT[F, L, Unit] = WriterT.liftF(F.canceled)
 
-    //Note that this does not preserve the log from the finalizer
+    // Note that this does not preserve the log from the finalizer
     def onCancel[A](fa: WriterT[F, L, A], fin: WriterT[F, L, Unit]): WriterT[F, L, A] =
       WriterT(F.onCancel(fa.run, fin.value.void))
 
