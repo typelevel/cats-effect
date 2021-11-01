@@ -18,6 +18,8 @@ package cats.effect
 package unsafe
 
 import scala.scalajs.js
+import scala.scalajs.LinkingInfo
+
 
 private[effect] sealed abstract class SuspendedFiberBag {
 
@@ -66,7 +68,7 @@ private final class NoOpSuspendedFiberBag extends SuspendedFiberBag {
 
 private[effect] object SuspendedFiberBag {
   def apply(): SuspendedFiberBag =
-    if (IterableWeakMap.isAvailable)
+    if (LinkingInfo.developmentMode && IterableWeakMap.isAvailable)
       new ES2021SuspendedFiberBag
     else
       new NoOpSuspendedFiberBag
