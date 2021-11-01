@@ -1018,7 +1018,13 @@ private final class IOFiber[A](
   private[this] def suspend(): Unit =
     suspended.set(true)
 
-  private[effect] def runtimeForwarder: IORuntime = runtime
+  /**
+   * Registers the suspended fiber in the global suspended fiber bag.
+   */
+  private[this] def monitor(key: AnyRef): Unit = {
+    val fiber = this
+    runtime.suspendedFiberBag.monitor(key, fiber)
+  }
 
   /* can return null, meaning that no CallbackStack needs to be later invalidated */
   private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {

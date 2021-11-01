@@ -25,14 +25,6 @@ import juc.atomic.{AtomicBoolean, AtomicReference}
 private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
   this: IOFiber[A] =>
 
-  /**
-   * Registers the suspended fiber in the global suspended fiber bag.
-   */
-  protected final def monitor(key: AnyRef): Unit = {
-    val fiber = this
-    fiber.runtimeForwarder.suspendedFiberBag.monitor(key, fiber)
-  }
-
   protected final def interruptibleImpl(
       cur: IO.Blocking[Any],
       blockingEc: ExecutionContext): IO[Any] = {
