@@ -31,15 +31,6 @@ private[effect] sealed abstract class SuspendedFiberBag {
    *   the suspended fiber to be registered
    */
   def monitor(key: AnyRef, fiber: IOFiber[_]): Unit
-
-  /**
-   * Deregisters a resumed fiber, tracked by the provided key which is an opaque object which
-   * uses reference equality for comparison.
-   *
-   * @param key
-   *   an opaque identifier for the resumed fiber
-   */
-  def unmonitor(key: AnyRef): Unit
 }
 
 /**
@@ -51,8 +42,6 @@ private final class ES2021SuspendedFiberBag extends SuspendedFiberBag {
   override def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {
     bag.set(key, new js.WeakRef(fiber))
   }
-
-  override def unmonitor(key: AnyRef): Unit = ()
 }
 
 /**
@@ -61,7 +50,6 @@ private final class ES2021SuspendedFiberBag extends SuspendedFiberBag {
  */
 private final class NoOpSuspendedFiberBag extends SuspendedFiberBag {
   override def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = ()
-  override def unmonitor(key: AnyRef): Unit = ()
 }
 
 private[effect] object SuspendedFiberBag {

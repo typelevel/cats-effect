@@ -17,8 +17,6 @@
 package cats.effect
 package unsafe
 
-import scala.annotation.nowarn
-
 import java.lang.ref.WeakReference
 import java.util.{Collections, Map, WeakHashMap}
 import java.util.concurrent.ThreadLocalRandom
@@ -41,10 +39,6 @@ import java.util.concurrent.ThreadLocalRandom
  *      mechanism, we need several instances of these synchronized `WeakHashMap`s just to reduce
  *      contention between threads. A particular instance is selected using a thread local
  *      source of randomness using an instance of `java.util.concurrent.ThreadLocalRandom`.
- *
- * @note
- *   The `unmonitor` method is a no-op, but it needs to exist to keep source compatibility with
- *   Scala.js. The removal of a resumed fiber is done automatically by the GC.
  */
 private[effect] final class SuspendedFiberBag {
 
@@ -74,18 +68,6 @@ private[effect] final class SuspendedFiberBag {
     val idx = rnd.nextInt(size)
     bags(idx).put(key, new WeakReference(fiber))
     ()
-  }
-
-  /**
-   * Deregisters a resumed fiber, tracked by the provided key which is an opaque object which
-   * uses reference equality for comparison.
-   *
-   * @param key
-   *   an opaque identifier for the resumed fiber
-   */
-  @nowarn("cat=unused-params")
-  def unmonitor(key: AnyRef): Unit = {
-    // no-op
   }
 }
 
