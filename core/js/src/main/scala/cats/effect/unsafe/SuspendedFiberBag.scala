@@ -17,13 +17,9 @@
 package cats.effect
 package unsafe
 
-import scala.annotation.nowarn
+import scala.scalajs.js
 
-/**
- * A no-op implementation of an unordered bag used for tracking asynchronously suspended fiber
- * instances on Scala.js. We will iterate on this in the future.
- */
-private[effect] final class SuspendedFiberBag {
+private[effect] sealed abstract class SuspendedFiberBag {
 
   /**
    * Registers a suspended fiber, tracked by the provided key which is an opaque object which
@@ -34,8 +30,7 @@ private[effect] final class SuspendedFiberBag {
    * @param fiber
    *   the suspended fiber to be registered
    */
-  @nowarn("cat=unused-params")
-  def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {}
+  def monitor(key: AnyRef, fiber: IOFiber[_]): Unit
 
   /**
    * Deregisters a resumed fiber, tracked by the provided key which is an opaque object which
@@ -44,6 +39,35 @@ private[effect] final class SuspendedFiberBag {
    * @param key
    *   an opaque identifier for the resumed fiber
    */
-  @nowarn("cat=unused-params")
-  def unmonitor(key: AnyRef): Unit = {}
+  def unmonitor(key: AnyRef): Unit
+}
+
+/**
+ * Relies on features *standardized* in ES2021, although already offered in many environments
+ */
+private final class ES2021SuspendedFiberBag extends SuspendedFiberBag {
+  private[this] val bag = new IterableWeakMap[AnyRef, js.WeakRef[IOFiber[_]]]
+
+  override def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {
+    bag.set(key, new js.WeakRef(fiber))
+  }
+
+  override def unmonitor(key: AnyRef): Unit = ()
+}
+
+/**
+ * A no-op implementation of an unordered bag used for tracking asynchronously suspended fiber
+ * instances on Scala.js. This is used as a fallback.
+ */
+private final class NoOpSuspendedFiberBag extends SuspendedFiberBag {
+  override def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = ()
+  override def unmonitor(key: AnyRef): Unit = ()
+}
+
+private[effect] object SuspendedFiberBag {
+  def apply(): SuspendedFiberBag =
+    if (IterableWeakMap.isAvailable)
+      new ES2021SuspendedFiberBag
+    else
+      new NoOpSuspendedFiberBag
 }
