@@ -23,7 +23,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        scala: [3.0.2, 2.12.15, 2.13.6]
+        scala: [3.0.2, 2.12.15, 2.13.7]
         java: [adoptium@8, adoptium@11, adoptium@17]
     runs-on: ${{ matrix.os }}
     steps:
@@ -54,11 +54,11 @@ jobs:
 
       - run: sbt ++${{ matrix.scala }} ci
 
-      - if: matrix.scala == '2.13.6'
+      - if: matrix.scala == '2.13.7'
         run: sbt ++${{ matrix.scala }} docs/mdoc
 
       - name: Scalafix tests
-        if: matrix.scala == '2.13.6'
+        if: matrix.scala == '2.13.7'
         run: |
           cd scalafix
           sbt test
