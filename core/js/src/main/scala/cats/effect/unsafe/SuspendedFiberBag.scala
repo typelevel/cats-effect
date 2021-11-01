@@ -20,7 +20,6 @@ package unsafe
 import scala.scalajs.js
 import scala.scalajs.LinkingInfo
 
-
 private[effect] sealed abstract class SuspendedFiberBag {
 
   /**
