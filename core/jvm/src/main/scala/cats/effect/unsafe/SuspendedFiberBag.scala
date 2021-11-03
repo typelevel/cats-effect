@@ -40,7 +40,9 @@ import java.util.concurrent.ThreadLocalRandom
  *      contention between threads. A particular instance is selected using a thread local
  *      source of randomness using an instance of `java.util.concurrent.ThreadLocalRandom`.
  */
-private[effect] final class SuspendedFiberBag {
+private[effect] final class SuspendedFiberBag(
+    private[this] val compute: WorkStealingThreadPool
+) {
 
   private[this] val size: Int = Runtime.getRuntime().availableProcessors() << 2
   private[this] val bags: Array[Map[AnyRef, WeakReference[IOFiber[_]]]] =
@@ -72,5 +74,7 @@ private[effect] final class SuspendedFiberBag {
 }
 
 private[effect] object SuspendedFiberBag {
-  def apply(): SuspendedFiberBag = new SuspendedFiberBag
+  def apply(): SuspendedFiberBag = new SuspendedFiberBag(null)
+
+  def apply(compute: WorkStealingThreadPool): SuspendedFiberBag = new SuspendedFiberBag(compute)
 }
