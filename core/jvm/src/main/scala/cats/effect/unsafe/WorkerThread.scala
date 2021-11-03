@@ -20,6 +20,8 @@ package unsafe
 import scala.annotation.switch
 import scala.concurrent.{BlockContext, CanAwait}
 
+import java.lang.ref.WeakReference
+import java.util.WeakHashMap
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
@@ -75,6 +77,11 @@ private final class WorkerThread(
    * [[WorkerThread]] s.
    */
   private[this] var blocking: Boolean = false
+
+  /**
+   * A worker-thread-local weak bag for tracking suspended fibers.
+   */
+  private[this] val fiberBag: WeakHashMap[AnyRef, WeakReference[IOFiber[_]]] = new WeakHashMap()
 
   // Constructor code.
   {
@@ -139,6 +146,20 @@ private final class WorkerThread(
    */
   def isOwnedBy(threadPool: WorkStealingThreadPool): Boolean =
     (pool eq threadPool) && !blocking
+
+  /**
+   * Registers a suspended fiber, tracked by the provided key which is an opaque object which
+   * uses reference equality for comparison.
+   *
+   * @param key
+   *   an opaque identifier for the suspended fiber
+   * @param fiber
+   *   the suspended fiber to be registered
+   */
+  def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {
+    fiberBag.put(key, new WeakReference(fiber))
+    ()
+  }
 
   /**
    * The run loop of the [[WorkerThread]].
