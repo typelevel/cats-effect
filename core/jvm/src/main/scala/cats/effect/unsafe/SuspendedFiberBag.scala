@@ -66,6 +66,20 @@ private[effect] final class SuspendedFiberBag(
    *   the suspended fiber to be registered
    */
   def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {
+    val thread = Thread.currentThread()
+    if (thread.isInstanceOf[WorkerThread]) {
+      val worker = thread.asInstanceOf[WorkerThread]
+      if (worker.isOwnedBy(compute)) {
+        worker.monitor(key, fiber)
+      } else {
+        monitorFallback(key, fiber)
+      }
+    } else {
+      monitorFallback(key, fiber)
+    }
+  }
+
+  private[this] def monitorFallback(key: AnyRef, fiber: IOFiber[_]): Unit = {
     val rnd = ThreadLocalRandom.current()
     val idx = rnd.nextInt(size)
     bags(idx).put(key, new WeakReference(fiber))
