@@ -1,9 +1,9 @@
-[submodule "versions/2.x"]
+[submodule "Cats Effect 2"]
 	path = versions/2.x
 	url = git@github.com:typelevel/cats-effect.git
 	branch = series/2.x
 
-[submodule "versions/3.x"]
+[submodule "Cats Effect 3"]
 	path = versions/3.x
 	url = git@github.com:typelevel/cats-effect.git
 	branch = series/3.2.x
