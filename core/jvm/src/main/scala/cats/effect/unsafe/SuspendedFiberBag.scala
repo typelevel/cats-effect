@@ -41,6 +41,8 @@ import java.util.concurrent.ThreadLocalRandom
  *      source of randomness using an instance of `java.util.concurrent.ThreadLocalRandom`.
  */
 private[effect] final class SuspendedFiberBag(
+    // A reference to the compute pool of the `IORuntime` in which this suspended fiber bag
+    // operates. `null` if the compute pool of the `IORuntime` is not a `WorkStealingThreadPool`.
     private[this] val compute: WorkStealingThreadPool
 ) {
 
@@ -69,6 +71,7 @@ private[effect] final class SuspendedFiberBag(
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
+      // Guard against tracking errors when multiple work stealing thread pools exist.
       if (worker.isOwnedBy(compute)) {
         worker.monitor(key, fiber)
       } else {
