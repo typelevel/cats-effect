@@ -6,6 +6,9 @@ on:
   push:
     branches: [docs]
 
+env:
+  JABBA_INDEX: 'https://github.com/typelevel/jdk-index/raw/main/index.json'
+
 jobs:
   build:
     name: Generate Microsite
@@ -17,12 +20,12 @@ jobs:
           submodules: true
 
       - name: Install Java and Scala
-        uses: olafurpg/setup-scala@v10
+        uses: olafurpg/setup-scala@v13
         with:
-          java-version: adopt@1.8
+          java-version: adoptium@8
 
       - name: Install NodeJS 14
-        uses: actions/setup-node@v2.1.5
+        uses: actions/setup-node@v2
         with:
           node-version: '14'
 
