@@ -38,7 +38,7 @@
       "std/async-await"
     ],
     "Scaling and Tuning":[
-      "scaling-and-tuning/system-properties"
+      "scaling-and-tuning/io-runtime-config"
     ]
   }
 }
