@@ -647,10 +647,28 @@ object InefficientProducerConsumer extends IOApp {
 }
 ```
 
-Problem is, if there is an error in any of the fibers the `join` call will not
-hint it, nor it will return. In contrast `parMapN` does promote the error it
-finds to the caller. _In general, if possible, programmers should prefer to use
-higher level commands such as `parMapN` or `parSequence` to deal with fibers_.
+However in most situations it is not advisable to handle fibers manually as
+they are not trivial to work with. For example, if there is an error in a fiber
+the `join` call to that fiber will _not_ raise it, it will return normally and
+you must explicitly check the `Outcome` instance returned by the `.join` call to
+see if it errored. Also, the other fibers will keep running unaware of what
+happened. Cats Effect provides additional `joinWith` or `joinWithNever` methods
+to make sure at least that the error is raised with the usual `MonadError`
+semantics (e.g., short-circuiting).  Unfortunately this is a complex task, as
+when we handle the error from a fiber we must also consider if we should at
+least cancel the other running fibers. We can easily get ourselves trapped in a
+tangled mess of fibers to keep an eye on.  On top of that the error raised by a
+fiber is not promoted until the call to `joinWith` or `.joinWithNever` is
+reached. So in our example above if `consumerFiber` raises an error then that
+error will not 'reach' the main flow until the producer fiber has finished. Note
+that in our example that should never happen!  And even if the producer fiber
+did finish, it would have been consuming resources for nothing.
+ 
+In contrast `parMapN` does promote the error it finds to the caller _and_ takes
+care of cancelling the remaining alive fibers. As a result `parMapN` is simpler
+to use, more concise, and easier to reason about. _Because of that, unless you
+have some specific and unusual requirements you should prefer to use higher
+level commands such as `parMapN` or `parSequence` to work with fibers_.
 
 Ok, we stick to our implementation based on `.parMapN`. Are we done? Does it
 Work? Well, it works... but it is far from ideal. If we run it we will find that
