@@ -759,11 +759,10 @@ flow until it reaches `consumerFiber.join`. Also, a fiber throwing an error
 does not cancel the execution of the other fibers. Taking care of cancelling
 the remaining fibers is the responsibility of the programmer.
 
-In contrast `parMapN` not only promotes errors raised by fibers to the main
-flow, it also take care of cancelling the other fibers. This way `parMapN`
-leads to simpler and more concise code. _Thus, if possible, programmers should
-prefer to use higher level commands such as `parMapN` or `parSequence` to deal
-with fibers_.
+In contrast `parMapN` not only promotes errors raised by fibers to the caller, it also takes care of canceling the other fibers. This way `parMapN`
+leads to simpler and more concise code. _Thus, unless you have some specific and
+unusual requirements you should prefer to use higher level commands such as
+`parMapN` or `parSequence` to work with fibers_.
 
 Ok, we stick to our implementation based on `.parMapN`. Are we done? Does it
 Work? Well, it works... but it is far from ideal. If we run it we will find that
