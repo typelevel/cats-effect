@@ -17,6 +17,7 @@
 package cats.effect
 package unsafe
 
+import scala.annotation.nowarn
 import scala.scalajs.js
 import scala.scalajs.LinkingInfo
 
@@ -54,6 +55,12 @@ private final class NoOpSuspendedFiberBag extends SuspendedFiberBag {
 }
 
 private[effect] object SuspendedFiberBag {
+
+  // Only exists for source compatibility with JVM code.
+  @nowarn("cat=unused-params")
+  def apply(compute: WorkStealingThreadPool): SuspendedFiberBag =
+    apply()
+
   def apply(): SuspendedFiberBag =
     if (LinkingInfo.developmentMode && IterableWeakMap.isAvailable)
       new ES2021SuspendedFiberBag
