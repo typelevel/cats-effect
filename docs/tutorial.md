@@ -649,8 +649,10 @@ object InefficientProducerConsumer extends IOApp {
 
 However in most situations it is not advisable to handle fibers manually as
 they are not trivial to work with. For example, if there is an error in a fiber
-the `join` call to that fiber will _not_ hint it, it will just 'swallow' the
-error. Also, the other fibers will keep running unaware of what happened.
+the `join` call to that fiber will _not_ raise it, it will return normally and
+you must explicitly check the `Outcome` instance returned by the `.join` call to
+see if it errored. Also, the other fibers will keep running unaware of what
+happened.
 Cats Effect provides additional `joinWith` or `joinWithNever` methods to make
 sure at least that the error is raised with the usual `MonadError` semantics (e.g., short-circuiting).
 Unfortunately this is a complex task, as when we handle the error from a fiber
