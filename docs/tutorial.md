@@ -653,20 +653,21 @@ the `join` call to that fiber will _not_ raise it, it will return normally and
 you must explicitly check the `Outcome` instance returned by the `.join` call to
 see if it errored. Also, the other fibers will keep running unaware of what
 happened.
+
 Cats Effect provides additional `joinWith` or `joinWithNever` methods to make
 sure at least that the error is raised with the usual `MonadError` semantics (e.g., short-circuiting).
-Unfortunately this is a complex task, as when we handle the error from a fiber
-we must also consider if we should at least cancel the other running fibers. We
+Now that we are raising the error, we also need to cancel the other running fibers. We
 can easily get ourselves trapped in a tangled mess of fibers to keep an eye on.
 On top of that the error raised by a fiber is not promoted until the call to
 `joinWith` or `.joinWithNever` is reached. So in our example above if
-`consumerFiber` raises an error then that error will not 'reach' the main flow
-until the producer fiber has finished. Note that in our example that should
-never happen!  And even if the producer fiber did finish, it would have been
+`consumerFiber` raises an error then we have no way to observe that
+until the producer fiber has finished. Alarmingly, note that in our example the producer
+_never_ finishes and thus the error would _never_ be observed! 
+And even if the producer fiber did finish, it would have been
 consuming resources for nothing.
  
-In contrast `parMapN` does promote the error it finds to the caller _and_ takes
-care of cancelling the remaining alive fibers. As a result `parMapN` is simpler
+In contrast `parMapN` does promote any error it finds to the caller _and_ takes
+care of canceling the other running fibers. As a result `parMapN` is simpler
 to use, more concise, and easier to reason about. _Because of that, unless you have some specific and
 unusual requirements you should prefer to use higher level commands such as
 `parMapN` or `parSequence` to work with fibers_.
