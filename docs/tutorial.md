@@ -657,7 +657,7 @@ Cats Effect provides additional `joinWith` or `joinWithNever` methods to make
 sure at least that the error is raised with the usual `MonadError` semantics (e.g., short-circuiting).
 Unfortunately this is a complex task, as when we handle the error from a fiber
 we must also consider if we should at least cancel the other running fibers. We
-can easily get ourselves trapped in a tangled mess of fibers to keep an eye of.
+can easily get ourselves trapped in a tangled mess of fibers to keep an eye on.
 On top of that the error raised by a fiber is not promoted until the call to
 `joinWith` or `.joinWithNever` is reached. So in our example above if
 `consumerFiber` raises an error then that error will not 'reach' the main flow
