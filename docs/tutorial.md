@@ -652,7 +652,7 @@ they are not trivial to work with. For example, if there is an error in a fiber
 the `join` call to that fiber will _not_ hint it, it will just 'swallow' the
 error. Also, the other fibers will keep running unaware of what happened.
 Cats Effect provides additional `joinWith` or `joinWithNever` methods to make
-sure at least that the error is promoted and give us a chance to deal with it.
+sure at least that the error is raised with the usual `MonadError` semantics (e.g., short-circuiting).
 Unfortunately this is a complex task, as when we handle the error from a fiber
 we must also consider if we should at least cancel the other running fibers. We
 can easily get ourselves trapped in a tangled mess of fibers to keep an eye of.
