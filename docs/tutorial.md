@@ -667,9 +667,9 @@ consuming resources for nothing.
  
 In contrast `parMapN` does promote the error it finds to the caller _and_ takes
 care of cancelling the remaining alive fibers. As a result `parMapN` is simpler
-to use, more concise, and easier to reason about. _Because of that, if possible,
-programmers should prefer to use higher level commands such as `parMapN` or
-`parSequence` to deal with fibers_.
+to use, more concise, and easier to reason about. _Because of that, unless you have some specific and
+unusual requirements you should prefer to use higher level commands such as
+`parMapN` or `parSequence` to work with fibers_.
 
 Ok, we stick to our implementation based on `.parMapN`. Are we done? Does it
 Work? Well, it works... but it is far from ideal. If we run it we will find that
