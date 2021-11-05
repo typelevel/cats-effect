@@ -23,9 +23,8 @@ import scala.concurrent.ExecutionContext
 private[effect] class FiberAwareExecutionContext(ec: ExecutionContext)
     extends ExecutionContext {
 
-  def fibers: Set[IOFiber[_]] = fiberBag.toSet ++ Option(running).toSet
+  def fibers: Set[IOFiber[_]] = fiberBag.toSet
 
-  private[this] var running: IOFiber[_] = null
   private[this] val fiberBag = mutable.Set[IOFiber[_]]()
 
   def execute(runnable: Runnable): Unit = runnable match {
@@ -34,9 +33,7 @@ private[effect] class FiberAwareExecutionContext(ec: ExecutionContext)
       ec execute { () =>
         // We have to remove r _before_ running it, b/c it may be re-enqueued while running
         fiberBag -= r
-        running = r
         r.run()
-        running = null
       }
 
     case r => r.run()
