@@ -700,10 +700,18 @@ wait for them to finish, something like:</p>
     _ &lt;- consumerFiber.join
   } <span class="hljs-keyword">yield</span> <span class="hljs-type">ExitCode</span>.<span class="hljs-type">Error</span>
 </code></pre>
-<p>Problem is, if there is an error in any of the fibers the <code>join</code> call will not
-hint it, nor it will return. In contrast <code>parMapN</code> does promote the error it
-finds to the caller. <em>In general, if possible, programmers should prefer to use
-higher level commands such as <code>parMapN</code> or <code>parSequence</code> to deal with fibers</em>.</p>
+<p>Note the code above does not include error handling. Errors in the underlying
+fiber are promoted by <code>join</code>, meaning that if the fiber raises an error the
+call to <code>join</code> will raise the error to the caller. Problem is, we need to call
+<code>join</code> first, so if for example the <code>consumerFiber</code> raises an exception while
+<code>producerFiber</code> is still running then the exception will not interrupt <code>producerFiber</code>
+until it reaches <code>consumerFiber.join</code>. Also, a fiber throwing an error
+does not cancel the execution of the other fibers. Taking care of canceling
+the remaining fibers is the responsibility of the programmer.</p>
+<p>In contrast <code>parMapN</code> not only promotes errors raised by fibers to the caller, it also takes care of canceling the other fibers. This way <code>parMapN</code>
+leads to simpler and more concise code. <em>Thus, unless you have some specific and
+unusual requirements you should prefer to use higher level commands such as
+<code>parMapN</code> or <code>parSequence</code> to work with fibers</em>.</p>
 <p>Ok, we stick to our implementation based on <code>.parMapN</code>. Are we done? Does it
 Work? Well, it works... but it is far from ideal. If we run it we will find that
 the producer runs faster than the consumer so the queue is constantly growing.
