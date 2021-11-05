@@ -20,7 +20,7 @@ package unsafe
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-private[effect] class FiberAwareExecutionContext(ec: ExecutionContext)
+private[effect] final class FiberAwareExecutionContext(ec: ExecutionContext)
     extends ExecutionContext {
 
   def fibers: Set[IOFiber[_]] = fiberBag.toSet
