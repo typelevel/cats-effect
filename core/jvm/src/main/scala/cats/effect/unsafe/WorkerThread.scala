@@ -78,7 +78,7 @@ private final class WorkerThread(
    * detecting nested blocking regions, in order to avoid unnecessarily spawning extra
    * [[WorkerThread]] s.
    */
-  private[this] var blocking: Boolean = false
+  private[this] var blocking: Boolean = _
 
   // Constructor code.
   {
