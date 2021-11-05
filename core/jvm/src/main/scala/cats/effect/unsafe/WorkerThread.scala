@@ -56,6 +56,8 @@ private final class WorkerThread(
     // worker threads that new work has become available, even though that's not
     // true in tis case.
     private[this] var cedeBypass: IOFiber[_],
+    // A worker-thread-local weak bag for tracking suspended fibers.
+    private[this] val fiberBag: WeakHashMap[AnyRef, WeakReference[IOFiber[_]]],
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
     private[this] val pool: WorkStealingThreadPool)
     extends Thread
@@ -77,11 +79,6 @@ private final class WorkerThread(
    * [[WorkerThread]] s.
    */
   private[this] var blocking: Boolean = false
-
-  /**
-   * A worker-thread-local weak bag for tracking suspended fibers.
-   */
-  private[this] val fiberBag: WeakHashMap[AnyRef, WeakReference[IOFiber[_]]] = new WeakHashMap()
 
   // Constructor code.
   {
@@ -469,7 +466,7 @@ private final class WorkerThread(
       // for unparking.
       val idx = index
       val clone =
-        new WorkerThread(idx, threadPrefix, queue, parked, external, cedeBypass, pool)
+        new WorkerThread(idx, threadPrefix, queue, parked, external, cedeBypass, fiberBag, pool)
       cedeBypass = null
       pool.replaceWorker(idx, clone)
       clone.start()
