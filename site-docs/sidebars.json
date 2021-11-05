@@ -5,6 +5,7 @@
       "concepts",
       "tutorial",
       "tracing",
+      "fiber-dumps",
       "migration-guide",
       "thread-model",
       "typeclasses",
