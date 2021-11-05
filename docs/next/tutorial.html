@@ -600,10 +600,28 @@ wait for them to finish, something like:</p>
     } <span class="hljs-keyword">yield</span> <span class="hljs-type">ExitCode</span>.<span class="hljs-type">Error</span>
 }
 </code></pre>
-<p>Problem is, if there is an error in any of the fibers the <code>join</code> call will not
-hint it, nor it will return. In contrast <code>parMapN</code> does promote the error it
-finds to the caller. <em>In general, if possible, programmers should prefer to use
-higher level commands such as <code>parMapN</code> or <code>parSequence</code> to deal with fibers</em>.</p>
+<p>However in most situations it is not advisable to handle fibers manually as
+they are not trivial to work with. For example, if there is an error in a fiber
+the <code>join</code> call to that fiber will <em>not</em> raise it, it will return normally and
+you must explicitly check the <code>Outcome</code> instance returned by the <code>.join</code> call
+to see if it errored. Also, the other fibers will keep running unaware of what
+happened.</p>
+<p>Cats Effect provides additional <code>joinWith</code> or <code>joinWithNever</code> methods to make
+sure at least that the error is raised with the usual <code>MonadError</code> semantics
+(e.g., short-circuiting).  Now that we are raising the error, we also need to
+cancel the other running fibers. We can easily get ourselves trapped in a
+tangled mess of fibers to keep an eye on.  On top of that the error raised by a
+fiber is not promoted until the call to <code>joinWith</code> or <code>.joinWithNever</code> is
+reached. So in our example above if <code>consumerFiber</code> raises an error then we
+have no way to observe that until the producer fiber has finished. Alarmingly,
+note that in our example the producer <em>never</em> finishes and thus the error would
+<em>never</em> be observed!  And even if the producer fiber did finish, it would have
+been consuming resources for nothing.</p>
+<p>In contrast <code>parMapN</code> does promote any error it finds to the caller <em>and</em> takes
+care of canceling the other running fibers. As a result <code>parMapN</code> is simpler to
+use, more concise, and easier to reason about. <em>Because of that, unless you
+have some specific and unusual requirements you should prefer to use higher
+level commands such as <code>parMapN</code> or <code>parSequence</code> to work with fibers</em>.</p>
 <p>Ok, we stick to our implementation based on <code>.parMapN</code>. Are we done? Does it
 Work? Well, it works... but it is far from ideal. If we run it we will find that
 the producer runs faster than the consumer so the queue is constantly growing.
