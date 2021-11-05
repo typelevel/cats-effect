@@ -20,6 +20,7 @@ package unsafe
 import java.lang.ref.WeakReference
 import java.util.{Collections, Map, WeakHashMap}
 import java.util.concurrent.ThreadLocalRandom
+import scala.concurrent.ExecutionContext
 
 /**
  * A slightly more involved implementation of an unordered bag used for tracking asynchronously
@@ -91,7 +92,12 @@ private[effect] final class FiberMonitor(
 }
 
 private[effect] object FiberMonitor {
-  def apply(): FiberMonitor = new FiberMonitor(null)
-
-  def apply(compute: WorkStealingThreadPool): FiberMonitor = new FiberMonitor(compute)
+  def apply(compute: ExecutionContext): FiberMonitor = {
+    if (compute.isInstanceOf[WorkStealingThreadPool]) {
+      val wstp = compute.asInstanceOf[WorkStealingThreadPool]
+      new FiberMonitor(wstp)
+    } else {
+      new FiberMonitor(null)
+    }
+  }
 }

@@ -18,6 +18,7 @@ package cats.effect
 package unsafe
 
 import scala.annotation.nowarn
+import scala.concurrent.ExecutionContext
 import scala.scalajs.js
 import scala.scalajs.LinkingInfo
 
@@ -56,12 +57,10 @@ private final class NoOpFiberMonitor extends FiberMonitor {
 
 private[effect] object FiberMonitor {
 
-  // Only exists for source compatibility with JVM code.
+  // TODO: Use the execution context reference to obtain live fibers from the Scala.js
+  // executor. Coming in a later PR.
   @nowarn("cat=unused-params")
-  def apply(compute: WorkStealingThreadPool): FiberMonitor =
-    apply()
-
-  def apply(): FiberMonitor =
+  def apply(compute: ExecutionContext): FiberMonitor =
     if (LinkingInfo.developmentMode && IterableWeakMap.isAvailable)
       new ES2021FiberMonitor()
     else

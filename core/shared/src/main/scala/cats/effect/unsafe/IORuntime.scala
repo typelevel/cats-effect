@@ -42,12 +42,7 @@ final class IORuntime private (
   private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
 
   private[effect] val suspendedFiberBag: FiberMonitor =
-    if (compute.isInstanceOf[WorkStealingThreadPool]) {
-      val wstp = compute.asInstanceOf[WorkStealingThreadPool]
-      FiberMonitor(wstp)
-    } else {
-      FiberMonitor()
-    }
+    FiberMonitor(compute)
 
   /*
    * Forwarder methods for `IOFiber`.
