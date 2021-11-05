@@ -41,12 +41,12 @@ final class IORuntime private (
 ) {
   private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
 
-  private[effect] val suspendedFiberBag: SuspendedFiberBag =
+  private[effect] val suspendedFiberBag: FiberMonitor =
     if (compute.isInstanceOf[WorkStealingThreadPool]) {
       val wstp = compute.asInstanceOf[WorkStealingThreadPool]
-      SuspendedFiberBag(wstp)
+      FiberMonitor(wstp)
     } else {
-      SuspendedFiberBag()
+      FiberMonitor()
     }
 
   /*

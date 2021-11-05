@@ -21,7 +21,7 @@ import scala.annotation.nowarn
 import scala.scalajs.js
 import scala.scalajs.LinkingInfo
 
-private[effect] sealed abstract class SuspendedFiberBag {
+private[effect] sealed abstract class FiberMonitor {
 
   /**
    * Registers a suspended fiber, tracked by the provided key which is an opaque object which
@@ -38,7 +38,7 @@ private[effect] sealed abstract class SuspendedFiberBag {
 /**
  * Relies on features *standardized* in ES2021, although already offered in many environments
  */
-private final class ES2021SuspendedFiberBag extends SuspendedFiberBag {
+private final class ES2021FiberMonitor extends FiberMonitor {
   private[this] val bag = new IterableWeakMap[AnyRef, js.WeakRef[IOFiber[_]]]
 
   override def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {
@@ -50,20 +50,20 @@ private final class ES2021SuspendedFiberBag extends SuspendedFiberBag {
  * A no-op implementation of an unordered bag used for tracking asynchronously suspended fiber
  * instances on Scala.js. This is used as a fallback.
  */
-private final class NoOpSuspendedFiberBag extends SuspendedFiberBag {
+private final class NoOpFiberMonitor extends FiberMonitor {
   override def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = ()
 }
 
-private[effect] object SuspendedFiberBag {
+private[effect] object FiberMonitor {
 
   // Only exists for source compatibility with JVM code.
   @nowarn("cat=unused-params")
-  def apply(compute: WorkStealingThreadPool): SuspendedFiberBag =
+  def apply(compute: WorkStealingThreadPool): FiberMonitor =
     apply()
 
-  def apply(): SuspendedFiberBag =
+  def apply(): FiberMonitor =
     if (LinkingInfo.developmentMode && IterableWeakMap.isAvailable)
-      new ES2021SuspendedFiberBag
+      new ES2021FiberMonitor()
     else
-      new NoOpSuspendedFiberBag
+      new NoOpFiberMonitor()
 }
