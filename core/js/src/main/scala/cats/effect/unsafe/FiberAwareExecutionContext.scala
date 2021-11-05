@@ -32,6 +32,7 @@ private[effect] class FiberAwareExecutionContext(ec: ExecutionContext)
       fiberBag += r
       ec execute { () =>
         // We have to remove r _before_ running it, b/c it may be re-enqueued while running
+        // B/c JS is single-threaded, nobody can observe the bag while it is running anyway
         fiberBag -= r
         r.run()
       }
