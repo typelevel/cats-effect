@@ -20,12 +20,11 @@ package unsafe
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-private[effect] final class FiberAwareExecutionContext(ec: ExecutionContext)
-    extends ExecutionContext {
+private final class FiberAwareExecutionContext(ec: ExecutionContext) extends ExecutionContext {
 
-  def fibers: Set[IOFiber[_]] = fiberBag.toSet
+  def liveFibers(): Set[IOFiber[_]] = fiberBag.toSet
 
-  private[this] val fiberBag = mutable.Set[IOFiber[_]]()
+  private[this] val fiberBag = mutable.Set.empty[IOFiber[_]]
 
   def execute(runnable: Runnable): Unit = runnable match {
     case r: IOFiber[_] =>
