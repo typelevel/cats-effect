@@ -17,10 +17,11 @@
 package cats.effect
 package unsafe
 
+import scala.concurrent.ExecutionContext
+
 import java.lang.ref.WeakReference
 import java.util.{Collections, Map, WeakHashMap}
 import java.util.concurrent.ThreadLocalRandom
-import scala.concurrent.ExecutionContext
 
 /**
  * A slightly more involved implementation of an unordered bag used for tracking asynchronously
