@@ -1265,7 +1265,7 @@ private final class IOFiber[A](
       objectState.push(error)
     }
     val ec = currentCtx
-    scheduleFiber(ec, this)
+    scheduleOnForeignEC(ec, this)
   }
 
   private[this] def evalOnR(): Unit = {
@@ -1330,7 +1330,7 @@ private final class IOFiber[A](
     if (!shouldFinalize()) {
       resumeTag = AsyncContinueSuccessfulR
       objectState.push(result.asInstanceOf[AnyRef])
-      scheduleFiber(ec, this)
+      scheduleOnForeignEC(ec, this)
       IOEndFiber
     } else {
       prepareFiberForCancelation(null)
@@ -1344,7 +1344,7 @@ private final class IOFiber[A](
     if (!shouldFinalize()) {
       resumeTag = AsyncContinueFailedR
       objectState.push(t)
-      scheduleFiber(ec, this)
+      scheduleOnForeignEC(ec, this)
       IOEndFiber
     } else {
       prepareFiberForCancelation(null)
