@@ -51,7 +51,7 @@ private[effect] final class FiberMonitor(
   private[this] val size: Int = Runtime.getRuntime().availableProcessors() << 2
   private[this] val bags: Array[Map[AnyRef, WeakReference[IOFiber[_]]]] =
     new Array(size)
-  private[this] val extraBags: Set[Map[AnyRef, WeakReference[IOFiber[_]]]] = 
+  private[this] val extraBags: Set[Map[AnyRef, WeakReference[IOFiber[_]]]] =
     // A synchronized weak set
     Collections.newSetFromMap(Collections.synchronizedMap(new WeakHashMap()))
 
