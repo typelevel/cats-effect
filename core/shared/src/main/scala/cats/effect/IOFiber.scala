@@ -887,7 +887,7 @@ private final class IOFiber[A](
             resumeIO = cur.ioa
             val key = new AnyRef()
             objectState.push(key)
-            monitor(key, this)
+            monitor(key)
             scheduleOnForeignEC(ec, this)
           }
 
@@ -902,7 +902,7 @@ private final class IOFiber[A](
             resumeIO = cur
             val key = new AnyRef()
             objectState.push(key)
-            monitor(key, this)
+            monitor(key)
             val ec = runtime.blocking
             scheduleOnForeignEC(ec, this)
           } else {
