@@ -145,12 +145,15 @@ private[effect] final class WorkStealingThreadPool(
    * @param random
    *   a reference to an uncontended source of randomness, to be passed along to the striped
    *   concurrent queues when executing their enqueue operations
+   * @param destWorker
+   *   a reference to the destination worker thread, used for setting the active fiber reference
    * @return
    *   a fiber instance to execute instantly in case of a successful steal
    */
   private[unsafe] def stealFromOtherWorkerThread(
       dest: Int,
-      random: ThreadLocalRandom): IOFiber[_] = {
+      random: ThreadLocalRandom,
+      destWorker: WorkerThread): IOFiber[_] = {
     val destQueue = localQueues(dest)
     val from = random.nextInt(threadCount)
 
@@ -161,7 +164,7 @@ private[effect] final class WorkStealingThreadPool(
 
       if (index != dest) {
         // Do not steal from yourself.
-        val res = localQueues(index).stealInto(destQueue)
+        val res = localQueues(index).stealInto(destQueue, destWorker)
         if (res != null) {
           // Successful steal. Return the next fiber to be executed.
           return res
@@ -176,7 +179,7 @@ private[effect] final class WorkStealingThreadPool(
     val element = externalQueue.poll(random)
     if (element.isInstanceOf[Array[IOFiber[_]]]) {
       val batch = element.asInstanceOf[Array[IOFiber[_]]]
-      destQueue.enqueueBatch(batch)
+      destQueue.enqueueBatch(batch, destWorker)
     } else if (element.isInstanceOf[IOFiber[_]]) {
       val fiber = element.asInstanceOf[IOFiber[_]]
       fiber

@@ -365,10 +365,12 @@ private final class LocalQueue {
    *
    * @param batch
    *   the batch of fibers to be enqueued on this local queue
+   * @param worker
+   *   a reference to the owner worker thread, used for setting the active fiber reference
    * @return
    *   a fiber to be executed directly
    */
-  def enqueueBatch(batch: Array[IOFiber[_]]): IOFiber[_] = {
+  def enqueueBatch(batch: Array[IOFiber[_]], worker: WorkerThread): IOFiber[_] = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -391,6 +393,8 @@ private final class LocalQueue {
           i += 1
         }
 
+        val fiber = batch(0)
+        worker.setActive(fiber)
         // Publish the new tail.
         val newTl = unsignedShortAddition(tl, SpilloverBatchSize - 1)
         tailPublisher.lazySet(newTl)
@@ -402,7 +406,7 @@ private final class LocalQueue {
         // should other threads be looking to steal from it, as the returned
         // fiber is already obtained using relatively expensive volatile store
         // operations.
-        return batch(0)
+        return fiber
       }
     }
 
@@ -428,11 +432,13 @@ private final class LocalQueue {
    * Dequeueing only operates on this value. Special care needs to be take to not overwrite the
    * "steal" tag in the presence of a concurrent stealer.
    *
+   * @param worker
+   *   a reference to the owner worker thread, used for setting the active fiber reference
    * @return
    *   the fiber at the head of the queue, or `null` if the queue is empty (in order to avoid
    *   unnecessary allocations)
    */
-  def dequeue(): IOFiber[_] = {
+  def dequeue(worker: WorkerThread): IOFiber[_] = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -459,11 +465,13 @@ private final class LocalQueue {
       val steal = msb(hd)
       val newHd = if (steal == real) pack(newReal, newReal) else pack(steal, newReal)
 
+      val idx = index(real)
+      val fiber = buffer(idx)
+      worker.setActive(fiber)
+
       if (head.compareAndSet(hd, newHd)) {
         // The head has been successfully moved forward and the fiber secured.
         // Proceed to null out the reference to the fiber and return it.
-        val idx = index(real)
-        val fiber = buffer(idx)
         buffer(idx) = null
         return fiber
       }
@@ -498,11 +506,13 @@ private final class LocalQueue {
    *
    * @param dst
    *   the destination local queue where the stole fibers will end up
+   * @param dstWorker
+   *   a reference to the owner worker thread, used for setting the active fiber reference
    * @return
    *   a reference to the first fiber to be executed by the stealing [[WorkerThread]], or `null`
    *   if the stealing was unsuccessful
    */
-  def stealInto(dst: LocalQueue): IOFiber[_] = {
+  def stealInto(dst: LocalQueue, dstWorker: WorkerThread): IOFiber[_] = {
     // A plain, unsynchronized load of the tail of the destination queue, owned
     // by the executing thread.
     val dstTl = dst.plainLoadTail()
@@ -574,6 +584,7 @@ private final class LocalQueue {
         val headFiberIdx = index(steal)
         val headFiber = buffer(headFiberIdx)
         buffer(headFiberIdx) = null
+        dstWorker.setActive(headFiber)
 
         // All other fibers need to be transferred to the destination queue.
         val sourcePos = steal + 1
