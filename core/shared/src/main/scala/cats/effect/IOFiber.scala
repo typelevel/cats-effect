@@ -885,7 +885,10 @@ private final class IOFiber[A](
 
             resumeTag = EvalOnR
             resumeIO = cur.ioa
-            scheduleFiber(ec, this)
+            val key = new AnyRef()
+            objectState.push(key)
+            monitor(key)
+            scheduleOnForeignEC(ec, this)
           }
 
         case 21 =>
@@ -897,6 +900,9 @@ private final class IOFiber[A](
           if (cur.hint eq IOFiber.TypeBlocking) {
             resumeTag = BlockingR
             resumeIO = cur
+            val key = new AnyRef()
+            objectState.push(key)
+            monitor(key)
             val ec = runtime.blocking
             scheduleOnForeignEC(ec, this)
           } else {
@@ -1257,6 +1263,9 @@ private final class IOFiber[A](
           onFatalFailure(t)
       }
 
+    // Remove the reference to the fiber monitor key
+    objectState.pop()
+
     if (error == null) {
       resumeTag = AsyncContinueSuccessfulR
       objectState.push(r.asInstanceOf[AnyRef])
@@ -1265,7 +1274,7 @@ private final class IOFiber[A](
       objectState.push(error)
     }
     val ec = currentCtx
-    scheduleFiber(ec, this)
+    scheduleOnForeignEC(ec, this)
   }
 
   private[this] def evalOnR(): Unit = {
@@ -1324,13 +1333,15 @@ private final class IOFiber[A](
   }
 
   private[this] def evalOnSuccessK(result: Any): IO[Any] = {
+    // Remove the reference to the fiber monitor key
+    objectState.pop()
     val ec = objectState.pop().asInstanceOf[ExecutionContext]
     currentCtx = ec
 
     if (!shouldFinalize()) {
       resumeTag = AsyncContinueSuccessfulR
       objectState.push(result.asInstanceOf[AnyRef])
-      scheduleFiber(ec, this)
+      scheduleOnForeignEC(ec, this)
       IOEndFiber
     } else {
       prepareFiberForCancelation(null)
@@ -1338,13 +1349,15 @@ private final class IOFiber[A](
   }
 
   private[this] def evalOnFailureK(t: Throwable): IO[Any] = {
+    // Remove the reference to the fiber monitor key
+    objectState.pop()
     val ec = objectState.pop().asInstanceOf[ExecutionContext]
     currentCtx = ec
 
     if (!shouldFinalize()) {
       resumeTag = AsyncContinueFailedR
       objectState.push(t)
-      scheduleFiber(ec, this)
+      scheduleOnForeignEC(ec, this)
       IOEndFiber
     } else {
       prepareFiberForCancelation(null)
