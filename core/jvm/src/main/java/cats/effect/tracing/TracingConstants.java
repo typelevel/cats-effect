@@ -18,7 +18,20 @@ package cats.effect.tracing;
 
 import java.util.Optional;
 
+/**
+ * Holds platform-specific flags that control tracing behavior.
+ *
+ * The Scala compiler inserts a volatile bitmap access for module field
+ * accesses. Because the `tracingMode` flag is read in various IO constructors,
+ * we are opting to define it in a Java source file to avoid the volatile
+ * access.
+ *
+ * INTERNAL API with no source or binary compatibility guarantees.
+ */
 public final class TracingConstants {
+
+  private TracingConstants() {
+  }
 
   /**
    * Sets stack tracing mode for a JVM process, which controls how much stack
