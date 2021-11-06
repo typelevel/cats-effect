@@ -885,7 +885,10 @@ private final class IOFiber[A](
 
             resumeTag = EvalOnR
             resumeIO = cur.ioa
-            scheduleFiber(ec, this)
+            val key = new AnyRef()
+            objectState.push(key)
+            monitor(key, this)
+            scheduleOnForeignEC(ec, this)
           }
 
         case 21 =>
@@ -1330,6 +1333,8 @@ private final class IOFiber[A](
   }
 
   private[this] def evalOnSuccessK(result: Any): IO[Any] = {
+    // Remove the reference to the fiber monitor key
+    objectState.pop()
     val ec = objectState.pop().asInstanceOf[ExecutionContext]
     currentCtx = ec
 
@@ -1344,6 +1349,8 @@ private final class IOFiber[A](
   }
 
   private[this] def evalOnFailureK(t: Throwable): IO[Any] = {
+    // Remove the reference to the fiber monitor key
+    objectState.pop()
     val ec = objectState.pop().asInstanceOf[ExecutionContext]
     currentCtx = ec
 
