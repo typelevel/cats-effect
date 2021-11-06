@@ -17,7 +17,6 @@
 package cats.effect
 package unsafe
 
-import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 import java.lang.ref.WeakReference
@@ -33,10 +32,6 @@ private final class FiberAwareExecutionContext(ec: ExecutionContext, monitor: Fi
       bag
     }
   }
-
-  def liveFibers(): Set[IOFiber[_]] = fiberBag.toSet
-
-  private[this] val fiberBag = mutable.Set.empty[IOFiber[_]]
 
   def execute(runnable: Runnable): Unit = runnable match {
     case f: IOFiber[_] =>
