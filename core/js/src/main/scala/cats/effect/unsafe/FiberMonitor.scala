@@ -68,7 +68,7 @@ private[effect] object FiberMonitor {
         val faec = compute.asInstanceOf[FiberAwareExecutionContext]
         new ES2021FiberMonitor(faec)
       } else {
-        new NoOpFiberMonitor()
+        new ES2021FiberMonitor(null)
       }
     } else {
       new NoOpFiberMonitor()
