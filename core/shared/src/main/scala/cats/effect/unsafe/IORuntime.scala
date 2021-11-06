@@ -41,8 +41,7 @@ final class IORuntime private (
 ) {
   private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
 
-  private[effect] val suspendedFiberBag: FiberMonitor =
-    FiberMonitor(compute)
+  private[effect] val fiberMonitor: FiberMonitor = FiberMonitor(compute)
 
   /*
    * Forwarder methods for `IOFiber`.

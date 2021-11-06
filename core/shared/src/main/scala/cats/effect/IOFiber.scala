@@ -1022,7 +1022,7 @@ private final class IOFiber[A](
    * Registers the suspended fiber in the global suspended fiber bag.
    */
   private[this] def monitor(key: AnyRef): Unit = {
-    runtime.suspendedFiberBag.monitorSuspended(key, this)
+    runtime.fiberMonitor.monitorSuspended(key, this)
   }
 
   /* can return null, meaning that no CallbackStack needs to be later invalidated */
