@@ -18,7 +18,7 @@ package cats.effect.tracing;
 
 import java.util.Optional;
 
-class TracingConstants {
+public final class TracingConstants {
 
   /**
    * Sets stack tracing mode for a JVM process, which controls how much stack
@@ -31,5 +31,5 @@ class TracingConstants {
 
   static final boolean isFullStackTracing = stackTracingMode.equalsIgnoreCase("full");
 
-  static final boolean isStackTracing = isFullStackTracing || isCachedStackTracing;
+  public static final boolean isStackTracing = isFullStackTracing || isCachedStackTracing;
 }
