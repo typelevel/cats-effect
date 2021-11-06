@@ -53,7 +53,7 @@ private[effect] final class FiberMonitor(
     new Array(size)
   private[this] val extraBags: Set[Map[AnyRef, WeakReference[IOFiber[_]]]] =
     // A synchronized weak set
-    Collections.newSetFromMap(Collections.synchronizedMap(new WeakHashMap()))
+    Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap()))
 
   {
     var i = 0
