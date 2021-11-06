@@ -30,6 +30,7 @@ sealed abstract class CI(
         "headerCheck",
         "scalafmtSbtCheck",
         "scalafmtCheck",
+        "javafmtCheck",
         "clean"
       ) ++ testCommands ++ List(
         jsEnv.fold("")(_ => s"set Global / useJSEnv := JSEnv.NodeJS"),
