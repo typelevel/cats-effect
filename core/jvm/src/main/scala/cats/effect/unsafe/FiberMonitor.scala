@@ -69,7 +69,7 @@ private[effect] final class FiberMonitor(
    * @param fiber
    *   the suspended fiber to be registered
    */
-  def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {
+  def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit = {
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]

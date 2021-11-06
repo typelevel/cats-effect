@@ -33,7 +33,7 @@ private[effect] sealed abstract class FiberMonitor {
    * @param fiber
    *   the suspended fiber to be registered
    */
-  def monitor(key: AnyRef, fiber: IOFiber[_]): Unit
+  def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit
 }
 
 /**
@@ -47,7 +47,7 @@ private final class ES2021FiberMonitor(
 ) extends FiberMonitor {
   private[this] val bag = new IterableWeakMap[AnyRef, js.WeakRef[IOFiber[_]]]
 
-  override def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {
+  override def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit = {
     bag.set(key, new js.WeakRef(fiber))
   }
 }
@@ -57,7 +57,7 @@ private final class ES2021FiberMonitor(
  * instances on Scala.js. This is used as a fallback.
  */
 private final class NoOpFiberMonitor extends FiberMonitor {
-  override def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = ()
+  override def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit = ()
 }
 
 private[effect] object FiberMonitor {
