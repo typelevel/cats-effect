@@ -18,10 +18,11 @@ package cats.effect
 package unsafe
 
 import scala.annotation.nowarn
+import scala.concurrent.ExecutionContext
 import scala.scalajs.js
 import scala.scalajs.LinkingInfo
 
-private[effect] sealed abstract class SuspendedFiberBag {
+private[effect] sealed abstract class FiberMonitor {
 
   /**
    * Registers a suspended fiber, tracked by the provided key which is an opaque object which
@@ -32,16 +33,21 @@ private[effect] sealed abstract class SuspendedFiberBag {
    * @param fiber
    *   the suspended fiber to be registered
    */
-  def monitor(key: AnyRef, fiber: IOFiber[_]): Unit
+  def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit
 }
 
 /**
  * Relies on features *standardized* in ES2021, although already offered in many environments
  */
-private final class ES2021SuspendedFiberBag extends SuspendedFiberBag {
+@nowarn("cat=unused-params")
+private final class ES2021FiberMonitor(
+    // A reference to the compute pool of the `IORuntime` in which this suspended fiber bag
+    // operates. `null` if the compute pool of the `IORuntime` is not a `FiberAwareExecutionContext`.
+    private[this] val compute: FiberAwareExecutionContext
+) extends FiberMonitor {
   private[this] val bag = new IterableWeakMap[AnyRef, js.WeakRef[IOFiber[_]]]
 
-  override def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {
+  override def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit = {
     bag.set(key, new js.WeakRef(fiber))
   }
 }
@@ -50,20 +56,22 @@ private final class ES2021SuspendedFiberBag extends SuspendedFiberBag {
  * A no-op implementation of an unordered bag used for tracking asynchronously suspended fiber
  * instances on Scala.js. This is used as a fallback.
  */
-private final class NoOpSuspendedFiberBag extends SuspendedFiberBag {
-  override def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = ()
+private final class NoOpFiberMonitor extends FiberMonitor {
+  override def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit = ()
 }
 
-private[effect] object SuspendedFiberBag {
+private[effect] object FiberMonitor {
 
-  // Only exists for source compatibility with JVM code.
-  @nowarn("cat=unused-params")
-  def apply(compute: WorkStealingThreadPool): SuspendedFiberBag =
-    apply()
-
-  def apply(): SuspendedFiberBag =
-    if (LinkingInfo.developmentMode && IterableWeakMap.isAvailable)
-      new ES2021SuspendedFiberBag
-    else
-      new NoOpSuspendedFiberBag
+  def apply(compute: ExecutionContext): FiberMonitor = {
+    if (LinkingInfo.developmentMode && IterableWeakMap.isAvailable) {
+      if (compute.isInstanceOf[FiberAwareExecutionContext]) {
+        val faec = compute.asInstanceOf[FiberAwareExecutionContext]
+        new ES2021FiberMonitor(faec)
+      } else {
+        new ES2021FiberMonitor(null)
+      }
+    } else {
+      new NoOpFiberMonitor()
+    }
+  }
 }

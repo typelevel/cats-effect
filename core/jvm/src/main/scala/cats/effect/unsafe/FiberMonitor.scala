@@ -17,6 +17,8 @@
 package cats.effect
 package unsafe
 
+import scala.concurrent.ExecutionContext
+
 import java.lang.ref.WeakReference
 import java.util.{Collections, Map, WeakHashMap}
 import java.util.concurrent.ThreadLocalRandom
@@ -40,7 +42,7 @@ import java.util.concurrent.ThreadLocalRandom
  *      contention between threads. A particular instance is selected using a thread local
  *      source of randomness using an instance of `java.util.concurrent.ThreadLocalRandom`.
  */
-private[effect] final class SuspendedFiberBag(
+private[effect] final class FiberMonitor(
     // A reference to the compute pool of the `IORuntime` in which this suspended fiber bag
     // operates. `null` if the compute pool of the `IORuntime` is not a `WorkStealingThreadPool`.
     private[this] val compute: WorkStealingThreadPool
@@ -67,7 +69,7 @@ private[effect] final class SuspendedFiberBag(
    * @param fiber
    *   the suspended fiber to be registered
    */
-  def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {
+  def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit = {
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
@@ -90,8 +92,13 @@ private[effect] final class SuspendedFiberBag(
   }
 }
 
-private[effect] object SuspendedFiberBag {
-  def apply(): SuspendedFiberBag = new SuspendedFiberBag(null)
-
-  def apply(compute: WorkStealingThreadPool): SuspendedFiberBag = new SuspendedFiberBag(compute)
+private[effect] object FiberMonitor {
+  def apply(compute: ExecutionContext): FiberMonitor = {
+    if (compute.isInstanceOf[WorkStealingThreadPool]) {
+      val wstp = compute.asInstanceOf[WorkStealingThreadPool]
+      new FiberMonitor(wstp)
+    } else {
+      new FiberMonitor(null)
+    }
+  }
 }
