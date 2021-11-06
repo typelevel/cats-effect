@@ -19,7 +19,7 @@ package tracing
 
 private[effect] object TracingConstants {
 
-  private[this] val stackTracingMode: String =
+  private[this] final val stackTracingMode: String =
     process.env("CATS_EFFECT_TRACING_MODE").filterNot(_.isEmpty).getOrElse("cached")
 
   final val isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
