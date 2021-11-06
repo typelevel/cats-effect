@@ -897,6 +897,9 @@ private final class IOFiber[A](
           if (cur.hint eq IOFiber.TypeBlocking) {
             resumeTag = BlockingR
             resumeIO = cur
+            val key = new AnyRef()
+            objectState.push(key)
+            monitor(key, this)
             val ec = runtime.blocking
             scheduleOnForeignEC(ec, this)
           } else {
@@ -1256,6 +1259,9 @@ private final class IOFiber[A](
         case t: Throwable =>
           onFatalFailure(t)
       }
+
+    // Remove the reference to the fiber monitor key
+    objectState.pop()
 
     if (error == null) {
       resumeTag = AsyncContinueSuccessfulR
