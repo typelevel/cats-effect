@@ -411,7 +411,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.IO#Uncancelable#UnmaskRunLoop.copy"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.IO#Uncancelable#UnmaskRunLoop.this")
+        "cats.effect.IO#Uncancelable#UnmaskRunLoop.this"),
+      // introduced by #2510, Fix weak bag for the blocking mechanism
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.unsafe.WorkerThread.this")
     )
   )
   .jvmSettings(
