@@ -20,7 +20,7 @@ package unsafe
 import scala.concurrent.ExecutionContext
 
 import java.lang.ref.WeakReference
-import java.util.{Collections, Map, WeakHashMap}
+import java.util.{Collections, Map, Set, WeakHashMap}
 import java.util.concurrent.ThreadLocalRandom
 
 /**
@@ -51,6 +51,9 @@ private[effect] final class FiberMonitor(
   private[this] val size: Int = Runtime.getRuntime().availableProcessors() << 2
   private[this] val bags: Array[Map[AnyRef, WeakReference[IOFiber[_]]]] =
     new Array(size)
+  private[this] val extraBags: Set[Map[AnyRef, WeakReference[IOFiber[_]]]] = 
+    // A synchronized weak set
+    Collections.newSetFromMap(Collections.synchronizedMap(new WeakHashMap()))
 
   {
     var i = 0
@@ -82,6 +85,11 @@ private[effect] final class FiberMonitor(
     } else {
       monitorFallback(key, fiber)
     }
+  }
+
+  def registerExtraBag(bag: Map[AnyRef, WeakReference[IOFiber[_]]]): Unit = {
+    extraBags.add(bag)
+    ()
   }
 
   private[this] def monitorFallback(key: AnyRef, fiber: IOFiber[_]): Unit = {
