@@ -456,9 +456,9 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[unsafe] def liveFibers()
       : (Set[IOFiber[_]], Map[WorkerThread, (IOFiber[_], Set[IOFiber[_]])]) = {
-    val externalFibers: Set[IOFiber[_]] = externalQueue.snapshot().flatMap {
-      case batch: Array[IOFiber[_]] => batch.toSet
-      case fiber: IOFiber[_] => Set(fiber)
+    val externalFibers = externalQueue.snapshot().flatMap {
+      case batch: Array[IOFiber[_]] => batch.toSet[IOFiber[_]]
+      case fiber: IOFiber[_] => Set[IOFiber[_]](fiber)
       case _ => Set.empty[IOFiber[_]]
     }
 
