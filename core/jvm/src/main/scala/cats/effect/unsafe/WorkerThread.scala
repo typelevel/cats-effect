@@ -89,7 +89,7 @@ private final class WorkerThread(
    * `parked` signal of this worker thread. Threads that want to observe this value should read
    * both synchronization variables.
    */
-  private[this] var active: IOFiber[_] = _
+  private[this] var _active: IOFiber[_] = _
 
   // Constructor code.
   {
@@ -170,13 +170,19 @@ private final class WorkerThread(
   }
 
   /**
+   * A reference to the active fiber.
+   */
+  private[unsafe] def active: IOFiber[_] =
+    _active
+
+  /**
    * Sets the active fiber reference.
    *
    * @param fiber
    *   the new active fiber
    */
-  private[unsafe] def setActive(fiber: IOFiber[_]): Unit = {
-    active = fiber
+  private[unsafe] def active_=(fiber: IOFiber[_]): Unit = {
+    _active = fiber
   }
 
   /**
@@ -288,7 +294,7 @@ private final class WorkerThread(
             val fiber = element.asInstanceOf[IOFiber[_]]
 
             if (isStackTracing) {
-              active = fiber
+              _active = fiber
               parked.lazySet(false)
             }
 
@@ -322,7 +328,7 @@ private final class WorkerThread(
             val fiber = element.asInstanceOf[IOFiber[_]]
 
             if (isStackTracing) {
-              active = fiber
+              _active = fiber
               parked.lazySet(false)
             }
 
@@ -341,7 +347,7 @@ private final class WorkerThread(
               // Permission denied, proceed to park.
               // Set the worker thread parked signal.
               if (isStackTracing) {
-                active = null
+                _active = null
               }
 
               parked.lazySet(true)
@@ -370,7 +376,7 @@ private final class WorkerThread(
             // Stealing attempt is unsuccessful. Park.
             // Set the worker thread parked signal.
             if (isStackTracing) {
-              active = null
+              _active = null
             }
 
             parked.lazySet(true)
@@ -418,7 +424,7 @@ private final class WorkerThread(
             // Announce that the current thread is no longer looking for work.
 
             if (isStackTracing) {
-              active = fiber
+              _active = fiber
               parked.lazySet(false)
             }
 

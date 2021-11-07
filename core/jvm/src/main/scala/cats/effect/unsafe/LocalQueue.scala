@@ -399,7 +399,7 @@ private final class LocalQueue {
         val fiber = batch(0)
 
         if (isStackTracing) {
-          worker.setActive(fiber)
+          worker.active = fiber
         }
 
         // Publish the new tail.
@@ -476,7 +476,7 @@ private final class LocalQueue {
       val fiber = buffer(idx)
 
       if (isStackTracing) {
-        worker.setActive(fiber)
+        worker.active = fiber
       }
 
       if (head.compareAndSet(hd, newHd)) {
@@ -596,7 +596,7 @@ private final class LocalQueue {
         buffer(headFiberIdx) = null
 
         if (isStackTracing) {
-          dstWorker.setActive(headFiber)
+          dstWorker.active = headFiber
         }
 
         // All other fibers need to be transferred to the destination queue.
