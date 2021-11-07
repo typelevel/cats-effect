@@ -5,9 +5,9 @@ title: Dispatcher
 
 ![](assets/dispatcher.jpeg)
 
-`Resource` is a fiber-based [Supervisor](https://typelevel.org/cats-effect/docs/std/supervisor) utility for evaluating effects across an impure boundary. 
-This is useful when working with reactive interfaces that produce potentially many values (as opposed to one), and for each value, some effect 
-in F must be performed (like inserting it into a queue).
+`Dispatcher` is a fiber-based [Supervisor](https://typelevel.org/cats-effect/docs/std/supervisor) utility for evaluating effects across an impure boundary. 
+This is useful when working with reactive interfaces that produce potentially many values (as opposed to one), and for each value, some effect in F must be performed 
+(like inserting each value into a queue).
 
 Let's say we are integrating with an interface that looks like this:
 
@@ -43,9 +43,10 @@ for {
 ```
 
 This will print "Value not found in queue :(", since our implementation of `onMessage` 
-doesn't really *do* anything. It just creates an `IO`. 
+doesn't really *do* anything. It just creates an `IO` value which is just a description of an effect,
+without actually executing it. (Here the `scalac` option `-Ywarn-value-discard` might help hint this problem.)
 
-It is in these cases that `Dispatcher` comes in handy. Here's how it could be used in this case:
+It is in these cases that `Dispatcher` comes in handy. Here's how it could be used:
 
 ```scala
 Dispatcher[IO].use { dispatcher =>
@@ -92,9 +93,8 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 }
 ```
 
-An instance of `Dispatcher` is very cheap - it allocates a single fiber so it
-is encouraged to instantiate it where necessary rather than wiring
-a single instance throughout an application.
+An instance of `Dispatcher` is very cheap - it is encouraged to instantiate it 
+where necessary rather than wiring a single instance throughout an application.
 
 
 ## Cats-Effect 2
@@ -104,4 +104,4 @@ typeclasses. These have been removed as they contrained implementations of the
 typeclasses too much by forcing them to be embeddable in `IO` via `def
 toIO[A](fa: F[A]): IO[A]`. However, these typeclasses also had a valid use-case
 for unsafe running of effects to interface with impure APIs (`Future`, `NIO`,
-etc).
+etc). `Dispatcher` now addresses this use-case.
