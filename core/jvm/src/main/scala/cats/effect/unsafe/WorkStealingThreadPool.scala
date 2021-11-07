@@ -350,7 +350,7 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Schedules a fiber on this thread pool.
+   * Reschedules a fiber on this thread pool.
    *
    * If the request comes from a [[WorkerThread]], the fiber is enqueued on the local queue of
    * that thread.
@@ -379,11 +379,13 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Reschedules a fiber on this thread pool.
+   * Schedules a fiber on this thread pool.
    *
    * If the request comes from a [[WorkerThread]], depending on the current load, the fiber can
    * be scheduled for immediate execution on the worker thread, potentially bypassing the local
-   * queue and reducing the stealing pressure.
+   * queue and reducing the stealing pressure. In case all [[WorkerThreads]] are currently
+   * parked, the fiber is placed on the external queue to increase fairness for compute-heavy
+   * applications.
    *
    * If the request comes from a [[HelperTread]] or an external thread, the fiber is enqueued on
    * the external queue. Furthermore, if the request comes from an external thread, worker
@@ -398,7 +400,7 @@ private[effect] final class WorkStealingThreadPool(
 
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
-      if (worker.isOwnedBy(pool)) {
+      if (worker.isOwnedBy(pool) && !allWorkersParked) {
         worker.schedule(fiber)
       } else {
         scheduleExternal(fiber)
@@ -407,6 +409,15 @@ private[effect] final class WorkStealingThreadPool(
       scheduleExternal(fiber)
     }
   }
+
+  /**
+   * Determines whether all worker threads are currently parked, which may indicate synchronous,
+   * compute-heavy fiber usage.
+   * @return
+   *   true if all worker threads are currently parked
+   */
+  private[this] def allWorkersParked: Boolean =
+    ((state.get() & UnparkMask) >>> UnparkShift) == threadCount
 
   /**
    * Schedules a fiber for execution on this thread pool originating from an external thread (a
