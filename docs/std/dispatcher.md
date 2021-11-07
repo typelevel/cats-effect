@@ -23,7 +23,7 @@ abstract class ImpureInterface {
 }
 ```
 
-As an user we're supposed to create an implementation of this class where we implement `onMessage`.
+As a user we're supposed to create an implementation of this class where we implement `onMessage`.
 
 Let's say that we have a [`queue`](https://typelevel.org/cats-effect/docs/std/queue) and that we want to add each message received to the queue. We might,
 naively, try to do the following
@@ -44,27 +44,28 @@ for {
 
 This will print "Value not found in queue :(", since our implementation of `onMessage` 
 doesn't really *do* anything. It just creates an `IO` value which is just a description of an effect,
-without actually executing it. (Here the `scalac` option `-Ywarn-value-discard` might help hint this problem.)
+without actually executing it. (Here the `scalac` option `-Ywarn-value-discard` might help hint at this problem.)
 
 It is in these cases that `Dispatcher` comes in handy. Here's how it could be used:
 
 ```scala
 Dispatcher[IO].use { dispatcher =>
-    for {
-      queue <- Queue.unbounded[IO, String]
-      impureInterface <-
-        IO.delay {
-          new ImpureInterface {
-            override def onMessage(msg: String): Unit =
-              dispatcher.unsafeRunSync(queue.offer(msg))
-          }
+  for {
+    queue <- Queue.unbounded[IO, String]
+    impureInterface <-
+      IO.delay {
+        new ImpureInterface {
+          override def onMessage(msg: String): Unit =
+            dispatcher.unsafeRunSync(queue.offer(msg))
         }
-      _ <- IO.delay(impureInterface.init())
-      value <- queue.tryTake
-    } yield value match {
-      case Some(v) => println(s"Value found in queue! $v")
-      case None    => println("Value not found in queue :(")
-    }
+      }
+    _ <- IO.delay(impureInterface.init())
+    value <- queue.tryTake
+  } yield value match {
+    case Some(v) => println(s"Value found in queue! $v")
+    case None    => println("Value not found in queue :(")
+  }
+}
 ```
 
 It prints "Value found in queue! init"!
@@ -93,14 +94,14 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 }
 ```
 
-An instance of `Dispatcher` is very cheap - it is encouraged to instantiate it 
+Creating an instance of `Dispatcher` is very cheap - you are encouraged to instantiate it 
 where necessary rather than wiring a single instance throughout an application.
 
 
-## Cats-Effect 2
+## Cats Effect 2
 
-Users of cats effect 2 may be familiar with the `Effect` and `ConcurrentEffect`
-typeclasses. These have been removed as they contrained implementations of the
+Users of Cats Effect 2 may be familiar with the `Effect` and `ConcurrentEffect`
+typeclasses. These have been removed as they constrained implementations of the
 typeclasses too much by forcing them to be embeddable in `IO` via `def
 toIO[A](fa: F[A]): IO[A]`. However, these typeclasses also had a valid use-case
 for unsafe running of effects to interface with impure APIs (`Future`, `NIO`,
