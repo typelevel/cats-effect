@@ -109,7 +109,7 @@ private[effect] object FiberMonitor {
     val buffer = mutable.ArrayBuffer.empty[V]
 
     @tailrec
-    def contents(): Set[V] = {
+    def contents(attempts: Int): Set[V] = {
       try {
         weakMap.forEach { (_, ref) =>
           val v = ref.get()
@@ -122,10 +122,11 @@ private[effect] object FiberMonitor {
       } catch {
         case _: ConcurrentModificationException =>
           buffer.clear()
-          contents()
+          if (attempts == 0) Set.empty
+          else contents(attempts - 1)
       }
     }
 
-    contents()
+    contents(100)
   }
 }
