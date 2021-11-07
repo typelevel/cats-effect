@@ -450,7 +450,7 @@ private[effect] final class WorkStealingThreadPool(
    * Returns a snapshot of the fibers currently live on this thread pool.
    *
    * @return
-   *   a pair consisting of the set of fibers on the external thread and a map associating
+   *   a pair consisting of the set of fibers on the external queue and a map associating
    *   worker threads to the currently active fiber and fibers enqueued on the local queue of
    *   that worker thread
    */
