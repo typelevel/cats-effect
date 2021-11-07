@@ -32,6 +32,7 @@ package unsafe
 
 import cats.effect.tracing.TracingConstants
 
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 import java.lang.ref.WeakReference
@@ -443,6 +444,37 @@ private[effect] final class WorkStealingThreadPool(
     externalQueue.offer(fiber, random)
     notifyParked(random)
     ()
+  }
+
+  /**
+   * Returns a snapshot of the fibers currently live on this thread pool.
+   *
+   * @return
+   *   a pair consisting of the set of fibers on the external queue and a map associating worker
+   *   threads to the currently active fiber and fibers enqueued on the local queue of that
+   *   worker thread
+   */
+  private[unsafe] def liveFibers()
+      : (Set[IOFiber[_]], Map[WorkerThread, (IOFiber[_], Set[IOFiber[_]])]) = {
+    val externalFibers = externalQueue.snapshot().flatMap {
+      case batch: Array[IOFiber[_]] => batch.toSet[IOFiber[_]]
+      case fiber: IOFiber[_] => Set[IOFiber[_]](fiber)
+      case _ => Set.empty[IOFiber[_]]
+    }
+
+    val map = mutable.Map.empty[WorkerThread, (IOFiber[_], Set[IOFiber[_]])]
+
+    var i = 0
+    while (i < threadCount) {
+      val localFibers = localQueues(i).snapshot()
+      val worker = workerThreads(i)
+      val _ = parkedSignals(i).get()
+      val active = worker.active
+      map += (worker -> (active -> localFibers))
+      i += 1
+    }
+
+    (externalFibers, map.toMap)
   }
 
   /**
