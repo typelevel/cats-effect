@@ -168,6 +168,15 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
   }
 
   /**
+   * Returns a snapshot of the elements currently enqueued on this local queue.
+   *
+   * @return
+   *   a set of the currently enqueued elements
+   */
+  def snapshot(): Set[AnyRef] =
+    queues.flatMap(_.toArray).toSet
+
+  /**
    * Checks if this Scal queue is empty.
    *
    * The Scal queue is defined as empty if '''all''' concurrent queues report that they contain

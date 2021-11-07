@@ -858,6 +858,18 @@ private final class LocalQueue {
    */
   private[this] def unsignedShortSubtraction(x: Int, y: Int): Int = lsb(x - y)
 
+  /**
+   * Returns a snapshot of the fibers currently enqueued on this local queue.
+   *
+   * @return
+   *   a set of the currently enqueued fibers
+   */
+  def snapshot(): Set[IOFiber[_]] = {
+    // load fence to get a more recent snapshot of the enqueued fibers
+    val _ = size()
+    buffer.toSet - null
+  }
+
   /*
    * What follows is a collection of methods used in the implementation of the
    * `cats.effect.unsafe.metrics.LocalQueueSamplerMBean` interface.
