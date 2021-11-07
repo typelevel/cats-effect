@@ -631,6 +631,12 @@ private final class LocalQueue {
             if (n == 1) {
               // Only 1 fiber has been stolen. No need for any memory
               // synchronization operations.
+
+              if (isStackTracing) {
+                dst.tailPublisherForwarder.lazySet(dstTl)
+                dst.plainStoreTail(dstTl)
+              }
+
               return headFiber
             }
 
