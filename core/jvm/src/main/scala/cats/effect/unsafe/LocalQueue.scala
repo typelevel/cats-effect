@@ -28,6 +28,8 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.TracingConstants
+
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -121,6 +123,7 @@ import java.util.concurrent.atomic.AtomicInteger
 private final class LocalQueue {
 
   import LocalQueueConstants._
+  import TracingConstants._
 
   /**
    * The array of [[cats.effect.IOFiber]] object references physically backing the circular
@@ -394,7 +397,11 @@ private final class LocalQueue {
         }
 
         val fiber = batch(0)
-        worker.setActive(fiber)
+
+        if (isStackTracing) {
+          worker.setActive(fiber)
+        }
+
         // Publish the new tail.
         val newTl = unsignedShortAddition(tl, SpilloverBatchSize - 1)
         tailPublisher.lazySet(newTl)
@@ -467,7 +474,10 @@ private final class LocalQueue {
 
       val idx = index(real)
       val fiber = buffer(idx)
-      worker.setActive(fiber)
+
+      if (isStackTracing) {
+        worker.setActive(fiber)
+      }
 
       if (head.compareAndSet(hd, newHd)) {
         // The head has been successfully moved forward and the fiber secured.
@@ -584,7 +594,10 @@ private final class LocalQueue {
         val headFiberIdx = index(steal)
         val headFiber = buffer(headFiberIdx)
         buffer(headFiberIdx) = null
-        dstWorker.setActive(headFiber)
+
+        if (isStackTracing) {
+          dstWorker.setActive(headFiber)
+        }
 
         // All other fibers need to be transferred to the destination queue.
         val sourcePos = steal + 1

@@ -17,6 +17,8 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.TracingConstants
+
 import scala.annotation.switch
 import scala.concurrent.{BlockContext, CanAwait}
 
@@ -63,6 +65,7 @@ private final class WorkerThread(
     extends Thread
     with BlockContext {
 
+  import TracingConstants._
   import WorkStealingThreadPoolConstants._
 
   /**
@@ -283,8 +286,12 @@ private final class WorkerThread(
             fiber.run()
           } else if (element.isInstanceOf[IOFiber[_]]) {
             val fiber = element.asInstanceOf[IOFiber[_]]
-            active = fiber
-            parked.lazySet(false)
+
+            if (isStackTracing) {
+              active = fiber
+              parked.lazySet(false)
+            }
+
             // The dequeued element is a single fiber. Execute it immediately.
             fiber.run()
           }
@@ -313,8 +320,12 @@ private final class WorkerThread(
             state = 4
           } else if (element.isInstanceOf[IOFiber[_]]) {
             val fiber = element.asInstanceOf[IOFiber[_]]
-            active = fiber
-            parked.lazySet(false)
+
+            if (isStackTracing) {
+              active = fiber
+              parked.lazySet(false)
+            }
+
             // The dequeued element is a single fiber. Execute it immediately.
             fiber.run()
 
@@ -329,7 +340,10 @@ private final class WorkerThread(
             } else {
               // Permission denied, proceed to park.
               // Set the worker thread parked signal.
-              active = null
+              if (isStackTracing) {
+                active = null
+              }
+
               parked.lazySet(true)
               // Announce that the worker thread is parking.
               pool.transitionWorkerToParked()
@@ -355,7 +369,10 @@ private final class WorkerThread(
           } else {
             // Stealing attempt is unsuccessful. Park.
             // Set the worker thread parked signal.
-            active = null
+            if (isStackTracing) {
+              active = null
+            }
+
             parked.lazySet(true)
             // Announce that the worker thread which was searching for work is now
             // parking. This checks if the parking worker thread was the last
@@ -399,8 +416,12 @@ private final class WorkerThread(
           } else if (element.isInstanceOf[IOFiber[_]]) {
             val fiber = element.asInstanceOf[IOFiber[_]]
             // Announce that the current thread is no longer looking for work.
-            active = fiber
-            parked.lazySet(false)
+
+            if (isStackTracing) {
+              active = fiber
+              parked.lazySet(false)
+            }
+
             pool.transitionWorkerFromSearching(rnd)
 
             // The dequeued element is a single fiber. Execute it immediately.
