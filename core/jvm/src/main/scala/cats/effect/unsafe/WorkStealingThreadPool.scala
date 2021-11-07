@@ -30,6 +30,8 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.TracingConstants
+
 import scala.concurrent.ExecutionContext
 
 import java.lang.ref.WeakReference
@@ -59,6 +61,7 @@ private[effect] final class WorkStealingThreadPool(
     self0: => IORuntime
 ) extends ExecutionContext {
 
+  import TracingConstants._
   import WorkStealingThreadPoolConstants._
 
   /**
@@ -182,6 +185,12 @@ private[effect] final class WorkStealingThreadPool(
       destQueue.enqueueBatch(batch, destWorker)
     } else if (element.isInstanceOf[IOFiber[_]]) {
       val fiber = element.asInstanceOf[IOFiber[_]]
+
+      if (isStackTracing) {
+        destWorker.active = fiber
+        parkedSignals(dest).lazySet(false)
+      }
+
       fiber
     } else {
       null
