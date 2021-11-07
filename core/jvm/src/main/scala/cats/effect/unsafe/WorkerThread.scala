@@ -191,9 +191,8 @@ private final class WorkerThread(
    * @return
    *   a set of suspended fibers tracked by this worker thread
    */
-  private[unsafe] def suspendedSnapshot(): Set[IOFiber[_]] = {
-    ???
-  }
+  private[unsafe] def suspendedSnapshot(): Set[IOFiber[_]] =
+    FiberMonitor.weakMapToSet(fiberBag)
 
   /**
    * The run loop of the [[WorkerThread]].
