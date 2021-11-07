@@ -446,6 +446,28 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
+   * Returns a snapshot of the fibers currently live on this thread pool.
+   *
+   * @return
+   *   a set of currently live fibers and a mapping of active fibers associated to their carrier
+   *   threads
+   */
+  private[unsafe] def liveFibers(): (Set[IOFiber[_]], Map[IOFiber[_], Thread]) = {
+    val externalFibers = externalQueue.snapshot().flatMap {
+      case batch: Array[IOFiber[_]] => batch.toSet
+      case fiber: IOFiber[_] => Set(fiber)
+      case _ => Set.empty[IOFiber[_]]
+    }
+
+    val localFibers = localQueues.map(_.snapshot()).toSet.flatten
+    parkedSignals.foreach(_.get())
+    val activeMap =
+      workerThreads.map(t => t.active -> t).filterNot(_._1 eq null).toMap
+
+    (externalFibers ++ localFibers, activeMap)
+  }
+
+  /**
    * Executes a [[java.lang.Runnable]] on the [[WorkStealingThreadPool]].
    *
    * If the submitted `runnable` is a general purpose computation, it is suspended in
