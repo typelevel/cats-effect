@@ -186,6 +186,16 @@ private final class WorkerThread(
   }
 
   /**
+   * Returns a snapshot of suspended fibers tracked by this worker thread.
+   *
+   * @return
+   *   a set of suspended fibers tracked by this worker thread
+   */
+  private[unsafe] def suspendedSnapshot(): Set[IOFiber[_]] = {
+    ???
+  }
+
+  /**
    * The run loop of the [[WorkerThread]].
    */
   override def run(): Unit = {
