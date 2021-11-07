@@ -17,10 +17,12 @@
 package cats.effect
 package unsafe
 
+import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 import java.lang.ref.WeakReference
-import java.util.{Collections, Map, WeakHashMap}
+import java.util.{Collections, ConcurrentModificationException, Map, WeakHashMap}
 import java.util.concurrent.ThreadLocalRandom
 
 /**
@@ -100,5 +102,31 @@ private[effect] object FiberMonitor {
     } else {
       new FiberMonitor(null)
     }
+  }
+
+  private[unsafe] def weakMapToSet[K, V <: AnyRef](
+      weakMap: Map[K, WeakReference[V]]): Set[V] = {
+    val buffer = mutable.ArrayBuffer.empty[V]
+
+    @tailrec
+    def contents(attempts: Int): Set[V] = {
+      try {
+        weakMap.forEach { (_, ref) =>
+          val v = ref.get()
+          if (v ne null) {
+            buffer += v
+          }
+        }
+
+        buffer.toSet
+      } catch {
+        case _: ConcurrentModificationException =>
+          buffer.clear()
+          if (attempts == 0) Set.empty
+          else contents(attempts - 1)
+      }
+    }
+
+    contents(100)
   }
 }

@@ -450,12 +450,12 @@ private[effect] final class WorkStealingThreadPool(
    * Returns a snapshot of the fibers currently live on this thread pool.
    *
    * @return
-   *   a pair consisting of the set of fibers on the external queue and a map associating worker
+   *   a 3-tuple consisting of the set of fibers on the external queue, a map associating worker
    *   threads to the currently active fiber and fibers enqueued on the local queue of that
-   *   worker thread
+   *   worker thread and a set of suspended fibers tracked by this thread pool
    */
   private[unsafe] def liveFibers()
-      : (Set[IOFiber[_]], Map[WorkerThread, (IOFiber[_], Set[IOFiber[_]])]) = {
+      : (Set[IOFiber[_]], Map[WorkerThread, (IOFiber[_], Set[IOFiber[_]])], Set[IOFiber[_]]) = {
     val externalFibers = externalQueue.snapshot().flatMap {
       case batch: Array[IOFiber[_]] => batch.toSet[IOFiber[_]]
       case fiber: IOFiber[_] => Set[IOFiber[_]](fiber)
@@ -463,6 +463,7 @@ private[effect] final class WorkStealingThreadPool(
     }
 
     val map = mutable.Map.empty[WorkerThread, (IOFiber[_], Set[IOFiber[_]])]
+    val suspended = mutable.Set.empty[IOFiber[_]]
 
     var i = 0
     while (i < threadCount) {
@@ -471,10 +472,11 @@ private[effect] final class WorkStealingThreadPool(
       val _ = parkedSignals(i).get()
       val active = worker.active
       map += (worker -> (active -> localFibers))
+      suspended ++= worker.suspendedSnapshot()
       i += 1
     }
 
-    (externalFibers, map.toMap)
+    (externalFibers, map.toMap, suspended.toSet)
   }
 
   /**
