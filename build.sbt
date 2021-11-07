@@ -416,7 +416,15 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       // introduced by #2510, Fix weak bag for the blocking mechanism
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[IncompatibleMethTypeProblem](
-        "cats.effect.unsafe.WorkerThread.this")
+        "cats.effect.unsafe.WorkerThread.this"),
+      // introduced by #2513, Implement the active fiber tracking mechanism
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.dequeue"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.enqueueBatch"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.stealInto")
     )
   )
   .jvmSettings(
