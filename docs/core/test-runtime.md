@@ -25,6 +25,12 @@ Third, and related to the second, `TestControl` in its most fundamental mode onl
 
 For those migrating code from Cats Effect 2, `TestControl` is a considerably more powerful and easier-to-use tool than previously-common techniques involving mock instances of the `Clock` typeclass.
 
+In order to use `TestControl`, you will need to bring in the **cats-effect-testkit** dependency:
+
+```scala
+libraryDependencies += "org.typelevel" %% "cats-effect-testkit" % "3.3.0" % Test
+```
+
 ## Example
 
 For the remainder of this page, we will be writing tests which verify the behavior of the following function:
