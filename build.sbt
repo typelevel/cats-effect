@@ -317,6 +317,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(kernel, std)
   .settings(
     name := "cats-effect",
+    javafmtOnCompile := false,
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
@@ -411,7 +412,19 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.IO#Uncancelable#UnmaskRunLoop.copy"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.IO#Uncancelable#UnmaskRunLoop.this")
+        "cats.effect.IO#Uncancelable#UnmaskRunLoop.this"),
+      // introduced by #2510, Fix weak bag for the blocking mechanism
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.unsafe.WorkerThread.this"),
+      // introduced by #2513, Implement the active fiber tracking mechanism
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.dequeue"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.enqueueBatch"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.stealInto")
     )
   )
   .jvmSettings(

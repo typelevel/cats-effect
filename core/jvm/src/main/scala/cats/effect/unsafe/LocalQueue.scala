@@ -28,6 +28,8 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.TracingConstants
+
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -121,6 +123,7 @@ import java.util.concurrent.atomic.AtomicInteger
 private final class LocalQueue {
 
   import LocalQueueConstants._
+  import TracingConstants._
 
   /**
    * The array of [[cats.effect.IOFiber]] object references physically backing the circular
@@ -365,10 +368,12 @@ private final class LocalQueue {
    *
    * @param batch
    *   the batch of fibers to be enqueued on this local queue
+   * @param worker
+   *   a reference to the owner worker thread, used for setting the active fiber reference
    * @return
    *   a fiber to be executed directly
    */
-  def enqueueBatch(batch: Array[IOFiber[_]]): IOFiber[_] = {
+  def enqueueBatch(batch: Array[IOFiber[_]], worker: WorkerThread): IOFiber[_] = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -391,6 +396,12 @@ private final class LocalQueue {
           i += 1
         }
 
+        val fiber = batch(0)
+
+        if (isStackTracing) {
+          worker.active = fiber
+        }
+
         // Publish the new tail.
         val newTl = unsignedShortAddition(tl, SpilloverBatchSize - 1)
         tailPublisher.lazySet(newTl)
@@ -402,7 +413,7 @@ private final class LocalQueue {
         // should other threads be looking to steal from it, as the returned
         // fiber is already obtained using relatively expensive volatile store
         // operations.
-        return batch(0)
+        return fiber
       }
     }
 
@@ -428,11 +439,13 @@ private final class LocalQueue {
    * Dequeueing only operates on this value. Special care needs to be take to not overwrite the
    * "steal" tag in the presence of a concurrent stealer.
    *
+   * @param worker
+   *   a reference to the owner worker thread, used for setting the active fiber reference
    * @return
    *   the fiber at the head of the queue, or `null` if the queue is empty (in order to avoid
    *   unnecessary allocations)
    */
-  def dequeue(): IOFiber[_] = {
+  def dequeue(worker: WorkerThread): IOFiber[_] = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -459,11 +472,16 @@ private final class LocalQueue {
       val steal = msb(hd)
       val newHd = if (steal == real) pack(newReal, newReal) else pack(steal, newReal)
 
+      val idx = index(real)
+      val fiber = buffer(idx)
+
+      if (isStackTracing) {
+        worker.active = fiber
+      }
+
       if (head.compareAndSet(hd, newHd)) {
         // The head has been successfully moved forward and the fiber secured.
         // Proceed to null out the reference to the fiber and return it.
-        val idx = index(real)
-        val fiber = buffer(idx)
         buffer(idx) = null
         return fiber
       }
@@ -498,11 +516,13 @@ private final class LocalQueue {
    *
    * @param dst
    *   the destination local queue where the stole fibers will end up
+   * @param dstWorker
+   *   a reference to the owner worker thread, used for setting the active fiber reference
    * @return
    *   a reference to the first fiber to be executed by the stealing [[WorkerThread]], or `null`
    *   if the stealing was unsuccessful
    */
-  def stealInto(dst: LocalQueue): IOFiber[_] = {
+  def stealInto(dst: LocalQueue, dstWorker: WorkerThread): IOFiber[_] = {
     // A plain, unsynchronized load of the tail of the destination queue, owned
     // by the executing thread.
     val dstTl = dst.plainLoadTail()
@@ -575,6 +595,10 @@ private final class LocalQueue {
         val headFiber = buffer(headFiberIdx)
         buffer(headFiberIdx) = null
 
+        if (isStackTracing) {
+          dstWorker.active = headFiber
+        }
+
         // All other fibers need to be transferred to the destination queue.
         val sourcePos = steal + 1
         val end = n - 1
@@ -607,6 +631,12 @@ private final class LocalQueue {
             if (n == 1) {
               // Only 1 fiber has been stolen. No need for any memory
               // synchronization operations.
+
+              if (isStackTracing) {
+                dst.tailPublisherForwarder.lazySet(dstTl)
+                dst.plainStoreTail(dstTl)
+              }
+
               return headFiber
             }
 
@@ -857,6 +887,18 @@ private final class LocalQueue {
    *   the unsigned 16 bit difference as a 32 bit integer value
    */
   private[this] def unsignedShortSubtraction(x: Int, y: Int): Int = lsb(x - y)
+
+  /**
+   * Returns a snapshot of the fibers currently enqueued on this local queue.
+   *
+   * @return
+   *   a set of the currently enqueued fibers
+   */
+  def snapshot(): Set[IOFiber[_]] = {
+    // load fence to get a more recent snapshot of the enqueued fibers
+    val _ = size()
+    buffer.toSet - null
+  }
 
   /*
    * What follows is a collection of methods used in the implementation of the
