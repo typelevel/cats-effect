@@ -55,16 +55,59 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Dispatcher</h1></header><article><div><span><p><img src="/cats-effect/docs/assets/dispatcher.jpeg" alt=""></p>
-<h2><a class="anchor" aria-hidden="true" id="motivation"></a><a href="#motivation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Motivation</h2>
-<p>Users of cats effect 2 may be familiar with the <code>Effect</code> and <code>ConcurrentEffect</code>
-typeclasses. These have been removed as they constrained implementations of the
-typeclasses too much by forcing them to be embeddable in <code>IO</code> via <code>def toIO[A](fa: F[A]): IO[A]</code>. However, these typeclasses also had a valid use-case
-for unsafe running of effects to interface with impure APIs (<code>Future</code>, <code>NIO</code>,
-etc).</p>
-<h2><a class="anchor" aria-hidden="true" id="dispatcher"></a><a href="#dispatcher" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Dispatcher</h2>
-<p><code>Dispatcher</code> addresses this use-case but can be constructed for any effect
-type with an <code>Async</code> instance, rather than requiring a primitive typeclass
-implementation.</p>
+<p><code>Dispatcher</code> is a fiber-based utility for evaluating effects across an impure boundary. An instance of <code>Dispatcher</code> can be derived for any effect type conforming to the <code>Async</code> typeclass.
+This is useful when working with reactive interfaces that produce potentially many values (as opposed to one), and for each value, some effect in <code>F</code> must be performed
+(like inserting each value into a queue).</p>
+<p>Let's say we are integrating with an interface that looks like this:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">abstract</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ImpureInterface</span> </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">onMessage</span></span>(msg: <span class="hljs-type">String</span>): <span class="hljs-type">Unit</span>
+
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">init</span></span>(): <span class="hljs-type">Unit</span> = {
+    onMessage(<span class="hljs-string">"init"</span>)
+  }
+
+  <span class="hljs-comment">// ...</span>
+}
+</code></pre>
+<p>As a user we're supposed to create an implementation of this class where we implement <code>onMessage</code>.</p>
+<p>Let's say that we have a <a href="https://typelevel.org/cats-effect/docs/std/queue"><code>queue</code></a> and that we want to add each message received to the queue. We might,
+naively, try to do the following</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">for</span> {
+    queue &lt;- <span class="hljs-type">Queue</span>.unbounded[<span class="hljs-type">IO</span>, <span class="hljs-type">String</span>]
+    impureInterface = <span class="hljs-keyword">new</span> <span class="hljs-type">ImpureInterface</span> {
+      <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">onMessage</span></span>(msg: <span class="hljs-type">String</span>): <span class="hljs-type">Unit</span> = queue.offer(msg) <span class="hljs-comment">// This returns an IO, so nothing really happens!</span>
+    }
+    _ &lt;- <span class="hljs-type">IO</span>.delay(impureInterface.init())
+    value &lt;- queue.tryTake
+  } <span class="hljs-keyword">yield</span> value <span class="hljs-keyword">match</span> {
+    <span class="hljs-keyword">case</span> <span class="hljs-type">Some</span>(v) =&gt; println(<span class="hljs-string">s"Value found in queue! <span class="hljs-subst">$v</span>"</span>)
+    <span class="hljs-keyword">case</span> <span class="hljs-type">None</span>    =&gt; println(<span class="hljs-string">"Value not found in queue :("</span>)
+  }
+</code></pre>
+<p>This will print &quot;Value not found in queue :(&quot;, since our implementation of <code>onMessage</code>
+doesn't really <em>do</em> anything. It just creates an <code>IO</code> value which is just a description of an effect,
+without actually executing it. (Here the <code>scalac</code> option <code>-Ywarn-value-discard</code> might help hint at this problem.)</p>
+<p>It is in these cases that <code>Dispatcher</code> comes in handy. Here's how it could be used:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">Dispatcher</span>[<span class="hljs-type">IO</span>].use { dispatcher =&gt;
+  <span class="hljs-keyword">for</span> {
+    queue &lt;- <span class="hljs-type">Queue</span>.unbounded[<span class="hljs-type">IO</span>, <span class="hljs-type">String</span>]
+    impureInterface &lt;-
+      <span class="hljs-type">IO</span>.delay {
+        <span class="hljs-keyword">new</span> <span class="hljs-type">ImpureInterface</span> {
+          <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">onMessage</span></span>(msg: <span class="hljs-type">String</span>): <span class="hljs-type">Unit</span> =
+            dispatcher.unsafeRunSync(queue.offer(msg))
+        }
+      }
+    _ &lt;- <span class="hljs-type">IO</span>.delay(impureInterface.init())
+    value &lt;- queue.tryTake
+  } <span class="hljs-keyword">yield</span> value <span class="hljs-keyword">match</span> {
+    <span class="hljs-keyword">case</span> <span class="hljs-type">Some</span>(v) =&gt; println(<span class="hljs-string">s"Value found in queue! <span class="hljs-subst">$v</span>"</span>)
+    <span class="hljs-keyword">case</span> <span class="hljs-type">None</span>    =&gt; println(<span class="hljs-string">"Value not found in queue :("</span>)
+  }
+}
+</code></pre>
+<p>It prints &quot;Value found in queue! init&quot;!</p>
+<p>The example above calls <code>unsafeRunSync</code> on the dispatcher, but more functions are exposed:</p>
 <pre><code class="hljs css language-scala">
 <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Dispatcher</span>[<span class="hljs-type">F</span>[_]] <span class="hljs-keyword">extends</span> <span class="hljs-title">DispatcherPlatform</span>[<span class="hljs-type">F</span>] </span>{
 
@@ -85,8 +128,12 @@ implementation.</p>
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">unsafeRunSync</span></span>[<span class="hljs-type">A</span>](fa: <span class="hljs-type">F</span>[<span class="hljs-type">A</span>]): <span class="hljs-type">A</span>
 }
 </code></pre>
-<p>An instance of <code>Dispatcher</code> is very cheap - it allocates a single fiber so it
-is encouraged to instantiate it where necessary,
-as close to the unsafe region as possible,
-rather than wiring a single instance throughout an application.</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/std/dequeue"><span class="arrow-prev">← </span><span>Dequeue</span></a><a class="docs-next button" href="/cats-effect/docs/std/hotswap"><span>Hotswap</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#motivation">Motivation</a></li><li><a href="#dispatcher">Dispatcher</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/getting-started">Getting Started</a><a href="/cats-effect/docs/tutorial">Tutorial</a><a href="/cats-effect/docs/typeclasses">Typeclasses</a><a href="/cats-effect/docs/schedulers">Schedulers</a></div><div><h5>Community</h5><a target="_blank" href="https://typelevel.org/blog/">Blog</a><a target="_blank" href="https://discord.gg/HmPs7rAtEY">Discord</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2021 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
+<p>Creating an instance of <code>Dispatcher</code> is very cheap - you are encouraged to instantiate it
+where necessary rather than wiring a single instance throughout an application.</p>
+<h2><a class="anchor" aria-hidden="true" id="cats-effect-2"></a><a href="#cats-effect-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cats Effect 2</h2>
+<p>Users of Cats Effect 2 may be familiar with the <code>Effect</code> and <code>ConcurrentEffect</code>
+typeclasses. These have been removed as they constrained implementations of the
+typeclasses too much by forcing them to be embeddable in <code>IO</code> via <code>def toIO[A](fa: F[A]): IO[A]</code>. However, these typeclasses also had a valid use-case
+for unsafe running of effects to interface with impure APIs (<code>Future</code>, <code>NIO</code>,
+etc). <code>Dispatcher</code> now addresses this use-case.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/std/dequeue"><span class="arrow-prev">← </span><span>Dequeue</span></a><a class="docs-next button" href="/cats-effect/docs/std/hotswap"><span>Hotswap</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#cats-effect-2">Cats Effect 2</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/getting-started">Getting Started</a><a href="/cats-effect/docs/tutorial">Tutorial</a><a href="/cats-effect/docs/typeclasses">Typeclasses</a><a href="/cats-effect/docs/schedulers">Schedulers</a></div><div><h5>Community</h5><a target="_blank" href="https://typelevel.org/blog/">Blog</a><a target="_blank" href="https://discord.gg/HmPs7rAtEY">Discord</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2021 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
