@@ -50,6 +50,11 @@ private final class ES2021FiberMonitor(
   override def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit = {
     bag.set(key, new js.WeakRef(fiber))
   }
+
+  @nowarn("cat=unused")
+  private[this] def foreignFibers(): Set[IOFiber[_]] =
+    bag.entries().flatMap(_._2.deref().toOption).toSet
+
 }
 
 /**
