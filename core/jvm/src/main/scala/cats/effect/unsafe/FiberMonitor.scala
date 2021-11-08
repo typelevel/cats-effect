@@ -17,7 +17,7 @@
 package cats.effect
 package unsafe
 
-import scala.annotation.tailrec
+import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
@@ -91,6 +91,20 @@ private[effect] final class FiberMonitor(
     val idx = rnd.nextInt(size)
     bags(idx).put(key, new WeakReference(fiber))
     ()
+  }
+
+  @nowarn("cat=unused")
+  private[this] def foreignFibers(): Set[IOFiber[_]] = {
+    val foreign = mutable.Set.empty[IOFiber[_]]
+
+    var i = 0
+    while (i < size) {
+      val weakMap = bags(i)
+      foreign ++= FiberMonitor.weakMapToSet(weakMap)
+      i += 1
+    }
+
+    foreign.toSet
   }
 }
 
