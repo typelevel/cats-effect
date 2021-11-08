@@ -400,7 +400,7 @@ private[effect] final class WorkStealingThreadPool(
 
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
-      if (worker.isOwnedBy(pool) && !allWorkersParked) {
+      if (worker.isOwnedBy(pool) && !allWorkersBusy()) {
         worker.schedule(fiber)
       } else {
         scheduleExternal(fiber)
@@ -411,13 +411,15 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Determines whether all worker threads are currently parked, which may indicate synchronous,
-   * compute-heavy fiber usage.
+   * Determines whether all worker threads are currently unparked and not searching for work,
+   * which may indicate synchronous, compute-heavy fiber usage.
    * @return
-   *   true if all worker threads are currently parked
+   *   true if all worker threads are currently unparked and not searching for work
    */
-  private[this] def allWorkersParked: Boolean =
-    ((state.get() & UnparkMask) >>> UnparkShift) == threadCount
+  private[this] def allWorkersBusy(): Boolean = {
+    val st = state.get()
+    (st & SearchMask) == 0 && ((st & UnparkMask) >>> UnparkShift) == threadCount
+  }
 
   /**
    * Schedules a fiber for execution on this thread pool originating from an external thread (a
