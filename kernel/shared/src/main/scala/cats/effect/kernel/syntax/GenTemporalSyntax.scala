@@ -56,4 +56,9 @@ final class GenTemporalOps[F[_], A, E] private[syntax] (private val wrapped: F[A
       implicit F: GenTemporal[F, E],
       timeoutToE: TimeoutException <:< E
   ): F[A] = F.timeout(wrapped, duration)
+
+  def timeoutAndForget(duration: FiniteDuration)(
+      implicit F: GenTemporal[F, E],
+      timeoutToE: TimeoutException <:< E
+  ): F[A] = F.timeoutAndForget(wrapped, duration)
 }

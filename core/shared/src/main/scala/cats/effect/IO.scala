@@ -569,7 +569,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * `duration` or otherwise raises a `TimeoutException`.
    *
    * The source is canceled in the event that it takes longer than the specified time duration
-   * to complete.
+   * to complete. Once the source has been successfully canceled (and has completed its
+   * finalizers), the `TimeoutException` will be raised. If the source is uncancelable, the
+   * resulting effect will wait for it to complete before raising the exception.
    *
    * @param duration
    *   is the time span for which we wait for the source to complete; in the event that the
@@ -582,8 +584,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Returns an IO that either completes with the result of the source within the specified time
    * `duration` or otherwise evaluates the `fallback`.
    *
-   * The source is canceled in the event that it takes longer than the `FiniteDuration` to
-   * complete, the evaluation of the fallback happening immediately after that.
+   * The source is canceled in the event that it takes longer than the specified time duration
+   * to complete. Once the source has been successfully canceled (and has completed its
+   * finalizers), the fallback will be sequenced. If the source is uncancelable, the resulting
+   * effect will wait for it to complete before evaluating the fallback.
    *
    * @param duration
    *   is the time span for which we wait for the source to complete; in the event that the
@@ -597,6 +601,27 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       case Right(_) => fallback
       case Left(value) => IO.pure(value)
     }
+
+  /**
+   * Returns an IO that either completes with the result of the source within the specified time
+   * `duration` or otherwise raises a `TimeoutException`.
+   *
+   * The source is canceled in the event that it takes longer than the specified time duration
+   * to complete. Unlike [[timeout]], the cancelation of the source will be ''requested'' but
+   * not awaited, and the exception will be raised immediately upon the completion of the timer.
+   * This may more closely match intuitions about timeouts, but it also violates backpressure
+   * guarantees and intentionally leaks fibers.
+   *
+   * This combinator should be applied very carefully.
+   *
+   * @param duration
+   *   The time span for which we wait for the source to complete; in the event that the
+   *   specified time has passed without the source completing, a `TimeoutException` is raised
+   * @see
+   *   [[timeout]] for a variant which respects backpressure and does not leak fibers
+   */
+  def timeoutAndForget(duration: FiniteDuration): IO[A] =
+    Temporal[IO].timeoutAndForget(this, duration)
 
   def timed: IO[(FiniteDuration, A)] =
     Clock[IO].timed(this)
@@ -1453,9 +1478,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     def sleep(time: FiniteDuration): IO[Unit] =
       IO.sleep(time)
-
-    override def timeoutTo[A](ioa: IO[A], duration: FiniteDuration, fallback: IO[A]): IO[A] =
-      ioa.timeoutTo(duration, fallback)
 
     def canceled: IO[Unit] =
       IO.canceled
