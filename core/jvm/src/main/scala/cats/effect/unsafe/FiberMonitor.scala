@@ -107,20 +107,13 @@ private[effect] final class FiberMonitor(
       // 3. Fibers from the foreign synchronized fallback weak GC maps
       // 4. Fibers from the suspended thread local GC maps
 
-      val external = workersMap.foldLeft(rawExternal) {
+      val localAndActive = workersMap.foldLeft(Set.empty[IOFiber[_]]) {
         case (acc, (_, (active, local))) =>
-          (acc -- local) - active
+          (acc ++ local) + active
       }
-
-      val foreign = workersMap.foldLeft(rawForeign -- external) {
-        case (acc, (_, (active, local))) =>
-          (acc -- local) - active
-      }
-
-      val suspended = workersMap.foldLeft((rawSuspended -- external) -- foreign) {
-        case (acc, (_, (active, local))) =>
-          (acc -- local) - active
-      }
+      val external = rawExternal -- localAndActive
+      val foreign = (rawForeign -- localAndActive) -- external
+      val suspended = ((rawSuspended -- localAndActive) -- external) -- external
 
       val newline = System.lineSeparator()
       val doubleNewline = s"$newline$newline"
