@@ -17,6 +17,8 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.TracingConstants
+
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -94,7 +96,7 @@ private[effect] final class FiberMonitor(
    *   a textual representation of the runtime snapshot, `None` if a snapshot cannot be obtained
    */
   def liveFiberSnapshot(): Option[String] =
-    Option(compute).map { compute =>
+    Option(compute).filter(_ => TracingConstants.isStackTracing).map { compute =>
       val (external, workersMap, suspended) = compute.liveFibers()
       val foreign = foreignFibers()
 
@@ -170,7 +172,7 @@ private[effect] final class FiberMonitor(
 
 private[effect] object FiberMonitor {
   def apply(compute: ExecutionContext): FiberMonitor = {
-    if (compute.isInstanceOf[WorkStealingThreadPool]) {
+    if (TracingConstants.isStackTracing && compute.isInstanceOf[WorkStealingThreadPool]) {
       val wstp = compute.asInstanceOf[WorkStealingThreadPool]
       new FiberMonitor(wstp)
     } else {
