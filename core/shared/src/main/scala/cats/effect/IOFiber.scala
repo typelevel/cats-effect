@@ -113,8 +113,9 @@ private final class IOFiber[A](
   /* similar prefetch for EndFiber */
   private[this] val IOEndFiber: IO.EndFiber.type = IO.EndFiber
 
-  private[this] val tracingEvents: RingBuffer =
+  private[this] val tracingEvents: RingBuffer = if (isStackTracing) {
     RingBuffer.empty(runtime.traceBufferLogSize)
+  } else null
 
   override def run(): Unit = {
     // insert a read barrier after every async boundary
@@ -965,7 +966,8 @@ private final class IOFiber[A](
     objectState.invalidate()
     finalizers.invalidate()
     currentCtx = null
-    tracingEvents.invalidate()
+
+    if (isStackTracing) tracingEvents.invalidate()
   }
 
   /**
