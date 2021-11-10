@@ -244,7 +244,7 @@ private final class IOFiber[A](
         case 2 =>
           val cur = cur0.asInstanceOf[Delay[Any]]
 
-          pushTracingEvent(cur.event)
+          if (isStackTracing) pushTracingEvent(cur.event)
 
           var error: Throwable = null
           val r =
@@ -283,7 +283,7 @@ private final class IOFiber[A](
         case 6 =>
           val cur = cur0.asInstanceOf[Map[Any, Any]]
 
-          pushTracingEvent(cur.event)
+          if (isStackTracing) pushTracingEvent(cur.event)
 
           val ioe = cur.ioe
           val f = cur.f
@@ -314,7 +314,7 @@ private final class IOFiber[A](
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
 
-              pushTracingEvent(delay.event)
+              if (isStackTracing) pushTracingEvent(delay.event)
 
               // this code is inlined in order to avoid two `try` blocks
               var error: Throwable = null
@@ -351,7 +351,7 @@ private final class IOFiber[A](
         case 7 =>
           val cur = cur0.asInstanceOf[FlatMap[Any, Any]]
 
-          pushTracingEvent(cur.event)
+          if (isStackTracing) pushTracingEvent(cur.event)
 
           val ioe = cur.ioe
           val f = cur.f
@@ -377,7 +377,7 @@ private final class IOFiber[A](
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
 
-              pushTracingEvent(delay.event)
+              if (isStackTracing) pushTracingEvent(delay.event)
 
               // this code is inlined in order to avoid two `try` blocks
               val result =
@@ -430,7 +430,7 @@ private final class IOFiber[A](
             case 2 =>
               val delay = ioa.asInstanceOf[Delay[Any]]
 
-              pushTracingEvent(delay.event)
+              if (isStackTracing) pushTracingEvent(delay.event)
 
               // this code is inlined in order to avoid two `try` blocks
               var error: Throwable = null
@@ -470,7 +470,7 @@ private final class IOFiber[A](
         case 9 =>
           val cur = cur0.asInstanceOf[HandleErrorWith[Any]]
 
-          pushTracingEvent(cur.event)
+          if (isStackTracing) pushTracingEvent(cur.event)
 
           objectState.push(cur.f)
           conts = ByteStack.push(conts, HandleErrorWithK)
@@ -504,7 +504,7 @@ private final class IOFiber[A](
         case 12 =>
           val cur = cur0.asInstanceOf[Uncancelable[Any]]
 
-          pushTracingEvent(cur.event)
+          if (isStackTracing) pushTracingEvent(cur.event)
 
           masks += 1
           val id = masks
@@ -552,7 +552,7 @@ private final class IOFiber[A](
            */
           val body = cur.body
 
-          pushTracingEvent(cur.event)
+          if (isStackTracing) pushTracingEvent(cur.event)
 
           /*
            *`get` and `cb` (callback) race over the runloop.
@@ -901,7 +901,7 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[Blocking[Any]]
           /* we know we're on the JVM here */
 
-          pushTracingEvent(cur.event)
+          if (isStackTracing) pushTracingEvent(cur.event)
 
           if (cur.hint eq IOFiber.TypeBlocking) {
             resumeTag = BlockingR
