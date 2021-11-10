@@ -23,6 +23,7 @@ import scala.concurrent.duration.FiniteDuration
 
 import cats.kernel.{Monoid, Semigroup}
 import cats.{Defer, Monad}
+import java.util.concurrent.TimeUnit
 
 /**
  * A typeclass which encodes various notions of time. Analogous to some of the time functions
@@ -45,6 +46,14 @@ trait Clock[F[_]] extends ClockPlatform[F] {
    * Analogous to `java.lang.System.currentTimeMillis`.
    */
   def realTime: F[FiniteDuration]
+
+  /**
+   * A representation of the current system time in terms of the provided [[TimeUnit]].
+   * Implementors should make a best-effort to provide precision matching the [[TimeUnit]], but
+   * this is not guaranteed.
+   */
+  def realTime(unit: TimeUnit): F[FiniteDuration] =
+    applicative.map(realTime)(rt => FiniteDuration(unit.convert(rt.length, rt.unit), unit))
 
   /**
    * Returns an effect that completes with the result of the source together with the duration
