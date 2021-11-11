@@ -19,6 +19,7 @@ package cats.effect
 import scala.concurrent.{blocking, CancellationException}
 
 import java.util.concurrent.CountDownLatch
+import sun.misc.Signal
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining
@@ -229,6 +230,25 @@ trait IOApp {
       }
 
       _runtime = IORuntime.global
+    }
+
+    val liveFiberSnapshotSignal = sys
+      .props
+      .get("os.name")
+      .map(_.toLowerCase)
+      .filterNot(_.contains("windows"))
+      .flatMap {
+        case "linux" =>
+          sys.props.get("java.version").filterNot(_.startsWith("1.8")).map(_ => List("USR1"))
+        case _ =>
+          Some(List("USR1", "INFO"))
+      }
+      .getOrElse(Nil)
+
+    liveFiberSnapshotSignal.map(new Signal(_)).foreach { signal =>
+      Signal.handle(
+        signal,
+        _ => runtime.fiberMonitor.liveFiberSnapshot().foreach(System.err.println(_)))
     }
 
     val rt = Runtime.getRuntime()
