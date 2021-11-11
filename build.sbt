@@ -93,6 +93,7 @@ ThisBuild / developers := List(
 
 val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
+val MacOS = "macos-latest"
 
 val ScalaJSJava = "adoptium@8"
 val Scala213 = "2.13.7"
@@ -109,7 +110,7 @@ val GraalVM = "graalvm-ce-java11@21.3"
 
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM)
 ThisBuild / githubWorkflowEnv += ("JABBA_INDEX" -> "https://github.com/typelevel/jdk-index/raw/main/index.json")
-ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
+ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Use(
@@ -154,9 +155,11 @@ val jsCiVariants = CI.AllJSCIs.map(_.command)
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
-  val windowsScalaFilters =
-    (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).map { scala =>
-      MatrixExclude(Map("os" -> Windows, "scala" -> scala))
+  val windowsAndMacScalaFilters =
+    (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).flatMap { scala =>
+      Seq(
+        MatrixExclude(Map("os" -> Windows, "scala" -> scala)),
+        MatrixExclude(Map("os" -> MacOS, "scala" -> scala)))
     }
 
   jsCiVariants.flatMap { ci =>
@@ -165,7 +168,9 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
         MatrixExclude(Map("ci" -> ci, "java" -> java))
       }
 
-    javaFilters ++ windowsScalaFilters :+ MatrixExclude(Map("os" -> Windows, "ci" -> ci))
+    javaFilters ++ windowsAndMacScalaFilters ++ Seq(
+      MatrixExclude(Map("os" -> Windows, "ci" -> ci)),
+      MatrixExclude(Map("os" -> MacOS, "ci" -> ci)))
   }
 }
 
