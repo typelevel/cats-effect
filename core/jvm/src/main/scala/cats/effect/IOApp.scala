@@ -236,11 +236,13 @@ trait IOApp {
       .props
       .get("os.name")
       .map(_.toLowerCase)
-      .filterNot(_.contains("windows"))
+      .filterNot(_.contains("windows")) // Windows does not support signals
       .flatMap {
         case "linux" =>
+          // There are no free signals on JDK 8 on Linux.
           sys.props.get("java.version").filterNot(_.startsWith("1.8")).map(_ => List("USR1"))
         case _ =>
+          // MacOS and BSD can handle both USR1 and INFO (nice CTRL+T experience)
           Some(List("USR1", "INFO"))
       }
       .getOrElse(Nil)
