@@ -135,11 +135,27 @@ class IOAppSpec extends Specification {
     }
   }
 
+  // scala.sys.process.Process and java.lang.Process lack getting PID support. Java 9+ introduced it but
+  // whatever because it's very hard to obtain a java.lang.Process from scala.sys.process.Process.
+  private def jps(mainName: String): Option[Int] = {
+    val jpsStdoutBuffer = new StringBuffer()
+    val jpsProcess =
+      Process(s"$JavaHome/bin/jps", List.empty).run(BasicIO(false, jpsStdoutBuffer, None))
+    jpsProcess.exitValue()
+
+    Source
+      .fromString(jpsStdoutBuffer.toString)
+      .getLines()
+      .find(_.contains(mainName))
+      .map(_.split(" ")(0).toInt)
+  }
+
   def java(proto: IOApp, args: List[String]): Handle = {
+    val mainName = proto.getClass.getSimpleName
     val stdoutBuffer = new StringBuffer()
     val stderrBuffer = new StringBuffer()
     val builder = Process(
-      s"${JavaHome}/bin/java",
+      s"$JavaHome/bin/java",
       List("-cp", ClassPath, proto.getClass.getName.replaceAll("\\$$", "")) ::: args)
     val p = builder.run(BasicIO(false, stdoutBuffer, None).withError { in =>
       val err = Source.fromInputStream(in).getLines().mkString(System.lineSeparator())
@@ -152,6 +168,7 @@ class IOAppSpec extends Specification {
       def term() = p.destroy() // TODO probably doesn't work
       def stderr() = stderrBuffer.toString
       def stdout() = stdoutBuffer.toString
+      def pid() = jps(mainName)
     }
   }
 
@@ -160,6 +177,7 @@ class IOAppSpec extends Specification {
     def term(): Unit
     def stderr(): String
     def stdout(): String
+    def pid(): Option[Int]
   }
 }
 
