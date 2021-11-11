@@ -235,17 +235,26 @@ trait IOApp {
     val liveFiberSnapshotSignal = sys
       .props
       .get("os.name")
+      .toList
       .map(_.toLowerCase)
-      .filterNot(_.contains("windows")) // Windows does not support signals
-      .flatMap {
-        case "linux" =>
-          // There are no free signals on JDK 8 on Linux.
-          sys.props.get("java.version").filterNot(_.startsWith("1.8")).map(_ => List("USR1"))
-        case _ =>
-          // MacOS and BSD can handle both USR1 and INFO (nice CTRL+T experience)
-          Some(List("USR1", "INFO"))
+      .filterNot(
+        _.contains("windows")
+      ) // Windows does not support signals user overridable signals
+      .flatMap { os =>
+        val isJDK8 = sys.props.get("java.version").filter(_.startsWith("1.8")).isDefined
+
+        os match {
+          case "linux" if isJDK8 =>
+            Nil // There are no unused signals on JDK 8 on Linux.
+          case "linux" =>
+            List("USR1")
+          case _ if isJDK8 =>
+            List("INFO")
+          case _ =>
+            // MacOS and BSD can handle both USR1 (except JDK 8) and INFO (nice CTRL+T experience)
+            List("USR1", "INFO")
+        }
       }
-      .getOrElse(Nil)
 
     liveFiberSnapshotSignal.map(new Signal(_)).foreach { signal =>
       Signal.handle(
