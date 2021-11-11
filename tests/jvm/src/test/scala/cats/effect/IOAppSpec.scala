@@ -55,6 +55,11 @@ class IOAppSpec extends Specification {
       "exit on fatal error" in skipped("cannot observe graceful process termination on Windows")
       "exit on fatal error with other unsafe runs" in skipped(
         "cannot observe graceful process termination on Windows")
+      "exit on canceled" in skipped("cannot observe graceful process termination on Windows")
+      "warn on global runtime collision" in skipped(
+        "cannot observe graceful process termination on Windows")
+      "abort awaiting shutdown hooks" in skipped(
+        "cannot observe graceful process termination on Windows")
     } else {
       "run finalizers on TERM" in {
         if (System.getProperty("os.name").toLowerCase.contains("windows")) {
