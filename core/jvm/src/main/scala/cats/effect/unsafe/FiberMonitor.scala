@@ -97,8 +97,23 @@ private[effect] final class FiberMonitor(
    */
   def liveFiberSnapshot(): Option[String] =
     Option(compute).filter(_ => TracingConstants.isStackTracing).map { compute =>
-      val (external, workersMap, suspended) = compute.liveFibers()
-      val foreign = foreignFibers()
+      val (rawExternal, workersMap, rawSuspended) = compute.liveFibers()
+      val rawForeign = foreignFibers()
+
+      // We trust the sources of data in the following order, ordered from
+      // most trustworthy to least trustworthy.
+      // 1. Fibers from the worker threads
+      // 2. Fibers from the external queue
+      // 3. Fibers from the foreign synchronized fallback weak GC maps
+      // 4. Fibers from the suspended thread local GC maps
+
+      val localAndActive = workersMap.foldLeft(Set.empty[IOFiber[_]]) {
+        case (acc, (_, (active, local))) =>
+          (acc ++ local) + active
+      }
+      val external = rawExternal -- localAndActive
+      val foreign = (rawForeign -- localAndActive) -- external
+      val suspended = ((rawSuspended -- localAndActive) -- external) -- external
 
       val newline = System.lineSeparator()
       val doubleNewline = s"$newline$newline"
