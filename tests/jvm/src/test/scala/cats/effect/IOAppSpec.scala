@@ -28,7 +28,16 @@ import java.io.File
 
 class IOAppSpec extends Specification {
 
-  val JavaHome = System.getProperty("java.home")
+  val JavaHome = {
+    val path = sys.env.get("JAVA_HOME").getOrElse(System.getProperty("java.home"))
+    if (path.endsWith("/jre")) {
+      // handle JDK 8 installations
+      path.replace("/jre", "")
+    } else {
+      path
+    }
+  }
+
   val ClassPath = System.getProperty("sbt.classpath")
 
   "IOApp (jvm)" should {
