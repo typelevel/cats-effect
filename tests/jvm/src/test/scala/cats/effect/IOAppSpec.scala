@@ -29,7 +29,7 @@ import java.io.File
 class IOAppSpec extends Specification {
 
   val JavaHome = {
-    val path = sys.env.get("JAVA_HOME").getOrElse(System.getProperty("java.home"))
+    val path = sys.env.get("JAVA_HOME").orElse(sys.props.get("java.home")).get
     if (path.endsWith("/jre")) {
       // handle JDK 8 installations
       path.replace("/jre", "")
@@ -143,17 +143,22 @@ class IOAppSpec extends Specification {
         h.awaitStatus() mustEqual 0
       }
 
-      "live fiber snapshot" in {
-        val h = java(LiveFiberSnapshot, List.empty)
-        // Allow the process some time to start
-        // and register the signal handlers.
-        Thread.sleep(2000L)
-        val pid = h.pid()
-        pid.isDefined must beTrue
-        pid.foreach(sendSignal)
-        h.awaitStatus()
-        val stderr = h.stderr()
-        stderr must contain("Live Fiber Snapshot")
+      if (sys.props.get("java.version").filter(_.startsWith("1.8")).isDefined) {
+        "live fiber snapshot" in skipped(
+          "JDK 8 does not have free signals for live fiber snapshots")
+      } else {
+        "live fiber snapshot" in {
+          val h = java(LiveFiberSnapshot, List.empty)
+          // Allow the process some time to start
+          // and register the signal handlers.
+          Thread.sleep(2000L)
+          val pid = h.pid()
+          pid.isDefined must beTrue
+          pid.foreach(sendSignal)
+          h.awaitStatus()
+          val stderr = h.stderr()
+          stderr must contain("Live Fiber Snapshot")
+        }
       }
     }
   }
