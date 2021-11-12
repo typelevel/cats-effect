@@ -136,9 +136,11 @@ class IOAppSpec extends Specification {
 
       "live fiber snapshot" in {
         val h = java(LiveFiberSnapshot, List.empty)
-        h.pid().isDefined must beTrue
-        h.term()
-        ok
+        val pid = h.pid()
+        pid.foreach(sendSignal)
+        h.awaitStatus()
+        val stderr = h.stderr()
+        stderr must contain("Live Fiber Snapshot")
       }
     }
   }
@@ -153,6 +155,11 @@ class IOAppSpec extends Specification {
 
     val output = jpsStdoutBuffer.toString
     Source.fromString(output).getLines().find(_.contains(mainName)).map(_.split(" ")(0).toInt)
+  }
+
+  private def sendSignal(pid: Int): Unit = {
+    Process("pkill", List("-SIGUSR1", pid.toString)).run()
+    ()
   }
 
   def java(proto: IOApp, args: List[String]): Handle = {
@@ -267,15 +274,15 @@ package examples {
         IO.unit.flatMap(_ => loop)
 
     val run = for {
-      fibers <- loop.start.replicateA(32)
+      fibers <- loop.timeoutTo(3.seconds, IO.unit).start.replicateA(32)
 
       sleeper = for {
         _ <- IO.unit
         _ <- IO.unit
-        _ <- IO.sleep(1.day)
+        _ <- IO.sleep(3.seconds)
       } yield ()
 
-      _ <- sleeper.start.replicateA(8)
+      _ <- sleeper.start
       _ <- fibers.traverse(_.join)
     } yield ()
   }
