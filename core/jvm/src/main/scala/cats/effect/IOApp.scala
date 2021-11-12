@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import cats.effect.tracing.TracingConstants._
+
 import scala.concurrent.{blocking, CancellationException}
 
 import java.util.concurrent.CountDownLatch
@@ -232,34 +234,36 @@ trait IOApp {
       _runtime = IORuntime.global
     }
 
-    val liveFiberSnapshotSignal = sys
-      .props
-      .get("os.name")
-      .toList
-      .map(_.toLowerCase)
-      .filterNot(
-        _.contains("windows")
-      ) // Windows does not support signals user overridable signals
-      .flatMap { os =>
-        val isJDK8 = sys.props.get("java.version").filter(_.startsWith("1.8")).isDefined
+    if (isStackTracing) {
+      val liveFiberSnapshotSignal = sys
+        .props
+        .get("os.name")
+        .toList
+        .map(_.toLowerCase)
+        .filterNot(
+          _.contains("windows")
+        ) // Windows does not support signals user overridable signals
+        .flatMap { os =>
+          val isJDK8 = sys.props.get("java.version").filter(_.startsWith("1.8")).isDefined
 
-        os match {
-          case "linux" if isJDK8 =>
-            Nil // There are no unused signals on JDK 8 on Linux.
-          case "linux" =>
-            List("USR1")
-          case _ if isJDK8 =>
-            List("INFO")
-          case _ =>
-            // MacOS and BSD can handle both USR1 (except JDK 8) and INFO (nice CTRL+T experience)
-            List("USR1", "INFO")
+          os match {
+            case "linux" if isJDK8 =>
+              Nil // There are no unused signals on JDK 8 on Linux.
+            case "linux" =>
+              List("USR1")
+            case _ if isJDK8 =>
+              List("INFO")
+            case _ =>
+              // MacOS and BSD can handle both USR1 (except JDK 8) and INFO (nice CTRL+T experience)
+              List("USR1", "INFO")
+          }
         }
-      }
 
-    liveFiberSnapshotSignal.map(new Signal(_)).foreach { signal =>
-      Signal.handle(
-        signal,
-        _ => runtime.fiberMonitor.liveFiberSnapshot().foreach(System.err.println(_)))
+      liveFiberSnapshotSignal.map(new Signal(_)).foreach { signal =>
+        Signal.handle(
+          signal,
+          _ => runtime.fiberMonitor.liveFiberSnapshot().foreach(System.err.println(_)))
+      }
     }
 
     val rt = Runtime.getRuntime()
