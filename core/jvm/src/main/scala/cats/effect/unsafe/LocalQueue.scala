@@ -396,6 +396,7 @@ private final class LocalQueue {
           i += 1
         }
 
+        totalFiberCount += SpilloverBatchSize
         val fiber = batch(0)
 
         if (isStackTracing) {
