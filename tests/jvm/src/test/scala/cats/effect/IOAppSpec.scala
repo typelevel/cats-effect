@@ -60,6 +60,7 @@ class IOAppSpec extends Specification {
         "cannot observe graceful process termination on Windows")
       "abort awaiting shutdown hooks" in skipped(
         "cannot observe graceful process termination on Windows")
+      "live fiber snapshot" in skipped("cannot observe graceful process termination on Windows")
     } else {
       "run finalizers on TERM" in {
         if (System.getProperty("os.name").toLowerCase.contains("windows")) {
@@ -132,6 +133,13 @@ class IOAppSpec extends Specification {
         val h = java(ShutdownHookImmediateTimeout, List.empty)
         h.awaitStatus() mustEqual 0
       }
+
+      "live fiber snapshot" in {
+        val h = java(LiveFiberSnapshot, List.empty)
+        h.pid().isDefined must beTrue
+        h.term()
+        ok
+      }
     }
   }
 
@@ -143,15 +151,12 @@ class IOAppSpec extends Specification {
       Process(s"$JavaHome/bin/jps", List.empty).run(BasicIO(false, jpsStdoutBuffer, None))
     jpsProcess.exitValue()
 
-    Source
-      .fromString(jpsStdoutBuffer.toString)
-      .getLines()
-      .find(_.contains(mainName))
-      .map(_.split(" ")(0).toInt)
+    val output = jpsStdoutBuffer.toString
+    Source.fromString(output).getLines().find(_.contains(mainName)).map(_.split(" ")(0).toInt)
   }
 
   def java(proto: IOApp, args: List[String]): Handle = {
-    val mainName = proto.getClass.getSimpleName
+    val mainName = proto.getClass.getSimpleName.replace("$", "")
     val stdoutBuffer = new StringBuffer()
     val stderrBuffer = new StringBuffer()
     val builder = Process(
@@ -251,5 +256,27 @@ package examples {
 
     val run: IO[Unit] =
       IO(System.exit(0)).uncancelable
+  }
+
+  object LiveFiberSnapshot extends IOApp.Simple {
+
+    import scala.concurrent.duration._
+
+    lazy val loop: IO[Unit] =
+      IO.unit.map(_ => ()) >>
+        IO.unit.flatMap(_ => loop)
+
+    val run = for {
+      fibers <- loop.start.replicateA(32)
+
+      sleeper = for {
+        _ <- IO.unit
+        _ <- IO.unit
+        _ <- IO.sleep(1.day)
+      } yield ()
+
+      _ <- sleeper.start.replicateA(8)
+      _ <- fibers.traverse(_.join)
+    } yield ()
   }
 }
