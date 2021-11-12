@@ -61,14 +61,6 @@ private[unsafe] trait ComputePoolSamplerMBean {
   def getBlockedWorkerThreadCount(): Int
 
   /**
-   * Returns the number of fibers enqueued on the batched queue.
-   *
-   * @return
-   *   the number of fibers enqueued on the batched queue
-   */
-  def getBatchedQueueFiberCount(): Long
-
-  /**
    * Returns the total number of fibers enqueued on all local queues.
    *
    * @return
