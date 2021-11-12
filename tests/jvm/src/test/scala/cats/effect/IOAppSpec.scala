@@ -136,7 +136,11 @@ class IOAppSpec extends Specification {
 
       "live fiber snapshot" in {
         val h = java(LiveFiberSnapshot, List.empty)
+        // Allow the process some time to start
+        // and register the signal handlers.
+        Thread.sleep(2000L)
         val pid = h.pid()
+        pid.isDefined must beTrue
         pid.foreach(sendSignal)
         h.awaitStatus()
         val stderr = h.stderr()
@@ -158,7 +162,7 @@ class IOAppSpec extends Specification {
   }
 
   private def sendSignal(pid: Int): Unit = {
-    Process("pkill", List("-SIGUSR1", pid.toString)).run()
+    Runtime.getRuntime().exec(s"kill -USR1 $pid")
     ()
   }
 
@@ -274,7 +278,7 @@ package examples {
         IO.unit.flatMap(_ => loop)
 
     val run = for {
-      fibers <- loop.timeoutTo(3.seconds, IO.unit).start.replicateA(32)
+      fibers <- loop.timeoutTo(5.seconds, IO.unit).start.replicateA(32)
 
       sleeper = for {
         _ <- IO.unit
