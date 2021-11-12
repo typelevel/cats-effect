@@ -566,7 +566,7 @@ private[effect] final class WorkStealingThreadPool(
     }
   }
 
-  def blockedWorkerThreadCounterForwarder: AtomicInteger =
+  private[unsafe] def blockedWorkerThreadCounterForwarder: AtomicInteger =
     blockedWorkerThreadCounter
 
   /*
@@ -584,7 +584,7 @@ private[effect] final class WorkStealingThreadPool(
    * @return
    *   the number of worker threads backing the compute pool
    */
-  def getWorkerThreadCount(): Int =
+  private[unsafe] def getWorkerThreadCount(): Int =
     threadCount
 
   /**
@@ -594,7 +594,7 @@ private[effect] final class WorkStealingThreadPool(
    * @return
    *   the number of active worker threads
    */
-  def getActiveThreadCount(): Int = {
+  private[unsafe] def getActiveThreadCount(): Int = {
     val st = state.get()
     (st & UnparkMask) >>> UnparkShift
   }
@@ -606,7 +606,7 @@ private[effect] final class WorkStealingThreadPool(
    * @return
    *   the number of worker threads searching for work
    */
-  def getSearchingThreadCount(): Int = {
+  private[unsafe] def getSearchingThreadCount(): Int = {
     val st = state.get()
     st & SearchMask
   }
@@ -618,7 +618,7 @@ private[effect] final class WorkStealingThreadPool(
    * @return
    *   the number of blocked worker threads
    */
-  def getBlockedWorkerThreadCount(): Int =
+  private[unsafe] def getBlockedWorkerThreadCount(): Int =
     blockedWorkerThreadCounter.get()
 
   /**
@@ -627,7 +627,7 @@ private[effect] final class WorkStealingThreadPool(
    * @return
    *   the total number of fibers enqueued on all local queues
    */
-  def getLocalQueueFiberCount(): Long =
+  private[unsafe] def getLocalQueueFiberCount(): Long =
     localQueues.map(_.size().toLong).sum
 
   /**
@@ -640,6 +640,6 @@ private[effect] final class WorkStealingThreadPool(
    * @return
    *   the number of asynchronously suspended fibers
    */
-  def getSuspendedFiberCount(): Long =
+  private[unsafe] def getSuspendedFiberCount(): Long =
     workerThreads.map(_.getSuspendedFiberCount().toLong).sum
 }
