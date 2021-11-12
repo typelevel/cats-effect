@@ -563,4 +563,55 @@ private[effect] final class WorkStealingThreadPool(
       Thread.currentThread().interrupt()
     }
   }
+
+  /*
+   * What follows is a collection of methos used in the implementation of the
+   * `cats.effect.unsafe.metrics.ComputePoolSamplerMBean` interface.
+   */
+
+  /**
+   * Returns the number of [[WorkerThread]] instances backing the [[WorkStealingThreadPool]].
+   *
+   * @note
+   *   This is a fixed value, as the [[WorkStealingThreadPool]] has a fixed number of worker
+   *   threads.
+   *
+   * @return
+   *   the number of worker threads backing the compute pool
+   */
+  def getWorkerThreadCount(): Int =
+    threadCount
+
+  /**
+   * Returns the number of active [[WorkerThread]] instances currently executing fibers on the
+   * compute thread pool.
+   *
+   * @return
+   *   the number of active worker threads
+   */
+  def getActiveThreadCount(): Int = {
+    val st = state.get()
+    (st & UnparkMask) >>> UnparkShift
+  }
+
+  /**
+   * Returns the number of [[WorkerThread]] instances currently searching for fibers to steal
+   * from other worker threads.
+   *
+   * @return
+   *   the number of worker threads searching for work
+   */
+  def getSearchingThreadCount(): Int = {
+    val st = state.get()
+    st & SearchMask
+  }
+
+  /**
+   * Returns the total number of fibers enqueued on all local queues.
+   *
+   * @return
+   *   the total number of fibers enqueued on all local queues
+   */
+  def getLocalQueueFiberCount(): Long =
+    localQueues.map(_.size().toLong).sum
 }
