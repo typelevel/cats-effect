@@ -102,6 +102,8 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[this] val done: AtomicBoolean = new AtomicBoolean(false)
 
+  private[this] val blockedWorkerThreadCounter: AtomicInteger = new AtomicInteger(0)
+
   // Thread pool initialization block.
   {
     // Set up the worker threads.
@@ -564,6 +566,9 @@ private[effect] final class WorkStealingThreadPool(
     }
   }
 
+  def blockedWorkerThreadCounterForwarder: AtomicInteger =
+    blockedWorkerThreadCounter
+
   /*
    * What follows is a collection of methos used in the implementation of the
    * `cats.effect.unsafe.metrics.ComputePoolSamplerMBean` interface.
@@ -605,6 +610,16 @@ private[effect] final class WorkStealingThreadPool(
     val st = state.get()
     st & SearchMask
   }
+
+  /**
+   * Returns the number of [[WorkerThread]] instances which are currently blocked due to running
+   * blocking actions on the compute thread pool.
+   *
+   * @return
+   *   the number of blocked worker threads
+   */
+  def getBlockedWorkerThreadCount(): Int =
+    blockedWorkerThreadCounter.get()
 
   /**
    * Returns the total number of fibers enqueued on all local queues.
