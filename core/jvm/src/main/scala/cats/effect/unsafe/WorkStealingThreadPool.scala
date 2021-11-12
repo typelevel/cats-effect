@@ -614,4 +614,17 @@ private[effect] final class WorkStealingThreadPool(
    */
   def getLocalQueueFiberCount(): Long =
     localQueues.map(_.size().toLong).sum
+
+  /**
+   * Returns the number of fibers which are currently asynchronously suspended.
+   *
+   * @note
+   *   This counter is not synchronized due to performance reasons and might be reporting
+   *   out-of-date numbers.
+   *
+   * @return
+   *   the number of asynchronously suspended fibers
+   */
+  def getSuspendedFiberCount(): Long =
+    workerThreads.map(_.getSuspendedFiberCount().toLong).sum
 }
