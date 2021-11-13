@@ -5,9 +5,9 @@ title: Dispatcher
 
 ![](assets/dispatcher.jpeg)
 
-`Dispatcher` is a fiber-based [`Supervisor`](https://typelevel.org/cats-effect/docs/std/supervisor) utility for evaluating effects across an impure boundary. This is useful when working with reactive interfaces that produce potentially many values (as opposed to one), and for each value, some effect in `F` must be performed (like inserting each value into a queue).
+`Dispatcher` is a fiber-based [`Supervisor`](.supervisor/md) utility for evaluating effects across an impure boundary. This is useful when working with reactive interfaces that produce potentially many values (as opposed to one), and for each value, some effect in `F` must be performed (like inserting each value into a queue).
 
-An instance of `Dispatcher` can be derived for any effect type conforming to the [`Async`](https://typelevel.org/cats-effect/docs/typeclasses/async) typeclass.
+An instance of `Dispatcher` can be derived for any effect type conforming to the [`Async`](../typeclasses/async.md) typeclass.
 
 
 Let's say we are integrating with an interface that looks like this:
@@ -26,7 +26,7 @@ abstract class ImpureInterface {
 
 As a user we're supposed to create an implementation of this class where we implement `onMessage`.
 
-Let's say that we have a [`queue`](https://typelevel.org/cats-effect/docs/std/queue) and that we want to add each message received to the queue. We might,
+Let's say that we have a [`queue`](./queue.md) and that we want to add each message received to the queue. We might,
 naively, try to do the following
 
 ```scala
