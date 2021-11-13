@@ -5,9 +5,10 @@ title: Dispatcher
 
 ![](assets/dispatcher.jpeg)
 
-`Dispatcher` is a fiber-based utility for evaluating effects across an impure boundary. An instance of `Dispatcher` can be derived for any effect type conforming to the `Async` typeclass.
-This is useful when working with reactive interfaces that produce potentially many values (as opposed to one), and for each value, some effect in `F` must be performed 
-(like inserting each value into a queue).
+`Dispatcher` is a fiber-based [`Supervisor`](https://typelevel.org/cats-effect/docs/std/supervisor) utility for evaluating effects across an impure boundary. This is useful when working with reactive interfaces that produce potentially many values (as opposed to one), and for each value, some effect in `F` must be performed (like inserting each value into a queue).
+
+An instance of `Dispatcher` can be derived for any effect type conforming to the [`Async`](https://typelevel.org/cats-effect/docs/typeclasses/async) typeclass.
+
 
 Let's say we are integrating with an interface that looks like this:
 
