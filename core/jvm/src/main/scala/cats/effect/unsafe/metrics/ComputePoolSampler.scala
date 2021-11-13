@@ -24,7 +24,7 @@ package metrics
  * @param queue
  *   the monitored local queue
  */
-private[unsafe] class ComputePoolSampler(compute: WorkStealingThreadPool)
+private[unsafe] final class ComputePoolSampler(compute: WorkStealingThreadPool)
     extends ComputePoolSamplerMBean {
   def getWorkerThreadCount(): Int = compute.getWorkerThreadCount()
   def getActiveThreadCount(): Int = compute.getActiveThreadCount()
