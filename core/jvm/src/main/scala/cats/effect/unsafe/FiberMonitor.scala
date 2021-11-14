@@ -125,20 +125,18 @@ private[effect] final class FiberMonitor(
         s"cats.effect.IOFiber@$id $status$prefixedTrace"
       }
 
-      val (workersStrings, workersStatuses) = workersMap
-        .map {
-          case (worker, (active, local)) =>
-            val status =
-              if (worker.getState() == Thread.State.RUNNABLE) "RUNNING" else "BLOCKED"
+      val (workersStrings, workersStatuses) = workersMap.map {
+        case (worker, (active, local)) =>
+          val status =
+            if (worker.getState() == Thread.State.RUNNABLE) "RUNNING" else "BLOCKED"
 
-            val workerString = s"$worker (#${worker.index}): queue size = ${local.size}"
+          val workerString = s"$worker (#${worker.index}): queue size = ${local.size}"
 
-            val front = fiberString(active, status)
-            val trace = local.map(fiberString(_, "YIELDING")).mkString(doubleNewline)
+          val front = fiberString(active, status)
+          val trace = local.map(fiberString(_, "YIELDING")).mkString(doubleNewline)
 
-            (List(front, trace), workerString)
-        }
-        .unzip
+          (List(front, trace), workerString)
+      }.unzip
 
       val workersString = workersStrings.flatten.filterNot(_.isEmpty).mkString(doubleNewline)
       val workersStatus = workersStatuses.mkString(newline)

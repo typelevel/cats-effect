@@ -120,9 +120,9 @@ private[effect] object Tracing extends TracingPlatform {
     frames
       .zipWithIndex
       .map {
-       case (frame, index) =>
-         val junc = if (index == frames.length - 1) TurnRight else Junction
-         s" $junc $frame"
+        case (frame, index) =>
+          val junc = if (index == frames.length - 1) TurnRight else Junction
+          s" $junc $frame"
       }
       .mkString(System.lineSeparator())
   }
