@@ -81,7 +81,7 @@ private final class WorkerThread(
    * detecting nested blocking regions, in order to avoid unnecessarily spawning extra
    * [[WorkerThread]] s.
    */
-  private[this] var blocking: Boolean = _
+  private[this] var blocking: Boolean = false
 
   /**
    * Holds a reference to the fiber currently being executed by this worker thread. This field
