@@ -17,10 +17,14 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.TracingConstants
+
+import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 import java.lang.ref.WeakReference
-import java.util.{Collections, Map, WeakHashMap}
+import java.util.{Collections, ConcurrentModificationException, Map, WeakHashMap}
 import java.util.concurrent.ThreadLocalRandom
 
 /**
@@ -84,21 +88,136 @@ private[effect] final class FiberMonitor(
     }
   }
 
+  /**
+   * Obtains a snapshot of the fibers currently live on the [[IORuntime]] which this fiber
+   * monitor instance belongs to.
+   *
+   * @return
+   *   a textual representation of the runtime snapshot, `None` if a snapshot cannot be obtained
+   */
+  def liveFiberSnapshot(): Option[String] =
+    Option(compute).filter(_ => TracingConstants.isStackTracing).map { compute =>
+      val (rawExternal, workersMap, rawSuspended) = compute.liveFibers()
+      val rawForeign = foreignFibers()
+
+      // We trust the sources of data in the following order, ordered from
+      // most trustworthy to least trustworthy.
+      // 1. Fibers from the worker threads
+      // 2. Fibers from the external queue
+      // 3. Fibers from the foreign synchronized fallback weak GC maps
+      // 4. Fibers from the suspended thread local GC maps
+
+      val localAndActive = workersMap.foldLeft(Set.empty[IOFiber[_]]) {
+        case (acc, (_, (active, local))) =>
+          (acc ++ local) + active
+      }
+      val external = rawExternal -- localAndActive
+      val foreign = (rawForeign -- localAndActive) -- external
+      val suspended = ((rawSuspended -- localAndActive) -- external) -- external
+
+      val newline = System.lineSeparator()
+      val doubleNewline = s"$newline$newline"
+
+      def fiberString(fiber: IOFiber[_], status: String): String = {
+        val id = System.identityHashCode(fiber).toHexString
+        s"cats.effect.IOFiber@$id $status"
+      }
+
+      val liveFiberSnapshotHeader = s"Live Fiber Snapshot$doubleNewline"
+
+      val workersString = workersMap
+        .map {
+          case (worker, (active, local)) =>
+            val status =
+              if (worker.getState() == Thread.State.RUNNABLE) "RUNNABLE" else "BLOCKED"
+
+            val header =
+              s"""Worker Thread #${worker.index} ($worker)
+                 |
+                 |Active fiber: ${fiberString(active, status)}
+                 |
+                 |Enqueued fibers:$doubleNewline""".stripMargin
+
+            local.map(fiberString(_, "YIELDING")).mkString(header, doubleNewline, newline)
+        }
+        .mkString(doubleNewline)
+
+      val externalString = {
+        val header =
+          s"""Fibers enqueued on the external queue of the Work Stealing Runtime:$doubleNewline"""
+
+        external.map(fiberString(_, "YIELDING")).mkString(header, doubleNewline, newline)
+      }
+
+      val suspendedString = {
+        val header = s"Asynchronously suspended fibers:$doubleNewline"
+
+        suspended.map(fiberString(_, "WAITING")).mkString(header, doubleNewline, newline)
+      }
+
+      val foreignString = {
+        val header = s"Fibers executing on foreign Execution Contexts:$doubleNewline"
+
+        foreign.map(fiberString(_, "FOREIGN")).mkString(header, doubleNewline, newline)
+      }
+
+      liveFiberSnapshotHeader ++ workersString ++ externalString ++ suspendedString ++ foreignString
+    }
+
   private[this] def monitorFallback(key: AnyRef, fiber: IOFiber[_]): Unit = {
     val rnd = ThreadLocalRandom.current()
     val idx = rnd.nextInt(size)
     bags(idx).put(key, new WeakReference(fiber))
     ()
   }
+
+  private[this] def foreignFibers(): Set[IOFiber[_]] = {
+    val foreign = mutable.Set.empty[IOFiber[_]]
+
+    var i = 0
+    while (i < size) {
+      val weakMap = bags(i)
+      foreign ++= FiberMonitor.weakMapToSet(weakMap)
+      i += 1
+    }
+
+    foreign.toSet
+  }
 }
 
 private[effect] object FiberMonitor {
   def apply(compute: ExecutionContext): FiberMonitor = {
-    if (compute.isInstanceOf[WorkStealingThreadPool]) {
+    if (TracingConstants.isStackTracing && compute.isInstanceOf[WorkStealingThreadPool]) {
       val wstp = compute.asInstanceOf[WorkStealingThreadPool]
       new FiberMonitor(wstp)
     } else {
       new FiberMonitor(null)
     }
+  }
+
+  private[unsafe] def weakMapToSet[K, V <: AnyRef](
+      weakMap: Map[K, WeakReference[V]]): Set[V] = {
+    val buffer = mutable.ArrayBuffer.empty[V]
+
+    @tailrec
+    def contents(attempts: Int): Set[V] = {
+      try {
+        weakMap.forEach { (_, ref) =>
+          val v = ref.get()
+          if (v ne null) {
+            buffer += v
+          }
+        }
+
+        buffer.toSet
+      } catch {
+        case _: ConcurrentModificationException =>
+          buffer.clear()
+          if (attempts == 0) Set.empty
+          else contents(attempts - 1)
+      }
+    }
+
+    contents(100)
   }
 }

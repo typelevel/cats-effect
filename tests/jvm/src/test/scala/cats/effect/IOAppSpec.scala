@@ -28,7 +28,16 @@ import java.io.File
 
 class IOAppSpec extends Specification {
 
-  val JavaHome = System.getProperty("java.home")
+  val JavaHome = {
+    val path = sys.env.get("JAVA_HOME").orElse(sys.props.get("java.home")).get
+    if (path.endsWith("/jre")) {
+      // handle JDK 8 installations
+      path.replace("/jre", "")
+    } else {
+      path
+    }
+  }
+
   val ClassPath = System.getProperty("sbt.classpath")
 
   "IOApp (jvm)" should {
@@ -55,6 +64,12 @@ class IOAppSpec extends Specification {
       "exit on fatal error" in skipped("cannot observe graceful process termination on Windows")
       "exit on fatal error with other unsafe runs" in skipped(
         "cannot observe graceful process termination on Windows")
+      "exit on canceled" in skipped("cannot observe graceful process termination on Windows")
+      "warn on global runtime collision" in skipped(
+        "cannot observe graceful process termination on Windows")
+      "abort awaiting shutdown hooks" in skipped(
+        "cannot observe graceful process termination on Windows")
+      "live fiber snapshot" in skipped("cannot observe graceful process termination on Windows")
     } else {
       "run finalizers on TERM" in {
         if (System.getProperty("os.name").toLowerCase.contains("windows")) {
@@ -127,14 +142,50 @@ class IOAppSpec extends Specification {
         val h = java(ShutdownHookImmediateTimeout, List.empty)
         h.awaitStatus() mustEqual 0
       }
+
+      if (sys.props.get("java.version").filter(_.startsWith("1.8")).isDefined) {
+        "live fiber snapshot" in skipped(
+          "JDK 8 does not have free signals for live fiber snapshots")
+      } else {
+        "live fiber snapshot" in {
+          val h = java(LiveFiberSnapshot, List.empty)
+          // Allow the process some time to start
+          // and register the signal handlers.
+          Thread.sleep(2000L)
+          val pid = h.pid()
+          pid.isDefined must beTrue
+          pid.foreach(sendSignal)
+          h.awaitStatus()
+          val stderr = h.stderr()
+          stderr must contain("Live Fiber Snapshot")
+        }
+      }
     }
   }
 
+  // scala.sys.process.Process and java.lang.Process lack getting PID support. Java 9+ introduced it but
+  // whatever because it's very hard to obtain a java.lang.Process from scala.sys.process.Process.
+  private def jps(mainName: String): Option[Int] = {
+    val jpsStdoutBuffer = new StringBuffer()
+    val jpsProcess =
+      Process(s"$JavaHome/bin/jps", List.empty).run(BasicIO(false, jpsStdoutBuffer, None))
+    jpsProcess.exitValue()
+
+    val output = jpsStdoutBuffer.toString
+    Source.fromString(output).getLines().find(_.contains(mainName)).map(_.split(" ")(0).toInt)
+  }
+
+  private def sendSignal(pid: Int): Unit = {
+    Runtime.getRuntime().exec(s"kill -USR1 $pid")
+    ()
+  }
+
   def java(proto: IOApp, args: List[String]): Handle = {
+    val mainName = proto.getClass.getSimpleName.replace("$", "")
     val stdoutBuffer = new StringBuffer()
     val stderrBuffer = new StringBuffer()
     val builder = Process(
-      s"${JavaHome}/bin/java",
+      s"$JavaHome/bin/java",
       List("-cp", ClassPath, proto.getClass.getName.replaceAll("\\$$", "")) ::: args)
     val p = builder.run(BasicIO(false, stdoutBuffer, None).withError { in =>
       val err = Source.fromInputStream(in).getLines().mkString(System.lineSeparator())
@@ -147,6 +198,7 @@ class IOAppSpec extends Specification {
       def term() = p.destroy() // TODO probably doesn't work
       def stderr() = stderrBuffer.toString
       def stdout() = stdoutBuffer.toString
+      def pid() = jps(mainName)
     }
   }
 
@@ -155,6 +207,7 @@ class IOAppSpec extends Specification {
     def term(): Unit
     def stderr(): String
     def stdout(): String
+    def pid(): Option[Int]
   }
 }
 
@@ -228,5 +281,27 @@ package examples {
 
     val run: IO[Unit] =
       IO(System.exit(0)).uncancelable
+  }
+
+  object LiveFiberSnapshot extends IOApp.Simple {
+
+    import scala.concurrent.duration._
+
+    lazy val loop: IO[Unit] =
+      IO.unit.map(_ => ()) >>
+        IO.unit.flatMap(_ => loop)
+
+    val run = for {
+      fibers <- loop.timeoutTo(5.seconds, IO.unit).start.replicateA(32)
+
+      sleeper = for {
+        _ <- IO.unit
+        _ <- IO.unit
+        _ <- IO.sleep(3.seconds)
+      } yield ()
+
+      _ <- sleeper.start
+      _ <- fibers.traverse(_.join)
+    } yield ()
   }
 }

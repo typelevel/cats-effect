@@ -16,9 +16,12 @@
 
 package cats.effect
 
+import cats.effect.tracing.TracingConstants._
+
 import scala.concurrent.{blocking, CancellationException}
 
 import java.util.concurrent.CountDownLatch
+import sun.misc.Signal
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining
@@ -229,6 +232,29 @@ trait IOApp {
       }
 
       _runtime = IORuntime.global
+    }
+
+    if (isStackTracing) {
+      val liveFiberSnapshotSignal = sys
+        .props
+        .get("os.name")
+        .toList
+        .map(_.toLowerCase)
+        .filterNot(
+          _.contains("windows")
+        ) // Windows does not support signals user overridable signals
+        .flatMap(_ => List("USR1", "INFO"))
+
+      liveFiberSnapshotSignal foreach { name =>
+        try {
+          Signal.handle(
+            new Signal(name),
+            _ => runtime.fiberMonitor.liveFiberSnapshot().foreach(System.err.println(_)))
+        } catch {
+          case _: IllegalArgumentException =>
+            () // if we can't register a signal, just ignore and move on
+        }
+      }
     }
 
     val rt = Runtime.getRuntime()

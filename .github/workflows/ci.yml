@@ -22,7 +22,7 @@ jobs:
     name: Build and Test
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         scala: [3.0.2, 2.12.15, 2.13.7]
         java:
           - adoptium@8
@@ -39,9 +39,15 @@ jobs:
             java: graalvm-ce-java11@21.3
           - os: windows-latest
             scala: 3.0.2
+          - os: macos-latest
+            scala: 3.0.2
           - os: windows-latest
             scala: 2.12.15
+          - os: macos-latest
+            scala: 2.12.15
           - os: windows-latest
+            ci: ciJS
+          - os: macos-latest
             ci: ciJS
           - ci: ciFirefox
             java: adoptium@11
@@ -51,9 +57,15 @@ jobs:
             java: graalvm-ce-java11@21.3
           - os: windows-latest
             scala: 3.0.2
+          - os: macos-latest
+            scala: 3.0.2
           - os: windows-latest
             scala: 2.12.15
+          - os: macos-latest
+            scala: 2.12.15
           - os: windows-latest
+            ci: ciFirefox
+          - os: macos-latest
             ci: ciFirefox
           - ci: ciChrome
             java: adoptium@11
@@ -63,9 +75,15 @@ jobs:
             java: graalvm-ce-java11@21.3
           - os: windows-latest
             scala: 3.0.2
+          - os: macos-latest
+            scala: 3.0.2
           - os: windows-latest
             scala: 2.12.15
+          - os: macos-latest
+            scala: 2.12.15
           - os: windows-latest
+            ci: ciChrome
+          - os: macos-latest
             ci: ciChrome
     runs-on: ${{ matrix.os }}
     steps:
