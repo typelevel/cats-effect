@@ -157,7 +157,7 @@ class IOAppSpec extends Specification {
           pid.foreach(sendSignal)
           h.awaitStatus()
           val stderr = h.stderr()
-          stderr must contain("Live Fiber Snapshot")
+          stderr must contain("cats.effect.IOFiber")
         }
       }
     }

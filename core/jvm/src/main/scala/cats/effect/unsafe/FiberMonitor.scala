@@ -112,56 +112,49 @@ private[effect] final class FiberMonitor(
           (acc ++ local) + active
       }
       val external = rawExternal -- localAndActive
-      val foreign = (rawForeign -- localAndActive) -- external
-      val suspended = ((rawSuspended -- localAndActive) -- external) -- external
+      val foreign = rawForeign -- localAndActive -- external
+      val suspended = rawSuspended -- localAndActive -- external
 
       val newline = System.lineSeparator()
-      val doubleNewline = s"$newline$newline"
+      val doubleNewline = s"$newline $newline"
 
       def fiberString(fiber: IOFiber[_], status: String): String = {
         val id = System.identityHashCode(fiber).toHexString
-        s"cats.effect.IOFiber@$id $status"
+        val trace = fiber.prettyPrintTrace()
+        val prefixedTrace = if (trace.isEmpty) "" else newline + trace
+        s"cats.effect.IOFiber@$id $status$prefixedTrace"
       }
 
-      val liveFiberSnapshotHeader = s"Live Fiber Snapshot$doubleNewline"
-
-      val workersString = workersMap
+      val (workersStrings, workersStatuses) = workersMap
         .map {
           case (worker, (active, local)) =>
             val status =
-              if (worker.getState() == Thread.State.RUNNABLE) "RUNNABLE" else "BLOCKED"
+              if (worker.getState() == Thread.State.RUNNABLE) "RUNNING" else "BLOCKED"
 
-            val header =
-              s"""Worker Thread #${worker.index} ($worker)
-                 |
-                 |Active fiber: ${fiberString(active, status)}
-                 |
-                 |Enqueued fibers:$doubleNewline""".stripMargin
+            val workerString = s"$worker (#${worker.index}): queue size = ${local.size}"
 
-            local.map(fiberString(_, "YIELDING")).mkString(header, doubleNewline, newline)
+            val front = fiberString(active, status)
+            val trace = local.map(fiberString(_, "YIELDING")).mkString(doubleNewline)
+
+            (List(front, trace), workerString)
         }
+        .unzip
+
+      val workersString = workersStrings.flatten.mkString(doubleNewline)
+      val workersStatus = workersStatuses.mkString(newline)
+
+      val externalString =
+        external.map(fiberString(_, "YIELDING")).mkString(doubleNewline)
+
+      val suspendedString =
+        suspended.map(fiberString(_, "WAITING")).mkString(doubleNewline)
+
+      val foreignString =
+        foreign.map(fiberString(_, "FOREIGN")).mkString(doubleNewline)
+
+      List(workersString, externalString, suspendedString, foreignString, workersStatus)
+        .filterNot(_.isEmpty)
         .mkString(doubleNewline)
-
-      val externalString = {
-        val header =
-          s"""Fibers enqueued on the external queue of the Work Stealing Runtime:$doubleNewline"""
-
-        external.map(fiberString(_, "YIELDING")).mkString(header, doubleNewline, newline)
-      }
-
-      val suspendedString = {
-        val header = s"Asynchronously suspended fibers:$doubleNewline"
-
-        suspended.map(fiberString(_, "WAITING")).mkString(header, doubleNewline, newline)
-      }
-
-      val foreignString = {
-        val header = s"Fibers executing on foreign Execution Contexts:$doubleNewline"
-
-        foreign.map(fiberString(_, "FOREIGN")).mkString(header, doubleNewline, newline)
-      }
-
-      liveFiberSnapshotHeader ++ workersString ++ externalString ++ suspendedString ++ foreignString
     }
 
   private[this] def monitorFallback(key: AnyRef, fiber: IOFiber[_]): Unit = {
