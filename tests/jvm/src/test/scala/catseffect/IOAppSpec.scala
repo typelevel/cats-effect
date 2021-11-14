@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect
+// collapse the package name to avoid the tracing filters
+package catseffect
 
+import cats.effect.{ExitCode, IO, IOApp}
 import cats.syntax.all._
 
 import org.specs2.mutable.Specification
