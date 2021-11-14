@@ -16,8 +16,11 @@
 
 package cats.effect
 
+import cats.effect.tracing.TracingConstants._
+
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
+import scala.scalajs.LinkingInfo
 import scala.scalajs.js
 
 /**
@@ -194,6 +197,13 @@ trait IOApp {
       }
 
       _runtime = IORuntime.global
+    }
+
+    if (LinkingInfo.developmentMode && isStackTracing) {
+      val listener: js.Function0[Unit] = () =>
+        runtime.fiberMonitor.liveFiberSnapshot().foreach(js.Dynamic.global.console.error(_))
+      process.on("SIGUSR1", listener)
+      process.on("SIGINFO", listener)
     }
 
     // An infinite heartbeat to keep main alive.  This is similar to

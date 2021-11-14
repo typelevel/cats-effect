@@ -17,12 +17,11 @@
 package cats.effect
 package unsafe
 
-import scala.annotation.nowarn
 import scala.concurrent.ExecutionContext
 import scala.scalajs.js
 import scala.scalajs.LinkingInfo
 
-private[effect] sealed abstract class FiberMonitor {
+private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
 
   /**
    * Registers a suspended fiber, tracked by the provided key which is an opaque object which
@@ -34,12 +33,13 @@ private[effect] sealed abstract class FiberMonitor {
    *   the suspended fiber to be registered
    */
   def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit
+
+  def liveFiberSnapshot(): Option[String]
 }
 
 /**
  * Relies on features *standardized* in ES2021, although already offered in many environments
  */
-@nowarn("cat=unused-params")
 private final class ES2021FiberMonitor(
     // A reference to the compute pool of the `IORuntime` in which this suspended fiber bag
     // operates. `null` if the compute pool of the `IORuntime` is not a `FiberAwareExecutionContext`.
@@ -51,9 +51,39 @@ private final class ES2021FiberMonitor(
     bag.set(key, new js.WeakRef(fiber))
   }
 
-  @nowarn("cat=unused")
   private[this] def foreignFibers(): Set[IOFiber[_]] =
     bag.entries().flatMap(_._2.deref().toOption).toSet
+
+  /**
+   * Obtains a snapshot of the fibers currently live on the [[IORuntime]] which this fiber
+   * monitor instance belongs to.
+   *
+   * @return
+   *   a textual representation of the runtime snapshot, `None` if a snapshot cannot be obtained
+   */
+  def liveFiberSnapshot(): Option[String] =
+    Option(compute).map { compute =>
+      val queued = compute.liveFibers()
+      val rawForeign = foreignFibers()
+
+      // We trust the sources of data in the following order, ordered from
+      // most trustworthy to least trustworthy.
+      // 1. Fibers from the macrotask executor
+      // 2. Fibers from the foreign fallback weak GC map
+
+      val allForeign = rawForeign -- queued
+      val suspended = allForeign.filter(_.get())
+      val foreign = allForeign.filterNot(_.get())
+
+      val liveFiberSnapshotHeader = s"Live Fiber Snapshot$doubleNewline"
+
+      val queuedString =
+        fibersString(queued, "Fibers enqueued on Macrotask Executor", "YIELDING")
+
+      val suspendedForeignString = suspendedForeignFiberString(suspended, foreign)
+
+      liveFiberSnapshotHeader ++ queuedString ++ suspendedForeignString
+    }
 
 }
 
@@ -63,6 +93,7 @@ private final class ES2021FiberMonitor(
  */
 private final class NoOpFiberMonitor extends FiberMonitor {
   override def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit = ()
+  def liveFiberSnapshot(): Option[String] = None
 }
 
 private[effect] object FiberMonitor {

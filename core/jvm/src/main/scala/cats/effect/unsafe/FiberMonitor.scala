@@ -50,7 +50,7 @@ private[effect] final class FiberMonitor(
     // A reference to the compute pool of the `IORuntime` in which this suspended fiber bag
     // operates. `null` if the compute pool of the `IORuntime` is not a `WorkStealingThreadPool`.
     private[this] val compute: WorkStealingThreadPool
-) {
+) extends FiberMonitorShared {
 
   private[this] val size: Int = Runtime.getRuntime().availableProcessors() << 2
   private[this] val bags: Array[Map[AnyRef, WeakReference[IOFiber[_]]]] =
@@ -115,14 +115,6 @@ private[effect] final class FiberMonitor(
       val foreign = (rawForeign -- localAndActive) -- external
       val suspended = ((rawSuspended -- localAndActive) -- external) -- external
 
-      val newline = System.lineSeparator()
-      val doubleNewline = s"$newline$newline"
-
-      def fiberString(fiber: IOFiber[_], status: String): String = {
-        val id = System.identityHashCode(fiber).toHexString
-        s"cats.effect.IOFiber@$id $status"
-      }
-
       val liveFiberSnapshotHeader = s"Live Fiber Snapshot$doubleNewline"
 
       val workersString = workersMap
@@ -142,26 +134,14 @@ private[effect] final class FiberMonitor(
         }
         .mkString(doubleNewline)
 
-      val externalString = {
-        val header =
-          s"""Fibers enqueued on the external queue of the Work Stealing Runtime:$doubleNewline"""
+      val externalString = fibersString(
+        external,
+        "Fibers enqueued on the external queue of the Work Stealing Runtime",
+        "YIELDING")
 
-        external.map(fiberString(_, "YIELDING")).mkString(header, doubleNewline, newline)
-      }
+      val suspendedForeignString = suspendedForeignFiberString(suspended, foreign)
 
-      val suspendedString = {
-        val header = s"Asynchronously suspended fibers:$doubleNewline"
-
-        suspended.map(fiberString(_, "WAITING")).mkString(header, doubleNewline, newline)
-      }
-
-      val foreignString = {
-        val header = s"Fibers executing on foreign Execution Contexts:$doubleNewline"
-
-        foreign.map(fiberString(_, "FOREIGN")).mkString(header, doubleNewline, newline)
-      }
-
-      liveFiberSnapshotHeader ++ workersString ++ externalString ++ suspendedString ++ foreignString
+      liveFiberSnapshotHeader ++ workersString ++ externalString ++ suspendedForeignString
     }
 
   private[this] def monitorFallback(key: AnyRef, fiber: IOFiber[_]): Unit = {
