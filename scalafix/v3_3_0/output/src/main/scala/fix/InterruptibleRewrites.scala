@@ -1,6 +1,6 @@
 package fix
 
-import cats.effect.{ IO, Sync }
+import cats.effect.{IO, Sync}
 
 object InterruptibleRewrites {
   IO.interruptibleMany(IO.unit)

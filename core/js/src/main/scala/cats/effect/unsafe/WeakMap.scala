@@ -14,22 +14,18 @@
  * limitations under the License.
  */
 
-import sbt._, Keys._
+package cats.effect.unsafe
 
-import sbtspiewak.SpiewakPlugin, SpiewakPlugin.autoImport._
+import scala.scalajs.js
+import scala.scalajs.js.annotation.JSGlobal
+import scala.annotation.nowarn
 
-object Common extends AutoPlugin {
-
-  override def requires = plugins.JvmPlugin && SpiewakPlugin
-  override def trigger = allRequirements
-
-  override def projectSettings =
-    Seq(
-      libraryDependencies ++= {
-        if (isDotty.value)
-          Nil
-        else
-          Seq(compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"))
-      }
-    )
+@js.native
+@JSGlobal
+@nowarn("cat=unused")
+private[unsafe] class WeakMap[K, V] extends js.Object {
+  def delete(key: K): Boolean = js.native
+  def get(key: K): js.UndefOr[V] = js.native
+  def has(key: K): Boolean = js.native
+  def set(key: K, value: V): this.type = js.native
 }

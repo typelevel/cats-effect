@@ -93,9 +93,10 @@ ThisBuild / developers := List(
 
 val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
+val MacOS = "macos-latest"
 
 val ScalaJSJava = "adoptium@8"
-val Scala213 = "2.13.6"
+val Scala213 = "2.13.7"
 val Scala3 = "3.0.2"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
@@ -105,23 +106,23 @@ ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
 
 val LTSJava = "adoptium@11"
 val LatestJava = "adoptium@17"
-val GraalVM8 = "graalvm-ce-java8@21.2"
+val GraalVM = "graalvm-ce-java11@21.3"
 
-ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
+ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM)
 ThisBuild / githubWorkflowEnv += ("JABBA_INDEX" -> "https://github.com/typelevel/jdk-index/raw/main/index.json")
-ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
+ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Use(
     UseRef.Public("actions", "setup-node", "v2.4.0"),
     name = Some("Setup NodeJS v14 LTS"),
     params = Map("node-version" -> "14"),
-    cond = Some("matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'")
+    cond = Some("matrix.ci == 'ciJS'")
   ),
   WorkflowStep.Run(
     List("npm install"),
     name = Some("Install jsdom and source-map-support"),
-    cond = Some("matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'")
+    cond = Some("matrix.ci == 'ciJS'")
   )
 )
 
@@ -154,9 +155,11 @@ val jsCiVariants = CI.AllJSCIs.map(_.command)
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
-  val windowsScalaFilters =
-    (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).map { scala =>
-      MatrixExclude(Map("os" -> Windows, "scala" -> scala))
+  val windowsAndMacScalaFilters =
+    (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).flatMap { scala =>
+      Seq(
+        MatrixExclude(Map("os" -> Windows, "scala" -> scala)),
+        MatrixExclude(Map("os" -> MacOS, "scala" -> scala)))
     }
 
   jsCiVariants.flatMap { ci =>
@@ -165,11 +168,11 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
         MatrixExclude(Map("ci" -> ci, "java" -> java))
       }
 
-    javaFilters ++ windowsScalaFilters :+ MatrixExclude(Map("os" -> Windows, "ci" -> ci))
+    javaFilters ++ windowsAndMacScalaFilters ++ Seq(
+      MatrixExclude(Map("os" -> Windows, "ci" -> ci)),
+      MatrixExclude(Map("os" -> MacOS, "ci" -> ci)))
   }
 }
-
-lazy val unidoc213 = taskKey[Seq[File]]("Run unidoc but only on Scala 2.13")
 
 lazy val useJSEnv =
   settingKey[JSEnv]("Use Node.js or a headless browser for running Scala.js tests")
@@ -203,7 +206,7 @@ ThisBuild / autoAPIMappings := true
 val CatsVersion = "2.6.1"
 val Specs2Version = "4.13.0"
 val ScalaCheckVersion = "1.15.4"
-val DisciplineVersion = "1.2.3"
+val DisciplineVersion = "1.2.4"
 val CoopVersion = "1.1.1"
 
 val MacrotaskExecutorVersion = "1.0.0"
@@ -231,16 +234,7 @@ lazy val root = project
   .settings(
     ScalaUnidoc / unidoc / unidocProjectFilter := {
       undocumentedRefs.foldLeft(inAnyProject)((acc, a) => acc -- inProjects(a))
-    },
-    Compile / unidoc213 := Def.taskDyn {
-      if (scalaVersion.value.startsWith("2.13"))
-        Def.task((Compile / unidoc).value)
-      else
-        Def.task {
-          streams.value.log.warn(s"Skipping unidoc execution in Scala ${scalaVersion.value}")
-          Seq.empty[File]
-        }
-    }.value
+    }
   )
 
 lazy val rootJVM = project
@@ -328,6 +322,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(kernel, std)
   .settings(
     name := "cats-effect",
+    javafmtOnCompile := false,
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
@@ -411,7 +406,30 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       // introduced by #2361, Bye bye helper thread
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.HelperThread"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.LocalQueue$")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.LocalQueue$"),
+      // introduced by #2434, Initialize tracing buffer if needed
+      // changes to `cats.effect` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ArrayStack.copy"),
+      // introduced by #2453, Masking without an `initMask` field
+      // changes to `cats.effect` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IO#Uncancelable#UnmaskRunLoop.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IO#Uncancelable#UnmaskRunLoop.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IO#Uncancelable#UnmaskRunLoop.this"),
+      // introduced by #2510, Fix weak bag for the blocking mechanism
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.unsafe.WorkerThread.this"),
+      // introduced by #2513, Implement the active fiber tracking mechanism
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.dequeue"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.enqueueBatch"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.stealInto")
     )
   )
   .jvmSettings(

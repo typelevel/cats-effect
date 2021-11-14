@@ -79,6 +79,12 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
   }
 
   /**
+   * Like `Parallel.parReplicateA`, but limits the degree of parallelism.
+   */
+  def parReplicateAN[A](n: Int)(replicas: Int, ma: F[A]): F[List[A]] =
+    parSequenceN(n)(List.fill(replicas)(ma))
+
+  /**
    * Like `Parallel.parSequence`, but limits the degree of parallelism.
    */
   def parSequenceN[T[_]: Traverse, A](n: Int)(tma: T[F[A]]): F[T[A]] =

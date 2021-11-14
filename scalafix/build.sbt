@@ -44,7 +44,6 @@ lazy val v3_0_0_tests = project
   .dependsOn(v3_0_0_input, rules)
   .enablePlugins(ScalafixTestkitPlugin)
 
-
 lazy val v3_3_0_input = project
   .in(file("v3_3_0/input"))
   .settings(
@@ -58,7 +57,7 @@ lazy val v3_3_0_output = project
   .in(file("v3_3_0/output"))
   .settings(
     libraryDependencies ++= Seq(
-      "io.vasilev" %% "cats-effect" % "3.3-208-b352672"
+      "org.typelevel" %% "cats-effect" % "3.3-393-da7c7c7"
     )
   )
 

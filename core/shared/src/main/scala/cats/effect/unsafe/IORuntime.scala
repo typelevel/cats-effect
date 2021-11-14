@@ -41,6 +41,16 @@ final class IORuntime private (
 ) {
   private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
 
+  private[effect] val fiberMonitor: FiberMonitor = FiberMonitor(compute)
+
+  /*
+   * Forwarder methods for `IOFiber`.
+   */
+  private[effect] val cancelationCheckThreshold: Int = config.cancelationCheckThreshold
+  private[effect] val autoYieldThreshold: Int = config.autoYieldThreshold
+  private[effect] val enhancedExceptions: Boolean = config.enhancedExceptions
+  private[effect] val traceBufferLogSize: Int = config.traceBufferLogSize
+
   override def toString: String = s"IORuntime($compute, $scheduler, $config)"
 }
 

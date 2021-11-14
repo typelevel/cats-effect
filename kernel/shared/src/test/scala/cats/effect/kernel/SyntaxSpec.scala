@@ -49,6 +49,11 @@ class SyntaxSpec extends Specification {
       val result = List(target).parSequenceN(3)
       result: F[List[A]]
     }
+
+    {
+      val result = target.parReplicateAN(3)(5)
+      result: F[List[A]]
+    }
   }
 
   def monadCancelSyntax[F[_], A, E](target: F[A])(implicit F: MonadCancel[F, E]) = {

@@ -17,15 +17,14 @@
 package cats.effect
 package tracing
 
-private object TracingConstants {
+private[effect] object TracingConstants {
 
-  private[this] val stackTracingMode: String =
+  private[this] final val stackTracingMode: String =
     process.env("CATS_EFFECT_TRACING_MODE").filterNot(_.isEmpty).getOrElse("cached")
 
-  val isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
+  final val isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
 
-  val isFullStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("full")
+  final val isFullStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("full")
 
-  val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
-
+  final val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
 }

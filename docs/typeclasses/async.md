@@ -35,7 +35,7 @@ def fromFuture[A](fut: F[Future[A]]): F[A] =
   }
 ```
 
-`async_` is somewhat contrained however. We can't perform any `F` effects
+`async_` is somewhat constrained however. We can't perform any `F` effects
 in the process of registering the callback and we also can't register
 a finalizer to cancel the asynchronous task in the event that the fiber
 running `async_` is canceled.
