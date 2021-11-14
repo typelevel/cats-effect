@@ -81,7 +81,7 @@ private final class WorkerThread(
    * detecting nested blocking regions, in order to avoid unnecessarily spawning extra
    * [[WorkerThread]] s.
    */
-  private[this] var blocking: Boolean = _
+  private[this] var blocking: Boolean = false
 
   /**
    * Holds a reference to the fiber currently being executed by this worker thread. This field
@@ -517,7 +517,7 @@ private final class WorkerThread(
       // this worker thread has run its course and it is time to die, after the
       // blocking code has been successfully executed.
       blocking = true
-      pool.blockedWorkerThreadCounterForwarder.incrementAndGet()
+      pool.blockedWorkerThreadCounter.incrementAndGet()
 
       // Spawn a new `WorkerThread`, a literal clone of this one. It is safe to
       // transfer ownership of the local queue and the parked signal to the new
@@ -539,7 +539,7 @@ private final class WorkerThread(
       // action.
       val result = thunk
 
-      pool.blockedWorkerThreadCounterForwarder.decrementAndGet()
+      pool.blockedWorkerThreadCounter.decrementAndGet()
 
       result
     }
