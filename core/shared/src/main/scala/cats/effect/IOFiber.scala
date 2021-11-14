@@ -1416,7 +1416,7 @@ private final class IOFiber[A](
       .getFrames(tracingEvents)
       .headOption
       .orElse(Option(tracingEvents.peek).map(Tracing.getUnfilteredFrame))
-      .map(frame => s" $frame")
+      .map(frame => s": $frame")
       .getOrElse("")
 
     s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
