@@ -130,7 +130,7 @@ private[effect] final class FiberMonitor(
           val status =
             if (worker.getState() == Thread.State.RUNNABLE) "RUNNING" else "BLOCKED"
 
-          val workerString = s"$worker (#${worker.index}): queue size = ${local.size}"
+          val workerString = s"$worker (#${worker.index}): ${local.size} enqueued"
 
           val front = fiberString(active, status)
           val trace = local.map(fiberString(_, "YIELDING")).mkString(doubleNewline)
@@ -148,11 +148,18 @@ private[effect] final class FiberMonitor(
         suspended.map(fiberString(_, "WAITING")).mkString(doubleNewline)
 
       val foreignString =
-        foreign.map(fiberString(_, "FOREIGN")).mkString(doubleNewline)
+        foreign.map(fiberString(_, "ACTIVE")).mkString(doubleNewline)
 
-      List(workersString, externalString, suspendedString, foreignString, workersStatus)
-        .filterNot(_.isEmpty)
-        .mkString(doubleNewline)
+      val globalStatus =
+        s"Global: enqueued ${external.size}, foreign ${foreign.size}, waiting ${suspended.size}"
+
+      List(
+        workersString,
+        externalString,
+        suspendedString,
+        foreignString,
+        workersStatus,
+        globalStatus).filterNot(_.isEmpty).mkString(doubleNewline)
     }
 
   private[this] def monitorFallback(key: AnyRef, fiber: IOFiber[_]): Unit = {
