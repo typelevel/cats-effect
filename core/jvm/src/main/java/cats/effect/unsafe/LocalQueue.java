@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 @SuppressWarnings("unused")
 class HeadPadding {
+  private final int hp00 = 0;
   private final long hp01 = 0;
   private final long hp02 = 0;
   private final long hp03 = 0;
@@ -72,6 +73,7 @@ class Head extends HeadPadding {
 
 @SuppressWarnings("unused")
 class TailPadding extends Head {
+  private final int tp00 = 0;
   private final long tp01 = 0;
   private final long tp02 = 0;
   private final long tp03 = 0;
@@ -112,6 +114,7 @@ class Tail extends TailPadding {
 
 @SuppressWarnings("unused")
 class LocalQueuePadding extends Tail {
+  private final int qp00 = 0;
   private final long qp01 = 0;
   private final long qp02 = 0;
   private final long qp03 = 0;
