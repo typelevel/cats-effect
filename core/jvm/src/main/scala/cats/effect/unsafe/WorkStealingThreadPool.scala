@@ -102,7 +102,7 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[this] val done: AtomicBoolean = new AtomicBoolean(false)
 
-  private[this] val blockedWorkerThreadCounter: AtomicInteger = new AtomicInteger(0)
+  private[unsafe] val blockedWorkerThreadCounter: AtomicInteger = new AtomicInteger(0)
 
   // Thread pool initialization block.
   {
@@ -565,9 +565,6 @@ private[effect] final class WorkStealingThreadPool(
       Thread.currentThread().interrupt()
     }
   }
-
-  private[unsafe] def blockedWorkerThreadCounterForwarder: AtomicInteger =
-    blockedWorkerThreadCounter
 
   /*
    * What follows is a collection of methos used in the implementation of the
