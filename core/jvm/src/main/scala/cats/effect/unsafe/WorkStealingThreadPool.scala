@@ -102,6 +102,8 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[this] val done: AtomicBoolean = new AtomicBoolean(false)
 
+  private[unsafe] val blockedWorkerThreadCounter: AtomicInteger = new AtomicInteger(0)
+
   // Thread pool initialization block.
   {
     // Set up the worker threads.
@@ -563,4 +565,78 @@ private[effect] final class WorkStealingThreadPool(
       Thread.currentThread().interrupt()
     }
   }
+
+  /*
+   * What follows is a collection of methos used in the implementation of the
+   * `cats.effect.unsafe.metrics.ComputePoolSamplerMBean` interface.
+   */
+
+  /**
+   * Returns the number of [[WorkerThread]] instances backing the [[WorkStealingThreadPool]].
+   *
+   * @note
+   *   This is a fixed value, as the [[WorkStealingThreadPool]] has a fixed number of worker
+   *   threads.
+   *
+   * @return
+   *   the number of worker threads backing the compute pool
+   */
+  private[unsafe] def getWorkerThreadCount(): Int =
+    threadCount
+
+  /**
+   * Returns the number of active [[WorkerThread]] instances currently executing fibers on the
+   * compute thread pool.
+   *
+   * @return
+   *   the number of active worker threads
+   */
+  private[unsafe] def getActiveThreadCount(): Int = {
+    val st = state.get()
+    (st & UnparkMask) >>> UnparkShift
+  }
+
+  /**
+   * Returns the number of [[WorkerThread]] instances currently searching for fibers to steal
+   * from other worker threads.
+   *
+   * @return
+   *   the number of worker threads searching for work
+   */
+  private[unsafe] def getSearchingThreadCount(): Int = {
+    val st = state.get()
+    st & SearchMask
+  }
+
+  /**
+   * Returns the number of [[WorkerThread]] instances which are currently blocked due to running
+   * blocking actions on the compute thread pool.
+   *
+   * @return
+   *   the number of blocked worker threads
+   */
+  private[unsafe] def getBlockedWorkerThreadCount(): Int =
+    blockedWorkerThreadCounter.get()
+
+  /**
+   * Returns the total number of fibers enqueued on all local queues.
+   *
+   * @return
+   *   the total number of fibers enqueued on all local queues
+   */
+  private[unsafe] def getLocalQueueFiberCount(): Long =
+    localQueues.map(_.size().toLong).sum
+
+  /**
+   * Returns the number of fibers which are currently asynchronously suspended.
+   *
+   * @note
+   *   This counter is not synchronized due to performance reasons and might be reporting
+   *   out-of-date numbers.
+   *
+   * @return
+   *   the number of asynchronously suspended fibers
+   */
+  private[unsafe] def getSuspendedFiberCount(): Long =
+    workerThreads.map(_.getSuspendedFiberCount().toLong).sum
 }
