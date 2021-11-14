@@ -115,15 +115,15 @@ private[effect] object Tracing extends TracingPlatform {
       .filter(_ ne null)
 
   def prettyPrint(events: RingBuffer): String = {
-   val frames = getFrames(events)
+    val frames = getFrames(events)
 
-   frames
-   .zipWithIndex
-   .map {
-     case (frame, index) =>
-       val junc = if (index == frames.length - 1) TurnRight else Junction
-       s" $junc $frame"
-     }
-     .mkString(System.lineSeparator())
+    frames
+      .zipWithIndex
+      .map {
+       case (frame, index) =>
+         val junc = if (index == frames.length - 1) TurnRight else Junction
+         s" $junc $frame"
+      }
+      .mkString(System.lineSeparator())
   }
 }

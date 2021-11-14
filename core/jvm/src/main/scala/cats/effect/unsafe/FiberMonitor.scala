@@ -140,7 +140,7 @@ private[effect] final class FiberMonitor(
         }
         .unzip
 
-      val workersString = workersStrings.flatten.mkString(doubleNewline)
+      val workersString = workersStrings.flatten.filterNot(_.isEmpty).mkString(doubleNewline)
       val workersStatus = workersStatuses.mkString(newline)
 
       val externalString =
