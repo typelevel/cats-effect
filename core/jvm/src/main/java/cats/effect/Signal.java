@@ -55,17 +55,17 @@ final class Signal {
       // Gracefully degrade to a no-op implementation.
       SIGNAL_HANDLER =
           new SignalHandler() {
-            final void handleSignal(String signal, Consumer<Object> handler) {}
+            final void handle(String signal, Consumer<Object> handler) {}
           };
     }
   }
 
-  static void handleSignal(String signal, Consumer<Object> handler) {
-    SIGNAL_HANDLER.handleSignal(signal, handler);
+  static void handle(String signal, Consumer<Object> handler) {
+    SIGNAL_HANDLER.handle(signal, handler);
   }
 
   abstract static class SignalHandler {
-    abstract void handleSignal(String signal, Consumer<Object> handler);
+    abstract void handle(String signal, Consumer<Object> handler);
   }
 
   private static final Class<?> findClass(String name) {
@@ -109,7 +109,7 @@ final class Signal {
 
   private static final SignalHandler initSignalHandler(Class<?> sunMiscSignalHandlerClass) {
     return new SignalHandler() {
-      final void handleSignal(String signal, Consumer<Object> handler) {
+      final void handle(String signal, Consumer<Object> handler) {
         final InvocationHandler invocationHandler = invocationHandlerFromConsumer(handler);
         final Object proxy =
             Proxy.newProxyInstance(

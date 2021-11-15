@@ -246,7 +246,7 @@ trait IOApp {
 
       liveFiberSnapshotSignal foreach { name =>
         try {
-          Signal.handleSignal(
+          Signal.handle(
             name,
             _ => runtime.fiberMonitor.liveFiberSnapshot(System.err.print(_)))
         } catch {
