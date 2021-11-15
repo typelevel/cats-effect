@@ -35,7 +35,7 @@ private[effect] final class RingBuffer private (logSize: Int) {
   /**
    * Returns a list in reverse order of insertion.
    */
-  def toList: List[TracingEvent] = {
+  def toList(): List[TracingEvent] = {
     var result = List.empty[TracingEvent]
     val msk = mask
     val idx = index

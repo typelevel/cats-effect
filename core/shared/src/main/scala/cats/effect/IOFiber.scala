@@ -1459,6 +1459,14 @@ private final class IOFiber[A](
 
     s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
   }
+
+  private[effect] def prettyPrintTrace(): String =
+    if (isStackTracing) {
+      suspended.get()
+      Tracing.prettyPrint(tracingEvents)
+    } else {
+      ""
+    }
 }
 
 private object IOFiber {
