@@ -109,7 +109,7 @@ private[effect] final class FiberMonitor(
 
       val localAndActive = workersMap.foldLeft(Set.empty[IOFiber[_]]) {
         case (acc, (_, (active, local))) =>
-          (acc ++ local) + active
+          (acc ++ local) ++ active.toSet
       }
       val external = rawExternal -- localAndActive
       val foreign = rawForeign -- localAndActive -- external
@@ -141,7 +141,7 @@ private[effect] final class FiberMonitor(
           val workerString = s"$worker (#${worker.index}): ${local.size} enqueued"
 
           print(doubleNewline)
-          print(fiberString(active, status))
+          active.map(fiberString(_, status)).foreach(print(_))
           printFibers(local, "YIELDING")
 
           workerString
