@@ -34,8 +34,9 @@ private[effect] object process {
       .toOption
 
   def on(eventName: String, listener: js.Function0[Unit]): Unit =
-    Try(js.Dynamic.global.process.env.on(eventName, listener).asInstanceOf[Unit])
-      .recover { case _ => () } // Silently ignore failure
+    Try(js.Dynamic.global.process.env.on(eventName, listener).asInstanceOf[Unit]).recover {
+      case _ => ()
+    } // Silently ignore failure
       .get
 
 }
