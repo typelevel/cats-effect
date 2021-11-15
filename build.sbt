@@ -222,7 +222,7 @@ addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
 addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
 val jsProjects: Seq[ProjectReference] =
-  Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.js, std.js, example.js)
+  Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
 
 val undocumentedRefs =
   jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
@@ -245,7 +245,7 @@ lazy val rootJVM = project
     laws.jvm,
     core.jvm,
     testkit.jvm,
-    tests.jvm,
+    testsJVM,
     std.jvm,
     example.jvm,
     benchmarks)
@@ -483,10 +483,18 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
     Compile / mainClass := Some("catseffect.examples.JSRunner")
   )
   .jvmSettings(
-    Test / buildInfoKeys +=
-      "jsRunner" -> (tests.js / Compile / fastOptJS / artifactPath).value,
     Test / fork := true,
     Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}"
+  )
+
+lazy val testsJS = tests.js
+lazy val testsJVM = tests
+  .jvm
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    buildInfoPackage := "cats.effect",
+    buildInfoKeys +=
+      "jsRunner" -> (testsJS / Compile / fastOptJS / artifactPath).value
   )
 
 /**
