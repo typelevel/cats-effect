@@ -492,6 +492,7 @@ lazy val testsJVM = tests
   .jvm
   .enablePlugins(BuildInfoPlugin)
   .settings(
+    Test / compile := (Test / compile).dependsOn(testsJS / Compile / fastOptJS).value,
     buildInfoPackage := "cats.effect",
     buildInfoKeys +=
       "jsRunner" -> (testsJS / Compile / fastOptJS / artifactPath).value

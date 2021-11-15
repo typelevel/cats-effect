@@ -20,7 +20,6 @@ import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.ExitCode
 import cats.syntax.all._
-import scala.concurrent.duration.Duration
 
 package examples {
 
@@ -59,15 +58,6 @@ package examples {
 
     def run(args: List[String]): IO[ExitCode] =
       IO.pure(ExitCode.Success)
-  }
-
-  object ShutdownHookImmediateTimeout extends IOApp.Simple {
-
-    override protected def runtimeConfig =
-      super.runtimeConfig.copy(shutdownHookTimeout = Duration.Zero)
-
-    val run: IO[Unit] =
-      IO(System.exit(0)).uncancelable
   }
 
   object LiveFiberSnapshot extends IOApp.Simple {

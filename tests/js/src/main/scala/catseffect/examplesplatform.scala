@@ -21,19 +21,43 @@ import cats.effect.IO
 import cats.effect.IOApp
 import cats.syntax.all._
 
-import scala.collection.mutable
-import scala.scalajs.js
 import scala.annotation.nowarn
+import scala.collection.mutable
+import scala.concurrent.duration.Duration
+import scala.scalajs.js
 
 package examples {
 
   object JSRunner {
     val apps = mutable.Map.empty[String, IOApp]
+    def register(app: IOApp): Unit = apps(app.getClass.getName.init) = app
+
+    register(HelloWorld)
+    register(Arguments)
+    register(FatalError)
+    register(Canceled)
+    register(GlobalRacingInit)
+    register(ShutdownHookImmediateTimeout)
+    register(LiveFiberSnapshot)
+    register(FatalErrorUnsafeRun)
+    register(Finalizers)
+
     @nowarn("cat=unused")
     def main(paperweight: Array[String]): Unit = {
-      val args = js.Dynamic.global.process.argv.asInstanceOf[js.Array[String]].toList
-      apps(args.head).main(args.tail.toArray)
+      val args = js.Dynamic.global.process.argv.asInstanceOf[js.Array[String]]
+      val app = args(2)
+      args.shift()
+      apps(app).main(Array.empty)
     }
+  }
+
+  object ShutdownHookImmediateTimeout extends IOApp.Simple {
+
+    override protected def runtimeConfig =
+      super.runtimeConfig.copy(shutdownHookTimeout = Duration.Zero)
+
+    val run: IO[Unit] =
+      IO(js.Dynamic.global.process.exit(0)).void.uncancelable
   }
 
   object FatalErrorUnsafeRun extends IOApp {

@@ -22,8 +22,18 @@ import cats.effect.IOApp
 import cats.syntax.all._
 
 import java.io.File
+import scala.concurrent.duration.Duration
 
 package examples {
+
+  object ShutdownHookImmediateTimeout extends IOApp.Simple {
+
+    override protected def runtimeConfig =
+      super.runtimeConfig.copy(shutdownHookTimeout = Duration.Zero)
+
+    val run: IO[Unit] =
+      IO(System.exit(0)).uncancelable
+  }
 
   object FatalErrorUnsafeRun extends IOApp {
     import cats.effect.unsafe.implicits.global

@@ -84,12 +84,17 @@ class IOAppSpec extends Specification {
 
   object Node extends Platform("node") {
     def builder(proto: IOApp, args: List[String]) =
-      Process(s"node", proto.getClass.getName.init :: args)
+      Process(
+        s"node",
+        BuildInfo.jsRunner.getAbsolutePath :: proto.getClass.getName.init :: args)
 
     // scala.sys.process.Process and java.lang.Process lack getting PID support. Java 9+ introduced it but
     // whatever because it's very hard to obtain a java.lang.Process from scala.sys.process.Process.
     def pid(proto: IOApp): Option[Int] = None
   }
+
+  test(JVM)
+  test(Node)
 
   def test(platform: Platform): Unit = {
     s"IOApp (${platform.id})" should {
@@ -210,7 +215,7 @@ class IOAppSpec extends Specification {
             // and register the signal handlers.
             Thread.sleep(2000L)
             val pid = h.pid()
-            pid.isDefined must beTrue
+            pid must beSome(ok)
             pid.foreach(sendSignal)
             h.awaitStatus()
             val stderr = h.stderr()
