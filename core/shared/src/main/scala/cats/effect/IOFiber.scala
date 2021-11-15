@@ -134,7 +134,10 @@ private final class IOFiber[A](
     }
   }
 
-  var cancel: IO[Unit] = IO uncancelable { _ =>
+  /* backing fields for `cancel` and `join` */
+
+  /* this is swapped for an `IO.unit` when we complete */
+  private[this] var _cancel: IO[Unit] = IO uncancelable { _ =>
     IO defer {
       canceled = true
 
@@ -172,17 +175,28 @@ private final class IOFiber[A](
   }
 
   /* this is swapped for an `IO.pure(outcome)` when we complete */
-  var join: IO[OutcomeIO[A]] =
-    IO.async { cb =>
-      IO {
-        val handle = registerListener(oc => cb(Right(oc)))
+  private[this] var _join: IO[OutcomeIO[A]] = IO.async { cb =>
+    IO {
+      val handle = registerListener(oc => cb(Right(oc)))
 
-        if (handle == null)
-          None /* we were already invoked, so no `CallbackStack` needs to be managed */
-        else
-          Some(IO(handle.clearCurrent()))
-      }
+      if (handle == null)
+        None /* we were already invoked, so no `CallbackStack` needs to be managed */
+      else
+        Some(IO(handle.clearCurrent()))
     }
+  }
+
+  def cancel: IO[Unit] = {
+    // The `_cancel` field is published in terms of the `suspended` atomic variable.
+    readBarrier()
+    _cancel
+  }
+
+  def join: IO[OutcomeIO[A]] = {
+    // The `_join` field is published in terms of the `suspended` atomic variable.
+    readBarrier()
+    _join
+  }
 
   /* masks encoding: initMask => no masks, ++ => push, -- => pop */
   @tailrec
@@ -959,8 +973,8 @@ private final class IOFiber[A](
    */
   private[this] def done(oc: OutcomeIO[A]): Unit = {
     // println(s"<$name> invoking done($oc); callback = ${callback.get()}")
-    join = IO.pure(oc)
-    cancel = IO.unit
+    _join = IO.pure(oc)
+    _cancel = IO.unit
 
     outcome = oc
 
