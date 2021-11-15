@@ -68,7 +68,46 @@ final class Signal {
     abstract void handleSignal(String signal, Consumer<Object> handler);
   }
 
-  static final SignalHandler initSignalHandler(Class<?> sunMiscSignalHandlerClass) {
+  private static final Class<?> findClass(String name) {
+    try {
+      return Class.forName(name);
+    } catch (ClassNotFoundException e) {
+      return null;
+    }
+  }
+
+  private static final MethodHandle initSignalConstructorMethodHandle(
+      MethodHandles.Lookup lookup, Class<?> sunMiscSignalClass) {
+    final MethodType signalConstructorMethodType = MethodType.methodType(void.class, String.class);
+    try {
+      return lookup.findConstructor(sunMiscSignalClass, signalConstructorMethodType);
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  private static final MethodHandle initHandleStaticMethodHandle(
+      MethodHandles.Lookup lookup,
+      Class<?> sunMiscSignalClass,
+      Class<?> sunMiscSignalHandlerClass) {
+    final MethodType handleStaticMethodType =
+        MethodType.methodType(
+            sunMiscSignalHandlerClass, sunMiscSignalClass, sunMiscSignalHandlerClass);
+    try {
+      return lookup.findStatic(sunMiscSignalClass, "handle", handleStaticMethodType);
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  private static final InvocationHandler invocationHandlerFromConsumer(Consumer<Object> consumer) {
+    return (proxy, method, args) -> {
+      consumer.accept(args[0]);
+      return null;
+    };
+  }
+
+  private static final SignalHandler initSignalHandler(Class<?> sunMiscSignalHandlerClass) {
     return new SignalHandler() {
       final void handleSignal(String signal, Consumer<Object> handler) {
         final InvocationHandler invocationHandler = invocationHandlerFromConsumer(handler);
@@ -86,47 +125,5 @@ final class Signal {
         }
       }
     };
-  }
-
-  static final InvocationHandler invocationHandlerFromConsumer(Consumer<Object> consumer) {
-    return (proxy, method, args) -> {
-      if (method.getName().equals("handle")) {
-        consumer.accept(args[0]);
-        return null;
-      }
-      return null;
-    };
-  }
-
-  static final Class<?> findClass(String name) {
-    try {
-      return Class.forName(name);
-    } catch (ClassNotFoundException e) {
-      return null;
-    }
-  }
-
-  static final MethodHandle initSignalConstructorMethodHandle(
-      MethodHandles.Lookup lookup, Class<?> sunMiscSignalClass) {
-    final MethodType signalConstructorMethodType = MethodType.methodType(void.class, String.class);
-    try {
-      return lookup.findConstructor(sunMiscSignalClass, signalConstructorMethodType);
-    } catch (Exception e) {
-      return null;
-    }
-  }
-
-  static final MethodHandle initHandleStaticMethodHandle(
-      MethodHandles.Lookup lookup,
-      Class<?> sunMiscSignalClass,
-      Class<?> sunMiscSignalHandlerClass) {
-    final MethodType handleStaticMethodType =
-        MethodType.methodType(
-            sunMiscSignalHandlerClass, sunMiscSignalClass, sunMiscSignalHandlerClass);
-    try {
-      return lookup.findStatic(sunMiscSignalClass, "handle", handleStaticMethodType);
-    } catch (Exception e) {
-      return null;
-    }
   }
 }
