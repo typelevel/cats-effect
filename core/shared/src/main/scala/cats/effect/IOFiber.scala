@@ -1453,7 +1453,6 @@ private final class IOFiber[A](
     val opAndCallSite = Tracing
       .getFrames(tracingEvents)
       .headOption
-      .orElse(Option(tracingEvents.peek).map(Tracing.getUnfilteredFrame))
       .map(frame => s": $frame")
       .getOrElse("")
 

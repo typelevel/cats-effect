@@ -131,27 +131,4 @@ private[effect] object Tracing extends TracingPlatform {
       }
       .mkString(System.lineSeparator())
   }
-
-  private[this] val tracedMethods =
-    Array(
-      "async",
-      "async_",
-      "cont",
-      "delay",
-      "flatMap",
-      "handleErrorWith",
-      "map",
-      "uncancelable")
-
-  def getUnfilteredFrame(event: TracingEvent): StackTraceElement = event match {
-    case ev: TracingEvent.StackTrace =>
-      val stackTrace = ev.getStackTrace
-      var idx = 0
-      while (idx < stackTrace.length && !tracedMethods.contains(
-          stackTrace(idx).getMethodName())) idx += 1
-      if (idx + 1 < stackTrace.length)
-        combineOpAndCallSite(stackTrace(idx), stackTrace(idx + 1))
-      else null
-    case _ => null
-  }
 }
