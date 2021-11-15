@@ -1,3 +1,4 @@
+import sbtcrossproject.CrossProject
 /*
  * Copyright 2020-2021 Typelevel
  *
@@ -466,31 +467,26 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
  */
-lazy val tests = crossProject(JSPlatform, JVMPlatform)
+lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
   .in(file("tests"))
-  .dependsOn(laws % Test, kernelTestkit % Test, testkit % Test)
+  .dependsOn(core, laws % Test, kernelTestkit % Test, testkit % Test)
   .enablePlugins(BuildInfoPlugin, NoPublishPlugin)
   .settings(
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test),
-    buildInfoKeys +=
-      "jsRunner" -> (jsIOAppRunner / Compile / fastOptJS / artifactPath).value,
     buildInfoPackage := "catseffect"
   )
-  .jvmSettings(
-    Test / fork := true,
-    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
-
-lazy val jsIOAppRunner = project
-  .in(file("ioapp-runner"))
-  .dependsOn(tests.js % "compile->test")
-  .enablePlugins(ScalaJSPlugin, NoPublishPlugin)
-  .settings(
-    name := "cats-effect-ioapp-runner",
+  .jsSettings(
     Compile / scalaJSUseMainModuleInitializer := true,
     Compile / mainClass := Some("catseffect.examples.JSRunner")
+  )
+  .jvmSettings(
+    Test / buildInfoKeys +=
+      "jsRunner" -> (tests.js / Compile / fastOptJS / artifactPath).value,
+    Test / fork := true,
+    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}"
   )
 
 /**

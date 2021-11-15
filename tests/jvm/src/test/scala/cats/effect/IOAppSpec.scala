@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-// collapse the package name to avoid the tracing filters
-package catseffect
+package cats.effect
 
 import cats.effect.IOApp
 import org.specs2.mutable.Specification
@@ -94,7 +93,7 @@ class IOAppSpec extends Specification {
 
   def test(platform: Platform): Unit = {
     s"IOApp (${platform.id})" should {
-      import examples._
+      import catseffect.examples._
 
       "evaluate and print hello world" in {
         val h = platform(HelloWorld, Nil)
