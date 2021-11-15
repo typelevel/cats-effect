@@ -29,7 +29,7 @@ class IOFiberSpec extends BaseSpec {
       val pattern1 =
         raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ RUNNING: >> @ fiber.IOFiberSpec.loop\$$1\(.*IOFiberSpec.scala:[0-9]{2}\)"
       val pattern2 =
-        raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ RUNNING: flatMap @ cats.effect.IO.$$greater$$greater\(.*IOFiberSpec.scala:[0-9]{2}\)"
+        raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ RUNNING: flatMap @ cats.effect.IO.\$$greater\$$greater\(.*IOFiberSpec.scala:[0-9]{2}\)"
       for {
         f <- loop.start
         _ <- IO.sleep(1.milli)
