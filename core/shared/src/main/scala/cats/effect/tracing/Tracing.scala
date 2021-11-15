@@ -22,6 +22,11 @@ private[effect] object Tracing extends TracingPlatform {
 
   import TracingConstants._
 
+  private[this] val TurnRight = "╰"
+  // private[this] val InverseTurnRight = "╭"
+  private[this] val Junction = "├"
+  // private[this] val Line = "│"
+
   private[tracing] def buildEvent(): TracingEvent = {
     new TracingEvent.StackTrace()
   }
@@ -105,8 +110,20 @@ private[effect] object Tracing extends TracingPlatform {
 
   def getFrames(events: RingBuffer): List[StackTraceElement] =
     events
-      .toList
+      .toList()
       .collect { case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace) }
       .filter(_ ne null)
 
+  def prettyPrint(events: RingBuffer): String = {
+    val frames = getFrames(events)
+
+    frames
+      .zipWithIndex
+      .map {
+        case (frame, index) =>
+          val junc = if (index == frames.length - 1) TurnRight else Junction
+          s" $junc $frame"
+      }
+      .mkString(System.lineSeparator())
+  }
 }
