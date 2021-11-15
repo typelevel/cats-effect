@@ -20,11 +20,9 @@ import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.ExitCode
 import cats.syntax.all._
-
-package examples {
-
 import scala.concurrent.duration.Duration
 
+package examples {
 
   object HelloWorld extends IOApp.Simple {
     def run: IO[Unit] =

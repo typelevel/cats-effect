@@ -23,10 +23,9 @@ import cats.syntax.all._
 
 import scala.collection.mutable
 import scala.scalajs.js
+import scala.annotation.nowarn
 
 package examples {
-
-import scala.annotation.nowarn
 
   object JSRunner {
     val apps = mutable.Map.empty[String, IOApp]
