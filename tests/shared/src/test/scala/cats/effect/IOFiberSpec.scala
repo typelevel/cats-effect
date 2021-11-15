@@ -36,7 +36,8 @@ class IOFiberSpec extends BaseSpec {
         s <- IO(f.toString)
         // _ <- IO.println(s)
         _ <- f.cancel
-      } yield s.matches(s"($pattern1)|($pattern2)")
+        _ <- IO(s must beMatching(s"($pattern1)|($pattern2)"))
+      } yield ok
     }
 
     "toString a suspended fiber" in real {
@@ -49,7 +50,8 @@ class IOFiberSpec extends BaseSpec {
         s <- IO(f.toString)
         // _ <- IO.println(s)
         _ <- f.cancel
-      } yield s.matches(pattern)
+        _ <- IO(s must beMatching(pattern))
+      } yield ok
     }
   }
 }
