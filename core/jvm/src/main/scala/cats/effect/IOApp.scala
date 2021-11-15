@@ -245,14 +245,7 @@ trait IOApp {
         .flatMap(_ => List("USR1", "INFO"))
 
       liveFiberSnapshotSignal foreach { name =>
-        try {
-          Signal.handle(
-            name,
-            _ => runtime.fiberMonitor.liveFiberSnapshot(System.err.print(_)))
-        } catch {
-          case _: IllegalArgumentException =>
-            () // if we can't register a signal, just ignore and move on
-        }
+        Signal.handle(name, _ => runtime.fiberMonitor.liveFiberSnapshot(System.err.print(_)))
       }
     }
 
