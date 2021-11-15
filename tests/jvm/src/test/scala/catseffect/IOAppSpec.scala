@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect
+// collapse the package name to avoid the tracing filters
+package catseffect
 
+import cats.effect.{ExitCode, IO, IOApp}
 import cats.syntax.all._
 
 import org.specs2.mutable.Specification
@@ -157,7 +159,7 @@ class IOAppSpec extends Specification {
           pid.foreach(sendSignal)
           h.awaitStatus()
           val stderr = h.stderr()
-          stderr must contain("Live Fiber Snapshot")
+          stderr must contain("cats.effect.IOFiber")
         }
       }
     }

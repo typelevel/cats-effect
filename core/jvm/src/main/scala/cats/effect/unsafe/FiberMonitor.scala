@@ -112,36 +112,44 @@ private[effect] final class FiberMonitor(
           (acc ++ local) + active
       }
       val external = rawExternal -- localAndActive
-      val foreign = (rawForeign -- localAndActive) -- external
-      val suspended = ((rawSuspended -- localAndActive) -- external) -- external
+      val foreign = rawForeign -- localAndActive -- external
+      val suspended = rawSuspended -- localAndActive -- external
 
-      val liveFiberSnapshotHeader = s"Live Fiber Snapshot$doubleNewline"
+      val (workersStrings, workersStatuses) = workersMap.map {
+        case (worker, (active, local)) =>
+          val status =
+            if (worker.getState() == Thread.State.RUNNABLE) "RUNNING" else "BLOCKED"
 
-      val workersString = workersMap
-        .map {
-          case (worker, (active, local)) =>
-            val status =
-              if (worker.getState() == Thread.State.RUNNABLE) "RUNNABLE" else "BLOCKED"
+          val workerString = s"$worker (#${worker.index}): ${local.size} enqueued"
 
-            val header =
-              s"""Worker Thread #${worker.index} ($worker)
-                 |
-                 |Active fiber: ${fiberString(active, status)}
-                 |
-                 |Enqueued fibers:$doubleNewline""".stripMargin
+          val front = fiberString(active, status)
+          val trace = local.map(fiberString(_, "YIELDING")).mkString(doubleNewline)
 
-            local.map(fiberString(_, "YIELDING")).mkString(header, doubleNewline, newline)
-        }
-        .mkString(doubleNewline)
+          (List(front, trace), workerString)
+      }.unzip
 
-      val externalString = fibersString(
-        external,
-        "Fibers enqueued on the external queue of the Work Stealing Runtime",
-        "YIELDING")
+      val workersString = workersStrings.flatten.filterNot(_.isEmpty).mkString(doubleNewline)
+      val workersStatus = workersStatuses.mkString(newline)
 
-      val suspendedForeignString = suspendedForeignFiberString(suspended, foreign)
+      val externalString =
+        external.map(fiberString(_, "YIELDING")).mkString(doubleNewline)
 
-      liveFiberSnapshotHeader ++ workersString ++ externalString ++ suspendedForeignString
+      val suspendedString =
+        suspended.map(fiberString(_, "WAITING")).mkString(doubleNewline)
+
+      val foreignString =
+        foreign.map(fiberString(_, "ACTIVE")).mkString(doubleNewline)
+
+      val globalStatus =
+        s"Global: enqueued ${external.size}, foreign ${foreign.size}, waiting ${suspended.size}"
+
+      List(
+        workersString,
+        externalString,
+        suspendedString,
+        foreignString,
+        workersStatus,
+        globalStatus).filterNot(_.isEmpty).mkString(doubleNewline)
     }
 
   private[this] def monitorFallback(key: AnyRef, fiber: IOFiber[_]): Unit = {

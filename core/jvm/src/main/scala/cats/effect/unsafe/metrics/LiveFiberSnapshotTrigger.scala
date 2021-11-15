@@ -15,19 +15,16 @@
  */
 
 package cats.effect.unsafe
+package metrics
 
-import cats.effect.IOFiber
-
-private[unsafe] abstract class FiberMonitorShared {
-
-  protected val newline = System.lineSeparator()
-  protected val doubleNewline = s"$newline $newline"
-
-  protected def fiberString(fiber: IOFiber[_], status: String): String = {
-    val id = System.identityHashCode(fiber).toHexString
-    val trace = fiber.prettyPrintTrace()
-    val prefixedTrace = if (trace.isEmpty) "" else newline + trace
-    s"cats.effect.IOFiber@$id $status$prefixedTrace"
-  }
-
+/**
+ * An implementation of the [[LiveFiberSnapshotTriggerMBean]] interface which simply delegates
+ * to the corresponding method of the backing [[cats.effect.unsafe.FiberMonitor]].
+ *
+ * @param monitor
+ *   the backing fiber monitor
+ */
+private[unsafe] final class LiveFiberSnapshotTrigger(monitor: FiberMonitor)
+    extends LiveFiberSnapshotTriggerMBean {
+  def liveFiberSnapshot(): String = monitor.liveFiberSnapshot().getOrElse(null)
 }

@@ -75,14 +75,21 @@ private final class ES2021FiberMonitor(
       val suspended = allForeign.filter(_.get())
       val foreign = allForeign.filterNot(_.get())
 
-      val liveFiberSnapshotHeader = s"Live Fiber Snapshot$doubleNewline"
-
       val queuedString =
-        fibersString(queued, "Fibers enqueued on Macrotask Executor", "YIELDING")
+        queued.map(fiberString(_, "YIELDING")).mkString(doubleNewline)
 
-      val suspendedForeignString = suspendedForeignFiberString(suspended, foreign)
+      val suspendedString =
+        suspended.map(fiberString(_, "WAITING")).mkString(doubleNewline)
 
-      liveFiberSnapshotHeader ++ queuedString ++ suspendedForeignString
+      val foreignString =
+        foreign.map(fiberString(_, "YIELDING")).mkString(doubleNewline)
+
+      val globalStatus =
+        s"Global: enqueued ${queued.size}, foreign ${foreign.size}, waiting ${suspended.size}"
+
+      List(queuedString, suspendedString, foreignString, globalStatus)
+        .filterNot(_.isEmpty)
+        .mkString(doubleNewline)
     }
 
 }

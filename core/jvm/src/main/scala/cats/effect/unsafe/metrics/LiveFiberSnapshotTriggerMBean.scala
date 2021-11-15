@@ -14,20 +14,19 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect.unsafe.metrics
 
-import cats.effect.IOFiber
+/**
+ * An MBean interface for triggering live fiber snapshots.
+ */
+private[unsafe] trait LiveFiberSnapshotTriggerMBean {
 
-private[unsafe] abstract class FiberMonitorShared {
-
-  protected val newline = System.lineSeparator()
-  protected val doubleNewline = s"$newline $newline"
-
-  protected def fiberString(fiber: IOFiber[_], status: String): String = {
-    val id = System.identityHashCode(fiber).toHexString
-    val trace = fiber.prettyPrintTrace()
-    val prefixedTrace = if (trace.isEmpty) "" else newline + trace
-    s"cats.effect.IOFiber@$id $status$prefixedTrace"
-  }
-
+  /**
+   * Obtains a snapshot of the fibers currently live on the [[IORuntime]] which this fiber
+   * monitor instance belongs to.
+   *
+   * @return
+   *   a textual representation of the runtime snapshot, `null` if a snapshot cannot be obtained
+   */
+  def liveFiberSnapshot(): String
 }
