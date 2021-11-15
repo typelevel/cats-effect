@@ -215,7 +215,7 @@ class IOAppSpec extends Specification {
             // and register the signal handlers.
             Thread.sleep(2000L)
             val pid = h.pid()
-            pid must beSome(ok)
+            pid must beSome
             pid.foreach(sendSignal)
             h.awaitStatus()
             val stderr = h.stderr()
