@@ -25,7 +25,40 @@ import java.util.function.Consumer;
 
 final class Signal {
 
-  private static final SignalHandler SIGNAL_HANDLER = initSignalHandler();
+  private Signal() {}
+
+  private static final MethodHandle SIGNAL_CONSTRUCTOR_METHOD_HANDLE;
+  private static final MethodHandle HANDLE_STATIC_METHOD_HANDLE;
+
+  private static final SignalHandler SIGNAL_HANDLER;
+
+  static {
+    final Class<?> sunMiscSignalClass = findClass("sun.misc.Signal");
+    final Class<?> sunMiscSignalHandlerClass = findClass("sun.misc.SignalHandler");
+
+    final boolean classesAvailable =
+        (sunMiscSignalClass != null) && (sunMiscSignalHandlerClass != null);
+
+    if (classesAvailable) {
+      final MethodHandles.Lookup lookup = MethodHandles.lookup();
+
+      SIGNAL_CONSTRUCTOR_METHOD_HANDLE =
+          initSignalConstructorMethodHandle(lookup, sunMiscSignalClass);
+      HANDLE_STATIC_METHOD_HANDLE =
+          initHandleStaticMethodHandle(lookup, sunMiscSignalClass, sunMiscSignalHandlerClass);
+
+      SIGNAL_HANDLER = initSignalHandler(sunMiscSignalHandlerClass);
+    } else {
+      SIGNAL_CONSTRUCTOR_METHOD_HANDLE = null;
+      HANDLE_STATIC_METHOD_HANDLE = null;
+
+      // Gracefully degrade to a no-op implementation.
+      SIGNAL_HANDLER =
+          new SignalHandler() {
+            final void handleSignal(String signal, Consumer<Object> handler) {}
+          };
+    }
+  }
 
   static void handleSignal(String signal, Consumer<Object> handler) {
     SIGNAL_HANDLER.handleSignal(signal, handler);
@@ -35,47 +68,24 @@ final class Signal {
     abstract void handleSignal(String signal, Consumer<Object> handler);
   }
 
-  static final SignalHandler initSignalHandler() {
-    try {
-      final Class<?> sunMiscSignalClass = Class.forName("sun.misc.Signal");
-      final Class<?> sunMiscSignalHandlerClass = Class.forName("sun.misc.SignalHandler");
-      final MethodHandles.Lookup lookup = MethodHandles.lookup();
-      final MethodType signalConstructorMethodType =
-          MethodType.methodType(void.class, String.class);
-      final MethodHandle signalConstructorMethodHandle =
-          lookup.findConstructor(sunMiscSignalClass, signalConstructorMethodType);
-      final MethodType handleMethodType =
-          MethodType.methodType(
-              sunMiscSignalHandlerClass, sunMiscSignalClass, sunMiscSignalHandlerClass);
-      final MethodHandle handleMethodHandle =
-          lookup.findStatic(sunMiscSignalClass, "handle", handleMethodType);
+  static final SignalHandler initSignalHandler(Class<?> sunMiscSignalHandlerClass) {
+    return new SignalHandler() {
+      final void handleSignal(String signal, Consumer<Object> handler) {
+        final InvocationHandler invocationHandler = invocationHandlerFromConsumer(handler);
+        final Object proxy =
+            Proxy.newProxyInstance(
+                Signal.class.getClassLoader(),
+                new Class<?>[] {sunMiscSignalHandlerClass},
+                invocationHandler);
 
-      return new SignalHandler() {
-        final void handleSignal(String signal, Consumer<Object> handler) {
-          final InvocationHandler invocationHandler = invocationHandlerFromConsumer(handler);
-          final Object proxy =
-              Proxy.newProxyInstance(
-                  Signal.class.getClassLoader(),
-                  new Class<?>[] {sunMiscSignalHandlerClass},
-                  invocationHandler);
-
-          try {
-            final Object s = signalConstructorMethodHandle.invoke(signal);
-            handleMethodHandle.invoke(s, proxy);
-          } catch (Throwable t) {
-            // TODO: Maybe t.printStackTrace() ?
-            return; // Gracefully degrade to a no-op.
-          }
+        try {
+          final Object s = SIGNAL_CONSTRUCTOR_METHOD_HANDLE.invoke(signal);
+          HANDLE_STATIC_METHOD_HANDLE.invoke(s, proxy);
+        } catch (Throwable t) {
+          return; // Gracefully degrade to a no-op.
         }
-      };
-    } catch (Throwable t) {
-      // TODO: Maybe t.printStackTrace() ?
-
-      // Gracefully degrade to a no-op implementation.
-      return new SignalHandler() {
-        final void handleSignal(String signal, Consumer<Object> handler) {}
-      };
-    }
+      }
+    };
   }
 
   static final InvocationHandler invocationHandlerFromConsumer(Consumer<Object> consumer) {
@@ -86,5 +96,37 @@ final class Signal {
       }
       return null;
     };
+  }
+
+  static final Class<?> findClass(String name) {
+    try {
+      return Class.forName(name);
+    } catch (ClassNotFoundException e) {
+      return null;
+    }
+  }
+
+  static final MethodHandle initSignalConstructorMethodHandle(
+      MethodHandles.Lookup lookup, Class<?> sunMiscSignalClass) {
+    final MethodType signalConstructorMethodType = MethodType.methodType(void.class, String.class);
+    try {
+      return lookup.findConstructor(sunMiscSignalClass, signalConstructorMethodType);
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  static final MethodHandle initHandleStaticMethodHandle(
+      MethodHandles.Lookup lookup,
+      Class<?> sunMiscSignalClass,
+      Class<?> sunMiscSignalHandlerClass) {
+    final MethodType handleStaticMethodType =
+        MethodType.methodType(
+            sunMiscSignalHandlerClass, sunMiscSignalClass, sunMiscSignalHandlerClass);
+    try {
+      return lookup.findStatic(sunMiscSignalClass, "handle", handleStaticMethodType);
+    } catch (Exception e) {
+      return null;
+    }
   }
 }
