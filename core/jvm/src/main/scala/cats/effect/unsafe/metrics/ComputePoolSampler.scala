@@ -21,8 +21,8 @@ package metrics
  * An implementation of the [[ComputePoolSamplerMBean]] interface which simply delegates to the
  * corresponding methods of the [[cats.effect.unsafe.WorkStealingThreadPool]] being monitored.
  *
- * @param queue
- *   the monitored local queue
+ * @param compute
+ *   the monitored compute work stealing thread pool
  */
 private[unsafe] final class ComputePoolSampler(compute: WorkStealingThreadPool)
     extends ComputePoolSamplerMBean {
