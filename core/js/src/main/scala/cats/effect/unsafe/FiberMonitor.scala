@@ -71,18 +71,23 @@ private final class ES2021FiberMonitor(
       // 1. Fibers from the macrotask executor
       // 2. Fibers from the foreign fallback weak GC map
 
-      val foreign = rawForeign -- queued
-      val suspended = foreign.filter(_.get())
+      val allForeign = rawForeign -- queued
+      val suspended = allForeign.filter(_.get())
+      val foreign = allForeign.filterNot(_.get())
 
       val queuedString =
         queued.map(fiberString(_, "YIELDING")).mkString(doubleNewline)
 
+      val foreignString =
+        foreign.map(fiberString(_, "YIELDING")).mkString(doubleNewline)
+
       val suspendedString =
         suspended.map(fiberString(_, "WAITING")).mkString(doubleNewline)
 
-      val globalStatus = s"Global: enqueued ${queued.size}, waiting ${suspended.size}"
+      val globalStatus =
+        s"Global: enqueued ${queued.size + foreign.size}, waiting ${suspended.size}"
 
-      List(queuedString, suspendedString, globalStatus)
+      List(queuedString, foreignString, suspendedString, globalStatus)
         .filterNot(_.isEmpty)
         .mkString(doubleNewline)
     }
