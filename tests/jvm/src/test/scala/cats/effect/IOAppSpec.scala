@@ -97,7 +97,7 @@ class IOAppSpec extends Specification {
     def builder(proto: IOApp, args: List[String]) =
       Process(
         s"node",
-        BuildInfo.jsRunner.getAbsolutePath :: proto.getClass.getName.init :: args)
+        "--enable-source-maps" :: BuildInfo.jsRunner.getAbsolutePath :: proto.getClass.getName.init :: args)
 
     def pid(proto: IOApp): Option[Int] = {
       val mainName = proto.getClass.getName.init
