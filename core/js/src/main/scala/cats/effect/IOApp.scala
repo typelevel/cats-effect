@@ -234,11 +234,10 @@ trait IOApp {
         reportExitCode
       )(runtime)
 
-    // TODO idk why its broken :(
-    // process.on(
-    //   "SIGTERM",
-    //   () => fiber.cancel.unsafeRunAsync(_ => reportExitCode(ExitCode(143)))(runtime)
-    // )
+    process.on(
+      "SIGTERM",
+      () => fiber.cancel.unsafeRunAsync(_ => reportExitCode(ExitCode(143)))(runtime)
+    )
   }
 
   private[this] def reportExitCode(code: ExitCode): Unit = {
