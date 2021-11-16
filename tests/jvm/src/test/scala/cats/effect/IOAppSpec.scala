@@ -31,6 +31,13 @@ class IOAppSpec extends Specification {
     def builder(proto: IOApp, args: List[String]): ProcessBuilder
     def pid(proto: IOApp): Option[Int]
 
+    def dumpSignal: String
+
+    def sendSignal(pid: Int): Unit = {
+      Runtime.getRuntime().exec(s"kill -$dumpSignal $pid")
+      ()
+    }
+
     def apply(proto: IOApp, args: List[String]): Handle = {
       val stdoutBuffer = new StringBuffer()
       val stderrBuffer = new StringBuffer()
@@ -63,6 +70,8 @@ class IOAppSpec extends Specification {
       }
     }
 
+    val dumpSignal = "USR1"
+
     def builder(proto: IOApp, args: List[String]) = Process(
       s"$JavaHome/bin/java",
       List("-cp", ClassPath, proto.getClass.getName.replaceAll("\\$$", "")) ::: args)
@@ -83,14 +92,27 @@ class IOAppSpec extends Specification {
   }
 
   object Node extends Platform("node") {
+    val dumpSignal = "USR2"
+
     def builder(proto: IOApp, args: List[String]) =
       Process(
         s"node",
         BuildInfo.jsRunner.getAbsolutePath :: proto.getClass.getName.init :: args)
 
-    // scala.sys.process.Process and java.lang.Process lack getting PID support. Java 9+ introduced it but
-    // whatever because it's very hard to obtain a java.lang.Process from scala.sys.process.Process.
-    def pid(proto: IOApp): Option[Int] = None
+    def pid(proto: IOApp): Option[Int] = {
+      val mainName = proto.getClass.getName.init
+      val stdoutBuffer = new StringBuffer()
+      val process =
+        Process("ps", List("aux")).run(BasicIO(false, stdoutBuffer, None))
+      process.exitValue()
+
+      val output = stdoutBuffer.toString
+      Source
+        .fromString(output)
+        .getLines()
+        .find(l => l.contains(BuildInfo.jsRunner.getAbsolutePath) && l.contains(mainName))
+        .map(_.split(" +")(1).toInt)
+    }
   }
 
   test(JVM)
@@ -216,7 +238,7 @@ class IOAppSpec extends Specification {
             Thread.sleep(2000L)
             val pid = h.pid()
             pid must beSome
-            pid.foreach(sendSignal)
+            pid.foreach(platform.sendSignal)
             h.awaitStatus()
             val stderr = h.stderr()
             stderr must contain("cats.effect.IOFiber")
@@ -224,11 +246,6 @@ class IOAppSpec extends Specification {
         }
       }
     }
-    ()
-  }
-
-  private def sendSignal(pid: Int): Unit = {
-    Runtime.getRuntime().exec(s"kill -USR1 $pid")
     ()
   }
 

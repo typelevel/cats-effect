@@ -107,12 +107,7 @@ private[effect] object FiberMonitor {
 
   def apply(compute: ExecutionContext): FiberMonitor = {
     if (LinkingInfo.developmentMode && IterableWeakMap.isAvailable) {
-      if (compute.isInstanceOf[FiberAwareExecutionContext]) {
-        val faec = compute.asInstanceOf[FiberAwareExecutionContext]
-        new ES2021FiberMonitor(faec)
-      } else {
-        new ES2021FiberMonitor(null)
-      }
+      new ES2021FiberMonitor(new FiberAwareExecutionContext(compute))
     } else {
       new NoOpFiberMonitor()
     }
