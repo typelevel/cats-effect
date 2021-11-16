@@ -11,7 +11,9 @@
       "tracing",
       "thread-model",
       "schedulers",
-      "scaling-and-tuning/io-runtime-config"
+      "scaling-and-tuning/io-runtime-config",
+      "core/native-image",
+      "core/jlink"
     ],
     "Typeclasses": [
       "typeclasses",
