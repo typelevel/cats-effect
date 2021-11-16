@@ -230,7 +230,7 @@ val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
 
 val undocumentedRefs =
-  jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
+  jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm, tests.jvm, tests.js)
 
 lazy val root = project
   .in(file("."))
