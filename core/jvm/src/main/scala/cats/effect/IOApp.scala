@@ -21,7 +21,6 @@ import cats.effect.tracing.TracingConstants._
 import scala.concurrent.{blocking, CancellationException}
 
 import java.util.concurrent.CountDownLatch
-import sun.misc.Signal
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining
@@ -246,14 +245,7 @@ trait IOApp {
         .flatMap(_ => List("USR1", "INFO"))
 
       liveFiberSnapshotSignal foreach { name =>
-        try {
-          Signal.handle(
-            new Signal(name),
-            _ => runtime.fiberMonitor.liveFiberSnapshot(System.err.print(_)))
-        } catch {
-          case _: IllegalArgumentException =>
-            () // if we can't register a signal, just ignore and move on
-        }
+        Signal.handle(name, _ => runtime.fiberMonitor.liveFiberSnapshot(System.err.print(_)))
       }
     }
 
