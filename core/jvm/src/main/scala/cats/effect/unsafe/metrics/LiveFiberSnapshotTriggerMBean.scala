@@ -28,5 +28,5 @@ private[unsafe] trait LiveFiberSnapshotTriggerMBean {
    * @return
    *   a textual representation of the runtime snapshot, `null` if a snapshot cannot be obtained
    */
-  def liveFiberSnapshot(): String
+  def liveFiberSnapshot(): Array[String]
 }
