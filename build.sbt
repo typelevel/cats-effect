@@ -96,7 +96,6 @@ val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
 val MacOS = "macos-latest"
 
-val ScalaJSJava = "adoptium@8"
 val Scala213 = "2.13.7"
 val Scala3 = "3.0.2"
 
@@ -105,11 +104,13 @@ ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
 ThisBuild / githubWorkflowUseSbtThinClient := false
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
 
+val OldGuardJava = "adoptium@8"
 val LTSJava = "adoptium@11"
 val LatestJava = "adoptium@17"
+val ScalaJSJava = LatestJava
 val GraalVM = "graalvm-ce-java11@21.3"
 
-ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM)
+ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
 ThisBuild / githubWorkflowEnv += ("JABBA_INDEX" -> "https://github.com/typelevel/jdk-index/raw/main/index.json")
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
 
@@ -178,6 +179,10 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
 lazy val useJSEnv =
   settingKey[JSEnv]("Use Node.js or a headless browser for running Scala.js tests")
 Global / useJSEnv := NodeJS
+
+lazy val testJSIOApp =
+  settingKey[Boolean]("Whether to test JVM (false) or Node.js (true) in IOAppSpec")
+Global / testJSIOApp := false
 
 ThisBuild / Test / jsEnv := {
   useJSEnv.value match {
@@ -492,8 +497,14 @@ lazy val testsJVM = tests
   .jvm
   .enablePlugins(BuildInfoPlugin)
   .settings(
-    Test / compile := (Test / compile).dependsOn(testsJS / Compile / fastOptJS).value,
+    Test / compile := {
+      if (testJSIOApp.value)
+        (Test / compile).dependsOn(testsJS / Compile / fastOptJS).value
+      else
+        (Test / compile).value
+    },
     buildInfoPackage := "cats.effect",
+    buildInfoKeys += testJSIOApp,
     buildInfoKeys +=
       "jsRunner" -> (testsJS / Compile / fastOptJS / artifactPath).value
   )

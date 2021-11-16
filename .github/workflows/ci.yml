@@ -32,9 +32,9 @@ jobs:
         ci: [ciJVM, ciJS, ciFirefox, ciChrome]
         exclude:
           - ci: ciJS
-            java: adoptium@11
+            java: adoptium@8
           - ci: ciJS
-            java: adoptium@17
+            java: adoptium@11
           - ci: ciJS
             java: graalvm-ce-java11@21.3
           - os: windows-latest
@@ -50,9 +50,9 @@ jobs:
           - os: macos-latest
             ci: ciJS
           - ci: ciFirefox
-            java: adoptium@11
+            java: adoptium@8
           - ci: ciFirefox
-            java: adoptium@17
+            java: adoptium@11
           - ci: ciFirefox
             java: graalvm-ce-java11@21.3
           - os: windows-latest
@@ -68,9 +68,9 @@ jobs:
           - os: macos-latest
             ci: ciFirefox
           - ci: ciChrome
-            java: adoptium@11
+            java: adoptium@8
           - ci: ciChrome
-            java: adoptium@17
+            java: adoptium@11
           - ci: ciChrome
             java: graalvm-ce-java11@21.3
           - os: windows-latest

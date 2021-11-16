@@ -56,7 +56,7 @@ object CI {
         command = "ciJS",
         rootProject = "rootJS",
         jsEnv = Some(JSEnv.NodeJS),
-        testCommands = List("test"),
+        testCommands = List("test", "set Global / testJSIOApp := true", "testOnly *.IOAppSpec"),
         mimaReport = false,
         suffixCommands = List("exampleJS/compile"))
 

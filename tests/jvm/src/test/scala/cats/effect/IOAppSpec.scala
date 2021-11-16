@@ -117,8 +117,10 @@ class IOAppSpec extends Specification {
     }
   }
 
-  test(JVM)
-  test(Node)
+  if (BuildInfo.testJSIOApp)
+    test(Node)
+  else
+    test(JVM)
 
   def test(platform: Platform): Unit = {
     s"IOApp (${platform.id})" should {
