@@ -16,7 +16,6 @@
 
 package cats.effect
 
-import cats.effect.IOApp
 import org.specs2.mutable.Specification
 
 import java.io.File
