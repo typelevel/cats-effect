@@ -22,6 +22,7 @@ import scala.concurrent.CancellationException
 import scala.concurrent.duration._
 import scala.scalajs.LinkingInfo
 import scala.scalajs.js
+import scala.util.Try
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining
@@ -217,7 +218,7 @@ trait IOApp {
 
     val argList = process.argv.getOrElse(args.toList)
 
-    Spawn[IO]
+    val fiber = Spawn[IO]
       .raceOutcome[ExitCode, Nothing](run(argList), keepAlive)
       .flatMap {
         case Left(Outcome.Canceled()) =>
@@ -227,23 +228,23 @@ trait IOApp {
         case Right(Outcome.Errored(t)) => IO.raiseError(t)
         case Right(_) => sys.error("impossible")
       }
-      .unsafeRunAsync {
-        case Left(t) =>
-          t match {
-            case _: CancellationException =>
-              // Do not report cancelation exceptions but still exit with an error code.
-              reportExitCode(ExitCode(1))
-            case t: Throwable =>
-              throw t
-          }
-        case Right(code) => reportExitCode(code)
-      }(runtime)
+      .unsafeRunFiber(
+        reportExitCode(ExitCode(1)),
+        t => throw t,
+        reportExitCode
+      )(runtime)
+
+    // TODO idk why its broken :(
+    // process.on(
+    //   "SIGTERM",
+    //   () => fiber.cancel.unsafeRunAsync(_ => reportExitCode(ExitCode(143)))(runtime)
+    // )
   }
 
-  private[this] def reportExitCode(code: ExitCode): Unit =
-    if (js.typeOf(js.Dynamic.global.process) != "undefined") {
-      js.Dynamic.global.process.exitCode = code.code
-    }
+  private[this] def reportExitCode(code: ExitCode): Unit = {
+    Try(js.Dynamic.global.process.exitCode = code.code).recover { case _ => () }.get
+  }
+
 }
 
 object IOApp {
