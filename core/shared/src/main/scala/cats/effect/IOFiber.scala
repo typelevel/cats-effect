@@ -1450,11 +1450,8 @@ private final class IOFiber[A](
     // There are race conditions here since a running fiber is writing to `tracingEvents`,
     // but we don't worry about those since we are just looking for a single `TraceEvent`
     // which references user-land code
-    val opAndCallSite = Tracing
-      .getFrames(tracingEvents)
-      .headOption
-      .map(frame => s": $frame")
-      .getOrElse("")
+    val opAndCallSite =
+      Tracing.getFrames(tracingEvents).headOption.map(frame => s": $frame").getOrElse("")
 
     s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
   }
