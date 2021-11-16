@@ -239,31 +239,31 @@ trait IOApp {
       Try(js.Dynamic.global.process.exit.asInstanceOf[js.Function1[Int, Unit]]: Int => Unit)
         .getOrElse((_: Int) => ())
 
-    // Override it with one that cancels the fiber instead (if process exists)
-    Try(js.Dynamic.global.process.exit = (_: Int) => fiber.cancel.unsafeRunAndForget()(runtime))
-
-    process.on(
-      "SIGTERM",
-      () => fiber.cancel.unsafeRunAsync(_ => reportExitCode(ExitCode(143)))(runtime)
-    )
-    process.on(
-      "SIGINT",
-      () => {
-        // Optionally setup a timeout to hard exit
-        val timeout = runtime.config.shutdownHookTimeout match {
-          case fd: FiniteDuration => Some(js.timers.setTimeout(fd)(hardExit(130)))
-          case _ => None
-        }
-
-        fiber
-          .cancel
-          .unsafeRunAsync { _ =>
-            // Clear the timeout if scheduled, so the task queue is empty
-            timeout.foreach(js.timers.clearTimeout)
-            reportExitCode(ExitCode(130))
-          }(runtime)
+    def gracefulExit(code: Int): Unit = {
+      // Optionally setup a timeout to hard exit
+      val timeout = runtime.config.shutdownHookTimeout match {
+        case Duration.Zero =>
+          hardExit(code)
+          None
+        case fd: FiniteDuration =>
+          Some(js.timers.setTimeout(fd)(hardExit(code)))
+        case _ =>
+          None
       }
-    )
+
+      fiber
+        .cancel
+        .unsafeRunAsync { _ =>
+          // Clear the timeout if scheduled, so the task queue is empty
+          timeout.foreach(js.timers.clearTimeout)
+          reportExitCode(ExitCode(code))
+        }(runtime)
+    }
+
+    // Override it with one that cancels the fiber instead (if process exists)
+    Try(js.Dynamic.global.process.exit = gracefulExit(_))
+    process.on("SIGTERM", () => gracefulExit(143))
+    process.on("SIGINT", () => gracefulExit(130))
   }
 
   private[this] def reportExitCode(code: ExitCode): Unit = {
