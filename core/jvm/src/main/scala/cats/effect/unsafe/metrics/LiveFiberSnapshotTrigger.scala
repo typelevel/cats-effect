@@ -17,6 +17,8 @@
 package cats.effect.unsafe
 package metrics
 
+import scala.collection.mutable.ArrayBuffer
+
 /**
  * An implementation of the [[LiveFiberSnapshotTriggerMBean]] interface which simply delegates
  * to the corresponding method of the backing [[cats.effect.unsafe.FiberMonitor]].
@@ -26,5 +28,9 @@ package metrics
  */
 private[unsafe] final class LiveFiberSnapshotTrigger(monitor: FiberMonitor)
     extends LiveFiberSnapshotTriggerMBean {
-  def liveFiberSnapshot(): String = monitor.liveFiberSnapshot().getOrElse(null)
+  def liveFiberSnapshot(): Array[String] = {
+    val buffer = new ArrayBuffer[String]
+    monitor.liveFiberSnapshot(buffer += _)
+    buffer.toArray
+  }
 }

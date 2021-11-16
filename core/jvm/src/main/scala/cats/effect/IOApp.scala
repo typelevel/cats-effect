@@ -249,7 +249,7 @@ trait IOApp {
         try {
           Signal.handle(
             new Signal(name),
-            _ => runtime.fiberMonitor.liveFiberSnapshot().foreach(System.err.println(_)))
+            _ => runtime.fiberMonitor.liveFiberSnapshot(System.err.print(_)))
         } catch {
           case _: IllegalArgumentException =>
             () // if we can't register a signal, just ignore and move on
