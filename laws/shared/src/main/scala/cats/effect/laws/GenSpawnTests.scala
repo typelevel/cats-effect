@@ -154,6 +154,7 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] with UniqueTests[F] 
       EqFEitherAU: Eq[F[Either[A, Unit]]],
       EqFOutcomeEA: Eq[F[Outcome[F, E, A]]],
       EqFOutcomeEU: Eq[F[Outcome[F, E, Unit]]],
+      EqFEitherFOutcomeAB: Eq[F[Either[Outcome[F, E, A], Outcome[F, E, B]]]],
       EqFABC: Eq[F[(A, B, C)]],
       EqFInt: Eq[F[Int]],
       iso: Isomorphisms[F]): RuleSet = {
@@ -196,6 +197,10 @@ trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] with UniqueTests[F] 
         "race derives from racePair (left)" -> forAll(laws.raceDerivesFromRacePairLeft[A, B] _),
         "race derives from racePair (right)" -> forAll(
           laws.raceDerivesFromRacePairRight[A, B] _),
+        "raceOutcome derives from racePair (left)" -> forAll(
+          laws.raceOutcomeDerivesFromRacePairLeft[A, B] _),
+        "raceOutcome derives from racePair (right)" -> forAll(
+          laws.raceOutcomeDerivesFromRacePairRight[A, B] _),
         "race canceled identity (left)" -> forAll(laws.raceCanceledIdentityLeft[A] _),
         "race canceled identity (right)" -> forAll(laws.raceCanceledIdentityRight[A] _),
         "race never non-canceled identity (left)" -> forAll(

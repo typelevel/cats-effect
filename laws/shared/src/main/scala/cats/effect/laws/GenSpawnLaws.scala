@@ -87,6 +87,28 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
     F.race(F.never[A], fb) <-> results
   }
 
+  def raceOutcomeDerivesFromRacePairLeft[A, B](fa: F[A]) = {
+    val results: F[Either[Outcome[F, E, A], Outcome[F, E, B]]] = F uncancelable { poll =>
+      F.flatMap(poll(F.racePair(fa, F.never[B]))) {
+        case Left((oc, f)) => f.cancel.as(Left(oc))
+        case Right((f, oc)) => f.cancel.as(Right(oc))
+      }
+    }
+
+    F.raceOutcome(fa, F.never[B]) <-> results
+  }
+
+  def raceOutcomeDerivesFromRacePairRight[A, B](fb: F[B]) = {
+    val results: F[Either[Outcome[F, E, A], Outcome[F, E, B]]] = F uncancelable { poll =>
+      F.flatMap(poll(F.racePair(F.never[A], fb))) {
+        case Left((oc, f)) => f.cancel.as(Left(oc))
+        case Right((f, oc)) => f.cancel.as(Right(oc))
+      }
+    }
+
+    F.raceOutcome(F.never[A], fb) <-> results
+  }
+
   def raceCanceledIdentityLeft[A](fa: F[A]) =
     F.race(F.canceled, fa.flatMap(F.pure(_)).handleErrorWith(F.raiseError(_))) <-> fa.map(
       _.asRight[Unit])
