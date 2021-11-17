@@ -16,10 +16,16 @@
 
 package cats.effect.unsafe
 
+import cats.effect.tracing.TracingConstants._
+import cats.effect.unsafe.metrics._
+
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
+import java.lang.management.ManagementFactory
 import java.util.concurrent.{Executors, ScheduledThreadPoolExecutor}
 import java.util.concurrent.atomic.AtomicInteger
+import javax.management.ObjectName
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
@@ -30,7 +36,68 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) = {
     val threadPool =
       new WorkStealingThreadPool(threads, threadPrefix, self)
-    (threadPool, { () => threadPool.shutdown() })
+
+    val unregisterMBeans =
+      if (isStackTracing) {
+        val mBeanServer =
+          try ManagementFactory.getPlatformMBeanServer()
+          catch {
+            case t: Throwable =>
+              t.printStackTrace()
+              null
+          }
+
+        if (mBeanServer ne null) {
+          val registeredMBeans = mutable.Set.empty[ObjectName]
+
+          val hash = System.identityHashCode(threadPool).toHexString
+
+          try {
+            val computePoolSamplerName = new ObjectName(
+              s"cats.effect.unsafe.metrics:type=ComputePoolSampler-$hash")
+            val computePoolSampler = new ComputePoolSampler(threadPool)
+            mBeanServer.registerMBean(computePoolSampler, computePoolSamplerName)
+            registeredMBeans += computePoolSamplerName
+          } catch {
+            case t: Throwable =>
+              t.printStackTrace()
+          }
+
+          val localQueues = threadPool.localQueuesForwarder
+          var i = 0
+          val len = localQueues.length
+
+          while (i < len) {
+            val localQueue = localQueues(i)
+
+            try {
+              val localQueueSamplerName = new ObjectName(
+                s"cats.effect.unsafe.metrics:type=LocalQueueSampler-$hash-$i")
+              val localQueueSampler = new LocalQueueSampler(localQueue)
+              mBeanServer.registerMBean(localQueueSampler, localQueueSamplerName)
+              registeredMBeans += localQueueSamplerName
+            } catch {
+              case t: Throwable =>
+                t.printStackTrace()
+            }
+
+            i += 1
+          }
+
+          () => {
+            if (mBeanServer ne null) {
+              registeredMBeans.foreach(mBeanServer.unregisterMBean(_))
+            }
+          }
+        } else () => ()
+      } else () => ()
+
+    (
+      threadPool,
+      { () =>
+        unregisterMBeans()
+        threadPool.shutdown()
+      })
   }
 
   def createDefaultBlockingExecutionContext(
