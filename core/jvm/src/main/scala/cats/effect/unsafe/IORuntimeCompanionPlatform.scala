@@ -148,11 +148,51 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
         val (compute, _) = createDefaultComputeThreadPool(global)
         val (blocking, _) = createDefaultBlockingExecutionContext()
         val (scheduler, _) = createDefaultScheduler()
+        val fiberMonitor = FiberMonitor(compute)
+        registerFiberMonitorMBean(fiberMonitor)
 
         IORuntime(compute, blocking, scheduler, () => (), IORuntimeConfig())
       }
     }
 
     _global
+  }
+
+  private[effect] def apply(
+      compute: ExecutionContext,
+      blocking: ExecutionContext,
+      scheduler: Scheduler,
+      fiberMonitor: FiberMonitor,
+      shutdown: () => Unit,
+      config: IORuntimeConfig): IORuntime =
+    new IORuntime(compute, blocking, scheduler, fiberMonitor, shutdown, config)
+
+  private[effect] def registerFiberMonitorMBean(fiberMonitor: FiberMonitor): () => Unit = {
+    if (isStackTracing) {
+      val mBeanServer =
+        try ManagementFactory.getPlatformMBeanServer()
+        catch {
+          case t: Throwable =>
+            t.printStackTrace()
+            null
+        }
+
+      if (mBeanServer ne null) {
+        val hash = System.identityHashCode(fiberMonitor).toHexString
+
+        try {
+          val liveFiberSnapshotTriggerName = new ObjectName(
+            s"cats.effect.unsafe.metrics:type=LiveFiberSnapshotTrigger-$hash")
+          val liveFiberSnapshotTrigger = new LiveFiberSnapshotTrigger(fiberMonitor)
+          mBeanServer.registerMBean(liveFiberSnapshotTrigger, liveFiberSnapshotTriggerName)
+
+          () => mBeanServer.unregisterMBean(liveFiberSnapshotTriggerName)
+        } catch {
+          case t: Throwable =>
+            t.printStackTrace()
+            () => ()
+        }
+      } else () => ()
+    } else () => ()
   }
 }
