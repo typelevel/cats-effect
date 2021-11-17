@@ -34,7 +34,14 @@ private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
    */
   def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit
 
-  def liveFiberSnapshot(): Option[String]
+  /**
+   * Obtains a snapshot of the fibers currently live on the [[IORuntime]] which this fiber
+   * monitor instance belongs to.
+   *
+   * @return
+   *   a textual representation of the runtime snapshot, `None` if a snapshot cannot be obtained
+   */
+  def liveFiberSnapshot(print: String => Unit): Unit
 }
 
 /**
@@ -54,15 +61,8 @@ private final class ES2021FiberMonitor(
   private[this] def foreignFibers(): Set[IOFiber[_]] =
     bag.entries().flatMap(_._2.deref().toOption).toSet
 
-  /**
-   * Obtains a snapshot of the fibers currently live on the [[IORuntime]] which this fiber
-   * monitor instance belongs to.
-   *
-   * @return
-   *   a textual representation of the runtime snapshot, `None` if a snapshot cannot be obtained
-   */
-  def liveFiberSnapshot(): Option[String] =
-    Option(compute).map { compute =>
+  def liveFiberSnapshot(print: String => Unit): Unit =
+    Option(compute).foreach { compute =>
       val queued = compute.liveFibers()
       val rawForeign = foreignFibers()
 
@@ -75,21 +75,16 @@ private final class ES2021FiberMonitor(
       val suspended = allForeign.filter(_.get())
       val foreign = allForeign.filterNot(_.get())
 
-      val queuedString =
-        queued.map(fiberString(_, "YIELDING")).mkString(doubleNewline)
-
-      val foreignString =
-        foreign.map(fiberString(_, "YIELDING")).mkString(doubleNewline)
-
-      val suspendedString =
-        suspended.map(fiberString(_, "WAITING")).mkString(doubleNewline)
+      printFibers(queued, "YIELDING")
+      printFibers(foreign, "YIELDING")
+      printFibers(suspended, "WAITING")
 
       val globalStatus =
         s"Global: enqueued ${queued.size + foreign.size}, waiting ${suspended.size}"
 
-      List(queuedString, foreignString, suspendedString, globalStatus)
-        .filterNot(_.isEmpty)
-        .mkString(doubleNewline)
+      print(doubleNewline)
+      print(globalStatus)
+      print(newline)
     }
 
 }
@@ -100,7 +95,7 @@ private final class ES2021FiberMonitor(
  */
 private final class NoOpFiberMonitor extends FiberMonitor {
   override def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit = ()
-  def liveFiberSnapshot(): Option[String] = None
+  def liveFiberSnapshot(print: String => Unit): Unit = ()
 }
 
 private[effect] object FiberMonitor {

@@ -30,4 +30,12 @@ private[unsafe] abstract class FiberMonitorShared {
     s"cats.effect.IOFiber@$id $status$prefixedTrace"
   }
 
+  protected def printFibers(fibers: Set[IOFiber[_]], status: String): Unit =
+    if (!fibers.isEmpty) {
+      fibers foreach { fiber =>
+        print(doubleNewline)
+        print(fiberString(fiber, status))
+      }
+    }
+
 }
