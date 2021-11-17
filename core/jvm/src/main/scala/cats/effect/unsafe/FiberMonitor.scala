@@ -124,14 +124,14 @@ private[effect] final class FiberMonitor(
 
           print(doubleNewline)
           active.map(fiberString(_, status)).foreach(print(_))
-          printFibers(local, "YIELDING")
+          printFibers(local, "YIELDING")(print)
 
           workerString
       }
 
-      printFibers(external, "YIELDING")
-      printFibers(suspended, "WAITING")
-      printFibers(foreign, "ACTIVE")
+      printFibers(external, "YIELDING")(print)
+      printFibers(suspended, "WAITING")(print)
+      printFibers(foreign, "ACTIVE")(print)
 
       print(doubleNewline)
       print(workersStatuses.mkString(newline))

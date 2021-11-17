@@ -75,9 +75,9 @@ private final class ES2021FiberMonitor(
       val suspended = allForeign.filter(_.get())
       val foreign = allForeign.filterNot(_.get())
 
-      printFibers(queued, "YIELDING")
-      printFibers(foreign, "YIELDING")
-      printFibers(suspended, "WAITING")
+      printFibers(queued, "YIELDING")(print)
+      printFibers(foreign, "YIELDING")(print)
+      printFibers(suspended, "WAITING")(print)
 
       val globalStatus =
         s"Global: enqueued ${queued.size + foreign.size}, waiting ${suspended.size}"
