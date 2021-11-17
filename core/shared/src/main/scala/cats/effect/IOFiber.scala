@@ -127,10 +127,9 @@ private final class IOFiber[A](
       case 3 => asyncContinueCanceledR()
       case 4 => asyncContinueCanceledWithFinalizerR()
       case 5 => blockingR()
-      case 6 => evalOnR()
-      case 7 => cedeR()
-      case 8 => autoCedeR()
-      case 9 => ()
+      case 6 => cedeR()
+      case 7 => autoCedeR()
+      case 8 => ()
     }
   }
 
@@ -919,7 +918,7 @@ private final class IOFiber[A](
             currentCtx = ec
             conts = ByteStack.push(conts, EvalOnK)
 
-            resumeTag = EvalOnR
+            resumeTag = AutoCedeR
             resumeIO = cur.ioa
 
             if (isStackTracing) {
@@ -1325,12 +1324,6 @@ private final class IOFiber[A](
     }
     val ec = currentCtx
     scheduleOnForeignEC(ec, this)
-  }
-
-  private[this] def evalOnR(): Unit = {
-    val ioa = resumeIO
-    resumeIO = null
-    runLoop(ioa, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
 
   private[this] def cedeR(): Unit = {
