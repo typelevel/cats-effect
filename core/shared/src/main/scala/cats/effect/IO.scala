@@ -65,7 +65,7 @@ import scala.util.{Failure, Success, Try}
  *      cancelation logic
  *
  * Effects described via this abstraction are not evaluated until the "end of the world", which
- * is to say, when one of the "unsafe" methods are used. Effectful results are not memoized,
+ * is to say, when one of the "unsafe" methods are used. Effectful results are not memorized,
  * meaning that memory overhead is minimal (and no leaks), and also that a single effect may be
  * run multiple times in a referentially-transparent manner. For example:
  *
