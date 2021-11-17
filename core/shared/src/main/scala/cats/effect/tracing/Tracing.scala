@@ -31,7 +31,7 @@ private[effect] object Tracing extends TracingPlatform {
     new TracingEvent.StackTrace()
   }
 
-  private[this] final val runLoopFilter: Array[String] = Array("cats.effect.", "scala.runtime.")
+  private[this] final val runLoopFilter: Array[String] = Array("cats.effect.", "scala.runtime.", "scala.scalajs.runtime.")
 
   private[this] def getOpAndCallSite(
       stackTrace: Array[StackTraceElement]): StackTraceElement = {

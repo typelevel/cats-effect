@@ -74,14 +74,16 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
   private[this] final val stackTraceMethodNameFilter: Array[String] = Array(
     "_Lcats_effect_",
-    "_jl_"
+    "_jl_",
+    "{anonymous}"
   )
 
   private[this] final val stackTraceFileNameFilter: Array[String] = Array(
     "githubusercontent.com/typelevel/cats-effect/",
     "githubusercontent.com/typelevel/cats/",
     "githubusercontent.com/scala-js/",
-    "githubusercontent.com/scala/"
+    "githubusercontent.com/scala/",
+    "MacrotaskExecutor.scala" // TODO temporary workaround
   )
 
   private[tracing] def applyStackTraceFilter(

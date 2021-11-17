@@ -224,7 +224,8 @@ trait IOApp {
               // Do not report cancelation exceptions but still exit with an error code.
               reportExitCode(ExitCode(1))
             case t: Throwable =>
-              throw t
+              t.printStackTrace()
+              reportExitCode(ExitCode(1))
           }
         case Right(code) => reportExitCode(code)
       }(runtime)
