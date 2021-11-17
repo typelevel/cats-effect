@@ -64,7 +64,7 @@ final class IORuntime private (
 
         try {
           val liveFiberSnapshotTriggerName = new ObjectName(
-            s"cats.effect.unsafe.metrics:type=ComputePoolSampler-$hash")
+            s"cats.effect.unsafe.metrics:type=LiveFiberSnapshotTrigger-$hash")
           val liveFiberSnapshotTrigger = new LiveFiberSnapshotTrigger(fiberMonitor)
           mBeanServer.registerMBean(liveFiberSnapshotTrigger, liveFiberSnapshotTriggerName)
 
