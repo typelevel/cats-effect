@@ -17,7 +17,13 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.TracingConstants._
+import cats.effect.unsafe.metrics.LiveFiberSnapshotTrigger
+
 import scala.concurrent.ExecutionContext
+
+import java.lang.management.ManagementFactory
+import javax.management.ObjectName
 
 @annotation.implicitNotFound("""Could not find an implicit IORuntime.
 
@@ -36,12 +42,45 @@ final class IORuntime private (
     val compute: ExecutionContext,
     private[effect] val blocking: ExecutionContext,
     val scheduler: Scheduler,
-    val shutdown: () => Unit,
+    _shutdown: () => Unit,
     val config: IORuntimeConfig
 ) {
   private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
 
   private[effect] val fiberMonitor: FiberMonitor = FiberMonitor(compute)
+
+  private[this] val unregisterMBeans =
+    if (isStackTracing) {
+      val mBeanServer =
+        try ManagementFactory.getPlatformMBeanServer()
+        catch {
+          case t: Throwable =>
+            t.printStackTrace()
+            null
+        }
+
+      if (mBeanServer ne null) {
+        val hash = System.identityHashCode(fiberMonitor).toHexString
+
+        try {
+          val liveFiberSnapshotTriggerName = new ObjectName(
+            s"cats.effect.unsafe.metrics:type=ComputePoolSampler-$hash")
+          val liveFiberSnapshotTrigger = new LiveFiberSnapshotTrigger(fiberMonitor)
+          mBeanServer.registerMBean(liveFiberSnapshotTrigger, liveFiberSnapshotTriggerName)
+
+          () => mBeanServer.unregisterMBean(liveFiberSnapshotTriggerName)
+        } catch {
+          case t: Throwable =>
+            t.printStackTrace()
+            () => ()
+        }
+      } else () => ()
+    } else () => ()
+
+  val shutdown: () => Unit = { () =>
+    unregisterMBeans()
+    _shutdown()
+  }
 
   /*
    * Forwarder methods for `IOFiber`.
