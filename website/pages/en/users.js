@@ -30,6 +30,7 @@ const users = [
   ['Kaluza', 'https://www.kaluza.com'],
   ['Klarna', 'https://www.klarna.com'],
   ['Medidata', 'https://www.medidata.com/'],
+  ['Moda Operandi', 'https://www.modaoperandi.com/'],
   ['Ocado Technology', 'https://ocadotechnology.com/'],
   ['OVO Energy', 'https://www.ovoenergy.com'],
   ['Packlink', 'https://www.packlink.com'],
