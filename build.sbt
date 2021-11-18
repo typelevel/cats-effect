@@ -155,6 +155,11 @@ val jsCiVariants = CI.AllJSCIs.map(_.command)
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
+  val scalaJavaFilters = for {
+    scala <- (ThisBuild / githubWorkflowScalaVersions).value.init
+    java <- (ThisBuild / githubWorkflowJavaVersions).value.tail
+  } yield MatrixExclude(Map("scala" -> scala, "java" -> java))
+
   val windowsAndMacScalaFilters =
     (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).flatMap { scala =>
       Seq(
@@ -178,7 +183,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
       MatrixExclude(Map("os" -> MacOS, "ci" -> ci)))
   }
 
-  windowsAndMacScalaFilters ++ jsScalaFilters ++ jsJavaAndOSFilters
+  scalaJavaFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ jsJavaAndOSFilters
 }
 
 lazy val useJSEnv =

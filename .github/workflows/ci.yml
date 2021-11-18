@@ -31,6 +31,18 @@ jobs:
           - graalvm-ce-java11@21.3
         ci: [ciJVM, ciJS, ciFirefox, ciChrome]
         exclude:
+          - scala: 3.0.2
+            java: adoptium@11
+          - scala: 3.0.2
+            java: adoptium@17
+          - scala: 3.0.2
+            java: graalvm-ce-java11@21.3
+          - scala: 2.12.15
+            java: adoptium@11
+          - scala: 2.12.15
+            java: adoptium@17
+          - scala: 2.12.15
+            java: graalvm-ce-java11@21.3
           - os: windows-latest
             scala: 3.0.2
           - os: macos-latest
