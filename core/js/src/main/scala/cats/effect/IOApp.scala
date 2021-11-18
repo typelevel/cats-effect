@@ -218,6 +218,11 @@ trait IOApp {
 
     val argList = process.argv.getOrElse(args.toList)
 
+    // Store the default process.exit function, if it exists
+    val hardExit =
+      Try(js.Dynamic.global.process.exit.asInstanceOf[js.Function1[Int, Unit]]: Int => Unit)
+        .getOrElse((_: Int) => ())
+
     val fiber = Spawn[IO]
       .raceOutcome[ExitCode, Nothing](run(argList), keepAlive)
       .flatMap {
@@ -232,15 +237,11 @@ trait IOApp {
         reportExitCode(ExitCode(1)),
         t => {
           t.printStackTrace()
-          reportExitCode(ExitCode(1))
+          hardExit(1)
+          throw t // For runtimes where hardExit is a no-op
         },
         reportExitCode
       )(runtime)
-
-    // Store the default process.exit function, if it exists
-    val hardExit =
-      Try(js.Dynamic.global.process.exit.asInstanceOf[js.Function1[Int, Unit]]: Int => Unit)
-        .getOrElse((_: Int) => ())
 
     def gracefulExit(code: Int): Unit = {
       // Optionally setup a timeout to hard exit
