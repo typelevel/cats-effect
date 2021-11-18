@@ -34,6 +34,20 @@ private[effect] object Tracing extends TracingPlatform {
   private[this] final val runLoopFilter: Array[String] =
     Array("cats.effect.", "scala.runtime.", "scala.scalajs.runtime.")
 
+  private[this] def combineOpAndCallSite(
+      methodSite: StackTraceElement,
+      callSite: StackTraceElement): StackTraceElement = {
+    val methodSiteMethodName = methodSite.getMethodName
+    val op = decodeMethodName(methodSiteMethodName)
+
+    new StackTraceElement(
+      op + " @ " + callSite.getClassName,
+      callSite.getMethodName,
+      callSite.getFileName,
+      callSite.getLineNumber
+    )
+  }
+
   private[this] def getOpAndCallSite(
       stackTrace: Array[StackTraceElement]): StackTraceElement = {
     val len = stackTrace.length
@@ -45,17 +59,8 @@ private[effect] object Tracing extends TracingPlatform {
       val callSiteMethodName = callSite.getMethodName
       val callSiteFileName = callSite.getFileName
 
-      if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName, callSiteFileName)) {
-        val methodSiteMethodName = methodSite.getMethodName
-        val op = decodeMethodName(methodSiteMethodName)
-
-        return new StackTraceElement(
-          op + " @ " + callSiteClassName,
-          callSite.getMethodName,
-          callSite.getFileName,
-          callSite.getLineNumber
-        )
-      }
+      if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName, callSiteFileName))
+        return combineOpAndCallSite(methodSite, callSite)
 
       idx += 1
     }
