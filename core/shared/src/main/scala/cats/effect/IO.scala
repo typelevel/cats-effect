@@ -936,14 +936,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Suspends an asynchronous side effect in `IO`.
    *
    * The given function will be invoked during evaluation of the `IO` to "schedule" the
-   * asynchronous callback, where the callback of type `Either[Throwable, A] => Unit` 
-   * is the parameter passed to that function. Only the ''first'' invocation of the callback
-   * will be effective! All subsequent invocations will be silently dropped.
+   * asynchronous callback, where the callback of type `Either[Throwable, A] => Unit` is the
+   * parameter passed to that function. Only the ''first'' invocation of the callback will be
+   * effective! All subsequent invocations will be silently dropped.
    *
-   * The process of registering the callback itself is suspended in `IO` 
-   * (the outer `IO` of `IO[Option[IO[Unit]]]`).
+   * The process of registering the callback itself is suspended in `IO` (the outer `IO` of
+   * `IO[Option[IO[Unit]]]`).
    *
-   * The effect returns `Option[IO[Unit]]` which is an optional finalizer to be run in the event 
+   * The effect returns `Option[IO[Unit]]` which is an optional finalizer to be run in the event
    * that the fiber running `async(k)` is canceled.
    *
    * For example, here is a simplified version of `IO.fromCompletableFuture`:
@@ -958,7 +958,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *           case (a, null) => cb(Right(a))
    *           case (_, e) => cb(Left(e))
    *         }
-   * 
+   *
    *         //Cancel the completable future if the fiber is canceled
    *         Some(IO(stage.cancel(false)).void)
    *       }
@@ -968,7 +968,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * }}}
    *
    * @see
-   *   [[async_]] for a simplified variant without a finalizer 
+   *   [[async_]] for a simplified variant without a finalizer
    */
   def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = {
     val body = new Cont[IO, A, A] {
