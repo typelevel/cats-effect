@@ -1452,7 +1452,15 @@ private final class IOFiber[A](
   // overrides the AtomicReference#toString
   override def toString: String = {
     val state = if (suspended.get()) "SUSPENDED" else "RUNNING"
-    s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state"
+    val tracingEvents = this.tracingEvents
+
+    // There are race conditions here since a running fiber is writing to `tracingEvents`,
+    // but we don't worry about those since we are just looking for a single `TraceEvent`
+    // which references user-land code
+    val opAndCallSite =
+      Tracing.getFrames(tracingEvents).headOption.map(frame => s": $frame").getOrElse("")
+
+    s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
   }
 
   private[effect] def prettyPrintTrace(): String =
