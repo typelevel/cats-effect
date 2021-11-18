@@ -184,7 +184,7 @@ lazy val testJSIOApp =
   settingKey[Boolean]("Whether to test JVM (false) or Node.js (true) in IOAppSpec")
 Global / testJSIOApp := false
 
-ThisBuild / Test / jsEnv := {
+ThisBuild / jsEnv := {
   useJSEnv.value match {
     case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
     case Firefox =>

@@ -230,7 +230,10 @@ trait IOApp {
       }
       .unsafeRunFiber(
         reportExitCode(ExitCode(1)),
-        t => throw t,
+        t => {
+          t.printStackTrace()
+          reportExitCode(ExitCode(1))
+        },
         reportExitCode
       )(runtime)
 
