@@ -17,6 +17,7 @@
 package cats.effect
 
 import cats.effect.tracing.TracingConstants._
+import cats.effect.unsafe.FiberMonitor
 
 import scala.concurrent.{blocking, CancellationException}
 
@@ -211,11 +212,17 @@ trait IOApp {
         val (scheduler, schedDown) =
           IORuntime.createDefaultScheduler()
 
+        val fiberMonitor = FiberMonitor(compute)
+
+        val unregisterFiberMonitorMBean = IORuntime.registerFiberMonitorMBean(fiberMonitor)
+
         IORuntime(
           compute,
           blocking,
           scheduler,
+          fiberMonitor,
           { () =>
+            unregisterFiberMonitorMBean()
             compDown()
             blockDown()
             schedDown()
