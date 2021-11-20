@@ -218,7 +218,7 @@ Please refer to each library's appropriate documentation/changelog to see how to
 | Cats Effect 2.x                               | Cats Effect 3                               | Notes                                                                           |
 | --------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------- |
 | `Blocker.apply`                               | -                                           | blocking pool is [provided by runtime](#where-does-the-blocking-pool-come-from) |
-| `Blocker#delay`                               | `Sync[F].blocking`, `Sync[F].interruptible` | `Blocker` was removed                                                           |
+| `Blocker#delay`                               | `Sync[F].blocking`, `Sync[F].interruptible`, `Sync[F].interruptibleMany` | `Blocker` was removed                                                           |
 | `Blocker(ec).blockOn(fa)`, `Blocker.blockOnK` | [see notes](#no-blockon)                    |                                                                                 |
 
 `Blocker` has been removed. Instead of that, you should either use your specific effect type's method of blocking...

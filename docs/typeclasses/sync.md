@@ -29,11 +29,12 @@ val contents: F[String] = Sync[F].blocking(Source.fromFile("file").mkString)
 A downside of thread-blocking calls is that the fiber executing them is not
 cancelable until the blocking call completes. If you have a very long-running
 blocking operation then you may want to suspend it using `Sync[F].interruptible`
-instead.  This behaves the same as `blocking` but will attempt to interrupt the
-blocking operation via a thread interrupt in the event on cancelation.
+or `Sync[F].interruptibleMany` instead.  This behaves the same as `blocking` 
+but will attempt to interrupt the blocking operation via a thread interrupt 
+in the event on cancelation.
 
 ```scala
-//true means we try thread interruption repeatedly until the blocking operation exits
+//interruptibleMany means we try thread interruption repeatedly until the blocking operation exits
 val operation: F[Unit] = F.interruptibleMany(longRunningOp())
 
 val run: F[Unit] = operation.timeout(30.seconds)
