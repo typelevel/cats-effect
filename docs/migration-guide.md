@@ -241,10 +241,14 @@ val programSync = Sync[IO].blocking(println("hello Sync blocking!"))
 It is now possible to make the blocking task interruptible using [`Sync`](./typeclasses/sync.md):
 
 ```scala mdoc
-// many: whether it's okay to try interrupting more than once
 val programInterruptible =
   Sync[IO].interruptible(println("hello Sync blocking!"))
 ```
+
+If we require our operation to be more sensitive to cancellation we can use `interruptibleMany`.
+The difference between `interruptible` and `interruptibleMany` is that in case of cancellation
+`interruptibleMany` will repeatedly attempt to interrupt until the blocking operation completes or exits,
+on the other hand using `interruptible` the interrupt will be attempted only once.
 
 #### Where Does The Blocking Pool Come From?
 
