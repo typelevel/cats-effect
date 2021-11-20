@@ -246,7 +246,7 @@ val programInterruptible =
 ```
 
 If we require our operation to be more sensitive to cancelation we can use `interruptibleMany`.
-The difference between `interruptible` and `interruptibleMany` is that in case of cancellation
+The difference between `interruptible` and `interruptibleMany` is that in case of cancelation
 `interruptibleMany` will repeatedly attempt to interrupt until the blocking operation completes or exits,
 on the other hand using `interruptible` the interrupt will be attempted only once.
 
