@@ -1552,7 +1552,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
      * interrupts in the event of cancelation. The interrupt will be attempted only once.
      *
      * @param thunk
-     *   The side effect which is to be suspended in `F[_]` and evaluated on a blocking
+     *   The side effect which is to be suspended in `IO[_]` and evaluated on a blocking
      *   execution context
      */
     override def interruptible[A](thunk: => A): IO[A] = IO.interruptible(thunk)
@@ -1563,7 +1563,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
      * the blocking operation completes or exits.
      *
      * @param thunk
-     *   The side effect which is to be suspended in `F[_]` and evaluated on a blocking
+     *   The side effect which is to be suspended in `IO[_]` and evaluated on a blocking
      *   execution context
      */
     override def interruptibleMany[A](thunk: => A): IO[A] = IO.interruptibleMany(thunk)
