@@ -102,7 +102,7 @@ private[effect] trait BaseSpec {
       implicit arbFn: Arbitrary[(B => M[A]) => M[A]]): Arbitrary[ContT[M, A, B]] =
     Arbitrary(arbFn.arbitrary.map(ContT[M, A, B](_)))
 
-  //Shamelessly stolen from https://github.com/typelevel/cats/blob/master/tests/src/test/scala/cats/tests/ContTSuite.scala
+  // Shamelessly stolen from https://github.com/typelevel/cats/blob/master/tests/src/test/scala/cats/tests/ContTSuite.scala
   implicit def eqContT[M[_], A, B](
       implicit arbFn: Arbitrary[B => M[A]],
       eqMA: Eq[M[A]]): Eq[ContT[M, A, B]] = {
@@ -114,7 +114,7 @@ private[effect] trait BaseSpec {
     }
   }
 
-  //Shamelessly stolen from https://github.com/typelevel/cats/blob/master/tests/src/test/scala/cats/tests/IndexedReaderWriterStateTSuite.scala
+  // Shamelessly stolen from https://github.com/typelevel/cats/blob/master/tests/src/test/scala/cats/tests/IndexedReaderWriterStateTSuite.scala
   implicit def IRWSTEq[F[_], E, L, SA, SB, A](
       implicit SA: ExhaustiveCheck[SA],
       E: ExhaustiveCheck[E],

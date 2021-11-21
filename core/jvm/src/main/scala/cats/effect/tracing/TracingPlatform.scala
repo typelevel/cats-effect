@@ -40,7 +40,6 @@ private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent]
   }
 
   private[this] final val stackTraceFilter: Array[String] = Array(
-    "cats.effect.",
     "cats.",
     "sbt.",
     "java.",

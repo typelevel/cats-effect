@@ -484,7 +484,7 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
    *   [[SyncIO#attempt]]
    *
    * @param t
-   *   [[java.lang.Throwable]] value to fail with
+   *   `Throwable` value to fail with
    * @return
    *   a `SyncIO` that results in failure with value `t`
    */

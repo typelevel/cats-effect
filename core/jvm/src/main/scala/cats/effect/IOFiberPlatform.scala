@@ -25,8 +25,6 @@ import juc.atomic.{AtomicBoolean, AtomicReference}
 private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
   this: IOFiber[A] =>
 
-  private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
-
   protected final def interruptibleImpl(
       cur: IO.Blocking[Any],
       blockingEc: ExecutionContext): IO[Any] = {
@@ -43,7 +41,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
      * 6. Action completed, finalizer unregistered
      */
 
-    val many = cur.hint eq TypeInterruptibleMany
+    val many = cur.hint eq Sync.Type.InterruptibleMany
 
     // we grab this here rather than in the instance to avoid bloating IOFiber's object header
     val RightUnit = IOFiber.RightUnit

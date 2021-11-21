@@ -377,7 +377,7 @@ object pure {
         checkM.ifM(
           canceled.ifM(
             // if unmasked and canceled, finalize
-            ctx.finalizers.sequence_.as(true),
+            allocateForPureConc[E].uncancelable(_ => ctx.finalizers.sequence_.as(true)),
             // if unmasked but not canceled, ignore
             false.pure[PureConc[E, *]]
           ),

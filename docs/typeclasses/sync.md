@@ -34,7 +34,7 @@ blocking operation via a thread interrupt in the event on cancelation.
 
 ```scala
 //true means we try thread interruption repeatedly until the blocking operation exits
-val operation: F[Unit] = F.interruptible(true)(longRunningOp())
+val operation: F[Unit] = F.interruptibleMany(longRunningOp())
 
 val run: F[Unit] = operation.timeout(30.seconds)
 ```

@@ -14,26 +14,17 @@
  * limitations under the License.
  */
 
-package cats.effect.tracing
+package cats.effect
+package tracing
 
-import scala.scalajs.js
-import scala.util.Try
+private[effect] object TracingConstants {
 
-private object TracingConstants {
+  private[this] final val stackTracingMode: String =
+    process.env("CATS_EFFECT_TRACING_MODE").filterNot(_.isEmpty).getOrElse("cached")
 
-  private[this] val stackTracingMode: String =
-    Try(js.Dynamic.global.process.env.CATS_EFFECT_TRACING_MODE)
-      .toOption
-      .orElse(Try(js.Dynamic.global.process.env.REACT_APP_CATS_EFFECT_TRACING_MODE).toOption)
-      .filterNot(js.isUndefined)
-      .map(_.asInstanceOf[String])
-      .filterNot(_.isEmpty)
-      .getOrElse("cached")
+  final val isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
 
-  val isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
+  final val isFullStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("full")
 
-  val isFullStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("full")
-
-  val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
-
+  final val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
 }

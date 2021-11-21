@@ -24,13 +24,13 @@ package metrics
  * @param queue
  *   the monitored local queue
  */
-private[unsafe] class LocalQueueSampler(queue: LocalQueue) extends LocalQueueSamplerMBean {
+private[unsafe] final class LocalQueueSampler(queue: LocalQueue)
+    extends LocalQueueSamplerMBean {
   def getFiberCount(): Int = queue.getFiberCount()
   def getHeadIndex(): Int = queue.getHeadIndex()
   def getTailIndex(): Int = queue.getTailIndex()
   def getTotalFiberCount(): Long = queue.getTotalFiberCount()
-  def getOverflowSpilloverCount(): Long = queue.getOverflowSpilloverCount()
-  def getBatchedSpilloverCount(): Long = queue.getBatchedSpilloverCount()
+  def getTotalSpilloverCount(): Long = queue.getTotalSpilloverCount()
   def getSuccessfulStealAttemptCount(): Long = queue.getSuccessfulStealAttemptCount()
   def getStolenFiberCount(): Long = queue.getStolenFiberCount()
   def getRealHeadTag(): Int = queue.getRealHeadTag()

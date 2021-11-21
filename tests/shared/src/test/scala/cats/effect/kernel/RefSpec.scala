@@ -27,7 +27,7 @@ class RefSpec extends BaseSpec { outer =>
   val smallDelay: IO[Unit] = IO.sleep(20.millis)
 
   "ref" should {
-    //TODO need parallel instance for IO
+    // TODO need parallel instance for IO
     // "support concurrent modifications" in ticked { implicit ticker =>
     //   val finalValue = 100
     //   val r = Ref.unsafe[IO, Int](0)

@@ -34,7 +34,7 @@ class ConsoleJVMSpec extends BaseSpec {
     val release = (src: Source) => IO(src.close())
     Resource
       .make(acquire)(release)
-      .use(src => IO.interruptible(false)(src.getLines().toList))
+      .use(src => IO.interruptible(src.getLines().toList))
       .handleErrorWith(_ => IO.pure(Nil))
   }
 

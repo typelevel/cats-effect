@@ -279,7 +279,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
         val ioa = for {
           f <- IO.executionContext.start.evalOn(ec)
-          _ <- IO(ticker.ctx.tickAll())
+          _ <- IO(ticker.ctx.tick())
           oc <- f.join
         } yield oc
 
@@ -293,7 +293,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "cancel an already canceled fiber" in ticked { implicit ticker =>
         val test = for {
           f <- IO.canceled.start
-          _ <- IO(ticker.ctx.tickAll())
+          _ <- IO(ticker.ctx.tick())
           _ <- f.cancel
         } yield ()
 
@@ -332,13 +332,13 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
         val test = for {
           fiber <- async.start
-          _ <- IO(ticker.ctx.tickAll())
+          _ <- IO(ticker.ctx.tick())
           _ <- IO(cb(Right(42)))
-          _ <- IO(ticker.ctx.tickAll())
+          _ <- IO(ticker.ctx.tick())
           _ <- IO(cb(Right(43)))
-          _ <- IO(ticker.ctx.tickAll())
+          _ <- IO(ticker.ctx.tick())
           _ <- IO(cb(Left(TestException)))
-          _ <- IO(ticker.ctx.tickAll())
+          _ <- IO(ticker.ctx.tick())
           value <- fiber.joinWithNever
         } yield value
 
@@ -455,9 +455,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         "propagate cancelation" in ticked { implicit ticker =>
           (for {
             fiber <- IO.both(IO.never, IO.never).void.start
-            _ <- IO(ticker.ctx.tickAll())
+            _ <- IO(ticker.ctx.tick())
             _ <- fiber.cancel
-            _ <- IO(ticker.ctx.tickAll())
+            _ <- IO(ticker.ctx.tick())
             oc <- fiber.join
           } yield oc) must completeAs(Outcome.canceled[IO, Throwable, Unit])
         }
@@ -468,9 +468,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             r <- Ref[IO].of(false)
             fiber <-
               IO.both(IO.never.onCancel(l.set(true)), IO.never.onCancel(r.set(true))).start
-            _ <- IO(ticker.ctx.tickAll())
+            _ <- IO(ticker.ctx.tick())
             _ <- fiber.cancel
-            _ <- IO(ticker.ctx.tickAll())
+            _ <- IO(ticker.ctx.tick())
             l2 <- l.get
             r2 <- r.get
           } yield (l2 -> r2)) must completeAs(true -> true)
@@ -544,9 +544,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             r <- Ref.of[IO, Boolean](false)
             fiber <-
               IO.race(IO.never.onCancel(l.set(true)), IO.never.onCancel(r.set(true))).start
-            _ <- IO(ticker.ctx.tickAll())
+            _ <- IO(ticker.ctx.tick())
             _ <- fiber.cancel
-            _ <- IO(ticker.ctx.tickAll())
+            _ <- IO(ticker.ctx.tick())
             l2 <- l.get
             r2 <- r.get
           } yield (l2 -> r2)) must completeAs(true -> true)
@@ -624,7 +624,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         val ioa = for {
           f <- (IO.never: IO[Unit]).start
           ec <- IO.executionContext
-          _ <- IO(ec.asInstanceOf[TestContext].tickAll())
+          _ <- IO(ec.asInstanceOf[TestContext].tick())
           _ <- f.cancel
           oc <- f.join
         } yield oc
@@ -640,7 +640,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
           val ioa = for {
             f <- target.start
-            _ <- IO(ticker.ctx.tickAll())
+            _ <- IO(ticker.ctx.tick())
             _ <- f.cancel
           } yield ()
 
@@ -658,7 +658,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
           val ioa = for {
             f <- target.start
-            _ <- IO(ticker.ctx.tickAll())
+            _ <- IO(ticker.ctx.tick())
             _ <- f.cancel
           } yield ()
 
@@ -712,6 +712,24 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         passed must beTrue
       }
 
+      "polls from unrelated fibers are no-ops" in ticked { implicit ticker =>
+        var canceled = false
+        val test = for {
+          deferred <- Deferred[IO, Poll[IO]]
+          started <- Deferred[IO, Unit]
+          _ <- IO.uncancelable(deferred.complete).void.start
+          f <- (started.complete(()) *>
+            deferred.get.flatMap(poll => poll(IO.never[Unit]).onCancel(IO { canceled = true })))
+            .uncancelable
+            .start
+          _ <- started.get
+          _ <- f.cancel
+        } yield ()
+
+        test must nonTerminate
+        canceled must beFalse
+      }
+
       "run three finalizers when an async is canceled while suspended" in ticked {
         implicit ticker =>
           var results = List[Int]()
@@ -720,7 +738,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
           val test = for {
             f <- body.onCancel(IO(results ::= 2)).onCancel(IO(results ::= 1)).start
-            _ <- IO(ticker.ctx.tickAll())
+            _ <- IO(ticker.ctx.tick())
             _ <- f.cancel
             back <- IO(results)
           } yield back
@@ -927,11 +945,11 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
           val test = for {
             f <- subject.start
-            _ <- IO(ticker.ctx.tickAll()) // schedule everything
+            _ <- IO(ticker.ctx.tick()) // schedule everything
             _ <- f.cancel.start
-            _ <- IO(ticker.ctx.tickAll()) // get inside the finalizer suspension
+            _ <- IO(ticker.ctx.tick()) // get inside the finalizer suspension
             _ <- IO(cb(Right(())))
-            _ <- IO(ticker.ctx.tickAll()) // show that the finalizer didn't explode
+            _ <- IO(ticker.ctx.tick()) // show that the finalizer didn't explode
           } yield ()
 
           test must completeAs(()) // ...but not throw an exception
@@ -948,7 +966,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           IO.pure(Some(fin))
         }
 
-        val test = target.start flatMap { f => IO(ticker.ctx.tickAll()) *> f.cancel }
+        val test = target.start flatMap { f => IO(ticker.ctx.tick()) *> f.cancel }
 
         test must completeAs(())
         success must beTrue
@@ -1202,6 +1220,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             r <- IO(v must beTrue)
           } yield r
         }
+
+        "non-terminate on an uncancelable fiber" in ticked { implicit ticker =>
+          IO.never.uncancelable.timeout(1.second) must nonTerminate
+        }
       }
 
       "timeoutTo" should {
@@ -1224,6 +1246,16 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           op.flatMap { res =>
             IO {
               res must beTrue
+            }
+          }
+        }
+      }
+
+      "timeoutAndForget" should {
+        "terminate on an uncancelable fiber" in real {
+          IO.never.uncancelable.timeoutAndForget(1.second).attempt flatMap { e =>
+            IO {
+              e must beLike { case Left(e) => e must haveClass[TimeoutException] }
             }
           }
         }

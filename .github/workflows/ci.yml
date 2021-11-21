@@ -15,20 +15,20 @@ on:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  JABBA_INDEX: 'https://github.com/vasilmkd/jdk-index/raw/main/index.json'
+  JABBA_INDEX: 'https://github.com/typelevel/jdk-index/raw/main/index.json'
 
 jobs:
   build:
     name: Build and Test
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        scala: [3.0.2, 2.12.15, 2.13.6]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        scala: [3.0.2, 2.12.15, 2.13.7]
         java:
           - adoptium@8
           - adoptium@11
           - adoptium@17
-          - graalvm-ce-java8@21.2
+          - graalvm-ce-java11@21.3
         ci: [ciJVM, ciJS, ciFirefox, ciChrome]
         exclude:
           - ci: ciJS
@@ -36,36 +36,54 @@ jobs:
           - ci: ciJS
             java: adoptium@17
           - ci: ciJS
-            java: graalvm-ce-java8@21.2
+            java: graalvm-ce-java11@21.3
           - os: windows-latest
+            scala: 3.0.2
+          - os: macos-latest
             scala: 3.0.2
           - os: windows-latest
             scala: 2.12.15
+          - os: macos-latest
+            scala: 2.12.15
           - os: windows-latest
+            ci: ciJS
+          - os: macos-latest
             ci: ciJS
           - ci: ciFirefox
             java: adoptium@11
           - ci: ciFirefox
             java: adoptium@17
           - ci: ciFirefox
-            java: graalvm-ce-java8@21.2
+            java: graalvm-ce-java11@21.3
           - os: windows-latest
+            scala: 3.0.2
+          - os: macos-latest
             scala: 3.0.2
           - os: windows-latest
             scala: 2.12.15
+          - os: macos-latest
+            scala: 2.12.15
           - os: windows-latest
+            ci: ciFirefox
+          - os: macos-latest
             ci: ciFirefox
           - ci: ciChrome
             java: adoptium@11
           - ci: ciChrome
             java: adoptium@17
           - ci: ciChrome
-            java: graalvm-ce-java8@21.2
+            java: graalvm-ce-java11@21.3
           - os: windows-latest
+            scala: 3.0.2
+          - os: macos-latest
             scala: 3.0.2
           - os: windows-latest
             scala: 2.12.15
+          - os: macos-latest
+            scala: 2.12.15
           - os: windows-latest
+            ci: ciChrome
+          - os: macos-latest
             ci: ciChrome
     runs-on: ${{ matrix.os }}
     steps:
@@ -97,13 +115,13 @@ jobs:
           key: ${{ runner.os }}-sbt-cache-v2-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Setup NodeJS v14 LTS
-        if: matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'
+        if: matrix.ci == 'ciJS'
         uses: actions/setup-node@v2.4.0
         with:
           node-version: 14
 
       - name: Install jsdom and source-map-support
-        if: matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'
+        if: matrix.ci == 'ciJS'
         shell: bash
         run: npm install
 
@@ -114,7 +132,7 @@ jobs:
       - shell: bash
         run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.6' || matrix.scala == '3.0.2') && matrix.ci == 'ciJVM'
+      - if: (matrix.scala == '2.13.7' || matrix.scala == '3.0.2') && matrix.ci == 'ciJVM'
         shell: bash
         run: sbt ++${{ matrix.scala }} docs/mdoc
 
@@ -129,7 +147,7 @@ jobs:
         run: example/test-js.sh ${{ matrix.scala }}
 
       - name: Scalafix tests
-        if: matrix.scala == '2.13.6' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13.7' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           cd scalafix

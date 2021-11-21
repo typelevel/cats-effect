@@ -65,7 +65,7 @@ abstract private[effect] class IOPlatform[+A] extends Serializable { self: IO[A]
    * @see
    *   [[unsafeRunSync]]
    * @see
-   *   [[timeout]] for pure and safe version
+   *   [[IO.timeout]] for pure and safe version
    */
   final def unsafeRunTimed(limit: FiniteDuration)(
       implicit runtime: unsafe.IORuntime): Option[A] = {

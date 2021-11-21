@@ -177,8 +177,8 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
     success
   }
 
-  //TODO move this back to run on both JVM and JS once we have a better test
-  //setup than unsafeRunRealistic
+  // TODO move this back to run on both JVM and JS once we have a better test
+  // setup than unsafeRunRealistic
   "issue #380: complete doesn't block, test #2" in {
     def execute(times: Int): IO[Boolean] = {
       val task = for {

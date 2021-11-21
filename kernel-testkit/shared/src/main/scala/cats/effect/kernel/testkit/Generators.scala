@@ -34,9 +34,9 @@ trait GenK[F[_]] extends Serializable {
 trait Generators1[F[_]] extends Serializable {
   protected val maxDepth: Int = 10
 
-  //todo: uniqueness based on... names, I guess. Have to solve the diamond problem somehow
+  // todo: uniqueness based on... names, I guess. Have to solve the diamond problem somehow
 
-  //Generators of base cases, with no recursion
+  // Generators of base cases, with no recursion
   protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] = {
     // prevent unused implicit param warnings, the params need to stay because
     // this method is overriden in subtraits
@@ -44,7 +44,7 @@ trait Generators1[F[_]] extends Serializable {
     Nil
   }
 
-  //Only recursive generators - the argument is a generator of the next level of depth
+  // Only recursive generators - the argument is a generator of the next level of depth
   protected def recursiveGen[A: Arbitrary: Cogen](
       deeper: GenK[F]): List[(String, Gen[F[A]])] = {
     // prevent unused params warnings, the params need to stay because
@@ -53,7 +53,7 @@ trait Generators1[F[_]] extends Serializable {
     Nil
   }
 
-  //All generators possible at depth [[depth]]
+  // All generators possible at depth [[depth]]
   private def gen[A: Arbitrary: Cogen](depth: Int): Gen[F[A]] = {
     val genK: GenK[F] = new GenK[F] {
       def apply[B: Arbitrary: Cogen]: Gen[F[B]] = Gen.delay(gen(depth + 1))
@@ -66,7 +66,7 @@ trait Generators1[F[_]] extends Serializable {
     Gen.oneOf(SortedMap(gens: _*).map(_._2)).flatMap(identity)
   }
 
-  //All generators possible at depth 0 - the only public method
+  // All generators possible at depth 0 - the only public method
   def generators[A: Arbitrary: Cogen]: Gen[F[A]] = gen[A](0)
 }
 

@@ -20,11 +20,12 @@ import cats.effect.kernel.Cont
 
 import scala.collection.mutable
 import scala.reflect.NameTransformer
+import scala.scalajs.LinkingInfo
 import scala.scalajs.js
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
-  private[this] val cache = mutable.Map[Any, TracingEvent]()
+  private[this] val cache = mutable.Map.empty[Any, TracingEvent].withDefaultValue(null)
   private[this] val function0Property =
     js.Object.getOwnPropertyNames((() => ()).asInstanceOf[js.Object])(0)
   private[this] val function1Property =
@@ -47,13 +48,21 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     calculateTracingEvent(cont.getClass())
   }
 
-  private[this] def calculateTracingEvent(key: Any): TracingEvent = {
-    if (isCachedStackTracing)
-      cache.getOrElseUpdate(key, buildEvent())
-    else if (isFullStackTracing)
-      buildEvent()
-    else
-      null
+  private[this] final val calculateTracingEvent: Any => TracingEvent = {
+    if (LinkingInfo.developmentMode) {
+      if (isCachedStackTracing) { key =>
+        val current = cache(key)
+        if (current eq null) {
+          val event = buildEvent()
+          cache(key) = event
+          event
+        } else current
+      } else if (isFullStackTracing)
+        _ => buildEvent()
+      else
+        _ => null
+    } else
+      _ => null
   }
 
   private[this] final val stackTraceClassNameFilter: Array[String] = Array(
@@ -65,14 +74,16 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
   private[this] final val stackTraceMethodNameFilter: Array[String] = Array(
     "_Lcats_effect_",
-    "_jl_"
+    "_jl_",
+    "{anonymous}"
   )
 
   private[this] final val stackTraceFileNameFilter: Array[String] = Array(
     "githubusercontent.com/typelevel/cats-effect/",
     "githubusercontent.com/typelevel/cats/",
     "githubusercontent.com/scala-js/",
-    "githubusercontent.com/scala/"
+    "githubusercontent.com/scala/",
+    "MacrotaskExecutor.scala" // TODO temporary workaround
   )
 
   private[tracing] def applyStackTraceFilter(

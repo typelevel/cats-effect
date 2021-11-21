@@ -205,12 +205,7 @@ trait IOApp {
     lazy val keepAlive: IO[Nothing] =
       IO.sleep(1.hour) >> keepAlive
 
-    val argList =
-      if (js.typeOf(js.Dynamic.global.process) != "undefined" && js.typeOf(
-          js.Dynamic.global.process.argv) != "undefined")
-        js.Dynamic.global.process.argv.asInstanceOf[js.Array[String]].toList.drop(2)
-      else
-        args.toList
+    val argList = process.argv.getOrElse(args.toList)
 
     Spawn[IO]
       .raceOutcome[ExitCode, Nothing](run(argList), keepAlive)
@@ -229,7 +224,8 @@ trait IOApp {
               // Do not report cancelation exceptions but still exit with an error code.
               reportExitCode(ExitCode(1))
             case t: Throwable =>
-              throw t
+              t.printStackTrace()
+              reportExitCode(ExitCode(1))
           }
         case Right(code) => reportExitCode(code)
       }(runtime)

@@ -4,11 +4,16 @@
       "getting-started",
       "concepts",
       "tutorial",
+      "migration-guide"
+    ],
+    "Core Runtime": [
+      "core/test-runtime",
       "tracing",
-      "migration-guide",
       "thread-model",
-      "typeclasses",
-      "schedulers"
+      "schedulers",
+      "scaling-and-tuning/io-runtime-config",
+      "core/native-image",
+      "core/jlink"
     ],
     "Typeclasses": [
       "typeclasses",
