@@ -363,7 +363,8 @@ object pure {
 
   // todo: MVar is not Serializable, release then update here
   final class PureFiber[E, A](val state0: MVar[Outcome[PureConc[E, *], E, A]])
-      extends Fiber[PureConc[E, *], E, A] with Serializable  {
+      extends Fiber[PureConc[E, *], E, A]
+      with Serializable {
 
     private[this] val state = state0[PureConc[E, *]]
 

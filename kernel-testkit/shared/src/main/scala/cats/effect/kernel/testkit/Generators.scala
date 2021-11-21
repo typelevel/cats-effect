@@ -308,8 +308,9 @@ trait AsyncGenerators[F[_]] extends GenTemporalGenerators[F, Throwable] with Syn
     } yield F.evalOn(fa, ec)
 }
 
-
-trait AsyncGeneratorsWithoutEvalShift[F[_]] extends GenTemporalGenerators[F, Throwable] with SyncGenerators[F] {
+trait AsyncGeneratorsWithoutEvalShift[F[_]]
+    extends GenTemporalGenerators[F, Throwable]
+    with SyncGenerators[F] {
   implicit val F: Async[F]
   implicit protected val cogenFU: Cogen[F[Unit]] = Cogen[Unit].contramap(_ => ())
 

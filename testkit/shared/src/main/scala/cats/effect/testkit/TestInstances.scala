@@ -80,14 +80,16 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
   def arbitraryIOWithoutContextShift[A: Arbitrary: Cogen]: Arbitrary[IO[A]] = {
     val generators = new AsyncGeneratorsWithoutEvalShift[IO] {
       override implicit val F: Async[IO] = IO.asyncForIO
-      override implicit protected val arbitraryFD: Arbitrary[FiniteDuration] = outer.arbitraryFiniteDuration
+      override implicit protected val arbitraryFD: Arbitrary[FiniteDuration] =
+        outer.arbitraryFiniteDuration
       override implicit val arbitraryE: Arbitrary[Throwable] = outer.arbitraryThrowable
       override val cogenE: Cogen[Throwable] = Cogen[Throwable]
 
       override def recursiveGen[B: Arbitrary: Cogen](deeper: GenK[IO]) =
         super
           .recursiveGen[B](deeper)
-          .filterNot(x =>x._1 == "evalOn" || x._1 ==  "racePair") // todo: enable racePair after MVar been made serialization compatible
+          .filterNot(x =>
+            x._1 == "evalOn" || x._1 == "racePair") // todo: enable racePair after MVar been made serialization compatible
     }
 
     Arbitrary(generators.generators[A])
