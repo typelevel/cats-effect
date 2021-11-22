@@ -57,7 +57,16 @@ This scheduling dance is handled for you entirely automatically, and the only ex
 
 While JavaScript runtimes are single-threaded, and thus do not have the *m:n* problem that gives rise to the complexity of work-stealing pools and such on the JVM, the extreme heterogeneity of JavaScript runtime environments presents its own series of problems. Additionally, fibers are literally a form of multi-threading, and emulating multi-threading on top of a single-threaded runtime is a surprisingly complicated task.
 
-Ultimately, though, `IO` is able to achieve this with exceptionally high performance, and without interfering with other mechanisms which leverage the event loop (such as animations in the browser or I/O on the server). The techniques which are used by `IO` to achieve this have been extracted into the [scala-js-macrotask-executor](https://github.com/scala-js/scala-js-macrotask-executor) project that runs across all platforms which support ScalaJS.
+Ultimately, though, `IO` is able to achieve this with exceptionally high performance, and without interfering with other mechanisms which leverage the event loop (such as animations in the browser or I/O on the server). The techniques which are used by `IO` to achieve this have been extracted into the [scala-js-macrotask-executor](https://github.com/scala-js/scala-js-macrotask-executor) project that runs across all platforms which support ScalaJS. Optimal performance is available in the following environments:
+
+- [NodeJS 0.9.1+](https://nodejs.org/api/timers.html#timers_setimmediate_callback_args)
+- [Browsers implementing `window.postMessage()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#browser_compatibility), including:
+  - Chrome 1+
+  - Safari 4+
+  - Internet Explorer 9+ (including Edge)
+  - Firefox 3+
+  - Opera 9.5+
+- [Web Workers implementing `MessageChannel`](https://developer.mozilla.org/en-US/docs/Web/API/MessageChannel#browser_compatibility)
 
 ### Yielding
 
