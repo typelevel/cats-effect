@@ -1547,8 +1547,25 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     override def blocking[A](thunk: => A): IO[A] = IO.blocking(thunk)
 
+    /**
+     * Like [[IO.blocking]] but will attempt to abort the blocking operation using thread
+     * interrupts in the event of cancelation. The interrupt will be attempted only once.
+     *
+     * @param thunk
+     *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
+     *   context
+     */
     override def interruptible[A](thunk: => A): IO[A] = IO.interruptible(thunk)
 
+    /**
+     * Like [[IO.blocking]] but will attempt to abort the blocking operation using thread
+     * interrupts in the event of cancelation. The interrupt will be attempted repeatedly until
+     * the blocking operation completes or exits.
+     *
+     * @param thunk
+     *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
+     *   context
+     */
     override def interruptibleMany[A](thunk: => A): IO[A] = IO.interruptibleMany(thunk)
 
     def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =

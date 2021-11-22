@@ -43,7 +43,7 @@ Another excellent example is file I/O (such as `FileInputStream`). Filesystems a
 
 File I/O is effectively unavoidable in any application, but it too means blocking a thread while the kernel fishes out the bytes your application has requested.
 
-Clearly, we cannot simply pretend this problem does not exist. This is why the `blocking` and `interruptible` functions on `IO` are so important: they declare to the `IO` runtime that the effect in question will block a thread, and it *must* be shifted to the blocking worker pool:
+Clearly, we cannot simply pretend this problem does not exist. This is why the `blocking` and `interruptible`/`interruptibleMany` functions on `IO` are so important: they declare to the `IO` runtime that the effect in question will block a thread, and it *must* be shifted to the blocking worker pool:
 
 ```scala
 IO.blocking(url1 == url2) // => IO[Boolean]
