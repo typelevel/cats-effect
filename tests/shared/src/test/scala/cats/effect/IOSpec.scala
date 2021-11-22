@@ -18,7 +18,7 @@ package cats.effect
 
 import cats.kernel.laws.discipline.MonoidTests
 import cats.kernel.laws.SerializableLaws.serializable
-import cats.laws.discipline.{AlignTests, SemigroupKTests, SerializableTests}
+import cats.laws.discipline.{AlignTests, SemigroupKTests}
 import cats.laws.discipline.arbitrary._
 import cats.effect.implicits._
 import cats.effect.laws.AsyncTests
