@@ -86,7 +86,13 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
           () => {
             if (mBeanServer ne null) {
-              registeredMBeans.foreach(mBeanServer.unregisterMBean(_))
+              registeredMBeans.foreach { mbean =>
+                try mBeanServer.unregisterMBean(mbean)
+                catch {
+                  case _: Throwable =>
+                  // Do not report issues with mbeans deregistration.
+                }
+              }
             }
           }
         } else () => ()
@@ -186,7 +192,13 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
           val liveFiberSnapshotTrigger = new LiveFiberSnapshotTrigger(fiberMonitor)
           mBeanServer.registerMBean(liveFiberSnapshotTrigger, liveFiberSnapshotTriggerName)
 
-          () => mBeanServer.unregisterMBean(liveFiberSnapshotTriggerName)
+          () => {
+            try mBeanServer.unregisterMBean(liveFiberSnapshotTriggerName)
+            catch {
+              case _: Throwable =>
+              // Do not report issues with mbeans deregistration.
+            }
+          }
         } catch {
           case t: Throwable =>
             t.printStackTrace()
