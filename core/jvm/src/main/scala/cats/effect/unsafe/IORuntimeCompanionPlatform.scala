@@ -42,9 +42,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
         val mBeanServer =
           try ManagementFactory.getPlatformMBeanServer()
           catch {
-            case t: Throwable =>
-              t.printStackTrace()
-              null
+            case _: Throwable => null
           }
 
         if (mBeanServer ne null) {
@@ -59,8 +57,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
             mBeanServer.registerMBean(computePoolSampler, computePoolSamplerName)
             registeredMBeans += computePoolSamplerName
           } catch {
-            case t: Throwable =>
-              t.printStackTrace()
+            case _: Throwable =>
           }
 
           val localQueues = threadPool.localQueuesForwarder
@@ -77,8 +74,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
               mBeanServer.registerMBean(localQueueSampler, localQueueSamplerName)
               registeredMBeans += localQueueSamplerName
             } catch {
-              case t: Throwable =>
-                t.printStackTrace()
+              case _: Throwable =>
             }
 
             i += 1
@@ -178,9 +174,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       val mBeanServer =
         try ManagementFactory.getPlatformMBeanServer()
         catch {
-          case t: Throwable =>
-            t.printStackTrace()
-            null
+          case _: Throwable => null
         }
 
       if (mBeanServer ne null) {
@@ -200,9 +194,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
             }
           }
         } catch {
-          case t: Throwable =>
-            t.printStackTrace()
-            () => ()
+          case _: Throwable => () => ()
         }
       } else () => ()
     } else () => ()
