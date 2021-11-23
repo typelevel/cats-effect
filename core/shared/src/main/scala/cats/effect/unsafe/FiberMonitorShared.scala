@@ -32,11 +32,9 @@ private[unsafe] abstract class FiberMonitorShared {
 
   protected def printFibers(fibers: Set[IOFiber[_]], status: String)(
       print: String => Unit): Unit =
-    if (!fibers.isEmpty) {
-      fibers foreach { fiber =>
-        print(doubleNewline)
-        print(fiberString(fiber, status))
-      }
+    fibers foreach { fiber =>
+      print(doubleNewline)
+      print(fiberString(fiber, status))
     }
 
 }
