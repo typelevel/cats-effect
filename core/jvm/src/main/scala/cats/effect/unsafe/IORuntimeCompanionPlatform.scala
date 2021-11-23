@@ -42,9 +42,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
         val mBeanServer =
           try ManagementFactory.getPlatformMBeanServer()
           catch {
-            case t: Throwable =>
-              t.printStackTrace()
-              null
+            case _: Throwable => null
           }
 
         if (mBeanServer ne null) {
@@ -59,8 +57,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
             mBeanServer.registerMBean(computePoolSampler, computePoolSamplerName)
             registeredMBeans += computePoolSamplerName
           } catch {
-            case t: Throwable =>
-              t.printStackTrace()
+            case _: Throwable =>
           }
 
           val localQueues = threadPool.localQueuesForwarder
@@ -77,8 +74,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
               mBeanServer.registerMBean(localQueueSampler, localQueueSamplerName)
               registeredMBeans += localQueueSamplerName
             } catch {
-              case t: Throwable =>
-                t.printStackTrace()
+              case _: Throwable =>
             }
 
             i += 1
@@ -86,7 +82,13 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
           () => {
             if (mBeanServer ne null) {
-              registeredMBeans.foreach(mBeanServer.unregisterMBean(_))
+              registeredMBeans.foreach { mbean =>
+                try mBeanServer.unregisterMBean(mbean)
+                catch {
+                  case _: Throwable =>
+                  // Do not report issues with mbeans deregistration.
+                }
+              }
             }
           }
         } else () => ()
@@ -172,9 +174,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       val mBeanServer =
         try ManagementFactory.getPlatformMBeanServer()
         catch {
-          case t: Throwable =>
-            t.printStackTrace()
-            null
+          case _: Throwable => null
         }
 
       if (mBeanServer ne null) {
@@ -186,11 +186,15 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
           val liveFiberSnapshotTrigger = new LiveFiberSnapshotTrigger(fiberMonitor)
           mBeanServer.registerMBean(liveFiberSnapshotTrigger, liveFiberSnapshotTriggerName)
 
-          () => mBeanServer.unregisterMBean(liveFiberSnapshotTriggerName)
+          () => {
+            try mBeanServer.unregisterMBean(liveFiberSnapshotTriggerName)
+            catch {
+              case _: Throwable =>
+              // Do not report issues with mbeans deregistration.
+            }
+          }
         } catch {
-          case t: Throwable =>
-            t.printStackTrace()
-            () => ()
+          case _: Throwable => () => ()
         }
       } else () => ()
     } else () => ()
