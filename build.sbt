@@ -479,6 +479,7 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform)
     Test / fork := true,
     Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
   .jsSettings(
+    // The default configured mapSourceURI is used for trace filtering
     scalacOptions ~= { _.filterNot(_.startsWith("-P:scalajs:mapSourceURI")) }
   )
 
