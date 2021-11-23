@@ -19,30 +19,36 @@ package cats.effect.unsafe;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 @SuppressWarnings("unused")
-class HeadPadding {
-  private final int hp00 = 0;
-  private final long hp01 = 0;
-  private final long hp02 = 0;
-  private final long hp03 = 0;
-  private final long hp04 = 0;
-  private final long hp05 = 0;
-  private final long hp06 = 0;
-  private final long hp07 = 0;
-  private final long hp08 = 0;
-  private final long hp09 = 0;
-  private final long hp10 = 0;
-  private final long hp11 = 0;
-  private final long hp12 = 0;
-  private final long hp13 = 0;
-  private final long hp14 = 0;
-  private final long hp15 = 0;
-  private final long hp16 = 0;
+class ClassPadding {
+  private final int p00 = 0;
+}
+
+@SuppressWarnings("unused")
+class HeadPadding extends ClassPadding {
+  private final long p01 = 0;
+  private final long p02 = 0;
+  private final long p03 = 0;
+  private final long p04 = 0;
+  private final long p05 = 0;
+  private final long p06 = 0;
+  private final long p07 = 0;
+  private final long p08 = 0;
+  private final long p09 = 0;
+  private final long p10 = 0;
+  private final long p11 = 0;
+  private final long p12 = 0;
+  private final long p13 = 0;
+  private final long p14 = 0;
+  private final long p15 = 0;
+  private final long p16 = 0;
 }
 
 @SuppressWarnings("unused")
 class Head extends HeadPadding {
   protected static final AtomicIntegerFieldUpdater<Head> updater =
       AtomicIntegerFieldUpdater.newUpdater(Head.class, "head");
+
+  private final int p00 = 0;
 
   /**
    * The head of the queue.
@@ -73,23 +79,22 @@ class Head extends HeadPadding {
 
 @SuppressWarnings("unused")
 class TailPadding extends Head {
-  private final int tp00 = 0;
-  private final long tp01 = 0;
-  private final long tp02 = 0;
-  private final long tp03 = 0;
-  private final long tp04 = 0;
-  private final long tp05 = 0;
-  private final long tp06 = 0;
-  private final long tp07 = 0;
-  private final long tp08 = 0;
-  private final long tp09 = 0;
-  private final long tp10 = 0;
-  private final long tp11 = 0;
-  private final long tp12 = 0;
-  private final long tp13 = 0;
-  private final long tp14 = 0;
-  private final long tp15 = 0;
-  private final long tp16 = 0;
+  private final long p01 = 0;
+  private final long p02 = 0;
+  private final long p03 = 0;
+  private final long p04 = 0;
+  private final long p05 = 0;
+  private final long p06 = 0;
+  private final long p07 = 0;
+  private final long p08 = 0;
+  private final long p09 = 0;
+  private final long p10 = 0;
+  private final long p11 = 0;
+  private final long p12 = 0;
+  private final long p13 = 0;
+  private final long p14 = 0;
+  private final long p15 = 0;
+  private final long p16 = 0;
 }
 
 @SuppressWarnings("unused")
@@ -114,21 +119,20 @@ class Tail extends TailPadding {
 
 @SuppressWarnings("unused")
 class LocalQueuePadding extends Tail {
-  private final int qp00 = 0;
-  private final long qp01 = 0;
-  private final long qp02 = 0;
-  private final long qp03 = 0;
-  private final long qp04 = 0;
-  private final long qp05 = 0;
-  private final long qp06 = 0;
-  private final long qp07 = 0;
-  private final long qp08 = 0;
-  private final long qp09 = 0;
-  private final long qp10 = 0;
-  private final long qp11 = 0;
-  private final long qp12 = 0;
-  private final long qp13 = 0;
-  private final long qp14 = 0;
-  private final long qp15 = 0;
-  private final long qp16 = 0;
+  private final long p01 = 0;
+  private final long p02 = 0;
+  private final long p03 = 0;
+  private final long p04 = 0;
+  private final long p05 = 0;
+  private final long p06 = 0;
+  private final long p07 = 0;
+  private final long p08 = 0;
+  private final long p09 = 0;
+  private final long p10 = 0;
+  private final long p11 = 0;
+  private final long p12 = 0;
+  private final long p13 = 0;
+  private final long p14 = 0;
+  private final long p15 = 0;
+  private final long p16 = 0;
 }
