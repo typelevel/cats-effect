@@ -493,7 +493,7 @@ private final class LocalQueue extends LocalQueuePadding {
   def stealInto(dst: LocalQueue, dstWorker: WorkerThread): IOFiber[_] = {
     // A plain, unsynchronized load of the tail of the destination queue, owned
     // by the executing thread.
-    val dstTl = dst.plainLoadTail()
+    val dstTl = dst.tail
 
     // A load of the head of the destination queue using `acquire` semantics.
     val dstHd = Head.updater.get(dst)
@@ -604,7 +604,7 @@ private final class LocalQueue extends LocalQueuePadding {
 
               if (isStackTracing) {
                 Tail.updater.lazySet(dst, dstTl)
-                dst.plainStoreTail(dstTl)
+                dst.tail = dstTl
               }
 
               return headFiber
@@ -619,7 +619,7 @@ private final class LocalQueue extends LocalQueuePadding {
             // Publish the new tail of the destination queue. That way the
             // destination queue also becomes eligible for stealing.
             Tail.updater.lazySet(dst, newDstTl)
-            dst.plainStoreTail(newDstTl)
+            dst.tail = newDstTl
             return headFiber
           } else {
             // Failed to opportunistically restore the value of the `head`. Load
@@ -747,25 +747,6 @@ private final class LocalQueue extends LocalQueuePadding {
     val hd = Head.updater.get(this)
     val tl = Tail.updater.get(this)
     unsignedShortSubtraction(tl, lsb(hd))
-  }
-
-  /**
-   * A ''plain'' load of the `tail` of the queue.
-   *
-   * Serves mostly as a forwarder method such that `tail` can remain `private[this]`.
-   *
-   * @return
-   *   the value of the tail of the queue
-   */
-  private def plainLoadTail(): Int = tail
-
-  /**
-   * A ''plain'' store of the `tail` of the queue.
-   *
-   * Serves mostly as a forwarder method such that `tail` can remain `private[this]`.
-   */
-  private def plainStoreTail(tl: Int): Unit = {
-    tail = tl
   }
 
   /**
