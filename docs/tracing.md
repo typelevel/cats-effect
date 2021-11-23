@@ -102,6 +102,15 @@ specify the following JVM system properties:
 ```
 
 For instructions how to configure these settings on JS see the [`IORuntime` configuration page](scaling-and-tuning/io-runtime-config.md).
+Additionally, we recommend enabling [source maps](https://nodejs.medium.com/source-maps-in-node-js-482872b56116) so that traces include line numbers to Scala code (and not line numbers to generated JS code, which are not so helpful!).
+```scala
+// Install https://www.npmjs.com/package/source-map-support
+npm install source-map-support
+
+// sbt configuration
+import org.scalajs.jsenv.nodejs.NodeJSEnv
+jsEnv := new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
+```
 Note that tracing is currently only supported on Scala.js in `fastLinkJS` (aka `fastOptJS`) mode.
 For performance, tracing is completely disabled in `fullLinkJS` (aka `fullOptJS`) and the relevant code is eliminated from the emitted JS.
 
