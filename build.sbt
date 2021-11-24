@@ -185,7 +185,12 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
       MatrixExclude(Map("os" -> MacOS, "ci" -> ci)))
   }
 
-  scalaJavaFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ jsJavaAndOSFilters
+  // Nice-to-haves but unreliable in CI
+  val flakyFilters = Seq(
+    MatrixExclude(Map("os" -> Windows, "java" -> GraalVM))
+  )
+
+  scalaJavaFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ jsJavaAndOSFilters ++ flakyFilters
 }
 
 lazy val useJSEnv =

@@ -89,6 +89,8 @@ jobs:
             ci: ciChrome
           - os: macos-latest
             ci: ciChrome
+          - os: windows-latest
+            java: graalvm-ce-java11@21.3
     runs-on: ${{ matrix.os }}
     steps:
       - name: Ignore line ending differences in git
