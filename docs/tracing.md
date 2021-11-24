@@ -102,8 +102,15 @@ specify the following JVM system properties:
 ```
 
 For instructions how to configure these settings on JS see the [`IORuntime` configuration page](scaling-and-tuning/io-runtime-config.md).
-Additionally, we recommend installing the npm package [source-map-support](https://www.npmjs.com/package/source-map-support).
-This will use the [source map](https://nodejs.medium.com/source-maps-in-node-js-482872b56116) to create stack traces with line numbers for Scala code (and not line numbers for generated JS code, which are not so helpful!).
+Additionally, we recommend enabling [source maps](https://nodejs.medium.com/source-maps-in-node-js-482872b56116) to create stack traces with line numbers for Scala code (and not line numbers for generated JS code, which are not so helpful!).
+Node.js supports source maps out-of-the-box, but [Scala.js does not take advantage of this yet](https://github.com/scala-js/scala-js/issues/4599) so it requires the following sbt config.
+```scala
+jsEnv := new org.scalajs.jsenv.nodejs.NodeJSEnv(
+  org.scalajs.jsenv.nodejs.NodeJSEnv.Config()
+    .withSourceMap(false) // Disable default source map config
+    .withArgs(List("--enable-source-maps")) // Enable Node.js source maps
+  )
+```
 Note that tracing is currently only supported on Scala.js in `fastLinkJS` (aka `fastOptJS`) mode.
 For performance, tracing is completely disabled in `fullLinkJS` (aka `fullOptJS`) and the relevant code is eliminated from the emitted JS.
 
