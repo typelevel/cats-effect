@@ -23,6 +23,7 @@ import scala.reflect.NameTransformer
 import scala.scalajs.LinkingInfo
 import scala.scalajs.js
 
+@scala.annotation.nowarn
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
   private[this] val cache = mutable.Map.empty[Any, TracingEvent].withDefaultValue(null)
