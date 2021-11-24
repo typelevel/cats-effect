@@ -34,7 +34,7 @@ private[effect] object Tracing extends TracingPlatform {
   private[this] final val runLoopFilter: Array[String] =
     Array("cats.effect.", "scala.runtime.", "scala.scalajs.runtime.")
 
-  private[this] final val stackTraceClassNameFilter: Array[String] = Array(
+  private[tracing] final val stackTraceClassNameFilter: Array[String] = Array(
     "cats.",
     "sbt.",
     "java.",

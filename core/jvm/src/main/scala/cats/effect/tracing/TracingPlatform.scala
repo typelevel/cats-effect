@@ -38,6 +38,20 @@ private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent]
     }
   }
 
+  private[this] def applyStackTraceFilter(callSiteClassName: String): Boolean = {
+    val len = stackTraceClassNameFilter.length
+    var idx = 0
+    while (idx < len) {
+      if (callSiteClassName.startsWith(stackTraceClassNameFilter(idx))) {
+        return true
+      }
+
+      idx += 1
+    }
+
+    false
+  }
+
   private[tracing] def getOpAndCallSite(
       stackTrace: Array[StackTraceElement]): StackTraceElement = {
     val len = stackTrace.length
@@ -45,9 +59,9 @@ private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent]
     while (idx < len) {
       val methodSite = stackTrace(idx - 1)
       val callSite = stackTrace(idx)
+      val callSiteClassName = callSite.getClassName
 
-      if (isInternalClass(methodSite.getClassName())
-        && !isInternalClass(callSite.getClassName()))
+      if (!applyStackTraceFilter(callSiteClassName))
         return combineOpAndCallSite(methodSite, callSite)
 
       idx += 1
