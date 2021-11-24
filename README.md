@@ -82,10 +82,10 @@ object Main extends IOApp {
 
 Any program written using Cats Effect provides incredibly strong guarantees and powerful functionality, performance, safety, and composability, provided you follow each of the following rules:
 
-- **Wrap *all* side-effects** in `delay`, `async`, `blocking`, or `interruptible`
+- **Wrap *all* side-effects** in `delay`, `async`, `blocking`, or `interruptible`/`interruptibleMany`
   + (pro tip: try to keep the size of your `delay` blocks small; two `delay`s with a `flatMap` is much better than one big `delay`)
 - **Use `bracket` or `Resource`** for anything which must be `close`d
-- ***Never* hard-block a thread** outside of `blocking` or `interruptible`
+- ***Never* hard-block a thread** outside of `blocking` or `interruptible`/`interruptibleMany`
 - **Use `IOApp`** instead of writing your own `def main`
 - Never call anything that has **the word `unsafe` in the name**
 

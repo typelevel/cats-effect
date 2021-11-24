@@ -1,3 +1,4 @@
+import sbtcrossproject.CrossProject
 /*
  * Copyright 2020-2021 Typelevel
  *
@@ -95,7 +96,6 @@ val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
 val MacOS = "macos-latest"
 
-val ScalaJSJava = "adoptium@8"
 val Scala213 = "2.13.7"
 val Scala3 = "3.0.2"
 
@@ -104,11 +104,13 @@ ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
 ThisBuild / githubWorkflowUseSbtThinClient := false
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
 
+val OldGuardJava = "adoptium@8"
 val LTSJava = "adoptium@11"
 val LatestJava = "adoptium@17"
+val ScalaJSJava = OldGuardJava
 val GraalVM = "graalvm-ce-java11@21.3"
 
-ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM)
+ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
 ThisBuild / githubWorkflowEnv += ("JABBA_INDEX" -> "https://github.com/typelevel/jdk-index/raw/main/index.json")
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
 
@@ -190,6 +192,10 @@ lazy val useJSEnv =
   settingKey[JSEnv]("Use Node.js or a headless browser for running Scala.js tests")
 Global / useJSEnv := NodeJS
 
+lazy val testJSIOApp =
+  settingKey[Boolean]("Whether to test JVM (false) or Node.js (true) in IOAppSpec")
+Global / testJSIOApp := false
+
 ThisBuild / jsEnv := {
   useJSEnv.value match {
     case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
@@ -233,10 +239,10 @@ addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
 addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
 val jsProjects: Seq[ProjectReference] =
-  Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.js, std.js, example.js)
+  Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
 
 val undocumentedRefs =
-  jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
+  jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm, tests.jvm, tests.js)
 
 lazy val root = project
   .in(file("."))
@@ -256,7 +262,7 @@ lazy val rootJVM = project
     laws.jvm,
     core.jvm,
     testkit.jvm,
-    tests.jvm,
+    testsJVM,
     std.jvm,
     example.jvm,
     benchmarks)
@@ -477,19 +483,44 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
  */
-lazy val tests = crossProject(JSPlatform, JVMPlatform)
+lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
   .in(file("tests"))
-  .dependsOn(laws % Test, kernelTestkit % Test, testkit % Test)
-  .enablePlugins(NoPublishPlugin)
+  .dependsOn(core, laws % Test, kernelTestkit % Test, testkit % Test)
+  .enablePlugins(BuildInfoPlugin, NoPublishPlugin)
   .settings(
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
-      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test)
+      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test),
+    buildInfoPackage := "catseffect"
+  )
+  .jsSettings(
+    Compile / scalaJSUseMainModuleInitializer := true,
+    Compile / mainClass := Some("catseffect.examples.JSRunner")
   )
   .jvmSettings(
     Test / fork := true,
-    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
+    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}",
+    // The default configured mapSourceURI is used for trace filtering
+    scalacOptions ~= { _.filterNot(_.startsWith("-P:scalajs:mapSourceURI")) }
+  )
+
+lazy val testsJS = tests.js
+lazy val testsJVM = tests
+  .jvm
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    Test / compile := {
+      if (testJSIOApp.value)
+        (Test / compile).dependsOn(testsJS / Compile / fastOptJS).value
+      else
+        (Test / compile).value
+    },
+    buildInfoPackage := "cats.effect",
+    buildInfoKeys += testJSIOApp,
+    buildInfoKeys +=
+      "jsRunner" -> (testsJS / Compile / fastOptJS / artifactPath).value
+  )
 
 /**
  * Implementations lof standard functionality (e.g. Semaphore, Console, Queue) purely in terms
