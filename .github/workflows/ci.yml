@@ -120,11 +120,6 @@ jobs:
         with:
           node-version: 14
 
-      - name: Install jsdom and source-map-support
-        if: matrix.ci == 'ciJS'
-        shell: bash
-        run: npm install
-
       - name: Check that workflows are up to date
         shell: bash
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck

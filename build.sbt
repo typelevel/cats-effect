@@ -120,11 +120,6 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
     name = Some("Setup NodeJS v14 LTS"),
     params = Map("node-version" -> "14"),
     cond = Some("matrix.ci == 'ciJS'")
-  ),
-  WorkflowStep.Run(
-    List("npm install"),
-    name = Some("Install jsdom and source-map-support"),
-    cond = Some("matrix.ci == 'ciJS'")
   )
 )
 
@@ -186,7 +181,9 @@ Global / testJSIOApp := false
 
 ThisBuild / jsEnv := {
   useJSEnv.value match {
-    case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
+    case NodeJS =>
+      new NodeJSEnv(
+        NodeJSEnv.Config().withSourceMap(false).withArgs(List("--enable-source-maps")))
     case Firefox =>
       val options = new FirefoxOptions()
       options.setHeadless(true)
