@@ -56,18 +56,15 @@ private[effect] object Tracing extends TracingPlatform {
     )
   }
 
-  private[this] def isIOClass(className: String): Boolean =
-    className.startsWith("cats.effect.IO")
-
-  private[this] def isExternalClass(className: String): Boolean = {
+  private[this] def isInternalClass(className: String): Boolean = {
     var i = 0
     val len = stackTraceClassNameFilter.length
     while (i < len) {
       if (className.contains(stackTraceClassNameFilter(i)))
-        return false
+        return true
       i += 1
     }
-    true
+    false
   }
 
   private[this] def getOpAndCallSite(
@@ -78,7 +75,8 @@ private[effect] object Tracing extends TracingPlatform {
       val methodSite = stackTrace(idx - 1)
       val callSite = stackTrace(idx)
 
-      if (isIOClass(methodSite.getClassName()) && isExternalClass(callSite.getClassName()))
+      if (isInternalClass(methodSite.getClassName())
+        && !isInternalClass(callSite.getClassName()))
         return combineOpAndCallSite(methodSite, callSite)
 
       idx += 1
