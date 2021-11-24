@@ -158,8 +158,8 @@ ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   val scalaJavaFilters = for {
-    scala <- (ThisBuild / githubWorkflowScalaVersions).value.init
-    java <- (ThisBuild / githubWorkflowJavaVersions).value.tail
+    scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
+    java <- (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(OldGuardJava))
   } yield MatrixExclude(Map("scala" -> scala, "java" -> java))
 
   val windowsAndMacScalaFilters =
