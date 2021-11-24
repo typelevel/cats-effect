@@ -91,30 +91,7 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
       callSiteMethodName: String,
       callSiteFileName: String): Boolean = {
     if (callSiteClassName == "<jscode>") {
-      {
-        val len = stackTraceMethodNameFilter.length
-        var idx = 0
-        while (idx < len) {
-          if (callSiteMethodName.contains(stackTraceMethodNameFilter(idx))) {
-            return true
-          }
-
-          idx += 1
-        }
-      }
-
-      {
-        val len = stackTraceFileNameFilter.length
-        var idx = 0
-        while (idx < len) {
-          if (callSiteFileName.contains(stackTraceFileNameFilter(idx))) {
-            return true
-          }
-
-          idx += 1
-        }
-      }
-
+      return true
     } else {
       val len = stackTraceClassNameFilter.length
       var idx = 0
