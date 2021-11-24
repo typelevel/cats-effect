@@ -56,7 +56,7 @@ private[effect] object Tracing extends TracingPlatform {
     )
   }
 
-  private[this] def isInternalClass(className: String): Boolean = {
+  private[tracing] def isInternalClass(className: String): Boolean = {
     var i = 0
     val len = stackTraceClassNameFilter.length
     while (i < len) {
@@ -65,24 +65,6 @@ private[effect] object Tracing extends TracingPlatform {
       i += 1
     }
     false
-  }
-
-  private[this] def getOpAndCallSite(
-      stackTrace: Array[StackTraceElement]): StackTraceElement = {
-    val len = stackTrace.length
-    var idx = 1
-    while (idx < len) {
-      val methodSite = stackTrace(idx - 1)
-      val callSite = stackTrace(idx)
-
-      if (isInternalClass(methodSite.getClassName())
-        && !isInternalClass(callSite.getClassName()))
-        return combineOpAndCallSite(methodSite, callSite)
-
-      idx += 1
-    }
-
-    null
   }
 
   def augmentThrowable(enhancedExceptions: Boolean, t: Throwable, events: RingBuffer): Unit = {

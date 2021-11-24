@@ -65,6 +65,48 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
       _ => null
   }
 
+  private[this] final val stackTraceFileNameFilter: Array[String] = Array(
+    "githubusercontent.com/typelevel/cats-effect/",
+    "githubusercontent.com/typelevel/cats/",
+    "githubusercontent.com/scala-js/",
+    "githubusercontent.com/scala/",
+    "MacrotaskExecutor.scala" // TODO temporary workaround
+  )
+
+  private[this] def isInternalFile(fileName: String): Boolean = {
+    var i = 0
+    val len = stackTraceFileNameFilter.length
+    while (i < len) {
+      if (fileName.contains(stackTraceFileNameFilter(i)))
+        return true
+      i += 1
+    }
+    false
+  }
+
+  private[tracing] def getOpAndCallSite(
+      stackTrace: Array[StackTraceElement]): StackTraceElement = {
+    val len = stackTrace.length
+    var idx = 1
+    while (idx < len) {
+      val methodSite = stackTrace(idx - 1)
+      val callSite = stackTrace(idx)
+
+      if (isInternalClass(methodSite.getClassName())) {
+        if (callSite.getClassName() == "<jscode>") {
+          if (!isInternalFile(callSite.getFileName()))
+            return combineOpAndCallSite(methodSite, callSite)
+        } else if (!isInternalClass(callSite.getClassName())) {
+          return combineOpAndCallSite(methodSite, callSite)
+        }
+      }
+
+      idx += 1
+    }
+
+    null
+  }
+
   private[tracing] def decodeMethodName(name: String): String = {
     val junk = name.indexOf("__")
     NameTransformer.decode(if (junk == -1) name else name.substring(0, junk))

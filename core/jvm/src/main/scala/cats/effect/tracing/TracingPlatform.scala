@@ -38,6 +38,24 @@ private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent]
     }
   }
 
+  private[tracing] def getOpAndCallSite(
+      stackTrace: Array[StackTraceElement]): StackTraceElement = {
+    val len = stackTrace.length
+    var idx = 1
+    while (idx < len) {
+      val methodSite = stackTrace(idx - 1)
+      val callSite = stackTrace(idx)
+
+      if (isInternalClass(methodSite.getClassName())
+        && !isInternalClass(callSite.getClassName()))
+        return combineOpAndCallSite(methodSite, callSite)
+
+      idx += 1
+    }
+
+    null
+  }
+
   private[tracing] def decodeMethodName(name: String): String =
     NameTransformer.decode(name)
 
