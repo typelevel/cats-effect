@@ -34,7 +34,15 @@ private[effect] object Tracing extends TracingPlatform {
   private[this] final val runLoopFilter: Array[String] =
     Array("cats.effect.", "scala.runtime.", "scala.scalajs.runtime.")
 
-  private[this] def combineOpAndCallSite(
+  private[this] final val stackTraceClassNameFilter: Array[String] = Array(
+    "cats.",
+    "sbt.",
+    "java.",
+    "sun.",
+    "scala."
+  )
+
+  private[tracing] def combineOpAndCallSite(
       methodSite: StackTraceElement,
       callSite: StackTraceElement): StackTraceElement = {
     val methodSiteMethodName = methodSite.getMethodName
@@ -48,6 +56,20 @@ private[effect] object Tracing extends TracingPlatform {
     )
   }
 
+  private[this] def isIOClass(className: String): Boolean =
+    className.startsWith("cats.effect.IO")
+
+  private[this] def isExternalClass(className: String): Boolean = {
+    var i = 0
+    val len = stackTraceClassNameFilter.length
+    while (i < len) {
+      if (className.contains(stackTraceClassNameFilter(i)))
+        return false
+      i += 1
+    }
+    true
+  }
+
   private[this] def getOpAndCallSite(
       stackTrace: Array[StackTraceElement]): StackTraceElement = {
     val len = stackTrace.length
@@ -55,11 +77,8 @@ private[effect] object Tracing extends TracingPlatform {
     while (idx < len) {
       val methodSite = stackTrace(idx - 1)
       val callSite = stackTrace(idx)
-      val callSiteClassName = callSite.getClassName
-      val callSiteMethodName = callSite.getMethodName
-      val callSiteFileName = callSite.getFileName
 
-      if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName, callSiteFileName))
+      if (isIOClass(methodSite.getClassName()) && isExternalClass(callSite.getClassName()))
         return combineOpAndCallSite(methodSite, callSite)
 
       idx += 1
