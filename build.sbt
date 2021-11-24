@@ -157,6 +157,11 @@ val jsCiVariants = CI.AllJSCIs.map(_.command)
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
+  val scalaJavaFilters = for {
+    scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
+    java <- (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(OldGuardJava))
+  } yield MatrixExclude(Map("scala" -> scala, "java" -> java))
+
   val windowsAndMacScalaFilters =
     (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).flatMap { scala =>
       Seq(
@@ -164,16 +169,28 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
         MatrixExclude(Map("os" -> MacOS, "scala" -> scala)))
     }
 
-  jsCiVariants.flatMap { ci =>
+  val jsScalaFilters = for {
+    scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
+    ci <- jsCiVariants.tail
+  } yield MatrixExclude(Map("ci" -> ci, "scala" -> scala))
+
+  val jsJavaAndOSFilters = jsCiVariants.flatMap { ci =>
     val javaFilters =
       (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)).map { java =>
         MatrixExclude(Map("ci" -> ci, "java" -> java))
       }
 
-    javaFilters ++ windowsAndMacScalaFilters ++ Seq(
+    javaFilters ++ Seq(
       MatrixExclude(Map("os" -> Windows, "ci" -> ci)),
       MatrixExclude(Map("os" -> MacOS, "ci" -> ci)))
   }
+
+  // Nice-to-haves but unreliable in CI
+  val flakyFilters = Seq(
+    MatrixExclude(Map("os" -> Windows, "java" -> GraalVM))
+  )
+
+  scalaJavaFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ jsJavaAndOSFilters ++ flakyFilters
 }
 
 lazy val useJSEnv =
