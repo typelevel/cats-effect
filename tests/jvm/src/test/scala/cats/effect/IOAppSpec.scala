@@ -230,7 +230,11 @@ class IOAppSpec extends Specification {
           h.awaitStatus() mustEqual 0
         }
 
-        if (sys.props.get("java.version").filter(_.startsWith("1.8")).isDefined) {
+        if (!BuildInfo.testJSIOApp && sys
+            .props
+            .get("java.version")
+            .filter(_.startsWith("1.8"))
+            .isDefined) {
           "live fiber snapshot" in skipped(
             "JDK 8 does not have free signals for live fiber snapshots")
         } else {

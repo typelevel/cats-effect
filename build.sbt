@@ -107,7 +107,7 @@ ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
 val OldGuardJava = "adoptium@8"
 val LTSJava = "adoptium@11"
 val LatestJava = "adoptium@17"
-val ScalaJSJava = LatestJava
+val ScalaJSJava = OldGuardJava
 val GraalVM = "graalvm-ce-java11@21.3"
 
 ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
