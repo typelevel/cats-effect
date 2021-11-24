@@ -50,7 +50,7 @@ private[effect] final class FiberMonitor(
     // A reference to the compute pool of the `IORuntime` in which this suspended fiber bag
     // operates. `null` if the compute pool of the `IORuntime` is not a `WorkStealingThreadPool`.
     private[this] val compute: WorkStealingThreadPool
-) {
+) extends FiberMonitorShared {
 
   private[this] val size: Int = Runtime.getRuntime().availableProcessors() << 2
   private[this] val bags: Array[Map[AnyRef, WeakReference[IOFiber[_]]]] =
@@ -115,24 +115,6 @@ private[effect] final class FiberMonitor(
       val foreign = rawForeign -- localAndActive -- external
       val suspended = rawSuspended -- localAndActive -- external
 
-      val newline = System.lineSeparator()
-      val doubleNewline = s"$newline $newline"
-
-      def fiberString(fiber: IOFiber[_], status: String): String = {
-        val id = System.identityHashCode(fiber).toHexString
-        val trace = fiber.prettyPrintTrace()
-        val prefixedTrace = if (trace.isEmpty) "" else newline + trace
-        s"cats.effect.IOFiber@$id $status$prefixedTrace"
-      }
-
-      def printFibers(fibers: Set[IOFiber[_]], status: String): Unit =
-        if (!fibers.isEmpty) {
-          fibers foreach { fiber =>
-            print(doubleNewline)
-            print(fiberString(fiber, status))
-          }
-        }
-
       val workersStatuses = workersMap map {
         case (worker, (active, local)) =>
           val status =
@@ -142,14 +124,14 @@ private[effect] final class FiberMonitor(
 
           print(doubleNewline)
           active.map(fiberString(_, status)).foreach(print(_))
-          printFibers(local, "YIELDING")
+          printFibers(local, "YIELDING")(print)
 
           workerString
       }
 
-      printFibers(external, "YIELDING")
-      printFibers(suspended, "WAITING")
-      printFibers(foreign, "ACTIVE")
+      printFibers(external, "YIELDING")(print)
+      printFibers(suspended, "WAITING")(print)
+      printFibers(foreign, "ACTIVE")(print)
 
       print(doubleNewline)
       print(workersStatuses.mkString(newline))
