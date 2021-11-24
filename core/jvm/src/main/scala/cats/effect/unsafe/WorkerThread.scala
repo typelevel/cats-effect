@@ -517,7 +517,10 @@ private final class WorkerThread(
       // this worker thread has run its course and it is time to die, after the
       // blocking code has been successfully executed.
       blocking = true
-      pool.blockedWorkerThreadCounter.incrementAndGet()
+
+      if (isStackTracing) {
+        pool.blockedWorkerThreadCounter.incrementAndGet()
+      }
 
       // Spawn a new `WorkerThread`, a literal clone of this one. It is safe to
       // transfer ownership of the local queue and the parked signal to the new
@@ -537,9 +540,14 @@ private final class WorkerThread(
 
       // With another `WorkerThread` started, it is time to execute the blocking
       // action.
-      val result = thunk
-
-      pool.blockedWorkerThreadCounter.decrementAndGet()
+      val result =
+        try thunk // Exceptions are caught in IOFiber.
+        finally {
+          if (isStackTracing) {
+            pool.blockedWorkerThreadCounter.decrementAndGet()
+            ()
+          }
+        }
 
       result
     }

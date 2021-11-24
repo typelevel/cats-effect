@@ -261,7 +261,11 @@ private final class LocalQueue {
         // value, publish it for other threads and break out of the loop.
         val idx = index(tl)
         buffer(idx) = fiber
-        totalFiberCount += 1
+
+        if (isStackTracing) {
+          totalFiberCount += 1
+        }
+
         val newTl = unsignedShortAddition(tl, 1)
         tailPublisher.lazySet(newTl)
         tail = newTl
@@ -274,8 +278,11 @@ private final class LocalQueue {
         // Outcome 2, there is a concurrent stealer and there is no available
         // capacity for the new fiber. Proceed to enqueue the fiber on the
         // external queue and break out of the loop.
-        totalSpilloverCount += 1
-        tailPublisher.lazySet(tl)
+        if (isStackTracing) {
+          totalSpilloverCount += 1
+          tailPublisher.lazySet(tl)
+        }
+
         external.offer(fiber, random)
         return
       }
@@ -311,7 +318,11 @@ private final class LocalQueue {
             i += 1
             offset += 1
           }
-          totalSpilloverCount += SpilloverBatchSize
+
+          if (isStackTracing) {
+            totalSpilloverCount += SpilloverBatchSize
+          }
+
           batches(b) = batch
           b += 1
         }
@@ -396,10 +407,10 @@ private final class LocalQueue {
           i += 1
         }
 
-        totalFiberCount += SpilloverBatchSize
         val fiber = batch(0)
 
         if (isStackTracing) {
+          totalFiberCount += SpilloverBatchSize
           worker.active = fiber
         }
 
@@ -613,8 +624,10 @@ private final class LocalQueue {
           i += 1
         }
 
-        successfulStealAttemptCount += 1
-        stolenFiberCount += n
+        if (isStackTracing) {
+          successfulStealAttemptCount += 1
+          stolenFiberCount += n
+        }
 
         // After transferring the stolen fibers, it is time to announce that the
         // stealing operation is done, by moving the "steal" tag to match the
@@ -734,8 +747,11 @@ private final class LocalQueue {
 
         // The fibers have been transferred, enqueue the whole batch on the
         // batched queue.
-        totalSpilloverCount += SpilloverBatchSize
-        tailPublisher.lazySet(tl)
+        if (isStackTracing) {
+          totalSpilloverCount += SpilloverBatchSize
+          tailPublisher.lazySet(tl)
+        }
+
         external.offer(batch, random)
         return
       }
