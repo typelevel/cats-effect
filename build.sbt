@@ -479,10 +479,11 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
+      ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
         .cross(CrossVersion.for3Use2_13)
-        .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13"),
-      "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test cross CrossVersion.for3Use2_13,
+        .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
+        .exclude("org.scalacheck", "scalacheck_2.13")
+        .exclude("org.scalacheck", "scalacheck_sjs1_2.13"),
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test
     ),
