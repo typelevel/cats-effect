@@ -87,7 +87,9 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
   private[tracing] def applyStackTraceFilter(
       callSiteClassName: String,
       callSiteFileName: String): Boolean =
-    (callSiteClassName == "<jscode>" && isInternalFile(callSiteFileName)) ||
+    (callSiteClassName == "<jscode>"
+      && !callSiteFileName.endsWith(".js")
+      && isInternalFile(callSiteFileName)) ||
       isInternalClass(callSiteClassName)
 
   private[tracing] def decodeMethodName(name: String): String = {
