@@ -84,28 +84,11 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     false
   }
 
-  private[tracing] def getOpAndCallSite(
-      stackTrace: Array[StackTraceElement]): StackTraceElement = {
-    val len = stackTrace.length
-    var idx = 1
-    while (idx < len) {
-      val methodSite = stackTrace(idx - 1)
-      val callSite = stackTrace(idx)
-
-      if (isInternalClass(methodSite.getClassName())) {
-        if (callSite.getClassName() == "<jscode>") {
-          if (!isInternalFile(callSite.getFileName()))
-            return combineOpAndCallSite(methodSite, callSite)
-        } else if (!isInternalClass(callSite.getClassName())) {
-          return combineOpAndCallSite(methodSite, callSite)
-        }
-      }
-
-      idx += 1
-    }
-
-    null
-  }
+  private[tracing] def applyStackTraceFilter(
+      callSiteClassName: String,
+      callSiteFileName: String): Boolean =
+    (callSiteClassName == "<jscode>" && isInternalFile(callSiteFileName)) ||
+      isInternalClass(callSiteClassName)
 
   private[tracing] def decodeMethodName(name: String): String = {
     val junk = name.indexOf("__")

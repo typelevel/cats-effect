@@ -67,6 +67,25 @@ private[effect] object Tracing extends TracingPlatform {
     false
   }
 
+  private[this] def getOpAndCallSite(
+      stackTrace: Array[StackTraceElement]): StackTraceElement = {
+    val len = stackTrace.length
+    var idx = 1
+    while (idx < len) {
+      val methodSite = stackTrace(idx - 1)
+      val callSite = stackTrace(idx)
+      val callSiteClassName = callSite.getClassName
+      val callSiteFileName = callSite.getFileName
+
+      if (!applyStackTraceFilter(callSiteClassName, callSiteFileName))
+        return combineOpAndCallSite(methodSite, callSite)
+
+      idx += 1
+    }
+
+    null
+  }
+
   def augmentThrowable(enhancedExceptions: Boolean, t: Throwable, events: RingBuffer): Unit = {
     def applyRunLoopFilter(ste: StackTraceElement): Boolean = {
       val name = ste.getClassName

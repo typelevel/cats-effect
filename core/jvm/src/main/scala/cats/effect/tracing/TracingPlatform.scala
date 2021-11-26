@@ -17,6 +17,7 @@
 package cats.effect.tracing
 
 import scala.reflect.NameTransformer
+import scala.annotation.nowarn
 
 private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent] {
   self: Tracing.type =>
@@ -38,37 +39,11 @@ private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent]
     }
   }
 
-  private[this] def applyStackTraceFilter(callSiteClassName: String): Boolean = {
-    val len = stackTraceClassNameFilter.length
-    var idx = 0
-    while (idx < len) {
-      if (callSiteClassName.startsWith(stackTraceClassNameFilter(idx))) {
-        return true
-      }
-
-      idx += 1
-    }
-
-    false
-  }
-
-  private[tracing] def getOpAndCallSite(
-      stackTrace: Array[StackTraceElement]): StackTraceElement = {
-    val len = stackTrace.length
-    var idx = 1
-    while (idx < len) {
-      val methodSite = stackTrace(idx - 1)
-      val callSite = stackTrace(idx)
-      val callSiteClassName = callSite.getClassName
-
-      if (!applyStackTraceFilter(callSiteClassName))
-        return combineOpAndCallSite(methodSite, callSite)
-
-      idx += 1
-    }
-
-    null
-  }
+  @nowarn("cat=unused")
+  private[tracing] def applyStackTraceFilter(
+      callSiteClassName: String,
+      callSiteFileName: String): Boolean =
+    isInternalClass(callSiteClassName)
 
   private[tracing] def decodeMethodName(name: String): String =
     NameTransformer.decode(name)
