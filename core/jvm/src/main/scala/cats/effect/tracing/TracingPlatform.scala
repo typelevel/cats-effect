@@ -16,8 +16,8 @@
 
 package cats.effect.tracing
 
-import scala.reflect.NameTransformer
 import scala.annotation.nowarn
+import scala.reflect.NameTransformer
 
 private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent] {
   self: Tracing.type =>
