@@ -84,13 +84,32 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     false
   }
 
+  private[this] final val stackTraceMethodNameFilter: Array[String] = Array(
+    "_Lcats_effect_",
+    "_jl_",
+    "_Lorg_scalajs_"
+  )
+
+  private[this] def isInternalMethod(methodName: String): Boolean = {
+    var i = 0
+    val len = stackTraceMethodNameFilter.length
+    while (i < len) {
+      if (methodName.contains(stackTraceMethodNameFilter(i)))
+        return true
+      i += 1
+    }
+    false
+  }
+
   private[tracing] def applyStackTraceFilter(
       callSiteClassName: String,
+      callSiteMethodName: String,
       callSiteFileName: String): Boolean =
     (callSiteClassName == "<jscode>"
       && !callSiteFileName.endsWith(".js")
       && isInternalFile(callSiteFileName)) ||
-      isInternalClass(callSiteClassName)
+      isInternalClass(callSiteClassName) ||
+      isInternalMethod(callSiteMethodName)
 
   private[tracing] def decodeMethodName(name: String): String = {
     val junk = name.indexOf("__")

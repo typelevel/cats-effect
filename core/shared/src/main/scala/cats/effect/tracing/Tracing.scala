@@ -39,7 +39,8 @@ private[effect] object Tracing extends TracingPlatform {
     "sbt.",
     "java.",
     "sun.",
-    "scala."
+    "scala.",
+    "org.scalajs."
   )
 
   private[tracing] def combineOpAndCallSite(
@@ -75,9 +76,10 @@ private[effect] object Tracing extends TracingPlatform {
       val methodSite = stackTrace(idx - 1)
       val callSite = stackTrace(idx)
       val callSiteClassName = callSite.getClassName
+      val callSiteMethodName = callSite.getMethodName
       val callSiteFileName = callSite.getFileName
 
-      if (!applyStackTraceFilter(callSiteClassName, callSiteFileName))
+      if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName, callSiteFileName))
         return combineOpAndCallSite(methodSite, callSite)
 
       idx += 1
