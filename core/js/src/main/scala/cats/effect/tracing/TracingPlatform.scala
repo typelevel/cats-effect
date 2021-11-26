@@ -65,6 +65,7 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
       _ => null
   }
 
+  // These filters require properly-configured source maps
   private[this] final val stackTraceFileNameFilter: Array[String] = Array(
     "githubusercontent.com/typelevel/cats-effect/",
     "githubusercontent.com/typelevel/cats/",
@@ -84,6 +85,7 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     false
   }
 
+  // These filters target Firefox
   private[this] final val stackTraceMethodNameFilter: Array[String] = Array(
     "_Lcats_effect_",
     "_jl_",
@@ -104,15 +106,21 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
   private[tracing] def applyStackTraceFilter(
       callSiteClassName: String,
       callSiteMethodName: String,
-      callSiteFileName: String): Boolean =
-    (callSiteClassName == "<jscode>"
-      && !callSiteFileName.endsWith(".js")
-      && isInternalFile(callSiteFileName)) ||
-      isInternalClass(callSiteClassName) ||
-      isInternalMethod(callSiteMethodName)
+      callSiteFileName: String): Boolean = {
+
+    // anonymous lambdas can only be distinguished by Scala source-location, if available
+    def isInternalScalaFile = !callSiteFileName.endsWith(".js") &&
+      isInternalFile(callSiteFileName)
+
+    // this is either a lambda or we are in Firefox
+    def isInternalJSCode = callSiteClassName == "<jscode>" &&
+      (isInternalScalaFile || isInternalMethod(callSiteMethodName))
+
+    isInternalJSCode || isInternalClass(callSiteClassName) // V8 class names behave like Java
+  }
 
   private[tracing] def decodeMethodName(name: String): String = {
-    val junk = name.indexOf("__")
+    val junk = name.indexOf("__") // Firefox artifacts
     NameTransformer.decode(if (junk == -1) name else name.substring(0, junk))
   }
 
