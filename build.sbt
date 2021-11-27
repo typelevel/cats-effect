@@ -501,13 +501,13 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
   )
   .jsSettings(
     Compile / scalaJSUseMainModuleInitializer := true,
-    Compile / mainClass := Some("catseffect.examples.JSRunner")
+    Compile / mainClass := Some("catseffect.examples.JSRunner"),
+    // The default configured mapSourceURI is used for trace filtering
+    scalacOptions ~= { _.filterNot(_.startsWith("-P:scalajs:mapSourceURI")) }
   )
   .jvmSettings(
     Test / fork := true,
-    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}",
-    // The default configured mapSourceURI is used for trace filtering
-    scalacOptions ~= { _.filterNot(_.startsWith("-P:scalajs:mapSourceURI")) }
+    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}"
   )
 
 lazy val testsJS = tests.js

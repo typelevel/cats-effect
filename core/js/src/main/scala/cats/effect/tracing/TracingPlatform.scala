@@ -65,19 +65,7 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
       _ => null
   }
 
-  private[this] final val stackTraceClassNameFilter: Array[String] = Array(
-    "cats.effect.",
-    "cats.",
-    "java.",
-    "scala."
-  )
-
-  private[this] final val stackTraceMethodNameFilter: Array[String] = Array(
-    "_Lcats_effect_",
-    "_jl_",
-    "{anonymous}"
-  )
-
+  // These filters require properly-configured source maps
   private[this] final val stackTraceFileNameFilter: Array[String] = Array(
     "githubusercontent.com/typelevel/cats-effect/",
     "githubusercontent.com/typelevel/cats/",
@@ -86,52 +74,53 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     "MacrotaskExecutor.scala" // TODO temporary workaround
   )
 
+  private[this] def isInternalFile(fileName: String): Boolean = {
+    var i = 0
+    val len = stackTraceFileNameFilter.length
+    while (i < len) {
+      if (fileName.contains(stackTraceFileNameFilter(i)))
+        return true
+      i += 1
+    }
+    false
+  }
+
+  // These filters target Firefox
+  private[this] final val stackTraceMethodNameFilter: Array[String] = Array(
+    "_Lcats_effect_",
+    "_jl_",
+    "_Lorg_scalajs_"
+  )
+
+  private[this] def isInternalMethod(methodName: String): Boolean = {
+    var i = 0
+    val len = stackTraceMethodNameFilter.length
+    while (i < len) {
+      if (methodName.contains(stackTraceMethodNameFilter(i)))
+        return true
+      i += 1
+    }
+    false
+  }
+
   private[tracing] def applyStackTraceFilter(
       callSiteClassName: String,
       callSiteMethodName: String,
       callSiteFileName: String): Boolean = {
-    if (callSiteClassName == "<jscode>") {
-      {
-        val len = stackTraceMethodNameFilter.length
-        var idx = 0
-        while (idx < len) {
-          if (callSiteMethodName.contains(stackTraceMethodNameFilter(idx))) {
-            return true
-          }
 
-          idx += 1
-        }
-      }
+    // anonymous lambdas can only be distinguished by Scala source-location, if available
+    def isInternalScalaFile = !callSiteFileName.endsWith(".js") &&
+      isInternalFile(callSiteFileName)
 
-      {
-        val len = stackTraceFileNameFilter.length
-        var idx = 0
-        while (idx < len) {
-          if (callSiteFileName.contains(stackTraceFileNameFilter(idx))) {
-            return true
-          }
+    // this is either a lambda or we are in Firefox
+    def isInternalJSCode = callSiteClassName == "<jscode>" &&
+      (isInternalScalaFile || isInternalMethod(callSiteMethodName))
 
-          idx += 1
-        }
-      }
-
-    } else {
-      val len = stackTraceClassNameFilter.length
-      var idx = 0
-      while (idx < len) {
-        if (callSiteClassName.startsWith(stackTraceClassNameFilter(idx))) {
-          return true
-        }
-
-        idx += 1
-      }
-    }
-
-    false
+    isInternalJSCode || isInternalClass(callSiteClassName) // V8 class names behave like Java
   }
 
   private[tracing] def decodeMethodName(name: String): String = {
-    val junk = name.indexOf("__")
+    val junk = name.indexOf("__") // Firefox artifacts
     NameTransformer.decode(if (junk == -1) name else name.substring(0, junk))
   }
 

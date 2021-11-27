@@ -34,7 +34,16 @@ private[effect] object Tracing extends TracingPlatform {
   private[this] final val runLoopFilter: Array[String] =
     Array("cats.effect.", "scala.runtime.", "scala.scalajs.runtime.")
 
-  private[this] def combineOpAndCallSite(
+  private[tracing] final val stackTraceClassNameFilter: Array[String] = Array(
+    "cats.",
+    "sbt.",
+    "java.",
+    "sun.",
+    "scala.",
+    "org.scalajs."
+  )
+
+  private[tracing] def combineOpAndCallSite(
       methodSite: StackTraceElement,
       callSite: StackTraceElement): StackTraceElement = {
     val methodSiteMethodName = methodSite.getMethodName
@@ -46,6 +55,17 @@ private[effect] object Tracing extends TracingPlatform {
       callSite.getFileName,
       callSite.getLineNumber
     )
+  }
+
+  private[tracing] def isInternalClass(className: String): Boolean = {
+    var i = 0
+    val len = stackTraceClassNameFilter.length
+    while (i < len) {
+      if (className.contains(stackTraceClassNameFilter(i)))
+        return true
+      i += 1
+    }
+    false
   }
 
   private[this] def getOpAndCallSite(

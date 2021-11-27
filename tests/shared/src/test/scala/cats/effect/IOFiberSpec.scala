@@ -25,9 +25,9 @@ class IOFiberSpec extends BaseSpec {
 
   "IOFiber" should {
     "toString a running fiber" in real {
-      def loop: IO[Unit] = IO.unit >> loop
+      def loop: IO[Unit] = IO.unit.flatMap(_ => loop)
       val pattern =
-        raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ RUNNING(: >> @ fiber.IOFiberSpec.loop\$$[0-9]\(.*IOFiberSpec.scala:[0-9]{2}\))?"
+        raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ RUNNING(: flatMap @ fiber.IOFiberSpec.loop\$$[0-9]\(.*IOFiberSpec.scala:[0-9]{2}\))?"
       for {
         f <- loop.start
         _ <- IO.sleep(1.milli)
