@@ -57,7 +57,7 @@ private[internals] object PoolUtils {
             case t: Throwable =>
               // under most circumstances, this will work even with fatal errors
               t.printStackTrace()
-              System.exit(1)
+              Runtime.getRuntime().halt(1)
           }
       })
 
