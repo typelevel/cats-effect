@@ -279,6 +279,9 @@ trait IOApp {
           latch.countDown()
         })(runtime)
 
+    if (isStackTracing)
+      runtime.fiberMonitor.monitorSuspended(fiber, fiber)
+
     def handleShutdown(): Unit = {
       if (latch.getCount() > 0) {
         val cancelLatch = new CountDownLatch(1)
