@@ -280,7 +280,9 @@ private final class WorkerThread(
       }
     }
 
-    while (!blocking && !isInterrupted()) {
+    val done = pool.done
+
+    while (!blocking && !done.get()) {
       ((state & ExternalQueueTicksMask): @switch) match {
         case 0 =>
           // Obtain a fiber or batch of fibers from the external queue.
