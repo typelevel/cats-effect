@@ -6,4 +6,4 @@
 [submodule "Cats Effect 3"]
 	path = versions/3.x
 	url = git@github.com:typelevel/cats-effect.git
-	branch = series/3.2.x
+	branch = series/3.x
