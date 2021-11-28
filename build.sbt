@@ -59,7 +59,7 @@ ThisBuild / scmInfo := Some(
   ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")
 )
 
-val CatsVersion = "2.6.1"
+val CatsVersion = "2.7.0"
 val DisciplineMunitVersion = "1.0.9"
 
 replaceCommandAlias(
