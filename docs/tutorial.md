@@ -42,11 +42,11 @@ running the code snippets in this tutorial, it is recommended to use the same
 ```scala
 name := "cats-effect-tutorial"
 
-version := "3.2.9"
+version := "3.3.0"
 
 scalaVersion := "2.13.6"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.2.9" withSources() withJavadoc()
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.0" withSources() withJavadoc()
 
 scalacOptions ++= Seq(
   "-feature",
@@ -256,7 +256,7 @@ But, in a way, that's precisely what we do when we `flatMap` instances of
 has its place, `Resource` is likely to be a better choice when dealing with
 multiple resources at once.
 
-### Copying data 
+### Copying data
 Finally we have our streams ready to go! We have to focus now on coding
 `transfer`. That function will have to define a loop that at each iteration
 reads data from the input stream into a buffer, and then writes the buffer
