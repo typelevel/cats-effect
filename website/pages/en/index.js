@@ -60,7 +60,7 @@ class HomeSplash extends React.Component {
                         <span className="hljs-string">"org.typelevel"</span> %% <span className="hljs-string">"cats-effect"</span> % <span className="hljs-string">"3.3.0"</span>
                     </code>
                     <PromoSection>
-                        <Button target="_blank" href="https://scastie.scala-lang.org/ddjtFZfRSKqEXSifiTpPfg">Try It!</Button>
+                        <Button target="_blank" href="https://scastie.scala-lang.org/DhLi3hzYT1mEgodpP6rvtA">Try It!</Button>
                         <Button href={docUrl('getting-started')}>Get Started</Button>
                     </PromoSection>
                 </div>
