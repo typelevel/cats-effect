@@ -152,12 +152,6 @@ object Console extends ConsoleCompanionPlatform {
   def apply[F[_]](implicit C: Console[F]): C.type = C
 
   /**
-   * Constructs a `Console` instance for `F` data types that are [[cats.effect.kernel.Sync]].
-   */
-  def make[F[_]](implicit F: Sync[F]): Console[F] =
-    new SyncConsole[F]
-
-  /**
    * [[Console]] instance built for `cats.data.EitherT` values initialized with any `F` data
    * type that also implements `Console`.
    */
@@ -214,7 +208,7 @@ object Console extends ConsoleCompanionPlatform {
   ]: Console[ReaderWriterStateT[F, E, L, S, *]] =
     Console[F].mapK(ReaderWriterStateT.liftK)
 
-  private final class SyncConsole[F[_]](implicit F: Sync[F]) extends Console[F] {
+  private[std] final class SyncConsole[F[_]](implicit F: Sync[F]) extends Console[F] {
     def readLineWithCharset(charset: Charset): F[String] =
       F.interruptible {
         val in = System.in

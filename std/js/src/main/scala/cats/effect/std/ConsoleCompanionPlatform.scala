@@ -17,14 +17,29 @@
 package cats.effect.std
 
 import cats.effect.kernel.Async
+import cats.effect.kernel.Sync
 import cats.syntax.all._
 import cats.~>
 
 import java.nio.charset.Charset
 import scala.annotation.nowarn
 import scala.scalajs.js
+import scala.util.Try
 
 private[std] trait ConsoleCompanionPlatform { this: Console.type =>
+
+  /**
+   * Constructs a `Console` instance for `F` data types that are [[cats.effect.kernel.Sync]].
+   */
+  def make[F[_]](implicit F: Async[F]): Console[F] =
+    Try(js.Dynamic.global.process)
+      .filter(p => !js.isUndefined(p.stdout))
+      .map(new NodeJSConsole(_))
+      .getOrElse(new SyncConsole)
+
+  // Keeping for bincompat
+  private[std] def make[F[_]](implicit F: Sync[F]): Console[F] =
+    new SyncConsole[F]
 
   private[std] abstract class MapKConsole[F[_], G[_]](self: Console[F], f: F ~> G)
       extends Console[G] {

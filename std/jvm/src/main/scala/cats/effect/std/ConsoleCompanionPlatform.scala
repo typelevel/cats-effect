@@ -16,11 +16,18 @@
 
 package cats.effect.std
 
+import cats.effect.kernel.Sync
 import cats.~>
 
 import java.nio.charset.Charset
 
 private[std] trait ConsoleCompanionPlatform { this: Console.type =>
+
+  /**
+   * Constructs a `Console` instance for `F` data types that are [[cats.effect.kernel.Sync]].
+   */
+  def make[F[_]](implicit F: Sync[F]): Console[F] =
+    new SyncConsole[F]
 
   private[std] abstract class MapKConsole[F[_], G[_]](self: Console[F], f: F ~> G)
       extends Console[G] {
