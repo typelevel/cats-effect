@@ -108,9 +108,7 @@ trait Console[F[_]] extends ConsolePlatform[F] { self =>
    *   a console in the new context obtained by mapping the current one using `f`
    */
   def mapK[G[_]](f: F ~> G): Console[G] =
-    new Console[G] {
-      def readLineWithCharset(charset: Charset): G[String] =
-        f(self.readLineWithCharset(charset))
+    new Console.MapKConsole(self, f) {
 
       def print[A](a: A)(implicit S: Show[A]): G[Unit] =
         f(self.print(a))
@@ -129,7 +127,7 @@ trait Console[F[_]] extends ConsolePlatform[F] { self =>
     }
 }
 
-object Console {
+object Console extends ConsoleCompanionPlatform {
 
   /**
    * Summoner method for `Console` instances.

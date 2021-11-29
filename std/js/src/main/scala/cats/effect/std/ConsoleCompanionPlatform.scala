@@ -16,15 +16,23 @@
 
 package cats.effect.std
 
-import cats.syntax.all._
 import cats.effect.kernel.Async
+import cats.syntax.all._
+import cats.~>
 
 import java.nio.charset.Charset
+import scala.annotation.nowarn
 import scala.scalajs.js
 
 private[std] trait ConsoleCompanionPlatform { this: Console.type =>
 
-  final class NodeJSConsole[F[_]](process: js.Dynamic)(implicit F: Async[F])
+  private[std] abstract class MapKConsole[F[_], G[_]](self: Console[F], f: F ~> G)
+      extends Console[G] {
+    def readLineWithCharset(charset: Charset): G[String] =
+      f(self.readLineWithCharset(charset)): @nowarn("cat=deprecation")
+  }
+
+  private[std] final class NodeJSConsole[F[_]](process: js.Dynamic)(implicit F: Async[F])
       extends Console[F] {
 
     private def write(writable: js.Dynamic, s: String): F[Unit] =

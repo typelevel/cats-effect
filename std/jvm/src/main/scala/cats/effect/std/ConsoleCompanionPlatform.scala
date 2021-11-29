@@ -16,4 +16,16 @@
 
 package cats.effect.std
 
-private[std] trait ConsoleCompanionPlatform { this: Console.type => }
+import cats.~>
+
+import java.nio.charset.Charset
+
+private[std] trait ConsoleCompanionPlatform { this: Console.type =>
+
+  private[std] abstract class MapKConsole[F[_], G[_]](self: Console[F], f: F ~> G)
+      extends Console[G] {
+    def readLineWithCharset(charset: Charset): G[String] =
+      f(self.readLineWithCharset(charset))
+  }
+
+}
