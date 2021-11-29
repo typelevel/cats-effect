@@ -20,6 +20,7 @@ import cats.effect.tracing.TracingConstants._
 import cats.effect.unsafe.FiberMonitor
 
 import scala.concurrent.{blocking, CancellationException}
+import scala.util.control.NonFatal
 
 import java.util.concurrent.CountDownLatch
 
@@ -334,8 +335,12 @@ trait IOApp {
         case _: CancellationException =>
           // Do not report cancelation exceptions but still exit with an error code.
           System.exit(1)
+        case NonFatal(t) =>
+          t.printStackTrace()
+          System.exit(1)
         case t: Throwable =>
-          throw t
+          t.printStackTrace()
+          rt.halt(1)
       }
     } catch {
       // this handles sbt when fork := false

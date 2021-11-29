@@ -1419,7 +1419,6 @@ private final class IOFiber[A](
 
   private[this] def onFatalFailure(t: Throwable): Null = {
     Thread.interrupted()
-    currentCtx.reportFailure(t)
     runtime.shutdown()
 
     // Make sure the shutdown did not interrupt this thread.

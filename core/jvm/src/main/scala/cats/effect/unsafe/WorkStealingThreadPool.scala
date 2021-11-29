@@ -100,7 +100,7 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * The shutdown latch of the work stealing thread pool.
    */
-  private[this] val done: AtomicBoolean = new AtomicBoolean(false)
+  private[unsafe] val done: AtomicBoolean = new AtomicBoolean(false)
 
   private[unsafe] val blockedWorkerThreadCounter: AtomicInteger = new AtomicInteger(0)
 
@@ -540,6 +540,9 @@ private[effect] final class WorkStealingThreadPool(
    * has been shut down has no effect.
    */
   def shutdown(): Unit = {
+    // Clear the interrupt flag.
+    Thread.interrupted()
+
     // Execute the shutdown logic only once.
     if (done.compareAndSet(false, true)) {
       // Send an interrupt signal to each of the worker threads.
@@ -555,14 +558,9 @@ private[effect] final class WorkStealingThreadPool(
         i += 1
       }
 
-      // Wait for all worker threads to finalize.
       // Clear the interrupt flag.
       Thread.interrupted()
-
-      // It is now safe to clean up the state of the thread pool.
-      state.lazySet(0)
-
-      // Shutdown and drain the external queue.
+      // Drain the external queue.
       externalQueue.clear()
       Thread.currentThread().interrupt()
     }

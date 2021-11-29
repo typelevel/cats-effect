@@ -230,6 +230,15 @@ class IOAppSpec extends Specification {
           h.awaitStatus() mustEqual 0
         }
 
+        if (!BuildInfo.testJSIOApp) {
+          "shutdown on worker thread interruption" in {
+            val h = platform(WorkerThreadInterrupt, List.empty)
+            h.awaitStatus() mustEqual 1
+            h.stderr() must contain("java.lang.InterruptedException")
+            ok
+          }
+        }
+
         if (!BuildInfo.testJSIOApp && sys
             .props
             .get("java.version")

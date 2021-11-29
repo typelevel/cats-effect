@@ -81,4 +81,9 @@ package examples {
       _ <- fibers.traverse(_.join)
     } yield ()
   }
+
+  object WorkerThreadInterrupt extends IOApp.Simple {
+    val run =
+      IO(Thread.currentThread().interrupt()) *> IO(Thread.sleep(1000L))
+  }
 }
