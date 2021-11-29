@@ -47,35 +47,7 @@ import java.nio.charset.{Charset, CodingErrorAction, MalformedInputException}
  * name: ") n <- Console[F].readLine _ <- if (n.nonEmpty) Console[F].println("Hello, " + n) else
  * Console[F].errorln("Name is empty!") } yield () }}}
  */
-trait Console[F[_]] { self =>
-
-  /**
-   * Reads a line as a string from the standard input using the platform's default charset, as
-   * per `java.nio.charset.Charset.defaultCharset()`.
-   *
-   * The effect can raise a `java.io.EOFException` if no input has been consumed before the EOF
-   * is observed. This should never happen with the standard input, unless it has been replaced
-   * with a finite `java.io.InputStream` through `java.lang.System#setIn` or similar.
-   *
-   * @return
-   *   an effect that describes reading the user's input from the standard input as a string
-   */
-  def readLine: F[String] =
-    readLineWithCharset(Charset.defaultCharset())
-
-  /**
-   * Reads a line as a string from the standard input using the provided charset.
-   *
-   * The effect can raise a `java.io.EOFException` if no input has been consumed before the EOF
-   * is observed. This should never happen with the standard input, unless it has been replaced
-   * with a finite `java.io.InputStream` through `java.lang.System#setIn` or similar.
-   *
-   * @param charset
-   *   the `java.nio.charset.Charset` to be used when decoding the input stream
-   * @return
-   *   an effect that describes reading the user's input from the standard input as a string
-   */
-  def readLineWithCharset(charset: Charset): F[String]
+trait Console[F[_]] extends ConsolePlatform[F] { self =>
 
   /**
    * Prints a value to the standard output using the implicit `cats.Show` instance.

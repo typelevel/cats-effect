@@ -16,4 +16,19 @@
 
 package cats.effect.std
 
-private[std] trait ConsoleCompanionPlatform { this: Console.type => }
+import java.nio.charset.Charset
+
+private[std] trait ConsolePlatform[F[_]] {
+
+  @deprecated(
+    "readLine is not generally supported on JS. On Node.js consider using fs2.io.stdin.",
+    "3.4.0")
+  def readLine: F[String] =
+    readLineWithCharset(Charset.defaultCharset())
+
+  @deprecated(
+    "readLineWithCharset is not generally supported on JS. On Node.js consider using fs2.io.stdin.",
+    "3.4.0")
+  def readLineWithCharset(charset: Charset): F[String]
+
+}
