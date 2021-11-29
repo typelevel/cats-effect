@@ -72,7 +72,8 @@ private[std] trait ConsoleCompanionPlatform { this: Console.type =>
 
     def println[A](a: A)(implicit S: cats.Show[A]): F[Unit] = writeln(process.stdout, S.show(a))
 
-    def readLineWithCharset(charset: Charset): F[String] = ???
+    def readLineWithCharset(charset: Charset): F[String] =
+      F.raiseError(new UnsupportedOperationException)
   }
 
 }
