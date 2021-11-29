@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.effect.std.Console
 import cats.effect.tracing.Tracing
 
 import java.time.Instant
@@ -65,4 +66,22 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
     asyncForIO.fromCompletableFuture(fut)
 
   def realTimeInstant: IO[Instant] = asyncForIO.realTimeInstant
+
+  /**
+   * Reads a line as a string from the standard input using the platform's default charset, as
+   * per `java.nio.charset.Charset.defaultCharset()`.
+   *
+   * The effect can raise a `java.io.EOFException` if no input has been consumed before the EOF
+   * is observed. This should never happen with the standard input, unless it has been replaced
+   * with a finite `java.io.InputStream` through `java.lang.System#setIn` or similar.
+   *
+   * @see
+   *   `cats.effect.std.Console#readLineWithCharset` for reading using a custom
+   *   `java.nio.charset.Charset`
+   *
+   * @return
+   *   an IO effect that describes reading the user's input from the standard input as a string
+   */
+  def readLine: IO[String] =
+    Console[IO].readLine
 }

@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import cats.effect.std.Console
+
 import scalajs.js
 
 import scala.scalajs.js.{Promise, Thenable}
@@ -46,4 +48,8 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
     asyncForIO.fromPromise(iop)
 
   def realTimeDate: IO[js.Date] = asyncForIO.realTimeDate
+
+  @deprecated("Not implemented for Scala.js. On Node.js consider using fs2.io.stdin.", "3.4.0")
+  def readLine: IO[String] =
+    Console[IO].readLine
 }
