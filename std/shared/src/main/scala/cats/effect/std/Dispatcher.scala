@@ -31,15 +31,15 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 /**
  * A fiber-based supervisor utility for evaluating effects across an impure boundary. This is
  * useful when working with reactive interfaces that produce potentially many values (as opposed
- * to one), and for each value, some effect in `F` must be performed (like inserting it into a
- * queue).
+ * to one), and for each value, some effect in `F` must be performed (like inserting each value
+ * into a queue).
  *
  * [[Dispatcher]] is a kind of [[Supervisor]] and accordingly follows the same scoping and
  * lifecycle rules with respect to submitted effects.
  *
  * Performance note: all clients of a single [[Dispatcher]] instance will contend with each
  * other when submitting effects. However, [[Dispatcher]] instances are cheap to create and have
- * minimal overhead (a single fiber), so they can be allocated on-demand if necessary.
+ * minimal overhead, so they can be allocated on-demand if necessary.
  *
  * Notably, [[Dispatcher]] replaces Effect and ConcurrentEffect from Cats Effect 2 while only
  * requiring an [[cats.effect.kernel.Async]] constraint.

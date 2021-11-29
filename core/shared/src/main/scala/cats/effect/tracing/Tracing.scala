@@ -22,11 +22,51 @@ private[effect] object Tracing extends TracingPlatform {
 
   import TracingConstants._
 
+  private[this] val TurnRight = "╰"
+  // private[this] val InverseTurnRight = "╭"
+  private[this] val Junction = "├"
+  // private[this] val Line = "│"
+
   private[tracing] def buildEvent(): TracingEvent = {
     new TracingEvent.StackTrace()
   }
 
-  private[this] final val runLoopFilter: Array[String] = Array("cats.effect.", "scala.runtime.")
+  private[this] final val runLoopFilter: Array[String] =
+    Array("cats.effect.", "scala.runtime.", "scala.scalajs.runtime.")
+
+  private[tracing] final val stackTraceClassNameFilter: Array[String] = Array(
+    "cats.",
+    "sbt.",
+    "java.",
+    "sun.",
+    "scala.",
+    "org.scalajs."
+  )
+
+  private[tracing] def combineOpAndCallSite(
+      methodSite: StackTraceElement,
+      callSite: StackTraceElement): StackTraceElement = {
+    val methodSiteMethodName = methodSite.getMethodName
+    val op = decodeMethodName(methodSiteMethodName)
+
+    new StackTraceElement(
+      op + " @ " + callSite.getClassName,
+      callSite.getMethodName,
+      callSite.getFileName,
+      callSite.getLineNumber
+    )
+  }
+
+  private[tracing] def isInternalClass(className: String): Boolean = {
+    var i = 0
+    val len = stackTraceClassNameFilter.length
+    while (i < len) {
+      if (className.contains(stackTraceClassNameFilter(i)))
+        return true
+      i += 1
+    }
+    false
+  }
 
   private[this] def getOpAndCallSite(
       stackTrace: Array[StackTraceElement]): StackTraceElement = {
@@ -39,17 +79,8 @@ private[effect] object Tracing extends TracingPlatform {
       val callSiteMethodName = callSite.getMethodName
       val callSiteFileName = callSite.getFileName
 
-      if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName, callSiteFileName)) {
-        val methodSiteMethodName = methodSite.getMethodName
-        val op = decodeMethodName(methodSiteMethodName)
-
-        return new StackTraceElement(
-          op + " @ " + callSiteClassName,
-          callSite.getMethodName,
-          callSite.getFileName,
-          callSite.getLineNumber
-        )
-      }
+      if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName, callSiteFileName))
+        return combineOpAndCallSite(methodSite, callSite)
 
       idx += 1
     }
@@ -105,8 +136,20 @@ private[effect] object Tracing extends TracingPlatform {
 
   def getFrames(events: RingBuffer): List[StackTraceElement] =
     events
-      .toList
+      .toList()
       .collect { case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace) }
       .filter(_ ne null)
 
+  def prettyPrint(events: RingBuffer): String = {
+    val frames = getFrames(events)
+
+    frames
+      .zipWithIndex
+      .map {
+        case (frame, index) =>
+          val junc = if (index == frames.length - 1) TurnRight else Junction
+          s" $junc $frame"
+      }
+      .mkString(System.lineSeparator())
+  }
 }

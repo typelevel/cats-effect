@@ -16,6 +16,9 @@
 
 package cats.effect
 
+import cats.effect.tracing.TracingConstants._
+import cats.effect.unsafe.FiberMonitor
+
 import scala.concurrent.{blocking, CancellationException}
 
 import java.util.concurrent.CountDownLatch
@@ -209,11 +212,17 @@ trait IOApp {
         val (scheduler, schedDown) =
           IORuntime.createDefaultScheduler()
 
+        val fiberMonitor = FiberMonitor(compute)
+
+        val unregisterFiberMonitorMBean = IORuntime.registerFiberMonitorMBean(fiberMonitor)
+
         IORuntime(
           compute,
           blocking,
           scheduler,
+          fiberMonitor,
           { () =>
+            unregisterFiberMonitorMBean()
             compDown()
             blockDown()
             schedDown()
@@ -229,6 +238,22 @@ trait IOApp {
       }
 
       _runtime = IORuntime.global
+    }
+
+    if (isStackTracing) {
+      val liveFiberSnapshotSignal = sys
+        .props
+        .get("os.name")
+        .toList
+        .map(_.toLowerCase)
+        .filterNot(
+          _.contains("windows")
+        ) // Windows does not support signals user overridable signals
+        .flatMap(_ => List("USR1", "INFO"))
+
+      liveFiberSnapshotSignal foreach { name =>
+        Signal.handle(name, _ => runtime.fiberMonitor.liveFiberSnapshot(System.err.print(_)))
+      }
     }
 
     val rt = Runtime.getRuntime()
@@ -253,6 +278,9 @@ trait IOApp {
           result = a
           latch.countDown()
         })(runtime)
+
+    if (isStackTracing)
+      runtime.fiberMonitor.monitorSuspended(fiber, fiber)
 
     def handleShutdown(): Unit = {
       if (latch.getCount() > 0) {

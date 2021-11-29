@@ -121,7 +121,7 @@ class BinomialHeapSpec extends Specification with ScalaCheck {
       Arbitrary(
         Gen.frequency(
           (1, Gen.const(Take)),
-          (3, arbitrary[A].map(Insert(_))) //Bias towards insert to generate non-trivial heaps
+          (3, arbitrary[A].map(Insert(_))) // Bias towards insert to generate non-trivial heaps
         )
       )
 

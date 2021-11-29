@@ -569,7 +569,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * `duration` or otherwise raises a `TimeoutException`.
    *
    * The source is canceled in the event that it takes longer than the specified time duration
-   * to complete.
+   * to complete. Once the source has been successfully canceled (and has completed its
+   * finalizers), the `TimeoutException` will be raised. If the source is uncancelable, the
+   * resulting effect will wait for it to complete before raising the exception.
    *
    * @param duration
    *   is the time span for which we wait for the source to complete; in the event that the
@@ -582,8 +584,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Returns an IO that either completes with the result of the source within the specified time
    * `duration` or otherwise evaluates the `fallback`.
    *
-   * The source is canceled in the event that it takes longer than the `FiniteDuration` to
-   * complete, the evaluation of the fallback happening immediately after that.
+   * The source is canceled in the event that it takes longer than the specified time duration
+   * to complete. Once the source has been successfully canceled (and has completed its
+   * finalizers), the fallback will be sequenced. If the source is uncancelable, the resulting
+   * effect will wait for it to complete before evaluating the fallback.
    *
    * @param duration
    *   is the time span for which we wait for the source to complete; in the event that the
@@ -597,6 +601,27 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       case Right(_) => fallback
       case Left(value) => IO.pure(value)
     }
+
+  /**
+   * Returns an IO that either completes with the result of the source within the specified time
+   * `duration` or otherwise raises a `TimeoutException`.
+   *
+   * The source is canceled in the event that it takes longer than the specified time duration
+   * to complete. Unlike [[timeout]], the cancelation of the source will be ''requested'' but
+   * not awaited, and the exception will be raised immediately upon the completion of the timer.
+   * This may more closely match intuitions about timeouts, but it also violates backpressure
+   * guarantees and intentionally leaks fibers.
+   *
+   * This combinator should be applied very carefully.
+   *
+   * @param duration
+   *   The time span for which we wait for the source to complete; in the event that the
+   *   specified time has passed without the source completing, a `TimeoutException` is raised
+   * @see
+   *   [[timeout]] for a variant which respects backpressure and does not leak fibers
+   */
+  def timeoutAndForget(duration: FiniteDuration): IO[A] =
+    Temporal[IO].timeoutAndForget(this, duration)
 
   def timed: IO[(FiniteDuration, A)] =
     Clock[IO].timed(this)
@@ -776,7 +801,6 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       success: A => Unit)(implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber[A](
-      0,
       Map(),
       oc =>
         oc.fold(
@@ -910,17 +934,17 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    * Alias for `IO.delay(body)`.
    */
-  def apply[A](thunk: => A): IO[A] = {
-    val fn = Thunk.asFunction0(thunk)
-    Delay(fn, Tracing.calculateTracingEvent(fn))
-  }
+  def apply[A](thunk: => A): IO[A] = delay(thunk)
 
   /**
    * Suspends a synchronous side effect in `IO`.
    *
    * Any exceptions thrown by the effect will be caught and sequenced into the `IO`.
    */
-  def delay[A](thunk: => A): IO[A] = apply(thunk)
+  def delay[A](thunk: => A): IO[A] = {
+    val fn = Thunk.asFunction0(thunk)
+    Delay(fn, Tracing.calculateTracingEvent(fn))
+  }
 
   /**
    * Suspends a synchronous side effect which produces an `IO` in `IO`.
@@ -932,6 +956,44 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def defer[A](thunk: => IO[A]): IO[A] =
     delay(thunk).flatten
 
+  /**
+   * Suspends an asynchronous side effect in `IO`.
+   *
+   * The given function will be invoked during evaluation of the `IO` to "schedule" the
+   * asynchronous callback, where the callback of type `Either[Throwable, A] => Unit` is the
+   * parameter passed to that function. Only the ''first'' invocation of the callback will be
+   * effective! All subsequent invocations will be silently dropped.
+   *
+   * The process of registering the callback itself is suspended in `IO` (the outer `IO` of
+   * `IO[Option[IO[Unit]]]`).
+   *
+   * The effect returns `Option[IO[Unit]]` which is an optional finalizer to be run in the event
+   * that the fiber running `async(k)` is canceled.
+   *
+   * For example, here is a simplified version of `IO.fromCompletableFuture`:
+   *
+   * {{{
+   * def fromCompletableFuture[A](fut: IO[CompletableFuture[A]]): IO[A] = {
+   *   fut.flatMap { cf =>
+   *     IO.async { cb =>
+   *       IO {
+   *         //Invoke the callback with the result of the completable future
+   *         val stage = cf.handle[Unit] {
+   *           case (a, null) => cb(Right(a))
+   *           case (_, e) => cb(Left(e))
+   *         }
+   *
+   *         //Cancel the completable future if the fiber is canceled
+   *         Some(IO(stage.cancel(false)).void)
+   *       }
+   *     }
+   *   }
+   * }
+   * }}}
+   *
+   * @see
+   *   [[async_]] for a simplified variant without a finalizer
+   */
   def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = {
     val body = new Cont[IO, A, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
@@ -1037,6 +1099,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    */
   def parSequenceN[T[_]: Traverse, A](n: Int)(tma: T[IO[A]]): IO[T[A]] =
     _asyncForIO.parSequenceN(n)(tma)
+
+  /**
+   * Like `Parallel.parReplicateA`, but limits the degree of parallelism.
+   */
+  def parReplicateAN[A](n: Int)(replicas: Int, ma: IO[A]): IO[List[A]] =
+    _asyncForIO.parReplicateAN(n)(replicas, ma)
 
   /**
    * Lifts a pure value into `IO`.
@@ -1449,9 +1517,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def sleep(time: FiniteDuration): IO[Unit] =
       IO.sleep(time)
 
-    override def timeoutTo[A](ioa: IO[A], duration: FiniteDuration, fallback: IO[A]): IO[A] =
-      ioa.timeoutTo(duration, fallback)
-
     def canceled: IO[Unit] =
       IO.canceled
 
@@ -1482,8 +1547,25 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     override def blocking[A](thunk: => A): IO[A] = IO.blocking(thunk)
 
+    /**
+     * Like [[IO.blocking]] but will attempt to abort the blocking operation using thread
+     * interrupts in the event of cancelation. The interrupt will be attempted only once.
+     *
+     * @param thunk
+     *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
+     *   context
+     */
     override def interruptible[A](thunk: => A): IO[A] = IO.interruptible(thunk)
 
+    /**
+     * Like [[IO.blocking]] but will attempt to abort the blocking operation using thread
+     * interrupts in the event of cancelation. The interrupt will be attempted repeatedly until
+     * the blocking operation completes or exits.
+     *
+     * @param thunk
+     *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
+     *   context
+     */
     override def interruptibleMany[A](thunk: => A): IO[A] = IO.interruptibleMany(thunk)
 
     def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
@@ -1595,7 +1677,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
   private[effect] object Uncancelable {
     // INTERNAL, it's only created by the runloop itself during the execution of `Uncancelable`
-    final case class UnmaskRunLoop[+A](ioa: IO[A], id: Int) extends IO[A] {
+    final case class UnmaskRunLoop[+A](ioa: IO[A], id: Int, self: IOFiber[_]) extends IO[A] {
       def tag = 13
     }
   }

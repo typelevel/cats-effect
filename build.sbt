@@ -1,3 +1,4 @@
+import sbtcrossproject.CrossProject
 /*
  * Copyright 2020-2021 Typelevel
  *
@@ -93,9 +94,9 @@ ThisBuild / developers := List(
 
 val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
+val MacOS = "macos-latest"
 
-val ScalaJSJava = "adoptium@8"
-val Scala213 = "2.13.6"
+val Scala213 = "2.13.7"
 val Scala3 = "3.0.2"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
@@ -103,25 +104,27 @@ ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
 ThisBuild / githubWorkflowUseSbtThinClient := false
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
 
+val OldGuardJava = "adoptium@8"
 val LTSJava = "adoptium@11"
 val LatestJava = "adoptium@17"
-val GraalVM8 = "graalvm-ce-java8@21.2"
+val ScalaJSJava = OldGuardJava
+val GraalVM = "graalvm-ce-java11@21.3"
 
-ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
+ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
 ThisBuild / githubWorkflowEnv += ("JABBA_INDEX" -> "https://github.com/typelevel/jdk-index/raw/main/index.json")
-ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows)
+ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Use(
     UseRef.Public("actions", "setup-node", "v2.4.0"),
     name = Some("Setup NodeJS v14 LTS"),
     params = Map("node-version" -> "14"),
-    cond = Some("matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'")
+    cond = Some("matrix.ci == 'ciJS'")
   ),
   WorkflowStep.Run(
     List("npm install"),
     name = Some("Install jsdom and source-map-support"),
-    cond = Some("matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'")
+    cond = Some("matrix.ci == 'ciJS'")
   )
 )
 
@@ -154,28 +157,51 @@ val jsCiVariants = CI.AllJSCIs.map(_.command)
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
-  val windowsScalaFilters =
-    (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).map { scala =>
-      MatrixExclude(Map("os" -> Windows, "scala" -> scala))
+  val scalaJavaFilters = for {
+    scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
+    java <- (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(OldGuardJava))
+  } yield MatrixExclude(Map("scala" -> scala, "java" -> java))
+
+  val windowsAndMacScalaFilters =
+    (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).flatMap { scala =>
+      Seq(
+        MatrixExclude(Map("os" -> Windows, "scala" -> scala)),
+        MatrixExclude(Map("os" -> MacOS, "scala" -> scala)))
     }
 
-  jsCiVariants.flatMap { ci =>
+  val jsScalaFilters = for {
+    scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
+    ci <- jsCiVariants.tail
+  } yield MatrixExclude(Map("ci" -> ci, "scala" -> scala))
+
+  val jsJavaAndOSFilters = jsCiVariants.flatMap { ci =>
     val javaFilters =
       (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)).map { java =>
         MatrixExclude(Map("ci" -> ci, "java" -> java))
       }
 
-    javaFilters ++ windowsScalaFilters :+ MatrixExclude(Map("os" -> Windows, "ci" -> ci))
+    javaFilters ++ Seq(
+      MatrixExclude(Map("os" -> Windows, "ci" -> ci)),
+      MatrixExclude(Map("os" -> MacOS, "ci" -> ci)))
   }
-}
 
-lazy val unidoc213 = taskKey[Seq[File]]("Run unidoc but only on Scala 2.13")
+  // Nice-to-haves but unreliable in CI
+  val flakyFilters = Seq(
+    MatrixExclude(Map("os" -> Windows, "java" -> GraalVM))
+  )
+
+  scalaJavaFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ jsJavaAndOSFilters ++ flakyFilters
+}
 
 lazy val useJSEnv =
   settingKey[JSEnv]("Use Node.js or a headless browser for running Scala.js tests")
 Global / useJSEnv := NodeJS
 
-ThisBuild / Test / jsEnv := {
+lazy val testJSIOApp =
+  settingKey[Boolean]("Whether to test JVM (false) or Node.js (true) in IOAppSpec")
+Global / testJSIOApp := false
+
+ThisBuild / jsEnv := {
   useJSEnv.value match {
     case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
     case Firefox =>
@@ -200,10 +226,10 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 
 ThisBuild / autoAPIMappings := true
 
-val CatsVersion = "2.6.1"
-val Specs2Version = "4.13.0"
+val CatsVersion = "2.7.0"
+val Specs2Version = "4.13.1"
 val ScalaCheckVersion = "1.15.4"
-val DisciplineVersion = "1.2.4"
+val DisciplineVersion = "1.2.5"
 val CoopVersion = "1.1.1"
 
 val MacrotaskExecutorVersion = "1.0.0"
@@ -218,10 +244,10 @@ addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
 addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
 val jsProjects: Seq[ProjectReference] =
-  Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, tests.js, std.js, example.js)
+  Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
 
 val undocumentedRefs =
-  jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm)
+  jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm, tests.jvm, tests.js)
 
 lazy val root = project
   .in(file("."))
@@ -231,16 +257,7 @@ lazy val root = project
   .settings(
     ScalaUnidoc / unidoc / unidocProjectFilter := {
       undocumentedRefs.foldLeft(inAnyProject)((acc, a) => acc -- inProjects(a))
-    },
-    Compile / unidoc213 := Def.taskDyn {
-      if (scalaVersion.value.startsWith("2.13"))
-        Def.task((Compile / unidoc).value)
-      else
-        Def.task {
-          streams.value.log.warn(s"Skipping unidoc execution in Scala ${scalaVersion.value}")
-          Seq.empty[File]
-        }
-    }.value
+    }
   )
 
 lazy val rootJVM = project
@@ -250,7 +267,7 @@ lazy val rootJVM = project
     laws.jvm,
     core.jvm,
     testkit.jvm,
-    tests.jvm,
+    testsJVM,
     std.jvm,
     example.jvm,
     benchmarks)
@@ -413,7 +430,28 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.HelperThread"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.LocalQueue$"),
       // introduced by #2434, Initialize tracing buffer if needed
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ArrayStack.copy")
+      // changes to `cats.effect` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ArrayStack.copy"),
+      // introduced by #2453, Masking without an `initMask` field
+      // changes to `cats.effect` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IO#Uncancelable#UnmaskRunLoop.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IO#Uncancelable#UnmaskRunLoop.copy"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IO#Uncancelable#UnmaskRunLoop.this"),
+      // introduced by #2510, Fix weak bag for the blocking mechanism
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.unsafe.WorkerThread.this"),
+      // introduced by #2513, Implement the active fiber tracking mechanism
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.dequeue"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.enqueueBatch"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.LocalQueue.stealInto")
     )
   )
   .jvmSettings(
@@ -450,19 +488,44 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
  */
-lazy val tests = crossProject(JSPlatform, JVMPlatform)
+lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
   .in(file("tests"))
-  .dependsOn(laws % Test, kernelTestkit % Test, testkit % Test)
-  .enablePlugins(NoPublishPlugin)
+  .dependsOn(core, laws % Test, kernelTestkit % Test, testkit % Test)
+  .enablePlugins(BuildInfoPlugin, NoPublishPlugin)
   .settings(
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
-      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test)
+      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test),
+    buildInfoPackage := "catseffect"
+  )
+  .jsSettings(
+    Compile / scalaJSUseMainModuleInitializer := true,
+    Compile / mainClass := Some("catseffect.examples.JSRunner"),
+    // The default configured mapSourceURI is used for trace filtering
+    scalacOptions ~= { _.filterNot(_.startsWith("-P:scalajs:mapSourceURI")) }
   )
   .jvmSettings(
     Test / fork := true,
-    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
+    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}"
+  )
+
+lazy val testsJS = tests.js
+lazy val testsJVM = tests
+  .jvm
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    Test / compile := {
+      if (testJSIOApp.value)
+        (Test / compile).dependsOn(testsJS / Compile / fastOptJS).value
+      else
+        (Test / compile).value
+    },
+    buildInfoPackage := "cats.effect",
+    buildInfoKeys += testJSIOApp,
+    buildInfoKeys +=
+      "jsRunner" -> (testsJS / Compile / fastOptJS / artifactPath).value
+  )
 
 /**
  * Implementations lof standard functionality (e.g. Semaphore, Console, Queue) purely in terms

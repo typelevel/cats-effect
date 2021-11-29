@@ -28,8 +28,9 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.TracingConstants
+
 import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Fixed length, FIFO, single producer, multiple consumer, lock-free, circular buffer queue
@@ -118,58 +119,16 @@ import java.util.concurrent.atomic.AtomicInteger
  * `Unsafe`. And `Unsafe` is only really needed on JVM 8. JVM 9+ introduce much richer and
  * better APIs and tools for building high-performance concurrent systems (e.g. `VarHandle`).
  */
-private final class LocalQueue {
+private final class LocalQueue extends LocalQueuePadding {
 
   import LocalQueueConstants._
+  import TracingConstants._
 
   /**
    * The array of [[cats.effect.IOFiber]] object references physically backing the circular
    * buffer queue.
    */
   private[this] val buffer: Array[IOFiber[_]] = new Array(LocalQueueCapacity)
-
-  /**
-   * The head of the queue.
-   *
-   * Concurrently updated by many [[WorkerThread]] s.
-   *
-   * Conceptually, it is a concatenation of two unsigned 16 bit values. Since the capacity of
-   * the local queue is less than (2^16 - 1), the extra unused values are used to distinguish
-   * between the case where the queue is empty (`head` == `tail`) and (`head` - `tail` ==
-   * [[LocalQueueConstants.LocalQueueCapacity]]), which is an important distinction for other
-   * [[WorkerThread]] s trying to steal work from the queue.
-   *
-   * The least significant 16 bits of the integer value represent the ''real'' value of the
-   * head, pointing to the next [[cats.effect.IOFiber]] instance to be dequeued from the queue.
-   *
-   * The most significant 16 bits of the integer value represent the ''steal'' tag of the head.
-   * This value is altered by another [[WorkerThread]] which has managed to win the race and
-   * become the exclusive ''stealer'' of the queue. During the period in which the ''steal'' tag
-   * differs from the ''real'' value, no other [[WorkerThread]] can steal from the queue, and
-   * the owner [[WorkerThread]] also takes special care to not mangle the ''steal'' tag set by
-   * the ''stealer''. The stealing [[WorkerThread]] is free to transfer half of the available
-   * [[cats.effect.IOFiber]] object references from this queue into its own [[LocalQueue]]
-   * during this period, making sure to undo the changes to the ''steal'' tag of the head on
-   * completion, action which ultimately signals that stealing is finished.
-   */
-  private[this] val head: AtomicInteger = new AtomicInteger(0)
-
-  /**
-   * The tail of the queue.
-   *
-   * Only ever updated by the owner [[WorkerThread]], but also read by other threads to
-   * determine the current size of the queue, for work stealing purposes. Denotes the next
-   * available free slot in the `buffer` array.
-   *
-   * Conceptually, it is an unsigned 16 bit value (the most significant 16 bits of the integer
-   * value are ignored in most operations).
-   */
-  private[this] var tail: Int = 0
-
-  /**
-   * The publisher for the tail of the queue. Accessed by other [[WorkerThread]] s.
-   */
-  private[this] val tailPublisher: AtomicInteger = new AtomicInteger(0)
 
   /*
    * What follows is a collection of counters exposed through the
@@ -247,7 +206,7 @@ private final class LocalQueue {
     // observed.
     while (true) {
       // A load of the head of the queue using `acquire` semantics.
-      val hd = head.get()
+      val hd = Head.updater.get(this)
 
       // Preparation for outcome 1, calculating the "steal" tag of the head.
       val steal = msb(hd)
@@ -258,9 +217,13 @@ private final class LocalQueue {
         // value, publish it for other threads and break out of the loop.
         val idx = index(tl)
         buffer(idx) = fiber
-        totalFiberCount += 1
+
+        if (isStackTracing) {
+          totalFiberCount += 1
+        }
+
         val newTl = unsignedShortAddition(tl, 1)
-        tailPublisher.lazySet(newTl)
+        Tail.updater.lazySet(this, newTl)
         tail = newTl
         return
       }
@@ -271,8 +234,11 @@ private final class LocalQueue {
         // Outcome 2, there is a concurrent stealer and there is no available
         // capacity for the new fiber. Proceed to enqueue the fiber on the
         // external queue and break out of the loop.
-        totalSpilloverCount += 1
-        tailPublisher.lazySet(tl)
+        if (isStackTracing) {
+          totalSpilloverCount += 1
+          Tail.updater.lazySet(this, tl)
+        }
+
         external.offer(fiber, random)
         return
       }
@@ -286,7 +252,7 @@ private final class LocalQueue {
       // external queue one by one.
       val realPlusHalf = unsignedShortAddition(real, HalfLocalQueueCapacity)
       val newHd = pack(realPlusHalf, realPlusHalf)
-      if (head.compareAndSet(hd, newHd)) {
+      if (Head.updater.compareAndSet(this, hd, newHd)) {
         // Outcome 3, half of the queue has been claimed by the owner
         // `WorkerThread`, to be transferred to the batched queue.
         // Due to the new tuning, half of the local queue does not equal a
@@ -308,7 +274,11 @@ private final class LocalQueue {
             i += 1
             offset += 1
           }
-          totalSpilloverCount += SpilloverBatchSize
+
+          if (isStackTracing) {
+            totalSpilloverCount += SpilloverBatchSize
+          }
+
           batches(b) = batch
           b += 1
         }
@@ -365,16 +335,18 @@ private final class LocalQueue {
    *
    * @param batch
    *   the batch of fibers to be enqueued on this local queue
+   * @param worker
+   *   a reference to the owner worker thread, used for setting the active fiber reference
    * @return
    *   a fiber to be executed directly
    */
-  def enqueueBatch(batch: Array[IOFiber[_]]): IOFiber[_] = {
+  def enqueueBatch(batch: Array[IOFiber[_]], worker: WorkerThread): IOFiber[_] = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
     while (true) {
       // A load of the head of the queue using `acquire` semantics.
-      val hd = head.get()
+      val hd = Head.updater.get(this)
       val steal = msb(hd)
 
       // Check the current occupancy of the queue. In the one pathological case
@@ -391,9 +363,16 @@ private final class LocalQueue {
           i += 1
         }
 
+        val fiber = batch(0)
+
+        if (isStackTracing) {
+          totalFiberCount += SpilloverBatchSize
+          worker.active = fiber
+        }
+
         // Publish the new tail.
         val newTl = unsignedShortAddition(tl, SpilloverBatchSize - 1)
-        tailPublisher.lazySet(newTl)
+        Tail.updater.lazySet(this, newTl)
         tail = newTl
         // Return a fiber to be directly executed, withouth enqueueing it first
         // on the local queue. This does sacrifice some fairness, because the
@@ -402,7 +381,7 @@ private final class LocalQueue {
         // should other threads be looking to steal from it, as the returned
         // fiber is already obtained using relatively expensive volatile store
         // operations.
-        return batch(0)
+        return fiber
       }
     }
 
@@ -428,11 +407,13 @@ private final class LocalQueue {
    * Dequeueing only operates on this value. Special care needs to be take to not overwrite the
    * "steal" tag in the presence of a concurrent stealer.
    *
+   * @param worker
+   *   a reference to the owner worker thread, used for setting the active fiber reference
    * @return
    *   the fiber at the head of the queue, or `null` if the queue is empty (in order to avoid
    *   unnecessary allocations)
    */
-  def dequeue(): IOFiber[_] = {
+  def dequeue(worker: WorkerThread): IOFiber[_] = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -441,7 +422,7 @@ private final class LocalQueue {
     // the head by 1 position, securing the fiber to return in the process.
     while (true) {
       // A load of the head of the queue using `acquire` semantics.
-      val hd = head.get()
+      val hd = Head.updater.get(this)
 
       // Dequeueing only cares about the "real" value of the head.
       val real = lsb(hd)
@@ -459,11 +440,16 @@ private final class LocalQueue {
       val steal = msb(hd)
       val newHd = if (steal == real) pack(newReal, newReal) else pack(steal, newReal)
 
-      if (head.compareAndSet(hd, newHd)) {
+      val idx = index(real)
+      val fiber = buffer(idx)
+
+      if (isStackTracing) {
+        worker.active = fiber
+      }
+
+      if (Head.updater.compareAndSet(this, hd, newHd)) {
         // The head has been successfully moved forward and the fiber secured.
         // Proceed to null out the reference to the fiber and return it.
-        val idx = index(real)
-        val fiber = buffer(idx)
         buffer(idx) = null
         return fiber
       }
@@ -498,17 +484,19 @@ private final class LocalQueue {
    *
    * @param dst
    *   the destination local queue where the stole fibers will end up
+   * @param dstWorker
+   *   a reference to the owner worker thread, used for setting the active fiber reference
    * @return
    *   a reference to the first fiber to be executed by the stealing [[WorkerThread]], or `null`
    *   if the stealing was unsuccessful
    */
-  def stealInto(dst: LocalQueue): IOFiber[_] = {
+  def stealInto(dst: LocalQueue, dstWorker: WorkerThread): IOFiber[_] = {
     // A plain, unsynchronized load of the tail of the destination queue, owned
     // by the executing thread.
-    val dstTl = dst.plainLoadTail()
+    val dstTl = dst.tail
 
     // A load of the head of the destination queue using `acquire` semantics.
-    val dstHd = dst.headForwarder.get()
+    val dstHd = Head.updater.get(dst)
 
     // Before a steal is attempted, make sure that the destination queue is not
     // being stolen from. It can be argued that an attempt to steal fewer fibers
@@ -525,7 +513,7 @@ private final class LocalQueue {
     // stealing from this queue.
     while (true) {
       // A load of the head of the local queue using `acquire` semantics.
-      var hd = head.get()
+      var hd = Head.updater.get(this)
 
       val steal = msb(hd)
       val real = lsb(hd)
@@ -540,7 +528,7 @@ private final class LocalQueue {
       // A load of the tail of the local queue using `acquire` semantics.  Here,
       // the `WorkerThread` that executes this code is **not** the owner of this
       // local queue, hence the need for an `acquire` load.
-      val tl = tailPublisher.get()
+      val tl = Tail.updater.get(this)
 
       // Calculate the current size of the queue (the number of enqueued fibers).
       var n = unsignedShortSubtraction(tl, real)
@@ -561,7 +549,7 @@ private final class LocalQueue {
       // signal to other threads that stealing is underway.
       var newHd = pack(steal, newReal)
 
-      if (head.compareAndSet(hd, newHd)) {
+      if (Head.updater.compareAndSet(this, hd, newHd)) {
         // The head has been successfully moved forward and the stealing process
         // announced. Proceed to transfer all of the fibers between the old
         // "steal" tag and the new "real" value, nulling out the references for
@@ -574,6 +562,10 @@ private final class LocalQueue {
         val headFiberIdx = index(steal)
         val headFiber = buffer(headFiberIdx)
         buffer(headFiberIdx) = null
+
+        if (isStackTracing) {
+          dstWorker.active = headFiber
+        }
 
         // All other fibers need to be transferred to the destination queue.
         val sourcePos = steal + 1
@@ -588,8 +580,10 @@ private final class LocalQueue {
           i += 1
         }
 
-        successfulStealAttemptCount += 1
-        stolenFiberCount += n
+        if (isStackTracing) {
+          successfulStealAttemptCount += 1
+          stolenFiberCount += n
+        }
 
         // After transferring the stolen fibers, it is time to announce that the
         // stealing operation is done, by moving the "steal" tag to match the
@@ -599,7 +593,7 @@ private final class LocalQueue {
         while (true) {
           newHd = pack(newReal, newReal)
 
-          if (head.compareAndSet(hd, newHd)) {
+          if (Head.updater.compareAndSet(this, hd, newHd)) {
             // The "steal" tag now matches the "real" head value. Proceed to
             // return a fiber that can immediately be executed by the stealing
             // `WorkerThread`.
@@ -607,6 +601,12 @@ private final class LocalQueue {
             if (n == 1) {
               // Only 1 fiber has been stolen. No need for any memory
               // synchronization operations.
+
+              if (isStackTracing) {
+                Tail.updater.lazySet(dst, dstTl)
+                dst.tail = dstTl
+              }
+
               return headFiber
             }
 
@@ -618,13 +618,13 @@ private final class LocalQueue {
 
             // Publish the new tail of the destination queue. That way the
             // destination queue also becomes eligible for stealing.
-            dst.tailPublisherForwarder.lazySet(newDstTl)
-            dst.plainStoreTail(newDstTl)
+            Tail.updater.lazySet(dst, newDstTl)
+            dst.tail = newDstTl
             return headFiber
           } else {
             // Failed to opportunistically restore the value of the `head`. Load
             // it again and retry.
-            hd = head.get()
+            hd = Head.updater.get(this)
             newReal = lsb(hd)
           }
         }
@@ -668,7 +668,7 @@ private final class LocalQueue {
 
     while (true) {
       // A load of the head of the queue using `acquire` semantics.
-      val hd = head.get()
+      val hd = Head.updater.get(this)
 
       val real = lsb(hd)
 
@@ -686,7 +686,7 @@ private final class LocalQueue {
       val steal = msb(hd)
       val newHd = if (steal == real) pack(newReal, newReal) else pack(steal, newReal)
 
-      if (head.compareAndSet(hd, newHd)) {
+      if (Head.updater.compareAndSet(this, hd, newHd)) {
         // The head has been successfully moved forward and a batch of fibers
         // secured. Proceed to null out the references to the fibers and
         // transfer them to the batch.
@@ -703,8 +703,11 @@ private final class LocalQueue {
 
         // The fibers have been transferred, enqueue the whole batch on the
         // batched queue.
-        totalSpilloverCount += SpilloverBatchSize
-        tailPublisher.lazySet(tl)
+        if (isStackTracing) {
+          totalSpilloverCount += SpilloverBatchSize
+          Tail.updater.lazySet(this, tl)
+        }
+
         external.offer(batch, random)
         return
       }
@@ -718,8 +721,8 @@ private final class LocalQueue {
    *   `true` if the queue is empty, `false` otherwise
    */
   def isEmpty(): Boolean = {
-    val hd = head.get()
-    val tl = tailPublisher.get()
+    val hd = Head.updater.get(this)
+    val tl = Tail.updater.get(this)
     lsb(hd) == tl
   }
 
@@ -741,28 +744,9 @@ private final class LocalQueue {
    *   the number of fibers currently enqueued on this local queue
    */
   def size(): Int = {
-    val hd = head.get()
-    val tl = tailPublisher.get()
+    val hd = Head.updater.get(this)
+    val tl = Tail.updater.get(this)
     unsignedShortSubtraction(tl, lsb(hd))
-  }
-
-  /**
-   * A ''plain'' load of the `tail` of the queue.
-   *
-   * Serves mostly as a forwarder method such that `tail` can remain `private[this]`.
-   *
-   * @return
-   *   the value of the tail of the queue
-   */
-  private def plainLoadTail(): Int = tail
-
-  /**
-   * A ''plain'' store of the `tail` of the queue.
-   *
-   * Serves mostly as a forwarder method such that `tail` can remain `private[this]`.
-   */
-  private def plainStoreTail(tl: Int): Unit = {
-    tail = tl
   }
 
   /**
@@ -772,22 +756,6 @@ private final class LocalQueue {
    *   a reference to [[LocalQueue#buf]]
    */
   def bufferForwarder: Array[IOFiber[_]] = buffer
-
-  /**
-   * A forwarder method to the `head` of the queue.
-   *
-   * @return
-   *   a reference to the `head` of the queue
-   */
-  private def headForwarder: AtomicInteger = head
-
-  /**
-   * A forwarder method to the `tailPublisher`.
-   *
-   * @return
-   *   a reference to the `tailPublisher`
-   */
-  private def tailPublisherForwarder: AtomicInteger = tailPublisher
 
   /**
    * Computes the index into the circular buffer for a given integer value.
@@ -858,6 +826,18 @@ private final class LocalQueue {
    */
   private[this] def unsignedShortSubtraction(x: Int, y: Int): Int = lsb(x - y)
 
+  /**
+   * Returns a snapshot of the fibers currently enqueued on this local queue.
+   *
+   * @return
+   *   a set of the currently enqueued fibers
+   */
+  def snapshot(): Set[IOFiber[_]] = {
+    // load fence to get a more recent snapshot of the enqueued fibers
+    val _ = size()
+    buffer.toSet - null
+  }
+
   /*
    * What follows is a collection of methods used in the implementation of the
    * `cats.effect.unsafe.metrics.LocalQueueSamplerMBean` interface.
@@ -879,7 +859,7 @@ private final class LocalQueue {
    *   the index representing the head of the queue
    */
   def getHeadIndex(): Int = {
-    val hd = head.get()
+    val hd = Head.updater.get(this)
     index(lsb(hd))
   }
 
@@ -891,7 +871,7 @@ private final class LocalQueue {
    *   the index representing the tail of the queue
    */
   def getTailIndex(): Int = {
-    val tl = tailPublisher.get()
+    val tl = Tail.updater.get(this)
     index(tl)
   }
 
@@ -902,7 +882,7 @@ private final class LocalQueue {
    *   the total number of fibers enqueued during the lifetime of this local queue
    */
   def getTotalFiberCount(): Long = {
-    val _ = tailPublisher.get()
+    val _ = Tail.updater.get(this)
     totalFiberCount
   }
 
@@ -914,7 +894,7 @@ private final class LocalQueue {
    *   the total number of fibers spilt over to the external queue
    */
   def getTotalSpilloverCount(): Long = {
-    val _ = tailPublisher.get()
+    val _ = Tail.updater.get(this)
     totalSpilloverCount
   }
 
@@ -926,7 +906,7 @@ private final class LocalQueue {
    *   the total number of successful steal attempts by other worker threads
    */
   def getSuccessfulStealAttemptCount(): Long = {
-    val _ = head.get()
+    val _ = Head.updater.get(this)
     successfulStealAttemptCount
   }
 
@@ -938,7 +918,7 @@ private final class LocalQueue {
    *   the total number of stolen fibers by other worker threads
    */
   def getStolenFiberCount(): Long = {
-    val _ = head.get()
+    val _ = Head.updater.get(this)
     stolenFiberCount
   }
 
@@ -955,7 +935,7 @@ private final class LocalQueue {
    *   the "real" value of the head of the local queue
    */
   def getRealHeadTag(): Int = {
-    val hd = head.get()
+    val hd = Head.updater.get(this)
     lsb(hd)
   }
 
@@ -972,7 +952,7 @@ private final class LocalQueue {
    *   the "steal" tag of the head of the local queue
    */
   def getStealHeadTag(): Int = {
-    val hd = head.get()
+    val hd = Head.updater.get(this)
     msb(hd)
   }
 
@@ -989,5 +969,7 @@ private final class LocalQueue {
    * @return
    *   the "tail" tag of the tail of the local queue
    */
-  def getTailTag(): Int = tailPublisher.get()
+  def getTailTag(): Int = {
+    Tail.updater.get(this)
+  }
 }

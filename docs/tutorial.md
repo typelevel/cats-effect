@@ -42,11 +42,11 @@ running the code snippets in this tutorial, it is recommended to use the same
 ```scala
 name := "cats-effect-tutorial"
 
-version := "3.2.9"
+version := "3.3.0"
 
 scalaVersion := "2.13.6"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.2.9" withSources() withJavadoc()
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.0" withSources() withJavadoc()
 
 scalacOptions ++= Seq(
   "-feature",
@@ -256,7 +256,7 @@ But, in a way, that's precisely what we do when we `flatMap` instances of
 has its place, `Resource` is likely to be a better choice when dealing with
 multiple resources at once.
 
-### Copying data 
+### Copying data
 Finally we have our streams ready to go! We have to focus now on coding
 `transfer`. That function will have to define a loop that at each iteration
 reads data from the input stream into a buffer, and then writes the buffer
@@ -647,10 +647,30 @@ object InefficientProducerConsumer extends IOApp {
 }
 ```
 
-Problem is, if there is an error in any of the fibers the `join` call will not
-hint it, nor it will return. In contrast `parMapN` does promote the error it
-finds to the caller. _In general, if possible, programmers should prefer to use
-higher level commands such as `parMapN` or `parSequence` to deal with fibers_.
+However in most situations it is not advisable to handle fibers manually as
+they are not trivial to work with. For example, if there is an error in a fiber
+the `join` call to that fiber will _not_ raise it, it will return normally and
+you must explicitly check the `Outcome` instance returned by the `.join` call
+to see if it errored. Also, the other fibers will keep running unaware of what
+happened.
+
+Cats Effect provides additional `joinWith` or `joinWithNever` methods to make
+sure at least that the error is raised with the usual `MonadError` semantics
+(e.g., short-circuiting).  Now that we are raising the error, we also need to
+cancel the other running fibers. We can easily get ourselves trapped in a
+tangled mess of fibers to keep an eye on.  On top of that the error raised by a
+fiber is not promoted until the call to `joinWith` or `.joinWithNever` is
+reached. So in our example above if `consumerFiber` raises an error then we
+have no way to observe that until the producer fiber has finished. Alarmingly,
+note that in our example the producer _never_ finishes and thus the error would
+_never_ be observed!  And even if the producer fiber did finish, it would have
+been consuming resources for nothing.
+ 
+In contrast `parMapN` does promote any error it finds to the caller _and_ takes
+care of canceling the other running fibers. As a result `parMapN` is simpler to
+use, more concise, and easier to reason about. _Because of that, unless you
+have some specific and unusual requirements you should prefer to use higher
+level commands such as `parMapN` or `parSequence` to work with fibers_.
 
 Ok, we stick to our implementation based on `.parMapN`. Are we done? Does it
 Work? Well, it works... but it is far from ideal. If we run it we will find that

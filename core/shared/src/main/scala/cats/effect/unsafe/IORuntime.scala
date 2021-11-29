@@ -32,16 +32,24 @@ This may be useful if you have a pre-existing fixed thread pool and/or scheduler
 wish to use to execute IO programs. Please be sure to review thread pool best practices to
 avoid unintentionally degrading your application performance.
 """)
-final class IORuntime private (
+final class IORuntime private[unsafe] (
     val compute: ExecutionContext,
     private[effect] val blocking: ExecutionContext,
     val scheduler: Scheduler,
+    private[effect] val fiberMonitor: FiberMonitor,
     val shutdown: () => Unit,
     val config: IORuntimeConfig
 ) {
+
   private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
 
-  private[effect] val suspendedFiberBag: SuspendedFiberBag = new SuspendedFiberBag()
+  /*
+   * Forwarder methods for `IOFiber`.
+   */
+  private[effect] val cancelationCheckThreshold: Int = config.cancelationCheckThreshold
+  private[effect] val autoYieldThreshold: Int = config.autoYieldThreshold
+  private[effect] val enhancedExceptions: Boolean = config.enhancedExceptions
+  private[effect] val traceBufferLogSize: Int = config.traceBufferLogSize
 
   override def toString: String = s"IORuntime($compute, $scheduler, $config)"
 }
@@ -53,5 +61,5 @@ object IORuntime extends IORuntimeCompanionPlatform {
       scheduler: Scheduler,
       shutdown: () => Unit,
       config: IORuntimeConfig): IORuntime =
-    new IORuntime(compute, blocking, scheduler, shutdown, config)
+    new IORuntime(compute, blocking, scheduler, FiberMonitor(compute), shutdown, config)
 }

@@ -133,7 +133,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
     def withLock[T](n: Long, s: Semaphore[IO], check: IO[T]): IO[(Long, T)] =
       s.acquireN(n).background.surround {
-        //w/o cs.shift this hangs for coreJS
+        // w/o cs.shift this hangs for coreJS
         s.count // .flatTap(x => IO.println(s"count is $x"))
           .iterateUntil(_ < 0)
           .flatMap(t => check.tupleLeft(t))

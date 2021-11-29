@@ -37,7 +37,7 @@ class GenTemporalSpec extends Specification { outer =>
 
   val loop: TimeT[F, Unit] = F.sleep(5.millis).foreverM
 
-  //TODO enable these tests once Temporal for TimeT is fixed
+  // TODO enable these tests once Temporal for TimeT is fixed
   /*"temporal" should {
     "timeout" should {
       "succeed" in {

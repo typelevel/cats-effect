@@ -19,10 +19,15 @@ package cats.effect.unsafe
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 
 import scala.concurrent.ExecutionContext
+import scala.scalajs.LinkingInfo
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
-  def defaultComputeExecutionContext: ExecutionContext = MacrotaskExecutor
+  def defaultComputeExecutionContext: ExecutionContext =
+    if (LinkingInfo.developmentMode && IterableWeakMap.isAvailable)
+      new FiberAwareExecutionContext(MacrotaskExecutor)
+    else
+      MacrotaskExecutor
 
   def defaultScheduler: Scheduler = Scheduler.createDefaultScheduler()._1
 

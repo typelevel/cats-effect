@@ -30,6 +30,7 @@ sealed abstract class CI(
         "headerCheck",
         "scalafmtSbtCheck",
         "scalafmtCheck",
+        "javafmtCheck",
         "clean"
       ) ++ testCommands ++ List(
         jsEnv.fold("")(_ => s"set Global / useJSEnv := JSEnv.NodeJS"),
@@ -48,14 +49,18 @@ object CI {
         jsEnv = None,
         testCommands = List("test"),
         mimaReport = true,
-        suffixCommands = List("root/unidoc213", "exampleJVM/compile"))
+        suffixCommands = List("root/unidoc", "exampleJVM/compile"))
 
   case object JS
       extends CI(
         command = "ciJS",
         rootProject = "rootJS",
         jsEnv = Some(JSEnv.NodeJS),
-        testCommands = List("test"),
+        testCommands = List(
+          "test",
+          "set Global / testJSIOApp := true",
+          "testsJVM/testOnly *.IOAppSpec",
+          "set Global / testJSIOApp := false"),
         mimaReport = false,
         suffixCommands = List("exampleJS/compile"))
 

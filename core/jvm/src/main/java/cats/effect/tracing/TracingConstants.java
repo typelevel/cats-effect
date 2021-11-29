@@ -18,18 +18,31 @@ package cats.effect.tracing;
 
 import java.util.Optional;
 
-class TracingConstants {
+/**
+ * Holds platform-specific flags that control tracing behavior.
+ *
+ * <p>The Scala compiler inserts a volatile bitmap access for module field accesses. Because the
+ * `tracingMode` flag is read in various IO constructors, we are opting to define it in a Java
+ * source file to avoid the volatile access.
+ *
+ * <p>INTERNAL API with no source or binary compatibility guarantees.
+ */
+public final class TracingConstants {
+
+  private TracingConstants() {}
 
   /**
-   * Sets stack tracing mode for a JVM process, which controls how much stack
-   * trace information is captured. Acceptable values are: NONE, CACHED, FULL.
+   * Sets stack tracing mode for a JVM process, which controls how much stack trace information is
+   * captured. Acceptable values are: NONE, CACHED, FULL.
    */
-  private static final String stackTracingMode = Optional.ofNullable(System.getProperty("cats.effect.tracing.mode"))
-      .filter(x -> !x.isEmpty()).orElse("cached");
+  private static final String stackTracingMode =
+      Optional.ofNullable(System.getProperty("cats.effect.tracing.mode"))
+          .filter(x -> !x.isEmpty())
+          .orElse("cached");
 
   static final boolean isCachedStackTracing = stackTracingMode.equalsIgnoreCase("cached");
 
   static final boolean isFullStackTracing = stackTracingMode.equalsIgnoreCase("full");
 
-  static final boolean isStackTracing = isFullStackTracing || isCachedStackTracing;
+  public static final boolean isStackTracing = isFullStackTracing || isCachedStackTracing;
 }

@@ -21,13 +21,6 @@ private object IOFiberConstants {
 
   final val MaxStackDepth: Int = 512
 
-  /*
-   * allow for 255 masks before conflicting; 255 chosen because it is a familiar bound,
-   * and because it's evenly divides UnsignedInt.MaxValue.
-   * This scheme gives us 16,843,009 (~2^24) potential derived fibers before masks can conflict
-   */
-  final val ChildMaskOffset: Int = 255
-
   // continuation ids (should all be inlined)
   final val MapK: Byte = 0
   final val FlatMapK: Byte = 1
@@ -47,10 +40,9 @@ private object IOFiberConstants {
   final val AsyncContinueCanceledR: Byte = 3
   final val AsyncContinueCanceledWithFinalizerR = 4
   final val BlockingR: Byte = 5
-  final val EvalOnR: Byte = 6
-  final val CedeR: Byte = 7
-  final val AutoCedeR: Byte = 8
-  final val DoneR: Byte = 9
+  final val CedeR: Byte = 6
+  final val AutoCedeR: Byte = 7
+  final val DoneR: Byte = 8
 
   // ContState tags
   final val ContStateInitial: Int = 0

@@ -30,8 +30,13 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.TracingConstants
+
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
+import java.lang.ref.WeakReference
+import java.util.WeakHashMap
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
@@ -57,6 +62,7 @@ private[effect] final class WorkStealingThreadPool(
     self0: => IORuntime
 ) extends ExecutionContext {
 
+  import TracingConstants._
   import WorkStealingThreadPoolConstants._
 
   /**
@@ -96,6 +102,8 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[this] val done: AtomicBoolean = new AtomicBoolean(false)
 
+  private[unsafe] val blockedWorkerThreadCounter: AtomicInteger = new AtomicInteger(0)
+
   // Thread pool initialization block.
   {
     // Set up the worker threads.
@@ -106,8 +114,17 @@ private[effect] final class WorkStealingThreadPool(
       val parkedSignal = new AtomicBoolean(false)
       parkedSignals(i) = parkedSignal
       val index = i
+      val fiberBag = new WeakHashMap[AnyRef, WeakReference[IOFiber[_]]]()
       val thread =
-        new WorkerThread(index, threadPrefix, queue, parkedSignal, externalQueue, null, this)
+        new WorkerThread(
+          index,
+          threadPrefix,
+          queue,
+          parkedSignal,
+          externalQueue,
+          null,
+          fiberBag,
+          this)
       workerThreads(i) = thread
       i += 1
     }
@@ -134,12 +151,15 @@ private[effect] final class WorkStealingThreadPool(
    * @param random
    *   a reference to an uncontended source of randomness, to be passed along to the striped
    *   concurrent queues when executing their enqueue operations
+   * @param destWorker
+   *   a reference to the destination worker thread, used for setting the active fiber reference
    * @return
    *   a fiber instance to execute instantly in case of a successful steal
    */
   private[unsafe] def stealFromOtherWorkerThread(
       dest: Int,
-      random: ThreadLocalRandom): IOFiber[_] = {
+      random: ThreadLocalRandom,
+      destWorker: WorkerThread): IOFiber[_] = {
     val destQueue = localQueues(dest)
     val from = random.nextInt(threadCount)
 
@@ -150,7 +170,7 @@ private[effect] final class WorkStealingThreadPool(
 
       if (index != dest) {
         // Do not steal from yourself.
-        val res = localQueues(index).stealInto(destQueue)
+        val res = localQueues(index).stealInto(destQueue, destWorker)
         if (res != null) {
           // Successful steal. Return the next fiber to be executed.
           return res
@@ -165,9 +185,15 @@ private[effect] final class WorkStealingThreadPool(
     val element = externalQueue.poll(random)
     if (element.isInstanceOf[Array[IOFiber[_]]]) {
       val batch = element.asInstanceOf[Array[IOFiber[_]]]
-      destQueue.enqueueBatch(batch)
+      destQueue.enqueueBatch(batch, destWorker)
     } else if (element.isInstanceOf[IOFiber[_]]) {
       val fiber = element.asInstanceOf[IOFiber[_]]
+
+      if (isStackTracing) {
+        destWorker.active = fiber
+        parkedSignals(dest).lazySet(false)
+      }
+
       fiber
     } else {
       null
@@ -423,6 +449,41 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
+   * Returns a snapshot of the fibers currently live on this thread pool.
+   *
+   * @return
+   *   a 3-tuple consisting of the set of fibers on the external queue, a map associating worker
+   *   threads to the currently active fiber and fibers enqueued on the local queue of that
+   *   worker thread and a set of suspended fibers tracked by this thread pool
+   */
+  private[unsafe] def liveFibers(): (
+      Set[IOFiber[_]],
+      Map[WorkerThread, (Option[IOFiber[_]], Set[IOFiber[_]])],
+      Set[IOFiber[_]]) = {
+    val externalFibers = externalQueue.snapshot().flatMap {
+      case batch: Array[IOFiber[_]] => batch.toSet[IOFiber[_]]
+      case fiber: IOFiber[_] => Set[IOFiber[_]](fiber)
+      case _ => Set.empty[IOFiber[_]]
+    }
+
+    val map = mutable.Map.empty[WorkerThread, (Option[IOFiber[_]], Set[IOFiber[_]])]
+    val suspended = mutable.Set.empty[IOFiber[_]]
+
+    var i = 0
+    while (i < threadCount) {
+      val localFibers = localQueues(i).snapshot()
+      val worker = workerThreads(i)
+      val _ = parkedSignals(i).get()
+      val active = Option(worker.active)
+      map += (worker -> (active -> localFibers))
+      suspended ++= worker.suspendedSnapshot()
+      i += 1
+    }
+
+    (externalFibers, map.toMap, suspended.toSet)
+  }
+
+  /**
    * Executes a [[java.lang.Runnable]] on the [[WorkStealingThreadPool]].
    *
    * If the submitted `runnable` is a general purpose computation, it is suspended in
@@ -448,7 +509,7 @@ private[effect] final class WorkStealingThreadPool(
       // Executing a general purpose computation on the thread pool.
       // Wrap the runnable in an `IO` and execute it as a fiber.
       val io = IO.delay(runnable.run())
-      val fiber = new IOFiber[Unit](0, Map.empty, outcomeToUnit, io, this, self)
+      val fiber = new IOFiber[Unit](Map.empty, outcomeToUnit, io, this, self)
       scheduleFiber(fiber)
     }
   }
@@ -506,4 +567,81 @@ private[effect] final class WorkStealingThreadPool(
       Thread.currentThread().interrupt()
     }
   }
+
+  private[unsafe] def localQueuesForwarder: Array[LocalQueue] =
+    localQueues
+
+  /*
+   * What follows is a collection of methos used in the implementation of the
+   * `cats.effect.unsafe.metrics.ComputePoolSamplerMBean` interface.
+   */
+
+  /**
+   * Returns the number of [[WorkerThread]] instances backing the [[WorkStealingThreadPool]].
+   *
+   * @note
+   *   This is a fixed value, as the [[WorkStealingThreadPool]] has a fixed number of worker
+   *   threads.
+   *
+   * @return
+   *   the number of worker threads backing the compute pool
+   */
+  private[unsafe] def getWorkerThreadCount(): Int =
+    threadCount
+
+  /**
+   * Returns the number of active [[WorkerThread]] instances currently executing fibers on the
+   * compute thread pool.
+   *
+   * @return
+   *   the number of active worker threads
+   */
+  private[unsafe] def getActiveThreadCount(): Int = {
+    val st = state.get()
+    (st & UnparkMask) >>> UnparkShift
+  }
+
+  /**
+   * Returns the number of [[WorkerThread]] instances currently searching for fibers to steal
+   * from other worker threads.
+   *
+   * @return
+   *   the number of worker threads searching for work
+   */
+  private[unsafe] def getSearchingThreadCount(): Int = {
+    val st = state.get()
+    st & SearchMask
+  }
+
+  /**
+   * Returns the number of [[WorkerThread]] instances which are currently blocked due to running
+   * blocking actions on the compute thread pool.
+   *
+   * @return
+   *   the number of blocked worker threads
+   */
+  private[unsafe] def getBlockedWorkerThreadCount(): Int =
+    blockedWorkerThreadCounter.get()
+
+  /**
+   * Returns the total number of fibers enqueued on all local queues.
+   *
+   * @return
+   *   the total number of fibers enqueued on all local queues
+   */
+  private[unsafe] def getLocalQueueFiberCount(): Long =
+    localQueues.map(_.size().toLong).sum
+
+  /**
+   * Returns the number of fibers which are currently asynchronously suspended.
+   *
+   * @note
+   *   This counter is not synchronized due to performance reasons and might be reporting
+   *   out-of-date numbers.
+   *
+   * @return
+   *   the number of asynchronously suspended fibers
+   */
+  private[unsafe] def getSuspendedFiberCount(): Long =
+    workerThreads.map(_.getSuspendedFiberCount().toLong).sum
 }

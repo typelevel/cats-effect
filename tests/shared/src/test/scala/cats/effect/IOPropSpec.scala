@@ -75,6 +75,21 @@ class IOPropSpec extends BaseSpec with Discipline {
           }
       }
     }
+
+    "parReplicateAN" should {
+      "give the same result as replicateA" in realProp(
+        for {
+          n <- Gen.posNum[Int]
+          replicas <- Gen.chooseNum(0, 50)
+          value <- Gen.posNum[Int]
+        } yield (n, replicas, value)
+      ) {
+        case (n, replicas, value) =>
+          IO.pure(value).replicateA(replicas).flatMap { expected =>
+            IO.pure(value).parReplicateAN(n)(replicas).mustEqual(expected)
+          }
+      }
+    }
   }
 
 }
