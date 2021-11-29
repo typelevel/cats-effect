@@ -116,8 +116,8 @@ private[effect] final class FiberMonitor(
             (acc ++ local) ++ active.toSet
         }
         val external = rawExternal -- localAndActive
-        val foreign = rawForeign -- localAndActive -- external
         val suspended = rawSuspended -- localAndActive -- external
+        val foreign = rawForeign -- localAndActive -- external -- suspended
 
         val workersStatuses = workersMap map {
           case (worker, (active, local)) =>
