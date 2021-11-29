@@ -19,7 +19,7 @@ import sbtghactions.UseRef
 import scala.util.Try
 import scala.sys.process._
 
-ThisBuild / baseVersion := "2.5"
+ThisBuild / baseVersion := "2.6"
 
 val Scala212 = "2.12.15"
 val Scala213 = "2.13.7"
