@@ -61,7 +61,7 @@ private[effect] object Tracing extends TracingPlatform {
     var i = 0
     val len = stackTraceClassNameFilter.length
     while (i < len) {
-      if (className.contains(stackTraceClassNameFilter(i)))
+      if (className.startsWith(stackTraceClassNameFilter(i)))
         return true
       i += 1
     }
