@@ -827,14 +827,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     fiber
   }
 
-  /**
-   * Translates this `IO[A]` into a `SyncIO` value which, when evaluated, runs the original `IO`
-   * to its completion, or until the first asynchronous boundary, whichever is encountered
-   * first.
-   *
-   * @see
-   *   [[syncStep(Int)]]
-   */
+  @deprecated("use syncStep(Int) instead", "3.4.0")
   def syncStep: SyncIO[Either[IO[A], A]] = syncStep(Int.MaxValue)
 
   /**
