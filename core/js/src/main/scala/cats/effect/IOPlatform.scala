@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import scala.concurrent.Future
 import scala.scalajs.js.{|, Function1, JavaScriptException, Promise, Thenable}
 
 abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
@@ -35,4 +36,11 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
           resolve(value)
           ()
       })
+
+  def unsafeRunSyncToFuture()(implicit runtime: unsafe.IORuntime): Future[A] =
+    self.syncStep(runtime.config.autoYieldThreshold).attempt.unsafeRunSync() match {
+      case Left(t) => Future.failed(t)
+      case Right(Left(ioa)) => ioa.unsafeToFuture()
+      case Right(Right(a)) => Future.successful(a)
+    }
 }
