@@ -356,6 +356,73 @@ sealed abstract class Resource[F[_], +A] {
   def onFinalizeCase(f: ExitCase => F[Unit])(implicit F: Applicative[F]): Resource[F, A] =
     Resource.makeCase(F.unit)((_, ec) => f(ec)).flatMap(_ => this)
 
+  def allocatedFull[B >: A](implicit F: MonadCancel[F, Throwable]): F[(B, ExitCase => F[Unit])] = {
+    sealed trait Stack[AA]
+    case object Nil extends Stack[B]
+    final case class Frame[AA, BB](head: AA => Resource[F, BB], tail: Stack[BB])
+        extends Stack[AA]
+
+    // Indirection for calling `loop` needed because `loop` must be @tailrec
+    def continue[C](
+        current: Resource[F, C],
+        stack: Stack[C],
+        release: ExitCase => F[Unit]): F[(B, ExitCase => F[Unit])] =
+      loop(current, stack, release)
+
+    // Interpreter that knows how to evaluate a Resource data structure;
+    // Maintains its own stack for dealing with Bind chains
+    @tailrec def loop[C](
+        current: Resource[F, C],
+        stack: Stack[C],
+        release: ExitCase => F[Unit]): F[(B, ExitCase => F[Unit])] =
+      current match {
+        case Allocate(resource) =>
+          F uncancelable { poll =>
+            resource(poll) flatMap {
+              case (b, rel) =>
+                val rel2 = (ec: ExitCase) => rel(ec).guarantee(release(ec))
+
+                stack match {
+                  case Nil =>
+                    /*
+                     * We *don't* poll here because this case represents the "there are no flatMaps"
+                     * scenario. If we poll in this scenario, then the following code will have a
+                     * masking gap (where F = Resource):
+                     *
+                     * F.uncancelable(_(F.uncancelable(_ => foo)))
+                     *
+                     * In this case, the inner uncancelable has no trailing flatMap, so it will hit
+                     * this case exactly. If we poll, we will create the masking gap and surface
+                     * cancelation improperly.
+                     */
+                    F.pure((b, rel2))
+
+                  case Frame(head, tail) =>
+                    poll(continue(head(b), tail, rel2))
+                      .onCancel(rel(ExitCase.Canceled))
+                      .onError { case e => rel(ExitCase.Errored(e)).handleError(_ => ()) }
+                }
+            }
+          }
+
+        case Bind(source, fs) =>
+          loop(source, Frame(fs, stack), release)
+
+        case Pure(v) =>
+          stack match {
+            case Nil =>
+              (v: B, release).pure[F]
+            case Frame(head, tail) =>
+              loop(head(v), tail, release)
+          }
+
+        case Eval(fa) =>
+          fa.flatMap(a => continue(Resource.pure(a), stack, release))
+      }
+
+    loop(this, Nil, _ => F.unit)
+  }
+
   /**
    * Given a `Resource`, possibly built by composing multiple `Resource`s monadically, returns
    * the acquired resource, as well as an action that runs all the finalizers for releasing it.
