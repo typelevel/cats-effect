@@ -1342,6 +1342,25 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             case Right(_) => SyncIO.raiseError[Unit](new RuntimeException("Boom!"))
           } must completeAsSync(())
       }
+
+      "evaluate up to limit and no further" in {
+        var first = false
+        var second = false
+
+        val program = IO { first = true } *> IO { second = true }
+
+        val test = program.syncStep(2) flatMap { results =>
+          SyncIO {
+            first must beTrue
+            second must beFalse
+            results must beLeft
+
+            ()
+          }
+        }
+
+        test must completeAsSync(())
+      }
     }
 
     "fiber repeated yielding test" in real {
