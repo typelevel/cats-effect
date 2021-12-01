@@ -487,9 +487,9 @@ sealed abstract class Resource[F[_], +A] {
       fin: Outcome[Resource[F, *], Throwable, A @uncheckedVariance] => Resource[F, Unit])(
       implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
     Resource.applyFull { poll =>
-      poll(this.allocatedFull) guaranteeCase {
+      poll(this.allocatedFull).guaranteeCase {
         case Outcome.Succeeded(ft) =>
-          fin(Outcome.Succeeded(Resource.eval(ft.map(_._1)))).use_ handleErrorWith { e =>
+          fin(Outcome.Succeeded(Resource.eval(ft.map(_._1)))).use_.handleErrorWith { e =>
             ft.flatMap(_._2(ExitCase.Errored(e))).handleError(_ => ()) >> F.raiseError(e)
           }
 
@@ -588,7 +588,7 @@ sealed abstract class Resource[F[_], +A] {
   }
 
   def evalOn(ec: ExecutionContext)(implicit F: Async[F]): Resource[F, A] =
-    Resource applyFull { poll => poll(this.allocatedFull).evalOn(ec) }
+    Resource.applyFull { poll => poll(this.allocatedFull).evalOn(ec) }
 
   def attempt[E](implicit F: ApplicativeError[F, E]): Resource[F, Either[E, A]] =
     this match {
