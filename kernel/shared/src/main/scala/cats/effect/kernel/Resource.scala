@@ -981,15 +981,11 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
       val inner = new Poll[Resource[F, *]] {
         def apply[B](rfb: Resource[F, B]): Resource[F, B] =
           Resource applyFull { innerPoll =>
-            innerPoll(poll(rfb.allocated)) map { p =>
-              Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-            }
+            innerPoll(poll(rfb.allocatedFull))
           }
       }
 
-      body(inner).allocated map { p =>
-        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
+      body(inner).allocatedFull
     }
 
   def unique[F[_]](implicit F: Unique[F]): Resource[F, Unique.Token] =
