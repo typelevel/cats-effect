@@ -358,8 +358,8 @@ sealed abstract class Resource[F[_], +A] {
 
   /**
    * Given a `Resource`, possibly built by composing multiple `Resource`s monadically, returns
-   * the acquired resource, as well as a cleanup function that takes an [[ExitCase exit case]]
-   * and runs all the finalizers for releasing it.
+   * the acquired resource, as well as a cleanup function that takes an
+   * [[Resource.ExitCase exit case]] and runs all the finalizers for releasing it.
    *
    * If the outer `F` fails or is interrupted, `allocated` guarantees that the finalizers will
    * be called. However, if the outer `F` succeeds, it's up to the user to ensure the returned
