@@ -363,8 +363,8 @@ sealed abstract class Resource[F[_], +A] {
    *
    * If the outer `F` fails or is interrupted, `allocated` guarantees that the finalizers will
    * be called. However, if the outer `F` succeeds, it's up to the user to ensure the returned
-   * `ExitCode => F[Unit]` is called once `A` needs to be released. If the returned `F[Unit]` is not called,
-   * the finalizers will not be run.
+   * `ExitCode => F[Unit]` is called once `A` needs to be released. If the returned `F[Unit]` is
+   * not called, the finalizers will not be run.
    *
    * For this reason, this is an advanced and potentially unsafe api which can cause a resource
    * leak if not used correctly, please prefer [[use]] as the standard way of running a
@@ -1085,7 +1085,8 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
 
         poll(alloc) map {
           case ((a, rfin), fin) =>
-            val composedFinalizers = (ec: ExitCase) => fin(ec) !> rfin(ec).allocatedFull.flatMap(_._2(ec))
+            val composedFinalizers =
+              (ec: ExitCase) => fin(ec) !> rfin(ec).allocatedFull.flatMap(_._2(ec))
             (a, composedFinalizers)
         }
       }
