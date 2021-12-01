@@ -477,10 +477,7 @@ sealed abstract class Resource[F[_], +A] {
 
   def forceR[B](that: Resource[F, B])(implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
     Resource applyFull { poll =>
-      poll(this.use_ !> that.allocated) map { p =>
-        // map exists on tuple in Scala 3 and has the wrong type
-        Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
+      poll(this.use_ !> that.allocatedFull)
     }
 
   def !>[B](that: Resource[F, B])(implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
@@ -488,9 +485,7 @@ sealed abstract class Resource[F[_], +A] {
 
   def onCancel(fin: Resource[F, Unit])(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
     Resource applyFull { poll =>
-      poll(this.allocated).onCancel(fin.use_) map { p =>
-        Functor[(A @uncheckedVariance, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
+      poll(this.allocatedFull).onCancel(fin.use_)
     }
 
   def guaranteeCase(
@@ -602,9 +597,7 @@ sealed abstract class Resource[F[_], +A] {
 
   def evalOn(ec: ExecutionContext)(implicit F: Async[F]): Resource[F, A] =
     Resource applyFull { poll =>
-      poll(this.allocated).evalOn(ec) map { p =>
-        Functor[(A @uncheckedVariance, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
+      poll(this.allocatedFull).evalOn(ec)
     }
 
   def attempt[E](implicit F: ApplicativeError[F, E]): Resource[F, Either[E, A]] =
