@@ -949,6 +949,23 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     }
   }
 
+  "uncancelable" >> {
+      "does not suppress errors within use" in real {
+        case object TestException extends RuntimeException
+
+        for {
+          slot <- IO.deferred[Resource.ExitCase]
+          rsrc = Resource.makeCase(IO.unit)((_, ec) => slot.complete(ec).void)
+          _ <- rsrc.uncancelable.use(_ => IO.raiseError(TestException)).handleError(_ => ())
+          results <- slot.get
+
+          _ <- IO {
+            results mustEqual Resource.ExitCase.Errored(TestException)
+          }
+        } yield ok
+      }
+    }
+
   "Resource[Resource[IO, *], *]" should {
     "flatten with finalizers inside-out" in ticked { implicit ticker =>
       var results = ""
