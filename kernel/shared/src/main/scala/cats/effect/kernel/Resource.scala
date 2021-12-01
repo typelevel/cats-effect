@@ -356,7 +356,8 @@ sealed abstract class Resource[F[_], +A] {
   def onFinalizeCase(f: ExitCase => F[Unit])(implicit F: Applicative[F]): Resource[F, A] =
     Resource.makeCase(F.unit)((_, ec) => f(ec)).flatMap(_ => this)
 
-  def allocatedFull[B >: A](implicit F: MonadCancel[F, Throwable]): F[(B, ExitCase => F[Unit])] = {
+  def allocatedFull[B >: A](
+      implicit F: MonadCancel[F, Throwable]): F[(B, ExitCase => F[Unit])] = {
     sealed trait Stack[AA]
     case object Nil extends Stack[B]
     final case class Frame[AA, BB](head: AA => Resource[F, BB], tail: Stack[BB])
@@ -441,9 +442,7 @@ sealed abstract class Resource[F[_], +A] {
    * library code that needs to modify or move the finalizer for an existing resource.
    */
   def allocated[B >: A](implicit F: MonadCancel[F, Throwable]): F[(B, F[Unit])] =
-    allocatedFull.map {
-      case (b, fin) => (b, fin(ExitCase.Succeeded))
-    }
+    allocatedFull.map { case (b, fin) => (b, fin(ExitCase.Succeeded)) }
 
   /**
    * Applies an effectful transformation to the allocated resource. Like a `flatMap` on `F[A]`
@@ -476,26 +475,22 @@ sealed abstract class Resource[F[_], +A] {
     }
 
   def forceR[B](that: Resource[F, B])(implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
-    Resource applyFull { poll =>
-      poll(this.use_ !> that.allocatedFull)
-    }
+    Resource.applyFull { poll => poll(this.use_ !> that.allocatedFull) }
 
   def !>[B](that: Resource[F, B])(implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
     forceR(that)
 
   def onCancel(fin: Resource[F, Unit])(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
-    Resource applyFull { poll =>
-      poll(this.allocatedFull).onCancel(fin.use_)
-    }
+    Resource.applyFull { poll => poll(this.allocatedFull).onCancel(fin.use_) }
 
   def guaranteeCase(
       fin: Outcome[Resource[F, *], Throwable, A @uncheckedVariance] => Resource[F, Unit])(
       implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
-    Resource applyFull { poll =>
-      val back = poll(this.allocated) guaranteeCase {
+    Resource.applyFull { poll =>
+      poll(this.allocatedFull) guaranteeCase {
         case Outcome.Succeeded(ft) =>
           fin(Outcome.Succeeded(Resource.eval(ft.map(_._1)))).use_ handleErrorWith { e =>
-            ft.flatMap(_._2).handleError(_ => ()) >> F.raiseError(e)
+            ft.flatMap(_._2(ExitCase.Errored(e))).handleError(_ => ()) >> F.raiseError(e)
           }
 
         case Outcome.Errored(e) =>
@@ -504,9 +499,6 @@ sealed abstract class Resource[F[_], +A] {
         case Outcome.Canceled() =>
           fin(Outcome.Canceled()).use_
       }
-
-      back.map(p =>
-        Functor[(A @uncheckedVariance, *)].map(p)(fu => (_: Resource.ExitCase) => fu))
     }
 
   /*
@@ -596,9 +588,7 @@ sealed abstract class Resource[F[_], +A] {
   }
 
   def evalOn(ec: ExecutionContext)(implicit F: Async[F]): Resource[F, A] =
-    Resource applyFull { poll =>
-      poll(this.allocatedFull).evalOn(ec)
-    }
+    Resource applyFull { poll => poll(this.allocatedFull).evalOn(ec) }
 
   def attempt[E](implicit F: ApplicativeError[F, E]): Resource[F, Either[E, A]] =
     this match {
@@ -911,9 +901,7 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
     Resource applyFull { poll =>
       val inner = new Poll[Resource[F, *]] {
         def apply[B](rfb: Resource[F, B]): Resource[F, B] =
-          Resource applyFull { innerPoll =>
-            innerPoll(poll(rfb.allocatedFull))
-          }
+          Resource applyFull { innerPoll => innerPoll(poll(rfb.allocatedFull)) }
       }
 
       body(inner).allocatedFull
@@ -948,30 +936,32 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
     Resource.eval(F.sleep(time))
 
   def cont[F[_], K, R](body: Cont[Resource[F, *], K, R])(implicit F: Async[F]): Resource[F, R] =
-    Resource applyFull { poll =>
+    Resource.applyFull { poll =>
       poll {
-        F cont {
+        F.cont {
           new Cont[F, K, (R, Resource.ExitCase => F[Unit])] {
             def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (cb, ga, nt) =>
-              type D[A] = Kleisli[G, Ref[G, F[Unit]], A]
+              type D[A] = Kleisli[G, Ref[G, ExitCase => F[Unit]], A]
 
               val nt2 = new (Resource[F, *] ~> D) {
                 def apply[A](rfa: Resource[F, A]) =
                   Kleisli { r =>
-                    nt(rfa.allocated) flatMap { case (a, fin) => r.update(_ !> fin).as(a) }
+                    nt(rfa.allocatedFull) flatMap {
+                      case (a, fin) => r.update(f => (ec: ExitCase) => f(ec) !> fin(ec)).as(a)
+                    }
                   }
               }
 
               for {
-                r <- nt(F.ref(F.unit).map(_.mapK(nt)))
+                r <- nt(F.ref((_: ExitCase) => F.unit).map(_.mapK(nt)))
 
                 a <- G.guaranteeCase(body[D].apply(cb, Kleisli.liftF(ga), nt2).run(r)) {
-                  case Outcome.Canceled() | Outcome.Errored(_) => r.get.flatMap(nt(_))
                   case Outcome.Succeeded(_) => G.unit
+                  case oc => r.get.flatMap(fin => nt(fin(ExitCase.fromOutcome(oc))))
                 }
 
                 fin <- r.get
-              } yield (a, (_: Resource.ExitCase) => fin)
+              } yield (a, fin)
             }
           }
         }
@@ -1072,13 +1062,13 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
      * implements this flattening operation with the same semantics as [[Resource.flatMap]].
      */
     def flattenK(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
-      Resource applyFull { poll =>
-        val alloc = self.allocated.allocated
+      Resource.applyFull { poll =>
+        val alloc = self.allocatedFull.allocatedFull
 
         poll(alloc) map {
           case ((a, rfin), fin) =>
-            val composedFinalizers = fin !> rfin.allocated.flatMap(_._2)
-            (a, (_: Resource.ExitCase) => composedFinalizers)
+            val composedFinalizers = (ec: ExitCase) => fin(ec) !> rfin(ec).allocatedFull.flatMap(_._2(ec))
+            (a, composedFinalizers)
         }
       }
   }
