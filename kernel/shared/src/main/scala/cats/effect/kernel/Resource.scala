@@ -356,6 +356,24 @@ sealed abstract class Resource[F[_], +A] {
   def onFinalizeCase(f: ExitCase => F[Unit])(implicit F: Applicative[F]): Resource[F, A] =
     Resource.makeCase(F.unit)((_, ec) => f(ec)).flatMap(_ => this)
 
+  /**
+   * Given a `Resource`, possibly built by composing multiple `Resource`s monadically, returns
+   * the acquired resource, as well as a cleanup function that takes an [[ExitCase exit case]]
+   * and runs all the finalizers for releasing it.
+   *
+   * If the outer `F` fails or is interrupted, `allocated` guarantees that the finalizers will
+   * be called. However, if the outer `F` succeeds, it's up to the user to ensure the returned
+   * `ExitCode => F[Unit]` is called once `A` needs to be released. If the returned `F[Unit]` is not called,
+   * the finalizers will not be run.
+   *
+   * For this reason, this is an advanced and potentially unsafe api which can cause a resource
+   * leak if not used correctly, please prefer [[use]] as the standard way of running a
+   * `Resource` program.
+   *
+   * Use cases include interacting with side-effectful apis that expect separate acquire and
+   * release actions (like the `before` and `after` methods of many test frameworks), or complex
+   * library code that needs to modify or move the finalizer for an existing resource.
+   */
   def allocatedFull[B >: A](
       implicit F: MonadCancel[F, Throwable]): F[(B, ExitCase => F[Unit])] = {
     sealed trait Stack[AA]
