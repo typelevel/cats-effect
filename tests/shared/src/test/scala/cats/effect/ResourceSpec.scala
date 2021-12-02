@@ -964,6 +964,18 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         }
       } yield ok
     }
+
+    "use is stack-safe over binds" in ticked { implicit ticker =>
+      val res = Resource.make(IO.unit)(_ => IO.unit).uncancelable
+      val r = (1 to 10000)
+        .foldLeft(res) {
+          case (r, _) =>
+            r.flatMap(_ => res)
+        }
+        .use_
+      r eqv IO.unit
+    }
+
   }
 
   "Resource[Resource[IO, *], *]" should {
