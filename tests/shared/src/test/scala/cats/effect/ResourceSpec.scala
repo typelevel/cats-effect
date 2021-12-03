@@ -979,6 +979,21 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
   }
 
+  "allocatedFull" >> {
+    "is stack-safe" in ticked { implicit ticker =>
+      val res = Resource.make(IO.unit)(_ => IO.unit)
+      val r = (1 to 50000)
+        .foldLeft(res) {
+          case (r, _) =>
+            r.flatMap(_ => res)
+        }
+        .allocatedFull
+        .map(_._1)
+      r eqv IO.unit
+
+    }
+  }
+
   "Resource[Resource[IO, *], *]" should {
     "flatten with finalizers inside-out" in ticked { implicit ticker =>
       var results = ""
