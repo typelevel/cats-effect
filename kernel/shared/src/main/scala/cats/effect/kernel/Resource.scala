@@ -385,7 +385,7 @@ sealed abstract class Resource[F[_], +A] {
     def continue[C](
         current: Resource[F, C],
         stack: Stack[C],
-        release: List[ExitCase => F[Unit]]): F[(B, List[ExitCase => F[Unit]])] =
+        release: ExitCase => F[Unit]): F[(B, ExitCase => F[Unit])] =
       loop(current, stack, release)
 
     // Interpreter that knows how to evaluate a Resource data structure;
@@ -393,13 +393,14 @@ sealed abstract class Resource[F[_], +A] {
     @tailrec def loop[C](
         current: Resource[F, C],
         stack: Stack[C],
-        release: List[ExitCase => F[Unit]]): F[(B, List[ExitCase => F[Unit]])] =
+        release: ExitCase => F[Unit]): F[(B, ExitCase => F[Unit])] =
       current match {
         case Allocate(resource) =>
           F uncancelable { poll =>
             resource(poll) flatMap {
               case (b, rel) =>
-                val rel2 = rel :: release
+                // Insert F.unit to emulate defer for stack-safety
+                val rel2 = (ec: ExitCase) => rel(ec).guarantee(F.unit >> release(ec))
 
                 stack match {
                   case Nil =>
@@ -439,13 +440,7 @@ sealed abstract class Resource[F[_], +A] {
           fa.flatMap(a => continue(Resource.pure(a), stack, release))
       }
 
-    loop(this, Nil, List.empty).map {
-      case (b, rels) =>
-        (
-          b,
-          (e: ExitCase) =>
-            rels.foldLeft[F[Unit]](F.unit) { case (rel, f) => rel.guarantee(f(e)) })
-    }
+    loop(this, Nil, _ => F.unit)
   }
 
   /**
