@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{~>, SemigroupK, Monad}
+import cats.{~>, SemigroupK}
 import cats.data.{Kleisli, OptionT}
 import cats.effect.laws.AsyncTests
 import cats.effect.kernel.testkit.TestContext
@@ -980,7 +980,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   }
 
   "allocatedFull" >> {
-    "is stack-safe" in ticked { implicit ticker =>
+    "is stack-safe over binds" in ticked { implicit ticker =>
       val res = Resource.make(IO.unit)(_ => IO.unit)
       val r = (1 to 50000)
         .foldLeft(res) {
@@ -1006,19 +1006,21 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       results mustEqual "ab"
     }
 
-    "use is stack-safe" in real {
+    "flattenK use is stack-safe" in ticked { implicit ticker =>
       val res = Resource.make(IO.unit)(_ => IO.unit)
-      val r: Resource[IO, Unit] = (1 to 5000)
+      val r: Resource[IO, Unit] = (1 to 1912)
         .foldLeft(res) {
           case (r, _) => {
-            Resource.make(r)(_ => Monad[Resource[IO, *]].unit).flattenK
+            Resource.make(r)(_ => Resource.eval(IO.unit)).flattenK
           }
         }
-      r.use_.attempt.flatMap{
-        case Left(e) => {e.printStackTrace()}; IO(true mustEqual true)
-        case _ => IO(true mustEqual true)
-      } 
+
+      r.use_.attempt.flatMap {
+        case Left(e) => IO(e.printStackTrace())
+        case _ => IO.unit
+      } eqv IO.unit
     }
+
   }
 
   {
