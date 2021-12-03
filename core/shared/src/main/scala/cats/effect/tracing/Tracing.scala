@@ -38,6 +38,7 @@ private[effect] object Tracing extends TracingPlatform {
     "cats.",
     "sbt.",
     "java.",
+    "jdk.",
     "sun.",
     "scala.",
     "org.scalajs."
