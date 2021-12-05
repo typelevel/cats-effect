@@ -1229,9 +1229,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Also see [[racePair]] for a version that does not cancel the loser automatically on
    * successful results.
    *
-   * @param lh
+   * @param left
    *   is the "left" task participating in the race
-   * @param rh
+   * @param right
    *   is the "right" task participating in the race
    */
   def race[A, B](left: IO[A], right: IO[B]): IO[Either[A, B]] =
@@ -1261,9 +1261,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    * See [[race]] for a simpler version that cancels the loser immediately.
    *
-   * @param lh
+   * @param left
    *   is the "left" task participating in the race
-   * @param rh
+   * @param right
    *   is the "right" task participating in the race
    */
   def racePair[A, B](
