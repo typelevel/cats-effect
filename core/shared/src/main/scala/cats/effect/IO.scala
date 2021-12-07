@@ -687,6 +687,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def uncancelable: IO[A] =
     IO.uncancelable(_ => this)
 
+  def unyielding: IO[A] =
+    IO.unyielding(this)
+
   /**
    * Ignores the result of this IO.
    */
@@ -1166,6 +1169,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
     Uncancelable(body, Tracing.calculateTracingEvent(body))
+
+  def unyielding[A](ioa: IO[A]): IO[A] =
+    Unyielding(ioa)
 
   private[this] val _unit: IO[Unit] = Pure(())
 
@@ -1730,6 +1736,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] case object IOTrace extends IO[Trace] {
     def tag = 23
+  }
+
+  private[effect] final case class Unyielding[+A](ioa: IO[A]) extends IO[A] {
+    def tag = 24
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
