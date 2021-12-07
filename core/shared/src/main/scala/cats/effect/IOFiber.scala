@@ -92,6 +92,7 @@ private final class IOFiber[A](
 
   private[this] var canceled: Boolean = false
   private[this] var masks: Int = 0
+  private[this] var unyield: Boolean = false
   private[this] var finalizing: Boolean = false
 
   private[this] val finalizers: ArrayStack[IO[Unit]] = new ArrayStack()
@@ -221,7 +222,7 @@ private final class IOFiber[A](
       // automatic yielding threshold is always a multiple of the cancelation threshold
       nextAutoCede -= nextCancelation
 
-      if (nextAutoCede <= 0) {
+      if (nextAutoCede <= 0 && !unyield) {
         resumeTag = AutoCedeR
         resumeIO = _cur0
         val ec = currentCtx
@@ -827,26 +828,33 @@ private final class IOFiber[A](
 
         /* Cede */
         case 16 =>
-          resumeTag = CedeR
-          rescheduleFiber(currentCtx, this)
-
+          if(unyield) {
+            runLoop(succeeded((), 0), nextCancelation, nextAutoCede)
+          } else {
+            resumeTag = CedeR
+            rescheduleFiber(currentCtx, this)
+          }
         case 17 =>
           val cur = cur0.asInstanceOf[Start[Any]]
 
-          val ec = currentCtx
-          val fiber = new IOFiber[Any](
-            localState,
-            null,
-            cur.ioa,
-            ec,
-            runtime
-          )
+          if(unyield) {
+            runLoop(cur.ioa, nextCancelation, nextAutoCede)
+          } else {
+            val ec = currentCtx
+            val fiber = new IOFiber[Any](
+              localState,
+              null,
+              cur.ioa,
+              ec,
+              runtime
+            )
 
           // println(s"<$name> spawning <$childName>")
 
-          scheduleFiber(ec, fiber)
+            scheduleFiber(ec, fiber)
 
-          runLoop(succeeded(fiber, 0), nextCancelation, nextAutoCede)
+            runLoop(succeeded(fiber, 0), nextCancelation, nextAutoCede)
+          }
 
         case 18 =>
           val cur = cur0.asInstanceOf[RacePair[Any, Any]]
@@ -962,6 +970,13 @@ private final class IOFiber[A](
 
         case 23 =>
           runLoop(succeeded(Trace(tracingEvents), 0), nextCancelation, nextAutoCede)
+
+        case 24 =>
+          val cur = cur0.asInstanceOf[Unyielding[Any]]
+
+          unyield = true
+          conts = ByteStack.push(conts, UnyieldingK)
+          runLoop(cur.ioa, nextCancelation, nextAutoCede)
       }
     }
   }
@@ -1156,6 +1171,10 @@ private final class IOFiber[A](
 
       case 9 => // attemptK
         succeeded(Right(result), depth)
+
+      case 10 =>
+        unyield = false
+        succeeded(result, depth + 1)
     }
 
   private[this] def failed(error: Throwable, depth: Int): IO[Any] = {
@@ -1218,6 +1237,10 @@ private final class IOFiber[A](
         failed(error, depth + 1)
 
       case 9 => succeeded(Left(error), depth) // attemptK
+
+      case 10 =>
+        unyield = false
+        failed(error, depth + 1)
     }
   }
 
