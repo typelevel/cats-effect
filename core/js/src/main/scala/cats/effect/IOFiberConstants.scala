@@ -32,6 +32,7 @@ private object IOFiberConstants {
   final val UncancelableK: Byte = 7
   final val UnmaskK: Byte = 8
   final val AttemptK: Byte = 9
+  final val UnyieldingK: Byte = 10;
 
   // resume ids
   final val ExecR: Byte = 0
