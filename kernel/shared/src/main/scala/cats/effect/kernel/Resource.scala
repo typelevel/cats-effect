@@ -966,7 +966,8 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
                 def apply[A](rfa: Resource[F, A]) =
                   Kleisli { r =>
                     nt(rfa.allocatedFull) flatMap {
-                      case (a, fin) => r.update(f => (ec: ExitCase) => f(ec) !> fin(ec)).as(a)
+                      case (a, fin) =>
+                        r.update(f => (ec: ExitCase) => f(ec) !> (F.unit >> fin(ec))).as(a)
                     }
                   }
               }
@@ -1087,7 +1088,9 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
         poll(alloc) map {
           case ((a, rfin), fin) =>
             val composedFinalizers =
-              (ec: ExitCase) => fin(ec) !> rfin(ec).allocatedFull.flatMap(_._2(ec))
+              (ec: ExitCase) =>
+                (F.unit >> fin(ec))
+                  .guarantee(F.unit >> rfin(ec).allocatedFull.flatMap(_._2(ec)))
             (a, composedFinalizers)
         }
       }

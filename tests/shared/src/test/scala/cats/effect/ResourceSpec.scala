@@ -1006,19 +1006,15 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       results mustEqual "ab"
     }
 
-    "flattenK use is stack-safe" in ticked { implicit ticker =>
+    "flattenK is stack-safe over binds" in ticked { implicit ticker =>
       val res = Resource.make(IO.unit)(_ => IO.unit)
-      val r: Resource[IO, Unit] = (1 to 1912)
-        .foldLeft(res) {
-          case (r, _) => {
-            Resource.make(r)(_ => Resource.eval(IO.unit)).flattenK
-          }
+      val r: Resource[IO, Unit] = (1 to 50000).foldLeft(res) {
+        case (r, _) => {
+          Resource.make(r)(_ => Resource.eval(IO.unit)).flattenK
         }
+      }
 
-      r.use_.attempt.flatMap {
-        case Left(e) => IO(e.printStackTrace())
-        case _ => IO.unit
-      } eqv IO.unit
+      r.use_ eqv IO.unit
     }
 
   }
