@@ -1089,6 +1089,7 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
           case ((a, rfin), fin) =>
             val composedFinalizers =
               (ec: ExitCase) =>
+                //Break stack-unsafe mutual recursion with allocatedFull
                 (F.unit >> fin(ec))
                   .guarantee(F.unit >> rfin(ec).allocatedFull.flatMap(_._2(ec)))
             (a, composedFinalizers)
