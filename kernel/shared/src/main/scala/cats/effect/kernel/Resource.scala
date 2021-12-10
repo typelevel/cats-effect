@@ -363,8 +363,8 @@ sealed abstract class Resource[F[_], +A] {
    *
    * If the outer `F` fails or is interrupted, `allocated` guarantees that the finalizers will
    * be called. However, if the outer `F` succeeds, it's up to the user to ensure the returned
-   * `ExitCode => F[Unit]` is called once `A` needs to be released. If the returned `F[Unit]` is
-   * not called, the finalizers will not be run.
+   * `ExitCode => F[Unit]` is called once `A` needs to be released. If the returned `ExitCode =>
+   * F[Unit]` is not called, the finalizers will not be run.
    *
    * For this reason, this is an advanced and potentially unsafe api which can cause a resource
    * leak if not used correctly, please prefer [[use]] as the standard way of running a
@@ -461,7 +461,8 @@ sealed abstract class Resource[F[_], +A] {
    * library code that needs to modify or move the finalizer for an existing resource.
    */
   def allocated[B >: A](implicit F: MonadCancel[F, Throwable]): F[(B, F[Unit])] =
-    allocatedFull.map { case (b, fin) => (b, fin(ExitCase.Succeeded)) }
+    F.uncancelable(poll =>
+      poll(allocatedFull).map { case (b, fin) => (b, fin(ExitCase.Succeeded)) })
 
   /**
    * Applies an effectful transformation to the allocated resource. Like a `flatMap` on `F[A]`
@@ -1089,7 +1090,7 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
           case ((a, rfin), fin) =>
             val composedFinalizers =
               (ec: ExitCase) =>
-                //Break stack-unsafe mutual recursion with allocatedFull
+                // Break stack-unsafe mutual recursion with allocatedFull
                 (F.unit >> fin(ec))
                   .guarantee(F.unit >> rfin(ec).allocatedFull.flatMap(_._2(ec)))
             (a, composedFinalizers)
