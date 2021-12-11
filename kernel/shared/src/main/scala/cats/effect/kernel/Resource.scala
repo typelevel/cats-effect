@@ -314,28 +314,16 @@ sealed abstract class Resource[F[_], +A] {
    * effect `G`. The F and G constraint can also be satisfied by requiring a MonadCancelThrow[F]
    * and MonadCancelThrow[G].
    */
-  def mapK[G[_]](
+  def mapK[G[_]: Functor](
       f: F ~> G
-  )(implicit F: MonadCancel[F, _], G: MonadCancel[G, _]): Resource[G, A] =
-    this match {
-      case Allocate(resource) =>
-        Resource.applyFull { (gpoll: Poll[G]) =>
-          gpoll {
-            f {
-              F.uncancelable { (fpoll: Poll[F]) => resource(fpoll) }
-            }
-          }.map {
-            case (a, release) =>
-              a -> ((r: ExitCase) => f(release(r)))
-          }
-        }
-      case Bind(source, f0) =>
-        // we insert a bind to get stack safety
-        suspend(G.unit >> source.mapK(f).pure[G]).flatMap(x => f0(x).mapK(f))
-      case Pure(a) =>
-        Resource.pure(a)
-      case Eval(fea) => Resource.eval(f(fea))
-    }
+  )(implicit F: MonadCancel[F, Throwable]): Resource[G, A] = {
+    Resource
+      .makeCaseFull[G, (A, ExitCase => F[Unit])](poll => poll(f(allocatedFull))) {
+        case ((_, finalizer), exitCase) =>
+          f(finalizer(exitCase))
+      }
+      .map(_._1)
+  }
 
   /**
    * Runs `precede` before this resource is allocated.
