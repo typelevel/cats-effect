@@ -316,6 +316,17 @@ sealed abstract class Resource[F[_], +A] {
    */
   def mapK[G[_]: Functor](
       f: F ~> G
+  )(implicit F: MonadCancel[F, Throwable]): Resource[G, A] = mapKImpl(f)
+
+  @deprecated("retaining for bincompat", "3.3.1")
+  private[effect] def mapK[G[_]](
+      f: F ~> G
+  )(implicit F: MonadCancel[F, Throwable], G: MonadCancel[G, Throwable]): Resource[G, A] =
+    mapKImpl(f)
+
+  // Needed to de-ambiguate the above two
+  private def mapKImpl[G[_]: Functor](
+      f: F ~> G
   )(implicit F: MonadCancel[F, Throwable]): Resource[G, A] = {
     Resource
       .makeCaseFull[G, (A, ExitCase => F[Unit])](poll => poll(f(allocatedFull))) {
