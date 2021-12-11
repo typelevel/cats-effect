@@ -324,7 +324,7 @@ sealed abstract class Resource[F[_], +A] {
   )(implicit F: MonadCancel[F, Throwable], G: MonadCancel[G, Throwable]): Resource[G, A] =
     mapKImpl(f)
 
-  // Needed to de-ambiguate the above two
+  // Needed to disambiguate the above two
   private def mapKImpl[G[_]: Functor](
       f: F ~> G
   )(implicit F: MonadCancel[F, Throwable]): Resource[G, A] = {
