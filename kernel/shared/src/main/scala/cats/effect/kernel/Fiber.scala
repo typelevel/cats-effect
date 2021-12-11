@@ -72,4 +72,14 @@ trait Fiber[F[_], E, A] {
    */
   def joinWithNever(implicit F: GenSpawn[F, E]): F[A] =
     joinWith(F.never)
+
+  /**
+   * Awaits the completion of the bound fiber and returns its result once it completes.
+   *
+   * If the fiber completes with [[Outcome.Succeeded]], the successful value is returned. If the
+   * fiber completes with [[Outcome.Errored]], the error is raised. If the fiber completes with
+   * [[Outcome.Canceled]], the result is ignored.
+   */
+  def joinWithUnit(implicit F: GenSpawn[F, E], ev: Unit <:< A): F[A] =
+    joinWith(F.unit.map(ev(_)))
 }
