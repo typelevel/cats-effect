@@ -22,7 +22,7 @@ import cats.effect.std.syntax.Env
 import scala.collection.immutable.Map
 
 private[std] class EnvCompanionPlatform {
-  final class SyncEnv[F[_]](implicit F: Sync[F]) extends Env[F] {
+  private[std] final class SyncEnv[F[_]](implicit F: Sync[F]) extends Env[F] {
     def get(name: String): F[Option[String]] = F.delay(sys.env.get(name))
     def toMap: F[Map[String, String]] =
       F.delay(Map.from(sys.env)) // paranoid, defensive copy

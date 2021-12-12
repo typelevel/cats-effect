@@ -26,7 +26,7 @@ import scala.util.Try
 import cats.data.OptionT
 
 private[std] class EnvCompanionPlatform {
-  final class SyncEnv[F[_]](implicit F: Sync[F]) extends Env[F] {
+  private[std] final class SyncEnv[F[_]](implicit F: Sync[F]) extends Env[F] {
     def get(name: String): F[Option[String]] =
       OptionT(F.delay(processEnv.get(name))).collect {
         case value: String => value // JavaScript. 'nuff said
