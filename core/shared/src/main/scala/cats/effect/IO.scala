@@ -1549,9 +1549,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
      * Like [[IO.delay]] but intended for thread blocking operations. `blocking` will shift the
      * execution of the blocking operation to a separate threadpool to avoid blocking on the main
      * execution context. See the thread-model documentation for more information on why this is
-     * necessary. Note that created effect will be uncancelable. If you're wondering about
-     * an interruption of evaluation, for instance via [[IO.timeout]], then you should use
-     * [[IO.interruptible]] or [[IO.interruptibleMany]].
+     * necessary. Note that the created effect will be uncancelable; if you need cancelation,
+     * then you should use [[IO.interruptible]] or [[IO.interruptibleMany]].
      *
      * {{{
      * IO.blocking(scala.io.Source.fromFile("path").mkString)
