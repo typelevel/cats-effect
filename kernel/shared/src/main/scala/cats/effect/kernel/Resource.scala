@@ -374,7 +374,7 @@ sealed abstract class Resource[F[_], +A] {
    * release actions (like the `before` and `after` methods of many test frameworks), or complex
    * library code that needs to modify or move the finalizer for an existing resource.
    */
-  def allocatedFull[B >: A](
+  def allocatedCase[B >: A](
       implicit F: MonadCancel[F, Throwable]): F[(B, ExitCase => F[Unit])] = {
     sealed trait Stack[AA]
     case object Nil extends Stack[B]
@@ -462,7 +462,7 @@ sealed abstract class Resource[F[_], +A] {
    */
   def allocated[B >: A](implicit F: MonadCancel[F, Throwable]): F[(B, F[Unit])] =
     F.uncancelable(poll =>
-      poll(allocatedFull).map { case (b, fin) => (b, fin(ExitCase.Succeeded)) })
+      poll(allocatedCase).map { case (b, fin) => (b, fin(ExitCase.Succeeded)) })
 
   /**
    * Applies an effectful transformation to the allocated resource. Like a `flatMap` on `F[A]`
@@ -495,19 +495,19 @@ sealed abstract class Resource[F[_], +A] {
     }
 
   def forceR[B](that: Resource[F, B])(implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
-    Resource.applyFull { poll => poll(this.use_ !> that.allocatedFull) }
+    Resource.applyFull { poll => poll(this.use_ !> that.allocatedCase) }
 
   def !>[B](that: Resource[F, B])(implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
     forceR(that)
 
   def onCancel(fin: Resource[F, Unit])(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
-    Resource.applyFull { poll => poll(this.allocatedFull).onCancel(fin.use_) }
+    Resource.applyFull { poll => poll(this.allocatedCase).onCancel(fin.use_) }
 
   def guaranteeCase(
       fin: Outcome[Resource[F, *], Throwable, A @uncheckedVariance] => Resource[F, Unit])(
       implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
     Resource.applyFull { poll =>
-      poll(this.allocatedFull).guaranteeCase {
+      poll(this.allocatedCase).guaranteeCase {
         case Outcome.Succeeded(ft) =>
           fin(Outcome.Succeeded(Resource.eval(ft.map(_._1)))).use_.handleErrorWith { e =>
             ft.flatMap(_._2(ExitCase.Errored(e))).handleError(_ => ()) >> F.raiseError(e)
@@ -608,7 +608,7 @@ sealed abstract class Resource[F[_], +A] {
   }
 
   def evalOn(ec: ExecutionContext)(implicit F: Async[F]): Resource[F, A] =
-    Resource.applyFull { poll => poll(this.allocatedFull).evalOn(ec) }
+    Resource.applyFull { poll => poll(this.allocatedCase).evalOn(ec) }
 
   def attempt[E](implicit F: ApplicativeError[F, E]): Resource[F, Either[E, A]] =
     this match {
@@ -921,10 +921,10 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
     Resource applyFull { poll =>
       val inner = new Poll[Resource[F, *]] {
         def apply[B](rfb: Resource[F, B]): Resource[F, B] =
-          Resource applyFull { innerPoll => innerPoll(poll(rfb.allocatedFull)) }
+          Resource applyFull { innerPoll => innerPoll(poll(rfb.allocatedCase)) }
       }
 
-      body(inner).allocatedFull
+      body(inner).allocatedCase
     }
 
   def unique[F[_]](implicit F: Unique[F]): Resource[F, Unique.Token] =
@@ -966,7 +966,7 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
               val nt2 = new (Resource[F, *] ~> D) {
                 def apply[A](rfa: Resource[F, A]) =
                   Kleisli { r =>
-                    nt(rfa.allocatedFull) flatMap {
+                    nt(rfa.allocatedCase) flatMap {
                       case (a, fin) =>
                         r.update(f => (ec: ExitCase) => f(ec) !> (F.unit >> fin(ec))).as(a)
                     }
@@ -1084,15 +1084,15 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
      */
     def flattenK(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
       Resource.applyFull { poll =>
-        val alloc = self.allocatedFull.allocatedFull
+        val alloc = self.allocatedCase.allocatedCase
 
         poll(alloc) map {
           case ((a, rfin), fin) =>
             val composedFinalizers =
               (ec: ExitCase) =>
-                // Break stack-unsafe mutual recursion with allocatedFull
+                // Break stack-unsafe mutual recursion with allocatedCase
                 (F.unit >> fin(ec))
-                  .guarantee(F.unit >> rfin(ec).allocatedFull.flatMap(_._2(ec)))
+                  .guarantee(F.unit >> rfin(ec).allocatedCase.flatMap(_._2(ec)))
             (a, composedFinalizers)
         }
       }

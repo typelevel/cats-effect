@@ -979,7 +979,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
   }
 
-  "allocatedFull" >> {
+  "allocatedCase" >> {
     "is stack-safe over binds" in ticked { implicit ticker =>
       val res = Resource.make(IO.unit)(_ => IO.unit)
       val r = (1 to 50000)
@@ -987,7 +987,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           case (r, _) =>
             r.flatMap(_ => res)
         }
-        .allocatedFull
+        .allocatedCase
         .map(_._1)
       r eqv IO.unit
 
