@@ -16,7 +16,9 @@
 
 package cats.effect
 
+import cats.data.OptionT
 import cats.syntax.all._
+import cats.effect.std.Env
 
 import scala.scalajs.js
 import scala.util.Try
@@ -26,12 +28,10 @@ private[effect] object process {
   def argv: Option[List[String]] = Try(
     js.Dynamic.global.process.argv.asInstanceOf[js.Array[String]].toList.drop(2)).toOption
 
-  def env(key: String): Option[String] =
-    Try(js.Dynamic.global.process.env.selectDynamic(key))
-      .orElse(Try(js.Dynamic.global.process.env.selectDynamic(s"REACT_APP_$key")))
-      .widen[Any]
-      .collect { case v: String if !js.isUndefined(v) => v }
-      .toOption
+  def env(key: String): Option[String] = {
+    val env = Env.make[SyncIO]
+    OptionT(env.get(key)).orElseF(env.get(s"REACT_APP_$key")).value.unsafeRunSync()
+  }
 
   def on(eventName: String, listener: js.Function0[Unit]): Unit =
     Try(js.Dynamic.global.process.on(eventName, listener).asInstanceOf[Unit]).recover {
