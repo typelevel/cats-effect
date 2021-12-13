@@ -24,6 +24,6 @@ private[std] class EnvCompanionPlatform {
   private[std] final class SyncEnv[F[_]](implicit F: Sync[F]) extends Env[F] {
     def get(name: String): F[Option[String]] = F.delay(sys.env.get(name))
     def toMap: F[Map[String, String]] =
-      F.delay(Map.from(sys.env)) // paranoid, defensive copy
+      F.delay(Map.empty ++ sys.env) // paranoid, defensive copy
   }
 }
