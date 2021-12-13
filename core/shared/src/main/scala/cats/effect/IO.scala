@@ -36,7 +36,7 @@ import cats.{
 import cats.data.Ior
 import cats.syntax.all._
 import cats.effect.instances.spawn
-import cats.effect.std.Console
+import cats.effect.std.{Console, Env}
 import cats.effect.tracing.{Tracing, TracingEvent}
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{
@@ -1617,6 +1617,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   implicit val consoleForIO: Console[IO] =
     Console.make
+
+  implicit val envForIO: Env[IO] = Env.make
 
   // This is cached as a val to save allocations, but it uses ops from the Async
   // instance which is also cached as a val, and therefore needs to appear
