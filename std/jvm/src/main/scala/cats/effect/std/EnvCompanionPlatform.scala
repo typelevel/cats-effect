@@ -17,7 +17,6 @@
 package cats.effect.std
 
 import cats.effect.kernel.Sync
-import cats.effect.std.Env
 
 import scala.collection.immutable.Map
 
