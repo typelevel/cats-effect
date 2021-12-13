@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.std.syntax
+package cats.effect.std
 
 import cats.Applicative
 import cats.Functor
@@ -30,7 +30,6 @@ import cats.kernel.Monoid
 import cats.~>
 
 import scala.collection.immutable.Map
-import cats.effect.std.EnvCompanionPlatform
 
 /**
  * Effect type agnostic `Env` with common methods to read environment variables

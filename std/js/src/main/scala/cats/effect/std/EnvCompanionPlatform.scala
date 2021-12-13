@@ -16,14 +16,14 @@
 
 package cats.effect.std
 
-import cats.syntax.all._
-import cats.effect.kernel.Sync
-import cats.effect.std.syntax.Env
-
-import scala.scalajs.js
-import scala.collection.immutable.Map
-import scala.util.Try
 import cats.data.OptionT
+import cats.effect.kernel.Sync
+import cats.effect.std.Env
+import cats.syntax.all._
+
+import scala.collection.immutable.Map
+import scala.scalajs.js
+import scala.util.Try
 
 private[std] class EnvCompanionPlatform {
   private[std] final class SyncEnv[F[_]](implicit F: Sync[F]) extends Env[F] {
