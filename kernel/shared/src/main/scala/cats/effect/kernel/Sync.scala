@@ -41,8 +41,10 @@ trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Unique[F] 
   /**
    * The synchronous FFI - lifts any by-name parameter into the `F[_]` context.
    *
-   * Equivalent to `Applicative.pure` for pure expressions, the purpose of this function is to
-   * suspend side effects in `F`.
+   * Equivalent to [[Applicative.pure]] for pure expressions, the purpose of this function is to
+   * suspend side effects in `F`. Use [[Sync.delay]] if your side effect is not thread-blocking;
+   * otherwise you should use [[Sync.blocking]] or [[Sync.interruptible]]
+   * depending on the need of the created effect cancelation.
    *
    * @param thunk
    *   The side effect which is to be suspended in `F[_]`
