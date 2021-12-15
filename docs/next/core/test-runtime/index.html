@@ -72,17 +72,17 @@
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h2>
 <p>For the remainder of this page, we will be writing tests which verify the behavior of the following function:</p>
-<pre><code class="hljs css language-mdoc scala"><span class="hljs-keyword">import</span> cats.effect.IO
-<span class="hljs-keyword">import</span> cats.effect.<span class="hljs-built_in">std</span>.Random
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
+<span class="hljs-keyword">import</span> cats.effect.std.<span class="hljs-type">Random</span>
 <span class="hljs-keyword">import</span> scala.concurrent.duration._
 
-def retry[A](ioa: IO[A], <span class="hljs-built_in">delay</span>: FiniteDuration, <span class="hljs-built_in">max</span>: Int, <span class="hljs-built_in">random</span>: Random[IO]): IO[A] =
-  <span class="hljs-keyword">if</span> (<span class="hljs-built_in">max</span> &lt;= <span class="hljs-number">1</span>)
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">retry</span></span>[<span class="hljs-type">A</span>](ioa: <span class="hljs-type">IO</span>[<span class="hljs-type">A</span>], delay: <span class="hljs-type">FiniteDuration</span>, max: <span class="hljs-type">Int</span>, random: <span class="hljs-type">Random</span>[<span class="hljs-type">IO</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">A</span>] =
+  <span class="hljs-keyword">if</span> (max &lt;= <span class="hljs-number">1</span>)
     ioa
   <span class="hljs-keyword">else</span>
     ioa handleErrorWith { _ =&gt;
-      <span class="hljs-built_in">random</span>.betweenLong(<span class="hljs-number">0L</span>, <span class="hljs-built_in">delay</span>.toNanos) flatMap { ns =&gt;
-        IO.sleep(ns.nanos) *&gt; retry(ioa, <span class="hljs-built_in">delay</span> * <span class="hljs-number">2</span>, <span class="hljs-built_in">max</span> - <span class="hljs-number">1</span>)
+      random.betweenLong(<span class="hljs-number">0</span>L, delay.toNanos) flatMap { ns =&gt;
+        <span class="hljs-type">IO</span>.sleep(ns.nanos) *&gt; retry(ioa, delay * <span class="hljs-number">2</span>, max - <span class="hljs-number">1</span>, random)
       }
     }
 </code></pre>
@@ -193,8 +193,8 @@ _ &lt;- control.tick
 <h2><a class="anchor" aria-hidden="true" id="gotchas"></a><a href="#gotchas" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Gotchas</h2>
 <p>It is very important to remember that <code>TestControl</code> is a <em>mock</em> runtime, and thus some programs may behave very differently under it than under a production runtime. Always <em>default</em> to testing using the production runtime unless you absolutely need an artificial time control mechanism for exactly this reason.</p>
 <p>To give an intuition for the type of program which behaves strangely under <code>TestControl</code>, consider the following pathological example:</p>
-<pre><code class="hljs css language-mdoc scala"><span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">IO</span>.</span></span>cede.foreverM.start flatMap {<span class="hljs-function"> <span class="hljs-params">fiber</span> =&gt;</span>
-  <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">IO</span>.</span></span>sleep(<span class="hljs-number">1.</span>second) *&gt; fiber.cancel
+<pre><code class="hljs css language-scala"><span class="hljs-type">IO</span>.cede.foreverM.start flatMap { fiber =&gt;
+  <span class="hljs-type">IO</span>.sleep(<span class="hljs-number">1.</span>second) *&gt; fiber.cancel
 }
 </code></pre>
 <p>In this program, we are creating a fiber which yields in an infinite loop, always giving control back to the runtime and never making any progress. Then, in the main fiber, we <code>sleep</code> for one second and <code>cancel</code> the other fiber. In both the JVM and JavaScript production runtimes, this program does exactly what you expect and terminates after (roughly) one second.</p>
