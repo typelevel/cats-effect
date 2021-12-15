@@ -938,6 +938,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   /**
    * Suspends a synchronous side effect in `IO`.
+   * Use [[IO.delay]] if your side effect is not thread-blocking;
+   * otherwise you should use [[IO.blocking]] or [[IO.interruptible]]
+   * depending on the need of the created effect cancelation.
    *
    * Any exceptions thrown by the effect will be caught and sequenced into the `IO`.
    */
