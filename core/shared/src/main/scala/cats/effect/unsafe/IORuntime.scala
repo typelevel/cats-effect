@@ -52,6 +52,15 @@ final class IORuntime private[unsafe] (
   private[effect] val traceBufferLogSize: Int = config.traceBufferLogSize
 
   override def toString: String = s"IORuntime($compute, $scheduler, $config)"
+
+  def wrappingCompute(wrapCompute: ExecutionContext => ExecutionContext): IORuntime = 
+    IORuntime(
+      wrapCompute(compute),
+      blocking,
+      scheduler,
+      shutdown,
+      config
+    )
 }
 
 object IORuntime extends IORuntimeCompanionPlatform {
