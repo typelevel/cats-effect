@@ -53,14 +53,6 @@ final class IORuntime private[unsafe] (
 
   override def toString: String = s"IORuntime($compute, $scheduler, $config)"
 
-  def wrappingCompute(wrapCompute: ExecutionContext => ExecutionContext): IORuntime = 
-    IORuntime(
-      wrapCompute(compute),
-      blocking,
-      scheduler,
-      shutdown,
-      config
-    )
 }
 
 object IORuntime extends IORuntimeCompanionPlatform {
@@ -71,4 +63,6 @@ object IORuntime extends IORuntimeCompanionPlatform {
       shutdown: () => Unit,
       config: IORuntimeConfig): IORuntime =
     new IORuntime(compute, blocking, scheduler, FiberMonitor(compute), shutdown, config)
+
+  def builder: IORuntimeBuilder = IORuntimeBuilder()
 }
