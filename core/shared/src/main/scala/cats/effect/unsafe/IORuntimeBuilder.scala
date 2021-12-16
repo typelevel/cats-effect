@@ -19,45 +19,33 @@ package unsafe
 
 import scala.concurrent.ExecutionContext
 
-case class IORuntimeBuilder(
-  computeWrapper: ExecutionContext => ExecutionContext = identity,
-  blockingWrapper: ExecutionContext => ExecutionContext = identity,
-  customConfig: Option[IORuntimeConfig] = None,
-  customScheduler: Option[Scheduler] = None,
-  customShutdown: Option[() => Unit] = None,
-) {
+final class IORuntimeBuilder protected (
+    var computeWrapper: ExecutionContext => ExecutionContext = identity,
+    var blockingWrapper: ExecutionContext => ExecutionContext = identity,
+    var customConfig: Option[IORuntimeConfig] = None,
+    var customScheduler: Option[Scheduler] = None,
+    var customShutdown: Option[() => Unit] = None
+) extends IORuntimeBuilderPlatform {
   def withComputeWrapper(wrapper: ExecutionContext => ExecutionContext) =
-    this.copy(computeWrapper = wrapper.andThen(computeWrapper))
+    computeWrapper = wrapper.andThen(computeWrapper)
 
   def withBlockingWrapper(wrapper: ExecutionContext => ExecutionContext) =
-    this.copy(blockingWrapper = wrapper.andThen(blockingWrapper))
+    blockingWrapper = wrapper.andThen(blockingWrapper)
 
-  def withConfig(config: IORuntimeConfig) = 
-    this.copy(customConfig = Some(config))
+  def withConfig(config: IORuntimeConfig) =
+    customConfig = Some(config)
 
-  def withScheduler(scheduler: Scheduler) = 
-    this.copy(customScheduler = Some(scheduler))
+  def withScheduler(scheduler: Scheduler) =
+    customScheduler = Some(scheduler)
 
-  def withShutdown(shutdown: () => Unit) = 
-    this.copy(customShutdown = Some(shutdown))
+  def withShutdown(shutdown: () => Unit) =
+    customShutdown = Some(shutdown)
 
-  def build = {
-    var runtime: IORuntime = null
-    val compute = IORuntime.createDefaultComputeThreadPool(runtime)._1
-    val blocking = IORuntime.createDefaultBlockingExecutionContext()._1
-    val scheduler = customScheduler.getOrElse(IORuntime.createDefaultScheduler()._1)
-    val shutdown = customShutdown.getOrElse(() => ())
-    val runtimeConfig = customConfig.getOrElse(IORuntimeConfig())
-
-    runtime = IORuntime.apply(
-      computeWrapper(compute),
-      blockingWrapper(blocking),
-      scheduler,
-      shutdown,
-      runtimeConfig
-    )
-    runtime
-  }
+  def build: IORuntime =
+    build(computeWrapper, blockingWrapper, customConfig, customScheduler, customShutdown)
 }
 
-
+object IORuntimeBuilder {
+  def apply(): IORuntimeBuilder =
+    new IORuntimeBuilder()
+}
