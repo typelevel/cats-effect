@@ -20,26 +20,36 @@ package unsafe
 import scala.concurrent.ExecutionContext
 
 final class IORuntimeBuilder protected (
-    var computeWrapper: ExecutionContext => ExecutionContext = identity,
-    var blockingWrapper: ExecutionContext => ExecutionContext = identity,
-    var customConfig: Option[IORuntimeConfig] = None,
-    var customScheduler: Option[Scheduler] = None,
-    var customShutdown: Option[() => Unit] = None
+    protected var computeWrapper: ExecutionContext => ExecutionContext = identity,
+    protected var blockingWrapper: ExecutionContext => ExecutionContext = identity,
+    protected var customConfig: Option[IORuntimeConfig] = None,
+    protected var customScheduler: Option[Scheduler] = None,
+    protected var customShutdown: Option[() => Unit] = None
 ) extends IORuntimeBuilderPlatform {
-  def withComputeWrapper(wrapper: ExecutionContext => ExecutionContext) =
+  def withComputeWrapper(wrapper: ExecutionContext => ExecutionContext) = {
     computeWrapper = wrapper.andThen(computeWrapper)
+    this
+  }
 
-  def withBlockingWrapper(wrapper: ExecutionContext => ExecutionContext) =
+  def withBlockingWrapper(wrapper: ExecutionContext => ExecutionContext) = {
     blockingWrapper = wrapper.andThen(blockingWrapper)
+    this
+  }
 
-  def withConfig(config: IORuntimeConfig) =
+  def withConfig(config: IORuntimeConfig) = {
     customConfig = Some(config)
+    this
+  }
 
-  def withScheduler(scheduler: Scheduler) =
+  def withScheduler(scheduler: Scheduler) = {
     customScheduler = Some(scheduler)
+    this
+  }
 
-  def withShutdown(shutdown: () => Unit) =
+  def withShutdown(shutdown: () => Unit) = {
     customShutdown = Some(shutdown)
+    this
+  }
 
   def build: IORuntime =
     build(computeWrapper, blockingWrapper, customConfig, customScheduler, customShutdown)
