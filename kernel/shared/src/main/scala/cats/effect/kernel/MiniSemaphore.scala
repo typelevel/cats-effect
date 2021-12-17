@@ -18,10 +18,10 @@ package cats
 package effect
 package kernel
 
-import scala.collection.immutable.{Queue => ScalaQueue}
-
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
+
+import scala.collection.immutable.{Queue => ScalaQueue}
 
 /**
  * A cut-down version of semaphore used to implement parTraverseN

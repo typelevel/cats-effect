@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import scala.scalajs.js.{|, Function1, JavaScriptException, Promise, Thenable}
+import scala.scalajs.js.{Function1, JavaScriptException, Promise, Thenable, |}
 
 abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
 

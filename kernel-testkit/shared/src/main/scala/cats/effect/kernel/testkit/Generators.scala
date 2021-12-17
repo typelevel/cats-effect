@@ -17,14 +17,13 @@
 package cats.effect.kernel
 package testkit
 
+import cats.syntax.all._
+import cats.{Applicative, ApplicativeError, Eq, Monad, MonadError}
+import org.scalacheck.{Arbitrary, Cogen, Gen}
+
 import scala.collection.immutable.SortedMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-
-import org.scalacheck.{Arbitrary, Cogen, Gen}
-
-import cats.syntax.all._
-import cats.{Applicative, ApplicativeError, Eq, Monad, MonadError}
 
 import Arbitrary.arbitrary
 

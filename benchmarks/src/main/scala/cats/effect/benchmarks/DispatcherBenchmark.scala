@@ -16,14 +16,13 @@
 
 package cats.effect.benchmarks
 
-import java.util.concurrent.TimeUnit
-
-import org.openjdk.jmh.annotations._
-
 import cats.effect.IO
 import cats.effect.std.Dispatcher
 import cats.effect.unsafe._
 import cats.syntax.all._
+import org.openjdk.jmh.annotations._
+
+import java.util.concurrent.TimeUnit
 
 /**
  * To do comparative benchmarks between versions:

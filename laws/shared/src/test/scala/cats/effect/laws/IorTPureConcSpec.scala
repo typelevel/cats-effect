@@ -17,17 +17,16 @@
 package cats.effect
 package laws
 
-import scala.concurrent.duration._
-
-import org.scalacheck.Prop
-import org.specs2.mutable._
-import org.typelevel.discipline.specs2.mutable.Discipline
-
 import cats.data.IorT
 import cats.effect.kernel.testkit.TimeT._
 import cats.effect.kernel.testkit.pure._
 import cats.effect.kernel.testkit.{OutcomeGenerators, PureConcGenerators, TimeT, pure}
 import cats.laws.discipline.arbitrary._
+import org.scalacheck.Prop
+import org.specs2.mutable._
+import org.typelevel.discipline.specs2.mutable.Discipline
+
+import scala.concurrent.duration._
 
 class IorTPureConcSpec extends Specification with Discipline with BaseSpec {
   import PureConcGenerators._

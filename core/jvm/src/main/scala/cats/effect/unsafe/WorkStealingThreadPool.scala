@@ -30,6 +30,8 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.TracingConstants
+
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
 import java.util.concurrent.ThreadLocalRandom
@@ -38,8 +40,6 @@ import java.util.concurrent.locks.LockSupport
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
-
-import cats.effect.tracing.TracingConstants
 
 /**
  * Work-stealing thread pool which manages a pool of [[WorkerThread]] s for the specific purpose

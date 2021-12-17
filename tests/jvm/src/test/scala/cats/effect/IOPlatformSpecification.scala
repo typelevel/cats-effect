@@ -16,6 +16,11 @@
 
 package cats.effect
 
+import cats.effect.std.Semaphore
+import cats.syntax.all._
+import org.scalacheck.Prop.forAll
+import org.specs2.ScalaCheck
+
 import java.util.concurrent.{
   CancellationException,
   CompletableFuture,
@@ -25,12 +30,6 @@ import java.util.concurrent.{
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-
-import org.scalacheck.Prop.forAll
-import org.specs2.ScalaCheck
-
-import cats.effect.std.Semaphore
-import cats.syntax.all._
 
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 

@@ -17,16 +17,15 @@
 package cats.effect
 package laws
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
-
+import cats.effect.kernel.{Async, Outcome, Sync}
+import cats.laws.discipline.SemigroupalTests.Isomorphisms
+import cats.{Eq, Group, Order}
 import org.scalacheck.Prop.forAll
 import org.scalacheck._
 import org.scalacheck.util.Pretty
 
-import cats.effect.kernel.{Async, Outcome, Sync}
-import cats.laws.discipline.SemigroupalTests.Isomorphisms
-import cats.{Eq, Group, Order}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 
 trait AsyncTests[F[_]] extends GenTemporalTests[F, Throwable] with SyncTests[F] {
 

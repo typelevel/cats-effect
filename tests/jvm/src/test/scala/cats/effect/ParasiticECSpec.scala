@@ -16,12 +16,11 @@
 
 package cats.effect
 
-import scala.concurrent.duration._
-
-import org.scalacheck.Arbitrary
-
 import cats.effect.testkit.TestInstances
 import cats.syntax.all._
+import org.scalacheck.Arbitrary
+
+import scala.concurrent.duration._
 
 class ParasiticECSpec extends BaseSpec with TestInstances {
 

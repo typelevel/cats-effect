@@ -17,13 +17,13 @@
 package cats.effect
 package unsafe
 
+import cats.syntax.traverse._
+
 import java.util.concurrent.CountDownLatch
 
 import scala.concurrent.duration._
-import scala.concurrent.{blocking, Await, Promise}
+import scala.concurrent.{Await, Promise, blocking}
 import scala.util.Random
-
-import cats.syntax.traverse._
 
 class BlockingStressSpec extends BaseSpec {
 

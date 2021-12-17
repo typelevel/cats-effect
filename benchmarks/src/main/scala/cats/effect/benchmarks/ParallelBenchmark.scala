@@ -16,14 +16,13 @@
 
 package cats.effect.benchmarks
 
-import java.util.concurrent.TimeUnit
-
-import org.openjdk.jmh.annotations._
-import org.openjdk.jmh.infra.Blackhole
-
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.{catsSyntaxParallelTraverse1, toTraverseOps}
+import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.infra.Blackhole
+
+import java.util.concurrent.TimeUnit
 
 /**
  * To do comparative benchmarks between versions:

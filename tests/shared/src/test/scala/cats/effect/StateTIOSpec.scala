@@ -16,10 +16,6 @@
 
 package cats.effect
 
-import org.scalacheck.Prop
-import org.specs2.scalacheck.Parameters
-import org.typelevel.discipline.specs2.mutable.Discipline
-
 import cats.data.{OptionT, StateT}
 import cats.effect.laws.SyncTests
 import cats.effect.syntax.all._
@@ -27,6 +23,9 @@ import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.eq._
 import cats.{Eq, FlatMap}
+import org.scalacheck.Prop
+import org.specs2.scalacheck.Parameters
+import org.typelevel.discipline.specs2.mutable.Discipline
 
 class StateTIOSpec extends BaseSpec with Discipline {
 

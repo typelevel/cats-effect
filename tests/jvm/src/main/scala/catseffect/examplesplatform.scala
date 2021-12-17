@@ -16,12 +16,12 @@
 
 package catseffect
 
+import cats.effect.{ExitCode, IO, IOApp}
+import cats.syntax.all._
+
 import java.io.File
 
 import scala.concurrent.duration.Duration
-
-import cats.effect.{ExitCode, IO, IOApp}
-import cats.syntax.all._
 
 package examples {
 

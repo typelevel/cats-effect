@@ -16,11 +16,11 @@
 
 package cats.effect.kernel.syntax
 
+import cats.effect.kernel.GenTemporal
+
 import java.util.concurrent.TimeoutException
 
 import scala.concurrent.duration.FiniteDuration
-
-import cats.effect.kernel.GenTemporal
 
 trait GenTemporalSyntax {
 

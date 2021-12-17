@@ -17,9 +17,9 @@
 package cats.effect
 package std
 
-import scala.concurrent.duration._
-
 import cats.syntax.all._
+
+import scala.concurrent.duration._
 
 class BackpressureSpec extends BaseSpec {
 

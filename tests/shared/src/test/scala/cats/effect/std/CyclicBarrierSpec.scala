@@ -17,12 +17,11 @@
 package cats.effect
 package std
 
-import scala.concurrent.duration._
-
-import org.specs2.specification.core.Fragments
-
 import cats.arrow.FunctionK
 import cats.implicits._
+import org.specs2.specification.core.Fragments
+
+import scala.concurrent.duration._
 
 class CyclicBarrierSpec extends BaseSpec {
 

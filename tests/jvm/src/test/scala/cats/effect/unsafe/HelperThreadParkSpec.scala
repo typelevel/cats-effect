@@ -17,10 +17,10 @@
 package cats.effect
 package unsafe
 
+import cats.syntax.all._
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
-
-import cats.syntax.all._
 
 class HelperThreadParkSpec extends BaseSpec {
 

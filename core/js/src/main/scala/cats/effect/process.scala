@@ -16,10 +16,10 @@
 
 package cats.effect
 
+import cats.syntax.all._
+
 import scala.scalajs.js
 import scala.util.Try
-
-import cats.syntax.all._
 
 private[effect] object process {
 

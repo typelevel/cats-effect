@@ -17,11 +17,11 @@
 package cats.effect
 package laws
 
-import scala.concurrent.ExecutionContext
-import scala.util.{Left, Right}
-
 import cats.effect.kernel.Async
 import cats.syntax.all._
+
+import scala.concurrent.ExecutionContext
+import scala.util.{Left, Right}
 
 trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
   implicit val F: Async[F]

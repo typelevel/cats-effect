@@ -17,12 +17,11 @@
 package cats.effect
 package laws
 
-import org.scalacheck.Prop.forAll
-import org.scalacheck._
-
 import cats.Eq
 import cats.effect.kernel.Sync
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
+import org.scalacheck.Prop.forAll
+import org.scalacheck._
 
 trait SyncTests[F[_]]
     extends MonadCancelTests[F, Throwable]

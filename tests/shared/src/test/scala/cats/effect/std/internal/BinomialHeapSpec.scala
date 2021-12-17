@@ -21,11 +21,10 @@
 
 package cats.effect.std.internal
 
+import cats.Order
 import org.scalacheck.{Arbitrary, Gen}
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
-
-import cats.Order
 
 import Arbitrary.arbitrary
 

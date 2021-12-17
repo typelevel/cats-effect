@@ -17,9 +17,8 @@
 package cats.effect.kernel
 package testkit
 
-import org.scalacheck.{Arbitrary, Cogen}
-
 import cats.effect.kernel.testkit.pure._
+import org.scalacheck.{Arbitrary, Cogen}
 
 object PureConcGenerators {
   import OutcomeGenerators._

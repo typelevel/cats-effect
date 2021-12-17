@@ -22,15 +22,14 @@
 package cats.effect
 package std
 
-import scala.collection.immutable.{Queue => ScalaQueue}
-import scala.concurrent.duration._
-
-import org.scalacheck.Arbitrary.arbitrary
-import org.specs2.specification.core.Fragments
-
 import cats.Order
 import cats.arrow.FunctionK
 import cats.implicits._
+import org.scalacheck.Arbitrary.arbitrary
+import org.specs2.specification.core.Fragments
+
+import scala.collection.immutable.{Queue => ScalaQueue}
+import scala.concurrent.duration._
 
 class BoundedPQueueSpec extends BaseSpec with PQueueTests {
 

@@ -17,15 +17,14 @@
 package cats.effect
 package laws
 
-import org.specs2.mutable._
-import org.typelevel.discipline.specs2.mutable.Discipline
-
 import cats.data.EitherT
 import cats.effect.kernel.testkit.freeEval.{FreeEitherSync, syncForFreeT}
 import cats.effect.kernel.testkit.{FreeSyncGenerators, SyncTypeGenerators}
 import cats.free.FreeT
 import cats.laws.discipline.arbitrary._
 import cats.{Eq, Eval}
+import org.specs2.mutable._
+import org.typelevel.discipline.specs2.mutable.Discipline
 
 class EitherTFreeSyncSpec
     extends Specification

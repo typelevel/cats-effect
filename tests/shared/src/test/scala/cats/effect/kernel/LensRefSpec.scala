@@ -18,10 +18,10 @@ package cats
 package effect
 package kernel
 
-import scala.concurrent.duration._
-
 import cats.data.State
 import cats.{Eq, Show}
+
+import scala.concurrent.duration._
 
 class LensRefSpec extends BaseSpec { outer =>
 

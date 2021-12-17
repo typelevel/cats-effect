@@ -16,12 +16,11 @@
 
 package cats.effect.kernel
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
-
+import cats.implicits._
 import org.specs2.mutable.Specification
 
-import cats.implicits._
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 
 class SyntaxSpec extends Specification {
 

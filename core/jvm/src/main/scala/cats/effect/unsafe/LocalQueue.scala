@@ -28,9 +28,9 @@
 package cats.effect
 package unsafe
 
-import java.util.concurrent.ThreadLocalRandom
-
 import cats.effect.tracing.TracingConstants
+
+import java.util.concurrent.ThreadLocalRandom
 
 /**
  * Fixed length, FIFO, single producer, multiple consumer, lock-free, circular buffer queue

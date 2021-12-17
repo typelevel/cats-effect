@@ -18,8 +18,6 @@ package cats
 package effect
 package std
 
-import scala.util.{Random => SRandom}
-
 import cats._
 import cats.data.{
   EitherT,
@@ -32,6 +30,8 @@ import cats.data.{
 }
 import cats.effect.kernel._
 import cats.syntax.all._
+
+import scala.util.{Random => SRandom}
 
 /**
  * Random is the ability to get random information, each time getting a different result.

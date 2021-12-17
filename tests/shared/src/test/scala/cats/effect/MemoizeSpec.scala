@@ -17,13 +17,12 @@
 package cats
 package effect
 
-import scala.concurrent.duration._
-import scala.util.Success
-
+import cats.syntax.all._
 import org.scalacheck.Prop.forAll
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import cats.syntax.all._
+import scala.concurrent.duration._
+import scala.util.Success
 
 class MemoizeSpec extends BaseSpec with Discipline {
 

@@ -16,15 +16,6 @@
 
 package cats.effect
 
-import java.util.concurrent.atomic.AtomicBoolean
-
-import scala.concurrent.duration._
-
-import org.scalacheck.Cogen
-import org.scalacheck.Prop.forAll
-import org.specs2.ScalaCheck
-import org.typelevel.discipline.specs2.mutable.Discipline
-
 import cats.data.{Kleisli, OptionT}
 import cats.effect.implicits._
 import cats.effect.kernel.testkit.TestContext
@@ -34,6 +25,14 @@ import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
 import cats.{SemigroupK, ~>}
+import org.scalacheck.Cogen
+import org.scalacheck.Prop.forAll
+import org.specs2.ScalaCheck
+import org.typelevel.discipline.specs2.mutable.Discipline
+
+import java.util.concurrent.atomic.AtomicBoolean
+
+import scala.concurrent.duration._
 
 class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   // We need this for testing laws: prop runs can interfere with each other

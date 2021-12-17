@@ -16,12 +16,11 @@
 
 package cats.effect.unsafe
 
-import scala.concurrent.ExecutionContext
-import scala.scalajs.LinkingInfo
-
+import cats.effect.tracing.TracingConstants
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 
-import cats.effect.tracing.TracingConstants
+import scala.concurrent.ExecutionContext
+import scala.scalajs.LinkingInfo
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 

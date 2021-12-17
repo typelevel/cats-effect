@@ -17,15 +17,14 @@
 package cats.effect
 package laws
 
-import scala.concurrent.duration.FiniteDuration
-
+import cats.effect.kernel.{GenTemporal, Outcome}
+import cats.laws.discipline.SemigroupalTests.Isomorphisms
+import cats.{Eq, Group, Order}
 import org.scalacheck.Prop.forAll
 import org.scalacheck._
 import org.scalacheck.util.Pretty
 
-import cats.effect.kernel.{GenTemporal, Outcome}
-import cats.laws.discipline.SemigroupalTests.Isomorphisms
-import cats.{Eq, Group, Order}
+import scala.concurrent.duration.FiniteDuration
 
 trait GenTemporalTests[F[_], E] extends GenSpawnTests[F, E] with ClockTests[F] {
 

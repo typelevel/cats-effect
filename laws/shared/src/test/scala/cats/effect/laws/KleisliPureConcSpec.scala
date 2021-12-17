@@ -17,13 +17,6 @@
 package cats.effect
 package laws
 
-import scala.concurrent.duration._
-
-import org.scalacheck.{Arbitrary, Cogen, Prop}
-import org.specs2.mutable._
-import org.specs2.scalacheck.Parameters
-import org.typelevel.discipline.specs2.mutable.Discipline
-
 import cats.Order
 import cats.data.Kleisli
 import cats.effect.kernel.Outcome
@@ -31,6 +24,12 @@ import cats.effect.kernel.testkit.TimeT._
 import cats.effect.kernel.testkit.pure._
 import cats.effect.kernel.testkit.{OutcomeGenerators, PureConcGenerators, Time, TimeT, pure}
 import cats.laws.discipline.{MiniInt, arbitrary}
+import org.scalacheck.{Arbitrary, Cogen, Prop}
+import org.specs2.mutable._
+import org.specs2.scalacheck.Parameters
+import org.typelevel.discipline.specs2.mutable.Discipline
+
+import scala.concurrent.duration._
 
 class KleisliPureConcSpec
     extends Specification

@@ -17,6 +17,8 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.TracingConstants
+
 import java.lang.ref.WeakReference
 import java.util.concurrent.ThreadLocalRandom
 import java.util.{Collections, ConcurrentModificationException, Map, WeakHashMap}
@@ -24,8 +26,6 @@ import java.util.{Collections, ConcurrentModificationException, Map, WeakHashMap
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
-
-import cats.effect.tracing.TracingConstants
 
 /**
  * A slightly more involved implementation of an unordered bag used for tracking asynchronously

@@ -17,14 +17,13 @@
 package cats.effect
 package laws
 
-import org.scalacheck.{Cogen, Prop}
-import org.specs2.mutable._
-import org.typelevel.discipline.specs2.mutable.Discipline
-
 import cats.effect.kernel.testkit.{OutcomeGenerators, PureConcGenerators, TestInstances, pure}
 import cats.effect.kernel.{MonadCancel, Resource}
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
+import org.scalacheck.{Cogen, Prop}
+import org.specs2.mutable._
+import org.typelevel.discipline.specs2.mutable.Discipline
 
 class ResourcePureConcSpec
     extends Specification

@@ -16,13 +16,13 @@
 
 package cats.effect
 
-import java.util.concurrent.CountDownLatch
-
-import scala.concurrent.{blocking, CancellationException}
-import scala.util.control.NonFatal
-
 import cats.effect.tracing.TracingConstants._
 import cats.effect.unsafe.FiberMonitor
+
+import java.util.concurrent.CountDownLatch
+
+import scala.concurrent.{CancellationException, blocking}
+import scala.util.control.NonFatal
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining

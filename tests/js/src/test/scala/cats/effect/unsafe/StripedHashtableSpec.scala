@@ -17,10 +17,10 @@
 package cats.effect
 package unsafe
 
+import cats.syntax.traverse._
+
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
-
-import cats.syntax.traverse._
 
 class StripedHashtableSpec extends BaseSpec {
 

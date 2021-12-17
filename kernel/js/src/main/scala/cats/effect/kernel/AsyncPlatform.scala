@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import scala.scalajs.js.{|, defined, Function1, JavaScriptException, Promise, Thenable}
+import scala.scalajs.js.{Function1, JavaScriptException, Promise, Thenable, defined, |}
 
 private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
 

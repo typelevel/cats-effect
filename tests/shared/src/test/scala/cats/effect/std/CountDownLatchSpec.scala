@@ -22,15 +22,14 @@
 package cats.effect
 package std
 
-import java.util.concurrent.TimeoutException
-
-import scala.concurrent.duration._
-
-import org.specs2.specification.core.Fragments
-
 import cats.arrow.FunctionK
 import cats.effect.kernel.Outcome.Canceled
 import cats.implicits._
+import org.specs2.specification.core.Fragments
+
+import java.util.concurrent.TimeoutException
+
+import scala.concurrent.duration._
 
 class CountDownLatchSpec extends BaseSpec {
 

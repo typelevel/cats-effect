@@ -16,11 +16,10 @@
 
 package cats.effect.laws
 
-import org.scalacheck.Prop
-import org.scalacheck.util.Pretty
-
 import cats.syntax.all._
 import cats.{Applicative, Eq, Group, Order}
+import org.scalacheck.Prop
+import org.scalacheck.util.Pretty
 
 sealed trait IsEq[A] {
 

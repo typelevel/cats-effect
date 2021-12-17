@@ -16,9 +16,8 @@
 
 package cats.effect
 
-import org.specs2.specification.BeforeAfterAll
-
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
+import org.specs2.specification.BeforeAfterAll
 
 trait RunnersPlatform extends BeforeAfterAll {
 

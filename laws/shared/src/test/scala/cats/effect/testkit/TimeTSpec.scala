@@ -16,17 +16,16 @@
 
 package cats.effect.kernel.testkit
 
-import java.util.concurrent.TimeUnit
-
-import scala.concurrent.duration._
-
+import cats.effect.laws.GenTemporalTests
+import cats.laws.discipline.arbitrary._
+import cats.{Eq, Order}
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
 import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import cats.effect.laws.GenTemporalTests
-import cats.laws.discipline.arbitrary._
-import cats.{Eq, Order}
+import java.util.concurrent.TimeUnit
+
+import scala.concurrent.duration._
 
 import TimeT._
 import pure.PureConc

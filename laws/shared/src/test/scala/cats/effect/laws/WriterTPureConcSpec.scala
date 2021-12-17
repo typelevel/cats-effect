@@ -17,16 +17,15 @@
 package cats.effect
 package laws
 
-import scala.concurrent.duration._
-
-import org.scalacheck.Prop
-import org.specs2.mutable._
-import org.typelevel.discipline.specs2.mutable.Discipline
-
 import cats.data.WriterT
 import cats.effect.kernel.testkit.TimeT._
 import cats.effect.kernel.testkit.{OutcomeGenerators, PureConcGenerators, pure, _}
 import cats.laws.discipline.arbitrary._
+import org.scalacheck.Prop
+import org.specs2.mutable._
+import org.typelevel.discipline.specs2.mutable.Discipline
+
+import scala.concurrent.duration._
 
 import pure._
 

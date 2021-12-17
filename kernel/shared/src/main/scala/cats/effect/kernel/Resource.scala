@@ -16,16 +16,16 @@
 
 package cats.effect.kernel
 
-import scala.annotation.tailrec
-import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
-
 import cats._
 import cats.data.Kleisli
 import cats.effect.kernel.implicits._
 import cats.effect.kernel.instances.spawn
 import cats.syntax.all._
+
+import scala.annotation.tailrec
+import scala.annotation.unchecked.uncheckedVariance
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 
 /**
  * `Resource` is a data structure which encodes the idea of executing an action which has an

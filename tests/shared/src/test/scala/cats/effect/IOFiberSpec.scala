@@ -16,9 +16,9 @@
 
 package fiber // Get out of CE package b/c trace filtering
 
-import scala.concurrent.duration._
-
 import cats.effect.{BaseSpec, IO}
+
+import scala.concurrent.duration._
 
 class IOFiberSpec extends BaseSpec {
 
