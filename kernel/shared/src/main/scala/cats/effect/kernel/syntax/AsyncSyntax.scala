@@ -16,9 +16,9 @@
 
 package cats.effect.kernel.syntax
 
-import cats.effect.kernel.{Async, Fiber, Outcome, Resource}
-
 import scala.concurrent.ExecutionContext
+
+import cats.effect.kernel.{Async, Fiber, Outcome, Resource}
 
 trait AsyncSyntax {
   implicit def asyncOps[F[_], A](wrapped: F[A]): AsyncOps[F, A] =

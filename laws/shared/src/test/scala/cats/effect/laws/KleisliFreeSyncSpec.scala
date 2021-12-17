@@ -17,14 +17,18 @@
 package cats.effect
 package laws
 
-import cats.{Eq, Eval}
-import cats.data.Kleisli
-import cats.effect.kernel.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}
-import cats.free.FreeT
-import cats.laws.discipline.{arbitrary, eq, MiniInt}, arbitrary._, eq._
-import freeEval.{syncForFreeT, FreeEitherSync}
 import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline
+
+import cats.data.Kleisli
+import cats.effect.kernel.testkit.{FreeSyncGenerators, SyncTypeGenerators, freeEval}
+import cats.free.FreeT
+import cats.laws.discipline.MiniInt
+import cats.laws.discipline.arbitrary._
+import cats.laws.discipline.eq._
+import cats.{Eq, Eval}
+
+import freeEval.{syncForFreeT, FreeEitherSync}
 
 class KleisliFreeSyncSpec
     extends Specification

@@ -16,9 +16,9 @@
 
 package cats.effect.std.internal
 
-import cats.Order
-
 import scala.annotation.tailrec
+
+import cats.Order
 
 /**
  * A binomial heap is a list of trees maintaining the following invariants:

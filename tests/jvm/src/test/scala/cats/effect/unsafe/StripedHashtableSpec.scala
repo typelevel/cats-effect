@@ -17,11 +17,11 @@
 package cats.effect
 package unsafe
 
-import cats.syntax.traverse._
+import java.util.concurrent.CountDownLatch
 
 import scala.concurrent.duration._
 
-import java.util.concurrent.CountDownLatch
+import cats.syntax.traverse._
 
 class StripedHashtableSpec extends BaseSpec {
 

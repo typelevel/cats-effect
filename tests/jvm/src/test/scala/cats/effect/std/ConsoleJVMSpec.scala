@@ -17,13 +17,14 @@
 package cats.effect
 package std
 
-import cats.syntax.all._
-import org.specs2.matcher.MatchResult
-
 import java.io.{ByteArrayInputStream, InputStream}
 import java.nio.charset.{Charset, StandardCharsets}
 
 import scala.io.Source
+
+import org.specs2.matcher.MatchResult
+
+import cats.syntax.all._
 
 class ConsoleJVMSpec extends BaseSpec {
   sequential

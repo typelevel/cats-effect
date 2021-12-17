@@ -16,13 +16,12 @@
 
 package cats.effect
 
-import cats.effect.tracing.TracingConstants._
-
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
-import scala.scalajs.LinkingInfo
-import scala.scalajs.js
+import scala.scalajs.{js, LinkingInfo}
 import scala.util.Try
+
+import cats.effect.tracing.TracingConstants._
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining

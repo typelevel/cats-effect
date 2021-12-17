@@ -17,14 +17,16 @@
 package cats.effect
 package laws
 
-import cats.{Eq, Eval}
-import cats.data.StateT
-import cats.effect.kernel.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}
-import cats.free.FreeT
-import cats.laws.discipline.{arbitrary, MiniInt}, arbitrary._
-import freeEval.{syncForFreeT, FreeEitherSync}
 import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline
+
+import cats.data.StateT
+import cats.effect.kernel.testkit.freeEval.{FreeEitherSync, syncForFreeT}
+import cats.effect.kernel.testkit.{FreeSyncGenerators, SyncTypeGenerators}
+import cats.free.FreeT
+import cats.laws.discipline.MiniInt
+import cats.laws.discipline.arbitrary._
+import cats.{Eq, Eval}
 
 class StateTFreeSyncSpec
     extends Specification

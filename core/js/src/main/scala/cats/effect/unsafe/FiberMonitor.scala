@@ -18,8 +18,7 @@ package cats.effect
 package unsafe
 
 import scala.concurrent.ExecutionContext
-import scala.scalajs.js
-import scala.scalajs.LinkingInfo
+import scala.scalajs.{js, LinkingInfo}
 
 private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
 

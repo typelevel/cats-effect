@@ -16,11 +16,11 @@
 
 package cats.effect.std
 
+import java.util.UUID
+
 import cats.Functor
 import cats.effect.kernel.Sync
 import cats.implicits._
-
-import java.util.UUID
 
 /**
  * A purely functional UUID Generator

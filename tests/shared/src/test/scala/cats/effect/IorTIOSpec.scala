@@ -16,16 +16,17 @@
 
 package cats.effect
 
+import scala.concurrent.duration._
+
+import org.scalacheck.Prop
+import org.typelevel.discipline.specs2.mutable.Discipline
+
 import cats.Order
 import cats.data.{Ior, IorT, OptionT}
 import cats.effect.laws.AsyncTests
 import cats.effect.syntax.all._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
-import org.scalacheck.Prop
-import org.typelevel.discipline.specs2.mutable.Discipline
-
-import scala.concurrent.duration._
 
 class IorTIOSpec extends BaseSpec with Discipline {
 

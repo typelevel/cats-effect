@@ -17,7 +17,15 @@
 package cats.effect
 package testkit
 
-import cats.{~>, Applicative, Eq, Id, Order, Show}
+import java.io.{ByteArrayOutputStream, PrintStream}
+import java.util.concurrent.TimeUnit
+
+import scala.annotation.implicitNotFound
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+
+import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
+
 import cats.effect.kernel.testkit.{
   AsyncGenerators,
   GenK,
@@ -28,15 +36,7 @@ import cats.effect.kernel.testkit.{
   TestInstances => KernelTestkitTestInstances
 }
 import cats.syntax.all._
-
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
-
-import scala.annotation.implicitNotFound
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
-
-import java.io.{ByteArrayOutputStream, PrintStream}
-import java.util.concurrent.TimeUnit
+import cats.{Applicative, Eq, Id, Order, Show, ~>}
 
 trait TestInstances extends ParallelFGenerators with OutcomeGenerators with SyncTypeGenerators {
   outer =>

@@ -17,14 +17,16 @@
 package cats.effect
 package std
 
-import cats.implicits._
-import cats.arrow.FunctionK
-import org.specs2.specification.core.Fragments
-
-import org.scalacheck.Arbitrary, Arbitrary.arbitrary
-
 import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.concurrent.duration._
+
+import org.scalacheck.Arbitrary
+import org.specs2.specification.core.Fragments
+
+import cats.arrow.FunctionK
+import cats.implicits._
+
+import Arbitrary.arbitrary
 
 class BoundedDequeueSpec extends BaseSpec with DequeueTests {
   sequential

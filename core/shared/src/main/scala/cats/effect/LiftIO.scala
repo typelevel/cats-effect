@@ -16,9 +16,9 @@
 
 package cats.effect
 
-import cats.{~>, Applicative, FlatMap, Functor}
 import cats.data.{ContT, EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 import cats.kernel.Monoid
+import cats.{Applicative, FlatMap, Functor, ~>}
 
 trait LiftIO[F[_]] {
   def liftIO[A](ioa: IO[A]): F[A]

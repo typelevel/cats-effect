@@ -17,15 +17,16 @@
 package cats.effect
 package std
 
-import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit}
-import cats.effect.kernel.Deferred
 import java.util.concurrent.atomic.AtomicLong
-// import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
+import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit}
+
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+
 import org.specs2.mutable.Specification
 import org.specs2.specification.BeforeAfterEach
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext
-// import scala.concurrent.{CancelationException, ExecutionContext}
+
+import cats.effect.kernel.Deferred
 import cats.effect.unsafe.IORuntime
 
 class DeferredJVMParallelism1Tests extends BaseDeferredJVMTests(1)

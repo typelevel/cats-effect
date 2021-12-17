@@ -18,12 +18,12 @@ package cats
 package effect
 package std
 
-import cats.implicits._
+import scala.collection.immutable.{Queue => ScalaQueue}
+
 import cats.effect.kernel.syntax.all._
 import cats.effect.kernel.{Concurrent, Deferred, Ref}
 import cats.effect.std.internal.BinomialHeap
-
-import scala.collection.immutable.{Queue => ScalaQueue}
+import cats.implicits._
 
 /**
  * A purely functional Priority Queue implementation based on a binomial heap (Okasaki)

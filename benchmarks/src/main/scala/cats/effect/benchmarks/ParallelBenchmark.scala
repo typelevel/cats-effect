@@ -16,14 +16,14 @@
 
 package cats.effect.benchmarks
 
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
-import cats.implicits.{catsSyntaxParallelTraverse1, toTraverseOps}
+import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 
-import java.util.concurrent.TimeUnit
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+import cats.implicits.{catsSyntaxParallelTraverse1, toTraverseOps}
 
 /**
  * To do comparative benchmarks between versions:

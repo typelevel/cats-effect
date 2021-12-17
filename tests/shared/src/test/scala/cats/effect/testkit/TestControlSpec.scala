@@ -17,12 +17,12 @@
 package cats.effect
 package testkit
 
-import cats.Id
+import scala.concurrent.CancellationException
+import scala.concurrent.duration._
 
 import org.specs2.matcher.Matcher
 
-import scala.concurrent.CancellationException
-import scala.concurrent.duration._
+import cats.Id
 
 class TestControlSpec extends BaseSpec {
 

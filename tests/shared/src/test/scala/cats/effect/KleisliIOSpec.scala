@@ -16,7 +16,12 @@
 
 package cats.effect
 
-import cats.{Eq, Order}
+import scala.concurrent.duration._
+
+import org.scalacheck.{Cogen, Prop}
+import org.specs2.scalacheck.Parameters
+import org.typelevel.discipline.specs2.mutable.Discipline
+
 import cats.data.{Kleisli, OptionT}
 import cats.effect.laws.AsyncTests
 import cats.effect.syntax.all._
@@ -24,11 +29,7 @@ import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.eq._
 import cats.syntax.all._
-import org.scalacheck.{Cogen, Prop}
-import org.specs2.scalacheck.Parameters
-import org.typelevel.discipline.specs2.mutable.Discipline
-
-import scala.concurrent.duration._
+import cats.{Eq, Order}
 
 class KleisliIOSpec extends BaseSpec with Discipline {
 

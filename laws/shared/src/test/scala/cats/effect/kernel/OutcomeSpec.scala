@@ -17,15 +17,13 @@
 package cats.effect
 package kernel
 
-import cats.{Eq, Eval, Id, MonadError}
+import org.scalacheck.{Arbitrary, Cogen}
+import org.specs2.mutable.Specification
+import org.typelevel.discipline.specs2.mutable.Discipline
+
 import cats.effect.kernel.testkit.OutcomeGenerators
 import cats.laws.discipline.{ApplicativeErrorTests, MonadErrorTests}
-
-import org.scalacheck.{Arbitrary, Cogen}
-
-import org.specs2.mutable.Specification
-
-import org.typelevel.discipline.specs2.mutable.Discipline
+import cats.{Eq, Eval, Id, MonadError}
 
 class OutcomeSpec extends Specification with Discipline {
   import OutcomeGenerators._

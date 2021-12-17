@@ -18,13 +18,14 @@ package cats.effect
 package kernel
 package testkit
 
-import cats.{Eval, Monad, MonadError}
-import cats.free.FreeT
+import java.util.concurrent.TimeUnit
+
+import scala.concurrent.duration.FiniteDuration
 
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
-import scala.concurrent.duration.FiniteDuration
-import java.util.concurrent.TimeUnit
+import cats.free.FreeT
+import cats.{Eval, Monad, MonadError}
 
 import freeEval._
 

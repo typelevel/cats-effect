@@ -18,9 +18,9 @@ package cats
 package effect
 package kernel
 
-import cats.data.State
-
 import scala.concurrent.duration._
+
+import cats.data.State
 
 class RefSpec extends BaseSpec { outer =>
 

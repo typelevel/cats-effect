@@ -19,6 +19,7 @@ package effect
 package kernel
 
 import scala.concurrent.duration._
+
 import cats.syntax.all._
 
 class MiniSemaphoreSpec extends BaseSpec { outer =>

@@ -16,12 +16,11 @@
 
 package cats.effect.kernel
 
-import cats.{Applicative, ApplicativeError, Bifunctor, Eq}
-import cats.{~>, Monad, MonadError, Order, Show, Traverse}
-import cats.syntax.all._
-
 import scala.annotation.tailrec
 import scala.util.{Either, Left, Right}
+
+import cats.syntax.all._
+import cats.{Applicative, ApplicativeError, Bifunctor, Eq, Monad, MonadError, Order, Show, Traverse, ~>}
 
 /**
  * Represents the result of the execution of a fiber. It may terminate in one of 3 states:

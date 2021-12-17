@@ -18,11 +18,11 @@ package cats
 package effect
 package std
 
-import cats.effect.kernel.{Deferred, GenConcurrent, Poll, Ref}
-import cats.effect.kernel.syntax.all._
-import cats.syntax.all._
-
 import scala.collection.immutable.{Queue => ScalaQueue}
+
+import cats.effect.kernel.syntax.all._
+import cats.effect.kernel.{Deferred, GenConcurrent, Poll, Ref}
+import cats.syntax.all._
 
 /**
  * A purely functional, concurrent data structure which allows insertion and retrieval of

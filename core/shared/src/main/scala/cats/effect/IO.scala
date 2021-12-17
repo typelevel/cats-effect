@@ -16,6 +16,22 @@
 
 package cats.effect
 
+import scala.annotation.unchecked.uncheckedVariance
+import scala.concurrent.duration._
+import scala.concurrent.{
+  CancellationException,
+  ExecutionContext,
+  Future,
+  Promise,
+  TimeoutException
+}
+import scala.util.{Failure, Success, Try}
+
+import cats.data.Ior
+import cats.effect.instances.spawn
+import cats.effect.std.Console
+import cats.effect.tracing.{Tracing, TracingEvent}
+import cats.syntax.all._
 import cats.{
   Align,
   Alternative,
@@ -33,21 +49,6 @@ import cats.{
   StackSafeMonad,
   Traverse
 }
-import cats.data.Ior
-import cats.syntax.all._
-import cats.effect.instances.spawn
-import cats.effect.std.Console
-import cats.effect.tracing.{Tracing, TracingEvent}
-import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.{
-  CancellationException,
-  ExecutionContext,
-  Future,
-  Promise,
-  TimeoutException
-}
-import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
 
 /**
  * A pure abstraction representing the intention to perform a side effect, where the result of

@@ -16,12 +16,11 @@
 
 package cats.effect.tracing
 
-import cats.effect.kernel.Cont
-
 import scala.collection.mutable
 import scala.reflect.NameTransformer
-import scala.scalajs.LinkingInfo
-import scala.scalajs.js
+import scala.scalajs.{js, LinkingInfo}
+
+import cats.effect.kernel.Cont
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 

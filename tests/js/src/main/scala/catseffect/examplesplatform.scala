@@ -16,15 +16,13 @@
 
 package catseffect
 
-import cats.effect.ExitCode
-import cats.effect.IO
-import cats.effect.IOApp
-import cats.syntax.all._
-
 import scala.annotation.nowarn
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.scalajs.js
+
+import cats.effect.{ExitCode, IO, IOApp}
+import cats.syntax.all._
 
 package examples {
 

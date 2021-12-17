@@ -17,16 +17,16 @@
 package cats.effect
 package unsafe
 
-import cats.effect.tracing.TracingConstants
-
-import scala.annotation.switch
-import scala.concurrent.{BlockContext, CanAwait}
-
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
+
+import scala.annotation.switch
+import scala.concurrent.{BlockContext, CanAwait}
+
+import cats.effect.tracing.TracingConstants
 
 /**
  * Implementation of the worker thread at the heart of the [[WorkStealingThreadPool]].

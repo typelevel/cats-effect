@@ -16,12 +16,12 @@
 
 package cats.effect.kernel
 
-import cats.data._
-import cats.{Applicative, MonadError, Monoid, Semigroup}
-import cats.syntax.all._
-
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
+
+import cats.data._
+import cats.syntax.all._
+import cats.{Applicative, MonadError, Monoid, Semigroup}
 
 /**
  * A typeclass that encodes the notion of suspending fibers for a given duration. Analogous to

@@ -16,8 +16,9 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.{Async, Concurrent, Deferred, GenConcurrent, Ref, Sync}
 import org.specs2.mutable.Specification
+
+import cats.effect.kernel.{Async, Concurrent, Deferred, GenConcurrent, Ref, Sync}
 
 class SyntaxSpec extends Specification {
   "concurrent data structure construction syntax" >> ok

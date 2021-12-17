@@ -17,11 +17,11 @@
 package cats.effect.kernel
 package testkit
 
-import cats.{Eq, Eval, Monad, MonadError}
+import scala.concurrent.duration._
+
 import cats.free.FreeT
 import cats.syntax.all._
-
-import scala.concurrent.duration._
+import cats.{Eq, Eval, Monad, MonadError}
 
 object freeEval extends FreeSyncEq {
 

@@ -17,9 +17,9 @@
 package cats.effect
 package benchmarks
 
-import cats.syntax.all._
-
 import scala.concurrent.duration._
+
+import cats.syntax.all._
 
 object SleepDrift extends IOApp.Simple {
 

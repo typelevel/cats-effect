@@ -17,10 +17,10 @@
 package cats.effect
 package laws
 
+import scala.concurrent.duration.FiniteDuration
+
 import cats.effect.kernel.GenTemporal
 import cats.syntax.all._
-
-import scala.concurrent.duration.FiniteDuration
 
 trait GenTemporalLaws[F[_], E] extends GenSpawnLaws[F, E] with ClockLaws[F] {
 

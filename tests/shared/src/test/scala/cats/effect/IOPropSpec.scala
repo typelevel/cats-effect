@@ -16,14 +16,15 @@
 
 package cats.effect
 
-import cats.syntax.all._
-import cats.effect.implicits._
-import cats.effect.std.Queue
+import scala.concurrent.duration._
+
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.Gen
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import scala.concurrent.duration._
+import cats.effect.implicits._
+import cats.effect.std.Queue
+import cats.syntax.all._
 
 //We allow these tests to have a longer timeout than IOSpec as they run lots of iterations
 class IOPropSpec extends BaseSpec with Discipline {

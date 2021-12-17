@@ -17,12 +17,12 @@
 package cats.effect
 package std
 
+import java.io.{ByteArrayOutputStream, PrintStream}
+import java.nio.charset.{Charset, StandardCharsets}
+
 import cats.Show
 import cats.effect.kernel.Sync
 import cats.syntax.all._
-
-import java.io.{ByteArrayOutputStream, PrintStream}
-import java.nio.charset.{Charset, StandardCharsets}
 
 class ConsoleSpec extends BaseSpec {
   sequential

@@ -17,13 +17,13 @@
 package cats.effect
 package testkit
 
-import cats.{~>, Id}
-import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.concurrent.CancellationException
 import scala.concurrent.duration.FiniteDuration
 
-import java.util.concurrent.atomic.AtomicReference
+import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
+import cats.{Id, ~>}
 
 /**
  * Implements a fully functional single-threaded runtime for a [[cats.effect.IO]] program. When

@@ -17,13 +17,13 @@
 package cats
 package effect
 
-import cats.effect.syntax.all._
-import cats.effect.unsafe.Scheduler
-import cats.syntax.all._
+import scala.concurrent.duration._
 
 import org.specs2.execute._
 
-import scala.concurrent.duration._
+import cats.effect.syntax.all._
+import cats.effect.unsafe.Scheduler
+import cats.syntax.all._
 
 class ContSpec extends ContSpecBase {
   def cont[K, R](body: Cont[IO, K, R]): IO[R] =

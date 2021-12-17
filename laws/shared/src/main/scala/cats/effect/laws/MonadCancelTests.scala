@@ -17,13 +17,14 @@
 package cats.effect
 package laws
 
+import org.scalacheck.Prop.forAll
+import org.scalacheck._
+import org.scalacheck.util.Pretty
+
 import cats.Eq
 import cats.effect.kernel.{CancelScope, MonadCancel}
-import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
-
-import org.scalacheck._, Prop.forAll
-import org.scalacheck.util.Pretty
+import cats.laws.discipline._
 
 trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
 

@@ -16,13 +16,12 @@
 
 package cats.effect
 
-import cats.syntax.all._
+import scala.scalajs.js
 
 import org.scalacheck.Prop.forAll
-
 import org.specs2.ScalaCheck
 
-import scala.scalajs.js
+import cats.syntax.all._
 
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 

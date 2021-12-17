@@ -16,10 +16,8 @@
 
 package cats.effect.tracing
 
-import cats.effect.Async
-import cats.effect.BaseSpec
-import cats.effect.IO
 import cats.effect.testkit.TestInstances
+import cats.effect.{Async, BaseSpec, IO}
 
 class TracingSpec extends BaseSpec with TestInstances {
 

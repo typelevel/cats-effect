@@ -16,27 +16,24 @@
 
 package cats.effect
 
-import cats.{~>, SemigroupK}
+import java.util.concurrent.atomic.AtomicBoolean
+
+import scala.concurrent.duration._
+
+import org.scalacheck.Cogen
+import org.scalacheck.Prop.forAll
+import org.specs2.ScalaCheck
+import org.typelevel.discipline.specs2.mutable.Discipline
+
 import cats.data.{Kleisli, OptionT}
-import cats.effect.laws.AsyncTests
+import cats.effect.implicits._
 import cats.effect.kernel.testkit.TestContext
+import cats.effect.laws.AsyncTests
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
-import cats.effect.implicits._
-
-import org.scalacheck.{Cogen, Prop}, Prop.forAll
-// import org.scalacheck.rng.Seed
-
-import org.specs2.ScalaCheck
-// import org.specs2.scalacheck.Parameters
-
-import org.typelevel.discipline.specs2.mutable.Discipline
-
-import scala.concurrent.duration._
-
-import java.util.concurrent.atomic.AtomicBoolean
+import cats.{SemigroupK, ~>}
 
 class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   // We need this for testing laws: prop runs can interfere with each other

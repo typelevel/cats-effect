@@ -17,15 +17,18 @@
 package cats.effect
 package laws
 
-import cats.data.EitherT
-import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._
-import cats.effect.kernel.testkit.TimeT._
-import cats.laws.discipline.arbitrary._
+import scala.concurrent.duration._
+
 import org.scalacheck.Prop
 import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import scala.concurrent.duration._
+import cats.data.EitherT
+import cats.effect.kernel.testkit.TimeT._
+import cats.effect.kernel.testkit.{OutcomeGenerators, PureConcGenerators, TimeT, pure}
+import cats.laws.discipline.arbitrary._
+
+import pure._
 
 class EitherTPureConcSpec extends Specification with Discipline with BaseSpec {
   import PureConcGenerators._

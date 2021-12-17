@@ -16,17 +16,17 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.{Async, Resource}
-import cats.effect.kernel.implicits._
-import cats.syntax.all._
+import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
 
-import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import cats.effect.kernel.implicits._
+import cats.effect.kernel.{Async, Resource}
+import cats.syntax.all._
 
 /**
  * A fiber-based supervisor utility for evaluating effects across an impure boundary. This is

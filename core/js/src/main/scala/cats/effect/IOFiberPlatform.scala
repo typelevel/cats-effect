@@ -16,9 +16,9 @@
 
 package cats.effect
 
-import scala.concurrent.ExecutionContext
-
 import java.util.concurrent.atomic.AtomicBoolean
+
+import scala.concurrent.ExecutionContext
 
 private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
   this: IOFiber[A] =>

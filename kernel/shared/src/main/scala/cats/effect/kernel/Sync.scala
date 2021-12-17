@@ -16,8 +16,8 @@
 
 package cats.effect.kernel
 
-import cats.{Applicative, Defer, Monoid, Semigroup}
 import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
+import cats.{Applicative, Defer, Monoid, Semigroup}
 
 /**
  * A typeclass that encodes the notion of suspending synchronous side effects in the `F[_]`
