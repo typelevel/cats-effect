@@ -129,12 +129,12 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
 )
 
 ThisBuild / githubWorkflowBuild := Seq(
-  WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
     List("root/scalafixAll --check"),
     name = Some("Check that scalafix has been run"),
-    cond = Some(s"matrix.scala == '$Scala213'")
+    cond = Some(s"matrix.scala != '$Scala3' && matrix.os != '$Windows'")
   ),
+  WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
     List("docs/mdoc"),
     cond = Some(
