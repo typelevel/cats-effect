@@ -33,8 +33,7 @@ object Common extends AutoPlugin {
           Seq(compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"))
       },
       ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0",
-      ThisBuild / semanticdbEnabled := true,
-      ThisBuild / semanticdbVersion := scalafixSemanticdb.revision,
-      addCompilerPlugin(scalafixSemanticdb)
+      ThisBuild / semanticdbEnabled := !isDotty.value,
+      ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
     )
 }
