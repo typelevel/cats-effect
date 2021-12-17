@@ -18,14 +18,13 @@ package cats.effect
 
 import cats.data._
 import cats.effect.kernel.testkit.freeEval._
-import cats.laws.discipline.{ExhaustiveCheck, MiniInt, eq}
+import cats.laws.discipline.eq._
+import cats.laws.discipline.{ExhaustiveCheck, MiniInt}
 import cats.syntax.all._
 import cats.{Eq, FlatMap, Monad, MonadError, Show}
 
 import org.scalacheck.util.Pretty
 import org.scalacheck.{Arbitrary, Gen, Prop}
-
-import eq._
 
 // A dumping ground for random helpers for property tests
 private[effect] trait BaseSpec {

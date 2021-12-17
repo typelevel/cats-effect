@@ -22,11 +22,10 @@
 package cats.effect
 package std.internal
 
+import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
-
-import Arbitrary.arbitrary
 
 class BankersQueueSpec extends Specification with ScalaCheck {
 

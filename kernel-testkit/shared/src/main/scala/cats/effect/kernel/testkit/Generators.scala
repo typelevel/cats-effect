@@ -20,13 +20,12 @@ package testkit
 import cats.syntax.all._
 import cats.{Applicative, ApplicativeError, Eq, Monad, MonadError}
 
+import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 import scala.collection.immutable.SortedMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-
-import Arbitrary.arbitrary
 
 trait GenK[F[_]] {
   def apply[A: Arbitrary: Cogen]: Gen[F[A]]

@@ -18,12 +18,10 @@ package cats.effect
 package laws
 
 import cats.data.ContT
-import cats.effect.kernel.testkit.freeEval
+import cats.effect.kernel.testkit.freeEval._
 
 import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline
-
-import freeEval._
 
 class ClockSpec extends Specification with Discipline with BaseSpec {
 

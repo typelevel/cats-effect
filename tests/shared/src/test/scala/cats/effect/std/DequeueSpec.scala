@@ -20,13 +20,11 @@ package std
 import cats.arrow.FunctionK
 import cats.implicits._
 
-import org.scalacheck.Arbitrary
+import org.scalacheck.Arbitrary.arbitrary
 import org.specs2.specification.core.Fragments
 
 import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.concurrent.duration._
-
-import Arbitrary.arbitrary
 
 class BoundedDequeueSpec extends BaseSpec with DequeueTests {
   sequential
