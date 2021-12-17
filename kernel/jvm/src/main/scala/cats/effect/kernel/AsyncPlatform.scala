@@ -16,9 +16,7 @@
 
 package cats.effect.kernel
 
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
-import java.util.concurrent.CompletionStage
+import java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage}
 
 private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
 
