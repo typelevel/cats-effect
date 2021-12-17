@@ -215,15 +215,12 @@ trait IOApp {
 
         val fiberMonitor = FiberMonitor(compute)
 
-        val unregisterFiberMonitorMBean = IORuntime.registerFiberMonitorMBean(fiberMonitor)
-
         IORuntime(
           compute,
           blocking,
           scheduler,
           fiberMonitor,
           { () =>
-            unregisterFiberMonitorMBean()
             compDown()
             blockDown()
             schedDown()

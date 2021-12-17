@@ -60,6 +60,9 @@ object IORuntime extends IORuntimeCompanionPlatform {
       blocking: ExecutionContext,
       scheduler: Scheduler,
       shutdown: () => Unit,
-      config: IORuntimeConfig): IORuntime =
-    new IORuntime(compute, blocking, scheduler, FiberMonitor(compute), shutdown, config)
+      config: IORuntimeConfig): IORuntime = {
+    val fiberMonitor = FiberMonitor(compute)
+    registerFiberMonitorMBean(fiberMonitor)
+    new IORuntime(compute, blocking, scheduler, fiberMonitor, shutdown, config)
+  }
 }

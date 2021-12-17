@@ -60,4 +60,9 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
     _global
   }
+
+  private[effect] def registerFiberMonitorMBean(fiberMonitor: FiberMonitor): () => Unit = {
+    val _ = fiberMonitor
+    () => ()
+  }
 }
