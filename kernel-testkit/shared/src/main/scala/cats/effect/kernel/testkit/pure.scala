@@ -22,6 +22,7 @@ import cats.effect.kernel._
 import cats.free.FreeT
 import cats.syntax.all._
 import cats.{Defer, Eq, Functor, Id, Monad, MonadError, Order, Show, ~>}
+
 import coop.{ApplicativeThread, MVar, ThreadT}
 
 object pure {

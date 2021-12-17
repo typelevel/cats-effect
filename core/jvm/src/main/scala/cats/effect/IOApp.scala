@@ -19,10 +19,10 @@ package cats.effect
 import cats.effect.tracing.TracingConstants._
 import cats.effect.unsafe.FiberMonitor
 
-import java.util.concurrent.CountDownLatch
-
 import scala.concurrent.{CancellationException, blocking}
 import scala.util.control.NonFatal
+
+import java.util.concurrent.CountDownLatch
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining

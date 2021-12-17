@@ -20,6 +20,7 @@ package std
 
 import cats.arrow.FunctionK
 import cats.syntax.all._
+
 import org.specs2.specification.core.Fragments
 
 import scala.concurrent.duration._

@@ -18,6 +18,7 @@ package cats
 package effect
 
 import cats.syntax.all._
+
 import org.scalacheck.Prop.forAll
 import org.typelevel.discipline.specs2.mutable.Discipline
 

@@ -19,11 +19,11 @@ package unsafe
 
 import cats.syntax.traverse._
 
-import java.util.concurrent.CountDownLatch
-
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise, blocking}
 import scala.util.Random
+
+import java.util.concurrent.CountDownLatch
 
 class BlockingStressSpec extends BaseSpec {
 

@@ -21,6 +21,7 @@ import cats.kernel.Eq
 import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.{AlignTests, CommutativeApplicativeTests, ParallelTests}
 import cats.syntax.all._
+
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class IOParSpec extends BaseSpec with Discipline {

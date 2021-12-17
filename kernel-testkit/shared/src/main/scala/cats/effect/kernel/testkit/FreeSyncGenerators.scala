@@ -20,11 +20,12 @@ package testkit
 
 import cats.free.FreeT
 import cats.{Eval, Monad, MonadError}
+
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
-import java.util.concurrent.TimeUnit
-
 import scala.concurrent.duration.FiniteDuration
+
+import java.util.concurrent.TimeUnit
 
 import freeEval._
 

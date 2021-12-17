@@ -21,10 +21,10 @@ import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.implicits._
 import cats.{Monoid, Semigroup, ~>}
 
-import java.util.concurrent.atomic.AtomicReference
-
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
+
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A typeclass that encodes the notion of suspending asynchronous side effects in the `F[_]`

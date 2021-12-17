@@ -20,6 +20,7 @@ package kernel
 import cats.effect.kernel.testkit.OutcomeGenerators
 import cats.laws.discipline.{ApplicativeErrorTests, MonadErrorTests}
 import cats.{Eq, Eval, Id, MonadError}
+
 import org.scalacheck.{Arbitrary, Cogen}
 import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline

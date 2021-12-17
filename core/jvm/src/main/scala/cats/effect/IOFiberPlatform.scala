@@ -16,10 +16,10 @@
 
 package cats.effect
 
-import java.util.{concurrent => juc}
-
 import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
+
+import java.util.{concurrent => juc}
 
 import juc.atomic.{AtomicBoolean, AtomicReference}
 

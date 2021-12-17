@@ -20,13 +20,13 @@ import cats.arrow.FunctionK
 import cats.effect.tracing._
 import cats.effect.unsafe._
 
-import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.atomic.AtomicBoolean
-
 import scala.annotation.{switch, tailrec}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
+
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.atomic.AtomicBoolean
 
 /*
  * Rationale on memory barrier exploitation in this class...

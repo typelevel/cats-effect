@@ -17,14 +17,14 @@
 package cats.effect.kernel
 package testkit
 
-import java.util.Base64
-
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.Random
 import scala.util.control.NonFatal
+
+import java.util.Base64
 
 /**
  * A [[scala.concurrent.ExecutionContext]] implementation that can simulate async boundaries and

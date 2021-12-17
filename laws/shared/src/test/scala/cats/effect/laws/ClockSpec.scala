@@ -19,6 +19,7 @@ package laws
 
 import cats.data.ContT
 import cats.effect.kernel.testkit.freeEval
+
 import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline
 

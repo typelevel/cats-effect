@@ -21,10 +21,10 @@ package kernel
 import cats.effect.kernel.Deferred.TransformedDeferred
 import cats.syntax.all._
 
-import java.util.concurrent.atomic.AtomicReference
-
 import scala.annotation.tailrec
 import scala.collection.immutable.LongMap
+
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A purely functional synchronization primitive which represents a single value which may not

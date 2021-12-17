@@ -21,6 +21,7 @@ import cats.effect.kernel.testkit.freeEval._
 import cats.laws.discipline.{ExhaustiveCheck, MiniInt, eq}
 import cats.syntax.all._
 import cats.{Eq, FlatMap, Monad, MonadError, Show}
+
 import org.scalacheck.util.Pretty
 import org.scalacheck.{Arbitrary, Gen, Prop}
 

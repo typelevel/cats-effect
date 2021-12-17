@@ -25,11 +25,12 @@ package std
 import cats.arrow.FunctionK
 import cats.effect.kernel.Outcome.Canceled
 import cats.implicits._
+
 import org.specs2.specification.core.Fragments
 
-import java.util.concurrent.TimeoutException
-
 import scala.concurrent.duration._
+
+import java.util.concurrent.TimeoutException
 
 class CountDownLatchSpec extends BaseSpec {
 

@@ -16,10 +16,10 @@
 
 package cats.effect.std
 
-import java.util.concurrent.CompletableFuture
-
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, TimeoutException}
+
+import java.util.concurrent.CompletableFuture
 
 private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] =>
 

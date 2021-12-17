@@ -16,11 +16,11 @@
 
 package cats.effect
 
-import java.util.concurrent.{CompletableFuture, CountDownLatch, TimeUnit}
-
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.blocking
 import scala.concurrent.duration._
+
+import java.util.concurrent.{CompletableFuture, CountDownLatch, TimeUnit}
 
 abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
 

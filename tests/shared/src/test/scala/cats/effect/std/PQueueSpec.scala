@@ -25,6 +25,7 @@ package std
 import cats.Order
 import cats.arrow.FunctionK
 import cats.implicits._
+
 import org.scalacheck.Arbitrary.arbitrary
 import org.specs2.specification.core.Fragments
 

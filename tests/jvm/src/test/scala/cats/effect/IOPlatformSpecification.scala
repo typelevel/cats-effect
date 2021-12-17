@@ -18,8 +18,12 @@ package cats.effect
 
 import cats.effect.std.Semaphore
 import cats.syntax.all._
+
 import org.scalacheck.Prop.forAll
 import org.specs2.ScalaCheck
+
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 import java.util.concurrent.{
   CancellationException,
@@ -27,9 +31,6 @@ import java.util.concurrent.{
   CountDownLatch,
   Executors
 }
-
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
 
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 

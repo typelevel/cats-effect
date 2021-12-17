@@ -19,6 +19,7 @@ package testkit
 
 import cats.syntax.all._
 import cats.{Applicative, ApplicativeError, Eq, Monad, MonadError}
+
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 import scala.collection.immutable.SortedMap

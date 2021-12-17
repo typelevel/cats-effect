@@ -22,9 +22,9 @@ import cats.data.State
 import cats.effect.kernel.Ref.TransformedRef
 import cats.syntax.all._
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
-
 import scala.annotation.tailrec
+
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 /**
  * A thread-safe, concurrent mutable reference.

@@ -27,12 +27,12 @@ import cats.kernel.Monoid
 import cats.syntax.show._
 import cats.{Applicative, Functor, Show, ~>}
 
+import scala.annotation.tailrec
+
 import java.io.{ByteArrayOutputStream, EOFException, PrintStream}
 import java.lang.{StringBuilder => JStringBuilder}
 import java.nio.charset.{Charset, CodingErrorAction, MalformedInputException}
 import java.nio.{ByteBuffer, CharBuffer}
-
-import scala.annotation.tailrec
 
 /**
  * Effect type agnostic `Console` with common methods to write to and read from the standard

@@ -16,9 +16,9 @@
 
 package cats.effect
 
-import java.util.concurrent.atomic.AtomicReference
-
 import scala.annotation.tailrec
+
+import java.util.concurrent.atomic.AtomicReference
 
 private final class CallbackStack[A](private[this] var callback: OutcomeIO[A] => Unit)
     extends AtomicReference[CallbackStack[A]] {
