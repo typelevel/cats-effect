@@ -31,7 +31,7 @@ private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
     flatMap(fut) { cf =>
       async[A] { cb =>
         delay {
-          val stage = cf.handle[Unit] {
+          cf.handle[Unit] {
             case (a, null) => cb(Right(a))
             case (_, t) =>
               cb(Left(t match {
@@ -40,7 +40,7 @@ private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
               }))
           }
 
-          Some(void(delay(stage.cancel(false))))
+          Some(void(delay(cf.cancel(false))))
         }
       }
     }
