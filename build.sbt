@@ -131,6 +131,11 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
+    List("scalafixAll --check"),
+    name = Some("Check that scalafix has been run"),
+    cond = Some(s"matrix.scala == '$Scala213'")
+  ),
+  WorkflowStep.Sbt(
     List("docs/mdoc"),
     cond = Some(
       s"(matrix.scala == '$Scala213' || matrix.scala == '$Scala3') && matrix.ci == 'ciJVM'")),

@@ -138,6 +138,11 @@ jobs:
       - shell: bash
         run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
 
+      - name: Check that scalafix has been run
+        if: matrix.scala == '2.13.7'
+        shell: bash
+        run: sbt ++${{ matrix.scala }} 'scalafixAll --check'
+
       - if: (matrix.scala == '2.13.7' || matrix.scala == '3.0.2') && matrix.ci == 'ciJVM'
         shell: bash
         run: sbt ++${{ matrix.scala }} docs/mdoc
