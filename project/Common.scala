@@ -18,6 +18,7 @@ import sbt._, Keys._
 
 import scalafix.sbt.ScalafixPlugin.autoImport._
 import sbtspiewak.SpiewakPlugin, SpiewakPlugin.autoImport._
+import sbt.testing.TaskDef
 
 object Common extends AutoPlugin {
 

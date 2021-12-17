@@ -28,8 +28,6 @@ sealed abstract class CI(
         s"project $rootProject",
         jsEnv.fold("")(env => s"set Global / useJSEnv := JSEnv.$env"),
         "headerCheck",
-        "scalafix --check",
-        "Test / scalafix --check",
         "scalafmtSbtCheck",
         "scalafmtCheck",
         "javafmtCheck",

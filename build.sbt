@@ -243,7 +243,7 @@ addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
 
 addCommandAlias(
   "prePR",
-  "; root/clean; scalafix; Test/scalafix; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
+  "; root/clean; scalafixAll; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
 val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
