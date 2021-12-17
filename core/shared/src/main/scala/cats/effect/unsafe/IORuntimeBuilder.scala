@@ -19,40 +19,107 @@ package unsafe
 
 import scala.concurrent.ExecutionContext
 
+/**
+ * Builder object for creating custom `IORuntime`s. Useful for creating `IORuntime` based on the
+ * default one but with some wrappers around execution contexts or custom shutdown hooks.
+ */
 final class IORuntimeBuilder protected (
+    protected var customCompute: Option[(ExecutionContext, () => Unit)] = None,
     protected var computeWrapper: ExecutionContext => ExecutionContext = identity,
+    protected var customBlocking: Option[(ExecutionContext, () => Unit)] = None,
     protected var blockingWrapper: ExecutionContext => ExecutionContext = identity,
     protected var customConfig: Option[IORuntimeConfig] = None,
-    protected var customScheduler: Option[Scheduler] = None,
-    protected var customShutdown: Option[() => Unit] = None
+    protected var customScheduler: Option[(Scheduler, () => Unit)] = None,
+    protected var extraShutdownHooks: List[() => Unit] = Nil
 ) extends IORuntimeBuilderPlatform {
+
+  /**
+   * Override the defaul computing execution context
+   *
+   * @param compute
+   *   execution context for compute
+   * @param shutdown
+   *   method called upon compute context shutdown
+   */
+  def overrideCompute(compute: ExecutionContext, shutdown: () => Unit = () => ()) = {
+    customCompute = Some((compute, shutdown))
+    this
+  }
+
+  /**
+   * Modifies the execution underlying execution context. Useful in case you want to use the
+   * default compute but add extra logic to `execute`, e.g. for adding instrumentation.
+   *
+   * @param wrapper
+   */
   def withComputeWrapper(wrapper: ExecutionContext => ExecutionContext) = {
     computeWrapper = wrapper.andThen(computeWrapper)
     this
   }
 
+  /**
+   * Override the defaul blocking execution context
+   *
+   * @param compute
+   *   execution context for blocking
+   * @param shutdown
+   *   method called upon blocking context shutdown
+   */
+  def overrideBlocking(blocking: ExecutionContext, shutdown: () => Unit = () => ()) = {
+    customBlocking = Some((blocking, shutdown))
+    this
+  }
+
+  /**
+   * Modifies the execution underlying blocking execution context. Useful in case you want to
+   * use the default blocking context but add extra logic to `execute`, e.g. for adding
+   * instrumentation.
+   *
+   * @param wrapper
+   */
   def withBlockingWrapper(wrapper: ExecutionContext => ExecutionContext) = {
     blockingWrapper = wrapper.andThen(blockingWrapper)
     this
   }
 
+  /**
+   * Provide custom IORuntimConfig for created IORuntime
+   *
+   * @param config
+   * @return
+   */
   def withConfig(config: IORuntimeConfig) = {
     customConfig = Some(config)
     this
   }
 
-  def withScheduler(scheduler: Scheduler) = {
-    customScheduler = Some(scheduler)
+  /**
+   * Override the defaul scheduler
+   *
+   * @param compute
+   *   execution context for compute
+   * @param shutdown
+   *   method called upon compute context shutdown
+   */
+  def withScheduler(scheduler: Scheduler, shutdown: () => Unit = () => ()) = {
+    customScheduler = Some((scheduler, shutdown))
     this
   }
 
-  def withShutdown(shutdown: () => Unit) = {
-    customShutdown = Some(shutdown)
+  /**
+   * Introduce additional shutdown hook to be executed after compute, blocking and scheduler
+   * shutdown logic is invoked
+   *
+   * @param shutdown
+   * @return
+   */
+  def addShutdownHook(shutdown: () => Unit) = {
+    extraShutdownHooks = shutdown :: extraShutdownHooks
     this
   }
 
   def build: IORuntime =
-    build(computeWrapper, blockingWrapper, customConfig, customScheduler, customShutdown)
+    platformSpecificBuild
 }
 
 object IORuntimeBuilder {

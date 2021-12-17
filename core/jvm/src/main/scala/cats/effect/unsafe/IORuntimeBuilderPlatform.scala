@@ -15,22 +15,23 @@
  */
 
 package cats.effect.unsafe
-import scala.concurrent.ExecutionContext
 
-private[unsafe] abstract class IORuntimeBuilderPlatform {
+private[unsafe] abstract class IORuntimeBuilderPlatform { self: IORuntimeBuilder =>
 
-  def build(
-      computeWrapper: ExecutionContext => ExecutionContext = identity,
-      blockingWrapper: ExecutionContext => ExecutionContext = identity,
-      customConfig: Option[IORuntimeConfig] = None,
-      customScheduler: Option[Scheduler] = None,
-      customShutdown: Option[() => Unit] = None
-  ) = {
+  protected def platformSpecificBuild = {
     var runtime: IORuntime = null
-    val compute = IORuntime.createDefaultComputeThreadPool(runtime)._1
-    val blocking = IORuntime.createDefaultBlockingExecutionContext()._1
-    val scheduler = customScheduler.getOrElse(IORuntime.createDefaultScheduler()._1)
-    val shutdown = customShutdown.getOrElse(() => ())
+    val (compute, computeShutdown) =
+      customCompute.getOrElse(IORuntime.createDefaultComputeThreadPool(runtime))
+    val (blocking, blockingShutdown) =
+      customBlocking.getOrElse(IORuntime.createDefaultBlockingExecutionContext())
+    val (scheduler, schedulerShutdown) =
+      customScheduler.getOrElse(IORuntime.createDefaultScheduler())
+    val shutdown = () => {
+      computeShutdown()
+      blockingShutdown()
+      schedulerShutdown()
+      extraShutdownHooks.foreach(_())
+    }
     val runtimeConfig = customConfig.getOrElse(IORuntimeConfig())
 
     runtime = IORuntime.apply(
