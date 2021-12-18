@@ -30,7 +30,8 @@ final class IORuntimeBuilder protected (
     protected var blockingWrapper: ExecutionContext => ExecutionContext = identity,
     protected var customConfig: Option[IORuntimeConfig] = None,
     protected var customScheduler: Option[(Scheduler, () => Unit)] = None,
-    protected var extraShutdownHooks: List[() => Unit] = Nil
+    protected var extraShutdownHooks: List[() => Unit] = Nil,
+    protected var builderExecuted: Boolean = false
 ) extends IORuntimeBuilderPlatform {
 
   /**
@@ -42,6 +43,9 @@ final class IORuntimeBuilder protected (
    *   method called upon compute context shutdown
    */
   def setCompute(compute: ExecutionContext, shutdown: () => Unit) = {
+    if (customCompute.isDefined) {
+      throw new RuntimeException("Compute can only be set once")
+    }
     customCompute = Some((compute, shutdown))
     this
   }
@@ -66,6 +70,9 @@ final class IORuntimeBuilder protected (
    *   method called upon blocking context shutdown
    */
   def setBlocking(blocking: ExecutionContext, shutdown: () => Unit) = {
+    if (customBlocking.isDefined) {
+      throw new RuntimeException("Blocking can only be set once")
+    }
     customBlocking = Some((blocking, shutdown))
     this
   }
@@ -102,6 +109,9 @@ final class IORuntimeBuilder protected (
    *   method called upon compute context shutdown
    */
   def setScheduler(scheduler: Scheduler, shutdown: () => Unit) = {
+    if (customScheduler.isDefined) {
+      throw new RuntimeException("Scheduler can only be set once")
+    }
     customScheduler = Some((scheduler, shutdown))
     this
   }
@@ -118,8 +128,13 @@ final class IORuntimeBuilder protected (
     this
   }
 
-  def build: IORuntime =
-    platformSpecificBuild
+  def build(): IORuntime =
+    if (builderExecuted) throw new RuntimeException("Build can only be performe once")
+    else {
+      builderExecuted = true
+      platformSpecificBuild
+    }
+
 }
 
 object IORuntimeBuilder {
