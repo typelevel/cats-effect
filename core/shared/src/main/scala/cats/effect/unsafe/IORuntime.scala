@@ -62,4 +62,7 @@ object IORuntime extends IORuntimeCompanionPlatform {
       shutdown: () => Unit,
       config: IORuntimeConfig): IORuntime =
     new IORuntime(compute, blocking, scheduler, FiberMonitor(compute), shutdown, config)
+
+  def builder = 
+    IORuntimeBuilder()
 }
