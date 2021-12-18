@@ -107,7 +107,7 @@ object Supervisor {
     // It would have preferable to use Scope here but explicit cancelation is
     // intertwined with resource management
     for {
-      stateRef <- Resource.make(F.ref[Map[Unique.Token, F[Unit]]](Map())) { state =>
+      stateRef <- Resource.make(F.ref[Map[Unique.Token, F[Unit]]](Map.empty)) { state =>
         state
           .get
           .flatMap { fibers =>
