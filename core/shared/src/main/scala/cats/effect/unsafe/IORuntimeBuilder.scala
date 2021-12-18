@@ -41,7 +41,7 @@ final class IORuntimeBuilder protected (
    * @param shutdown
    *   method called upon compute context shutdown
    */
-  def overrideCompute(compute: ExecutionContext, shutdown: () => Unit = () => ()) = {
+  def setCompute(compute: ExecutionContext, shutdown: () => Unit) = {
     customCompute = Some((compute, shutdown))
     this
   }
@@ -65,7 +65,7 @@ final class IORuntimeBuilder protected (
    * @param shutdown
    *   method called upon blocking context shutdown
    */
-  def overrideBlocking(blocking: ExecutionContext, shutdown: () => Unit = () => ()) = {
+  def setBlocking(blocking: ExecutionContext, shutdown: () => Unit) = {
     customBlocking = Some((blocking, shutdown))
     this
   }
@@ -101,7 +101,7 @@ final class IORuntimeBuilder protected (
    * @param shutdown
    *   method called upon compute context shutdown
    */
-  def withScheduler(scheduler: Scheduler, shutdown: () => Unit = () => ()) = {
+  def setScheduler(scheduler: Scheduler, shutdown: () => Unit) = {
     customScheduler = Some((scheduler, shutdown))
     this
   }
