@@ -35,8 +35,8 @@ private[unsafe] abstract class IORuntimeBuilderPlatform { self: IORuntimeBuilder
     val runtimeConfig = customConfig.getOrElse(IORuntimeConfig())
 
     runtime = IORuntime.apply(
-      computeWrapper(compute),
-      blockingWrapper(blocking),
+      computeTransform(compute),
+      blockingTransform(blocking),
       scheduler,
       shutdown,
       runtimeConfig

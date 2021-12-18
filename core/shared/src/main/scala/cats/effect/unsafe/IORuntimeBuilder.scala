@@ -25,9 +25,9 @@ import scala.concurrent.ExecutionContext
  */
 final class IORuntimeBuilder protected (
     protected var customCompute: Option[(ExecutionContext, () => Unit)] = None,
-    protected var computeWrapper: ExecutionContext => ExecutionContext = identity,
+    protected var computeTransform: ExecutionContext => ExecutionContext = identity,
     protected var customBlocking: Option[(ExecutionContext, () => Unit)] = None,
-    protected var blockingWrapper: ExecutionContext => ExecutionContext = identity,
+    protected var blockingTransform: ExecutionContext => ExecutionContext = identity,
     protected var customConfig: Option[IORuntimeConfig] = None,
     protected var customScheduler: Option[(Scheduler, () => Unit)] = None,
     protected var extraShutdownHooks: List[() => Unit] = Nil,
@@ -54,10 +54,10 @@ final class IORuntimeBuilder protected (
    * Modifies the execution underlying execution context. Useful in case you want to use the
    * default compute but add extra logic to `execute`, e.g. for adding instrumentation.
    *
-   * @param wrapper
+   * @param transform
    */
-  def withComputeWrapper(wrapper: ExecutionContext => ExecutionContext) = {
-    computeWrapper = wrapper.andThen(computeWrapper)
+  def transformCompute(transform: ExecutionContext => ExecutionContext) = {
+    computeTransform = transform.andThen(computeTransform)
     this
   }
 
@@ -82,10 +82,10 @@ final class IORuntimeBuilder protected (
    * use the default blocking context but add extra logic to `execute`, e.g. for adding
    * instrumentation.
    *
-   * @param wrapper
+   * @param transform
    */
-  def withBlockingWrapper(wrapper: ExecutionContext => ExecutionContext) = {
-    blockingWrapper = wrapper.andThen(blockingWrapper)
+  def transformBlocking(transform: ExecutionContext => ExecutionContext) = {
+    blockingTransform = transform.andThen(blockingTransform)
     this
   }
 
