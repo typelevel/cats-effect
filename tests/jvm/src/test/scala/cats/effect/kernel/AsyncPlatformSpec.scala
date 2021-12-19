@@ -18,6 +18,7 @@ package cats.effect.kernel
 
 import cats.effect.BaseSpec
 import cats.effect.IO
+import cats.effect.std.CyclicBarrier
 
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
@@ -27,15 +28,15 @@ class AsyncPlatformSpec extends BaseSpec {
   "AsyncPlatform CompletableFuture conversion" should {
     "cancel CompletableFuture on fiber cancelation" in realWithRuntime { implicit r =>
       for {
-        gate <- IO.deferred[Unit]
+        barrier <- CyclicBarrier[IO](2)
         cf <- IO {
           CompletableFuture.supplyAsync { () =>
-            gate.complete(()).unsafeRunSync()
+            barrier.await.unsafeRunSync()
             Thread.sleep(1000) // some computation
           }
         }
         fiber <- IO.fromCompletableFuture(IO.pure(cf)).start
-        _ <- gate.get // wait for the callback to be set-up
+        _ <- barrier.await // wait for the callback to be set-up
         _ <- fiber.cancel
       } yield cf.join() must throwA[CancellationException]
     }
