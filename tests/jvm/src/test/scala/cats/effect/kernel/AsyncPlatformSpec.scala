@@ -18,24 +18,25 @@ package cats.effect.kernel
 
 import cats.effect.BaseSpec
 import cats.effect.IO
+import cats.effect.std.CyclicBarrier
 
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
-import scala.concurrent.duration._
 
 class AsyncPlatformSpec extends BaseSpec {
 
-  val smallDelay: IO[Unit] = IO.sleep(100.millis)
-
   "AsyncPlatform CompletableFuture conversion" should {
-    "cancel CompletableFuture on fiber cancellation" in real {
-      lazy val cf = CompletableFuture.supplyAsync { () =>
-        Thread.sleep(200) // some computation
-      }
-
+    "cancel CompletableFuture on fiber cancelation" in realWithRuntime { implicit r =>
       for {
-        fiber <- IO.fromCompletableFuture(IO(cf)).start
-        _ <- smallDelay // time for the callback to be set-up
+        barrier <- CyclicBarrier[IO](2)
+        cf <- IO {
+          CompletableFuture.supplyAsync { () =>
+            barrier.await.unsafeRunSync()
+            Thread.sleep(1000) // some computation
+          }
+        }
+        fiber <- IO.fromCompletableFuture(IO.pure(cf)).start
+        _ <- barrier.await // wait for the callback to be set-up
         _ <- fiber.cancel
       } yield cf.join() must throwA[CancellationException]
     }
