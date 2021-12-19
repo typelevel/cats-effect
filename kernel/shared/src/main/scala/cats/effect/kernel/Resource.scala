@@ -374,7 +374,7 @@ sealed abstract class Resource[F[_], +A] {
    * release actions (like the `before` and `after` methods of many test frameworks), or complex
    * library code that needs to modify or move the finalizer for an existing resource.
    */
-  def allocatedCase[B >: A](
+  private[effect] def allocatedCase[B >: A](
       implicit F: MonadCancel[F, Throwable]): F[(B, ExitCase => F[Unit])] = {
     sealed trait Stack[AA]
     case object Nil extends Stack[B]
