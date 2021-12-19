@@ -565,5 +565,5 @@ private final class WorkerThread(
    *   the number of asynchronously suspended fibers
    */
   def getSuspendedFiberCount(): Int =
-    fiberBag.size()
+    fiberBag.length
 }

@@ -72,8 +72,10 @@ private final class WeakDataStructure[K <: AnyRef, V <: AnyRef] {
       .map(_.valueRef.get())
       .filter(_ ne null)
 
-  def size(): Int =
-    table.count(_.get() ne null)
+  def length: Int =
+    table.toSet[WeakEntry[K, V]].count { we =>
+      (we ne null) && (we.get() ne null) && (we.valueRef.get() ne null)
+    }
 }
 
 private object WeakDataStructure {
