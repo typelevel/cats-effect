@@ -16,10 +16,10 @@
 
 package cats.effect.unsafe
 
+import cats.effect.unsafe.IterableWeakMap._
+
 import scala.collection.mutable
 import scala.scalajs.js
-
-import IterableWeakMap._
 
 /**
  * Although JS provides a native `WeakMap` implementation with weakly-referenced keys, it lacks

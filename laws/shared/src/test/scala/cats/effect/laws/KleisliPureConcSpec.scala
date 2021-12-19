@@ -20,10 +20,11 @@ package laws
 import cats.Order
 import cats.data.Kleisli
 import cats.effect.kernel.Outcome
+import cats.effect.kernel.testkit.{OutcomeGenerators, PureConcGenerators, Time, TimeT, pure}
 import cats.effect.kernel.testkit.TimeT._
 import cats.effect.kernel.testkit.pure._
-import cats.effect.kernel.testkit.{OutcomeGenerators, PureConcGenerators, Time, TimeT, pure}
 import cats.laws.discipline.{MiniInt, arbitrary}
+
 import org.scalacheck.{Arbitrary, Cogen, Prop}
 import org.specs2.mutable._
 import org.specs2.scalacheck.Parameters

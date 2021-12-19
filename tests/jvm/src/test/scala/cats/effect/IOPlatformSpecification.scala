@@ -18,6 +18,7 @@ package cats.effect
 
 import cats.effect.std.Semaphore
 import cats.syntax.all._
+
 import org.scalacheck.Prop.forAll
 import org.specs2.ScalaCheck
 

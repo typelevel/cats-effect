@@ -19,6 +19,7 @@ package cats.effect.benchmarks
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.{catsSyntaxParallelTraverse1, toTraverseOps}
+
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 

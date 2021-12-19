@@ -19,12 +19,13 @@ package cats.effect.benchmarks
 import cats.effect.IO
 import cats.effect.unsafe._
 import cats.syntax.all._
+
 import org.openjdk.jmh.annotations._
 
 import scala.concurrent.ExecutionContext
 
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{Executors, TimeUnit}
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * To do comparative benchmarks between versions:

@@ -20,14 +20,15 @@ import cats.effect.implicits._
 import cats.effect.laws.AsyncTests
 import cats.effect.testkit.TestContext
 import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.{AlignTests, SemigroupKTests}
+import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
+
 import org.scalacheck.Prop.forAll
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, TimeoutException}
+import scala.concurrent.duration._
 
 class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 

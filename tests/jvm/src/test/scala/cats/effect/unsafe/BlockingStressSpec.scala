@@ -19,8 +19,8 @@ package unsafe
 
 import cats.syntax.traverse._
 
-import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise, blocking}
+import scala.concurrent.duration._
 import scala.util.Random
 
 import java.util.concurrent.CountDownLatch

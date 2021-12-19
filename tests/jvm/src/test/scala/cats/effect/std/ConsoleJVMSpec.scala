@@ -18,6 +18,7 @@ package cats.effect
 package std
 
 import cats.syntax.all._
+
 import org.specs2.matcher.MatchResult
 
 import scala.io.Source

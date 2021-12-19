@@ -18,8 +18,8 @@ package cats
 package effect
 package std
 
-import cats.effect.kernel.syntax.all._
 import cats.effect.kernel.{Concurrent, Deferred, Ref}
+import cats.effect.kernel.syntax.all._
 import cats.effect.std.internal.BinomialHeap
 import cats.implicits._
 

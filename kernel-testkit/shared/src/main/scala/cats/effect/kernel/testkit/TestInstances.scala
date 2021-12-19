@@ -20,8 +20,9 @@ package testkit
 import cats.Applicative
 import cats.kernel.Eq
 import cats.syntax.all._
-import org.scalacheck.Arbitrary.arbitrary
+
 import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary.arbitrary
 
 trait TestInstances {
 

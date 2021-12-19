@@ -16,6 +16,7 @@
 
 package cats.effect.kernel
 
+import cats.{MonadError, Monoid, Semigroup}
 import cats.data.{
   EitherT,
   IndexedReaderWriterStateT,
@@ -28,7 +29,6 @@ import cats.data.{
   WriterT
 }
 import cats.syntax.all._
-import cats.{MonadError, Monoid, Semigroup}
 
 /**
  * A typeclass that characterizes monads which support safe cancelation, masking, and

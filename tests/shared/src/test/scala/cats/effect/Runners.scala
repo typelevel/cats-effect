@@ -16,18 +16,19 @@
 
 package cats.effect
 
+import cats.{Eq, Show}
 import cats.effect.testkit.{TestContext, TestInstances}
 import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
-import cats.{Eq, Show}
+
 import org.scalacheck.Gen
 import org.specs2.execute.AsResult
 import org.specs2.matcher.Matcher
 import org.specs2.mutable.SpecificationLike
 import org.specs2.specification.core.Execution
 
-import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise, TimeoutException}
+import scala.concurrent.duration._
 import scala.reflect.ClassTag
 
 trait Runners extends SpecificationLike with TestInstances with RunnersPlatform { outer =>

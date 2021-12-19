@@ -19,10 +19,11 @@ package laws
 
 import cats.Eq
 import cats.effect.kernel.{CancelScope, MonadCancel}
-import cats.laws.discipline.SemigroupalTests.Isomorphisms
 import cats.laws.discipline._
-import org.scalacheck.Prop.forAll
+import cats.laws.discipline.SemigroupalTests.Isomorphisms
+
 import org.scalacheck._
+import org.scalacheck.Prop.forAll
 import org.scalacheck.util.Pretty
 
 trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {

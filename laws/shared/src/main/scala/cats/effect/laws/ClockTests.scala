@@ -18,6 +18,7 @@ package cats.effect
 package laws
 
 import cats.effect.kernel.Clock
+
 import org.scalacheck._
 import org.typelevel.discipline.Laws
 

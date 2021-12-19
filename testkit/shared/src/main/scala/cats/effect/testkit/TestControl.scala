@@ -17,8 +17,8 @@
 package cats.effect
 package testkit
 
-import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 import cats.{Id, ~>}
+import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 
 import scala.concurrent.CancellationException
 import scala.concurrent.duration.FiniteDuration

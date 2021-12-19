@@ -25,6 +25,7 @@ package std
 import cats.arrow.FunctionK
 import cats.effect.kernel.Outcome.Canceled
 import cats.implicits._
+
 import org.specs2.specification.core.Fragments
 
 import scala.concurrent.duration._

@@ -17,6 +17,7 @@
 package cats.effect
 package testkit
 
+import cats.{Applicative, Eq, Id, Order, Show, ~>}
 import cats.effect.kernel.testkit.{
   AsyncGenerators,
   GenK,
@@ -27,7 +28,7 @@ import cats.effect.kernel.testkit.{
   TestInstances => KernelTestkitTestInstances
 }
 import cats.syntax.all._
-import cats.{Applicative, Eq, Id, Order, Show, ~>}
+
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
 
 import scala.annotation.implicitNotFound

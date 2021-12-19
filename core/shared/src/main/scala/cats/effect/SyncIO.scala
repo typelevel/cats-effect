@@ -16,14 +16,14 @@
 
 package cats.effect
 
+import cats.{Align, Eval, Functor, Now, Show, StackSafeMonad}
 import cats.data.Ior
 import cats.effect.syntax.monadCancel._
 import cats.kernel.{Monoid, Semigroup}
 import cats.syntax.all._
-import cats.{Align, Eval, Functor, Now, Show, StackSafeMonad}
 
-import scala.annotation.unchecked.uncheckedVariance
 import scala.annotation.{switch, tailrec}
+import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
 import scala.util.Try
 import scala.util.control.NonFatal

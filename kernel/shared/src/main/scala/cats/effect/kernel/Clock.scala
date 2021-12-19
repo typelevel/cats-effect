@@ -16,9 +16,9 @@
 
 package cats.effect.kernel
 
+import cats.{Applicative, Defer, Monad}
 import cats.data._
 import cats.kernel.{Monoid, Semigroup}
-import cats.{Applicative, Defer, Monad}
 
 import scala.concurrent.duration.FiniteDuration
 

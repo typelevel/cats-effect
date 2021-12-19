@@ -16,8 +16,8 @@
 
 package cats.effect.std
 
-import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, TimeoutException}
+import scala.concurrent.duration.Duration
 
 import java.util.concurrent.CompletableFuture
 

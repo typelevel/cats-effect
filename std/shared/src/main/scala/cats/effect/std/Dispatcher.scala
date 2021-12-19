@@ -16,8 +16,8 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.implicits._
 import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.implicits._
 import cats.syntax.all._
 
 import scala.annotation.tailrec

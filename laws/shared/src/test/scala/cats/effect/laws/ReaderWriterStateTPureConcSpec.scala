@@ -17,13 +17,14 @@
 package cats.effect
 package laws
 
+import cats.{Eq, Monad}
 import cats.data.ReaderWriterStateT
 import cats.effect.kernel.testkit.PureConcGenerators
 import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.eq._
-import cats.{Eq, Monad}
+
 import org.specs2.mutable._
 import org.specs2.scalacheck.Parameters
 import org.typelevel.discipline.specs2.mutable.Discipline

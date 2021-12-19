@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.{SemigroupK, ~>}
 import cats.data.{Kleisli, OptionT}
 import cats.effect.implicits._
 import cats.effect.kernel.testkit.TestContext
@@ -24,7 +25,7 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
-import cats.{SemigroupK, ~>}
+
 import org.scalacheck.Cogen
 import org.scalacheck.Prop.forAll
 import org.specs2.ScalaCheck

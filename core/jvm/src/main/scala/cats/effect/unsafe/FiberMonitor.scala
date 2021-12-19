@@ -24,8 +24,8 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 import java.lang.ref.WeakReference
-import java.util.concurrent.ThreadLocalRandom
 import java.util.{Collections, ConcurrentModificationException, Map, WeakHashMap}
+import java.util.concurrent.ThreadLocalRandom
 
 /**
  * A slightly more involved implementation of an unordered bag used for tracking asynchronously

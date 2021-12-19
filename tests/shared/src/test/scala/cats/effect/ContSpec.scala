@@ -20,6 +20,7 @@ package effect
 import cats.effect.syntax.all._
 import cats.effect.unsafe.Scheduler
 import cats.syntax.all._
+
 import org.specs2.execute._
 
 import scala.concurrent.duration._

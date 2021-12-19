@@ -19,8 +19,8 @@ package unsafe
 
 import cats.syntax.all._
 
-import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
+import scala.concurrent.duration._
 
 class HelperThreadParkSpec extends BaseSpec {
 

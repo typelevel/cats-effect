@@ -18,8 +18,8 @@ package cats
 package effect
 package kernel
 
-import cats.data.State
 import cats.{Eq, Show}
+import cats.data.State
 
 import scala.concurrent.duration._
 

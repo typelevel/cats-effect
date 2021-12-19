@@ -18,14 +18,15 @@ package cats.effect.unsafe
 
 import cats.effect.tracing.TracingConstants._
 import cats.effect.unsafe.metrics._
-import javax.management.ObjectName
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 import java.lang.management.ManagementFactory
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{Executors, ScheduledThreadPoolExecutor}
+import java.util.concurrent.atomic.AtomicInteger
+
+import javax.management.ObjectName
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 

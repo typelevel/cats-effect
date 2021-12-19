@@ -16,10 +16,10 @@
 
 package cats.effect.kernel
 
+import cats.{Applicative, Monoid, Semigroup, ~>}
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.effect.kernel.syntax.monadCancel._
 import cats.syntax.all._
-import cats.{Applicative, Monoid, Semigroup, ~>}
 
 /**
  * A typeclass that characterizes monads which support spawning and racing of fibers.

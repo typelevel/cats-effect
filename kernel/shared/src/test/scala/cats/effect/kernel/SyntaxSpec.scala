@@ -17,6 +17,7 @@
 package cats.effect.kernel
 
 import cats.implicits._
+
 import org.specs2.mutable.Specification
 
 import scala.concurrent.ExecutionContext

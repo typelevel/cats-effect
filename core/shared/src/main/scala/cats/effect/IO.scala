@@ -16,11 +16,6 @@
 
 package cats.effect
 
-import cats.data.Ior
-import cats.effect.instances.spawn
-import cats.effect.std.Console
-import cats.effect.tracing.{Tracing, TracingEvent}
-import cats.syntax.all._
 import cats.{
   Align,
   Alternative,
@@ -38,9 +33,13 @@ import cats.{
   StackSafeMonad,
   Traverse
 }
+import cats.data.Ior
+import cats.effect.instances.spawn
+import cats.effect.std.Console
+import cats.effect.tracing.{Tracing, TracingEvent}
+import cats.syntax.all._
 
 import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.duration._
 import scala.concurrent.{
   CancellationException,
   ExecutionContext,
@@ -48,6 +47,7 @@ import scala.concurrent.{
   Promise,
   TimeoutException
 }
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 /**

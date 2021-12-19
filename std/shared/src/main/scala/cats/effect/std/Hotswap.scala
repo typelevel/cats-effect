@@ -16,8 +16,8 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.syntax.all._
 import cats.effect.kernel.{Concurrent, Ref, Resource}
+import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
 
 /**

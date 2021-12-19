@@ -19,6 +19,7 @@ package cats.effect
 import cats.effect.implicits._
 import cats.effect.std.Queue
 import cats.syntax.all._
+
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.Gen
 import org.typelevel.discipline.specs2.mutable.Discipline

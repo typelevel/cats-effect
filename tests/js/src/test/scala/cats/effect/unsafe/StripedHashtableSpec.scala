@@ -19,8 +19,8 @@ package unsafe
 
 import cats.syntax.traverse._
 
-import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
+import scala.concurrent.duration._
 
 class StripedHashtableSpec extends BaseSpec {
 

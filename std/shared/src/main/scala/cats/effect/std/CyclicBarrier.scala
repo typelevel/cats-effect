@@ -16,8 +16,8 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.syntax.all._
 import cats.effect.kernel.{Deferred, GenConcurrent}
+import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
 import cats.~>
 
