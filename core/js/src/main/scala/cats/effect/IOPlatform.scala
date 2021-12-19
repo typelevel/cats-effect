@@ -43,4 +43,11 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
       case Right(Left(ioa)) => ioa.unsafeToFuture()
       case Right(Right(a)) => Future.successful(a)
     }
+
+  def unsafeRunSyncToPromise()(implicit runtime: unsafe.IORuntime): Promise[A] =
+    self.syncStep(runtime.config.autoYieldThreshold).attempt.unsafeRunSync() match {
+      case Left(t) => Promise.reject(t)
+      case Right(Left(ioa)) => ioa.unsafeToPromise()
+      case Right(Right(a)) => Promise.resolve[A](a)
+    }
 }
