@@ -48,14 +48,13 @@ private final class WeakDataStructure[K <: AnyRef, V <: AnyRef] {
       table(sz) = new WeakEntry(key, value, sz, queue)
       size += 1
     } else {
-      // There are no expired entries, and the table has no leftover capacity.
-      // The data structure needs to grow in this case.
-      val oldTable = table
-
       if (cap == Int.MaxValue) {
         return
       }
 
+      // There are no expired entries, and the table has no leftover capacity.
+      // The data structure needs to grow in this case.
+      val oldTable = table
       val newCap = if (cap == MaxSizePow2) Int.MaxValue else cap << 1
       val newTable = new Array[WeakEntry[K, V]](newCap)
       System.arraycopy(oldTable, 0, newTable, 0, size)
