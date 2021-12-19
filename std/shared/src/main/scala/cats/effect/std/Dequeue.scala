@@ -45,10 +45,12 @@ trait Dequeue[F[_], A] extends Queue[F, A] with DequeueSource[F, A] with Dequeue
       def tryOfferBack(a: A): G[Boolean] = f(self.tryOfferBack(a))
       def takeBack: G[A] = f(self.takeBack)
       def tryTakeBack: G[Option[A]] = f(self.tryTakeBack)
+      def tryTakeBackN(maxN: Option[Int]) = f(self.tryTakeBackN(maxN))
       def offerFront(a: A): G[Unit] = f(self.offerFront(a))
       def tryOfferFront(a: A): G[Boolean] = f(self.tryOfferFront(a))
       def takeFront: G[A] = f(self.takeFront)
       def tryTakeFront: G[Option[A]] = f(self.tryTakeFront)
+      def tryTakeFrontN(maxN: Option[Int]): G[Option[List[A]]] = f(self.tryTakeFrontN(maxN))
       def reverse: G[Unit] = f(self.reverse)
       def size: G[Int] = f(self.size)
     }
@@ -94,11 +96,17 @@ object Dequeue {
           override def tryTakeBack: F[Option[B]] =
             fa.tryTakeBack.map(_.map(f))
 
+          override def tryTakeBackN(maxN: Option[Int]): F[Option[List[B]]] =
+            fa.tryTakeBackN(maxN).map(_.map(_.map(f)))
+
           override def takeFront: F[B] =
             fa.takeFront.map(f)
 
           override def tryTakeFront: F[Option[B]] =
             fa.tryTakeFront.map(_.map(f))
+
+          override def tryTakeFrontN(maxN: Option[Int]): F[Option[List[B]]] =
+            fa.tryTakeFrontN(maxN).map(_.map(_.map(f)))
 
           override def offerBack(b: B): F[Unit] =
             fa.offerBack(g(b))
@@ -134,6 +142,9 @@ object Dequeue {
     override def tryTakeBack: F[Option[A]] =
       _tryTake(queue => queue.tryPopBack)
 
+    override def tryTakeBackN(maxN: Option[Int]): F[Option[List[A]]] =
+      _tryTakeN(maxN)(queue => queue.tryPopBack)
+
     override def offerFront(a: A): F[Unit] =
       _offer(a, queue => queue.pushFront(a))
 
@@ -145,6 +156,9 @@ object Dequeue {
 
     override def tryTakeFront: F[Option[A]] =
       _tryTake(queue => queue.tryPopFront)
+
+    override def tryTakeFrontN(maxN: Option[Int]): F[Option[List[A]]] =
+      _tryTakeN(maxN)(queue => queue.tryPopFront)
 
     override def reverse: F[Unit] =
       state.update {
@@ -240,11 +254,36 @@ object Dequeue {
         .flatten
         .uncancelable
 
+    private def _tryTakeN(maxN: Option[Int])(
+        dequeue: BankersQueue[A] => (BankersQueue[A], Option[A])) = {
+      assertMaxNPositive(maxN)
+      F.tailRecM[(Option[List[A]], Int), Option[List[A]]](
+        (None, 0)
+      ) {
+        case (list, i) =>
+          if (maxN.contains(i)) list.map(_.reverse).asRight.pure[F]
+          else {
+            _tryTake(dequeue).map {
+              case None => list.map(_.reverse).asRight
+              case Some(x) =>
+                if (list.isEmpty) (Some(List(x)), i + 1).asLeft
+                else (list.map(x +: _), i + 1).asLeft
+            }
+          }
+      }
+    }
+
     override def size: F[Int] = state.get.map(_.size)
   }
 
   private def assertNonNegative(capacity: Int): Unit =
     require(capacity >= 0, s"Bounded queue capacity must be non-negative, was: $capacity")
+
+  private def assertMaxNPositive(maxN: Option[Int]): Unit = maxN match {
+    case Some(n) if n <= 0 =>
+      throw new IllegalArgumentException(s"Provided maxN parameter must be positive, was $n")
+    case _ => ()
+  }
 
   private[std] final case class State[F[_], A](
       queue: BankersQueue[A],
@@ -279,6 +318,20 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
   def tryTakeBack: F[Option[A]]
 
   /**
+   * Attempts to dequeue elements from the back of the dequeue, if they available without
+   * semantically blocking. This is a convenience method that recursively runs `tryTakeFront`. 
+   * It does not provide any additional performance benefits.
+   *
+   * @param maxN
+   *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
+   *
+   * @return
+   *   an effect that describes whether the dequeueing of an element from the dequeue succeeded
+   *   without blocking, with `None` denoting that no element was available
+   */
+  def tryTakeBackN(maxN: Option[Int]): F[Option[List[A]]]
+
+  /**
    * Dequeues an element from the front of the dequeue, possibly semantically blocking until an
    * element becomes available.
    */
@@ -295,6 +348,20 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
   def tryTakeFront: F[Option[A]]
 
   /**
+   * Attempts to dequeue elements from the front of the dequeue, if they available without
+   * semantically blocking. This is a convenience method that recursively runs `tryTakeFront`. 
+   * It does not provide any additional performance benefits.
+   *
+   * @param maxN
+   *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
+   *
+   * @return
+   *   an effect that describes whether the dequeueing of an element from the dequeue succeeded
+   *   without blocking, with `None` denoting that no element was available
+   */
+  def tryTakeFrontN(maxN: Option[Int]): F[Option[List[A]]]
+
+  /**
    * Alias for takeFront in order to implement Queue
    */
   override def take: F[A] = takeFront
@@ -303,6 +370,8 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
    * Alias for tryTakeFront in order to implement Queue
    */
   override def tryTake: F[Option[A]] = tryTakeFront
+
+  override def tryTakeN(maxN: Option[Int]): F[Option[List[A]]] = tryTakeFrontN(maxN)
 
 }
 
@@ -317,11 +386,17 @@ object DequeueSource {
           override def tryTakeBack: F[Option[B]] =
             fa.tryTakeBack.map(_.map(f))
 
+          override def tryTakeBackN(maxN: Option[Int]): F[Option[List[B]]] =
+            fa.tryTakeBackN(maxN).map(_.map(_.map(f)))
+
           override def takeFront: F[B] =
             fa.takeFront.map(f)
 
           override def tryTakeFront: F[Option[B]] =
             fa.tryTakeFront.map(_.map(f))
+
+          override def tryTakeFrontN(maxN: Option[Int]): F[Option[List[B]]] =
+            fa.tryTakeFrontN(maxN).map(_.map(_.map(f)))
 
           override def size: F[Int] =
             fa.size
