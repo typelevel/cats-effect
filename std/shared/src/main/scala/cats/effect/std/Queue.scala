@@ -50,10 +50,8 @@ abstract class Queue[F[_], A] extends QueueSource[F, A] with QueueSink[F, A] { s
       def tryOffer(a: A): G[Boolean] = f(self.tryOffer(a))
       def size: G[Int] = f(self.size)
       val take: G[A] = f(self.take)
-
       val tryTake: G[Option[A]] = f(self.tryTake)
-
-      override def tryTakeN(maxN: Option[Int]): G[Option[List[A]]] = f(self.tryTakeN(maxN))
+      def tryTakeN(maxN: Option[Int]): G[Option[List[A]]] = f(self.tryTakeN(maxN))
     }
 }
 
@@ -351,10 +349,8 @@ object Queue {
             fa.tryOffer(g(b))
           override def take: F[B] =
             fa.take.map(f)
-
           override def tryTake: F[Option[B]] =
             fa.tryTake.map(_.map(f))
-
           override def tryTakeN(maxN: Option[Int]): F[Option[List[B]]] =
             fa.tryTakeN(maxN).map(_.map(_.map(f)))
           override def size: F[Int] =
@@ -405,11 +401,9 @@ object QueueSource {
         new QueueSource[F, B] {
           override def take: F[B] =
             fa.take.map(f)
-
           override def tryTake: F[Option[B]] = {
             fa.tryTake.map(_.map(f))
           }
-
           override def tryTakeN(maxN: Option[Int]): F[Option[List[B]]] =
             fa.tryTakeN(maxN).map(_.map(_.map(f)))
           override def size: F[Int] =
