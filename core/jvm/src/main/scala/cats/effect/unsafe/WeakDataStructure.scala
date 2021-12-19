@@ -16,6 +16,8 @@
 
 package cats.effect.unsafe
 
+import scala.annotation.tailrec
+
 import java.lang.ref.{ReferenceQueue, WeakReference}
 
 private final class WeakDataStructure[K <: AnyRef, V <: AnyRef] {
@@ -29,6 +31,7 @@ private final class WeakDataStructure[K <: AnyRef, V <: AnyRef] {
   private[this] var table: Array[WeakEntry[K, V]] = new Array(capacity)
   private[this] var size = 0
 
+  @tailrec
   def insert(key: K, value: V): Unit = {
     val oldEntry = queue.poll().asInstanceOf[WeakEntry[K, V]]
     val cap = capacity
@@ -58,9 +61,7 @@ private final class WeakDataStructure[K <: AnyRef, V <: AnyRef] {
       System.arraycopy(oldTable, 0, newTable, 0, size)
       table = newTable
       capacity = newCap
-
-      table(sz) = new WeakEntry(key, value, sz, queue)
-      size += 1
+      insert(key, value)
     }
   }
 
