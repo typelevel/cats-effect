@@ -104,14 +104,13 @@ ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
 ThisBuild / githubWorkflowUseSbtThinClient := false
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
 
-val OldGuardJava = "adoptium@8"
-val LTSJava = "adoptium@11"
-val LatestJava = "adoptium@17"
+val OldGuardJava = JavaSpec.temurin("8")
+val LTSJava = JavaSpec.temurin("11")
+val LatestJava = JavaSpec.temurin("17")
 val ScalaJSJava = OldGuardJava
-val GraalVM = "graalvm-ce-java11@21.3"
+val GraalVM = JavaSpec.graalvm("21.3.0", "11")
 
 ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
-ThisBuild / githubWorkflowEnv += ("JABBA_INDEX" -> "https://github.com/typelevel/jdk-index/raw/main/index.json")
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
@@ -160,7 +159,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   val scalaJavaFilters = for {
     scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
     java <- (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(OldGuardJava))
-  } yield MatrixExclude(Map("scala" -> scala, "java" -> java))
+  } yield MatrixExclude(Map("scala" -> scala, "java" -> java.render))
 
   val windowsAndMacScalaFilters =
     (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).flatMap { scala =>
@@ -177,7 +176,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   val jsJavaAndOSFilters = jsCiVariants.flatMap { ci =>
     val javaFilters =
       (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)).map { java =>
-        MatrixExclude(Map("ci" -> ci, "java" -> java))
+        MatrixExclude(Map("ci" -> ci, "java" -> java.render))
       }
 
     javaFilters ++ Seq(
@@ -187,7 +186,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
 
   // Nice-to-haves but unreliable in CI
   val flakyFilters = Seq(
-    MatrixExclude(Map("os" -> Windows, "java" -> GraalVM))
+    MatrixExclude(Map("os" -> Windows, "java" -> GraalVM.render))
   )
 
   scalaJavaFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ jsJavaAndOSFilters ++ flakyFilters

@@ -35,7 +35,7 @@ libraryDependencies += "org.typelevel" %% "cats-effect-testkit" % "3.3.0" % Test
 
 For the remainder of this page, we will be writing tests which verify the behavior of the following function:
 
-```mdoc scala
+```scala mdoc
 import cats.effect.IO
 import cats.effect.std.Random
 import scala.concurrent.duration._
@@ -46,7 +46,7 @@ def retry[A](ioa: IO[A], delay: FiniteDuration, max: Int, random: Random[IO]): I
   else
     ioa handleErrorWith { _ =>
       random.betweenLong(0L, delay.toNanos) flatMap { ns =>
-        IO.sleep(ns.nanos) *> retry(ioa, delay * 2, max - 1)
+        IO.sleep(ns.nanos) *> retry(ioa, delay * 2, max - 1, random)
       }
     }
 ```
@@ -196,7 +196,7 @@ It is very important to remember that `TestControl` is a *mock* runtime, and thu
 
 To give an intuition for the type of program which behaves strangely under `TestControl`, consider the following pathological example:
 
-```mdoc scala
+```scala
 IO.cede.foreverM.start flatMap { fiber =>
   IO.sleep(1.second) *> fiber.cancel
 }

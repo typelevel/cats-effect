@@ -16,10 +16,12 @@
 
 package cats.effect.kernel
 
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
+import java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage}
 
 private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
+
+  def fromCompletionStage[A](completionStage: F[CompletionStage[A]]): F[A] =
+    fromCompletableFuture(flatMap(completionStage) { cs => delay(cs.toCompletableFuture()) })
 
   /**
    * Suspend a `java.util.concurrent.CompletableFuture` into the `F[_]` context.
