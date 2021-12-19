@@ -19,7 +19,7 @@ package cats.effect
 import cats.effect.tracing.Tracing
 
 import java.time.Instant
-import java.util.concurrent.CompletableFuture
+import java.util.concurrent.{CompletableFuture, CompletionStage}
 
 private[effect] abstract class IOCompanionPlatform { this: IO.type =>
 
@@ -63,6 +63,9 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
 
   def fromCompletableFuture[A](fut: IO[CompletableFuture[A]]): IO[A] =
     asyncForIO.fromCompletableFuture(fut)
+
+  def fromCompletionStage[A](completionStage: IO[CompletionStage[A]]): IO[A] =
+    asyncForIO.fromCompletionStage(completionStage)
 
   def realTimeInstant: IO[Instant] = asyncForIO.realTimeInstant
 }

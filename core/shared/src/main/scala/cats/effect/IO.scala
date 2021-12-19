@@ -801,7 +801,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       success: A => Unit)(implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber[A](
-      Map(),
+      Map.empty,
       oc =>
         oc.fold(
           {
@@ -931,13 +931,17 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   /**
    * Suspends a synchronous side effect in `IO`.
+   * Use [[IO.apply]] if your side effect is not thread-blocking;
+   * otherwise you should use [[IO.blocking]] (uncancelable) or `IO.interruptible` (cancelable).
    *
-   * Alias for `IO.delay(body)`.
+   * Alias for [[IO.delay]].
    */
   def apply[A](thunk: => A): IO[A] = delay(thunk)
 
   /**
    * Suspends a synchronous side effect in `IO`.
+   * Use [[IO.delay]] if your side effect is not thread-blocking;
+   * otherwise you should use [[IO.blocking]] (uncancelable) or `IO.interruptible` (cancelable).
    *
    * Any exceptions thrown by the effect will be caught and sequenced into the `IO`.
    */
@@ -1545,6 +1549,21 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     override def delay[A](thunk: => A): IO[A] = IO(thunk)
 
+    /**
+     * Like [[IO.delay]] but intended for thread blocking operations. `blocking` will shift the
+     * execution of the blocking operation to a separate threadpool to avoid blocking on the main
+     * execution context. See the thread-model documentation for more information on why this is
+     * necessary. Note that the created effect will be uncancelable; if you need cancelation,
+     * then you should use [[IO.interruptible]] or [[IO.interruptibleMany]].
+     *
+     * {{{
+     * IO.blocking(scala.io.Source.fromFile("path").mkString)
+     * }}}
+     *
+     * @param thunk
+     *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
+     *   context
+     */
     override def blocking[A](thunk: => A): IO[A] = IO.blocking(thunk)
 
     /**
