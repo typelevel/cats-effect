@@ -15,7 +15,6 @@ on:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  JABBA_INDEX: 'https://github.com/typelevel/jdk-index/raw/main/index.json'
 
 jobs:
   build:
@@ -25,24 +24,24 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         scala: [3.0.2, 2.12.15, 2.13.7]
         java:
-          - adoptium@8
-          - adoptium@11
-          - adoptium@17
-          - graalvm-ce-java11@21.3
+          - temurin@8
+          - temurin@11
+          - temurin@17
+          - graal_21.3.0@11
         ci: [ciJVM, ciJS, ciFirefox, ciChrome]
         exclude:
           - scala: 3.0.2
-            java: adoptium@11
+            java: temurin@11
           - scala: 3.0.2
-            java: adoptium@17
+            java: temurin@17
           - scala: 3.0.2
-            java: graalvm-ce-java11@21.3
+            java: graal_21.3.0@11
           - scala: 2.12.15
-            java: adoptium@11
+            java: temurin@11
           - scala: 2.12.15
-            java: adoptium@17
+            java: temurin@17
           - scala: 2.12.15
-            java: graalvm-ce-java11@21.3
+            java: graal_21.3.0@11
           - os: windows-latest
             scala: 3.0.2
           - os: macos-latest
@@ -60,37 +59,37 @@ jobs:
           - ci: ciChrome
             scala: 2.12.15
           - ci: ciJS
-            java: adoptium@11
+            java: temurin@11
           - ci: ciJS
-            java: adoptium@17
+            java: temurin@17
           - ci: ciJS
-            java: graalvm-ce-java11@21.3
+            java: graal_21.3.0@11
           - os: windows-latest
             ci: ciJS
           - os: macos-latest
             ci: ciJS
           - ci: ciFirefox
-            java: adoptium@11
+            java: temurin@11
           - ci: ciFirefox
-            java: adoptium@17
+            java: temurin@17
           - ci: ciFirefox
-            java: graalvm-ce-java11@21.3
+            java: graal_21.3.0@11
           - os: windows-latest
             ci: ciFirefox
           - os: macos-latest
             ci: ciFirefox
           - ci: ciChrome
-            java: adoptium@11
+            java: temurin@11
           - ci: ciChrome
-            java: adoptium@17
+            java: temurin@17
           - ci: ciChrome
-            java: graalvm-ce-java11@21.3
+            java: graal_21.3.0@11
           - os: windows-latest
             ci: ciChrome
           - os: macos-latest
             ci: ciChrome
           - os: windows-latest
-            java: graalvm-ce-java11@21.3
+            java: graal_21.3.0@11
     runs-on: ${{ matrix.os }}
     steps:
       - name: Ignore line ending differences in git
@@ -103,10 +102,33 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Java and Scala
-        uses: olafurpg/setup-scala@v13
+      - name: Setup Java (temurin@8)
+        if: matrix.java == 'temurin@8'
+        uses: actions/setup-java@v2
         with:
-          java-version: ${{ matrix.java }}
+          distribution: temurin
+          java-version: 8
+
+      - name: Setup Java (temurin@11)
+        if: matrix.java == 'temurin@11'
+        uses: actions/setup-java@v2
+        with:
+          distribution: temurin
+          java-version: 11
+
+      - name: Setup Java (temurin@17)
+        if: matrix.java == 'temurin@17'
+        uses: actions/setup-java@v2
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup GraalVM (graal_21.3.0@11)
+        if: matrix.java == 'graal_21.3.0@11'
+        uses: DeLaGuardo/setup-graalvm@5.0
+        with:
+          graalvm: 21.3.0
+          java: java11
 
       - name: Cache sbt
         uses: actions/cache@v2

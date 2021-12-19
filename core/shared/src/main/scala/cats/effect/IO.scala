@@ -802,7 +802,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       success: A => Unit)(implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber[A](
-      Map(),
+      Map.empty,
       oc =>
         oc.fold(
           {
