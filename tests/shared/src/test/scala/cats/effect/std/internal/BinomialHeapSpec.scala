@@ -22,7 +22,6 @@
 package cats.effect.std.internal
 
 import cats.Order
-
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import org.specs2.ScalaCheck

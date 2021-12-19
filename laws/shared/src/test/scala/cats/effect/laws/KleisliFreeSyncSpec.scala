@@ -25,7 +25,6 @@ import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.eq._
 import cats.{Eq, Eval}
-
 import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline
 

@@ -21,7 +21,6 @@ package testkit
 import cats.effect.kernel.testkit.freeEval._
 import cats.free.FreeT
 import cats.{Eval, Monad, MonadError}
-
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 import scala.concurrent.duration.FiniteDuration

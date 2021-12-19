@@ -17,7 +17,6 @@
 package cats.effect.unsafe
 
 import cats.effect.tracing.TracingConstants
-
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 
 import scala.concurrent.ExecutionContext

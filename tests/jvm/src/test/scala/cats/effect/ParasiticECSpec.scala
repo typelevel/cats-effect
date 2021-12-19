@@ -18,7 +18,6 @@ package cats.effect
 
 import cats.effect.testkit.TestInstances
 import cats.syntax.all._
-
 import org.scalacheck.Arbitrary
 
 import scala.concurrent.duration._

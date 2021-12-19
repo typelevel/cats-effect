@@ -24,7 +24,6 @@ import cats.kernel.Eq
 import cats.laws.discipline.arbitrary.catsLawsCogenForIor
 import cats.laws.discipline.{AlignTests, CommutativeApplicativeTests, ParallelTests}
 import cats.syntax.all._
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class ParallelFSpec extends BaseSpec with Discipline {

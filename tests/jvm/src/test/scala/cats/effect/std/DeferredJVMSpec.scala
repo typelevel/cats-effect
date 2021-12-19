@@ -19,7 +19,6 @@ package std
 
 import cats.effect.kernel.Deferred
 import cats.effect.unsafe.IORuntime
-
 import org.specs2.mutable.Specification
 import org.specs2.specification.BeforeAfterEach
 

@@ -20,7 +20,6 @@ package laws
 import cats.Eq
 import cats.effect.kernel.Sync
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
-
 import org.scalacheck.Prop.forAll
 import org.scalacheck._
 

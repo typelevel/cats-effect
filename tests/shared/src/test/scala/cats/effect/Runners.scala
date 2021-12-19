@@ -20,7 +20,6 @@ import cats.effect.testkit.{TestContext, TestInstances}
 import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 import cats.{Eq, Show}
-
 import org.scalacheck.Gen
 import org.specs2.execute.AsResult
 import org.specs2.matcher.Matcher

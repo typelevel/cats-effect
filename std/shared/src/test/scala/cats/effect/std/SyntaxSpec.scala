@@ -17,7 +17,6 @@
 package cats.effect.std
 
 import cats.effect.kernel.{Async, Concurrent, Deferred, GenConcurrent, Ref, Sync}
-
 import org.specs2.mutable.Specification
 
 class SyntaxSpec extends Specification {

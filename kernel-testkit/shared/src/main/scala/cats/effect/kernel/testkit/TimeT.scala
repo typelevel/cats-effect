@@ -21,7 +21,6 @@ package testkit
 import cats.data.Kleisli
 import cats.syntax.all._
 import cats.{Group, Monad, Monoid, Order, ~>}
-
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 import scala.concurrent.duration._

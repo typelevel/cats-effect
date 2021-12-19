@@ -18,7 +18,6 @@ package cats.effect
 package laws
 
 import cats.effect.kernel.Unique
-
 import org.scalacheck._
 import org.typelevel.discipline.Laws
 

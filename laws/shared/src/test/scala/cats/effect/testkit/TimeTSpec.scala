@@ -21,7 +21,6 @@ import cats.effect.kernel.testkit.pure.PureConc
 import cats.effect.laws.GenTemporalTests
 import cats.laws.discipline.arbitrary._
 import cats.{Eq, Order}
-
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
 import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline

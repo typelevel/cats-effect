@@ -18,7 +18,6 @@ package cats.effect.unsafe
 
 import cats.effect.tracing.TracingConstants._
 import cats.effect.unsafe.metrics._
-
 import javax.management.ObjectName
 
 import scala.collection.mutable

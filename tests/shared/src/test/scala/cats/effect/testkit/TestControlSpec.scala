@@ -18,7 +18,6 @@ package cats.effect
 package testkit
 
 import cats.Id
-
 import org.specs2.matcher.Matcher
 
 import scala.concurrent.CancellationException

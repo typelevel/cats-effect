@@ -22,7 +22,6 @@ import cats.laws.discipline.eq._
 import cats.laws.discipline.{ExhaustiveCheck, MiniInt}
 import cats.syntax.all._
 import cats.{Eq, FlatMap, Monad, MonadError, Show}
-
 import org.scalacheck.util.Pretty
 import org.scalacheck.{Arbitrary, Gen, Prop}
 
