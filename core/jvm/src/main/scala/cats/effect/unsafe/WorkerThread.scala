@@ -22,8 +22,6 @@ import cats.effect.tracing.TracingConstants
 import scala.annotation.switch
 import scala.concurrent.{BlockContext, CanAwait}
 
-import java.lang.ref.WeakReference
-import java.util.WeakHashMap
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
@@ -59,7 +57,7 @@ private final class WorkerThread(
     // true in tis case.
     private[this] var cedeBypass: IOFiber[_],
     // A worker-thread-local weak bag for tracking suspended fibers.
-    private[this] val fiberBag: WeakHashMap[AnyRef, WeakReference[IOFiber[_]]],
+    private[this] val fiberBag: WeakDataStructure[AnyRef, IOFiber[_]],
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
     private[this] val pool: WorkStealingThreadPool)
     extends Thread
@@ -165,7 +163,7 @@ private final class WorkerThread(
    *   the suspended fiber to be registered
    */
   def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {
-    fiberBag.put(key, new WeakReference(fiber))
+    fiberBag.insert(key, fiber)
     ()
   }
 
@@ -192,7 +190,7 @@ private final class WorkerThread(
    *   a set of suspended fibers tracked by this worker thread
    */
   private[unsafe] def suspendedSnapshot(): Set[IOFiber[_]] =
-    FiberMonitor.weakMapToSet(fiberBag)
+    fiberBag.valueSet
 
   /**
    * The run loop of the [[WorkerThread]].
