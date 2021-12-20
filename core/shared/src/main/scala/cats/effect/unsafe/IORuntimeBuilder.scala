@@ -40,7 +40,7 @@ final class IORuntimeBuilder protected (
    * @param compute
    *   [[ExecutionContext]] for compute
    * @param shutdown
-   *   method called upon compute context shutdown
+   *   shutdown hook upon [[IORuntime]] shutdown
    */
   def setCompute(compute: ExecutionContext, shutdown: () => Unit) = {
     if (customCompute.isDefined) {
