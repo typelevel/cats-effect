@@ -22,7 +22,6 @@ import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
 import org.scalacheck.Gen
-
 import org.specs2.execute.AsResult
 import org.specs2.matcher.Matcher
 import org.specs2.mutable.SpecificationLike

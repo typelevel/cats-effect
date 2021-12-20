@@ -16,12 +16,11 @@
 
 package cats.effect.kernel
 
-import cats.effect.BaseSpec
-import cats.effect.IO
+import cats.effect.{BaseSpec, IO}
 
-import java.util.concurrent.CancellationException
-import java.util.concurrent.CompletableFuture
 import scala.concurrent.duration._
+
+import java.util.concurrent.{CancellationException, CompletableFuture}
 
 class AsyncPlatformSpec extends BaseSpec {
 

@@ -18,9 +18,10 @@ package cats.effect.kernel
 
 import cats._
 import cats.data.Kleisli
-import cats.syntax.all._
-import cats.effect.kernel.instances.spawn
 import cats.effect.kernel.implicits._
+import cats.effect.kernel.instances.spawn
+import cats.syntax.all._
+
 import scala.annotation.tailrec
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext

@@ -16,8 +16,8 @@
 
 package cats.effect.std.syntax
 
-import cats.effect.std.Supervisor
 import cats.effect.kernel.Fiber
+import cats.effect.std.Supervisor
 
 trait SupervisorSyntax {
   implicit def supervisorOps[F[_], A](wrapped: F[A]): SupervisorOps[F, A] =

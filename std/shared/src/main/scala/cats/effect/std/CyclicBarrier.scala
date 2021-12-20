@@ -16,10 +16,10 @@
 
 package cats.effect.std
 
-import cats.~>
 import cats.effect.kernel.{Deferred, GenConcurrent}
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
+import cats.~>
 
 /**
  * A synchronization abstraction that allows a set of fibers to wait until they all reach a

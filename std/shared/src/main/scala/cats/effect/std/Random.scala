@@ -19,7 +19,6 @@ package effect
 package std
 
 import cats._
-import cats.syntax.all._
 import cats.data.{
   EitherT,
   IndexedReaderWriterStateT,
@@ -30,6 +29,8 @@ import cats.data.{
   WriterT
 }
 import cats.effect.kernel._
+import cats.syntax.all._
+
 import scala.util.{Random => SRandom}
 
 /**

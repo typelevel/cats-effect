@@ -18,11 +18,10 @@ package cats.effect
 
 import org.specs2.mutable.Specification
 
-import java.io.File
 import scala.io.Source
-import scala.sys.process.BasicIO
-import scala.sys.process.Process
-import scala.sys.process.ProcessBuilder
+import scala.sys.process.{BasicIO, Process, ProcessBuilder}
+
+import java.io.File
 
 class IOAppSpec extends Specification {
 

@@ -18,11 +18,9 @@ package cats.effect.kernel
 package testkit
 
 import scala.annotation.tailrec
-
 import scala.collection.immutable.SortedSet
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-
 import scala.util.Random
 import scala.util.control.NonFatal
 

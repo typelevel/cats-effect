@@ -18,10 +18,10 @@ package cats
 package effect
 package laws
 
-import cats.syntax.all._
-import cats.effect.kernel.Temporal // , Outcome._
-import cats.effect.kernel.testkit.pure._
+import cats.effect.kernel.Temporal
 import cats.effect.kernel.testkit.TimeT
+import cats.effect.kernel.testkit.pure._
+import cats.syntax.all._
 
 import org.specs2.mutable.Specification
 

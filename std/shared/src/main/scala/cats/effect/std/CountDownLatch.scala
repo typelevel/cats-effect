@@ -16,9 +16,9 @@
 
 package cats.effect.std
 
-import cats.~>
-import cats.syntax.all._
 import cats.effect.kernel.{Deferred, GenConcurrent, Ref}
+import cats.syntax.all._
+import cats.~>
 
 /**
  * Concurrency abstraction that supports semantically blocking until n latches are released.
