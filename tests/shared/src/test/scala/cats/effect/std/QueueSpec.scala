@@ -103,6 +103,8 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
     tryOfferTryTakeTests(name, constructor, _.tryOffer(_), _.tryTake)
     commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
     batchTakeTests(name, constructor, _.offer(_), _.tryTakeN(_))
+    batchOfferTests(name, constructor, _.tryOfferN(_), _.tryTakeN(_))
+    boundedBatchOfferTests(name, constructor, _.tryOfferN(_), _.tryTakeN(_))
   }
 }
 
@@ -121,6 +123,7 @@ class UnboundedQueueSpec extends BaseSpec with QueueTests[Queue] {
     tryOfferTryTakeTests(name, _ => constructor, _.tryOffer(_), _.tryTake)
     commonTests(name, _ => constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
     batchTakeTests(name, _ => constructor, _.offer(_), _.tryTakeN(_))
+    batchOfferTests(name, _ => constructor, _.tryOfferN(_), _.tryTakeN(_))
   }
 }
 
@@ -145,6 +148,7 @@ class DroppingQueueSpec extends BaseSpec with QueueTests[Queue] {
     tryOfferTryTakeTests(name, constructor, _.tryOffer(_), _.tryTake)
     commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
     batchTakeTests(name, constructor, _.offer(_), _.tryTakeN(_))
+    batchOfferTests(name, constructor, _.tryOfferN(_), _.tryTakeN(_))
   }
 }
 
@@ -167,6 +171,7 @@ class CircularBufferQueueSpec extends BaseSpec with QueueTests[Queue] {
     tryOfferOnFullTests(name, constructor, _.offer(_), _.tryOffer(_), true)
     commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
     batchTakeTests(name, constructor, _.offer(_), _.tryTakeN(_))
+    batchOfferTests(name, constructor, _.tryOfferN(_), _.tryTakeN(_))
   }
 }
 
@@ -204,6 +209,48 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
             res must beLike { case Left(e) => e must haveClass[IllegalArgumentException] }
           }
         }
+      }
+    }
+  }
+
+  def batchOfferTests(
+      name: String,
+      constructor: Int => IO[Q[IO, Int]],
+      tryOfferN: (Q[IO, Int], List[Int]) => IO[List[Int]],
+      tryTakeN: (Q[IO, Int], Option[Int]) => IO[Option[List[Int]]],
+      transformF: Option[List[Int]] => Option[List[Int]] = identity
+  ): Fragments = {
+    name >> {
+      "should offer all records when there is room" in real {
+        for {
+          q <- constructor(5)
+          offerR <- tryOfferN(q, List(1, 2, 3, 4, 5))
+          takeR <- tryTakeN(q, None)
+          r <- IO(
+            (transformF(takeR) must beEqualTo(Some(List(1, 2, 3, 4, 5)))) and
+              (offerR must beEqualTo(List.empty)))
+        } yield r
+      }
+    }
+  }
+
+  def boundedBatchOfferTests(
+      name: String,
+      constructor: Int => IO[Q[IO, Int]],
+      tryOfferN: (Q[IO, Int], List[Int]) => IO[List[Int]],
+      tryTakeN: (Q[IO, Int], Option[Int]) => IO[Option[List[Int]]],
+      transformF: Option[List[Int]] => Option[List[Int]] = identity
+  ): Fragments = {
+    name >> {
+      "should offer some records when the queue is full" in real {
+        for {
+          q <- constructor(5)
+          offerR <- tryOfferN(q, List(1, 2, 3, 4, 5, 6, 7))
+          takeR <- tryTakeN(q, None)
+          r <- IO(
+            (transformF(takeR) must beEqualTo(Some(List(1, 2, 3, 4, 5)))) and
+              (offerR must beEqualTo(List(6, 7))))
+        } yield r
       }
     }
   }
@@ -264,7 +311,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
           q <- constructor(5)
           _ <- tryTakeN(q, Some(-1))
         } yield ()
-        
+
         val test = IO.defer(toAttempt).attempt
         test.flatMap { res =>
           IO {

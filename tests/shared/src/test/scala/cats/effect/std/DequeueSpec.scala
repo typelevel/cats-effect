@@ -140,6 +140,22 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
     commonTests(name, constructor, offer, tryOffer, take, tryTake, size)
     batchTakeTests(name, constructor, _.offer(_), _.tryTakeFrontN(_))
     batchTakeTests(name, constructor, _.offer(_), _.tryTakeBackN(_), _.map(_.reverse))
+    batchOfferTests(name, constructor, _.tryOfferBackN(_), _.tryTakeFrontN(_))
+    batchOfferTests(name, constructor, _.tryOfferFrontN(_), _.tryTakeFrontN(_))
+    batchOfferTests(name, constructor, _.tryOfferBackN(_), _.tryTakeBackN(_), _.map(_.reverse))
+    batchOfferTests(name, constructor, _.tryOfferFrontN(_), _.tryTakeBackN(_), _.map(_.reverse))
+    boundedBatchOfferTests(
+      name,
+      constructor,
+      _.tryOfferBackN(_),
+      _.tryTakeBackN(_),
+      _.map(_.reverse))
+    boundedBatchOfferTests(
+      name,
+      constructor,
+      _.tryOfferFrontN(_),
+      _.tryTakeBackN(_),
+      _.map(_.reverse))
     reverse(name, constructor)
   }
 }
@@ -200,6 +216,20 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
     commonTests(name, _ => constructor, offer, tryOffer, take, tryTake, size)
     batchTakeTests(name, _ => constructor, _.offer(_), _.tryTakeFrontN(_))
     batchTakeTests(name, _ => constructor, _.offer(_), _.tryTakeBackN(_), _.map(_.reverse))
+    batchOfferTests(name, _ => constructor, _.tryOfferBackN(_), _.tryTakeFrontN(_))
+    batchOfferTests(name, _ => constructor, _.tryOfferFrontN(_), _.tryTakeFrontN(_))
+    batchOfferTests(
+      name,
+      _ => constructor,
+      _.tryOfferBackN(_),
+      _.tryTakeBackN(_),
+      _.map(_.reverse))
+    batchOfferTests(
+      name,
+      _ => constructor,
+      _.tryOfferFrontN(_),
+      _.tryTakeBackN(_),
+      _.map(_.reverse))
   }
 }
 

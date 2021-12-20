@@ -281,8 +281,8 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
 
   /**
    * Attempts to dequeue elements from the back of the dequeue, if they available without
-   * semantically blocking. This is a convenience method that recursively runs `tryTakeBack`.
-   * It does not provide any additional performance benefits.
+   * semantically blocking. This is a convenience method that recursively runs `tryTakeBack`. It
+   * does not provide any additional performance benefits.
    *
    * @param maxN
    *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
@@ -409,6 +409,20 @@ trait DequeueSink[F[_], A] extends QueueSink[F, A] {
   def tryOfferBack(a: A): F[Boolean]
 
   /**
+   * Attempts to enqueue the given elements at the back of the queue without semantically
+   * blocking. If an item in the list cannot be enqueued, the remaining elements will be
+   * returned. This is a convenience method that recursively runs `tryOffer` and does not offer
+   * any additional performatnce benefits.
+   *
+   * @param list
+   *   the elements to be put at the back of the queue
+   * @return
+   *   an effect that contains the remaining valus that could not be offered.
+   */
+  def tryOfferBackN(list: List[A])(implicit F: Monad[F]): F[List[A]] =
+    _tryOfferN(list)(tryOfferBack)
+
+  /**
    * Enqueues the given element at the front of the dequeue, possibly semantically blocking
    * until sufficient capacity becomes available.
    *
@@ -430,6 +444,20 @@ trait DequeueSink[F[_], A] extends QueueSink[F, A] {
   def tryOfferFront(a: A): F[Boolean]
 
   /**
+   * Attempts to enqueue the given elements at the front of the queue without semantically
+   * blocking. If an item in the list cannot be enqueued, the remaining elements will be
+   * returned. This is a convenience method that recursively runs `tryOffer` and does not offer
+   * any additional performatnce benefits.
+   *
+   * @param list
+   *   the elements to be put at the front of the queue
+   * @return
+   *   an effect that contains the remaining valus that could not be offered.
+   */
+  def tryOfferFrontN(list: List[A])(implicit F: Monad[F]): F[List[A]] =
+    _tryOfferN(list)(tryOfferFront)
+
+  /**
    * Alias for offerBack in order to implement Queue
    */
   override def offer(a: A): F[Unit] = offerBack(a)
@@ -438,6 +466,16 @@ trait DequeueSink[F[_], A] extends QueueSink[F, A] {
    * Alias for tryOfferBack in order to implement Queue
    */
   override def tryOffer(a: A): F[Boolean] = tryOfferBack(a)
+
+  private def _tryOfferN(list: List[A])(_tryOffer: A => F[Boolean])(
+      implicit F: Monad[F]): F[List[A]] = list match {
+    case Nil => F.pure(list)
+    case h :: t =>
+      _tryOffer(h).ifM(
+        tryOfferN(t),
+        F.pure(list)
+      )
+  }
 
 }
 
