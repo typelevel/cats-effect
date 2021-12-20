@@ -17,7 +17,7 @@
 package cats.effect.kernel
 package testkit
 
-import cats.{Defer, Eq, Functor, Id, Monad, MonadError, Order, Show, ~>}
+import cats.{~>, Defer, Eq, Functor, Id, Monad, MonadError, Order, Show}
 import cats.data.{Kleisli, State, WriterT}
 import cats.effect.kernel._
 import cats.free.FreeT

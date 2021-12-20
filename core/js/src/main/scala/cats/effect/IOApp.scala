@@ -20,7 +20,7 @@ import cats.effect.tracing.TracingConstants._
 
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
-import scala.scalajs.{LinkingInfo, js}
+import scala.scalajs.{js, LinkingInfo}
 import scala.util.Try
 
 /**

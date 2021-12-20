@@ -18,7 +18,7 @@ package cats.effect
 package laws
 
 import cats.data.EitherT
-import cats.effect.kernel.testkit.{OutcomeGenerators, PureConcGenerators, TimeT, pure}
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}
 import cats.effect.kernel.testkit.TimeT._
 import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.arbitrary._

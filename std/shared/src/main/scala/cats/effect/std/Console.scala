@@ -21,7 +21,7 @@
 
 package cats.effect.std
 
-import cats.{Applicative, Functor, Show, ~>}
+import cats.{~>, Applicative, Functor, Show}
 import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 import cats.effect.kernel.Sync
 import cats.kernel.Monoid

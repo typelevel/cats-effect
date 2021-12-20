@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{SemigroupK, ~>}
+import cats.{~>, SemigroupK}
 import cats.data.{Kleisli, OptionT}
 import cats.effect.implicits._
 import cats.effect.kernel.testkit.TestContext

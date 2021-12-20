@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.{Monoid, Semigroup, ~>}
+import cats.{~>, Monoid, Semigroup}
 import cats.arrow.FunctionK
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.implicits._

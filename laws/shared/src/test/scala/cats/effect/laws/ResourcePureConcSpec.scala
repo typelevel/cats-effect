@@ -18,7 +18,7 @@ package cats.effect
 package laws
 
 import cats.effect.kernel.{MonadCancel, Resource}
-import cats.effect.kernel.testkit.{OutcomeGenerators, PureConcGenerators, TestInstances, pure}
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TestInstances}
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
 

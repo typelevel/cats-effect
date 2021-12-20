@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, FlatMap, Functor, ~>}
+import cats.{~>, Applicative, FlatMap, Functor}
 import cats.data.{ContT, EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 import cats.kernel.Monoid
 

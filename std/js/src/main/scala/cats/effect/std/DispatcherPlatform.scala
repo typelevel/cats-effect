@@ -16,7 +16,7 @@
 
 package cats.effect.std
 
-import scala.scalajs.js.{Function1, JavaScriptException, Promise, Thenable, |}
+import scala.scalajs.js.{|, Function1, JavaScriptException, Promise, Thenable}
 
 private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] =>
 

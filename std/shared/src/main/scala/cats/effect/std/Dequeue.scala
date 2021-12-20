@@ -16,7 +16,7 @@
 
 package cats.effect.std
 
-import cats.{Contravariant, Functor, Invariant, ~>}
+import cats.{~>, Contravariant, Functor, Invariant}
 import cats.effect.kernel.{Deferred, GenConcurrent, Ref}
 import cats.effect.kernel.syntax.all._
 import cats.effect.std.internal.BankersQueue

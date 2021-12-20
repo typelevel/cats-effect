@@ -18,7 +18,7 @@ package cats.effect
 package kernel
 package testkit
 
-import cats.{Group, Monad, Monoid, Order, ~>}
+import cats.{~>, Group, Monad, Monoid, Order}
 import cats.data.Kleisli
 import cats.syntax.all._
 

@@ -20,7 +20,7 @@ package laws
 import cats.{Eq, Eval}
 import cats.data.ReaderWriterStateT
 import cats.effect.kernel.testkit.{FreeSyncGenerators, SyncTypeGenerators}
-import cats.effect.kernel.testkit.freeEval.{FreeEitherSync, syncForFreeT}
+import cats.effect.kernel.testkit.freeEval.{syncForFreeT, FreeEitherSync}
 import cats.free.FreeT
 import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._

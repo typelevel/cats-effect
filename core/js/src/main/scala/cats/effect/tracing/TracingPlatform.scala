@@ -20,7 +20,7 @@ import cats.effect.kernel.Cont
 
 import scala.collection.mutable
 import scala.reflect.NameTransformer
-import scala.scalajs.{LinkingInfo, js}
+import scala.scalajs.{js, LinkingInfo}
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 

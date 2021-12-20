@@ -21,7 +21,7 @@ import cats.Applicative
 import cats.data.OptionT
 import cats.effect.kernel.Outcome
 import cats.effect.kernel.syntax.all._
-import cats.effect.kernel.testkit.{OutcomeGenerators, PureConcGenerators, TimeT, pure}
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}
 import cats.effect.kernel.testkit.TimeT._
 import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.arbitrary._

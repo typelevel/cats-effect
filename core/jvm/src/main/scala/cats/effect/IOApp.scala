@@ -19,7 +19,7 @@ package cats.effect
 import cats.effect.tracing.TracingConstants._
 import cats.effect.unsafe.FiberMonitor
 
-import scala.concurrent.{CancellationException, blocking}
+import scala.concurrent.{blocking, CancellationException}
 import scala.util.control.NonFatal
 
 import java.util.concurrent.CountDownLatch

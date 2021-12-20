@@ -19,7 +19,7 @@ package unsafe
 
 import cats.syntax.traverse._
 
-import scala.concurrent.{Await, Promise, blocking}
+import scala.concurrent.{blocking, Await, Promise}
 import scala.concurrent.duration._
 import scala.util.Random
 
