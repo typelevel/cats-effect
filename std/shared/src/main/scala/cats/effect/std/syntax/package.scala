@@ -19,9 +19,7 @@ package cats.effect.std
 package object syntax {
 
   object all extends AllSyntax
+
   object supervisor extends SupervisorSyntax
-  object backpressure extends BackpressureSyntax
-  object queue extends QueueSyntax
-  object dequeue extends DequeueSyntax
 
 }

@@ -18,7 +18,6 @@ package cats.effect
 package std
 
 import cats.implicits._
-import cats.effect.std.syntax.dequeue._
 import cats.arrow.FunctionK
 import org.specs2.specification.core.Fragments
 

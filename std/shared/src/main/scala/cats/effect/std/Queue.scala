@@ -350,10 +350,46 @@ trait QueueSource[F[_], A] {
    */
   def tryTake: F[Option[A]]
 
+  /**
+   * Attempts to dequeue elements from the front of the queue, if they are available without
+   * semantically blocking. This is a convenience method that recursively runs `tryTake`. It
+   * does not provide any additional performance benefits.
+   *
+   * @param maxN
+   *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
+   *
+   * @return
+   *   an effect that describes whether the dequeueing of elements from the queue succeeded
+   *   without blocking, with `None` denoting that no element was available
+   */
+  def tryTakeN(maxN: Option[Int])(implicit F: Monad[F]): F[Option[List[A]]] = {
+      QueueSource.assertMaxNPositive(maxN)
+      F.tailRecM[(Option[List[A]], Int), Option[List[A]]](
+        (None, 0)
+      ) {
+        case (list, i) =>
+          if (maxN.contains(i)) list.map(_.reverse).asRight.pure[F]
+          else {
+            tryTake.map {
+              case None => list.map(_.reverse).asRight
+              case Some(x) =>
+                if (list.isEmpty) (Some(List(x)), i + 1).asLeft
+                else (list.map(x +: _), i + 1).asLeft
+            }
+          }
+      }
+    }
+
   def size: F[Int]
 }
 
 object QueueSource {
+  private def assertMaxNPositive(maxN: Option[Int]): Unit = maxN match {
+    case Some(n) if n <= 0 =>
+      throw new IllegalArgumentException(s"Provided maxN parameter must be positive, was $n")
+    case _ => ()
+  }
+
   implicit def catsFunctorForQueueSource[F[_]: Functor]: Functor[QueueSource[F, *]] =
     new Functor[QueueSource[F, *]] {
       override def map[A, B](fa: QueueSource[F, A])(f: A => B): QueueSource[F, B] =

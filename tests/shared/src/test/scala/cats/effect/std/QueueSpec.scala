@@ -23,7 +23,6 @@ package cats.effect
 package std
 
 import cats.arrow.FunctionK
-import cats.effect.std.syntax.queue._
 import org.specs2.specification.core.Fragments
 
 import scala.collection.immutable.{Queue => ScalaQueue}

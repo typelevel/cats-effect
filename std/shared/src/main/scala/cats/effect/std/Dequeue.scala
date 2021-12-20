@@ -23,6 +23,7 @@ import cats.effect.std.internal.BankersQueue
 import cats.syntax.all._
 
 import scala.collection.immutable.{Queue => ScalaQueue}
+import cats.Monad
 
 trait Dequeue[F[_], A] extends Queue[F, A] with DequeueSource[F, A] with DequeueSink[F, A] {
   self =>
@@ -279,6 +280,21 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
   def tryTakeBack: F[Option[A]]
 
   /**
+   * Attempts to dequeue elements from the back of the dequeue, if they available without
+   * semantically blocking. This is a convenience method that recursively runs `tryTakeFront`.
+   * It does not provide any additional performance benefits.
+   *
+   * @param maxN
+   *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
+   *
+   * @return
+   *   an effect that describes whether the dequeueing of an element from the dequeue succeeded
+   *   without blocking, with `None` denoting that no element was available
+   */
+  def tryTakeBackN(maxN: Option[Int])(implicit F: Monad[F]): F[Option[List[A]]] =
+    _tryTakeN(tryTakeBack)(maxN)
+
+  /**
    * Dequeues an element from the front of the dequeue, possibly semantically blocking until an
    * element becomes available.
    */
@@ -295,6 +311,21 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
   def tryTakeFront: F[Option[A]]
 
   /**
+   * Attempts to dequeue elements from the front of the dequeue, if they available without
+   * semantically blocking. This is a convenience method that recursively runs `tryTakeFront`.
+   * It does not provide any additional performance benefits.
+   *
+   * @param maxN
+   *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
+   *
+   * @return
+   *   an effect that describes whether the dequeueing of an element from the dequeue succeeded
+   *   without blocking, with `None` denoting that no element was available
+   */
+  def tryTakeFrontN(maxN: Option[Int])(implicit F: Monad[F]): F[Option[List[A]]] =
+    _tryTakeN(tryTakeFront)(maxN)
+
+  /**
    * Alias for takeFront in order to implement Queue
    */
   override def take: F[A] = takeFront
@@ -304,9 +335,34 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
    */
   override def tryTake: F[Option[A]] = tryTakeFront
 
+  private def _tryTakeN(_tryTake: F[Option[A]])(maxN: Option[Int])(
+      implicit F: Monad[F]): F[Option[List[A]]] = {
+    DequeueSource.assertMaxNPositive(maxN)
+    F.tailRecM[(Option[List[A]], Int), Option[List[A]]](
+      (None, 0)
+    ) {
+      case (list, i) =>
+        if (maxN.contains(i)) list.map(_.reverse).asRight.pure[F]
+        else {
+          _tryTake.map {
+            case None => list.map(_.reverse).asRight
+            case Some(x) =>
+              if (list.isEmpty) (Some(List(x)), i + 1).asLeft
+              else (list.map(x +: _), i + 1).asLeft
+          }
+        }
+    }
+  }
+
 }
 
 object DequeueSource {
+  private def assertMaxNPositive(maxN: Option[Int]): Unit = maxN match {
+    case Some(n) if n <= 0 =>
+      throw new IllegalArgumentException(s"Provided maxN parameter must be positive, was $n")
+    case _ => ()
+  }
+
   implicit def catsFunctorForDequeueSource[F[_]: Functor]: Functor[DequeueSource[F, *]] =
     new Functor[DequeueSource[F, *]] {
       override def map[A, B](fa: DequeueSource[F, A])(f: A => B): DequeueSource[F, B] =
