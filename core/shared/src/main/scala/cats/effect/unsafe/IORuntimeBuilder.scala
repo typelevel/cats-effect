@@ -38,7 +38,7 @@ final class IORuntimeBuilder protected (
    * Override the defaul computing execution context
    *
    * @param compute
-   *   execution context for compute
+   *   [[ExecutionContext]] for compute
    * @param shutdown
    *   method called upon compute context shutdown
    */
