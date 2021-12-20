@@ -26,7 +26,7 @@ import org.scalajs.jsenv.selenium.SeleniumJSEnv
 
 import JSEnv._
 
-ThisBuild / baseVersion := "3.3"
+ThisBuild / baseVersion := "3.4"
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"

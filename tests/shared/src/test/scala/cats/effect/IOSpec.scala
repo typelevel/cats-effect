@@ -1278,7 +1278,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             .flatMap { _ => IO.pure(42) }
         }
 
-        io.syncStep.map {
+        io.syncStep(1024).map {
           case Left(_) => throw new RuntimeException("Boom!")
           case Right(n) => n
         } must completeAsSync(42)
@@ -1290,7 +1290,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         case object TestException extends RuntimeException
         val io = IO.raiseError[Unit](TestException)
 
-        io.syncStep.map {
+        io.syncStep(1024).map {
           case Left(_) => throw new RuntimeException("Boom!")
           case Right(()) => ()
         } must failAsSync(TestException)
@@ -1320,7 +1320,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
               }
             }
 
-          io.syncStep.flatMap {
+          io.syncStep(1024).flatMap {
             case Left(remaining) =>
               SyncIO.delay {
                 inDelay must beTrue
@@ -1336,6 +1336,25 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
             case Right(_) => SyncIO.raiseError[Unit](new RuntimeException("Boom!"))
           } must completeAsSync(())
+      }
+
+      "evaluate up to limit and no further" in {
+        var first = false
+        var second = false
+
+        val program = IO { first = true } *> IO { second = true }
+
+        val test = program.syncStep(2) flatMap { results =>
+          SyncIO {
+            first must beTrue
+            second must beFalse
+            results must beLeft
+
+            ()
+          }
+        }
+
+        test must completeAsSync(())
       }
     }
 
