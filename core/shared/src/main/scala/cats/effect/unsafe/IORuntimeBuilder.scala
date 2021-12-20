@@ -44,7 +44,7 @@ final class IORuntimeBuilder protected (
    */
   def setCompute(compute: ExecutionContext, shutdown: () => Unit) = {
     if (customCompute.isDefined) {
-      throw new RuntimeException("Compute can only be set once")
+      throw new IllegalStateException("Compute can be set only once")
     }
     customCompute = Some((compute, shutdown))
     this
