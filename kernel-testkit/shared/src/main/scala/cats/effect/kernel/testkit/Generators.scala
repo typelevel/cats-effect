@@ -20,7 +20,8 @@ package testkit
 import cats.{Applicative, ApplicativeError, Eq, Monad, MonadError}
 import cats.syntax.all._
 
-import org.scalacheck.{Arbitrary, Cogen, Gen}, Arbitrary.arbitrary
+import org.scalacheck.{Arbitrary, Cogen, Gen}
+import org.scalacheck.Arbitrary.arbitrary
 
 import scala.collection.immutable.SortedMap
 import scala.concurrent.ExecutionContext

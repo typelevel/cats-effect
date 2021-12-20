@@ -19,7 +19,8 @@ package cats.effect
 import cats.{Eq, FlatMap, Monad, MonadError, Show}
 import cats.data._
 import cats.effect.kernel.testkit.freeEval._
-import cats.laws.discipline.{eq, ExhaustiveCheck, MiniInt}, eq._
+import cats.laws.discipline.{ExhaustiveCheck, MiniInt}
+import cats.laws.discipline.eq._
 import cats.syntax.all._
 
 import org.scalacheck.{Arbitrary, Gen, Prop}

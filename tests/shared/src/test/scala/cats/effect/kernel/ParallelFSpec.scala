@@ -17,15 +17,14 @@
 package cats.effect
 package kernel
 
-import cats.syntax.all._
 import cats.effect.kernel.instances.all._
 import cats.effect.kernel.testkit.PureConcGenerators._
 import cats.effect.kernel.testkit.pure.{orderForPureConc => _, _}
 import cats.kernel.Eq
-import cats.laws.discipline.AlignTests
-import cats.laws.discipline.CommutativeApplicativeTests
-import cats.laws.discipline.ParallelTests
+import cats.laws.discipline.{AlignTests, CommutativeApplicativeTests, ParallelTests}
 import cats.laws.discipline.arbitrary.catsLawsCogenForIor
+import cats.syntax.all._
+
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class ParallelFSpec extends BaseSpec with Discipline {

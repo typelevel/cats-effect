@@ -16,8 +16,7 @@
 
 package cats.effect
 
-import scalajs.js
-
+import scala.scalajs.js
 import scala.scalajs.js.{Promise, Thenable}
 
 private[effect] abstract class IOCompanionPlatform { this: IO.type =>

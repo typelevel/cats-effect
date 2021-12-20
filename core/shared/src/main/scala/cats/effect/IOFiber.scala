@@ -16,10 +16,9 @@
 
 package cats.effect
 
+import cats.arrow.FunctionK
 import cats.effect.tracing._
 import cats.effect.unsafe._
-
-import cats.arrow.FunctionK
 
 import scala.annotation.{switch, tailrec}
 import scala.concurrent.ExecutionContext

@@ -21,9 +21,11 @@ package testkit
 import cats.{~>, Group, Monad, Monoid, Order}
 import cats.data.Kleisli
 import cats.syntax.all._
+
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 import scala.concurrent.duration._
+
 import java.util.concurrent.TimeUnit
 
 /*

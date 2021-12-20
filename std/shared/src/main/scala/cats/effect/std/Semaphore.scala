@@ -19,8 +19,9 @@ package effect
 package std
 
 import cats.effect.kernel._
-import cats.syntax.all._
 import cats.effect.kernel.syntax.all._
+import cats.syntax.all._
+
 import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => Q}
 

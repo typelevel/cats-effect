@@ -18,8 +18,8 @@ package cats.effect.kernel.instances
 
 import cats.{~>, Align, Applicative, CommutativeApplicative, Eval, Functor, Monad, Parallel}
 import cats.data.Ior
-import cats.implicits._
 import cats.effect.kernel.{GenSpawn, Outcome, ParallelF}
+import cats.implicits._
 
 trait GenSpawnInstances {
 

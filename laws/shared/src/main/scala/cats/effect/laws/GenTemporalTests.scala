@@ -21,7 +21,8 @@ import cats.{Eq, Group, Order}
 import cats.effect.kernel.{GenTemporal, Outcome}
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
-import org.scalacheck._, Prop.forAll
+import org.scalacheck._
+import org.scalacheck.Prop.forAll
 import org.scalacheck.util.Pretty
 
 import scala.concurrent.duration.FiniteDuration

@@ -20,7 +20,7 @@ import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
 
 import java.util.{concurrent => juc}
-import juc.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
   this: IOFiber[A] =>

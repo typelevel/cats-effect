@@ -22,9 +22,10 @@
 package cats.effect
 package std
 
-import cats.implicits._
 import cats.Order
 import cats.arrow.FunctionK
+import cats.implicits._
+
 import org.scalacheck.Arbitrary.arbitrary
 import org.specs2.specification.core.Fragments
 

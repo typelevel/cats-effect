@@ -17,6 +17,7 @@
 package cats.effect
 
 import cats.syntax.all._
+
 import scala.collection.mutable.ListBuffer
 
 private[effect] object NonDaemonThreadLogger {

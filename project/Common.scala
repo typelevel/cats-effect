@@ -16,7 +16,9 @@
 
 import sbt._, Keys._
 
+import scalafix.sbt.ScalafixPlugin.autoImport._
 import sbtspiewak.SpiewakPlugin, SpiewakPlugin.autoImport._
+import sbt.testing.TaskDef
 
 object Common extends AutoPlugin {
 
@@ -30,6 +32,9 @@ object Common extends AutoPlugin {
           Nil
         else
           Seq(compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"))
-      }
+      },
+      ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0",
+      ThisBuild / semanticdbEnabled := !isDotty.value,
+      ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
     )
 }

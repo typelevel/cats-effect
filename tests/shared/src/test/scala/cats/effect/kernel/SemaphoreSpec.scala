@@ -20,9 +20,10 @@ package std
 
 import cats.arrow.FunctionK
 import cats.syntax.all._
-import scala.concurrent.duration._
 
 import org.specs2.specification.core.Fragments
+
+import scala.concurrent.duration._
 
 class SemaphoreSpec extends BaseSpec { outer =>
 

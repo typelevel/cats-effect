@@ -18,8 +18,7 @@ package cats.effect.unsafe
 
 import scala.concurrent.duration.FiniteDuration
 
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.Executors
+import java.util.concurrent.{Executors, ScheduledExecutorService}
 
 private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
   def createDefaultScheduler(): (Scheduler, () => Unit) = {
