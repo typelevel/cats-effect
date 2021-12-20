@@ -1,4 +1,3 @@
-import sbtcrossproject.CrossProject
 /*
  * Copyright 2020-2021 Typelevel
  *
@@ -23,6 +22,7 @@ import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.firefox.FirefoxOptions
 import org.scalajs.jsenv.nodejs.NodeJSEnv
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
+import sbtcrossproject.CrossProject
 
 import JSEnv._
 
@@ -442,7 +442,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.LocalQueue.enqueueBatch"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.LocalQueue.stealInto")
+        "cats.effect.unsafe.LocalQueue.stealInto"),
+      // introduced by #2673, Cross platform weak bag implementation
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.WorkerThread.monitor")
     )
   )
   .jvmSettings(

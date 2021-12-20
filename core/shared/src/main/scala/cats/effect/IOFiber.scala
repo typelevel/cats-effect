@@ -627,6 +627,10 @@ private final class IOFiber[A](
                 // `resume()` is a volatile read of `suspended` through which
                 // `wasFinalizing` is published
                 if (finalizing == state.wasFinalizing) {
+                  if (isStackTracing) {
+                    state.handle.deregister()
+                  }
+
                   val ec = currentCtx
                   if (!shouldFinalize()) {
                     /* we weren't canceled or completed, so schedule the runloop for execution */
@@ -754,7 +758,7 @@ private final class IOFiber[A](
              * for `canceled` in `shouldFinalize`, ensuring no finalisation leaks
              */
             if (isStackTracing) {
-              monitor(state)
+              state.handle = monitor()
             }
             suspended.getAndSet(true)
 
@@ -922,9 +926,8 @@ private final class IOFiber[A](
             resumeIO = cur.ioa
 
             if (isStackTracing) {
-              val key = new AnyRef()
-              objectState.push(key)
-              monitor(key)
+              val handle = monitor()
+              objectState.push(handle)
             }
             scheduleOnForeignEC(ec, this)
           }
@@ -942,9 +945,8 @@ private final class IOFiber[A](
             resumeIO = cur
 
             if (isStackTracing) {
-              val key = new AnyRef()
-              objectState.push(key)
-              monitor(key)
+              val handle = monitor()
+              objectState.push(handle)
             }
 
             val ec = runtime.blocking
@@ -1074,8 +1076,8 @@ private final class IOFiber[A](
   /**
    * Registers the suspended fiber in the global suspended fiber bag.
    */
-  private[this] def monitor(key: AnyRef): Unit = {
-    runtime.fiberMonitor.monitorSuspended(key, this)
+  private[this] def monitor(): WeakBag.Handle = {
+    runtime.fiberMonitor.monitorSuspended(this)
   }
 
   /* can return null, meaning that no CallbackStack needs to be later invalidated */
@@ -1312,7 +1314,7 @@ private final class IOFiber[A](
 
     if (isStackTracing) {
       // Remove the reference to the fiber monitor key
-      objectState.pop()
+      objectState.pop().asInstanceOf[WeakBag.Handle].deregister()
     }
 
     if (error == null) {
@@ -1377,8 +1379,8 @@ private final class IOFiber[A](
 
   private[this] def evalOnSuccessK(result: Any): IO[Any] = {
     if (isStackTracing) {
-      // Remove the reference to the fiber monitor key
-      objectState.pop()
+      // Remove the reference to the fiber monitor handle
+      objectState.pop().asInstanceOf[WeakBag.Handle].deregister()
     }
     val ec = objectState.pop().asInstanceOf[ExecutionContext]
     currentCtx = ec

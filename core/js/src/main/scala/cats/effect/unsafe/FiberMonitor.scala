@@ -24,15 +24,14 @@ import scala.scalajs.LinkingInfo
 private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
 
   /**
-   * Registers a suspended fiber, tracked by the provided key which is an opaque object which
-   * uses reference equality for comparison.
+   * Registers a suspended fiber.
    *
-   * @param key
-   *   an opaque identifier for the suspended fiber
    * @param fiber
    *   the suspended fiber to be registered
+   * @return
+   *   a handle for deregistering the fiber on resumption
    */
-  def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit
+  def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle
 
   /**
    * Obtains a snapshot of the fibers currently live on the [[IORuntime]] which this fiber
@@ -52,19 +51,15 @@ private final class ES2021FiberMonitor(
     // operates. `null` if the compute pool of the `IORuntime` is not a `FiberAwareExecutionContext`.
     private[this] val compute: FiberAwareExecutionContext
 ) extends FiberMonitor {
-  private[this] val bag = new IterableWeakMap[AnyRef, js.WeakRef[IOFiber[_]]]
+  private[this] val bag = new WeakBag[IOFiber[_]]()
 
-  override def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit = {
-    bag.set(key, new js.WeakRef(fiber))
-  }
-
-  private[this] def foreignFibers(): Set[IOFiber[_]] =
-    bag.entries().flatMap(_._2.deref().toOption).toSet
+  override def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle =
+    bag.insert(fiber)
 
   def liveFiberSnapshot(print: String => Unit): Unit =
     Option(compute).foreach { compute =>
       val queued = compute.liveFibers()
-      val rawForeign = foreignFibers()
+      val rawForeign = bag.toSet
 
       // We trust the sources of data in the following order, ordered from
       // most trustworthy to least trustworthy.
@@ -94,14 +89,13 @@ private final class ES2021FiberMonitor(
  * instances on Scala.js. This is used as a fallback.
  */
 private final class NoOpFiberMonitor extends FiberMonitor {
-  override def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit = ()
+  override def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle = () => ()
   def liveFiberSnapshot(print: String => Unit): Unit = ()
 }
 
 private[effect] object FiberMonitor {
-
   def apply(compute: ExecutionContext): FiberMonitor = {
-    if (LinkingInfo.developmentMode && IterableWeakMap.isAvailable) {
+    if (LinkingInfo.developmentMode && weakRefsAvailable) {
       if (compute.isInstanceOf[FiberAwareExecutionContext]) {
         val faec = compute.asInstanceOf[FiberAwareExecutionContext]
         new ES2021FiberMonitor(faec)
@@ -112,4 +106,13 @@ private[effect] object FiberMonitor {
       new NoOpFiberMonitor()
     }
   }
+
+  private[this] final val Undefined = "undefined"
+
+  /**
+   * Feature-tests for all the required, well, features :)
+   */
+  private[unsafe] def weakRefsAvailable: Boolean =
+    js.typeOf(js.Dynamic.global.WeakRef) != Undefined &&
+      js.typeOf(js.Dynamic.global.FinalizationRegistry) != Undefined
 }

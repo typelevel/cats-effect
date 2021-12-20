@@ -14,16 +14,22 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.unsafe
 
-import cats.effect.unsafe.WeakBag
+private final class SynchronizedWeakBag[A <: AnyRef] {
+  import WeakBag.Handle
 
-import java.util.concurrent.atomic.AtomicInteger
+  private[this] val weakBag: WeakBag[A] = new WeakBag()
 
-// TODO rename
-// `result` and `handle` are published by a volatile store on the atomic integer extended
-// by this class.
-private final class ContState(var wasFinalizing: Boolean) extends AtomicInteger(0) {
-  var result: Either[Throwable, Any] = _
-  var handle: WeakBag.Handle = _
+  def insert(a: A): Handle = synchronized {
+    weakBag.insert(a)
+  }
+
+  def toSet: Set[A] = synchronized {
+    weakBag.toSet
+  }
+
+  def size: Int = synchronized {
+    weakBag.size
+  }
 }

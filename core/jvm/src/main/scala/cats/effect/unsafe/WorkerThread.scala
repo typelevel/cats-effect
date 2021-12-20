@@ -22,8 +22,6 @@ import cats.effect.tracing.TracingConstants
 import scala.annotation.switch
 import scala.concurrent.{BlockContext, CanAwait}
 
-import java.lang.ref.WeakReference
-import java.util.WeakHashMap
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
@@ -59,7 +57,7 @@ private final class WorkerThread(
     // true in tis case.
     private[this] var cedeBypass: IOFiber[_],
     // A worker-thread-local weak bag for tracking suspended fibers.
-    private[this] val fiberBag: WeakHashMap[AnyRef, WeakReference[IOFiber[_]]],
+    private[this] val fiberBag: WeakBag[IOFiber[_]],
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
     private[this] val pool: WorkStealingThreadPool)
     extends Thread
@@ -156,18 +154,15 @@ private final class WorkerThread(
     (pool eq threadPool) && !blocking
 
   /**
-   * Registers a suspended fiber, tracked by the provided key which is an opaque object which
-   * uses reference equality for comparison.
+   * Registers a suspended fiber.
    *
-   * @param key
-   *   an opaque identifier for the suspended fiber
    * @param fiber
    *   the suspended fiber to be registered
+   * @return
+   *   a handle for deregistering the fiber on resumption
    */
-  def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {
-    fiberBag.put(key, new WeakReference(fiber))
-    ()
-  }
+  def monitor(fiber: IOFiber[_]): WeakBag.Handle =
+    fiberBag.insert(fiber)
 
   /**
    * A reference to the active fiber.
@@ -192,7 +187,7 @@ private final class WorkerThread(
    *   a set of suspended fibers tracked by this worker thread
    */
   private[unsafe] def suspendedSnapshot(): Set[IOFiber[_]] =
-    FiberMonitor.weakMapToSet(fiberBag)
+    fiberBag.toSet
 
   /**
    * The run loop of the [[WorkerThread]].
@@ -567,5 +562,5 @@ private final class WorkerThread(
    *   the number of asynchronously suspended fibers
    */
   def getSuspendedFiberCount(): Int =
-    fiberBag.size()
+    fiberBag.size
 }
