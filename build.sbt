@@ -443,7 +443,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.LocalQueue.enqueueBatch"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.LocalQueue.stealInto")
+        "cats.effect.unsafe.LocalQueue.stealInto"),
+      // introduced by #2673, Cross platform weak bag implementation
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.WorkerThread.monitor")
     )
   )
   .jvmSettings(
