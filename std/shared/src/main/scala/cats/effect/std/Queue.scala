@@ -51,7 +51,6 @@ abstract class Queue[F[_], A] extends QueueSource[F, A] with QueueSink[F, A] { s
       def size: G[Int] = f(self.size)
       val take: G[A] = f(self.take)
       val tryTake: G[Option[A]] = f(self.tryTake)
-      def tryTakeN(maxN: Option[Int]): G[Option[List[A]]] = f(self.tryTakeN(maxN))
     }
 }
 
@@ -143,12 +142,6 @@ object Queue {
       throw new IllegalArgumentException(
         s"$name queue capacity must be positive, was: $capacity")
     else ()
-
-  private def assertMaxNPositive(maxN: Option[Int]): Unit = maxN match {
-    case Some(n) if n <= 0 =>
-      throw new IllegalArgumentException(s"Provided maxN parameter must be positive, was $n")
-    case _ => ()
-  }
 
   private sealed abstract class AbstractQueue[F[_], A](
       capacity: Int,
@@ -245,24 +238,6 @@ object Queue {
         .flatten
         .uncancelable
 
-    def tryTakeN(maxN: Option[Int]): F[Option[List[A]]] = {
-      assertMaxNPositive(maxN)
-      F.tailRecM[(Option[List[A]], Int), Option[List[A]]](
-        (None, 0)
-      ) {
-        case (list, i) =>
-          if (maxN.contains(i)) list.map(_.reverse).asRight.pure[F]
-          else {
-            tryTake.map {
-              case None => list.map(_.reverse).asRight
-              case Some(x) =>
-                if (list.isEmpty) (Some(List(x)), i + 1).asLeft
-                else (list.map(x +: _), i + 1).asLeft
-            }
-          }
-      }
-    }
-
     def size: F[Int] = state.get.map(_.size)
 
   }
@@ -351,8 +326,6 @@ object Queue {
             fa.take.map(f)
           override def tryTake: F[Option[B]] =
             fa.tryTake.map(_.map(f))
-          override def tryTakeN(maxN: Option[Int]): F[Option[List[B]]] =
-            fa.tryTakeN(maxN).map(_.map(_.map(f)))
           override def size: F[Int] =
             fa.size
         }
@@ -377,20 +350,6 @@ trait QueueSource[F[_], A] {
    */
   def tryTake: F[Option[A]]
 
-  /**
-   * Attempts to dequeue elements from the front of the queue, if they are available without
-   * semantically blocking. This is a convenience method that recursively runs `tryTake`. It
-   * does not provide any additional performance benefits.
-   *
-   * @param maxN
-   *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
-   *
-   * @return
-   *   an effect that describes whether the dequeueing of elements from the queue succeeded
-   *   without blocking, with `None` denoting that no element was available
-   */
-  def tryTakeN(maxN: Option[Int]): F[Option[List[A]]]
-
   def size: F[Int]
 }
 
@@ -404,8 +363,6 @@ object QueueSource {
           override def tryTake: F[Option[B]] = {
             fa.tryTake.map(_.map(f))
           }
-          override def tryTakeN(maxN: Option[Int]): F[Option[List[B]]] =
-            fa.tryTakeN(maxN).map(_.map(_.map(f)))
           override def size: F[Int] =
             fa.size
         }

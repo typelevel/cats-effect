@@ -17,4 +17,8 @@
 package cats.effect
 package std.syntax
 
-trait AllSyntax extends BackpressureSyntax with SupervisorSyntax
+trait AllSyntax
+    extends BackpressureSyntax
+    with SupervisorSyntax
+    with QueueSyntax
+    with DequeueSyntax
