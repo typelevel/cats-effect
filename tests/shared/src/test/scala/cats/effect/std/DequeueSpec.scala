@@ -18,6 +18,7 @@ package cats.effect
 package std
 
 import cats.implicits._
+import cats.effect.std.syntax.dequeue._
 import cats.arrow.FunctionK
 import org.specs2.specification.core.Fragments
 
@@ -138,6 +139,8 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
     cancelableOfferTests(name, constructor, offer, take, tryTake)
     tryOfferTryTakeTests(name, constructor, tryOffer, tryTake)
     commonTests(name, constructor, offer, tryOffer, take, tryTake, size)
+    batchTakeTests(name, constructor, _.offer(_), _.tryTakeFrontN(_))
+    batchTakeTests(name, constructor, _.offer(_), _.tryTakeBackN(_), _.map(_.reverse))
     reverse(name, constructor)
   }
 }
@@ -196,6 +199,8 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
     tryOfferOnFullTests(name, _ => constructor, offer, tryOffer, true)
     tryOfferTryTakeTests(name, _ => constructor, tryOffer, tryTake)
     commonTests(name, _ => constructor, offer, tryOffer, take, tryTake, size)
+    batchTakeTests(name, _ => constructor, _.offer(_), _.tryTakeFrontN(_))
+    batchTakeTests(name, _ => constructor, _.offer(_), _.tryTakeBackN(_), _.map(_.reverse))
   }
 }
 
