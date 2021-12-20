@@ -233,6 +233,7 @@ val DisciplineVersion = "1.2.5"
 val CoopVersion = "1.1.1"
 
 val MacrotaskExecutorVersion = "1.0.0"
+val JsWeakReferencesVersion = "1.0.0"
 
 replaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 
@@ -448,8 +449,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .jvmSettings(
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
   )
-  .jsSettings(
-    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion)
+  .jsSettings(libraryDependencies ++= Seq(
+    "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion,
+    ("org.scala-js" %%% "scalajs-weakreferences" % JsWeakReferencesVersion)
+      .cross(CrossVersion.for3Use2_13)
+  ))
 
 /**
  * Test support for the core project, providing various helpful instances like ScalaCheck
