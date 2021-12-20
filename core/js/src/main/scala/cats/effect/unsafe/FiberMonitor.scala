@@ -18,6 +18,7 @@ package cats.effect
 package unsafe
 
 import scala.concurrent.ExecutionContext
+import scala.scalajs.js
 import scala.scalajs.LinkingInfo
 
 private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
@@ -93,9 +94,8 @@ private final class NoOpFiberMonitor extends FiberMonitor {
 }
 
 private[effect] object FiberMonitor {
-
   def apply(compute: ExecutionContext): FiberMonitor = {
-    if (LinkingInfo.developmentMode && IterableWeakMap.isAvailable) {
+    if (LinkingInfo.developmentMode && weakRefsAvailable) {
       if (compute.isInstanceOf[FiberAwareExecutionContext]) {
         val faec = compute.asInstanceOf[FiberAwareExecutionContext]
         new ES2021FiberMonitor(faec)
@@ -106,4 +106,13 @@ private[effect] object FiberMonitor {
       new NoOpFiberMonitor()
     }
   }
+
+  private[this] final val Undefined = "undefined"
+
+  /**
+   * Feature-tests for all the required, well, features :)
+   */
+  private[unsafe] def weakRefsAvailable: Boolean =
+    js.typeOf(js.Dynamic.global.WeakRef) != Undefined &&
+      js.typeOf(js.Dynamic.global.FinalizationRegistry) != Undefined
 }
