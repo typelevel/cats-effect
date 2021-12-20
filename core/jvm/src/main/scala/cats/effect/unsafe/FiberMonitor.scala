@@ -24,7 +24,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 import java.lang.ref.WeakReference
-import java.util.{Collections, ConcurrentModificationException, Map, WeakHashMap}
+import java.util.{ConcurrentModificationException, Map}
 import java.util.concurrent.ThreadLocalRandom
 
 /**
@@ -53,13 +53,12 @@ private[effect] final class FiberMonitor(
 ) extends FiberMonitorShared {
 
   private[this] val size: Int = Runtime.getRuntime().availableProcessors() << 2
-  private[this] val bags: Array[Map[AnyRef, WeakReference[IOFiber[_]]]] =
-    new Array(size)
+  private[this] val bags: Array[SynchronizedWeakBag[IOFiber[_]]] = new Array(size)
 
   {
     var i = 0
     while (i < size) {
-      bags(i) = Collections.synchronizedMap(new WeakHashMap())
+      bags(i) = new SynchronizedWeakBag()
       i += 1
     }
   }
@@ -81,10 +80,10 @@ private[effect] final class FiberMonitor(
       if (worker.isOwnedBy(compute)) {
         worker.monitor(key, fiber)
       } else {
-        monitorFallback(key, fiber)
+        monitorFallback(fiber)
       }
     } else {
-      monitorFallback(key, fiber)
+      monitorFallback(fiber)
     }
   }
 
@@ -149,10 +148,10 @@ private[effect] final class FiberMonitor(
       }
     else ()
 
-  private[this] def monitorFallback(key: AnyRef, fiber: IOFiber[_]): Unit = {
+  private[this] def monitorFallback(fiber: IOFiber[_]): Unit = {
     val rnd = ThreadLocalRandom.current()
     val idx = rnd.nextInt(size)
-    bags(idx).put(key, new WeakReference(fiber))
+    bags(idx).insert(fiber)
     ()
   }
 
@@ -161,8 +160,7 @@ private[effect] final class FiberMonitor(
 
     var i = 0
     while (i < size) {
-      val weakMap = bags(i)
-      foreign ++= FiberMonitor.weakMapToSet(weakMap)
+      foreign ++= bags(i).toSet
       i += 1
     }
 
