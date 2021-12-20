@@ -16,14 +16,13 @@
 
 package cats.effect.std
 
-import cats.{~>, Contravariant, Functor, Invariant}
+import cats.{~>, Contravariant, Functor, Invariant, Monad}
 import cats.effect.kernel.{Deferred, GenConcurrent, Ref}
 import cats.effect.kernel.syntax.all._
 import cats.effect.std.internal.BankersQueue
 import cats.syntax.all._
 
 import scala.collection.immutable.{Queue => ScalaQueue}
-import cats.Monad
 
 trait Dequeue[F[_], A] extends Queue[F, A] with DequeueSource[F, A] with DequeueSink[F, A] {
   self =>
