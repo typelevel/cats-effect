@@ -16,11 +16,14 @@
 
 package cats.effect
 
+import cats.effect.unsafe.WeakBag
+
 import java.util.concurrent.atomic.AtomicInteger
 
 // TODO rename
-// `result` is published by a volatile store on the atomic integer extended
+// `result` and `handle` are published by a volatile store on the atomic integer extended
 // by this class.
 private final class ContState(var wasFinalizing: Boolean) extends AtomicInteger(0) {
   var result: Either[Throwable, Any] = _
+  var handle: WeakBag.Handle = _
 }

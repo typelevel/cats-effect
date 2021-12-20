@@ -64,21 +64,20 @@ private[effect] final class FiberMonitor(
   }
 
   /**
-   * Registers a suspended fiber, tracked by the provided key which is an opaque object which
-   * uses reference equality for comparison.
+   * Registers a suspended fiber.
    *
-   * @param key
-   *   an opaque identifier for the suspended fiber
    * @param fiber
    *   the suspended fiber to be registered
+   * @return
+   *   a handle for deregistering the fiber on resumption
    */
-  def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit = {
+  def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle = {
     val thread = Thread.currentThread()
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
       // Guard against tracking errors when multiple work stealing thread pools exist.
       if (worker.isOwnedBy(compute)) {
-        worker.monitor(key, fiber)
+        worker.monitor(fiber)
       } else {
         monitorFallback(fiber)
       }
@@ -148,11 +147,10 @@ private[effect] final class FiberMonitor(
       }
     else ()
 
-  private[this] def monitorFallback(fiber: IOFiber[_]): Unit = {
+  private[this] def monitorFallback(fiber: IOFiber[_]): WeakBag.Handle = {
     val rnd = ThreadLocalRandom.current()
     val idx = rnd.nextInt(size)
     bags(idx).insert(fiber)
-    ()
   }
 
   private[this] def foreignFibers(): Set[IOFiber[_]] = {

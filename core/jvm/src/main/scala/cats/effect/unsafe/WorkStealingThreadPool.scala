@@ -35,8 +35,6 @@ import cats.effect.tracing.TracingConstants
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-import java.lang.ref.WeakReference
-import java.util.WeakHashMap
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
@@ -114,7 +112,7 @@ private[effect] final class WorkStealingThreadPool(
       val parkedSignal = new AtomicBoolean(false)
       parkedSignals(i) = parkedSignal
       val index = i
-      val fiberBag = new WeakHashMap[AnyRef, WeakReference[IOFiber[_]]]()
+      val fiberBag = new WeakBag[IOFiber[_]]()
       val thread =
         new WorkerThread(
           index,
