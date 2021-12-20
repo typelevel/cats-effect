@@ -359,12 +359,13 @@ sealed abstract class Resource[F[_], +A] {
 
   /**
    * Given a `Resource`, possibly built by composing multiple `Resource`s monadically, returns
-   * the acquired resource, as well as an action that runs all the finalizers for releasing it.
+   * the acquired resource, as well as a cleanup function that takes an
+   * [[Resource.ExitCase exit case]] and runs all the finalizers for releasing it.
    *
    * If the outer `F` fails or is interrupted, `allocated` guarantees that the finalizers will
    * be called. However, if the outer `F` succeeds, it's up to the user to ensure the returned
-   * `F[Unit]` is called once `A` needs to be released. If the returned `F[Unit]` is not called,
-   * the finalizers will not be run.
+   * `ExitCode => F[Unit]` is called once `A` needs to be released. If the returned `ExitCode =>
+   * F[Unit]` is not called, the finalizers will not be run.
    *
    * For this reason, this is an advanced and potentially unsafe api which can cause a resource
    * leak if not used correctly, please prefer [[use]] as the standard way of running a
@@ -374,7 +375,8 @@ sealed abstract class Resource[F[_], +A] {
    * release actions (like the `before` and `after` methods of many test frameworks), or complex
    * library code that needs to modify or move the finalizer for an existing resource.
    */
-  def allocated[B >: A](implicit F: MonadCancel[F, Throwable]): F[(B, F[Unit])] = {
+  private[effect] def allocatedCase[B >: A](
+      implicit F: MonadCancel[F, Throwable]): F[(B, ExitCase => F[Unit])] = {
     sealed trait Stack[AA]
     case object Nil extends Stack[B]
     final case class Frame[AA, BB](head: AA => Resource[F, BB], tail: Stack[BB])
@@ -384,7 +386,7 @@ sealed abstract class Resource[F[_], +A] {
     def continue[C](
         current: Resource[F, C],
         stack: Stack[C],
-        release: F[Unit]): F[(B, F[Unit])] =
+        release: ExitCase => F[Unit]): F[(B, ExitCase => F[Unit])] =
       loop(current, stack, release)
 
     // Interpreter that knows how to evaluate a Resource data structure;
@@ -392,13 +394,14 @@ sealed abstract class Resource[F[_], +A] {
     @tailrec def loop[C](
         current: Resource[F, C],
         stack: Stack[C],
-        release: F[Unit]): F[(B, F[Unit])] =
+        release: ExitCase => F[Unit]): F[(B, ExitCase => F[Unit])] =
       current match {
         case Allocate(resource) =>
           F uncancelable { poll =>
             resource(poll) flatMap {
               case (b, rel) =>
-                val rel2 = rel(ExitCase.Succeeded).guarantee(release)
+                // Insert F.unit to emulate defer for stack-safety
+                val rel2 = (ec: ExitCase) => rel(ec).guarantee(F.unit >> release(ec))
 
                 stack match {
                   case Nil =>
@@ -438,8 +441,29 @@ sealed abstract class Resource[F[_], +A] {
           fa.flatMap(a => continue(Resource.pure(a), stack, release))
       }
 
-    loop(this, Nil, F.unit)
+    loop(this, Nil, _ => F.unit)
   }
+
+  /**
+   * Given a `Resource`, possibly built by composing multiple `Resource`s monadically, returns
+   * the acquired resource, as well as an action that runs all the finalizers for releasing it.
+   *
+   * If the outer `F` fails or is interrupted, `allocated` guarantees that the finalizers will
+   * be called. However, if the outer `F` succeeds, it's up to the user to ensure the returned
+   * `F[Unit]` is called once `A` needs to be released. If the returned `F[Unit]` is not called,
+   * the finalizers will not be run.
+   *
+   * For this reason, this is an advanced and potentially unsafe api which can cause a resource
+   * leak if not used correctly, please prefer [[use]] as the standard way of running a
+   * `Resource` program.
+   *
+   * Use cases include interacting with side-effectful apis that expect separate acquire and
+   * release actions (like the `before` and `after` methods of many test frameworks), or complex
+   * library code that needs to modify or move the finalizer for an existing resource.
+   */
+  def allocated[B >: A](implicit F: MonadCancel[F, Throwable]): F[(B, F[Unit])] =
+    F.uncancelable(poll =>
+      poll(allocatedCase).map { case (b, fin) => (b, fin(ExitCase.Succeeded)) })
 
   /**
    * Applies an effectful transformation to the allocated resource. Like a `flatMap` on `F[A]`
@@ -472,31 +496,22 @@ sealed abstract class Resource[F[_], +A] {
     }
 
   def forceR[B](that: Resource[F, B])(implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
-    Resource applyFull { poll =>
-      poll(this.use_ !> that.allocated) map { p =>
-        // map exists on tuple in Scala 3 and has the wrong type
-        Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
-    }
+    Resource.applyFull { poll => poll(this.use_ !> that.allocatedCase) }
 
   def !>[B](that: Resource[F, B])(implicit F: MonadCancel[F, Throwable]): Resource[F, B] =
     forceR(that)
 
   def onCancel(fin: Resource[F, Unit])(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
-    Resource applyFull { poll =>
-      poll(this.allocated).onCancel(fin.use_) map { p =>
-        Functor[(A @uncheckedVariance, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
-    }
+    Resource.applyFull { poll => poll(this.allocatedCase).onCancel(fin.use_) }
 
   def guaranteeCase(
       fin: Outcome[Resource[F, *], Throwable, A @uncheckedVariance] => Resource[F, Unit])(
       implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
-    Resource applyFull { poll =>
-      val back = poll(this.allocated) guaranteeCase {
+    Resource.applyFull { poll =>
+      poll(this.allocatedCase).guaranteeCase {
         case Outcome.Succeeded(ft) =>
-          fin(Outcome.Succeeded(Resource.eval(ft.map(_._1)))).use_ handleErrorWith { e =>
-            ft.flatMap(_._2).handleError(_ => ()) >> F.raiseError(e)
+          fin(Outcome.Succeeded(Resource.eval(ft.map(_._1)))).use_.handleErrorWith { e =>
+            ft.flatMap(_._2(ExitCase.Errored(e))).handleError(_ => ()) >> F.raiseError(e)
           }
 
         case Outcome.Errored(e) =>
@@ -505,9 +520,6 @@ sealed abstract class Resource[F[_], +A] {
         case Outcome.Canceled() =>
           fin(Outcome.Canceled()).use_
       }
-
-      back.map(p =>
-        Functor[(A @uncheckedVariance, *)].map(p)(fu => (_: Resource.ExitCase) => fu))
     }
 
   /*
@@ -597,11 +609,7 @@ sealed abstract class Resource[F[_], +A] {
   }
 
   def evalOn(ec: ExecutionContext)(implicit F: Async[F]): Resource[F, A] =
-    Resource applyFull { poll =>
-      poll(this.allocated).evalOn(ec) map { p =>
-        Functor[(A @uncheckedVariance, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
-    }
+    Resource.applyFull { poll => poll(this.allocatedCase).evalOn(ec) }
 
   def attempt[E](implicit F: ApplicativeError[F, E]): Resource[F, Either[E, A]] =
     this match {
@@ -914,16 +922,10 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
     Resource applyFull { poll =>
       val inner = new Poll[Resource[F, *]] {
         def apply[B](rfb: Resource[F, B]): Resource[F, B] =
-          Resource applyFull { innerPoll =>
-            innerPoll(poll(rfb.allocated)) map { p =>
-              Functor[(B, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-            }
-          }
+          Resource applyFull { innerPoll => innerPoll(poll(rfb.allocatedCase)) }
       }
 
-      body(inner).allocated map { p =>
-        Functor[(A, *)].map(p)(fin => (_: Resource.ExitCase) => fin)
-      }
+      body(inner).allocatedCase
     }
 
   def unique[F[_]](implicit F: Unique[F]): Resource[F, Unique.Token] =
@@ -955,30 +957,33 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
     Resource.eval(F.sleep(time))
 
   def cont[F[_], K, R](body: Cont[Resource[F, *], K, R])(implicit F: Async[F]): Resource[F, R] =
-    Resource applyFull { poll =>
+    Resource.applyFull { poll =>
       poll {
-        F cont {
+        F.cont {
           new Cont[F, K, (R, Resource.ExitCase => F[Unit])] {
             def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (cb, ga, nt) =>
-              type D[A] = Kleisli[G, Ref[G, F[Unit]], A]
+              type D[A] = Kleisli[G, Ref[G, ExitCase => F[Unit]], A]
 
               val nt2 = new (Resource[F, *] ~> D) {
                 def apply[A](rfa: Resource[F, A]) =
                   Kleisli { r =>
-                    nt(rfa.allocated) flatMap { case (a, fin) => r.update(_ !> fin).as(a) }
+                    nt(rfa.allocatedCase) flatMap {
+                      case (a, fin) =>
+                        r.update(f => (ec: ExitCase) => f(ec) !> (F.unit >> fin(ec))).as(a)
+                    }
                   }
               }
 
               for {
-                r <- nt(F.ref(F.unit).map(_.mapK(nt)))
+                r <- nt(F.ref((_: ExitCase) => F.unit).map(_.mapK(nt)))
 
                 a <- G.guaranteeCase(body[D].apply(cb, Kleisli.liftF(ga), nt2).run(r)) {
-                  case Outcome.Canceled() | Outcome.Errored(_) => r.get.flatMap(nt(_))
                   case Outcome.Succeeded(_) => G.unit
+                  case oc => r.get.flatMap(fin => nt(fin(ExitCase.fromOutcome(oc))))
                 }
 
                 fin <- r.get
-              } yield (a, (_: Resource.ExitCase) => fin)
+              } yield (a, fin)
             }
           }
         }
@@ -1079,13 +1084,17 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
      * implements this flattening operation with the same semantics as [[Resource.flatMap]].
      */
     def flattenK(implicit F: MonadCancel[F, Throwable]): Resource[F, A] =
-      Resource applyFull { poll =>
-        val alloc = self.allocated.allocated
+      Resource.applyFull { poll =>
+        val alloc = self.allocatedCase.allocatedCase
 
         poll(alloc) map {
           case ((a, rfin), fin) =>
-            val composedFinalizers = fin !> rfin.allocated.flatMap(_._2)
-            (a, (_: Resource.ExitCase) => composedFinalizers)
+            val composedFinalizers =
+              (ec: ExitCase) =>
+                // Break stack-unsafe mutual recursion with allocatedCase
+                (F.unit >> fin(ec))
+                  .guarantee(F.unit >> rfin(ec).allocatedCase.flatMap(_._2(ec)))
+            (a, composedFinalizers)
         }
       }
   }
