@@ -25,19 +25,20 @@ import scala.concurrent.duration._
 
 class AsyncPlatformSpec extends BaseSpec {
 
-  val smallDelay: IO[Unit] = IO.sleep(100.millis)
+  val smallDelay: IO[Unit] = IO.sleep(1.second)
 
   "AsyncPlatform CompletableFuture conversion" should {
     "cancel CompletableFuture on fiber cancellation" in real {
       lazy val cf = CompletableFuture.supplyAsync { () =>
-        Thread.sleep(200) // some computation
+        Thread.sleep(2000) // some computation
       }
 
       for {
         fiber <- IO.fromCompletableFuture(IO(cf)).start
         _ <- smallDelay // time for the callback to be set-up
         _ <- fiber.cancel
-      } yield cf.join() must throwA[CancellationException]
+        _ <- IO(cf.join() must throwA[CancellationException])
+      } yield ok
     }
   }
 }
