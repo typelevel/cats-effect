@@ -16,8 +16,8 @@
 
 package cats.effect.kernel
 
-import cats.data._
 import cats.{Applicative, MonadError, Monoid, Semigroup}
+import cats.data._
 import cats.syntax.all._
 
 import scala.concurrent.TimeoutException

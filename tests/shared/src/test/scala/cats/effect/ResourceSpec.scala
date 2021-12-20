@@ -18,20 +18,17 @@ package cats.effect
 
 import cats.{~>, SemigroupK}
 import cats.data.{Kleisli, OptionT}
-import cats.effect.laws.AsyncTests
+import cats.effect.implicits._
 import cats.effect.kernel.testkit.TestContext
+import cats.effect.laws.AsyncTests
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
-import cats.effect.implicits._
 
-import org.scalacheck.{Cogen, Prop}, Prop.forAll
-// import org.scalacheck.rng.Seed
-
+import org.scalacheck.Cogen
+import org.scalacheck.Prop.forAll
 import org.specs2.ScalaCheck
-// import org.specs2.scalacheck.Parameters
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._

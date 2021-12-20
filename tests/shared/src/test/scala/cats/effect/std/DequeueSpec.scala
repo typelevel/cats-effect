@@ -17,11 +17,11 @@
 package cats.effect
 package std
 
-import cats.implicits._
 import cats.arrow.FunctionK
-import org.specs2.specification.core.Fragments
+import cats.implicits._
 
-import org.scalacheck.Arbitrary, Arbitrary.arbitrary
+import org.scalacheck.Arbitrary.arbitrary
+import org.specs2.specification.core.Fragments
 
 import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.concurrent.duration._

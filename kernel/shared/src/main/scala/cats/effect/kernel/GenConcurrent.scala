@@ -17,11 +17,10 @@
 package cats.effect.kernel
 
 import cats.{Monoid, Semigroup, Traverse}
-import cats.syntax.all._
-import cats.effect.kernel.syntax.all._
-import cats.effect.kernel.instances.spawn._
-
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
+import cats.effect.kernel.instances.spawn._
+import cats.effect.kernel.syntax.all._
+import cats.syntax.all._
 
 trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 

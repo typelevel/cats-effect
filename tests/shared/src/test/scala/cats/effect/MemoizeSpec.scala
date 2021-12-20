@@ -18,7 +18,8 @@ package cats
 package effect
 
 import cats.syntax.all._
-import org.scalacheck.Prop, Prop.forAll
+
+import org.scalacheck.Prop.forAll
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._

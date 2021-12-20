@@ -23,9 +23,10 @@ import cats.effect.syntax.all._
 import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.eq._
+
 import org.scalacheck.Prop
-import org.typelevel.discipline.specs2.mutable.Discipline
 import org.specs2.scalacheck.Parameters
+import org.typelevel.discipline.specs2.mutable.Discipline
 
 class StateTIOSpec extends BaseSpec with Discipline {
 

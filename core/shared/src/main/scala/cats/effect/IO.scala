@@ -34,10 +34,11 @@ import cats.{
   Traverse
 }
 import cats.data.Ior
-import cats.syntax.all._
 import cats.effect.instances.spawn
 import cats.effect.std.Console
 import cats.effect.tracing.{Tracing, TracingEvent}
+import cats.syntax.all._
+
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{
   CancellationException,

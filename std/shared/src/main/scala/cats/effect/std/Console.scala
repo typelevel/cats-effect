@@ -21,16 +21,16 @@
 
 package cats.effect.std
 
-import cats.kernel.Monoid
 import cats.{~>, Applicative, Functor, Show}
 import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 import cats.effect.kernel.Sync
+import cats.kernel.Monoid
 import cats.syntax.show._
 
 import scala.annotation.tailrec
 
-import java.lang.{StringBuilder => JStringBuilder}
 import java.io.{ByteArrayOutputStream, EOFException, PrintStream}
+import java.lang.{StringBuilder => JStringBuilder}
 import java.nio.{ByteBuffer, CharBuffer}
 import java.nio.charset.{Charset, CodingErrorAction, MalformedInputException}
 

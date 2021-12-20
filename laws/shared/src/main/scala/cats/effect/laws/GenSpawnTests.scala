@@ -21,7 +21,8 @@ import cats.Eq
 import cats.effect.kernel.{GenSpawn, Outcome}
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
-import org.scalacheck._, Prop.forAll
+import org.scalacheck._
+import org.scalacheck.Prop.forAll
 import org.scalacheck.util.Pretty
 
 trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] with UniqueTests[F] {

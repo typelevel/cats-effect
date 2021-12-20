@@ -23,10 +23,10 @@ package cats.effect.std.internal
 
 import cats.Order
 
-import org.specs2.mutable.Specification
+import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary.arbitrary
 import org.specs2.ScalaCheck
-
-import org.scalacheck.{Arbitrary, Gen}, Arbitrary.arbitrary
+import org.specs2.mutable.Specification
 
 class BinomialHeapSpec extends Specification with ScalaCheck {
 

@@ -18,8 +18,8 @@ package cats.effect
 package laws
 
 import cats.effect.kernel.MonadCancel
-import cats.syntax.all._
 import cats.laws.MonadErrorLaws
+import cats.syntax.all._
 
 trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
