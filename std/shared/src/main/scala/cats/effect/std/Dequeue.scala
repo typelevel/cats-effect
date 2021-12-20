@@ -281,7 +281,7 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
 
   /**
    * Attempts to dequeue elements from the back of the dequeue, if they available without
-   * semantically blocking. This is a convenience method that recursively runs `tryTakeFront`.
+   * semantically blocking. This is a convenience method that recursively runs `tryTakeBack`.
    * It does not provide any additional performance benefits.
    *
    * @param maxN
