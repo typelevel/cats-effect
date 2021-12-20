@@ -1,4 +1,3 @@
-import sbtcrossproject.CrossProject
 /*
  * Copyright 2020-2021 Typelevel
  *
@@ -23,6 +22,7 @@ import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.firefox.FirefoxOptions
 import org.scalajs.jsenv.nodejs.NodeJSEnv
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
+import sbtcrossproject.CrossProject
 
 import JSEnv._
 
