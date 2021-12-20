@@ -16,10 +16,10 @@
 
 package cats.effect.unsafe
 
+import cats.effect.unsafe.ref.{ReferenceQueue, WeakReference}
+
 import scala.annotation.tailrec
 import scala.collection.mutable
-
-import java.lang.ref.{ReferenceQueue, WeakReference}
 
 private final class WeakBag[A <: AnyRef] {
   import WeakBag._
