@@ -35,7 +35,7 @@ final class IORuntimeBuilder protected (
 ) extends IORuntimeBuilderPlatform {
 
   /**
-   * Override the defaul computing execution context
+   * Set a custom compute pool
    *
    * @param compute
    *   [[ExecutionContext]] for compute
