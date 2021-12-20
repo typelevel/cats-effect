@@ -38,7 +38,7 @@ final class IORuntimeBuilder protected (
    * Set a custom compute pool
    *
    * @param compute
-   *   [[ExecutionContext]] for compute
+   *   `ExecutionContext` for compute
    * @param shutdown
    *   shutdown hook upon [[IORuntime]] shutdown
    */
