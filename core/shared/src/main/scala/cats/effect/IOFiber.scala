@@ -625,7 +625,7 @@ private final class IOFiber[A](
               /* try to take ownership of the runloop */
               if (resume()) {
                 // `resume()` is a volatile read of `suspended` through which
-                // `wasFinalizing` is published
+                // `wasFinalizing` and `handle` are published
                 if (finalizing == state.wasFinalizing) {
                   if (isStackTracing) {
                     state.handle.deregister()
