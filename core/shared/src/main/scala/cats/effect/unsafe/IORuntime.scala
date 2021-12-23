@@ -34,7 +34,7 @@ avoid unintentionally degrading your application performance.
 """)
 final class IORuntime private[unsafe] (
     val compute: ExecutionContext,
-    private[effect] val blocking: ExecutionContext,
+    val blocking: ExecutionContext,
     val scheduler: Scheduler,
     private[effect] val fiberMonitor: FiberMonitor,
     val shutdown: () => Unit,
