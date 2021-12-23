@@ -38,17 +38,16 @@ import java.util.concurrent.locks.LockSupport
  * single global work queue.
  */
 private final class WorkerThread(
-    // Index assigned by the `WorkStealingThreadPool` for identification purposes.
-    private[unsafe] val index: Int,
+    idx: Int,
     // Thread prefix string used for naming new instances of `WorkerThread`.
     private[this] val threadPrefix: String,
     // Local queue instance with exclusive write access.
-    private[this] val queue: LocalQueue,
+    private[this] var queue: LocalQueue,
     // The state of the `WorkerThread` (parked/unparked).
-    private[this] val parked: AtomicBoolean,
+    private[this] var parked: AtomicBoolean,
     // External queue used by the local queue for offloading excess fibers, as well as
     // for drawing fibers when the local queue is exhausted.
-    private[this] val external: ScalQueue[AnyRef],
+    private[this] var external: ScalQueue[AnyRef],
     // A mutable reference to a fiber which is used to bypass the local queue
     // when a `cede` operation would enqueue a fiber to the empty local queue
     // and then proceed to dequeue the same fiber again from the queue. This not
@@ -57,7 +56,7 @@ private final class WorkerThread(
     // true in tis case.
     private[this] var cedeBypass: IOFiber[_],
     // A worker-thread-local weak bag for tracking suspended fibers.
-    private[this] val fiberBag: WeakBag[IOFiber[_]],
+    private[this] var fiberBag: WeakBag[IOFiber[_]],
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
     private[this] val pool: WorkStealingThreadPool)
     extends Thread
@@ -65,6 +64,9 @@ private final class WorkerThread(
 
   import TracingConstants._
   import WorkStealingThreadPoolConstants._
+
+  // Index assigned by the `WorkStealingThreadPool` for identification purposes.
+  private[this] var _index: Int = idx
 
   /**
    * Uncontented source of randomness. By default, `java.util.Random` is thread safe, which is a
@@ -163,6 +165,12 @@ private final class WorkerThread(
    */
   def monitor(fiber: IOFiber[_]): WeakBag.Handle =
     fiberBag.insert(fiber)
+
+  /**
+   * The index of the worker thread.
+   */
+  private[unsafe] def index: Int =
+    _index
 
   /**
    * A reference to the active fiber.
