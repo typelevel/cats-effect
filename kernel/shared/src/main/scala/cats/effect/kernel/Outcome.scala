@@ -16,7 +16,18 @@
 
 package cats.effect.kernel
 
-import cats.{~>, Applicative, ApplicativeError, Bifunctor, Eq, Monad, MonadError, Order, Show, Traverse}
+import cats.{
+  ~>,
+  Applicative,
+  ApplicativeError,
+  Bifunctor,
+  Eq,
+  Monad,
+  MonadError,
+  Order,
+  Show,
+  Traverse
+}
 import cats.syntax.all._
 
 import scala.annotation.tailrec
