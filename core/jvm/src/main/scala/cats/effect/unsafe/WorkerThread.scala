@@ -264,9 +264,11 @@ private final class WorkerThread(
      */
     var state = 4
 
+    val done = pool.done
+
     def parkLoop(): Unit = {
       var cont = true
-      while (cont && !isInterrupted()) {
+      while (cont && !done.get()) {
         // Park the thread until further notice.
         LockSupport.park(pool)
 
@@ -274,8 +276,6 @@ private final class WorkerThread(
         cont = parked.get()
       }
     }
-
-    val done = pool.done
 
     while (!blocking && !done.get()) {
       ((state & ExternalQueueTicksMask): @switch) match {
