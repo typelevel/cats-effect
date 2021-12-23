@@ -91,6 +91,8 @@ private final class WorkerThread(
    */
   private[this] var _active: IOFiber[_] = _
 
+  private val publisher: AtomicBoolean = new AtomicBoolean(true)
+
   // Constructor code.
   {
     // Worker threads are daemon threads.
@@ -285,7 +287,31 @@ private final class WorkerThread(
       }
     }
 
-    while (!blocking && !done.get()) {
+    while (!done.get()) {
+
+      if (blocking) {
+        _index = -1
+        queue = null
+        parked = null
+        external = null
+        cedeBypass = null
+        fiberBag = null
+
+        pool.cachedThreads.offer(this)
+        LockSupport.parkNanos(pool, 60000000L)
+        if (pool.cachedThreads.remove(this)) {
+          return
+        } else {
+          while ({
+            publisher.get()
+            queue == null
+          }) ()
+
+          blocking = false
+          state = 4
+        }
+      }
+
       ((state & ExternalQueueTicksMask): @switch) match {
         case 0 =>
           // Obtain a fiber or batch of fibers from the external queue.
@@ -527,21 +553,39 @@ private final class WorkerThread(
         pool.blockedWorkerThreadCounter.incrementAndGet()
       }
 
-      // Spawn a new `WorkerThread`, a literal clone of this one. It is safe to
-      // transfer ownership of the local queue and the parked signal to the new
-      // thread because the current one will only execute the blocking action
-      // and die. Any other worker threads trying to steal from the local queue
-      // being transferred need not know of the fact that the underlying worker
-      // thread is being changed. Transferring the parked signal is safe because
-      // a worker thread about to run blocking code is **not** parked, and
-      // therefore, another worker thread would not even see it as a candidate
-      // for unparking.
-      val idx = index
-      val clone =
-        new WorkerThread(idx, threadPrefix, queue, parked, external, cedeBypass, fiberBag, pool)
-      cedeBypass = null
-      pool.replaceWorker(idx, clone)
-      clone.start()
+      val cached = pool.cachedThreads.poll()
+      if (cached ne null) {
+        val idx = index
+        cached.init(idx, queue, parked, external, cedeBypass, fiberBag)
+        cedeBypass = null
+        pool.replaceWorker(idx, cached)
+        cached.publisher.lazySet(true)
+        LockSupport.unpark(cached)
+      } else {
+        // Spawn a new `WorkerThread`, a literal clone of this one. It is safe to
+        // transfer ownership of the local queue and the parked signal to the new
+        // thread because the current one will only execute the blocking action
+        // and die. Any other worker threads trying to steal from the local queue
+        // being transferred need not know of the fact that the underlying worker
+        // thread is being changed. Transferring the parked signal is safe because
+        // a worker thread about to run blocking code is **not** parked, and
+        // therefore, another worker thread would not even see it as a candidate
+        // for unparking.
+        val idx = index
+        val clone =
+          new WorkerThread(
+            idx,
+            threadPrefix,
+            queue,
+            parked,
+            external,
+            cedeBypass,
+            fiberBag,
+            pool)
+        cedeBypass = null
+        pool.replaceWorker(idx, clone)
+        clone.start()
+      }
 
       // With another `WorkerThread` started, it is time to execute the blocking
       // action.
@@ -556,6 +600,22 @@ private final class WorkerThread(
 
       result
     }
+  }
+
+  private def init(
+      i: Int,
+      q: LocalQueue,
+      p: AtomicBoolean,
+      e: ScalQueue[AnyRef],
+      c: IOFiber[_],
+      b: WeakBag[IOFiber[_]]
+  ): Unit = {
+    _index = i
+    queue = q
+    parked = p
+    external = e
+    cedeBypass = c
+    fiberBag = b
   }
 
   /**
