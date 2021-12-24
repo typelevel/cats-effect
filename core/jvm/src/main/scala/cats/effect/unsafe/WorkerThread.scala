@@ -300,13 +300,13 @@ private final class WorkerThread(
         pool.cachedThreads.offer(this)
         LockSupport.parkNanos(pool, 60000000L)
         if (pool.cachedThreads.remove(this)) {
+          pool.blockedWorkerThreadCounter.decrementAndGet()
           return
         } else {
-          while ({
-            publisher.get()
-            queue == null
-          }) ()
-
+          publisher.get()
+          if (isInterrupted()) {
+            return
+          }
           blocking = false
           state = 4
         }
@@ -549,10 +549,6 @@ private final class WorkerThread(
       // blocking code has been successfully executed.
       blocking = true
 
-      if (isStackTracing) {
-        pool.blockedWorkerThreadCounter.incrementAndGet()
-      }
-
       val cached = pool.cachedThreads.poll()
       if (cached ne null) {
         val idx = index
@@ -587,18 +583,7 @@ private final class WorkerThread(
         clone.start()
       }
 
-      // With another `WorkerThread` started, it is time to execute the blocking
-      // action.
-      val result =
-        try thunk // Exceptions are caught in IOFiber.
-        finally {
-          if (isStackTracing) {
-            pool.blockedWorkerThreadCounter.decrementAndGet()
-            ()
-          }
-        }
-
-      result
+      thunk
     }
   }
 
