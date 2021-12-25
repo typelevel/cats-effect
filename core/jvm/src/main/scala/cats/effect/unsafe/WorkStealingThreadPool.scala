@@ -35,7 +35,8 @@ import cats.effect.tracing.TracingConstants
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
+import java.util.Comparator
+import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
 
@@ -95,8 +96,8 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
 
-  private[unsafe] val cachedThreads: ConcurrentLinkedQueue[WorkerThread] =
-    new ConcurrentLinkedQueue()
+  private[unsafe] val cachedThreads: ConcurrentSkipListSet[WorkerThread] =
+    new ConcurrentSkipListSet(Comparator.comparingInt[WorkerThread](_.nameIndex))
 
   /**
    * The shutdown latch of the work stealing thread pool.
@@ -557,7 +558,7 @@ private[effect] final class WorkStealingThreadPool(
 
       var t: WorkerThread = null
       while ({
-        t = cachedThreads.poll()
+        t = cachedThreads.pollFirst()
         t ne null
       }) {
         t.interrupt()

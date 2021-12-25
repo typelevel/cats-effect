@@ -91,13 +91,14 @@ private final class WorkerThread(
 
   private val publisher: AtomicBoolean = new AtomicBoolean(true)
 
+  val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.incrementAndGet()
+
   // Constructor code.
   {
     // Worker threads are daemon threads.
     setDaemon(true)
 
     val prefix = pool.threadPrefix
-    val nameIndex = pool.blockedWorkerThreadNamingIndex.incrementAndGet()
     // Set the name of this thread.
     setName(s"$prefix-$nameIndex")
   }
@@ -297,16 +298,25 @@ private final class WorkerThread(
         cedeBypass = null
         fiberBag = null
 
-        pool.cachedThreads.offer(this)
+        pool.cachedThreads.add(this)
         LockSupport.parkNanos(pool, 60000000L)
+        if (isInterrupted()) {
+          return
+        }
+
         if (pool.cachedThreads.remove(this)) {
           pool.blockedWorkerThreadCounter.decrementAndGet()
           return
         } else {
-          publisher.get()
-          if (isInterrupted()) {
-            return
+          var cont = true
+          while (cont) {
+            if (isInterrupted()) {
+              return
+            }
+            publisher.get()
+            cont = queue eq null
           }
+
           blocking = false
           state = 4
         }
@@ -549,13 +559,13 @@ private final class WorkerThread(
       // blocking code has been successfully executed.
       blocking = true
 
-      val cached = pool.cachedThreads.poll()
+      val cached = pool.cachedThreads.pollFirst()
       if (cached ne null) {
         val idx = index
         cached.init(idx, queue, parked, external, cedeBypass, fiberBag)
         cedeBypass = null
         pool.replaceWorker(idx, cached)
-        cached.publisher.lazySet(true)
+        cached.publisher.set(true)
         LockSupport.unpark(cached)
       } else {
         // Spawn a new `WorkerThread`, a literal clone of this one. It is safe to
