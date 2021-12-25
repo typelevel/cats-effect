@@ -22,9 +22,10 @@ import cats.effect.tracing.TracingConstants
 import scala.annotation.switch
 import scala.concurrent.{BlockContext, CanAwait}
 
-import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.{ArrayBlockingQueue, ThreadLocalRandom}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
+import java.util.concurrent.TimeUnit
 
 /**
  * Implementation of the worker thread at the heart of the [[WorkStealingThreadPool]].
@@ -89,7 +90,8 @@ private final class WorkerThread(
    */
   private[this] var _active: IOFiber[_] = _
 
-  private val publisher: AtomicBoolean = new AtomicBoolean(true)
+  private val dataTransfer: ArrayBlockingQueue[WorkerThread.Data] =
+    new ArrayBlockingQueue(1)
 
   val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.incrementAndGet()
 
@@ -299,27 +301,36 @@ private final class WorkerThread(
         fiberBag = null
 
         pool.cachedThreads.add(this)
-        LockSupport.parkNanos(pool, 60000000L)
-        if (isInterrupted()) {
-          return
-        }
-
-        if (pool.cachedThreads.remove(this)) {
-          pool.blockedWorkerThreadCounter.decrementAndGet()
-          return
-        } else {
-          var cont = true
-          while (cont) {
-            if (isInterrupted()) {
+        try {
+          var data = dataTransfer.poll(60L, TimeUnit.SECONDS)
+          if (data eq null) {
+            if (pool.cachedThreads.remove(this)) {
+              pool.blockedWorkerThreadCounter.decrementAndGet()
               return
+            } else {
+              data = dataTransfer.take()
+              _index = data.index
+              queue = data.queue
+              parked = data.parked
+              external = data.external
+              cedeBypass = data.cedeBypass
+              fiberBag = data.fiberBag
             }
-            publisher.get()
-            cont = queue eq null
+          } else {
+            _index = data.index
+            queue = data.queue
+            parked = data.parked
+            external = data.external
+            cedeBypass = data.cedeBypass
+            fiberBag = data.fiberBag
           }
-
-          blocking = false
-          state = 4
+        } catch {
+          case _: InterruptedException =>
+            return
         }
+
+        blocking = false
+        state = 4
       }
 
       ((state & ExternalQueueTicksMask): @switch) match {
@@ -562,11 +573,10 @@ private final class WorkerThread(
       val cached = pool.cachedThreads.pollFirst()
       if (cached ne null) {
         val idx = index
-        cached.init(idx, queue, parked, external, cedeBypass, fiberBag)
+        val data = new WorkerThread.Data(idx, queue, parked, external, cedeBypass, fiberBag)
         cedeBypass = null
         pool.replaceWorker(idx, cached)
-        cached.publisher.set(true)
-        LockSupport.unpark(cached)
+        cached.dataTransfer.offer(data)
       } else {
         // Spawn a new `WorkerThread`, a literal clone of this one. It is safe to
         // transfer ownership of the local queue and the parked signal to the new
@@ -589,22 +599,6 @@ private final class WorkerThread(
     }
   }
 
-  private def init(
-      i: Int,
-      q: LocalQueue,
-      p: AtomicBoolean,
-      e: ScalQueue[AnyRef],
-      c: IOFiber[_],
-      b: WeakBag[IOFiber[_]]
-  ): Unit = {
-    _index = i
-    queue = q
-    parked = p
-    external = e
-    cedeBypass = c
-    fiberBag = b
-  }
-
   /**
    * Returns the number of fibers which are currently asynchronously suspended and tracked by
    * this worker thread.
@@ -618,4 +612,15 @@ private final class WorkerThread(
    */
   def getSuspendedFiberCount(): Int =
     fiberBag.size
+}
+
+private object WorkerThread {
+  final class Data(
+      val index: Int,
+      val queue: LocalQueue,
+      val parked: AtomicBoolean,
+      val external: ScalQueue[AnyRef],
+      val cedeBypass: IOFiber[_],
+      val fiberBag: WeakBag[IOFiber[_]]
+  )
 }
