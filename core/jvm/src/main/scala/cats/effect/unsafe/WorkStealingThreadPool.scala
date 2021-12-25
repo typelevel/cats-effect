@@ -56,7 +56,7 @@ import java.util.concurrent.locks.LockSupport
  */
 private[effect] final class WorkStealingThreadPool(
     threadCount: Int, // number of worker threads
-    threadPrefix: String, // prefix for the name of worker threads
+    private[unsafe] val threadPrefix: String, // prefix for the name of worker threads
     self0: => IORuntime
 ) extends ExecutionContext {
 
@@ -117,15 +117,7 @@ private[effect] final class WorkStealingThreadPool(
       val index = i
       val fiberBag = new WeakBag[IOFiber[_]]()
       val thread =
-        new WorkerThread(
-          index,
-          threadPrefix,
-          queue,
-          parkedSignal,
-          externalQueue,
-          null,
-          fiberBag,
-          this)
+        new WorkerThread(index, queue, parkedSignal, externalQueue, null, fiberBag, this)
       workerThreads(i) = thread
       i += 1
     }

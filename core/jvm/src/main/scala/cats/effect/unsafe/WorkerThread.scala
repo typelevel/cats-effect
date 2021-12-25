@@ -39,8 +39,6 @@ import java.util.concurrent.locks.LockSupport
  */
 private final class WorkerThread(
     idx: Int,
-    // Thread prefix string used for naming new instances of `WorkerThread`.
-    private[this] val threadPrefix: String,
     // Local queue instance with exclusive write access.
     private[this] var queue: LocalQueue,
     // The state of the `WorkerThread` (parked/unparked).
@@ -99,7 +97,7 @@ private final class WorkerThread(
     setDaemon(true)
 
     // Set the name of this thread.
-    setName(s"$threadPrefix-$index")
+    setName(s"${pool.threadPrefix}-$index")
   }
 
   /**
@@ -569,15 +567,7 @@ private final class WorkerThread(
         // for unparking.
         val idx = index
         val clone =
-          new WorkerThread(
-            idx,
-            threadPrefix,
-            queue,
-            parked,
-            external,
-            cedeBypass,
-            fiberBag,
-            pool)
+          new WorkerThread(idx, queue, parked, external, cedeBypass, fiberBag, pool)
         cedeBypass = null
         pool.replaceWorker(idx, clone)
         clone.start()
