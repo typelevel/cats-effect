@@ -96,8 +96,10 @@ private final class WorkerThread(
     // Worker threads are daemon threads.
     setDaemon(true)
 
+    val prefix = pool.threadPrefix
+    val nameIndex = pool.blockedWorkerThreadNamingIndex.incrementAndGet()
     // Set the name of this thread.
-    setName(s"${pool.threadPrefix}-$index")
+    setName(s"$prefix-$nameIndex")
   }
 
   /**

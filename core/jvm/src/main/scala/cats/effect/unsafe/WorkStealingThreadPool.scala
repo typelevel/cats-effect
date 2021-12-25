@@ -104,6 +104,7 @@ private[effect] final class WorkStealingThreadPool(
   private[unsafe] val done: AtomicBoolean = new AtomicBoolean(false)
 
   private[unsafe] val blockedWorkerThreadCounter: AtomicInteger = new AtomicInteger(0)
+  private[unsafe] val blockedWorkerThreadNamingIndex: AtomicInteger = new AtomicInteger(0)
 
   // Thread pool initialization block.
   {
