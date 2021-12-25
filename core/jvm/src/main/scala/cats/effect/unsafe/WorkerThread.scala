@@ -293,12 +293,7 @@ private final class WorkerThread(
     while (!done.get()) {
 
       if (blocking) {
-        _index = -1
-        queue = null
-        parked = null
-        external = null
-        cedeBypass = null
-        fiberBag = null
+        init(WorkerThread.NullData)
 
         pool.cachedThreads.add(this)
         try {
@@ -309,20 +304,10 @@ private final class WorkerThread(
               return
             } else {
               data = dataTransfer.take()
-              _index = data.index
-              queue = data.queue
-              parked = data.parked
-              external = data.external
-              cedeBypass = data.cedeBypass
-              fiberBag = data.fiberBag
+              init(data)
             }
           } else {
-            _index = data.index
-            queue = data.queue
-            parked = data.parked
-            external = data.external
-            cedeBypass = data.cedeBypass
-            fiberBag = data.fiberBag
+            init(data)
           }
         } catch {
           case _: InterruptedException =>
@@ -599,6 +584,15 @@ private final class WorkerThread(
     }
   }
 
+  private[this] def init(data: WorkerThread.Data): Unit = {
+    _index = data.index
+    queue = data.queue
+    parked = data.parked
+    external = data.external
+    cedeBypass = data.cedeBypass
+    fiberBag = data.fiberBag
+  }
+
   /**
    * Returns the number of fibers which are currently asynchronously suspended and tracked by
    * this worker thread.
@@ -623,4 +617,7 @@ private object WorkerThread {
       val cedeBypass: IOFiber[_],
       val fiberBag: WeakBag[IOFiber[_]]
   )
+
+  private[WorkerThread] val NullData: Data =
+    new Data(-1, null, null, null, null, null)
 }
