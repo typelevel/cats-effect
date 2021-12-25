@@ -293,27 +293,48 @@ private final class WorkerThread(
     while (!done.get()) {
 
       if (blocking) {
+        // The worker thread was blocked before. It is no longer part of the
+        // core pool and needs to be cached.
+
+        // First of all, remove the references to data structures of the core
+        // pool because they have already been transferred to another thread
+        // which took the place of this one.
         init(WorkerThread.NullData)
 
+        // Add this thread to the cached threads data structure, to be picked up
+        // by another thread in the future.
         pool.cachedThreads.add(this)
         try {
+          // Wait up to 60 seconds (should be configurable in the future) for
+          // another thread to wake this thread up.
           var data = dataTransfer.poll(60L, TimeUnit.SECONDS)
           if (data eq null) {
+            // The timeout elapsed and no one woke up this thread. Try to remove
+            // the thread from the cached threads data structure.
             if (pool.cachedThreads.remove(this)) {
+              // The thread was successfully removed. It's time to exit.
               pool.blockedWorkerThreadCounter.decrementAndGet()
               return
             } else {
+              // Someone else concurrently stole this thread from the cached
+              // data structure and will transfer the data soon. Time to wait
+              // for it again.
               data = dataTransfer.take()
               init(data)
             }
           } else {
+            // Some other thread woke up this thread. Time to take its place.
             init(data)
           }
         } catch {
           case _: InterruptedException =>
+            // This thread was interrupted while cached. This should only happen
+            // during the shutdown of the pool. Nothing else to be done, just
+            // exit.
             return
         }
 
+        // Reset the state of the thread for resumption.
         blocking = false
         state = 4
       }
@@ -517,20 +538,20 @@ private final class WorkerThread(
   /**
    * A mechanism for executing support code before executing a blocking action.
    *
-   * The current thread creates a replacement worker thread that will take its place in the pool
-   * and does a complete transfer of ownership of the index, the parked signal and the local
-   * queue. It then replaces the reference that the pool has of this worker thread with the
-   * reference of the new worker thread. At this point, the replacement worker thread is
-   * started, and this thread is no longer recognized as a worker thread of the work stealing
-   * thread pool. This is done by setting the `blocking` flag, which signifies that the blocking
-   * region of code has been entered. This flag is respected when scheduling fibers (it can
-   * happen that the blocking region or the fiber run loop right after it wants to execute a
-   * scheduling call) and since this thread is now treated as an external thread, all fibers are
-   * scheduled on the external queue. The `blocking` flag is also respected by the `run()`
-   * method of this thread such that the next time that the main loop needs to continue, it will
-   * exit instead. Finally, the `blocking` flag is useful when entering nested blocking regions.
-   * In this case, there is no need to spawn a replacement worker thread because it has already
-   * been done.
+   * The current thread creates a replacement worker thread (or reuses a cached one) that will
+   * take its place in the pool and does a complete transfer of ownership of the data structures
+   * referenced by the thread. It then replaces the reference that the pool has of this worker
+   * thread with the reference of the new worker thread. At this point, the replacement worker
+   * thread is started, and the current thread is no longer recognized as a worker thread of the
+   * work stealing thread pool. This is done by setting the `blocking` flag, which signifies
+   * that the blocking region of code has been entered. This flag is respected when scheduling
+   * fibers (it can happen that the blocking region or the fiber run loop right after it wants
+   * to execute a scheduling call) and since this thread is now treated as an external thread,
+   * all fibers are scheduled on the external queue. The `blocking` flag is also respected by
+   * the `run()` method of this thread such that the next time that the main loop needs to
+   * continue, it will be cached for a period of time instead. Finally, the `blocking` flag is
+   * useful when entering nested blocking regions. In this case, there is no need to spawn a
+   * replacement worker thread.
    *
    * @note
    *   There is no reason to enclose any code in a `try/catch` block because the only way this
@@ -550,17 +571,17 @@ private final class WorkerThread(
       // Spawn a new `WorkerThread` to take the place of this thread, as the
       // current thread prepares to execute a blocking action.
 
-      // Logically enter the blocking region. This also serves as a signal that
-      // this worker thread has run its course and it is time to die, after the
-      // blocking code has been successfully executed.
+      // Logically enter the blocking region.
       blocking = true
 
       val cached = pool.cachedThreads.pollFirst()
       if (cached ne null) {
+        // There is a cached worker thread that can be reused.
         val idx = index
         val data = new WorkerThread.Data(idx, queue, parked, external, cedeBypass, fiberBag)
         cedeBypass = null
         pool.replaceWorker(idx, cached)
+        // Transfer the data structures to the cached thread and wake it up.
         cached.dataTransfer.offer(data)
       } else {
         // Spawn a new `WorkerThread`, a literal clone of this one. It is safe to
