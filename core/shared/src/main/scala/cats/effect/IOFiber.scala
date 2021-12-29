@@ -950,7 +950,7 @@ private final class IOFiber[A](
             val ec = runtime.blocking
             scheduleOnForeignEC(ec, this)
           } else {
-            runLoop(interruptibleImpl(cur, runtime.blocking), nextCancelation, nextAutoCede)
+            runLoop(interruptibleImpl(cur), nextCancelation, nextAutoCede)
           }
 
         case 22 =>
