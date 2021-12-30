@@ -22,11 +22,10 @@ import cats.effect.tracing.TracingConstants
 import scala.annotation.switch
 import scala.concurrent.{BlockContext, CanAwait}
 
-import java.lang.ref.WeakReference
-import java.util.WeakHashMap
-import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.{ArrayBlockingQueue, ThreadLocalRandom}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
+import java.util.concurrent.TimeUnit
 
 /**
  * Implementation of the worker thread at the heart of the [[WorkStealingThreadPool]].
@@ -40,17 +39,14 @@ import java.util.concurrent.locks.LockSupport
  * single global work queue.
  */
 private final class WorkerThread(
-    // Index assigned by the `WorkStealingThreadPool` for identification purposes.
-    private[unsafe] val index: Int,
-    // Thread prefix string used for naming new instances of `WorkerThread`.
-    private[this] val threadPrefix: String,
+    idx: Int,
     // Local queue instance with exclusive write access.
-    private[this] val queue: LocalQueue,
+    private[this] var queue: LocalQueue,
     // The state of the `WorkerThread` (parked/unparked).
-    private[this] val parked: AtomicBoolean,
+    private[this] var parked: AtomicBoolean,
     // External queue used by the local queue for offloading excess fibers, as well as
     // for drawing fibers when the local queue is exhausted.
-    private[this] val external: ScalQueue[AnyRef],
+    private[this] var external: ScalQueue[AnyRef],
     // A mutable reference to a fiber which is used to bypass the local queue
     // when a `cede` operation would enqueue a fiber to the empty local queue
     // and then proceed to dequeue the same fiber again from the queue. This not
@@ -59,7 +55,7 @@ private final class WorkerThread(
     // true in tis case.
     private[this] var cedeBypass: IOFiber[_],
     // A worker-thread-local weak bag for tracking suspended fibers.
-    private[this] val fiberBag: WeakHashMap[AnyRef, WeakReference[IOFiber[_]]],
+    private[this] var fiberBag: WeakBag[IOFiber[_]],
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
     private[this] val pool: WorkStealingThreadPool)
     extends Thread
@@ -67,6 +63,9 @@ private final class WorkerThread(
 
   import TracingConstants._
   import WorkStealingThreadPoolConstants._
+
+  // Index assigned by the `WorkStealingThreadPool` for identification purposes.
+  private[this] var _index: Int = idx
 
   /**
    * Uncontented source of randomness. By default, `java.util.Random` is thread safe, which is a
@@ -91,13 +90,19 @@ private final class WorkerThread(
    */
   private[this] var _active: IOFiber[_] = _
 
+  private val dataTransfer: ArrayBlockingQueue[WorkerThread.Data] =
+    new ArrayBlockingQueue(1)
+
+  val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.incrementAndGet()
+
   // Constructor code.
   {
     // Worker threads are daemon threads.
     setDaemon(true)
 
+    val prefix = pool.threadPrefix
     // Set the name of this thread.
-    setName(s"$threadPrefix-$index")
+    setName(s"$prefix-$nameIndex")
   }
 
   /**
@@ -156,18 +161,21 @@ private final class WorkerThread(
     (pool eq threadPool) && !blocking
 
   /**
-   * Registers a suspended fiber, tracked by the provided key which is an opaque object which
-   * uses reference equality for comparison.
+   * Registers a suspended fiber.
    *
-   * @param key
-   *   an opaque identifier for the suspended fiber
    * @param fiber
    *   the suspended fiber to be registered
+   * @return
+   *   a handle for deregistering the fiber on resumption
    */
-  def monitor(key: AnyRef, fiber: IOFiber[_]): Unit = {
-    fiberBag.put(key, new WeakReference(fiber))
-    ()
-  }
+  def monitor(fiber: IOFiber[_]): WeakBag.Handle =
+    fiberBag.insert(fiber)
+
+  /**
+   * The index of the worker thread.
+   */
+  private[unsafe] def index: Int =
+    _index
 
   /**
    * A reference to the active fiber.
@@ -192,7 +200,7 @@ private final class WorkerThread(
    *   a set of suspended fibers tracked by this worker thread
    */
   private[unsafe] def suspendedSnapshot(): Set[IOFiber[_]] =
-    FiberMonitor.weakMapToSet(fiberBag)
+    fiberBag.toSet
 
   /**
    * The run loop of the [[WorkerThread]].
@@ -269,9 +277,11 @@ private final class WorkerThread(
      */
     var state = 4
 
+    val done = pool.done
+
     def parkLoop(): Unit = {
       var cont = true
-      while (cont && !isInterrupted()) {
+      while (cont && !done.get()) {
         // Park the thread until further notice.
         LockSupport.park(pool)
 
@@ -280,9 +290,55 @@ private final class WorkerThread(
       }
     }
 
-    val done = pool.done
+    while (!done.get()) {
 
-    while (!blocking && !done.get()) {
+      if (blocking) {
+        // The worker thread was blocked before. It is no longer part of the
+        // core pool and needs to be cached.
+
+        // First of all, remove the references to data structures of the core
+        // pool because they have already been transferred to another thread
+        // which took the place of this one.
+        init(WorkerThread.NullData)
+
+        // Add this thread to the cached threads data structure, to be picked up
+        // by another thread in the future.
+        pool.cachedThreads.add(this)
+        try {
+          // Wait up to 60 seconds (should be configurable in the future) for
+          // another thread to wake this thread up.
+          var data = dataTransfer.poll(60L, TimeUnit.SECONDS)
+          if (data eq null) {
+            // The timeout elapsed and no one woke up this thread. Try to remove
+            // the thread from the cached threads data structure.
+            if (pool.cachedThreads.remove(this)) {
+              // The thread was successfully removed. It's time to exit.
+              pool.blockedWorkerThreadCounter.decrementAndGet()
+              return
+            } else {
+              // Someone else concurrently stole this thread from the cached
+              // data structure and will transfer the data soon. Time to wait
+              // for it again.
+              data = dataTransfer.take()
+              init(data)
+            }
+          } else {
+            // Some other thread woke up this thread. Time to take its place.
+            init(data)
+          }
+        } catch {
+          case _: InterruptedException =>
+            // This thread was interrupted while cached. This should only happen
+            // during the shutdown of the pool. Nothing else to be done, just
+            // exit.
+            return
+        }
+
+        // Reset the state of the thread for resumption.
+        blocking = false
+        state = 4
+      }
+
       ((state & ExternalQueueTicksMask): @switch) match {
         case 0 =>
           // Obtain a fiber or batch of fibers from the external queue.
@@ -482,20 +538,20 @@ private final class WorkerThread(
   /**
    * A mechanism for executing support code before executing a blocking action.
    *
-   * The current thread creates a replacement worker thread that will take its place in the pool
-   * and does a complete transfer of ownership of the index, the parked signal and the local
-   * queue. It then replaces the reference that the pool has of this worker thread with the
-   * reference of the new worker thread. At this point, the replacement worker thread is
-   * started, and this thread is no longer recognized as a worker thread of the work stealing
-   * thread pool. This is done by setting the `blocking` flag, which signifies that the blocking
-   * region of code has been entered. This flag is respected when scheduling fibers (it can
-   * happen that the blocking region or the fiber run loop right after it wants to execute a
-   * scheduling call) and since this thread is now treated as an external thread, all fibers are
-   * scheduled on the external queue. The `blocking` flag is also respected by the `run()`
-   * method of this thread such that the next time that the main loop needs to continue, it will
-   * exit instead. Finally, the `blocking` flag is useful when entering nested blocking regions.
-   * In this case, there is no need to spawn a replacement worker thread because it has already
-   * been done.
+   * The current thread creates a replacement worker thread (or reuses a cached one) that will
+   * take its place in the pool and does a complete transfer of ownership of the data structures
+   * referenced by the thread. It then replaces the reference that the pool has of this worker
+   * thread with the reference of the new worker thread. At this point, the replacement worker
+   * thread is started, and the current thread is no longer recognized as a worker thread of the
+   * work stealing thread pool. This is done by setting the `blocking` flag, which signifies
+   * that the blocking region of code has been entered. This flag is respected when scheduling
+   * fibers (it can happen that the blocking region or the fiber run loop right after it wants
+   * to execute a scheduling call) and since this thread is now treated as an external thread,
+   * all fibers are scheduled on the external queue. The `blocking` flag is also respected by
+   * the `run()` method of this thread such that the next time that the main loop needs to
+   * continue, it will be cached for a period of time instead. Finally, the `blocking` flag is
+   * useful when entering nested blocking regions. In this case, there is no need to spawn a
+   * replacement worker thread.
    *
    * @note
    *   There is no reason to enclose any code in a `try/catch` block because the only way this
@@ -515,44 +571,47 @@ private final class WorkerThread(
       // Spawn a new `WorkerThread` to take the place of this thread, as the
       // current thread prepares to execute a blocking action.
 
-      // Logically enter the blocking region. This also serves as a signal that
-      // this worker thread has run its course and it is time to die, after the
-      // blocking code has been successfully executed.
+      // Logically enter the blocking region.
       blocking = true
 
-      if (isStackTracing) {
-        pool.blockedWorkerThreadCounter.incrementAndGet()
+      val cached = pool.cachedThreads.pollFirst()
+      if (cached ne null) {
+        // There is a cached worker thread that can be reused.
+        val idx = index
+        val data = new WorkerThread.Data(idx, queue, parked, external, cedeBypass, fiberBag)
+        cedeBypass = null
+        pool.replaceWorker(idx, cached)
+        // Transfer the data structures to the cached thread and wake it up.
+        cached.dataTransfer.offer(data)
+      } else {
+        // Spawn a new `WorkerThread`, a literal clone of this one. It is safe to
+        // transfer ownership of the local queue and the parked signal to the new
+        // thread because the current one will only execute the blocking action
+        // and die. Any other worker threads trying to steal from the local queue
+        // being transferred need not know of the fact that the underlying worker
+        // thread is being changed. Transferring the parked signal is safe because
+        // a worker thread about to run blocking code is **not** parked, and
+        // therefore, another worker thread would not even see it as a candidate
+        // for unparking.
+        val idx = index
+        val clone =
+          new WorkerThread(idx, queue, parked, external, cedeBypass, fiberBag, pool)
+        cedeBypass = null
+        pool.replaceWorker(idx, clone)
+        clone.start()
       }
 
-      // Spawn a new `WorkerThread`, a literal clone of this one. It is safe to
-      // transfer ownership of the local queue and the parked signal to the new
-      // thread because the current one will only execute the blocking action
-      // and die. Any other worker threads trying to steal from the local queue
-      // being transferred need not know of the fact that the underlying worker
-      // thread is being changed. Transferring the parked signal is safe because
-      // a worker thread about to run blocking code is **not** parked, and
-      // therefore, another worker thread would not even see it as a candidate
-      // for unparking.
-      val idx = index
-      val clone =
-        new WorkerThread(idx, threadPrefix, queue, parked, external, cedeBypass, fiberBag, pool)
-      cedeBypass = null
-      pool.replaceWorker(idx, clone)
-      clone.start()
-
-      // With another `WorkerThread` started, it is time to execute the blocking
-      // action.
-      val result =
-        try thunk // Exceptions are caught in IOFiber.
-        finally {
-          if (isStackTracing) {
-            pool.blockedWorkerThreadCounter.decrementAndGet()
-            ()
-          }
-        }
-
-      result
+      thunk
     }
+  }
+
+  private[this] def init(data: WorkerThread.Data): Unit = {
+    _index = data.index
+    queue = data.queue
+    parked = data.parked
+    external = data.external
+    cedeBypass = data.cedeBypass
+    fiberBag = data.fiberBag
   }
 
   /**
@@ -567,5 +626,19 @@ private final class WorkerThread(
    *   the number of asynchronously suspended fibers
    */
   def getSuspendedFiberCount(): Int =
-    fiberBag.size()
+    fiberBag.size
+}
+
+private object WorkerThread {
+  final class Data(
+      val index: Int,
+      val queue: LocalQueue,
+      val parked: AtomicBoolean,
+      val external: ScalQueue[AnyRef],
+      val cedeBypass: IOFiber[_],
+      val fiberBag: WeakBag[IOFiber[_]]
+  )
+
+  private[WorkerThread] val NullData: Data =
+    new Data(-1, null, null, null, null, null)
 }
