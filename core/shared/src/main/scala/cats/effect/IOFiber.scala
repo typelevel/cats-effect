@@ -941,16 +941,33 @@ private final class IOFiber[A](
           }
 
           if (cur.hint eq IOFiber.TypeBlocking) {
-            resumeTag = BlockingR
-            resumeIO = cur
+            val ec = currentCtx
+            if (ec.isInstanceOf[WorkStealingThreadPool]) {
+              var error: Throwable = null
+              val r =
+                try {
+                  scala.concurrent.blocking(cur.thunk())
+                } catch {
+                  case NonFatal(t) =>
+                    error = t
+                  case t: Throwable =>
+                    onFatalFailure(t)
+                }
 
-            if (isStackTracing) {
-              val handle = monitor()
-              objectState.push(handle)
+              val next = if (error eq null) succeeded(r, 0) else failed(error, 0)
+              runLoop(next, nextCancelation, nextAutoCede)
+            } else {
+              resumeTag = BlockingR
+              resumeIO = cur
+
+              if (isStackTracing) {
+                val handle = monitor()
+                objectState.push(handle)
+              }
+
+              val ec = runtime.blocking
+              scheduleOnForeignEC(ec, this)
             }
-
-            val ec = runtime.blocking
-            scheduleOnForeignEC(ec, this)
           } else {
             runLoop(interruptibleImpl(cur, runtime.blocking), nextCancelation, nextAutoCede)
           }
