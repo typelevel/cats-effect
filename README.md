@@ -18,7 +18,7 @@
 libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.2"
 ```
 
-The above represents the core, stable dependency which brings in the entirety of Cats Effect. This is *most likely* what you want. All current Cats Effect releases are published for Scala 2.12, 2.13, 3.0.0-RC2 and RC3, and ScalaJS 1.5.x.
+The above represents the core, stable dependency which brings in the entirety of Cats Effect. This is *most likely* what you want. All current Cats Effect releases are published for Scala 2.12, 2.13, 3.0, and ScalaJS 1.7.
 
 Or, if you prefer a less bare-bones starting point, you can try the Giter8 template:
 
