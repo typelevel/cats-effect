@@ -287,7 +287,7 @@ private final class WorkerThread(
 
         // the only way we can be interrupted here is if it happened *externally* (probably sbt)
         if (isInterrupted())
-          done.set(true)
+          pool.shutdown()
         else
           // Spurious wakeup check.
           cont = parked.get()
