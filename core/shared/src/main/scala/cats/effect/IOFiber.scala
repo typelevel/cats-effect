@@ -133,6 +133,9 @@ private final class IOFiber[A](
     }
   }
 
+  private[this] def spawnFiber(spawnIO: IO[_]): IOFiber[Any] =
+    new IOFiber[Any](localState, null, spawnIO, currentCtx, runtime)
+
   /* backing fields for `cancel` and `join` */
 
   /* this is swapped for an `IO.unit` when we complete */
@@ -152,10 +155,9 @@ private final class IOFiber[A](
           /* if we have async finalizers, runLoop may return early */
           IO.async_[Unit] { fin =>
             // println(s"${name}: canceller started at ${Thread.currentThread().getName} + ${suspended.get()}")
-            val ec = currentCtx
             resumeTag = AsyncContinueCanceledWithFinalizerR
             objectState.push(fin)
-            scheduleFiber(ec, this)
+            scheduleFiber(this)
           }
         } else {
           /*
@@ -224,8 +226,7 @@ private final class IOFiber[A](
       if (nextAutoCede <= 0) {
         resumeTag = AutoCedeR
         resumeIO = _cur0
-        val ec = currentCtx
-        rescheduleFiber(ec, this)
+        rescheduleFiber(this)
         return
       }
     }
@@ -631,7 +632,6 @@ private final class IOFiber[A](
                     state.handle.deregister()
                   }
 
-                  val ec = currentCtx
                   if (!shouldFinalize()) {
                     /* we weren't canceled or completed, so schedule the runloop for execution */
                     e match {
@@ -649,7 +649,7 @@ private final class IOFiber[A](
                      */
                     resumeTag = AsyncContinueCanceledR
                   }
-                  scheduleFiber(ec, this)
+                  scheduleFiber(this)
                 } else {
                   /*
                    * we were canceled while suspended, then our finalizer suspended,
@@ -832,24 +832,13 @@ private final class IOFiber[A](
         /* Cede */
         case 16 =>
           resumeTag = CedeR
-          rescheduleFiber(currentCtx, this)
+          rescheduleFiber(this)
 
         case 17 =>
           val cur = cur0.asInstanceOf[Start[Any]]
-
-          val ec = currentCtx
-          val fiber = new IOFiber[Any](
-            localState,
-            null,
-            cur.ioa,
-            ec,
-            runtime
-          )
-
+          val fiber = spawnFiber(cur.ioa)
           // println(s"<$name> spawning <$childName>")
-
-          scheduleFiber(ec, fiber)
-
+          scheduleFiber(fiber)
           runLoop(succeeded(fiber, 0), nextCancelation, nextAutoCede)
 
         case 18 =>
@@ -859,30 +848,14 @@ private final class IOFiber[A](
             IO.async[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
               cb =>
                 IO {
-                  val ec = currentCtx
-                  val rt = runtime
-
-                  val fiberA = new IOFiber[Any](
-                    localState,
-                    null,
-                    cur.ioa,
-                    ec,
-                    rt
-                  )
-
-                  val fiberB = new IOFiber[Any](
-                    localState,
-                    null,
-                    cur.iob,
-                    ec,
-                    rt
-                  )
+                  val fiberA = spawnFiber(cur.ioa)
+                  val fiberB = spawnFiber(cur.iob)
 
                   fiberA.setCallback(oc => cb(Right(Left((oc, fiberB)))))
                   fiberB.setCallback(oc => cb(Right(Right((fiberA, oc)))))
 
-                  scheduleFiber(ec, fiberA)
-                  scheduleFiber(ec, fiberB)
+                  scheduleFiber(fiberA)
+                  scheduleFiber(fiberB)
 
                   val cancel =
                     for {
@@ -1248,7 +1221,8 @@ private final class IOFiber[A](
     }
   }
 
-  private[this] def rescheduleFiber(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
+  private[this] def rescheduleFiber(fiber: IOFiber[_]): Unit = {
+    val ec: ExecutionContext = currentCtx
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
       val wstp = ec.asInstanceOf[WorkStealingThreadPool]
       wstp.rescheduleFiber(fiber)
@@ -1257,7 +1231,8 @@ private final class IOFiber[A](
     }
   }
 
-  private[this] def scheduleFiber(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
+  private[this] def scheduleFiber(fiber: IOFiber[_]): Unit = {
+    val ec: ExecutionContext = currentCtx
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
       val wstp = ec.asInstanceOf[WorkStealingThreadPool]
       wstp.scheduleFiber(fiber)
@@ -1285,6 +1260,8 @@ private final class IOFiber[A](
   }
 
   /* Implementations of resume methods */
+  private[this] def initRunLoop(io: IO[Any]): Unit =
+    runLoop(io, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
 
   private[this] def execR(): Unit = {
     // println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
@@ -1299,29 +1276,25 @@ private final class IOFiber[A](
 
       val io = resumeIO
       resumeIO = null
-      runLoop(io, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
+      initRunLoop(io)
     }
   }
 
   private[this] def asyncContinueSuccessfulR(): Unit = {
-    val a = objectState.pop().asInstanceOf[Any]
-    runLoop(succeeded(a, 0), runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
+    initRunLoop(succeeded(objectState.pop().asInstanceOf[Any], 0))
   }
 
   private[this] def asyncContinueFailedR(): Unit = {
-    val t = objectState.pop().asInstanceOf[Throwable]
-    runLoop(failed(t, 0), runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
+    initRunLoop(failed(objectState.pop().asInstanceOf[Throwable], 0))
   }
 
   private[this] def asyncContinueCanceledR(): Unit = {
-    val fin = prepareFiberForCancelation(null)
-    runLoop(fin, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
+    initRunLoop(prepareFiberForCancelation(null))
   }
 
   private[this] def asyncContinueCanceledWithFinalizerR(): Unit = {
     val cb = objectState.pop().asInstanceOf[Either[Throwable, Unit] => Unit]
-    val fin = prepareFiberForCancelation(cb)
-    runLoop(fin, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
+    initRunLoop(prepareFiberForCancelation(cb))
   }
 
   private[this] def blockingR(): Unit = {
@@ -1354,13 +1327,13 @@ private final class IOFiber[A](
   }
 
   private[this] def cedeR(): Unit = {
-    runLoop(succeeded((), 0), runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
+    initRunLoop(succeeded((), 0))
   }
 
   private[this] def autoCedeR(): Unit = {
     val io = resumeIO
     resumeIO = null
-    runLoop(io, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
+    initRunLoop(io)
   }
 
   /* Implementations of continuations */
