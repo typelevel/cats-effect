@@ -285,8 +285,12 @@ private final class WorkerThread(
         // Park the thread until further notice.
         LockSupport.park(pool)
 
-        // Spurious wakeup check.
-        cont = parked.get()
+        // the only way we can be interrupted here is if it happened *externally* (probably sbt)
+        if (isInterrupted())
+          pool.shutdown()
+        else
+          // Spurious wakeup check.
+          cont = parked.get()
       }
     }
 
