@@ -223,6 +223,11 @@ class IOAppSpec extends Specification {
           h.awaitStatus() mustEqual 1
         }
 
+        "exit with leaked fibers" in {
+          val h = platform(LeakedFiber, List.empty)
+          h.awaitStatus() mustEqual 0
+        }
+
         "warn on global runtime collision" in {
           val h = platform(GlobalRacingInit, List.empty)
           h.awaitStatus() mustEqual 0
