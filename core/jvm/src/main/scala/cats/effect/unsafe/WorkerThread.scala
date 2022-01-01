@@ -22,10 +22,9 @@ import cats.effect.tracing.TracingConstants
 import scala.annotation.switch
 import scala.concurrent.{BlockContext, CanAwait}
 
-import java.util.concurrent.{ArrayBlockingQueue, ThreadLocalRandom}
+import java.util.concurrent.{ArrayBlockingQueue, ThreadLocalRandom, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
-import java.util.concurrent.TimeUnit
 
 /**
  * Implementation of the worker thread at the heart of the [[WorkStealingThreadPool]].
