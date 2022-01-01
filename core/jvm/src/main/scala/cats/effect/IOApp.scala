@@ -281,7 +281,7 @@ trait IOApp {
         })(runtime)
 
     if (isStackTracing)
-      runtime.fiberMonitor.monitorSuspended(fiber, fiber)
+      runtime.fiberMonitor.monitorSuspended(fiber)
 
     def handleShutdown(): Unit = {
       if (latch.getCount() > 0) {
