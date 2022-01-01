@@ -71,10 +71,10 @@ primitives necessary to implement arbitrarily complicated concurrent state machi
 <span class="hljs-comment">// action: IO[String] = Map(</span>
 <span class="hljs-comment">//   ioe = Blocking(</span>
 <span class="hljs-comment">//     hint = Blocking,</span>
-<span class="hljs-comment">//     thunk = cats.effect.std.Console$SyncConsole$$Lambda$14462/1336391982@17623c3e,</span>
+<span class="hljs-comment">//     thunk = cats.effect.std.Console$SyncConsole$$Lambda$14471/1559170232@2b9917c8,</span>
 <span class="hljs-comment">//     event = cats.effect.tracing.TracingEvent$StackTrace</span>
 <span class="hljs-comment">//   ),</span>
-<span class="hljs-comment">//   f = cats.effect.IO$$Lambda$14743/1564139282@221c4b60,</span>
+<span class="hljs-comment">//   f = cats.effect.IO$$Lambda$14752/1076182335@43ec3024,</span>
 <span class="hljs-comment">//   event = cats.effect.tracing.TracingEvent$StackTrace</span>
 <span class="hljs-comment">// )</span>
 
@@ -86,10 +86,10 @@ primitives necessary to implement arbitrarily complicated concurrent state machi
 <span class="hljs-comment">// x: IO[String] = FlatMap(</span>
 <span class="hljs-comment">//   ioe = Map(</span>
 <span class="hljs-comment">//     ioe = Delay(</span>
-<span class="hljs-comment">//       thunk = cats.effect.IO$$$Lambda$14718/2089959985@be25f2f,</span>
+<span class="hljs-comment">//       thunk = cats.effect.IO$$$Lambda$14727/1241582854@1f255671,</span>
 <span class="hljs-comment">//       event = cats.effect.tracing.TracingEvent$StackTrace</span>
 <span class="hljs-comment">//     ),</span>
-<span class="hljs-comment">//     f = cats.effect.kernel.GenConcurrent$$Lambda$15311/1743813478@458f6266,</span>
+<span class="hljs-comment">//     f = cats.effect.kernel.GenConcurrent$$Lambda$15320/340783827@5f04a767,</span>
 <span class="hljs-comment">//     event = cats.effect.tracing.TracingEvent$StackTrace</span>
 <span class="hljs-comment">//   ),</span>
 <span class="hljs-comment">//   f = &lt;function1&gt;,</span>
@@ -142,4 +142,4 @@ than 1 latch remaining then we simply decrement the count. If we are already don
 transition to the <code>Done</code> state and we also <code>complete</code> the signal which unblocks all the
 fibers waiting on the countdown latch.</p>
 <p>There has been plenty of excellent material written on this subject. See <a href="https://typelevel.org/blog/2020/10/30/concurrency-in-ce3.html">here</a> and <a href="https://systemfw.org/writings.html">here</a> for example.</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/next/typeclasses/clock"><span class="arrow-prev">← </span><span>Clock</span></a><a class="docs-next button" href="/cats-effect/docs/next/typeclasses/temporal"><span>Temporal</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/getting-started">Getting Started</a><a href="/cats-effect/docs/tutorial">Tutorial</a><a href="/cats-effect/docs/typeclasses">Typeclasses</a><a href="/cats-effect/docs/schedulers">Schedulers</a></div><div><h5>Community</h5><a target="_blank" href="https://typelevel.org/blog/">Blog</a><a target="_blank" href="https://discord.gg/HmPs7rAtEY">Discord</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2021 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/next/typeclasses/clock"><span class="arrow-prev">← </span><span>Clock</span></a><a class="docs-next button" href="/cats-effect/docs/next/typeclasses/temporal"><span>Temporal</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/getting-started">Getting Started</a><a href="/cats-effect/docs/tutorial">Tutorial</a><a href="/cats-effect/docs/typeclasses">Typeclasses</a><a href="/cats-effect/docs/schedulers">Schedulers</a></div><div><h5>Community</h5><a target="_blank" href="https://typelevel.org/blog/">Blog</a><a target="_blank" href="https://discord.gg/HmPs7rAtEY">Discord</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2022 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
