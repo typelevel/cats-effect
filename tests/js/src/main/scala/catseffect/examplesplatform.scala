@@ -41,6 +41,7 @@ package examples {
     register(LiveFiberSnapshot)
     register(FatalErrorUnsafeRun)
     register(Finalizers)
+    register(LeakedFiber)
 
     @nowarn("cat=unused")
     def main(paperweight: Array[String]): Unit = {
