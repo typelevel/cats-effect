@@ -842,33 +842,8 @@ private final class IOFiber[A](
 
         case 18 =>
           val cur = cur0.asInstanceOf[RacePair[Any, Any]]
-
-          val next =
-            IO.async[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
-              cb =>
-                IO {
-                  val fiberA = spawnFiber(cur.ioa)
-                  val fiberB = spawnFiber(cur.iob)
-
-                  fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
-                  fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
-
-                  scheduleFiber(fiberA)
-                  scheduleFiber(fiberB)
-
-                  val cancel =
-                    for {
-                      cancelA <- fiberA.cancel.start
-                      cancelB <- fiberB.cancel.start
-                      _ <- cancelA.join
-                      _ <- cancelB.join
-                    } yield ()
-
-                  Some(cancel)
-                }
-            }
-
-          runLoop(next, nextCancelation, nextAutoCede)
+          val cur1 = IO.async[RaceOutcome](runRacePair(cur.ioa, cur.iob))
+          runLoop(cur1, nextCancelation, nextAutoCede)
 
         case 19 =>
           val cur = cur0.asInstanceOf[Sleep]
@@ -1243,6 +1218,33 @@ private final class IOFiber[A](
        */
     }
   }
+
+  private[this] type RaceOutcome =
+    Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]
+
+  private[this] def runRacePair(ioa: IO[Any], iob: IO[Any])(
+      cb: Either[Throwable, RaceOutcome] => Unit
+  ): IO[Option[IO[Unit]]] =
+    IO {
+      val fiberA = spawnFiber(ioa)
+      val fiberB = spawnFiber(iob)
+
+      fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
+      fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
+
+      scheduleFiber(fiberA)
+      scheduleFiber(fiberB)
+
+      val cancel =
+        for {
+          cancelA <- fiberA.cancel.start
+          cancelB <- fiberB.cancel.start
+          _ <- cancelA.join
+          _ <- cancelB.join
+        } yield ()
+
+      Some(cancel)
+    }
 
   // TODO figure out if the JVM ever optimizes this away
   private[this] def readBarrier(): Unit = {
