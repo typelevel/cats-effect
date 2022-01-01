@@ -201,7 +201,7 @@ trait IOApp {
 
   final def main(args: Array[String]): Unit = {
     // checked in openjdk 8-17; this attempts to detect when we're running under artificial environments, like sbt
-    val isForked = Thread.currentThread().getName() == "main"
+    val isForked = Thread.currentThread().getId() == 1
 
     if (runtime == null) {
       import unsafe.IORuntime
