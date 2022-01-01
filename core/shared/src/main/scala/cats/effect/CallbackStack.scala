@@ -40,6 +40,10 @@ private final class CallbackStack[A](private[this] var callback: OutcomeIO[A] =>
     loop()
   }
 
+  def unsafeSetCallback(cb: OutcomeIO[A] => Unit): Unit = {
+    callback = cb
+  }
+
   /**
    * Invokes *all* non-null callbacks in the queue, starting with the current one.
    */
