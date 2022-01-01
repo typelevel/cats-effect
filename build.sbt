@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2022 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ ThisBuild / githubWorkflowBuild +=
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
 ThisBuild / startYear := Some(2017)
+ThisBuild / endYear := Some(2022)
 
 ThisBuild / developers := List(
   Developer("djspiewak", "Daniel Spiewak", "", url("https://github.com/djspiewak")),
@@ -95,7 +96,7 @@ val commonSettings = Seq(
   Test / testForkedParallel := false,
   testFrameworks += new TestFramework("munit.Framework"),
   Global / concurrentRestrictions += Tags.limit(Tags.Test, 1),
-  headerLicense := Some(HeaderLicense.Custom("""|Copyright (c) 2017-2021 The Typelevel Cats-effect Project Developers
+  headerLicense := Some(HeaderLicense.Custom("""|Copyright (c) 2017-2022 The Typelevel Cats-effect Project Developers
                                                 |
                                                 |Licensed under the Apache License, Version 2.0 (the "License");
                                                 |you may not use this file except in compliance with the License.
