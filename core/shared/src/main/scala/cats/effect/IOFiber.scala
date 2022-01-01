@@ -878,8 +878,8 @@ private final class IOFiber[A](
                     rt
                   )
 
-                  fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
-                  fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
+                  fiberA.setCallback(oc => cb(Right(Left((oc, fiberB)))))
+                  fiberB.setCallback(oc => cb(Right(Right((fiberA, oc)))))
 
                   scheduleFiber(ec, fiberA)
                   scheduleFiber(ec, fiberB)
@@ -1097,8 +1097,16 @@ private final class IOFiber[A](
     runtime.fiberMonitor.monitorSuspended(this)
   }
 
+  /**
+   * Can only be correctly called on a fiber which has not started execution and was initially
+   * created with a `null` callback, i.e. in `RacePair`.
+   */
+  private def setCallback(cb: OutcomeIO[A] => Unit): Unit = {
+    callbacks.unsafeSetCallback(cb)
+  }
+
   /* can return null, meaning that no CallbackStack needs to be later invalidated */
-  private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
+  private[this] def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
     if (outcome == null) {
       val back = callbacks.push(listener)
 
