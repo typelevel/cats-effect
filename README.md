@@ -165,7 +165,7 @@ If everything goes well, your browser will open at the end of this.
 ## License
 
 ```
-Copyright 2017-2021 Typelevel
+Copyright 2017-2022 Typelevel
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
