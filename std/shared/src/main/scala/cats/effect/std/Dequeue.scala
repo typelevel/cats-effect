@@ -411,7 +411,7 @@ trait DequeueSink[F[_], A] extends QueueSink[F, A] {
    * Attempts to enqueue the given elements at the back of the queue without semantically
    * blocking. If an item in the list cannot be enqueued, the remaining elements will be
    * returned. This is a convenience method that recursively runs `tryOffer` and does not offer
-   * any additional performatnce benefits.
+   * any additional performance benefits.
    *
    * @param list
    *   the elements to be put at the back of the queue
@@ -446,7 +446,7 @@ trait DequeueSink[F[_], A] extends QueueSink[F, A] {
    * Attempts to enqueue the given elements at the front of the queue without semantically
    * blocking. If an item in the list cannot be enqueued, the remaining elements will be
    * returned. This is a convenience method that recursively runs `tryOffer` and does not offer
-   * any additional performatnce benefits.
+   * any additional performance benefits.
    *
    * @param list
    *   the elements to be put at the front of the queue
