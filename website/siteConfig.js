@@ -49,7 +49,7 @@ const siteConfig = {
   */
 
   // This copyright info is used in /core/Footer.js and blog RSS/Atom feeds.
-  copyright: `Copyright (c) 2017-2021 Typelevel`,
+  copyright: `Copyright (c) 2017-2022 Typelevel`,
 
   highlight: {
     // Highlight.js theme to use for syntax highlighting in code blocks.
