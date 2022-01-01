@@ -364,7 +364,7 @@ private final class IOFiber[A](
 
             case _ =>
               objectState.push(f)
-              conts = ByteStack.push(conts, MapK)
+              pushCont(MapK)
               runLoop(ioe, nextCancelation, nextAutoCede)
           }
 
@@ -429,7 +429,7 @@ private final class IOFiber[A](
 
             case _ =>
               objectState.push(f)
-              conts = ByteStack.push(conts, FlatMapK)
+              pushCont(FlatMapK)
               runLoop(ioe, nextCancelation, nextAutoCede)
           }
 
@@ -489,7 +489,7 @@ private final class IOFiber[A](
               runLoop(succeeded(Right(ec), 0), nextCancelation - 1, nextAutoCede)
 
             case _ =>
-              conts = ByteStack.push(conts, AttemptK)
+              pushCont(AttemptK)
               runLoop(ioa, nextCancelation, nextAutoCede)
           }
 
@@ -501,7 +501,7 @@ private final class IOFiber[A](
           }
 
           objectState.push(cur.f)
-          conts = ByteStack.push(conts, HandleErrorWithK)
+          pushCont(HandleErrorWithK)
 
           runLoop(cur.ioa, nextCancelation, nextAutoCede)
 
@@ -526,7 +526,7 @@ private final class IOFiber[A](
            * the OnCancelK marker is used by `succeeded` to remove the
            * finalizer when `ioa` completes uninterrupted.
            */
-          conts = ByteStack.push(conts, OnCancelK)
+          pushCont(OnCancelK)
           runLoop(cur.ioa, nextCancelation, nextAutoCede)
 
         case 12 =>
@@ -546,7 +546,7 @@ private final class IOFiber[A](
            * The uncancelableK marker is used by `succeeded` and `failed`
            * to unmask once body completes.
            */
-          conts = ByteStack.push(conts, UncancelableK)
+          pushCont(UncancelableK)
           runLoop(cur.body(poll), nextCancelation, nextAutoCede)
 
         case 13 =>
@@ -563,7 +563,7 @@ private final class IOFiber[A](
              * The UnmaskK marker gets used by `succeeded` and `failed`
              * to restore masking state after `cur.ioa` has finished
              */
-            conts = ByteStack.push(conts, UnmaskK)
+            pushCont(UnmaskK)
           }
 
           runLoop(cur.ioa, nextCancelation, nextAutoCede)
@@ -734,7 +734,7 @@ private final class IOFiber[A](
             ()
           }
           finalizers.push(fin)
-          conts = ByteStack.push(conts, OnCancelK)
+          pushCont(OnCancelK)
 
           if (state.compareAndSet(ContStateInitial, ContStateWaiting)) {
             /*
@@ -920,7 +920,7 @@ private final class IOFiber[A](
             val ec = cur.ec
             objectState.push(currentCtx)
             currentCtx = ec
-            conts = ByteStack.push(conts, EvalOnK)
+            pushCont(EvalOnK)
 
             resumeTag = AutoCedeR
             resumeIO = cur.ioa
@@ -1034,8 +1034,8 @@ private final class IOFiber[A](
         // Do not nuke the fiber execution state repeatedly.
         finalizing = true
 
-        conts = ByteStack.create(8)
-        conts = ByteStack.push(conts, CancelationLoopK)
+        ByteStack.clear(conts)
+        pushCont(CancelationLoopK)
 
         objectState.init(16)
         objectState.push(cb)
@@ -1292,7 +1292,7 @@ private final class IOFiber[A](
       done(IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
     } else {
       conts = ByteStack.create(16)
-      conts = ByteStack.push(conts, RunTerminusK)
+      pushCont(RunTerminusK)
 
       objectState.init(16)
       finalizers.init(16)
@@ -1368,7 +1368,7 @@ private final class IOFiber[A](
   private[this] def cancelationLoopSuccessK(): IO[Any] = {
     if (!finalizers.isEmpty()) {
       // There are still remaining finalizers to execute. Continue.
-      conts = ByteStack.push(conts, CancelationLoopK)
+      pushCont(CancelationLoopK)
       finalizers.pop()
     } else {
       // The last finalizer is done executing.
@@ -1473,6 +1473,10 @@ private final class IOFiber[A](
 
     Thread.currentThread().interrupt()
     null
+  }
+
+  private[this] def pushCont(b: Byte): Unit = {
+    conts = ByteStack.push(conts, b)
   }
 
   // overrides the AtomicReference#toString

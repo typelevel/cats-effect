@@ -16,6 +16,14 @@
 
 package cats.effect
 
+/* A Stack (last-in-first-out sequence) of unsigned half-Bytes; that is to say,
+ * numbers between 0 and 15 occupying 4 bits each.
+ *
+ * The stack implementation is backed with an array of integers. The first
+ * array position stack[0] stores the size of the stack, the number of elements.
+ * Elements are then written in subsequent positions, where each integer is used
+ * as a vector of 8 half-bytes (4 bits)
+ */
 private object ByteStack {
 
   final def toDebugString(stack: Array[Int], translate: Byte => String = _.toString): String = {
@@ -58,6 +66,9 @@ private object ByteStack {
     use(0) += 1 // write the new count
     use
   }
+
+  final def clear(stack: Array[Int]): Unit =
+    stack(0) = 0
 
   final def size(stack: Array[Int]): Int =
     stack(0)
