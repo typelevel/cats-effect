@@ -14,15 +14,22 @@
  * limitations under the License.
  */
 
-package cats.effect
+/*
+ * scalajs-weakreferences (https://github.com/scala-js/scala-js-weakreferences)
+ *
+ * Copyright EPFL.
+ *
+ * Licensed under Apache License 2.0
+ * (https://www.apache.org/licenses/LICENSE-2.0).
+ *
+ * See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership.
+ */
 
-import cats.effect.unsafe.WeakBag
+package cats.effect.unsafe.ref
 
-import java.util.concurrent.atomic.AtomicInteger
+private[unsafe] class WeakReference[T](referent: T, q: ReferenceQueue[_ >: T])
+    extends Reference[T](referent, q) {
 
-// `result` is published by a volatile store on the atomic integer extended by this class.
-// `wasFinalizing` and `handle` are published in terms of the `suspended` atomic variable in `IOFiber`
-private final class ContState(var wasFinalizing: Boolean) extends AtomicInteger(0) {
-  var result: Either[Throwable, Any] = _
-  var handle: WeakBag.Handle = _
+  def this(referent: T) = this(referent, null)
 }

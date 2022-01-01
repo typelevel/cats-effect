@@ -199,6 +199,12 @@ class IOAppSpec extends Specification {
           }
         }
 
+        "exit on non-fatal error" in {
+          val h = platform(NonFatalError, List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("Boom!")
+        }
+
         "exit on fatal error" in {
           val h = platform(FatalError, List.empty)
           h.awaitStatus() mustEqual 1
