@@ -32,6 +32,7 @@ package examples {
 
     register(HelloWorld)
     register(Arguments)
+    register(NonFatalError)
     register(FatalError)
     register(Canceled)
     register(GlobalRacingInit)
