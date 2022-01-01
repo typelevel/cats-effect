@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -285,8 +285,12 @@ private final class WorkerThread(
         // Park the thread until further notice.
         LockSupport.park(pool)
 
-        // Spurious wakeup check.
-        cont = parked.get()
+        // the only way we can be interrupted here is if it happened *externally* (probably sbt)
+        if (isInterrupted())
+          pool.shutdown()
+        else
+          // Spurious wakeup check.
+          cont = parked.get()
       }
     }
 

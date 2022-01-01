@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -198,6 +198,12 @@ class IOAppSpec extends Specification {
             }
             readTest() must contain("canceled")
           }
+        }
+
+        "exit on non-fatal error" in {
+          val h = platform(NonFatalError, List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("Boom!")
         }
 
         "exit on fatal error" in {
