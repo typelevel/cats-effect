@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
 
 ThisBuild / startYear := Some(2020)
-ThisBuild / endYear := Some(2021)
+ThisBuild / endYear := Some(2022)
 
 ThisBuild / developers := List(
   Developer(
