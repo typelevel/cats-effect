@@ -624,8 +624,12 @@ private final class IOFiber[A](
               /* try to take ownership of the runloop */
               if (resume()) {
                 // `resume()` is a volatile read of `suspended` through which
-                // `wasFinalizing` is published
+                // `wasFinalizing` and `handle` are published
                 if (finalizing == state.wasFinalizing) {
+                  if (isStackTracing) {
+                    state.handle.deregister()
+                  }
+
                   val ec = currentCtx
                   if (!shouldFinalize()) {
                     /* we weren't canceled or completed, so schedule the runloop for execution */
@@ -753,7 +757,7 @@ private final class IOFiber[A](
              * for `canceled` in `shouldFinalize`, ensuring no finalisation leaks
              */
             if (isStackTracing) {
-              monitor(state)
+              state.handle = monitor()
             }
             suspended.getAndSet(true)
 
@@ -921,9 +925,8 @@ private final class IOFiber[A](
             resumeIO = cur.ioa
 
             if (isStackTracing) {
-              val key = new AnyRef()
-              objectState.push(key)
-              monitor(key)
+              val handle = monitor()
+              objectState.push(handle)
             }
             scheduleOnForeignEC(ec, this)
           }
@@ -937,19 +940,35 @@ private final class IOFiber[A](
           }
 
           if (cur.hint eq IOFiber.TypeBlocking) {
-            resumeTag = BlockingR
-            resumeIO = cur
+            val ec = currentCtx
+            if (ec.isInstanceOf[WorkStealingThreadPool]) {
+              var error: Throwable = null
+              val r =
+                try {
+                  scala.concurrent.blocking(cur.thunk())
+                } catch {
+                  case NonFatal(t) =>
+                    error = t
+                  case t: Throwable =>
+                    onFatalFailure(t)
+                }
 
-            if (isStackTracing) {
-              val key = new AnyRef()
-              objectState.push(key)
-              monitor(key)
+              val next = if (error eq null) succeeded(r, 0) else failed(error, 0)
+              runLoop(next, nextCancelation, nextAutoCede)
+            } else {
+              resumeTag = BlockingR
+              resumeIO = cur
+
+              if (isStackTracing) {
+                val handle = monitor()
+                objectState.push(handle)
+              }
+
+              val ec = runtime.blocking
+              scheduleOnForeignEC(ec, this)
             }
-
-            val ec = runtime.blocking
-            scheduleOnForeignEC(ec, this)
           } else {
-            runLoop(interruptibleImpl(cur, runtime.blocking), nextCancelation, nextAutoCede)
+            runLoop(interruptibleImpl(cur), nextCancelation, nextAutoCede)
           }
 
         case 22 =>
@@ -1073,8 +1092,8 @@ private final class IOFiber[A](
   /**
    * Registers the suspended fiber in the global suspended fiber bag.
    */
-  private[this] def monitor(key: AnyRef): Unit = {
-    runtime.fiberMonitor.monitorSuspended(key, this)
+  private[this] def monitor(): WeakBag.Handle = {
+    runtime.fiberMonitor.monitorSuspended(this)
   }
 
   /* can return null, meaning that no CallbackStack needs to be later invalidated */
@@ -1311,7 +1330,7 @@ private final class IOFiber[A](
 
     if (isStackTracing) {
       // Remove the reference to the fiber monitor key
-      objectState.pop()
+      objectState.pop().asInstanceOf[WeakBag.Handle].deregister()
     }
 
     if (error == null) {
@@ -1376,8 +1395,8 @@ private final class IOFiber[A](
 
   private[this] def evalOnSuccessK(result: Any): IO[Any] = {
     if (isStackTracing) {
-      // Remove the reference to the fiber monitor key
-      objectState.pop()
+      // Remove the reference to the fiber monitor handle
+      objectState.pop().asInstanceOf[WeakBag.Handle].deregister()
     }
     val ec = objectState.pop().asInstanceOf[ExecutionContext]
     currentCtx = ec

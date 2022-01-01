@@ -31,6 +31,11 @@ package examples {
       args.traverse_(s => IO(println(s))).as(ExitCode.Success)
   }
 
+  object NonFatalError extends IOApp {
+    def run(args: List[String]): IO[ExitCode] =
+      IO(throw new RuntimeException("Boom!")).as(ExitCode.Success)
+  }
+
   object FatalError extends IOApp {
     def run(args: List[String]): IO[ExitCode] =
       IO(throw new OutOfMemoryError("Boom!")).as(ExitCode.Success)

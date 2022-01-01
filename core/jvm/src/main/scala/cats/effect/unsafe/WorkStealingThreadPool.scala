@@ -35,9 +35,8 @@ import cats.effect.tracing.TracingConstants
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-import java.lang.ref.WeakReference
-import java.util.WeakHashMap
-import java.util.concurrent.ThreadLocalRandom
+import java.util.Comparator
+import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
 
@@ -58,7 +57,7 @@ import java.util.concurrent.locks.LockSupport
  */
 private[effect] final class WorkStealingThreadPool(
     threadCount: Int, // number of worker threads
-    threadPrefix: String, // prefix for the name of worker threads
+    private[unsafe] val threadPrefix: String, // prefix for the name of worker threads
     self0: => IORuntime
 ) extends ExecutionContext {
 
@@ -97,12 +96,16 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
 
+  private[unsafe] val cachedThreads: ConcurrentSkipListSet[WorkerThread] =
+    new ConcurrentSkipListSet(Comparator.comparingInt[WorkerThread](_.nameIndex))
+
   /**
    * The shutdown latch of the work stealing thread pool.
    */
   private[unsafe] val done: AtomicBoolean = new AtomicBoolean(false)
 
   private[unsafe] val blockedWorkerThreadCounter: AtomicInteger = new AtomicInteger(0)
+  private[unsafe] val blockedWorkerThreadNamingIndex: AtomicInteger = new AtomicInteger(0)
 
   // Thread pool initialization block.
   {
@@ -114,17 +117,9 @@ private[effect] final class WorkStealingThreadPool(
       val parkedSignal = new AtomicBoolean(false)
       parkedSignals(i) = parkedSignal
       val index = i
-      val fiberBag = new WeakHashMap[AnyRef, WeakReference[IOFiber[_]]]()
+      val fiberBag = new WeakBag[IOFiber[_]]()
       val thread =
-        new WorkerThread(
-          index,
-          threadPrefix,
-          queue,
-          parkedSignal,
-          externalQueue,
-          null,
-          fiberBag,
-          this)
+        new WorkerThread(index, queue, parkedSignal, externalQueue, null, fiberBag, this)
       workerThreads(i) = thread
       i += 1
     }
@@ -560,6 +555,15 @@ private[effect] final class WorkStealingThreadPool(
 
       // Clear the interrupt flag.
       Thread.interrupted()
+
+      var t: WorkerThread = null
+      while ({
+        t = cachedThreads.pollFirst()
+        t ne null
+      }) {
+        t.interrupt()
+      }
+
       // Drain the external queue.
       externalQueue.clear()
       Thread.currentThread().interrupt()
