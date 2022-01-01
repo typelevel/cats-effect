@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,10 @@
 
 package cats.effect.std
 
-import cats.Applicative
-import cats.Functor
-import cats.data.EitherT
-import cats.data.IorT
-import cats.data.Kleisli
-import cats.data.OptionT
-import cats.data.ReaderWriterStateT
-import cats.data.StateT
-import cats.data.WriterT
+import cats.{~>, Applicative, Functor}
+import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 import cats.effect.kernel.Sync
 import cats.kernel.Monoid
-import cats.~>
 
 import scala.collection.immutable.Map
 

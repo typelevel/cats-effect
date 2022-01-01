@@ -17,8 +17,8 @@
 package cats.effect
 
 import cats.data.OptionT
-import cats.syntax.all._
 import cats.effect.std.Env
+import cats.syntax.all._
 
 import scala.scalajs.js
 import scala.util.Try
