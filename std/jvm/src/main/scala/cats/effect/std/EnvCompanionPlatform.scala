@@ -22,8 +22,11 @@ import scala.collection.immutable.Map
 
 private[std] class EnvCompanionPlatform {
   private[std] final class SyncEnv[F[_]](implicit F: Sync[F]) extends Env[F] {
-    def get(name: String): F[Option[String]] = F.delay(sys.env.get(name))
+
+    def get(name: String): F[Option[String]] =
+      F.delay(Option(System.getenv(name))) // sys.env copies the entire env into a Map
+
     def toMap: F[Map[String, String]] =
-      F.delay(Map.empty ++ sys.env) // paranoid, defensive copy
+      F.delay(Map.from(sys.env)) // a somewhat redundant copy, to shake the unsafe withDefault
   }
 }
