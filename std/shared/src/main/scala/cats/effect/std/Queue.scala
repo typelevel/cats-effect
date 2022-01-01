@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -350,10 +350,46 @@ trait QueueSource[F[_], A] {
    */
   def tryTake: F[Option[A]]
 
+  /**
+   * Attempts to dequeue elements from the front of the queue, if they are available without
+   * semantically blocking. This is a convenience method that recursively runs `tryTake`. It
+   * does not provide any additional performance benefits.
+   *
+   * @param maxN
+   *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
+   *
+   * @return
+   *   an effect that describes whether the dequeueing of elements from the queue succeeded
+   *   without blocking, with `None` denoting that no element was available
+   */
+  def tryTakeN(maxN: Option[Int])(implicit F: Monad[F]): F[Option[List[A]]] = {
+    QueueSource.assertMaxNPositive(maxN)
+    F.tailRecM[(Option[List[A]], Int), Option[List[A]]](
+      (None, 0)
+    ) {
+      case (list, i) =>
+        if (maxN.contains(i)) list.map(_.reverse).asRight.pure[F]
+        else {
+          tryTake.map {
+            case None => list.map(_.reverse).asRight
+            case Some(x) =>
+              if (list.isEmpty) (Some(List(x)), i + 1).asLeft
+              else (list.map(x +: _), i + 1).asLeft
+          }
+        }
+    }
+  }
+
   def size: F[Int]
 }
 
 object QueueSource {
+  private def assertMaxNPositive(maxN: Option[Int]): Unit = maxN match {
+    case Some(n) if n <= 0 =>
+      throw new IllegalArgumentException(s"Provided maxN parameter must be positive, was $n")
+    case _ => ()
+  }
+
   implicit def catsFunctorForQueueSource[F[_]: Functor]: Functor[QueueSource[F, *]] =
     new Functor[QueueSource[F, *]] {
       override def map[A, B](fa: QueueSource[F, A])(f: A => B): QueueSource[F, B] =
@@ -391,6 +427,26 @@ trait QueueSink[F[_], A] {
    *   blocking
    */
   def tryOffer(a: A): F[Boolean]
+
+  /**
+   * Attempts to enqueue the given elements at the back of the queue without semantically
+   * blocking. If an item in the list cannot be enqueued, the remaining elements will be
+   * returned. This is a convenience method that recursively runs `tryOffer` and does not offer
+   * any additional performance benefits.
+   *
+   * @param list
+   *   the elements to be put at the back of the queue
+   * @return
+   *   an effect that contains the remaining valus that could not be offered.
+   */
+  def tryOfferN(list: List[A])(implicit F: Monad[F]): F[List[A]] = list match {
+    case Nil => F.pure(list)
+    case h :: t =>
+      tryOffer(h).ifM(
+        tryOfferN(t),
+        F.pure(list)
+      )
+  }
 }
 
 object QueueSink {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,10 +34,11 @@ import cats.{
   Traverse
 }
 import cats.data.Ior
-import cats.syntax.all._
 import cats.effect.instances.spawn
 import cats.effect.std.{Console, Env}
 import cats.effect.tracing.{Tracing, TracingEvent}
+import cats.syntax.all._
+
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{
   CancellationException,
@@ -801,7 +802,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       success: A => Unit)(implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber[A](
-      Map(),
+      Map.empty,
       oc =>
         oc.fold(
           {
@@ -827,52 +828,63 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     fiber
   }
 
+  @deprecated("use syncStep(Int) instead", "3.4.0")
+  def syncStep: SyncIO[Either[IO[A], A]] = syncStep(Int.MaxValue)
+
   /**
    * Translates this `IO[A]` into a `SyncIO` value which, when evaluated, runs the original `IO`
-   * to its completion, or until the first asynchronous, boundary, whichever is encountered
-   * first.
+   * to its completion, the `limit` number of stages, or until the first asynchronous boundary,
+   * whichever is encountered first.
+   *
+   * @param limit
+   *   The number of stages to evaluate prior to forcibly yielding to `IO`
    */
-  def syncStep: SyncIO[Either[IO[A], A]] = {
-    def interpret[B](io: IO[B]): SyncIO[Either[IO[B], B]] =
-      io match {
-        case IO.Pure(a) => SyncIO.pure(Right(a))
-        case IO.Error(t) => SyncIO.raiseError(t)
-        case IO.Delay(thunk, _) => SyncIO.delay(thunk()).map(Right(_))
-        case IO.RealTime => SyncIO.realTime.map(Right(_))
-        case IO.Monotonic => SyncIO.monotonic.map(Right(_))
+  def syncStep(limit: Int): SyncIO[Either[IO[A], A]] = {
+    def interpret[B](io: IO[B], limit: Int): SyncIO[Either[IO[B], (B, Int)]] = {
+      if (limit <= 0) {
+        SyncIO.pure(Left(io))
+      } else {
+        io match {
+          case IO.Pure(a) => SyncIO.pure(Right((a, limit)))
+          case IO.Error(t) => SyncIO.raiseError(t)
+          case IO.Delay(thunk, _) => SyncIO.delay(thunk()).map(a => Right((a, limit)))
+          case IO.RealTime => SyncIO.realTime.map(a => Right((a, limit)))
+          case IO.Monotonic => SyncIO.monotonic.map(a => Right((a, limit)))
 
-        case IO.Map(ioe, f, _) =>
-          interpret(ioe).map {
-            case Left(_) => Left(io)
-            case Right(a) => Right(f(a))
-          }
-
-        case IO.FlatMap(ioe, f, _) =>
-          interpret(ioe).flatMap {
-            case Left(_) => SyncIO.pure(Left(io))
-            case Right(a) => interpret(f(a))
-          }
-
-        case IO.Attempt(ioe) =>
-          interpret(ioe)
-            .map {
+          case IO.Map(ioe, f, _) =>
+            interpret(ioe, limit - 1).map {
               case Left(_) => Left(io)
-              case Right(a) => Right(a.asRight[Throwable])
+              case Right((a, limit)) => Right((f(a), limit))
             }
-            .handleError(t => Right(t.asLeft[IO[B]]))
 
-        case IO.HandleErrorWith(ioe, f, _) =>
-          interpret(ioe)
-            .map {
-              case Left(_) => Left(io)
-              case Right(a) => Right(a)
+          case IO.FlatMap(ioe, f, _) =>
+            interpret(ioe, limit - 1).flatMap {
+              case Left(_) => SyncIO.pure(Left(io))
+              case Right((a, limit)) => interpret(f(a), limit - 1)
             }
-            .handleErrorWith(t => interpret(f(t)))
 
-        case _ => SyncIO.pure(Left(io))
+          case IO.Attempt(ioe) =>
+            interpret(ioe, limit - 1)
+              .map {
+                case Left(_) => Left(io)
+                case Right((a, limit)) => Right((a.asRight[Throwable], limit))
+              }
+              .handleError(t => Right((t.asLeft[IO[B]], limit - 1)))
+
+          case IO.HandleErrorWith(ioe, f, _) =>
+            interpret(ioe, limit - 1)
+              .map {
+                case Left(_) => Left(io)
+                case r @ Right(_) => r
+              }
+              .handleErrorWith(t => interpret(f(t), limit - 1))
+
+          case _ => SyncIO.pure(Left(io))
+        }
       }
+    }
 
-    interpret(this)
+    interpret(this, limit).map(_.map(_._1))
   }
 
   /**
@@ -930,14 +942,18 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   // constructors
 
   /**
-   * Suspends a synchronous side effect in `IO`.
+   * Suspends a synchronous side effect in `IO`. Use [[IO.apply]] if your side effect is not
+   * thread-blocking; otherwise you should use [[IO.blocking]] (uncancelable) or
+   * `IO.interruptible` (cancelable).
    *
-   * Alias for `IO.delay(body)`.
+   * Alias for [[IO.delay]].
    */
   def apply[A](thunk: => A): IO[A] = delay(thunk)
 
   /**
-   * Suspends a synchronous side effect in `IO`.
+   * Suspends a synchronous side effect in `IO`. Use [[IO.delay]] if your side effect is not
+   * thread-blocking; otherwise you should use [[IO.blocking]] (uncancelable) or
+   * `IO.interruptible` (cancelable).
    *
    * Any exceptions thrown by the effect will be caught and sequenced into the `IO`.
    */
@@ -1547,10 +1563,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     /**
      * Like [[IO.delay]] but intended for thread blocking operations. `blocking` will shift the
-     * execution of the blocking operation to a separate threadpool to avoid blocking on the main
-     * execution context. See the thread-model documentation for more information on why this is
-     * necessary. Note that the created effect will be uncancelable; if you need cancelation,
-     * then you should use [[IO.interruptible]] or [[IO.interruptibleMany]].
+     * execution of the blocking operation to a separate threadpool to avoid blocking on the
+     * main execution context. See the thread-model documentation for more information on why
+     * this is necessary. Note that the created effect will be uncancelable; if you need
+     * cancelation, then you should use [[IO.interruptible]] or [[IO.interruptibleMany]].
      *
      * {{{
      * IO.blocking(scala.io.Source.fromFile("path").mkString)

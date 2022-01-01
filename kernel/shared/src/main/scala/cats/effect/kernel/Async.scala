@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,15 @@
 
 package cats.effect.kernel
 
-import cats.implicits._
-import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{~>, Monoid, Semigroup}
-
 import cats.arrow.FunctionK
-import java.util.concurrent.atomic.AtomicReference
+import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
+import cats.implicits._
+
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
+
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A typeclass that encodes the notion of suspending asynchronous side effects in the `F[_]`

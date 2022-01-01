@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,13 @@ package cats.effect
 package std
 
 import cats.syntax.all._
+
 import org.specs2.matcher.MatchResult
+
+import scala.io.Source
 
 import java.io.{ByteArrayInputStream, InputStream}
 import java.nio.charset.{Charset, StandardCharsets}
-
-import scala.io.Source
 
 class ConsoleJVMSpec extends BaseSpec {
   sequential

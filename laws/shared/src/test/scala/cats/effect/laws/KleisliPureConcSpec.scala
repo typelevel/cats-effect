@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,12 +21,13 @@ import cats.Order
 import cats.data.Kleisli
 import cats.effect.kernel.Outcome
 import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, Time, TimeT}
-import cats.effect.kernel.testkit.pure._
 import cats.effect.kernel.testkit.TimeT._
+import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.{arbitrary, MiniInt}
+
 import org.scalacheck.{Arbitrary, Cogen, Prop}
-import org.specs2.scalacheck.Parameters
 import org.specs2.mutable._
+import org.specs2.scalacheck.Parameters
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._

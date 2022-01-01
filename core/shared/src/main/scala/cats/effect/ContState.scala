@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,13 @@
 
 package cats.effect
 
+import cats.effect.unsafe.WeakBag
+
 import java.util.concurrent.atomic.AtomicInteger
 
-// TODO rename
-// `result` is published by a volatile store on the atomic integer extended
-// by this class.
+// `result` is published by a volatile store on the atomic integer extended by this class.
+// `wasFinalizing` and `handle` are published in terms of the `suspended` atomic variable in `IOFiber`
 private final class ContState(var wasFinalizing: Boolean) extends AtomicInteger(0) {
   var result: Either[Throwable, Any] = _
+  var handle: WeakBag.Handle = _
 }

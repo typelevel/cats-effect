@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@ package testkit
 import cats.{Applicative, ApplicativeError, Eq, Monad, MonadError}
 import cats.syntax.all._
 
-import org.scalacheck.{Arbitrary, Cogen, Gen}, Arbitrary.arbitrary
+import org.scalacheck.{Arbitrary, Cogen, Gen}
+import org.scalacheck.Arbitrary.arbitrary
 
 import scala.collection.immutable.SortedMap
 import scala.concurrent.ExecutionContext

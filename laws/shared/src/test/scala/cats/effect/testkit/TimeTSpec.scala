@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,14 @@
 package cats.effect.kernel.testkit
 
 import cats.{Eq, Order}
+import cats.effect.kernel.testkit.TimeT._
+import cats.effect.kernel.testkit.pure.PureConc
 import cats.effect.laws.GenTemporalTests
 import cats.laws.discipline.arbitrary._
-import org.specs2.mutable._
+
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
+import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline
-import pure.PureConc
-import TimeT._
 
 import scala.concurrent.duration._
 

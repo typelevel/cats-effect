@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,7 @@
 
 package catseffect
 
-import cats.effect.ExitCode
-import cats.effect.IO
-import cats.effect.IOApp
+import cats.effect.{ExitCode, IO, IOApp}
 import cats.syntax.all._
 
 import scala.annotation.nowarn
@@ -34,6 +32,7 @@ package examples {
 
     register(HelloWorld)
     register(Arguments)
+    register(NonFatalError)
     register(FatalError)
     register(Canceled)
     register(GlobalRacingInit)

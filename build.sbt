@@ -1,6 +1,5 @@
-import sbtcrossproject.CrossProject
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,16 +22,17 @@ import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.firefox.FirefoxOptions
 import org.scalajs.jsenv.nodejs.NodeJSEnv
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
+import sbtcrossproject.CrossProject
 
 import JSEnv._
 
-ThisBuild / baseVersion := "3.3"
+ThisBuild / baseVersion := "3.4"
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
 
 ThisBuild / startYear := Some(2020)
-ThisBuild / endYear := Some(2021)
+ThisBuild / endYear := Some(2022)
 
 ThisBuild / developers := List(
   Developer(
@@ -104,14 +104,13 @@ ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
 ThisBuild / githubWorkflowUseSbtThinClient := false
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
 
-val OldGuardJava = "adoptium@8"
-val LTSJava = "adoptium@11"
-val LatestJava = "adoptium@17"
+val OldGuardJava = JavaSpec.temurin("8")
+val LTSJava = JavaSpec.temurin("11")
+val LatestJava = JavaSpec.temurin("17")
 val ScalaJSJava = OldGuardJava
-val GraalVM = "graalvm-ce-java11@21.3"
+val GraalVM = JavaSpec.graalvm("21.3.0", "11")
 
 ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
-ThisBuild / githubWorkflowEnv += ("JABBA_INDEX" -> "https://github.com/typelevel/jdk-index/raw/main/index.json")
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
@@ -129,6 +128,11 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
 )
 
 ThisBuild / githubWorkflowBuild := Seq(
+  WorkflowStep.Sbt(
+    List("root/scalafixAll --check"),
+    name = Some("Check that scalafix has been run"),
+    cond = Some(s"matrix.scala != '$Scala3' && matrix.os != '$Windows'")
+  ),
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
     List("docs/mdoc"),
@@ -160,7 +164,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   val scalaJavaFilters = for {
     scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
     java <- (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(OldGuardJava))
-  } yield MatrixExclude(Map("scala" -> scala, "java" -> java))
+  } yield MatrixExclude(Map("scala" -> scala, "java" -> java.render))
 
   val windowsAndMacScalaFilters =
     (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).flatMap { scala =>
@@ -177,7 +181,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   val jsJavaAndOSFilters = jsCiVariants.flatMap { ci =>
     val javaFilters =
       (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)).map { java =>
-        MatrixExclude(Map("ci" -> ci, "java" -> java))
+        MatrixExclude(Map("ci" -> ci, "java" -> java.render))
       }
 
     javaFilters ++ Seq(
@@ -187,7 +191,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
 
   // Nice-to-haves but unreliable in CI
   val flakyFilters = Seq(
-    MatrixExclude(Map("os" -> Windows, "java" -> GraalVM))
+    MatrixExclude(Map("os" -> Windows, "java" -> GraalVM.render))
   )
 
   scalaJavaFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ jsJavaAndOSFilters ++ flakyFilters
@@ -241,7 +245,9 @@ addCommandAlias(CI.JS.command, CI.JS.toString)
 addCommandAlias(CI.Firefox.command, CI.Firefox.toString)
 addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
 
-addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
+addCommandAlias(
+  "prePR",
+  "; root/clean; root/scalafixAll; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
 val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
@@ -442,7 +448,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.LocalQueue.enqueueBatch"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.LocalQueue.stealInto")
+        "cats.effect.unsafe.LocalQueue.stealInto"),
+      // introduced by #2673, Cross platform weak bag implementation
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.WorkerThread.monitor")
     )
   )
   .jvmSettings(

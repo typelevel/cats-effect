@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import scala.concurrent.ExecutionContext
 import java.lang.management.ManagementFactory
 import java.util.concurrent.{Executors, ScheduledThreadPoolExecutor}
 import java.util.concurrent.atomic.AtomicInteger
+
 import javax.management.ObjectName
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>

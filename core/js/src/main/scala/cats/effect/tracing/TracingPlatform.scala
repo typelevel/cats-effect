@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,7 @@ import cats.effect.kernel.Cont
 
 import scala.collection.mutable
 import scala.reflect.NameTransformer
-import scala.scalajs.LinkingInfo
-import scala.scalajs.js
+import scala.scalajs.{js, LinkingInfo}
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
