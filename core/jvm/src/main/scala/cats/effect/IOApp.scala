@@ -270,18 +270,18 @@ trait IOApp {
     val fiber =
       ioa.unsafeRunFiber(
         {
-          queue.offer(new CancellationException("IOApp main fiber was canceled"))
           counter.decrementAndGet()
+          queue.offer(new CancellationException("IOApp main fiber was canceled"))
           ()
         },
         { t =>
-          queue.offer(t)
           counter.decrementAndGet()
+          queue.offer(t)
           ()
         },
         { a =>
-          queue.offer(a)
           counter.decrementAndGet()
+          queue.offer(a)
           ()
         }
       )(runtime)
