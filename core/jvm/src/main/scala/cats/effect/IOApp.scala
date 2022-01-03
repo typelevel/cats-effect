@@ -200,6 +200,9 @@ trait IOApp {
   def run(args: List[String]): IO[ExitCode]
 
   final def main(args: Array[String]): Unit = {
+    // checked in openjdk 8-17; this attempts to detect when we're running under artificial environments, like sbt
+    val isForked = Thread.currentThread().getId() == 1
+
     if (runtime == null) {
       import unsafe.IORuntime
 
@@ -329,15 +332,26 @@ trait IOApp {
               new NonDaemonThreadLogger().start()
             else
               ()
-          } else {
+          } else if (isForked) {
             System.exit(result.code)
           }
-        case _: CancellationException =>
-          // Do not report cancelation exceptions but still exit with an error code.
-          System.exit(1)
+
+        case e: CancellationException =>
+          if (isForked)
+            // Do not report cancelation exceptions but still exit with an error code.
+            System.exit(1)
+          else
+            // if we're unforked, the only way to report cancelation is to throw
+            throw e
+
         case NonFatal(t) =>
-          t.printStackTrace()
-          System.exit(1)
+          if (isForked) {
+            t.printStackTrace()
+            System.exit(1)
+          } else {
+            throw t
+          }
+
         case t: Throwable =>
           t.printStackTrace()
           rt.halt(1)
