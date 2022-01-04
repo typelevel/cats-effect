@@ -27,6 +27,6 @@ private[std] class EnvCompanionPlatform {
       F.delay(Option(System.getenv(name))) // sys.env copies the entire env into a Map
 
     def toMap: F[Map[String, String]] =
-      F.delay(Map.from(sys.env)) // a somewhat redundant copy, to shake the unsafe withDefault
+      F.delay(Map.empty ++ sys.env) // a somewhat redundant copy, to shake the unsafe withDefault
   }
 }
