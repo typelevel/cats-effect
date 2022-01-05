@@ -18,7 +18,7 @@ package cats.effect.std
 
 import cats.effect.kernel.Sync
 
-import scala.collection.immutable.Map
+import scala.collection.immutable.Iterable
 
 private[std] class EnvCompanionPlatform {
   private[std] final class SyncEnv[F[_]](implicit F: Sync[F]) extends Env[F] {
@@ -26,8 +26,6 @@ private[std] class EnvCompanionPlatform {
     def get(name: String): F[Option[String]] =
       F.delay(Option(System.getenv(name))) // sys.env copies the entire env into a Map
 
-    def toMap: F[Map[String, String]] =
-      // a somewhat redundant copy, to shake the unsafe withDefault
-      F.delay(Map.empty ++ sys.env)
+    def entries: F[Iterable[(String, String)]] = F.delay(sys.env)
   }
 }

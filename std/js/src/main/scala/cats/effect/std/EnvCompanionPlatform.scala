@@ -20,7 +20,7 @@ import cats.data.OptionT
 import cats.effect.kernel.Sync
 import cats.syntax.all._
 
-import scala.collection.immutable.Map
+import scala.collection.immutable.Iterable
 import scala.scalajs.js
 import scala.util.Try
 
@@ -31,8 +31,8 @@ private[std] class EnvCompanionPlatform {
         case value: String => value // JavaScript. 'nuff said
       }.value
 
-    def toMap: F[Map[String, String]] =
-      F.delay(processEnv.collect { case (name, value: String) => name -> value }.toMap)
+    def entries: F[Iterable[(String, String)]] =
+      F.delay(processEnv.collect { case (name, value: String) => name -> value }.toList)
 
     private def processEnv =
       Try(js.Dynamic.global.process.env.asInstanceOf[js.Dictionary[Any]])

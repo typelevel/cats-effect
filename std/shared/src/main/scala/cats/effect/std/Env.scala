@@ -21,7 +21,7 @@ import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, W
 import cats.effect.kernel.Sync
 import cats.kernel.Monoid
 
-import scala.collection.immutable.Map
+import scala.collection.immutable.Iterable
 
 /**
  * Effect type agnostic `Env` with common methods to read environment variables
@@ -30,11 +30,11 @@ trait Env[F[_]] { self =>
 
   def get(name: String): F[Option[String]]
 
-  def toMap: F[Map[String, String]]
+  def entries: F[Iterable[(String, String)]]
 
   def mapK[G[_]](f: F ~> G): Env[G] = new Env[G] {
     def get(name: String): G[Option[String]] = f(self.get(name))
-    def toMap: G[Map[String, String]] = f(self.toMap)
+    def entries: G[Iterable[(String, String)]] = f(self.entries)
   }
 }
 

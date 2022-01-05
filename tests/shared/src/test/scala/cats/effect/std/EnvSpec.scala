@@ -26,8 +26,8 @@ class EnvSpec extends BaseSpec {
     "return none for non-existent environment variable" in real {
       Env[IO].get("MADE_THIS_UP").flatMap(x => IO(x must beNone))
     }
-    "create a map of all the things" in real {
-      Env[IO].toMap.flatMap(x => IO(x must not(beEmpty)))
+    "provide an iterable of all the things" in real {
+      Env[IO].entries.flatMap(x => IO(x must not(beEmpty)))
     }
   }
 
