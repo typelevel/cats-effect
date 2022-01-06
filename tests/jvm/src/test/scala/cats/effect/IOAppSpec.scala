@@ -269,7 +269,7 @@ class IOAppSpec extends Specification {
             val h = platform(LiveFiberSnapshot, List.empty)
             // Allow the process some time to start
             // and register the signal handlers.
-            Thread.sleep(2000L)
+            Thread.sleep(4000L)
             val pid = h.pid()
             pid must beSome
             pid.foreach(platform.sendSignal)
