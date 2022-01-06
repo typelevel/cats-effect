@@ -250,6 +250,13 @@ class IOAppSpec extends Specification {
           }
         }
 
+        if (BuildInfo.testJSIOApp) {
+          "gracefully ignore undefined process.exit" in {
+            val h = platform(UndefinedProcessExit, List.empty)
+            h.awaitStatus() mustEqual 0
+          }
+        }
+
         if (!BuildInfo.testJSIOApp && sys
             .props
             .get("java.version")
