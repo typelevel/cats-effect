@@ -83,6 +83,7 @@ package examples {
       } yield ()
 
       _ <- sleeper.start
+      _ <- IO.println("ready")
       _ <- fibers.traverse(_.join)
     } yield ()
   }
