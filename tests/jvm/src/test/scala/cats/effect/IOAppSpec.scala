@@ -250,6 +250,13 @@ class IOAppSpec extends Specification {
           }
         }
 
+        if (BuildInfo.testJSIOApp) {
+          "gracefully ignore undefined process.exit" in {
+            val h = platform(UndefinedProcessExit, List.empty)
+            h.awaitStatus() mustEqual 0
+          }
+        }
+
         if (!BuildInfo.testJSIOApp && sys
             .props
             .get("java.version")
@@ -260,9 +267,12 @@ class IOAppSpec extends Specification {
         } else {
           "live fiber snapshot" in {
             val h = platform(LiveFiberSnapshot, List.empty)
-            // Allow the process some time to start
-            // and register the signal handlers.
-            Thread.sleep(2000L)
+
+            // wait for the application to fully start before trying to send the signal
+            while (!h.stdout().contains("ready")) {
+              Thread.sleep(100L)
+            }
+
             val pid = h.pid()
             pid must beSome
             pid.foreach(platform.sendSignal)
