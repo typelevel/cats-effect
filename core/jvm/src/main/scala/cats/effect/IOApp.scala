@@ -294,16 +294,12 @@ trait IOApp {
         val cancelLatch = new CountDownLatch(1)
         fiber.cancel.unsafeRunAsync(_ => cancelLatch.countDown())(runtime)
 
-        try {
-          val timeout = runtimeConfig.shutdownHookTimeout
-          if (timeout.isFinite) {
-            blocking(cancelLatch.await(timeout.length, timeout.unit))
-            ()
-          } else {
-            blocking(cancelLatch.await())
-          }
-        } catch {
-          case _: InterruptedException =>
+        val timeout = runtimeConfig.shutdownHookTimeout
+        if (timeout.isFinite) {
+          blocking(cancelLatch.await(timeout.length, timeout.unit))
+          ()
+        } else {
+          blocking(cancelLatch.await())
         }
       }
 
