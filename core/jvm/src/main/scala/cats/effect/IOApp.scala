@@ -361,9 +361,6 @@ trait IOApp {
         case t: Throwable =>
           t.printStackTrace()
           rt.halt(1)
-        case null =>
-          println(
-            s"result is null but is interrupted? ${Thread.currentThread().isInterrupted()}")
       }
     } catch {
       // this handles sbt when fork := false
