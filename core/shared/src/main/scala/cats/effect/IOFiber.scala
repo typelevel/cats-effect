@@ -943,30 +943,26 @@ private final class IOFiber[A](
           if (cur.hint eq IOFiber.TypeBlocking) {
             val ec = currentCtx
             if (ec.isInstanceOf[WorkStealingThreadPool]) {
-              var error: Throwable = null
-              val r =
-                try {
-                  scala.concurrent.blocking(cur.thunk())
-                } catch {
-                  case NonFatal(t) =>
-                    error = t
-                  case t: Throwable =>
-                    onFatalFailure(t)
-                }
+              val wstp = ec.asInstanceOf[WorkStealingThreadPool]
+              if (wstp.canExecuteBlockingCode()) {
+                var error: Throwable = null
+                val r =
+                  try {
+                    scala.concurrent.blocking(cur.thunk())
+                  } catch {
+                    case NonFatal(t) =>
+                      error = t
+                    case t: Throwable =>
+                      onFatalFailure(t)
+                  }
 
-              val next = if (error eq null) succeeded(r, 0) else failed(error, 0)
-              runLoop(next, nextCancelation, nextAutoCede)
-            } else {
-              resumeTag = BlockingR
-              resumeIO = cur
-
-              if (isStackTracing) {
-                val handle = monitor()
-                objectState.push(handle)
+                val next = if (error eq null) succeeded(r, 0) else failed(error, 0)
+                runLoop(next, nextCancelation, nextAutoCede)
+              } else {
+                blockingFallback(cur)
               }
-
-              val ec = runtime.blocking
-              scheduleOnForeignEC(ec, this)
+            } else {
+              blockingFallback(cur)
             }
           } else {
             runLoop(interruptibleImpl(cur), nextCancelation, nextAutoCede)
@@ -983,6 +979,19 @@ private final class IOFiber[A](
           runLoop(succeeded(Trace(tracingEvents), 0), nextCancelation, nextAutoCede)
       }
     }
+  }
+
+  private[this] def blockingFallback(cur: Blocking[Any]): Unit = {
+    resumeTag = BlockingR
+    resumeIO = cur
+
+    if (isStackTracing) {
+      val handle = monitor()
+      objectState.push(handle)
+    }
+
+    val ec = runtime.blocking
+    scheduleOnForeignEC(ec, this)
   }
 
   /*
