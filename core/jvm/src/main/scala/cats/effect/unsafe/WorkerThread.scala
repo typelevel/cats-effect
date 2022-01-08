@@ -160,6 +160,21 @@ private final class WorkerThread(
     (pool eq threadPool) && !blocking
 
   /**
+   * Checks whether this [[WorkerThread]] operates within the [[WorkStealingThreadPool]]
+   * provided as an argument to this method. The implementation checks whether the provided
+   * [[WorkStealingThreadPool]] matches the reference of the pool provided when this
+   * [[WorkerThread]] was constructed.
+   *
+   * @param threadPool
+   *   a work stealing thread pool reference
+   * @return
+   *   `true` if this worker thread is owned by the provided work stealing thread pool, `false`
+   *   otherwise
+   */
+  def canExecuteBlockingCodeOn(threadPool: WorkStealingThreadPool): Boolean =
+    pool eq threadPool
+
+  /**
    * Registers a suspended fiber.
    *
    * @param fiber
