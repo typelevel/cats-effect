@@ -22,7 +22,8 @@ import cats.effect.unsafe.FiberMonitor
 import scala.concurrent.{blocking, CancellationException}
 import scala.util.control.NonFatal
 
-import java.util.concurrent.CountDownLatch
+import java.util.concurrent.{ArrayBlockingQueue, CountDownLatch}
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining
@@ -261,43 +262,44 @@ trait IOApp {
     }
 
     val rt = Runtime.getRuntime()
-
-    val latch = new CountDownLatch(1)
-    @volatile var error: Throwable = null
-    @volatile var result: ExitCode = null
+    val queue = new ArrayBlockingQueue[AnyRef](1)
+    val counter = new AtomicInteger(1)
 
     val ioa = run(args.toList)
 
     val fiber =
       ioa.unsafeRunFiber(
         {
-          error = new CancellationException("IOApp main fiber was canceled")
-          latch.countDown()
+          counter.decrementAndGet()
+          queue.offer(new CancellationException("IOApp main fiber was canceled"))
+          ()
         },
         { t =>
-          error = t
-          latch.countDown()
+          counter.decrementAndGet()
+          queue.offer(t)
+          ()
         },
         { a =>
-          result = a
-          latch.countDown()
-        })(runtime)
+          counter.decrementAndGet()
+          queue.offer(a)
+          ()
+        }
+      )(runtime)
 
     if (isStackTracing)
       runtime.fiberMonitor.monitorSuspended(fiber)
 
     def handleShutdown(): Unit = {
-      if (latch.getCount() > 0) {
+      if (counter.compareAndSet(1, 0)) {
         val cancelLatch = new CountDownLatch(1)
         fiber.cancel.unsafeRunAsync(_ => cancelLatch.countDown())(runtime)
 
-        blocking {
-          val timeout = runtimeConfig.shutdownHookTimeout
-          if (timeout.isFinite) {
-            cancelLatch.await(timeout.length, timeout.unit)
-          } else {
-            cancelLatch.await()
-          }
+        val timeout = runtimeConfig.shutdownHookTimeout
+        if (timeout.isFinite) {
+          blocking(cancelLatch.await(timeout.length, timeout.unit))
+          ()
+        } else {
+          blocking(cancelLatch.await())
         }
       }
 
@@ -318,13 +320,13 @@ trait IOApp {
     }
 
     try {
-      blocking(latch.await())
-      error match {
-        case null =>
+      val result = blocking(queue.take())
+      result match {
+        case ec: ExitCode =>
           // Clean up after ourselves, relevant for running IOApps in sbt,
           // otherwise scheduler threads will accumulate over time.
           runtime.shutdown()
-          if (result == ExitCode.Success) {
+          if (ec == ExitCode.Success) {
             // Return naturally from main. This allows any non-daemon
             // threads to gracefully complete their work, and managed
             // environments to execute their own shutdown hooks.
@@ -333,7 +335,7 @@ trait IOApp {
             else
               ()
           } else if (isForked) {
-            System.exit(result.code)
+            System.exit(ec.code)
           }
 
         case e: CancellationException =>
