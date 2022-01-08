@@ -430,6 +430,20 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
+   * Checks if the blocking code can be executed in the current context (only returns true for
+   * worker threads that belong to this execution context).
+   */
+  private[effect] def canExecuteBlockingCode(): Boolean = {
+    val thread = Thread.currentThread()
+    if (thread.isInstanceOf[WorkerThread]) {
+      val worker = thread.asInstanceOf[WorkerThread]
+      worker.isOwnedBy(this)
+    } else {
+      false
+    }
+  }
+
+  /**
    * Schedules a fiber for execution on this thread pool originating from an external thread (a
    * thread which is not owned by this thread pool).
    *
