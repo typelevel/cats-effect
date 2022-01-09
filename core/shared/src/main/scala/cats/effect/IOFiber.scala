@@ -877,8 +877,8 @@ private final class IOFiber[A](
                     rt
                   )
 
-                  fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
-                  fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
+                  fiberA.setCallback(oc => cb(Right(Left((oc, fiberB)))))
+                  fiberB.setCallback(oc => cb(Right(Right((fiberA, oc)))))
 
                   scheduleFiber(ec, fiberA)
                   scheduleFiber(ec, fiberB)
@@ -942,30 +942,26 @@ private final class IOFiber[A](
           if (cur.hint eq IOFiber.TypeBlocking) {
             val ec = currentCtx
             if (ec.isInstanceOf[WorkStealingThreadPool]) {
-              var error: Throwable = null
-              val r =
-                try {
-                  scala.concurrent.blocking(cur.thunk())
-                } catch {
-                  case NonFatal(t) =>
-                    error = t
-                  case t: Throwable =>
-                    onFatalFailure(t)
-                }
+              val wstp = ec.asInstanceOf[WorkStealingThreadPool]
+              if (wstp.canExecuteBlockingCode()) {
+                var error: Throwable = null
+                val r =
+                  try {
+                    scala.concurrent.blocking(cur.thunk())
+                  } catch {
+                    case NonFatal(t) =>
+                      error = t
+                    case t: Throwable =>
+                      onFatalFailure(t)
+                  }
 
-              val next = if (error eq null) succeeded(r, 0) else failed(error, 0)
-              runLoop(next, nextCancelation, nextAutoCede)
-            } else {
-              resumeTag = BlockingR
-              resumeIO = cur
-
-              if (isStackTracing) {
-                val handle = monitor()
-                objectState.push(handle)
+                val next = if (error eq null) succeeded(r, 0) else failed(error, 0)
+                runLoop(next, nextCancelation, nextAutoCede)
+              } else {
+                blockingFallback(cur)
               }
-
-              val ec = runtime.blocking
-              scheduleOnForeignEC(ec, this)
+            } else {
+              blockingFallback(cur)
             }
           } else {
             runLoop(interruptibleImpl(cur), nextCancelation, nextAutoCede)
@@ -982,6 +978,19 @@ private final class IOFiber[A](
           runLoop(succeeded(Trace(tracingEvents), 0), nextCancelation, nextAutoCede)
       }
     }
+  }
+
+  private[this] def blockingFallback(cur: Blocking[Any]): Unit = {
+    resumeTag = BlockingR
+    resumeIO = cur
+
+    if (isStackTracing) {
+      val handle = monitor()
+      objectState.push(handle)
+    }
+
+    val ec = runtime.blocking
+    scheduleOnForeignEC(ec, this)
   }
 
   /*
@@ -1096,8 +1105,16 @@ private final class IOFiber[A](
     runtime.fiberMonitor.monitorSuspended(this)
   }
 
+  /**
+   * Can only be correctly called on a fiber which has not started execution and was initially
+   * created with a `null` callback, i.e. in `RacePair`.
+   */
+  private def setCallback(cb: OutcomeIO[A] => Unit): Unit = {
+    callbacks.unsafeSetCallback(cb)
+  }
+
   /* can return null, meaning that no CallbackStack needs to be later invalidated */
-  private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
+  private[this] def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
     if (outcome == null) {
       val back = callbacks.push(listener)
 
