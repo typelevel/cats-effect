@@ -211,7 +211,6 @@ trait IOApp {
 
           case t =>
             runtime.shutdown()
-            queue.clear()
             queue.put(t)
         }
 
@@ -305,22 +304,18 @@ trait IOApp {
 
     val ioa = run(args.toList)
 
-    // we clear the queue when we produce results, since any orphaned runnables will be ignored anyway
     val fiber =
       ioa.unsafeRunFiber(
         {
           counter.decrementAndGet()
-          queue.clear()
           queue.put(new CancellationException("IOApp main fiber was canceled"))
         },
         { t =>
           counter.decrementAndGet()
-          queue.clear()
           queue.put(t)
         },
         { a =>
           counter.decrementAndGet()
-          queue.clear()
           queue.put(a)
         }
       )(runtime)
