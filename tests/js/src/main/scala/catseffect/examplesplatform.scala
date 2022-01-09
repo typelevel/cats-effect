@@ -86,4 +86,8 @@ package examples {
   object UndefinedProcessExit extends IOApp {
     def run(args: List[String]): IO[ExitCode] = IO.pure(ExitCode.Success)
   }
+
+  object EvalOnMainThread extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = IO.never
+  }
 }

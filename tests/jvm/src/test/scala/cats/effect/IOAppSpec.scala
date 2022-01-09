@@ -280,6 +280,16 @@ class IOAppSpec extends Specification {
             stderr must contain("cats.effect.IOFiber")
           }
         }
+
+        if (!BuildInfo.testJSIOApp) {
+          "support main thread evaluation" in {
+            val h = platform(EvalOnMainThread, List.empty)
+            h.awaitStatus() mustEqual 0
+          }
+        } else {
+          "support main thread evaluation" in skipped(
+            "JavaScript is all main thread, all the time")
+        }
       }
     }
     ()
