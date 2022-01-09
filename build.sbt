@@ -451,7 +451,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
         "cats.effect.unsafe.LocalQueue.stealInto"),
       // introduced by #2673, Cross platform weak bag implementation
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.WorkerThread.monitor")
+        "cats.effect.unsafe.WorkerThread.monitor"),
+      // introduced by #2732, lambda lifting for private[this] queue
+      ProblemFilters.exclude[ReversedMissingMethodProblem](
+        "cats.effect.IOApp.cats$effect$IOApp$_setter_$cats$effect$IOApp$$queue_="),
+      ProblemFilters.exclude[ReversedMissingMethodProblem](
+        "cats.effect.IOApp.cats$effect$IOApp$$queue"),
     )
   )
   .jvmSettings(
