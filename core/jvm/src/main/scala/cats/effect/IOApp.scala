@@ -22,7 +22,7 @@ import cats.effect.unsafe.FiberMonitor
 import scala.concurrent.{blocking, CancellationException, ExecutionContext}
 import scala.util.control.NonFatal
 
-import java.util.concurrent.{CountDownLatch, LinkedBlockingQueue}
+import java.util.concurrent.{ArrayBlockingQueue, CountDownLatch}
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -185,7 +185,7 @@ trait IOApp {
     Math.max(2, Runtime.getRuntime().availableProcessors())
 
   // arbitrary constant is arbitrary
-  private[this] val queue = new LinkedBlockingQueue[AnyRef]
+  private[this] val queue = new ArrayBlockingQueue[AnyRef](32)
 
   /**
    * Executes the provided actions on the JVM's `main` thread. Note that this is, by definition,
@@ -205,10 +205,22 @@ trait IOApp {
   protected lazy val MainThread: ExecutionContext =
     new ExecutionContext {
       def reportFailure(t: Throwable): Unit =
-        t.printStackTrace()
+        t match {
+          case NonFatal(t) =>
+            t.printStackTrace()
+
+          case t =>
+            runtime.shutdown()
+            queue.clear()
+            queue.put(t)
+        }
 
       def execute(r: Runnable): Unit =
-        queue.put(r)
+        if (!queue.offer(r)) {
+          runtime.blocking execute { () =>
+            queue.put(r)
+          }
+        }
     }
 
   /**
