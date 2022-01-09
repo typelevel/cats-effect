@@ -197,10 +197,10 @@ trait IOApp {
    * actions are ignored and discarded (a mostly irrelevant issue since the process is, at that
    * point, terminating).
    *
-   * This is ''not'' recommended for use in most applications, and is really only appropriate for
-   * scenarios where some third-party library is sensitive to the exact identity of the calling
-   * thread (for example, LWJGL). In these scenarios, it is recommended that the absolute minimum
-   * possible amount of work is handed off to the main thread.
+   * This is ''not'' recommended for use in most applications, and is really only appropriate
+   * for scenarios where some third-party library is sensitive to the exact identity of the
+   * calling thread (for example, LWJGL). In these scenarios, it is recommended that the
+   * absolute minimum possible amount of work is handed off to the main thread.
    */
   protected lazy val MainThread: ExecutionContext =
     new ExecutionContext {
@@ -216,9 +216,7 @@ trait IOApp {
 
       def execute(r: Runnable): Unit =
         if (!queue.offer(r)) {
-          runtime.blocking execute { () =>
-            queue.put(r)
-          }
+          runtime.blocking.execute(() => queue.put(r))
         }
     }
 
