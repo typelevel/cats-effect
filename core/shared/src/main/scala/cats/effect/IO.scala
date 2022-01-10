@@ -1245,9 +1245,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Run two IO tasks concurrently, and returns a pair containing both the winner's successful
    * value and the loser represented as a still-unfinished task.
    *
-   * If the first task completes in error, then the result will complete in error, the other
-   * task being canceled.
-   *
    * On usage the user has the option of canceling the losing task, this being equivalent with
    * plain [[race]]:
    *
@@ -1257,9 +1254,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    *   IO.racePair(ioA, ioB).flatMap {
    *     case Left((a, fiberB)) =>
-   *       fiberB.cancel.map(_ => a)
+   *       fiberB.cancel.as(a)
    *     case Right((fiberA, b)) =>
-   *       fiberA.cancel.map(_ => b)
+   *       fiberA.cancel.as(b)
    *   }
    * }}}
    *
