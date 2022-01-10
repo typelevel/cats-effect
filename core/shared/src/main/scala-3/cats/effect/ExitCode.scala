@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import scala.annotation.targetName
+
 /**
  * Represents the exit code of an application.
  *
@@ -53,7 +55,11 @@ object ExitCode {
    */
   def apply(i: Int): ExitCode = new ExitCode(i & 0xff)
 
-  def unapply(ec: ExitCode): Option[Int] = Some(ec.code)
+  @targetName("unapply")
+  private[effect] def unapplyBinCompat(ec: ExitCode): Option[Int] = Some(ec.code)
+
+  @targetName("unapplyTotal")
+  def unapply(ec: ExitCode): Some[Int] = Some(ec.code)
 
   val Success: ExitCode = ExitCode(0)
   val Error: ExitCode = ExitCode(1)
