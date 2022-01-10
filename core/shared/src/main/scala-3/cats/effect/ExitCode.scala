@@ -28,6 +28,9 @@ sealed class ExitCode private[effect] (val code: Int)
     extends Product
     with Equals
     with Serializable {
+
+  def _1: Int = code
+
   def canEqual(that: Any): Boolean = that.isInstanceOf[ExitCode]
 
   override def equals(that: Any): Boolean = that match {
@@ -55,11 +58,7 @@ object ExitCode {
    */
   def apply(i: Int): ExitCode = new ExitCode(i & 0xff)
 
-  @targetName("unapply")
-  private[effect] def unapplyBinCompat(ec: ExitCode): Option[Int] = Some(ec.code)
-
-  @targetName("unapplyTotal")
-  def unapply(ec: ExitCode): Some[Int] = Some(ec.code)
+  def unapply(ec: ExitCode): ExitCode = ec
 
   val Success: ExitCode = ExitCode(0)
   val Error: ExitCode = ExitCode(1)
