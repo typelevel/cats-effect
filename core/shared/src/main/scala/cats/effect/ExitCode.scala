@@ -21,7 +21,26 @@ package cats.effect
  *
  * `code` is constrained to a range from 0 to 255, inclusive.
  */
-sealed abstract case class ExitCode private (code: Int)
+// The strange encoding of this class is due to https://github.com/lampepfl/dotty/issues/14240
+sealed class ExitCode private[effect] (val code: Int)
+    extends Product
+    with Equals
+    with Serializable {
+  def canEqual(that: Any): Boolean = that.isInstanceOf[ExitCode]
+
+  override def equals(that: Any): Boolean = that match {
+    case ExitCode(code) => this.code == code
+    case _ => false
+  }
+
+  def productArity: Int = 1
+
+  def productElement(n: Int): Any = if (n == 0) code else throw new NoSuchElementException
+
+  override def hashCode = code
+
+  override def toString = s"ExitCode($code)"
+}
 
 object ExitCode {
 
@@ -32,7 +51,9 @@ object ExitCode {
    *   the value whose 8 least significant bits are used to construct an exit code within the
    *   valid range.
    */
-  def apply(i: Int): ExitCode = new ExitCode(i & 0xff) {}
+  def apply(i: Int): ExitCode = new ExitCode(i & 0xff)
+
+  def unapply(ec: ExitCode): Option[Int] = Some(ec.code)
 
   val Success: ExitCode = ExitCode(0)
   val Error: ExitCode = ExitCode(1)
