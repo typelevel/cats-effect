@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,22 +32,16 @@ This may be useful if you have a pre-existing fixed thread pool and/or scheduler
 wish to use to execute IO programs. Please be sure to review thread pool best practices to
 avoid unintentionally degrading your application performance.
 """)
-final class IORuntime private (
+final class IORuntime private[unsafe] (
     val compute: ExecutionContext,
     private[effect] val blocking: ExecutionContext,
     val scheduler: Scheduler,
+    private[effect] val fiberMonitor: FiberMonitor,
     val shutdown: () => Unit,
     val config: IORuntimeConfig
 ) {
-  private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
 
-  private[effect] val suspendedFiberBag: SuspendedFiberBag =
-    if (compute.isInstanceOf[WorkStealingThreadPool]) {
-      val wstp = compute.asInstanceOf[WorkStealingThreadPool]
-      SuspendedFiberBag(wstp)
-    } else {
-      SuspendedFiberBag()
-    }
+  private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
 
   /*
    * Forwarder methods for `IOFiber`.
@@ -67,5 +61,5 @@ object IORuntime extends IORuntimeCompanionPlatform {
       scheduler: Scheduler,
       shutdown: () => Unit,
       config: IORuntimeConfig): IORuntime =
-    new IORuntime(compute, blocking, scheduler, shutdown, config)
+    new IORuntime(compute, blocking, scheduler, FiberMonitor(compute), shutdown, config)
 }

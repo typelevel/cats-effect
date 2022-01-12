@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,10 +40,9 @@ private object IOFiberConstants {
   final val AsyncContinueCanceledR: Byte = 3
   final val AsyncContinueCanceledWithFinalizerR = 4
   final val BlockingR: Byte = 5
-  final val EvalOnR: Byte = 6
-  final val CedeR: Byte = 7
-  final val AutoCedeR: Byte = 8
-  final val DoneR: Byte = 9
+  final val CedeR: Byte = 6
+  final val AutoCedeR: Byte = 7
+  final val DoneR: Byte = 8
 
   // ContState tags
   final val ContStateInitial: Int = 0

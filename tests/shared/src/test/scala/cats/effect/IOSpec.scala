@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1220,6 +1220,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             r <- IO(v must beTrue)
           } yield r
         }
+
+        "non-terminate on an uncancelable fiber" in ticked { implicit ticker =>
+          IO.never.uncancelable.timeout(1.second) must nonTerminate
+        }
       }
 
       "timeoutTo" should {
@@ -1242,6 +1246,16 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           op.flatMap { res =>
             IO {
               res must beTrue
+            }
+          }
+        }
+      }
+
+      "timeoutAndForget" should {
+        "terminate on an uncancelable fiber" in real {
+          IO.never.uncancelable.timeoutAndForget(1.second).attempt flatMap { e =>
+            IO {
+              e must beLike { case Left(e) => e must haveClass[TimeoutException] }
             }
           }
         }

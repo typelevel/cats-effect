@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,10 +40,9 @@ final class IOFiberConstants {
   static final byte AsyncContinueCanceledR = 3;
   static final byte AsyncContinueCanceledWithFinalizerR = 4;
   static final byte BlockingR = 5;
-  static final byte EvalOnR = 6;
-  static final byte CedeR = 7;
-  static final byte AutoCedeR = 8;
-  static final byte DoneR = 9;
+  static final byte CedeR = 6;
+  static final byte AutoCedeR = 7;
+  static final byte DoneR = 8;
 
   // ContState tags
   static final int ContStateInitial = 0;

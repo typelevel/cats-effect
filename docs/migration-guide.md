@@ -16,7 +16,7 @@ Here is an overview of the steps you should take to migrate your application to 
 ### Before You Begin: This Isn't A "Quick Start" Guide
 
 This guide is meant for existing users of Cats Effect 2 who want to upgrade their applications
-to 3.0.0.
+to 3.3.4.
 
 > If you haven't used Cats Effect before and want to give it a try,
 > please follow the [getting started guide](./getting-started.md) instead!
@@ -43,7 +43,7 @@ Before you make any changes to your build or your code, you should make sure all
 
 There isn't any automated way to do this, but you can just go ahead and [try to upgrade the dependencies](#upgrade-dependencies), then stash the changes and return to here.
 
-If you're using an open source library that hasn't made a compatible release yet, [let us know - we are keeping track of the efforts of library authors](https://github.com/typelevel/cats-effect/issues/1330) to publish compatible releases as soon as possible when 3.0.0 final is out.
+If you're using an open source library that hasn't made a compatible release yet, [let us know - we are keeping track of the efforts of library authors](https://github.com/typelevel/cats-effect/issues/1330) to publish compatible releases as soon as possible.
 
 ## Run the Scalafix Migration
 
@@ -81,9 +81,9 @@ Cats Effect 3 splits the code dependency into multiple modules. If you were prev
 The current non-test modules are:
 
 ```scala
-"org.typelevel" %% "cats-effect-kernel" % "3.0.0",
-"org.typelevel" %% "cats-effect-std"    % "3.0.0",
-"org.typelevel" %% "cats-effect"        % "3.0.0",
+"org.typelevel" %% "cats-effect-kernel" % "3.3.4",
+"org.typelevel" %% "cats-effect-std"    % "3.3.4",
+"org.typelevel" %% "cats-effect"        % "3.3.4",
 ```
 
 - `kernel` - type class definitions, simple concurrency primitives
@@ -96,7 +96,7 @@ The current non-test modules are:
 libraryDependencies ++= Seq(
   //...
 -  "org.typelevel" %% "cats-effect" % "2.4.0",
-+  "org.typelevel" %% "cats-effect" % "3.0.0",
++  "org.typelevel" %% "cats-effect" % "3.3.4",
   //...
 )
 ```
@@ -108,8 +108,8 @@ sbt:demo> update
 [error] stack trace is suppressed; run last core / update for the full output
 [error] (core / update) found version conflict(s) in library dependencies; some are suspected to be binary incompatible:
 [error]
-[error] 	* org.typelevel:cats-effect_2.13:3.0.0 (early-semver) is selected over {2.3.1, 2.1.4}
-[error] 	    +- com.example:core-core_2.13:0.0.7-26-3183519d       (depends on 3.0.0)
+[error] 	* org.typelevel:cats-effect_2.13:3.3.4 (early-semver) is selected over {2.3.1, 2.1.4}
+[error] 	    +- com.example:core-core_2.13:0.0.7-26-3183519d       (depends on 3.3.4)
 [error] 	    +- io.monix:monix-catnap_2.13:3.3.0                   (depends on 2.1.4)
 [error] 	    +- com.github.valskalla:odin-core_2.13:0.11.0         (depends on 2.3.1)
 [error]
@@ -218,7 +218,7 @@ Please refer to each library's appropriate documentation/changelog to see how to
 | Cats Effect 2.x                               | Cats Effect 3                               | Notes                                                                           |
 | --------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------- |
 | `Blocker.apply`                               | -                                           | blocking pool is [provided by runtime](#where-does-the-blocking-pool-come-from) |
-| `Blocker#delay`                               | `Sync[F].blocking`, `Sync[F].interruptible` | `Blocker` was removed                                                           |
+| `Blocker#delay`                               | `Sync[F].blocking`, `Sync[F].interruptible`, `Sync[F].interruptibleMany` | `Blocker` was removed                                                           |
 | `Blocker(ec).blockOn(fa)`, `Blocker.blockOnK` | [see notes](#no-blockon)                    |                                                                                 |
 
 `Blocker` has been removed. Instead of that, you should either use your specific effect type's method of blocking...
@@ -241,10 +241,14 @@ val programSync = Sync[IO].blocking(println("hello Sync blocking!"))
 It is now possible to make the blocking task interruptible using [`Sync`](./typeclasses/sync.md):
 
 ```scala mdoc
-// many: whether it's okay to try interrupting more than once
 val programInterruptible =
   Sync[IO].interruptible(println("hello Sync blocking!"))
 ```
+
+If we require our operation to be more sensitive to cancelation we can use `interruptibleMany`.
+The difference between `interruptible` and `interruptibleMany` is that in case of cancelation
+`interruptibleMany` will repeatedly attempt to interrupt until the blocking operation completes or exits,
+on the other hand using `interruptible` the interrupt will be attempted only once.
 
 #### Where Does The Blocking Pool Come From?
 

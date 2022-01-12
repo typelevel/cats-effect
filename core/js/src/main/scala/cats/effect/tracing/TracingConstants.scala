@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,14 @@
 package cats.effect
 package tracing
 
-private object TracingConstants {
+private[effect] object TracingConstants {
 
-  private[this] val stackTracingMode: String =
+  private[this] final val stackTracingMode: String =
     process.env("CATS_EFFECT_TRACING_MODE").filterNot(_.isEmpty).getOrElse("cached")
 
-  val isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
+  final val isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
 
-  val isFullStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("full")
+  final val isFullStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("full")
 
-  val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
-
+  final val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
 }

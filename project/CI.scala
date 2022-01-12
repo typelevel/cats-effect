@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ sealed abstract class CI(
         "headerCheck",
         "scalafmtSbtCheck",
         "scalafmtCheck",
+        "javafmtCheck",
         "clean"
       ) ++ testCommands ++ List(
         jsEnv.fold("")(_ => s"set Global / useJSEnv := JSEnv.NodeJS"),
@@ -55,7 +56,11 @@ object CI {
         command = "ciJS",
         rootProject = "rootJS",
         jsEnv = Some(JSEnv.NodeJS),
-        testCommands = List("test"),
+        testCommands = List(
+          "test",
+          "set Global / testJSIOApp := true",
+          "testsJVM/testOnly *.IOAppSpec",
+          "set Global / testJSIOApp := false"),
         mimaReport = false,
         suffixCommands = List("exampleJS/compile"))
 

@@ -22,7 +22,7 @@ jobs:
     name: Build and Test
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         scala: [3.0.2, 2.12.15, 2.13.7]
         java:
           - adoptium@8
@@ -31,6 +31,34 @@ jobs:
           - graalvm-ce-java11@21.3
         ci: [ciJVM, ciJS, ciFirefox, ciChrome]
         exclude:
+          - scala: 3.0.2
+            java: adoptium@11
+          - scala: 3.0.2
+            java: adoptium@17
+          - scala: 3.0.2
+            java: graalvm-ce-java11@21.3
+          - scala: 2.12.15
+            java: adoptium@11
+          - scala: 2.12.15
+            java: adoptium@17
+          - scala: 2.12.15
+            java: graalvm-ce-java11@21.3
+          - os: windows-latest
+            scala: 3.0.2
+          - os: macos-latest
+            scala: 3.0.2
+          - os: windows-latest
+            scala: 2.12.15
+          - os: macos-latest
+            scala: 2.12.15
+          - ci: ciFirefox
+            scala: 3.0.2
+          - ci: ciChrome
+            scala: 3.0.2
+          - ci: ciFirefox
+            scala: 2.12.15
+          - ci: ciChrome
+            scala: 2.12.15
           - ci: ciJS
             java: adoptium@11
           - ci: ciJS
@@ -38,10 +66,8 @@ jobs:
           - ci: ciJS
             java: graalvm-ce-java11@21.3
           - os: windows-latest
-            scala: 3.0.2
-          - os: windows-latest
-            scala: 2.12.15
-          - os: windows-latest
+            ci: ciJS
+          - os: macos-latest
             ci: ciJS
           - ci: ciFirefox
             java: adoptium@11
@@ -50,10 +76,8 @@ jobs:
           - ci: ciFirefox
             java: graalvm-ce-java11@21.3
           - os: windows-latest
-            scala: 3.0.2
-          - os: windows-latest
-            scala: 2.12.15
-          - os: windows-latest
+            ci: ciFirefox
+          - os: macos-latest
             ci: ciFirefox
           - ci: ciChrome
             java: adoptium@11
@@ -62,11 +86,11 @@ jobs:
           - ci: ciChrome
             java: graalvm-ce-java11@21.3
           - os: windows-latest
-            scala: 3.0.2
-          - os: windows-latest
-            scala: 2.12.15
-          - os: windows-latest
             ci: ciChrome
+          - os: macos-latest
+            ci: ciChrome
+          - os: windows-latest
+            java: graalvm-ce-java11@21.3
     runs-on: ${{ matrix.os }}
     steps:
       - name: Ignore line ending differences in git

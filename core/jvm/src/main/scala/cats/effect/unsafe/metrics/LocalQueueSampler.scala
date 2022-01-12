@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,8 @@ package metrics
  * @param queue
  *   the monitored local queue
  */
-private[unsafe] class LocalQueueSampler(queue: LocalQueue) extends LocalQueueSamplerMBean {
+private[unsafe] final class LocalQueueSampler(queue: LocalQueue)
+    extends LocalQueueSamplerMBean {
   def getFiberCount(): Int = queue.getFiberCount()
   def getHeadIndex(): Int = queue.getHeadIndex()
   def getTailIndex(): Int = queue.getTailIndex()

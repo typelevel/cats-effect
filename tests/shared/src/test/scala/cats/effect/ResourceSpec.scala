@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -949,6 +949,51 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     }
   }
 
+  "uncancelable" >> {
+    "does not suppress errors within use" in real {
+      case object TestException extends RuntimeException
+
+      for {
+        slot <- IO.deferred[Resource.ExitCase]
+        rsrc = Resource.makeCase(IO.unit)((_, ec) => slot.complete(ec).void)
+        _ <- rsrc.uncancelable.use(_ => IO.raiseError(TestException)).handleError(_ => ())
+        results <- slot.get
+
+        _ <- IO {
+          results mustEqual Resource.ExitCase.Errored(TestException)
+        }
+      } yield ok
+    }
+
+    "use is stack-safe over binds" in ticked { implicit ticker =>
+      val res = Resource.make(IO.unit)(_ => IO.unit)
+      val r = (1 to 50000)
+        .foldLeft(res) {
+          case (r, _) =>
+            r.flatMap(_ => res)
+        }
+        .uncancelable
+        .use_
+      r eqv IO.unit
+    }
+
+  }
+
+  "allocatedCase" >> {
+    "is stack-safe over binds" in ticked { implicit ticker =>
+      val res = Resource.make(IO.unit)(_ => IO.unit)
+      val r = (1 to 50000)
+        .foldLeft(res) {
+          case (r, _) =>
+            r.flatMap(_ => res)
+        }
+        .allocatedCase
+        .map(_._1)
+      r eqv IO.unit
+
+    }
+  }
+
   "Resource[Resource[IO, *], *]" should {
     "flatten with finalizers inside-out" in ticked { implicit ticker =>
       var results = ""
@@ -960,6 +1005,18 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       r.flattenK.use(IO.pure(_)) must completeAs(42)
       results mustEqual "ab"
     }
+
+    "flattenK is stack-safe over binds" in ticked { implicit ticker =>
+      val res = Resource.make(IO.unit)(_ => IO.unit)
+      val r: Resource[IO, Unit] = (1 to 50000).foldLeft(res) {
+        case (r, _) => {
+          Resource.make(r)(_ => Resource.eval(IO.unit)).flattenK
+        }
+      }
+
+      r.use_ eqv IO.unit
+    }
+
   }
 
   {

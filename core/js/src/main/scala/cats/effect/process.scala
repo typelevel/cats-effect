@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,5 +32,10 @@ private[effect] object process {
       .widen[Any]
       .collect { case v: String if !js.isUndefined(v) => v }
       .toOption
+
+  def on(eventName: String, listener: js.Function0[Unit]): Unit =
+    Try(js.Dynamic.global.process.on(eventName, listener).asInstanceOf[Unit]).recover {
+      case _ => () // Silently ignore failure
+    }.get
 
 }

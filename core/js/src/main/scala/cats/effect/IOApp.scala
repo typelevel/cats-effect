@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,13 @@
 
 package cats.effect
 
+import cats.effect.tracing.TracingConstants._
+
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
+import scala.scalajs.LinkingInfo
 import scala.scalajs.js
+import scala.util.Try
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining
@@ -196,6 +200,13 @@ trait IOApp {
       _runtime = IORuntime.global
     }
 
+    if (LinkingInfo.developmentMode && isStackTracing) {
+      val listener: js.Function0[Unit] = () =>
+        runtime.fiberMonitor.liveFiberSnapshot(System.err.print(_))
+      process.on("SIGUSR2", listener)
+      process.on("SIGINFO", listener)
+    }
+
     // An infinite heartbeat to keep main alive.  This is similar to
     // `IO.never`, except `IO.never` doesn't schedule any tasks and is
     // insufficient to keep main alive.  The tick is fast enough that
@@ -207,7 +218,15 @@ trait IOApp {
 
     val argList = process.argv.getOrElse(args.toList)
 
-    Spawn[IO]
+    // Store the default process.exit function, if it exists
+    val hardExit: Int => Unit =
+      Try(js.Dynamic.global.process.exit.asInstanceOf[js.Function1[Int, Unit]])
+        // we got *something*, but we don't know what it is really. so wrap in a Try
+        .map(f => (i: Int) => { Try(f(i)); () })
+        .getOrElse((_: Int) => ())
+
+    var cancelCode = 1 // So this can be updated by external cancellation
+    val fiber = Spawn[IO]
       .raceOutcome[ExitCode, Nothing](run(argList), keepAlive)
       .flatMap {
         case Left(Outcome.Canceled()) =>
@@ -217,23 +236,39 @@ trait IOApp {
         case Right(Outcome.Errored(t)) => IO.raiseError(t)
         case Right(_) => sys.error("impossible")
       }
-      .unsafeRunAsync {
-        case Left(t) =>
-          t match {
-            case _: CancellationException =>
-              // Do not report cancelation exceptions but still exit with an error code.
-              reportExitCode(ExitCode(1))
-            case t: Throwable =>
-              throw t
-          }
-        case Right(code) => reportExitCode(code)
-      }(runtime)
+      .unsafeRunFiber(
+        hardExit(cancelCode),
+        t => {
+          t.printStackTrace()
+          hardExit(1)
+          throw t // For runtimes where hardExit is a no-op
+        },
+        c => hardExit(c.code)
+      )(runtime)
+
+    def gracefulExit(code: Int): Unit = {
+      // Optionally setup a timeout to hard exit
+      runtime.config.shutdownHookTimeout match {
+        case Duration.Zero =>
+          hardExit(code)
+          None
+        case fd: FiniteDuration =>
+          Some(js.timers.setTimeout(fd)(hardExit(code)))
+        case _ =>
+          None
+      }
+
+      // Report the exit code before cancelling, b/c the fiber will exit itself on cancel
+      cancelCode = code
+      fiber.cancel.unsafeRunAndForget()(runtime)
+    }
+
+    // Override it with one that cancels the fiber instead (if process exists)
+    Try(js.Dynamic.global.process.exit = gracefulExit(_))
+    process.on("SIGTERM", () => gracefulExit(143))
+    process.on("SIGINT", () => gracefulExit(130))
   }
 
-  private[this] def reportExitCode(code: ExitCode): Unit =
-    if (js.typeOf(js.Dynamic.global.process) != "undefined") {
-      js.Dynamic.global.process.exitCode = code.code
-    }
 }
 
 object IOApp {

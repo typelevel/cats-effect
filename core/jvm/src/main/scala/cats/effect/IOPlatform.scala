@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.blocking
 import scala.concurrent.duration._
 
-import java.util.concurrent.{CompletableFuture, CountDownLatch, TimeUnit}
+import java.util.concurrent.{ArrayBlockingQueue, CompletableFuture, TimeUnit}
 
 abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
 
@@ -69,19 +69,19 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
    */
   final def unsafeRunTimed(limit: FiniteDuration)(
       implicit runtime: unsafe.IORuntime): Option[A] = {
-    @volatile
-    var results: Either[Throwable, A] = null
-    val latch = new CountDownLatch(1)
+    val queue = new ArrayBlockingQueue[Either[Throwable, A]](1)
 
     unsafeRunAsync { r =>
-      results = r
-      latch.countDown()
+      queue.offer(r)
+      ()
     }
 
-    if (blocking(latch.await(limit.toNanos, TimeUnit.NANOSECONDS))) {
-      results.fold(throw _, a => Some(a))
-    } else {
-      None
+    try {
+      val result = blocking(queue.poll(limit.toNanos, TimeUnit.NANOSECONDS))
+      if (result eq null) None else result.fold(throw _, Some(_))
+    } catch {
+      case _: InterruptedException =>
+        None
     }
   }
 

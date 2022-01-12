@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,12 +30,6 @@ object Common extends AutoPlugin {
           Nil
         else
           Seq(compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"))
-      },
-      scalacOptions ++= {
-        if (isDotty.value)
-          Nil
-        else
-          Seq("-Xcheckinit")
       }
     )
 }

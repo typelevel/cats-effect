@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
     flatMap(fut) { cf =>
       async[A] { cb =>
         delay {
-          val stage = cf.handle[Unit] {
+          cf.handle[Unit] {
             case (a, null) => cb(Right(a))
             case (_, t) =>
               cb(Left(t match {
@@ -40,7 +40,7 @@ private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
               }))
           }
 
-          Some(void(delay(stage.cancel(false))))
+          Some(void(delay(cf.cancel(false))))
         }
       }
     }

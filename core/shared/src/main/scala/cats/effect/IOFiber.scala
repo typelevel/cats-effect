@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,6 +79,7 @@ private final class IOFiber[A](
 
   import IO._
   import IOFiberConstants._
+  import TracingConstants._
 
   /*
    * Ideally these would be on the stack, but they can't because we sometimes need to
@@ -112,8 +113,9 @@ private final class IOFiber[A](
   /* similar prefetch for EndFiber */
   private[this] val IOEndFiber: IO.EndFiber.type = IO.EndFiber
 
-  private[this] val tracingEvents: RingBuffer =
+  private[this] val tracingEvents: RingBuffer = if (isStackTracing) {
     RingBuffer.empty(runtime.traceBufferLogSize)
+  } else null
 
   override def run(): Unit = {
     // insert a read barrier after every async boundary
@@ -125,14 +127,16 @@ private final class IOFiber[A](
       case 3 => asyncContinueCanceledR()
       case 4 => asyncContinueCanceledWithFinalizerR()
       case 5 => blockingR()
-      case 6 => evalOnR()
-      case 7 => cedeR()
-      case 8 => autoCedeR()
-      case 9 => ()
+      case 6 => cedeR()
+      case 7 => autoCedeR()
+      case 8 => ()
     }
   }
 
-  var cancel: IO[Unit] = IO uncancelable { _ =>
+  /* backing fields for `cancel` and `join` */
+
+  /* this is swapped for an `IO.unit` when we complete */
+  private[this] var _cancel: IO[Unit] = IO uncancelable { _ =>
     IO defer {
       canceled = true
 
@@ -170,17 +174,28 @@ private final class IOFiber[A](
   }
 
   /* this is swapped for an `IO.pure(outcome)` when we complete */
-  var join: IO[OutcomeIO[A]] =
-    IO.async { cb =>
-      IO {
-        val handle = registerListener(oc => cb(Right(oc)))
+  private[this] var _join: IO[OutcomeIO[A]] = IO.async { cb =>
+    IO {
+      val handle = registerListener(oc => cb(Right(oc)))
 
-        if (handle == null)
-          None /* we were already invoked, so no `CallbackStack` needs to be managed */
-        else
-          Some(IO(handle.clearCurrent()))
-      }
+      if (handle == null)
+        None /* we were already invoked, so no `CallbackStack` needs to be managed */
+      else
+        Some(IO(handle.clearCurrent()))
     }
+  }
+
+  def cancel: IO[Unit] = {
+    // The `_cancel` field is published in terms of the `suspended` atomic variable.
+    readBarrier()
+    _cancel
+  }
+
+  def join: IO[OutcomeIO[A]] = {
+    // The `_join` field is published in terms of the `suspended` atomic variable.
+    readBarrier()
+    _join
+  }
 
   /* masks encoding: initMask => no masks, ++ => push, -- => pop */
   @tailrec
@@ -243,7 +258,9 @@ private final class IOFiber[A](
         case 2 =>
           val cur = cur0.asInstanceOf[Delay[Any]]
 
-          pushTracingEvent(cur.event)
+          if (isStackTracing) {
+            pushTracingEvent(cur.event)
+          }
 
           var error: Throwable = null
           val r =
@@ -282,7 +299,9 @@ private final class IOFiber[A](
         case 6 =>
           val cur = cur0.asInstanceOf[Map[Any, Any]]
 
-          pushTracingEvent(cur.event)
+          if (isStackTracing) {
+            pushTracingEvent(cur.event)
+          }
 
           val ioe = cur.ioe
           val f = cur.f
@@ -313,7 +332,9 @@ private final class IOFiber[A](
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
 
-              pushTracingEvent(delay.event)
+              if (isStackTracing) {
+                pushTracingEvent(delay.event)
+              }
 
               // this code is inlined in order to avoid two `try` blocks
               var error: Throwable = null
@@ -350,7 +371,9 @@ private final class IOFiber[A](
         case 7 =>
           val cur = cur0.asInstanceOf[FlatMap[Any, Any]]
 
-          pushTracingEvent(cur.event)
+          if (isStackTracing) {
+            pushTracingEvent(cur.event)
+          }
 
           val ioe = cur.ioe
           val f = cur.f
@@ -376,7 +399,9 @@ private final class IOFiber[A](
             case 2 =>
               val delay = ioe.asInstanceOf[Delay[Any]]
 
-              pushTracingEvent(delay.event)
+              if (isStackTracing) {
+                pushTracingEvent(delay.event)
+              }
 
               // this code is inlined in order to avoid two `try` blocks
               val result =
@@ -429,7 +454,9 @@ private final class IOFiber[A](
             case 2 =>
               val delay = ioa.asInstanceOf[Delay[Any]]
 
-              pushTracingEvent(delay.event)
+              if (isStackTracing) {
+                pushTracingEvent(delay.event)
+              }
 
               // this code is inlined in order to avoid two `try` blocks
               var error: Throwable = null
@@ -469,7 +496,9 @@ private final class IOFiber[A](
         case 9 =>
           val cur = cur0.asInstanceOf[HandleErrorWith[Any]]
 
-          pushTracingEvent(cur.event)
+          if (isStackTracing) {
+            pushTracingEvent(cur.event)
+          }
 
           objectState.push(cur.f)
           conts = ByteStack.push(conts, HandleErrorWithK)
@@ -503,7 +532,9 @@ private final class IOFiber[A](
         case 12 =>
           val cur = cur0.asInstanceOf[Uncancelable[Any]]
 
-          pushTracingEvent(cur.event)
+          if (isStackTracing) {
+            pushTracingEvent(cur.event)
+          }
 
           masks += 1
           val id = masks
@@ -551,7 +582,9 @@ private final class IOFiber[A](
            */
           val body = cur.body
 
-          pushTracingEvent(cur.event)
+          if (isStackTracing) {
+            pushTracingEvent(cur.event)
+          }
 
           /*
            *`get` and `cb` (callback) race over the runloop.
@@ -592,8 +625,12 @@ private final class IOFiber[A](
               /* try to take ownership of the runloop */
               if (resume()) {
                 // `resume()` is a volatile read of `suspended` through which
-                // `wasFinalizing` is published
+                // `wasFinalizing` and `handle` are published
                 if (finalizing == state.wasFinalizing) {
+                  if (isStackTracing) {
+                    state.handle.deregister()
+                  }
+
                   val ec = currentCtx
                   if (!shouldFinalize()) {
                     /* we weren't canceled or completed, so schedule the runloop for execution */
@@ -720,7 +757,9 @@ private final class IOFiber[A](
              * which ensures we will always see the most up-to-date value
              * for `canceled` in `shouldFinalize`, ensuring no finalisation leaks
              */
-            monitor(state)
+            if (isStackTracing) {
+              state.handle = monitor()
+            }
             suspended.getAndSet(true)
 
             /*
@@ -839,8 +878,8 @@ private final class IOFiber[A](
                     rt
                   )
 
-                  fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
-                  fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
+                  fiberA.setCallback(oc => cb(Right(Left((oc, fiberB)))))
+                  fiberB.setCallback(oc => cb(Right(Right((fiberA, oc)))))
 
                   scheduleFiber(ec, fiberA)
                   scheduleFiber(ec, fiberB)
@@ -883,24 +922,50 @@ private final class IOFiber[A](
             currentCtx = ec
             conts = ByteStack.push(conts, EvalOnK)
 
-            resumeTag = EvalOnR
+            resumeTag = AutoCedeR
             resumeIO = cur.ioa
-            scheduleFiber(ec, this)
+
+            if (isStackTracing) {
+              val handle = monitor()
+              objectState.push(handle)
+            }
+            scheduleOnForeignEC(ec, this)
           }
 
         case 21 =>
           val cur = cur0.asInstanceOf[Blocking[Any]]
           /* we know we're on the JVM here */
 
-          pushTracingEvent(cur.event)
+          if (isStackTracing) {
+            pushTracingEvent(cur.event)
+          }
 
           if (cur.hint eq IOFiber.TypeBlocking) {
-            resumeTag = BlockingR
-            resumeIO = cur
-            val ec = runtime.blocking
-            scheduleOnForeignEC(ec, this)
+            val ec = currentCtx
+            if (ec.isInstanceOf[WorkStealingThreadPool]) {
+              val wstp = ec.asInstanceOf[WorkStealingThreadPool]
+              if (wstp.canExecuteBlockingCode()) {
+                var error: Throwable = null
+                val r =
+                  try {
+                    scala.concurrent.blocking(cur.thunk())
+                  } catch {
+                    case NonFatal(t) =>
+                      error = t
+                    case t: Throwable =>
+                      onFatalFailure(t)
+                  }
+
+                val next = if (error eq null) succeeded(r, 0) else failed(error, 0)
+                runLoop(next, nextCancelation, nextAutoCede)
+              } else {
+                blockingFallback(cur)
+              }
+            } else {
+              blockingFallback(cur)
+            }
           } else {
-            runLoop(interruptibleImpl(cur, runtime.blocking), nextCancelation, nextAutoCede)
+            runLoop(interruptibleImpl(cur), nextCancelation, nextAutoCede)
           }
 
         case 22 =>
@@ -916,14 +981,27 @@ private final class IOFiber[A](
     }
   }
 
+  private[this] def blockingFallback(cur: Blocking[Any]): Unit = {
+    resumeTag = BlockingR
+    resumeIO = cur
+
+    if (isStackTracing) {
+      val handle = monitor()
+      objectState.push(handle)
+    }
+
+    val ec = runtime.blocking
+    scheduleOnForeignEC(ec, this)
+  }
+
   /*
    * Only the owner of the run-loop can invoke this.
    * Should be invoked at most once per fiber before termination.
    */
   private[this] def done(oc: OutcomeIO[A]): Unit = {
     // println(s"<$name> invoking done($oc); callback = ${callback.get()}")
-    join = IO.pure(oc)
-    cancel = IO.unit
+    _join = IO.pure(oc)
+    _cancel = IO.unit
 
     outcome = oc
 
@@ -949,7 +1027,10 @@ private final class IOFiber[A](
     objectState.invalidate()
     finalizers.invalidate()
     currentCtx = null
-    tracingEvents.invalidate()
+
+    if (isStackTracing) {
+      tracingEvents.invalidate()
+    }
   }
 
   /**
@@ -1021,12 +1102,20 @@ private final class IOFiber[A](
   /**
    * Registers the suspended fiber in the global suspended fiber bag.
    */
-  private[this] def monitor(key: AnyRef): Unit = {
-    runtime.suspendedFiberBag.monitor(key, this)
+  private[this] def monitor(): WeakBag.Handle = {
+    runtime.fiberMonitor.monitorSuspended(this)
+  }
+
+  /**
+   * Can only be correctly called on a fiber which has not started execution and was initially
+   * created with a `null` callback, i.e. in `RacePair`.
+   */
+  private def setCallback(cb: OutcomeIO[A] => Unit): Unit = {
+    callbacks.unsafeSetCallback(cb)
   }
 
   /* can return null, meaning that no CallbackStack needs to be later invalidated */
-  private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
+  private[this] def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
     if (outcome == null) {
       val back = callbacks.push(listener)
 
@@ -1257,6 +1346,11 @@ private final class IOFiber[A](
           onFatalFailure(t)
       }
 
+    if (isStackTracing) {
+      // Remove the reference to the fiber monitor key
+      objectState.pop().asInstanceOf[WeakBag.Handle].deregister()
+    }
+
     if (error == null) {
       resumeTag = AsyncContinueSuccessfulR
       objectState.push(r.asInstanceOf[AnyRef])
@@ -1265,13 +1359,7 @@ private final class IOFiber[A](
       objectState.push(error)
     }
     val ec = currentCtx
-    scheduleFiber(ec, this)
-  }
-
-  private[this] def evalOnR(): Unit = {
-    val ioa = resumeIO
-    resumeIO = null
-    runLoop(ioa, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
+    scheduleOnForeignEC(ec, this)
   }
 
   private[this] def cedeR(): Unit = {
@@ -1324,13 +1412,17 @@ private final class IOFiber[A](
   }
 
   private[this] def evalOnSuccessK(result: Any): IO[Any] = {
+    if (isStackTracing) {
+      // Remove the reference to the fiber monitor handle
+      objectState.pop().asInstanceOf[WeakBag.Handle].deregister()
+    }
     val ec = objectState.pop().asInstanceOf[ExecutionContext]
     currentCtx = ec
 
     if (!shouldFinalize()) {
       resumeTag = AsyncContinueSuccessfulR
       objectState.push(result.asInstanceOf[AnyRef])
-      scheduleFiber(ec, this)
+      scheduleOnForeignEC(ec, this)
       IOEndFiber
     } else {
       prepareFiberForCancelation(null)
@@ -1338,13 +1430,17 @@ private final class IOFiber[A](
   }
 
   private[this] def evalOnFailureK(t: Throwable): IO[Any] = {
+    if (isStackTracing) {
+      // Remove the reference to the fiber monitor key
+      objectState.pop()
+    }
     val ec = objectState.pop().asInstanceOf[ExecutionContext]
     currentCtx = ec
 
     if (!shouldFinalize()) {
       resumeTag = AsyncContinueFailedR
       objectState.push(t)
-      scheduleFiber(ec, this)
+      scheduleOnForeignEC(ec, this)
       IOEndFiber
     } else {
       prepareFiberForCancelation(null)
@@ -1359,7 +1455,6 @@ private final class IOFiber[A](
 
   private[this] def onFatalFailure(t: Throwable): Null = {
     Thread.interrupted()
-    currentCtx.reportFailure(t)
     runtime.shutdown()
 
     // Make sure the shutdown did not interrupt this thread.
@@ -1392,8 +1487,24 @@ private final class IOFiber[A](
   // overrides the AtomicReference#toString
   override def toString: String = {
     val state = if (suspended.get()) "SUSPENDED" else "RUNNING"
-    s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state"
+    val tracingEvents = this.tracingEvents
+
+    // There are race conditions here since a running fiber is writing to `tracingEvents`,
+    // but we don't worry about those since we are just looking for a single `TraceEvent`
+    // which references user-land code
+    val opAndCallSite =
+      Tracing.getFrames(tracingEvents).headOption.map(frame => s": $frame").getOrElse("")
+
+    s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
   }
+
+  private[effect] def prettyPrintTrace(): String =
+    if (isStackTracing) {
+      suspended.get()
+      Tracing.prettyPrint(tracingEvents)
+    } else {
+      ""
+    }
 }
 
 private object IOFiber {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -286,8 +286,8 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    *   [[race]] for a simpler variant that returns the successful outcome.
    */
   def raceOutcome[A, B](fa: F[A], fb: F[B]): F[Either[Outcome[F, E, A], Outcome[F, E, B]]] =
-    uncancelable { _ =>
-      racePair(fa, fb).flatMap {
+    uncancelable { poll =>
+      poll(racePair(fa, fb)).flatMap {
         case Left((oc, f)) => f.cancel.as(Left(oc))
         case Right((f, oc)) => f.cancel.as(Right(oc))
       }
