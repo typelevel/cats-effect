@@ -16,18 +16,13 @@
 
 package cats.effect
 
-import scala.annotation.targetName
-
 /**
  * Represents the exit code of an application.
  *
  * `code` is constrained to a range from 0 to 255, inclusive.
  */
 // The strange encoding of this class is due to https://github.com/lampepfl/dotty/issues/14240
-sealed class ExitCode private[effect] (val code: Int)
-    extends Product
-    with Equals
-    with Serializable {
+sealed class ExitCode private[effect] (val code: Int) extends Product, Equals, Serializable {
 
   def _1: Int = code
 
