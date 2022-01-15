@@ -22,7 +22,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        scala: [3.0.2, 2.12.15, 2.13.7]
+        scala: [3.0.2, 2.12.15, 2.13.8]
         java:
           - temurin@8
           - temurin@11
@@ -165,7 +165,7 @@ jobs:
       - shell: bash
         run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.7' || matrix.scala == '3.0.2') && matrix.ci == 'ciJVM'
+      - if: (matrix.scala == '2.13.8' || matrix.scala == '3.0.2') && matrix.ci == 'ciJVM'
         shell: bash
         run: sbt ++${{ matrix.scala }} docs/mdoc
 
@@ -180,7 +180,7 @@ jobs:
         run: example/test-js.sh ${{ matrix.scala }}
 
       - name: Scalafix tests
-        if: matrix.scala == '2.13.7' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13.8' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           cd scalafix
