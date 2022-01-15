@@ -336,6 +336,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(kernel, std)
   .settings(
     name := "cats-effect",
+    mimaPreviousArtifacts += "org.typelevel" %%% "cats-effect" % "3.3.4",
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
