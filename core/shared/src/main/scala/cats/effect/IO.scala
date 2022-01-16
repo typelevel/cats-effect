@@ -170,7 +170,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * }}}
    *
    * @see
-   *   [[IO.raiseError]] [[rethrow]]
+   *   [[IO.raiseError]]
+   * @see
+   *   [[rethrow]]
    */
   def attempt: IO[Either[Throwable, A]] =
     IO.Attempt(this)
@@ -503,7 +505,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * }}}
    *
    * @see
-   *   [[IO.raiseError]] [[attempt]]
+   *   [[IO.raiseError]]
+   * @see
+   *   [[attempt]]
    */
   def rethrow[B](implicit ev: A <:< Either[Throwable, B]): IO[B] =
     flatMap(a => IO.fromEither(ev(a)))
@@ -579,12 +583,26 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       flatMap(_ => replicateA_(n - 1))
 
   /**
-   * Logs the value of this `IO` _(even if it is an error)_ to the stdout.
+   * Logs the value of this `IO` _(even if it is an error or if it was cancelled)_ to the
+   * standard output, using the implicit `cats.Show` instance.
    *
    * This operation is intended as a quick debug, not as proper logging.
+   *
+   * @param prefix
+   *   A custom prefix for the log message, `DEBUG` is used as the default.
    */
-  def debug: IO[A] =
-    attempt.flatTap(IO.println).rethrow
+  def debug[B >: A](prefix: String = "DEBUG")(
+      implicit S: Show[B] = Show.fromToString[B]): IO[A] =
+    guaranteeCase {
+      case Outcome.Succeeded(ioa) =>
+        ioa.flatMap(a => IO.println(s"${prefix}: Succeeded: ${S.show(a)}"))
+
+      case Outcome.Errored(ex) =>
+        IO.println(s"${prefix}: Errored: ${ex}")
+
+      case Outcome.Canceled() =>
+        IO.println(s"${prefix}: Canceled")
+    }
 
   /**
    * Returns an IO that will delay the execution of the source by the given duration.
