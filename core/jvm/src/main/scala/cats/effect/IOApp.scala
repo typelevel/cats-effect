@@ -211,6 +211,7 @@ trait IOApp {
 
           case t =>
             runtime.shutdown()
+            queue.clear()
             queue.put(t)
         }
 
@@ -305,15 +306,21 @@ trait IOApp {
     val fiber =
       ioa.unsafeRunFiber(
         {
-          counter.decrementAndGet()
+          if (counter.decrementAndGet() == 0) {
+            queue.clear()
+          }
           queue.put(new CancellationException("IOApp main fiber was canceled"))
         },
         { t =>
-          counter.decrementAndGet()
+          if (counter.decrementAndGet() == 0) {
+            queue.clear()
+          }
           queue.put(t)
         },
         { a =>
-          counter.decrementAndGet()
+          if (counter.decrementAndGet() == 0) {
+            queue.clear()
+          }
           queue.put(a)
         }
       )(runtime)
