@@ -166,11 +166,13 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * `IO.raiseError`. Thus:
    *
    * {{{
-   * IO.raiseError(ex).attempt.unsafeRunAsync === Left(ex)
+   * IO.raiseError(ex).attempt.unsafeRunSync() === Left(ex)
    * }}}
    *
    * @see
    *   [[IO.raiseError]]
+   * @see
+   *   [[rethrow]]
    */
   def attempt: IO[Either[Throwable, A]] =
     IO.Attempt(this)
@@ -490,6 +492,27 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.racePair(this, that)
 
   /**
+   * Inverse of `attempt`
+   *
+   * This function raises any materialized error.
+   *
+   * {{{
+   * IO(Right(a)).rethrow === IO.pure(a)
+   * IO(Left(ex)).rethrow === IO.raiseError(ex)
+   *
+   * // Or more generally:
+   * io.attempt.rethrow === io // For any io.
+   * }}}
+   *
+   * @see
+   *   [[IO.raiseError]]
+   * @see
+   *   [[attempt]]
+   */
+  def rethrow[B](implicit ev: A <:< Either[Throwable, B]): IO[B] =
+    flatMap(a => IO.fromEither(ev(a)))
+
+  /**
    * Returns a new value that transforms the result of the source, given the `recover` or `map`
    * functions, which get executed depending on whether the result ends in error or if it is
    * successful.
@@ -558,6 +581,28 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       IO.unit
     else
       flatMap(_ => replicateA_(n - 1))
+
+  /**
+   * Logs the value of this `IO` _(even if it is an error or if it was cancelled)_ to the
+   * standard output, using the implicit `cats.Show` instance.
+   *
+   * This operation is intended as a quick debug, not as proper logging.
+   *
+   * @param prefix
+   *   A custom prefix for the log message, `DEBUG` is used as the default.
+   */
+  def debug[B >: A](prefix: String = "DEBUG")(
+      implicit S: Show[B] = Show.fromToString[B]): IO[A] =
+    guaranteeCase {
+      case Outcome.Succeeded(ioa) =>
+        ioa.flatMap(a => IO.println(s"${prefix}: Succeeded: ${S.show(a)}"))
+
+      case Outcome.Errored(ex) =>
+        IO.println(s"${prefix}: Errored: ${ex}")
+
+      case Outcome.Canceled() =>
+        IO.println(s"${prefix}: Canceled")
+    }
 
   /**
    * Returns an IO that will delay the execution of the source by the given duration.
