@@ -14,28 +14,28 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.std
 
 import cats.data.OptionT
-import cats.effect.std.Env
+import cats.effect.kernel.Sync
 import cats.syntax.all._
 
+import scala.collection.immutable.Iterable
 import scala.scalajs.js
 import scala.util.Try
 
-private[effect] object process {
+private[std] class EnvCompanionPlatform {
+  private[std] final class SyncEnv[F[_]](implicit F: Sync[F]) extends Env[F] {
+    def get(name: String): F[Option[String]] =
+      OptionT(F.delay(processEnv.get(name))).collect {
+        case value: String => value // JavaScript. 'nuff said
+      }.value
 
-  def argv: Option[List[String]] = Try(
-    js.Dynamic.global.process.argv.asInstanceOf[js.Array[String]].toList.drop(2)).toOption
+    def entries: F[Iterable[(String, String)]] =
+      F.delay(processEnv.collect { case (name, value: String) => name -> value }.toList)
 
-  def env(key: String): Option[String] = {
-    val env = Env.make[SyncIO]
-    OptionT(env.get(key)).orElseF(env.get(s"REACT_APP_$key")).value.unsafeRunSync()
+    private def processEnv =
+      Try(js.Dynamic.global.process.env.asInstanceOf[js.Dictionary[Any]])
+        .getOrElse(js.Dictionary.empty)
   }
-
-  def on(eventName: String, listener: js.Function0[Unit]): Unit =
-    Try(js.Dynamic.global.process.on(eventName, listener).asInstanceOf[Unit]).recover {
-      case _ => () // Silently ignore failure
-    }.get
-
 }
