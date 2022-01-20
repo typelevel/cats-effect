@@ -47,13 +47,6 @@ private final class WorkerThread(
     // External queue used by the local queue for offloading excess fibers, as well as
     // for drawing fibers when the local queue is exhausted.
     private[this] val external: ScalQueue[AnyRef],
-    // A mutable reference to a fiber which is used to bypass the local queue
-    // when a `cede` operation would enqueue a fiber to the empty local queue
-    // and then proceed to dequeue the same fiber again from the queue. This not
-    // only avoids unnecessary synchronization, but also avoids notifying other
-    // worker threads that new work has become available, even though that's not
-    // true in tis case.
-    private[this] var cedeBypass: IOFiber[_],
     // A worker-thread-local weak bag for tracking suspended fibers.
     private[this] var fiberBag: WeakBag[IOFiber[_]],
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
@@ -74,6 +67,15 @@ private final class WorkerThread(
    * this method, to avoid the cost of the `ThreadLocal` mechanism at runtime.
    */
   private[this] var random: ThreadLocalRandom = _
+
+  /**
+   * A mutable reference to a fiber which is used to bypass the local queue when a `cede`
+   * operation would enqueue a fiber to the empty local queue and then proceed to dequeue the
+   * same fiber again from the queue. This not only avoids unnecessary synchronization, but also
+   * avoids notifying other worker threads that new work has become available, even though
+   * that's not true in tis case.
+   */
+  private[this] var cedeBypass: IOFiber[_] = _
 
   /**
    * A flag which is set whenever a blocking code region is entered. This is useful for
@@ -597,8 +599,7 @@ private final class WorkerThread(
       if (cached ne null) {
         // There is a cached worker thread that can be reused.
         val idx = index
-        val data = new WorkerThread.Data(idx, queue, parked, cedeBypass, fiberBag)
-        cedeBypass = null
+        val data = new WorkerThread.Data(idx, queue, parked, fiberBag)
         pool.replaceWorker(idx, cached)
         // Transfer the data structures to the cached thread and wake it up.
         cached.dataTransfer.offer(data)
@@ -614,8 +615,7 @@ private final class WorkerThread(
         // for unparking.
         val idx = index
         val clone =
-          new WorkerThread(idx, queue, parked, external, cedeBypass, fiberBag, pool)
-        cedeBypass = null
+          new WorkerThread(idx, queue, parked, external, fiberBag, pool)
         pool.replaceWorker(idx, clone)
         clone.start()
       }
@@ -628,7 +628,6 @@ private final class WorkerThread(
     _index = data.index
     queue = data.queue
     parked = data.parked
-    cedeBypass = data.cedeBypass
     fiberBag = data.fiberBag
   }
 
@@ -652,10 +651,9 @@ private object WorkerThread {
       val index: Int,
       val queue: LocalQueue,
       val parked: AtomicBoolean,
-      val cedeBypass: IOFiber[_],
       val fiberBag: WeakBag[IOFiber[_]]
   )
 
   private[WorkerThread] val NullData: Data =
-    new Data(-1, null, null, null, null)
+    new Data(-1, null, null, null)
 }

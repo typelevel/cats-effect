@@ -119,7 +119,7 @@ private[effect] final class WorkStealingThreadPool(
       val index = i
       val fiberBag = new WeakBag[IOFiber[_]]()
       val thread =
-        new WorkerThread(index, queue, parkedSignal, externalQueue, null, fiberBag, this)
+        new WorkerThread(index, queue, parkedSignal, externalQueue, fiberBag, this)
       workerThreads(i) = thread
       i += 1
     }
