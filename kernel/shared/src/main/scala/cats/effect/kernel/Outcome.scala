@@ -40,8 +40,8 @@ import scala.util.{Either, Left, Right}
  * A commonly asked question is why this wraps a value of type `F[A]` rather than one of type
  * `A`. This is to support monad transformers. Consider
  *
- * ```scala val oc: OutcomeIO[Int] = for { fiber <- Spawn[OptionT[IO, *]].start(OptionT.none[IO,
- * Int]) oc <- fiber.join } yield oc ```
+ * \```scala val oc: OutcomeIO[Int] = for { fiber <- Spawn[OptionT[IO,
+ * *]].start(OptionT.none[IO, Int]) oc <- fiber.join } yield oc ```
  *
  * If the fiber succeeds then there is no value of type `Int` to be wrapped in `Succeeded`,
  * hence `Succeeded` contains a value of type `OptionT[IO, Int]` instead.
