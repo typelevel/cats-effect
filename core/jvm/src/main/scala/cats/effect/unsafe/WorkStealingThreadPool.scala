@@ -76,6 +76,7 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val workerThreads: Array[WorkerThread] = new Array(threadCount)
   private[this] val localQueues: Array[LocalQueue] = new Array(threadCount)
   private[this] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
+  private[this] val fiberBags: Array[WeakBag[IOFiber[_]]] = new Array(threadCount)
 
   /**
    * Atomic variable for used for publishing changes to the references in the `workerThreads`
@@ -118,6 +119,7 @@ private[effect] final class WorkStealingThreadPool(
       parkedSignals(i) = parkedSignal
       val index = i
       val fiberBag = new WeakBag[IOFiber[_]]()
+      fiberBags(i) = fiberBag
       val thread =
         new WorkerThread(index, queue, parkedSignal, externalQueue, fiberBag, this)
       workerThreads(i) = thread
