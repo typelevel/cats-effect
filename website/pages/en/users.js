@@ -34,6 +34,7 @@ const users = [
   ['Ocado Technology', 'https://ocadotechnology.com/'],
   ['OVO Energy', 'https://www.ovoenergy.com'],
   ['Packlink', 'https://www.packlink.com'],
+  ['Paidy', 'https://www.paidy.com'],
   ['Philips', 'https://www.philips.com/'],
   ['Precog', 'https://precog.com'],
   ['Prezi', 'https://prezi.com'],
