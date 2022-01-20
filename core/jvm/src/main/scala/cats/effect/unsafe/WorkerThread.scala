@@ -46,7 +46,7 @@ private final class WorkerThread(
     private[this] var parked: AtomicBoolean,
     // External queue used by the local queue for offloading excess fibers, as well as
     // for drawing fibers when the local queue is exhausted.
-    private[this] var external: ScalQueue[AnyRef],
+    private[this] val external: ScalQueue[AnyRef],
     // A mutable reference to a fiber which is used to bypass the local queue
     // when a `cede` operation would enqueue a fiber to the empty local queue
     // and then proceed to dequeue the same fiber again from the queue. This not
@@ -597,7 +597,7 @@ private final class WorkerThread(
       if (cached ne null) {
         // There is a cached worker thread that can be reused.
         val idx = index
-        val data = new WorkerThread.Data(idx, queue, parked, external, cedeBypass, fiberBag)
+        val data = new WorkerThread.Data(idx, queue, parked, cedeBypass, fiberBag)
         cedeBypass = null
         pool.replaceWorker(idx, cached)
         // Transfer the data structures to the cached thread and wake it up.
@@ -628,7 +628,6 @@ private final class WorkerThread(
     _index = data.index
     queue = data.queue
     parked = data.parked
-    external = data.external
     cedeBypass = data.cedeBypass
     fiberBag = data.fiberBag
   }
@@ -653,11 +652,10 @@ private object WorkerThread {
       val index: Int,
       val queue: LocalQueue,
       val parked: AtomicBoolean,
-      val external: ScalQueue[AnyRef],
       val cedeBypass: IOFiber[_],
       val fiberBag: WeakBag[IOFiber[_]]
   )
 
   private[WorkerThread] val NullData: Data =
-    new Data(-1, null, null, null, null, null)
+    new Data(-1, null, null, null, null)
 }
