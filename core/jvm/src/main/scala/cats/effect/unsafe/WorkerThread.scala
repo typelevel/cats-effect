@@ -92,7 +92,7 @@ private final class WorkerThread(
    */
   private[this] var _active: IOFiber[_] = _
 
-  private val indexTransfer: ArrayBlockingQueue[Int] = new ArrayBlockingQueue(1)
+  private val indexTransfer: ArrayBlockingQueue[Integer] = new ArrayBlockingQueue(1)
 
   val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.incrementAndGet()
 
@@ -329,7 +329,7 @@ private final class WorkerThread(
         try {
           // Wait up to 60 seconds (should be configurable in the future) for
           // another thread to wake this thread up.
-          var newIdx = indexTransfer.poll(60L, TimeUnit.SECONDS)
+          var newIdx: Integer = indexTransfer.poll(60L, TimeUnit.SECONDS)
           if (newIdx eq null) {
             // The timeout elapsed and no one woke up this thread. Try to remove
             // the thread from the cached threads data structure.
