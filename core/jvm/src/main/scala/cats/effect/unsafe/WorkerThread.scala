@@ -92,8 +92,7 @@ private final class WorkerThread(
    */
   private[this] var _active: IOFiber[_] = _
 
-  private val dataTransfer: ArrayBlockingQueue[WorkerThread.Data] =
-    new ArrayBlockingQueue(1)
+  private val indexTransfer: ArrayBlockingQueue[Int] = new ArrayBlockingQueue(1)
 
   val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.incrementAndGet()
 
@@ -320,7 +319,9 @@ private final class WorkerThread(
         // First of all, remove the references to data structures of the core
         // pool because they have already been transferred to another thread
         // which took the place of this one.
-        init(WorkerThread.NullData)
+        queue = null
+        parked = null
+        fiberBag = null
 
         // Add this thread to the cached threads data structure, to be picked up
         // by another thread in the future.
@@ -328,8 +329,8 @@ private final class WorkerThread(
         try {
           // Wait up to 60 seconds (should be configurable in the future) for
           // another thread to wake this thread up.
-          var data = dataTransfer.poll(60L, TimeUnit.SECONDS)
-          if (data eq null) {
+          var newIdx = indexTransfer.poll(60L, TimeUnit.SECONDS)
+          if (newIdx eq null) {
             // The timeout elapsed and no one woke up this thread. Try to remove
             // the thread from the cached threads data structure.
             if (pool.cachedThreads.remove(this)) {
@@ -340,12 +341,12 @@ private final class WorkerThread(
               // Someone else concurrently stole this thread from the cached
               // data structure and will transfer the data soon. Time to wait
               // for it again.
-              data = dataTransfer.take()
-              init(data)
+              newIdx = indexTransfer.take()
+              init(newIdx)
             }
           } else {
             // Some other thread woke up this thread. Time to take its place.
-            init(data)
+            init(newIdx)
           }
         } catch {
           case _: InterruptedException =>
@@ -599,10 +600,9 @@ private final class WorkerThread(
       if (cached ne null) {
         // There is a cached worker thread that can be reused.
         val idx = index
-        val data = new WorkerThread.Data(idx, queue, parked, fiberBag)
         pool.replaceWorker(idx, cached)
         // Transfer the data structures to the cached thread and wake it up.
-        cached.dataTransfer.offer(data)
+        cached.indexTransfer.offer(idx)
       } else {
         // Spawn a new `WorkerThread`, a literal clone of this one. It is safe to
         // transfer ownership of the local queue and the parked signal to the new
@@ -624,11 +624,11 @@ private final class WorkerThread(
     }
   }
 
-  private[this] def init(data: WorkerThread.Data): Unit = {
-    _index = data.index
-    queue = data.queue
-    parked = data.parked
-    fiberBag = data.fiberBag
+  private[this] def init(newIdx: Int): Unit = {
+    _index = newIdx
+    queue = pool.localQueues(newIdx)
+    parked = pool.parkedSignals(newIdx)
+    fiberBag = pool.fiberBags(newIdx)
   }
 
   /**
@@ -644,16 +644,4 @@ private final class WorkerThread(
    */
   def getSuspendedFiberCount(): Int =
     fiberBag.size
-}
-
-private object WorkerThread {
-  final class Data(
-      val index: Int,
-      val queue: LocalQueue,
-      val parked: AtomicBoolean,
-      val fiberBag: WeakBag[IOFiber[_]]
-  )
-
-  private[WorkerThread] val NullData: Data =
-    new Data(-1, null, null, null)
 }
