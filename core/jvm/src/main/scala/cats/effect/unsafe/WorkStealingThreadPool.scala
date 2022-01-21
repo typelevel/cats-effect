@@ -586,9 +586,6 @@ private[effect] final class WorkStealingThreadPool(
     }
   }
 
-  private[unsafe] def localQueuesForwarder: Array[LocalQueue] =
-    localQueues
-
   /*
    * What follows is a collection of methos used in the implementation of the
    * `cats.effect.unsafe.metrics.ComputePoolSamplerMBean` interface.
