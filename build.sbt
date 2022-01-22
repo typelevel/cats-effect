@@ -445,8 +445,13 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.LocalQueue.stealInto"),
       // introduced by #2673, Cross platform weak bag implementation
+      // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.WorkerThread.monitor")
+        "cats.effect.unsafe.WorkerThread.monitor"),
+      // introduced by #2769, Simplify the transfer of WorkerThread data structures when blocking
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$Data")
     )
   )
   .jvmSettings(
