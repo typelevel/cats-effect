@@ -105,7 +105,7 @@ private final class IOFiber[A](
 
   /* mutable state for resuming the fiber in different states */
   private[this] var resumeTag: Byte = ExecR
-  private[this] var resumeIO: IO[Any] = startIO
+  private[this] var resumeIO: Any = startIO
 
   /* prefetch for Right(()) */
   private[this] val RightUnit: Either[Throwable, Unit] = IOFiber.RightUnit
@@ -1306,7 +1306,7 @@ private final class IOFiber[A](
       objectState.init(16)
       finalizers.init(16)
 
-      val io = resumeIO
+      val io = resumeIO.asInstanceOf[IO[Any]]
       resumeIO = null
       runLoop(io, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
     }
@@ -1367,7 +1367,7 @@ private final class IOFiber[A](
   }
 
   private[this] def autoCedeR(): Unit = {
-    val io = resumeIO
+    val io = resumeIO.asInstanceOf[IO[Any]]
     resumeIO = null
     runLoop(io, runtime.cancelationCheckThreshold, runtime.autoYieldThreshold)
   }
