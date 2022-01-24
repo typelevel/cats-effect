@@ -9,7 +9,7 @@ title: Testing
 
 Relatively few libraries support cats-effect directly at this time. However, most (if not all) popular testing frameworks have libraries offering some level of integration
 
-- [cats-effect-testing](https://github.com/djspiewak/cats-effect-testing): Supports Scalatest, Specs2, munit, minitest, µTest, and scalacheck
+- [cats-effect-testing](https://github.com/djspiewak/cats-effect-testing): Supports Scalatest, Specs2, minitest, µTest, and scalacheck
 - [distage-testkit](https://izumi.7mind.io/distage/distage-testkit): Supported natively
 - [@Daenyth's IOSpec gist](https://gist.github.com/Daenyth/67575575b5c1acc1d6ea100aae05b3a9) for scalatest (library pending)
 - [munit-cats-effect](https://github.com/typelevel/munit-cats-effect)
