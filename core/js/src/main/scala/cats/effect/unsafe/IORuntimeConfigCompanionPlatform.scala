@@ -17,7 +17,7 @@
 package cats.effect
 package unsafe
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.util.Try
 
 private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
@@ -48,11 +48,14 @@ private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntim
       .flatMap(x => Try(Duration(x)).toOption)
       .getOrElse(DefaultShutdownHookTimeout)
 
+    val blockingCacheExpiration = 60.seconds
+
     apply(
       cancelationCheckThreshold,
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
-      shutdownHookTimeout)
+      shutdownHookTimeout,
+      blockingCacheExpiration)
   }
 }

@@ -44,11 +44,17 @@ private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntim
         .map(Duration(_))
         .getOrElse(DefaultShutdownHookTimeout)
 
+    val blockingCacheExpiration =
+      Try(System.getProperty("cats.effect.blocking.cache.expiration"))
+        .map(Duration(_))
+        .getOrElse(DefaultBlockingCacheExpiration)
+
     apply(
       cancelationCheckThreshold,
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
-      shutdownHookTimeout)
+      shutdownHookTimeout,
+      blockingCacheExpiration)
   }
 }
