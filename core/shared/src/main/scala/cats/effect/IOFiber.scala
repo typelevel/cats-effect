@@ -65,17 +65,38 @@ import java.util.concurrent.atomic.AtomicBoolean
  * by the Executor read/write barriers, but their writes are
  * merely a fast-path and are not necessary for correctness.
  */
-private final class IOFiber[A](
-    initLocalState: IOLocalState,
-    cb: OutcomeIO[A] => Unit,
-    startIO: IO[A],
-    startEC: ExecutionContext,
+private final class IOFiber[A] private (
+    private[this] var localState: IOLocalState,
+    private[this] val objectState: ArrayStack[AnyRef],
+    private[this] var currentCtx: ExecutionContext,
+    private[this] val finalizers: ArrayStack[IO[Unit]],
+    private[this] val callbacks: CallbackStack[A],
+    private[this] var resumeTag: Byte,
+    private[this] var resumeIO: AnyRef,
+    private[this] val tracingEvents: RingBuffer,
     private[this] val runtime: IORuntime
 ) extends IOFiberPlatform[A]
     with FiberIO[A]
     with Runnable {
   /* true when semantically blocking (ensures that we only unblock *once*) */
   suspended: AtomicBoolean =>
+
+  def this(
+      localState: IOLocalState,
+      cb: OutcomeIO[A] => Unit,
+      startIO: IO[A],
+      startEC: ExecutionContext,
+      runtime: IORuntime) = this(
+    localState,
+    new ArrayStack(),
+    startEC,
+    new ArrayStack(),
+    new CallbackStack(cb),
+    IOFiberConstants.ExecR,
+    startIO,
+    if (TracingConstants.isStackTracing) RingBuffer.empty(runtime.traceBufferLogSize) else null,
+    runtime
+  )
 
   import IO._
   import IOFiberConstants._
@@ -86,36 +107,19 @@ private final class IOFiber[A](
    * relocate our runloop to another fiber.
    */
   private[this] var conts: ByteStack = _
-  private[this] val objectState: ArrayStack[AnyRef] = new ArrayStack()
-
-  private[this] var currentCtx: ExecutionContext = startEC
 
   private[this] var canceled: Boolean = false
   private[this] var masks: Int = 0
   private[this] var finalizing: Boolean = false
 
-  private[this] val finalizers: ArrayStack[IO[Unit]] = new ArrayStack()
-
-  private[this] val callbacks: CallbackStack[A] = new CallbackStack(cb)
-
-  private[this] var localState: IOLocalState = initLocalState
-
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
-
-  /* mutable state for resuming the fiber in different states */
-  private[this] var resumeTag: Byte = ExecR
-  private[this] var resumeIO: Any = startIO
 
   /* prefetch for Right(()) */
   private[this] val RightUnit: Either[Throwable, Unit] = IOFiber.RightUnit
 
   /* similar prefetch for EndFiber */
   private[this] val IOEndFiber: IO.EndFiber.type = IO.EndFiber
-
-  private[this] val tracingEvents: RingBuffer = if (isStackTracing) {
-    RingBuffer.empty(runtime.traceBufferLogSize)
-  } else null
 
   override def run(): Unit = {
     // insert a read barrier after every async boundary
