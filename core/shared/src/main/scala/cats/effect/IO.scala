@@ -606,9 +606,22 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   /**
    * Returns an IO that will delay the execution of the source by the given duration.
+   *
+   * @param duration
+   *   The duration to wait before executing the source
    */
   def delayBy(duration: FiniteDuration): IO[A] =
     IO.sleep(duration) *> this
+
+  /**
+   * Returns an IO that will wait for the given duration after the execution of the source
+   * before returning the result.
+   *
+   * @param duration
+   *   The duration to wait after executing the source
+   */
+  def andWait(duration: FiniteDuration): IO[A] =
+    this <* IO.sleep(duration)
 
   /**
    * Returns an IO that either completes with the result of the source within the specified time
