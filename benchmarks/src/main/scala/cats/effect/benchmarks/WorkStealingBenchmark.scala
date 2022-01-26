@@ -132,7 +132,7 @@ class WorkStealingBenchmark {
       }
     }
 
-    (0 to theSize).foreach(_ => run(0))
+    (0 until theSize).foreach(_ => run(0))
 
     countDown.await()
   }
@@ -144,6 +144,11 @@ class WorkStealingBenchmark {
   @Benchmark
   def runnableScheduling(): Unit = {
     runnableSchedulingBenchmark(cats.effect.unsafe.implicits.global.compute)
+  }
+
+  @Benchmark
+  def runnableSchedulingScalaGlobal(): Unit = {
+    runnableSchedulingBenchmark(ExecutionContext.global)
   }
 
   lazy val manyThreadsRuntime: IORuntime = {
