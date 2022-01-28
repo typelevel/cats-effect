@@ -146,6 +146,35 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           .redeemWith(_ => IO.pure(42), _ => IO.pure(43)) must completeAs(42)
       }
 
+      "recover correctly recovers from errors" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        IO.raiseError[Int](TestException).recover { case TestException => 42 } must completeAs(
+          42)
+      }
+
+      "recoverWith correctly recovers from errors" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        IO.raiseError[Int](TestException).recoverWith {
+          case TestException => IO.pure(42)
+        } must completeAs(42)
+      }
+
+      "recoverWith does not recover from unmatched errors" in ticked { implicit ticker =>
+        case object UnmatchedException extends RuntimeException
+        case object ThrownException extends RuntimeException
+        IO.raiseError[Int](ThrownException)
+          .recoverWith { case UnmatchedException => IO.pure(42) }
+          .attempt must completeAs(Left(ThrownException))
+      }
+
+      "recover does not recover from unmatched errors" in ticked { implicit ticker =>
+        case object UnmatchedException extends RuntimeException
+        case object ThrownException extends RuntimeException
+        IO.raiseError[Int](ThrownException)
+          .recover { case UnmatchedException => 42 }
+          .attempt must completeAs(Left(ThrownException))
+      }
+
       "redeemWith binds successful results" in ticked { implicit ticker =>
         IO.unit.redeemWith(_ => IO.pure(41), _ => IO.pure(42)) must completeAs(42)
       }

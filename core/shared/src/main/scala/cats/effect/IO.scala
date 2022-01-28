@@ -456,6 +456,22 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def handleErrorWith[B >: A](f: Throwable => IO[B]): IO[B] =
     IO.HandleErrorWith(this, f, Tracing.calculateTracingEvent(f))
 
+  /**
+   * Recover from certain errors by mapping them to an `A` value.
+   *
+   * Implements `ApplicativeError.recover`.
+   */
+  def recover[B >: A](pf: PartialFunction[Throwable, B]): IO[B] =
+    handleErrorWith(e => pf.andThen(IO.pure(_)).applyOrElse(e, IO.raiseError[A]))
+
+  /**
+   * Recover from certain errors by mapping them to another `IO` value.
+   *
+   * Implements `ApplicativeError.recoverWith`.
+   */
+  def recoverWith[B >: A](pf: PartialFunction[Throwable, IO[B]]): IO[B] =
+    handleErrorWith(e => pf.applyOrElse(e, IO.raiseError))
+
   def ifM[B](ifTrue: => IO[B], ifFalse: => IO[B])(implicit ev: A <:< Boolean): IO[B] =
     flatMap(a => if (ev(a)) ifTrue else ifFalse)
 
