@@ -1005,8 +1005,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Newtype encoding for an `IO` datatype that has a `cats.Applicative` capable of doing
    * parallel processing in `ap` and `map2`, needed for implementing `cats.Parallel`.
    *
-   * Helpers are provided for converting back and forth in `Par.apply` for wrapping any `IO`
-   * value and `Par.unwrap` for unwrapping.
+   * For converting back and forth you can use either the `Parallel[IO]` instance or 
+   * the methods `cats.effect.kernel.Par.ParallelF.apply` for wrapping any `IO` value and
+   * `cats.effect.kernel.Par.ParallelF.value` for unwrapping it.
    *
    * The encoding is based on the "newtypes" project by Alexander Konovalov, chosen because it's
    * devoid of boxing issues and a good choice until opaque types will land in Scala.
@@ -1331,9 +1332,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Run two IO tasks concurrently, and returns a pair containing both the winner's successful
    * value and the loser represented as a still-unfinished task.
    *
-   * If the first task completes in error, then the result will complete in error, the other
-   * task being canceled.
-   *
    * On usage the user has the option of canceling the losing task, this being equivalent with
    * plain [[race]]:
    *
@@ -1343,9 +1341,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    *   IO.racePair(ioA, ioB).flatMap {
    *     case Left((a, fiberB)) =>
-   *       fiberB.cancel.map(_ => a)
+   *       fiberB.cancel.as(a)
    *     case Right((fiberA, b)) =>
-   *       fiberA.cancel.map(_ => b)
+   *       fiberA.cancel.as(b)
    *   }
    * }}}
    *

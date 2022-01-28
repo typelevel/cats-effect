@@ -42,7 +42,8 @@ private object IOFiberConstants {
   final val BlockingR: Byte = 5
   final val CedeR: Byte = 6
   final val AutoCedeR: Byte = 7
-  final val DoneR: Byte = 8
+  final val ExecuteRunnableR: Byte = 8
+  final val DoneR: Byte = 9
 
   // ContState tags
   final val ContStateInitial: Int = 0
