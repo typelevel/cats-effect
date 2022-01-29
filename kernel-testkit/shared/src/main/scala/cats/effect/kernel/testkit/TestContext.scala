@@ -135,7 +135,7 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
       val current = stateRef
 
       // extracting one task by taking the immediate tasks
-      extractOneTask(current, current.clock, random) match {
+      extractOneTask(current, current.clock) match {
         case Some((head, rest)) =>
           stateRef = current.copy(tasks = rest)
           // execute task
@@ -219,18 +219,11 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
 
   private def extractOneTask(
       current: State,
-      clock: FiniteDuration,
-      random: Random): Option[(Task, SortedSet[Task])] =
+      clock: FiniteDuration): Option[(Task, SortedSet[Task])] =
     current.tasks.headOption.filter(_.runsAt <= clock) match {
-      case Some(value) =>
-        val firstTick = value.runsAt
-        val forExecution = {
-          val arr = current.tasks.iterator.takeWhile(_.runsAt == firstTick).take(10).toArray
-          arr(random.nextInt(arr.length))
-        }
-
-        val remaining = current.tasks - forExecution
-        Some((forExecution, remaining))
+      case Some(head) =>
+        val remaining = current.tasks - head
+        Some((head, remaining))
 
       case None =>
         None
