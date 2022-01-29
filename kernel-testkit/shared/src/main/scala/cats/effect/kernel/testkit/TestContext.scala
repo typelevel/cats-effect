@@ -326,10 +326,8 @@ object TestContext {
 
         def compare(x: Task, y: Task): Int =
           x.runsAt.compare(y.runsAt) match {
-            case nonZero if nonZero != 0 =>
-              nonZero
-            case _ =>
-              longOrd.compare(x.id, y.id)
+            case 0 => longOrd.compare(x.id + x.rnd, y.id + y.rnd)
+            case nonZero => nonZero
           }
       }
   }
