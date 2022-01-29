@@ -329,7 +329,7 @@ object Random {
     }
 
   def javaUtilConcurrentThreadLocalRandom[F[_]: Sync]: Random[F] =
-    new JavaUtilConcurrentThreadLocalRandom[F] {}
+    new ThreadLocalRandom[F] {}
 
   def javaSecuritySecureRandom[F[_]: Sync](n: Int): F[Random[F]] =
     for {
@@ -522,7 +522,7 @@ object Random {
       } yield out
   }
 
-  private abstract class JavaUtilConcurrentThreadLocalRandom[F[_]: Sync] extends RandomCommon[F] {
+  private abstract class ThreadLocalRandom[F[_]: Sync] extends RandomCommon[F] {
     def nextBoolean: F[Boolean] =
       Sync[F].delay(new SRandom(java.util.concurrent.ThreadLocalRandom.current()).nextBoolean())
 
