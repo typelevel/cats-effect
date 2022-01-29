@@ -71,7 +71,7 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
 
   def execute(r: Runnable): Unit =
     synchronized {
-      stateRef = stateRef.execute(r)
+      stateRef = stateRef.execute(r, random)
     }
 
   def reportFailure(cause: Throwable): Unit =
@@ -189,7 +189,7 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
   def schedule(delay: FiniteDuration, r: Runnable): () => Unit =
     synchronized {
       val current: State = stateRef
-      val (cancelable, newState) = current.scheduleOnce(delay, r, cancelTask)
+      val (cancelable, newState) = current.scheduleOnce(delay, r, cancelTask, random)
       stateRef = newState
       cancelable
     }
@@ -281,9 +281,9 @@ object TestContext {
     /**
      * Returns a new state with the runnable scheduled for execution.
      */
-    private[TestContext] def execute(runnable: Runnable): State = {
+    private[TestContext] def execute(runnable: Runnable, random: Random): State = {
       val newID = lastID + 1
-      val task = Task(newID, runnable, clock)
+      val task = Task(newID, runnable, clock, random.nextLong())
       copy(lastID = newID, tasks = tasks + task)
     }
 
@@ -293,12 +293,13 @@ object TestContext {
     private[TestContext] def scheduleOnce(
         delay: FiniteDuration,
         r: Runnable,
-        cancelTask: Task => Unit): (() => Unit, State) = {
+        cancelTask: Task => Unit,
+        random: Random): (() => Unit, State) = {
 
       val d = if (delay >= Duration.Zero) delay else Duration.Zero
       val newID = lastID + 1
 
-      val task = Task(newID, r, this.clock + d)
+      val task = Task(newID, r, this.clock + d, random.nextLong())
       val cancelable = () => cancelTask(task)
 
       (
@@ -313,7 +314,7 @@ object TestContext {
   /**
    * Used internally by [[TestContext]], represents a unit of work pending execution.
    */
-  final case class Task(id: Long, task: Runnable, runsAt: FiniteDuration)
+  final case class Task(id: Long, task: Runnable, runsAt: FiniteDuration, private val rnd: Long)
 
   /**
    * Internal API — defines ordering for [[Task]], to be used by `SortedSet`.
