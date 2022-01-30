@@ -228,7 +228,7 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
     if (runtime ne null) {
       runtime
     } else {
-      unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => (), unsafe.IORuntimeConfig())
+      unsafe.IORuntime.testRuntime(ticker.ctx, scheduler)
     }
   }
 

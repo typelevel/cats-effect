@@ -65,4 +65,7 @@ object IORuntime extends IORuntimeCompanionPlatform {
 
   def builder(): IORuntimeBuilder =
     IORuntimeBuilder()
+
+  private[effect] def testRuntime(ec: ExecutionContext, scheduler: Scheduler): IORuntime =
+    new IORuntime(ec, ec, scheduler, new NoOpFiberMonitor(), () => (), IORuntimeConfig())
 }
