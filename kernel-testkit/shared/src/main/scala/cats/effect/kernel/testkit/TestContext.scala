@@ -88,7 +88,7 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
     val current = stateRef
 
     val builder = SortedSet.newBuilder[Task]
-    current.tasks.iterator().forEachRemaining(builder.addOne)
+    current.tasks.iterator().forEachRemaining(task => builder += task)
 
     State(
       lastID = current.currentID.get(),
