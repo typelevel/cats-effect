@@ -197,7 +197,14 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
   def schedule(delay: FiniteDuration, r: Runnable): () => Unit =
     synchronized {
       val current: State = stateRef
-      val (cancelable, newState) = current.scheduleOnce(delay, r, cancelTask, random)
+
+      val d = if (delay >= Duration.Zero) delay else Duration.Zero
+      val newID = current.lastID + 1
+
+      val task = Task(newID, r, current.clock + d, random.nextLong())
+      val cancelable = () => cancelTask(task)
+      val newState = current.copy(lastID = newID, tasks = current.tasks + task)
+
       stateRef = newState
       cancelable
     }
@@ -274,29 +281,6 @@ object TestContext {
       val newID = lastID + 1
       val task = Task(newID, runnable, clock, random.nextLong())
       copy(lastID = newID, tasks = tasks + task)
-    }
-
-    /**
-     * Returns a new state with a scheduled task included.
-     */
-    private[TestContext] def scheduleOnce(
-        delay: FiniteDuration,
-        r: Runnable,
-        cancelTask: Task => Unit,
-        random: Random): (() => Unit, State) = {
-
-      val d = if (delay >= Duration.Zero) delay else Duration.Zero
-      val newID = lastID + 1
-
-      val task = Task(newID, r, this.clock + d, random.nextLong())
-      val cancelable = () => cancelTask(task)
-
-      (
-        cancelable,
-        copy(
-          lastID = newID,
-          tasks = tasks + task
-        ))
     }
   }
 
