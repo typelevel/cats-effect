@@ -35,11 +35,14 @@ import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-import java.{util => ju}
 import java.io.{ByteArrayOutputStream, PrintStream}
 import java.util.concurrent.TimeUnit
 
-trait TestInstances extends ParallelFGenerators with OutcomeGenerators with SyncTypeGenerators {
+trait TestInstances
+    extends ParallelFGenerators
+    with OutcomeGenerators
+    with SyncTypeGenerators
+    with TestInstancesPlatform {
   outer =>
 
   implicit def cogenIO[A: Cogen](implicit ticker: Ticker): Cogen[IO[A]] =
@@ -217,18 +220,6 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
       unsafeRunSync(ioa)
     } finally {
       System.setErr(old)
-    }
-  }
-
-  private[this] val tickerRuntimeCache: ju.Map[Ticker, unsafe.IORuntime] =
-    ju.Collections.synchronizedMap(new ju.WeakHashMap())
-
-  implicit def materializeRuntime(implicit ticker: Ticker): unsafe.IORuntime = {
-    val runtime = tickerRuntimeCache.get(ticker)
-    if (runtime ne null) {
-      runtime
-    } else {
-      unsafe.IORuntime.testRuntime(ticker.ctx, scheduler)
     }
   }
 
