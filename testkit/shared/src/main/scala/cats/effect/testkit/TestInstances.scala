@@ -187,8 +187,7 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
       ioa
         .flatMap(IO.pure(_))
         .handleErrorWith(IO.raiseError(_))
-        .unsafeRunAsyncOutcome { oc => results = oc.mapK(someK) }(unsafe
-          .IORuntime(ticker.ctx, ticker.ctx, scheduler, () => (), unsafe.IORuntimeConfig()))
+        .unsafeRunAsyncOutcome { oc => results = oc.mapK(someK) }(materializeRuntime)
 
       ticker.ctx.tickAll()
 
