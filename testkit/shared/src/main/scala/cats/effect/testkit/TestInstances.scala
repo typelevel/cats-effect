@@ -35,8 +35,8 @@ import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-import java.io.{ByteArrayOutputStream, PrintStream}
 import java.{util => ju}
+import java.io.{ByteArrayOutputStream, PrintStream}
 import java.util.concurrent.TimeUnit
 
 trait TestInstances extends ParallelFGenerators with OutcomeGenerators with SyncTypeGenerators {
