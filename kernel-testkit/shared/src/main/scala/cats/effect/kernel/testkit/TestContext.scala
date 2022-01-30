@@ -71,7 +71,10 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
 
   def execute(r: Runnable): Unit =
     synchronized {
-      stateRef = stateRef.execute(r, random)
+      val current = stateRef
+      val newID = current.lastID + 1
+      val task = Task(newID, r, current.clock, random.nextLong())
+      stateRef = current.copy(lastID = newID, tasks = current.tasks + task)
     }
 
   def reportFailure(cause: Throwable): Unit =
@@ -272,17 +275,7 @@ object TestContext {
       lastID: Long,
       clock: FiniteDuration,
       tasks: SortedSet[Task],
-      lastReportedFailure: Option[Throwable]) {
-
-    /**
-     * Returns a new state with the runnable scheduled for execution.
-     */
-    private[TestContext] def execute(runnable: Runnable, random: Random): State = {
-      val newID = lastID + 1
-      val task = Task(newID, runnable, clock, random.nextLong())
-      copy(lastID = newID, tasks = tasks + task)
-    }
-  }
+      lastReportedFailure: Option[Throwable])
 
   /**
    * Used internally by [[TestContext]], represents a unit of work pending execution.
