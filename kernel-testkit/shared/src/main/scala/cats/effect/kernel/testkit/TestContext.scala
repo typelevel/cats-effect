@@ -130,23 +130,31 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
    *   `true` if a task was available in the internal queue, and was executed, or `false`
    *   otherwise
    */
-  def tickOne(): Boolean =
-    synchronized {
+  def tickOne(): Boolean = {
+    val head = synchronized {
       val current = stateRef
 
-      // extracting one task by taking the immediate tasks
-      extractOneTask(current, current.clock) match {
-        case Some((head, rest)) =>
+      // extracing one task
+      current.tasks.headOption.filter(_.runsAt <= current.clock) match {
+        case Some(head) =>
+          val rest = current.tasks - head
           stateRef = current.copy(tasks = rest)
-          // execute task
-          try head.task.run()
-          catch { case NonFatal(ex) => reportFailure(ex) }
-          true
+          head
 
         case None =>
-          false
+          null
       }
     }
+
+    if (head ne null) {
+      // execute task
+      try head.task.run()
+      catch { case NonFatal(ex) => reportFailure(ex) }
+      true
+    } else {
+      false
+    }
+  }
 
   @tailrec
   def tick(): Unit =
@@ -216,18 +224,6 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
 
   def seed: String =
     new String(Encoder.encode(_seed.toString.getBytes))
-
-  private def extractOneTask(
-      current: State,
-      clock: FiniteDuration): Option[(Task, SortedSet[Task])] =
-    current.tasks.headOption.filter(_.runsAt <= clock) match {
-      case Some(head) =>
-        val remaining = current.tasks - head
-        Some((head, remaining))
-
-      case None =>
-        None
-    }
 
   private def cancelTask(t: Task): Unit =
     synchronized {
