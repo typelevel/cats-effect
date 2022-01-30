@@ -261,6 +261,7 @@ lazy val root = project
   .enablePlugins(NoPublishPlugin)
   .enablePlugins(ScalaUnidocPlugin)
   .settings(
+    name := "cats-effect",
     ScalaUnidoc / unidoc / unidocProjectFilter := {
       undocumentedRefs.foldLeft(inAnyProject)((acc, a) => acc -- inProjects(a))
     }
