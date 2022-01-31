@@ -524,43 +524,45 @@ object Random {
 
   private abstract class ThreadLocalRandom[F[_]: Sync] extends RandomCommon[F] {
     def nextBoolean: F[Boolean] =
-      Sync[F].delay(new SRandom(java.util.concurrent.ThreadLocalRandom.current()).nextBoolean())
+      Sync[F].delay(localRandom.nextBoolean())
 
     def nextBytes(n: Int): F[Array[Byte]] = {
       val bytes = new Array[Byte](0 max n)
       Sync[F]
-        .delay(new SRandom(java.util.concurrent.ThreadLocalRandom.current()).nextBytes(bytes))
+        .delay(localRandom.nextBytes(bytes))
         .as(bytes)
     }
 
     def nextDouble: F[Double] =
-      Sync[F].delay(new SRandom(java.util.concurrent.ThreadLocalRandom.current()).nextDouble())
+      Sync[F].delay(localRandom.nextDouble())
 
     def nextFloat: F[Float] =
-      Sync[F].delay(new SRandom(java.util.concurrent.ThreadLocalRandom.current()).nextFloat())
+      Sync[F].delay(localRandom.nextFloat())
 
     def nextGaussian: F[Double] =
-      Sync[F].delay(new SRandom(java.util.concurrent.ThreadLocalRandom.current()).nextGaussian())
+      Sync[F].delay(localRandom.nextGaussian())
 
     def nextInt: F[Int] =
-      Sync[F].delay(new SRandom(java.util.concurrent.ThreadLocalRandom.current()).nextInt())
+      Sync[F].delay(localRandom.nextInt())
 
     def nextIntBounded(n: Int): F[Int] =
-      Sync[F].delay(new SRandom(java.util.concurrent.ThreadLocalRandom.current()).self.nextInt(n))
+      Sync[F].delay(localRandom.self.nextInt(n))
 
     def nextLong: F[Long] =
-      Sync[F].delay(new SRandom(java.util.concurrent.ThreadLocalRandom.current()).nextLong())
+      Sync[F].delay(localRandom.nextLong())
 
     def nextPrintableChar: F[Char] =
-      Sync[F].delay(new SRandom(java.util.concurrent.ThreadLocalRandom.current()).nextPrintableChar())
+      Sync[F].delay(localRandom.nextPrintableChar())
 
     def nextString(length: Int): F[String] =
-      Sync[F].delay(new SRandom(java.util.concurrent.ThreadLocalRandom.current()).nextString(length))
+      Sync[F].delay(localRandom.nextString(length))
 
     def shuffleList[A](l: List[A]): F[List[A]] =
-      Sync[F].delay(new SRandom(java.util.concurrent.ThreadLocalRandom.current()).shuffle(l))
+      Sync[F].delay(localRandom.shuffle(l))
 
     def shuffleVector[A](v: Vector[A]): F[Vector[A]] =
-      Sync[F].delay(new SRandom(java.util.concurrent.ThreadLocalRandom.current()).shuffle(v))
+      Sync[F].delay(localRandom.shuffle(v))
   }
+
+  private[this] def localRandom = new SRandom(java.util.concurrent.ThreadLocalRandom.current())
 }
