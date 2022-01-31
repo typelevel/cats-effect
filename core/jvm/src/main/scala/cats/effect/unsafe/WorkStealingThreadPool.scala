@@ -100,8 +100,8 @@ private[effect] final class WorkStealingThreadPool(
 
   private[unsafe] val cachedThreads: ConcurrentSkipListSet[WorkerThread] =
     new ConcurrentSkipListSet(Comparator.comparingInt[WorkerThread](_.nameIndex))
-  private[unsafe] def blockingCacheExpiration: Duration =
-    self.config.blockingCacheExpiration
+  private[unsafe] def runtimeBlockingExpiration: Duration =
+    self.config.runtimeBlockingExpiration
 
   /**
    * The shutdown latch of the work stealing thread pool.

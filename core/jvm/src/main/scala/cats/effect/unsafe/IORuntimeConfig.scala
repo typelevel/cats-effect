@@ -28,7 +28,7 @@ final case class IORuntimeConfig private (
     val enhancedExceptions: Boolean,
     val traceBufferSize: Int,
     val shutdownHookTimeout: Duration,
-    val blockingCacheExpiration: Duration
+    val runtimeBlockingExpiration: Duration
 ) {
   private[unsafe] def this(cancelationCheckThreshold: Int, autoYieldThreshold: Int) =
     this(
@@ -37,7 +37,7 @@ final case class IORuntimeConfig private (
       DefaultEnhancedExceptions,
       DefaultTraceBufferSize,
       DefaultShutdownHookTimeout,
-      DefaultBlockingCacheExpiration
+      DefaultRuntimeBlockingExpiration
     )
 
   private[unsafe] def this(
@@ -51,7 +51,7 @@ final case class IORuntimeConfig private (
       enhancedExceptions,
       traceBufferSize,
       DefaultShutdownHookTimeout,
-      DefaultBlockingCacheExpiration
+      DefaultRuntimeBlockingExpiration
     )
 
   private[unsafe] def this(
@@ -66,7 +66,7 @@ final case class IORuntimeConfig private (
     enhancedExceptions,
     traceBufferSize,
     shutdownHookTimeout,
-    DefaultBlockingCacheExpiration
+    DefaultRuntimeBlockingExpiration
   )
 
   def copy(
@@ -75,14 +75,14 @@ final case class IORuntimeConfig private (
       enhancedExceptions: Boolean = this.enhancedExceptions,
       traceBufferSize: Int = this.traceBufferSize,
       shutdownHookTimeout: Duration = this.shutdownHookTimeout,
-      blockingCacheExpiration: Duration = this.blockingCacheExpiration): IORuntimeConfig =
+      runtimeBlockingExpiration: Duration = this.runtimeBlockingExpiration): IORuntimeConfig =
     new IORuntimeConfig(
       cancelationCheckThreshold,
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
       shutdownHookTimeout,
-      blockingCacheExpiration
+      runtimeBlockingExpiration
     )
 
   private[unsafe] def copy(
@@ -94,7 +94,7 @@ final case class IORuntimeConfig private (
       enhancedExceptions,
       traceBufferSize,
       shutdownHookTimeout,
-      blockingCacheExpiration
+      runtimeBlockingExpiration
     )
 
   private[unsafe] def copy(
@@ -108,7 +108,7 @@ final case class IORuntimeConfig private (
       enhancedExceptions,
       traceBufferSize,
       shutdownHookTimeout,
-      blockingCacheExpiration
+      runtimeBlockingExpiration
     )
 
   private[unsafe] def copy(
@@ -124,7 +124,7 @@ final case class IORuntimeConfig private (
       enhancedExceptions,
       traceBufferSize,
       shutdownHookTimeout,
-      blockingCacheExpiration
+      runtimeBlockingExpiration
     )
 
   private[effect] val traceBufferLogSize: Int =
@@ -157,10 +157,10 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
         .map(Duration(_))
         .getOrElse(DefaultShutdownHookTimeout)
 
-    val blockingCacheExpiration =
-      Try(System.getProperty("cats.effect.blocking.cache.expiration"))
+    val runtimeBlockingExpiration =
+      Try(System.getProperty("cats.effect.runtime.blocking.expiration"))
         .map(Duration(_))
-        .getOrElse(DefaultBlockingCacheExpiration)
+        .getOrElse(DefaultRuntimeBlockingExpiration)
 
     apply(
       cancelationCheckThreshold,
@@ -168,7 +168,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       enhancedExceptions,
       traceBufferSize,
       shutdownHookTimeout,
-      blockingCacheExpiration)
+      runtimeBlockingExpiration)
   }
 
   def apply(cancelationCheckThreshold: Int, autoYieldThreshold: Int): IORuntimeConfig =
@@ -178,7 +178,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       DefaultEnhancedExceptions,
       DefaultTraceBufferSize,
       DefaultShutdownHookTimeout,
-      DefaultBlockingCacheExpiration
+      DefaultRuntimeBlockingExpiration
     )
 
   def apply(
@@ -193,7 +193,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       enhancedExceptions,
       traceBufferSize,
       DefaultShutdownHookTimeout,
-      DefaultBlockingCacheExpiration
+      DefaultRuntimeBlockingExpiration
     )
 
   def apply(
@@ -209,8 +209,8 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       enhancedExceptions,
       traceBufferSize,
       shutdownHookTimeout,
-      DefaultBlockingCacheExpiration
+      DefaultRuntimeBlockingExpiration
     )
 
-  private final val DefaultBlockingCacheExpiration: Duration = 60.seconds
+  private final val DefaultRuntimeBlockingExpiration: Duration = 60.seconds
 }
