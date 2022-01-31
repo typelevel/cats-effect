@@ -68,7 +68,7 @@ trait Console[F[_]] extends ConsoleCrossPlatform[F] {
 object Console extends ConsoleCompanionCrossPlatform {
 
   /**
-   * Constructs a `Console` instance for `F` data types that are [[cats.effect.kernel.Sync]].
+   * Constructs a `Console` instance for `F` data types that are [[cats.effect.kernel.Async]].
    */
   def make[F[_]](implicit F: Async[F]): Console[F] =
     Try(js.Dynamic.global.process)
@@ -76,7 +76,7 @@ object Console extends ConsoleCompanionCrossPlatform {
       .map(new NodeJSConsole(_))
       .getOrElse(new SyncConsole)
 
-  // Keeping for bincompat
+  @deprecated("Retaining for bincompat", "3.4.0")
   private[std] def make[F[_]](implicit F: Sync[F]): Console[F] =
     new SyncConsole[F]
 
@@ -112,7 +112,9 @@ object Console extends ConsoleCompanionCrossPlatform {
     def println[A](a: A)(implicit S: cats.Show[A]): F[Unit] = writeln(process.stdout, S.show(a))
 
     def readLineWithCharset(charset: Charset): F[String] =
-      F.raiseError(new UnsupportedOperationException)
+      F.raiseError(
+        new UnsupportedOperationException(
+          "Not implemented for Scala.js. On Node.js consider using fs2.io.stdin."))
   }
 
 }
