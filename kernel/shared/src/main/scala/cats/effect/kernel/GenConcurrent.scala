@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,12 +51,17 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
             state.modify {
               case Unevaluated() =>
                 val go =
-                  poll(fa)
-                    .attempt
-                    .onCancel(state.set(Unevaluated()))
-                    .flatMap(ea => state.set(Finished(ea)).as(ea))
-                    .guarantee(latch.complete(()).void)
-                    .rethrow
+                  poll(fa).guaranteeCase { outcome =>
+                    val stateAction = outcome match {
+                      case Outcome.Canceled() =>
+                        state.set(Unevaluated())
+                      case Outcome.Errored(err) =>
+                        state.set(Finished(Left(err)))
+                      case Outcome.Succeeded(fa) =>
+                        state.set(Finished(Right(fa)))
+                    }
+                    stateAction <* latch.complete(())
+                  }
 
                 Evaluating(latch.get) -> go
 
@@ -70,7 +75,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
         state.get flatMap {
           case Unevaluated() => eval
           case Evaluating(await) => await *> get
-          case Finished(ea) => fromEither(ea)
+          case Finished(efa) => fromEither(efa).flatten
         }
 
       get
@@ -139,7 +144,7 @@ object GenConcurrent {
   private object Memoize {
     final case class Unevaluated[F[_], E, A]() extends Memoize[F, E, A]
     final case class Evaluating[F[_], E, A](await: F[Unit]) extends Memoize[F, E, A]
-    final case class Finished[F[_], E, A](result: Either[E, A]) extends Memoize[F, E, A]
+    final case class Finished[F[_], E, A](result: Either[E, F[A]]) extends Memoize[F, E, A]
   }
 
   implicit def genConcurrentForOptionT[F[_], E](

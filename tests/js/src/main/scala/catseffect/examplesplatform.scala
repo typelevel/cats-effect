@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,11 +40,16 @@ package examples {
     register(LiveFiberSnapshot)
     register(FatalErrorUnsafeRun)
     register(Finalizers)
+    register(LeakedFiber)
+    register(UndefinedProcessExit)
 
     @nowarn("cat=unused")
     def main(paperweight: Array[String]): Unit = {
       val args = js.Dynamic.global.process.argv.asInstanceOf[js.Array[String]]
       val app = args(2)
+      if (app == UndefinedProcessExit.getClass.getName.init)
+        // emulates the situation in browsers
+        js.Dynamic.global.process.exit = js.undefined
       args.shift()
       apps(app).main(Array.empty)
     }
@@ -78,4 +83,7 @@ package examples {
         .as(ExitCode.Success)
   }
 
+  object UndefinedProcessExit extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = IO.pure(ExitCode.Success)
+  }
 }

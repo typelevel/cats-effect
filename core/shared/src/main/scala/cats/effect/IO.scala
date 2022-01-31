@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ import cats.{
 }
 import cats.data.Ior
 import cats.effect.instances.spawn
-import cats.effect.std.Console
+import cats.effect.std.{Console, Env}
 import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.syntax.all._
 
@@ -166,11 +166,13 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * `IO.raiseError`. Thus:
    *
    * {{{
-   * IO.raiseError(ex).attempt.unsafeRunAsync === Left(ex)
+   * IO.raiseError(ex).attempt.unsafeRunSync() === Left(ex)
    * }}}
    *
    * @see
    *   [[IO.raiseError]]
+   * @see
+   *   [[rethrow]]
    */
   def attempt: IO[Either[Throwable, A]] =
     IO.Attempt(this)
@@ -454,6 +456,22 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def handleErrorWith[B >: A](f: Throwable => IO[B]): IO[B] =
     IO.HandleErrorWith(this, f, Tracing.calculateTracingEvent(f))
 
+  /**
+   * Recover from certain errors by mapping them to an `A` value.
+   *
+   * Implements `ApplicativeError.recover`.
+   */
+  def recover[B >: A](pf: PartialFunction[Throwable, B]): IO[B] =
+    handleErrorWith(e => pf.andThen(IO.pure(_)).applyOrElse(e, IO.raiseError[A]))
+
+  /**
+   * Recover from certain errors by mapping them to another `IO` value.
+   *
+   * Implements `ApplicativeError.recoverWith`.
+   */
+  def recoverWith[B >: A](pf: PartialFunction[Throwable, IO[B]]): IO[B] =
+    handleErrorWith(e => pf.applyOrElse(e, IO.raiseError))
+
   def ifM[B](ifTrue: => IO[B], ifFalse: => IO[B])(implicit ev: A <:< Boolean): IO[B] =
     flatMap(a => if (ev(a)) ifTrue else ifFalse)
 
@@ -488,6 +506,27 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     (OutcomeIO[A @uncheckedVariance], FiberIO[B]),
     (FiberIO[A @uncheckedVariance], OutcomeIO[B])]] =
     IO.racePair(this, that)
+
+  /**
+   * Inverse of `attempt`
+   *
+   * This function raises any materialized error.
+   *
+   * {{{
+   * IO(Right(a)).rethrow === IO.pure(a)
+   * IO(Left(ex)).rethrow === IO.raiseError(ex)
+   *
+   * // Or more generally:
+   * io.attempt.rethrow === io // For any io.
+   * }}}
+   *
+   * @see
+   *   [[IO.raiseError]]
+   * @see
+   *   [[attempt]]
+   */
+  def rethrow[B](implicit ev: A <:< Either[Throwable, B]): IO[B] =
+    flatMap(a => IO.fromEither(ev(a)))
 
   /**
    * Returns a new value that transforms the result of the source, given the `recover` or `map`
@@ -560,10 +599,45 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       flatMap(_ => replicateA_(n - 1))
 
   /**
+   * Logs the value of this `IO` _(even if it is an error or if it was cancelled)_ to the
+   * standard output, using the implicit `cats.Show` instance.
+   *
+   * This operation is intended as a quick debug, not as proper logging.
+   *
+   * @param prefix
+   *   A custom prefix for the log message, `DEBUG` is used as the default.
+   */
+  def debug[B >: A](prefix: String = "DEBUG")(
+      implicit S: Show[B] = Show.fromToString[B]): IO[A] =
+    guaranteeCase {
+      case Outcome.Succeeded(ioa) =>
+        ioa.flatMap(a => IO.println(s"${prefix}: Succeeded: ${S.show(a)}"))
+
+      case Outcome.Errored(ex) =>
+        IO.println(s"${prefix}: Errored: ${ex}")
+
+      case Outcome.Canceled() =>
+        IO.println(s"${prefix}: Canceled")
+    }
+
+  /**
    * Returns an IO that will delay the execution of the source by the given duration.
+   *
+   * @param duration
+   *   The duration to wait before executing the source
    */
   def delayBy(duration: FiniteDuration): IO[A] =
     IO.sleep(duration) *> this
+
+  /**
+   * Returns an IO that will wait for the given duration after the execution of the source
+   * before returning the result.
+   *
+   * @param duration
+   *   The duration to wait after executing the source
+   */
+  def andWait(duration: FiniteDuration): IO[A] =
+    this <* IO.sleep(duration)
 
   /**
    * Returns an IO that either completes with the result of the source within the specified time
@@ -931,8 +1005,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Newtype encoding for an `IO` datatype that has a `cats.Applicative` capable of doing
    * parallel processing in `ap` and `map2`, needed for implementing `cats.Parallel`.
    *
-   * Helpers are provided for converting back and forth in `Par.apply` for wrapping any `IO`
-   * value and `Par.unwrap` for unwrapping.
+   * For converting back and forth you can use either the `Parallel[IO]` instance or the methods
+   * `cats.effect.kernel.Par.ParallelF.apply` for wrapping any `IO` value and
+   * `cats.effect.kernel.Par.ParallelF.value` for unwrapping it.
    *
    * The encoding is based on the "newtypes" project by Alexander Konovalov, chosen because it's
    * devoid of boxing issues and a good choice until opaque types will land in Scala.
@@ -1257,9 +1332,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Run two IO tasks concurrently, and returns a pair containing both the winner's successful
    * value and the loser represented as a still-unfinished task.
    *
-   * If the first task completes in error, then the result will complete in error, the other
-   * task being canceled.
-   *
    * On usage the user has the option of canceling the losing task, this being equivalent with
    * plain [[race]]:
    *
@@ -1269,9 +1341,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    *   IO.racePair(ioA, ioB).flatMap {
    *     case Left((a, fiberB)) =>
-   *       fiberB.cancel.map(_ => a)
+   *       fiberB.cancel.as(a)
    *     case Right((fiberA, b)) =>
-   *       fiberA.cancel.map(_ => b)
+   *       fiberA.cancel.as(b)
    *   }
    * }}}
    *
@@ -1633,6 +1705,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   implicit val consoleForIO: Console[IO] =
     Console.make
+
+  implicit val envForIO: Env[IO] = Env.make
 
   // This is cached as a val to save allocations, but it uses ops from the Async
   // instance which is also cached as a val, and therefore needs to appear

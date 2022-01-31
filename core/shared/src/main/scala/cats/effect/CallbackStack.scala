@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,10 @@ private final class CallbackStack[A](private[this] var callback: OutcomeIO[A] =>
     }
 
     loop()
+  }
+
+  def unsafeSetCallback(cb: OutcomeIO[A] => Unit): Unit = {
+    callback = cb
   }
 
   /**

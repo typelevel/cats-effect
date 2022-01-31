@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -92,6 +92,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         }
       }
 
+      "rethrow is inverse of attempt" in ticked { implicit ticker =>
+        forAll { (io: IO[Int]) => io.attempt.rethrow eqv io }
+      }
+
       "redeem is flattened redeemWith" in ticked { implicit ticker =>
         forAll { (io: IO[Int], recover: Throwable => IO[String], bind: Int => IO[String]) =>
           io.redeem(recover, bind).flatten eqv io.redeemWith(recover, bind)
@@ -138,6 +142,35 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         case object TestException extends RuntimeException
         IO.raiseError[Unit](TestException)
           .redeemWith(_ => IO.pure(42), _ => IO.pure(43)) must completeAs(42)
+      }
+
+      "recover correctly recovers from errors" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        IO.raiseError[Int](TestException).recover { case TestException => 42 } must completeAs(
+          42)
+      }
+
+      "recoverWith correctly recovers from errors" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        IO.raiseError[Int](TestException).recoverWith {
+          case TestException => IO.pure(42)
+        } must completeAs(42)
+      }
+
+      "recoverWith does not recover from unmatched errors" in ticked { implicit ticker =>
+        case object UnmatchedException extends RuntimeException
+        case object ThrownException extends RuntimeException
+        IO.raiseError[Int](ThrownException)
+          .recoverWith { case UnmatchedException => IO.pure(42) }
+          .attempt must completeAs(Left(ThrownException))
+      }
+
+      "recover does not recover from unmatched errors" in ticked { implicit ticker =>
+        case object UnmatchedException extends RuntimeException
+        case object ThrownException extends RuntimeException
+        IO.raiseError[Int](ThrownException)
+          .recover { case UnmatchedException => 42 }
+          .attempt must completeAs(Left(ThrownException))
       }
 
       "redeemWith binds successful results" in ticked { implicit ticker =>

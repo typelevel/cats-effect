@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import cats.data.OptionT
+import cats.effect.std.Env
 import cats.syntax.all._
 
 import scala.scalajs.js
@@ -26,12 +28,10 @@ private[effect] object process {
   def argv: Option[List[String]] = Try(
     js.Dynamic.global.process.argv.asInstanceOf[js.Array[String]].toList.drop(2)).toOption
 
-  def env(key: String): Option[String] =
-    Try(js.Dynamic.global.process.env.selectDynamic(key))
-      .orElse(Try(js.Dynamic.global.process.env.selectDynamic(s"REACT_APP_$key")))
-      .widen[Any]
-      .collect { case v: String if !js.isUndefined(v) => v }
-      .toOption
+  def env(key: String): Option[String] = {
+    val env = Env.make[SyncIO]
+    OptionT(env.get(key)).orElseF(env.get(s"REACT_APP_$key")).value.unsafeRunSync()
+  }
 
   def on(eventName: String, listener: js.Function0[Unit]): Unit =
     Try(js.Dynamic.global.process.on(eventName, listener).asInstanceOf[Unit]).recover {

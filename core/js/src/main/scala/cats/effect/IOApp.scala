@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -218,8 +218,10 @@ trait IOApp {
     val argList = process.argv.getOrElse(args.toList)
 
     // Store the default process.exit function, if it exists
-    val hardExit =
-      Try(js.Dynamic.global.process.exit.asInstanceOf[js.Function1[Int, Unit]]: Int => Unit)
+    val hardExit: Int => Unit =
+      Try(js.Dynamic.global.process.exit.asInstanceOf[js.Function1[Int, Unit]])
+        // we got *something*, but we don't know what it is really. so wrap in a Try
+        .map(f => (i: Int) => { Try(f(i)); () })
         .getOrElse((_: Int) => ())
 
     var cancelCode = 1 // So this can be updated by external cancellation

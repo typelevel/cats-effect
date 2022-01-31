@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -81,6 +81,7 @@ package examples {
       } yield ()
 
       _ <- sleeper.start
+      _ <- IO.println("ready")
       _ <- fibers.traverse(_.join)
     } yield ()
   }
@@ -88,5 +89,9 @@ package examples {
   object WorkerThreadInterrupt extends IOApp.Simple {
     val run =
       IO(Thread.currentThread().interrupt()) *> IO(Thread.sleep(1000L))
+  }
+
+  object LeakedFiber extends IOApp.Simple {
+    val run = IO.cede.foreverM.start.void
   }
 }

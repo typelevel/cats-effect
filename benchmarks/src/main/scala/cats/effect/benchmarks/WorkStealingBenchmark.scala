@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -133,7 +133,7 @@ class WorkStealingBenchmark {
       }
     }
 
-    (0 to theSize).foreach(_ => run(0))
+    (0 until theSize).foreach(_ => run(0))
 
     countDown.await()
   }
@@ -145,6 +145,11 @@ class WorkStealingBenchmark {
   @Benchmark
   def runnableScheduling(): Unit = {
     runnableSchedulingBenchmark(cats.effect.unsafe.implicits.global.compute)
+  }
+
+  @Benchmark
+  def runnableSchedulingScalaGlobal(): Unit = {
+    runnableSchedulingBenchmark(ExecutionContext.global)
   }
 
   lazy val manyThreadsRuntime: IORuntime = {
