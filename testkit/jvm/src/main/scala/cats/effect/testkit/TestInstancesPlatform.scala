@@ -19,16 +19,18 @@ package testkit
 
 import java.{util => ju}
 
-trait TestInstancesPlatform { self: TestInstances =>
-  private[this] val tickerRuntimeCache: ju.Map[Ticker, unsafe.IORuntime] =
-    ju.Collections.synchronizedMap(new ju.WeakHashMap())
-
-  implicit def materializeRuntime(implicit ticker: Ticker): unsafe.IORuntime = {
-    val runtime = tickerRuntimeCache.get(ticker)
+private[testkit] trait TestInstancesPlatform { self: TestInstances =>
+  protected def materializeRuntimePlatform(implicit ticker: Ticker): unsafe.IORuntime = {
+    val runtime = TickerRuntimeCache.Cache.get(ticker)
     if (runtime ne null) {
       runtime
     } else {
       unsafe.IORuntime.testRuntime(ticker.ctx, scheduler)
     }
   }
+}
+
+private object TickerRuntimeCache {
+  final val Cache: ju.Map[AnyRef, unsafe.IORuntime] =
+    ju.Collections.synchronizedMap(new ju.WeakHashMap())
 }

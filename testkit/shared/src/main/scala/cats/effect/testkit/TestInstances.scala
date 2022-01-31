@@ -236,6 +236,9 @@ trait TestInstances
     }
   }
 
+  implicit def materializeRuntime(implicit ticker: Ticker): unsafe.IORuntime =
+    materializeRuntimePlatform
+
   @implicitNotFound(
     "could not find an instance of Ticker; try using `in ticked { implicit ticker =>`")
   case class Ticker(ctx: TestContext = TestContext())

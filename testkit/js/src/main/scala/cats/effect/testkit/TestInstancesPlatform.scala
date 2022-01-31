@@ -17,7 +17,7 @@
 package cats.effect
 package testkit
 
-trait TestInstancesPlatform { self: TestInstances =>
-  implicit def materializeRuntime(implicit ticker: Ticker): unsafe.IORuntime =
+private[testkit] trait TestInstancesPlatform { self: TestInstances =>
+  protected def materializeRuntimePlatform(implicit ticker: Ticker): unsafe.IORuntime =
     unsafe.IORuntime.testRuntime(ticker.ctx, scheduler)
 }
