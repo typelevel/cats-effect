@@ -137,25 +137,23 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
     val head = synchronized {
       val current = stateRef
 
-      // extracing one task
-      current.tasks.headOption.filter(_.runsAt <= current.clock) match {
-        case Some(head) =>
-          val rest = current.tasks - head
-          stateRef = current.copy(tasks = rest)
-          head
-
-        case None =>
-          null
+      // extracting one task
+      val head = current.tasks.headOption.filter(_.runsAt <= current.clock)
+      head.foreach { head =>
+        val rest = current.tasks - head
+        stateRef = current.copy(tasks = rest)
       }
+      head
     }
 
-    if (head ne null) {
-      // execute task
-      try head.task.run()
-      catch { case NonFatal(ex) => reportFailure(ex) }
-      true
-    } else {
-      false
+    head match {
+      case Some(head) =>
+        // execute task
+        try head.task.run()
+        catch { case NonFatal(ex) => reportFailure(ex) }
+        true
+      case None =>
+        false
     }
   }
 
