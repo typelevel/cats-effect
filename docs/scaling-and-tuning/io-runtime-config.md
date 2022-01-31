@@ -1,8 +1,7 @@
 ---
 id: io-runtime-config
-title: `IORuntime` Configuration
+title: IORuntime Configuration
 ---
-# `IORuntime` Configuration
 
 It is possible to configure your `IORuntime` externally, at runtime.
 

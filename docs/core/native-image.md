@@ -4,7 +4,7 @@ title: GraalVM Native Image
 ---
 
 Cats Effect 3.3.0 brought support for printing a
-[snapshot of live fibers](./live-fiber-snapshot.md) to the standard error
+[a fiber dump](./fiber-dump.md) to the standard error
 stream. This functionality can be triggered using POSIX signals. Unfortunately,
 due to the `sun.misc.Signal` API being an unofficial JDK API, in order to
 achieve maximum compatibility, this functionality was implemented using the
