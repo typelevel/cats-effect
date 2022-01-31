@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,15 @@
 
 package cats.effect
 
-import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
 
 import java.util.{concurrent => juc}
-import juc.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
   this: IOFiber[A] =>
 
-  protected final def interruptibleImpl(
-      cur: IO.Blocking[Any],
-      blockingEc: ExecutionContext): IO[Any] = {
+  protected final def interruptibleImpl(cur: IO.Blocking[Any]): IO[Any] = {
     // InterruptibleMany | InterruptibleOnce
 
     /*
@@ -54,8 +51,8 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
         canInterrupt <- IO(new juc.Semaphore(0))
 
         target <- IO uncancelable { _ =>
-          IO.async_[Thread] { initCb =>
-            blockingEc execute { () =>
+          IO.async[Thread] { initCb =>
+            val action = IO blocking {
               initCb(Right(Thread.currentThread()))
 
               val result =
@@ -89,6 +86,8 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                 nextCb(result)
               }
             }
+
+            action.start.as(None)
           }
         }
       } yield {

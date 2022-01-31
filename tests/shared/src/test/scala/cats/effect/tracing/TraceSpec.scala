@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,8 @@
 
 package tracing // Get out of the CE package so our traces don't get filtered
 
+import cats.effect.{BaseSpec, IO}
 import cats.effect.testkit.TestInstances
-import cats.effect.BaseSpec
-import cats.effect.IO
 
 // Separate from TracingSpec so it can exist outside of cats.effect package
 class TraceSpec extends BaseSpec with TestInstances { self =>

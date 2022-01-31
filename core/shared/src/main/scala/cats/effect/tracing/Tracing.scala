@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@ private[effect] object Tracing extends TracingPlatform {
     "cats.",
     "sbt.",
     "java.",
+    "jdk.",
     "sun.",
     "scala.",
     "org.scalajs."
@@ -61,7 +62,7 @@ private[effect] object Tracing extends TracingPlatform {
     var i = 0
     val len = stackTraceClassNameFilter.length
     while (i < len) {
-      if (className.contains(stackTraceClassNameFilter(i)))
+      if (className.startsWith(stackTraceClassNameFilter(i)))
         return true
       i += 1
     }

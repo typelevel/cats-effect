@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,26 +14,22 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.unsafe
 
-/**
- * Represents the exit code of an application.
- *
- * `code` is constrained to a range from 0 to 255, inclusive.
- */
-sealed abstract case class ExitCode private (code: Int)
+private final class SynchronizedWeakBag[A <: AnyRef] {
+  import WeakBag.Handle
 
-object ExitCode {
+  private[this] val weakBag: WeakBag[A] = new WeakBag()
 
-  /**
-   * Creates an `ExitCode`.
-   *
-   * @param i
-   *   the value whose 8 least significant bits are used to construct an exit code within the
-   *   valid range.
-   */
-  def apply(i: Int): ExitCode = new ExitCode(i & 0xff) {}
+  def insert(a: A): Handle = synchronized {
+    weakBag.insert(a)
+  }
 
-  val Success: ExitCode = ExitCode(0)
-  val Error: ExitCode = ExitCode(1)
+  def toSet: Set[A] = synchronized {
+    weakBag.toSet
+  }
+
+  def size: Int = synchronized {
+    weakBag.size
+  }
 }

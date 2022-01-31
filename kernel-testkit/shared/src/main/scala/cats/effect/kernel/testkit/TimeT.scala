@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,9 +21,11 @@ package testkit
 import cats.{~>, Group, Monad, Monoid, Order}
 import cats.data.Kleisli
 import cats.syntax.all._
+
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 import scala.concurrent.duration._
+
 import java.util.concurrent.TimeUnit
 
 /*

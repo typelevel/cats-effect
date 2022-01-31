@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package cats.effect
 
 import cats.effect.testkit.TestInstances
 import cats.syntax.all._
+
 import org.scalacheck.Arbitrary
 
 import scala.concurrent.duration._

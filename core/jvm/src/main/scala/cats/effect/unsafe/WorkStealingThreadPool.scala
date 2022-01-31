@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,9 +35,8 @@ import cats.effect.tracing.TracingConstants
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-import java.lang.ref.WeakReference
-import java.util.WeakHashMap
-import java.util.concurrent.ThreadLocalRandom
+import java.util.Comparator
+import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
 
@@ -58,7 +57,7 @@ import java.util.concurrent.locks.LockSupport
  */
 private[effect] final class WorkStealingThreadPool(
     threadCount: Int, // number of worker threads
-    threadPrefix: String, // prefix for the name of worker threads
+    private[unsafe] val threadPrefix: String, // prefix for the name of worker threads
     self0: => IORuntime
 ) extends ExecutionContext {
 
@@ -75,8 +74,9 @@ private[effect] final class WorkStealingThreadPool(
    * References to worker threads and their local queues.
    */
   private[this] val workerThreads: Array[WorkerThread] = new Array(threadCount)
-  private[this] val localQueues: Array[LocalQueue] = new Array(threadCount)
-  private[this] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
+  private[unsafe] val localQueues: Array[LocalQueue] = new Array(threadCount)
+  private[unsafe] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
+  private[unsafe] val fiberBags: Array[WeakBag[IOFiber[_]]] = new Array(threadCount)
 
   /**
    * Atomic variable for used for publishing changes to the references in the `workerThreads`
@@ -97,12 +97,16 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[this] val state: AtomicInteger = new AtomicInteger(threadCount << UnparkShift)
 
+  private[unsafe] val cachedThreads: ConcurrentSkipListSet[WorkerThread] =
+    new ConcurrentSkipListSet(Comparator.comparingInt[WorkerThread](_.nameIndex))
+
   /**
    * The shutdown latch of the work stealing thread pool.
    */
-  private[this] val done: AtomicBoolean = new AtomicBoolean(false)
+  private[unsafe] val done: AtomicBoolean = new AtomicBoolean(false)
 
   private[unsafe] val blockedWorkerThreadCounter: AtomicInteger = new AtomicInteger(0)
+  private[unsafe] val blockedWorkerThreadNamingIndex: AtomicInteger = new AtomicInteger(0)
 
   // Thread pool initialization block.
   {
@@ -114,17 +118,10 @@ private[effect] final class WorkStealingThreadPool(
       val parkedSignal = new AtomicBoolean(false)
       parkedSignals(i) = parkedSignal
       val index = i
-      val fiberBag = new WeakHashMap[AnyRef, WeakReference[IOFiber[_]]]()
+      val fiberBag = new WeakBag[IOFiber[_]]()
+      fiberBags(i) = fiberBag
       val thread =
-        new WorkerThread(
-          index,
-          threadPrefix,
-          queue,
-          parkedSignal,
-          externalQueue,
-          null,
-          fiberBag,
-          this)
+        new WorkerThread(index, queue, parkedSignal, externalQueue, fiberBag, this)
       workerThreads(i) = thread
       i += 1
     }
@@ -435,6 +432,20 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
+   * Checks if the blocking code can be executed in the current context (only returns true for
+   * worker threads that belong to this execution context).
+   */
+  private[effect] def canExecuteBlockingCode(): Boolean = {
+    val thread = Thread.currentThread()
+    if (thread.isInstanceOf[WorkerThread]) {
+      val worker = thread.asInstanceOf[WorkerThread]
+      worker.canExecuteBlockingCodeOn(this)
+    } else {
+      false
+    }
+  }
+
+  /**
    * Schedules a fiber for execution on this thread pool originating from an external thread (a
    * thread which is not owned by this thread pool).
    *
@@ -507,20 +518,9 @@ private[effect] final class WorkStealingThreadPool(
       scheduleFiber(fiber)
     } else {
       // Executing a general purpose computation on the thread pool.
-      // Wrap the runnable in an `IO` and execute it as a fiber.
-      val io = IO.delay(runnable.run())
-      val fiber = new IOFiber[Unit](Map.empty, outcomeToUnit, io, this, self)
+      val fiber = new IOFiber[Unit](runnable, this, self)
       scheduleFiber(fiber)
     }
-  }
-
-  /**
-   * Preallocated fiber callback function for transforming [[java.lang.Runnable]] values into
-   * [[cats.effect.IOFiber]] instances.
-   */
-  private[this] val outcomeToUnit: OutcomeIO[Unit] => Unit = {
-    case Outcome.Errored(t) => reportFailure(t)
-    case _ => ()
   }
 
   /**
@@ -540,6 +540,9 @@ private[effect] final class WorkStealingThreadPool(
    * has been shut down has no effect.
    */
   def shutdown(): Unit = {
+    // Clear the interrupt flag.
+    Thread.interrupted()
+
     // Execute the shutdown logic only once.
     if (done.compareAndSet(false, true)) {
       // Send an interrupt signal to each of the worker threads.
@@ -555,21 +558,22 @@ private[effect] final class WorkStealingThreadPool(
         i += 1
       }
 
-      // Wait for all worker threads to finalize.
       // Clear the interrupt flag.
       Thread.interrupted()
 
-      // It is now safe to clean up the state of the thread pool.
-      state.lazySet(0)
+      var t: WorkerThread = null
+      while ({
+        t = cachedThreads.pollFirst()
+        t ne null
+      }) {
+        t.interrupt()
+      }
 
-      // Shutdown and drain the external queue.
+      // Drain the external queue.
       externalQueue.clear()
       Thread.currentThread().interrupt()
     }
   }
-
-  private[unsafe] def localQueuesForwarder: Array[LocalQueue] =
-    localQueues
 
   /*
    * What follows is a collection of methos used in the implementation of the

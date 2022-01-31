@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,15 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.Async
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all._
 import cats.~>
 
-import java.nio.charset.Charset
 import scala.annotation.nowarn
 import scala.scalajs.js
 import scala.util.Try
+
+import java.nio.charset.Charset
 
 private[std] trait ConsoleCompanionPlatform { this: Console.type =>
 

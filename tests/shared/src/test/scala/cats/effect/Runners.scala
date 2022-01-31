@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
 import org.scalacheck.Gen
-
 import org.specs2.execute.AsResult
 import org.specs2.matcher.Matcher
 import org.specs2.mutable.SpecificationLike

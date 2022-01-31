@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,7 @@
 
 package catseffect
 
-import cats.effect.IO
-import cats.effect.IOApp
-import cats.effect.ExitCode
+import cats.effect.{ExitCode, IO, IOApp}
 import cats.syntax.all._
 
 package examples {
@@ -31,6 +29,11 @@ package examples {
   object Arguments extends IOApp {
     def run(args: List[String]): IO[ExitCode] =
       args.traverse_(s => IO(println(s))).as(ExitCode.Success)
+  }
+
+  object NonFatalError extends IOApp {
+    def run(args: List[String]): IO[ExitCode] =
+      IO(throw new RuntimeException("Boom!")).as(ExitCode.Success)
   }
 
   object FatalError extends IOApp {
@@ -78,7 +81,17 @@ package examples {
       } yield ()
 
       _ <- sleeper.start
+      _ <- IO.println("ready")
       _ <- fibers.traverse(_.join)
     } yield ()
+  }
+
+  object WorkerThreadInterrupt extends IOApp.Simple {
+    val run =
+      IO(Thread.currentThread().interrupt()) *> IO(Thread.sleep(1000L))
+  }
+
+  object LeakedFiber extends IOApp.Simple {
+    val run = IO.cede.foreverM.start.void
   }
 }

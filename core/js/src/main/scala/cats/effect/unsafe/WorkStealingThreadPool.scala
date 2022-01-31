@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,4 +28,5 @@ private[effect] sealed abstract class WorkStealingThreadPool private ()
   def reportFailure(cause: Throwable): Unit
   private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit
   private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit
+  private[effect] def canExecuteBlockingCode(): Boolean
 }

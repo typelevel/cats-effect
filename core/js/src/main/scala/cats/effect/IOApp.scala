@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,7 @@ import cats.effect.tracing.TracingConstants._
 
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
-import scala.scalajs.LinkingInfo
-import scala.scalajs.js
+import scala.scalajs.{js, LinkingInfo}
 import scala.util.Try
 
 /**
@@ -219,10 +218,13 @@ trait IOApp {
     val argList = process.argv.getOrElse(args.toList)
 
     // Store the default process.exit function, if it exists
-    val hardExit =
-      Try(js.Dynamic.global.process.exit.asInstanceOf[js.Function1[Int, Unit]]: Int => Unit)
+    val hardExit: Int => Unit =
+      Try(js.Dynamic.global.process.exit.asInstanceOf[js.Function1[Int, Unit]])
+        // we got *something*, but we don't know what it is really. so wrap in a Try
+        .map(f => (i: Int) => { Try(f(i)); () })
         .getOrElse((_: Int) => ())
 
+    var cancelCode = 1 // So this can be updated by external cancellation
     val fiber = Spawn[IO]
       .raceOutcome[ExitCode, Nothing](run(argList), keepAlive)
       .flatMap {
@@ -234,18 +236,18 @@ trait IOApp {
         case Right(_) => sys.error("impossible")
       }
       .unsafeRunFiber(
-        reportExitCode(ExitCode(1)),
+        hardExit(cancelCode),
         t => {
           t.printStackTrace()
           hardExit(1)
           throw t // For runtimes where hardExit is a no-op
         },
-        reportExitCode
+        c => hardExit(c.code)
       )(runtime)
 
     def gracefulExit(code: Int): Unit = {
       // Optionally setup a timeout to hard exit
-      val timeout = runtime.config.shutdownHookTimeout match {
+      runtime.config.shutdownHookTimeout match {
         case Duration.Zero =>
           hardExit(code)
           None
@@ -255,23 +257,15 @@ trait IOApp {
           None
       }
 
-      fiber
-        .cancel
-        .unsafeRunAsync { _ =>
-          // Clear the timeout if scheduled, so the task queue is empty
-          timeout.foreach(js.timers.clearTimeout)
-          reportExitCode(ExitCode(code))
-        }(runtime)
+      // Report the exit code before cancelling, b/c the fiber will exit itself on cancel
+      cancelCode = code
+      fiber.cancel.unsafeRunAndForget()(runtime)
     }
 
     // Override it with one that cancels the fiber instead (if process exists)
     Try(js.Dynamic.global.process.exit = gracefulExit(_))
     process.on("SIGTERM", () => gracefulExit(143))
     process.on("SIGINT", () => gracefulExit(130))
-  }
-
-  private[this] def reportExitCode(code: ExitCode): Unit = {
-    Try(js.Dynamic.global.process.exitCode = code.code).recover { case _ => () }.get
   }
 
 }

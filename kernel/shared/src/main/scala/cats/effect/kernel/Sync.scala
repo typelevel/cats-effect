@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,8 +41,10 @@ trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Unique[F] 
   /**
    * The synchronous FFI - lifts any by-name parameter into the `F[_]` context.
    *
-   * Equivalent to `Applicative.pure` for pure expressions, the purpose of this function is to
-   * suspend side effects in `F`.
+   * Equivalent to [[Applicative.pure]] for pure expressions, the purpose of this function is to
+   * suspend side effects in `F`. Use [[Sync.delay]] if your side effect is not thread-blocking;
+   * otherwise you should use [[Sync.blocking]] (uncancelable) or [[Sync.interruptible]]
+   * (cancelable).
    *
    * @param thunk
    *   The side effect which is to be suspended in `F[_]`
@@ -63,7 +65,8 @@ trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Unique[F] 
    * Like [[Sync.delay]] but intended for thread blocking operations. `blocking` will shift the
    * execution of the blocking operation to a separate threadpool to avoid blocking on the main
    * execution context. See the thread-model documentation for more information on why this is
-   * necesary.
+   * necessary. Note that the created effect will be uncancelable; if you need cancelation then
+   * you should use [[Sync.interruptible]] or [[Sync.interruptibleMany]].
    *
    * {{{
    * Sync[F].blocking(scala.io.Source.fromFile("path").mkString)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,10 @@ package cats.effect
 
 import org.specs2.mutable.Specification
 
-import java.io.File
 import scala.io.Source
-import scala.sys.process.BasicIO
-import scala.sys.process.Process
-import scala.sys.process.ProcessBuilder
+import scala.sys.process.{BasicIO, Process, ProcessBuilder}
+
+import java.io.File
 
 class IOAppSpec extends Specification {
 
@@ -200,6 +199,12 @@ class IOAppSpec extends Specification {
           }
         }
 
+        "exit on non-fatal error" in {
+          val h = platform(NonFatalError, List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("Boom!")
+        }
+
         "exit on fatal error" in {
           val h = platform(FatalError, List.empty)
           h.awaitStatus() mustEqual 1
@@ -217,6 +222,11 @@ class IOAppSpec extends Specification {
           h.awaitStatus() mustEqual 1
         }
 
+        "exit with leaked fibers" in {
+          val h = platform(LeakedFiber, List.empty)
+          h.awaitStatus() mustEqual 0
+        }
+
         "warn on global runtime collision" in {
           val h = platform(GlobalRacingInit, List.empty)
           h.awaitStatus() mustEqual 0
@@ -230,6 +240,22 @@ class IOAppSpec extends Specification {
           h.awaitStatus() mustEqual 0
         }
 
+        if (!BuildInfo.testJSIOApp) {
+          "shutdown on worker thread interruption" in {
+            val h = platform(WorkerThreadInterrupt, List.empty)
+            h.awaitStatus() mustEqual 1
+            h.stderr() must contain("java.lang.InterruptedException")
+            ok
+          }
+        }
+
+        if (BuildInfo.testJSIOApp) {
+          "gracefully ignore undefined process.exit" in {
+            val h = platform(UndefinedProcessExit, List.empty)
+            h.awaitStatus() mustEqual 0
+          }
+        }
+
         if (!BuildInfo.testJSIOApp && sys
             .props
             .get("java.version")
@@ -240,9 +266,12 @@ class IOAppSpec extends Specification {
         } else {
           "live fiber snapshot" in {
             val h = platform(LiveFiberSnapshot, List.empty)
-            // Allow the process some time to start
-            // and register the signal handlers.
-            Thread.sleep(2000L)
+
+            // wait for the application to fully start before trying to send the signal
+            while (!h.stdout().contains("ready")) {
+              Thread.sleep(100L)
+            }
+
             val pid = h.pid()
             pid must beSome
             pid.foreach(platform.sendSignal)

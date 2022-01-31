@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,10 @@
 
 package cats.effect.kernel
 
-import cats.{~>, Applicative}
+import cats.{~>, Applicative, Monoid, Semigroup}
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
-import cats.{Monoid, Semigroup}
-import cats.syntax.all._
 import cats.effect.kernel.syntax.monadCancel._
+import cats.syntax.all._
 
 /**
  * A typeclass that characterizes monads which support spawning and racing of fibers.

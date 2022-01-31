@@ -1,6 +1,5 @@
-import sbtcrossproject.CrossProject
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +22,7 @@ import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.firefox.FirefoxOptions
 import org.scalajs.jsenv.nodejs.NodeJSEnv
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
+import sbtcrossproject.CrossProject
 
 import JSEnv._
 
@@ -32,7 +32,7 @@ ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
 
 ThisBuild / startYear := Some(2020)
-ThisBuild / endYear := Some(2021)
+ThisBuild / endYear := Some(2022)
 
 ThisBuild / developers := List(
   Developer(
@@ -96,7 +96,7 @@ val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
 val MacOS = "macos-latest"
 
-val Scala213 = "2.13.7"
+val Scala213 = "2.13.8"
 val Scala3 = "3.0.2"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
@@ -104,14 +104,13 @@ ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
 ThisBuild / githubWorkflowUseSbtThinClient := false
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
 
-val OldGuardJava = "adoptium@8"
-val LTSJava = "adoptium@11"
-val LatestJava = "adoptium@17"
+val OldGuardJava = JavaSpec.temurin("8")
+val LTSJava = JavaSpec.temurin("11")
+val LatestJava = JavaSpec.temurin("17")
 val ScalaJSJava = OldGuardJava
-val GraalVM = "graalvm-ce-java11@21.3"
+val GraalVM = JavaSpec.graalvm("21.3.0", "11")
 
 ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
-ThisBuild / githubWorkflowEnv += ("JABBA_INDEX" -> "https://github.com/typelevel/jdk-index/raw/main/index.json")
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
@@ -129,6 +128,11 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
 )
 
 ThisBuild / githubWorkflowBuild := Seq(
+  WorkflowStep.Sbt(
+    List("root/scalafixAll --check"),
+    name = Some("Check that scalafix has been run"),
+    cond = Some(s"matrix.scala != '$Scala3' && matrix.os != '$Windows'")
+  ),
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
     List("docs/mdoc"),
@@ -160,7 +164,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   val scalaJavaFilters = for {
     scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
     java <- (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(OldGuardJava))
-  } yield MatrixExclude(Map("scala" -> scala, "java" -> java))
+  } yield MatrixExclude(Map("scala" -> scala, "java" -> java.render))
 
   val windowsAndMacScalaFilters =
     (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).flatMap { scala =>
@@ -177,7 +181,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
   val jsJavaAndOSFilters = jsCiVariants.flatMap { ci =>
     val javaFilters =
       (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)).map { java =>
-        MatrixExclude(Map("ci" -> ci, "java" -> java))
+        MatrixExclude(Map("ci" -> ci, "java" -> java.render))
       }
 
     javaFilters ++ Seq(
@@ -187,7 +191,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
 
   // Nice-to-haves but unreliable in CI
   val flakyFilters = Seq(
-    MatrixExclude(Map("os" -> Windows, "java" -> GraalVM))
+    MatrixExclude(Map("os" -> Windows, "java" -> GraalVM.render))
   )
 
   scalaJavaFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ jsJavaAndOSFilters ++ flakyFilters
@@ -227,7 +231,7 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.7.0"
-val Specs2Version = "4.13.1"
+val Specs2Version = "4.13.2"
 val ScalaCheckVersion = "1.15.4"
 val DisciplineVersion = "1.2.5"
 val CoopVersion = "1.1.1"
@@ -241,7 +245,9 @@ addCommandAlias(CI.JS.command, CI.JS.toString)
 addCommandAlias(CI.Firefox.command, CI.Firefox.toString)
 addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
 
-addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
+addCommandAlias(
+  "prePR",
+  "; root/clean; root/scalafixAll; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
 val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
@@ -284,21 +290,12 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
   .settings(
     name := "cats-effect-kernel",
     libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion)
-  .jvmSettings(libraryDependencies += {
-    if (isDotty.value)
-      ("org.specs2" %%% "specs2-core" % Specs2Version % Test).cross(CrossVersion.for3Use2_13)
-    else
-      "org.specs2" %%% "specs2-core" % Specs2Version % Test
-  })
+  .settings(
+    libraryDependencies += ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
+      .cross(CrossVersion.for3Use2_13)
+      .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
+  )
   .jsSettings(
-    libraryDependencies += {
-      if (isDotty.value)
-        ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
-          .cross(CrossVersion.for3Use2_13)
-          .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
-      else
-        "org.specs2" %%% "specs2-core" % Specs2Version % Test
-    },
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
 
@@ -345,6 +342,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(kernel, std)
   .settings(
     name := "cats-effect",
+    mimaPreviousArtifacts += "org.typelevel" %%% "cats-effect" % "3.3.4",
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
@@ -451,8 +449,28 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.LocalQueue.enqueueBatch"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.LocalQueue.stealInto")
-    )
+        "cats.effect.unsafe.LocalQueue.stealInto"),
+      // introduced by #2673, Cross platform weak bag implementation
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.unsafe.WorkerThread.monitor"),
+      // introduced by #2769, Simplify the transfer of WorkerThread data structures when blocking
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$Data")
+    ) ++ {
+      if (isDotty.value) {
+        // Scala 3 specific exclusions
+        Seq(
+          // introduced by #2769, Simplify the transfer of WorkerThread data structures when blocking
+          // changes to `cats.effect.unsafe` package private code
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.localQueuesForwarder"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkerThread.NullData")
+        )
+      } else Seq()
+    }
   )
   .jvmSettings(
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
@@ -469,21 +487,13 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core, kernelTestkit)
   .settings(
     name := "cats-effect-testkit",
-    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion)
-  .jvmSettings(libraryDependencies += {
-    if (isDotty.value)
-      ("org.specs2" %%% "specs2-core" % Specs2Version % Test).cross(CrossVersion.for3Use2_13)
-    else
-      "org.specs2" %%% "specs2-core" % Specs2Version % Test
-  })
-  .jsSettings(libraryDependencies += {
-    if (isDotty.value)
+    libraryDependencies ++= Seq(
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
       ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
         .cross(CrossVersion.for3Use2_13)
         .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
-    else
-      "org.specs2" %%% "specs2-core" % Specs2Version % Test
-  })
+    )
+  )
 
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
@@ -495,8 +505,15 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
   .settings(
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
+      ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
+        .cross(CrossVersion.for3Use2_13)
+        .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
+        .exclude("org.scalacheck", "scalacheck_2.13")
+        .exclude("org.scalacheck", "scalacheck_sjs1_2.13"),
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
-      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test),
+      "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test
+    ),
     buildInfoPackage := "catseffect"
   )
   .jsSettings(
@@ -538,27 +555,16 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(kernel)
   .settings(
     name := "cats-effect-std",
-    libraryDependencies += "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test)
-  .jvmSettings(libraryDependencies += {
-    if (isDotty.value)
+    libraryDependencies ++= Seq(
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
       ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
         .cross(CrossVersion.for3Use2_13)
+        .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
         .exclude("org.scalacheck", "scalacheck_2.13")
         .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
-    else
-      "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
-  })
+    )
+  )
   .jsSettings(
-    libraryDependencies += {
-      if (isDotty.value)
-        ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
-          .cross(CrossVersion.for3Use2_13)
-          .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
-          .exclude("org.scalacheck", "scalacheck_2.13")
-          .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
-      else
-        "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
-    },
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
 

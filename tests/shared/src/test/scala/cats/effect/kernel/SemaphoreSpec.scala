@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,10 @@ package std
 
 import cats.arrow.FunctionK
 import cats.syntax.all._
-import scala.concurrent.duration._
 
 import org.specs2.specification.core.Fragments
+
+import scala.concurrent.duration._
 
 class SemaphoreSpec extends BaseSpec { outer =>
 

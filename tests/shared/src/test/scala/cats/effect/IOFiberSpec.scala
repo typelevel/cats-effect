@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,7 @@
 
 package fiber // Get out of CE package b/c trace filtering
 
-import cats.effect.BaseSpec
-import cats.effect.IO
+import cats.effect.{BaseSpec, IO}
 
 import scala.concurrent.duration._
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,10 @@ import cats.effect.tracing.TracingConstants._
 import cats.effect.unsafe.FiberMonitor
 
 import scala.concurrent.{blocking, CancellationException}
+import scala.util.control.NonFatal
 
-import java.util.concurrent.CountDownLatch
+import java.util.concurrent.{ArrayBlockingQueue, CountDownLatch}
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining
@@ -199,6 +201,9 @@ trait IOApp {
   def run(args: List[String]): IO[ExitCode]
 
   final def main(args: Array[String]): Unit = {
+    // checked in openjdk 8-17; this attempts to detect when we're running under artificial environments, like sbt
+    val isForked = Thread.currentThread().getId() == 1
+
     if (runtime == null) {
       import unsafe.IORuntime
 
@@ -257,43 +262,44 @@ trait IOApp {
     }
 
     val rt = Runtime.getRuntime()
-
-    val latch = new CountDownLatch(1)
-    @volatile var error: Throwable = null
-    @volatile var result: ExitCode = null
+    val queue = new ArrayBlockingQueue[AnyRef](1)
+    val counter = new AtomicInteger(1)
 
     val ioa = run(args.toList)
 
     val fiber =
       ioa.unsafeRunFiber(
         {
-          error = new CancellationException("IOApp main fiber was canceled")
-          latch.countDown()
+          counter.decrementAndGet()
+          queue.offer(new CancellationException("IOApp main fiber was canceled"))
+          ()
         },
         { t =>
-          error = t
-          latch.countDown()
+          counter.decrementAndGet()
+          queue.offer(t)
+          ()
         },
         { a =>
-          result = a
-          latch.countDown()
-        })(runtime)
+          counter.decrementAndGet()
+          queue.offer(a)
+          ()
+        }
+      )(runtime)
 
     if (isStackTracing)
-      runtime.fiberMonitor.monitorSuspended(fiber, fiber)
+      runtime.fiberMonitor.monitorSuspended(fiber)
 
     def handleShutdown(): Unit = {
-      if (latch.getCount() > 0) {
+      if (counter.compareAndSet(1, 0)) {
         val cancelLatch = new CountDownLatch(1)
         fiber.cancel.unsafeRunAsync(_ => cancelLatch.countDown())(runtime)
 
-        blocking {
-          val timeout = runtimeConfig.shutdownHookTimeout
-          if (timeout.isFinite) {
-            cancelLatch.await(timeout.length, timeout.unit)
-          } else {
-            cancelLatch.await()
-          }
+        val timeout = runtimeConfig.shutdownHookTimeout
+        if (timeout.isFinite) {
+          blocking(cancelLatch.await(timeout.length, timeout.unit))
+          ()
+        } else {
+          blocking(cancelLatch.await())
         }
       }
 
@@ -314,28 +320,43 @@ trait IOApp {
     }
 
     try {
-      blocking(latch.await())
-      error match {
-        case null =>
+      val result = blocking(queue.take())
+      result match {
+        case ec: ExitCode =>
           // Clean up after ourselves, relevant for running IOApps in sbt,
           // otherwise scheduler threads will accumulate over time.
           runtime.shutdown()
-          if (result == ExitCode.Success) {
+          if (ec == ExitCode.Success) {
             // Return naturally from main. This allows any non-daemon
             // threads to gracefully complete their work, and managed
             // environments to execute their own shutdown hooks.
-            if (NonDaemonThreadLogger.isEnabled())
+            if (isForked && NonDaemonThreadLogger.isEnabled())
               new NonDaemonThreadLogger().start()
             else
               ()
-          } else {
-            System.exit(result.code)
+          } else if (isForked) {
+            System.exit(ec.code)
           }
-        case _: CancellationException =>
-          // Do not report cancelation exceptions but still exit with an error code.
-          System.exit(1)
+
+        case e: CancellationException =>
+          if (isForked)
+            // Do not report cancelation exceptions but still exit with an error code.
+            System.exit(1)
+          else
+            // if we're unforked, the only way to report cancelation is to throw
+            throw e
+
+        case NonFatal(t) =>
+          if (isForked) {
+            t.printStackTrace()
+            System.exit(1)
+          } else {
+            throw t
+          }
+
         case t: Throwable =>
-          throw t
+          t.printStackTrace()
+          rt.halt(1)
       }
     } catch {
       // this handles sbt when fork := false

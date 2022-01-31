@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package cats.effect.unsafe
 
+import cats.effect.tracing.TracingConstants
+
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 
 import scala.concurrent.ExecutionContext
@@ -24,7 +26,7 @@ import scala.scalajs.LinkingInfo
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
   def defaultComputeExecutionContext: ExecutionContext =
-    if (LinkingInfo.developmentMode && IterableWeakMap.isAvailable)
+    if (LinkingInfo.developmentMode && TracingConstants.isStackTracing && FiberMonitor.weakRefsAvailable)
       new FiberAwareExecutionContext(MacrotaskExecutor)
     else
       MacrotaskExecutor

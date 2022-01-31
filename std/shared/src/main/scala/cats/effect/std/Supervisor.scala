@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -107,7 +107,7 @@ object Supervisor {
     // It would have preferable to use Scope here but explicit cancelation is
     // intertwined with resource management
     for {
-      stateRef <- Resource.make(F.ref[Map[Unique.Token, F[Unit]]](Map())) { state =>
+      stateRef <- Resource.make(F.ref[Map[Unique.Token, F[Unit]]](Map.empty)) { state =>
         state
           .get
           .flatMap { fibers =>
