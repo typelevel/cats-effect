@@ -71,7 +71,10 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
 
   def execute(r: Runnable): Unit =
     synchronized {
-      stateRef = stateRef.execute(r)
+      val current = stateRef
+      val newID = current.lastID + 1
+      val task = Task(newID, r, current.clock, random.nextLong())
+      stateRef = current.copy(lastID = newID, tasks = current.tasks + task)
     }
 
   def reportFailure(cause: Throwable): Unit =
@@ -130,23 +133,29 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
    *   `true` if a task was available in the internal queue, and was executed, or `false`
    *   otherwise
    */
-  def tickOne(): Boolean =
-    synchronized {
+  def tickOne(): Boolean = {
+    val head = synchronized {
       val current = stateRef
 
-      // extracting one task by taking the immediate tasks
-      extractOneTask(current, current.clock, random) match {
-        case Some((head, rest)) =>
-          stateRef = current.copy(tasks = rest)
-          // execute task
-          try head.task.run()
-          catch { case NonFatal(ex) => reportFailure(ex) }
-          true
-
-        case None =>
-          false
+      // extracting one task
+      val head = current.tasks.headOption.filter(_.runsAt <= current.clock)
+      head.foreach { head =>
+        val rest = current.tasks - head
+        stateRef = current.copy(tasks = rest)
       }
+      head
     }
+
+    head match {
+      case Some(head) =>
+        // execute task
+        try head.task.run()
+        catch { case NonFatal(ex) => reportFailure(ex) }
+        true
+      case None =>
+        false
+    }
+  }
 
   @tailrec
   def tick(): Unit =
@@ -189,7 +198,14 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
   def schedule(delay: FiniteDuration, r: Runnable): () => Unit =
     synchronized {
       val current: State = stateRef
-      val (cancelable, newState) = current.scheduleOnce(delay, r, cancelTask)
+
+      val d = if (delay >= Duration.Zero) delay else Duration.Zero
+      val newID = current.lastID + 1
+
+      val task = Task(newID, r, current.clock + d, random.nextLong())
+      val cancelable = () => cancelTask(task)
+      val newState = current.copy(lastID = newID, tasks = current.tasks + task)
+
       stateRef = newState
       cancelable
     }
@@ -216,25 +232,6 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
 
   def seed: String =
     new String(Encoder.encode(_seed.toString.getBytes))
-
-  private def extractOneTask(
-      current: State,
-      clock: FiniteDuration,
-      random: Random): Option[(Task, SortedSet[Task])] =
-    current.tasks.headOption.filter(_.runsAt <= clock) match {
-      case Some(value) =>
-        val firstTick = value.runsAt
-        val forExecution = {
-          val arr = current.tasks.iterator.takeWhile(_.runsAt == firstTick).take(10).toArray
-          arr(random.nextInt(arr.length))
-        }
-
-        val remaining = current.tasks - forExecution
-        Some((forExecution, remaining))
-
-      case None =>
-        None
-    }
 
   private def cancelTask(t: Task): Unit =
     synchronized {
@@ -276,44 +273,12 @@ object TestContext {
       lastID: Long,
       clock: FiniteDuration,
       tasks: SortedSet[Task],
-      lastReportedFailure: Option[Throwable]) {
-
-    /**
-     * Returns a new state with the runnable scheduled for execution.
-     */
-    private[TestContext] def execute(runnable: Runnable): State = {
-      val newID = lastID + 1
-      val task = Task(newID, runnable, clock)
-      copy(lastID = newID, tasks = tasks + task)
-    }
-
-    /**
-     * Returns a new state with a scheduled task included.
-     */
-    private[TestContext] def scheduleOnce(
-        delay: FiniteDuration,
-        r: Runnable,
-        cancelTask: Task => Unit): (() => Unit, State) = {
-
-      val d = if (delay >= Duration.Zero) delay else Duration.Zero
-      val newID = lastID + 1
-
-      val task = Task(newID, r, this.clock + d)
-      val cancelable = () => cancelTask(task)
-
-      (
-        cancelable,
-        copy(
-          lastID = newID,
-          tasks = tasks + task
-        ))
-    }
-  }
+      lastReportedFailure: Option[Throwable])
 
   /**
    * Used internally by [[TestContext]], represents a unit of work pending execution.
    */
-  final case class Task(id: Long, task: Runnable, runsAt: FiniteDuration)
+  final case class Task(id: Long, task: Runnable, runsAt: FiniteDuration, private val rnd: Long)
 
   /**
    * Internal API — defines ordering for [[Task]], to be used by `SortedSet`.
@@ -325,10 +290,8 @@ object TestContext {
 
         def compare(x: Task, y: Task): Int =
           x.runsAt.compare(y.runsAt) match {
-            case nonZero if nonZero != 0 =>
-              nonZero
-            case _ =>
-              longOrd.compare(x.id, y.id)
+            case 0 => longOrd.compare(x.id + x.rnd, y.id + y.rnd)
+            case nonZero => nonZero
           }
       }
   }
