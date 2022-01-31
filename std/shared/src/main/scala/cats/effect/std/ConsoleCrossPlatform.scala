@@ -34,20 +34,7 @@ import java.lang.{StringBuilder => JStringBuilder}
 import java.nio.{ByteBuffer, CharBuffer}
 import java.nio.charset.{Charset, CodingErrorAction, MalformedInputException}
 
-/**
- * Effect type agnostic `Console` with common methods to write to and read from the standard
- * console. Suited only for extremely simple console input and output.
- *
- * @example
- *   {{{ import cats.effect.std.Console import cats.effect.kernel.Sync import cats.syntax.all._
- *
- * implicit val console = Console.sync[F]
- *
- * def myProgram[F[_]: Console]: F[Unit] = for { _ <- Console[F].println("Please enter your
- * name: ") n <- Console[F].readLine _ <- if (n.nonEmpty) Console[F].println("Hello, " + n) else
- * Console[F].errorln("Name is empty!") } yield () }}}
- */
-trait Console[F[_]] extends ConsolePlatform[F] { self =>
+private[std] trait ConsoleCrossPlatform[F[_]] { self: Console[F] =>
 
   /**
    * Prints a value to the standard output using the implicit `cats.Show` instance.
@@ -94,12 +81,7 @@ trait Console[F[_]] extends ConsolePlatform[F] { self =>
   /**
    * Prints the stack trace of the given Throwable to standard error output.
    */
-  def printStackTrace(t: Throwable): F[Unit] = {
-    val baos = new ByteArrayOutputStream()
-    val ps = new PrintStream(baos)
-    t.printStackTrace(ps)
-    error(baos.toString)
-  }
+  def printStackTrace(t: Throwable): F[Unit]
 
   /**
    * Modifies the context in which this console operates using the natural transformation `f`.
@@ -107,27 +89,10 @@ trait Console[F[_]] extends ConsolePlatform[F] { self =>
    * @return
    *   a console in the new context obtained by mapping the current one using `f`
    */
-  def mapK[G[_]](f: F ~> G): Console[G] =
-    new Console.MapKConsole(self, f) {
-
-      def print[A](a: A)(implicit S: Show[A]): G[Unit] =
-        f(self.print(a))
-
-      def println[A](a: A)(implicit S: Show[A]): G[Unit] =
-        f(self.println(a))
-
-      def error[A](a: A)(implicit S: Show[A]): G[Unit] =
-        f(self.error(a))
-
-      def errorln[A](a: A)(implicit S: Show[A]): G[Unit] =
-        f(self.errorln(a))
-
-      override def printStackTrace(t: Throwable): G[Unit] =
-        f(self.printStackTrace(t))
-    }
+  def mapK[G[_]](f: F ~> G): Console[G]
 }
 
-object Console extends ConsoleCompanionPlatform {
+private[std] abstract class ConsoleCompanionCrossPlatform {
 
   /**
    * Summoner method for `Console` instances.
@@ -295,4 +260,31 @@ object Console extends ConsoleCompanionPlatform {
     override def printStackTrace(t: Throwable): F[Unit] =
       F.blocking(t.printStackTrace())
   }
+
+  private[std] def printStackTrace[F[_]](c: Console[F])(t: Throwable): F[Unit] = {
+    val baos = new ByteArrayOutputStream()
+    val ps = new PrintStream(baos)
+    t.printStackTrace(ps)
+    c.error(baos.toString)
+  }
+
+  private[std] def mapK[F[_], G[_]](self: Console[F])(f: F ~> G): Console[G] =
+    new Console.MapKConsole(self, f) {
+
+      def print[A](a: A)(implicit S: Show[A]): G[Unit] =
+        f(self.print(a))
+
+      def println[A](a: A)(implicit S: Show[A]): G[Unit] =
+        f(self.println(a))
+
+      def error[A](a: A)(implicit S: Show[A]): G[Unit] =
+        f(self.error(a))
+
+      def errorln[A](a: A)(implicit S: Show[A]): G[Unit] =
+        f(self.errorln(a))
+
+      override def printStackTrace(t: Throwable): G[Unit] =
+        f(self.printStackTrace(t))
+    }
+
 }

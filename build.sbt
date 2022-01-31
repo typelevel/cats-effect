@@ -562,6 +562,11 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
         .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
         .exclude("org.scalacheck", "scalacheck_2.13")
         .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
+    ),
+    mimaBinaryIssueFilters ++= Seq(
+      // introduced by #2604, Fix Console on JS
+      // changes to `cats.effect.std` package private code
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Console$SyncConsole")
     )
   )
   .jsSettings(

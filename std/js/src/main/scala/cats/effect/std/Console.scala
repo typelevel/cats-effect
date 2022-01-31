@@ -16,9 +16,9 @@
 
 package cats.effect.std
 
+import cats.{~>, Show}
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all._
-import cats.~>
 
 import scala.annotation.nowarn
 import scala.scalajs.js
@@ -26,7 +26,46 @@ import scala.util.Try
 
 import java.nio.charset.Charset
 
-private[std] trait ConsoleCompanionPlatform { this: Console.type =>
+/**
+ * Effect type agnostic `Console` with common methods to write to and read from the standard
+ * console. Suited only for extremely simple console input and output.
+ *
+ * @example
+ *   {{{ import cats.effect.std.Console import cats.effect.kernel.Sync import cats.syntax.all._
+ *
+ * implicit val console = Console.sync[F]
+ *
+ * def myProgram[F[_]: Console]: F[Unit] = for { _ <- Console[F].println("Please enter your
+ * name: ") n <- Console[F].readLine _ <- if (n.nonEmpty) Console[F].println("Hello, " + n) else
+ * Console[F].errorln("Name is empty!") } yield () }}}
+ */
+trait Console[F[_]] extends ConsoleCrossPlatform[F] {
+
+  @deprecated("Not implemented for Scala.js. On Node.js consider using fs2.io.stdin.", "3.4.0")
+  def readLine: F[String] =
+    readLineWithCharset(Charset.defaultCharset())
+
+  @deprecated("Not implemented for Scala.js. On Node.js consider using fs2.io.stdin.", "3.4.0")
+  def readLineWithCharset(charset: Charset): F[String]
+
+  // redeclarations for bincompat
+
+  def print[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit]
+
+  def println[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit]
+
+  def error[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit]
+
+  def errorln[A](a: A)(implicit S: Show[A] = Show.fromToString[A]): F[Unit]
+
+  def printStackTrace(t: Throwable): F[Unit] =
+    Console.printStackTrace(this)(t)
+
+  def mapK[G[_]](f: F ~> G): Console[G] = Console.mapK(this)(f)
+
+}
+
+object Console extends ConsoleCompanionCrossPlatform {
 
   /**
    * Constructs a `Console` instance for `F` data types that are [[cats.effect.kernel.Sync]].
