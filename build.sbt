@@ -456,7 +456,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[ReversedMissingMethodProblem](
         "cats.effect.IOApp.cats$effect$IOApp$_setter_$cats$effect$IOApp$$queue_="),
       ProblemFilters.exclude[ReversedMissingMethodProblem](
-        "cats.effect.IOApp.cats$effect$IOApp$$queue"),
+        "cats.effect.IOApp.cats$effect$IOApp$$queue")
     )
   )
   .jvmSettings(
