@@ -62,7 +62,7 @@ final class IORuntimeBuilder protected (
   }
 
   /**
-   * Override the defaul blocking execution context
+   * Override the default blocking execution context
    *
    * @param compute
    *   execution context for blocking
