@@ -86,14 +86,15 @@ object Console extends ConsoleCompanionCrossPlatform {
       f(self.readLineWithCharset(charset)): @nowarn("cat=deprecation")
   }
 
-  private[std] final class NodeJSConsole[F[_]](process: js.Dynamic)(implicit F: Async[F])
+  private final class NodeJSConsole[F[_]](process: js.Dynamic)(implicit F: Async[F])
       extends Console[F] {
 
     private def write(writable: js.Dynamic, s: String): F[Unit] =
       F.async_[Unit] { cb =>
-        writable.write(
-          s,
-          (e: js.UndefOr[js.Error]) => cb(e.map(js.JavaScriptException(_)).toLeft(())))
+        if (writable.write(s).asInstanceOf[Boolean]) // no backpressure
+          cb(Right(()))
+        else // wait for drain event
+          writable.once("drain", () => cb(Right(())))
         ()
       }
 
