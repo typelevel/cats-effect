@@ -328,7 +328,8 @@ private final class WorkerThread(
         try {
           // Wait for the configured amount of time.
           val blockingCacheExpiration = pool.blockingCacheExpiration
-          var newIdx: Integer = indexTransfer.poll(blockingCacheExpiration.length, blockingCacheExpiration.unit)
+          var newIdx: Integer =
+            indexTransfer.poll(blockingCacheExpiration.length, blockingCacheExpiration.unit)
           if (newIdx eq null) {
             // The timeout elapsed and no one woke up this thread. Try to remove
             // the thread from the cached threads data structure.

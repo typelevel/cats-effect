@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-package cats.effect
-package unsafe
+package cats.effect.unsafe
 
 import scala.concurrent.duration._
+import scala.util.Try
+
+import IORuntimeConfig._
+import IORuntimeConfigDefaults._
 
 final case class IORuntimeConfig private (
     val cancelationCheckThreshold: Int,
@@ -25,7 +28,46 @@ final case class IORuntimeConfig private (
     val enhancedExceptions: Boolean,
     val traceBufferSize: Int,
     val shutdownHookTimeout: Duration,
-    val blockingCacheExpiration: Duration) {
+    val blockingCacheExpiration: Duration
+) {
+  private[unsafe] def this(cancelationCheckThreshold: Int, autoYieldThreshold: Int) =
+    this(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      DefaultEnhancedExceptions,
+      DefaultTraceBufferSize,
+      DefaultShutdownHookTimeout,
+      DefaultBlockingCacheExpiration
+    )
+
+  private[unsafe] def this(
+      cancelationCheckThreshold: Int,
+      autoYieldThreshold: Int,
+      enhancedExceptions: Boolean,
+      traceBufferSize: Int) =
+    this(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize,
+      DefaultShutdownHookTimeout,
+      DefaultBlockingCacheExpiration
+    )
+
+  private[unsafe] def this(
+      cancelationCheckThreshold: Int,
+      autoYieldThreshold: Int,
+      enhancedExceptions: Boolean,
+      traceBufferSize: Int,
+      shutdownHookTimeout: Duration
+  ) = this(
+    cancelationCheckThreshold,
+    autoYieldThreshold,
+    enhancedExceptions,
+    traceBufferSize,
+    shutdownHookTimeout,
+    DefaultBlockingCacheExpiration
+  )
 
   def copy(
       cancelationCheckThreshold: Int = this.cancelationCheckThreshold,
@@ -40,44 +82,8 @@ final case class IORuntimeConfig private (
       enhancedExceptions,
       traceBufferSize,
       shutdownHookTimeout,
-      blockingCacheExpiration)
-
-  // shims for binary compat
-  private[unsafe] def this(cancelationCheckThreshold: Int, autoYieldThreshold: Int) =
-    this(
-      cancelationCheckThreshold,
-      autoYieldThreshold,
-      IORuntimeConfig.DefaultEnhancedExceptions,
-      IORuntimeConfig.DefaultTraceBufferSize,
-      IORuntimeConfig.DefaultShutdownHookTimeout,
-      IORuntimeConfig.DefaultBlockingCacheExpiration)
-
-  private[unsafe] def this(
-      cancelationCheckThreshold: Int,
-      autoYieldThreshold: Int,
-      enhancedExceptions: Boolean,
-      traceBufferSize: Int) =
-    this(
-      cancelationCheckThreshold,
-      autoYieldThreshold,
-      enhancedExceptions,
-      traceBufferSize,
-      IORuntimeConfig.DefaultShutdownHookTimeout,
-      IORuntimeConfig.DefaultBlockingCacheExpiration)
-
-  private[unsafe] def this(
-      cancelationCheckThreshold: Int,
-      autoYieldThreshold: Int,
-      enhancedExceptions: Boolean,
-      traceBufferSize: Int,
-      shutdownHookTimeout: Duration) =
-    this(
-      cancelationCheckThreshold,
-      autoYieldThreshold,
-      enhancedExceptions,
-      traceBufferSize,
-      shutdownHookTimeout,
-      IORuntimeConfig.DefaultBlockingCacheExpiration)
+      blockingCacheExpiration
+    )
 
   private[unsafe] def copy(
       cancelationCheckThreshold: Int,
@@ -88,7 +94,8 @@ final case class IORuntimeConfig private (
       enhancedExceptions,
       traceBufferSize,
       shutdownHookTimeout,
-      blockingCacheExpiration)
+      blockingCacheExpiration
+    )
 
   private[unsafe] def copy(
       cancelationCheckThreshold: Int,
@@ -101,35 +108,68 @@ final case class IORuntimeConfig private (
       enhancedExceptions,
       traceBufferSize,
       shutdownHookTimeout,
-      blockingCacheExpiration)
+      blockingCacheExpiration
+    )
 
   private[unsafe] def copy(
       cancelationCheckThreshold: Int,
       autoYieldThreshold: Int,
       enhancedExceptions: Boolean,
       traceBufferSize: Int,
-      shutdownHookTimeout: Duration): IORuntimeConfig =
+      shutdownHookTimeout: Duration
+  ): IORuntimeConfig =
     new IORuntimeConfig(
       cancelationCheckThreshold,
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
       shutdownHookTimeout,
-      blockingCacheExpiration)
+      blockingCacheExpiration
+    )
 
   private[effect] val traceBufferLogSize: Int =
     Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt
 }
 
+private[unsafe] abstract class IORuntimeConfigCompanionPlatform { self: IORuntimeConfig.type =>
+}
+
 object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
+  def apply(): IORuntimeConfig = {
+    // TODO make the cancelation and auto-yield properties have saner names
+    val cancelationCheckThreshold =
+      Try(System.getProperty("cats.effect.cancelation.check.threshold").toInt).getOrElse(512)
 
-  // these have to be defs because we forward-reference them from the companion platform
-  private[unsafe] def DefaultEnhancedExceptions = true
-  private[unsafe] def DefaultTraceBufferSize = 16
-  private[unsafe] def DefaultShutdownHookTimeout = Duration.Inf
-  private[unsafe] def DefaultBlockingCacheExpiration = 60.seconds
+    val autoYieldThreshold =
+      Try(System.getProperty("cats.effect.auto.yield.threshold.multiplier").toInt)
+        .getOrElse(2) * cancelationCheckThreshold
 
-  def apply(): IORuntimeConfig = Default
+    val enhancedExceptions =
+      Try(System.getProperty("cats.effect.tracing.exceptions.enhanced").toBoolean)
+        .getOrElse(DefaultEnhancedExceptions)
+
+    val traceBufferSize =
+      Try(System.getProperty("cats.effect.tracing.buffer.size").toInt)
+        .getOrElse(DefaultTraceBufferSize)
+
+    val shutdownHookTimeout =
+      Try(System.getProperty("cats.effect.shutdown.hook.timeout"))
+        .map(Duration(_))
+        .getOrElse(DefaultShutdownHookTimeout)
+
+    val blockingCacheExpiration =
+      Try(System.getProperty("cats.effect.blocking.cache.expiration"))
+        .map(Duration(_))
+        .getOrElse(DefaultBlockingCacheExpiration)
+
+    apply(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize,
+      shutdownHookTimeout,
+      blockingCacheExpiration)
+  }
 
   def apply(cancelationCheckThreshold: Int, autoYieldThreshold: Int): IORuntimeConfig =
     apply(
@@ -145,46 +185,32 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       cancelationCheckThreshold: Int,
       autoYieldThreshold: Int,
       enhancedExceptions: Boolean,
-      traceBufferSize: Int): IORuntimeConfig =
+      traceBufferSize: Int
+  ): IORuntimeConfig =
     apply(
       cancelationCheckThreshold,
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
       DefaultShutdownHookTimeout,
-      DefaultBlockingCacheExpiration)
+      DefaultBlockingCacheExpiration
+    )
 
   def apply(
       cancelationCheckThreshold: Int,
       autoYieldThreshold: Int,
       enhancedExceptions: Boolean,
       traceBufferSize: Int,
-      shutdownHookTimeout: Duration): IORuntimeConfig =
+      shutdownHookTimeout: Duration
+  ): IORuntimeConfig =
     apply(
       cancelationCheckThreshold,
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
       shutdownHookTimeout,
-      DefaultBlockingCacheExpiration)
+      DefaultBlockingCacheExpiration
+    )
 
-  def apply(
-      cancelationCheckThreshold: Int,
-      autoYieldThreshold: Int,
-      enhancedExceptions: Boolean,
-      traceBufferSize: Int,
-      shutdownHookTimeout: Duration,
-      blockingCacheExpiration: Duration): IORuntimeConfig = {
-    if (autoYieldThreshold % cancelationCheckThreshold == 0)
-      new IORuntimeConfig(
-        cancelationCheckThreshold,
-        autoYieldThreshold,
-        enhancedExceptions,
-        1 << Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt,
-        shutdownHookTimeout,
-        blockingCacheExpiration)
-    else
-      throw new AssertionError(
-        s"Auto yield threshold $autoYieldThreshold must be a multiple of cancelation check threshold $cancelationCheckThreshold")
-  }
+  private final val DefaultBlockingCacheExpiration: Duration = 60.seconds
 }
