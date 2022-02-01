@@ -70,11 +70,22 @@ object Console extends ConsoleCompanionCrossPlatform {
   /**
    * Constructs a `Console` instance for `F` data types that are [[cats.effect.kernel.Async]].
    */
-  def make[F[_]](implicit F: Async[F]): Console[F] =
-    Try(js.Dynamic.global.process)
-      .filter(p => !js.isUndefined(p.stdout))
-      .map(new NodeJSConsole(_))
-      .getOrElse(new SyncConsole)
+  def make[F[_]](implicit F: Async[F]): Console[F] = {
+
+    val stdout = Try(js.Dynamic.global.process.stdout)
+      .toOption
+      .flatMap(Option(_))
+      .filterNot(js.isUndefined(_))
+
+    val stderr = Try(js.Dynamic.global.process.stderr)
+      .toOption
+      .flatMap(Option(_))
+      .filterNot(js.isUndefined(_))
+
+    stdout.zip(stderr).map {
+      case (stdout, stderr) => new NodeJSConsole(stdout, stderr)
+    } getOrElse new SyncConsole
+  }
 
   @deprecated("Retaining for bincompat", "3.4.0")
   private[std] def make[F[_]](implicit F: Sync[F]): Console[F] =
@@ -86,7 +97,8 @@ object Console extends ConsoleCompanionCrossPlatform {
       f(self.readLineWithCharset(charset)): @nowarn("cat=deprecation")
   }
 
-  private final class NodeJSConsole[F[_]](process: js.Dynamic)(implicit F: Async[F])
+  private final class NodeJSConsole[F[_]](stdout: js.Dynamic, stderr: js.Dynamic)(
+      implicit F: Async[F])
       extends Console[F] {
 
     private def write(writable: js.Dynamic, s: String): F[Unit] =
@@ -104,13 +116,13 @@ object Console extends ConsoleCompanionCrossPlatform {
         write(writable, "\n") *>
         F.delay(writable.uncork()).void
 
-    def error[A](a: A)(implicit S: cats.Show[A]): F[Unit] = write(process.stderr, S.show(a))
+    def error[A](a: A)(implicit S: cats.Show[A]): F[Unit] = write(stderr, S.show(a))
 
-    def errorln[A](a: A)(implicit S: cats.Show[A]): F[Unit] = writeln(process.stderr, S.show(a))
+    def errorln[A](a: A)(implicit S: cats.Show[A]): F[Unit] = writeln(stderr, S.show(a))
 
-    def print[A](a: A)(implicit S: cats.Show[A]): F[Unit] = write(process.stdout, S.show(a))
+    def print[A](a: A)(implicit S: cats.Show[A]): F[Unit] = write(stdout, S.show(a))
 
-    def println[A](a: A)(implicit S: cats.Show[A]): F[Unit] = writeln(process.stdout, S.show(a))
+    def println[A](a: A)(implicit S: cats.Show[A]): F[Unit] = writeln(stdout, S.show(a))
 
     def readLineWithCharset(charset: Charset): F[String] =
       F.raiseError(
