@@ -82,10 +82,7 @@ object Console extends ConsoleCompanionCrossPlatform {
       .flatMap(Option(_))
       .filterNot(js.isUndefined(_))
 
-    stdout
-      .product(stderr)
-      .map { case (stdout, stderr) => new NodeJSConsole(stdout, stderr) }
-      .getOrElse(new SyncConsole)
+    stdout.map2(stderr)(new NodeJSConsole(_, _)).getOrElse(new SyncConsole)
   }
 
   @deprecated("Retaining for bincompat", "3.4.0")
