@@ -84,7 +84,7 @@ object Console extends ConsoleCompanionCrossPlatform {
 
     stdout.zip(stderr).map {
       case (stdout, stderr) => new NodeJSConsole(stdout, stderr)
-    } getOrElse new SyncConsole
+    }.getOrElse(new SyncConsole)
   }
 
   @deprecated("Retaining for bincompat", "3.4.0")
