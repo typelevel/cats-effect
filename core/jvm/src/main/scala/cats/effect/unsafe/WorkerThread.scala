@@ -22,7 +22,7 @@ import cats.effect.tracing.TracingConstants
 import scala.annotation.switch
 import scala.concurrent.{BlockContext, CanAwait}
 
-import java.util.concurrent.{ArrayBlockingQueue, ThreadLocalRandom, TimeUnit}
+import java.util.concurrent.{ArrayBlockingQueue, ThreadLocalRandom}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
 
@@ -326,9 +326,10 @@ private final class WorkerThread(
         // by another thread in the future.
         pool.cachedThreads.add(this)
         try {
-          // Wait up to 60 seconds (should be configurable in the future) for
-          // another thread to wake this thread up.
-          var newIdx: Integer = indexTransfer.poll(60L, TimeUnit.SECONDS)
+          // Wait for the configured amount of time.
+          val runtimeBlockingExpiration = pool.runtimeBlockingExpiration
+          var newIdx: Integer =
+            indexTransfer.poll(runtimeBlockingExpiration.length, runtimeBlockingExpiration.unit)
           if (newIdx eq null) {
             // The timeout elapsed and no one woke up this thread. Try to remove
             // the thread from the cached threads data structure.

@@ -34,6 +34,7 @@ import cats.effect.tracing.TracingConstants
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.Duration
 
 import java.util.Comparator
 import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
@@ -99,6 +100,8 @@ private[effect] final class WorkStealingThreadPool(
 
   private[unsafe] val cachedThreads: ConcurrentSkipListSet[WorkerThread] =
     new ConcurrentSkipListSet(Comparator.comparingInt[WorkerThread](_.nameIndex))
+  private[unsafe] def runtimeBlockingExpiration: Duration =
+    self.config.runtimeBlockingExpiration
 
   /**
    * The shutdown latch of the work stealing thread pool.
