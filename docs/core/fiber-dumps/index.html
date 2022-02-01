@@ -1,0 +1,135 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Fiber Dumps · Cats Effect</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="One of the most annoying and difficult problems to resolve in any asynchronous application is the *asynchronous deadlock*. This scenario happens when you have a classic deadlock of some variety, where one fiber is waiting for a second fiber which is in turn waiting for the first (in the simplest case). Due to the asynchronous nature of the runtime, whenever a fiber blocks, all references to it are removed from the internal runtime, meaning that a deadlock generally leaves absolutely no residue whatsoever, and the only recourse as a developer is to just start sprinkling `IO.println` expressions around the code to see if you can figure out where it&#x27;s getting stuck."/><meta name="docsearch:version" content="3.x"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Fiber Dumps · Cats Effect"/><meta property="og:type" content="website"/><meta property="og:url" content="https://typelevel.org/cats-effect/"/><meta property="og:description" content="One of the most annoying and difficult problems to resolve in any asynchronous application is the *asynchronous deadlock*. This scenario happens when you have a classic deadlock of some variety, where one fiber is waiting for a second fiber which is in turn waiting for the first (in the simplest case). Due to the asynchronous nature of the runtime, whenever a fiber blocks, all references to it are removed from the internal runtime, meaning that a deadlock generally leaves absolutely no residue whatsoever, and the only recourse as a developer is to just start sprinkling `IO.println` expressions around the code to see if you can figure out where it&#x27;s getting stuck."/><meta property="og:image" content="https://typelevel.org/cats-effect/img/undraw_online.svg"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/undraw_tweetstorm.svg"/><link rel="shortcut icon" href="/cats-effect/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github-gist.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="/cats-effect/js/scrollSpy.js"></script><link rel="stylesheet" href="/cats-effect/css/main.css"/><script src="/cats-effect/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/cats-effect/"><img class="logo" src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect"/><h2 class="headerTitleWithLogo">Cats Effect</h2></a><a href="/cats-effect/versions"><h3>3.x</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/cats-effect/docs/getting-started" target="_self">Docs</a></li><li class=""><a href="/cats-effect/api/3.x/cats/effect/index.html" target="_self">API</a></li><li class=""><a target="_self"></a></li><li class=""><a href="https://github.com/typelevel/cats-effect" target="_blank">GitHub</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Core Runtime</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Overview<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/getting-started">Getting Started</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/concepts">Concepts</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/tutorial">Tutorial</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/migration-guide">Migration Guide</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Core Runtime<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/core/test-runtime">Test Runtime</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/cats-effect/docs/core/fiber-dumps">Fiber Dumps</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/tracing">Tracing</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/thread-model">Thread Model</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/schedulers">Schedulers</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/scaling-and-tuning/io-runtime-config">IORuntime Configuration</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/core/native-image">GraalVM Native Image</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/core/jlink">Jlink image</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Typeclasses<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses">Overview</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/monadcancel">MonadCancel</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/spawn">Spawn</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/unique">Unique</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/clock">Clock</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/concurrent">Concurrent</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/temporal">Temporal</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/sync">Sync</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/async">Async</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Standard Library<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/countdown-latch">Count Down Latch</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/cyclic-barrier">Cyclic Barrier</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/deferred">Deferred</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/dequeue">Dequeue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/dispatcher">Dispatcher</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/hotswap">Hotswap</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/pqueue">Priority Queue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/queue">Queue</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/random">Random</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/ref">Ref</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/resource">Resource</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/semaphore">Semaphore</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/supervisor">Supervisor</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/std/async-await">Async/Await (Experimental)</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Scaling and Tuning<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/scaling-and-tuning/system-properties">System Properties</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Fiber Dumps</h1></header><article><div><span><p>One of the most annoying and difficult problems to resolve in any asynchronous application is the <em>asynchronous deadlock</em>. This scenario happens when you have a classic deadlock of some variety, where one fiber is waiting for a second fiber which is in turn waiting for the first (in the simplest case). Due to the asynchronous nature of the runtime, whenever a fiber blocks, all references to it are removed from the internal runtime, meaning that a deadlock generally leaves absolutely no residue whatsoever, and the only recourse as a developer is to just start sprinkling <code>IO.println</code> expressions around the code to see if you can figure out where it's getting stuck.</p>
+<p>This is very much in contrast to a conventional deadlock in a synchronous runtime, where we have JVM-level tools such as thread dumps to suss out where things are stuck. In particular, <em>thread dumps</em> are a commonly-applied low level tool offered by the JVM which can serve to inform users of what threads are active at that point in time and what each of their call stacks are. This tool is generally quite useful, but it becomes even more useful when the threads are deadlocked: the call stacks show exactly where each thread is blocked, making it relatively simple to reconstruct what they are blocked on and thus how to untie the knot.</p>
+<p><em>Fiber</em> dumps are a similar construct for Cats Effect applications. Even better, you don't need to change <em>anything</em> in order to take advantage of this functionality. As a simple example, here is an application which trivially deadlocks:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">IOApp</span>}
+
+<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Deadlock</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span>.<span class="hljs-title">Simple</span> </span>{
+  <span class="hljs-keyword">val</span> run =
+    <span class="hljs-keyword">for</span> {
+      latch &lt;- <span class="hljs-type">IO</span>.deferred[<span class="hljs-type">Unit</span>]
+
+      body = latch.get
+      fiber &lt;- body.start
+      _ &lt;- fiber.join
+
+      _ &lt;- latch.complete(())
+    } <span class="hljs-keyword">yield</span> ()
+}
+</code></pre>
+<p>The main fiber is waiting on <code>fiber.join</code>, which will only be completed once <code>latch</code> is released, which in turn will only happen on the main fiber <em>after</em> the child fiber completes. Thus, both fibers are deadlocked on each other. Prior to fiber dumps, this situation would be entirely invisible. Manually traversing the <code>IO</code> internals via a heap dump would be the only mechanism for gathering clues as to the problem, which is far from user-friendly and also generally fruitless.</p>
+<p>As of Cats Effect 3.3.0, users can now simply trigger a fiber dump to get the following diagnostic output printed to standard error:</p>
+<pre><code class="hljs">cats.effect.IOFiber@56824a14 WAITING
+ ├ flatMap @ Deadlock$.$anonfun$run$2(Deadlock.scala:26)
+ ├ flatMap @ Deadlock$.$anonfun$run$1(Deadlock.scala:25)
+ ├ deferred @ Deadlock$.&lt;clinit&gt;(Deadlock.scala:22)
+ ├ flatMap @ Deadlock$.&lt;clinit&gt;(Deadlock.scala:22)
+ ╰ run$ @ Deadlock$.run(Deadlock.scala:19)
+ 
+cats.effect.IOFiber@6194c61c WAITING
+ ├ get @ Deadlock$.$anonfun$run$1(Deadlock.scala:24)
+ ╰ get @ Deadlock$.$anonfun$run$1(Deadlock.scala:24)
+ 
+Thread[io-compute-14,5,run-main-group-6] (#14): 0 enqueued
+Thread[io-compute-12,5,run-main-group-6] (#12): 0 enqueued
+Thread[io-compute-6,5,run-main-group-6] (#6): 0 enqueued
+Thread[io-compute-5,5,run-main-group-6] (#5): 0 enqueued
+Thread[io-compute-8,5,run-main-group-6] (#8): 0 enqueued
+Thread[io-compute-9,5,run-main-group-6] (#9): 0 enqueued
+Thread[io-compute-11,5,run-main-group-6] (#11): 0 enqueued
+Thread[io-compute-7,5,run-main-group-6] (#7): 0 enqueued
+Thread[io-compute-10,5,run-main-group-6] (#10): 0 enqueued
+Thread[io-compute-4,5,run-main-group-6] (#4): 0 enqueued
+Thread[io-compute-13,5,run-main-group-6] (#13): 0 enqueued
+Thread[io-compute-0,5,run-main-group-6] (#0): 0 enqueued
+Thread[io-compute-2,5,run-main-group-6] (#2): 0 enqueued
+Thread[io-compute-3,5,run-main-group-6] (#3): 0 enqueued
+Thread[io-compute-1,5,run-main-group-6] (#1): 0 enqueued
+Thread[io-compute-15,5,run-main-group-6] (#15): 0 enqueued
+ 
+Global: enqueued 0, foreign 0, waiting 2
+</code></pre>
+<p>A fiber dump prints <em>every</em> fiber known to the runtime, regardless of whether they are suspended, blocked, yielding, active on some foreign runtime (via <code>evalOn</code>), or actively running on a worker thread. You can see an example of a larger dump in <a href="https://gist.github.com/06d1cb65d687f489f12ca682e44537e8">this gist</a>. Each fiber given a stable unique hexadecimal ID and paired with its status as well as its current trace, making it extremely easy to identify problems such as our earlier deadlock: the first fiber is suspended at line 26 (<code>fiber.join</code>) while the second fiber is suspended at line 24 (<code>latch.get</code>). This gives us a very good idea of what's happening and how to fix it.</p>
+<p>Note that most production applications have a <em>lot</em> of fibers at any point in time (millions and even tens of millions are possible even on consumer hardware), so the dump may be quite large. It's also worth noting that this is a <em>statistical snapshot</em> mechanism. The data it is aggregating is spread across multiple threads which may or may not have all published into main memory at a given point in time. Thus, it isn't <em>necessarily</em> an instantaneously consistent view of the runtime. Under some circumstances, trace information for a given fiber may be behind its actual position, or a fiber may be reported as being in one state (e.g. <code>YIELDING</code>) when in fact it is in a different one (e.g. <code>WAITING</code>). Under rare circumstances, newly-spawned fibers may be missed. <strong>These circumstances are considerably more common on ARM architectures than they are under x86 due to store order semantics.</strong></p>
+<p>Summary statistics for the global fiber runtime are printed following the fiber traces. In the above example, these statistics are relatively trivial, but in a real-world application this can give you an idea of where your fibers are being scheduled.</p>
+<h2><a class="anchor" aria-hidden="true" id="triggering-a-fiber-dump"></a><a href="#triggering-a-fiber-dump" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Triggering a fiber dump</h2>
+<p>Triggering the above fiber dump is a matter of sending a POSIX signal to the process using the <code>kill</code> command. The exact signal is dependent on the JVM (and version thereof) and operating system under which your application is running. Rather than attempting to hard-code all possible compatible signal configurations, Cats Effect simply <em>attempts</em> to register <em>both</em> <code>INFO</code> and <code>USR1</code> (for JVM applications) or <code>USR2</code> (for Node.js applications). In practice, <code>INFO</code> will most commonly be used on macOS and BSD, while <code>USR1</code> is more common on Linux. Thus, <code>kill -INFO &lt;pid&gt;</code> on macOS and <code>kill -USR1 &lt;pid&gt;</code> on Linux (or <code>USR2</code> for Node.js applications). POSIX signals do not exist on Windows (except under WSL, which behaves exactly like a normal Linux), and thus the mechanism is disabled.</p>
+<p>Since <code>INFO</code> is the signal used on macOS and BSD, this combined with a quirk of Apple's TTY implementation means that <strong>anyone running a Cats Effect application on macOS can simply hit <kbd>Ctrl</kbd>-<kbd>T</kbd></strong> within the active application to trigger a fiber dump, similar to how you can use <kbd>Ctrl</kbd>-<kbd>\</kbd> to trigger a thread dump. Note that this trick only works on macOS, since that is the only platform which maps a particular keybind to either the <code>INFO</code> or <code>USR1</code> signals.</p>
+<p>In the event that you're either running on a platform which doesn't support POSIX signals, or the signal registration failed for whatever reason, Cats Effect on the JVM will <em>also</em> automatically register an <a href="https://docs.oracle.com/javase/7/docs/technotes/guides/management/overview.html">MBean</a> under <code>cats.effect.unsafe.metrics.LiveFiberSnapshotTriggerMBean</code> which can produce a string representation of the fiber dump when its only method is invoked.</p>
+<h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
+<p>Fiber dumps are enabled by default and controlled by the same <a href="/cats-effect/docs/scaling-and-tuning/io-runtime-config">configuration as tracing</a>. Note that there is noticeable overhead for certain workloads, see <a href="https://github.com/typelevel/cats-effect/issues/2634#issuecomment-1003152586">#2634</a> for discussion), but overall, performance remains very good.</p>
+<h2><a class="anchor" aria-hidden="true" id="javascript-runtimes"></a><a href="#javascript-runtimes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>JavaScript runtimes</h2>
+<p>And in case you were wondering, yes, it does work on Node.js applications!</p>
+<pre><code class="hljs">cats.effect.IOFiber@d WAITING
+ 
+cats.effect.IOFiber@9 WAITING
+ ╰ deferred @ &lt;jscode&gt;.null.$c_LDeadlock$(/workspace/cats-effect/example/js/src/main/scala/cats/effect/example/Example.scala:22)
+ 
+cats.effect.IOFiber@a WAITING
+ ├ flatMap @ &lt;jscode&gt;.null.&lt;anonymous&gt;(/workspace/cats-effect/example/js/src/main/scala/cats/effect/example/Example.scala:26)
+ ├ flatMap @ &lt;jscode&gt;.null.&lt;anonymous&gt;(/workspace/cats-effect/example/js/src/main/scala/cats/effect/example/Example.scala:25)
+ ├ deferred @ &lt;jscode&gt;.null.$c_LDeadlock$(/workspace/cats-effect/example/js/src/main/scala/cats/effect/example/Example.scala:22)
+ ╰ flatMap @ &lt;jscode&gt;.null.$c_LDeadlock$(/workspace/cats-effect/example/js/src/main/scala/cats/effect/example/Example.scala:22)
+ 
+cats.effect.IOFiber@b WAITING
+ 
+Global: enqueued 0, waiting 4
+</code></pre>
+<p>You'll notice that there are two extra fibers in this example. These are actually internal to Cats Effect itself, since <code>IOApp</code> on JavaScript maintains a keep-alive fiber and races it against the main fiber. The two fibers in the middle line up pretty closely with those from the JVM dump of the same program, though some of the tracing information is a little different. This is happening because Scala.js itself is very aggressive about inlining across call-sites, and Cats Effect is written in such a way that much of it does get inlined away. This in turn confuses the tracing slightly, since there's simply less information to work with. In practice, this isn't too much of an issue, since most practical fibers will have more than enough tracing information to pin down what's going on, but it's something to keep in mind.</p>
+<p>Note that this functionality is <em>currently</em> only available on applications running under Node.js, since it isn't entirely clear how to trigger a fiber dump within a browser runtime. If you have thoughts or inspirations on this point, feel free to open an issue or discuss in Discord!</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/core/test-runtime"><span class="arrow-prev">← </span><span>Test Runtime</span></a><a class="docs-next button" href="/cats-effect/docs/tracing"><span>Tracing</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#triggering-a-fiber-dump">Triggering a fiber dump</a></li><li><a href="#configuration">Configuration</a></li><li><a href="#javascript-runtimes">JavaScript runtimes</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/getting-started">Getting Started</a><a href="/cats-effect/docs/tutorial">Tutorial</a><a href="/cats-effect/docs/typeclasses">Typeclasses</a><a href="/cats-effect/docs/schedulers">Schedulers</a></div><div><h5>Community</h5><a target="_blank" href="https://typelevel.org/blog/">Blog</a><a target="_blank" href="https://discord.gg/HmPs7rAtEY">Discord</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2022 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
