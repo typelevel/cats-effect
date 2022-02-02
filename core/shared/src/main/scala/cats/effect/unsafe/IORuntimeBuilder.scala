@@ -95,7 +95,7 @@ final class IORuntimeBuilder protected (
    * @param config
    * @return
    */
-  def withConfig(config: IORuntimeConfig) = {
+  def setConfig(config: IORuntimeConfig) = {
     customConfig = Some(config)
     this
   }
