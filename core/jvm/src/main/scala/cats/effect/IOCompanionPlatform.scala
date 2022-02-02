@@ -29,6 +29,23 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   private[this] val TypeInterruptibleOnce = Sync.Type.InterruptibleOnce
   private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
 
+  /**
+   * Intended for thread blocking operations. `blocking` will shift the execution of the
+   * blocking operation to a separate threadpool to avoid blocking on the main execution
+   * context. See the thread-model documentation for more information on why this is necessary.
+   * Note that the created effect will be uncancelable; if you need cancellation then you should
+   * use [[interruptible]] or [[interruptibleMany]].
+   *
+   * {{{
+   * IO.blocking(scala.io.Source.fromFile("path").mkString)
+   * }}}
+   *
+   * @param thunk
+   *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
+   *   context
+   *
+   * Implements [[Sync#blocking]].
+   */
   def blocking[A](thunk: => A): IO[A] = {
     val fn = Thunk.asFunction0(thunk)
     Blocking(TypeBlocking, fn, Tracing.calculateTracingEvent(fn.getClass))
@@ -44,11 +61,32 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
       Tracing.calculateTracingEvent(fn.getClass))
   }
 
+  /**
+   * Like [[blocking]] but will attempt to abort the blocking operation using thread interrupts
+   * in the event of cancellation. The interrupt will be attempted only once.
+   *
+   * @param thunk
+   *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
+   *   context
+   *
+   * Implements [[Sync#interruptible]]
+   */
   def interruptible[A](thunk: => A): IO[A] = {
     val fn = Thunk.asFunction0(thunk)
     Blocking(TypeInterruptibleOnce, fn, Tracing.calculateTracingEvent(fn.getClass))
   }
 
+  /**
+   * Like [[blocking]] but will attempt to abort the blocking operation using thread interrupts
+   * in the event of cancellation. The interrupt will be attempted repeatedly until the blocking
+   * operation completes or exits.
+   *
+   * @param thunk
+   *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
+   *   context
+   *
+   * Implements [[Sync#interruptibleMany]]
+   */
   def interruptibleMany[A](thunk: => A): IO[A] = {
     val fn = Thunk.asFunction0(thunk)
     Blocking(TypeInterruptibleMany, fn, Tracing.calculateTracingEvent(fn.getClass))
