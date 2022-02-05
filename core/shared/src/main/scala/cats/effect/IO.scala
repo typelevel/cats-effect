@@ -1242,8 +1242,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * The created task is cancelable and so it can be used safely in race conditions without
    * resource leakage.
    *
-   * @param duration
-   *   is the time span to wait before emitting the tick
+   * @param delay
+   *   the time span to wait before emitting the tick
    *
    * @return
    *   a new asynchronous and cancelable `IO` that will sleep for the specified duration and
@@ -1401,8 +1401,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Returns `raiseError` when the `cond` is true, otherwise `IO.unit`
    *
    * @example
-   *   {{{ val tooMany = 5 val x: Int = ??? IO.raiseWhen(x >= tooMany)(new
-   *   IllegalArgumentException("Too many")) }}}
+   * {{{
+   * val tooMany = 5
+   * val x: Int = ???
+   * IO.raiseWhen(x >= tooMany)(new IllegalArgumentException("Too many"))
+   * }}}
    */
   def raiseWhen(cond: Boolean)(e: => Throwable): IO[Unit] =
     IO.whenA(cond)(IO.raiseError(e))
@@ -1411,8 +1414,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Returns `raiseError` when `cond` is false, otherwise IO.unit
    *
    * @example
-   *   {{{ val tooMany = 5 val x: Int = ??? IO.raiseUnless(x < tooMany)(new
-   *   IllegalArgumentException("Too many")) }}}
+   * {{{
+   * val tooMany = 5
+   * val x: Int = ???
+   * IO.raiseUnless(x < tooMany)(new IllegalArgumentException("Too many"))
+   * }}}
    */
   def raiseUnless(cond: Boolean)(e: => Throwable): IO[Unit] =
     IO.unlessA(cond)(IO.raiseError(e))
