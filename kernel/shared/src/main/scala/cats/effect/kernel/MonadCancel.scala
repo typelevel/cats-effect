@@ -565,7 +565,7 @@ object MonadCancel {
   implicit def monadCancelForStateT[F[_], S, E](
       implicit F0: MonadCancel[F, E]): MonadCancel[StateT[F, S, *], E] = F0 match {
     case sync: Sync[F @unchecked] =>
-      Sync.instantiateSyncForStateT[F, S](sync)
+      Sync.syncForStateT[F, S](sync)
     case cancel =>
       new StateTMonadCancel[F, S, E] {
         def rootCancelScope = F0.rootCancelScope
@@ -577,7 +577,7 @@ object MonadCancel {
       implicit F0: MonadCancel[F, E],
       L0: Monoid[L]): MonadCancel[ReaderWriterStateT[F, E0, L, S, *], E] = F0 match {
     case sync: Sync[F @unchecked] =>
-      Sync.instantiateSyncForReaderWriterStateT[F, E0, L, S](sync)
+      Sync.syncForReaderWriterStateT[F, E0, L, S](sync, L0)
     case cancel =>
       new ReaderWriterStateTMonadCancel[F, E0, L, S, E] {
         def rootCancelScope = F0.rootCancelScope

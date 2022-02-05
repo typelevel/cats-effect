@@ -138,12 +138,9 @@ object Sync {
     }
 
   implicit def syncForStateT[F[_], S](implicit F0: Sync[F]): Sync[StateT[F, S, *]] =
-    instantiateSyncForStateT(F0)
-
-  private[kernel] def instantiateSyncForStateT[F[_], S](sync: Sync[F]): StateTSync[F, S] =
     new StateTSync[F, S] {
-      def rootCancelScope = sync.rootCancelScope
-      implicit protected def F: Sync[F] = sync
+      def rootCancelScope = F0.rootCancelScope
+      implicit protected def F: Sync[F] = F0
     }
 
   implicit def syncForWriterT[F[_], L](
@@ -197,10 +194,6 @@ object Sync {
   implicit def syncForReaderWriterStateT[F[_], R, L, S](
       implicit F0: Sync[F],
       L0: Monoid[L]): Sync[ReaderWriterStateT[F, R, L, S, *]] =
-    instantiateSyncForReaderWriterStateT(F0)
-
-  private[kernel] def instantiateSyncForReaderWriterStateT[F[_], R, L, S](F0: Sync[F])(
-      implicit L0: Monoid[L]): ReaderWriterStateTSync[F, R, L, S] =
     new ReaderWriterStateTSync[F, R, L, S] {
       def rootCancelScope = F0.rootCancelScope
       implicit override def F: Sync[F] = F0
