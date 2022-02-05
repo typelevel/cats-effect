@@ -299,6 +299,16 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
+  .settings(
+    mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Deferred$State"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Deferred$State$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Deferred$State$Set"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Deferred$State$Set$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Deferred$State$Unset"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Deferred$State$Unset$")
+    )
+  )
 
 /**
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
