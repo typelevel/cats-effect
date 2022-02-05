@@ -143,78 +143,81 @@ object GenTemporal {
   def apply[F[_]](implicit F: GenTemporal[F, _], d: DummyImplicit): F.type = F
 
   implicit def genTemporalForOptionT[F[_], E](
-      implicit F0: GenTemporal[F, E]): GenTemporal[OptionT[F, *], E] = F0 match {
-    case async: Async[F @unchecked] =>
-      Async.asyncForOptionT[F](async)
-    case temporal =>
-      instantiateGenTemporalForOptionT(temporal)
-  }
+      implicit F0: GenTemporal[F, E]): GenTemporal[OptionT[F, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForOptionT[F](async)
+      case temporal =>
+        instantiateGenTemporalForOptionT(temporal)
+    }
 
   private[kernel] def instantiateGenTemporalForOptionT[F[_], E](
-      temporal: GenTemporal[F, E]): OptionTTemporal[F, E] =
+      F0: GenTemporal[F, E]): OptionTTemporal[F, E] =
     new OptionTTemporal[F, E] {
-      override implicit protected def F: GenTemporal[F, E] = temporal
+      override implicit protected def F: GenTemporal[F, E] = F0
     }
 
   implicit def genTemporalForEitherT[F[_], E0, E](
-      implicit F0: GenTemporal[F, E]): GenTemporal[EitherT[F, E0, *], E] = F0 match {
-    case async: Async[F @unchecked] =>
-      Async.asyncForEitherT[F, E0](async)
-    case temporal =>
-      instantiateGenTemporalForEitherT(temporal)
-  }
+      implicit F0: GenTemporal[F, E]): GenTemporal[EitherT[F, E0, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForEitherT[F, E0](async)
+      case temporal =>
+        instantiateGenTemporalForEitherT(temporal)
+    }
 
   private[kernel] def instantiateGenTemporalForEitherT[F[_], E0, E](
-      temporal: GenTemporal[F, E]): EitherTTemporal[F, E0, E] =
+      F0: GenTemporal[F, E]): EitherTTemporal[F, E0, E] =
     new EitherTTemporal[F, E0, E] {
-      override implicit protected def F: GenTemporal[F, E] = temporal
+      override implicit protected def F: GenTemporal[F, E] = F0
     }
 
   implicit def genTemporalForKleisli[F[_], R, E](
-      implicit F0: GenTemporal[F, E]): GenTemporal[Kleisli[F, R, *], E] = F0 match {
-    case async: Async[F @unchecked] =>
-      Async.asyncForKleisli[F, R](async)
-    case temporal =>
-      new KleisliTemporal[F, R, E] {
-        override implicit protected def F: GenTemporal[F, E] = temporal
-      }
-  }
+      implicit F0: GenTemporal[F, E]): GenTemporal[Kleisli[F, R, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForKleisli[F, R](async)
+      case temporal =>
+        instantiateGenTemporalForKleisli(temporal)
+    }
 
   private[kernel] def instantiateGenTemporalForKleisli[F[_], R, E](
-      temporal: GenTemporal[F, E]): KleisliTemporal[F, R, E] =
+      F0: GenTemporal[F, E]): KleisliTemporal[F, R, E] =
     new KleisliTemporal[F, R, E] {
-      override implicit protected def F: GenTemporal[F, E] = temporal
+      override implicit protected def F: GenTemporal[F, E] = F0
     }
 
   implicit def genTemporalForIorT[F[_], L, E](
       implicit F0: GenTemporal[F, E],
-      L0: Semigroup[L]): GenTemporal[IorT[F, L, *], E] = F0 match {
-    case async: Async[F @unchecked] =>
-      Async.asyncForIorT[F, L](async, L0)
-    case temporal =>
-      instantiateGenTemporalForIorT(temporal)
-  }
+      L0: Semigroup[L]): GenTemporal[IorT[F, L, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForIorT[F, L](async, L0)
+      case temporal =>
+        instantiateGenTemporalForIorT(temporal)
+    }
 
-  private[kernel] def instantiateGenTemporalForIorT[F[_], L, E](temporal: GenTemporal[F, E])(
+  private[kernel] def instantiateGenTemporalForIorT[F[_], L, E](F0: GenTemporal[F, E])(
       implicit L0: Semigroup[L]): IorTTemporal[F, L, E] =
     new IorTTemporal[F, L, E] {
-      override implicit protected def F: GenTemporal[F, E] = temporal
+      override implicit protected def F: GenTemporal[F, E] = F0
       override implicit protected def L: Semigroup[L] = L0
     }
 
   implicit def genTemporalForWriterT[F[_], L, E](
       implicit F0: GenTemporal[F, E],
-      L0: Monoid[L]): GenTemporal[WriterT[F, L, *], E] = F0 match {
-    case async: Async[F @unchecked] =>
-      Async.asyncForWriterT[F, L](async, L0)
-    case temporal =>
-      instantiateGenTemporalForWriterT(temporal)
-  }
+      L0: Monoid[L]): GenTemporal[WriterT[F, L, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForWriterT[F, L](async, L0)
+      case temporal =>
+        instantiateGenTemporalForWriterT(temporal)
+    }
 
-  private[kernel] def instantiateGenTemporalForWriterT[F[_], L, E](temporal: GenTemporal[F, E])(
+  private[kernel] def instantiateGenTemporalForWriterT[F[_], L, E](F0: GenTemporal[F, E])(
       implicit L0: Monoid[L]): WriterTTemporal[F, L, E] =
     new WriterTTemporal[F, L, E] {
-      override implicit protected def F: GenTemporal[F, E] = temporal
+      override implicit protected def F: GenTemporal[F, E] = F0
       override implicit protected def L: Monoid[L] = L0
     }
 
