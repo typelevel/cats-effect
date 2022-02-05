@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicReference
  * Finally, the blocking mentioned above is semantic only, no actual threads are blocked by the
  * implementation.
  */
-abstract class Deferred[F[_], A] extends DeferredSource[F, A] with DeferredSink[F, A] {
+abstract class Deferred[F[_], A] extends GenDeferred[F, F, A] {
 
   /**
    * Modify the context `F` using transformation `f`.
@@ -78,6 +78,51 @@ object Deferred {
   def in[F[_], G[_], A](implicit F: Sync[F], G: Async[G]): F[Deferred[G, A]] =
     F.delay(unsafe[G, A])
 
+  import GenDeferred._
+
+  final class AsyncDeferred[F[_], A](implicit _F: Async[F])
+      extends Deferred[F, A]
+      with AsyncSyncGenDeferred[F, F, A] {
+    override def F = _F
+    override def G = _F
+  }
+
+  implicit def catsInvariantForDeferred[F[_]: Functor]: Invariant[Deferred[F, *]] =
+    new Invariant[Deferred[F, *]] {
+      override def imap[A, B](fa: Deferred[F, A])(f: A => B)(g: B => A): Deferred[F, B] =
+        new Deferred[F, B] {
+          override def get: F[B] =
+            fa.get.map(f)
+          override def complete(b: B): F[Boolean] =
+            fa.complete(g(b))
+          override def tryGet: F[Option[B]] =
+            fa.tryGet.map(_.map(f))
+        }
+    }
+
+  final private[kernel] class TransformedDeferred[F[_], G[_], A](
+      underlying: Deferred[F, A],
+      trans: F ~> G)
+      extends Deferred[G, A] {
+    override def get: G[A] = trans(underlying.get)
+    override def tryGet: G[Option[A]] = trans(underlying.tryGet)
+    override def complete(a: A): G[Boolean] = trans(underlying.complete(a))
+  }
+}
+
+trait GenDeferred[F[_], G[_], A] extends DeferredSource[F, A] with DeferredSink[G, A]
+
+object GenDeferred {
+
+  def unsafe[F[_]: Async, G[_]: Sync, A]: GenDeferred[F, G, A] =
+    new AsyncSyncGenDeferred[F, G, A] {
+      override def F = implicitly[Async[F]]
+      override def G = implicitly[Sync[G]]
+    }
+
+  def in[F[_], G[_]: Async, H[_]: Sync, A](implicit F: Sync[F]): F[GenDeferred[G, H, A]] =
+    F.delay(unsafe[G, H, A])
+
   sealed abstract private class State[A]
   private object State {
     final case class Set[A](a: A) extends State[A]
@@ -87,7 +132,10 @@ object Deferred {
     val dummyId = 0L
   }
 
-  final class AsyncDeferred[F[_], A](implicit F: Async[F]) extends Deferred[F, A] {
+  private[kernel] trait AsyncSyncGenDeferred[F[_], G[_], A] extends GenDeferred[F, G, A] {
+    protected implicit def F: Async[F]
+    protected implicit def G: Sync[G]
+
     // shared mutable state
     private[this] val ref = new AtomicReference[State[A]](
       State.Unset(LongMap.empty, State.initialId)
@@ -154,17 +202,17 @@ object Deferred {
         }
       }
 
-    def complete(a: A): F[Boolean] = {
-      def notifyReaders(readers: LongMap[A => Unit]): F[Unit] = {
+    def complete(a: A): G[Boolean] = {
+      def notifyReaders(readers: LongMap[A => Unit]): G[Unit] = {
         // LongMap iterators return values in unsigned key order,
         // which corresponds to the arrival order of readers since
         // insertion is governed by a monotonically increasing id
         val cursor = readers.valuesIterator
-        var acc = F.unit
+        var acc = G.unit
 
         while (cursor.hasNext) {
           val next = cursor.next()
-          val task = F.delay(next(a))
+          val task = G.delay(next(a))
           acc = acc >> task
         }
 
@@ -173,44 +221,23 @@ object Deferred {
 
       // side-effectful (even though it returns F[Unit])
       @tailrec
-      def loop(): F[Boolean] =
+      def loop(): G[Boolean] =
         ref.get match {
           case State.Set(_) =>
-            F.pure(false)
+            G.pure(false)
           case s @ State.Unset(readers, _) =>
             val updated = State.Set(a)
             if (!ref.compareAndSet(s, updated)) loop()
             else {
-              val notify = if (readers.isEmpty) F.unit else notifyReaders(readers)
+              val notify = if (readers.isEmpty) G.unit else notifyReaders(readers)
               notify.as(true)
             }
         }
 
-      F.defer(loop())
+      G.defer(loop())
     }
   }
 
-  implicit def catsInvariantForDeferred[F[_]: Functor]: Invariant[Deferred[F, *]] =
-    new Invariant[Deferred[F, *]] {
-      override def imap[A, B](fa: Deferred[F, A])(f: A => B)(g: B => A): Deferred[F, B] =
-        new Deferred[F, B] {
-          override def get: F[B] =
-            fa.get.map(f)
-          override def complete(b: B): F[Boolean] =
-            fa.complete(g(b))
-          override def tryGet: F[Option[B]] =
-            fa.tryGet.map(_.map(f))
-        }
-    }
-
-  final private[kernel] class TransformedDeferred[F[_], G[_], A](
-      underlying: Deferred[F, A],
-      trans: F ~> G)
-      extends Deferred[G, A] {
-    override def get: G[A] = trans(underlying.get)
-    override def tryGet: G[Option[A]] = trans(underlying.tryGet)
-    override def complete(a: A): G[Boolean] = trans(underlying.complete(a))
-  }
 }
 
 trait DeferredSource[F[_], A] {
