@@ -457,7 +457,16 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       // introduced by #2769, Simplify the transfer of WorkerThread data structures when blocking
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$Data")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$Data"),
+      // introduced by #4248
+      // changes to package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.NonDaemonThreadLogger.isEnabled"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.NonDaemonThreadLogger.sleepIntervalMillis"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.NonDaemonThreadLogger.this"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.NonDaemonThreadLogger$")
     ) ++ {
       if (isDotty.value) {
         // Scala 3 specific exclusions
