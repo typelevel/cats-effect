@@ -88,7 +88,7 @@ import cats.syntax.all._
  * These semantics allow users to precisely mark what regions of code are cancelable within a
  * larger code block.
  *
- * \==Cancelation Boundaries===
+ * ==Cancelation Boundaries===
  *
  * A boundary corresponds to an iteration of the internal runloop. In general they are
  * introduced by any of the combinators from the cats/cats effect hierarchy (`map`, `flatMap`,

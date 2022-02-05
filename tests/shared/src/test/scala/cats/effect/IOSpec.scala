@@ -93,7 +93,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       }
 
       "rethrow is inverse of attempt" in ticked { implicit ticker =>
-        forAll { (io: IO[Int]) => io.attempt.rethrow eqv io }
+        forAll { (io: IO[Int]) =>
+          io.attempt.rethrow eqv io
+        }
       }
 
       "redeem is flattened redeemWith" in ticked { implicit ticker =>
