@@ -34,6 +34,7 @@ import cats.effect.tracing.TracingConstants
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.Duration
 
 import java.util.Comparator
 import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
@@ -74,8 +75,9 @@ private[effect] final class WorkStealingThreadPool(
    * References to worker threads and their local queues.
    */
   private[this] val workerThreads: Array[WorkerThread] = new Array(threadCount)
-  private[this] val localQueues: Array[LocalQueue] = new Array(threadCount)
-  private[this] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
+  private[unsafe] val localQueues: Array[LocalQueue] = new Array(threadCount)
+  private[unsafe] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
+  private[unsafe] val fiberBags: Array[WeakBag[IOFiber[_]]] = new Array(threadCount)
 
   /**
    * Atomic variable for used for publishing changes to the references in the `workerThreads`
@@ -98,6 +100,8 @@ private[effect] final class WorkStealingThreadPool(
 
   private[unsafe] val cachedThreads: ConcurrentSkipListSet[WorkerThread] =
     new ConcurrentSkipListSet(Comparator.comparingInt[WorkerThread](_.nameIndex))
+  private[unsafe] def runtimeBlockingExpiration: Duration =
+    self.config.runtimeBlockingExpiration
 
   /**
    * The shutdown latch of the work stealing thread pool.
@@ -118,8 +122,9 @@ private[effect] final class WorkStealingThreadPool(
       parkedSignals(i) = parkedSignal
       val index = i
       val fiberBag = new WeakBag[IOFiber[_]]()
+      fiberBags(i) = fiberBag
       val thread =
-        new WorkerThread(index, queue, parkedSignal, externalQueue, null, fiberBag, this)
+        new WorkerThread(index, queue, parkedSignal, externalQueue, fiberBag, this)
       workerThreads(i) = thread
       i += 1
     }
@@ -516,20 +521,9 @@ private[effect] final class WorkStealingThreadPool(
       scheduleFiber(fiber)
     } else {
       // Executing a general purpose computation on the thread pool.
-      // Wrap the runnable in an `IO` and execute it as a fiber.
-      val io = IO.delay(runnable.run())
-      val fiber = new IOFiber[Unit](Map.empty, outcomeToUnit, io, this, self)
+      val fiber = new IOFiber[Unit](runnable, this, self)
       scheduleFiber(fiber)
     }
-  }
-
-  /**
-   * Preallocated fiber callback function for transforming [[java.lang.Runnable]] values into
-   * [[cats.effect.IOFiber]] instances.
-   */
-  private[this] val outcomeToUnit: OutcomeIO[Unit] => Unit = {
-    case Outcome.Errored(t) => reportFailure(t)
-    case _ => ()
   }
 
   /**
@@ -583,9 +577,6 @@ private[effect] final class WorkStealingThreadPool(
       Thread.currentThread().interrupt()
     }
   }
-
-  private[unsafe] def localQueuesForwarder: Array[LocalQueue] =
-    localQueues
 
   /*
    * What follows is a collection of methos used in the implementation of the

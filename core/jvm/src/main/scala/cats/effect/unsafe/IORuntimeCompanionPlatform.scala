@@ -61,7 +61,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
             case _: Throwable =>
           }
 
-          val localQueues = threadPool.localQueuesForwarder
+          val localQueues = threadPool.localQueues
           var i = 0
           val len = localQueues.length
 

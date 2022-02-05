@@ -17,26 +17,12 @@
 package cats.effect
 package std
 
-class ConsoleSpec extends BaseSpec {
-  sequential
+class ConsoleJSSpec extends BaseSpec {
 
   "Console" should {
-
-    case class Foo(n: Int, b: Boolean)
-
-    "select default Show.fromToString (IO)" in {
-      IO.print(Foo(1, true)) // compilation test
-      IO.println(Foo(1, true)) // compilation test
-      true
+    "work in any JS environment" in real {
+      Console[IO].println("printing") *> Console[IO].errorln("erroring") *> IO(true)
     }
-
-    "select default Show.fromToString (Console[IO])" in {
-      Console[IO].print(Foo(1, true)) // compilation test
-      Console[IO].println(Foo(1, true)) // compilation test
-      Console[IO].error(Foo(1, true)) // compilation test
-      Console[IO].errorln(Foo(1, true)) // compilation test
-      true
-    }
-
   }
+
 }

@@ -15,28 +15,13 @@
  */
 
 package cats.effect
-package std
 
-class ConsoleSpec extends BaseSpec {
-  sequential
+class ExitCodeSpec extends BaseSpec {
 
-  "Console" should {
-
-    case class Foo(n: Int, b: Boolean)
-
-    "select default Show.fromToString (IO)" in {
-      IO.print(Foo(1, true)) // compilation test
-      IO.println(Foo(1, true)) // compilation test
-      true
+  "ExitCode.unapply is exhaustive" >> {
+    ExitCode(0) match { // if not, should be a fatal warning in CI
+      case ExitCode(_) => ok
     }
-
-    "select default Show.fromToString (Console[IO])" in {
-      Console[IO].print(Foo(1, true)) // compilation test
-      Console[IO].println(Foo(1, true)) // compilation test
-      Console[IO].error(Foo(1, true)) // compilation test
-      Console[IO].errorln(Foo(1, true)) // compilation test
-      true
-    }
-
   }
+
 }

@@ -456,6 +456,22 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def handleErrorWith[B >: A](f: Throwable => IO[B]): IO[B] =
     IO.HandleErrorWith(this, f, Tracing.calculateTracingEvent(f))
 
+  /**
+   * Recover from certain errors by mapping them to an `A` value.
+   *
+   * Implements `ApplicativeError.recover`.
+   */
+  def recover[B >: A](pf: PartialFunction[Throwable, B]): IO[B] =
+    handleErrorWith(e => pf.andThen(IO.pure(_)).applyOrElse(e, IO.raiseError[A]))
+
+  /**
+   * Recover from certain errors by mapping them to another `IO` value.
+   *
+   * Implements `ApplicativeError.recoverWith`.
+   */
+  def recoverWith[B >: A](pf: PartialFunction[Throwable, IO[B]]): IO[B] =
+    handleErrorWith(e => pf.applyOrElse(e, IO.raiseError))
+
   def ifM[B](ifTrue: => IO[B], ifFalse: => IO[B])(implicit ev: A <:< Boolean): IO[B] =
     flatMap(a => if (ev(a)) ifTrue else ifFalse)
 
@@ -606,9 +622,22 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   /**
    * Returns an IO that will delay the execution of the source by the given duration.
+   *
+   * @param duration
+   *   The duration to wait before executing the source
    */
   def delayBy(duration: FiniteDuration): IO[A] =
     IO.sleep(duration) *> this
+
+  /**
+   * Returns an IO that will wait for the given duration after the execution of the source
+   * before returning the result.
+   *
+   * @param duration
+   *   The duration to wait after executing the source
+   */
+  def andWait(duration: FiniteDuration): IO[A] =
+    this <* IO.sleep(duration)
 
   /**
    * Returns an IO that either completes with the result of the source within the specified time
@@ -976,8 +1005,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Newtype encoding for an `IO` datatype that has a `cats.Applicative` capable of doing
    * parallel processing in `ap` and `map2`, needed for implementing `cats.Parallel`.
    *
-   * Helpers are provided for converting back and forth in `Par.apply` for wrapping any `IO`
-   * value and `Par.unwrap` for unwrapping.
+   * For converting back and forth you can use either the `Parallel[IO]` instance or the methods
+   * `cats.effect.kernel.Par.ParallelF.apply` for wrapping any `IO` value and
+   * `cats.effect.kernel.Par.ParallelF.value` for unwrapping it.
    *
    * The encoding is based on the "newtypes" project by Alexander Konovalov, chosen because it's
    * devoid of boxing issues and a good choice until opaque types will land in Scala.
@@ -1212,8 +1242,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * The created task is cancelable and so it can be used safely in race conditions without
    * resource leakage.
    *
-   * @param duration
-   *   is the time span to wait before emitting the tick
+   * @param delay
+   *   the time span to wait before emitting the tick
    *
    * @return
    *   a new asynchronous and cancelable `IO` that will sleep for the specified duration and
@@ -1302,9 +1332,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Run two IO tasks concurrently, and returns a pair containing both the winner's successful
    * value and the loser represented as a still-unfinished task.
    *
-   * If the first task completes in error, then the result will complete in error, the other
-   * task being canceled.
-   *
    * On usage the user has the option of canceling the losing task, this being equivalent with
    * plain [[race]]:
    *
@@ -1314,9 +1341,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    *   IO.racePair(ioA, ioB).flatMap {
    *     case Left((a, fiberB)) =>
-   *       fiberB.cancel.map(_ => a)
+   *       fiberB.cancel.as(a)
    *     case Right((fiberA, b)) =>
-   *       fiberA.cancel.map(_ => b)
+   *       fiberA.cancel.as(b)
    *   }
    * }}}
    *
@@ -1374,8 +1401,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Returns `raiseError` when the `cond` is true, otherwise `IO.unit`
    *
    * @example
-   *   {{{ val tooMany = 5 val x: Int = ??? IO.raiseWhen(x >= tooMany)(new
-   *   IllegalArgumentException("Too many")) }}}
+   * {{{
+   * val tooMany = 5
+   * val x: Int = ???
+   * IO.raiseWhen(x >= tooMany)(new IllegalArgumentException("Too many"))
+   * }}}
    */
   def raiseWhen(cond: Boolean)(e: => Throwable): IO[Unit] =
     IO.whenA(cond)(IO.raiseError(e))
@@ -1384,29 +1414,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Returns `raiseError` when `cond` is false, otherwise IO.unit
    *
    * @example
-   *   {{{ val tooMany = 5 val x: Int = ??? IO.raiseUnless(x < tooMany)(new
-   *   IllegalArgumentException("Too many")) }}}
+   * {{{
+   * val tooMany = 5
+   * val x: Int = ???
+   * IO.raiseUnless(x < tooMany)(new IllegalArgumentException("Too many"))
+   * }}}
    */
   def raiseUnless(cond: Boolean)(e: => Throwable): IO[Unit] =
     IO.unlessA(cond)(IO.raiseError(e))
-
-  /**
-   * Reads a line as a string from the standard input using the platform's default charset, as
-   * per `java.nio.charset.Charset.defaultCharset()`.
-   *
-   * The effect can raise a `java.io.EOFException` if no input has been consumed before the EOF
-   * is observed. This should never happen with the standard input, unless it has been replaced
-   * with a finite `java.io.InputStream` through `java.lang.System#setIn` or similar.
-   *
-   * @see
-   *   `cats.effect.std.Console#readLineWithCharset` for reading using a custom
-   *   `java.nio.charset.Charset`
-   *
-   * @return
-   *   an IO effect that describes reading the user's input from the standard input as a string
-   */
-  def readLine: IO[String] =
-    Console[IO].readLine
 
   /**
    * Prints a value to the standard output using the implicit `cats.Show` instance.

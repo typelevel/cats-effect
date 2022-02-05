@@ -261,6 +261,7 @@ lazy val root = project
   .enablePlugins(NoPublishPlugin)
   .enablePlugins(ScalaUnidocPlugin)
   .settings(
+    name := "cats-effect",
     ScalaUnidoc / unidoc / unidocProjectFilter := {
       undocumentedRefs.foldLeft(inAnyProject)((acc, a) => acc -- inProjects(a))
     }
@@ -342,6 +343,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(kernel, std)
   .settings(
     name := "cats-effect",
+    mimaPreviousArtifacts += "org.typelevel" %%% "cats-effect" % "3.3.4",
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
@@ -450,9 +452,42 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.LocalQueue.stealInto"),
       // introduced by #2673, Cross platform weak bag implementation
+      // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.unsafe.WorkerThread.monitor")
-    )
+        "cats.effect.unsafe.WorkerThread.monitor"),
+      // introduced by #2769, Simplify the transfer of WorkerThread data structures when blocking
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$Data")
+    ) ++ {
+      if (isDotty.value) {
+        // Scala 3 specific exclusions
+        Seq(
+          // introduced by #2769, Simplify the transfer of WorkerThread data structures when blocking
+          // changes to `cats.effect.unsafe` package private code
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.localQueuesForwarder"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkerThread.NullData"),
+          // introduced by #2773, Configurable caching of blocking threads
+          // changes to `cats.effect.unsafe` package private code
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.IORuntimeConfig.DefaultEnhancedExceptions"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.IORuntimeConfig.DefaultShutdownHookTimeout"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.IORuntimeConfig.DefaultTraceBufferSize"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.IORuntimeConfig.DefaultEnhancedExceptions"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.IORuntimeConfig.DefaultTraceBufferSize"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.IORuntimeConfig.DefaultShutdownHookTimeout"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.IORuntimeConfigCompanionPlatform.Default")
+        )
+      } else Seq()
+    }
   )
   .jvmSettings(
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
@@ -544,6 +579,11 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
         .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
         .exclude("org.scalacheck", "scalacheck_2.13")
         .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
+    ),
+    mimaBinaryIssueFilters ++= Seq(
+      // introduced by #2604, Fix Console on JS
+      // changes to `cats.effect.std` package private code
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Console$SyncConsole")
     )
   )
   .jsSettings(
