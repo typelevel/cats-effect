@@ -434,42 +434,54 @@ object GenSpawn {
     case async: Async[F @unchecked] =>
       Async.asyncForOptionT[F](async)
     case temporal: GenTemporal[F @unchecked, E @unchecked] =>
-      GenTemporal.genTemporalForOptionT[F, E](temporal)
+      GenTemporal.instantiateGenTemporalForOptionT[F, E](temporal)
     case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
-      GenConcurrent.genConcurrentForOptionT[F, E](concurrent)
+      GenConcurrent.instantiateGenConcurrentForOptionT[F, E](concurrent)
     case spawn =>
-      new OptionTGenSpawn[F, E] {
-        override implicit protected def F: GenSpawn[F, E] = spawn
-      }
+      instantiateGenSpawnForOptionT(spawn)
   }
+
+  private[kernel] def instantiateGenSpawnForOptionT[F[_], E](
+      spawn: GenSpawn[F, E]): OptionTGenSpawn[F, E] =
+    new OptionTGenSpawn[F, E] {
+      override implicit protected def F: GenSpawn[F, E] = spawn
+    }
 
   implicit def genSpawnForEitherT[F[_], E0, E](
       implicit F0: GenSpawn[F, E]): GenSpawn[EitherT[F, E0, *], E] = F0 match {
     case async: Async[F @unchecked] =>
       Async.asyncForEitherT[F, E0](async)
     case temporal: GenTemporal[F @unchecked, E @unchecked] =>
-      GenTemporal.genTemporalForEitherT[F, E0, E](temporal)
+      GenTemporal.instantiateGenTemporalForEitherT[F, E0, E](temporal)
     case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
-      GenConcurrent.genConcurrentForEitherT[F, E0, E](concurrent)
+      GenConcurrent.instantiateGenConcurrentForEitherT[F, E0, E](concurrent)
     case spawn =>
-      new EitherTGenSpawn[F, E0, E] {
-        override implicit protected def F: GenSpawn[F, E] = spawn
-      }
+      instantiateGenSpawnForEitherT(spawn)
   }
+
+  private[kernel] def instantiateGenSpawnForEitherT[F[_], E0, E](
+      spawn: GenSpawn[F, E]): EitherTGenSpawn[F, E0, E] =
+    new EitherTGenSpawn[F, E0, E] {
+      override implicit protected def F: GenSpawn[F, E] = spawn
+    }
 
   implicit def genSpawnForKleisli[F[_], R, E](
       implicit F0: GenSpawn[F, E]): GenSpawn[Kleisli[F, R, *], E] = F0 match {
     case async: Async[F @unchecked] =>
       Async.asyncForKleisli[F, R](async)
     case temporal: GenTemporal[F @unchecked, E @unchecked] =>
-      GenTemporal.genTemporalForKleisli[F, R, E](temporal)
+      GenTemporal.instantiateGenTemporalForKleisli[F, R, E](temporal)
     case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
-      GenConcurrent.genConcurrentForKleisli[F, R, E](concurrent)
+      GenConcurrent.instantiateGenConcurrentForKleisli[F, R, E](concurrent)
     case spawn =>
-      new KleisliGenSpawn[F, R, E] {
-        override implicit protected def F: GenSpawn[F, E] = spawn
-      }
+      instantiateGenSpawnForKleisli(spawn)
   }
+
+  private[kernel] def instantiateGenSpawnForKleisli[F[_], R, E](
+      spawn: GenSpawn[F, E]): KleisliGenSpawn[F, R, E] =
+    new KleisliGenSpawn[F, R, E] {
+      override implicit protected def F: GenSpawn[F, E] = spawn
+    }
 
   implicit def genSpawnForIorT[F[_], L, E](
       implicit F0: GenSpawn[F, E],
@@ -477,15 +489,19 @@ object GenSpawn {
     case async: Async[F @unchecked] =>
       Async.asyncForIorT[F, L](async, L0)
     case temporal: GenTemporal[F @unchecked, E @unchecked] =>
-      GenTemporal.genTemporalForIorT[F, L, E](temporal, L0)
+      GenTemporal.instantiateGenTemporalForIorT[F, L, E](temporal)
     case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
-      GenConcurrent.genConcurrentForIorT[F, L, E](concurrent, L0)
+      GenConcurrent.instantiateGenConcurrentForIorT[F, L, E](concurrent)
     case spawn =>
-      new IorTGenSpawn[F, L, E] {
-        override implicit protected def F: GenSpawn[F, E] = spawn
-        override implicit protected def L: Semigroup[L] = L0
-      }
+      instantiateGenSpawnForIorT(spawn)
   }
+
+  private[kernel] def instantiateGenSpawnForIorT[F[_], L, E](spawn: GenSpawn[F, E])(
+      implicit L0: Semigroup[L]): IorTGenSpawn[F, L, E] =
+    new IorTGenSpawn[F, L, E] {
+      override implicit protected def F: GenSpawn[F, E] = spawn
+      override implicit protected def L: Semigroup[L] = L0
+    }
 
   implicit def genSpawnForWriterT[F[_], L, E](
       implicit F0: GenSpawn[F, E],
@@ -493,15 +509,19 @@ object GenSpawn {
     case async: Async[F @unchecked] =>
       Async.asyncForWriterT[F, L](async, L0)
     case temporal: GenTemporal[F @unchecked, E @unchecked] =>
-      GenTemporal.genTemporalForWriterT[F, L, E](temporal, L0)
+      GenTemporal.instantiateGenTemporalForWriterT[F, L, E](temporal)
     case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
-      GenConcurrent.genConcurrentForWriterT[F, L, E](concurrent, L0)
+      GenConcurrent.instantiateGenConcurrentForWriterT[F, L, E](concurrent)
     case spawn =>
-      new WriterTGenSpawn[F, L, E] {
-        override implicit protected def F: GenSpawn[F, E] = spawn
-        override implicit protected def L: Monoid[L] = L0
-      }
+      instantiateGenSpawnForWriterT(spawn)
   }
+
+  private[kernel] def instantiateGenSpawnForWriterT[F[_], L, E](spawn: GenSpawn[F, E])(
+      implicit L0: Monoid[L]): WriterTGenSpawn[F, L, E] =
+    new WriterTGenSpawn[F, L, E] {
+      override implicit protected def F: GenSpawn[F, E] = spawn
+      override implicit protected def L: Monoid[L] = L0
+    }
 
   private[kernel] trait OptionTGenSpawn[F[_], E]
       extends GenSpawn[OptionT[F, *], E]

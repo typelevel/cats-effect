@@ -114,29 +114,36 @@ object Sync {
     case async: Async[F @unchecked] =>
       Async.asyncForOptionT[F](async)
     case sync =>
-      new OptionTSync[F] {
-        def rootCancelScope = F0.rootCancelScope
-        implicit protected def F: Sync[F] = sync
-      }
+      instantiateSyncForOptionT(sync)
   }
+
+  private[kernel] def instantiateSyncForOptionT[F[_]](sync: Sync[F]): OptionTSync[F] =
+    new OptionTSync[F] {
+      def rootCancelScope = sync.rootCancelScope
+      implicit protected def F: Sync[F] = sync
+    }
 
   implicit def syncForEitherT[F[_], E](implicit F0: Sync[F]): Sync[EitherT[F, E, *]] =
     F0 match {
       case async: Async[F @unchecked] =>
         Async.asyncForEitherT[F, E](async)
       case sync =>
-        new EitherTSync[F, E] {
-          def rootCancelScope = F0.rootCancelScope
-          implicit protected def F: Sync[F] = sync
-        }
+        instantiateSyncForEitherT(sync)
+    }
+
+  private[kernel] def instantiateSyncForEitherT[F[_], E](sync: Sync[F]): EitherTSync[F, E] =
+    new EitherTSync[F, E] {
+      def rootCancelScope = sync.rootCancelScope
+      implicit protected def F: Sync[F] = sync
     }
 
   implicit def syncForStateT[F[_], S](implicit F0: Sync[F]): Sync[StateT[F, S, *]] =
+    instantiateSyncForStateT(F0)
+
+  private[kernel] def instantiateSyncForStateT[F[_], S](sync: Sync[F]): StateTSync[F, S] =
     new StateTSync[F, S] {
-
-      def rootCancelScope = F0.rootCancelScope
-
-      implicit def F: Sync[F] = F0
+      def rootCancelScope = sync.rootCancelScope
+      implicit protected def F: Sync[F] = sync
     }
 
   implicit def syncForWriterT[F[_], L](
@@ -145,12 +152,16 @@ object Sync {
     case async: Async[F @unchecked] =>
       Async.asyncForWriterT[F, L](async, L0)
     case sync =>
-      new WriterTSync[F, L] {
-        def rootCancelScope = F0.rootCancelScope
-        implicit def F: Sync[F] = sync
-        implicit def L: Monoid[L] = L0
-      }
+      instantiateSyncForWriterT(sync)
   }
+
+  private[kernel] def instantiateSyncForWriterT[F[_], L](sync: Sync[F])(
+      implicit L0: Monoid[L]): WriterTSync[F, L] =
+    new WriterTSync[F, L] {
+      def rootCancelScope = sync.rootCancelScope
+      implicit protected def F: Sync[F] = sync
+      implicit def L: Monoid[L] = L0
+    }
 
   implicit def syncForIorT[F[_], L](
       implicit F0: Sync[F],
@@ -158,33 +169,41 @@ object Sync {
     case async: Async[F @unchecked] =>
       Async.asyncForIorT[F, L](async, L0)
     case sync =>
-      new IorTSync[F, L] {
-        def rootCancelScope = F0.rootCancelScope
-        implicit def F: Sync[F] = sync
-        implicit def L: Semigroup[L] = L0
-      }
+      instantiateSyncForIorT(sync)
   }
+
+  private[kernel] def instantiateSyncForIorT[F[_], L](sync: Sync[F])(
+      implicit L0: Semigroup[L]): IorTSync[F, L] =
+    new IorTSync[F, L] {
+      def rootCancelScope = sync.rootCancelScope
+      implicit protected def F: Sync[F] = sync
+      implicit def L: Semigroup[L] = L0
+    }
 
   implicit def syncForKleisli[F[_], R](implicit F0: Sync[F]): Sync[Kleisli[F, R, *]] =
     F0 match {
       case async: Async[F @unchecked] =>
         Async.asyncForKleisli[F, R](async)
       case sync =>
-        new KleisliSync[F, R] {
-          def rootCancelScope = F0.rootCancelScope
-          implicit def F: Sync[F] = sync
-        }
+        instantiateSyncForKleisli(sync)
+    }
+
+  private[kernel] def instantiateSyncForKleisli[F[_], R](sync: Sync[F]): KleisliSync[F, R] =
+    new KleisliSync[F, R] {
+      def rootCancelScope = sync.rootCancelScope
+      implicit protected def F: Sync[F] = sync
     }
 
   implicit def syncForReaderWriterStateT[F[_], R, L, S](
       implicit F0: Sync[F],
       L0: Monoid[L]): Sync[ReaderWriterStateT[F, R, L, S, *]] =
+    instantiateSyncForReaderWriterStateT(F0)
+
+  private[kernel] def instantiateSyncForReaderWriterStateT[F[_], R, L, S](F0: Sync[F])(
+      implicit L0: Monoid[L]): ReaderWriterStateTSync[F, R, L, S] =
     new ReaderWriterStateTSync[F, R, L, S] {
-
       def rootCancelScope = F0.rootCancelScope
-
       implicit override def F: Sync[F] = F0
-
       implicit override def L: Monoid[L] = L0
     }
 
