@@ -464,75 +464,127 @@ object MonadCancel {
   def apply[F[_]](implicit F: MonadCancel[F, _], d: DummyImplicit): F.type = F
 
   implicit def monadCancelForOptionT[F[_], E](
-      implicit F0: MonadCancel[F, E]): MonadCancel[OptionT[F, *], E] =
-    new OptionTMonadCancel[F, E] {
-
-      def rootCancelScope = F0.rootCancelScope
-
-      override implicit protected def F: MonadCancel[F, E] = F0
-    }
+      implicit F0: MonadCancel[F, E]): MonadCancel[OptionT[F, *], E] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForOptionT[F](async)
+    case sync: Sync[F @unchecked] =>
+      Sync.syncForOptionT[F](sync)
+    case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+      GenTemporal.genTemporalForOptionT[F, E](temporal)
+    case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+      GenConcurrent.genConcurrentForOptionT[F, E](concurrent)
+    case spawn: GenSpawn[F @unchecked, E @unchecked] =>
+      GenSpawn.genSpawnForOptionT[F, E](spawn)
+    case cancel =>
+      new OptionTMonadCancel[F, E] {
+        def rootCancelScope = F0.rootCancelScope
+        override implicit protected def F: MonadCancel[F, E] = cancel
+      }
+  }
 
   implicit def monadCancelForEitherT[F[_], E0, E](
-      implicit F0: MonadCancel[F, E]): MonadCancel[EitherT[F, E0, *], E] =
-    new EitherTMonadCancel[F, E0, E] {
-
-      def rootCancelScope = F0.rootCancelScope
-
-      override implicit protected def F: MonadCancel[F, E] = F0
-    }
+      implicit F0: MonadCancel[F, E]): MonadCancel[EitherT[F, E0, *], E] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForEitherT[F, E0](async)
+    case sync: Sync[F @unchecked] =>
+      Sync.syncForEitherT[F, E0](sync)
+    case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+      GenTemporal.genTemporalForEitherT[F, E0, E](temporal)
+    case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+      GenConcurrent.genConcurrentForEitherT[F, E0, E](concurrent)
+    case spawn: GenSpawn[F @unchecked, E @unchecked] =>
+      GenSpawn.genSpawnForEitherT[F, E0, E](spawn)
+    case cancel =>
+      new EitherTMonadCancel[F, E0, E] {
+        def rootCancelScope = F0.rootCancelScope
+        override implicit protected def F: MonadCancel[F, E] = cancel
+      }
+  }
 
   implicit def monadCancelForKleisli[F[_], R, E](
-      implicit F0: MonadCancel[F, E]): MonadCancel[Kleisli[F, R, *], E] =
-    new KleisliMonadCancel[F, R, E] {
-
-      def rootCancelScope = F0.rootCancelScope
-
-      override implicit protected def F: MonadCancel[F, E] = F0
-    }
+      implicit F0: MonadCancel[F, E]): MonadCancel[Kleisli[F, R, *], E] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForKleisli[F, R](async)
+    case sync: Sync[F @unchecked] =>
+      Sync.syncForKleisli[F, R](sync)
+    case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+      GenTemporal.genTemporalForKleisli[F, R, E](temporal)
+    case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+      GenConcurrent.genConcurrentForKleisli[F, R, E](concurrent)
+    case spawn: GenSpawn[F @unchecked, E @unchecked] =>
+      GenSpawn.genSpawnForKleisli[F, R, E](spawn)
+    case cancel =>
+      new KleisliMonadCancel[F, R, E] {
+        def rootCancelScope = F0.rootCancelScope
+        override implicit protected def F: MonadCancel[F, E] = cancel
+      }
+  }
 
   implicit def monadCancelForIorT[F[_], L, E](
       implicit F0: MonadCancel[F, E],
-      L0: Semigroup[L]): MonadCancel[IorT[F, L, *], E] =
-    new IorTMonadCancel[F, L, E] {
-
-      def rootCancelScope = F0.rootCancelScope
-
-      override implicit protected def F: MonadCancel[F, E] = F0
-
-      override implicit protected def L: Semigroup[L] = L0
-    }
+      L0: Semigroup[L]): MonadCancel[IorT[F, L, *], E] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForIorT[F, L](async, L0)
+    case sync: Sync[F @unchecked] =>
+      Sync.syncForIorT[F, L](sync, L0)
+    case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+      GenTemporal.genTemporalForIorT[F, L, E](temporal, L0)
+    case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+      GenConcurrent.genConcurrentForIorT[F, L, E](concurrent, L0)
+    case spawn: GenSpawn[F @unchecked, E @unchecked] =>
+      GenSpawn.genSpawnForIorT[F, L, E](spawn, L0)
+    case cancel =>
+      new IorTMonadCancel[F, L, E] {
+        def rootCancelScope = F0.rootCancelScope
+        override implicit protected def F: MonadCancel[F, E] = cancel
+        override implicit protected def L: Semigroup[L] = L0
+      }
+  }
 
   implicit def monadCancelForWriterT[F[_], L, E](
       implicit F0: MonadCancel[F, E],
-      L0: Monoid[L]): MonadCancel[WriterT[F, L, *], E] =
-    new WriterTMonadCancel[F, L, E] {
-
-      def rootCancelScope = F0.rootCancelScope
-
-      override implicit protected def F: MonadCancel[F, E] = F0
-
-      override implicit protected def L: Monoid[L] = L0
-    }
+      L0: Monoid[L]): MonadCancel[WriterT[F, L, *], E] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForWriterT[F, L](async, L0)
+    case sync: Sync[F @unchecked] =>
+      Sync.syncForWriterT[F, L](sync, L0)
+    case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+      GenTemporal.genTemporalForWriterT[F, L, E](temporal, L0)
+    case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+      GenConcurrent.genConcurrentForWriterT[F, L, E](concurrent, L0)
+    case spawn: GenSpawn[F @unchecked, E @unchecked] =>
+      GenSpawn.genSpawnForWriterT[F, L, E](spawn, L0)
+    case cancel =>
+      new WriterTMonadCancel[F, L, E] {
+        def rootCancelScope = F0.rootCancelScope
+        override implicit protected def F: MonadCancel[F, E] = cancel
+        override implicit protected def L: Monoid[L] = L0
+      }
+  }
 
   implicit def monadCancelForStateT[F[_], S, E](
-      implicit F0: MonadCancel[F, E]): MonadCancel[StateT[F, S, *], E] =
-    new StateTMonadCancel[F, S, E] {
-
-      def rootCancelScope = F0.rootCancelScope
-
-      override implicit protected def F = F0
-    }
+      implicit F0: MonadCancel[F, E]): MonadCancel[StateT[F, S, *], E] = F0 match {
+    case sync: Sync[F @unchecked] =>
+      Sync.syncForStateT[F, S](sync)
+    case cancel =>
+      new StateTMonadCancel[F, S, E] {
+        def rootCancelScope = F0.rootCancelScope
+        override implicit protected def F: MonadCancel[F, E] = cancel
+      }
+  }
 
   implicit def monadCancelForReaderWriterStateT[F[_], E0, L, S, E](
       implicit F0: MonadCancel[F, E],
-      L0: Monoid[L]): MonadCancel[ReaderWriterStateT[F, E0, L, S, *], E] =
-    new ReaderWriterStateTMonadCancel[F, E0, L, S, E] {
-
-      def rootCancelScope = F0.rootCancelScope
-
-      override implicit protected def F = F0
-      override implicit protected def L = L0
-    }
+      L0: Monoid[L]): MonadCancel[ReaderWriterStateT[F, E0, L, S, *], E] = F0 match {
+    case sync: Sync[F @unchecked] =>
+      Sync.syncForReaderWriterStateT[F, E0, L, S](sync, L0)
+    case cancel =>
+      new ReaderWriterStateTMonadCancel[F, E0, L, S, E] {
+        def rootCancelScope = F0.rootCancelScope
+        override implicit protected def F: MonadCancel[F, E] = cancel
+        override implicit protected def L: Monoid[L] = L0
+      }
+  }
 
   trait Uncancelable[F[_], E] { this: MonadCancel[F, E] =>
 

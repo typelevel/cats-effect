@@ -148,40 +148,68 @@ object GenConcurrent {
   }
 
   implicit def genConcurrentForOptionT[F[_], E](
-      implicit F0: GenConcurrent[F, E]): GenConcurrent[OptionT[F, *], E] =
-    new OptionTGenConcurrent[F, E] {
-      override implicit protected def F: GenConcurrent[F, E] = F0
-    }
+      implicit F0: GenConcurrent[F, E]): GenConcurrent[OptionT[F, *], E] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForOptionT[F](async)
+    case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+      GenTemporal.genTemporalForOptionT[F, E](temporal)
+    case concurrent =>
+      new OptionTGenConcurrent[F, E] {
+        override implicit protected def F: GenConcurrent[F, E] = concurrent
+      }
+  }
 
   implicit def genConcurrentForEitherT[F[_], E0, E](
-      implicit F0: GenConcurrent[F, E]): GenConcurrent[EitherT[F, E0, *], E] =
-    new EitherTGenConcurrent[F, E0, E] {
-      override implicit protected def F: GenConcurrent[F, E] = F0
-    }
+      implicit F0: GenConcurrent[F, E]): GenConcurrent[EitherT[F, E0, *], E] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForEitherT[F, E0](async)
+    case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+      GenTemporal.genTemporalForEitherT[F, E0, E](temporal)
+    case concurrent =>
+      new EitherTGenConcurrent[F, E0, E] {
+        override implicit protected def F: GenConcurrent[F, E] = concurrent
+      }
+  }
 
   implicit def genConcurrentForKleisli[F[_], R, E](
-      implicit F0: GenConcurrent[F, E]): GenConcurrent[Kleisli[F, R, *], E] =
-    new KleisliGenConcurrent[F, R, E] {
-      override implicit protected def F: GenConcurrent[F, E] = F0
-    }
+      implicit F0: GenConcurrent[F, E]): GenConcurrent[Kleisli[F, R, *], E] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForKleisli[F, R](async)
+    case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+      GenTemporal.genTemporalForKleisli[F, R, E](temporal)
+    case concurrent =>
+      new KleisliGenConcurrent[F, R, E] {
+        override implicit protected def F: GenConcurrent[F, E] = concurrent
+      }
+  }
 
   implicit def genConcurrentForIorT[F[_], L, E](
       implicit F0: GenConcurrent[F, E],
-      L0: Semigroup[L]): GenConcurrent[IorT[F, L, *], E] =
-    new IorTGenConcurrent[F, L, E] {
-      override implicit protected def F: GenConcurrent[F, E] = F0
-
-      override implicit protected def L: Semigroup[L] = L0
-    }
+      L0: Semigroup[L]): GenConcurrent[IorT[F, L, *], E] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForIorT[F, L](async, L0)
+    case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+      GenTemporal.genTemporalForIorT[F, L, E](temporal, L0)
+    case concurrent =>
+      new IorTGenConcurrent[F, L, E] {
+        override implicit protected def F: GenConcurrent[F, E] = concurrent
+        override implicit protected def L: Semigroup[L] = L0
+      }
+  }
 
   implicit def genConcurrentForWriterT[F[_], L, E](
       implicit F0: GenConcurrent[F, E],
-      L0: Monoid[L]): GenConcurrent[WriterT[F, L, *], E] =
-    new WriterTGenConcurrent[F, L, E] {
-      override implicit protected def F: GenConcurrent[F, E] = F0
-
-      override implicit protected def L: Monoid[L] = L0
-    }
+      L0: Monoid[L]): GenConcurrent[WriterT[F, L, *], E] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForWriterT[F, L](async, L0)
+    case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+      GenTemporal.genTemporalForWriterT[F, L, E](temporal, L0)
+    case concurrent =>
+      new WriterTGenConcurrent[F, L, E] {
+        override implicit protected def F: GenConcurrent[F, E] = concurrent
+        override implicit protected def L: Monoid[L] = L0
+      }
+  }
 
   private[kernel] trait OptionTGenConcurrent[F[_], E]
       extends GenConcurrent[OptionT[F, *], E]

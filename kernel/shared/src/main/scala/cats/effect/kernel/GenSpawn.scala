@@ -430,45 +430,78 @@ object GenSpawn {
   def apply[F[_]](implicit F: GenSpawn[F, _], d: DummyImplicit): F.type = F
 
   implicit def genSpawnForOptionT[F[_], E](
-      implicit F0: GenSpawn[F, E]): GenSpawn[OptionT[F, *], E] =
-    new OptionTGenSpawn[F, E] {
-
-      override implicit protected def F: GenSpawn[F, E] = F0
-    }
+      implicit F0: GenSpawn[F, E]): GenSpawn[OptionT[F, *], E] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForOptionT[F](async)
+    case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+      GenTemporal.genTemporalForOptionT[F, E](temporal)
+    case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+      GenConcurrent.genConcurrentForOptionT[F, E](concurrent)
+    case spawn =>
+      new OptionTGenSpawn[F, E] {
+        override implicit protected def F: GenSpawn[F, E] = spawn
+      }
+  }
 
   implicit def genSpawnForEitherT[F[_], E0, E](
-      implicit F0: GenSpawn[F, E]): GenSpawn[EitherT[F, E0, *], E] =
-    new EitherTGenSpawn[F, E0, E] {
-
-      override implicit protected def F: GenSpawn[F, E] = F0
-    }
+      implicit F0: GenSpawn[F, E]): GenSpawn[EitherT[F, E0, *], E] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForEitherT[F, E0](async)
+    case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+      GenTemporal.genTemporalForEitherT[F, E0, E](temporal)
+    case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+      GenConcurrent.genConcurrentForEitherT[F, E0, E](concurrent)
+    case spawn =>
+      new EitherTGenSpawn[F, E0, E] {
+        override implicit protected def F: GenSpawn[F, E] = spawn
+      }
+  }
 
   implicit def genSpawnForKleisli[F[_], R, E](
-      implicit F0: GenSpawn[F, E]): GenSpawn[Kleisli[F, R, *], E] =
-    new KleisliGenSpawn[F, R, E] {
-
-      override implicit protected def F: GenSpawn[F, E] = F0
-    }
+      implicit F0: GenSpawn[F, E]): GenSpawn[Kleisli[F, R, *], E] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForKleisli[F, R](async)
+    case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+      GenTemporal.genTemporalForKleisli[F, R, E](temporal)
+    case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+      GenConcurrent.genConcurrentForKleisli[F, R, E](concurrent)
+    case spawn =>
+      new KleisliGenSpawn[F, R, E] {
+        override implicit protected def F: GenSpawn[F, E] = spawn
+      }
+  }
 
   implicit def genSpawnForIorT[F[_], L, E](
       implicit F0: GenSpawn[F, E],
-      L0: Semigroup[L]): GenSpawn[IorT[F, L, *], E] =
-    new IorTGenSpawn[F, L, E] {
-
-      override implicit protected def F: GenSpawn[F, E] = F0
-
-      override implicit protected def L: Semigroup[L] = L0
-    }
+      L0: Semigroup[L]): GenSpawn[IorT[F, L, *], E] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForIorT[F, L](async, L0)
+    case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+      GenTemporal.genTemporalForIorT[F, L, E](temporal, L0)
+    case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+      GenConcurrent.genConcurrentForIorT[F, L, E](concurrent, L0)
+    case spawn =>
+      new IorTGenSpawn[F, L, E] {
+        override implicit protected def F: GenSpawn[F, E] = spawn
+        override implicit protected def L: Semigroup[L] = L0
+      }
+  }
 
   implicit def genSpawnForWriterT[F[_], L, E](
       implicit F0: GenSpawn[F, E],
-      L0: Monoid[L]): GenSpawn[WriterT[F, L, *], E] =
-    new WriterTGenSpawn[F, L, E] {
-
-      override implicit protected def F: GenSpawn[F, E] = F0
-
-      override implicit protected def L: Monoid[L] = L0
-    }
+      L0: Monoid[L]): GenSpawn[WriterT[F, L, *], E] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForWriterT[F, L](async, L0)
+    case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+      GenTemporal.genTemporalForWriterT[F, L, E](temporal, L0)
+    case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+      GenConcurrent.genConcurrentForWriterT[F, L, E](concurrent, L0)
+    case spawn =>
+      new WriterTGenSpawn[F, L, E] {
+        override implicit protected def F: GenSpawn[F, E] = spawn
+        override implicit protected def L: Monoid[L] = L0
+      }
+  }
 
   private[kernel] trait OptionTGenSpawn[F[_], E]
       extends GenSpawn[OptionT[F, *], E]

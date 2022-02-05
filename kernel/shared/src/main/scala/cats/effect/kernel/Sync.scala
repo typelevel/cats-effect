@@ -110,20 +110,25 @@ object Sync {
 
   def apply[F[_]](implicit F: Sync[F]): F.type = F
 
-  implicit def syncForOptionT[F[_]](implicit F0: Sync[F]): Sync[OptionT[F, *]] =
-    new OptionTSync[F] {
-
-      def rootCancelScope = F0.rootCancelScope
-
-      implicit def F: Sync[F] = F0
-    }
+  implicit def syncForOptionT[F[_]](implicit F0: Sync[F]): Sync[OptionT[F, *]] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForOptionT[F](async)
+    case sync =>
+      new OptionTSync[F] {
+        def rootCancelScope = F0.rootCancelScope
+        implicit protected def F: Sync[F] = sync
+      }
+  }
 
   implicit def syncForEitherT[F[_], E](implicit F0: Sync[F]): Sync[EitherT[F, E, *]] =
-    new EitherTSync[F, E] {
-
-      def rootCancelScope = F0.rootCancelScope
-
-      implicit def F: Sync[F] = F0
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForEitherT[F, E](async)
+      case sync =>
+        new EitherTSync[F, E] {
+          def rootCancelScope = F0.rootCancelScope
+          implicit protected def F: Sync[F] = sync
+        }
     }
 
   implicit def syncForStateT[F[_], S](implicit F0: Sync[F]): Sync[StateT[F, S, *]] =
@@ -136,34 +141,39 @@ object Sync {
 
   implicit def syncForWriterT[F[_], L](
       implicit F0: Sync[F],
-      L0: Monoid[L]): Sync[WriterT[F, L, *]] =
-    new WriterTSync[F, L] {
-
-      def rootCancelScope = F0.rootCancelScope
-
-      implicit def F: Sync[F] = F0
-
-      implicit def L: Monoid[L] = L0
-    }
+      L0: Monoid[L]): Sync[WriterT[F, L, *]] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForWriterT[F, L](async, L0)
+    case sync =>
+      new WriterTSync[F, L] {
+        def rootCancelScope = F0.rootCancelScope
+        implicit def F: Sync[F] = sync
+        implicit def L: Monoid[L] = L0
+      }
+  }
 
   implicit def syncForIorT[F[_], L](
       implicit F0: Sync[F],
-      L0: Semigroup[L]): Sync[IorT[F, L, *]] =
-    new IorTSync[F, L] {
-
-      def rootCancelScope = F0.rootCancelScope
-
-      implicit def F: Sync[F] = F0
-
-      implicit def L: Semigroup[L] = L0
-    }
+      L0: Semigroup[L]): Sync[IorT[F, L, *]] = F0 match {
+    case async: Async[F @unchecked] =>
+      Async.asyncForIorT[F, L](async, L0)
+    case sync =>
+      new IorTSync[F, L] {
+        def rootCancelScope = F0.rootCancelScope
+        implicit def F: Sync[F] = sync
+        implicit def L: Semigroup[L] = L0
+      }
+  }
 
   implicit def syncForKleisli[F[_], R](implicit F0: Sync[F]): Sync[Kleisli[F, R, *]] =
-    new KleisliSync[F, R] {
-
-      def rootCancelScope = F0.rootCancelScope
-
-      implicit def F: Sync[F] = F0
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForKleisli[F, R](async)
+      case sync =>
+        new KleisliSync[F, R] {
+          def rootCancelScope = F0.rootCancelScope
+          implicit def F: Sync[F] = sync
+        }
     }
 
   implicit def syncForReaderWriterStateT[F[_], R, L, S](
