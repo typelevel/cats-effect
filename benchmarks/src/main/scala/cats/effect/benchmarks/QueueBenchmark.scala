@@ -48,8 +48,8 @@ class QueueBenchmark {
   var size: Int = _
 
   @Benchmark
-  def enqueueDequeueOne(): Unit = {
-    val program = Queue.bounded[IO, Unit](size) flatMap { q =>
+  def concurrentEnqueueDequeueOne(): Unit = {
+    val program = Queue.boundedForConcurrent[IO, Unit](size) flatMap { q =>
       def loop(i: Int): IO[Unit] =
         if (i > 0)
           q.offer(()) *> q.take >> loop(i - 1)
@@ -63,8 +63,44 @@ class QueueBenchmark {
   }
 
   @Benchmark
-  def enqueueDequeueMany(): Unit = {
-    val program = Queue.bounded[IO, Unit](size) flatMap { q =>
+  def concurrentEnqueueDequeueMany(): Unit = {
+    val program = Queue.boundedForConcurrent[IO, Unit](size) flatMap { q =>
+      def loopIn(i: Int): IO[Unit] =
+        if (i > 0)
+          q.offer(()) >> loopIn(i - 1)
+        else
+          IO.unit
+
+      def loopOut(i: Int): IO[Unit] =
+        if (i > 0)
+          q.take >> loopOut(i - 1)
+        else
+          IO.unit
+
+      loopIn(size) *> loopOut(size)
+    }
+
+    program.unsafeRunSync()
+  }
+
+  @Benchmark
+  def asyncEnqueueDequeueOne(): Unit = {
+    val program = Queue.boundedForAsync[IO, Unit](size) flatMap { q =>
+      def loop(i: Int): IO[Unit] =
+        if (i > 0)
+          q.offer(()) *> q.take >> loop(i - 1)
+        else
+          IO.unit
+
+      loop(size)
+    }
+
+    program.unsafeRunSync()
+  }
+
+  @Benchmark
+  def asyncEnqueueDequeueMany(): Unit = {
+    val program = Queue.boundedForAsync[IO, Unit](size) flatMap { q =>
       def loopIn(i: Int): IO[Unit] =
         if (i > 0)
           q.offer(()) >> loopIn(i - 1)
