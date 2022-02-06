@@ -151,9 +151,6 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
         val (compute, _) = createDefaultComputeThreadPool(global)
         val (blocking, _) = createDefaultBlockingExecutionContext()
         val (scheduler, _) = createDefaultScheduler()
-        val fiberMonitor = FiberMonitor(compute)
-        registerFiberMonitorMBean(fiberMonitor)
-
         IORuntime(compute, blocking, scheduler, () => (), IORuntimeConfig())
       }
     }
