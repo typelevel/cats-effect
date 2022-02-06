@@ -1401,11 +1401,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Returns `raiseError` when the `cond` is true, otherwise `IO.unit`
    *
    * @example
-   * {{{
+   *   {{{
    * val tooMany = 5
    * val x: Int = ???
    * IO.raiseWhen(x >= tooMany)(new IllegalArgumentException("Too many"))
-   * }}}
+   *   }}}
    */
   def raiseWhen(cond: Boolean)(e: => Throwable): IO[Unit] =
     IO.whenA(cond)(IO.raiseError(e))
@@ -1414,11 +1414,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Returns `raiseError` when `cond` is false, otherwise IO.unit
    *
    * @example
-   * {{{
+   *   {{{
    * val tooMany = 5
    * val x: Int = ???
    * IO.raiseUnless(x < tooMany)(new IllegalArgumentException("Too many"))
-   * }}}
+   *   }}}
    */
   def raiseUnless(cond: Boolean)(e: => Throwable): IO[Unit] =
     IO.unlessA(cond)(IO.raiseError(e))

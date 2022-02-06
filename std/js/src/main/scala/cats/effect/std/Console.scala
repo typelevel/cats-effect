@@ -31,7 +31,7 @@ import java.nio.charset.Charset
  * console. Suited only for extremely simple console input and output.
  *
  * @example
- * {{{
+ *   {{{
  * import cats.effect.std.Console
  * import cats.effect.kernel.Sync
  * import cats.syntax.all._
@@ -44,7 +44,7 @@ import java.nio.charset.Charset
  *     n <- Console[F].readLine
  *     _ <- if (n.nonEmpty) Console[F].println("Hello, " + n) else Console[F].errorln("Name is empty!")
  *   } yield ()
- * }}}
+ *   }}}
  */
 trait Console[F[_]] extends ConsoleCrossPlatform[F] {
 
