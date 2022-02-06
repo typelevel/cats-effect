@@ -343,6 +343,7 @@ object Queue {
     def offer(a: A): F[Unit] = F defer {
       try {
         buffer.put(a)
+        notifyOne()
         F.unit
       } catch {
         case FailureSignal =>
@@ -354,6 +355,8 @@ object Queue {
                 buffer.put(a)
                 clear()
                 k(EitherUnit)
+                notifyOne()
+
                 None
               } catch {
                 case FailureSignal =>
@@ -369,6 +372,7 @@ object Queue {
     def tryOffer(a: A): F[Boolean] = F delay {
       try {
         buffer.put(a)
+        notifyOne()
         true
       } catch {
         case FailureSignal =>
@@ -380,7 +384,9 @@ object Queue {
 
     val take: F[A] = F defer {
       try {
-        F.pure(buffer.take())
+        val result = buffer.take()
+        notifyOne()
+        F.pure(result)
       } catch {
         case FailureSignal =>
           var received = false
@@ -395,6 +401,8 @@ object Queue {
                 clear()
                 received = true
                 k(EitherUnit)
+                notifyOne()
+
                 None
               } catch {
                 case FailureSignal =>
@@ -409,12 +417,22 @@ object Queue {
 
     val tryTake: F[Option[A]] = F delay {
       try {
-        Some(buffer.take())
+        val back = buffer.take()
+        notifyOne()
+        Some(back)
       } catch {
         case FailureSignal =>
           None
       }
     }
+
+    // TODO could optimize notifications by checking if buffer is completely empty on put
+    private[this] def notifyOne(): Unit =
+      try {
+        waiters.take()(EitherUnit)
+      } catch {
+        case FailureSignal => ()
+      }
   }
 
   private[effect] final class UnsafeBounded[A](bound: Int) {
