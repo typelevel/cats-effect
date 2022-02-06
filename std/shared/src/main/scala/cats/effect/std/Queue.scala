@@ -18,11 +18,14 @@ package cats
 package effect
 package std
 
-import cats.effect.kernel.{Deferred, GenConcurrent, Poll, Ref}
+import cats.effect.kernel.{Async, Deferred, GenConcurrent, Poll, Ref}
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
 
+import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => ScalaQueue}
+
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A purely functional, concurrent data structure which allows insertion and retrieval of
@@ -67,9 +70,21 @@ object Queue {
    * @return
    *   an empty, bounded queue
    */
-  def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
+  def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
+    F match {
+      case f0: Async[F] => boundedForAsync[F, A](capacity)(f0)
+      case _ => boundedForConcurrent[F, A](capacity)
+    }
+
+  private[effect] def boundedForConcurrent[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
     assertNonNegative(capacity)
     F.ref(State.empty[F, A]).map(new BoundedQueue(capacity, _))
+  }
+
+  private[effect] def boundedForAsync[F[_], A](capacity: Int)(implicit F: Async[F]): F[Queue[F, A]] = {
+    assertNonNegative(capacity)
+
+    F.delay(new BoundedAsyncQueue(capacity))
   }
 
   /**
@@ -312,6 +327,184 @@ object Queue {
   private object State {
     def empty[F[_], A]: State[F, A] =
       State(ScalaQueue.empty, 0, ScalaQueue.empty, ScalaQueue.empty)
+  }
+
+  private val EitherUnit: Either[Throwable, Unit] = Right(())
+  private val FailureSignal: Throwable = new RuntimeException with scala.util.control.NoStackTrace
+
+  /*
+   * This data structure is really two queues: a circular buffer and an unbounded linked queue.
+   * The former contains data, while the latter contains blockers either for offering or taking.
+   */
+  private final class BoundedAsyncQueue[F[_], A](capacity: Int)(implicit F: Async[F]) extends Queue[F, A] {
+    import java.util.concurrent.ConcurrentLinkedQueue
+    import java.util.concurrent.atomic.AtomicInteger
+
+    private[this] val buffer = new Array[AnyRef](capacity)
+
+    private[this] val front = new AtomicInteger(0)
+    private[this] val back = new AtomicInteger(0)
+    private[this] val currentSize = new AtomicInteger(0)
+
+    // TODO optimize this a bit where take waiters can be A => Unit
+
+    def offer(a: A): F[Unit] = F defer {
+      if (!_tryOffer(a)) {
+        F async { k =>
+          F delay {
+            // waiters.put(k)
+            Some(F.unit)    // TODO free the memory reference
+          }
+        }
+      } else {
+        F.unit
+      }
+    }
+
+    def tryOffer(a: A): F[Boolean] = F.delay(_tryOffer(a))
+
+    private[this] def _tryOffer(a: A): Boolean = {
+      val old = front.get()
+      val i = old + 1 % capacity
+
+      if (i != back.get()) {
+        if (front.compareAndSet(old, i)) {
+          buffer(i) = a.asInstanceOf[AnyRef]
+          currentSize.incrementAndGet()  // publish the write and permit access
+
+          true
+        } else {
+          _tryOffer(a)
+        }
+      } else {
+        false
+      }
+    }
+
+    def size: F[Int] = F.delay(currentSize.get())
+
+    val take: F[A] = ???
+
+    val tryTake: F[Option[A]] = F.delay(Some(_tryTake()): Option[A]).handleError(_ => None)
+
+    private[this] def _tryTake(): A = {
+      if (currentSize.get() <= 0) {
+        throw FailureSignal
+      } else {
+        val i = back.get()
+
+        if (back.compareAndSet(i, i + 1 % capacity)) {
+          currentSize.decrementAndGet()
+
+          val result = buffer(i).asInstanceOf[A]
+          buffer(i) = null
+          result
+        } else {
+          _tryTake()
+        }
+      }
+    }
+  }
+
+  /*
+   * Two pointers: head and tail
+   *
+   * insert:
+   * CAS on the head == null.
+   * If true, then getAndSet the tail to yourself
+   *   If null then you're done.
+   *   If !null then append the old tail to yourself
+   *     Weak CAS the tail back to the old tail, ignoring results
+   * If false then getAndSet the tail to yourself
+   *   If null then weak CAS yourself to head on == null
+   *   If !null then
+   *     append yourself to the old tail
+   *
+   * take:
+   * Get the head
+   * If null then queue is empty
+   *
+   * Get the tail of the head
+   * CAS the head to its tail
+   * If failed then retry
+   *
+   * If tail is null then weak CAS the tail pointer, ignoring results
+   *
+   * If data is null retry
+   * If data is not null
+   *   empty out the cell
+   *   return
+   */
+  private[effect] final class UnsafeUnbounded[A] {
+    private[this] val first = new AtomicReference[Cell]
+    private[this] val last = new AtomicReference[Cell]
+
+    def put(data: A): Unit = {
+      val cell = new Cell(data)
+
+      val oldLast = last.getAndSet(cell)
+      if (oldLast == null) {
+        @tailrec
+        def loop(): Unit = {
+          val oldFirst = first.get()
+          if (oldFirst == null) {
+            if (!first.compareAndSet(null, cell)) {
+              loop()
+            }
+          } else {
+            oldFirst.append(cell)   // even if it's taken out by this point, it'll still point into the structure
+          }
+        }
+
+        loop()
+      } else {
+        cell.append(oldLast)
+        last.weakCompareAndSet(cell, oldLast)
+      }
+    }
+
+    @tailrec
+    def take(): A = {
+      val oldFirst = first.get()
+      if (oldFirst == null) {
+        throw FailureSignal
+      } else {
+        val tail = oldFirst.get()
+        if (!first.compareAndSet(oldFirst, tail)) {
+          take()
+        } else {
+          if (tail == null) {
+            last.weakCompareAndSet(oldFirst, tail)    // someone else may put in the interim; that's okay
+          }
+
+          val data = oldFirst.data()
+          if (data == null) {
+            take()
+          } else {
+            data
+          }
+        }
+      }
+    }
+
+    private final class Cell(private[this] var _data: A) extends AtomicReference[Cell] {
+
+      def clear(): Unit = _data = null.asInstanceOf[A]
+
+      def data(): A = _data
+
+      @tailrec
+      def append(cell: Cell): Unit = {
+        val tail = get()
+        if (tail == null) {
+          if (!compareAndSet(tail, cell)) {
+            append(cell)
+          }
+        } else {
+          tail.append(cell)
+        }
+      }
+    }
   }
 
   implicit def catsInvariantForQueue[F[_]: Functor]: Invariant[Queue[F, *]] =
