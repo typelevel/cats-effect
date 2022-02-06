@@ -337,71 +337,82 @@ object Queue {
    * The former contains data, while the latter contains blockers either for offering or taking.
    */
   private final class BoundedAsyncQueue[F[_], A](capacity: Int)(implicit F: Async[F]) extends Queue[F, A] {
-    import java.util.concurrent.ConcurrentLinkedQueue
-    import java.util.concurrent.atomic.AtomicInteger
-
-    private[this] val buffer = new Array[AnyRef](capacity)
-
-    private[this] val front = new AtomicInteger(0)
-    private[this] val back = new AtomicInteger(0)
-    private[this] val currentSize = new AtomicInteger(0)
-
-    // TODO optimize this a bit where take waiters can be A => Unit
+    private[this] val buffer = new UnsafeBounded[A](capacity)
+    private[this] val waiters = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
 
     def offer(a: A): F[Unit] = F defer {
-      if (!_tryOffer(a)) {
-        F async { k =>
-          F delay {
-            // waiters.put(k)
-            Some(F.unit)    // TODO free the memory reference
-          }
-        }
-      } else {
+      try {
+        buffer.put(a)
         F.unit
+      } catch {
+        case FailureSignal =>
+          val wait = F.async[Unit] { k =>
+            F delay {
+              val clear = waiters.put(k)
+
+              try {
+                buffer.put(a)
+                clear()
+                k(EitherUnit)
+                None
+              } catch {
+                case FailureSignal =>
+                  Some(F.delay(clear()))
+              }
+            }
+          }
+
+          wait *> offer(a)
       }
     }
 
-    def tryOffer(a: A): F[Boolean] = F.delay(_tryOffer(a))
-
-    private[this] def _tryOffer(a: A): Boolean = {
-      val old = front.get()
-      val i = old + 1 % capacity
-
-      if (i != back.get()) {
-        if (front.compareAndSet(old, i)) {
-          buffer(i) = a.asInstanceOf[AnyRef]
-          currentSize.incrementAndGet()  // publish the write and permit access
-
-          true
-        } else {
-          _tryOffer(a)
-        }
-      } else {
-        false
+    def tryOffer(a: A): F[Boolean] = F delay {
+      try {
+        buffer.put(a)
+        true
+      } catch {
+        case FailureSignal =>
+          false
       }
     }
 
-    def size: F[Int] = F.delay(currentSize.get())
+    val size: F[Int] = F.delay(buffer.size())
 
-    val take: F[A] = ???
+    val take: F[A] = F defer {
+      try {
+        F.pure(buffer.take())
+      } catch {
+        case FailureSignal =>
+          var received = false
+          var result: A = null.asInstanceOf[A]
 
-    val tryTake: F[Option[A]] = F.delay(Some(_tryTake()): Option[A]).handleError(_ => None)
+          val wait = F.async[Unit] { k =>
+            F delay {
+              val clear = waiters.put(k)
 
-    private[this] def _tryTake(): A = {
-      if (currentSize.get() <= 0) {
-        throw FailureSignal
-      } else {
-        val i = back.get()
+              try {
+                result = buffer.take()
+                clear()
+                received = true
+                k(EitherUnit)
+                None
+              } catch {
+                case FailureSignal =>
+                  Some(F.delay(clear()))
+              }
+            }
+          }
 
-        if (back.compareAndSet(i, i + 1 % capacity)) {
-          currentSize.decrementAndGet()
+          wait *> F.defer(if (received) F.pure(result) else take)
+      }
+    }
 
-          val result = buffer(i).asInstanceOf[A]
-          buffer(i) = null
-          result
-        } else {
-          _tryTake()
-        }
+    val tryTake: F[Option[A]] = F delay {
+      try {
+        Some(buffer.take())
+      } catch {
+        case FailureSignal =>
+          None
       }
     }
   }
@@ -412,6 +423,8 @@ object Queue {
     private[this] val first = new AtomicInteger(0)
     private[this] val last = new AtomicInteger(0)
     private[this] val length = new AtomicInteger(0)
+
+    def size(): Int = length.get()
 
     @tailrec
     def put(data: A): Unit = {
@@ -491,7 +504,7 @@ object Queue {
     private[this] val first = new AtomicReference[Cell]
     private[this] val last = new AtomicReference[Cell]
 
-    def put(data: A): Unit = {
+    def put(data: A): () => Unit = {
       val cell = new Cell(data)
 
       val oldLast = last.getAndSet(cell)
@@ -511,8 +524,10 @@ object Queue {
         loop()
       } else {
         cell.append(oldLast)
-        last.weakCompareAndSet(cell, oldLast)
+        last.compareAndSet(cell, oldLast)
       }
+
+      cell
     }
 
     @tailrec
@@ -526,7 +541,7 @@ object Queue {
           take()
         } else {
           if (tail == null) {
-            last.weakCompareAndSet(oldFirst, tail)    // someone else may put in the interim; that's okay
+            last.compareAndSet(oldFirst, tail)    // someone else may put in the interim; that's okay
           }
 
           val data = oldFirst.data()
@@ -539,9 +554,9 @@ object Queue {
       }
     }
 
-    private final class Cell(private[this] var _data: A) extends AtomicReference[Cell] {
+    private final class Cell(private[this] var _data: A) extends AtomicReference[Cell] with (() => Unit) {
 
-      def clear(): Unit = _data = null.asInstanceOf[A]
+      def apply(): Unit = _data = null.asInstanceOf[A]
 
       def data(): A = _data
 
