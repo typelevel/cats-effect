@@ -1502,8 +1502,9 @@ private final class IOFiber[A] private (
         val len = hashtable.length
         var i = 0
         while (i < len) {
-          val cb = hashtable(i)
-          if (cb ne null) {
+          val ref = hashtable(i)
+          if (ref.isInstanceOf[_ => _]) {
+            val cb = ref.asInstanceOf[Throwable => Unit]
             cb(t)
           }
           i += 1
