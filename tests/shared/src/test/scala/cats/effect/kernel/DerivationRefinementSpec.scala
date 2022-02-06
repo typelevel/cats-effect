@@ -18,6 +18,7 @@ package cats.effect.kernel
 
 import cats.data._
 import cats.effect.{BaseSpec, IO, SyncIO}
+
 import org.specs2.matcher.Matchers
 
 import scala.reflect.ClassTag
