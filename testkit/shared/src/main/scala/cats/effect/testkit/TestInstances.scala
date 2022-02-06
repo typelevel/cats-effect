@@ -220,7 +220,7 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
   }
 
   implicit def materializeRuntime(implicit ticker: Ticker): unsafe.IORuntime =
-    unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => (), unsafe.IORuntimeConfig())
+    unsafe.IORuntime.testRuntime(ticker.ctx, scheduler)
 
   def scheduler(implicit ticker: Ticker): unsafe.Scheduler = {
     val ctx = ticker.ctx
