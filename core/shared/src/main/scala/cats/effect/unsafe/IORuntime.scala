@@ -68,7 +68,10 @@ object IORuntime extends IORuntimeCompanionPlatform {
       shutdown()
     }
 
-    new IORuntime(compute, blocking, scheduler, fiberMonitor, unregisterAndShutdown, config)
+    val runtime =
+      new IORuntime(compute, blocking, scheduler, fiberMonitor, unregisterAndShutdown, config)
+    allRuntimes.put(runtime, runtime.hashCode())
+    runtime
   }
 
   def builder(): IORuntimeBuilder =
@@ -76,4 +79,7 @@ object IORuntime extends IORuntimeCompanionPlatform {
 
   private[effect] def testRuntime(ec: ExecutionContext, scheduler: Scheduler): IORuntime =
     new IORuntime(ec, ec, scheduler, new NoOpFiberMonitor(), () => (), IORuntimeConfig())
+
+  private[effect] final val allRuntimes: ThreadSafeHashtable[IORuntime] =
+    new ThreadSafeHashtable(4)
 }
