@@ -25,7 +25,7 @@ import cats.syntax.all._
 import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => ScalaQueue}
 
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 
 /**
  * A purely functional, concurrent data structure which allows insertion and retrieval of
@@ -401,6 +401,58 @@ object Queue {
           result
         } else {
           _tryTake()
+        }
+      }
+    }
+  }
+
+  private[effect] final class UnsafeBounded[A](bound: Int) {
+    private[this] val buffer = new Array[AnyRef](bound)
+
+    private[this] val first = new AtomicInteger(0)
+    private[this] val last = new AtomicInteger(0)
+    private[this] val length = new AtomicInteger(0)
+
+    @tailrec
+    def put(data: A): Unit = {
+      val oldLast = last.get()
+
+      if (length.get() >= bound) {
+        throw FailureSignal
+      } else {
+        if (last.compareAndSet(oldLast, (oldLast + 1) % bound)) {
+          buffer(oldLast) = data.asInstanceOf[AnyRef]
+
+          // we're already exclusive with other puts, and take can only *decrease* length, so we don't gate
+          // this also forms a write barrier for buffer
+          length.getAndIncrement()
+
+          ()
+        } else {
+          put(data)
+        }
+      }
+    }
+
+    @tailrec
+    def take(): A = {
+      val oldFirst = first.get()
+
+      if (length.get() <= 0) {    // read barrier and check that boundary puts have completed
+        throw FailureSignal
+      } else {
+        if (first.compareAndSet(oldFirst, (oldFirst + 1) % bound)) {
+          val back = buffer(oldFirst).asInstanceOf[A]
+
+          // we're already exclusive with other takes, and put can only *increase* length, so we don't gate
+          // doing this *after* we read from the buffer ensures we don't read a new value when full
+          // specifically, it guarantees that puts will fail even if first has already advanced
+          length.getAndDecrement()
+
+          buffer(oldFirst) = null   // prevent memory leaks (no need to eagerly publish)
+          back
+        } else {
+          take()
         }
       }
     }
