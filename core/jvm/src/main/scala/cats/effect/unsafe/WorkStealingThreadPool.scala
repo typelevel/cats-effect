@@ -518,7 +518,7 @@ private[effect] final class WorkStealingThreadPool(
       scheduleFiber(fiber)
     } else {
       // Executing a general purpose computation on the thread pool.
-      val fiber = new IOFiber[Unit](runnable, this, self)
+      val fiber = new IOFiber[Unit](runnable, this)
       scheduleFiber(fiber)
     }
   }

@@ -97,7 +97,7 @@ private final class IOFiber[A] private (
     runtime
   )
 
-  def this(runnable: Runnable, startEC: ExecutionContext, runtime: IORuntime) = this(
+  def this(runnable: Runnable, startEC: ExecutionContext) = this(
     null,
     null,
     startEC,
@@ -106,7 +106,7 @@ private final class IOFiber[A] private (
     IOFiberConstants.ExecuteRunnableR,
     runnable,
     null,
-    runtime)
+    null)
 
   import IO._
   import IOFiberConstants._
