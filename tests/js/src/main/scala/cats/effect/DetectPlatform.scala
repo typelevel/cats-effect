@@ -29,7 +29,7 @@ trait DetectPlatform {
       val isLinux = process.platform.asInstanceOf[String].toLowerCase == "linux"
       val ms = os.release().asInstanceOf[String].toLowerCase.contains("microsoft")
 
-      isLinux && ms   // this mis-identifies docker on Windows, which should be considered unsupported for the CE build
+      isLinux && ms // this mis-identifies docker on Windows, which should be considered unsupported for the CE build
     }
 
     t.getOrElse(false)
