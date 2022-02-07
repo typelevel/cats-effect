@@ -64,6 +64,12 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
    * Like [[blocking]] but will attempt to abort the blocking operation using thread interrupts
    * in the event of cancelation. The interrupt will be attempted only once.
    *
+   * Note the following tradeoffs:
+   *  - this has slightly more overhead than [[blocking]] due to the machinery necessary for the interrupt coordination,
+   *  - thread interrupts are very often poorly considered by Java (and Scala!) library authors, and it is possible
+   *    for interrupts to result in resource leaks or invalid states. It is important to be certain that this
+   *    will not be the case before using this mechanism.
+   *
    * @param thunk
    *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
    *   context
@@ -79,6 +85,12 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
    * Like [[blocking]] but will attempt to abort the blocking operation using thread interrupts
    * in the event of cancelation. The interrupt will be attempted repeatedly until the blocking
    * operation completes or exits.
+   *
+   * Note the following tradeoffs:
+   *  - this has slightly more overhead than [[blocking]] due to the machinery necessary for the interrupt coordination,
+   *  - thread interrupts are very often poorly considered by Java (and Scala!) library authors, and it is possible
+   *    for interrupts to result in resource leaks or invalid states. It is important to be certain that this
+   *    will not be the case before using this mechanism.
    *
    * @param thunk
    *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
