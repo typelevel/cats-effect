@@ -158,15 +158,6 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     _global
   }
 
-  private[effect] def apply(
-      compute: ExecutionContext,
-      blocking: ExecutionContext,
-      scheduler: Scheduler,
-      fiberMonitor: FiberMonitor,
-      shutdown: () => Unit,
-      config: IORuntimeConfig): IORuntime =
-    new IORuntime(compute, blocking, scheduler, fiberMonitor, shutdown, config)
-
   private[effect] def registerFiberMonitorMBean(fiberMonitor: FiberMonitor): () => Unit = {
     if (isStackTracing) {
       val mBeanServer =

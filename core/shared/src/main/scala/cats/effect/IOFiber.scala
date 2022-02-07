@@ -1487,30 +1487,45 @@ private final class IOFiber[A] private (
 
   private[this] def onFatalFailure(t: Throwable): Null = {
     Thread.interrupted()
-    runtime.shutdown()
 
-    // Make sure the shutdown did not interrupt this thread.
-    Thread.interrupted()
+    IORuntime.allRuntimes.synchronized {
+      var r = 0
+      val runtimes = IORuntime.allRuntimes.unsafeHashtable()
+      val length = runtimes.length
+      while (r < length) {
+        val ref = runtimes(r)
+        if (ref.isInstanceOf[IORuntime]) {
+          val rt = ref.asInstanceOf[IORuntime]
 
-    var idx = 0
-    val tables = runtime.fiberErrorCbs.tables
-    val numTables = runtime.fiberErrorCbs.numTables
-    while (idx < numTables) {
-      val table = tables(idx)
-      table.synchronized {
-        val hashtable = table.unsafeHashtable()
-        val len = hashtable.length
-        var i = 0
-        while (i < len) {
-          val ref = hashtable(i)
-          if (ref.isInstanceOf[_ => _]) {
-            val cb = ref.asInstanceOf[Throwable => Unit]
-            cb(t)
+          rt.shutdown()
+
+          // Make sure the shutdown did not interrupt this thread.
+          Thread.interrupted()
+
+          var idx = 0
+          val tables = rt.fiberErrorCbs.tables
+          val numTables = rt.fiberErrorCbs.numTables
+          while (idx < numTables) {
+            val table = tables(idx)
+            table.synchronized {
+              val hashtable = table.unsafeHashtable()
+              val len = hashtable.length
+              var i = 0
+              while (i < len) {
+                val ref = hashtable(i)
+                if (ref.isInstanceOf[_ => _]) {
+                  val cb = ref.asInstanceOf[Throwable => Unit]
+                  cb(t)
+                }
+                i += 1
+              }
+            }
+            idx += 1
           }
-          i += 1
         }
+
+        r += 1
       }
-      idx += 1
     }
 
     Thread.currentThread().interrupt()
