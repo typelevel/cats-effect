@@ -32,7 +32,7 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
    * Intended for thread blocking operations. `blocking` will shift the execution of the
    * blocking operation to a separate threadpool to avoid blocking on the main execution
    * context. See the thread-model documentation for more information on why this is necessary.
-   * Note that the created effect will be uncancelable; if you need cancellation then you should
+   * Note that the created effect will be uncancelable; if you need cancelation then you should
    * use [[interruptible]] or [[interruptibleMany]].
    *
    * {{{
