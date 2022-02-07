@@ -72,8 +72,14 @@ object Queue {
    */
   def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     F match {
-      case f0: Async[F] => boundedForAsync[F, A](capacity)(f0)
-      case _ => boundedForConcurrent[F, A](capacity)
+      case f0: Async[F] =>
+        if (capacity > 0)
+          boundedForAsync[F, A](capacity)(f0)
+        else
+          boundedForConcurrent[F, A](capacity)
+
+      case _ =>
+        boundedForConcurrent[F, A](capacity)
     }
 
   private[effect] def boundedForConcurrent[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
@@ -109,7 +115,7 @@ object Queue {
    *   an empty, unbounded queue
    */
   def unbounded[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
-    bounded(Int.MaxValue)
+    boundedForConcurrent(Int.MaxValue)    // TODO UnboundedAsyncQueue
 
   /**
    * Constructs an empty, bounded, dropping queue holding up to `capacity` elements for `F` data
@@ -335,8 +341,12 @@ object Queue {
   /*
    * This data structure is really two queues: a circular buffer and an unbounded linked queue.
    * The former contains data, while the latter contains blockers either for offering or taking.
+   *
+   * Does not correctly handle bound = 0 because take waiters are async[Unit]
    */
   private final class BoundedAsyncQueue[F[_], A](capacity: Int)(implicit F: Async[F]) extends Queue[F, A] {
+    require(capacity > 0)
+
     private[this] val buffer = new UnsafeBounded[A](capacity)
     private[this] val waiters = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
 
