@@ -468,23 +468,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
           ProblemFilters.exclude[DirectMissingMethodProblem](
             "cats.effect.unsafe.WorkStealingThreadPool.localQueuesForwarder"),
           ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.WorkerThread.NullData"),
-          // introduced by #2773, Configurable caching of blocking threads
-          // changes to `cats.effect.unsafe` package private code
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.IORuntimeConfig.DefaultEnhancedExceptions"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.IORuntimeConfig.DefaultShutdownHookTimeout"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.IORuntimeConfig.DefaultTraceBufferSize"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.IORuntimeConfig.DefaultEnhancedExceptions"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.IORuntimeConfig.DefaultTraceBufferSize"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.IORuntimeConfig.DefaultShutdownHookTimeout"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.IORuntimeConfigCompanionPlatform.Default")
+            "cats.effect.unsafe.WorkerThread.NullData")
         )
       } else Seq()
     }
