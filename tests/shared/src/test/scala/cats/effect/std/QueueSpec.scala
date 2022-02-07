@@ -23,6 +23,7 @@ package cats.effect
 package std
 
 import cats.arrow.FunctionK
+import cats.syntax.all._
 
 import org.specs2.specification.core.Fragments
 
@@ -32,7 +33,8 @@ import scala.concurrent.duration._
 class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
 
   "BoundedQueue" should {
-    boundedQueueTests("BoundedQueue", Queue.bounded)
+    boundedQueueTests("BoundedQueue (concurrent)", Queue.boundedForConcurrent)
+    boundedQueueTests("BoundedQueue (async)", Queue.bounded)
     boundedQueueTests("BoundedQueue mapK", Queue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
   }
 
@@ -94,6 +96,31 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
           v <- c.joinWithNever
           r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
         } yield r
+      }
+
+      "offer/take from many fibers simultaneously" in real {
+        val fiberCount = 100
+
+        val expectedS = (0 until fiberCount) flatMap { i =>
+          (0 until i).map(_ => i)
+        }
+
+        val expected = expectedS.sorted
+
+        def producer(q: Queue[IO, Int], id: Int): IO[Unit] =
+          q.offer(id).replicateA(id).void
+
+        def consumer(q: Queue[IO, Int], num: Int): IO[List[Int]] =
+          q.take.replicateA(num)
+
+        constructor(64) flatMap { q =>
+          val produce = (0 until fiberCount).toList.parTraverse_(producer(q, _))
+          val consume = (0 until fiberCount).toList.parTraverse(consumer(q, _)).map(_.flatten)
+
+          (produce, consume).parMapN((_, r) => r) flatMap { results =>
+            IO(results.sorted mustEqual expected)
+          }
+        }
       }
     }
 
