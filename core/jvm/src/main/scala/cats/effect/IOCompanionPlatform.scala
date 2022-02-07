@@ -62,7 +62,7 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
 
   /**
    * Like [[blocking]] but will attempt to abort the blocking operation using thread interrupts
-   * in the event of cancellation. The interrupt will be attempted only once.
+   * in the event of cancelation. The interrupt will be attempted only once.
    *
    * @param thunk
    *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
