@@ -12,7 +12,6 @@
       "tracing",
       "thread-model",
       "schedulers",
-      "scaling-and-tuning/io-runtime-config",
       "core/native-image",
       "core/jlink"
     ],
@@ -43,8 +42,8 @@
       "std/supervisor",
       "std/async-await"
     ],
-    "Scaling and Tuning":[
-      "scaling-and-tuning/system-properties"
+    "Scaling and Tuning": [
+      "scaling-and-tuning/io-runtime-config"
     ]
   }
 }
