@@ -188,7 +188,7 @@ trait IOApp {
 
   /**
    * Controls whether non-daemon threads blocking application exit are logged to stderr when the
-   * `IO` produced by [[run]] has completed. This mechanism works by starting a daemon thread
+   * `IO` produced by `run` has completed. This mechanism works by starting a daemon thread
    * which periodically polls all active threads on the system, checking for any remaining
    * non-daemon threads and enumerating them. This can be very useful for determining why your
    * application ''isn't'' gracefully exiting, since the alternative is that the JVM will just
