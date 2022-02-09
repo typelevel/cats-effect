@@ -19,7 +19,6 @@ package cats.effect.unsafe
 import cats.effect.tracing.TracingConstants._
 import cats.effect.unsafe.metrics._
 
-import scala.annotation.nowarn
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
@@ -103,8 +102,11 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       })
   }
 
-  @nowarn("cat=unused-params")
-  private[unsafe] def createDefaultComputeThreadPool(
+  @deprecated(
+    message = "Replaced by the simpler and safer `createWorkStealingComputePool`",
+    since = "3.4.0"
+  )
+  def createDefaultComputeThreadPool(
       self: => IORuntime,
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
       threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) =
