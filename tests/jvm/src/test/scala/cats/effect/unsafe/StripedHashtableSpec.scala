@@ -35,7 +35,7 @@ class StripedHashtableSpec extends BaseSpec {
       val (scheduler, schedDown) =
         IORuntime.createDefaultScheduler(threadPrefix = s"io-scheduler-${getClass.getName}")
       val (compute, compDown) =
-        IORuntime.createDefaultComputeThreadPool(
+        IORuntime.createWorkStealingComputeThreadPool(
           threadPrefix = s"io-compute-${getClass.getName}")
 
       IORuntime(

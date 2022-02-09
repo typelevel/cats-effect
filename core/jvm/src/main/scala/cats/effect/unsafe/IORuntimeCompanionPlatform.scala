@@ -32,7 +32,7 @@ import javax.management.ObjectName
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
   // The default compute thread pool on the JVM is now a work stealing thread pool.
-  def createDefaultComputeThreadPool(
+  def createWorkStealingComputeThreadPool(
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
       threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) = {
     val threadPool =
@@ -106,9 +106,9 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   @nowarn("cat=unused-params")
   private[unsafe] def createDefaultComputeThreadPool(
       self: => IORuntime,
-      threads: Int,
-      threadPrefix: String): (WorkStealingThreadPool, () => Unit) =
-    createDefaultComputeThreadPool(threads, threadPrefix)
+      threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
+      threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) =
+    createWorkStealingComputeThreadPool(threads, threadPrefix)
 
   def createDefaultBlockingExecutionContext(
       threadPrefix: String = "io-blocking"): (ExecutionContext, () => Unit) = {
@@ -155,7 +155,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   lazy val global: IORuntime = {
     if (_global == null) {
       installGlobal {
-        val (compute, _) = createDefaultComputeThreadPool()
+        val (compute, _) = createWorkStealingComputeThreadPool()
         val (blocking, _) = createDefaultBlockingExecutionContext()
         val (scheduler, _) = createDefaultScheduler()
         IORuntime(compute, blocking, scheduler, () => (), IORuntimeConfig())

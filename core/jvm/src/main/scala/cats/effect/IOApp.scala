@@ -208,7 +208,7 @@ trait IOApp {
 
       val installed = IORuntime installGlobal {
         val (compute, compDown) =
-          IORuntime.createDefaultComputeThreadPool(threads = computeWorkerThreadCount)
+          IORuntime.createWorkStealingComputeThreadPool(threads = computeWorkerThreadCount)
 
         val (blocking, blockDown) =
           IORuntime.createDefaultBlockingExecutionContext()
