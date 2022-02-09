@@ -21,7 +21,7 @@ private[unsafe] abstract class IORuntimeBuilderPlatform { self: IORuntimeBuilder
   protected def platformSpecificBuild = {
     var runtime: IORuntime = null
     val (compute, computeShutdown) =
-      customCompute.getOrElse(IORuntime.createDefaultComputeThreadPool(runtime))
+      customCompute.getOrElse(IORuntime.createDefaultComputeThreadPool())
     val (blocking, blockingShutdown) =
       customBlocking.getOrElse(IORuntime.createDefaultBlockingExecutionContext())
     val (scheduler, schedulerShutdown) =

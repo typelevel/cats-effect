@@ -57,18 +57,11 @@ import java.util.concurrent.locks.LockSupport
  */
 private[effect] final class WorkStealingThreadPool(
     threadCount: Int, // number of worker threads
-    private[unsafe] val threadPrefix: String, // prefix for the name of worker threads
-    self0: => IORuntime
+    private[unsafe] val threadPrefix: String // prefix for the name of worker threads
 ) extends ExecutionContext {
 
   import TracingConstants._
   import WorkStealingThreadPoolConstants._
-
-  /**
-   * A forward reference to the [[cats.effect.unsafe.IORuntime]] of which this thread pool is a
-   * part. Used for starting fibers in [[WorkStealingThreadPool#execute]].
-   */
-  private[this] lazy val self: IORuntime = self0
 
   /**
    * References to worker threads and their local queues.

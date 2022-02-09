@@ -19,6 +19,7 @@ package cats.effect.unsafe
 import cats.effect.tracing.TracingConstants._
 import cats.effect.unsafe.metrics._
 
+import scala.annotation.nowarn
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
@@ -32,11 +33,10 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
   // The default compute thread pool on the JVM is now a work stealing thread pool.
   def createDefaultComputeThreadPool(
-      self: => IORuntime,
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
       threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) = {
     val threadPool =
-      new WorkStealingThreadPool(threads, threadPrefix, self)
+      new WorkStealingThreadPool(threads, threadPrefix)
 
     val unregisterMBeans =
       if (isStackTracing) {
@@ -103,6 +103,13 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       })
   }
 
+  @nowarn("cat=unused-params")
+  private[unsafe] def createDefaultComputeThreadPool(
+      self: => IORuntime,
+      threads: Int,
+      threadPrefix: String): (WorkStealingThreadPool, () => Unit) =
+    createDefaultComputeThreadPool(threads, threadPrefix)
+
   def createDefaultBlockingExecutionContext(
       threadPrefix: String = "io-blocking"): (ExecutionContext, () => Unit) = {
     val threadCount = new AtomicInteger(0)
@@ -148,7 +155,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   lazy val global: IORuntime = {
     if (_global == null) {
       installGlobal {
-        val (compute, _) = createDefaultComputeThreadPool(global)
+        val (compute, _) = createDefaultComputeThreadPool()
         val (blocking, _) = createDefaultBlockingExecutionContext()
         val (scheduler, _) = createDefaultScheduler()
         IORuntime(compute, blocking, scheduler, () => (), IORuntimeConfig())
