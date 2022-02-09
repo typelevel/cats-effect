@@ -158,7 +158,7 @@ jobs:
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
       - name: Check that scalafix has been run
-        if: matrix.scala != '3.0.2' && matrix.os != 'windows-latest'
+        if: matrix.scala != '3.0.2'
         shell: bash
         run: sbt ++${{ matrix.scala }} 'root/scalafixAll --check'
 
