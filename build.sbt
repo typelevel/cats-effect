@@ -468,7 +468,23 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
           ProblemFilters.exclude[DirectMissingMethodProblem](
             "cats.effect.unsafe.WorkStealingThreadPool.localQueuesForwarder"),
           ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.WorkerThread.NullData")
+            "cats.effect.unsafe.WorkerThread.NullData"),
+          // introduced by #2811, Support shutting down multiple runtimes
+          // changes to `cats.effect.unsafe` package private code
+          ProblemFilters.exclude[IncompatibleMethTypeProblem](
+            "cats.effect.unsafe.ThreadSafeHashtable.put"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.IORuntime.apply"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.IORuntimeCompanionPlatform.apply"),
+          ProblemFilters.exclude[IncompatibleMethTypeProblem](
+            "cats.effect.unsafe.ThreadSafeHashtable.remove"),
+          ProblemFilters.exclude[IncompatibleResultTypeProblem](
+            "cats.effect.unsafe.ThreadSafeHashtable.unsafeHashtable"),
+          ProblemFilters.exclude[IncompatibleResultTypeProblem](
+            "cats.effect.unsafe.ThreadSafeHashtable.Tombstone"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.this")
         )
       } else Seq()
     }
