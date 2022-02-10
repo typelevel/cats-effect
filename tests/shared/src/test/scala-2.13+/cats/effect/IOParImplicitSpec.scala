@@ -20,7 +20,6 @@ import cats.{Align, CommutativeApplicative}
 import cats.effect.{BaseSpec, IO}
 import cats.syntax.all._
 
-// Note: this file is duplicated across 2.13/3 source directories
 class IOParImplicitSpec extends BaseSpec {
 
   "Can resolve CommutativeApplicative instance" in {
