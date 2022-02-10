@@ -41,13 +41,13 @@ import cats.~>
  *
  * The reason for the shape of the `Cont` construction in `Async[F].cont`, as opposed to simply:
  *
- * ```
+ * {{{
  * trait Async[F[_]] {
- * ...
+ *   ...
  *
- * def cont[A]: F[(Either[Throwable, A] => Unit, F[A])]
+ *   def cont[A]: F[(Either[Throwable, A] => Unit, F[A])]
  * }
- * ```
+ * }}}
  *
  * is that it's not safe to use concurrent operations such as `get.start`.
  *

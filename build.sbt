@@ -131,7 +131,7 @@ ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(
     List("root/scalafixAll --check"),
     name = Some("Check that scalafix has been run"),
-    cond = Some(s"matrix.scala != '$Scala3' && matrix.os != '$Windows'")
+    cond = Some(s"matrix.scala != '$Scala3'")
   ),
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
@@ -261,6 +261,7 @@ lazy val root = project
   .enablePlugins(NoPublishPlugin)
   .enablePlugins(ScalaUnidocPlugin)
   .settings(
+    name := "cats-effect",
     ScalaUnidoc / unidoc / unidocProjectFilter := {
       undocumentedRefs.foldLeft(inAnyProject)((acc, a) => acc -- inProjects(a))
     }
@@ -467,23 +468,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
           ProblemFilters.exclude[DirectMissingMethodProblem](
             "cats.effect.unsafe.WorkStealingThreadPool.localQueuesForwarder"),
           ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.WorkerThread.NullData"),
-          // introduced by #2773, Configurable caching of blocking threads
-          // changes to `cats.effect.unsafe` package private code
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.IORuntimeConfig.DefaultEnhancedExceptions"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.IORuntimeConfig.DefaultShutdownHookTimeout"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.IORuntimeConfig.DefaultTraceBufferSize"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.IORuntimeConfig.DefaultEnhancedExceptions"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.IORuntimeConfig.DefaultTraceBufferSize"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.IORuntimeConfig.DefaultShutdownHookTimeout"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.IORuntimeConfigCompanionPlatform.Default")
+            "cats.effect.unsafe.WorkerThread.NullData")
         )
       } else Seq()
     }
