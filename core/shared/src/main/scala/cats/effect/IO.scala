@@ -20,6 +20,7 @@ import cats.{
   Align,
   Alternative,
   Applicative,
+  CommutativeApplicative,
   Eval,
   Functor,
   Id,
@@ -1013,6 +1014,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * devoid of boxing issues and a good choice until opaque types will land in Scala.
    */
   type Par[A] = ParallelF[IO, A]
+
+  implicit def commutativeApplicativeForIOPar: CommutativeApplicative[IO.Par] =
+    instances.spawn.commutativeApplicativeForParallelF
+
+  implicit def alignForIOPar: Align[IO.Par] =
+    instances.spawn.alignForParallelF
 
   // constructors
 

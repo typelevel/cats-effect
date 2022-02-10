@@ -515,7 +515,13 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test
     ),
-    buildInfoPackage := "catseffect"
+    buildInfoPackage := "catseffect",
+    Test / unmanagedSourceDirectories ++= {
+      if (scalaBinaryVersion.value != "2.12")
+        Seq(baseDirectory.value / ".." / "shared" / "src" / "test" / "scala-2.13+")
+      else
+        Seq.empty
+    }
   )
   .jsSettings(
     Compile / scalaJSUseMainModuleInitializer := true,
