@@ -554,7 +554,7 @@ object Queue {
 
         loop()
       } else {
-        cell.append(oldLast)
+        oldLast.append(cell)
         last.compareAndSet(cell, oldLast)
       }
 
@@ -585,6 +585,16 @@ object Queue {
       }
     }
 
+    def debug(): String = {
+      val f = first.get()
+
+      if (f == null) {
+        "[]"
+      } else {
+        f.debug()
+      }
+    }
+
     private final class Cell(private[this] var _data: A) extends AtomicReference[Cell] with (() => Unit) {
 
       def apply(): Unit = _data = null.asInstanceOf[A]
@@ -601,6 +611,11 @@ object Queue {
         } else {
           tail.append(cell)
         }
+      }
+
+      def debug(): String = {
+        val tail = get()
+        s"${data()} -> ${if (tail == null) "[]" else tail.debug()}"
       }
     }
   }

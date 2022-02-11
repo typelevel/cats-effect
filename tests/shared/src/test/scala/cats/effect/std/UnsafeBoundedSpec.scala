@@ -19,7 +19,7 @@ package std
 
 import cats.syntax.all._
 
-final class UnsafeBoundedSpec extends BaseSpec {
+class UnsafeBoundedSpec extends BaseSpec {
   import Queue.UnsafeBounded
 
   "unsafe bounded queue" should {
