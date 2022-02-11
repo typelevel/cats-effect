@@ -49,6 +49,20 @@ class UnsafeUnboundedSpec extends BaseSpec {
       }
     }
 
+    "put three times, clear one, then take" in {
+      val q = new UnsafeUnbounded[Int]()
+
+      q.put(1)
+      val clear = q.put(2)
+      q.put(3)
+
+      clear()
+
+      q.take() mustEqual 1
+      q.take() mustEqual 3
+      q.take() must throwAn[Exception]
+    }
+
     "put and take in parallel" in real {
       val q = new UnsafeUnbounded[Int]()
 
