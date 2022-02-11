@@ -447,6 +447,7 @@ object Queue {
 
   private[effect] final class UnsafeBounded[A](bound: Int) {
     private[this] val buffer = new Array[AnyRef](bound)
+    private[this] val filled = new Array[Boolean](bound)    // TODO bitpack this
 
     private[this] val first = new AtomicInteger(0)
     private[this] val last = new AtomicInteger(0)
@@ -461,12 +462,13 @@ object Queue {
       if (length.get() >= bound) {
         throw FailureSignal
       } else {
-        if (last.compareAndSet(oldLast, (oldLast + 1) % bound)) {
+        if (!filled(oldLast) && last.compareAndSet(oldLast, (oldLast + 1) % bound)) {
           buffer(oldLast) = data.asInstanceOf[AnyRef]
+          filled(oldLast) = true
 
           // we're already exclusive with other puts, and take can only *decrease* length, so we don't gate
           // this also forms a write barrier for buffer
-          length.getAndIncrement()
+          length.incrementAndGet()
 
           ()
         } else {
@@ -482,13 +484,14 @@ object Queue {
       if (length.get() <= 0) {    // read barrier and check that boundary puts have completed
         throw FailureSignal
       } else {
-        if (first.compareAndSet(oldFirst, (oldFirst + 1) % bound)) {
+        if (filled(oldFirst) && first.compareAndSet(oldFirst, (oldFirst + 1) % bound)) {
           val back = buffer(oldFirst).asInstanceOf[A]
+          filled(oldFirst) = false
 
           // we're already exclusive with other takes, and put can only *increase* length, so we don't gate
           // doing this *after* we read from the buffer ensures we don't read a new value when full
           // specifically, it guarantees that puts will fail even if first has already advanced
-          length.getAndDecrement()
+          length.decrementAndGet()
 
           buffer(oldFirst) = null   // prevent memory leaks (no need to eagerly publish)
           back
