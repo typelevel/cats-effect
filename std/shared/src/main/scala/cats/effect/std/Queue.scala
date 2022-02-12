@@ -335,54 +335,58 @@ object Queue {
       State(ScalaQueue.empty, 0, ScalaQueue.empty, ScalaQueue.empty)
   }
 
-  private val EitherUnit: Either[Throwable, Unit] = Right(())
+  private val EitherUnit: Either[Nothing, Unit] = Right(())
   private val FailureSignal: Throwable = new RuntimeException with scala.util.control.NoStackTrace
 
   /*
-   * This data structure is really two queues: a circular buffer and an unbounded linked queue.
-   * The former contains data, while the latter contains blockers either for offering or taking.
-   *
    * Does not correctly handle bound = 0 because take waiters are async[Unit]
    */
   private final class BoundedAsyncQueue[F[_], A](capacity: Int)(implicit F: Async[F]) extends Queue[F, A] {
     require(capacity > 0)
 
     private[this] val buffer = new UnsafeBounded[A](capacity)
-    private[this] val waiters = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
+
+    private[this] val takers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
+    private[this] val offerers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
 
     def offer(a: A): F[Unit] = F defer {
       try {
         buffer.put(a)
-        notifyOne()
+        // println(s"offered: size = ${buffer.size()}")
+        notifyOne(takers)
         F.unit
       } catch {
         case FailureSignal =>
+          var succeeded = false
+
           val wait = F.async[Unit] { k =>
             F delay {
-              val clear = waiters.put(k)
+              val clear = offerers.put(k)
 
               try {
                 buffer.put(a)
                 clear()
+                succeeded = true
                 k(EitherUnit)
-                notifyOne()
+                notifyOne(takers)
 
                 None
               } catch {
                 case FailureSignal =>
+                  // println(s"failed offer size = ${buffer.size()}")
                   Some(F.delay(clear()))
               }
             }
           }
 
-          wait *> offer(a)
+          wait *> F.defer(if (succeeded) F.unit else offer(a))
       }
     }
 
     def tryOffer(a: A): F[Boolean] = F delay {
       try {
         buffer.put(a)
-        notifyOne()
+        notifyOne(takers)
         true
       } catch {
         case FailureSignal =>
@@ -395,7 +399,8 @@ object Queue {
     val take: F[A] = F defer {
       try {
         val result = buffer.take()
-        notifyOne()
+        // println(s"took: size = ${buffer.size()}")
+        notifyOne(offerers)
         F.pure(result)
       } catch {
         case FailureSignal =>
@@ -404,18 +409,19 @@ object Queue {
 
           val wait = F.async[Unit] { k =>
             F delay {
-              val clear = waiters.put(k)
+              val clear = takers.put(k)
 
               try {
                 result = buffer.take()
                 clear()
                 received = true
                 k(EitherUnit)
-                notifyOne()
+                notifyOne(offerers)
 
                 None
               } catch {
                 case FailureSignal =>
+                  // println(s"failed take size = ${buffer.size()}")
                   Some(F.delay(clear()))
               }
             }
@@ -428,7 +434,7 @@ object Queue {
     val tryTake: F[Option[A]] = F delay {
       try {
         val back = buffer.take()
-        notifyOne()
+        notifyOne(offerers)
         Some(back)
       } catch {
         case FailureSignal =>
@@ -436,22 +442,32 @@ object Queue {
       }
     }
 
+    def debug(): Unit = {
+      println(s"buffer: ${buffer.debug()}")
+      println(s"takers: ${takers.debug()}")
+      println(s"offerers: ${offerers.debug()}")
+    }
+
     // TODO could optimize notifications by checking if buffer is completely empty on put
-    private[this] def notifyOne(): Unit =
+    private[this] def notifyOne(waiters: UnsafeUnbounded[Either[Throwable, Unit] => Unit]): Unit =
       try {
         waiters.take()(EitherUnit)
       } catch {
-        case FailureSignal => ()
+        case FailureSignal =>
+          // println("failed to notify")
+          ()
       }
   }
 
   private[effect] final class UnsafeBounded[A](bound: Int) {
     private[this] val buffer = new Array[AnyRef](bound)
-    private[this] val filled = new Array[Boolean](bound)    // TODO bitpack this
+    private[this] val filled = new Array[Boolean](bound)    // can't bitpack this because of word tearing
 
     private[this] val first = new AtomicInteger(0)
     private[this] val last = new AtomicInteger(0)
     private[this] val length = new AtomicInteger(0)
+
+    def debug(): String = buffer.mkString("[", ", ", "]")
 
     def size(): Int = length.get()
 
@@ -502,37 +518,15 @@ object Queue {
     }
   }
 
-  /*
-   * Two pointers: head and tail
-   *
-   * insert:
-   * CAS on the head == null.
-   * If true, then getAndSet the tail to yourself
-   *   If null then you're done.
-   *   If !null then append the old tail to yourself
-   *     Weak CAS the tail back to the old tail, ignoring results
-   * If false then getAndSet the tail to yourself
-   *   If null then weak CAS yourself to head on == null
-   *   If !null then
-   *     append yourself to the old tail
-   *
-   * take:
-   * Get the head
-   * If null then queue is empty
-   *
-   * Get the tail of the head
-   * CAS the head to its tail
-   * If failed then retry
-   *
-   * If tail is null then weak CAS the tail pointer, ignoring results
-   *
-   * If data is null retry
-   * If data is not null
-   *   empty out the cell
-   *   return
-   */
+  // TODO we don't allow null values, which is kinda fine for now but not fine if we use this to back Queue.unbounded
   private[effect] final class UnsafeUnbounded[A] {
+
+    // first is guaranteed to be the head of the queue
+    // cells that have been first at any point are always guaranteed to point into the queue
     private[this] val first = new AtomicReference[Cell]
+
+    // last is only guaranteed to be in the queue, and we *try* to make it point to the last cell
+    // under high contention, it might end up being several steps from the end, but it will self-correct on put
     private[this] val last = new AtomicReference[Cell]
 
     def put(data: A): () => Unit = {
@@ -540,22 +534,35 @@ object Queue {
 
       val oldLast = last.getAndSet(cell)
       if (oldLast == null) {
+        // the queue was empty and we're now the new end
+        // we need to fix up the front to point to us
+
         @tailrec
         def loop(): Unit = {
           val oldFirst = first.get()
           if (oldFirst == null) {
-            if (!first.compareAndSet(null, cell)) {
+            // the queue still looks empty, so we're the new head
+
+            if (!first.compareAndSet(oldFirst, cell)) {
+              // ...or not. someone else is putting concurrently and *they* are the new head
+              // we need to retry just in case someone is taking at this exact moment
+
               loop()
             }
           } else {
-            oldFirst.append(cell)   // even if it's taken out by this point, it'll still point into the structure
+            // the queue isn't empty (anymore) after all! we need to append ourselves so that first points to last
+            // even if it's taken out by this point, it'll still point into the structure
+
+            oldFirst.append(cell)
           }
         }
 
         loop()
       } else {
+        // the queue was non-empty, so we need to link ourselves into the old last
+        // if the queue had size = 1, then the old last is also the old first,
+        // which may be taken during this put. if this happens, take fixes the invariants
         oldLast.append(cell)
-        last.compareAndSet(cell, oldLast)
       }
 
       cell
@@ -571,11 +578,21 @@ object Queue {
         if (!first.compareAndSet(oldFirst, tail)) {
           take()
         } else {
+          val data = oldFirst.data()
+          oldFirst()
+
           if (tail == null) {
-            last.compareAndSet(oldFirst, tail)    // someone else may put in the interim; that's okay
+            // the queue only contained a single element, which we're taking, so we need to fix up last
+
+            if (!last.compareAndSet(oldFirst, null)) {
+              // someone else is putting and they will append themselves to us
+              // thus, we need to re-set ourselves as the first
+              // we've already cleared ourselves so the next taker will get a new value
+
+              first.compareAndSet(null, oldFirst)   // this shouldn't ever fail
+            }
           }
 
-          val data = oldFirst.data()
           if (data == null) {
             take()
           } else {

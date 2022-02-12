@@ -33,9 +33,9 @@ import scala.concurrent.duration._
 class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
 
   "BoundedQueue" should {
-    boundedQueueTests("BoundedQueue (concurrent)", Queue.boundedForConcurrent)
+    // boundedQueueTests("BoundedQueue (concurrent)", Queue.boundedForConcurrent)
     boundedQueueTests("BoundedQueue (async)", Queue.bounded)
-    boundedQueueTests("BoundedQueue mapK", Queue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
+    // boundedQueueTests("BoundedQueue mapK", Queue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
   }
 
   private def boundedQueueTests(
@@ -101,26 +101,26 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
       "offer/take from many fibers simultaneously" in real {
         val fiberCount = 100
 
-        val expectedS = (0 until fiberCount) flatMap { i =>
-          (0 until i).map(_ => i)
+        val expected = 0.until(fiberCount) flatMap { i =>
+          0.until(i).map(_ => i)
         }
 
-        val expected = expectedS.sorted
-
         def producer(q: Queue[IO, Int], id: Int): IO[Unit] =
-          q.offer(id).replicateA(id).void
+          q.offer(id).replicateA_(id)
 
         def consumer(q: Queue[IO, Int], num: Int): IO[List[Int]] =
           q.take.replicateA(num)
 
-        constructor(64) flatMap { q =>
-          val produce = (0 until fiberCount).toList.parTraverse_(producer(q, _))
-          val consume = (0 until fiberCount).toList.parTraverse(consumer(q, _)).map(_.flatten)
+        for {
+          q <- constructor(64)
 
-          (produce, consume).parMapN((_, r) => r) flatMap { results =>
-            IO(results.sorted mustEqual expected)
-          }
-        }
+          produce = 0.until(fiberCount).toList.parTraverse_(producer(q, _))
+          consume = 0.until(fiberCount).toList.parTraverse(consumer(q, _)).map(_.flatten)
+
+          results <- produce &> consume
+
+          _ <- IO(results must containTheSameElementsAs(expected))
+        } yield ok
       }
     }
 

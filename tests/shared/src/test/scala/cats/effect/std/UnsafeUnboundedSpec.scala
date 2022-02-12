@@ -23,7 +23,7 @@ class UnsafeUnboundedSpec extends BaseSpec {
   import Queue.UnsafeUnbounded
 
   "unsafe unbounded queue" should {
-    val length = 100
+    val length = 1000
 
     "put and take in order" in {
       val q = new UnsafeUnbounded[Int]()
@@ -74,7 +74,7 @@ class UnsafeUnboundedSpec extends BaseSpec {
       val takes = 1.to(length * 2).toList.parTraverse(_ => retry(IO(q.take())))
 
       for {
-        (_, results) <- (puts, takes).parTupled
+        results <- puts &> takes
         _ <- IO(results.toList must containTheSameElementsAs(1.to(length * 2)))
       } yield ok
     }
