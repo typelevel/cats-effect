@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit
 @OutputTimeUnit(TimeUnit.MINUTES)
 class QueueBenchmark {
 
-  @Param(Array("1000000"))
+  @Param(Array("100000"))
   var size: Int = _
 
   @Benchmark
@@ -56,12 +56,20 @@ class QueueBenchmark {
     Queue.boundedForConcurrent[IO, Unit](size).flatMap(enqueueDequeueMany(_)).unsafeRunSync()
 
   @Benchmark
+  def concurrentEnqueueDequeueContended(): Unit =
+    Queue.boundedForConcurrent[IO, Unit](size / 8).flatMap(enqueueDequeueContended(_)).unsafeRunSync()
+
+  @Benchmark
   def asyncEnqueueDequeueOne(): Unit =
     Queue.boundedForAsync[IO, Unit](size).flatMap(enqueueDequeueOne(_)).unsafeRunSync()
 
   @Benchmark
   def asyncEnqueueDequeueMany(): Unit =
     Queue.boundedForAsync[IO, Unit](size).flatMap(enqueueDequeueMany(_)).unsafeRunSync()
+
+  @Benchmark
+  def asyncEnqueueDequeueContended(): Unit =
+    Queue.boundedForAsync[IO, Unit](size / 8).flatMap(enqueueDequeueContended(_)).unsafeRunSync()
 
   private[this] def enqueueDequeueOne(q: Queue[IO, Unit]): IO[Unit] = {
     def loop(i: Int): IO[Unit] =
@@ -87,5 +95,18 @@ class QueueBenchmark {
         IO.unit
 
     loopIn(size) *> loopOut(size)
+  }
+
+  private[this] def enqueueDequeueContended(q: Queue[IO, Unit]): IO[Unit] = {
+    def par(action: IO[Unit], num: Int): IO[Unit] =
+      if (num <= 1)
+        action
+      else
+        par(action, num / 2) &> par(action, num / 2)
+
+    val offerers = par(q.offer(()), size / 4)
+    val takers = par(q.take, size / 4)
+
+    offerers &> takers
   }
 }
