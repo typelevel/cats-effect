@@ -48,74 +48,44 @@ class QueueBenchmark {
   var size: Int = _
 
   @Benchmark
-  def concurrentEnqueueDequeueOne(): Unit = {
-    val program = Queue.boundedForConcurrent[IO, Unit](size) flatMap { q =>
-      def loop(i: Int): IO[Unit] =
-        if (i > 0)
-          q.offer(()) *> q.take >> loop(i - 1)
-        else
-          IO.unit
-
-      loop(size)
-    }
-
-    program.unsafeRunSync()
-  }
+  def concurrentEnqueueDequeueOne(): Unit =
+    Queue.boundedForConcurrent[IO, Unit](size).flatMap(enqueueDequeueOne(_)).unsafeRunSync()
 
   @Benchmark
-  def concurrentEnqueueDequeueMany(): Unit = {
-    val program = Queue.boundedForConcurrent[IO, Unit](size) flatMap { q =>
-      def loopIn(i: Int): IO[Unit] =
-        if (i > 0)
-          q.offer(()) >> loopIn(i - 1)
-        else
-          IO.unit
-
-      def loopOut(i: Int): IO[Unit] =
-        if (i > 0)
-          q.take >> loopOut(i - 1)
-        else
-          IO.unit
-
-      loopIn(size) *> loopOut(size)
-    }
-
-    program.unsafeRunSync()
-  }
+  def concurrentEnqueueDequeueMany(): Unit =
+    Queue.boundedForConcurrent[IO, Unit](size).flatMap(enqueueDequeueMany(_)).unsafeRunSync()
 
   @Benchmark
-  def asyncEnqueueDequeueOne(): Unit = {
-    val program = Queue.boundedForAsync[IO, Unit](size) flatMap { q =>
-      def loop(i: Int): IO[Unit] =
-        if (i > 0)
-          q.offer(()) *> q.take >> loop(i - 1)
-        else
-          IO.unit
-
-      loop(size)
-    }
-
-    program.unsafeRunSync()
-  }
+  def asyncEnqueueDequeueOne(): Unit =
+    Queue.boundedForAsync[IO, Unit](size).flatMap(enqueueDequeueOne(_)).unsafeRunSync()
 
   @Benchmark
-  def asyncEnqueueDequeueMany(): Unit = {
-    val program = Queue.boundedForAsync[IO, Unit](size) flatMap { q =>
-      def loopIn(i: Int): IO[Unit] =
-        if (i > 0)
-          q.offer(()) >> loopIn(i - 1)
-        else
-          IO.unit
+  def asyncEnqueueDequeueMany(): Unit =
+    Queue.boundedForAsync[IO, Unit](size).flatMap(enqueueDequeueMany(_)).unsafeRunSync()
 
-      def loopOut(i: Int): IO[Unit] =
-        if (i > 0)
-          q.take >> loopOut(i - 1)
-        else
-          IO.unit
+  private[this] def enqueueDequeueOne(q: Queue[IO, Unit]): IO[Unit] = {
+    def loop(i: Int): IO[Unit] =
+      if (i > 0)
+        q.offer(()) *> q.take >> loop(i - 1)
+      else
+        IO.unit
 
-      loopIn(size) *> loopOut(size)
-    }
+    loop(size)
+  }
 
-    program.unsafeRunSync()
+  private[this] def enqueueDequeueMany(q: Queue[IO, Unit]): IO[Unit] = {
+    def loopIn(i: Int): IO[Unit] =
+      if (i > 0)
+        q.offer(()) >> loopIn(i - 1)
+      else
+        IO.unit
+
+    def loopOut(i: Int): IO[Unit] =
+      if (i > 0)
+        q.take >> loopOut(i - 1)
+      else
+        IO.unit
+
+    loopIn(size) *> loopOut(size)
   }
 }
