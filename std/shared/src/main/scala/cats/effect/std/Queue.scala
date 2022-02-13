@@ -25,7 +25,7 @@ import cats.syntax.all._
 import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => ScalaQueue}
 
-import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, AtomicLongArray, AtomicReference}
 
 /**
  * A purely functional, concurrent data structure which allows insertion and retrieval of
@@ -459,63 +459,81 @@ object Queue {
       }
   }
 
+  // ported with love from http://psy-lob-saw.blogspot.com/2014/04/notes-on-concurrent-ring-buffer-queue.html
   private[effect] final class UnsafeBounded[A](bound: Int) {
     private[this] val buffer = new Array[AnyRef](bound)
-    private[this] val filled = new Array[Boolean](bound)    // can't bitpack this because of word tearing
 
-    private[this] val first = new AtomicInteger(0)
-    private[this] val last = new AtomicInteger(0)
+    private[this] val sequenceBuffer = new AtomicLongArray(bound)
+    private[this] val head = new AtomicLong(0)
+    private[this] val tail = new AtomicLong(0)
+
+    0.until(bound).foreach(i => sequenceBuffer.set(i, i.toLong))
+
     private[this] val length = new AtomicInteger(0)
 
     def debug(): String = buffer.mkString("[", ", ", "]")
 
     def size(): Int = length.get()
 
-    @tailrec
     def put(data: A): Unit = {
-      val oldLast = last.get()
+      @tailrec
+      def loop(): Long = {
+        val currentTail = tail.get()
+        val seq = sequenceBuffer.get(project(currentTail))
+        val delta = seq - currentTail
 
-      if (length.get() >= bound) {
-        throw FailureSignal
-      } else {
-        if (!filled(oldLast) && last.compareAndSet(oldLast, (oldLast + 1) % bound)) {
-          buffer(oldLast) = data.asInstanceOf[AnyRef]
-          filled(oldLast) = true
-
-          // we're already exclusive with other puts, and take can only *decrease* length, so we don't gate
-          // this also forms a write barrier for buffer
-          length.incrementAndGet()
-
-          ()
+        if (delta == 0) {
+          if (tail.compareAndSet(currentTail, currentTail + 1))
+            currentTail
+          else
+            loop()
+        } else if (delta < 0) {
+          throw FailureSignal
         } else {
-          put(data)
+          loop()
         }
       }
+
+      val currentTail = loop()
+      buffer(project(currentTail)) = data.asInstanceOf[AnyRef]
+      sequenceBuffer.incrementAndGet(project(currentTail))
+      length.incrementAndGet()
+
+      ()
     }
 
-    @tailrec
     def take(): A = {
-      val oldFirst = first.get()
+      @tailrec
+      def loop(): Long = {
+        val currentHead = head.get()
+        val seq = sequenceBuffer.get(project(currentHead))
+        val delta = seq - (currentHead + 1)
 
-      if (length.get() <= 0) {    // read barrier and check that boundary puts have completed
-        throw FailureSignal
-      } else {
-        if (filled(oldFirst) && first.compareAndSet(oldFirst, (oldFirst + 1) % bound)) {
-          val back = buffer(oldFirst).asInstanceOf[A]
-          filled(oldFirst) = false
-
-          // we're already exclusive with other takes, and put can only *increase* length, so we don't gate
-          // doing this *after* we read from the buffer ensures we don't read a new value when full
-          // specifically, it guarantees that puts will fail even if first has already advanced
-          length.decrementAndGet()
-
-          buffer(oldFirst) = null   // prevent memory leaks (no need to eagerly publish)
-          back
+        if (delta == 0) {
+          if (head.compareAndSet(currentHead, currentHead + 1))
+            currentHead
+          else
+            loop()
+        } else if (delta < 0) {
+          throw FailureSignal
         } else {
-          take()
+          loop()
         }
       }
+
+      val currentHead = loop()
+
+      val back = buffer(project(currentHead)).asInstanceOf[A]
+      buffer(project(currentHead)) = null
+      sequenceBuffer.set(project(currentHead), currentHead + bound)
+      length.decrementAndGet()
+
+      back
     }
+
+    // TODO handle wraparound negative
+    private[this] def project(idx: Long): Int =
+      (idx % bound).toInt
   }
 
   // TODO we don't allow null values, which is kinda fine for now but not fine if we use this to back Queue.unbounded

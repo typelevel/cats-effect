@@ -25,7 +25,7 @@ class UnsafeBoundedSpec extends BaseSpec {
   "unsafe bounded queue" should {
     "enqueue max items and dequeue in order" >> {
       // NB: emperically, it seems this needs to be > availableProcessors() to be effective
-      val length = 20
+      val length = 1000
 
       "sequential all" >> {
         val q = new UnsafeBounded[Int](length)
@@ -55,7 +55,7 @@ class UnsafeBoundedSpec extends BaseSpec {
         val takes = 1.to(length * 2).toList.parTraverse(_ => retry(IO(q.take())))
 
         for {
-          (_, results) <- (puts, takes).parTupled
+          results <- puts &> takes
           _ <- IO(q.size() mustEqual 0)
           _ <- IO(results.toList must containTheSameElementsAs(1.to(length * 2)))
         } yield ok

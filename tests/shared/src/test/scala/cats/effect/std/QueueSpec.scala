@@ -99,7 +99,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
       }
 
       "offer/take from many fibers simultaneously" in real {
-        val fiberCount = 100
+        val fiberCount = 50
 
         val expected = 0.until(fiberCount) flatMap { i =>
           0.until(i).map(_ => i)
