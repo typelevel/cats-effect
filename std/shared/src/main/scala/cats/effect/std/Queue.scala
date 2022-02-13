@@ -459,7 +459,7 @@ object Queue {
       }
   }
 
-  // ported with love from http://psy-lob-saw.blogspot.com/2014/04/notes-on-concurrent-ring-buffer-queue.html
+  // ported with love from https://github.com/JCTools/JCTools/blob/master/jctools-core/src/main/java/org/jctools/queues/MpmcArrayQueue.java
   private[effect] final class UnsafeBounded[A](bound: Int) {
     private[this] val buffer = new Array[AnyRef](bound)
 
@@ -477,24 +477,31 @@ object Queue {
 
     def put(data: A): Unit = {
       @tailrec
-      def loop(): Long = {
+      def loop(currentHead: Long): Long = {
         val currentTail = tail.get()
         val seq = sequenceBuffer.get(project(currentTail))
-        val delta = seq - currentTail
 
-        if (delta == 0) {
-          if (tail.compareAndSet(currentTail, currentTail + 1))
+        if (seq < currentTail) {
+          if (currentTail - bound >= currentHead) {
+            val currentHead2 = head.get()
+
+            if (currentTail - bound >= currentHead2)
+              throw FailureSignal
+            else
+              loop(currentHead2)
+          } else {
+            loop(currentHead)
+          }
+        } else {
+          if (seq == currentTail && tail.compareAndSet(currentTail, currentTail + 1))
             currentTail
           else
-            loop()
-        } else if (delta < 0) {
-          throw FailureSignal
-        } else {
-          loop()
+            loop(currentHead)
         }
       }
 
-      val currentTail = loop()
+      val currentTail = loop(Long.MinValue)
+
       buffer(project(currentTail)) = data.asInstanceOf[AnyRef]
       sequenceBuffer.incrementAndGet(project(currentTail))
       length.incrementAndGet()
@@ -504,24 +511,30 @@ object Queue {
 
     def take(): A = {
       @tailrec
-      def loop(): Long = {
+      def loop(currentTail: Long): Long = {
         val currentHead = head.get()
         val seq = sequenceBuffer.get(project(currentHead))
-        val delta = seq - (currentHead + 1)
 
-        if (delta == 0) {
-          if (head.compareAndSet(currentHead, currentHead + 1))
+        if (seq < currentHead + 1) {
+          if (currentHead >= currentTail) {
+            val currentTail2 = tail.get()
+
+            if (currentHead == currentTail2)
+              throw FailureSignal
+            else
+              loop(currentTail2)
+          } else {
+            loop(currentTail)
+          }
+        } else {
+          if (seq == currentHead + 1 && head.compareAndSet(currentHead, currentHead + 1))
             currentHead
           else
-            loop()
-        } else if (delta < 0) {
-          throw FailureSignal
-        } else {
-          loop()
+            loop(currentTail)
         }
       }
 
-      val currentHead = loop()
+      val currentHead = loop(-1)
 
       val back = buffer(project(currentHead)).asInstanceOf[A]
       buffer(project(currentHead)) = null
