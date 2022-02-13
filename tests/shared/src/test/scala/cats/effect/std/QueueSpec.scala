@@ -33,9 +33,9 @@ import scala.concurrent.duration._
 class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
 
   "BoundedQueue" should {
-    // boundedQueueTests("BoundedQueue (concurrent)", Queue.boundedForConcurrent)
+    boundedQueueTests("BoundedQueue (concurrent)", Queue.boundedForConcurrent)
     boundedQueueTests("BoundedQueue (async)", Queue.bounded)
-    // boundedQueueTests("BoundedQueue mapK", Queue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
+    boundedQueueTests("BoundedQueue mapK", Queue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
   }
 
   private def boundedQueueTests(
@@ -360,7 +360,8 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
       "should return false on tryOffer when the queue is full" in real {
         for {
-          q <- constructor(1)
+          q <- constructor(2)
+          _ <- offer(q, 0)
           _ <- offer(q, 0)
           v <- tryOffer(q, 1)
           r <- IO(v must beEqualTo(expected))
@@ -418,14 +419,20 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
       "demonstrate cancelable offer" in real {
         for {
-          q <- constructor(1)
+          q <- constructor(2)
+          _ <- offer(q, 1)
           _ <- offer(q, 1)
           f <- offer(q, 2).start
           _ <- IO.sleep(10.millis)
           _ <- f.cancel
           v1 <- take(q)
+          _ <- take(q)
           v2 <- tryTake(q)
-          r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(None)))
+
+          r <- IO {
+            v1 must beEqualTo(1)
+            v2 must beNone
+          }
         } yield r
       }
     }
@@ -489,7 +496,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
       "should return the queue size when added to" in real {
         for {
-          q <- constructor(1)
+          q <- constructor(2)
           _ <- offer(q, 1)
           _ <- take(q)
           _ <- offer(q, 2)
@@ -500,7 +507,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
       "should return None on tryTake when the queue is empty" in real {
         for {
-          q <- constructor(1)
+          q <- constructor(2)
           v <- tryTake(q)
           r <- IO(v must beNone)
         } yield r
@@ -508,7 +515,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
       "demonstrate sequential offer and take" in real {
         for {
-          q <- constructor(1)
+          q <- constructor(2)
           _ <- offer(q, 1)
           v1 <- take(q)
           _ <- offer(q, 2)
@@ -519,7 +526,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
       "demonstrate cancelable take" in real {
         for {
-          q <- constructor(1)
+          q <- constructor(2)
           f <- take(q).start
           _ <- IO.sleep(10.millis)
           _ <- f.cancel

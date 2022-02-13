@@ -73,7 +73,7 @@ object Queue {
   def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     F match {
       case f0: Async[F] =>
-        if (capacity > 0)
+        if (capacity > 1)   // jctools implementation cannot handle size = 1
           boundedForAsync[F, A](capacity)(f0)
         else
           boundedForConcurrent[F, A](capacity)
@@ -461,6 +461,8 @@ object Queue {
 
   // ported with love from https://github.com/JCTools/JCTools/blob/master/jctools-core/src/main/java/org/jctools/queues/MpmcArrayQueue.java
   private[effect] final class UnsafeBounded[A](bound: Int) {
+    require(bound > 1)
+
     private[this] val buffer = new Array[AnyRef](bound)
 
     private[this] val sequenceBuffer = new AtomicLongArray(bound)
