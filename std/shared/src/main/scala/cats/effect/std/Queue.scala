@@ -73,7 +73,7 @@ object Queue {
   def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     F match {
       case f0: Async[F] =>
-        if (capacity > 1)   // jctools implementation cannot handle size = 1
+        if (capacity > 1) // jctools implementation cannot handle size = 1
           boundedForAsync[F, A](capacity)(f0)
         else
           boundedForConcurrent[F, A](capacity)
@@ -82,12 +82,14 @@ object Queue {
         boundedForConcurrent[F, A](capacity)
     }
 
-  private[effect] def boundedForConcurrent[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
+  private[effect] def boundedForConcurrent[F[_], A](capacity: Int)(
+      implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
     assertNonNegative(capacity)
     F.ref(State.empty[F, A]).map(new BoundedQueue(capacity, _))
   }
 
-  private[effect] def boundedForAsync[F[_], A](capacity: Int)(implicit F: Async[F]): F[Queue[F, A]] = {
+  private[effect] def boundedForAsync[F[_], A](capacity: Int)(
+      implicit F: Async[F]): F[Queue[F, A]] = {
     assertNonNegative(capacity)
 
     F.delay(new BoundedAsyncQueue(capacity))
@@ -115,7 +117,7 @@ object Queue {
    *   an empty, unbounded queue
    */
   def unbounded[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
-    boundedForConcurrent(Int.MaxValue)    // TODO UnboundedAsyncQueue
+    boundedForConcurrent(Int.MaxValue) // TODO UnboundedAsyncQueue
 
   /**
    * Constructs an empty, bounded, dropping queue holding up to `capacity` elements for `F` data
@@ -336,12 +338,14 @@ object Queue {
   }
 
   private val EitherUnit: Either[Nothing, Unit] = Right(())
-  private val FailureSignal: Throwable = new RuntimeException with scala.util.control.NoStackTrace
+  private val FailureSignal: Throwable = new RuntimeException
+    with scala.util.control.NoStackTrace
 
   /*
    * Does not correctly handle bound = 0 because take waiters are async[Unit]
    */
-  private final class BoundedAsyncQueue[F[_], A](capacity: Int)(implicit F: Async[F]) extends Queue[F, A] {
+  private final class BoundedAsyncQueue[F[_], A](capacity: Int)(implicit F: Async[F])
+      extends Queue[F, A] {
     require(capacity > 0)
 
     private[this] val buffer = new UnsafeBounded[A](capacity)
@@ -449,7 +453,8 @@ object Queue {
     }
 
     // TODO could optimize notifications by checking if buffer is completely empty on put
-    private[this] def notifyOne(waiters: UnsafeUnbounded[Either[Throwable, Unit] => Unit]): Unit =
+    private[this] def notifyOne(
+        waiters: UnsafeUnbounded[Either[Throwable, Unit] => Unit]): Unit =
       try {
         waiters.take()(EitherUnit)
       } catch {
@@ -622,7 +627,7 @@ object Queue {
               // thus, we need to re-set ourselves as the first
               // we've already cleared ourselves so the next taker will get a new value
 
-              first.compareAndSet(null, oldFirst)   // this shouldn't ever fail
+              first.compareAndSet(null, oldFirst) // this shouldn't ever fail
             }
           }
 
@@ -645,7 +650,9 @@ object Queue {
       }
     }
 
-    private final class Cell(private[this] var _data: A) extends AtomicReference[Cell] with (() => Unit) {
+    private final class Cell(private[this] var _data: A)
+        extends AtomicReference[Cell]
+        with (() => Unit) {
 
       def apply(): Unit = _data = null.asInstanceOf[A]
 
