@@ -16,6 +16,9 @@
 
 package cats.effect
 
+import cats.kernel.Eq
+import scala.reflect.ClassTag
+
 sealed trait IOLocal[A] {
 
   def get: IO[A]
@@ -37,33 +40,71 @@ sealed trait IOLocal[A] {
 object IOLocal {
 
   def apply[A](default: A): IO[IOLocal[A]] =
-    IO {
-      new IOLocal[A] { self =>
-        override def get: IO[A] =
-          IO.Local(state => (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
+    IO(new IOLocalImpl[A](default))
 
-        override def set(value: A): IO[Unit] =
-          IO.Local(state => (state + (self -> value), ()))
+  /**
+   * Creates an [[IOLocal]] instance keyed on `k`. Two instances of `IOLocal` created with equal
+   * keys will operate the same state when their operations are sequenced together.
+   * 
+   * Note: because the equality comparison is user-controlled, it can never be guaranteed that
+   * an instance created using this method will 
+   */
+  def forKey[K: Eq, A](key: K, default: A): IOLocal[A] =
+    new KeyedIOLocal[K, A](key, default)
 
-        override def reset: IO[Unit] =
-          IO.Local(state => (state - self, ()))
+  /**
+   * Similar to [[forKey]], 
+   */
+  def forSingletonKey[A](key: AnyRef, default: A): IOLocal[A] =
+    new SingletonKeyedIOLocal[A](key, default)
 
-        override def update(f: A => A): IO[Unit] =
-          get.flatMap(a => set(f(a)))
+  def forClass[A: ClassTag](default: A): IOLocal[A] =
+    new ClassTagIOLocal[A](default)
 
-        override def modify[B](f: A => (A, B)): IO[B] =
-          get.flatMap { a =>
-            val (a2, b) = f(a)
-            set(a2).as(b)
-          }
+  private[effect] class IOLocalImpl[A](default: A) extends IOLocal[A] { self =>
+    override def get: IO[A] =
+      IO.Local(state => (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
 
-        override def getAndSet(value: A): IO[A] =
-          get <* set(value)
+    override def set(value: A): IO[Unit] =
+      IO.Local(state => (state + (self -> value), ()))
 
-        override def getAndReset: IO[A] =
-          get <* reset
+    override def reset: IO[Unit] =
+      IO.Local(state => (state - self, ()))
 
+    override def update(f: A => A): IO[Unit] =
+      get.flatMap(a => set(f(a)))
+
+    override def modify[B](f: A => (A, B)): IO[B] =
+      get.flatMap { a =>
+        val (a2, b) = f(a)
+        set(a2).as(b)
       }
-    }
 
+    override def getAndSet(value: A): IO[A] =
+      get <* set(value)
+
+    override def getAndReset: IO[A] =
+      get <* reset
+
+  }
+
+  private[effect] class KeyedIOLocal[K, A](private val key: K, default: A)(implicit eqK: Eq[K])
+      extends IOLocalImpl[A](default) {
+    override def equals(that: Any): Boolean =
+      that.isInstanceOf[KeyedIOLocal[_, _]] &&
+        eqK.eqv(that.asInstanceOf[KeyedIOLocal[K, _]].key, key)
+  }
+
+  private[effect] class SingletonKeyedIOLocal[A](private val key: AnyRef, default: A)
+      extends IOLocalImpl[A](default) {
+    override def equals(that: Any): Boolean =
+      that.isInstanceOf[SingletonKeyedIOLocal[_]] &&
+        (that.asInstanceOf[SingletonKeyedIOLocal[_]].key eq key)
+  }
+
+  private[effect] class ClassTagIOLocal[A](default: A)(implicit private val ct: ClassTag[A]) extends IOLocalImpl[A](default) {
+    override def equals(that: Any): Boolean =
+      this.isInstanceOf[ClassTagIOLocal[_]] &&
+        (that.asInstanceOf[ClassTagIOLocal[_]].ct eq ct)
+  }
 }
