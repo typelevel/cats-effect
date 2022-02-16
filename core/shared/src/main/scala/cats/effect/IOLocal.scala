@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.kernel.Eq
+import cats.kernel.Hash
 import scala.reflect.ClassTag
 
 sealed trait IOLocal[A] {
@@ -40,7 +40,7 @@ sealed trait IOLocal[A] {
 object IOLocal {
 
   def apply[A](default: A): IO[IOLocal[A]] =
-    IO(new IOLocalImpl[A](default))
+    IO(new SelfKeyedIOLocal[A](default))
 
   /**
    * Creates an [[IOLocal]] instance keyed on `k`. Two instances of `IOLocal` created with equal
@@ -52,7 +52,7 @@ object IOLocal {
    * Note: because the equality comparison is user-controlled, it can never be guaranteed that
    * an instance created with a different key will not interfere with this instance.
    */
-  def forKey[K: Eq, A](key: K, default: A): IOLocal[A] =
+  def forKey[K: Hash, A](key: K, default: A): IOLocal[A] =
     new KeyedIOLocal[K, A](key, default)
 
   /**
@@ -105,11 +105,15 @@ object IOLocal {
 
   }
 
-  private[effect] class KeyedIOLocal[K, A](private val key: K, default: A)(implicit eqK: Eq[K])
+  private[effect] class SelfKeyedIOLocal[A](default: A) extends IOLocalImpl[A](default)
+
+  private[effect] class KeyedIOLocal[K, A](private val key: K, default: A)(implicit ev: Hash[K])
       extends IOLocalImpl[A](default) {
     override def equals(that: Any): Boolean =
       that.isInstanceOf[KeyedIOLocal[_, _]] &&
-        eqK.eqv(that.asInstanceOf[KeyedIOLocal[K, _]].key, key)
+        ev.eqv(that.asInstanceOf[KeyedIOLocal[K, _]].key, key)
+
+    override def hashCode(): Int = ev.hash(key)
   }
 
   private[effect] class SingletonKeyedIOLocal[A](private val key: AnyRef, default: A)
@@ -117,12 +121,16 @@ object IOLocal {
     override def equals(that: Any): Boolean =
       that.isInstanceOf[SingletonKeyedIOLocal[_]] &&
         (that.asInstanceOf[SingletonKeyedIOLocal[_]].key eq key)
+
+    override def hashCode(): Int = key.hashCode()
   }
 
   private[effect] class ClassTagIOLocal[A](default: A)(implicit private val ct: ClassTag[A])
       extends IOLocalImpl[A](default) {
     override def equals(that: Any): Boolean =
       this.isInstanceOf[ClassTagIOLocal[_]] &&
-        (that.asInstanceOf[ClassTagIOLocal[_]].ct eq ct)
+        (that.asInstanceOf[ClassTagIOLocal[_]].ct == ct)
+
+    override def hashCode(): Int = ct.hashCode()
   }
 }
