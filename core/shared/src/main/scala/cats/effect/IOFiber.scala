@@ -1518,7 +1518,7 @@ private final class IOFiber[A] private (
 
   // overrides the AtomicReference#toString
   override def toString: String = {
-    val state = if (suspended.get()) "SUSPENDED" else "RUNNING"
+    val state = if (suspended.get()) "SUSPENDED" else if (isDone) "COMPLETED" else "RUNNING"
     val tracingEvents = this.tracingEvents
 
     // There are race conditions here since a running fiber is writing to `tracingEvents`,
@@ -1529,6 +1529,9 @@ private final class IOFiber[A] private (
 
     s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
   }
+
+  private[this] def isDone: Boolean =
+    resumeTag == DoneR
 
   private[effect] def prettyPrintTrace(): String =
     if (isStackTracing) {

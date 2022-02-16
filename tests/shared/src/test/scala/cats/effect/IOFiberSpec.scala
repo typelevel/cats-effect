@@ -50,5 +50,18 @@ class IOFiberSpec extends BaseSpec {
         _ <- IO(s must beMatching(pattern))
       } yield ok
     }
+
+    "toString a completed fiber" in real {
+      def done = IO.unit.start
+      val pattern = raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ COMPLETED"
+      for {
+        f <- done.start
+        _ <- IO.sleep(1.milli)
+        s <- IO(f.toString)
+        // _ <- IO.println(s)
+        _ <- f.cancel
+        _ <- IO(s must beMatching(pattern))
+      } yield ok
+    }
   }
 }
