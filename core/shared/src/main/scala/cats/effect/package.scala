@@ -79,7 +79,7 @@ package object effect {
   type Ref[F[_], A] = cekernel.Ref[F, A]
   val Ref = cekernel.Ref
 
-  private[effect] type IOLocalState = scala.collection.immutable.Map[Any, Any]
+  private[effect] type IOLocalState = scala.collection.immutable.Map[IOLocal[_], Any]
 
   private[effect] type ByteStack = Array[Int]
 }
