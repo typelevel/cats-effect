@@ -81,6 +81,23 @@ class IOLocalSpec extends BaseSpec {
 
       io must completeAs(0)
     }
+
+    "share state with itself when allocated with unsafeCreate" in ticked { implicit ticker =>
+      val local = IOLocal.unsafeCreate(0)
+
+      val io = local.set(3) *> local.get
+
+      io must completeAs(3)
+    }
+
+    "not share state with other instance allocated with unsafeCreate" in ticked {
+      implicit ticker =>
+        def mkLocal = IOLocal.unsafeCreate(0)
+
+        val io = mkLocal.set(3) *> mkLocal.get
+
+        io must completeAs(0)
+    }
   }
 
 }

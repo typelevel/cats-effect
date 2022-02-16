@@ -37,6 +37,14 @@ sealed trait IOLocal[A] {
 object IOLocal {
   def apply[A](default: A): IO[IOLocal[A]] = IO(unsafeCreate(default))
 
+  /**
+   * Not referentially transparent.
+   * {{{
+   *   val local = IOLocal.unsafeCreate(0)
+   *   local.set(3) *> local.get                   // 3
+   *   IOLocal.unsafeCreate(0).set(3) *> local.get // 0
+   * }}}
+   */
   def unsafeCreate[A](default: A): IOLocal[A] =
     new IOLocal[A] { self =>
       override def get: IO[A] =
