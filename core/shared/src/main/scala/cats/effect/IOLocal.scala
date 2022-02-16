@@ -45,19 +45,36 @@ object IOLocal {
   /**
    * Creates an [[IOLocal]] instance keyed on `k`. Two instances of `IOLocal` created with equal
    * keys will operate the same state when their operations are sequenced together.
-   * 
+   *
+   * Warning: calling this twice with equal keys but different value types will result in
+   * runtime errors.
+   *
    * Note: because the equality comparison is user-controlled, it can never be guaranteed that
-   * an instance created using this method will 
+   * an instance created with a different key will not interfere with this instance.
    */
   def forKey[K: Eq, A](key: K, default: A): IOLocal[A] =
     new KeyedIOLocal[K, A](key, default)
 
   /**
-   * Similar to [[forKey]], 
+   * Similar to [[forKey]], but its state is shared only with other instances created by calling
+   * [[forSingletonKey]] with identically the same object.
+   *
+   * Warning: calling this twice with equal keys but different value types will result in
+   * runtime errors.
+   *
+   * {{{
+   *   private object FooKey
+   *   val fooLocal: IOLocal[Foo] = IOLocal.forSingletonKey[Foo](FooKey)
+   * }}}
    */
   def forSingletonKey[A](key: AnyRef, default: A): IOLocal[A] =
     new SingletonKeyedIOLocal[A](key, default)
 
+  /*
+   * Creates an IOLocal[A], keyed on the class `A`. All instances created for exactly
+   * the same class or trait will share the same state on a given fiber. Instances
+   * created for subtypes or supertypes are entirely independent.
+   */
   def forClass[A: ClassTag](default: A): IOLocal[A] =
     new ClassTagIOLocal[A](default)
 
@@ -102,7 +119,8 @@ object IOLocal {
         (that.asInstanceOf[SingletonKeyedIOLocal[_]].key eq key)
   }
 
-  private[effect] class ClassTagIOLocal[A](default: A)(implicit private val ct: ClassTag[A]) extends IOLocalImpl[A](default) {
+  private[effect] class ClassTagIOLocal[A](default: A)(implicit private val ct: ClassTag[A])
+      extends IOLocalImpl[A](default) {
     override def equals(that: Any): Boolean =
       this.isInstanceOf[ClassTagIOLocal[_]] &&
         (that.asInstanceOf[ClassTagIOLocal[_]].ct eq ct)
