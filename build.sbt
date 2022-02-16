@@ -270,7 +270,7 @@ lazy val releaseSettings = Seq(
     // The target flag is not implied by `-release` on Scala 2. We need to set it explicitly.
     // The target flag controls the JVM bytecode version that is output by scalac.
     val targetFlag =
-      if (!isDotty.value)
+      if (!isDotty.value && !version.startsWith("1.8"))
         Seq("-target:8")
       else
         Seq()
