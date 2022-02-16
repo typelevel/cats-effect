@@ -17,6 +17,7 @@
 package cats.effect
 
 import cats.kernel.Hash
+
 import scala.reflect.ClassTag
 
 sealed trait IOLocal[A] {
