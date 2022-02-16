@@ -474,7 +474,13 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
     }
   )
   .jvmSettings(
-    javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
+    javacOptions ++= {
+      val version = System.getProperty("java.version")
+      if (version.startsWith("1.8"))
+        Seq()
+      else
+        Seq("--release", "8")
+    }
   )
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion)
