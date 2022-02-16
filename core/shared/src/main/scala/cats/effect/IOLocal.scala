@@ -35,35 +35,33 @@ sealed trait IOLocal[A] {
 }
 
 object IOLocal {
+  def apply[A](default: A): IO[IOLocal[A]] = IO(unsafeCreate(default))
 
-  def apply[A](default: A): IO[IOLocal[A]] =
-    IO {
-      new IOLocal[A] { self =>
-        override def get: IO[A] =
-          IO.Local(state => (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
+  def unsafeCreate[A](default: A): IOLocal[A] =
+    new IOLocal[A] { self =>
+      override def get: IO[A] =
+        IO.Local(state => (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
 
-        override def set(value: A): IO[Unit] =
-          IO.Local(state => (state + (self -> value), ()))
+      override def set(value: A): IO[Unit] =
+        IO.Local(state => (state + (self -> value), ()))
 
-        override def reset: IO[Unit] =
-          IO.Local(state => (state - self, ()))
+      override def reset: IO[Unit] =
+        IO.Local(state => (state - self, ()))
 
-        override def update(f: A => A): IO[Unit] =
-          get.flatMap(a => set(f(a)))
+      override def update(f: A => A): IO[Unit] =
+        get.flatMap(a => set(f(a)))
 
-        override def modify[B](f: A => (A, B)): IO[B] =
-          get.flatMap { a =>
-            val (a2, b) = f(a)
-            set(a2).as(b)
-          }
+      override def modify[B](f: A => (A, B)): IO[B] =
+        get.flatMap { a =>
+          val (a2, b) = f(a)
+          set(a2).as(b)
+        }
 
-        override def getAndSet(value: A): IO[A] =
-          get <* set(value)
+      override def getAndSet(value: A): IO[A] =
+        get <* set(value)
 
-        override def getAndReset: IO[A] =
-          get <* reset
+      override def getAndReset: IO[A] =
+        get <* reset
 
-      }
     }
-
 }
