@@ -258,10 +258,24 @@ val undocumentedRefs =
 lazy val releaseSettings = Seq(
   scalacOptions ++= {
     val version = System.getProperty("java.version")
-    if (version.startsWith("1.8"))
-      Seq()
-    else
-      Seq("-release", "8")
+
+    // The release flag controls what JVM platform APIs are called. We only want JDK 8 APIs
+    // in order to maintain compability with JDK 8.
+    val releaseFlag =
+      if (version.startsWith("1.8"))
+        Seq()
+      else
+        Seq("-release", "8")
+
+    // The target flag is not implied by `-release` on Scala 2. We need to set it explicitly.
+    // The target flag controls the JVM bytecode version that is output by scalac.
+    val targetFlag =
+      if (!isDotty.value)
+        Seq("-target:8")
+      else
+        Seq()
+
+    releaseFlag ++ targetFlag
   }
 )
 
