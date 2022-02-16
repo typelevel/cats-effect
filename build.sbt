@@ -256,7 +256,13 @@ val undocumentedRefs =
   jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm, tests.jvm, tests.js)
 
 lazy val releaseSettings = Seq(
-  scalacOptions ++= Seq("-release", "8")
+  scalacOptions ++= {
+    val version = System.getProperty("java.version")
+    if (version.startsWith("1.8"))
+      Seq()
+    else
+      Seq("-release", "8")
+  }
 )
 
 lazy val root = project
