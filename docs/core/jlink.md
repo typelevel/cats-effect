@@ -16,7 +16,7 @@ additional configuration.
 
 There is one exception to this. The `java.base` module does not bundle support
 for POSIX signals, which means that the
-[a fiber dump](./fiber-dump.md) functionality cannot be
+[a fiber dump](./fiber-dumps.md) functionality cannot be
 triggered by sending POSIX signals to the Cats Effect application process.
 
 The POSIX signal functionality can be restored by adding a dependency on the
