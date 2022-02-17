@@ -99,7 +99,7 @@ class QueueBenchmark {
 
   private[this] def enqueueDequeueContended(q: Queue[IO, Unit]): IO[Unit] = {
     def par(action: IO[Unit], num: Int): IO[Unit] =
-      if (num <= 1)
+      if (num <= 10)
         action
       else
         par(action, num / 2) &> par(action, num / 2)
