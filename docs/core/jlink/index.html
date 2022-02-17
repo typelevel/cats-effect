@@ -65,7 +65,7 @@ projects that depend on <code>cats-effect</code> jars can be run out-of-the-box 
 additional configuration.</p>
 <p>There is one exception to this. The <code>java.base</code> module does not bundle support
 for POSIX signals, which means that the
-<a href="./fiber-dump.md">a fiber dump</a> functionality cannot be
+<a href="/cats-effect/docs/core/fiber-dumps">a fiber dump</a> functionality cannot be
 triggered by sending POSIX signals to the Cats Effect application process.</p>
 <p>The POSIX signal functionality can be restored by adding a dependency on the
 <code>jdk.unsupported</code> module, which unlocks access to the <code>sun.misc.Signal</code> API.</p>
