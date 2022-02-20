@@ -36,7 +36,7 @@ import java.nio.charset.Charset
  *  import cats.effect.std.Console
  *  import cats.syntax.all._
  *
- *  def myProgram[F[_] : Console : Monad]: F[Unit] =
+ *  def myProgram[F[_]: Console: Monad]: F[Unit] =
  *    for {
  *      _ <- Console[F].println("Please enter your name: ")
  *      n <- Console[F].readLine
