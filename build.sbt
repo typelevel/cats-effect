@@ -255,32 +255,6 @@ val jsProjects: Seq[ProjectReference] =
 val undocumentedRefs =
   jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm, tests.jvm, tests.js)
 
-lazy val releaseSettings = Seq(
-  scalacOptions ++= {
-    val version = System.getProperty("java.version")
-
-    // The release flag controls what JVM platform APIs are called. We only want JDK 8 APIs
-    // in order to maintain compability with JDK 8.
-    val releaseFlag =
-      if (version.startsWith("1.8"))
-        Seq()
-      else
-        Seq("-release", "8")
-
-    // The target flag is not implied by `-release` on Scala 2. We need to set it explicitly.
-    // The target flag controls the JVM bytecode version that is output by scalac.
-    val targetFlag =
-      if (isDotty.value || version.startsWith("1.8"))
-        Seq()
-      else if (scalaVersion.value.startsWith("2.12"))
-        Seq("-target:jvm-1.8")
-      else
-        Seq("-target:8")
-
-    releaseFlag ++ targetFlag
-  }
-)
-
 lazy val root = project
   .in(file("."))
   .aggregate(rootJVM, rootJS)
@@ -322,7 +296,6 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
       .cross(CrossVersion.for3Use2_13)
       .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
   )
-  .settings(releaseSettings)
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
@@ -344,7 +317,6 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.kernel.testkit.TestContext.this"))
   )
-  .settings(releaseSettings)
 
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid jar file and
@@ -360,7 +332,6 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "cats-laws" % CatsVersion,
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test)
   )
-  .settings(releaseSettings)
 
 /**
  * Concrete, production-grade implementations of the abstractions. Or, more simply-put: IO. Also
@@ -502,16 +473,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       } else Seq()
     }
   )
-  .settings(releaseSettings)
-  .jvmSettings(
-    javacOptions ++= {
-      val version = System.getProperty("java.version")
-      if (version.startsWith("1.8"))
-        Seq()
-      else
-        Seq("--release", "8")
-    }
-  )
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion)
 
@@ -531,7 +492,6 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
         .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
     )
   )
-  .settings(releaseSettings)
 
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
@@ -560,7 +520,6 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
         Seq.empty
     }
   )
-  .settings(releaseSettings)
   .jsSettings(
     Compile / scalaJSUseMainModuleInitializer := true,
     Compile / mainClass := Some("catseffect.examples.JSRunner"),
@@ -614,7 +573,6 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Console$SyncConsole")
     )
   )
-  .settings(releaseSettings)
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
@@ -628,7 +586,6 @@ lazy val example = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core)
   .enablePlugins(NoPublishPlugin)
   .settings(name := "cats-effect-example")
-  .settings(releaseSettings)
   .jsSettings(scalaJSUseMainModuleInitializer := true)
 
 /**
@@ -642,11 +599,9 @@ lazy val benchmarks = project
     javaOptions ++= Seq(
       "-Dcats.effect.tracing.mode=none",
       "-Dcats.effect.tracing.exceptions.enhanced=false"))
-  .settings(releaseSettings)
   .enablePlugins(NoPublishPlugin, JmhPlugin)
 
 lazy val docs = project
   .in(file("site-docs"))
   .dependsOn(core.jvm)
-  .settings(releaseSettings)
   .enablePlugins(MdocPlugin)
