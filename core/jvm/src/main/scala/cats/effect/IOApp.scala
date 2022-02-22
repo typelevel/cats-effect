@@ -17,7 +17,6 @@
 package cats.effect
 
 import cats.effect.tracing.TracingConstants._
-import cats.effect.unsafe.FiberMonitor
 
 import scala.concurrent.{blocking, CancellationException}
 import scala.util.control.NonFatal
@@ -209,7 +208,7 @@ trait IOApp {
 
       val installed = IORuntime installGlobal {
         val (compute, compDown) =
-          IORuntime.createDefaultComputeThreadPool(runtime, threads = computeWorkerThreadCount)
+          IORuntime.createWorkStealingComputeThreadPool(threads = computeWorkerThreadCount)
 
         val (blocking, blockDown) =
           IORuntime.createDefaultBlockingExecutionContext()
@@ -217,17 +216,11 @@ trait IOApp {
         val (scheduler, schedDown) =
           IORuntime.createDefaultScheduler()
 
-        val fiberMonitor = FiberMonitor(compute)
-
-        val unregisterFiberMonitorMBean = IORuntime.registerFiberMonitorMBean(fiberMonitor)
-
         IORuntime(
           compute,
           blocking,
           scheduler,
-          fiberMonitor,
           { () =>
-            unregisterFiberMonitorMBean()
             compDown()
             blockDown()
             schedDown()

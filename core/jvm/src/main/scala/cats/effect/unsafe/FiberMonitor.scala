@@ -43,7 +43,7 @@ import java.util.concurrent.ThreadLocalRandom
  *      contention between threads. A particular instance is selected using a thread local
  *      source of randomness using an instance of `java.util.concurrent.ThreadLocalRandom`.
  */
-private[effect] final class FiberMonitor(
+private[effect] sealed class FiberMonitor(
     // A reference to the compute pool of the `IORuntime` in which this suspended fiber bag
     // operates. `null` if the compute pool of the `IORuntime` is not a `WorkStealingThreadPool`.
     private[this] val compute: WorkStealingThreadPool
@@ -161,6 +161,12 @@ private[effect] final class FiberMonitor(
 
     foreign.toSet
   }
+}
+
+private[effect] final class NoOpFiberMonitor extends FiberMonitor(null) {
+  private final val noop: WeakBag.Handle = () => ()
+  override def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle = noop
+  override def liveFiberSnapshot(print: String => Unit): Unit = {}
 }
 
 private[effect] object FiberMonitor {

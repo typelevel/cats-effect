@@ -31,12 +31,11 @@ import javax.management.ObjectName
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
   // The default compute thread pool on the JVM is now a work stealing thread pool.
-  def createDefaultComputeThreadPool(
-      self: => IORuntime,
+  def createWorkStealingComputeThreadPool(
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
       threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) = {
     val threadPool =
-      new WorkStealingThreadPool(threads, threadPrefix, self)
+      new WorkStealingThreadPool(threads, threadPrefix)
 
     val unregisterMBeans =
       if (isStackTracing) {
@@ -103,6 +102,16 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       })
   }
 
+  @deprecated(
+    message = "Replaced by the simpler and safer `createWorkStealingComputePool`",
+    since = "3.4.0"
+  )
+  def createDefaultComputeThreadPool(
+      self: => IORuntime,
+      threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
+      threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) =
+    createWorkStealingComputeThreadPool(threads, threadPrefix)
+
   def createDefaultBlockingExecutionContext(
       threadPrefix: String = "io-blocking"): (ExecutionContext, () => Unit) = {
     val threadCount = new AtomicInteger(0)
@@ -148,27 +157,15 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   lazy val global: IORuntime = {
     if (_global == null) {
       installGlobal {
-        val (compute, _) = createDefaultComputeThreadPool(global)
+        val (compute, _) = createWorkStealingComputeThreadPool()
         val (blocking, _) = createDefaultBlockingExecutionContext()
         val (scheduler, _) = createDefaultScheduler()
-        val fiberMonitor = FiberMonitor(compute)
-        registerFiberMonitorMBean(fiberMonitor)
-
         IORuntime(compute, blocking, scheduler, () => (), IORuntimeConfig())
       }
     }
 
     _global
   }
-
-  private[effect] def apply(
-      compute: ExecutionContext,
-      blocking: ExecutionContext,
-      scheduler: Scheduler,
-      fiberMonitor: FiberMonitor,
-      shutdown: () => Unit,
-      config: IORuntimeConfig): IORuntime =
-    new IORuntime(compute, blocking, scheduler, fiberMonitor, shutdown, config)
 
   private[effect] def registerFiberMonitorMBean(fiberMonitor: FiberMonitor): () => Unit = {
     if (isStackTracing) {
