@@ -36,7 +36,6 @@ import cats.{
 }
 import cats.data.Ior
 import cats.effect.instances.spawn
-import cats.effect.kernel.Sync
 import cats.effect.std.{Console, Env}
 import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.syntax.all._
