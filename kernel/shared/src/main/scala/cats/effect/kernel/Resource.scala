@@ -1286,6 +1286,10 @@ abstract private[effect] class ResourceAsync[F[_]]
   override def unique: Resource[F, Unique.Token] =
     Resource.unique
 
+  override def syncStep[G[_], A](fa: Resource[F, A], limit: Int)(
+      implicit G: Sync[G]): G[Either[Resource[F, A], A]] =
+    G.pure(Left(fa))
+
   override def never[A]: Resource[F, A] =
     Resource.never
 
