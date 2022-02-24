@@ -19,10 +19,11 @@ jobs:
         with:
           submodules: true
 
-      - name: Install Java and Scala
-        uses: olafurpg/setup-scala@v13
+      - name: Setup Java
+        uses: actions/setup-java@v2
         with:
-          java-version: adoptium@8
+          distribution: temurin
+          java-version: 11
 
       - name: Install NodeJS 14
         uses: actions/setup-node@v2
