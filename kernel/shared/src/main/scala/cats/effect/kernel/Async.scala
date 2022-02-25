@@ -160,7 +160,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * the original `F[A]` value is returned unchanged.
    *
    * @param limit
-   *   The number of stages to evaluate prior to forcibly yielding to `F`
+   *   The maximum number of stages to evaluate prior to forcibly yielding to `F`
    */
   @nowarn("cat=unused")
   def syncStep[G[_], A](fa: F[A], limit: Int)(implicit G: Sync[G]): G[Either[F[A], A]] =
