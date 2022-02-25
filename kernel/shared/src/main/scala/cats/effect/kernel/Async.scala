@@ -291,7 +291,7 @@ object Async {
     override def syncStep[G[_], A](fa: OptionT[F, A], limit: Int)(
         implicit G: Sync[G]): G[Either[OptionT[F, A], A]] =
       G.map(F.syncStep[G, Option[A]](fa.value, limit)) {
-        case Left(fa) => Left(OptionT(fa))
+        case Left(foption) => Left(OptionT(foption))
         case Right(None) => Left(OptionT.none)
         case Right(Some(a)) => Right(a)
       }
@@ -362,7 +362,7 @@ object Async {
     override def syncStep[G[_], A](fa: EitherT[F, E, A], limit: Int)(
         implicit G: Sync[G]): G[Either[EitherT[F, E, A], A]] =
       G.map(F.syncStep[G, Either[E, A]](fa.value, limit)) {
-        case Left(fa) => Left(EitherT(fa))
+        case Left(feither) => Left(EitherT(feither))
         case Right(Left(e)) => Left(EitherT.leftT(e))
         case Right(Right(a)) => Right(a)
       }
@@ -434,9 +434,9 @@ object Async {
     override def syncStep[G[_], A](fa: IorT[F, L, A], limit: Int)(
         implicit G: Sync[G]): G[Either[IorT[F, L, A], A]] =
       G.map(F.syncStep[G, Ior[L, A]](fa.value, limit)) {
-        case Left(ior) => Left(IorT(ior))
+        case Left(fior) => Left(IorT(fior))
         case Right(Ior.Right(a)) => Right(a)
-        case Right(right) => Left(IorT.fromIor(right))
+        case Right(ior) => Left(IorT.fromIor(ior))
       }
 
     def cont[K, R](body: Cont[IorT[F, L, *], K, R]): IorT[F, L, R] =
