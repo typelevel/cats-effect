@@ -18,6 +18,7 @@ package cats
 package effect
 package std
 
+import cats.Applicative
 import cats.effect.kernel._
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
@@ -113,7 +114,8 @@ abstract class Semaphore[F[_]] {
    * acquired a permit or not. If the permit was acquired then it is guaranteed to be released
    * at the end of the Resource lifetime
    */
-  def tryPermit: Resource[F, Boolean]
+  def tryPermit(implicit F: Applicative[F]): Resource[F, Boolean] =
+    Resource.make(tryAcquire) { acquired => release.whenA(acquired) }
 
   /**
    * Modify the context `F` using natural transformation `f`.
@@ -254,9 +256,6 @@ object Semaphore {
         def permit: Resource[F, Unit] =
           Resource.makeFull { (poll: Poll[F]) => poll(acquire) } { _ => release }
 
-        def tryPermit: Resource[F, Boolean] =
-          Resource.make(tryAcquire) { acquired => release.whenA(acquired) }
-
         def tryAcquireN(n: Long): F[Boolean] = {
           requireNonNegative(n)
           if (n == 0) F.pure(true)
@@ -284,7 +283,6 @@ object Semaphore {
     def tryAcquireN(n: Long): G[Boolean] = f(underlying.tryAcquireN(n))
     def releaseN(n: Long): G[Unit] = f(underlying.releaseN(n))
     def permit: Resource[G, Unit] = underlying.permit.mapK(f)
-    def tryPermit: Resource[G, Boolean] = underlying.tryPermit.mapK(f)
     def mapK[H[_]](f: G ~> H)(implicit H: MonadCancel[H, _]): Semaphore[H] =
       new MapKSemaphore(this, f)
   }
