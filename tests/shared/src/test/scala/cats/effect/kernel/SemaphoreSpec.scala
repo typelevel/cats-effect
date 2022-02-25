@@ -108,6 +108,17 @@ class SemaphoreSpec extends BaseSpec { outer =>
       } yield res
     }
 
+    "not release permit if tryPermit completes without acquiring a permit" in ticked {
+      implicit ticker =>
+        val p = for {
+          sem <- sc(0)
+          _ <- sem.tryPermit.surround(IO.unit)
+          res <- sem.permit.surround(IO.unit)
+        } yield res
+
+        p must nonTerminate
+    }
+
     "release permit if action gets canceled" in ticked { implicit ticker =>
       val p =
         for {
