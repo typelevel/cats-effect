@@ -255,9 +255,7 @@ object Semaphore {
           Resource.makeFull { (poll: Poll[F]) => poll(acquire) } { _ => release }
 
         def tryPermit: Resource[F, Boolean] =
-          Resource.makeFull { (poll: Poll[F]) => poll(tryAcquire) } { acquired =>
-            release.whenA(acquired)
-          }
+          Resource.make(tryAcquire) { acquired => release.whenA(acquired) }
 
         def tryAcquireN(n: Long): F[Boolean] = {
           requireNonNegative(n)
