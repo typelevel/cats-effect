@@ -17,7 +17,7 @@
 package cats.effect
 package laws
 
-import cats.effect.kernel.Async
+import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all._
 
 import scala.concurrent.ExecutionContext
@@ -65,6 +65,32 @@ trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
 
   def evalOnNeverIdentity(ec: ExecutionContext) =
     F.evalOn(F.never[Unit], ec) <-> F.never[Unit]
+
+  def syncStepIdentity[A](fa: F[A], limit: Int) =
+    F.syncStep[F, A](fa, limit)(syncF).flatMap {
+      case Left(fa) => fa
+      case Right(a) => F.pure(a)
+    } <-> fa
+
+  // a mild hack, in case a `syncStep[G]` implementation
+  // special-cases `F eq G` and thus short-circuits the law
+  private[this] def syncF: Sync[F] = new Sync[F] {
+    import cats.effect.kernel._
+    import scala.concurrent.duration._
+    def pure[A](x: A): F[A] = F.pure(x)
+    def handleErrorWith[A](fa: F[A])(f: Throwable => F[A]): F[A] = F.handleErrorWith(fa)(f)
+    def raiseError[A](e: Throwable): F[A] = F.raiseError(e)
+    def monotonic: F[FiniteDuration] = F.monotonic
+    def realTime: F[FiniteDuration] = F.realTime
+    def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = F.flatMap(fa)(f)
+    def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = F.tailRecM(a)(f)
+    def canceled: F[Unit] = F.canceled
+    def forceR[A, B](fa: F[A])(fb: F[B]): F[B] = F.forceR(fa)(fb)
+    def onCancel[A](fa: F[A], fin: F[Unit]): F[A] = F.onCancel(fa, fin)
+    def rootCancelScope: CancelScope = F.rootCancelScope
+    def uncancelable[A](body: Poll[F] => F[A]): F[A] = F.uncancelable(body)
+    def suspend[A](hint: Sync.Type)(thunk: => A): F[A] = F.suspend(hint)(thunk)
+  }
 }
 
 object AsyncLaws {
