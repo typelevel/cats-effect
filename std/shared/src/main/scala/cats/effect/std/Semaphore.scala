@@ -109,6 +109,13 @@ abstract class Semaphore[F[_]] {
   def permit: Resource[F, Unit]
 
   /**
+   * Returns a [[cats.effect.kernel.Resource]] that contains a boolean that indicates whether we
+   * acquired a permit or not. If the permit was acquired then it is guaranteed to be released
+   * at the end of the Resource lifetime
+   */
+  def tryPermit: Resource[F, Boolean]
+
+  /**
    * Modify the context `F` using natural transformation `f`.
    */
   def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Semaphore[G]
@@ -247,6 +254,9 @@ object Semaphore {
         def permit: Resource[F, Unit] =
           Resource.makeFull { (poll: Poll[F]) => poll(acquire) } { _ => release }
 
+        def tryPermit: Resource[F, Boolean] =
+          Resource.makeFull { (poll: Poll[F]) => poll(tryAcquire) } { _ => release }
+
         def tryAcquireN(n: Long): F[Boolean] = {
           requireNonNegative(n)
           if (n == 0) F.pure(true)
@@ -274,6 +284,7 @@ object Semaphore {
     def tryAcquireN(n: Long): G[Boolean] = f(underlying.tryAcquireN(n))
     def releaseN(n: Long): G[Unit] = f(underlying.releaseN(n))
     def permit: Resource[G, Unit] = underlying.permit.mapK(f)
+    def tryPermit: Resource[G, Boolean] = underlying.tryPermit.mapK(f)
     def mapK[H[_]](f: G ~> H)(implicit H: MonadCancel[H, _]): Semaphore[H] =
       new MapKSemaphore(this, f)
   }
