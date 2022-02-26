@@ -557,50 +557,17 @@ object Queue {
   }
 
   // TODO we don't allow null values, which is kinda fine for now but not fine if we use this to back Queue.unbounded
-  private[effect] final class UnsafeUnbounded[A] {
-
-    // first is guaranteed to be the head of the queue
-    // cells that have been first at any point are always guaranteed to point into the queue
+  final class UnsafeUnbounded[A] {
+    // YMMV. HERE BE DRAGONS. NEEDS HARDENING. NO WARRANTY. CODED BY A SLEEPDEPRIVED NUTJOB.
     private[this] val first = new AtomicReference[Cell]
-
-    // last is only guaranteed to be in the queue, and we *try* to make it point to the last cell
-    // under high contention, it might end up being several steps from the end, but it will self-correct on put
     private[this] val last = new AtomicReference[Cell]
 
     def put(data: A): () => Unit = {
       val cell = new Cell(data)
 
-      val oldLast = last.getAndSet(cell)
-      if (oldLast == null) {
-        // the queue was empty and we're now the new end
-        // we need to fix up the front to point to us
-
-        @tailrec
-        def loop(): Unit = {
-          val oldFirst = first.get()
-          if (oldFirst == null) {
-            // the queue still looks empty, so we're the new head
-
-            if (!first.compareAndSet(oldFirst, cell)) {
-              // ...or not. someone else is putting concurrently and *they* are the new head
-              // we need to retry just in case someone is taking at this exact moment
-
-              loop()
-            }
-          } else {
-            // the queue isn't empty (anymore) after all! we need to append ourselves so that first points to last
-            // even if it's taken out by this point, it'll still point into the structure
-
-            oldFirst.append(cell)
-          }
-        }
-
-        loop()
-      } else {
-        // the queue was non-empty, so we need to link ourselves into the old last
-        // if the queue had size = 1, then the old last is also the old first,
-        // which may be taken during this put. if this happens, take fixes the invariants
-        oldLast.append(cell)
+      last.getAndSet(cell) match {
+        case null => first.set(cell) // This is safe since only one thread will return null for last.getAndSet and consumers will consume from first, and first will be null until this line
+        case prevLast => prevLast.set(cell) // order the update to the next-to-last
       }
 
       cell
@@ -608,34 +575,29 @@ object Queue {
 
     @tailrec
     def take(): A = {
-      val oldFirst = first.get()
-      if (oldFirst == null) {
-        throw FailureSignal
+      val taken = first.get()
+
+      if (taken == null) {
+        if (last.get() != null) take() // Waiting for prevLast.set(cell)
+        else throw FailureSignal
       } else {
-        val tail = oldFirst.get()
-        if (!first.compareAndSet(oldFirst, tail)) {
-          take()
-        } else {
-          val data = oldFirst.data()
-          oldFirst()
+        val next = taken.get()
 
-          if (tail == null) {
-            // the queue only contained a single element, which we're taking, so we need to fix up last
+        if (first.compareAndSet(taken, next)) {
+          val ret = taken.data()
+          taken()
 
-            if (!last.compareAndSet(oldFirst, null)) {
-              // someone else is putting and they will append themselves to us
-              // thus, we need to re-set ourselves as the first
-              // we've already cleared ourselves so the next taker will get a new value
-
-              first.compareAndSet(null, oldFirst) // this shouldn't ever fail
-            }
+          if (next == null) {
+            last.compareAndSet(taken, null)
           }
 
-          if (data == null) {
-            take()
+          if (ret != null) {
+            ret
           } else {
-            data
+            take()
           }
+        } else {
+          take()
         }
       }
     }
@@ -650,29 +612,19 @@ object Queue {
       }
     }
 
-    private final class Cell(private[this] var _data: A)
+    private final class Cell(private[this] final var _data: A)
         extends AtomicReference[Cell]
         with (() => Unit) {
 
-      def apply(): Unit = _data = null.asInstanceOf[A]
-
       def data(): A = _data
 
-      @tailrec
-      def append(cell: Cell): Unit = {
-        val tail = get()
-        if (tail == null) {
-          if (!compareAndSet(tail, cell)) {
-            append(cell)
-          }
-        } else {
-          tail.append(cell)
-        }
+      final override def apply(): Unit = {
+        _data = null.asInstanceOf[A] // You want a lazySet here
       }
 
       def debug(): String = {
         val tail = get()
-        s"${data()} -> ${if (tail == null) "[]" else tail.debug()}"
+        s"${_data} -> ${if (tail == null) "[]" else tail.debug()}"
       }
     }
   }
