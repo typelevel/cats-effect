@@ -14,20 +14,6 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.syntax
 
-package object syntax {
-
-  object all extends AllSyntax
-
-  object monadCancel extends kernel.syntax.MonadCancelSyntax
-  object spawn extends kernel.syntax.GenSpawnSyntax
-  object concurrent extends kernel.syntax.GenConcurrentSyntax
-  object temporal extends kernel.syntax.GenTemporalSyntax
-  object async extends kernel.syntax.AsyncSyntax
-  object resource extends kernel.syntax.ResourceSyntax
-  object clock extends kernel.syntax.ClockSyntax
-
-  object supervisor extends std.syntax.SupervisorSyntax
-  object dispatcher extends DispatcherSyntax
-}
+trait DispatcherSyntax
