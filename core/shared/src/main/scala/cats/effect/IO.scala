@@ -908,59 +908,14 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   /**
    * Translates this `IO[A]` into a `SyncIO` value which, when evaluated, runs the original `IO`
-   * to its completion, the `limit` number of stages, or until the first asynchronous boundary,
-   * whichever is encountered first.
+   * to its completion, the `limit` number of stages, or until the first stage that cannot be
+   * expressed with `SyncIO` (typically an asynchronous boundary).
    *
    * @param limit
-   *   The number of stages to evaluate prior to forcibly yielding to `IO`
+   *   The maximum number of stages to evaluate prior to forcibly yielding to `IO`
    */
-  def syncStep(limit: Int): SyncIO[Either[IO[A], A]] = {
-    def interpret[B](io: IO[B], limit: Int): SyncIO[Either[IO[B], (B, Int)]] = {
-      if (limit <= 0) {
-        SyncIO.pure(Left(io))
-      } else {
-        io match {
-          case IO.Pure(a) => SyncIO.pure(Right((a, limit)))
-          case IO.Error(t) => SyncIO.raiseError(t)
-          case IO.Delay(thunk, _) => SyncIO.delay(thunk()).map(a => Right((a, limit)))
-          case IO.RealTime => SyncIO.realTime.map(a => Right((a, limit)))
-          case IO.Monotonic => SyncIO.monotonic.map(a => Right((a, limit)))
-
-          case IO.Map(ioe, f, _) =>
-            interpret(ioe, limit - 1).map {
-              case Left(_) => Left(io)
-              case Right((a, limit)) => Right((f(a), limit))
-            }
-
-          case IO.FlatMap(ioe, f, _) =>
-            interpret(ioe, limit - 1).flatMap {
-              case Left(_) => SyncIO.pure(Left(io))
-              case Right((a, limit)) => interpret(f(a), limit - 1)
-            }
-
-          case IO.Attempt(ioe) =>
-            interpret(ioe, limit - 1)
-              .map {
-                case Left(_) => Left(io)
-                case Right((a, limit)) => Right((a.asRight[Throwable], limit))
-              }
-              .handleError(t => Right((t.asLeft[IO[B]], limit - 1)))
-
-          case IO.HandleErrorWith(ioe, f, _) =>
-            interpret(ioe, limit - 1)
-              .map {
-                case Left(_) => Left(io)
-                case r @ Right(_) => r
-              }
-              .handleErrorWith(t => interpret(f(t), limit - 1))
-
-          case _ => SyncIO.pure(Left(io))
-        }
-      }
-    }
-
-    interpret(this, limit).map(_.map(_._1))
-  }
+  def syncStep(limit: Int): SyncIO[Either[IO[A], A]] =
+    IO.asyncForIO.syncStep[SyncIO, A](this, limit)
 
   /**
    * Evaluates the current `IO` in an infinite loop, terminating only on error or cancelation.
@@ -1689,6 +1644,55 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
           b <- fb.value
         } yield fn(a, b)
       )
+
+    override def syncStep[G[_], A](fa: IO[A], limit: Int)(
+        implicit G: Sync[G]): G[Either[IO[A], A]] = {
+      def interpret[B](io: IO[B], limit: Int): G[Either[IO[B], (B, Int)]] = {
+        if (limit <= 0) {
+          G.pure(Left(io))
+        } else {
+          io match {
+            case IO.Pure(a) => G.pure(Right((a, limit)))
+            case IO.Error(t) => G.raiseError(t)
+            case IO.Delay(thunk, _) => G.delay(thunk()).map(a => Right((a, limit)))
+            case IO.RealTime => G.realTime.map(a => Right((a, limit)))
+            case IO.Monotonic => G.monotonic.map(a => Right((a, limit)))
+
+            case IO.Map(ioe, f, _) =>
+              interpret(ioe, limit - 1).map {
+                case Left(_) => Left(io)
+                case Right((a, limit)) => Right((f(a), limit))
+              }
+
+            case IO.FlatMap(ioe, f, _) =>
+              interpret(ioe, limit - 1).flatMap {
+                case Left(_) => G.pure(Left(io))
+                case Right((a, limit)) => interpret(f(a), limit - 1)
+              }
+
+            case IO.Attempt(ioe) =>
+              interpret(ioe, limit - 1)
+                .map {
+                  case Left(_) => Left(io)
+                  case Right((a, limit)) => Right((a.asRight[Throwable].asInstanceOf[B], limit))
+                }
+                .handleError(t => Right((t.asLeft[IO[B]], limit - 1)))
+
+            case IO.HandleErrorWith(ioe, f, _) =>
+              interpret(ioe, limit - 1)
+                .map {
+                  case Left(_) => Left(io)
+                  case r @ Right(_) => r
+                }
+                .handleErrorWith(t => interpret(f(t), limit - 1))
+
+            case _ => G.pure(Left(io))
+          }
+        }
+      }
+
+      interpret(fa, limit).map(_.map(_._1))
+    }
   }
 
   implicit def asyncForIO: kernel.Async[IO] = _asyncForIO

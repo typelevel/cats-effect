@@ -18,6 +18,7 @@ package cats.effect.kernel
 
 import cats._
 import cats.data.Kleisli
+import cats.effect.kernel.Resource.Pure
 import cats.effect.kernel.implicits._
 import cats.effect.kernel.instances.spawn
 import cats.syntax.all._
@@ -1285,6 +1286,18 @@ abstract private[effect] class ResourceAsync[F[_]]
 
   override def unique: Resource[F, Unique.Token] =
     Resource.unique
+
+  override def syncStep[G[_], A](fa: Resource[F, A], limit: Int)(
+      implicit G: Sync[G]): G[Either[Resource[F, A], A]] =
+    fa match {
+      case Pure(a) => G.pure(Right(a))
+      case Resource.Eval(fa) =>
+        G.map(F.syncStep[G, A](F.widen(fa), limit)) {
+          case Left(fa) => Left(Resource.eval(fa))
+          case Right(a) => Right(a)
+        }
+      case r => G.pure(Left(r))
+    }
 
   override def never[A]: Resource[F, A] =
     Resource.never

@@ -254,7 +254,8 @@ trait AsyncTests[F[_]] extends GenTemporalTests[F, Throwable] with SyncTests[F] 
         "evalOn pure identity" -> forAll(laws.evalOnPureIdentity[A] _),
         "evalOn raiseError identity" -> forAll(laws.evalOnRaiseErrorIdentity _),
         "evalOn canceled identity" -> forAll(laws.evalOnCanceledIdentity _),
-        "evalOn never identity" -> forAll(laws.evalOnNeverIdentity _)
+        "evalOn never identity" -> forAll(laws.evalOnNeverIdentity _),
+        "syncStep identity" -> forAll(laws.syncStepIdentity[A] _)
       )
     }
   }

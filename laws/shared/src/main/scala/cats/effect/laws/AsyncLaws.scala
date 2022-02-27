@@ -65,6 +65,12 @@ trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
 
   def evalOnNeverIdentity(ec: ExecutionContext) =
     F.evalOn(F.never[Unit], ec) <-> F.never[Unit]
+
+  def syncStepIdentity[A](fa: F[A], limit: Int) =
+    F.syncStep(fa, limit).flatMap {
+      case Left(fa) => fa
+      case Right(a) => F.pure(a)
+    } <-> fa
 }
 
 object AsyncLaws {
