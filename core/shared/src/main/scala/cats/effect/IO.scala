@@ -908,11 +908,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   /**
    * Translates this `IO[A]` into a `SyncIO` value which, when evaluated, runs the original `IO`
-   * to its completion, the `limit` number of stages, or until the first asynchronous boundary,
-   * whichever is encountered first.
+   * to its completion, the `limit` number of stages, or until the first stage that cannot be
+   * expressed with `SyncIO` (typically an asynchronous boundary).
    *
    * @param limit
-   *   The number of stages to evaluate prior to forcibly yielding to `IO`
+   *   The maximum number of stages to evaluate prior to forcibly yielding to `IO`
    */
   def syncStep(limit: Int): SyncIO[Either[IO[A], A]] =
     IO.asyncForIO.syncStep[SyncIO, A](this, limit)
