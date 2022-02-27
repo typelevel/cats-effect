@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit
 @OutputTimeUnit(TimeUnit.SECONDS)
 class ThreadLocalBenchmark {
 
-  final implicit val executionContext = ExecutionContext.global
+  final implicit val executionContext: ExecutionContext = ExecutionContext.global
 
   @Param(Array("2000"))
   var size: Int = _
