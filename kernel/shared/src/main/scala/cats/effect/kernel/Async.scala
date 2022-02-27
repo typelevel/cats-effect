@@ -151,8 +151,8 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
 
   /**
    * Translates this `F[A]` into a `G` value which, when evaluated, runs the original `F` to its
-   * completion, the `limit` number of stages, or until the first stage which cannot be
-   * expressed with [[Sync]] (typically an asynchronous boundary).
+   * completion, the `limit` number of stages, or until the first stage that cannot be expressed
+   * with [[Sync]] (typically an asynchronous boundary).
    *
    * Note that `syncStep` is merely a hint to the runtime system; implementations have the
    * liberty to interpret this method to their liking as long as it obeys the respective laws.
