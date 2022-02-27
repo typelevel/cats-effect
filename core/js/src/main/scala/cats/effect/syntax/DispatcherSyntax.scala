@@ -16,9 +16,9 @@
 
 package cats.effect.syntax
 
+import cats.effect.SyncIO
 import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
-import cats.effect.SyncIO
 
 import scala.concurrent.Future
 import scala.scalajs.js.Promise
