@@ -20,6 +20,16 @@ import scala.scalajs.js.{|, Function1, JavaScriptException, Promise, Thenable}
 
 abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
 
+  /**
+   * Evaluates the effect and produces the result in a JavaScript `Promise`.
+   *
+   * This is similar to `unsafeRunAsync` in that it evaluates the `IO` as a side effect in a
+   * non-blocking fashion, but uses a `Promise` rather than an explicit callback. This function
+   * should really only be used if interoperating with code which uses JavaScript promises.
+   *
+   * @see
+   *   [[IO.fromPromise]]
+   */
   def unsafeToPromise()(implicit runtime: unsafe.IORuntime): Promise[A] =
     new Promise[A]((resolve: Function1[A | Thenable[A], _], reject: Function1[Any, _]) =>
       self.unsafeRunAsync {
