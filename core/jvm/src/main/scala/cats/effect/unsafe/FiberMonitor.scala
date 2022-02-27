@@ -18,11 +18,12 @@ package cats.effect
 package unsafe
 
 import cats.effect.tracing.TracingConstants
+import cats.effect.unsafe.ref.WeakReference
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * A slightly more involved implementation of an unordered bag used for tracking asynchronously
@@ -49,16 +50,8 @@ private[effect] final class FiberMonitor(
     private[this] val compute: WorkStealingThreadPool
 ) extends FiberMonitorShared {
 
-  private[this] val size: Int = Runtime.getRuntime().availableProcessors() << 2
-  private[this] val bags: Array[SynchronizedWeakBag[IOFiber[_]]] = new Array(size)
-
-  {
-    var i = 0
-    while (i < size) {
-      bags(i) = new SynchronizedWeakBag()
-      i += 1
-    }
-  }
+  private[this] final val Bags = FiberMonitor.Bags
+  private[this] final val BagReferences = FiberMonitor.BagReferences
 
   /**
    * Registers a suspended fiber.
@@ -145,18 +138,21 @@ private[effect] final class FiberMonitor(
     else ()
 
   private[this] def monitorFallback(fiber: IOFiber[_]): WeakBag.Handle = {
-    val rnd = ThreadLocalRandom.current()
-    val idx = rnd.nextInt(size)
-    bags(idx).insert(fiber)
+    val bag = Bags.get()
+    val handle = bag.insert(fiber)
+    bag.synchronizationPoint.lazySet(true)
+    handle
   }
 
   private[this] def foreignFibers(): Set[IOFiber[_]] = {
     val foreign = mutable.Set.empty[IOFiber[_]]
 
-    var i = 0
-    while (i < size) {
-      foreign ++= bags(i).toSet
-      i += 1
+    BagReferences.iterator().forEachRemaining { bagRef =>
+      val bag = bagRef.get()
+      if (bag ne null) {
+        val _ = bag.synchronizationPoint.get()
+        foreign ++= bag.toSet
+      }
     }
 
     foreign.toSet
@@ -172,4 +168,15 @@ private[effect] object FiberMonitor {
       new FiberMonitor(null)
     }
   }
+
+  private[FiberMonitor] final val Bags: ThreadLocal[WeakBag[IOFiber[_]]] =
+    ThreadLocal.withInitial { () =>
+      val bag = new WeakBag[IOFiber[_]]()
+      BagReferences.offer(new WeakReference(bag))
+      bag
+    }
+
+  private[FiberMonitor] final val BagReferences
+      : ConcurrentLinkedQueue[WeakReference[WeakBag[IOFiber[_]]]] =
+    new ConcurrentLinkedQueue()
 }
