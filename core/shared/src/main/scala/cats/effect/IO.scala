@@ -1647,8 +1647,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     override def syncStep[G[_], A](fa: IO[A], limit: Int)(
         implicit G: Sync[G]): G[Either[IO[A], A]] = {
-      type G0[+A] = G[A @uncheckedVariance] // helps with type inference
-      def interpret[B](io: IO[B], limit: Int): G0[Either[IO[B], (B, Int)]] = {
+      def interpret[B](io: IO[B], limit: Int): G[Either[IO[B], (B, Int)]] = {
         if (limit <= 0) {
           G.pure(Left(io))
         } else {
@@ -1675,7 +1674,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
               interpret(ioe, limit - 1)
                 .map {
                   case Left(_) => Left(io)
-                  case Right((a, limit)) => Right((a.asRight[Throwable], limit))
+                  case Right((a, limit)) => Right((a.asRight[Throwable].asInstanceOf[B], limit))
                 }
                 .handleError(t => Right((t.asLeft[IO[B]], limit - 1)))
 
