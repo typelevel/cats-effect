@@ -25,6 +25,7 @@ import cats.syntax.all._
 import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => ScalaQueue}
 
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, AtomicLongArray, AtomicReference}
 
 /**
@@ -346,12 +347,15 @@ object Queue {
    */
   private final class BoundedAsyncQueue[F[_], A](capacity: Int)(implicit F: Async[F])
       extends Queue[F, A] {
-    require(capacity > 0)
+    require(capacity > 1)
 
     private[this] val buffer = new UnsafeBounded[A](capacity)
 
-    private[this] val takers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
-    private[this] val offerers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
+    // private[this] val takers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
+    // private[this] val offerers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
+
+    private[this] val takers = new ConcurrentLinkedQueue[AtomicReference[Either[Throwable, Unit] => Unit]]()
+    private[this] val offerers = new ConcurrentLinkedQueue[AtomicReference[Either[Throwable, Unit] => Unit]]()
 
     def offer(a: A): F[Unit] = F defer {
       try {
@@ -365,11 +369,12 @@ object Queue {
 
           val wait = F.async[Unit] { k =>
             F delay {
-              val clear = offerers.put(k)
+              val ref = new AtomicReference(k)
+              offerers.offer(ref)
 
               try {
                 buffer.put(a)
-                clear()
+                ref.set(null)
                 succeeded = true
                 k(EitherUnit)
                 notifyOne(takers)
@@ -378,7 +383,7 @@ object Queue {
               } catch {
                 case FailureSignal =>
                   // println(s"failed offer size = ${buffer.size()}")
-                  Some(F.delay(clear()))
+                  Some(F.delay(ref.set(null)))
               }
             }
           }
@@ -413,11 +418,12 @@ object Queue {
 
           val wait = F.async[Unit] { k =>
             F delay {
-              val clear = takers.put(k)
+              val ref = new AtomicReference(k)
+              takers.offer(ref)
 
               try {
                 result = buffer.take()
-                clear()
+                ref.set(null)
                 received = true
                 k(EitherUnit)
                 notifyOne(offerers)
@@ -426,7 +432,7 @@ object Queue {
               } catch {
                 case FailureSignal =>
                   // println(s"failed take size = ${buffer.size()}")
-                  Some(F.delay(clear()))
+                  Some(F.delay(ref.set(null)))
               }
             }
           }
@@ -448,20 +454,24 @@ object Queue {
 
     def debug(): Unit = {
       println(s"buffer: ${buffer.debug()}")
-      println(s"takers: ${takers.debug()}")
-      println(s"offerers: ${offerers.debug()}")
+      // println(s"takers: ${takers.debug()}")
+      // println(s"offerers: ${offerers.debug()}")
     }
 
     // TODO could optimize notifications by checking if buffer is completely empty on put
+    @tailrec
     private[this] def notifyOne(
-        waiters: UnsafeUnbounded[Either[Throwable, Unit] => Unit]): Unit =
-      try {
-        waiters.take()(EitherUnit)
-      } catch {
-        case FailureSignal =>
-          // println("failed to notify")
-          ()
+        waiters: ConcurrentLinkedQueue[AtomicReference[Either[Throwable, Unit] => Unit]]): Unit = {
+      val ref = waiters.poll()
+      if (ref != null) {
+        val f = ref.get()
+        if (f != null) {
+          f(EitherUnit)
+        } else {
+          notifyOne(waiters)
+        }
       }
+    }
   }
 
   // ported with love from https://github.com/JCTools/JCTools/blob/master/jctools-core/src/main/java/org/jctools/queues/MpmcArrayQueue.java
