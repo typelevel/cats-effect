@@ -18,6 +18,7 @@ package cats.effect
 package unsafe
 
 import cats.effect.tracing.TracingConstants
+import cats.effect.unsafe.ref.WeakReference
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -146,9 +147,12 @@ private[effect] final class FiberMonitor(
   private[this] def foreignFibers(): Set[IOFiber[_]] = {
     val foreign = mutable.Set.empty[IOFiber[_]]
 
-    BagReferences.iterator().forEachRemaining { bag =>
-      val _ = bag.synchronizationPoint.get()
-      foreign ++= bag.toSet
+    BagReferences.iterator().forEachRemaining { bagRef =>
+      val bag = bagRef.get()
+      if (bag ne null) {
+        val _ = bag.synchronizationPoint.get()
+        foreign ++= bag.toSet
+      }
     }
 
     foreign.toSet
@@ -168,10 +172,11 @@ private[effect] object FiberMonitor {
   private[FiberMonitor] final val Bags: ThreadLocal[WeakBag[IOFiber[_]]] =
     ThreadLocal.withInitial { () =>
       val bag = new WeakBag[IOFiber[_]]()
-      BagReferences.offer(bag)
+      BagReferences.offer(new WeakReference(bag))
       bag
     }
 
-  private[FiberMonitor] final val BagReferences: ConcurrentLinkedQueue[WeakBag[IOFiber[_]]] =
+  private[FiberMonitor] final val BagReferences
+      : ConcurrentLinkedQueue[WeakReference[WeakBag[IOFiber[_]]]] =
     new ConcurrentLinkedQueue()
 }
