@@ -21,6 +21,8 @@ import cats.effect.unsafe.ref.{ReferenceQueue, WeakReference}
 import scala.annotation.tailrec
 import scala.collection.mutable
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 private final class WeakBag[A <: AnyRef] {
   import WeakBag._
 
@@ -29,7 +31,8 @@ private final class WeakBag[A <: AnyRef] {
   private[this] val queue: ReferenceQueue[A] = new ReferenceQueue()
   private[this] var capacity: Int = 256
   private[this] var table: Array[Entry[A]] = new Array(capacity)
-  private[this] var index = 0
+  private[this] var index: Int = 0
+  private[unsafe] val synchronizationPoint: AtomicBoolean = new AtomicBoolean(true)
 
   @tailrec
   def insert(a: A): Handle = {

@@ -138,13 +138,18 @@ private[effect] final class FiberMonitor(
 
   private[this] def monitorFallback(fiber: IOFiber[_]): WeakBag.Handle = {
     val bag = Bags.get()
-    bag.insert(fiber)
+    val handle = bag.insert(fiber)
+    bag.synchronizationPoint.lazySet(true)
+    handle
   }
 
   private[this] def foreignFibers(): Set[IOFiber[_]] = {
     val foreign = mutable.Set.empty[IOFiber[_]]
 
-    BagReferences.iterator().forEachRemaining { bag => foreign ++= bag.toSet }
+    BagReferences.iterator().forEachRemaining { bag =>
+      val _ = bag.synchronizationPoint.get()
+      foreign ++= bag.toSet
+    }
 
     foreign.toSet
   }
