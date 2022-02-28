@@ -16,25 +16,24 @@
 
 package cats.effect
 
-import cats.data.OptionT
-import cats.effect.std.Env
-import cats.syntax.all._
-
 import scala.scalajs.js
 import scala.util.Try
 
-private[effect] object process {
+trait DetectPlatform {
 
-  def argv: Option[List[String]] = Try(
-    js.Dynamic.global.process.argv.asInstanceOf[js.Array[String]].toList.drop(2)).toOption
+  def isWSL: Boolean = {
+    val t = Try {
+      val os = js.Dynamic.global.require("os")
+      val process = js.Dynamic.global.process
 
-  def env(key: String): Option[String] = {
-    val env = Env.make[SyncIO]
-    OptionT(env.get(key)).orElseF(env.get(s"REACT_APP_$key")).value.unsafeRunSync()
+      val isLinux = process.platform.asInstanceOf[String].toLowerCase == "linux"
+      val ms = os.release().asInstanceOf[String].toLowerCase.contains("microsoft")
+
+      isLinux && ms // this mis-identifies docker on Windows, which should be considered unsupported for the CE build
+    }
+
+    t.getOrElse(false)
   }
 
-  def on(eventName: String, listener: js.Function0[Unit]): Unit =
-    Try(js.Dynamic.global.process.on(eventName, listener).asInstanceOf[Unit]).recover {
-      case _ => () // Silently ignore failure
-    }.get
+  def isJS: Boolean = true
 }

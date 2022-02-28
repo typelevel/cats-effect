@@ -14,22 +14,9 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect
 
-private final class SynchronizedWeakBag[A <: AnyRef] {
-  import WeakBag.Handle
-
-  private[this] val weakBag: WeakBag[A] = new WeakBag()
-
-  def insert(a: A): Handle = synchronized {
-    weakBag.insert(a)
-  }
-
-  def toSet: Set[A] = synchronized {
-    weakBag.toSet
-  }
-
-  def size: Int = synchronized {
-    weakBag.size
-  }
+trait DetectPlatform {
+  def isWSL: Boolean = System.getProperty("os.version").contains("-WSL")
+  def isJS: Boolean = false
 }
