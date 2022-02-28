@@ -458,7 +458,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       // introduced by #2769, Simplify the transfer of WorkerThread data structures when blocking
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$Data")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$Data"),
+      // introduced by #2844, Thread local fallback weak bag
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.SynchronizedWeakBag")
     ) ++ {
       if (isDotty.value) {
         // Scala 3 specific exclusions

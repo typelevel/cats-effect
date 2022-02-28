@@ -8,6 +8,7 @@
     ],
     "Core Runtime": [
       "core/test-runtime",
+      "core/fiber-dumps",
       "tracing",
       "thread-model",
       "schedulers",

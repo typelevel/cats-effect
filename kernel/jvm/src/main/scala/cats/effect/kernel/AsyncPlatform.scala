@@ -30,8 +30,8 @@ private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
    *   The `java.util.concurrent.CompletableFuture` to suspend in `F[_]`
    */
   def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] =
-    flatMap(fut) { cf =>
-      async[A] { cb =>
+    async[A] { cb =>
+      flatMap(fut) { cf =>
         delay {
           cf.handle[Unit] {
             case (a, null) => cb(Right(a))
