@@ -49,7 +49,7 @@ without actually executing it. (Here the `scalac` option `-Ywarn-value-discard` 
 It is in these cases that `Dispatcher` comes in handy. Here's how it could be used:
 
 ```scala
-Dispatcher[IO].use { dispatcher =>
+Dispatcher[IO]() use { dispatcher =>
   for {
     queue <- Queue.unbounded[IO, String]
     impureInterface <-

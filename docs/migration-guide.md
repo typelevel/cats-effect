@@ -439,7 +439,7 @@ You can get an instance of it with `Dispatcher.apply[F]` for any `F[_]: Async`:
 
 ```scala
 object Dispatcher {
-  def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]]
+  def apply[F[_]](mode: Dispatcher.Mode)(implicit F: Async[F]): Resource[F, Dispatcher[F]]
 }
 ```
 
@@ -479,7 +479,7 @@ import cats.effect.std.Dispatcher
 
 // CE3
 def consumer[F[_]: Async, A](handler: A => F[Unit]): Resource[F, Consumer[A]] =
-  Dispatcher[F].map { dispatcher =>
+  Dispatcher[F]().map { dispatcher =>
     new Consumer[A] {
       def onNext(a: A): Unit = dispatcher.unsafeRunSync(handler(a))
     }
