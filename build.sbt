@@ -487,6 +487,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
           ProblemFilters.exclude[IncompatibleResultTypeProblem](
             "cats.effect.unsafe.ThreadSafeHashtable.Tombstone"),
           ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.this"),
+          // introduced by #2853, Configurable caching of blocking threads, properly
+          // changes to `cats.effect.unsafe` package private code
+          ProblemFilters.exclude[IncompatibleMethTypeProblem](
             "cats.effect.unsafe.WorkStealingThreadPool.this")
         )
       } else Seq()
