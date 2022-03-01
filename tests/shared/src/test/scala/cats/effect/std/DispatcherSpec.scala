@@ -18,24 +18,27 @@ package cats.effect
 package std
 
 import cats.effect.kernel.Deferred
+import cats.effect.testkit.TestControl
 import cats.syntax.all._
 
 import scala.concurrent.duration._
 
 class DispatcherSpec extends BaseSpec {
 
-  "async dispatcher" should {
+  "sequential dispatcher" should {
+    val D = Dispatcher[IO](mode = Dispatcher.Mode.Sequential)
+
     "run a synchronous IO" in real {
       val ioa = IO(1).map(_ + 2)
-      val rec = Dispatcher[IO].flatMap(runner =>
-        Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
+      val rec =
+        D.flatMap(runner => Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
       rec.use(i => IO(i mustEqual 3))
     }
 
     "run an asynchronous IO" in real {
       val ioa = (IO(1) <* IO.cede).map(_ + 2)
-      val rec = Dispatcher[IO].flatMap(runner =>
-        Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
+      val rec =
+        D.flatMap(runner => Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
       rec.use(i => IO(i mustEqual 3))
     }
 
@@ -46,7 +49,97 @@ class DispatcherSpec extends BaseSpec {
 
       val num = 10
 
-      val rec = Dispatcher[IO] flatMap { runner =>
+      val rec = D flatMap { runner =>
+        Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(increment))).replicateA(num).void)
+      }
+
+      rec.use(_ => IO(counter mustEqual num))
+    }
+
+    "strictly sequentialize multiple IOs" in real {
+      val length = 1000
+
+      for {
+        results <- IO.ref(Vector[Int]())
+        gate <- CountDownLatch[IO](length)
+
+        _ <- D use { runner =>
+          IO {
+            0.until(length) foreach { i =>
+              runner.unsafeRunAndForget(results.update(_ :+ i).guarantee(gate.release))
+            }
+          } *> gate.await
+        }
+
+        vec <- results.get
+        _ <- IO(vec mustEqual 0.until(length).toVector)
+      } yield ok
+    }
+
+    "ignore action cancelation" in real {
+      var canceled = false
+
+      val rec = D flatMap { runner =>
+        val run = IO {
+          runner
+            .unsafeToFutureCancelable(IO.sleep(500.millis).onCancel(IO { canceled = true }))
+            ._2
+        }
+
+        Resource eval {
+          run.flatMap(ct => IO.sleep(200.millis) >> IO.fromFuture(IO(ct())))
+        }
+      }
+
+      TestControl.executeEmbed(rec.use(_ => IO(canceled must beFalse)))
+    }
+
+    "cancel all inner effects when canceled" in real {
+      var canceled = false
+
+      val body = D use { runner =>
+        IO(runner.unsafeRunAndForget(IO.never.onCancel(IO { canceled = true }))) *> IO.never
+      }
+
+      val action = body.start flatMap { f => IO.sleep(500.millis) *> f.cancel }
+
+      TestControl.executeEmbed(action *> IO(canceled must beTrue))
+    }
+
+    "raise an error on leaked runner" in real {
+      D.use(IO.pure(_)) flatMap { runner =>
+        IO {
+          runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException]
+        }
+      }
+    }
+  }
+
+  "parallel dispatcher" should {
+    val D = Dispatcher[IO](mode = Dispatcher.Mode.Parallel)
+
+    "run a synchronous IO" in real {
+      val ioa = IO(1).map(_ + 2)
+      val rec =
+        D.flatMap(runner => Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
+      rec.use(i => IO(i mustEqual 3))
+    }
+
+    "run an asynchronous IO" in real {
+      val ioa = (IO(1) <* IO.cede).map(_ + 2)
+      val rec =
+        D.flatMap(runner => Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
+      rec.use(i => IO(i mustEqual 3))
+    }
+
+    "run several IOs back to back" in real {
+      @volatile
+      var counter = 0
+      val increment = IO(counter += 1)
+
+      val num = 10
+
+      val rec = D flatMap { runner =>
         Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(increment))).replicateA(num).void)
       }
 
@@ -64,7 +157,7 @@ class DispatcherSpec extends BaseSpec {
         subjects = latches.map(latch => latch.complete(()) >> awaitAll)
 
         _ <- {
-          val rec = Dispatcher[IO] flatMap { runner =>
+          val rec = D flatMap { runner =>
             Resource.eval(subjects.parTraverse_(act => IO(runner.unsafeRunAndForget(act))))
           }
 
@@ -73,10 +166,30 @@ class DispatcherSpec extends BaseSpec {
       } yield ok
     }
 
+    "run many IOs simultaneously to full completion" in real {
+      val length = 256 // 10000 times out on my machine
+
+      for {
+        results <- IO.ref(Vector[Int]())
+        gate <- CountDownLatch[IO](length)
+
+        _ <- D use { runner =>
+          IO {
+            0.until(length) foreach { i =>
+              runner.unsafeRunAndForget(results.update(_ :+ i).guarantee(gate.release))
+            }
+          } *> gate.await
+        }
+
+        vec <- results.get
+        _ <- IO(vec must containAllOf(0.until(length).toVector))
+      } yield ok
+    }
+
     "forward cancelation onto the inner action" in real {
       var canceled = false
 
-      val rec = Dispatcher[IO] flatMap { runner =>
+      val rec = D flatMap { runner =>
         val run = IO {
           runner.unsafeToFutureCancelable(IO.never.onCancel(IO { canceled = true }))._2
         }
@@ -86,7 +199,7 @@ class DispatcherSpec extends BaseSpec {
         }
       }
 
-      rec.use(_ => IO(canceled must beTrue))
+      TestControl.executeEmbed(rec.use(_ => IO(canceled must beTrue)))
     }
 
     "cancel all inner effects when canceled" in real {
@@ -97,7 +210,7 @@ class DispatcherSpec extends BaseSpec {
         gate2 <- Semaphore[IO](2)
         _ <- gate2.acquireN(2)
 
-        rec = Dispatcher[IO] flatMap { runner =>
+        rec = D flatMap { runner =>
           Resource eval {
             IO {
               // these finalizers never return, so this test is intentionally designed to hang
@@ -122,7 +235,7 @@ class DispatcherSpec extends BaseSpec {
     }
 
     "raise an error on leaked runner" in real {
-      Dispatcher[IO].use(IO.pure(_)) flatMap { runner =>
+      D.use(IO.pure(_)) flatMap { runner =>
         IO {
           runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException]
         }

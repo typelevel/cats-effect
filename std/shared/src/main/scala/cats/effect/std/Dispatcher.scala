@@ -47,6 +47,11 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 
   /**
+   * Indicates the mode in which this `Dispatcher` is operating (set at construction time).
+   */
+  def mode: Dispatcher.Mode = Dispatcher.Mode.Parallel
+
+  /**
    * Submits an effect to be executed, returning a `Future` that holds the result of its
    * evaluation, along with a cancelation token that can be used to cancel the original effect.
    */
@@ -96,12 +101,14 @@ object Dispatcher {
 
   private[this] val Completed: Either[Throwable, Unit] = Right(())
 
+  private[std] def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] = apply()
+
   /**
    * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
    * exits, all active effects will be canceled, and attempts to submit new effects will throw
    * an exception.
    */
-  def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] = {
+  def apply[F[_]](mode: Mode = Mode.Parallel)(implicit F: Async[F]): Resource[F, Dispatcher[F]] = {
     final case class Registration(action: F[Unit], prepareCancel: F[Unit] => Unit)
         extends AtomicBoolean(true)
 
@@ -110,23 +117,32 @@ object Dispatcher {
     final case class CanceledNoToken(promise: Promise[Unit]) extends CancelState
     final case class CancelToken(cancelToken: () => Future[Unit]) extends CancelState
 
+    // aliasing needed for the inner class
+    val mode0 = mode
+
     for {
       supervisor <- Supervisor[F]
+
+      (workers, fork) = mode match {
+        case Mode.Parallel => (Cpus, supervisor.supervise(_: F[_]).map(_.cancel))
+        case Mode.Sequential => (1, (_: F[_]).as(F.unit).handleError(_ => F.unit))
+      }
+
       latches <- Resource.eval(F delay {
-        val latches = new Array[AtomicReference[() => Unit]](Cpus)
+        val latches = new Array[AtomicReference[() => Unit]](workers)
         var i = 0
-        while (i < Cpus) {
+        while (i < workers) {
           latches(i) = new AtomicReference(Noop)
           i += 1
         }
         latches
       })
       states <- Resource.eval(F delay {
-        val states = Array.ofDim[AtomicReference[List[Registration]]](Cpus, Cpus)
+        val states = Array.ofDim[AtomicReference[List[Registration]]](workers, workers)
         var i = 0
-        while (i < Cpus) {
+        while (i < workers) {
           var j = 0
-          while (j < Cpus) {
+          while (j < workers) {
             states(i)(j) = new AtomicReference(Nil)
             j += 1
           }
@@ -147,7 +163,7 @@ object Dispatcher {
             regs <- F delay {
               val buffer = mutable.ListBuffer.empty[Registration]
               var i = 0
-              while (i < Cpus) {
+              while (i < workers) {
                 val st = state(i)
                 if (st.get() ne Nil) {
                   val list = st.getAndSet(Nil)
@@ -167,25 +183,31 @@ object Dispatcher {
                   }
                 }
               } else {
-                regs.traverse_ {
+                val runAll = regs traverse_ {
                   case r @ Registration(action, prepareCancel) =>
-                    def supervise: F[Unit] =
-                      supervisor
-                        .supervise(action)
-                        .flatMap(f => F.delay(prepareCancel(f.cancel)))
+                    val supervise: F[Unit] =
+                      fork(action).flatMap(cancel => F.delay(prepareCancel(cancel)))
 
                     // Check for task cancelation before executing.
                     if (r.get()) supervise else F.unit
-                }.uncancelable
+                }
+
+                mode match {
+                  case Dispatcher.Mode.Parallel => runAll.uncancelable
+                  case Dispatcher.Mode.Sequential => runAll
+                }
               }
           } yield ()
 
-        (0 until Cpus)
+        (0 until workers)
           .toList
           .traverse_(n => dispatcher(latches(n), states(n)).foreverM[Unit].background)
       }
     } yield {
       new Dispatcher[F] {
+
+        override def mode = mode0
+
         def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
           val promise = Promise[E]()
 
@@ -232,14 +254,19 @@ object Dispatcher {
           }
 
           if (alive.get()) {
-            val rand = ThreadLocalRandom.current()
-            val dispatcher = rand.nextInt(Cpus)
-            val inner = rand.nextInt(Cpus)
-            val state = states(dispatcher)(inner)
+            val (state, lt) = if (workers > 1) {
+              val rand = ThreadLocalRandom.current()
+              val dispatcher = rand.nextInt(workers)
+              val inner = rand.nextInt(workers)
+
+              (states(dispatcher)(inner), latches(dispatcher))
+            } else {
+              (states(0)(0), latches(0))
+            }
+
             val reg = Registration(action, registerCancel _)
             enqueue(state, reg)
 
-            val lt = latches(dispatcher)
             if (lt.get() ne Open) {
               val f = lt.getAndSet(Open)
               f()
@@ -283,5 +310,12 @@ object Dispatcher {
         }
       }
     }
+  }
+
+  sealed trait Mode extends Product with Serializable
+
+  object Mode {
+    case object Parallel extends Mode
+    case object Sequential extends Mode
   }
 }
