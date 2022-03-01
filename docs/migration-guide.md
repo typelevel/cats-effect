@@ -435,11 +435,12 @@ All the `*Effect` type classes have been removed. Instead, the recommended way t
 
 This is something you might want to do in a situation where you have an effect, but a third-party library expects a callback that has to complete synchronously (or in a `scala.concurrent.Future`, or a Java future).
 
-You can get an instance of it with `Dispatcher.apply[F]` for any `F[_]: Async`:
+You can get an instance of it with `Dispatcher.parallel[F]` (or `sequential[F]`) for any `F[_]: Async`:
 
 ```scala
 object Dispatcher {
-  def apply[F[_]](mode: Dispatcher.Mode)(implicit F: Async[F]): Resource[F, Dispatcher[F]]
+  def parallel[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]]
+  def sequential[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]]
 }
 ```
 
@@ -466,7 +467,7 @@ In CE2 you could run an effect in `onNext` using `Effect` like this:
 // CE2
 def consumer[F[_]: Effect, A](handler: A => F[Unit]): Consumer[A] =
   new Consumer[A] {
-    def onNext(a: A): Unit = handler(a).toIO.unsafeRunSync()
+    def onNext(a: A): Unit = handler(a).toIO.unsafeRunAndForget()
   }
 ```
 
@@ -479,9 +480,9 @@ import cats.effect.std.Dispatcher
 
 // CE3
 def consumer[F[_]: Async, A](handler: A => F[Unit]): Resource[F, Consumer[A]] =
-  Dispatcher[F]().map { dispatcher =>
+  Dispatcher.sequential[F] map { dispatcher =>
     new Consumer[A] {
-      def onNext(a: A): Unit = dispatcher.unsafeRunSync(handler(a))
+      def onNext(a: A): Unit = dispatcher.unsafeRunAndForget(handler(a))
     }
   }
 ```
@@ -495,7 +496,7 @@ It is recommended to pass it **explicitly**, as `Dispatcher` isn't a type class 
 ```scala mdoc
 def consumer2[F[_], A](dispatcher: Dispatcher[F], handler: A => F[Unit]): Consumer[A] =
   new Consumer[A] {
-    def onNext(a: A): Unit = dispatcher.unsafeRunSync(handler(a))
+    def onNext(a: A): Unit = dispatcher.unsafeRunAndForget(handler(a))
   }
 ```
 

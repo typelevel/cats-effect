@@ -26,7 +26,7 @@ import scala.concurrent.duration._
 class DispatcherSpec extends BaseSpec {
 
   "sequential dispatcher" should {
-    val D = Dispatcher[IO](mode = Dispatcher.Mode.Sequential)
+    val D = Dispatcher.sequential[IO]
 
     "run a synchronous IO" in real {
       val ioa = IO(1).map(_ + 2)
@@ -116,7 +116,7 @@ class DispatcherSpec extends BaseSpec {
   }
 
   "parallel dispatcher" should {
-    val D = Dispatcher[IO](mode = Dispatcher.Mode.Parallel)
+    val D = Dispatcher.parallel[IO]
 
     "run a synchronous IO" in real {
       val ioa = IO(1).map(_ + 2)

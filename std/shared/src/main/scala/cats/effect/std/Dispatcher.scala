@@ -47,11 +47,6 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 
   /**
-   * Indicates the mode in which this `Dispatcher` is operating (set at construction time).
-   */
-  def mode: Dispatcher.Mode = Dispatcher.Mode.Parallel
-
-  /**
    * Submits an effect to be executed, returning a `Future` that holds the result of its
    * evaluation, along with a cancelation token that can be used to cancel the original effect.
    */
@@ -101,14 +96,50 @@ object Dispatcher {
 
   private[this] val Completed: Either[Throwable, Unit] = Right(())
 
-  private[std] def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] = apply()
+  @deprecated("3.4.0", "please use parallel or sequential instead")
+  def apply[F[_]: Async]: Resource[F, Dispatcher[F]] = parallel[F]
 
   /**
    * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
    * exits, all active effects will be canceled, and attempts to submit new effects will throw
    * an exception.
+   *
+   * This corresponds to a pattern in which a single `Dispatcher` is being used by multiple
+   * calling threads simultaneously, with complex (potentially long-running) actions submitted
+   * for evaluation. In this mode, order of operation is not in any way guaranteed, and
+   * execution of each submitted action has some unavoidable overhead due to the forking of a
+   * new fiber for each action. This mode is most appropriate for scenarios in which a single
+   * `Dispatcher` is being widely shared across the application, and where sequencing is not
+   * assumed.
+   *
+   * @see
+   *   [[sequential]]
    */
-  def apply[F[_]](mode: Mode = Mode.Parallel)(
+  def parallel[F[_]: Async]: Resource[F, Dispatcher[F]] = apply(Mode.Parallel)
+
+  /**
+   * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
+   * exits, all active effects will be canceled, and attempts to submit new effects will throw
+   * an exception.
+   *
+   * This corresponds to a [[Dispatcher]] mode in which submitted actions are evaluated strictly
+   * in sequence (FIFO). In this mode, any actions submitted to
+   * [[Dispatcher.unsafeRunAndForget]] are guaranteed to run in exactly the order submitted, and
+   * subsequent actions will not start evaluation until previous actions are completed. This
+   * avoids a significant amount of overhead associated with the [[Parallel]] mode and allows
+   * callers to make assumptions around ordering, but the downside is that long-running actions
+   * will starve subsequent actions, and all submitters must contend for a singular coordination
+   * resource. Thus, this mode is most appropriate for cases where the actions are relatively
+   * trivial (such as [[Queue.offer]]) ''and'' the `Dispatcher` in question is ''not'' shared
+   * across multiple producers. To be clear, shared dispatchers in sequential mode will still
+   * function correctly, but performance will be suboptimal due to single-point contention.
+   *
+   * @see
+   *   [[parallel]]
+   */
+  def sequential[F[_]: Async]: Resource[F, Dispatcher[F]] = apply(Mode.Sequential)
+
+  private[this] def apply[F[_]](mode: Mode)(
       implicit F: Async[F]): Resource[F, Dispatcher[F]] = {
     final case class Registration(action: F[Unit], prepareCancel: F[Unit] => Unit)
         extends AtomicBoolean(true)
@@ -117,9 +148,6 @@ object Dispatcher {
     case object CancelInit extends CancelState
     final case class CanceledNoToken(promise: Promise[Unit]) extends CancelState
     final case class CancelToken(cancelToken: () => Future[Unit]) extends CancelState
-
-    // aliasing needed for the inner class
-    val mode0 = mode
 
     for {
       supervisor <- Supervisor[F]
@@ -206,8 +234,6 @@ object Dispatcher {
       }
     } yield {
       new Dispatcher[F] {
-
-        override def mode = mode0
 
         def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
           val promise = Promise[E]()
@@ -313,41 +339,10 @@ object Dispatcher {
     }
   }
 
-  /**
-   * Enumeration of all supported [[Dispatcher]] modes. The optimal mode for any given use-case
-   * is very dependent on the details of that case. It is ''usually'' safe to default to
-   * [[Mode.Parallel]], though there will be no guarantees around order of evaluation in that
-   * case. Other modes may be several orders of magnitude more performant, depending on the
-   * scenario.
-   */
-  sealed trait Mode extends Product with Serializable
+  private sealed trait Mode extends Product with Serializable
 
-  object Mode {
-
-    /**
-     * Default [[Dispatcher]] mode. This corresponds to a pattern in which a single `Dispatcher`
-     * is being used by multiple calling threads simultaneously, with complex (potentially
-     * long-running) actions submitted for evaluation. In this mode, order of operation is not
-     * in any way guaranteed, and execution of each submitted action has some unavoidable
-     * overhead due to the forking of a new fiber for each action. This mode is most appropriate
-     * for scenarios in which a single `Dispatcher` is being widely shared across the
-     * application, and where sequencing is not assumed.
-     */
+  private object Mode {
     case object Parallel extends Mode
-
-    /**
-     * A [[Dispatcher]] mode in which submitted actions are evaluated strictly in sequence
-     * (FIFO). In this mode, any actions submitted to [[Dispatcher.unsafeRunAndForget]] are
-     * guaranteed to run in exactly the order submitted, and subsequent actions will not start
-     * evaluation until previous actions are completed. This avoids a significant amount of
-     * overhead associated with the [[Parallel]] mode and allows callers to make assumptions
-     * around ordering, but the downside is that long-running actions will starve subsequent
-     * actions, and all submitters must contend for a singular coordination resource. Thus, this
-     * mode is most appropriate for cases where the actions are relatively trivial (such as
-     * [[Queue.offer]]) ''and'' the `Dispatcher` in question is ''not'' shared across multiple
-     * producers. To be clear, shared dispatchers in sequential mode will still function
-     * correctly, but performance will be suboptimal due to single-point contention.
-     */
     case object Sequential extends Mode
   }
 }

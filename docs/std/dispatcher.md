@@ -49,14 +49,14 @@ without actually executing it. (Here the `scalac` option `-Ywarn-value-discard` 
 It is in these cases that `Dispatcher` comes in handy. Here's how it could be used:
 
 ```scala
-Dispatcher[IO]() use { dispatcher =>
+Dispatcher.sequential[IO] use { dispatcher =>
   for {
     queue <- Queue.unbounded[IO, String]
     impureInterface <-
       IO.delay {
         new ImpureInterface {
           override def onMessage(msg: String): Unit =
-            dispatcher.unsafeRunSync(queue.offer(msg))
+            dispatcher.unsafeRunAndForget(queue.offer(msg))
         }
       }
     _ <- IO.delay(impureInterface.init())
@@ -70,7 +70,7 @@ Dispatcher[IO]() use { dispatcher =>
 
 It prints "Value found in queue! init"!
 
-The example above calls `unsafeRunSync` on the dispatcher, but more functions are exposed:
+The example above calls `unsafeRunAndForget` on the dispatcher, but more functions are exposed:
 
 ```scala
 
