@@ -125,8 +125,8 @@ object Dispatcher {
       supervisor <- Supervisor[F]
 
       (workers, fork) = mode match {
-        case Mode.Parallel => (Cpus, supervisor.supervise(_: F[_]).map(_.cancel))
-        case Mode.Sequential => (1, (_: F[_]).as(F.unit).handleError(_ => F.unit))
+        case Mode.Parallel => (Cpus, supervisor.supervise(_: F[Unit]).map(_.cancel))
+        case Mode.Sequential => (1, (_: F[Unit]).as(F.unit).handleError(_ => F.unit))
       }
 
       latches <- Resource.eval(F delay {
