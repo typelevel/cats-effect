@@ -18,6 +18,7 @@ package cats
 package effect
 package std
 
+import cats.Applicative
 import cats.effect.kernel._
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
@@ -107,6 +108,14 @@ abstract class Semaphore[F[_]] {
    * of the resource, then releases the permit.
    */
   def permit: Resource[F, Unit]
+
+  /**
+   * Returns a [[cats.effect.kernel.Resource]] that contains a boolean that indicates whether we
+   * acquired a permit or not. If the permit was acquired then it is guaranteed to be released
+   * at the end of the Resource lifetime
+   */
+  def tryPermit(implicit F: Applicative[F]): Resource[F, Boolean] =
+    Resource.make(tryAcquire) { acquired => release.whenA(acquired) }
 
   /**
    * Modify the context `F` using natural transformation `f`.
