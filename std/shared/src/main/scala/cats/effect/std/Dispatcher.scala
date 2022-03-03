@@ -98,7 +98,7 @@ object Dispatcher {
 
   @deprecated(
     "3.4.0",
-    "use parallel or sequential instead; the former corresponds to the previous semantics of this method")
+    "use parallel or sequential instead; the former corresponds to the current semantics of this method")
   def apply[F[_]: Async]: Resource[F, Dispatcher[F]] = parallel[F]
 
   /**
