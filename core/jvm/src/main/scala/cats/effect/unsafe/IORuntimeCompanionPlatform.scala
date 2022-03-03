@@ -21,6 +21,7 @@ import cats.effect.unsafe.metrics._
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 import java.lang.management.ManagementFactory
 import java.util.concurrent.{Executors, ScheduledThreadPoolExecutor}
@@ -33,9 +34,11 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   // The default compute thread pool on the JVM is now a work stealing thread pool.
   def createWorkStealingComputeThreadPool(
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
-      threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) = {
+      threadPrefix: String = "io-compute",
+      runtimeBlockingExpiration: Duration = 60.seconds)
+      : (WorkStealingThreadPool, () => Unit) = {
     val threadPool =
-      new WorkStealingThreadPool(threads, threadPrefix)
+      new WorkStealingThreadPool(threads, threadPrefix, runtimeBlockingExpiration)
 
     val unregisterMBeans =
       if (isStackTracing) {
