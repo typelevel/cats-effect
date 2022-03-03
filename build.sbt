@@ -27,6 +27,7 @@ import sbtcrossproject.CrossProject
 import JSEnv._
 
 ThisBuild / tlBaseVersion := "3.3"
+ThisBuild / tlUntaggedAreSnapshots := false
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
