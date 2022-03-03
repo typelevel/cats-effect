@@ -16,20 +16,18 @@
 
 import sbt._, Keys._
 
-import sbtspiewak.SpiewakPlugin, SpiewakPlugin.autoImport._
+import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport._
+import org.typelevel.sbt.TypelevelPlugin
 
 object Common extends AutoPlugin {
 
-  override def requires = plugins.JvmPlugin && SpiewakPlugin
+  override def requires = plugins.JvmPlugin && TypelevelPlugin
   override def trigger = allRequirements
 
   override def projectSettings =
     Seq(
-      libraryDependencies ++= {
-        if (isDotty.value)
-          Nil
-        else
-          Seq(compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"))
-      }
+      headerLicense := Some(
+        HeaderLicense.ALv2(s"${startYear.value.get}-2022", organizationName.value)
+      )
     )
 }

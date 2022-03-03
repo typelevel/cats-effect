@@ -26,13 +26,12 @@ import sbtcrossproject.CrossProject
 
 import JSEnv._
 
-ThisBuild / baseVersion := "3.3"
+ThisBuild / tlBaseVersion := "3.3"
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
 
 ThisBuild / startYear := Some(2020)
-ThisBuild / endYear := Some(2022)
 
 ThisBuild / developers := List(
   Developer(
@@ -101,17 +100,17 @@ val Scala3 = "3.0.2"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
 
-ThisBuild / githubWorkflowUseSbtThinClient := false
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
+ThisBuild / tlCiReleaseTags := false
+ThisBuild / tlCiReleaseBranches := Nil
 
 val OldGuardJava = JavaSpec.temurin("8")
 val LTSJava = JavaSpec.temurin("11")
 val LatestJava = JavaSpec.temurin("17")
 val ScalaJSJava = OldGuardJava
-val GraalVM = JavaSpec.graalvm("21.3.0", "11")
+val GraalVM = JavaSpec.graalvm("11")
 
 ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
-ThisBuild / githubWorkflowEnv += ("JABBA_INDEX" -> "https://github.com/typelevel/jdk-index/raw/main/index.json")
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
@@ -156,7 +155,7 @@ val ciVariants = CI.AllCIs.map(_.command)
 val jsCiVariants = CI.AllJSCIs.map(_.command)
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
-ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
+ThisBuild / githubWorkflowBuildMatrixExclusions := {
   val scalaJavaFilters = for {
     scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
     java <- (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(OldGuardJava))
@@ -234,7 +233,7 @@ val CoopVersion = "1.1.1"
 
 val MacrotaskExecutorVersion = "1.0.0"
 
-replaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
+tlReplaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 
 addCommandAlias(CI.JVM.command, CI.JVM.toString)
 addCommandAlias(CI.JS.command, CI.JS.toString)
@@ -456,7 +455,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.SynchronizedWeakBag")
     ) ++ {
-      if (isDotty.value) {
+      if (tlIsScala3.value) {
         // Scala 3 specific exclusions
         Seq(
           // introduced by #2769, Simplify the transfer of WorkerThread data structures when blocking
