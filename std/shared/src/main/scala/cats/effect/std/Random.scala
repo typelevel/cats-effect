@@ -447,7 +447,7 @@ object Random {
       else new IllegalArgumentException(errorMessage).raiseError[F, Unit]
   }
 
-  private abstract class ScalaRandom[F[_] : Sync](f: F[SRandom]) extends RandomCommon[F] {
+  private abstract class ScalaRandom[F[_]: Sync](f: F[SRandom]) extends RandomCommon[F] {
     def nextBoolean: F[Boolean] =
       for {
         r <- f
@@ -528,9 +528,7 @@ object Random {
 
     def nextBytes(n: Int): F[Array[Byte]] = {
       val bytes = new Array[Byte](0 max n)
-      Sync[F]
-        .delay(localRandom().nextBytes(bytes))
-        .as(bytes)
+      Sync[F].delay(localRandom().nextBytes(bytes)).as(bytes)
     }
 
     def nextDouble: F[Double] =
@@ -564,5 +562,6 @@ object Random {
       Sync[F].delay(localRandom().shuffle(v))
   }
 
-  private[this] def localRandom() = new SRandom(java.util.concurrent.ThreadLocalRandom.current())
+  private[this] def localRandom() = new SRandom(
+    java.util.concurrent.ThreadLocalRandom.current())
 }
