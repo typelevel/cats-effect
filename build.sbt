@@ -99,6 +99,7 @@ val Scala213 = "2.13.7"
 val Scala3 = "3.0.2"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
+ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
 ThisBuild / tlCiReleaseTags := false
@@ -335,7 +336,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(kernel, std)
   .settings(
     name := "cats-effect",
-    mimaPreviousArtifacts += "org.typelevel" %%% "cats-effect" % "3.3.4",
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
