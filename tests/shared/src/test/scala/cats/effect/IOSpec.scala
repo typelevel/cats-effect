@@ -194,6 +194,48 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
               }(_ => IO.raiseError(WrongException))
           io.attempt must completeAs(Left(TestException))
         })
+
+      "report unhandled failure to the execution context" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        val action = IO.executionContext flatMap { ec =>
+          IO defer {
+            var ts: List[Throwable] = Nil
+
+            val ec2 = new ExecutionContext {
+              def reportFailure(t: Throwable) = ts ::= t
+              def execute(r: Runnable) = ec.execute(r)
+            }
+
+            IO.raiseError(TestException).start.evalOn(ec2) *> IO(ts)
+          }
+        }
+
+        action must completeAs(List(TestException))
+      }
+
+      "not report observed failures to the execution context" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        val action = IO.executionContext flatMap { ec =>
+          IO defer {
+            var ts: List[Throwable] = Nil
+
+            val ec2 = new ExecutionContext {
+              def reportFailure(t: Throwable) = ts ::= t
+              def execute(r: Runnable) = ec.execute(r)
+            }
+
+            for {
+              f <- IO.raiseError(TestException).start.evalOn(ec2)
+              _ <- f.join
+              back <- IO(ts)
+            } yield back
+          }
+        }
+
+        action must completeAs(Nil)
+      }
     }
 
     "suspension of side effects" should {
