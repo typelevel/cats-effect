@@ -36,7 +36,7 @@ import cats.{
 }
 import cats.data.Ior
 import cats.effect.instances.spawn
-import cats.effect.std.{Console, Env}
+import cats.effect.std.{Console, Env, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.syntax.all._
 
@@ -50,6 +50,8 @@ import scala.concurrent.{
 }
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
+
+import java.util.UUID
 
 /**
  * A pure abstraction representing the intention to perform a side effect, where the result of
@@ -1180,6 +1182,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *   [[IO#attempt]]
    */
   def raiseError[A](t: Throwable): IO[A] = Error(t)
+
+  /**
+   * @return
+   *   a randomly-generated UUID
+   *
+   * This is equivalent to `UUIDGen[IO].randomUUID`, just provided as a method for convenience
+   */
+  def randomUUID: IO[UUID] = UUIDGen[IO].randomUUID
 
   def realTime: IO[FiniteDuration] = RealTime
 
