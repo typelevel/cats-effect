@@ -31,6 +31,7 @@ ThisBuild / tlUntaggedAreSnapshots := false
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
+ThisBuild / tlSonatypeUseLegacyHost := false
 
 ThisBuild / startYear := Some(2020)
 
