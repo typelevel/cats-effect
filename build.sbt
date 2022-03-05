@@ -238,6 +238,7 @@ val CoopVersion = "1.1.1"
 val MacrotaskExecutorVersion = "1.0.0"
 
 tlReplaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
+addCommandAlias("release", "tlRelease")
 
 addCommandAlias(CI.JVM.command, CI.JVM.toString)
 addCommandAlias(CI.JS.command, CI.JS.toString)
