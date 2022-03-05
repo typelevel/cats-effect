@@ -132,6 +132,7 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
 )
 
 ThisBuild / githubWorkflowBuild := Seq(
+  WorkflowStep.Sbt(List("show mimaPreviousArtifacts")),
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
     List("docs/mdoc"),
