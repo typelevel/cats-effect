@@ -864,7 +864,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case IO.HandleErrorWith(ioe, f, _) =>
           interpret(ioe)
             .map {
-              case Left(_) => Left(io)
+              case Left(io) => Left(io.handleErrorWith(f))
               case Right(a) => Right(a)
             }
             .handleErrorWith(t => interpret(f(t)))
