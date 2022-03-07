@@ -1343,7 +1343,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           } must completeAsSync(())
       }
 
-      "should not execute side-effects twice for map (#2858)" in ticked { implicit ticker =>
+      "should not execute effects twice for map (#2858)" in ticked { implicit ticker =>
         var i = 0
         val io = (IO(i += 1) *> IO.cede).void.syncStep.unsafeRunSync() match {
           case Left(io) => io
@@ -1353,7 +1353,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         i must beEqualTo(1)
       }
 
-      "should not execute side-effects twice for flatMap (#2858)" in ticked { implicit ticker =>
+      "should not execute effects twice for flatMap (#2858)" in ticked { implicit ticker =>
         var i = 0
         val io = (IO(i += 1) *> IO.cede *> IO.unit).syncStep.unsafeRunSync() match {
           case Left(io) => io
@@ -1363,7 +1363,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         i must beEqualTo(1)
       }
 
-      "should not execute side-effects twice for attempt (#2858)" in ticked { implicit ticker =>
+      "should not execute effects twice for attempt (#2858)" in ticked { implicit ticker =>
         var i = 0
         val io = (IO(i += 1) *> IO.cede).attempt.void.syncStep.unsafeRunSync() match {
           case Left(io) => io
@@ -1373,7 +1373,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         i must beEqualTo(1)
       }
 
-      "should not execute side-effects twice for handleErrorWith (#2858)" in ticked {
+      "should not execute effects twice for handleErrorWith (#2858)" in ticked {
         implicit ticker =>
           var i = 0
           val io = (IO(i += 1) *> IO.cede)
