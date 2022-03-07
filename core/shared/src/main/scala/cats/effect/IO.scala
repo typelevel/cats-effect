@@ -849,7 +849,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
         case IO.FlatMap(ioe, f, _) =>
           interpret(ioe).flatMap {
-            case Left(_) => SyncIO.pure(Left(io))
+            case Left(io) => SyncIO.pure(Left(io.flatMap(f)))
             case Right(a) => interpret(f(a))
           }
 

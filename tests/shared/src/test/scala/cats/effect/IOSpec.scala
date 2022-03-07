@@ -1343,9 +1343,19 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           } must completeAsSync(())
       }
 
-      "should not execute side-effects twice (#2858)" in ticked { implicit ticker =>
+      "should not execute side-effects twice for map (#2858)" in ticked { implicit ticker =>
         var i = 0
         val io = (IO(i += 1) *> IO.cede as ()).syncStep.unsafeRunSync() match {
+          case Left(io) => io
+          case Right(_) => IO.unit
+        }
+        io must completeAs(())
+        i must beEqualTo(1)
+      }
+
+      "should not execute side-effects twice for flatMap (#2858)" in ticked { implicit ticker =>
+        var i = 0
+        val io = (IO(i += 1) *> IO.cede *> IO.unit).syncStep.unsafeRunSync() match {
           case Left(io) => io
           case Right(_) => IO.unit
         }
