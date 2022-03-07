@@ -1342,6 +1342,16 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             case Right(_) => SyncIO.raiseError[Unit](new RuntimeException("Boom!"))
           } must completeAsSync(())
       }
+
+      "should not execute side-effects twice (#2858)" in ticked { implicit ticker =>
+        var i = 0
+        val io = (IO(i += 1) *> IO.cede).syncStep.unsafeRunSync() match {
+          case Left(io) => io
+          case Right(_) => IO.unit
+        }
+        io must completeAs(())
+        i must beEqualTo(1)
+      }
     }
 
     "fiber repeated yielding test" in real {
