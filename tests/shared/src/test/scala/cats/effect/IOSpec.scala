@@ -1345,7 +1345,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "should not execute side-effects twice (#2858)" in ticked { implicit ticker =>
         var i = 0
-        val io = (IO(i += 1) *> IO.cede).syncStep.unsafeRunSync() match {
+        val io = (IO(i += 1) *> IO.cede as ()).syncStep.unsafeRunSync() match {
           case Left(io) => io
           case Right(_) => IO.unit
         }
