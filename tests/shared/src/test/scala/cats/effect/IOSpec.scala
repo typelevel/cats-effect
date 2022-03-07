@@ -1345,7 +1345,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "should not execute side-effects twice for map (#2858)" in ticked { implicit ticker =>
         var i = 0
-        val io = (IO(i += 1) *> IO.cede as ()).syncStep.unsafeRunSync() match {
+        val io = (IO(i += 1) *> IO.cede).void.syncStep.unsafeRunSync() match {
           case Left(io) => io
           case Right(_) => IO.unit
         }
@@ -1365,7 +1365,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "should not execute side-effects twice for attempt (#2858)" in ticked { implicit ticker =>
         var i = 0
-        val io = ((IO(i += 1) *> IO.cede).attempt.void).syncStep.unsafeRunSync() match {
+        val io = (IO(i += 1) *> IO.cede).attempt.void.syncStep.unsafeRunSync() match {
           case Left(io) => io
           case Right(_) => IO.unit
         }
@@ -1376,8 +1376,8 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "should not execute side-effects twice for handleErrorWith (#2858)" in ticked {
         implicit ticker =>
           var i = 0
-          val io = ((IO(i += 1) *> IO.cede)
-            .handleErrorWith(_ => IO.unit))
+          val io = (IO(i += 1) *> IO.cede)
+            .handleErrorWith(_ => IO.unit)
             .syncStep
             .unsafeRunSync() match {
             case Left(io) => io
