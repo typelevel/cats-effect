@@ -843,7 +843,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
         case IO.Map(ioe, f, _) =>
           interpret(ioe).map {
-            case Left(_) => Left(io)
+            case Left(io) => Left(io.map(f))
             case Right(a) => Right(f(a))
           }
 
@@ -919,7 +919,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Newtype encoding for an `IO` datatype that has a `cats.Applicative` capable of doing
    * parallel processing in `ap` and `map2`, needed for implementing `cats.Parallel`.
    *
-   * For converting back and forth you can use either the `Parallel[IO]` instance or 
+   * For converting back and forth you can use either the `Parallel[IO]` instance or
    * the methods `cats.effect.kernel.Par.ParallelF.apply` for wrapping any `IO` value and
    * `cats.effect.kernel.Par.ParallelF.value` for unwrapping it.
    *
