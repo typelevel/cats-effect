@@ -1657,51 +1657,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     override def syncStep[G[_], A](fa: IO[A], limit: Int)(
         implicit G: Sync[G]): G[Either[IO[A], A]] = {
-      def interpret[B](io: IO[B], limit: Int): G[Either[IO[B], (B, Int)]] = {
-        if (limit <= 0) {
-          G.pure(Left(io))
-        } else {
-          io match {
-            case IO.Pure(a) => G.pure(Right((a, limit)))
-            case IO.Error(t) => G.raiseError(t)
-            case IO.Delay(thunk, _) => G.delay(thunk()).map(a => Right((a, limit)))
-            case IO.RealTime => G.realTime.map(a => Right((a, limit)))
-            case IO.Monotonic => G.monotonic.map(a => Right((a, limit)))
-
-            case IO.Map(ioe, f, _) =>
-              interpret(ioe, limit - 1).map {
-                case Left(_) => Left(io)
-                case Right((a, limit)) => Right((f(a), limit))
-              }
-
-            case IO.FlatMap(ioe, f, _) =>
-              interpret(ioe, limit - 1).flatMap {
-                case Left(_) => G.pure(Left(io))
-                case Right((a, limit)) => interpret(f(a), limit - 1)
-              }
-
-            case IO.Attempt(ioe) =>
-              interpret(ioe, limit - 1)
-                .map {
-                  case Left(_) => Left(io)
-                  case Right((a, limit)) => Right((a.asRight[Throwable].asInstanceOf[B], limit))
-                }
-                .handleError(t => Right((t.asLeft[IO[B]], limit - 1)))
-
-            case IO.HandleErrorWith(ioe, f, _) =>
-              interpret(ioe, limit - 1)
-                .map {
-                  case Left(_) => Left(io)
-                  case r @ Right(_) => r
-                }
-                .handleErrorWith(t => interpret(f(t), limit - 1))
-
-            case _ => G.pure(Left(io))
-          }
-        }
-      }
-
-      interpret(fa, limit).map(_.map(_._1))
+      type H[+B] = G[B @uncheckedVariance]
+      val H = G.asInstanceOf[Sync[H]]
+      G.map(SyncStep.interpret[H, A](fa, limit)(H))(_.map(_._1))
     }
   }
 
@@ -1849,6 +1807,54 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
   private[effect] case object EndFiber extends IO[Nothing] {
     def tag = -1
+  }
+
+}
+
+private object SyncStep {
+  def interpret[G[+_], B](io: IO[B], limit: Int)(
+      implicit G: Sync[G]): G[Either[IO[B], (B, Int)]] = {
+    if (limit <= 0) {
+      G.pure(Left(io))
+    } else {
+      io match {
+        case IO.Pure(a) => G.pure(Right((a, limit)))
+        case IO.Error(t) => G.raiseError(t)
+        case IO.Delay(thunk, _) => G.delay(thunk()).map(a => Right((a, limit)))
+        case IO.RealTime => G.realTime.map(a => Right((a, limit)))
+        case IO.Monotonic => G.monotonic.map(a => Right((a, limit)))
+
+        case IO.Map(ioe, f, _) =>
+          interpret(ioe, limit - 1).map {
+            case Left(io) => Left(io.map(f))
+            case Right((a, limit)) => Right((f(a), limit))
+          }
+
+        case IO.FlatMap(ioe, f, _) =>
+          interpret(ioe, limit - 1).flatMap {
+            case Left(io) => G.pure(Left(io.flatMap(f)))
+            case Right((a, limit)) => interpret(f(a), limit - 1)
+          }
+
+        case IO.Attempt(ioe) =>
+          interpret(ioe, limit - 1)
+            .map {
+              case Left(io) => Left(io.attempt)
+              case Right((a, limit)) => Right((a.asRight[Throwable], limit))
+            }
+            .handleError(t => Right((t.asLeft[IO[B]], limit - 1)))
+
+        case IO.HandleErrorWith(ioe, f, _) =>
+          interpret(ioe, limit - 1)
+            .map {
+              case Left(io) => Left(io.handleErrorWith(f))
+              case r @ Right(_) => r
+            }
+            .handleErrorWith(t => interpret(f(t), limit - 1))
+
+        case _ => G.pure(Left(io))
+      }
+    }
   }
 
 }
