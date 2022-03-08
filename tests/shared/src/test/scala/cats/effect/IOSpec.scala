@@ -1389,6 +1389,50 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
         test must completeAsSync(())
       }
+
+      "should not execute effects twice for map (#2858)" in ticked { implicit ticker =>
+        var i = 0
+        val io = (IO(i += 1) *> IO.cede).void.syncStep.unsafeRunSync() match {
+          case Left(io) => io
+          case Right(_) => IO.unit
+        }
+        io must completeAs(())
+        i must beEqualTo(1)
+      }
+
+      "should not execute effects twice for flatMap (#2858)" in ticked { implicit ticker =>
+        var i = 0
+        val io = (IO(i += 1) *> IO.cede *> IO.unit).syncStep.unsafeRunSync() match {
+          case Left(io) => io
+          case Right(_) => IO.unit
+        }
+        io must completeAs(())
+        i must beEqualTo(1)
+      }
+
+      "should not execute effects twice for attempt (#2858)" in ticked { implicit ticker =>
+        var i = 0
+        val io = (IO(i += 1) *> IO.cede).attempt.void.syncStep.unsafeRunSync() match {
+          case Left(io) => io
+          case Right(_) => IO.unit
+        }
+        io must completeAs(())
+        i must beEqualTo(1)
+      }
+
+      "should not execute effects twice for handleErrorWith (#2858)" in ticked {
+        implicit ticker =>
+          var i = 0
+          val io = (IO(i += 1) *> IO.cede)
+            .handleErrorWith(_ => IO.unit)
+            .syncStep
+            .unsafeRunSync() match {
+            case Left(io) => io
+            case Right(_) => IO.unit
+          }
+          io must completeAs(())
+          i must beEqualTo(1)
+      }
     }
 
     "fiber repeated yielding test" in real {

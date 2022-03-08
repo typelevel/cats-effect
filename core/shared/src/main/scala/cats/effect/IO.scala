@@ -1670,20 +1670,20 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
             case IO.Map(ioe, f, _) =>
               interpret(ioe, limit - 1).map {
-                case Left(_) => Left(io)
+                case Left(io) => Left(io.map(f))
                 case Right((a, limit)) => Right((f(a), limit))
               }
 
             case IO.FlatMap(ioe, f, _) =>
               interpret(ioe, limit - 1).flatMap {
-                case Left(_) => G.pure(Left(io))
+                case Left(io) => G.pure(Left(io.flatMap(f)))
                 case Right((a, limit)) => interpret(f(a), limit - 1)
               }
 
             case IO.Attempt(ioe) =>
               interpret(ioe, limit - 1)
                 .map {
-                  case Left(_) => Left(io)
+                  case Left(io) => Left(io.attempt)
                   case Right((a, limit)) => Right((a.asRight[Throwable].asInstanceOf[B], limit))
                 }
                 .handleError(t => Right((t.asLeft[IO[B]], limit - 1)))
@@ -1691,7 +1691,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
             case IO.HandleErrorWith(ioe, f, _) =>
               interpret(ioe, limit - 1)
                 .map {
-                  case Left(_) => Left(io)
+                  case Left(io) => Left(io.handleErrorWith(f))
                   case r @ Right(_) => r
                 }
                 .handleErrorWith(t => interpret(f(t), limit - 1))
