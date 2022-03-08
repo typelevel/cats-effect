@@ -1657,8 +1657,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     override def syncStep[G[_], A](fa: IO[A], limit: Int)(
         implicit G: Sync[G]): G[Either[IO[A], A]] = {
-      type H[+A] = G[A @uncheckedVariance]
-      SyncStep.interpret[H, A](fa, limit)(G).map(_.map(_._1))
+      type H[+B] = G[B @uncheckedVariance]
+      val H = G.asInstanceOf[Sync[H]]
+      G.map(SyncStep.interpret[H, A](fa, limit)(H))(_.map(_._1))
     }
   }
 
