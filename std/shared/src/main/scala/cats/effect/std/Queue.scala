@@ -457,12 +457,24 @@ object Queue {
     }
 
     // TODO could optimize notifications by checking if buffer is completely empty on put
+    @tailrec
     private[this] def notifyOne(
         waiters: UnsafeUnbounded[Either[Throwable, Unit] => Unit]): Unit = {
-      try {
-        waiters.take()(EitherUnit)
+      val retry = try {
+        val f = waiters.take()
+
+        if (f == null) {
+          true
+        } else {
+          f(EitherUnit)
+          false
+        }
       } catch {
-        case FailureSignal => ()
+        case FailureSignal => false
+      }
+
+      if (retry) {
+        notifyOne(waiters)
       }
     }
   }
@@ -559,9 +571,7 @@ object Queue {
       (idx % bound).toInt
   }
 
-  // TODO we don't allow null values, which is kinda fine for now but not fine if we use this to back Queue.unbounded
   final class UnsafeUnbounded[A] {
-
     private[this] val first = new AtomicReference[Cell]
     private[this] val last = new AtomicReference[Cell]
 
@@ -584,16 +594,22 @@ object Queue {
       if (taken ne null) {
         val next = taken.get()
         if (first.compareAndSet(taken, next)) { // WINNING
-          if (next eq null) last.compareAndSet(taken, null) // we don't care if we lose this one, since there could be a concurrent put
+          if (next eq null) {
+            last.compareAndSet(taken, null) // we don't care if we lose this one, since there could be a concurrent put
+          }
+
           val ret = taken.data()
           taken() // Attempt to clear out data we've consumed
-          if (ret != null) ret // Woohoo, we got something!
-          else if (next eq null) throw FailureSignal // We tried so hard, and got so far, in the end it doesn't even matter
-          else take() // We don't like null data, so let's try again
-        } else take() // We lost, try again
+          ret
+        } else {
+          take() // We lost, try again
+        }
       } else {
-        if (last.get() ne null) take() // Waiting for prevLast.set(cell), so recurse
-        else throw FailureSignal
+        if (last.get() ne null) {
+          take() // Waiting for prevLast.set(cell), so recurse
+        } else {
+          throw FailureSignal
+        }
       }
     }
 
