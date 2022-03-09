@@ -351,11 +351,11 @@ object Queue {
 
     private[this] val buffer = new UnsafeBounded[A](capacity)
 
-    // private[this] val takers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
-    // private[this] val offerers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
+    private[this] val takers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
+    private[this] val offerers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
 
-    private[this] val takers = new ConcurrentLinkedQueue[AtomicReference[Either[Throwable, Unit] => Unit]]()
-    private[this] val offerers = new ConcurrentLinkedQueue[AtomicReference[Either[Throwable, Unit] => Unit]]()
+    // private[this] val takers = new ConcurrentLinkedQueue[AtomicReference[Either[Throwable, Unit] => Unit]]()
+    // private[this] val offerers = new ConcurrentLinkedQueue[AtomicReference[Either[Throwable, Unit] => Unit]]()
 
     def offer(a: A): F[Unit] = F defer {
       try {
@@ -369,12 +369,11 @@ object Queue {
 
           val wait = F.async[Unit] { k =>
             F delay {
-              val ref = new AtomicReference(k)
-              offerers.offer(ref)
+              val clear = offerers.put(k)
 
               try {
                 buffer.put(a)
-                ref.set(null)
+                clear()
                 succeeded = true
                 k(EitherUnit)
                 notifyOne(takers)
@@ -383,7 +382,7 @@ object Queue {
               } catch {
                 case FailureSignal =>
                   // println(s"failed offer size = ${buffer.size()}")
-                  Some(F.delay(ref.set(null)))
+                  Some(F.delay(clear()))
               }
             }
           }
@@ -418,12 +417,11 @@ object Queue {
 
           val wait = F.async[Unit] { k =>
             F delay {
-              val ref = new AtomicReference(k)
-              takers.offer(ref)
+              val clear = takers.put(k)
 
               try {
                 result = buffer.take()
-                ref.set(null)
+                clear()
                 received = true
                 k(EitherUnit)
                 notifyOne(offerers)
@@ -432,7 +430,7 @@ object Queue {
               } catch {
                 case FailureSignal =>
                   // println(s"failed take size = ${buffer.size()}")
-                  Some(F.delay(ref.set(null)))
+                  Some(F.delay(clear()))
               }
             }
           }
@@ -459,17 +457,12 @@ object Queue {
     }
 
     // TODO could optimize notifications by checking if buffer is completely empty on put
-    @tailrec
     private[this] def notifyOne(
-        waiters: ConcurrentLinkedQueue[AtomicReference[Either[Throwable, Unit] => Unit]]): Unit = {
-      val ref = waiters.poll()
-      if (ref != null) {
-        val f = ref.get()
-        if (f != null) {
-          f(EitherUnit)
-        } else {
-          notifyOne(waiters)
-        }
+        waiters: UnsafeUnbounded[Either[Throwable, Unit] => Unit]): Unit = {
+      try {
+        waiters.take()(EitherUnit)
+      } catch {
+        case FailureSignal => ()
       }
     }
   }
@@ -568,17 +561,19 @@ object Queue {
 
   // TODO we don't allow null values, which is kinda fine for now but not fine if we use this to back Queue.unbounded
   final class UnsafeUnbounded[A] {
-    // YMMV. HERE BE DRAGONS. NEEDS HARDENING. NO WARRANTY. CODED BY A SLEEPDEPRIVED NUTJOB.
+
     private[this] val first = new AtomicReference[Cell]
     private[this] val last = new AtomicReference[Cell]
 
     def put(data: A): () => Unit = {
       val cell = new Cell(data)
 
-      last.getAndSet(cell) match {
-        case null => first.set(cell) // This is safe since only one thread will return null for last.getAndSet and consumers will consume from first, and first will be null until this line
-        case prevLast => prevLast.set(cell) // order the update to the next-to-last
-      }
+      val prevLast = last.getAndSet(cell)
+
+      if (prevLast eq null)
+        first.set(cell)
+      else
+        prevLast.set(cell)
 
       cell
     }
@@ -586,29 +581,19 @@ object Queue {
     @tailrec
     def take(): A = {
       val taken = first.get()
-
-      if (taken == null) {
-        if (last.get() != null) take() // Waiting for prevLast.set(cell)
-        else throw FailureSignal
-      } else {
+      if (taken ne null) {
         val next = taken.get()
-
-        if (first.compareAndSet(taken, next)) {
+        if (first.compareAndSet(taken, next)) { // WINNING
+          if (next eq null) last.compareAndSet(taken, null) // we don't care if we lose this one, since there could be a concurrent put
           val ret = taken.data()
-          taken()
-
-          if (next == null) {
-            last.compareAndSet(taken, null)
-          }
-
-          if (ret != null) {
-            ret
-          } else {
-            take()
-          }
-        } else {
-          take()
-        }
+          taken() // Attempt to clear out data we've consumed
+          if (ret != null) ret // Woohoo, we got something!
+          else if (next eq null) throw FailureSignal // We tried so hard, and got so far, in the end it doesn't even matter
+          else take() // We don't like null data, so let's try again
+        } else take() // We lost, try again
+      } else {
+        if (last.get() ne null) take() // Waiting for prevLast.set(cell), so recurse
+        else throw FailureSignal
       }
     }
 
