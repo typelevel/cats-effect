@@ -176,7 +176,7 @@ class WorkStealingBenchmark {
       (Scheduler.fromScheduledExecutor(executor), () => executor.shutdown())
     }
 
-    val compute = new WorkStealingThreadPool(256, "io-compute", 60.seconds)
+    val compute = new WorkStealingThreadPool(256, "io-compute", 60.seconds, _.printStackTrace())
 
     val cancelationCheckThreshold =
       System.getProperty("cats.effect.cancelation.check.threshold", "512").toInt
