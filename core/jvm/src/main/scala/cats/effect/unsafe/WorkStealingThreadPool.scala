@@ -34,6 +34,7 @@ import cats.effect.tracing.TracingConstants
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.Duration
 
 import java.util.Comparator
 import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
@@ -58,17 +59,11 @@ import java.util.concurrent.locks.LockSupport
 private[effect] final class WorkStealingThreadPool(
     threadCount: Int, // number of worker threads
     private[unsafe] val threadPrefix: String, // prefix for the name of worker threads
-    self0: => IORuntime
+    private[unsafe] val runtimeBlockingExpiration: Duration
 ) extends ExecutionContext {
 
   import TracingConstants._
   import WorkStealingThreadPoolConstants._
-
-  /**
-   * A forward reference to the [[cats.effect.unsafe.IORuntime]] of which this thread pool is a
-   * part. Used for starting fibers in [[WorkStealingThreadPool#execute]].
-   */
-  private[this] lazy val self: IORuntime = self0
 
   /**
    * References to worker threads and their local queues.
@@ -518,7 +513,7 @@ private[effect] final class WorkStealingThreadPool(
       scheduleFiber(fiber)
     } else {
       // Executing a general purpose computation on the thread pool.
-      val fiber = new IOFiber[Unit](runnable, this, self)
+      val fiber = new IOFiber[Unit](runnable, this)
       scheduleFiber(fiber)
     }
   }

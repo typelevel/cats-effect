@@ -23,6 +23,7 @@ import cats.syntax.all._
 import org.openjdk.jmh.annotations._
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 import java.util.concurrent.{Executors, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
@@ -175,7 +176,7 @@ class WorkStealingBenchmark {
       (Scheduler.fromScheduledExecutor(executor), () => executor.shutdown())
     }
 
-    val compute = new WorkStealingThreadPool(256, "io-compute", manyThreadsRuntime)
+    val compute = new WorkStealingThreadPool(256, "io-compute", 60.seconds)
 
     val cancelationCheckThreshold =
       System.getProperty("cats.effect.cancelation.check.threshold", "512").toInt

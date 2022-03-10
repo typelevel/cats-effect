@@ -30,8 +30,8 @@ private[effect] final class StripedHashtable {
 
   private[this] def initialCapacity: Int = 8
 
-  val tables: Array[ThreadSafeHashtable] = {
-    val array = new Array[ThreadSafeHashtable](numTables)
+  val tables: Array[ThreadSafeHashtable[Throwable => Unit]] = {
+    val array = new Array[ThreadSafeHashtable[Throwable => Unit]](numTables)
     var i = 0
     while (i < numTables) {
       array(i) = new ThreadSafeHashtable(initialCapacity)

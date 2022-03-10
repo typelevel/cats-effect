@@ -187,8 +187,7 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
       ioa
         .flatMap(IO.pure(_))
         .handleErrorWith(IO.raiseError(_))
-        .unsafeRunAsyncOutcome { oc => results = oc.mapK(someK) }(unsafe
-          .IORuntime(ticker.ctx, ticker.ctx, scheduler, () => (), unsafe.IORuntimeConfig()))
+        .unsafeRunAsyncOutcome { oc => results = oc.mapK(someK) }(materializeRuntime)
 
       ticker.ctx.tickAll()
 
@@ -221,12 +220,11 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
   }
 
   implicit def materializeRuntime(implicit ticker: Ticker): unsafe.IORuntime =
-    unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => (), unsafe.IORuntimeConfig())
+    unsafe.IORuntime.testRuntime(ticker.ctx, scheduler)
 
-  def scheduler(implicit ticker: Ticker): unsafe.Scheduler =
+  def scheduler(implicit ticker: Ticker): unsafe.Scheduler = {
+    val ctx = ticker.ctx
     new unsafe.Scheduler {
-      import ticker.ctx
-
       def sleep(delay: FiniteDuration, action: Runnable): Runnable = {
         val cancel = ctx.schedule(delay, action)
         new Runnable { def run() = cancel() }
@@ -235,6 +233,7 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
       def nowMillis() = ctx.now().toMillis
       def monotonicNanos() = ctx.now().toNanos
     }
+  }
 
   @implicitNotFound(
     "could not find an instance of Ticker; try using `in ticked { implicit ticker =>`")

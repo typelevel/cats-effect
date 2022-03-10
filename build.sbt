@@ -131,7 +131,7 @@ ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(
     List("root/scalafixAll --check"),
     name = Some("Check that scalafix has been run"),
-    cond = Some(s"matrix.scala != '$Scala3' && matrix.os != '$Windows'")
+    cond = Some(s"matrix.scala != '$Scala3'")
   ),
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
@@ -231,7 +231,7 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.7.0"
-val Specs2Version = "4.13.2"
+val Specs2Version = "4.14.1"
 val ScalaCheckVersion = "1.15.4"
 val DisciplineVersion = "1.2.5"
 val CoopVersion = "1.1.1"
@@ -261,6 +261,7 @@ lazy val root = project
   .enablePlugins(NoPublishPlugin)
   .enablePlugins(ScalaUnidocPlugin)
   .settings(
+    name := "cats-effect",
     ScalaUnidoc / unidoc / unidocProjectFilter := {
       undocumentedRefs.foldLeft(inAnyProject)((acc, a) => acc -- inProjects(a))
     }
@@ -462,7 +463,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[ReversedMissingMethodProblem](
         "cats.effect.IOApp.cats$effect$IOApp$_setter_$cats$effect$IOApp$$queue_="),
       ProblemFilters.exclude[ReversedMissingMethodProblem](
-        "cats.effect.IOApp.cats$effect$IOApp$$queue")
+        "cats.effect.IOApp.cats$effect$IOApp$$queue"),
+      // introduced by #2844, Thread local fallback weak bag
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.SynchronizedWeakBag")
     ) ++ {
       if (isDotty.value) {
         // Scala 3 specific exclusions
@@ -472,7 +476,27 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
           ProblemFilters.exclude[DirectMissingMethodProblem](
             "cats.effect.unsafe.WorkStealingThreadPool.localQueuesForwarder"),
           ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.WorkerThread.NullData")
+            "cats.effect.unsafe.WorkerThread.NullData"),
+          // introduced by #2811, Support shutting down multiple runtimes
+          // changes to `cats.effect.unsafe` package private code
+          ProblemFilters.exclude[IncompatibleMethTypeProblem](
+            "cats.effect.unsafe.ThreadSafeHashtable.put"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.IORuntime.apply"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.IORuntimeCompanionPlatform.apply"),
+          ProblemFilters.exclude[IncompatibleMethTypeProblem](
+            "cats.effect.unsafe.ThreadSafeHashtable.remove"),
+          ProblemFilters.exclude[IncompatibleResultTypeProblem](
+            "cats.effect.unsafe.ThreadSafeHashtable.unsafeHashtable"),
+          ProblemFilters.exclude[IncompatibleResultTypeProblem](
+            "cats.effect.unsafe.ThreadSafeHashtable.Tombstone"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.this"),
+          // introduced by #2853, Configurable caching of blocking threads, properly
+          // changes to `cats.effect.unsafe` package private code
+          ProblemFilters.exclude[IncompatibleMethTypeProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.this")
         )
       } else Seq()
     }
@@ -519,7 +543,13 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test
     ),
-    buildInfoPackage := "catseffect"
+    buildInfoPackage := "catseffect",
+    Test / unmanagedSourceDirectories ++= {
+      if (scalaBinaryVersion.value != "2.12")
+        Seq(baseDirectory.value / ".." / "shared" / "src" / "test" / "scala-2.13+")
+      else
+        Seq.empty
+    }
   )
   .jsSettings(
     Compile / scalaJSUseMainModuleInitializer := true,
@@ -567,6 +597,11 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
         .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
         .exclude("org.scalacheck", "scalacheck_2.13")
         .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
+    ),
+    mimaBinaryIssueFilters ++= Seq(
+      // introduced by #2604, Fix Console on JS
+      // changes to `cats.effect.std` package private code
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Console$SyncConsole")
     )
   )
   .jsSettings(

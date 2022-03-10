@@ -7,8 +7,6 @@ title: Dispatcher
 
 `Dispatcher` is a fiber-based [`Supervisor`](./supervisor.md) utility for evaluating effects across an impure boundary. This is useful when working with reactive interfaces that produce potentially many values (as opposed to one), and for each value, some effect in `F` must be performed (like inserting each value into a queue).
 
-Users of Cats Effect 2 may be familiar with the `Effect` and `ConcurrentEffect` typeclasses. These have been removed as they constrained implementations of the typeclasses too much by forcing them to be embeddable in `IO` via `def toIO[A](fa: F[A]): IO[A]`. However, these typeclasses also had a valid use-case for unsafe running of effects to interface with impure APIs (`Future`, NIO, etc).
-
 An instance of `Dispatcher` can be derived for any effect type conforming to the [`Async`](../typeclasses/async.md) typeclass.
 
 Let's say we are integrating with an interface that looks like this:

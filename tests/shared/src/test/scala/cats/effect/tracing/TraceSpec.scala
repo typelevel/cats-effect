@@ -16,30 +16,34 @@
 
 package tracing // Get out of the CE package so our traces don't get filtered
 
-import cats.effect.{BaseSpec, IO}
+import cats.effect.{BaseSpec, DetectPlatform, IO}
 import cats.effect.testkit.TestInstances
 
 // Separate from TracingSpec so it can exist outside of cats.effect package
-class TraceSpec extends BaseSpec with TestInstances { self =>
+class TraceSpec extends BaseSpec with TestInstances with DetectPlatform { self =>
 
   "IO" should {
-    "have nice traces" in realWithRuntime { rt =>
-      def loop(i: Int): IO[Int] =
-        IO.pure(i).flatMap { j =>
-          if (j == 0)
-            IO.raiseError(new Exception)
-          else
-            loop(i - 1)
+    if (!isJS || !isWSL) {
+      "have nice traces" in realWithRuntime { rt =>
+        def loop(i: Int): IO[Int] =
+          IO.pure(i).flatMap { j =>
+            if (j == 0)
+              IO.raiseError(new Exception)
+            else
+              loop(i - 1)
+          }
+        loop(100).attempt.map {
+          case Left(ex) =>
+            ex.getStackTrace.count { e =>
+              e.getClassName() == s"flatMap @ ${self.getClass().getName()}" && e
+                .getMethodName()
+                .startsWith("loop$")
+            } == rt.config.traceBufferSize
+          case _ => false
         }
-      loop(100).attempt.map {
-        case Left(ex) =>
-          ex.getStackTrace.count { e =>
-            e.getClassName() == s"flatMap @ ${self.getClass().getName()}" && e
-              .getMethodName()
-              .startsWith("loop$")
-          } == rt.config.traceBufferSize
-        case _ => false
       }
+    } else {
+      "have nice traces" in skipped("Scala.js exception unmangling is buggy on WSL")
     }
   }
 
