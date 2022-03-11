@@ -68,7 +68,7 @@ final class IORuntimeBuilder protected (
    * @param blocking
    *   the [[scala.concurrent.ExecutionContext ExecutionContext]] for blocking operations
    * @param shutdown
-   *   the shutdown logic of the given blocking execution context
+   *   [[scala.concurrent.ExecutionContext ExecutionContext]] shutdown hook
    */
   def setBlocking(blocking: ExecutionContext, shutdown: () => Unit): IORuntimeBuilder = {
     if (customBlocking.isDefined) {
@@ -108,7 +108,7 @@ final class IORuntimeBuilder protected (
    * @param scheduler
    *   the custom scheduler
    * @param shutdown
-   *   the shutdown logic of the given [[Scheduler]]
+   *   [[Scheduler]] shutdown hook
    */
   def setScheduler(scheduler: Scheduler, shutdown: () => Unit): IORuntimeBuilder = {
     if (customScheduler.isDefined) {
