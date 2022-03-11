@@ -40,7 +40,7 @@ final class IORuntimeBuilder protected (
    * @param compute
    *   the [[scala.concurrent.ExecutionContext ExecutionContext]] for a compute pool
    * @param shutdown
-   *   the shutdown logic of the given execution context
+   *   [[IORuntime]] shutdown hook
    */
   def setCompute(compute: ExecutionContext, shutdown: () => Unit): IORuntimeBuilder = {
     if (customCompute.isDefined) {
