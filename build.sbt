@@ -516,6 +516,11 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
       ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
         .cross(CrossVersion.for3Use2_13)
         .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
+    ),
+    mimaBinaryIssueFilters ++= Seq(
+      // introduced by #2864, Exclude completed fibers from the live fiber snapshot
+      // changes to private constructor
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.testkit.TestControl.this")
     )
   )
 
