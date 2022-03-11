@@ -231,7 +231,7 @@ final class TestControl[A] private (
    */
   def liveFiberSnapshot: List[String] = {
     val builder = List.newBuilder[String]
-    runtime.fiberMonitor.liveFiberSnapshot(builder.addOne)
+    runtime.fiberMonitor.liveFiberSnapshot(builder += _)
     builder.result()
   }
 }
