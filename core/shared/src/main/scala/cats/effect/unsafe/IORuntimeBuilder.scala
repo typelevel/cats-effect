@@ -38,7 +38,7 @@ final class IORuntimeBuilder protected (
    * Set a custom compute pool
    *
    * @param compute
-   *   the [[scala.concurrent.ExecutionContext ExecutionContext]] for a compute pool
+   *   the [[scala.concurrent.ExecutionContext ExecutionContext]] for the compute pool
    * @param shutdown
    *   [[IORuntime]] shutdown hook
    */
