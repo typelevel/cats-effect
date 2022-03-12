@@ -121,7 +121,6 @@ import java.util.concurrent.atomic.AtomicReference
  */
 final class TestControl[A] private (
     ctx: TestContext,
-    runtime: IORuntime,
     _results: AtomicReference[Option[Outcome[Id, Throwable, A]]]) {
 
   val results: IO[Option[Outcome[Id, Throwable, A]]] = IO(_results.get)
@@ -224,16 +223,6 @@ final class TestControl[A] private (
    * unexpected (though clearly plausible) execution order.
    */
   def seed: String = ctx.seed
-
-  /**
-   * Returns a textual representation of the runtime snapshot of the fibers currently live on
-   * the [[cats.effect.unsafe.IORuntime IORuntime]].
-   */
-  def liveFiberSnapshot: List[String] = {
-    val builder = List.newBuilder[String]
-    runtime.fiberMonitor.liveFiberSnapshot(builder += _)
-    builder.result()
-  }
 }
 
 object TestControl {
@@ -341,7 +330,7 @@ object TestControl {
 
       val results = new AtomicReference[Option[Outcome[Id, Throwable, A]]](None)
       program.unsafeRunAsyncOutcome(oc => results.set(Some(oc)))(runtime)
-      new TestControl(ctx, runtime, results)
+      new TestControl(ctx, results)
     }
 
   /**
