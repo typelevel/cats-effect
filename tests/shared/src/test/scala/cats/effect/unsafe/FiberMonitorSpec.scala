@@ -16,9 +16,9 @@
 
 package cats.effect.unsafe
 
+import cats.effect.{BaseSpec, FiberIO, IO, Outcome}
 import cats.effect.std.CountDownLatch
 import cats.effect.testkit.TestInstances
-import cats.effect.{BaseSpec, FiberIO, IO, Outcome}
 
 import scala.concurrent.duration._
 
