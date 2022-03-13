@@ -20,7 +20,6 @@ package unsafe
 import cats.effect.tracing.TracingConstants
 import cats.effect.unsafe.ref.WeakReference
 
-import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -80,8 +79,24 @@ private[effect] sealed class FiberMonitor(
    * Obtains a snapshot of the fibers currently live on the [[IORuntime]] which this fiber
    * monitor instance belongs to.
    *
-   * @return
-   *   a textual representation of the runtime snapshot, `None` if a snapshot cannot be obtained
+   * `print` function can be used to print or accumulate a textual representation of the runtime
+   * snapshot.
+   *
+   * @example
+   *   Accumulate a live snapshot
+   *   {{{
+   *   val monitor: FiberMonitor = ???
+   *   val buffer = new ArrayBuffer[String]
+   *   monitor.liveFiberSnapshot(buffer += _)
+   *   buffer.toArray
+   *   }}}
+   *
+   * @example
+   *   Print a live snapshot
+   *   {{{
+   *   val monitor: FiberMonitor = ???
+   *   monitor.liveFiberSnapshot(System.out.print(_))
+   *   }}}
    */
   def liveFiberSnapshot(print: String => Unit): Unit =
     if (TracingConstants.isStackTracing)
@@ -89,7 +104,10 @@ private[effect] sealed class FiberMonitor(
         printFibers(foreignFibers(), "ACTIVE")(print)
         print(newline)
       } { compute =>
-        val (rawExternal, workersMap, rawSuspended) = compute.liveFibers()
+        val (rawExternal, workersMap, rawSuspended) = {
+          val (external, workers, suspended) = compute.liveFibers()
+          (external.filterNot(_.isDone), workers, suspended.filterNot(_.isDone))
+        }
         val rawForeign = foreignFibers()
 
         // We trust the sources of data in the following order, ordered from
@@ -109,14 +127,16 @@ private[effect] sealed class FiberMonitor(
 
         val workersStatuses = workersMap map {
           case (worker, (active, local)) =>
+            val yielding = local.filterNot(_.isDone)
+
             val status =
               if (worker.getState() == Thread.State.RUNNABLE) "RUNNING" else "BLOCKED"
 
-            val workerString = s"$worker (#${worker.index}): ${local.size} enqueued"
+            val workerString = s"$worker (#${worker.index}): ${yielding.size} enqueued"
 
             print(doubleNewline)
             active.map(fiberString(_, status)).foreach(print(_))
-            printFibers(local, "YIELDING")(print)
+            printFibers(yielding, "YIELDING")(print)
 
             workerString
         }
@@ -144,18 +164,27 @@ private[effect] sealed class FiberMonitor(
     handle
   }
 
+  /**
+   * Returns a set of active fibers (SUSPENDED or RUNNING). Completed fibers are filtered out.
+   *
+   * @see
+   *   [[cats.effect.IOFiber.isDone IOFiber#isDone]] for 'completed' condition
+   *
+   * @return
+   *   a set of active fibers
+   */
   private[this] def foreignFibers(): Set[IOFiber[_]] = {
-    val foreign = mutable.Set.empty[IOFiber[_]]
+    val foreign = Set.newBuilder[IOFiber[_]]
 
     BagReferences.iterator().forEachRemaining { bagRef =>
       val bag = bagRef.get()
       if (bag ne null) {
         val _ = bag.synchronizationPoint.get()
-        foreign ++= bag.toSet
+        foreign ++= bag.toSet.filterNot(_.isDone)
       }
     }
 
-    foreign.toSet
+    foreign.result()
   }
 }
 

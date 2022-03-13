@@ -1546,7 +1546,7 @@ private final class IOFiber[A] private (
     s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
   }
 
-  private[this] def isDone: Boolean =
+  private[effect] def isDone: Boolean =
     resumeTag == DoneR
 
   private[effect] def prettyPrintTrace(): String =
