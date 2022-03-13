@@ -111,7 +111,7 @@ object Dispatcher {
     final case class CancelToken(cancelToken: () => Future[Unit]) extends CancelState
 
     for {
-      supervisor <- Supervisor[F]
+      supervisors <- (0 until Cpus).toList.traverse(_ => Supervisor[F])
       latches <- Resource.eval(F delay {
         val latches = new Array[AtomicReference[() => Unit]](Cpus)
         var i = 0
@@ -139,6 +139,7 @@ object Dispatcher {
 
       _ <- {
         def dispatcher(
+            supervisor: Supervisor[F],
             latch: AtomicReference[() => Unit],
             state: Array[AtomicReference[List[Registration]]]): F[Unit] =
           for {
@@ -180,9 +181,10 @@ object Dispatcher {
               }
           } yield ()
 
-        (0 until Cpus)
-          .toList
-          .traverse_(n => dispatcher(latches(n), states(n)).foreverM[Unit].background)
+        supervisors.zipWithIndex.traverse_ {
+          case (supervisor, n) =>
+            dispatcher(supervisor, latches(n), states(n)).foreverM[Unit].background
+        }
       }
     } yield {
       new Dispatcher[F] {
