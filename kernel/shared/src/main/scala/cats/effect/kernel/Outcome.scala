@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,18 @@
 
 package cats.effect.kernel
 
-import cats.{Applicative, ApplicativeError, Bifunctor, Eq}
-import cats.{~>, Monad, MonadError, Order, Show, Traverse}
+import cats.{
+  ~>,
+  Applicative,
+  ApplicativeError,
+  Bifunctor,
+  Eq,
+  Monad,
+  MonadError,
+  Order,
+  Show,
+  Traverse
+}
 import cats.syntax.all._
 
 import scala.annotation.tailrec
@@ -30,8 +40,13 @@ import scala.util.{Either, Left, Right}
  * A commonly asked question is why this wraps a value of type `F[A]` rather than one of type
  * `A`. This is to support monad transformers. Consider
  *
- * ```scala val oc: OutcomeIO[Int] = for { fiber <- Spawn[OptionT[IO, *]].start(OptionT.none[IO,
- * Int]) oc <- fiber.join } yield oc ```
+ * {{{
+ * val oc: OutcomeIO[Int] =
+ *   for {
+ *     fiber <- Spawn[OptionT[IO, *]].start(OptionT.none[IO, Int])
+ *     oc <- fiber.join
+ *   } yield oc
+ * }}}
  *
  * If the fiber succeeds then there is no value of type `Int` to be wrapped in `Succeeded`,
  * hence `Succeeded` contains a value of type `OptionT[IO, Int]` instead.

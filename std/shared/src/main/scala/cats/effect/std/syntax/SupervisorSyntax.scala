@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package cats.effect.std.syntax
 
-import cats.effect.std.Supervisor
 import cats.effect.kernel.Fiber
+import cats.effect.std.Supervisor
 
 trait SupervisorSyntax {
   implicit def supervisorOps[F[_], A](wrapped: F[A]): SupervisorOps[F, A] =

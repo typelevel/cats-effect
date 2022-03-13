@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,21 @@
 
 package cats.effect
 
-import cats.syntax.all._
 import cats.effect.std.Semaphore
+import cats.syntax.all._
 
 import org.scalacheck.Prop.forAll
-
 import org.specs2.ScalaCheck
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-import java.util.concurrent.{CancellationException, CountDownLatch, Executors}
-import java.util.concurrent.CompletableFuture
+import java.util.concurrent.{
+  CancellationException,
+  CompletableFuture,
+  CountDownLatch,
+  Executors
+}
 
 trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,8 +29,8 @@ private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent]
   }
 
   def calculateTracingEvent(key: Any): TracingEvent = {
-    val cls = key.getClass
     if (isCachedStackTracing) {
+      val cls = key.getClass
       get(cls)
     } else if (isFullStackTracing) {
       buildEvent()
@@ -39,31 +39,12 @@ private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent]
     }
   }
 
-  private[this] final val stackTraceFilter: Array[String] = Array(
-    "cats.",
-    "sbt.",
-    "java.",
-    "sun.",
-    "scala."
-  )
-
   @nowarn("cat=unused")
   private[tracing] def applyStackTraceFilter(
       callSiteClassName: String,
       callSiteMethodName: String,
-      callSiteFileName: String): Boolean = {
-    val len = stackTraceFilter.length
-    var idx = 0
-    while (idx < len) {
-      if (callSiteClassName.startsWith(stackTraceFilter(idx))) {
-        return true
-      }
-
-      idx += 1
-    }
-
-    false
-  }
+      callSiteFileName: String): Boolean =
+    isInternalClass(callSiteClassName)
 
   private[tracing] def decodeMethodName(name: String): String =
     NameTransformer.decode(name)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,30 +21,31 @@ import cats.effect.unsafe.metrics._
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 import java.lang.management.ManagementFactory
 import java.util.concurrent.{Executors, ScheduledThreadPoolExecutor}
 import java.util.concurrent.atomic.AtomicInteger
+
 import javax.management.ObjectName
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
   // The default compute thread pool on the JVM is now a work stealing thread pool.
-  def createDefaultComputeThreadPool(
-      self: => IORuntime,
+  def createWorkStealingComputeThreadPool(
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
-      threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) = {
+      threadPrefix: String = "io-compute",
+      runtimeBlockingExpiration: Duration = 60.seconds)
+      : (WorkStealingThreadPool, () => Unit) = {
     val threadPool =
-      new WorkStealingThreadPool(threads, threadPrefix, self)
+      new WorkStealingThreadPool(threads, threadPrefix, runtimeBlockingExpiration)
 
     val unregisterMBeans =
       if (isStackTracing) {
         val mBeanServer =
           try ManagementFactory.getPlatformMBeanServer()
           catch {
-            case t: Throwable =>
-              t.printStackTrace()
-              null
+            case _: Throwable => null
           }
 
         if (mBeanServer ne null) {
@@ -59,11 +60,10 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
             mBeanServer.registerMBean(computePoolSampler, computePoolSamplerName)
             registeredMBeans += computePoolSamplerName
           } catch {
-            case t: Throwable =>
-              t.printStackTrace()
+            case _: Throwable =>
           }
 
-          val localQueues = threadPool.localQueuesForwarder
+          val localQueues = threadPool.localQueues
           var i = 0
           val len = localQueues.length
 
@@ -77,8 +77,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
               mBeanServer.registerMBean(localQueueSampler, localQueueSamplerName)
               registeredMBeans += localQueueSamplerName
             } catch {
-              case t: Throwable =>
-                t.printStackTrace()
+              case _: Throwable =>
             }
 
             i += 1
@@ -86,7 +85,13 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
           () => {
             if (mBeanServer ne null) {
-              registeredMBeans.foreach(mBeanServer.unregisterMBean(_))
+              registeredMBeans.foreach { mbean =>
+                try mBeanServer.unregisterMBean(mbean)
+                catch {
+                  case _: Throwable =>
+                  // Do not report issues with mbeans deregistration.
+                }
+              }
             }
           }
         } else () => ()
@@ -99,6 +104,16 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
         threadPool.shutdown()
       })
   }
+
+  @deprecated(
+    message = "Replaced by the simpler and safer `createWorkStealingComputePool`",
+    since = "3.4.0"
+  )
+  def createDefaultComputeThreadPool(
+      self: => IORuntime,
+      threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
+      threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) =
+    createWorkStealingComputeThreadPool(threads, threadPrefix)
 
   def createDefaultBlockingExecutionContext(
       threadPrefix: String = "io-blocking"): (ExecutionContext, () => Unit) = {
@@ -145,12 +160,9 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   lazy val global: IORuntime = {
     if (_global == null) {
       installGlobal {
-        val (compute, _) = createDefaultComputeThreadPool(global)
+        val (compute, _) = createWorkStealingComputeThreadPool()
         val (blocking, _) = createDefaultBlockingExecutionContext()
         val (scheduler, _) = createDefaultScheduler()
-        val fiberMonitor = FiberMonitor(compute)
-        registerFiberMonitorMBean(fiberMonitor)
-
         IORuntime(compute, blocking, scheduler, () => (), IORuntimeConfig())
       }
     }
@@ -158,23 +170,12 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     _global
   }
 
-  private[effect] def apply(
-      compute: ExecutionContext,
-      blocking: ExecutionContext,
-      scheduler: Scheduler,
-      fiberMonitor: FiberMonitor,
-      shutdown: () => Unit,
-      config: IORuntimeConfig): IORuntime =
-    new IORuntime(compute, blocking, scheduler, fiberMonitor, shutdown, config)
-
   private[effect] def registerFiberMonitorMBean(fiberMonitor: FiberMonitor): () => Unit = {
     if (isStackTracing) {
       val mBeanServer =
         try ManagementFactory.getPlatformMBeanServer()
         catch {
-          case t: Throwable =>
-            t.printStackTrace()
-            null
+          case _: Throwable => null
         }
 
       if (mBeanServer ne null) {
@@ -186,11 +187,15 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
           val liveFiberSnapshotTrigger = new LiveFiberSnapshotTrigger(fiberMonitor)
           mBeanServer.registerMBean(liveFiberSnapshotTrigger, liveFiberSnapshotTriggerName)
 
-          () => mBeanServer.unregisterMBean(liveFiberSnapshotTriggerName)
+          () => {
+            try mBeanServer.unregisterMBean(liveFiberSnapshotTriggerName)
+            catch {
+              case _: Throwable =>
+              // Do not report issues with mbeans deregistration.
+            }
+          }
         } catch {
-          case t: Throwable =>
-            t.printStackTrace()
-            () => ()
+          case _: Throwable => () => ()
         }
       } else () => ()
     } else () => ()

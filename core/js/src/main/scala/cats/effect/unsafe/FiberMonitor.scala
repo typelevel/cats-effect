@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,43 +17,69 @@
 package cats.effect
 package unsafe
 
-import scala.annotation.nowarn
 import scala.concurrent.ExecutionContext
-import scala.scalajs.js
-import scala.scalajs.LinkingInfo
+import scala.scalajs.{js, LinkingInfo}
 
-private[effect] sealed abstract class FiberMonitor {
+private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
 
   /**
-   * Registers a suspended fiber, tracked by the provided key which is an opaque object which
-   * uses reference equality for comparison.
+   * Registers a suspended fiber.
    *
-   * @param key
-   *   an opaque identifier for the suspended fiber
    * @param fiber
    *   the suspended fiber to be registered
+   * @return
+   *   a handle for deregistering the fiber on resumption
    */
-  def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit
+  def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle
+
+  /**
+   * Obtains a snapshot of the fibers currently live on the [[IORuntime]] which this fiber
+   * monitor instance belongs to.
+   *
+   * @return
+   *   a textual representation of the runtime snapshot, `None` if a snapshot cannot be obtained
+   */
+  def liveFiberSnapshot(print: String => Unit): Unit
 }
 
 /**
  * Relies on features *standardized* in ES2021, although already offered in many environments
  */
-@nowarn("cat=unused-params")
 private final class ES2021FiberMonitor(
     // A reference to the compute pool of the `IORuntime` in which this suspended fiber bag
     // operates. `null` if the compute pool of the `IORuntime` is not a `FiberAwareExecutionContext`.
     private[this] val compute: FiberAwareExecutionContext
 ) extends FiberMonitor {
-  private[this] val bag = new IterableWeakMap[AnyRef, js.WeakRef[IOFiber[_]]]
+  private[this] val bag = new WeakBag[IOFiber[_]]()
 
-  override def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit = {
-    bag.set(key, new js.WeakRef(fiber))
-  }
+  override def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle =
+    bag.insert(fiber)
 
-  @nowarn("cat=unused")
-  private[this] def foreignFibers(): Set[IOFiber[_]] =
-    bag.entries().flatMap(_._2.deref().toOption).toSet
+  def liveFiberSnapshot(print: String => Unit): Unit =
+    Option(compute).foreach { compute =>
+      val queued = compute.liveFibers()
+      val rawForeign = bag.toSet
+
+      // We trust the sources of data in the following order, ordered from
+      // most trustworthy to least trustworthy.
+      // 1. Fibers from the macrotask executor
+      // 2. Fibers from the foreign fallback weak GC map
+
+      val allForeign = rawForeign -- queued
+      val suspended = allForeign.filter(_.get())
+      val foreign = allForeign.filterNot(_.get())
+
+      printFibers(queued, "YIELDING")(print)
+      printFibers(foreign, "YIELDING")(print)
+      printFibers(suspended, "WAITING")(print)
+
+      val globalStatus =
+        s"Global: enqueued ${queued.size + foreign.size}, waiting ${suspended.size}"
+
+      print(doubleNewline)
+      print(globalStatus)
+      print(newline)
+    }
 
 }
 
@@ -62,13 +88,13 @@ private final class ES2021FiberMonitor(
  * instances on Scala.js. This is used as a fallback.
  */
 private final class NoOpFiberMonitor extends FiberMonitor {
-  override def monitorSuspended(key: AnyRef, fiber: IOFiber[_]): Unit = ()
+  override def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle = () => ()
+  def liveFiberSnapshot(print: String => Unit): Unit = ()
 }
 
 private[effect] object FiberMonitor {
-
   def apply(compute: ExecutionContext): FiberMonitor = {
-    if (LinkingInfo.developmentMode && IterableWeakMap.isAvailable) {
+    if (LinkingInfo.developmentMode && weakRefsAvailable) {
       if (compute.isInstanceOf[FiberAwareExecutionContext]) {
         val faec = compute.asInstanceOf[FiberAwareExecutionContext]
         new ES2021FiberMonitor(faec)
@@ -79,4 +105,13 @@ private[effect] object FiberMonitor {
       new NoOpFiberMonitor()
     }
   }
+
+  private[this] final val Undefined = "undefined"
+
+  /**
+   * Feature-tests for all the required, well, features :)
+   */
+  private[unsafe] def weakRefsAvailable: Boolean =
+    js.typeOf(js.Dynamic.global.WeakRef) != Undefined &&
+      js.typeOf(js.Dynamic.global.FinalizationRegistry) != Undefined
 }

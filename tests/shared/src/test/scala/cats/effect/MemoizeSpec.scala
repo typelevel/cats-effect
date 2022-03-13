@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,10 @@
 package cats
 package effect
 
+import cats.data.{EitherT, Ior, IorT, OptionT, WriterT}
 import cats.syntax.all._
-import org.scalacheck.Prop, Prop.forAll
+
+import org.scalacheck.Prop.forAll
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
@@ -195,6 +197,137 @@ class MemoizeSpec extends BaseSpec with Discipline {
         result.value mustEqual Some(Success(true))
     }
 
+    "Monad transformers" >> {
+
+      "OptionT" in ticked { implicit ticker =>
+        val op = for {
+          counter <- IO.ref(0)
+          incr = counter.update(_ + 1)
+          optMemoOpt <- Concurrent[OptionT[IO, *]]
+            .memoize[Int](
+              OptionT.liftF(incr) *> OptionT.none[IO, Int]
+            )
+            .value
+          memoOpt <- optMemoOpt.fold(IO.raiseError[OptionT[IO, Int]](new Exception))(IO.pure(_))
+          opt1 <- memoOpt.value
+          opt2 <- memoOpt.value
+          vOpt <- counter.get
+        } yield (opt1: Option[Int], opt2: Option[Int], vOpt: Int)
+
+        val result = op.unsafeToFuture()
+        ticker.ctx.tickAll()
+
+        result.value mustEqual Some(Success((None, None, 1)))
+      }
+
+      "EitherT" in ticked { implicit ticker =>
+        val op = for {
+          counter <- IO.ref(0)
+          incr = counter.update(_ + 1)
+          eitMemoEit <- Concurrent[EitherT[IO, String, *]]
+            .memoize[Int](
+              EitherT.liftF[IO, String, Unit](incr) *> EitherT.left(IO.pure("x"))
+            )
+            .value
+          memoEit <- eitMemoEit.fold(_ => IO.raiseError(new Exception), IO.pure(_))
+          eit1 <- memoEit.value
+          eit2 <- memoEit.value
+          vEit <- counter.get
+        } yield (eit1: Either[String, Int], eit2: Either[String, Int], vEit: Int)
+
+        val result = op.unsafeToFuture()
+        ticker.ctx.tickAll()
+
+        result.value mustEqual Some(Success((Left("x"), Left("x"), 1)))
+      }
+
+      "IorT" in ticked { implicit ticker =>
+        val op = for {
+          counter <- IO.ref(0)
+          incr = counter.update(_ + 1)
+          // left:
+          iorMemoIor1 <- Concurrent[IorT[IO, String, *]]
+            .memoize[Int](
+              IorT.liftF[IO, String, Unit](incr) *> IorT.left[Int](IO.pure("x"))
+            )
+            .value
+          memoIor1 <- iorMemoIor1.fold(
+            _ => IO.raiseError[IorT[IO, String, Int]](new Exception),
+            IO.pure(_),
+            (_, _) => IO.raiseError(new Exception))
+          ior1 <- memoIor1.value
+          ior2 <- memoIor1.value
+          vIor1 <- counter.get
+          // both:
+          iorMemoIor2 <- Concurrent[IorT[IO, String, *]]
+            .memoize[Int](
+              IorT.liftF[IO, String, Unit](incr) *> IorT
+                .both[IO, String, Int](IO.pure("x"), IO.pure(42))
+            )
+            .value
+          memoIor2 <- iorMemoIor2.fold(
+            _ => IO.raiseError[IorT[IO, String, Int]](new Exception),
+            IO.pure(_),
+            (_, _) => IO.raiseError(new Exception))
+          ior3 <- memoIor2.value
+          ior4 <- memoIor2.value
+          vIor2 <- counter.get
+        } yield (
+          ior1: Ior[String, Int],
+          ior2: Ior[String, Int],
+          vIor1: Int,
+          ior3: Ior[String, Int],
+          ior4: Ior[String, Int],
+          vIor2: Int
+        )
+
+        val result = op.unsafeToFuture()
+        ticker.ctx.tickAll()
+
+        result.value mustEqual Some(
+          Success(
+            (
+              Ior.left("x"),
+              Ior.left("x"),
+              1,
+              Ior.both("x", 42),
+              Ior.both("x", 42),
+              2
+            )))
+      }
+
+      "WriterT" in ticked { implicit ticker =>
+        val op = for {
+          counter <- IO.ref(0)
+          incr = counter.update(_ + 1)
+          wriMemoWri <- Concurrent[WriterT[IO, List[String], *]]
+            .memoize[Int](
+              WriterT.liftF[IO, List[String], Unit](incr) *> WriterT(IO.pure((List("x"), 42)))
+            )
+            .run
+          (log, memoWri) = wriMemoWri
+          _ <- if (log.nonEmpty) IO.raiseError(new Exception) else IO.unit
+          wri1 <- memoWri.run
+          wri2 <- memoWri.run
+          vWri <- counter.get
+        } yield (
+          wri1: (List[String], Int),
+          wri2: (List[String], Int),
+          vWri: Int
+        )
+
+        val result = op.unsafeToFuture()
+        ticker.ctx.tickAll()
+
+        result.value mustEqual Some(
+          Success(
+            (
+              (List("x"), 42),
+              (List("x"), 42),
+              1
+            )))
+      }
+    }
   }
 
 }

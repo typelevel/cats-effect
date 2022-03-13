@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +16,7 @@
 
 package cats.effect
 
-/**
- * Represents the exit code of an application.
- *
- * `code` is constrained to a range from 0 to 255, inclusive.
- */
-sealed abstract case class ExitCode private (code: Int)
-
-object ExitCode {
-
-  /**
-   * Creates an `ExitCode`.
-   *
-   * @param i
-   *   the value whose 8 least significant bits are used to construct an exit code within the
-   *   valid range.
-   */
-  def apply(i: Int): ExitCode = new ExitCode(i & 0xff) {}
-
-  val Success: ExitCode = ExitCode(0)
-  val Error: ExitCode = ExitCode(1)
+trait DetectPlatform {
+  def isWSL: Boolean = System.getProperty("os.version").contains("-WSL")
+  def isJS: Boolean = false
 }

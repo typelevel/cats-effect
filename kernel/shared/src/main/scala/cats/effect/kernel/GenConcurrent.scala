@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,10 @@
 package cats.effect.kernel
 
 import cats.{Monoid, Semigroup, Traverse}
-import cats.syntax.all._
-import cats.effect.kernel.syntax.all._
-import cats.effect.kernel.instances.spawn._
-
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
+import cats.effect.kernel.instances.spawn._
+import cats.effect.kernel.syntax.all._
+import cats.syntax.all._
 
 trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
@@ -52,12 +51,17 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
             state.modify {
               case Unevaluated() =>
                 val go =
-                  poll(fa)
-                    .attempt
-                    .onCancel(state.set(Unevaluated()))
-                    .flatMap(ea => state.set(Finished(ea)).as(ea))
-                    .guarantee(latch.complete(()).void)
-                    .rethrow
+                  poll(fa).guaranteeCase { outcome =>
+                    val stateAction = outcome match {
+                      case Outcome.Canceled() =>
+                        state.set(Unevaluated())
+                      case Outcome.Errored(err) =>
+                        state.set(Finished(Left(err)))
+                      case Outcome.Succeeded(fa) =>
+                        state.set(Finished(Right(fa)))
+                    }
+                    stateAction <* latch.complete(())
+                  }
 
                 Evaluating(latch.get) -> go
 
@@ -71,7 +75,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
         state.get flatMap {
           case Unevaluated() => eval
           case Evaluating(await) => await *> get
-          case Finished(ea) => fromEither(ea)
+          case Finished(efa) => fromEither(efa).flatten
         }
 
       get
@@ -140,23 +144,56 @@ object GenConcurrent {
   private object Memoize {
     final case class Unevaluated[F[_], E, A]() extends Memoize[F, E, A]
     final case class Evaluating[F[_], E, A](await: F[Unit]) extends Memoize[F, E, A]
-    final case class Finished[F[_], E, A](result: Either[E, A]) extends Memoize[F, E, A]
+    final case class Finished[F[_], E, A](result: Either[E, F[A]]) extends Memoize[F, E, A]
   }
 
   implicit def genConcurrentForOptionT[F[_], E](
       implicit F0: GenConcurrent[F, E]): GenConcurrent[OptionT[F, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForOptionT[F](async)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForOptionT[F, E](temporal)
+      case concurrent =>
+        instantiateGenConcurrentForOptionT(concurrent)
+    }
+
+  private[kernel] def instantiateGenConcurrentForOptionT[F[_], E](
+      F0: GenConcurrent[F, E]): OptionTGenConcurrent[F, E] =
     new OptionTGenConcurrent[F, E] {
       override implicit protected def F: GenConcurrent[F, E] = F0
     }
 
   implicit def genConcurrentForEitherT[F[_], E0, E](
       implicit F0: GenConcurrent[F, E]): GenConcurrent[EitherT[F, E0, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForEitherT[F, E0](async)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForEitherT[F, E0, E](temporal)
+      case concurrent =>
+        instantiateGenConcurrentForEitherT(concurrent)
+    }
+
+  private[kernel] def instantiateGenConcurrentForEitherT[F[_], E0, E](
+      F0: GenConcurrent[F, E]): EitherTGenConcurrent[F, E0, E] =
     new EitherTGenConcurrent[F, E0, E] {
       override implicit protected def F: GenConcurrent[F, E] = F0
     }
 
   implicit def genConcurrentForKleisli[F[_], R, E](
       implicit F0: GenConcurrent[F, E]): GenConcurrent[Kleisli[F, R, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForKleisli[F, R](async)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForKleisli[F, R, E](temporal)
+      case concurrent =>
+        instantiateGenConcurrentForKleisli(concurrent)
+    }
+
+  private[kernel] def instantiateGenConcurrentForKleisli[F[_], R, E](
+      F0: GenConcurrent[F, E]): KleisliGenConcurrent[F, R, E] =
     new KleisliGenConcurrent[F, R, E] {
       override implicit protected def F: GenConcurrent[F, E] = F0
     }
@@ -164,18 +201,38 @@ object GenConcurrent {
   implicit def genConcurrentForIorT[F[_], L, E](
       implicit F0: GenConcurrent[F, E],
       L0: Semigroup[L]): GenConcurrent[IorT[F, L, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForIorT[F, L](async, L0)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForIorT[F, L, E](temporal)
+      case concurrent =>
+        instantiateGenConcurrentForIorT(concurrent)
+    }
+
+  private[kernel] def instantiateGenConcurrentForIorT[F[_], L, E](F0: GenConcurrent[F, E])(
+      implicit L0: Semigroup[L]): IorTGenConcurrent[F, L, E] =
     new IorTGenConcurrent[F, L, E] {
       override implicit protected def F: GenConcurrent[F, E] = F0
-
       override implicit protected def L: Semigroup[L] = L0
     }
 
   implicit def genConcurrentForWriterT[F[_], L, E](
       implicit F0: GenConcurrent[F, E],
       L0: Monoid[L]): GenConcurrent[WriterT[F, L, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForWriterT[F, L](async, L0)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForWriterT[F, L, E](temporal)
+      case concurrent =>
+        instantiateGenConcurrentForWriterT(concurrent)
+    }
+
+  private[kernel] def instantiateGenConcurrentForWriterT[F[_], L, E](F0: GenConcurrent[F, E])(
+      implicit L0: Monoid[L]): WriterTGenConcurrent[F, L, E] =
     new WriterTGenConcurrent[F, L, E] {
       override implicit protected def F: GenConcurrent[F, E] = F0
-
       override implicit protected def L: Monoid[L] = L0
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,8 @@
 
 package cats.effect.unsafe
 
-import scala.scalajs.js
-import scala.scalajs.js.annotation.JSGlobal
-import scala.annotation.nowarn
-
-@js.native
-@JSGlobal
-@nowarn("cat=unused")
-private[unsafe] class WeakMap[K, V] extends js.Object {
-  def delete(key: K): Boolean = js.native
-  def get(key: K): js.UndefOr[V] = js.native
-  def has(key: K): Boolean = js.native
-  def set(key: K, value: V): this.type = js.native
+package object ref {
+  private[unsafe] type Reference[A] = java.lang.ref.Reference[A]
+  private[unsafe] type ReferenceQueue[A] = java.lang.ref.ReferenceQueue[A]
+  private[unsafe] type WeakReference[A] = java.lang.ref.WeakReference[A]
 }

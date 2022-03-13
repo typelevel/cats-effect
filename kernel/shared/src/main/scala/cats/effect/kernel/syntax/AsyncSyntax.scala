@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package cats.effect.kernel.syntax
 
-import cats.effect.kernel.{Async, Fiber, Outcome, Resource}
+import cats.effect.kernel.{Async, Fiber, Outcome, Resource, Sync}
 
 import scala.concurrent.ExecutionContext
 
@@ -36,4 +36,7 @@ final class AsyncOps[F[_], A] private[syntax] (private[syntax] val wrapped: F[A]
   def backgroundOn(ec: ExecutionContext)(
       implicit F: Async[F]): Resource[F, F[Outcome[F, Throwable, A]]] =
     Async[F].backgroundOn(wrapped, ec)
+
+  def syncStep[G[_]: Sync](limit: Int)(implicit F: Async[F]): G[Either[F[A], A]] =
+    Async[F].syncStep[G, A](wrapped, limit)
 }

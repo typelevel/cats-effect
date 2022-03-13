@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 package cats.effect.benchmarks
 
 import cats.effect._
+import cats.effect.kernel.Ref
 import cats.effect.unsafe.implicits.global
 
 import org.openjdk.jmh.annotations._
 
 import java.util.concurrent.TimeUnit
-import cats.effect.kernel.Ref
 
 /**
  * To do comparative benchmarks between versions:

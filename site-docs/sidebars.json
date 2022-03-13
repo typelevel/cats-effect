@@ -8,6 +8,7 @@
     ],
     "Core Runtime": [
       "core/test-runtime",
+      "core/fiber-dumps",
       "tracing",
       "thread-model",
       "schedulers",
@@ -41,6 +42,9 @@
       "std/semaphore",
       "std/supervisor",
       "std/async-await"
+    ],
+    "Scaling and Tuning":[
+      "scaling-and-tuning/system-properties"
     ]
   }
 }
