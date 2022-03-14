@@ -207,7 +207,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
               def execute(r: Runnable) = ec.execute(r)
             }
 
-            IO.raiseError(TestException).start.evalOn(ec2) *> IO(ts)
+            IO.raiseError(TestException).start.evalOn(ec2) *> IO.sleep(10.millis) *> IO(ts)
           }
         }
 
@@ -227,7 +227,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             }
 
             for {
-              f <- IO.raiseError(TestException).start.evalOn(ec2)
+              f <- (IO.sleep(10.millis) *> IO.raiseError(TestException)).start.evalOn(ec2)
               _ <- f.join
               back <- IO(ts)
             } yield back
