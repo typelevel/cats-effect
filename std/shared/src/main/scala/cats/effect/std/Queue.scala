@@ -594,8 +594,20 @@ object Queue {
       if (taken ne null) {
         val next = taken.get()
         if (first.compareAndSet(taken, next)) { // WINNING
-          if (next eq null) {
-            last.compareAndSet(taken, null) // we don't care if we lose this one, since there could be a concurrent put
+          if ((next eq null) && !last.compareAndSet(taken, null)) {
+            // we emptied the first, but someone put at the same time
+            // in this case, they might have seen taken in the last slot
+            // at which point they would *not* fix up the first pointer
+            // instead of fixing first, they would have written into taken
+            // so we fix first for them. but we might be ahead, so we loop
+            // on taken.get() to wait for them to make it not-null
+
+            var next2 = taken.get()
+            while (next2 eq null) {
+              next2 = taken.get()
+            }
+
+            first.set(next2)
           }
 
           val ret = taken.data()
