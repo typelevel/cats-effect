@@ -69,6 +69,17 @@ sealed trait Outcome[F[_], E, A] extends Product with Serializable {
   def embedNever(implicit F: GenSpawn[F, E]): F[A] =
     embed(F.never)
 
+  /**
+   * Allows the restoration to a normal development flow from an Outcome.
+   *
+   * This can be useful for storing the state of a running computation and then waiters for that
+   * data can act and continue forward on that shared outcome. Cancelation is encoded as a
+   * `CancellationException`.
+   */
+  def embedError(implicit F: MonadCancel[F, E], ev: Throwable <:< E): F[A] =
+    embed(
+      F.raiseError(ev(new java.util.concurrent.CancellationException("Outcome was Canceled"))))
+
   def fold[B](canceled: => B, errored: E => B, completed: F[A] => B): B =
     this match {
       case Canceled() => canceled
@@ -176,19 +187,6 @@ object Outcome extends LowPriorityImplicits {
 
   def fromEither[F[_]: Applicative, E, A](either: Either[E, A]): Outcome[F, E, A] =
     either.fold(Errored(_), a => Succeeded(a.pure[F]))
-
-  /**
-   * embedError allows the restoration to a normal development flow from an Outcome.
-   *
-   * This can be useful for storing the state of a running computation and then waiters for that
-   * data can act and continue forward on that shared outcome. Cancelation is encoded as a
-   * `CancellationException`.
-   */
-  def embedError[F[_], A](outcome: Outcome[F, Throwable, A])(
-      implicit F: MonadCancel[F, Throwable]): F[A] =
-    outcome.embed(
-      F.raiseError(new java.util.concurrent.CancellationException("Outcome was Canceled"))
-    )
 
   implicit def order[F[_], E: Order, A](implicit FA: Order[F[A]]): Order[Outcome[F, E, A]] =
     Order.from {
