@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,11 @@ package cats
 package effect
 package std
 
+import cats.Applicative
 import cats.effect.kernel._
-import cats.syntax.all._
 import cats.effect.kernel.syntax.all._
+import cats.syntax.all._
+
 import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => Q}
 
@@ -106,6 +108,14 @@ abstract class Semaphore[F[_]] {
    * of the resource, then releases the permit.
    */
   def permit: Resource[F, Unit]
+
+  /**
+   * Returns a [[cats.effect.kernel.Resource]] that contains a boolean that indicates whether we
+   * acquired a permit or not. If the permit was acquired then it is guaranteed to be released
+   * at the end of the Resource lifetime
+   */
+  def tryPermit(implicit F: Applicative[F]): Resource[F, Boolean] =
+    Resource.make(tryAcquire) { acquired => release.whenA(acquired) }
 
   /**
    * Modify the context `F` using natural transformation `f`.
@@ -221,14 +231,17 @@ object Semaphore {
 
           if (n == 0) F.unit
           else
-            state.modify {
-              case State(permits, waiting) =>
-                if (waiting.isEmpty) State(permits + n, waiting) -> F.unit
-                else {
-                  val (newN, waitingNow, wakeup) = fulfil(n, waiting, Q())
-                  State(newN, waitingNow) -> wakeup.traverse_(_.complete)
-                }
-            }.flatten
+            state
+              .modify {
+                case State(permits, waiting) =>
+                  if (waiting.isEmpty) State(permits + n, waiting) -> F.unit
+                  else {
+                    val (newN, waitingNow, wakeup) = fulfil(n, waiting, Q())
+                    State(newN, waitingNow) -> wakeup.traverse_(_.complete)
+                  }
+              }
+              .flatten
+              .uncancelable
         }
 
         def available: F[Long] = state.get.map(_.permits)

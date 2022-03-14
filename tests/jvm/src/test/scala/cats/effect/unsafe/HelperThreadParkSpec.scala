@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,8 +34,7 @@ class HelperThreadParkSpec extends BaseSpec {
           val (scheduler, schedDown) =
             IORuntime.createDefaultScheduler(threadPrefix = s"io-scheduler-${getClass.getName}")
           val (compute, compDown) =
-            IORuntime.createDefaultComputeThreadPool(
-              rt,
+            IORuntime.createWorkStealingComputeThreadPool(
               threadPrefix = s"io-compute-${getClass.getName}",
               threads = 2)
 

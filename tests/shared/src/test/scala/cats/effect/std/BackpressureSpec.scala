@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import cats.syntax.all._
 
 import scala.concurrent.duration._
 
-class BackpressureTests extends BaseSpec {
+class BackpressureSpec extends BaseSpec {
 
   "Backpressure" should {
     "Lossy Strategy should return IO[None] when no permits are available" in ticked {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,15 @@
 
 package cats.effect.kernel
 
-import cats.Applicative
+import cats.{Applicative, Defer, Monad}
 import cats.data._
+import cats.kernel.{Monoid, Semigroup}
 
 import scala.concurrent.duration.FiniteDuration
 
-import cats.kernel.{Monoid, Semigroup}
-import cats.{Defer, Monad}
-
 /**
  * A typeclass which encodes various notions of time. Analogous to some of the time functions
- * exposed by [[java.lang.System]].
+ * exposed by `java.lang.System`.
  */
 trait Clock[F[_]] extends ClockPlatform[F] {
 
@@ -35,14 +33,14 @@ trait Clock[F[_]] extends ClockPlatform[F] {
   /**
    * Monotonic time subject to the law that (monotonic, monotonic).mapN(_ <= _)
    *
-   * Analogous to [[java.lang.System.nanoTime]]
+   * Analogous to `java.lang.System.nanoTime`.
    */
   def monotonic: F[FiniteDuration]
 
   /**
    * A representation of the current system time
    *
-   * Analogous to [[java.lang.System.currentTimeMillis]]
+   * Analogous to `java.lang.System.currentTimeMillis`.
    */
   def realTime: F[FiniteDuration]
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package cats.effect
 package unsafe
 
+import scala.concurrent.duration.Duration
 import scala.util.Try
 
 private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
@@ -38,6 +39,16 @@ private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntim
       Try(System.getProperty("cats.effect.tracing.buffer.size").toInt)
         .getOrElse(DefaultTraceBufferSize)
 
-    apply(cancelationCheckThreshold, autoYieldThreshold, enhancedExceptions, traceBufferSize)
+    val shutdownHookTimeout =
+      Try(System.getProperty("cats.effect.shutdown.hook.timeout"))
+        .map(Duration(_))
+        .getOrElse(DefaultShutdownHookTimeout)
+
+    apply(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize,
+      shutdownHookTimeout)
   }
 }

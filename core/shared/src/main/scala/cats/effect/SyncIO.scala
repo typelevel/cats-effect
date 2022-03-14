@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -484,7 +484,7 @@ object SyncIO extends SyncIOCompanionPlatform with SyncIOLowPriorityImplicits {
    *   [[SyncIO#attempt]]
    *
    * @param t
-   *   [[java.lang.Throwable]] value to fail with
+   *   `Throwable` value to fail with
    * @return
    *   a `SyncIO` that results in failure with value `t`
    */

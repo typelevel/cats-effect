@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package cats.effect.kernel.syntax
 import cats.effect.kernel.GenTemporal
 
 import scala.concurrent.duration.FiniteDuration
+
 import java.util.concurrent.TimeoutException
 
 trait GenTemporalSyntax {
@@ -56,4 +57,9 @@ final class GenTemporalOps[F[_], A, E] private[syntax] (private val wrapped: F[A
       implicit F: GenTemporal[F, E],
       timeoutToE: TimeoutException <:< E
   ): F[A] = F.timeout(wrapped, duration)
+
+  def timeoutAndForget(duration: FiniteDuration)(
+      implicit F: GenTemporal[F, E],
+      timeoutToE: TimeoutException <:< E
+  ): F[A] = F.timeoutAndForget(wrapped, duration)
 }

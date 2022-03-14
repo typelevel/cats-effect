@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,22 +16,24 @@
 
 package cats.effect.kernel
 
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
+import java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage}
 
 private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
 
+  def fromCompletionStage[A](completionStage: F[CompletionStage[A]]): F[A] =
+    fromCompletableFuture(flatMap(completionStage) { cs => delay(cs.toCompletableFuture()) })
+
   /**
-   * Suspend a [[java.util.concurrent.CompletableFuture]] into the `F[_]` context.
+   * Suspend a `java.util.concurrent.CompletableFuture` into the `F[_]` context.
    *
    * @param fut
-   *   The [[java.util.concurrent.CompletableFuture]] to suspend in `F[_]`
+   *   The `java.util.concurrent.CompletableFuture` to suspend in `F[_]`
    */
   def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] =
-    flatMap(fut) { cf =>
-      async[A] { cb =>
+    async[A] { cb =>
+      flatMap(fut) { cf =>
         delay {
-          val stage = cf.handle[Unit] {
+          cf.handle[Unit] {
             case (a, null) => cb(Right(a))
             case (_, t) =>
               cb(Left(t match {
@@ -40,7 +42,7 @@ private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
               }))
           }
 
-          Some(void(delay(stage.cancel(false))))
+          Some(void(delay(cf.cancel(false))))
         }
       }
     }

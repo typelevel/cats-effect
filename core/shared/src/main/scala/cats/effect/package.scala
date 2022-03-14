@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,4 +80,6 @@ package object effect {
   val Ref = cekernel.Ref
 
   private[effect] type IOLocalState = scala.collection.immutable.Map[IOLocal[_], Any]
+
+  private[effect] type ByteStack = Array[Int]
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,11 @@
 
 package cats.effect
 
+import cats.effect.std.Console
 import cats.effect.tracing.Tracing
 
 import java.time.Instant
-import java.util.concurrent.CompletableFuture
+import java.util.concurrent.{CompletableFuture, CompletionStage}
 
 private[effect] abstract class IOCompanionPlatform { this: IO.type =>
 
@@ -29,16 +30,28 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
 
   def blocking[A](thunk: => A): IO[A] = {
-    val fn = () => thunk
+    val fn = Thunk.asFunction0(thunk)
     Blocking(TypeBlocking, fn, Tracing.calculateTracingEvent(fn.getClass))
   }
 
-  def interruptible[A](many: Boolean)(thunk: => A): IO[A] = {
-    val fn = () => thunk
+  // this cannot be marked private[effect] because of static forwarders in Java
+  @deprecated("use interruptible / interruptibleMany instead", "3.3.0")
+  def interruptible[A](many: Boolean, thunk: => A): IO[A] = {
+    val fn = Thunk.asFunction0(thunk)
     Blocking(
       if (many) TypeInterruptibleMany else TypeInterruptibleOnce,
       fn,
       Tracing.calculateTracingEvent(fn.getClass))
+  }
+
+  def interruptible[A](thunk: => A): IO[A] = {
+    val fn = Thunk.asFunction0(thunk)
+    Blocking(TypeInterruptibleOnce, fn, Tracing.calculateTracingEvent(fn.getClass))
+  }
+
+  def interruptibleMany[A](thunk: => A): IO[A] = {
+    val fn = Thunk.asFunction0(thunk)
+    Blocking(TypeInterruptibleMany, fn, Tracing.calculateTracingEvent(fn.getClass))
   }
 
   def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
@@ -52,5 +65,26 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   def fromCompletableFuture[A](fut: IO[CompletableFuture[A]]): IO[A] =
     asyncForIO.fromCompletableFuture(fut)
 
+  def fromCompletionStage[A](completionStage: IO[CompletionStage[A]]): IO[A] =
+    asyncForIO.fromCompletionStage(completionStage)
+
   def realTimeInstant: IO[Instant] = asyncForIO.realTimeInstant
+
+  /**
+   * Reads a line as a string from the standard input using the platform's default charset, as
+   * per `java.nio.charset.Charset.defaultCharset()`.
+   *
+   * The effect can raise a `java.io.EOFException` if no input has been consumed before the EOF
+   * is observed. This should never happen with the standard input, unless it has been replaced
+   * with a finite `java.io.InputStream` through `java.lang.System#setIn` or similar.
+   *
+   * @see
+   *   `cats.effect.std.Console#readLineWithCharset` for reading using a custom
+   *   `java.nio.charset.Charset`
+   *
+   * @return
+   *   an IO effect that describes reading the user's input from the standard input as a string
+   */
+  def readLine: IO[String] =
+    Console[IO].readLine
 }

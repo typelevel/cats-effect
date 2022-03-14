@@ -11,46 +11,46 @@
 
 ## Getting Started
 
-- Wired: **3.2.8**
-- Tired: **2.5.3**
+- Wired: **3.3.7**
+- Tired: **2.5.4**
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.2.8"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.7"
 ```
 
-The above represents the core, stable dependency which brings in the entirety of Cats Effect. This is *most likely* what you want. All current Cats Effect releases are published for Scala 2.12, 2.13, 3.0.0-RC2 and RC3, and ScalaJS 1.5.x.
+The above represents the core, stable dependency which brings in the entirety of Cats Effect. This is *most likely* what you want. All current Cats Effect releases are published for Scala 2.12, 2.13, 3.0, and Scala.js 1.7.
 
-Or, if you prefer a less bare-bones starting point, you can try the Giter8 template:
+Or, if you prefer a less bare-bones starting point, you can try [the Giter8 template](https://github.com/typelevel/ce3.g8):
 
 ```bash
-$ sbt new typelevel/ce3.g8
+$ sbt -Dsbt.version=1.5.5 new typelevel/ce3.g8
 ```
 
-Depending on your use-case, you may want to consider one of the several other modules which are made available within the Cats Effect release. If you're a datatype implementer (like Monix), you probably only want to depend on **kernel** (the typeclasses) in your compile scope and **laws** in your test scope:
+Depending on your use-case, you may want to consider one of the several other modules which are made available within the Cats Effect release. If you're a datatype implementer (like [Monix](https://monix.io)), you probably only want to depend on **kernel** (the typeclasses) in your compile scope and **laws** in your test scope:
 
 ```scala
 libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-effect-kernel" % "3.2.8",
-  "org.typelevel" %% "cats-effect-laws"   % "3.2.8" % Test)
+  "org.typelevel" %% "cats-effect-kernel" % "3.3.7",
+  "org.typelevel" %% "cats-effect-laws"   % "3.3.7" % Test)
 ```
 
-If you're a middleware framework (like fs2), you probably want to depend on **std**, which gives you access to `Queue`, `Semaphore`, and much more without introducing a hard-dependency on `IO` outside of your tests:
+If you're a middleware framework (like [Fs2](https://fs2.io/)), you probably want to depend on **std**, which gives you access to `Queue`, `Semaphore`, and much more without introducing a hard-dependency on `IO` outside of your tests:
 
 ```scala
 libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-effect-std" % "3.2.8",
-  "org.typelevel" %% "cats-effect"     % "3.2.8" % Test)
+  "org.typelevel" %% "cats-effect-std" % "3.3.7",
+  "org.typelevel" %% "cats-effect"     % "3.3.7" % Test)
 ```
 
 You may also find some utility in the **testkit** and **kernel-testkit** projects, which contain `TestContext`, generators for `IO`, and a few other things:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect-testkit" % "3.2.8" % Test
+libraryDependencies += "org.typelevel" %% "cats-effect-testkit" % "3.3.7" % Test
 ```
 
-Cats Effect provides backward binary compatibility within the 2.x and 3.x version lines, and both forward and backward compatibility within any major/minor line. This is analogous to the versioning scheme used by Cats itself, as well as other major projects such as ScalaJS. Thus, any project depending upon Cats Effect 2.2.1 can be used with libraries compiled against Cats Effect 2.0.0 or 2.2.3, but *not* with libraries compiled against 2.3.0 or higher.
+Cats Effect provides backward binary compatibility within the 2.x and 3.x version lines, and both forward and backward compatibility within any major/minor line. This is analogous to the versioning scheme used by Cats itself, as well as other major projects such as Scala.js. Thus, any project depending upon Cats Effect 2.2.1 can be used with libraries compiled against Cats Effect 2.0.0 or 2.2.3, but *not* with libraries compiled against 2.3.0 or higher.
 
-### Moving from cats-effect 1.x / 2.x?
+### Updating from Cats Effect 1.x / 2.x
 
 Check out the [migration guide](https://typelevel.org/cats-effect/docs/migration-guide)!
 
@@ -82,10 +82,10 @@ object Main extends IOApp {
 
 Any program written using Cats Effect provides incredibly strong guarantees and powerful functionality, performance, safety, and composability, provided you follow each of the following rules:
 
-- **Wrap *all* side-effects** in `delay`, `async`, `blocking`, or `interruptible`
+- **Wrap *all* side-effects** in `delay`, `async`, `blocking`, or `interruptible`/`interruptibleMany`
   + (pro tip: try to keep the size of your `delay` blocks small; two `delay`s with a `flatMap` is much better than one big `delay`)
 - **Use `bracket` or `Resource`** for anything which must be `close`d
-- ***Never* hard-block a thread** outside of `blocking` or `interruptible`
+- ***Never* hard-block a thread** outside of `blocking` or `interruptible`/`interruptibleMany`
 - **Use `IOApp`** instead of writing your own `def main`
 - Never call anything that has **the word `unsafe` in the name**
 
@@ -128,11 +128,7 @@ And, just as with arithmetic, even when you don't directly leverage the nature o
 
 ## Contributing
 
-There's always lots to do! This is an incredibly exciting project used by countless teams and companies around the world. Ask in the [Discord development channel](https://discord.gg/QNnHKHq5Ts) (make sure to select the **dev** role in the **role-selection** channel) if you are unsure where to begin, or check out our [issue tracker](https://github.com/typelevel/cats-effect/issues) and try your hand at something that looks interesting! Please note that all of the Cats Effect maintainers are, unfortunately, extremely busy most of the time, so don't get discouraged if you don't get a response right away! We love you and we want you to join us, we just may have our hair on fire inside a melting production server at the exact moment you asked.
-
-Cats Effect is built with [sbt](https://github.com/sbt/sbt), and you should be able to jump right in by running `sbt test`. I will note, however, that `sbt +test` takes about two hours on my laptop, so you probably *shouldn't* start there...
-
-We use a typical pull request workflow, with automated builds run within GitHub Actions.
+Please see [**CONTRIBUTING.md**](CONTRIBUTING.md) for more details. Lots to do!
 
 ### Website
 
@@ -165,7 +161,7 @@ If everything goes well, your browser will open at the end of this.
 ## License
 
 ```
-Copyright 2017-2021 Typelevel
+Copyright 2017-2022 Typelevel
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -180,4 +176,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-[Code of Conduct]: https://github.com/typelevel/cats-effect/blob/series/2.x/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/typelevel/cats-effect/blob/series/3.x/CODE_OF_CONDUCT.md

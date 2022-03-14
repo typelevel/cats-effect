@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ sealed abstract class CI(
         "headerCheck",
         "scalafmtSbtCheck",
         "scalafmtCheck",
+        "javafmtCheck",
         "clean"
       ) ++ testCommands ++ List(
         jsEnv.fold("")(_ => s"set Global / useJSEnv := JSEnv.NodeJS"),
@@ -48,7 +49,7 @@ object CI {
         jsEnv = None,
         testCommands = List("test"),
         mimaReport = true,
-        suffixCommands = List("root/unidoc213", "exampleJVM/compile"))
+        suffixCommands = List("root/unidoc", "exampleJVM/compile"))
 
   case object JS
       extends CI(
@@ -57,10 +58,9 @@ object CI {
         jsEnv = Some(JSEnv.NodeJS),
         testCommands = List(
           "test",
-          "set Global / scalaJSStage := FullOptStage",
-          "testOnly *tracing*",
-          "set Global / scalaJSStage := FastOptStage"
-        ),
+          "set Global / testJSIOApp := true",
+          "testsJVM/testOnly *.IOAppSpec",
+          "set Global / testJSIOApp := false"),
         mimaReport = false,
         suffixCommands = List("exampleJS/compile"))
 
@@ -69,7 +69,7 @@ object CI {
         command = "ciFirefox",
         rootProject = "rootJS",
         jsEnv = Some(JSEnv.Firefox),
-        testCommands = List("testOnly *tracing*"),
+        testCommands = List("testOnly *tracing*", "testOnly *.ConsoleJSSpec"),
         mimaReport = false,
         suffixCommands = List())
 
@@ -78,7 +78,7 @@ object CI {
         command = "ciChrome",
         rootProject = "rootJS",
         jsEnv = Some(JSEnv.Chrome),
-        testCommands = List("testOnly *tracing*"),
+        testCommands = List("testOnly *tracing*", "testOnly *.ConsoleJSSpec"),
         mimaReport = false,
         suffixCommands = List())
 

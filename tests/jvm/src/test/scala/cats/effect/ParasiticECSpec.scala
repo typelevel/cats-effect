@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package cats.effect
 
 import cats.effect.testkit.TestInstances
 import cats.syntax.all._
+
 import org.scalacheck.Arbitrary
 
 import scala.concurrent.duration._
@@ -28,10 +29,12 @@ class ParasiticECSpec extends BaseSpec with TestInstances {
 
   "IO monad" should {
     "evaluate fibers correctly in presence of a parasitic execution context" in real {
-      implicit val ticker = Ticker()
+      val test = {
+        implicit val ticker = Ticker()
 
-      val test = IO(implicitly[Arbitrary[IO[Int]]].arbitrary.sample.get).flatMap { io =>
-        IO.delay(io.eqv(io))
+        IO(implicitly[Arbitrary[IO[Int]]].arbitrary.sample.get).flatMap { io =>
+          IO.delay(io.eqv(io))
+        }
       }
 
       val iterations = 15000

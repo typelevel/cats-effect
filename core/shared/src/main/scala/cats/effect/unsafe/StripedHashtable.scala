@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@ private[effect] final class StripedHashtable {
 
   private[this] def initialCapacity: Int = 8
 
-  val tables: Array[ThreadSafeHashtable] = {
-    val array = new Array[ThreadSafeHashtable](numTables)
+  val tables: Array[ThreadSafeHashtable[Throwable => Unit]] = {
+    val array = new Array[ThreadSafeHashtable[Throwable => Unit]](numTables)
     var i = 0
     while (i < numTables) {
       array(i) = new ThreadSafeHashtable(initialCapacity)

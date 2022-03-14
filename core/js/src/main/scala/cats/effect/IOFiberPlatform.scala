@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,11 @@
 
 package cats.effect
 
-import scala.concurrent.ExecutionContext
-
 import java.util.concurrent.atomic.AtomicBoolean
 
 private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
   this: IOFiber[A] =>
 
   // in theory this code should never be hit due to the override in IOCompanionPlatform
-  def interruptibleImpl(cur: IO.Blocking[Any], blockingEc: ExecutionContext): IO[Any] = {
-    val _ = blockingEc
-    IO(cur.thunk())
-  }
+  def interruptibleImpl(cur: IO.Blocking[Any]): IO[Any] = IO(cur.thunk())
 }

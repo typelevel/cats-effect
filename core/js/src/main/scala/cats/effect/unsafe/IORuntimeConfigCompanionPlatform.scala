@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,42 @@
 package cats.effect
 package unsafe
 
+import scala.concurrent.duration.Duration
+import scala.util.Try
+
 private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
-  protected final val Default: IORuntimeConfig =
-    apply(512, 1024)
+  // TODO make the cancelation and auto-yield properties have saner names
+  protected final val Default: IORuntimeConfig = {
+    val cancelationCheckThreshold = process
+      .env("CATS_EFFECT_CANCELATION_CHECK_THRESHOLD")
+      .flatMap(x => Try(x.toInt).toOption)
+      .getOrElse(512)
+
+    val autoYieldThreshold = process
+      .env("CATS_EFFECT_AUTO_YIELD_THRESHOLD_MULTIPLIER")
+      .flatMap(x => Try(x.toInt).toOption)
+      .getOrElse(2) * cancelationCheckThreshold
+
+    val enhancedExceptions = process
+      .env("CATS_EFFECT_TRACING_EXCEPTIONS_ENHANCED")
+      .flatMap(x => Try(x.toBoolean).toOption)
+      .getOrElse(DefaultEnhancedExceptions)
+
+    val traceBufferSize = process
+      .env("CATS_EFFECT_TRACING_BUFFER_SIZE")
+      .flatMap(x => Try(x.toInt).toOption)
+      .getOrElse(DefaultTraceBufferSize)
+
+    val shutdownHookTimeout = process
+      .env("CATS_EFFECT_SHUTDOWN_HOOK_TIMEOUT")
+      .flatMap(x => Try(Duration(x)).toOption)
+      .getOrElse(DefaultShutdownHookTimeout)
+
+    apply(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize,
+      shutdownHookTimeout)
+  }
 }

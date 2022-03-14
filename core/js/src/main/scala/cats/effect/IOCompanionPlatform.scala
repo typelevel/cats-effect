@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 package cats.effect
 
-import scalajs.js
+import cats.effect.std.Console
 
+import scala.scalajs.js
 import scala.scalajs.js.{Promise, Thenable}
 
 private[effect] abstract class IOCompanionPlatform { this: IO.type =>
@@ -25,10 +26,14 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   def blocking[A](thunk: => A): IO[A] =
     apply(thunk)
 
-  def interruptible[A](many: Boolean)(thunk: => A): IO[A] = {
+  private[effect] def interruptible[A](many: Boolean, thunk: => A): IO[A] = {
     val _ = many
     apply(thunk)
   }
+
+  def interruptible[A](thunk: => A): IO[A] = interruptible(false, thunk)
+
+  def interruptibleMany[A](thunk: => A): IO[A] = interruptible(true, thunk)
 
   def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] = {
     val _ = hint
@@ -42,4 +47,8 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
     asyncForIO.fromPromise(iop)
 
   def realTimeDate: IO[js.Date] = asyncForIO.realTimeDate
+
+  @deprecated("Not implemented for Scala.js. On Node.js consider using fs2.io.stdin.", "3.4.0")
+  def readLine: IO[String] =
+    Console[IO].readLine
 }

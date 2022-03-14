@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,11 @@
 package cats.effect
 package laws
 
-import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}
 import cats.effect.kernel.testkit.TimeT._
+import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.arbitrary._
+
 import org.scalacheck.Prop
 import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -44,6 +46,25 @@ class PureConcSpec extends Specification with Discipline with BaseSpec {
     "short-circuit on error" in {
       pure.run((F.never[Unit], F.raiseError[Unit](42)).parTupled) mustEqual Outcome.Errored(42)
       pure.run((F.raiseError[Unit](42), F.never[Unit]).parTupled) mustEqual Outcome.Errored(42)
+    }
+
+    "not run forever on chained product" in {
+      import cats.effect.kernel.Par.ParallelF
+
+      val fa: F[String] = F.pure("a")
+      val fb: F[String] = F.pure("b")
+      val fc: F[Unit] = F.raiseError[Unit](42)
+      pure.run(
+        ParallelF.value(
+          ParallelF(fa).product(ParallelF(fb)).product(ParallelF(fc)))) mustEqual Outcome
+        .Errored(42)
+    }
+
+    "ignore unmasking in finalizers" in {
+      val fa = F.uncancelable { poll => F.onCancel(poll(F.unit), poll(F.unit)) }
+
+      pure.run(fa.start.flatMap(_.cancel))
+      ok
     }
   }
 

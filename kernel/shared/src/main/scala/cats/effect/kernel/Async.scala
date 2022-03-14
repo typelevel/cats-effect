@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,15 @@
 
 package cats.effect.kernel
 
-import cats.implicits._
-import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{~>, Monoid, Semigroup}
-
 import cats.arrow.FunctionK
-import java.util.concurrent.atomic.AtomicReference
-import scala.annotation.tailrec
+import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
+import cats.implicits._
+
+import scala.annotation.{nowarn, tailrec}
 import scala.concurrent.{ExecutionContext, Future}
+
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A typeclass that encodes the notion of suspending asynchronous side effects in the `F[_]`
@@ -148,6 +149,23 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
       }
     }
 
+  /**
+   * Translates this `F[A]` into a `G` value which, when evaluated, runs the original `F` to its
+   * completion, the `limit` number of stages, or until the first stage that cannot be expressed
+   * with [[Sync]] (typically an asynchronous boundary).
+   *
+   * Note that `syncStep` is merely a hint to the runtime system; implementations have the
+   * liberty to interpret this method to their liking as long as it obeys the respective laws.
+   * For example, a lawful implementation of this function is `G.pure(Left(fa))`, in which case
+   * the original `F[A]` value is returned unchanged.
+   *
+   * @param limit
+   *   The maximum number of stages to evaluate prior to forcibly yielding to `F`
+   */
+  @nowarn("cat=unused")
+  def syncStep[G[_], A](fa: F[A], limit: Int)(implicit G: Sync[G]): G[Either[F[A], A]] =
+    G.pure(Left(fa))
+
   /*
    * NOTE: This is a very low level api, end users should use `async` instead.
    * See cats.effect.kernel.Cont for more detail.
@@ -270,6 +288,14 @@ object Async {
     override def unique: OptionT[F, Unique.Token] =
       delay(new Unique.Token())
 
+    override def syncStep[G[_], A](fa: OptionT[F, A], limit: Int)(
+        implicit G: Sync[G]): G[Either[OptionT[F, A], A]] =
+      G.map(F.syncStep[G, Option[A]](fa.value, limit)) {
+        case Left(foption) => Left(OptionT(foption))
+        case Right(None) => Left(OptionT.none)
+        case Right(Some(a)) => Right(a)
+      }
+
     def cont[K, R](body: Cont[OptionT[F, *], K, R]): OptionT[F, R] =
       OptionT(
         F.cont(
@@ -332,6 +358,14 @@ object Async {
 
     override def unique: EitherT[F, E, Unique.Token] =
       delay(new Unique.Token())
+
+    override def syncStep[G[_], A](fa: EitherT[F, E, A], limit: Int)(
+        implicit G: Sync[G]): G[Either[EitherT[F, E, A], A]] =
+      G.map(F.syncStep[G, Either[E, A]](fa.value, limit)) {
+        case Left(feither) => Left(EitherT(feither))
+        case Right(Left(e)) => Left(EitherT.leftT(e))
+        case Right(Right(a)) => Right(a)
+      }
 
     def cont[K, R](body: Cont[EitherT[F, E, *], K, R]): EitherT[F, E, R] =
       EitherT(
@@ -397,6 +431,14 @@ object Async {
     override def unique: IorT[F, L, Unique.Token] =
       delay(new Unique.Token())
 
+    override def syncStep[G[_], A](fa: IorT[F, L, A], limit: Int)(
+        implicit G: Sync[G]): G[Either[IorT[F, L, A], A]] =
+      G.map(F.syncStep[G, Ior[L, A]](fa.value, limit)) {
+        case Left(fior) => Left(IorT(fior))
+        case Right(Ior.Right(a)) => Right(a)
+        case Right(ior) => Left(IorT.fromIor(ior))
+      }
+
     def cont[K, R](body: Cont[IorT[F, L, *], K, R]): IorT[F, L, R] =
       IorT(
         F.cont(
@@ -459,6 +501,10 @@ object Async {
 
     override def unique: WriterT[F, L, Unique.Token] =
       delay(new Unique.Token())
+
+    override def syncStep[G[_], A](fa: WriterT[F, L, A], limit: Int)(
+        implicit G: Sync[G]): G[Either[WriterT[F, L, A], A]] =
+      G.pure(Left(fa))
 
     def cont[K, R](body: Cont[WriterT[F, L, *], K, R]): WriterT[F, L, R] =
       WriterT(
@@ -523,6 +569,10 @@ object Async {
 
     override def unique: Kleisli[F, R, Unique.Token] =
       delay(new Unique.Token())
+
+    override def syncStep[G[_], A](fa: Kleisli[F, R, A], limit: Int)(
+        implicit G: Sync[G]): G[Either[Kleisli[F, R, A], A]] =
+      G.pure(Left(fa))
 
     def cont[K, R2](body: Cont[Kleisli[F, R, *], K, R2]): Kleisli[F, R, R2] =
       Kleisli(r =>

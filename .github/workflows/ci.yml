@@ -15,58 +15,81 @@ on:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  JABBA_INDEX: 'https://github.com/vasilmkd/jdk-index/raw/main/index.json'
 
 jobs:
   build:
     name: Build and Test
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        scala: [3.0.2, 2.12.15, 2.13.6]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        scala: [3.0.2, 2.12.15, 2.13.8]
         java:
-          - adoptium@8
-          - adoptium@11
-          - adoptium@17
-          - graalvm-ce-java8@21.2
+          - temurin@8
+          - temurin@11
+          - temurin@17
+          - graal_21.3.0@11
         ci: [ciJVM, ciJS, ciFirefox, ciChrome]
         exclude:
-          - ci: ciJS
-            java: adoptium@11
-          - ci: ciJS
-            java: adoptium@17
-          - ci: ciJS
-            java: graalvm-ce-java8@21.2
+          - scala: 3.0.2
+            java: temurin@11
+          - scala: 3.0.2
+            java: temurin@17
+          - scala: 3.0.2
+            java: graal_21.3.0@11
+          - scala: 2.12.15
+            java: temurin@11
+          - scala: 2.12.15
+            java: temurin@17
+          - scala: 2.12.15
+            java: graal_21.3.0@11
           - os: windows-latest
+            scala: 3.0.2
+          - os: macos-latest
             scala: 3.0.2
           - os: windows-latest
             scala: 2.12.15
+          - os: macos-latest
+            scala: 2.12.15
+          - ci: ciFirefox
+            scala: 3.0.2
+          - ci: ciChrome
+            scala: 3.0.2
+          - ci: ciFirefox
+            scala: 2.12.15
+          - ci: ciChrome
+            scala: 2.12.15
+          - ci: ciJS
+            java: temurin@11
+          - ci: ciJS
+            java: temurin@17
+          - ci: ciJS
+            java: graal_21.3.0@11
           - os: windows-latest
             ci: ciJS
+          - os: macos-latest
+            ci: ciJS
           - ci: ciFirefox
-            java: adoptium@11
+            java: temurin@11
           - ci: ciFirefox
-            java: adoptium@17
+            java: temurin@17
           - ci: ciFirefox
-            java: graalvm-ce-java8@21.2
-          - os: windows-latest
-            scala: 3.0.2
-          - os: windows-latest
-            scala: 2.12.15
+            java: graal_21.3.0@11
           - os: windows-latest
             ci: ciFirefox
+          - os: macos-latest
+            ci: ciFirefox
           - ci: ciChrome
-            java: adoptium@11
+            java: temurin@11
           - ci: ciChrome
-            java: adoptium@17
+            java: temurin@17
           - ci: ciChrome
-            java: graalvm-ce-java8@21.2
-          - os: windows-latest
-            scala: 3.0.2
-          - os: windows-latest
-            scala: 2.12.15
+            java: graal_21.3.0@11
           - os: windows-latest
             ci: ciChrome
+          - os: macos-latest
+            ci: ciChrome
+          - os: windows-latest
+            java: graal_21.3.0@11
     runs-on: ${{ matrix.os }}
     steps:
       - name: Ignore line ending differences in git
@@ -79,10 +102,33 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Java and Scala
-        uses: olafurpg/setup-scala@v13
+      - name: Setup Java (temurin@8)
+        if: matrix.java == 'temurin@8'
+        uses: actions/setup-java@v2
         with:
-          java-version: ${{ matrix.java }}
+          distribution: temurin
+          java-version: 8
+
+      - name: Setup Java (temurin@11)
+        if: matrix.java == 'temurin@11'
+        uses: actions/setup-java@v2
+        with:
+          distribution: temurin
+          java-version: 11
+
+      - name: Setup Java (temurin@17)
+        if: matrix.java == 'temurin@17'
+        uses: actions/setup-java@v2
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup GraalVM (graal_21.3.0@11)
+        if: matrix.java == 'graal_21.3.0@11'
+        uses: DeLaGuardo/setup-graalvm@5.0
+        with:
+          graalvm: 21.3.0
+          java: java11
 
       - name: Cache sbt
         uses: actions/cache@v2
@@ -97,13 +143,13 @@ jobs:
           key: ${{ runner.os }}-sbt-cache-v2-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Setup NodeJS v14 LTS
-        if: matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'
+        if: matrix.ci == 'ciJS'
         uses: actions/setup-node@v2.4.0
         with:
           node-version: 14
 
       - name: Install jsdom and source-map-support
-        if: matrix.ci == 'ciJS' || matrix.ci == 'ciJSDOMNodeJS'
+        if: matrix.ci == 'ciJS'
         shell: bash
         run: npm install
 
@@ -111,10 +157,15 @@ jobs:
         shell: bash
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
+      - name: Check that scalafix has been run
+        if: matrix.scala != '3.0.2'
+        shell: bash
+        run: sbt ++${{ matrix.scala }} 'root/scalafixAll --check'
+
       - shell: bash
         run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.6' || matrix.scala == '3.0.2') && matrix.ci == 'ciJVM'
+      - if: (matrix.scala == '2.13.8' || matrix.scala == '3.0.2') && matrix.ci == 'ciJVM'
         shell: bash
         run: sbt ++${{ matrix.scala }} docs/mdoc
 
@@ -129,7 +180,7 @@ jobs:
         run: example/test-js.sh ${{ matrix.scala }}
 
       - name: Scalafix tests
-        if: matrix.scala == '2.13.6' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13.8' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           cd scalafix

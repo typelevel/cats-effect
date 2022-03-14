@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,25 @@
 package cats.effect.kernel
 package testkit
 
+import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.util.Random
+import scala.util.{Random, Try}
 import scala.util.control.NonFatal
 
+import java.util.{Base64, Comparator}
+import java.util.concurrent.ConcurrentSkipListSet
+import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
+
 /**
- * A `scala.concurrent.ExecutionContext` implementation and a provider of `cats.effect.Timer`
- * instances, that can simulate async boundaries and time passage, useful for testing purposes.
+ * A [[scala.concurrent.ExecutionContext]] implementation that can simulate async boundaries and
+ * time passage, useful for law testing purposes. This is intended primarily for datatype
+ * implementors. Most end-users will be better served by the `cats.effect.testkit.TestControl`
+ * utility, rather than using `TestContext` directly.
  *
  * Usage for simulating an `ExecutionContext`):
+ *
  * {{{
  *   implicit val ec = TestContext()
  *
@@ -50,102 +58,71 @@ import scala.util.control.NonFatal
  *   assert(ec.state.tasks.isEmpty)
  *   assert(ec.state.lastReportedFailure == None)
  * }}}
- *
- * Our `TestContext` can also simulate time passage, as we are able to builds a
- * `cats.effect.Timer` instance for any data type that has a `LiftIO` instance:
- *
- * {{{
- *   val ctx = TestContext()
- *
- *   val timer: Timer[IO] = ctx.timer[IO]
- * }}}
- *
- * We can now simulate actual time:
- *
- * {{{
- *   val io = timer.sleep(10.seconds) *> IO(1 + 1)
- *   val f = io.unsafeToFuture()
- *
- *   // This invariant holds true, because our IO is async
- *   assert(f.value == None)
- *
- *   // Not yet completed, because this does not simulate time passing:
- *   ctx.tick()
- *   assert(f.value == None)
- *
- *   // Simulating time passing:
- *   ctx.tick(10.seconds)
- *   assert(f.value == Some(Success(2))
- * }}}
- *
- * Simulating time makes this pretty useful for testing race conditions:
- *
- * {{{
- *   val never = IO.async[Int](_ => {})
- *   val timeoutError = new TimeoutException
- *   val timeout = timer.sleep(10.seconds) *> IO.raiseError[Int](timeoutError)
- *
- *   val pair = (never, timeout).parMapN(_ + _)
- *
- *   // Not yet
- *   ctx.tick()
- *   assert(f.value == None)
- *   // Not yet
- *   ctx.tick(5.seconds)
- *   assert(f.value == None)
- *
- *   // Good to go:
- *   ctx.tick(5.seconds)
- *   assert(f.value, Some(Failure(timeoutError)))
- * }}}
- *
- * @define timerExample
- *   {{{ val ctx = TestContext() // Building a Timer[IO] from this: implicit val timer:
- *   Timer[IO] = ctx.timer[IO]
- *
- * // Can now simulate time val io = timer.sleep(10.seconds) *> IO(1 + 1) val f =
- * io.unsafeToFuture()
- *
- * // This invariant holds true, because our IO is async assert(f.value == None)
- *
- * // Not yet completed, because this does not simulate time passing: ctx.tick() assert(f.value
- * == None)
- *
- * // Simulating time passing: ctx.tick(10.seconds) assert(f.value == Some(Success(2)) }}}
  */
-final class TestContext private () extends ExecutionContext { self =>
-  import TestContext.{State, Task}
+final class TestContext private (_seed: Long) extends ExecutionContext { self =>
+  import TestContext.{ConcurrentState, Encoder, State, Task}
 
-  private[this] var stateRef = State(
-    lastID = 0,
-    // our epoch is negative! this is just to give us an extra 263 years of space for Prop shrinking to play
-    clock = (Long.MinValue + 1).nanos,
-    tasks = SortedSet.empty[Task],
-    lastReportedFailure = None
-  )
+  private[this] val random = new Random(_seed)
 
-  /**
-   * Inherited from `ExecutionContext`, schedules a runnable for execution.
-   */
-  def execute(r: Runnable): Unit =
-    synchronized {
-      stateRef = stateRef.execute(r)
-    }
+  private[this] val stateRef = new ConcurrentState()
 
-  /**
-   * Inherited from `ExecutionContext`, reports uncaught errors.
-   */
-  def reportFailure(cause: Throwable): Unit =
-    synchronized {
-      stateRef = stateRef.copy(lastReportedFailure = Some(cause))
-    }
+  def execute(runnable: Runnable): Unit = {
+    val current = stateRef
+    val newID = current.currentID.incrementAndGet()
+    val clock = current.currentNanos.get().nanos
+    val rnd = random.nextLong()
+    val task = Task(newID, runnable, clock, rnd)
+    current.tasks.add(task)
+    ()
+  }
+
+  def reportFailure(cause: Throwable): Unit = {
+    stateRef.lastReportedFailure.set(cause)
+  }
 
   /**
    * Returns the internal state of the `TestContext`, useful for testing that certain execution
    * conditions have been met.
    */
-  def state: State =
-    synchronized(stateRef)
+  def state: State = {
+    val current = stateRef
+
+    val builder = SortedSet.newBuilder[Task]
+    val iterator = current.tasks.iterator()
+    while (iterator.hasNext()) {
+      builder += iterator.next()
+    }
+
+    State(
+      lastID = current.currentID.get(),
+      clock = current.currentNanos.get().nanos,
+      tasks = builder.result(),
+      lastReportedFailure = Option(current.lastReportedFailure.get())
+    )
+  }
+
+  /**
+   * Returns the current interval between "now" and the earliest scheduled task. If there are
+   * tasks which will run immediately, this will return `Duration.Zero`. Passing this value to
+   * [[tick]] will guarantee minimum time-oriented progress on the task queue (e.g.
+   * `tick(nextInterval())`).
+   */
+  def nextInterval(): FiniteDuration = {
+    val current = stateRef
+    val diff = current.tasks.first().runsAt - current.currentNanos.get().nanos
+    diff.max(Duration.Zero)
+  }
+
+  def advance(time: FiniteDuration): Unit = {
+    require(time > Duration.Zero)
+    stateRef.currentNanos.addAndGet(time.toNanos)
+    ()
+  }
+
+  def advanceAndTick(time: FiniteDuration): Unit = {
+    advance(time)
+    tick()
+  }
 
   /**
    * Executes just one tick, one task, from the internal queue, useful for testing that a some
@@ -168,85 +145,81 @@ final class TestContext private () extends ExecutionContext { self =>
    *   `true` if a task was available in the internal queue, and was executed, or `false`
    *   otherwise
    */
-  def tickOne(): Boolean =
-    synchronized {
-      val current = stateRef
+  @tailrec
+  def tickOne(): Boolean = {
+    val current = stateRef
 
-      // extracting one task by taking the immediate tasks
-      extractOneTask(current, current.clock) match {
-        case Some((head, rest)) =>
-          stateRef = current.copy(tasks = rest)
-          // execute task
-          try head.task.run()
-          catch { case NonFatal(ex) => reportFailure(ex) }
-          true
-        case None =>
+    Try(current.tasks.first()).toOption match {
+      case Some(head) =>
+        if (head.runsAt <= current.currentNanos.get().nanos) {
+          if (current.tasks.remove(head)) {
+            // execute task
+            try head.task.run()
+            catch { case NonFatal(ex) => reportFailure(ex) }
+            true
+          } else {
+            tickOne()
+          }
+        } else {
           false
-      }
+        }
+
+      case None => false
     }
+  }
+
+  @tailrec
+  def tick(): Unit =
+    if (tickOne()) {
+      tick()
+    }
+
+  private[testkit] def tick(time: FiniteDuration): Unit = {
+    tick()
+    advanceAndTick(time)
+  }
+
+  private[testkit] def tick$default$1(): FiniteDuration = Duration.Zero
 
   /**
-   * Triggers execution by going through the queue of scheduled tasks and executing them all,
-   * until no tasks remain in the queue to execute.
+   * Repeatedly runs `tick(nextInterval())` until all work has completed. This is useful for
+   * emulating the quantized passage of time. For any discrete tick, the scheduler will randomly
+   * pick from all eligible tasks until the only remaining work is delayed. At that point, the
+   * scheduler will then advance the minimum delay (to the next time interval) and the process
+   * repeats.
    *
-   * Order of execution isn't guaranteed, the queued `Runnable`s are being shuffled in order to
-   * simulate the needed nondeterminism that happens with multi-threading.
-   *
-   * {{{
-   *   implicit val ec = TestContext()
-   *
-   *   val f = Future(1 + 1).flatMap(_ + 1)
-   *   // Execution is momentarily suspended in TestContext
-   *   assert(f.value == None)
-   *
-   *   // Simulating async execution:
-   *   ec.tick()
-   *   assert(f.value, Some(Success(2)))
-   * }}}
-   *
-   * @param time
-   *   is an optional parameter for simulating time passing;
+   * This is intuitively equivalent to "running to completion".
    */
-  def tick(time: FiniteDuration = Duration.Zero): Unit = {
-    val targetTime = this.stateRef.clock + time
-    var hasTasks = true
-
-    while (hasTasks) synchronized {
-      val current = this.stateRef
-
-      extractOneTask(current, targetTime) match {
-        case Some((head, rest)) =>
-          stateRef = current.copy(clock = head.runsAt, tasks = rest)
-          // execute task
-          try head.task.run()
-          catch {
-            case ex if NonFatal(ex) =>
-              reportFailure(ex)
-          }
-
-        case None =>
-          stateRef = current.copy(clock = targetTime)
-          hasTasks = false
-      }
+  @tailrec
+  def tickAll(): Unit = {
+    tick()
+    if (!stateRef.tasks.isEmpty) {
+      advance(nextInterval())
+      tickAll()
     }
   }
 
-  def tickAll(time: FiniteDuration = Duration.Zero): Unit = {
-    tick(time)
-
-    // some of our tasks may have enqueued more tasks
-    if (!this.stateRef.tasks.isEmpty) {
-      tickAll(time)
-    }
+  private[testkit] def tickAll(time: FiniteDuration): Unit = {
+    val _ = time
+    tickAll()
   }
 
-  def schedule(delay: FiniteDuration, r: Runnable): () => Unit =
-    synchronized {
-      val current: State = stateRef
-      val (cancelable, newState) = current.scheduleOnce(delay, r, cancelTask)
-      stateRef = newState
-      cancelable
-    }
+  private[testkit] def tickAll$default$1(): FiniteDuration = Duration.Zero
+
+  def schedule(delay: FiniteDuration, runnable: Runnable): () => Unit = {
+    val current = stateRef
+
+    val d = if (delay >= Duration.Zero) delay else Duration.Zero
+    val newID = current.currentID.incrementAndGet()
+    val clock = current.currentNanos.get().nanos
+    val rnd = random.nextLong()
+
+    val task = Task(newID, runnable, clock + d, rnd)
+    val cancelable = () => cancelTask(task)
+    current.tasks.add(task)
+
+    cancelable
+  }
 
   def derive(): ExecutionContext =
     new ExecutionContext {
@@ -254,39 +227,61 @@ final class TestContext private () extends ExecutionContext { self =>
       def reportFailure(cause: Throwable): Unit = self.reportFailure(cause)
     }
 
-  def now(): FiniteDuration = stateRef.clock
+  /**
+   * Derives a new `ExecutionContext` which delegates to `this`, but wrapping all tasks in
+   * [[scala.concurrent.blocking]].
+   */
+  def deriveBlocking(): ExecutionContext =
+    new ExecutionContext {
+      import scala.concurrent.blocking
 
-  private def extractOneTask(
-      current: State,
-      clock: FiniteDuration): Option[(Task, SortedSet[Task])] =
-    current.tasks.headOption.filter(_.runsAt <= clock) match {
-      case Some(value) =>
-        val firstTick = value.runsAt
-        val forExecution = {
-          val arr = current.tasks.iterator.takeWhile(_.runsAt == firstTick).take(10).toArray
-          arr(Random.nextInt(arr.length))
-        }
-
-        val remaining = current.tasks - forExecution
-        Some((forExecution, remaining))
-
-      case None =>
-        None
+      def execute(runnable: Runnable): Unit = blocking(self.execute(runnable))
+      def reportFailure(cause: Throwable): Unit = self.reportFailure(cause)
     }
 
-  private def cancelTask(t: Task): Unit =
-    synchronized {
-      stateRef = stateRef.copy(tasks = stateRef.tasks - t)
-    }
+  def now(): FiniteDuration = stateRef.currentNanos.get().nanos
+
+  def seed: String =
+    new String(Encoder.encode(_seed.toString.getBytes))
+
+  private def cancelTask(t: Task): Unit = {
+    stateRef.tasks.remove(t)
+    ()
+  }
 }
 
 object TestContext {
 
+  private val Decoder = Base64.getDecoder()
+  private val Encoder = Base64.getEncoder()
+
   /**
-   * Builder for [[TestContext]] instances.
+   * Builder for [[TestContext]] instances. Utilizes a random seed, which may be obtained from
+   * the [[TestContext#seed]] method.
    */
   def apply(): TestContext =
-    new TestContext
+    new TestContext(Random.nextLong())
+
+  /**
+   * Constructs a new [[TestContext]] using the given seed, which must be encoded as base64.
+   * Assuming this seed was produced by another `TestContext`, running the same program against
+   * the new context will result in the exact same task interleaving as happened in the previous
+   * context, provided that the same tasks are interleaved. Note that subtle differences between
+   * different runs of identical programs are possible, particularly if one program auto-`cede`s
+   * in a different place than the other one. This is an excellent and reliable mechanism for
+   * small, tightly-controlled programs with entirely deterministic side-effects, and a
+   * completely useless mechanism for anything where the scheduler ticks see different task
+   * lists despite identical configuration.
+   */
+  def apply(seed: String): TestContext =
+    new TestContext(new String(Decoder.decode(seed)).toLong)
+
+  final class ConcurrentState(
+      val currentID: AtomicLong = new AtomicLong(),
+      val currentNanos: AtomicLong = new AtomicLong(),
+      val tasks: ConcurrentSkipListSet[Task] = new ConcurrentSkipListSet(Task.comparator),
+      val lastReportedFailure: AtomicReference[Throwable] = new AtomicReference()
+  )
 
   /**
    * Used internally by [[TestContext]], represents the internal state used for task scheduling
@@ -296,47 +291,12 @@ object TestContext {
       lastID: Long,
       clock: FiniteDuration,
       tasks: SortedSet[Task],
-      lastReportedFailure: Option[Throwable]) {
-    assert(
-      !tasks.headOption.exists(_.runsAt < clock),
-      "The runsAt for any task must never be in the past")
-
-    /**
-     * Returns a new state with the runnable scheduled for execution.
-     */
-    private[TestContext] def execute(runnable: Runnable): State = {
-      val newID = lastID + 1
-      val task = Task(newID, runnable, clock)
-      copy(lastID = newID, tasks = tasks + task)
-    }
-
-    /**
-     * Returns a new state with a scheduled task included.
-     */
-    private[TestContext] def scheduleOnce(
-        delay: FiniteDuration,
-        r: Runnable,
-        cancelTask: Task => Unit): (() => Unit, State) = {
-
-      val d = if (delay >= Duration.Zero) delay else Duration.Zero
-      val newID = lastID + 1
-
-      val task = Task(newID, r, this.clock + d)
-      val cancelable = () => cancelTask(task)
-
-      (
-        cancelable,
-        copy(
-          lastID = newID,
-          tasks = tasks + task
-        ))
-    }
-  }
+      lastReportedFailure: Option[Throwable])
 
   /**
    * Used internally by [[TestContext]], represents a unit of work pending execution.
    */
-  final case class Task(id: Long, task: Runnable, runsAt: FiniteDuration)
+  final case class Task(id: Long, task: Runnable, runsAt: FiniteDuration, private val rnd: Long)
 
   /**
    * Internal API — defines ordering for [[Task]], to be used by `SortedSet`.
@@ -348,11 +308,11 @@ object TestContext {
 
         def compare(x: Task, y: Task): Int =
           x.runsAt.compare(y.runsAt) match {
-            case nonZero if nonZero != 0 =>
-              nonZero
-            case _ =>
-              longOrd.compare(x.id, y.id)
+            case 0 => longOrd.compare(x.id + x.rnd, y.id + y.rnd)
+            case nonZero => nonZero
           }
       }
+
+    val comparator: Comparator[Task] = ordering.compare
   }
 }

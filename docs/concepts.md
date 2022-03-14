@@ -111,7 +111,7 @@ It is quite common in most imperative language contexts (including Scala) to con
 
 ### Asynchronous
 
-In particular, "asynchronous" is the opposite of "synchronous", and it pertains to a manner in which a given effect produces a value. Synchronous effects are defined using `apply` (also `delay` or `blocking` or `interruptible`) and produce their results using `return`, or alternatively raise errors using `throw`. These are the familiar "sequential" type of effects:
+In particular, "asynchronous" is the opposite of "synchronous", and it pertains to a manner in which a given effect produces a value. Synchronous effects are defined using `apply` (also `delay`, `blocking`, `interruptible` or `interruptibleMany`) and produce their results using `return`, or alternatively raise errors using `throw`. These are the familiar "sequential" type of effects:
 
 ```scala mdoc:silent
 IO(Thread.sleep(500))   // => IO[Unit]
@@ -250,7 +250,8 @@ In Cats Effect, code containing side-effects should always be wrapped in one of 
 - **Synchronous** (`return`s or `throw`s)
   + `IO(...)` or `IO.delay(...)`
   + `IO.blocking(...)`
-  + `IO.interruptible(true/false)(...)`
+  + `IO.interruptible(...)`
+  + `IO.interruptibleMany(...)`
 - **Asynchronous** (invokes a callback)
   + `IO.async` or `IO.async_`
 

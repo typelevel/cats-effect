@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,25 @@
 
 package cats.effect.unsafe
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import scala.scalajs.js.timers
 
 private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
+  private[this] val maxTimeout = Int.MaxValue.millis
+
   def createDefaultScheduler(): (Scheduler, () => Unit) =
     (
       new Scheduler {
-        def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-          val handle = timers.setTimeout(delay)(task.run())
-          () => timers.clearTimeout(handle)
-        }
+
+        def sleep(delay: FiniteDuration, task: Runnable): Runnable =
+          if (delay <= maxTimeout) {
+            val handle = timers.setTimeout(delay)(task.run())
+            () => timers.clearTimeout(handle)
+          } else {
+            var cancel: Runnable = () => ()
+            cancel = sleep(maxTimeout, () => cancel = sleep(delay - maxTimeout, task))
+            () => cancel.run()
+          }
 
         def nowMillis() = System.currentTimeMillis()
         def monotonicNanos() = System.nanoTime()

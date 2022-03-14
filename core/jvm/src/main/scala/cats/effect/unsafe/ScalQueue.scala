@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -166,6 +166,15 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
       i += 1
     }
   }
+
+  /**
+   * Returns a snapshot of the elements currently enqueued on this local queue.
+   *
+   * @return
+   *   a set of the currently enqueued elements
+   */
+  def snapshot(): Set[AnyRef] =
+    queues.flatMap(_.toArray).toSet
 
   /**
    * Checks if this Scal queue is empty.
