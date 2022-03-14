@@ -843,20 +843,20 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
         case IO.Map(ioe, f, _) =>
           interpret(ioe).map {
-            case Left(_) => Left(io)
+            case Left(io) => Left(io.map(f))
             case Right(a) => Right(f(a))
           }
 
         case IO.FlatMap(ioe, f, _) =>
           interpret(ioe).flatMap {
-            case Left(_) => SyncIO.pure(Left(io))
+            case Left(io) => SyncIO.pure(Left(io.flatMap(f)))
             case Right(a) => interpret(f(a))
           }
 
         case IO.Attempt(ioe) =>
           interpret(ioe)
             .map {
-              case Left(_) => Left(io)
+              case Left(io) => Left(io.attempt)
               case Right(a) => Right(a.asRight[Throwable])
             }
             .handleError(t => Right(t.asLeft[IO[B]]))
@@ -864,7 +864,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case IO.HandleErrorWith(ioe, f, _) =>
           interpret(ioe)
             .map {
-              case Left(_) => Left(io)
+              case Left(io) => Left(io.handleErrorWith(f))
               case Right(a) => Right(a)
             }
             .handleErrorWith(t => interpret(f(t)))
@@ -919,7 +919,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Newtype encoding for an `IO` datatype that has a `cats.Applicative` capable of doing
    * parallel processing in `ap` and `map2`, needed for implementing `cats.Parallel`.
    *
-   * For converting back and forth you can use either the `Parallel[IO]` instance or 
+   * For converting back and forth you can use either the `Parallel[IO]` instance or
    * the methods `cats.effect.kernel.Par.ParallelF.apply` for wrapping any `IO` value and
    * `cats.effect.kernel.Par.ParallelF.value` for unwrapping it.
    *
