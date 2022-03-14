@@ -454,7 +454,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$Data"),
       // introduced by #2844, Thread local fallback weak bag
       // changes to `cats.effect.unsafe` package private code
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.SynchronizedWeakBag")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.SynchronizedWeakBag"),
+      // introduced by #2868
+      // added signaling from CallbackStack to indicate successful invocation
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.CallbackStack.apply")
     ) ++ {
       if (isDotty.value) {
         // Scala 3 specific exclusions
