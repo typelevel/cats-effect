@@ -33,7 +33,7 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
    * blocking operation to a separate threadpool to avoid blocking on the main execution
    * context. See the thread-model documentation for more information on why this is necessary.
    * Note that the created effect will be uncancelable; if you need cancelation then you should
-   * use [[interruptible]] or [[interruptibleMany]].
+   * use [[interruptible[A](thunk:=>A):*]] or [[interruptibleMany]].
    *
    * {{{
    * IO.blocking(scala.io.Source.fromFile("path").mkString)
@@ -43,7 +43,7 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
    *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
    *   context
    *
-   * Implements [[Sync#blocking]].
+   * Implements [[cats.effect.kernel.Sync.blocking]].
    */
   def blocking[A](thunk: => A): IO[A] = {
     val fn = Thunk.asFunction0(thunk)
@@ -76,7 +76,7 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
    *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
    *   context
    *
-   * Implements [[Sync#interruptible]]
+   * Implements [[cats.effect.kernel.Sync.interruptible[A](thunk:=>A):*]]
    */
   def interruptible[A](thunk: => A): IO[A] = {
     val fn = Thunk.asFunction0(thunk)
@@ -100,7 +100,7 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
    *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
    *   context
    *
-   * Implements [[Sync#interruptibleMany]]
+   * Implements [[cats.effect.kernel.Sync!.interruptibleMany]]
    */
   def interruptibleMany[A](thunk: => A): IO[A] = {
     val fn = Thunk.asFunction0(thunk)
