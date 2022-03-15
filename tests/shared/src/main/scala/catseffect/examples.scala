@@ -21,30 +21,18 @@ import cats.syntax.all._
 
 package examples {
 
-  object HelloWorld extends IOApp.Simple {
-    def run: IO[Unit] =
-      IO(println("Hello, World!"))
-  }
+  object HelloWorld extends IOApp.Run(IO.println("Hello, World!"))
 
   object Arguments extends IOApp {
     def run(args: List[String]): IO[ExitCode] =
       args.traverse_(s => IO(println(s))).as(ExitCode.Success)
   }
 
-  object NonFatalError extends IOApp {
-    def run(args: List[String]): IO[ExitCode] =
-      IO(throw new RuntimeException("Boom!")).as(ExitCode.Success)
-  }
+  object NonFatalError extends IOApp.Run(IO(throw new RuntimeException("Boom!")))
 
-  object FatalError extends IOApp {
-    def run(args: List[String]): IO[ExitCode] =
-      IO(throw new OutOfMemoryError("Boom!")).as(ExitCode.Success)
-  }
+  object FatalError extends IOApp.Run(IO(throw new OutOfMemoryError("Boom!")))
 
-  object Canceled extends IOApp {
-    def run(args: List[String]): IO[ExitCode] =
-      IO.canceled.as(ExitCode.Success)
-  }
+  object Canceled extends IOApp.Run(IO.canceled)
 
   object GlobalRacingInit extends IOApp {
 
@@ -86,12 +74,10 @@ package examples {
     } yield ()
   }
 
-  object WorkerThreadInterrupt extends IOApp.Simple {
-    val run =
-      IO(Thread.currentThread().interrupt()) *> IO(Thread.sleep(1000L))
-  }
+  object WorkerThreadInterrupt
+      extends IOApp.Run(
+        IO(Thread.currentThread().interrupt()) *> IO(Thread.sleep(1000L))
+      )
 
-  object LeakedFiber extends IOApp.Simple {
-    val run = IO.cede.foreverM.start.void
-  }
+  object LeakedFiber extends IOApp.Run(IO.cede.foreverM.start.void)
 }

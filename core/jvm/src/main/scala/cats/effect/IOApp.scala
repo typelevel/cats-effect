@@ -440,4 +440,10 @@ object IOApp {
     def run: IO[Unit]
     final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
   }
+
+  /**
+   * A further simplified version of IOApp.Simple, allowing the IO program to be passed as a
+   * constructor argument.
+   */
+  class Run(override val run: IO[Unit]) extends IOApp.Simple
 }
