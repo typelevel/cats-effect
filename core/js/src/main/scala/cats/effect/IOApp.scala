@@ -288,5 +288,5 @@ object IOApp {
    * A further simplified version of IOApp.Simple, allowing the IO program to be passed as a
    * constructor argument.
    */
-  class Run(val run: IO[Unit]) extends IOApp.Simple
+  class Run(override val run: IO[Unit]) extends IOApp.Simple
 }
