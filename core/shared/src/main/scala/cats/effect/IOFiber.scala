@@ -76,6 +76,7 @@ private final class IOFiber[A](
   /* true when semantically blocking (ensures that we only unblock *once*) */
   suspended: AtomicBoolean =>
 
+  import IOFiber._
   import IO._
   import IOFiberConstants._
   import TracingConstants._
@@ -1464,7 +1465,39 @@ private final class IOFiber[A](
     }
   }
 
-  private[this] def onFatalFailure(t: Throwable): Null = {
+  // overrides the AtomicReference#toString
+  override def toString: String = {
+    val state = if (suspended.get()) "SUSPENDED" else if (isDone) "COMPLETED" else "RUNNING"
+    val tracingEvents = this.tracingEvents
+
+    // There are race conditions here since a running fiber is writing to `tracingEvents`,
+    // but we don't worry about those since we are just looking for a single `TraceEvent`
+    // which references user-land code
+    val opAndCallSite =
+      Tracing.getFrames(tracingEvents).headOption.map(frame => s": $frame").getOrElse("")
+
+    s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
+  }
+
+  private[effect] def isDone: Boolean =
+    resumeTag == DoneR
+
+  private[effect] def prettyPrintTrace(): String =
+    if (isStackTracing) {
+      suspended.get()
+      Tracing.prettyPrint(tracingEvents)
+    } else {
+      ""
+    }
+}
+
+private object IOFiber {
+  /* prefetch */
+  private[IOFiber] val TypeBlocking = Sync.Type.Blocking
+  private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
+  private[effect] val RightUnit = Right(())
+
+  def onFatalFailure(t: Throwable): Null = {
     Thread.interrupted()
 
     IORuntime.allRuntimes.synchronized {
@@ -1510,36 +1543,4 @@ private final class IOFiber[A](
     Thread.currentThread().interrupt()
     null
   }
-
-  // overrides the AtomicReference#toString
-  override def toString: String = {
-    val state = if (suspended.get()) "SUSPENDED" else if (isDone) "COMPLETED" else "RUNNING"
-    val tracingEvents = this.tracingEvents
-
-    // There are race conditions here since a running fiber is writing to `tracingEvents`,
-    // but we don't worry about those since we are just looking for a single `TraceEvent`
-    // which references user-land code
-    val opAndCallSite =
-      Tracing.getFrames(tracingEvents).headOption.map(frame => s": $frame").getOrElse("")
-
-    s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
-  }
-
-  private[effect] def isDone: Boolean =
-    resumeTag == DoneR
-
-  private[effect] def prettyPrintTrace(): String =
-    if (isStackTracing) {
-      suspended.get()
-      Tracing.prettyPrint(tracingEvents)
-    } else {
-      ""
-    }
-}
-
-private object IOFiber {
-  /* prefetch */
-  private[IOFiber] val TypeBlocking = Sync.Type.Blocking
-  private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
-  private[effect] val RightUnit = Right(())
 }
