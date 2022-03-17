@@ -821,8 +821,17 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Note that errors still get logged (via IO's internal logger), because errors being thrown
    * should never be totally silent.
    */
-  def unsafeRunAndForget()(implicit runtime: unsafe.IORuntime): Unit =
-    unsafeRunAsync(_ => ())
+  def unsafeRunAndForget()(implicit runtime: unsafe.IORuntime): Unit = {
+    val _ = unsafeRunFiber((), _ => (), _ => ())
+    ()
+  }
+
+  // internally used for error reporting
+  private[effect] def unsafeRunAndForgetWithoutCallback()(
+      implicit runtime: unsafe.IORuntime): Unit = {
+    val _ = unsafeRunFiber((), _ => (), _ => (), false)
+    ()
+  }
 
   /**
    * Evaluates the effect and produces the result in a `Future`.
@@ -876,7 +885,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   private[effect] def unsafeRunFiber(
       canceled: => Unit,
       failure: Throwable => Unit,
-      success: A => Unit)(implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
+      success: A => Unit,
+      registerCallback: Boolean = true)(
+      implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber[A](
       Map.empty,
@@ -900,7 +911,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       runtime
     )
 
-    runtime.fiberErrorCbs.put(failure)
+    if (registerCallback) {
+      runtime.fiberErrorCbs.put(failure)
+    }
+
     runtime.compute.execute(fiber)
     fiber
   }

@@ -221,7 +221,7 @@ trait IOApp {
         val (compute, compDown) =
           IORuntime.createWorkStealingComputeThreadPool(
             threads = computeWorkerThreadCount,
-            reportFailure = t => reportFailure(t).unsafeRunAndForget()(runtime))
+            reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime))
 
         val (blocking, blockDown) =
           IORuntime.createDefaultBlockingExecutionContext()
