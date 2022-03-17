@@ -466,7 +466,25 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
         "cats.effect.IOApp.cats$effect$IOApp$$queue"),
       // introduced by #2844, Thread local fallback weak bag
       // changes to `cats.effect.unsafe` package private code
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.SynchronizedWeakBag")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.SynchronizedWeakBag"),
+      // introduced by #2873, The WSTP can run Futures just as fast as ExecutionContext.global
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[IncompatibleResultTypeProblem](
+        "cats.effect.unsafe.LocalQueue.bufferForwarder"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem](
+        "cats.effect.unsafe.LocalQueue.dequeue"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.unsafe.LocalQueue.enqueue"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.unsafe.LocalQueue.enqueueBatch"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem](
+        "cats.effect.unsafe.LocalQueue.stealInto"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.unsafe.WorkerThread.monitor"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.unsafe.WorkerThread.reschedule"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.unsafe.WorkerThread.schedule")
     ) ++ {
       if (isDotty.value) {
         // Scala 3 specific exclusions
@@ -496,7 +514,19 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
           // introduced by #2853, Configurable caching of blocking threads, properly
           // changes to `cats.effect.unsafe` package private code
           ProblemFilters.exclude[IncompatibleMethTypeProblem](
-            "cats.effect.unsafe.WorkStealingThreadPool.this")
+            "cats.effect.unsafe.WorkStealingThreadPool.this"),
+          // introduced by #2873, The WSTP can run Futures just as fast as ExecutionContext.global
+          // changes to `cats.effect.unsafe` package private code
+          ProblemFilters.exclude[IncompatibleResultTypeProblem](
+            "cats.effect.unsafe.WorkerThread.active"),
+          ProblemFilters.exclude[IncompatibleMethTypeProblem](
+            "cats.effect.unsafe.WorkerThread.active_="),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.rescheduleFiber"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.scheduleFiber"),
+          ProblemFilters.exclude[IncompatibleResultTypeProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.stealFromOtherWorkerThread")
         )
       } else Seq()
     }
