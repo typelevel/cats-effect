@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 
-package cats.effect.kernel
+package cats.effect
 
-import java.time.Instant
+import cats.kernel.laws.SerializableLaws.serializable
 
-private[effect] trait ClockPlatform[F[_]] extends Serializable { self: Clock[F] =>
-  def realTimeInstant: F[Instant] = {
-    self.applicative.map(self.realTime)(d => Instant.ofEpochMilli(d.toMillis))
-  }
+import org.scalacheck.Prop.forAll
+import org.typelevel.discipline.specs2.mutable.Discipline
+
+// collapse this back into SyncIOSpec once we're on a release with lampepfl/dotty#14686
+trait SyncIOScalaVersionSpecification extends BaseSpec with Discipline {
+  def scalaVersionSpecs =
+    "serialize" in {
+      forAll { (io: SyncIO[Int]) => serializable(io) }
+    }
 }

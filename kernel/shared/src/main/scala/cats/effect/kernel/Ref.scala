@@ -464,7 +464,7 @@ object Ref {
     }
 }
 
-trait RefSource[F[_], A] {
+trait RefSource[F[_], A] extends Serializable {
 
   /**
    * Obtains the current value.
@@ -486,7 +486,7 @@ object RefSource {
     }
 }
 
-trait RefSink[F[_], A] {
+trait RefSink[F[_], A] extends Serializable {
 
   /**
    * Sets the current value to `a`.

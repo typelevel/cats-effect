@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect.kernel
+package cats.effect
 
-import java.time.Instant
+import org.specs2.mutable.SpecificationLike
+import org.specs2.specification.core.Fragments
 
-private[effect] trait ClockPlatform[F[_]] extends Serializable { self: Clock[F] =>
-  def realTimeInstant: F[Instant] = {
-    self.applicative.map(self.realTime)(d => Instant.ofEpochMilli(d.toMillis))
-  }
+// collapse this back into SyncIOSpec once we're on a release with lampepfl/dotty#14686
+trait SyncIOScalaVersionSpecification extends SpecificationLike {
+  def scalaVersionSpecs = Fragments.empty
 }

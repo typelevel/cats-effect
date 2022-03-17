@@ -25,7 +25,11 @@ import cats.syntax.all._
 import org.scalacheck.Prop.forAll
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class SyncIOSpec extends BaseSpec with Discipline with SyncIOPlatformSpecification {
+class SyncIOSpec
+    extends BaseSpec
+    with Discipline
+    with SyncIOPlatformSpecification
+    with SyncIOScalaVersionSpecification {
 
   "sync io monad" should {
     "produce a pure value when run" in {
@@ -220,6 +224,8 @@ class SyncIOSpec extends BaseSpec with Discipline with SyncIOPlatformSpecificati
         res <- IO.delay(res1 mustEqual res2)
       } yield res
     }
+
+    scalaVersionSpecs
   }
 
   {
