@@ -17,7 +17,6 @@
 package cats.effect
 
 import cats.effect.laws.SyncTests
-import cats.kernel.laws.SerializableLaws.serializable
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.AlignTests
 import cats.laws.discipline.arbitrary._
@@ -26,7 +25,11 @@ import cats.syntax.all._
 import org.scalacheck.Prop.forAll
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class SyncIOSpec extends BaseSpec with Discipline with SyncIOPlatformSpecification {
+class SyncIOSpec
+    extends BaseSpec
+    with Discipline
+    with SyncIOPlatformSpecification
+    with SyncIOScalaVersionSpecification {
 
   "sync io monad" should {
     "produce a pure value when run" in {
@@ -222,9 +225,7 @@ class SyncIOSpec extends BaseSpec with Discipline with SyncIOPlatformSpecificati
       } yield res
     }
 
-    "serialize" in {
-      forAll { (io: SyncIO[Int]) => serializable(io) }
-    }
+    scalaVersionSpecs
   }
 
   {
