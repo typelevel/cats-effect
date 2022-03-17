@@ -368,38 +368,9 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Schedules a fiber on this thread pool.
+   * Rechedules a [[java.lang.Runnable]] on this thread pool.
    *
-   * If the request comes from a [[WorkerThread]], the fiber is enqueued on the local queue of
-   * that thread.
-   *
-   * If the request comes from a [[HelperTread]] or an external thread, the fiber is enqueued on
-   * the external queue. Furthermore, if the request comes from an external thread, worker
-   * threads are notified of new work.
-   *
-   * @param fiber
-   *   the fiber to be executed on the thread pool
-   */
-  private[effect] def rescheduleFiber(fiber: Runnable): Unit = {
-    val pool = this
-    val thread = Thread.currentThread()
-
-    if (thread.isInstanceOf[WorkerThread]) {
-      val worker = thread.asInstanceOf[WorkerThread]
-      if (worker.isOwnedBy(pool)) {
-        worker.reschedule(fiber)
-      } else {
-        scheduleExternal(fiber)
-      }
-    } else {
-      scheduleExternal(fiber)
-    }
-  }
-
-  /**
-   * Reschedules a fiber on this thread pool.
-   *
-   * If the request comes from a [[WorkerThread]], depending on the current load, the fiber can
+   * If the request comes from a [[WorkerThread]], depending on the current load, the task can
    * be scheduled for immediate execution on the worker thread, potentially bypassing the local
    * queue and reducing the stealing pressure.
    *
@@ -407,22 +378,22 @@ private[effect] final class WorkStealingThreadPool(
    * the external queue. Furthermore, if the request comes from an external thread, worker
    * threads are notified of new work.
    *
-   * @param fiber
-   *   the fiber to be executed on the thread pool
+   * @param runnable
+   *   the runnable to be executed on the thread pool
    */
-  private[effect] def scheduleFiber(fiber: Runnable): Unit = {
+  private[effect] def reschedule(runnable: Runnable): Unit = {
     val pool = this
     val thread = Thread.currentThread()
 
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
       if (worker.isOwnedBy(pool)) {
-        worker.schedule(fiber)
+        worker.reschedule(runnable)
       } else {
-        scheduleExternal(fiber)
+        scheduleExternal(runnable)
       }
     } else {
-      scheduleExternal(fiber)
+      scheduleExternal(runnable)
     }
   }
 
@@ -490,14 +461,12 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * Executes a [[java.lang.Runnable]] on the [[WorkStealingThreadPool]].
    *
-   * If the submitted `runnable` is a general purpose computation, it is suspended in
-   * [[cats.effect.IO]] and executed as a fiber on this pool.
+   * If the request comes from a [[WorkerThread]], the task is enqueued on the local queue of
+   * that thread.
    *
-   * On the other hand, if the submitted `runnable` is an instance of [[java.lang.Runnable]], it
-   * is directly executed on this pool without any wrapping or indirection. This functionality
-   * is used as a fast path in the [[java.lang.Runnable]] runloop for quick scheduling of fibers
-   * which are resumed on the thread pool as part of the asynchronous node of
-   * [[cats.effect.IO]].
+   * If the request comes from a [[HelperTread]] or an external thread, the task is enqueued on
+   * the external queue. Furthermore, if the request comes from an external thread, worker
+   * threads are notified of new work.
    *
    * This method fulfills the `ExecutionContext` interface.
    *
@@ -505,7 +474,19 @@ private[effect] final class WorkStealingThreadPool(
    *   the runnable to be executed
    */
   override def execute(runnable: Runnable): Unit = {
-    scheduleFiber(runnable)
+    val pool = this
+    val thread = Thread.currentThread()
+
+    if (thread.isInstanceOf[WorkerThread]) {
+      val worker = thread.asInstanceOf[WorkerThread]
+      if (worker.isOwnedBy(pool)) {
+        worker.schedule(runnable)
+      } else {
+        scheduleExternal(runnable)
+      }
+    } else {
+      scheduleExternal(runnable)
+    }
   }
 
   /**
