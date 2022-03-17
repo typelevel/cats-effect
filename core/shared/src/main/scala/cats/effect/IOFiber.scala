@@ -64,53 +64,32 @@ import java.util.concurrent.atomic.AtomicBoolean
  * by the Executor read/write barriers, but their writes are
  * merely a fast-path and are not necessary for correctness.
  */
-private final class IOFiber[A] private (
-    private[this] var localState: IOLocalState,
-    private[this] val objectState: ArrayStack[AnyRef],
-    private[this] var currentCtx: ExecutionContext,
-    private[this] val finalizers: ArrayStack[IO[Unit]],
-    private[this] val callbacks: CallbackStack[A],
-    private[this] var resumeTag: Byte,
-    private[this] var resumeIO: AnyRef,
-    private[this] val tracingEvents: RingBuffer,
-    private[this] val runtime: IORuntime
+private final class IOFiber[A](
+    initState: IOLocalState,
+    cb: OutcomeIO[A] => Unit,
+    startIO: IO[A],
+    startEC: ExecutionContext,
+    rt: IORuntime
 ) extends IOFiberPlatform[A]
     with FiberIO[A]
     with Runnable {
   /* true when semantically blocking (ensures that we only unblock *once*) */
   suspended: AtomicBoolean =>
 
-  def this(
-      localState: IOLocalState,
-      cb: OutcomeIO[A] => Unit,
-      startIO: IO[A],
-      startEC: ExecutionContext,
-      runtime: IORuntime) = this(
-    localState,
-    new ArrayStack(),
-    startEC,
-    new ArrayStack(),
-    new CallbackStack(cb),
-    IOFiberConstants.ExecR,
-    startIO,
-    if (TracingConstants.isStackTracing) RingBuffer.empty(runtime.traceBufferLogSize) else null,
-    runtime
-  )
-
-  def this(runnable: Runnable, startEC: ExecutionContext) = this(
-    null,
-    null,
-    startEC,
-    null,
-    null,
-    IOFiberConstants.ExecuteRunnableR,
-    runnable,
-    null,
-    null)
-
   import IO._
   import IOFiberConstants._
   import TracingConstants._
+
+  private[this] var localState: IOLocalState = initState
+  private[this] var currentCtx: ExecutionContext = startEC
+  private[this] val objectState: ArrayStack[AnyRef] = new ArrayStack()
+  private[this] val finalizers: ArrayStack[IO[Unit]] = new ArrayStack()
+  private[this] val callbacks: CallbackStack[A] = new CallbackStack(cb)
+  private[this] var resumeTag: Byte = ExecR
+  private[this] var resumeIO: AnyRef = startIO
+  private[this] val runtime: IORuntime = rt
+  private[this] val tracingEvents: RingBuffer =
+    if (TracingConstants.isStackTracing) RingBuffer.empty(runtime.traceBufferLogSize) else null
 
   /*
    * Ideally these would be on the stack, but they can't because we sometimes need to
@@ -1275,7 +1254,7 @@ private final class IOFiber[A] private (
   private[this] def rescheduleFiber(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
       val wstp = ec.asInstanceOf[WorkStealingThreadPool]
-      wstp.rescheduleFiber(fiber)
+      wstp.reschedule(fiber)
     } else {
       scheduleOnForeignEC(ec, fiber)
     }
@@ -1284,7 +1263,7 @@ private final class IOFiber[A] private (
   private[this] def scheduleFiber(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
       val wstp = ec.asInstanceOf[WorkStealingThreadPool]
-      wstp.scheduleFiber(fiber)
+      wstp.execute(fiber)
     } else {
       scheduleOnForeignEC(ec, fiber)
     }
