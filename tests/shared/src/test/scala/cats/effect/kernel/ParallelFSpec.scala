@@ -38,8 +38,8 @@ class ParallelFSpec extends BaseSpec with Discipline {
     }
   }
 
-  implicit def alleyEqUnit[A: Eq] = alleyEq[Unit, A]
-  implicit def alleyEqThrowable[A: Eq] = alleyEq[Throwable, A]
+  implicit def alleyEqUnit[A: Eq]: Eq[PureConc[Unit, A]] = alleyEq[Unit, A]
+  implicit def alleyEqThrowable[A: Eq]: Eq[PureConc[Throwable, A]] = alleyEq[Throwable, A]
 
   checkAll(
     "ParallelF[PureConc]",
