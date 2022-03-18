@@ -61,7 +61,10 @@ class QueueBenchmark {
 
   @Benchmark
   def concurrentEnqueueDequeueContended(): Unit =
-    Queue.boundedForConcurrent[IO, Unit](size / 8).flatMap(enqueueDequeueContended(_)).unsafeRunSync()
+    Queue
+      .boundedForConcurrent[IO, Unit](size / 8)
+      .flatMap(enqueueDequeueContended(_))
+      .unsafeRunSync()
 
   @Benchmark
   def asyncEnqueueDequeueOne(): Unit =
@@ -77,7 +80,10 @@ class QueueBenchmark {
 
   @Benchmark
   def asyncEnqueueDequeueContended(): Unit =
-    Queue.boundedForAsync[IO, Unit](size / 8).flatMap(enqueueDequeueContended(_)).unsafeRunSync()
+    Queue
+      .boundedForAsync[IO, Unit](size / 8)
+      .flatMap(enqueueDequeueContended(_))
+      .unsafeRunSync()
 
   private[this] def enqueueDequeueOne(q: Queue[IO, Unit]): IO[Unit] = {
     def loop(i: Int): IO[Unit] =

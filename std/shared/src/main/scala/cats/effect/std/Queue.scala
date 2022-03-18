@@ -25,7 +25,6 @@ import cats.syntax.all._
 import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => ScalaQueue}
 
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, AtomicLongArray, AtomicReference}
 
 /**
@@ -509,25 +508,28 @@ object Queue {
     private[this] def notifyOne(
         waiters: UnsafeUnbounded[Either[Throwable, Unit] => Unit]): Unit = {
       // capture whether or not we should loop (structured in this way to avoid nested try/catch, which has a performance cost)
-      val retry = try {
-        val f = waiters.take()    // try to take the first waiter; if there are none, raise an exception
+      val retry =
+        try {
+          val f =
+            waiters
+              .take() // try to take the first waiter; if there are none, raise an exception
 
-        // we didn't get an exception, but the waiter may have been removed due to cancelation
-        if (f == null) {
-          // it was removed! loop and retry
-          true
-        } else {
-          // it wasn't removed, so invoke it
-          // taker may have already been invoked due to the double-check pattern, in which case this will be idempotent
-          f(EitherUnit)
+          // we didn't get an exception, but the waiter may have been removed due to cancelation
+          if (f == null) {
+            // it was removed! loop and retry
+            true
+          } else {
+            // it wasn't removed, so invoke it
+            // taker may have already been invoked due to the double-check pattern, in which case this will be idempotent
+            f(EitherUnit)
 
-          // don't retry
-          false
+            // don't retry
+            false
+          }
+        } catch {
+          // there are no takers, so don't notify anything
+          case FailureSignal => false
         }
-      } catch {
-        // there are no takers, so don't notify anything
-        case FailureSignal => false
-      }
 
       if (retry) {
         // loop outside of try/catch
