@@ -22,6 +22,7 @@ import cats.effect.tracing.TracingConstants
 import scala.annotation.switch
 import scala.concurrent.{BlockContext, CanAwait}
 import scala.concurrent.duration.Duration
+import scala.util.control.NonFatal
 
 import java.util.concurrent.{ArrayBlockingQueue, ThreadLocalRandom}
 import java.util.concurrent.atomic.AtomicBoolean
@@ -379,7 +380,12 @@ private final class WorkerThread(
             // Many fibers have been exchanged between the external and the
             // local queue. Notify other worker threads.
             pool.notifyParked(rnd)
-            fiber.run()
+
+            try fiber.run()
+            catch {
+              case NonFatal(t) => pool.reportFailure(t)
+              case t: Throwable => IOFiber.onFatalFailure(t)
+            }
           } else if (element.isInstanceOf[Runnable]) {
             val fiber = element.asInstanceOf[Runnable]
 
@@ -389,7 +395,11 @@ private final class WorkerThread(
             }
 
             // The dequeued element is a single fiber. Execute it immediately.
-            fiber.run()
+            try fiber.run()
+            catch {
+              case NonFatal(t) => pool.reportFailure(t)
+              case t: Throwable => IOFiber.onFatalFailure(t)
+            }
           }
 
           // Transition to executing fibers from the local queue.
@@ -410,7 +420,11 @@ private final class WorkerThread(
             // Many fibers have been exchanged between the external and the
             // local queue. Notify other worker threads.
             pool.notifyParked(rnd)
-            fiber.run()
+            try fiber.run()
+            catch {
+              case NonFatal(t) => pool.reportFailure(t)
+              case t: Throwable => IOFiber.onFatalFailure(t)
+            }
 
             // Transition to executing fibers from the local queue.
             state = 4
@@ -423,7 +437,11 @@ private final class WorkerThread(
             }
 
             // The dequeued element is a single fiber. Execute it immediately.
-            fiber.run()
+            try fiber.run()
+            catch {
+              case NonFatal(t) => pool.reportFailure(t)
+              case t: Throwable => IOFiber.onFatalFailure(t)
+            }
 
             // Transition to executing fibers from the local queue.
             state = 4
@@ -459,7 +477,11 @@ private final class WorkerThread(
             // looking for work.
             pool.transitionWorkerFromSearching(rnd)
             // Run the stolen fiber.
-            fiber.run()
+            try fiber.run()
+            catch {
+              case NonFatal(t) => pool.reportFailure(t)
+              case t: Throwable => IOFiber.onFatalFailure(t)
+            }
             // Transition to executing fibers from the local queue.
             state = 4
           } else {
@@ -505,7 +527,11 @@ private final class WorkerThread(
             // Many fibers have been exchanged between the external and the
             // local queue. Notify other worker threads.
             pool.notifyParked(rnd)
-            fiber.run()
+            try fiber.run()
+            catch {
+              case NonFatal(t) => pool.reportFailure(t)
+              case t: Throwable => IOFiber.onFatalFailure(t)
+            }
 
             // Transition to executing fibers from the local queue.
             state = 4
@@ -521,7 +547,11 @@ private final class WorkerThread(
             pool.transitionWorkerFromSearching(rnd)
 
             // The dequeued element is a single fiber. Execute it immediately.
-            fiber.run()
+            try fiber.run()
+            catch {
+              case NonFatal(t) => pool.reportFailure(t)
+              case t: Throwable => IOFiber.onFatalFailure(t)
+            }
 
             // Transition to executing fibers from the local queue.
             state = 4
@@ -547,7 +577,11 @@ private final class WorkerThread(
           }
           if (fiber ne null) {
             // Run the fiber.
-            fiber.run()
+            try fiber.run()
+            catch {
+              case NonFatal(t) => pool.reportFailure(t)
+              case t: Throwable => IOFiber.onFatalFailure(t)
+            }
             // Continue executing fibers from the local queue.
             state += 1
           } else {

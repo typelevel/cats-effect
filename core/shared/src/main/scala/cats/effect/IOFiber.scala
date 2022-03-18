@@ -76,6 +76,7 @@ private final class IOFiber[A](
   /* true when semantically blocking (ensures that we only unblock *once*) */
   suspended: AtomicBoolean =>
 
+  import IOFiber._
   import IO._
   import IOFiberConstants._
   import TracingConstants._
@@ -1464,53 +1465,6 @@ private final class IOFiber[A](
     }
   }
 
-  private[this] def onFatalFailure(t: Throwable): Null = {
-    Thread.interrupted()
-
-    IORuntime.allRuntimes.synchronized {
-      var r = 0
-      val runtimes = IORuntime.allRuntimes.unsafeHashtable()
-      val length = runtimes.length
-      while (r < length) {
-        val ref = runtimes(r)
-        if (ref.isInstanceOf[IORuntime]) {
-          val rt = ref.asInstanceOf[IORuntime]
-
-          rt.shutdown()
-
-          // Make sure the shutdown did not interrupt this thread.
-          Thread.interrupted()
-
-          var idx = 0
-          val tables = rt.fiberErrorCbs.tables
-          val numTables = rt.fiberErrorCbs.numTables
-          while (idx < numTables) {
-            val table = tables(idx)
-            table.synchronized {
-              val hashtable = table.unsafeHashtable()
-              val len = hashtable.length
-              var i = 0
-              while (i < len) {
-                val ref = hashtable(i)
-                if (ref.isInstanceOf[_ => _]) {
-                  val cb = ref.asInstanceOf[Throwable => Unit]
-                  cb(t)
-                }
-                i += 1
-              }
-            }
-            idx += 1
-          }
-        }
-
-        r += 1
-      }
-    }
-
-    Thread.currentThread().interrupt()
-    null
-  }
-
   // overrides the AtomicReference#toString
   override def toString: String = {
     val state = if (suspended.get()) "SUSPENDED" else if (isDone) "COMPLETED" else "RUNNING"
@@ -1542,4 +1496,53 @@ private object IOFiber {
   private[IOFiber] val TypeBlocking = Sync.Type.Blocking
   private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
   private[effect] val RightUnit = Right(())
+
+  def onFatalFailure(t: Throwable): Null = {
+    Thread.interrupted()
+
+    if (IORuntime.globalFatalFailureHandled.compareAndSet(false, true)) {
+      IORuntime.allRuntimes.synchronized {
+        var r = 0
+        val runtimes = IORuntime.allRuntimes.unsafeHashtable()
+        val length = runtimes.length
+        while (r < length) {
+          val ref = runtimes(r)
+          if (ref.isInstanceOf[IORuntime]) {
+            val rt = ref.asInstanceOf[IORuntime]
+
+            rt.shutdown()
+
+            // Make sure the shutdown did not interrupt this thread.
+            Thread.interrupted()
+
+            var idx = 0
+            val tables = rt.fiberErrorCbs.tables
+            val numTables = rt.fiberErrorCbs.numTables
+            while (idx < numTables) {
+              val table = tables(idx)
+              table.synchronized {
+                val hashtable = table.unsafeHashtable()
+                val len = hashtable.length
+                var i = 0
+                while (i < len) {
+                  val ref = hashtable(i)
+                  if (ref.isInstanceOf[_ => _]) {
+                    val cb = ref.asInstanceOf[Throwable => Unit]
+                    cb(t)
+                  }
+                  i += 1
+                }
+              }
+              idx += 1
+            }
+          }
+
+          r += 1
+        }
+      }
+    }
+
+    Thread.currentThread().interrupt()
+    null
+  }
 }
