@@ -484,7 +484,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[IncompatibleMethTypeProblem](
         "cats.effect.unsafe.WorkerThread.reschedule"),
       ProblemFilters.exclude[IncompatibleMethTypeProblem](
-        "cats.effect.unsafe.WorkerThread.schedule")
+        "cats.effect.unsafe.WorkerThread.schedule"),
+      // introduced by #2868
+      // added signaling from CallbackStack to indicate successful invocation
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.CallbackStack.apply")
     ) ++ {
       if (isDotty.value) {
         // Scala 3 specific exclusions
