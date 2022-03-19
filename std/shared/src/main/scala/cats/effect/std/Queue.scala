@@ -625,9 +625,8 @@ object Queue {
       back
     }
 
-    // TODO handle wraparound negative
     private[this] def project(idx: Long): Int =
-      (idx % bound).toInt
+      ((idx & Int.MaxValue) % bound).toInt
   }
 
   final class UnsafeUnbounded[A] {
