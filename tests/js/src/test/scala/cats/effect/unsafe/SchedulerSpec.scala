@@ -29,6 +29,19 @@ class SchedulerSpec extends BaseSpec {
     "is using the correct max timeout" in real {
       IO.sleep(Int.MaxValue.millis).race(IO.sleep(100.millis)) mustEqual Right(())
     }
+    "uses high-precision time" in real {
+      (IO.realTime <* IO.cede).product(IO.realTime).map {
+        case (x, y) =>
+          val delta = y - x
+          0.nanos < delta && delta < 1.milli
+      }
+    }
+    "correctly calculates real time" in real {
+      IO.realTime.product(IO(System.currentTimeMillis())).map {
+        case (realTime, currentTime) =>
+          (realTime.toMillis - currentTime).abs <= 1
+      }
+    }
   }
 
 }

@@ -17,7 +17,9 @@
 package cats.effect.unsafe
 
 import scala.concurrent.duration._
+import scala.scalajs.js
 import scala.scalajs.js.timers
+import scala.util.Try
 
 private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
   private[this] val maxTimeout = Int.MaxValue.millis
@@ -38,8 +40,22 @@ private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type
 
         def nowMillis() = System.currentTimeMillis()
         def monotonicNanos() = System.nanoTime()
-        override def nowMicros(): Long = nowMillis() * 1000
+        override def nowMicros(): Long = nowMicrosImpl()
       },
       () => ())
 
+  private[this] val nowMicrosImpl: () => Long =
+    Try {
+      val performance = js.Dynamic.global.performance.asInstanceOf[Performance]
+      // take it for a spin
+      require(!(performance.timeOrigin + performance.now()).isNaN)
+
+      () => ((performance.timeOrigin + performance.now()) * 1000).toLong
+    } getOrElse { () => System.currentTimeMillis() * 1000 }
+}
+
+@js.native
+private trait Performance extends js.Any {
+  def timeOrigin: Double = js.native
+  def now(): Double = js.native
 }
