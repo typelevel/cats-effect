@@ -18,9 +18,9 @@ package cats.effect.unsafe
 
 import scala.concurrent.duration.FiniteDuration
 
-import java.util.concurrent.{Executors, ScheduledExecutorService}
 import java.time.Instant
 import java.time.temporal.ChronoField
+import java.util.concurrent.{Executors, ScheduledExecutorService}
 
 private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
   def createDefaultScheduler(): (Scheduler, () => Unit) = {
