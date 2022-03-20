@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 
 import com.typesafe.tools.mima.core._
 import org.openqa.selenium.chrome.ChromeOptions
-import org.openqa.selenium.firefox.FirefoxOptions
+import org.openqa.selenium.firefox.{FirefoxOptions, FirefoxProfile}
 import org.scalajs.jsenv.nodejs.NodeJSEnv
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
 import sbtcrossproject.CrossProject
@@ -209,7 +209,10 @@ ThisBuild / jsEnv := {
   useJSEnv.value match {
     case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
     case Firefox =>
+      val profile = new FirefoxProfile()
+      profile.setPreference("privacy.reduceTimerPrecision", false)
       val options = new FirefoxOptions()
+      options.setProfile(profile)
       options.setHeadless(true)
       new SeleniumJSEnv(options)
     case Chrome =>
@@ -666,3 +669,5 @@ lazy val benchmarks = project
   .enablePlugins(NoPublishPlugin, JmhPlugin)
 
 lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
+
+useJSEnv := JSEnv.Firefox

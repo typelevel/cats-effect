@@ -30,7 +30,7 @@ class SchedulerSpec extends BaseSpec {
       IO.sleep(Int.MaxValue.millis).race(IO.sleep(100.millis)) mustEqual Right(())
     }
     "uses high-precision time" in real {
-      (IO.realTime <* IO.cede).product(IO.realTime).map {
+      IO.realTime.product(IO.realTime).map {
         case (x, y) =>
           val delta = y - x
           0.nanos < delta && delta < 1.milli
