@@ -18,14 +18,8 @@ package cats.effect
 package unsafe
 
 import scala.concurrent.duration._
-import scala.scalajs.js
-import scala.util.Try
 
 class SchedulerSpec extends BaseSpec {
-
-  private def isNodeJS = Try(js.Dynamic.global.process.release.name.asInstanceOf[String])
-    .toOption
-    .exists(_ == "node")
 
   "Default scheduler" should {
     "correctly handle very long sleeps" in real {
@@ -36,12 +30,7 @@ class SchedulerSpec extends BaseSpec {
       IO.sleep(Int.MaxValue.millis).race(IO.sleep(100.millis)) mustEqual Right(())
     }
     "use high-precision time" in real {
-      val program =
-        if (isNodeJS)
-          IO.realTime.product(IO.cede *> IO.realTime)
-        else
-          IO.realTime.product(IO.realTime)
-      program.map {
+      IO.realTime.product(IO.realTime).map {
         case (x, y) =>
           val delta = y - x
           (delta should be_>(0.nanos)) and (delta should be_<(1.millis))
