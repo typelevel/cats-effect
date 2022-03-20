@@ -276,7 +276,7 @@ private final class IOFiber[A](
         /* RealTime */
         case 3 =>
           runLoop(
-            succeeded(runtime.scheduler.nowMillis().millis, 0),
+            succeeded(runtime.scheduler.nowMicros().micros, 0),
             nextCancelation,
             nextAutoCede)
 
@@ -346,7 +346,7 @@ private final class IOFiber[A](
               runLoop(nextIO, nextCancelation - 1, nextAutoCede)
 
             case 3 =>
-              val realTime = runtime.scheduler.nowMillis().millis
+              val realTime = runtime.scheduler.nowMicros().micros
               runLoop(next(realTime), nextCancelation - 1, nextAutoCede)
 
             case 4 =>
@@ -411,7 +411,7 @@ private final class IOFiber[A](
               runLoop(result, nextCancelation - 1, nextAutoCede)
 
             case 3 =>
-              val realTime = runtime.scheduler.nowMillis().millis
+              val realTime = runtime.scheduler.nowMicros().micros
               runLoop(next(realTime), nextCancelation - 1, nextAutoCede)
 
             case 4 =>
@@ -472,7 +472,7 @@ private final class IOFiber[A](
               runLoop(next, nextCancelation - 1, nextAutoCede)
 
             case 3 =>
-              val realTime = runtime.scheduler.nowMillis().millis
+              val realTime = runtime.scheduler.nowMicros().micros
               runLoop(succeeded(Right(realTime), 0), nextCancelation - 1, nextAutoCede)
 
             case 4 =>

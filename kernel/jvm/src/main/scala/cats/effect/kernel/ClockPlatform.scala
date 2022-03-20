@@ -20,6 +20,6 @@ import java.time.Instant
 
 private[effect] trait ClockPlatform[F[_]] extends Serializable { self: Clock[F] =>
   def realTimeInstant: F[Instant] = {
-    self.applicative.map(self.realTime)(d => Instant.ofEpochMilli(d.toMillis))
+    self.applicative.map(self.realTime)(d => Instant.EPOCH.plusNanos(d.toNanos))
   }
 }
