@@ -669,5 +669,3 @@ lazy val benchmarks = project
   .enablePlugins(NoPublishPlugin, JmhPlugin)
 
 lazy val docs = project.in(file("site-docs")).dependsOn(core.jvm).enablePlugins(MdocPlugin)
-
-useJSEnv := JSEnv.Firefox
