@@ -33,13 +33,13 @@ class SchedulerSpec extends BaseSpec {
       IO.realTime.product(IO.realTime).map {
         case (x, y) =>
           val delta = y - x
-          0.nanos < delta && delta < 1.milli
+          (delta should be_>(0.nanos)) and (delta should be_<(1.nanos))
       }
     }
     "correctly calculates real time" in real {
       IO.realTime.product(IO(System.currentTimeMillis())).map {
         case (realTime, currentTime) =>
-          (realTime.toMillis - currentTime).abs <= 1
+          (realTime.toMillis - currentTime) should be_<=(1L)
       }
     }
   }
