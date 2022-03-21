@@ -105,7 +105,7 @@ unbounded, cached threadpool and then shift computation back to the compute pool
 once the blocking call has completed.  We'll see code samples for this later as
 it is quite different between CE2 and CE3.
 
-### Fiber blocking
+### Fiber blocking (previously "Semantic Blocking")
 
 Of course, we do also need the ability to tell fibers to wait for conditions to
 be fulfilled. If we can't call thread blocking operations (eg Java/Scala builtin
@@ -345,7 +345,7 @@ numerous benefits over the `FixedThreadpool` used in CE2:
    every fixed number of iterations of the runloop, stopping a rogue cpu-bound fiber
    from inadvertently pinning a CPU core
 
-## And that's it
+## And that's it!
 
 CE3 drastically simplifies threadpool usage and removes a number of significant
 gotchas, whilst significantly improving performance.
