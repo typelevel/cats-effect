@@ -31,9 +31,7 @@ class SchedulerSpec extends BaseSpec {
     }
     "use high-precision time" in real {
       IO.realTime.product(IO.cede *> IO.realTime).map {
-        case (x, y) =>
-          val delta = y - x
-          (delta should be_>(0.nanos)) and (delta should be_<(1.millis))
+        case (x, y) => (y - x).toMicros % 1000 should not(be_==(0L))
       }
     }
     "correctly calculate real time" in real {
