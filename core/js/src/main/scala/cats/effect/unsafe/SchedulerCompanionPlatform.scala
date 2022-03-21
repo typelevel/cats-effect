@@ -45,16 +45,17 @@ private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type
       () => ())
 
   private[this] val nowMicrosImpl: () => Long = {
-    def test(performance: Performance): Try[Performance] = Try {
+    def test(performance: Performance) = {
       // take it for a spin
-      require(!(performance.timeOrigin + performance.now()).isNaN)
-      performance
+      !(performance.timeOrigin + performance.now()).isNaN
     }
 
-    val browsers = Try(js.Dynamic.global.performance.asInstanceOf[Performance]).flatMap(test)
-    val nodeJS =
+    def browsers =
+      Try(js.Dynamic.global.performance.asInstanceOf[Performance]).toOption.filter(test)
+    def nodeJS =
       Try(js.Dynamic.global.require("perf_hooks").performance.asInstanceOf[Performance])
-        .flatMap(test)
+        .toOption
+        .filter(test)
 
     browsers.orElse(nodeJS).map { performance => () =>
       ((performance.timeOrigin + performance.now()) * 1000).toLong
