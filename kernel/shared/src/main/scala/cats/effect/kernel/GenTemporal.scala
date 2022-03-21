@@ -25,8 +25,7 @@ import scala.concurrent.duration.FiniteDuration
 
 /**
  * A typeclass that encodes the notion of suspending fibers for a given duration. Analogous to
- * `Thread.sleep` but is only semantically blocking rather than blocking an underlying OS
- * pthread.
+ * `Thread.sleep` but is only fiber blocking rather than blocking an underlying OS pthread.
  */
 trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
   override def applicative: Applicative[F] = this

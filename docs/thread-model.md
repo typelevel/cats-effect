@@ -16,13 +16,13 @@ many of our users are already at least somewhat familiar with it.
 The high-level goals of threading are covered in detail by [Daniel's gist](https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c) so I'll
 just give the executive summary. We are aiming for:
 
- * A single thread pool of roughly the number of available processors for compute-based operations
+* A single thread pool of roughly the number of available processors for compute-based operations
    (depending on your application you may get better performance by leaving one or two cores
    free for GC, etc)
- * An unbounded, cached threadpool for blocking operations
- * 1 or 2 high-priority threads for handling asynchronous I/O events, the handling of which should
+* An unbounded, cached threadpool for blocking operations
+* 1 or 2 high-priority threads for handling asynchronous I/O events, the handling of which should
    immediately be shifted to the compute pool
-  
+
 The goal of this is to minimize the number of expensive thread context shifts
 and to maximize the amount of time that our compute pool is doing useful work.
 
@@ -35,10 +35,11 @@ arbitrary code on it so it is a very unreliable basis for your compute pool.
 ## The IO runloop
 
 A simplified `IO` might look something like this:
+
 ```scala
 sealed abstract class IO[A] {
   def flatMap[B](f: A => IO[B]): IO[B] = FlatMap(this, f)
-  
+
   def unsafeRun(): A = this match {
     case Pure(a) => a
     case Suspend(thunk) => thunk()
@@ -54,7 +55,7 @@ case class FlatMap[A, B](io: IO[B], f: B => IO[A]) extends IO[A]
 Of course this has no error handling, isn't stacksafe, doesn't support asynchronous effects, etc
 but it's close enough for illustrative purposes. The key thing to note is that `unsafeRun()`
 is a tightly CPU-bound loop evaluating different layers of `IO`. The situation is just the same
-when we evaluate the real `IO` via one of the `unsafeRunX` methods or as part of an `IOApp`. 
+when we evaluate the real `IO` via one of the `unsafeRunX` methods or as part of an `IOApp`.
 
 ### Fibers
 
@@ -88,7 +89,7 @@ another fiber an opportunity to run on the thread.
 
 Note that the runloop-per-fiber model means that we obtain maximum performance
 when all of our CPU threads are free to evaluate this runloop for one of our
-`IO` fibers. 
+`IO` fibers.
 
 ### Thread blocking
 
@@ -104,18 +105,18 @@ unbounded, cached threadpool and then shift computation back to the compute pool
 once the blocking call has completed.  We'll see code samples for this later as
 it is quite different between CE2 and CE3.
 
-### Semantic blocking
+### Fiber blocking
 
 Of course, we do also need the ability to tell fibers to wait for conditions to
 be fulfilled. If we can't call thread blocking operations (eg Java/Scala builtin
 locks, semaphores, etc) then what can we do? It seems we need a notion of
 _semantic_ blocking, where the execution of a fiber is suspended and control of
-the thread it was running on is yielded.
+the thread it was running on is yielded. This concept is called "fiber blocking" in cats-effect.
 
 Cats effect provides various APIs which have these semantics, such as
 `IO.sleep(duration)`.  Indeed this is why you must never call
 `IO(Thread.sleep(duration))` instead, as this is a thread blocking operation
-whereas `IO.sleep` is only semantically blocking.
+whereas `IO.sleep` is only fiber blocking.
 
 The building block for arbitrary semantic blocking is `Deferred`, which is a
 purely functional promise that can only be completed once
@@ -123,13 +124,13 @@ purely functional promise that can only be completed once
 ```scala
 trait Deferred[F[_], A] {
   def get: F[A]
-  
+
   def complete(a: A): F[Unit]
 }
 ```
 
-`Deferred#get` is semantically blocking until `Deferred#complete` is called and
-cats effect provides many more semantically blocking abstractions like
+`Deferred#get` is fiber blocking until `Deferred#complete` is called and
+cats effect provides many more fiber blocking abstractions like
 semaphores that are built on top of this.
 
 ## Summary thus far
@@ -137,7 +138,7 @@ semaphores that are built on top of this.
 So we've seen that best performance is achieved when we dedicate use of the compute pool
 to evaluating `IO` fiber runloops and ensure that we shift _all_ blocking operations
 to a separate blocking threadpool. We've also seen that many things do not need to
-block a thread at all - cats effect provides semantic blocking abstractions for waiting
+block a thread at all - cats effect provides fiber blocking abstractions for waiting
 for arbitrary conditions to be satisfied. Now it's time to see the details of how we achieve
 this in cats effect 2 and 3.
 
@@ -248,8 +249,8 @@ pool afterwards. If you are familiar with `MonadReader`
 ```scala
 trait MonadReader[F[_], R] {
   def ask: F[R_] //get the current execution context
-  
-  def local[A](alter: R => R)(inner: F[A]): F[A] //run an inner effect with a different execution 
+
+  def local[A](alter: R => R)(inner: F[A]): F[A] //run an inner effect with a different execution
                                                  //context and then restore the previous
                                                  //execution context
 }
@@ -321,6 +322,7 @@ CE3 has a builtin `blocking` which will shift execution to an internal
 blocking threadpool and shift it back afterwards using `Async`.
 
 This means that we can simply write
+
 ```scala
 IO.println("current pool") >> IO.blocking(println("blocking pool")) >> IO.println("current pool")
 ```
@@ -334,16 +336,16 @@ the event that the fiber is canceled.
 CE3 also has a very exciting custom work-stealing threadpool implementation. This has
 numerous benefits over the `FixedThreadpool` used in CE2:
 
- * It maintains a work queue per core rather than a single global one so contention
+* It maintains a work queue per core rather than a single global one so contention
    is dramatically reduced, especially with lots of cores
- * This means that we can implement thread affinity, where a fiber that yields is most
+* This means that we can implement thread affinity, where a fiber that yields is most
    likely to be re-scheduled on the same thread. This makes yielding much cheaper
    as if the fiber is immediately re-scheduled we don't even have to flush CPU caches
- * Consequently we can support auto-yielding where a fiber will insert an `IO.cede`
+* Consequently we can support auto-yielding where a fiber will insert an `IO.cede`
    every fixed number of iterations of the runloop, stopping a rogue cpu-bound fiber
    from inadvertently pinning a CPU core
 
-## And that's it!
+## And that's it
 
 CE3 drastically simplifies threadpool usage and removes a number of significant
 gotchas, whilst significantly improving performance.

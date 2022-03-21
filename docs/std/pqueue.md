@@ -22,7 +22,7 @@ trait PQueue[F[_], A : Order] {
 
 A `PQueue` may be constructed as `bounded` or `unbounded`. If bounded then
 `offer` may semantically block if the pqueue is already full. `take` is
-semantically blocking if the pqueue is empty.
+fiber blocking if the pqueue is empty.
 
 ```scala mdoc
 import cats.Order
@@ -50,7 +50,7 @@ absurdlyOverengineeredSort(list).flatMap(IO.println(_)).unsafeRunSync()
 
 `PQueue` is split into a `PQueueSource` with a `Functor` instance and a
 `PQueueSink` with a `Contravariant` functor instance. This allows us to
-treat a `PQueue[F, A]` as a `PQueueSource[F, B]` by mapping with `A => B` 
+treat a `PQueue[F, A]` as a `PQueueSource[F, B]` by mapping with `A => B`
 or as a `PQueueSink[F, B]` by contramapping with `B => A`.
 
 ```scala mdoc:reset
