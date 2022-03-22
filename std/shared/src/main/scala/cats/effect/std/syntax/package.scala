@@ -22,6 +22,4 @@ package object syntax {
 
   object supervisor extends SupervisorSyntax
 
-  object mapref extends MapRefSyntax
-
 }
