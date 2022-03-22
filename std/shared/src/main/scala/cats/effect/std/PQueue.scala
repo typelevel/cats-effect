@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@ package cats
 package effect
 package std
 
-import cats.implicits._
-import cats.effect.kernel.syntax.all._
 import cats.effect.kernel.{Concurrent, Deferred, Ref}
+import cats.effect.kernel.syntax.all._
 import cats.effect.std.internal.BinomialHeap
+import cats.implicits._
 
 import scala.collection.immutable.{Queue => ScalaQueue}
 

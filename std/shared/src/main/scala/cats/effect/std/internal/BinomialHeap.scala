@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,8 +35,8 @@ import scala.annotation.tailrec
  */
 private[std] abstract case class BinomialHeap[A](trees: List[BinomialTree[A]]) { self =>
 
-  //Allows us to fix this on construction, ensuring some safety from
-  //different Ord instances for A
+  // Allows us to fix this on construction, ensuring some safety from
+  // different Ord instances for A
   implicit val Ord: Order[A]
 
   def nonEmpty: Boolean = trees.nonEmpty
@@ -101,7 +101,7 @@ private[std] object BinomialHeap {
 
   def take[A](trees: List[BinomialTree[A]])(
       implicit Ord: Order[A]): (List[BinomialTree[A]], Option[A]) = {
-    //Note this is partial but we don't want to allocate a NonEmptyList
+    // Note this is partial but we don't want to allocate a NonEmptyList
     def min(trees: List[BinomialTree[A]]): (BinomialTree[A], List[BinomialTree[A]]) =
       trees match {
         case t :: Nil => (t, Nil)

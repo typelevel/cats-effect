@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,6 +65,12 @@ trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
 
   def evalOnNeverIdentity(ec: ExecutionContext) =
     F.evalOn(F.never[Unit], ec) <-> F.never[Unit]
+
+  def syncStepIdentity[A](fa: F[A], limit: Int) =
+    F.syncStep(fa, limit).flatMap {
+      case Left(fa) => fa
+      case Right(a) => F.pure(a)
+    } <-> fa
 }
 
 object AsyncLaws {

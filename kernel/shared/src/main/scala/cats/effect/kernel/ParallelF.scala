@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 //See https://failex.blogspot.com/2017/04/the-high-cost-of-anyval-subclasses.html
 object Par {
-  sealed abstract class ParallelFImpl {
+  sealed abstract class ParallelFImpl extends Serializable {
     type T[F[_], A]
     def apply[F[_], A](fa: F[A]): T[F, A]
     def value[F[_], A](t: T[F, A]): F[A]

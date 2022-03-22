@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,13 @@ package cats
 package effect
 package kernel
 
-import java.util.concurrent.atomic.AtomicReference
-
 import cats.effect.kernel.Deferred.TransformedDeferred
 import cats.syntax.all._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.LongMap
+
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A purely functional synchronization primitive which represents a single value which may not
@@ -213,7 +213,7 @@ object Deferred {
   }
 }
 
-trait DeferredSource[F[_], A] {
+trait DeferredSource[F[_], A] extends Serializable {
 
   /**
    * Obtains the value of the `Deferred`, or waits until it has been completed. The returned
@@ -240,7 +240,7 @@ object DeferredSource {
     }
 }
 
-trait DeferredSink[F[_], A] {
+trait DeferredSink[F[_], A] extends Serializable {
 
   /**
    * If this `Deferred` is empty, sets the current value to `a`, and notifies any and all

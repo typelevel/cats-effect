@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,30 +16,11 @@
 
 package cats.effect
 
-import scala.annotation.nowarn
-import scala.concurrent.ExecutionContext
-
 import java.util.concurrent.atomic.AtomicBoolean
 
 private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
   this: IOFiber[A] =>
 
-  /**
-   * Registers the suspended fiber in the global suspended fiber bag and sets the suspension key
-   * object reference.
-   */
-  @nowarn("cat=unused-params")
-  protected final def monitor(key: AnyRef): Unit = {}
-
-  /**
-   * Deregisters the suspended fiber from the global suspended fiber bag and clears the
-   * suspension key object reference.
-   */
-  protected final def unmonitor(): Unit = {}
-
   // in theory this code should never be hit due to the override in IOCompanionPlatform
-  def interruptibleImpl(cur: IO.Blocking[Any], blockingEc: ExecutionContext): IO[Any] = {
-    val _ = blockingEc
-    IO(cur.thunk())
-  }
+  def interruptibleImpl(cur: IO.Blocking[Any]): IO[Any] = IO(cur.thunk())
 }

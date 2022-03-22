@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,10 @@
 
 package cats.effect
 
-import cats.syntax.all._
 import cats.effect.implicits._
 import cats.effect.std.Queue
+import cats.syntax.all._
+
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.Gen
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -72,6 +73,21 @@ class IOPropSpec extends BaseSpec with Discipline {
         case (n, l) =>
           l.map(IO.pure(_)).parSequence.flatMap { expected =>
             l.map(IO.pure(_)).parSequenceN(n).mustEqual(expected)
+          }
+      }
+    }
+
+    "parReplicateAN" should {
+      "give the same result as replicateA" in realProp(
+        for {
+          n <- Gen.posNum[Int]
+          replicas <- Gen.chooseNum(0, 50)
+          value <- Gen.posNum[Int]
+        } yield (n, replicas, value)
+      ) {
+        case (n, replicas, value) =>
+          IO.pure(value).replicateA(replicas).flatMap { expected =>
+            IO.pure(value).parReplicateAN(n)(replicas).mustEqual(expected)
           }
       }
     }

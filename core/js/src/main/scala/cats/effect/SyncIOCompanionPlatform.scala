@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import scalajs.js
+import scala.scalajs.js
 
 private[effect] trait SyncIOCompanionPlatform { this: SyncIO.type =>
   final def realTimeDate: SyncIO[js.Date] = realTime.map(d => new js.Date(d.toMillis.toDouble))

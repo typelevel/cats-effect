@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@ package cats.effect
 import cats.{Eq, FlatMap, Monad, MonadError, Show}
 import cats.data._
 import cats.effect.kernel.testkit.freeEval._
-import cats.laws.discipline.{eq, ExhaustiveCheck, MiniInt}, eq._
+import cats.laws.discipline.{ExhaustiveCheck, MiniInt}
+import cats.laws.discipline.eq._
 import cats.syntax.all._
 
 import org.scalacheck.{Arbitrary, Gen, Prop}
@@ -102,7 +103,7 @@ private[effect] trait BaseSpec {
       implicit arbFn: Arbitrary[(B => M[A]) => M[A]]): Arbitrary[ContT[M, A, B]] =
     Arbitrary(arbFn.arbitrary.map(ContT[M, A, B](_)))
 
-  //Shamelessly stolen from https://github.com/typelevel/cats/blob/master/tests/src/test/scala/cats/tests/ContTSuite.scala
+  // Shamelessly stolen from https://github.com/typelevel/cats/blob/master/tests/src/test/scala/cats/tests/ContTSuite.scala
   implicit def eqContT[M[_], A, B](
       implicit arbFn: Arbitrary[B => M[A]],
       eqMA: Eq[M[A]]): Eq[ContT[M, A, B]] = {
@@ -114,7 +115,7 @@ private[effect] trait BaseSpec {
     }
   }
 
-  //Shamelessly stolen from https://github.com/typelevel/cats/blob/master/tests/src/test/scala/cats/tests/IndexedReaderWriterStateTSuite.scala
+  // Shamelessly stolen from https://github.com/typelevel/cats/blob/master/tests/src/test/scala/cats/tests/IndexedReaderWriterStateTSuite.scala
   implicit def IRWSTEq[F[_], E, L, SA, SB, A](
       implicit SA: ExhaustiveCheck[SA],
       E: ExhaustiveCheck[E],

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,13 +41,13 @@ import cats.~>
  *
  * The reason for the shape of the `Cont` construction in `Async[F].cont`, as opposed to simply:
  *
- * ```
+ * {{{
  * trait Async[F[_]] {
- * ...
+ *   ...
  *
- * def cont[A]: F[(Either[Throwable, A] => Unit, F[A])]
+ *   def cont[A]: F[(Either[Throwable, A] => Unit, F[A])]
  * }
- * ```
+ * }}}
  *
  * is that it's not safe to use concurrent operations such as `get.start`.
  *
@@ -59,7 +59,7 @@ import cats.~>
  * override `Async[F].async` with your implementation, and use `Async.defaultCont` to implement
  * `Async[F].cont`.
  */
-trait Cont[F[_], K, R] {
+trait Cont[F[_], K, R] extends Serializable {
   def apply[G[_]](
       implicit
       G: MonadCancel[G, Throwable]): (Either[Throwable, K] => Unit, G[K], F ~> G) => G[R]

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ class RefSpec extends BaseSpec { outer =>
   val smallDelay: IO[Unit] = IO.sleep(20.millis)
 
   "ref" should {
-    //TODO need parallel instance for IO
+    // TODO need parallel instance for IO
     // "support concurrent modifications" in ticked { implicit ticker =>
     //   val finalValue = 100
     //   val r = Ref.unsafe[IO, Int](0)

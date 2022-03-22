@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ package cats.effect.kernel
 
 import java.time.Instant
 
-private[effect] trait ClockPlatform[F[_]] { self: Clock[F] =>
+private[effect] trait ClockPlatform[F[_]] extends Serializable { self: Clock[F] =>
   def realTimeInstant: F[Instant] = {
-    self.applicative.map(self.realTime)(d => Instant.ofEpochMilli(d.toMillis))
+    self.applicative.map(self.realTime)(d => Instant.EPOCH.plusNanos(d.toNanos))
   }
 }

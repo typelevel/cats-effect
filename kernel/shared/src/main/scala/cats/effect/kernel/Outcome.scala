@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,18 @@
 
 package cats.effect.kernel
 
-import cats.{Applicative, ApplicativeError, Bifunctor, Eq}
-import cats.{~>, Monad, MonadError, Order, Show, Traverse}
+import cats.{
+  ~>,
+  Applicative,
+  ApplicativeError,
+  Bifunctor,
+  Eq,
+  Monad,
+  MonadError,
+  Order,
+  Show,
+  Traverse
+}
 import cats.syntax.all._
 
 import scala.annotation.tailrec
@@ -30,8 +40,13 @@ import scala.util.{Either, Left, Right}
  * A commonly asked question is why this wraps a value of type `F[A]` rather than one of type
  * `A`. This is to support monad transformers. Consider
  *
- * ```scala val oc: OutcomeIO[Int] = for { fiber <- Spawn[OptionT[IO, *]].start(OptionT.none[IO,
- * Int]) oc <- fiber.join } yield oc ```
+ * {{{
+ * val oc: OutcomeIO[Int] =
+ *   for {
+ *     fiber <- Spawn[OptionT[IO, *]].start(OptionT.none[IO, Int])
+ *     oc <- fiber.join
+ *   } yield oc
+ * }}}
  *
  * If the fiber succeeds then there is no value of type `Int` to be wrapped in `Succeeded`,
  * hence `Succeeded` contains a value of type `OptionT[IO, Int]` instead.
@@ -53,6 +68,17 @@ sealed trait Outcome[F[_], E, A] extends Product with Serializable {
 
   def embedNever(implicit F: GenSpawn[F, E]): F[A] =
     embed(F.never)
+
+  /**
+   * Allows the restoration to a normal development flow from an Outcome.
+   *
+   * This can be useful for storing the state of a running computation and then waiters for that
+   * data can act and continue forward on that shared outcome. Cancelation is encoded as a
+   * `CancellationException`.
+   */
+  def embedError(implicit F: MonadCancel[F, E], ev: Throwable <:< E): F[A] =
+    embed(
+      F.raiseError(ev(new java.util.concurrent.CancellationException("Outcome was Canceled"))))
 
   def fold[B](canceled: => B, errored: E => B, completed: F[A] => B): B =
     this match {

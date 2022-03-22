@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,22 +16,104 @@
 
 package cats.effect.unsafe
 
-import scala.concurrent.ExecutionContext
+import cats.effect.tracing.TracingConstants._
+import cats.effect.unsafe.metrics._
 
+import scala.collection.mutable
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+
+import java.lang.management.ManagementFactory
 import java.util.concurrent.{Executors, ScheduledThreadPoolExecutor}
 import java.util.concurrent.atomic.AtomicInteger
+
+import javax.management.ObjectName
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
   // The default compute thread pool on the JVM is now a work stealing thread pool.
+  def createWorkStealingComputeThreadPool(
+      threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
+      threadPrefix: String = "io-compute",
+      runtimeBlockingExpiration: Duration = 60.seconds)
+      : (WorkStealingThreadPool, () => Unit) = {
+    val threadPool =
+      new WorkStealingThreadPool(threads, threadPrefix, runtimeBlockingExpiration)
+
+    val unregisterMBeans =
+      if (isStackTracing) {
+        val mBeanServer =
+          try ManagementFactory.getPlatformMBeanServer()
+          catch {
+            case _: Throwable => null
+          }
+
+        if (mBeanServer ne null) {
+          val registeredMBeans = mutable.Set.empty[ObjectName]
+
+          val hash = System.identityHashCode(threadPool).toHexString
+
+          try {
+            val computePoolSamplerName = new ObjectName(
+              s"cats.effect.unsafe.metrics:type=ComputePoolSampler-$hash")
+            val computePoolSampler = new ComputePoolSampler(threadPool)
+            mBeanServer.registerMBean(computePoolSampler, computePoolSamplerName)
+            registeredMBeans += computePoolSamplerName
+          } catch {
+            case _: Throwable =>
+          }
+
+          val localQueues = threadPool.localQueues
+          var i = 0
+          val len = localQueues.length
+
+          while (i < len) {
+            val localQueue = localQueues(i)
+
+            try {
+              val localQueueSamplerName = new ObjectName(
+                s"cats.effect.unsafe.metrics:type=LocalQueueSampler-$hash-$i")
+              val localQueueSampler = new LocalQueueSampler(localQueue)
+              mBeanServer.registerMBean(localQueueSampler, localQueueSamplerName)
+              registeredMBeans += localQueueSamplerName
+            } catch {
+              case _: Throwable =>
+            }
+
+            i += 1
+          }
+
+          () => {
+            if (mBeanServer ne null) {
+              registeredMBeans.foreach { mbean =>
+                try mBeanServer.unregisterMBean(mbean)
+                catch {
+                  case _: Throwable =>
+                  // Do not report issues with mbeans deregistration.
+                }
+              }
+            }
+          }
+        } else () => ()
+      } else () => ()
+
+    (
+      threadPool,
+      { () =>
+        unregisterMBeans()
+        threadPool.shutdown()
+      })
+  }
+
+  @deprecated(
+    message = "Replaced by the simpler and safer `createWorkStealingComputePool`",
+    since = "3.4.0"
+  )
   def createDefaultComputeThreadPool(
       self: => IORuntime,
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
-      threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) = {
-    val threadPool =
-      new WorkStealingThreadPool(threads, threadPrefix, self)
-    (threadPool, { () => threadPool.shutdown() })
-  }
+      threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) =
+    createWorkStealingComputeThreadPool(threads, threadPrefix)
 
   def createDefaultBlockingExecutionContext(
       threadPrefix: String = "io-blocking"): (ExecutionContext, () => Unit) = {
@@ -78,14 +160,44 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   lazy val global: IORuntime = {
     if (_global == null) {
       installGlobal {
-        val (compute, _) = createDefaultComputeThreadPool(global)
+        val (compute, _) = createWorkStealingComputeThreadPool()
         val (blocking, _) = createDefaultBlockingExecutionContext()
         val (scheduler, _) = createDefaultScheduler()
-
         IORuntime(compute, blocking, scheduler, () => (), IORuntimeConfig())
       }
     }
 
     _global
+  }
+
+  private[effect] def registerFiberMonitorMBean(fiberMonitor: FiberMonitor): () => Unit = {
+    if (isStackTracing) {
+      val mBeanServer =
+        try ManagementFactory.getPlatformMBeanServer()
+        catch {
+          case _: Throwable => null
+        }
+
+      if (mBeanServer ne null) {
+        val hash = System.identityHashCode(fiberMonitor).toHexString
+
+        try {
+          val liveFiberSnapshotTriggerName = new ObjectName(
+            s"cats.effect.unsafe.metrics:type=LiveFiberSnapshotTrigger-$hash")
+          val liveFiberSnapshotTrigger = new LiveFiberSnapshotTrigger(fiberMonitor)
+          mBeanServer.registerMBean(liveFiberSnapshotTrigger, liveFiberSnapshotTriggerName)
+
+          () => {
+            try mBeanServer.unregisterMBean(liveFiberSnapshotTriggerName)
+            catch {
+              case _: Throwable =>
+              // Do not report issues with mbeans deregistration.
+            }
+          }
+        } catch {
+          case _: Throwable => () => ()
+        }
+      } else () => ()
+    } else () => ()
   }
 }

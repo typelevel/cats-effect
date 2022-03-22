@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +16,22 @@
 
 package cats.effect
 
-import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.{AlignTests, SemigroupKTests}
-import cats.laws.discipline.arbitrary._
-
 import cats.effect.implicits._
 import cats.effect.laws.AsyncTests
 import cats.effect.testkit.TestContext
+import cats.kernel.laws.SerializableLaws.serializable
+import cats.kernel.laws.discipline.MonoidTests
+import cats.laws.discipline.{AlignTests, SemigroupKTests}
+import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
 
-import org.scalacheck.Prop, Prop.forAll
-// import org.scalacheck.rng.Seed
-
-// import org.specs2.scalacheck.Parameters
-
+import org.scalacheck.Prop
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.{ExecutionContext, TimeoutException}
 import scala.concurrent.duration._
+
+import Prop.forAll
 
 class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
@@ -97,6 +95,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         }
       }
 
+      "rethrow is inverse of attempt" in ticked { implicit ticker =>
+        forAll { (io: IO[Int]) => io.attempt.rethrow eqv io }
+      }
+
       "redeem is flattened redeemWith" in ticked { implicit ticker =>
         forAll { (io: IO[Int], recover: Throwable => IO[String], bind: Int => IO[String]) =>
           io.redeem(recover, bind).flatten eqv io.redeemWith(recover, bind)
@@ -143,6 +145,35 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         case object TestException extends RuntimeException
         IO.raiseError[Unit](TestException)
           .redeemWith(_ => IO.pure(42), _ => IO.pure(43)) must completeAs(42)
+      }
+
+      "recover correctly recovers from errors" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        IO.raiseError[Int](TestException).recover { case TestException => 42 } must completeAs(
+          42)
+      }
+
+      "recoverWith correctly recovers from errors" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        IO.raiseError[Int](TestException).recoverWith {
+          case TestException => IO.pure(42)
+        } must completeAs(42)
+      }
+
+      "recoverWith does not recover from unmatched errors" in ticked { implicit ticker =>
+        case object UnmatchedException extends RuntimeException
+        case object ThrownException extends RuntimeException
+        IO.raiseError[Int](ThrownException)
+          .recoverWith { case UnmatchedException => IO.pure(42) }
+          .attempt must completeAs(Left(ThrownException))
+      }
+
+      "recover does not recover from unmatched errors" in ticked { implicit ticker =>
+        case object UnmatchedException extends RuntimeException
+        case object ThrownException extends RuntimeException
+        IO.raiseError[Int](ThrownException)
+          .recover { case UnmatchedException => 42 }
+          .attempt must completeAs(Left(ThrownException))
       }
 
       "redeemWith binds successful results" in ticked { implicit ticker =>
@@ -194,6 +225,48 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
               }(_ => IO.raiseError(WrongException))
           io.attempt must completeAs(Left(TestException))
         })
+
+      "report unhandled failure to the execution context" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        val action = IO.executionContext flatMap { ec =>
+          IO defer {
+            var ts: List[Throwable] = Nil
+
+            val ec2 = new ExecutionContext {
+              def reportFailure(t: Throwable) = ts ::= t
+              def execute(r: Runnable) = ec.execute(r)
+            }
+
+            IO.raiseError(TestException).start.evalOn(ec2) *> IO.sleep(10.millis) *> IO(ts)
+          }
+        }
+
+        action must completeAs(List(TestException))
+      }
+
+      "not report observed failures to the execution context" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        val action = IO.executionContext flatMap { ec =>
+          IO defer {
+            var ts: List[Throwable] = Nil
+
+            val ec2 = new ExecutionContext {
+              def reportFailure(t: Throwable) = ts ::= t
+              def execute(r: Runnable) = ec.execute(r)
+            }
+
+            for {
+              f <- (IO.sleep(10.millis) *> IO.raiseError(TestException)).start.evalOn(ec2)
+              _ <- f.join
+              back <- IO(ts)
+            } yield back
+          }
+        }
+
+        action must completeAs(Nil)
+      }
     }
 
     "suspension of side effects" should {
@@ -712,6 +785,24 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         passed must beTrue
       }
 
+      "polls from unrelated fibers are no-ops" in ticked { implicit ticker =>
+        var canceled = false
+        val test = for {
+          deferred <- Deferred[IO, Poll[IO]]
+          started <- Deferred[IO, Unit]
+          _ <- IO.uncancelable(deferred.complete).void.start
+          f <- (started.complete(()) *>
+            deferred.get.flatMap(poll => poll(IO.never[Unit]).onCancel(IO { canceled = true })))
+            .uncancelable
+            .start
+          _ <- started.get
+          _ <- f.cancel
+        } yield ()
+
+        test must nonTerminate
+        canceled must beFalse
+      }
+
       "run three finalizers when an async is canceled while suspended" in ticked {
         implicit ticker =>
           var results = List[Int]()
@@ -1202,6 +1293,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             r <- IO(v must beTrue)
           } yield r
         }
+
+        "non-terminate on an uncancelable fiber" in ticked { implicit ticker =>
+          IO.never.uncancelable.timeout(1.second) must nonTerminate
+        }
       }
 
       "timeoutTo" should {
@@ -1224,6 +1319,16 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           op.flatMap { res =>
             IO {
               res must beTrue
+            }
+          }
+        }
+      }
+
+      "timeoutAndForget" should {
+        "terminate on an uncancelable fiber" in real {
+          IO.never.uncancelable.timeoutAndForget(1.second).attempt flatMap { e =>
+            IO {
+              e must beLike { case Left(e) => e must haveClass[TimeoutException] }
             }
           }
         }
@@ -1251,7 +1356,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             .flatMap { _ => IO.pure(42) }
         }
 
-        io.syncStep.map {
+        io.syncStep(1024).map {
           case Left(_) => throw new RuntimeException("Boom!")
           case Right(n) => n
         } must completeAsSync(42)
@@ -1263,7 +1368,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         case object TestException extends RuntimeException
         val io = IO.raiseError[Unit](TestException)
 
-        io.syncStep.map {
+        io.syncStep(1024).map {
           case Left(_) => throw new RuntimeException("Boom!")
           case Right(()) => ()
         } must failAsSync(TestException)
@@ -1293,7 +1398,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
               }
             }
 
-          io.syncStep.flatMap {
+          io.syncStep(1024).flatMap {
             case Left(remaining) =>
               SyncIO.delay {
                 inDelay must beTrue
@@ -1309,6 +1414,71 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
             case Right(_) => SyncIO.raiseError[Unit](new RuntimeException("Boom!"))
           } must completeAsSync(())
+      }
+
+      "evaluate up to limit and no further" in {
+        var first = false
+        var second = false
+
+        val program = IO { first = true } *> IO { second = true }
+
+        val test = program.syncStep(2) flatMap { results =>
+          SyncIO {
+            first must beTrue
+            second must beFalse
+            results must beLeft
+
+            ()
+          }
+        }
+
+        test must completeAsSync(())
+      }
+
+      "should not execute effects twice for map (#2858)" in ticked { implicit ticker =>
+        var i = 0
+        val io = (IO(i += 1) *> IO.cede).void.syncStep(Int.MaxValue).unsafeRunSync() match {
+          case Left(io) => io
+          case Right(_) => IO.unit
+        }
+        io must completeAs(())
+        i must beEqualTo(1)
+      }
+
+      "should not execute effects twice for flatMap (#2858)" in ticked { implicit ticker =>
+        var i = 0
+        val io =
+          (IO(i += 1) *> IO.cede *> IO.unit).syncStep(Int.MaxValue).unsafeRunSync() match {
+            case Left(io) => io
+            case Right(_) => IO.unit
+          }
+        io must completeAs(())
+        i must beEqualTo(1)
+      }
+
+      "should not execute effects twice for attempt (#2858)" in ticked { implicit ticker =>
+        var i = 0
+        val io =
+          (IO(i += 1) *> IO.cede).attempt.void.syncStep(Int.MaxValue).unsafeRunSync() match {
+            case Left(io) => io
+            case Right(_) => IO.unit
+          }
+        io must completeAs(())
+        i must beEqualTo(1)
+      }
+
+      "should not execute effects twice for handleErrorWith (#2858)" in ticked {
+        implicit ticker =>
+          var i = 0
+          val io = (IO(i += 1) *> IO.cede)
+            .handleErrorWith(_ => IO.unit)
+            .syncStep(Int.MaxValue)
+            .unsafeRunSync() match {
+            case Left(io) => io
+            case Right(_) => IO.unit
+          }
+          io must completeAs(())
+          i must beEqualTo(1)
       }
     }
 
@@ -1327,6 +1497,14 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         _ <- fibers.traverse(_.join)
         res <- IO(ok)
       } yield res
+    }
+
+    "serialize" in {
+      forAll { (io: IO[Int]) => serializable(io) }(
+        implicitly,
+        arbitraryIOWithoutContextShift,
+        implicitly,
+        implicitly)
     }
 
     platformSpecs

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,20 +17,19 @@
 package cats.effect
 package kernel
 
-import cats.syntax.all._
 import cats.effect.kernel.instances.all._
 import cats.effect.kernel.testkit.PureConcGenerators._
 import cats.effect.kernel.testkit.pure.{orderForPureConc => _, _}
 import cats.kernel.Eq
-import cats.laws.discipline.AlignTests
-import cats.laws.discipline.CommutativeApplicativeTests
-import cats.laws.discipline.ParallelTests
+import cats.laws.discipline.{AlignTests, CommutativeApplicativeTests, ParallelTests}
 import cats.laws.discipline.arbitrary.catsLawsCogenForIor
+import cats.syntax.all._
+
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class ParallelFSpec extends BaseSpec with Discipline {
 
-  implicit def alleyEq[A: Eq]: Eq[PureConc[Unit, A]] = { (x, y) =>
+  def alleyEq[E, A: Eq]: Eq[PureConc[E, A]] = { (x, y) =>
     import Outcome._
     (run(x), run(y)) match {
       case (Succeeded(Some(a)), Succeeded(Some(b))) => a eqv b
@@ -38,6 +37,9 @@ class ParallelFSpec extends BaseSpec with Discipline {
       case _ => true
     }
   }
+
+  implicit def alleyEqUnit[A: Eq]: Eq[PureConc[Unit, A]] = alleyEq[Unit, A]
+  implicit def alleyEqThrowable[A: Eq]: Eq[PureConc[Throwable, A]] = alleyEq[Throwable, A]
 
   checkAll(
     "ParallelF[PureConc]",
@@ -51,5 +53,20 @@ class ParallelFSpec extends BaseSpec with Discipline {
   checkAll(
     "ParallelF[PureConc]",
     AlignTests[ParallelF[PureConc[Unit, *], *]].align[Int, Int, Int, Int])
+
+  checkAll(
+    "ParallelF[Resource[PureConc]]",
+    ParallelTests[
+      Resource[PureConc[Throwable, *], *],
+      ParallelF[Resource[PureConc[Throwable, *], *], *]].parallel[Int, Int])
+
+  checkAll(
+    "ParallelF[Resource[PureConc]]",
+    CommutativeApplicativeTests[ParallelF[Resource[PureConc[Throwable, *], *], *]]
+      .commutativeApplicative[Int, Int, Int])
+
+  checkAll(
+    "ParallelF[Resource[PureConc]]",
+    AlignTests[ParallelF[Resource[PureConc[Throwable, *], *], *]].align[Int, Int, Int, Int])
 
 }

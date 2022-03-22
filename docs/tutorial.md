@@ -42,11 +42,11 @@ running the code snippets in this tutorial, it is recommended to use the same
 ```scala
 name := "cats-effect-tutorial"
 
-version := "3.2.9"
+version := "3.3.8"
 
 scalaVersion := "2.13.6"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.2.9" withSources() withJavadoc()
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.8" withSources() withJavadoc()
 
 scalacOptions ++= Seq(
   "-feature",
@@ -256,7 +256,7 @@ But, in a way, that's precisely what we do when we `flatMap` instances of
 has its place, `Resource` is likely to be a better choice when dealing with
 multiple resources at once.
 
-### Copying data 
+### Copying data
 Finally we have our streams ready to go! We have to focus now on coding
 `transfer`. That function will have to define a loop that at each iteration
 reads data from the input stream into a buffer, and then writes the buffer
@@ -499,7 +499,7 @@ recycled by cats-effect so it is available for other fibers. When the fiber
 execution can be resumed cats-effect will look for some free thread to continue
 the execution. The term "_semantically blocked_" is used sometimes to denote
 that blocking the fiber does not involve halting any thread. Cats-effect also
-recycles threads of finished and canceled fibers.  But keep in mind that, in
+recycles threads of finished and canceled fibers. But keep in mind that, in
 contrast, if the fiber is truly blocked by some external action like waiting for
 some input from a TCP socket, then cats-effect has no way to recover back that
 thread until the action finishes. Such calls should be wrapped by `IO.blocking`
@@ -508,6 +508,18 @@ info as a hint to optimize `IO` scheduling.
 
 Another difference with threads is that fibers are very cheap entities. We can
 spawn millions of them at ease without impacting the performance. 
+
+A worthy note is that you do not have to explicitly shut down fibers. If you spawn
+a fiber and it finishes actively running its `IO` it will get cleaned up by the 
+garbage collector unless there is some other active memory reference to it. So basically
+you can treat a fiber as any other regular object, except that when the fiber is _running_ 
+(present tense), the cats-effect runtime itself keeps the fiber alive.
+
+This has some interesting implications as well. Like if you create an `IO.async` node and 
+register the callback with something, and you're in a Fiber which has no strong object 
+references anywhere else (i.e. you did some sort of fire-and-forget thing), then the callback 
+itself is the only strong reference to the fiber. Meaning if the registration fails or the 
+system you registered with throws it away, the fiber will just gracefully disappear.
 
 Cats-effect implements some concurrency primitives to coordinate concurrent
 fibers: [Deferred](std/deferred.md), [Ref](std/ref.md), `Semaphore`...
@@ -647,10 +659,30 @@ object InefficientProducerConsumer extends IOApp {
 }
 ```
 
-Problem is, if there is an error in any of the fibers the `join` call will not
-hint it, nor it will return. In contrast `parMapN` does promote the error it
-finds to the caller. _In general, if possible, programmers should prefer to use
-higher level commands such as `parMapN` or `parSequence` to deal with fibers_.
+However in most situations it is not advisable to handle fibers manually as
+they are not trivial to work with. For example, if there is an error in a fiber
+the `join` call to that fiber will _not_ raise it, it will return normally and
+you must explicitly check the `Outcome` instance returned by the `.join` call
+to see if it errored. Also, the other fibers will keep running unaware of what
+happened.
+
+Cats Effect provides additional `joinWith` or `joinWithNever` methods to make
+sure at least that the error is raised with the usual `MonadError` semantics
+(e.g., short-circuiting).  Now that we are raising the error, we also need to
+cancel the other running fibers. We can easily get ourselves trapped in a
+tangled mess of fibers to keep an eye on.  On top of that the error raised by a
+fiber is not promoted until the call to `joinWith` or `.joinWithNever` is
+reached. So in our example above if `consumerFiber` raises an error then we
+have no way to observe that until the producer fiber has finished. Alarmingly,
+note that in our example the producer _never_ finishes and thus the error would
+_never_ be observed!  And even if the producer fiber did finish, it would have
+been consuming resources for nothing.
+ 
+In contrast `parMapN` does promote any error it finds to the caller _and_ takes
+care of canceling the other running fibers. As a result `parMapN` is simpler to
+use, more concise, and easier to reason about. _Because of that, unless you
+have some specific and unusual requirements you should prefer to use higher
+level commands such as `parMapN` or `parSequence` to work with fibers_.
 
 Ok, we stick to our implementation based on `.parMapN`. Are we done? Does it
 Work? Well, it works... but it is far from ideal. If we run it we will find that

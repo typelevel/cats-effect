@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ package testkit
 import cats.{~>, Applicative, Eq, Id, Order, Show}
 import cats.effect.kernel.testkit.{
   AsyncGenerators,
+  AsyncGeneratorsWithoutEvalShift,
   GenK,
   OutcomeGenerators,
   ParallelFGenerators,
@@ -72,6 +73,24 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
               _._1 == "racePair"
             ) // remove the racePair generator since it reifies nondeterminism, which cannot be law-tested
       }
+
+    Arbitrary(generators.generators[A])
+  }
+
+  def arbitraryIOWithoutContextShift[A: Arbitrary: Cogen]: Arbitrary[IO[A]] = {
+    val generators = new AsyncGeneratorsWithoutEvalShift[IO] {
+      override implicit val F: Async[IO] = IO.asyncForIO
+      override implicit protected val arbitraryFD: Arbitrary[FiniteDuration] =
+        outer.arbitraryFiniteDuration
+      override implicit val arbitraryE: Arbitrary[Throwable] = outer.arbitraryThrowable
+      override val cogenE: Cogen[Throwable] = Cogen[Throwable]
+
+      override def recursiveGen[B: Arbitrary: Cogen](deeper: GenK[IO]) =
+        super
+          .recursiveGen[B](deeper)
+          .filterNot(x =>
+            x._1 == "evalOn" || x._1 == "racePair") // todo: enable racePair after MVar been made serialization compatible
+    }
 
     Arbitrary(generators.generators[A])
   }
@@ -187,8 +206,7 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
       ioa
         .flatMap(IO.pure(_))
         .handleErrorWith(IO.raiseError(_))
-        .unsafeRunAsyncOutcome { oc => results = oc.mapK(someK) }(unsafe
-          .IORuntime(ticker.ctx, ticker.ctx, scheduler, () => (), unsafe.IORuntimeConfig()))
+        .unsafeRunAsyncOutcome { oc => results = oc.mapK(someK) }(materializeRuntime)
 
       ticker.ctx.tickAll()
 
@@ -221,20 +239,21 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
   }
 
   implicit def materializeRuntime(implicit ticker: Ticker): unsafe.IORuntime =
-    unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => (), unsafe.IORuntimeConfig())
+    unsafe.IORuntime.testRuntime(ticker.ctx, scheduler)
 
-  def scheduler(implicit ticker: Ticker): unsafe.Scheduler =
+  def scheduler(implicit ticker: Ticker): unsafe.Scheduler = {
+    val ctx = ticker.ctx
     new unsafe.Scheduler {
-      import ticker.ctx
-
       def sleep(delay: FiniteDuration, action: Runnable): Runnable = {
         val cancel = ctx.schedule(delay, action)
         new Runnable { def run() = cancel() }
       }
 
       def nowMillis() = ctx.now().toMillis
+      override def nowMicros(): Long = ctx.now().toMicros
       def monotonicNanos() = ctx.now().toNanos
     }
+  }
 
   @implicitNotFound(
     "could not find an instance of Ticker; try using `in ticked { implicit ticker =>`")

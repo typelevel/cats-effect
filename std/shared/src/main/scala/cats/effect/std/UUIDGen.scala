@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,9 +38,11 @@ trait UUIDGen[F[_]] {
 object UUIDGen {
   def apply[F[_]](implicit ev: UUIDGen[F]): UUIDGen[F] = ev
 
-  implicit def fromSync[F[_]: Sync]: UUIDGen[F] = new UUIDGen[F] {
-    override def randomUUID: F[UUID] = Sync[F].delay(UUID.randomUUID())
+  implicit def fromSync[F[_]](implicit ev: Sync[F]): UUIDGen[F] = new UUIDGen[F] {
+    override final val randomUUID: F[UUID] =
+      ev.blocking(UUID.randomUUID())
   }
+
   def randomUUID[F[_]: UUIDGen]: F[UUID] = UUIDGen[F].randomUUID
   def randomString[F[_]: UUIDGen: Functor]: F[String] = randomUUID.map(_.toString)
 }

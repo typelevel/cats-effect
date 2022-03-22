@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,13 @@ package cats
 package effect
 package kernel
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
-
 import cats.data.State
 import cats.effect.kernel.Ref.TransformedRef
 import cats.syntax.all._
 
 import scala.annotation.tailrec
+
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 /**
  * A thread-safe, concurrent mutable reference.
@@ -464,7 +464,7 @@ object Ref {
     }
 }
 
-trait RefSource[F[_], A] {
+trait RefSource[F[_], A] extends Serializable {
 
   /**
    * Obtains the current value.
@@ -486,7 +486,7 @@ object RefSource {
     }
 }
 
-trait RefSink[F[_], A] {
+trait RefSink[F[_], A] extends Serializable {
 
   /**
    * Sets the current value to `a`.

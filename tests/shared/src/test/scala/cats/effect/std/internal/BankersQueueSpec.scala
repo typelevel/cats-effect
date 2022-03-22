@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,10 +22,10 @@
 package cats.effect
 package std.internal
 
-import org.specs2.mutable.Specification
+import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary.arbitrary
 import org.specs2.ScalaCheck
-
-import org.scalacheck.{Arbitrary, Gen}, Arbitrary.arbitrary
+import org.specs2.mutable.Specification
 
 class BankersQueueSpec extends Specification with ScalaCheck {
 
@@ -90,7 +90,7 @@ class BankersQueueSpec extends Specification with ScalaCheck {
           (1, Gen.const(PopFront)),
           (1, Gen.const(PopBack)),
           (
-            3, //Bias the generation to produce non-trivial queues
+            3, // Bias the generation to produce non-trivial queues
             arbitrary[A].map(PushFront(_))
           ),
           (3, arbitrary[A].map(PushBack(_)))

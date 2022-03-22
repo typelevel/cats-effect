@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import cats.syntax.all._
  * @see
  *   [[GenSpawn]] documentation for more detailed information on the concurrency of fibers.
  */
-trait Fiber[F[_], E, A] {
+trait Fiber[F[_], E, A] extends Serializable {
 
   /**
    * Requests the cancelation of the fiber bound to this `Fiber` handle and awaits its
@@ -72,4 +72,16 @@ trait Fiber[F[_], E, A] {
    */
   def joinWithNever(implicit F: GenSpawn[F, E]): F[A] =
     joinWith(F.never)
+
+  /**
+   * Awaits the completion of the bound fiber and returns its result once it completes.
+   *
+   * If the fiber completes with [[Outcome.Succeeded]], the successful value is returned. If the
+   * fiber completes with [[Outcome.Errored]], the error is raised. If the fiber completes with
+   * [[Outcome.Canceled]], the result is ignored.
+   */
+  def joinWithUnit(implicit F: MonadCancel[F, E], ev: Unit <:< A): F[A] = {
+    val _ = ev
+    joinWith(F.unit.asInstanceOf[F[A]])
+  }
 }

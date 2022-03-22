@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ import scala.util.control.NonFatal
  * the JVM blocks the calling thread while the async part of the computation is run and doing so
  * on Scala.js is not supported.
  */
-sealed abstract class SyncIO[+A] private () {
+sealed abstract class SyncIO[+A] private () extends Serializable {
 
   private[effect] def tag: Byte
 
