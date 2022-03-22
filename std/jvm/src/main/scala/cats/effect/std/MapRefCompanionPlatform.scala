@@ -27,7 +27,8 @@ private[std] trait MapRefCompanionPlatform {
       .map(MapRef.fromScalaConcurrentMap[F, K, V](_))
 
   def ofScalaConcurrentTrieMap[F[_]: Sync, K, V]: F[MapRef[F, K, Option[V]]] =
-    Sync[F].delay(scala.collection.concurrent.TrieMap.empty[K, V])
+    Sync[F]
+      .delay(scala.collection.concurrent.TrieMap.empty[K, V])
       .map(MapRef.fromScalaConcurrentMap[F, K, V](_))
 
 }

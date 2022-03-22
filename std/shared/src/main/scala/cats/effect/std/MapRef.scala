@@ -42,48 +42,48 @@ trait MapRef[F[_], K, V] extends Function1[K, Ref[F, V]] {
 object MapRef extends MapRefCompanionPlatform {
 
   private class ShardedImmutableMapImpl[F[_]: Concurrent, K, V](
-      ref: K => Ref[F, Map[K, V]], // Function.const(Ref[F, Map[K, V]])
+      ref: K => Ref[F, Map[K, V]] // Function.const(Ref[F, Map[K, V]])
   ) extends MapRef[F, K, Option[V]] {
     class HandleRef(k: K) extends Ref[F, Option[V]] {
 
       def access: F[(Option[V], Option[V] => F[Boolean])] = {
-      val thisRef = ref(k)
-      thisRef.get.map{ current => 
-        current.get(k) match {
-          case None =>
-            val set: Option[V] => F[Boolean] = { (opt: Option[V]) =>
-              opt match {
-                case None => thisRef.get.map(!_.isDefinedAt(k))
-                case Some(newV) =>
-                  thisRef.modify(map =>
-                    if (!map.isDefinedAt(k)) (map + (k -> newV), true)
-                    else (map, false))
+        val thisRef = ref(k)
+        thisRef.get.map { current =>
+          current.get(k) match {
+            case None =>
+              val set: Option[V] => F[Boolean] = { (opt: Option[V]) =>
+                opt match {
+                  case None => thisRef.get.map(!_.isDefinedAt(k))
+                  case Some(newV) =>
+                    thisRef.modify(map =>
+                      if (!map.isDefinedAt(k)) (map + (k -> newV), true)
+                      else (map, false))
+                }
               }
-            }
-            (None, set)
-          case s @ Some(_) =>
-            val set: Option[V] => F[Boolean] = { opt =>
-              opt match {
-                case None =>
-                  thisRef.modify(map =>
-                    if (map.get(k) == s) {
-                      (map - k, true)
-                    } else {
-                      (map, false)
-                    })
-                case Some(value) =>
-                  thisRef.modify(map =>
-                    if (map.get(k) == s) {
-                      (map + (k -> value), true)
-                    } else {
-                      (map, false)
-                    })
+              (None, set)
+            case s @ Some(_) =>
+              val set: Option[V] => F[Boolean] = { opt =>
+                opt match {
+                  case None =>
+                    thisRef.modify(map =>
+                      if (map.get(k) == s) {
+                        (map - k, true)
+                      } else {
+                        (map, false)
+                      })
+                  case Some(value) =>
+                    thisRef.modify(map =>
+                      if (map.get(k) == s) {
+                        (map + (k -> value), true)
+                      } else {
+                        (map, false)
+                      })
+                }
               }
-            }
-            (s, {opt => set(opt)})
+              (s, { opt => set(opt) })
+          }
         }
       }
-    }
 
       def get: F[Option[V]] = ref(k).get.map(_.get(k))
 
@@ -106,7 +106,7 @@ object MapRef extends MapRefCompanionPlatform {
 
       def modifyState[B](state: State[Option[V], B]): F[B] =
         modify(state.run(_).value)
-        
+
       def set(a: Option[V]): F[Unit] = {
         ref(k).update(m =>
           a match {
@@ -210,9 +210,7 @@ object MapRef extends MapRefCompanionPlatform {
       ref: Ref[F, Map[K, V]]): MapRef[F, K, Option[V]] =
     new ShardedImmutableMapImpl[F, K, V](_ => ref)
 
-  private class ConcurrentHashMapImpl[F[_], K, V](
-      chm: ConcurrentHashMap[K, V],
-      sync: Sync[F])
+  private class ConcurrentHashMapImpl[F[_], K, V](chm: ConcurrentHashMap[K, V], sync: Sync[F])
       extends MapRef[F, K, Option[V]] {
     private implicit def syncF: Sync[F] = sync
 
@@ -376,7 +374,8 @@ object MapRef extends MapRefCompanionPlatform {
       loadFactor: Float = 0.75f,
       concurrencyLevel: Int = 16
   ): F[MapRef[F, K, Option[V]]] =
-    Sync[F].delay(new ConcurrentHashMap[K, V](initialCapacity, loadFactor, concurrencyLevel))
+    Sync[F]
+      .delay(new ConcurrentHashMap[K, V](initialCapacity, loadFactor, concurrencyLevel))
       .map(fromConcurrentHashMap[F, K, V])
 
   /**
@@ -421,7 +420,7 @@ object MapRef extends MapRefCompanionPlatform {
                     sync.delay(hasBeenCalled.compareAndSet(false, true) && map.remove(k, old))
                   case Some(newV) =>
                     sync.delay(
-                        hasBeenCalled.compareAndSet(false, true) && map.replace(k, old, newV))
+                      hasBeenCalled.compareAndSet(false, true) && map.replace(k, old, newV))
                 }
               }
               (init, set)
@@ -429,14 +428,14 @@ object MapRef extends MapRefCompanionPlatform {
         }
 
       def get: F[Option[V]] =
-        sync.delay( map.get(k))
+        sync.delay(map.get(k))
 
       override def getAndSet(a: Option[V]): F[Option[V]] =
         a match {
           case None =>
-            sync.delay( map.remove(k))
+            sync.delay(map.remove(k))
           case Some(v) =>
-            sync.delay( map.put(k, v))
+            sync.delay(map.put(k, v))
         }
 
       def modify[B](f: Option[V] => (Option[V], B)): F[B] = {
@@ -453,35 +452,34 @@ object MapRef extends MapRefCompanionPlatform {
       def set(a: Option[V]): F[Unit] =
         a match {
           case None => sync.delay { map.remove(k); () }
-          case Some(v) => sync.delay{ map.put(k, v); () }
+          case Some(v) => sync.delay { map.put(k, v); () }
         }
 
       def tryModify[B](
           f: Option[V] => (Option[V], B))
           : F[Option[B]] = // we need the suspend because we do effects inside
         sync.delay {
-            val init = map.get(k)
-            init match {
-              case None =>
-                f(None) match {
-                  case (None, b) =>
-                    // no-op
-                    sync.pure(b.some)
-                  case (Some(newV), b) =>
-                    sync.delay(map.putIfAbsent(k, newV).fold[Option[B]](b.some)(_ => None))
-                }
-              case Some(initV) =>
-                f(init) match {
-                  case (None, b) =>
-                    if (map.remove(k, initV)) sync.pure(b.some)
-                    else fnone[B]
-                  case (Some(next), b) =>
-                    if (map.replace(k, initV, next)) sync.pure(b.some)
-                    else fnone[B]
-                }
-            }
+          val init = map.get(k)
+          init match {
+            case None =>
+              f(None) match {
+                case (None, b) =>
+                  // no-op
+                  sync.pure(b.some)
+                case (Some(newV), b) =>
+                  sync.delay(map.putIfAbsent(k, newV).fold[Option[B]](b.some)(_ => None))
+              }
+            case Some(initV) =>
+              f(init) match {
+                case (None, b) =>
+                  if (map.remove(k, initV)) sync.pure(b.some)
+                  else fnone[B]
+                case (Some(next), b) =>
+                  if (map.replace(k, initV, next)) sync.pure(b.some)
+                  else fnone[B]
+              }
           }
-          .flatten
+        }.flatten
 
       def tryModifyState[B](state: State[Option[V], B]): F[Option[B]] =
         tryModify(state.run(_).value)
@@ -522,8 +520,7 @@ object MapRef extends MapRefCompanionPlatform {
    * over high arity maprefs.
    *
    * Also useful for anytime a shared storage location is used for a ref, i.e. DB or Redis to
-   * not waste space.
-   * // Some(default) -- None
+   * not waste space. // Some(default) -- None
    */
   def defaultedRef[F[_]: Functor, A: Eq](ref: Ref[F, Option[A]], default: A): Ref[F, A] =
     new LiftedRefDefaultStorage[F, A](ref, default, Eq[A].eqv)
@@ -591,9 +588,8 @@ object MapRef extends MapRefCompanionPlatform {
       modify { s => state.run(s).value }
   }
 
-  
   implicit def mapRefOptionSyntax[F[_], K, V](
-    mRef: MapRef[F, K, Option[V]]
+      mRef: MapRef[F, K, Option[V]]
   ): MapRefOptionOps[F, K, V] =
     new MapRefOptionOps(mRef)
 
