@@ -28,9 +28,9 @@ class MapRefSpec extends BaseSpec {
   private def awaitEqual[A: Eq](t: IO[A], success: A): IO[Unit] =
     t.flatMap(a => if (Eq[A].eqv(a, success)) IO.unit else smallDelay *> awaitEqual(t, success))
 
-  "MapRef" should {
+  "MapRef.ofSingleImmatableMapRef" should {
 
-    "MapRef.ofSingleImmutableMapRef - concurrent modifications" in real {
+    "concurrent modifications" in real {
       val finalValue = 100
       val r = MapRef.inSingleImmutableMap[SyncIO, IO, Unit, Int]().unsafeRunSync()
       val modifies = List.fill(finalValue)(r(()).update(_.map(_ + 1))).parSequence
@@ -38,7 +38,7 @@ class MapRefSpec extends BaseSpec {
       test.map(_ => ok)
     }
 
-    "MapRef.ofSingleImmutableMapRef - getAndSet - successful" in real {
+    "getAndSet - successful" in real {
       val op = for {
         r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -49,7 +49,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofSingleImmutableMapRef - access - successful" in real {
+    "access - successful" in real {
       val op = for {
         r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -62,7 +62,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofSingleImmutableMapRef - access - setter should fail if value is modified before setter is called with None/Some" in real {
+    "access - setter should fail if value is modified before setter is called with None/Some" in real {
       val op = for {
         r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
         accessed <- r(()).access
@@ -75,7 +75,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofSingleImmutableMapRef - access - setter should fail if value is modified before setter is called with init Some/Some" in real {
+    "access - setter should fail if value is modified before setter is called with init Some/Some" in real {
       val op = for {
         r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -89,7 +89,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofSingleImmutableMapRef - access - setter should fail if value is modified before setter is called with init Some/None" in real {
+    "access - setter should fail if value is modified before setter is called with init Some/None" in real {
       val op = for {
         r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -103,7 +103,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofSingleImmutableMapRef - access - setter should fail if called twice" in real {
+    "access - setter should fail if called twice" in real {
       val op = for {
         r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -118,7 +118,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofSingleImmutableMapRef - tryUpdate - modification occurs successfully" in real {
+    "tryUpdate - modification occurs successfully" in real {
       val op = for {
         r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -129,7 +129,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofSingleImmutableMapRef - tryModifyState - modification occurs successfully" in real {
+    "tryModifyState - modification occurs successfully" in real {
       val op = for {
         r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -139,7 +139,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofSingleImmutableMapRef - modifyState - modification occurs successfully" in real {
+    "modifyState - modification occurs successfully" in real {
       val op = for {
         r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -148,8 +148,10 @@ class MapRefSpec extends BaseSpec {
 
       op.map(a => a must_=== true)
     }
+  }
 
-    "MapRef.ofShardedImmutableMapRef - return an updated value" in real {
+  "MapRef.ofShardedImmutableMapRef" should {
+    "return an updated value" in real {
       val size = 10
       val key = 3
       val test = for {
@@ -161,7 +163,7 @@ class MapRefSpec extends BaseSpec {
       test.map(a => a must_=== Some("Foo"))
     }
 
-    "MapRef.ofShardedImmutableMapRef - work with convenience ops" in real {
+    "work with convenience ops" in real {
       import cats.effect.std.syntax.mapref._
       val size = 10
       val key = 3
@@ -174,8 +176,11 @@ class MapRefSpec extends BaseSpec {
 
       test.map(a => a must_=== Some(expect))
     }
+  }
 
-    "MapRef.ofConcurrentHashMap - concurrent modifications" in real {
+  "MapRef.ofConcurrentHashMap" should {
+
+    "concurrent modifications" in real {
       val finalValue = 100
       val r = MapRef.inConcurrentHashMap[SyncIO, IO, Unit, Int]().unsafeRunSync()
       val modifies = List.fill(finalValue)(r(()).update(_.map(_ + 1))).parSequence
@@ -183,7 +188,7 @@ class MapRefSpec extends BaseSpec {
       test.map(_ => ok)
     }
 
-    "MapRef.ofConcurrentHashMap - getAndSet - successful" in real {
+    "getAndSet - successful" in real {
       val op = for {
         r <- MapRef.ofConcurrentHashMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -194,7 +199,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofConcurrentHashMap - access - successful" in real {
+    "access - successful" in real {
       val op = for {
         r <- MapRef.ofConcurrentHashMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -207,7 +212,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofConcurrentHashMap - access - setter should fail if value is modified before setter is called with None/Some" in real {
+    "access - setter should fail if value is modified before setter is called with None/Some" in real {
       val op = for {
         r <- MapRef.ofConcurrentHashMap[IO, Unit, Int]()
         accessed <- r(()).access
@@ -220,7 +225,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofConcurrentHashMap - access - setter should fail if value is modified before setter is called with init Some/Some" in real {
+    "access - setter should fail if value is modified before setter is called with init Some/Some" in real {
       val op = for {
         r <- MapRef.ofConcurrentHashMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -234,7 +239,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofConcurrentHashMap - access - setter should fail if value is modified before setter is called with init Some/None" in real {
+    "access - setter should fail if value is modified before setter is called with init Some/None" in real {
       val op = for {
         r <- MapRef.ofConcurrentHashMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -248,7 +253,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofConcurrentHashMap - access - setter should fail if called twice" in real {
+    "access - setter should fail if called twice" in real {
       val op = for {
         r <- MapRef.ofConcurrentHashMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -263,7 +268,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofConcurrentHashMap - tryUpdate - modification occurs successfully" in real {
+    "tryUpdate - modification occurs successfully" in real {
       val op = for {
         r <- MapRef.ofConcurrentHashMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -274,7 +279,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofConcurrentHashMap - tryModifyState - modification occurs successfully" in real {
+    "tryModifyState - modification occurs successfully" in real {
       val op = for {
         r <- MapRef.ofConcurrentHashMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -284,7 +289,7 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofConcurrentHashMap - modifyState - modification occurs successfully" in real {
+    "modifyState - modification occurs successfully" in real {
       val op = for {
         r <- MapRef.ofConcurrentHashMap[IO, Unit, Int]()
         _ <- r(()).set(Some(0))
@@ -293,7 +298,6 @@ class MapRefSpec extends BaseSpec {
 
       op.map(a => a must_=== true)
     }
-
   }
 
 }

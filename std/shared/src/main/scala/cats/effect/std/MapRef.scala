@@ -42,8 +42,7 @@ trait MapRef[F[_], K, V] extends Function1[K, Ref[F, V]] {
 object MapRef extends MapRefCompanionPlatform {
 
   private class ShardedImmutableMapImpl[F[_]: Concurrent, K, V](
-      ref: K => Ref[F, Map[K, V]],
-      val keys: F[List[K]]
+      ref: K => Ref[F, Map[K, V]], // Function.const(Ref[F, Map[K, V]])
   ) extends MapRef[F, K, Option[V]] {
     class HandleRef(k: K) extends Ref[F, Option[V]] {
 
@@ -98,6 +97,7 @@ object MapRef extends MapRefCompanionPlatform {
           case None => ref(k).modify(map => (map - k, map.get(k)))
           case Some(v) => ref(k).modify(map => (map + (k -> v), map.get(k)))
         }
+
       def modify[B](f: Option[V] => (Option[V], B)): F[B] =
         ref(k).modify { map =>
           val current = map.get(k)
@@ -108,8 +108,10 @@ object MapRef extends MapRefCompanionPlatform {
           }
           (finalMap, out)
         }
+
       def modifyState[B](state: State[Option[V], B]): F[B] =
         modify(state.run(_).value)
+        
       def set(a: Option[V]): F[Unit] = {
         ref(k).update(m =>
           a match {
@@ -188,8 +190,7 @@ object MapRef extends MapRefCompanionPlatform {
       val location = Math.abs(k.## % shardCount)
       array(location)
     }
-    val keys = array.toList.traverse(ref => ref.get.map(_.keys.toList)).map(_.flatten)
-    new ShardedImmutableMapImpl[F, K, V](refFunction, keys)
+    new ShardedImmutableMapImpl[F, K, V](refFunction)
   }
 
   /**
@@ -212,7 +213,7 @@ object MapRef extends MapRefCompanionPlatform {
    */
   def fromSingleImmutableMapRef[F[_]: Concurrent, K, V](
       ref: Ref[F, Map[K, V]]): MapRef[F, K, Option[V]] =
-    new ShardedImmutableMapImpl[F, K, V](_ => ref, ref.get.map(_.keys.toList))
+    new ShardedImmutableMapImpl[F, K, V](_ => ref)
 
   private class ConcurrentHashMapImpl[F[_], K, V](
       chm: ConcurrentHashMap[K, V],
@@ -271,7 +272,7 @@ object MapRef extends MapRefCompanionPlatform {
         }
 
       def modify[B](f: Option[V] => (Option[V], B)): F[B] = {
-        lazy val loop: F[B] = tryModify(f).flatMap {
+        def loop: F[B] = tryModify(f).flatMap {
           case None => loop
           case Some(b) => concurrent.pure(b)
         }
@@ -320,7 +321,7 @@ object MapRef extends MapRefCompanionPlatform {
         tryModify { opt => (f(opt), ()) }.map(_.isDefined)
 
       def update(f: Option[V] => Option[V]): F[Unit] = {
-        lazy val loop: F[Unit] = tryUpdate(f).flatMap {
+        def loop: F[Unit] = tryUpdate(f).flatMap {
           case true => concurrent.unit
           case false => loop
         }
@@ -452,7 +453,7 @@ object MapRef extends MapRefCompanionPlatform {
         }
 
       def modify[B](f: Option[V] => (Option[V], B)): F[B] = {
-        lazy val loop: F[B] = tryModify(f).flatMap {
+        def loop: F[B] = tryModify(f).flatMap {
           case None => loop
           case Some(b) => concurrent.pure(b)
         }
@@ -506,7 +507,7 @@ object MapRef extends MapRefCompanionPlatform {
         tryModify { opt => (f(opt), ()) }.map(_.isDefined)
 
       def update(f: Option[V] => Option[V]): F[Unit] = {
-        lazy val loop: F[Unit] = tryUpdate(f).flatMap {
+        def loop: F[Unit] = tryUpdate(f).flatMap {
           case true => concurrent.unit
           case false => loop
         }
@@ -539,9 +540,10 @@ object MapRef extends MapRefCompanionPlatform {
    *
    * Also useful for anytime a shared storage location is used for a ref, i.e. DB or Redis to
    * not waste space.
+   * // Some(default) -- None
    */
   def defaultedRef[F[_]: Functor, A: Eq](ref: Ref[F, Option[A]], default: A): Ref[F, A] =
-    new LiftedRefDefaultStorage[F, A](ref, default)
+    new LiftedRefDefaultStorage[F, A](ref, default, Eq[A].eqv)
 
   def defaultedMapRef[F[_]: Functor, K, A: Eq](
       mapref: MapRef[F, K, Option[A]],
@@ -557,7 +559,8 @@ object MapRef extends MapRefCompanionPlatform {
    */
   private class LiftedRefDefaultStorage[F[_]: Functor, A: Eq](
       val ref: Ref[F, Option[A]],
-      val default: A
+      val default: A,
+      val eqv: (A, A) => Boolean
   ) extends Ref[F, A] {
     def get: F[A] = ref.get.map(_.getOrElse(default))
 
@@ -603,5 +606,35 @@ object MapRef extends MapRefCompanionPlatform {
 
     def modifyState[B](state: cats.data.State[A, B]): F[B] =
       modify { s => state.run(s).value }
+  }
+
+  
+  implicit def mapRefOptionSyntax[F[_], K, V](
+    mRef: MapRef[F, K, Option[V]]
+  ): MapRefOptionOps[F, K, V] =
+    new MapRefOptionOps(mRef)
+
+  final class MapRefOptionOps[F[_], K, V] private[MapRef] (
+      private val mRef: MapRef[F, K, Option[V]]) {
+    def unsetKey(k: K): F[Unit] =
+      mRef(k).set(None)
+    def setKeyValue(k: K, v: V): F[Unit] =
+      mRef(k).set(v.some)
+    def getAndSetKeyValue(k: K, v: V): F[Option[V]] =
+      mRef(k).getAndSet(v.some)
+
+    def updateKeyValueIfSet(k: K, f: V => V): F[Unit] =
+      mRef(k).update {
+        case None => None
+        case Some(v) => f(v).some
+      }
+
+    def modifyKeyValueIfSet[B](k: K, f: V => (V, B)): F[Option[B]] =
+      mRef(k).modify {
+        case None => (None, None)
+        case Some(v) =>
+          val (set, out) = f(v)
+          (set.some, out.some)
+      }
   }
 }

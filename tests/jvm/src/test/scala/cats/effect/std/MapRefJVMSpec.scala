@@ -29,9 +29,9 @@ class MapRefJVMSpec extends BaseSpec {
   private def awaitEqual[A: Eq](t: IO[A], success: A): IO[Unit] =
     t.flatMap(a => if (Eq[A].eqv(a, success)) IO.unit else smallDelay *> awaitEqual(t, success))
 
-  "MapRef TrieMap" should {
+  "MapRef.ofScalaConcurrentTrieMap" should {
 
-    "MapRef.ofScalaConcurrentTrieMap - concurrent modifications" in real {
+    "concurrent modifications" in real {
       val finalValue = 100
       val r = MapRef.inScalaConcurrentTrieMap[SyncIO, IO, Unit, Int].unsafeRunSync()
       val modifies = List.fill(finalValue)(r(()).update(_.map(_ + 1))).parSequence
@@ -39,7 +39,7 @@ class MapRefJVMSpec extends BaseSpec {
       test.map(_ => ok)
     }
 
-    "MapRef.ofScalaConcurrentTrieMap - getAndSet - successful" in real {
+    "getAndSet - successful" in real {
       val op = for {
         r <- MapRef.ofScalaConcurrentTrieMap[IO, Unit, Int]
         _ <- r(()).set(Some(0))
@@ -50,7 +50,7 @@ class MapRefJVMSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofScalaConcurrentTrieMap - access - successful" in real {
+    "access - successful" in real {
       val op = for {
         r <- MapRef.ofScalaConcurrentTrieMap[IO, Unit, Int]
         _ <- r(()).set(Some(0))
@@ -63,7 +63,7 @@ class MapRefJVMSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofScalaConcurrentTrieMap - access - setter should fail if value is modified before setter is called with None/Some" in real {
+    "access - setter should fail if value is modified before setter is called with None/Some" in real {
       val op = for {
         r <- MapRef.ofScalaConcurrentTrieMap[IO, Unit, Int]
         accessed <- r(()).access
@@ -76,7 +76,7 @@ class MapRefJVMSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofScalaConcurrentTrieMap - access - setter should fail if value is modified before setter is called with init Some/Some" in real {
+    "access - setter should fail if value is modified before setter is called with init Some/Some" in real {
       val op = for {
         r <- MapRef.ofScalaConcurrentTrieMap[IO, Unit, Int]
         _ <- r(()).set(Some(0))
@@ -90,7 +90,7 @@ class MapRefJVMSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofScalaConcurrentTrieMap - access - setter should fail if value is modified before setter is called with init Some/None" in real {
+    "access - setter should fail if value is modified before setter is called with init Some/None" in real {
       val op = for {
         r <- MapRef.ofScalaConcurrentTrieMap[IO, Unit, Int]
         _ <- r(()).set(Some(0))
@@ -104,7 +104,7 @@ class MapRefJVMSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofScalaConcurrentTrieMap - access - setter should fail if called twice" in real {
+    "access - setter should fail if called twice" in real {
       val op = for {
         r <- MapRef.ofScalaConcurrentTrieMap[IO, Unit, Int]
         _ <- r(()).set(Some(0))
@@ -119,7 +119,7 @@ class MapRefJVMSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofScalaConcurrentTrieMap - tryUpdate - modification occurs successfully" in real {
+    "tryUpdate - modification occurs successfully" in real {
       val op = for {
         r <- MapRef.ofScalaConcurrentTrieMap[IO, Unit, Int]
         _ <- r(()).set(Some(0))
@@ -130,7 +130,7 @@ class MapRefJVMSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofScalaConcurrentTrieMap - tryUpdate - should fail to update if modification has occurred" in real {
+    "tryUpdate - should fail to update if modification has occurred" in real {
       import cats.effect.unsafe.implicits.global
       val updateRefUnsafely: Ref[IO, Option[Int]] => Unit =
         _.update(_.map(_ + 1)).unsafeRunSync()
@@ -147,7 +147,7 @@ class MapRefJVMSpec extends BaseSpec {
       op.map(a => a must_=== false)
     }
 
-    "MapRef.ofScalaConcurrentTrieMap - tryModifyState - modification occurs successfully" in real {
+    "tryModifyState - modification occurs successfully" in real {
       val op = for {
         r <- MapRef.ofScalaConcurrentTrieMap[IO, Unit, Int]
         _ <- r(()).set(Some(0))
@@ -157,7 +157,7 @@ class MapRefJVMSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "MapRef.ofScalaConcurrentTrieMap - modifyState - modification occurs successfully" in real {
+    "modifyState - modification occurs successfully" in real {
       val op = for {
         r <- MapRef.ofScalaConcurrentTrieMap[IO, Unit, Int]
         _ <- r(()).set(Some(0))
@@ -169,8 +169,8 @@ class MapRefJVMSpec extends BaseSpec {
 
   }
 
-  "MapRef" should { // Requires unsafeRunSync so doesn't work with JS
-    "MapRef.ofSingleImmutableMapRef - tryUpdate - should fail to update if modification has occurred" in real {
+  "MapRef.ofSingleImmutableMapRef" should { // Requires unsafeRunSync so doesn't work with JS
+    "tryUpdate - should fail to update if modification has occurred" in real {
       import cats.effect.unsafe.implicits.global
       val updateRefUnsafely: Ref[IO, Option[Int]] => Unit =
         _.update(_.map(_ + 1)).unsafeRunSync()
@@ -187,7 +187,7 @@ class MapRefJVMSpec extends BaseSpec {
       op.map(a => a must_=== false)
     }
 
-    "MapRef.ofConcurrentHashMap - tryUpdate - should fail to update if modification has occurred" in real {
+    "tryUpdate - should fail to update if modification has occurred" in real {
       import cats.effect.unsafe.implicits.global
       val updateRefUnsafely: Ref[IO, Option[Int]] => Unit =
         _.update(_.map(_ + 1)).unsafeRunSync()
