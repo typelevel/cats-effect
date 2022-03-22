@@ -18,12 +18,14 @@ package cats.effect.std
 
 import cats._
 import cats.conversions.all._
-import cats.syntax.all._
 import cats.data._
 import cats.effect.kernel._
+import cats.syntax.all._
+
+import scala.collection.mutable
+
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
-import scala.collection.mutable
 
 /**
  * This is a total Map from K to Ref[F, V]. this allows us to use the Ref api backed by a

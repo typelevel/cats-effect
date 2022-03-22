@@ -16,8 +16,8 @@
 
 package cats.effect.std
 
-import cats.syntax.all._
 import cats.effect.kernel._
+import cats.syntax.all._
 
 private[std] trait MapRefCompanionPlatform {
 

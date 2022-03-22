@@ -17,9 +17,9 @@
 package cats.effect.std
 
 import cats._
-import cats.implicits._
 import cats.data.State
 import cats.effect._
+import cats.implicits._
 
 import scala.concurrent.duration._
 
