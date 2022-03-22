@@ -28,7 +28,7 @@ class MapRefSpec extends BaseSpec {
   private def awaitEqual[A: Eq](t: IO[A], success: A): IO[Unit] =
     t.flatMap(a => if (Eq[A].eqv(a, success)) IO.unit else smallDelay *> awaitEqual(t, success))
 
-  "MapRef.ofSingleImmatableMapRef" should {
+  "MapRef.ofSingleImmutableMapRef" should {
 
     "concurrent modifications" in real {
       val finalValue = 100
@@ -103,21 +103,6 @@ class MapRefSpec extends BaseSpec {
       op.map(a => a must_=== true)
     }
 
-    "access - setter should fail if called twice" in real {
-      val op = for {
-        r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
-        _ <- r(()).set(Some(0))
-        accessed <- r(()).access
-        (value, setter) = accessed
-        cond1 <- setter(value.map(_ + 1))
-        _ <- r(()).set(value)
-        cond2 <- setter(None)
-        result <- r(()).get
-      } yield cond1 && !cond2 && result == Some(0)
-
-      op.map(a => a must_=== true)
-    }
-
     "tryUpdate - modification occurs successfully" in real {
       val op = for {
         r <- MapRef.ofSingleImmutableMap[IO, Unit, Int]()
@@ -164,7 +149,6 @@ class MapRefSpec extends BaseSpec {
     }
 
     "work with convenience ops" in real {
-      import cats.effect.std.syntax.mapref._
       val size = 10
       val key = 3
       val expect = "Foo"
