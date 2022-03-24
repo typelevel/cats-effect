@@ -17,5 +17,5 @@
 package cats.effect.std
 
 private[std] trait RandomCompanionPlatform {
-  private[std] type SecureRandom = java.security.SecureRandom
+  private[std] type JavaSecureRandom = java.security.SecureRandom
 }

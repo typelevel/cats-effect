@@ -334,7 +334,7 @@ object Random extends RandomCompanionPlatform {
   def javaSecuritySecureRandom[F[_]: Sync](n: Int): F[Random[F]] =
     for {
       ref <- Ref[F].of(0)
-      array <- Sync[F].delay(Array.fill(n)(new SRandom(new SecureRandom)))
+      array <- Sync[F].delay(Array.fill(n)(new SRandom(new JavaSecureRandom)))
     } yield {
       def incrGet = ref.modify(i => (if (i < (n - 1)) i + 1 else 0, i))
       def selectRandom = incrGet.map(array(_))
@@ -342,7 +342,7 @@ object Random extends RandomCompanionPlatform {
     }
 
   def javaSecuritySecureRandom[F[_]: Sync]: F[Random[F]] =
-    Sync[F].delay(new SecureRandom).flatMap(r => javaUtilRandom(r))
+    Sync[F].delay(new JavaSecureRandom).flatMap(r => javaUtilRandom(r))
 
   private sealed abstract class RandomCommon[F[_]: Sync] extends Random[F] {
     def betweenDouble(minInclusive: Double, maxExclusive: Double): F[Double] =
@@ -447,7 +447,7 @@ object Random extends RandomCompanionPlatform {
       else new IllegalArgumentException(errorMessage).raiseError[F, Unit]
   }
 
-  private abstract class ScalaRandom[F[_] : Sync](f: F[SRandom]) extends RandomCommon[F] {
+  private abstract class ScalaRandom[F[_]: Sync](f: F[SRandom]) extends RandomCommon[F] {
     def nextBoolean: F[Boolean] =
       for {
         r <- f
@@ -528,9 +528,7 @@ object Random extends RandomCompanionPlatform {
 
     def nextBytes(n: Int): F[Array[Byte]] = {
       val bytes = new Array[Byte](0 max n)
-      Sync[F]
-        .delay(localRandom().nextBytes(bytes))
-        .as(bytes)
+      Sync[F].delay(localRandom().nextBytes(bytes)).as(bytes)
     }
 
     def nextDouble: F[Double] =
@@ -564,5 +562,6 @@ object Random extends RandomCompanionPlatform {
       Sync[F].delay(localRandom().shuffle(v))
   }
 
-  private[this] def localRandom() = new SRandom(java.util.concurrent.ThreadLocalRandom.current())
+  private[this] def localRandom() = new SRandom(
+    java.util.concurrent.ThreadLocalRandom.current())
 }
