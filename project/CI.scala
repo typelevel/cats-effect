@@ -69,7 +69,7 @@ object CI {
         command = "ciFirefox",
         rootProject = "rootJS",
         jsEnv = Some(JSEnv.Firefox),
-        testCommands = List("testOnly *tracing*"),
+        testCommands = List("testOnly *tracing*", "testOnly *.RandomSpec"),
         mimaReport = false,
         suffixCommands = List())
 
@@ -78,7 +78,7 @@ object CI {
         command = "ciChrome",
         rootProject = "rootJS",
         jsEnv = Some(JSEnv.Chrome),
-        testCommands = List("testOnly *tracing*"),
+        testCommands = List("testOnly *tracing*", "testOnly *.RandomSpec"),
         mimaReport = false,
         suffixCommands = List())
 
