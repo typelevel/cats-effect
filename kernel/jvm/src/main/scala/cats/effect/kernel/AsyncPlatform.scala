@@ -40,7 +40,14 @@ private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
               }))
           }
 
-          Some(void(delay(cf.cancel(false))))
+          Some(flatMap(delay(cf.cancel(false))) {
+            case true => unit
+            case false => // failed to cancel - block until completion
+              async_[Unit] { cb =>
+                cf.handle[Unit]((_, _) => cb(Right(())))
+                ()
+              }
+          })
         }
       }
     }
