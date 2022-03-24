@@ -47,7 +47,13 @@ class AsyncPlatformSpec extends BaseSpec {
         override def cancel(mayInterruptIfRunning: Boolean) = false
       }
 
-      IO.fromCompletableFuture(IO(cf)).start.flatMap(_.cancel) must nonTerminate
+      val io = for {
+        fiber <- IO.fromCompletableFuture(IO(cf)).start
+        _ <- IO.cede
+        _ <- fiber.cancel
+      } yield ()
+
+      io must nonTerminate
     }
   }
 }
