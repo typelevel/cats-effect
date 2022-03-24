@@ -209,7 +209,7 @@ trait Random[F[_]] { self =>
     }
 }
 
-object Random {
+object Random extends RandomCompanionPlatform {
 
   def apply[F[_]](implicit ev: Random[F]): Random[F] = ev
 
@@ -335,7 +335,7 @@ object Random {
   def javaSecuritySecureRandom[F[_]: Sync](n: Int): F[Random[F]] =
     for {
       ref <- Ref[F].of(0)
-      array <- Sync[F].delay(Array.fill(n)(new SRandom(new java.security.SecureRandom)))
+      array <- Sync[F].delay(Array.fill(n)(new SRandom(new JavaSecureRandom)))
     } yield {
       def incrGet = ref.modify(i => (if (i < (n - 1)) i + 1 else 0, i))
       def selectRandom = incrGet.map(array(_))
@@ -343,7 +343,7 @@ object Random {
     }
 
   def javaSecuritySecureRandom[F[_]: Sync]: F[Random[F]] =
-    Sync[F].delay(new java.security.SecureRandom).flatMap(r => javaUtilRandom(r))
+    Sync[F].delay(new JavaSecureRandom).flatMap(r => javaUtilRandom(r))
 
   private sealed abstract class RandomCommon[F[_]: Sync] extends Random[F] {
     def betweenDouble(minInclusive: Double, maxExclusive: Double): F[Double] =
