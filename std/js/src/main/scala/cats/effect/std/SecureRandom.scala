@@ -16,10 +16,9 @@
 
 package cats.effect.std
 
-import java.util.Random
 import scala.scalajs.js
 
-private final class SecureRandom extends Random {
+private final class SecureRandom extends java.util.Random {
 
   private val nextBytes: Int => js.typedarray.Int8Array =
     if (js.typeOf(js.Dynamic.global.crypto) != "undefined") // browsers
