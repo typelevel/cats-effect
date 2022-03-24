@@ -49,7 +49,7 @@ class AsyncPlatformSpec extends BaseSpec {
 
       val io = for {
         fiber <- IO.fromCompletableFuture(IO(cf)).start
-        _ <- IO.cede
+        _ <- smallDelay // time for the callback to be set-up
         _ <- fiber.cancel
       } yield ()
 
