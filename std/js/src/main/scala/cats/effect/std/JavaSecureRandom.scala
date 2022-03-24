@@ -20,7 +20,7 @@ import scala.scalajs.js
 
 private final class JavaSecureRandom extends java.util.Random {
 
-  private val nextBytes: Int => js.typedarray.Int8Array =
+  private[this] val nextBytes: Int => js.typedarray.Int8Array =
     if (js.typeOf(js.Dynamic.global.crypto) != "undefined") // browsers
       { numBytes =>
         val bytes = new js.typedarray.Int8Array(numBytes)
