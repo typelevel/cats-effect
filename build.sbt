@@ -97,7 +97,7 @@ val Windows = "windows-latest"
 val MacOS = "macos-latest"
 
 val Scala213 = "2.13.8"
-val Scala3 = "3.0.2"
+val Scala3 = "3.1.1"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
 
@@ -231,10 +231,12 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.7.0"
-val Specs2Version = "4.14.1"
+val Specs2Version = "4.14.1-cross"
 val ScalaCheckVersion = "1.15.4"
-val DisciplineVersion = "1.2.5"
+val DisciplineVersion = "1.5-69548db-SNAPSHOT"
 val CoopVersion = "1.1.1"
+
+ThisBuild / resolvers += "s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
 
 val MacrotaskExecutorVersion = "1.0.0"
 
@@ -290,11 +292,10 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform)
   .in(file("kernel"))
   .settings(
     name := "cats-effect-kernel",
-    libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion)
-  .settings(
-    libraryDependencies += ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
-      .cross(CrossVersion.for3Use2_13)
-      .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "cats-core" % CatsVersion,
+      "org.specs2" %%% "specs2-core" % Specs2Version % Test
+    )
   )
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
@@ -551,9 +552,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
     name := "cats-effect-testkit",
     libraryDependencies ++= Seq(
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
-        .cross(CrossVersion.for3Use2_13)
-        .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
+      "org.specs2" %%% "specs2-core" % Specs2Version % Test
     )
   )
 
@@ -568,11 +567,7 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
-        .cross(CrossVersion.for3Use2_13)
-        .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
-        .exclude("org.scalacheck", "scalacheck_2.13")
-        .exclude("org.scalacheck", "scalacheck_sjs1_2.13"),
+      "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test,
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test
     ),
@@ -625,11 +620,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
     name := "cats-effect-std",
     libraryDependencies ++= Seq(
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
-      ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
-        .cross(CrossVersion.for3Use2_13)
-        .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
-        .exclude("org.scalacheck", "scalacheck_2.13")
-        .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
+      "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     ),
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #2604, Fix Console on JS
