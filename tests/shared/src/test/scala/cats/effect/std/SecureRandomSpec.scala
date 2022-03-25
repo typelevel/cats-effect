@@ -17,16 +17,14 @@
 package cats.effect
 package std
 
-import scala.annotation.nowarn
+class SecureRandomSpec extends BaseSpec {
 
-class RandomSpec extends BaseSpec {
-
-  "Random" should {
+  "SecureRandom" should {
     "securely generate random bytes" in real {
       for {
-        random1 <- Random.javaSecuritySecureRandom[IO]: @nowarn("cat=deprecation")
+        random1 <- SecureRandom.javaSecuritySecureRandom[IO]
         bytes1 <- random1.nextBytes(128)
-        random2 <- Random.javaSecuritySecureRandom[IO](2): @nowarn("cat=deprecation")
+        random2 <- SecureRandom.javaSecuritySecureRandom[IO](2)
         bytes2 <- random2.nextBytes(256)
       } yield bytes1.length == 128 && bytes2.length == 256
     }
