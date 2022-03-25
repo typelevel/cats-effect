@@ -48,34 +48,58 @@ class QueueBenchmark {
   var size: Int = _
 
   @Benchmark
-  def concurrentEnqueueDequeueOne(): Unit =
+  def boundedConcurrentEnqueueDequeueOne(): Unit =
     Queue.boundedForConcurrent[IO, Unit](size).flatMap(enqueueDequeueOne(_)).unsafeRunSync()
 
   @Benchmark
-  def concurrentEnqueueDequeueMany(): Unit =
+  def boundedConcurrentEnqueueDequeueMany(): Unit =
     Queue.boundedForConcurrent[IO, Unit](size).flatMap(enqueueDequeueMany(_)).unsafeRunSync()
 
   @Benchmark
-  def concurrentEnqueueDequeueContended(): Unit =
+  def boundedConcurrentEnqueueDequeueContended(): Unit =
     Queue
       .boundedForConcurrent[IO, Unit](size / 8)
       .flatMap(enqueueDequeueContended(_))
       .unsafeRunSync()
 
   @Benchmark
-  def asyncEnqueueDequeueOne(): Unit =
+  def boundedAsyncEnqueueDequeueOne(): Unit =
     Queue.boundedForAsync[IO, Unit](size).flatMap(enqueueDequeueOne(_)).unsafeRunSync()
 
   @Benchmark
-  def asyncEnqueueDequeueMany(): Unit =
+  def boundedAsyncEnqueueDequeueMany(): Unit =
     Queue.boundedForAsync[IO, Unit](size).flatMap(enqueueDequeueMany(_)).unsafeRunSync()
 
   @Benchmark
-  def asyncEnqueueDequeueContended(): Unit =
+  def boundedAsyncEnqueueDequeueContended(): Unit =
     Queue
       .boundedForAsync[IO, Unit](size / 8)
       .flatMap(enqueueDequeueContended(_))
       .unsafeRunSync()
+
+  @Benchmark
+  def unboundedConcurrentEnqueueDequeueOne(): Unit =
+    Queue.unboundedForConcurrent[IO, Unit].flatMap(enqueueDequeueOne(_)).unsafeRunSync()
+
+  @Benchmark
+  def unboundedConcurrentEnqueueDequeueMany(): Unit =
+    Queue.unboundedForConcurrent[IO, Unit].flatMap(enqueueDequeueMany(_)).unsafeRunSync()
+
+  @Benchmark
+  def unboundedConcurrentEnqueueDequeueContended(): Unit =
+    Queue.unboundedForConcurrent[IO, Unit].flatMap(enqueueDequeueContended(_)).unsafeRunSync()
+
+  @Benchmark
+  def unboundedAsyncEnqueueDequeueOne(): Unit =
+    Queue.unboundedForAsync[IO, Unit].flatMap(enqueueDequeueOne(_)).unsafeRunSync()
+
+  @Benchmark
+  def unboundedAsyncEnqueueDequeueMany(): Unit =
+    Queue.unboundedForAsync[IO, Unit].flatMap(enqueueDequeueMany(_)).unsafeRunSync()
+
+  @Benchmark
+  def unboundedAsyncEnqueueDequeueContended(): Unit =
+    Queue.unboundedForAsync[IO, Unit].flatMap(enqueueDequeueContended(_)).unsafeRunSync()
 
   private[this] def enqueueDequeueOne(q: Queue[IO, Unit]): IO[Unit] = {
     def loop(i: Int): IO[Unit] =

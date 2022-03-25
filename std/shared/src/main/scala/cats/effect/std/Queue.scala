@@ -95,6 +95,10 @@ object Queue {
     F.delay(new BoundedAsyncQueue(capacity))
   }
 
+  private[effect] def unboundedForConcurrent[F[_], A](
+      implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
+    boundedForConcurrent[F, A](Int.MaxValue)
+
   private[effect] def unboundedForAsync[F[_], A](implicit F: Async[F]): F[Queue[F, A]] =
     F.delay(new UnboundedAsyncQueue())
 
@@ -125,7 +129,7 @@ object Queue {
         unboundedForAsync(f0)
 
       case _ =>
-        boundedForConcurrent(Int.MaxValue)
+        unboundedForConcurrent
     }
 
   /**
@@ -547,7 +551,6 @@ object Queue {
     }
   }
 
-
   private final class UnboundedAsyncQueue[F[_], A]()(implicit F: Async[F]) extends Queue[F, A] {
     private[this] val buffer = new UnsafeUnbounded[A]()
     private[this] val takers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
@@ -628,7 +631,8 @@ object Queue {
       // capture whether or not we should loop (structured in this way to avoid nested try/catch, which has a performance cost)
       val retry =
         try {
-          val f = takers.take() // try to take the first waiter; if there are none, raise an exception
+          val f =
+            takers.take() // try to take the first waiter; if there are none, raise an exception
 
           // we didn't get an exception, but the waiter may have been removed due to cancelation
           if (f == null) {
