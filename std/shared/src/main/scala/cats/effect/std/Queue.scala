@@ -95,6 +95,9 @@ object Queue {
     F.delay(new BoundedAsyncQueue(capacity))
   }
 
+  private[effect] def unboundedForAsync[F[_], A](implicit F: Async[F]): F[Queue[F, A]] =
+    F.delay(new UnboundedAsyncQueue())
+
   /**
    * Constructs a queue through which a single element can pass only in the case when there are
    * at least one taking fiber and at least one offering fiber for `F` data types that are
@@ -117,7 +120,13 @@ object Queue {
    *   an empty, unbounded queue
    */
   def unbounded[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
-    boundedForConcurrent(Int.MaxValue) // TODO UnboundedAsyncQueue
+    F match {
+      case f0: Async[F] =>
+        unboundedForAsync(f0)
+
+      case _ =>
+        boundedForConcurrent(Int.MaxValue)
+    }
 
   /**
    * Constructs an empty, bounded, dropping queue holding up to `capacity` elements for `F` data
@@ -538,6 +547,113 @@ object Queue {
     }
   }
 
+
+  private final class UnboundedAsyncQueue[F[_], A]()(implicit F: Async[F]) extends Queue[F, A] {
+    private[this] val buffer = new UnsafeUnbounded[A]()
+    private[this] val takers = new UnsafeUnbounded[Either[Throwable, Unit] => Unit]()
+
+    def offer(a: A): F[Unit] = F delay {
+      buffer.put(a)
+      notifyOne()
+    }
+
+    def tryOffer(a: A): F[Boolean] = F delay {
+      buffer.put(a)
+      notifyOne()
+      true
+    }
+
+    val size: F[Int] = F.delay(buffer.size())
+
+    val take: F[A] = F defer {
+      try {
+        // attempt to take from the buffer. if it's empty, this will raise an exception
+        F.pure(buffer.take())
+      } catch {
+        case FailureSignal =>
+          // buffer was empty
+          // capture the fact that our retry succeeded and the value we were able to take
+          var received = false
+          var result: A = null.asInstanceOf[A]
+
+          // a latch to block until some offerer wakes us up
+          val wait = F.async[Unit] { k =>
+            F delay {
+              // register ourselves as a listener for offers
+              val clear = takers.put(k)
+
+              try {
+                // now that we're registered, retry the take
+                result = buffer.take()
+
+                // it worked! clear out our listener
+                clear()
+                // we got a result, so received should be true now
+                received = true
+
+                // complete our own callback. see notes in offer about raced redundant completion
+                k(EitherUnit)
+
+                // we *might* have negated a notification by succeeding here
+                // unnecessary wake-ups are mostly harmless (only slight fairness loss)
+                notifyOne()
+
+                // don't bother with a finalizer since we're already complete
+                None
+              } catch {
+                case FailureSignal =>
+                  // println(s"failed take size = ${buffer.size()}")
+                  // our retry failed, we're registered as a listener, so suspend
+                  Some(F.delay(clear()))
+              }
+            }
+          }
+
+          // suspend until an offerer wakes us or our retry succeeds, then return a result
+          wait *> F.defer(if (received) F.pure(result) else take)
+      }
+    }
+
+    val tryTake: F[Option[A]] = F delay {
+      try {
+        Some(buffer.take())
+      } catch {
+        case FailureSignal =>
+          None
+      }
+    }
+
+    @tailrec
+    private[this] def notifyOne(): Unit = {
+      // capture whether or not we should loop (structured in this way to avoid nested try/catch, which has a performance cost)
+      val retry =
+        try {
+          val f = takers.take() // try to take the first waiter; if there are none, raise an exception
+
+          // we didn't get an exception, but the waiter may have been removed due to cancelation
+          if (f == null) {
+            // it was removed! loop and retry
+            true
+          } else {
+            // it wasn't removed, so invoke it
+            // taker may have already been invoked due to the double-check pattern, in which case this will be idempotent
+            f(EitherUnit)
+
+            // don't retry
+            false
+          }
+        } catch {
+          // there are no takers, so don't notify anything
+          case FailureSignal => false
+        }
+
+      if (retry) {
+        // loop outside of try/catch
+        notifyOne()
+      }
+    }
+  }
+
   // ported with love from https://github.com/JCTools/JCTools/blob/master/jctools-core/src/main/java/org/jctools/queues/MpmcArrayQueue.java
   private[effect] final class UnsafeBounded[A](bound: Int) {
     require(bound > 1)
@@ -632,6 +748,16 @@ object Queue {
   final class UnsafeUnbounded[A] {
     private[this] val first = new AtomicReference[Cell]
     private[this] val last = new AtomicReference[Cell]
+
+    def size(): Int = {
+      var current = first.get()
+      var count = 0
+      while (current != null) {
+        count += 1
+        current = current.get()
+      }
+      count
+    }
 
     def put(data: A): () => Unit = {
       val cell = new Cell(data)
