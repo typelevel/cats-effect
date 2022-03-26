@@ -563,7 +563,7 @@ object Queue {
     private[this] val head = new AtomicLong(0)
     private[this] val tail = new AtomicLong(0)
 
-    private[this] val LookAheadStep = Math.max(2, Math.min(bound / 4, 4096))    // TODO tunable
+    private[this] val LookAheadStep = Math.max(2, Math.min(bound / 4, 4096)) // TODO tunable
 
     0.until(bound).foreach(i => sequenceBuffer.set(i, i.toLong))
 
@@ -648,12 +648,13 @@ object Queue {
       @tailrec
       def loopOne(consumed: Int): Unit = {
         if (consumed < limit) {
-          val next = try {
-            back += take()
-            true
-          } catch {
-            case FailureSignal => false
-          }
+          val next =
+            try {
+              back += take()
+              true
+            } catch {
+              case FailureSignal => false
+            }
 
           if (next) {
             loopOne(consumed + 1)
@@ -675,7 +676,9 @@ object Queue {
           val lookAheadSeq = sequenceBuffer.get(lookAheadOffset)
           val expectedLookAheadSeq = lookAheadIndex + 1
 
-          if (lookAheadSeq == expectedLookAheadSeq && head.compareAndSet(currentHead, expectedLookAheadSeq)) {
+          if (lookAheadSeq == expectedLookAheadSeq && head.compareAndSet(
+              currentHead,
+              expectedLookAheadSeq)) {
             var i = 0
             while (i < step) {
               val index = currentHead + i
