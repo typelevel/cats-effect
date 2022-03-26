@@ -24,6 +24,7 @@ import cats.syntax.all._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => ScalaQueue}
+import scala.collection.mutable.ListBuffer
 
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, AtomicLongArray, AtomicReference}
 
@@ -497,6 +498,20 @@ object Queue {
       }
     }
 
+    override def tryTakeN(limit: Option[Int])(implicit F0: Monad[F]): F[Option[List[A]]] = {
+      QueueSource.assertMaxNPositive(limit)
+
+      F delay {
+        val _ = F0
+        val back = buffer.drain(limit.getOrElse(Int.MaxValue))
+
+        if (back == Nil)
+          None
+        else
+          Some(back)
+      }
+    }
+
     def debug(): Unit = {
       println(s"buffer: ${buffer.debug()}")
       // println(s"takers: ${takers.debug()}")
@@ -547,6 +562,8 @@ object Queue {
     private[this] val sequenceBuffer = new AtomicLongArray(bound)
     private[this] val head = new AtomicLong(0)
     private[this] val tail = new AtomicLong(0)
+
+    private[this] val LookAheadStep = Math.max(2, Math.min(bound / 4, 4096))    // TODO tunable
 
     0.until(bound).foreach(i => sequenceBuffer.set(i, i.toLong))
 
@@ -623,6 +640,73 @@ object Queue {
       length.decrementAndGet()
 
       back
+    }
+
+    def drain(limit: Int): List[A] = {
+      val back = new ListBuffer[A]()
+
+      @tailrec
+      def loopOne(consumed: Int): Unit = {
+        if (consumed < limit) {
+          val next = try {
+            back += take()
+            true
+          } catch {
+            case FailureSignal => false
+          }
+
+          if (next) {
+            loopOne(consumed + 1)
+          }
+        }
+      }
+
+      val maxLookAheadStep = Math.min(LookAheadStep, limit)
+
+      @tailrec
+      def loopMany(consumed: Int): Unit = {
+        if (consumed < limit) {
+          val remaining = limit - consumed
+          val step = Math.min(remaining, maxLookAheadStep)
+
+          val currentHead = head.get()
+          val lookAheadIndex = currentHead + step - 1
+          val lookAheadOffset = project(lookAheadIndex)
+          val lookAheadSeq = sequenceBuffer.get(lookAheadOffset)
+          val expectedLookAheadSeq = lookAheadIndex + 1
+
+          if (lookAheadSeq == expectedLookAheadSeq && head.compareAndSet(currentHead, expectedLookAheadSeq)) {
+            var i = 0
+            while (i < step) {
+              val index = currentHead + i
+              val offset = project(index)
+              val expectedSeq = index + 1
+
+              while (sequenceBuffer.get(offset) != expectedSeq) {}
+
+              val value = buffer(offset).asInstanceOf[A]
+              buffer(offset) = null
+              sequenceBuffer.set(offset, index + bound)
+              back += value
+
+              i += 1
+            }
+
+            loopMany(consumed + step)
+          } else {
+            if (lookAheadSeq < expectedLookAheadSeq) {
+              if (sequenceBuffer.get(project(currentHead)) >= currentHead + 1) {
+                loopOne(consumed)
+              }
+            } else {
+              loopOne(consumed)
+            }
+          }
+        }
+      }
+
+      loopMany(0)
+      back.toList
     }
 
     private[this] def project(idx: Long): Int =
@@ -780,7 +864,7 @@ trait QueueSource[F[_], A] {
 }
 
 object QueueSource {
-  private def assertMaxNPositive(maxN: Option[Int]): Unit = maxN match {
+  private[std] def assertMaxNPositive(maxN: Option[Int]): Unit = maxN match {
     case Some(n) if n <= 0 =>
       throw new IllegalArgumentException(s"Provided maxN parameter must be positive, was $n")
     case _ => ()
