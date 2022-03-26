@@ -24,7 +24,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 import java.lang.management.ManagementFactory
-import java.util.concurrent.{Executors, ScheduledThreadPoolExecutor}
+import java.util.concurrent.{Executor, Executors, ScheduledThreadPoolExecutor}
 import java.util.concurrent.atomic.AtomicInteger
 
 import javax.management.ObjectName
@@ -116,7 +116,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     createWorkStealingComputeThreadPool(threads, threadPrefix)
 
   def createDefaultBlockingExecutionContext(
-      threadPrefix: String = "io-blocking"): (ExecutionContext, () => Unit) = {
+      threadPrefix: String = "io-blocking"): (ExecutionContext with Executor, () => Unit) = {
     val threadCount = new AtomicInteger(0)
     val executor = Executors.newCachedThreadPool { (r: Runnable) =>
       val t = new Thread(r)

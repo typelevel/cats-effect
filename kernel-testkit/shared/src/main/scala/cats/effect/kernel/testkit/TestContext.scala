@@ -25,7 +25,7 @@ import scala.util.{Random, Try}
 import scala.util.control.NonFatal
 
 import java.util.{Base64, Comparator}
-import java.util.concurrent.ConcurrentSkipListSet
+import java.util.concurrent.{ConcurrentSkipListSet, Executor}
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 
 /**
@@ -59,7 +59,7 @@ import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
  *   assert(ec.state.lastReportedFailure == None)
  * }}}
  */
-final class TestContext private (_seed: Long) extends ExecutionContext { self =>
+final class TestContext private (_seed: Long) extends ExecutionContext with Executor { self =>
   import TestContext.{ConcurrentState, Encoder, State, Task}
 
   private[this] val random = new Random(_seed)
@@ -231,8 +231,8 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
    * Derives a new `ExecutionContext` which delegates to `this`, but wrapping all tasks in
    * [[scala.concurrent.blocking]].
    */
-  def deriveBlocking(): ExecutionContext =
-    new ExecutionContext {
+  def deriveBlocking(): ExecutionContext with Executor =
+    new ExecutionContext with Executor {
       import scala.concurrent.blocking
 
       def execute(runnable: Runnable): Unit = blocking(self.execute(runnable))

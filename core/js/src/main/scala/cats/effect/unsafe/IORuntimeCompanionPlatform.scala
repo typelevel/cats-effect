@@ -23,9 +23,11 @@ import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 import scala.concurrent.ExecutionContext
 import scala.scalajs.LinkingInfo
 
+import java.util.concurrent.Executor
+
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
-  def defaultComputeExecutionContext: ExecutionContext =
+  def defaultComputeExecutionContext: ExecutionContext with Executor =
     if (LinkingInfo.developmentMode && TracingConstants.isStackTracing && FiberMonitor.weakRefsAvailable)
       new FiberAwareExecutionContext(MacrotaskExecutor)
     else

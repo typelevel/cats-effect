@@ -37,7 +37,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
 
 import java.util.Comparator
-import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
+import java.util.concurrent.{ConcurrentSkipListSet, Executor, ThreadLocalRandom}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.locks.LockSupport
 
@@ -60,7 +60,8 @@ private[effect] final class WorkStealingThreadPool(
     threadCount: Int, // number of worker threads
     private[unsafe] val threadPrefix: String, // prefix for the name of worker threads
     private[unsafe] val runtimeBlockingExpiration: Duration
-) extends ExecutionContext {
+) extends ExecutionContext
+    with Executor {
 
   import TracingConstants._
   import WorkStealingThreadPoolConstants._

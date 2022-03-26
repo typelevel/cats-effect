@@ -19,15 +19,19 @@ package unsafe
 
 import scala.concurrent.ExecutionContext
 
+import java.util.concurrent.Executor
+
 /**
  * Builder object for creating custom `IORuntime`s. Useful for creating [[IORuntime]] based on
  * the default one but with some wrappers around execution contexts or custom shutdown hooks.
  */
 final class IORuntimeBuilder protected (
-    protected var customCompute: Option[(ExecutionContext, () => Unit)] = None,
-    protected var computeTransform: ExecutionContext => ExecutionContext = identity,
-    protected var customBlocking: Option[(ExecutionContext, () => Unit)] = None,
-    protected var blockingTransform: ExecutionContext => ExecutionContext = identity,
+    protected var customCompute: Option[(ExecutionContext with Executor, () => Unit)] = None,
+    protected var computeTransform: ExecutionContext with Executor => ExecutionContext with Executor =
+      identity,
+    protected var customBlocking: Option[(ExecutionContext with Executor, () => Unit)] = None,
+    protected var blockingTransform: ExecutionContext with Executor => ExecutionContext with Executor =
+      identity,
     protected var customConfig: Option[IORuntimeConfig] = None,
     protected var customScheduler: Option[(Scheduler, () => Unit)] = None,
     protected var extraShutdownHooks: List[() => Unit] = Nil,
@@ -42,7 +46,9 @@ final class IORuntimeBuilder protected (
    * @param shutdown
    *   [[IORuntime]] shutdown hook
    */
-  def setCompute(compute: ExecutionContext, shutdown: () => Unit): IORuntimeBuilder = {
+  def setCompute(
+      compute: ExecutionContext with Executor,
+      shutdown: () => Unit): IORuntimeBuilder = {
     if (customCompute.isDefined) {
       throw new IllegalStateException("Compute can be set only once")
     }
@@ -57,7 +63,9 @@ final class IORuntimeBuilder protected (
    * @param transform
    *   the modification of the current compute execution context
    */
-  def transformCompute(transform: ExecutionContext => ExecutionContext): IORuntimeBuilder = {
+  def transformCompute(
+      transform: ExecutionContext with Executor => ExecutionContext with Executor)
+      : IORuntimeBuilder = {
     computeTransform = transform.andThen(computeTransform)
     this
   }
@@ -70,7 +78,9 @@ final class IORuntimeBuilder protected (
    * @param shutdown
    *   [[scala.concurrent.ExecutionContext ExecutionContext]] shutdown hook
    */
-  def setBlocking(blocking: ExecutionContext, shutdown: () => Unit): IORuntimeBuilder = {
+  def setBlocking(
+      blocking: ExecutionContext with Executor,
+      shutdown: () => Unit): IORuntimeBuilder = {
     if (customBlocking.isDefined) {
       throw new RuntimeException("Blocking can only be set once")
     }
@@ -86,7 +96,9 @@ final class IORuntimeBuilder protected (
    * @param transform
    *   the modification of the current blocking execution context
    */
-  def transformBlocking(transform: ExecutionContext => ExecutionContext): IORuntimeBuilder = {
+  def transformBlocking(
+      transform: ExecutionContext with Executor => ExecutionContext with Executor)
+      : IORuntimeBuilder = {
     blockingTransform = transform.andThen(blockingTransform)
     this
   }

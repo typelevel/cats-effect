@@ -19,6 +19,7 @@ package unsafe
 
 import scala.concurrent.ExecutionContext
 
+import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
 @annotation.implicitNotFound("""Could not find an implicit IORuntime.
@@ -35,8 +36,8 @@ wish to use to execute IO programs. Please be sure to review thread pool best pr
 avoid unintentionally degrading your application performance.
 """)
 final class IORuntime private[unsafe] (
-    val compute: ExecutionContext,
-    private[effect] val blocking: ExecutionContext,
+    val compute: ExecutionContext with Executor,
+    private[effect] val blocking: ExecutionContext with Executor,
     val scheduler: Scheduler,
     private[effect] val fiberMonitor: FiberMonitor,
     val shutdown: () => Unit,
@@ -58,8 +59,8 @@ final class IORuntime private[unsafe] (
 
 object IORuntime extends IORuntimeCompanionPlatform {
   def apply(
-      compute: ExecutionContext,
-      blocking: ExecutionContext,
+      compute: ExecutionContext with Executor,
+      blocking: ExecutionContext with Executor,
       scheduler: Scheduler,
       shutdown: () => Unit,
       config: IORuntimeConfig): IORuntime = {
@@ -79,7 +80,9 @@ object IORuntime extends IORuntimeCompanionPlatform {
   def builder(): IORuntimeBuilder =
     IORuntimeBuilder()
 
-  private[effect] def testRuntime(ec: ExecutionContext, scheduler: Scheduler): IORuntime =
+  private[effect] def testRuntime(
+      ec: ExecutionContext with Executor,
+      scheduler: Scheduler): IORuntime =
     new IORuntime(ec, ec, scheduler, new NoOpFiberMonitor(), () => (), IORuntimeConfig())
 
   private[effect] final val allRuntimes: ThreadSafeHashtable[IORuntime] =
