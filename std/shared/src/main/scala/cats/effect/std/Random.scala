@@ -280,18 +280,11 @@ object Random extends RandomCompanionPlatform {
 
   @deprecated("Call SecureRandom.javaSecuritySecureRandom", "3.4.0")
   def javaSecuritySecureRandom[F[_]: Sync](n: Int): F[Random[F]] =
-    for {
-      ref <- Ref[F].of(0)
-      array <- Sync[F].delay(Array.fill(n)(new SRandom(new JavaSecureRandom)))
-    } yield {
-      def incrGet = ref.modify(i => (if (i < (n - 1)) i + 1 else 0, i))
-      def selectRandom = incrGet.map(array(_))
-      new ScalaRandom[F](selectRandom) {}
-    }
+    SecureRandom.javaSecuritySecureRandom[F](n).widen[Random[F]]
 
   @deprecated("Call SecureRandom.javaSecuritySecureRandom", "3.4.0")
   def javaSecuritySecureRandom[F[_]: Sync]: F[Random[F]] =
-    Sync[F].delay(new JavaSecureRandom).flatMap(r => javaUtilRandom(r))
+    SecureRandom.javaSecuritySecureRandom[F].widen[Random[F]]
 
   private[std] sealed abstract class RandomCommon[F[_]: Sync] extends Random[F] {
     def betweenDouble(minInclusive: Double, maxExclusive: Double): F[Double] =

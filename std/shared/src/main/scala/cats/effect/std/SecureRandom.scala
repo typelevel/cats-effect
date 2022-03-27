@@ -29,7 +29,7 @@ import cats.data.{
   WriterT
 }
 import cats.effect.kernel._
-import cats.effect.std.Random.{JavaSecureRandom, ScalaRandom, TranslatedRandom}
+import cats.effect.std.Random.{ScalaRandom, TranslatedRandom}
 import cats.syntax.all._
 
 import scala.util.{Random => SRandom}
@@ -44,7 +44,7 @@ trait SecureRandom[F[_]] extends Random[F] { self =>
     new TranslatedRandom[F, G](self)(f) with SecureRandom[G]
 }
 
-object SecureRandom {
+object SecureRandom extends SecureRandomCompanionPlatform {
 
   def apply[F[_]](implicit ev: SecureRandom[F]): SecureRandom[F] = ev
 
