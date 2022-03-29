@@ -18,6 +18,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 import com.typesafe.tools.mima.core._
+import com.github.sbt.git.SbtGit.GitKeys._
 import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.firefox.FirefoxOptions
 import org.scalajs.jsenv.nodejs.NodeJSEnv
@@ -25,6 +26,8 @@ import org.scalajs.jsenv.selenium.SeleniumJSEnv
 import sbtcrossproject.CrossProject
 
 import JSEnv._
+
+ThisBuild / useConsoleForROGit := true
 
 ThisBuild / tlBaseVersion := "3.3"
 ThisBuild / tlUntaggedAreSnapshots := false
