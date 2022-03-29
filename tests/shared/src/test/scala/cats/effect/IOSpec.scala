@@ -194,6 +194,48 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
               }(_ => IO.raiseError(WrongException))
           io.attempt must completeAs(Left(TestException))
         })
+
+      "report unhandled failure to the execution context" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        val action = IO.executionContext flatMap { ec =>
+          IO defer {
+            var ts: List[Throwable] = Nil
+
+            val ec2 = new ExecutionContext {
+              def reportFailure(t: Throwable) = ts ::= t
+              def execute(r: Runnable) = ec.execute(r)
+            }
+
+            IO.raiseError(TestException).start.evalOn(ec2) *> IO.sleep(10.millis) *> IO(ts)
+          }
+        }
+
+        action must completeAs(List(TestException))
+      }
+
+      "not report observed failures to the execution context" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        val action = IO.executionContext flatMap { ec =>
+          IO defer {
+            var ts: List[Throwable] = Nil
+
+            val ec2 = new ExecutionContext {
+              def reportFailure(t: Throwable) = ts ::= t
+              def execute(r: Runnable) = ec.execute(r)
+            }
+
+            for {
+              f <- (IO.sleep(10.millis) *> IO.raiseError(TestException)).start.evalOn(ec2)
+              _ <- f.join
+              back <- IO(ts)
+            } yield back
+          }
+        }
+
+        action must completeAs(Nil)
+      }
     }
 
     "suspension of side effects" should {
@@ -1341,6 +1383,50 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
             case Right(_) => SyncIO.raiseError[Unit](new RuntimeException("Boom!"))
           } must completeAsSync(())
+      }
+
+      "should not execute effects twice for map (#2858)" in ticked { implicit ticker =>
+        var i = 0
+        val io = (IO(i += 1) *> IO.cede).void.syncStep.unsafeRunSync() match {
+          case Left(io) => io
+          case Right(_) => IO.unit
+        }
+        io must completeAs(())
+        i must beEqualTo(1)
+      }
+
+      "should not execute effects twice for flatMap (#2858)" in ticked { implicit ticker =>
+        var i = 0
+        val io = (IO(i += 1) *> IO.cede *> IO.unit).syncStep.unsafeRunSync() match {
+          case Left(io) => io
+          case Right(_) => IO.unit
+        }
+        io must completeAs(())
+        i must beEqualTo(1)
+      }
+
+      "should not execute effects twice for attempt (#2858)" in ticked { implicit ticker =>
+        var i = 0
+        val io = (IO(i += 1) *> IO.cede).attempt.void.syncStep.unsafeRunSync() match {
+          case Left(io) => io
+          case Right(_) => IO.unit
+        }
+        io must completeAs(())
+        i must beEqualTo(1)
+      }
+
+      "should not execute effects twice for handleErrorWith (#2858)" in ticked {
+        implicit ticker =>
+          var i = 0
+          val io = (IO(i += 1) *> IO.cede)
+            .handleErrorWith(_ => IO.unit)
+            .syncStep
+            .unsafeRunSync() match {
+            case Left(io) => io
+            case Right(_) => IO.unit
+          }
+          io must completeAs(())
+          i must beEqualTo(1)
       }
     }
 

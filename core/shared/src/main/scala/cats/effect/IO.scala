@@ -843,20 +843,20 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
         case IO.Map(ioe, f, _) =>
           interpret(ioe).map {
-            case Left(_) => Left(io)
+            case Left(io) => Left(io.map(f))
             case Right(a) => Right(f(a))
           }
 
         case IO.FlatMap(ioe, f, _) =>
           interpret(ioe).flatMap {
-            case Left(_) => SyncIO.pure(Left(io))
+            case Left(io) => SyncIO.pure(Left(io.flatMap(f)))
             case Right(a) => interpret(f(a))
           }
 
         case IO.Attempt(ioe) =>
           interpret(ioe)
             .map {
-              case Left(_) => Left(io)
+              case Left(io) => Left(io.attempt)
               case Right(a) => Right(a.asRight[Throwable])
             }
             .handleError(t => Right(t.asLeft[IO[B]]))
@@ -864,7 +864,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case IO.HandleErrorWith(ioe, f, _) =>
           interpret(ioe)
             .map {
-              case Left(_) => Left(io)
+              case Left(io) => Left(io.handleErrorWith(f))
               case Right(a) => Right(a)
             }
             .handleErrorWith(t => interpret(f(t)))

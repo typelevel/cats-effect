@@ -28,6 +28,23 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   private[this] val TypeInterruptibleOnce = Sync.Type.InterruptibleOnce
   private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
 
+  /**
+   * Intended for thread blocking operations. `blocking` will shift the execution of the
+   * blocking operation to a separate threadpool to avoid blocking on the main execution
+   * context. See the thread-model documentation for more information on why this is necessary.
+   * Note that the created effect will be uncancelable; if you need cancelation then you should
+   * use [[interruptible[A](thunk:=>A):*]] or [[interruptibleMany]].
+   *
+   * {{{
+   * IO.blocking(scala.io.Source.fromFile("path").mkString)
+   * }}}
+   *
+   * @param thunk
+   *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
+   *   context
+   *
+   * Implements [[cats.effect.kernel.Sync.blocking]].
+   */
   def blocking[A](thunk: => A): IO[A] = {
     val fn = Thunk.asFunction0(thunk)
     Blocking(TypeBlocking, fn, Tracing.calculateTracingEvent(fn.getClass))
@@ -43,11 +60,48 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
       Tracing.calculateTracingEvent(fn.getClass))
   }
 
+  /**
+   * Like [[blocking]] but will attempt to abort the blocking operation using thread interrupts
+   * in the event of cancelation. The interrupt will be attempted only once.
+   *
+   * Note the following tradeoffs:
+   *   - this has slightly more overhead than [[blocking]] due to the machinery necessary for
+   *     the interrupt coordination,
+   *   - thread interrupts are very often poorly considered by Java (and Scala!) library
+   *     authors, and it is possible for interrupts to result in resource leaks or invalid
+   *     states. It is important to be certain that this will not be the case before using this
+   *     mechanism.
+   *
+   * @param thunk
+   *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
+   *   context
+   *
+   * Implements [[cats.effect.kernel.Sync.interruptible[A](thunk:=>A):*]]
+   */
   def interruptible[A](thunk: => A): IO[A] = {
     val fn = Thunk.asFunction0(thunk)
     Blocking(TypeInterruptibleOnce, fn, Tracing.calculateTracingEvent(fn.getClass))
   }
 
+  /**
+   * Like [[blocking]] but will attempt to abort the blocking operation using thread interrupts
+   * in the event of cancelation. The interrupt will be attempted repeatedly until the blocking
+   * operation completes or exits.
+   *
+   * Note the following tradeoffs:
+   *   - this has slightly more overhead than [[blocking]] due to the machinery necessary for
+   *     the interrupt coordination,
+   *   - thread interrupts are very often poorly considered by Java (and Scala!) library
+   *     authors, and it is possible for interrupts to result in resource leaks or invalid
+   *     states. It is important to be certain that this will not be the case before using this
+   *     mechanism.
+   *
+   * @param thunk
+   *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
+   *   context
+   *
+   * Implements [[cats.effect.kernel.Sync!.interruptibleMany]]
+   */
   def interruptibleMany[A](thunk: => A): IO[A] = {
     val fn = Thunk.asFunction0(thunk)
     Blocking(TypeInterruptibleMany, fn, Tracing.calculateTracingEvent(fn.getClass))

@@ -1022,7 +1022,12 @@ private final class IOFiber[A] private (
     outcome = oc
 
     try {
-      callbacks(oc)
+      if (!callbacks(oc, false)) {
+        oc match {
+          case Outcome.Errored(e) => currentCtx.reportFailure(e)
+          case _ => ()
+        }
+      }
     } finally {
       callbacks.lazySet(null) /* avoid leaks */
     }
