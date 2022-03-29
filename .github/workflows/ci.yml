@@ -15,11 +15,6 @@ on:
     tags: [v*]
 
 env:
-  PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
-  SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-  SONATYPE_CREDENTIAL_HOST: ${{ secrets.SONATYPE_CREDENTIAL_HOST }}
-  SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-  PGP_SECRET: ${{ secrets.PGP_SECRET }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
@@ -100,7 +95,7 @@ jobs:
         run: git config --global core.autocrlf false
 
       - name: Checkout current branch (full)
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 

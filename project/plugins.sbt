@@ -1,6 +1,6 @@
 libraryDependencies += "org.scala-js" %% "scalajs-env-selenium" % "1.1.1"
 
-addSbtPlugin("org.typelevel" % "sbt-typelevel" % "0.4.6")
+addSbtPlugin("org.typelevel" % "sbt-typelevel" % "0.5.0-M1")
 
 addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.7.1")
 addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % "1.1.0")
