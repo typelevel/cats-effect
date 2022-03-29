@@ -120,7 +120,8 @@ object Supervisor {
     def cancelAll(): F[Unit]
   }
 
-  private def supervisor[F[_]](mkState: F[State[F]])(implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
+  private def supervisor[F[_]](mkState: F[State[F]])(
+      implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     // It would have preferable to use Scope here but explicit cancelation is
     // intertwined with resource management
     for {
@@ -141,17 +142,15 @@ object Supervisor {
     }
   }
 
-  private def applyForConcurrent[F[_]](implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
+  private def applyForConcurrent[F[_]](
+      implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     val mkState = F.ref[Map[Unique.Token, F[Unit]]](Map.empty).map { stateRef =>
       new State[F] {
         override def remove(token: Unique.Token): F[Unit] = stateRef.update(_ - token)
-        override def add(token: Unique.Token, cancel: F[Unit]): F[Unit] = stateRef.update(_ + (token -> cancel))
+        override def add(token: Unique.Token, cancel: F[Unit]): F[Unit] =
+          stateRef.update(_ + (token -> cancel))
         override def cancelAll(): F[Unit] =
-          stateRef
-            .get
-            .flatMap { fibers =>
-              fibers.values.toList.parUnorderedSequence.void
-            }
+          stateRef.get.flatMap { fibers => fibers.values.toList.parUnorderedSequence.void }
       }
     }
     supervisor(mkState)
@@ -162,7 +161,8 @@ object Supervisor {
       val state = new ConcurrentHashMap[Unique.Token, F[Unit]]
       new State[F] {
         override def remove(token: Unique.Token): F[Unit] = F.delay(state.remove(token)).void
-        override def add(token: Unique.Token, cancel: F[Unit]): F[Unit] = F.delay(state.put(token, cancel)).void
+        override def add(token: Unique.Token, cancel: F[Unit]): F[Unit] =
+          F.delay(state.put(token, cancel)).void
         override def cancelAll(): F[Unit] = F.defer {
           val fibersToCancel = ListBuffer.empty[F[Unit]]
           fibersToCancel.sizeHint(state.size())

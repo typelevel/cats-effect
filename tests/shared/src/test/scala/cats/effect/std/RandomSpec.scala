@@ -18,7 +18,7 @@ package cats.effect
 package std
 
 class RandomSpec extends BaseSpec {
-  
+
   "Random" should {
     "securely generate random bytes" in real {
       for {
