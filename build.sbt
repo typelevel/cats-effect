@@ -517,7 +517,16 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
           ProblemFilters.exclude[DirectMissingMethodProblem](
             "cats.effect.unsafe.WorkStealingThreadPool.transitionHelperToParked"),
           ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.WorkStealingThreadPool.removeParkedHelper")
+            "cats.effect.unsafe.WorkStealingThreadPool.removeParkedHelper"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.Tracing.bumpVersion"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.Tracing.castEntry"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.Tracing.match"),
+          ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.tracing.Tracing.put"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.Tracing.version")
         )
       } else Seq()
     }
