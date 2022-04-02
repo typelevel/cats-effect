@@ -529,7 +529,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
           ProblemFilters.exclude[DirectMissingMethodProblem](
             "cats.effect.unsafe.WorkStealingThreadPool.scheduleFiber"),
           ProblemFilters.exclude[IncompatibleResultTypeProblem](
-            "cats.effect.unsafe.WorkStealingThreadPool.stealFromOtherWorkerThread")
+            "cats.effect.unsafe.WorkStealingThreadPool.stealFromOtherWorkerThread"),
+          ProblemFilters.exclude[ReversedMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.reschedule")
         )
       } else Seq()
     }
