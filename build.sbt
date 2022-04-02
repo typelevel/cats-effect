@@ -27,7 +27,15 @@ import sbtcrossproject.CrossProject
 
 import JSEnv._
 
+// sbt-git workarounds
 ThisBuild / useConsoleForROGit := true
+
+ThisBuild / git.gitUncommittedChanges := {
+  import scala.sys.process._
+  import scala.util.Try
+
+  Try("git status -s".!!.trim.length > 0).getOrElse(true)
+}
 
 ThisBuild / tlBaseVersion := "3.3"
 ThisBuild / tlUntaggedAreSnapshots := false
