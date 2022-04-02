@@ -40,7 +40,17 @@ package examples {
 
   object FatalError extends IOApp {
     def run(args: List[String]): IO[ExitCode] =
-      IO(throw new OutOfMemoryError("Boom!")).as(ExitCode.Success)
+      IO(throw new OutOfMemoryError("Boom!")).attempt.flatMap(_ => IO.println("sadness")).as(
+        ExitCode.Success)
+  }
+
+  object FatalErrorRaw extends RawApp {
+    def main(args: Array[String]): Unit = {
+      import cats.effect.unsafe.implicits._
+      val action = IO(throw new OutOfMemoryError("Boom!")).attempt.flatMap(_ => IO.println("sadness"))
+      action.unsafeToFuture()
+      ()
+    }
   }
 
   object Canceled extends IOApp {
