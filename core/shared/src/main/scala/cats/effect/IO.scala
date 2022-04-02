@@ -919,8 +919,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Newtype encoding for an `IO` datatype that has a `cats.Applicative` capable of doing
    * parallel processing in `ap` and `map2`, needed for implementing `cats.Parallel`.
    *
-   * For converting back and forth you can use either the `Parallel[IO]` instance or
-   * the methods `cats.effect.kernel.Par.ParallelF.apply` for wrapping any `IO` value and
+   * For converting back and forth you can use either the `Parallel[IO]` instance or the methods
+   * `cats.effect.kernel.Par.ParallelF.apply` for wrapping any `IO` value and
    * `cats.effect.kernel.Par.ParallelF.value` for unwrapping it.
    *
    * The encoding is based on the "newtypes" project by Alexander Konovalov, chosen because it's
@@ -931,18 +931,18 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   // constructors
 
   /**
-   * Suspends a synchronous side effect in `IO`.
-   * Use [[IO.apply]] if your side effect is not thread-blocking;
-   * otherwise you should use [[IO.blocking]] (uncancelable) or `IO.interruptible` (cancelable).
+   * Suspends a synchronous side effect in `IO`. Use [[IO.apply]] if your side effect is not
+   * thread-blocking; otherwise you should use [[IO.blocking]] (uncancelable) or
+   * `IO.interruptible` (cancelable).
    *
    * Alias for [[IO.delay]].
    */
   def apply[A](thunk: => A): IO[A] = delay(thunk)
 
   /**
-   * Suspends a synchronous side effect in `IO`.
-   * Use [[IO.delay]] if your side effect is not thread-blocking;
-   * otherwise you should use [[IO.blocking]] (uncancelable) or `IO.interruptible` (cancelable).
+   * Suspends a synchronous side effect in `IO`. Use [[IO.delay]] if your side effect is not
+   * thread-blocking; otherwise you should use [[IO.blocking]] (uncancelable) or
+   * `IO.interruptible` (cancelable).
    *
    * Any exceptions thrown by the effect will be caught and sequenced into the `IO`.
    */
@@ -1549,10 +1549,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     /**
      * Like [[IO.delay]] but intended for thread blocking operations. `blocking` will shift the
-     * execution of the blocking operation to a separate threadpool to avoid blocking on the main
-     * execution context. See the thread-model documentation for more information on why this is
-     * necessary. Note that the created effect will be uncancelable; if you need cancelation,
-     * then you should use [[IO.interruptible]] or [[IO.interruptibleMany]].
+     * execution of the blocking operation to a separate threadpool to avoid blocking on the
+     * main execution context. See the thread-model documentation for more information on why
+     * this is necessary. Note that the created effect will be uncancelable; if you need
+     * cancelation, then you should use [[IO.interruptible]] or [[IO.interruptibleMany]].
      *
      * {{{
      * IO.blocking(scala.io.Source.fromFile("path").mkString)
