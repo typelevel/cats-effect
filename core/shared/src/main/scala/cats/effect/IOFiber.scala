@@ -1496,7 +1496,7 @@ private final class IOFiber[A] private (
     runtime.shutdown()
 
     // Make sure the shutdown did not interrupt this thread.
-    Thread.interrupted()
+    val interrupted = Thread.interrupted()
 
     var idx = 0
     val tables = runtime.fiberErrorCbs.tables
@@ -1518,8 +1518,11 @@ private final class IOFiber[A] private (
       idx += 1
     }
 
-    Thread.currentThread().interrupt()
-    null
+    if (interrupted) {
+      Thread.currentThread().interrupt()
+    }
+
+    throw t
   }
 
   // overrides the AtomicReference#toString
