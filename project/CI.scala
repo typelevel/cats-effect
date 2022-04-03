@@ -61,7 +61,7 @@ object CI {
           "set Global / testJSIOApp := true",
           "testsJVM/testOnly *.IOAppSpec",
           "set Global / testJSIOApp := false"),
-        mimaReport = false,
+        mimaReport = true,
         suffixCommands = List("exampleJS/compile"))
 
   case object Firefox

@@ -30,10 +30,14 @@ package examples {
     val apps = mutable.Map.empty[String, IOApp]
     def register(app: IOApp): Unit = apps(app.getClass.getName.init) = app
 
+    val rawApps = mutable.Map.empty[String, RawApp]
+    def registerRaw(app: RawApp): Unit = rawApps(app.getClass.getName.init) = app
+
     register(HelloWorld)
     register(Arguments)
     register(NonFatalError)
     register(FatalError)
+    registerRaw(FatalErrorRaw)
     register(Canceled)
     register(GlobalRacingInit)
     register(ShutdownHookImmediateTimeout)
@@ -51,7 +55,11 @@ package examples {
         // emulates the situation in browsers
         js.Dynamic.global.process.exit = js.undefined
       args.shift()
-      apps(app).main(Array.empty)
+      apps
+        .get(app)
+        .map(_.main(Array.empty))
+        .orElse(rawApps.get(app).map(_.main(Array.empty)))
+        .get
     }
   }
 
