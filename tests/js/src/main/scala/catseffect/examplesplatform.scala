@@ -57,7 +57,11 @@ package examples {
         // emulates the situation in browsers
         js.Dynamic.global.process.exit = js.undefined
       args.shift()
-      apps.get(app).map(_.main(Array.empty)).orElse(rawApps.get(app).map(_.main(Array.empty))).get
+      apps
+        .get(app)
+        .map(_.main(Array.empty))
+        .orElse(rawApps.get(app).map(_.main(Array.empty)))
+        .get
     }
   }
 
