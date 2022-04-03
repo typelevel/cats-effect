@@ -770,7 +770,8 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
     )
   )
   .jsSettings(
-    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
+    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test,
+    tlFatalWarnings := tlFatalWarnings.value && !tlIsScala3.value   // TODO remove when we update to Scala >=3.1
   )
 
 /**
