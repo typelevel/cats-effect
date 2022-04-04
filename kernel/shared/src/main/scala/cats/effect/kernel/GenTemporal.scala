@@ -21,7 +21,7 @@ import cats.data._
 import cats.syntax.all._
 
 import scala.concurrent.TimeoutException
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /**
  * A typeclass that encodes the notion of suspending fibers for a given duration. Analogous to
@@ -136,6 +136,52 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
           start(f.cancel) *> raiseError[A](ev(new TimeoutException(duration.toString)))
       }
     }
+
+  /**
+   * Returns a nested effect which returns the time in a much faster way than
+   * `Clock[F]#realTime`. This is achieved by caching the real time when the outer effect is run
+   * and, when the inner effect is run, the offset is used in combination with
+   * `Clock[F]#monotonic` to give an approximation of the real time.
+   *
+   * This should only be used in situations where precise time does not need to be guaranteed.
+   *
+   * @param refreshPeriod
+   *   The period of time after which the cached real time will be refreshed. Note that it will
+   *   only be refreshed upon execution of the nested effect
+   * @see
+   *   [[timeout]] for a variant which respects backpressure and does not leak fibers
+   */
+  def cachedRealTime(refreshPeriod: Duration): F[F[FiniteDuration]] = {
+    val cacheValuesF = flatMap(realTime)(realTimeNow =>
+      map(monotonic)(cacheRefreshTime => (cacheRefreshTime, realTimeNow - cacheRefreshTime)))
+
+    // Take two measurements and keep the one with the minimum offset. This will no longer be
+    // required when `IO.unyielding` is merged (see #2633)
+    val minCacheValuesF = flatMap(cacheValuesF) {
+      case cacheValues1 @ (_, offset1) =>
+        map(cacheValuesF) {
+          case cacheValues2 @ (_, offset2) if offset2 < offset1 => cacheValues2
+          case _ => cacheValues1
+        }
+    }
+
+    val cacheValuesRefF = flatMap(minCacheValuesF)(ref)
+
+    map(cacheValuesRefF) { cacheValuesRef =>
+      flatMap(monotonic) { timeNow =>
+        flatMap(cacheValuesRef.access) {
+          case ((cacheRefreshTime, offset), setCacheValues) =>
+            if (timeNow >= cacheRefreshTime + refreshPeriod)
+              flatMap(minCacheValuesF) {
+                case cacheValues @ (cacheRefreshTime, offset) =>
+                  map(setCacheValues(cacheValues)) { _ => cacheRefreshTime + offset }
+              }
+            else
+              pure(timeNow + offset)
+        }
+      }
+    }
+  }
 }
 
 object GenTemporal {
