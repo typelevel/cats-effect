@@ -331,7 +331,17 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "coop" % CoopVersion),
     mimaBinaryIssueFilters ++= Seq(
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.kernel.testkit.TestContext.this"))
+        "cats.effect.kernel.testkit.TestContext.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext#State.execute"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext#State.scheduleOnce"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext#Task.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext#Task.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext#Task.copy"))
   )
 
 /**
