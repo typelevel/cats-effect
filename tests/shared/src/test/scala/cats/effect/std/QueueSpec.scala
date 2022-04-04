@@ -217,8 +217,8 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       name: String,
       constructor: Int => IO[Q[IO, Int]],
       tryOfferN: (Q[IO, Int], List[Int]) => IO[List[Int]],
-      tryTakeN: (Q[IO, Int], Option[Int]) => IO[Option[List[Int]]],
-      transformF: Option[List[Int]] => Option[List[Int]] = identity
+      tryTakeN: (Q[IO, Int], Option[Int]) => IO[List[Int]],
+      transform: List[Int] => List[Int] = identity
   ): Fragments = {
     name >> {
       "should offer all records when there is room" in real {
@@ -227,7 +227,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
           offerR <- tryOfferN(q, List(1, 2, 3, 4, 5))
           takeR <- tryTakeN(q, None)
           r <- IO(
-            (transformF(takeR) must beEqualTo(Some(List(1, 2, 3, 4, 5)))) and
+            (transform(takeR) must beEqualTo(List(1, 2, 3, 4, 5))) and
               (offerR must beEqualTo(List.empty)))
         } yield r
       }
@@ -238,8 +238,8 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       name: String,
       constructor: Int => IO[Q[IO, Int]],
       tryOfferN: (Q[IO, Int], List[Int]) => IO[List[Int]],
-      tryTakeN: (Q[IO, Int], Option[Int]) => IO[Option[List[Int]]],
-      transformF: Option[List[Int]] => Option[List[Int]] = identity
+      tryTakeN: (Q[IO, Int], Option[Int]) => IO[List[Int]],
+      transform: List[Int] => List[Int] = identity
   ): Fragments = {
     name >> {
       "should offer some records when the queue is full" in real {
@@ -248,7 +248,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
           offerR <- tryOfferN(q, List(1, 2, 3, 4, 5, 6, 7))
           takeR <- tryTakeN(q, None)
           r <- IO(
-            (transformF(takeR) must beEqualTo(Some(List(1, 2, 3, 4, 5)))) and
+            (transform(takeR) must beEqualTo(List(1, 2, 3, 4, 5))) and
               (offerR must beEqualTo(List(6, 7))))
         } yield r
       }
@@ -259,10 +259,10 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       name: String,
       constructor: Int => IO[Q[IO, Int]],
       offer: (Q[IO, Int], Int) => IO[Unit],
-      tryTakeN: (Q[IO, Int], Option[Int]) => IO[Option[List[Int]]],
-      transformF: Option[List[Int]] => Option[List[Int]] = identity): Fragments = {
+      tryTakeN: (Q[IO, Int], Option[Int]) => IO[List[Int]],
+      transform: List[Int] => List[Int] = identity): Fragments = {
     name >> {
-      "should take batches for all records when None is proided" in real {
+      "should take batches for all records when None is provided" in real {
         for {
           q <- constructor(5)
           _ <- offer(q, 1)
@@ -271,10 +271,10 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
           _ <- offer(q, 4)
           _ <- offer(q, 5)
           b <- tryTakeN(q, None)
-          r <- IO(transformF(b) must beEqualTo(Some(List(1, 2, 3, 4, 5))))
+          r <- IO(transform(b) must beEqualTo(List(1, 2, 3, 4, 5)))
         } yield r
       }
-      "should take batches for all records when maxN is proided" in real {
+      "should take batches for all records when maxN is provided" in real {
         for {
           q <- constructor(5)
           _ <- offer(q, 1)
@@ -283,7 +283,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
           _ <- offer(q, 4)
           _ <- offer(q, 5)
           b <- tryTakeN(q, Some(5))
-          r <- IO(transformF(b) must beEqualTo(Some(List(1, 2, 3, 4, 5))))
+          r <- IO(transform(b) must beEqualTo(List(1, 2, 3, 4, 5)))
         } yield r
       }
       "Should take all records when maxN > queue size" in real {
@@ -295,14 +295,14 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
           _ <- offer(q, 4)
           _ <- offer(q, 5)
           b <- tryTakeN(q, Some(7))
-          r <- IO(transformF(b) must beEqualTo(Some(List(1, 2, 3, 4, 5))))
+          r <- IO(transform(b) must beEqualTo(List(1, 2, 3, 4, 5)))
         } yield r
       }
       "Should be empty when queue is empty" in real {
         for {
           q <- constructor(5)
           b <- tryTakeN(q, Some(5))
-          r <- IO(transformF(b) must beEqualTo(None))
+          r <- IO(transform(b) must beEqualTo(List.empty))
         } yield r
       }
 

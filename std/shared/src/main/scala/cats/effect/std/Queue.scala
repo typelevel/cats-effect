@@ -359,22 +359,19 @@ trait QueueSource[F[_], A] {
    *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
    *
    * @return
-   *   an effect that describes whether the dequeueing of elements from the queue succeeded
-   *   without blocking, with `None` denoting that no element was available
+   *   an effect that contains the dequeued elements
    */
-  def tryTakeN(maxN: Option[Int])(implicit F: Monad[F]): F[Option[List[A]]] = {
+  def tryTakeN(maxN: Option[Int])(implicit F: Monad[F]): F[List[A]] = {
     QueueSource.assertMaxNPositive(maxN)
-    F.tailRecM[(Option[List[A]], Int), Option[List[A]]](
-      (None, 0)
+    F.tailRecM[(List[A], Int), List[A]](
+      (List.empty[A], 0)
     ) {
       case (list, i) =>
-        if (maxN.contains(i)) list.map(_.reverse).asRight.pure[F]
+        if (maxN.contains(i)) list.reverse.asRight.pure[F]
         else {
           tryTake.map {
-            case None => list.map(_.reverse).asRight
-            case Some(x) =>
-              if (list.isEmpty) (Some(List(x)), i + 1).asLeft
-              else (list.map(x +: _), i + 1).asLeft
+            case None => list.reverse.asRight
+            case Some(x) => (x +: list, i + 1).asLeft
           }
         }
     }

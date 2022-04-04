@@ -231,7 +231,7 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.7.0"
-val Specs2Version = "4.14.1"
+val Specs2Version = "4.15.0"
 val ScalaCheckVersion = "1.15.4"
 val DisciplineVersion = "1.2.5"
 val CoopVersion = "1.1.1"
@@ -529,7 +529,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
           ProblemFilters.exclude[DirectMissingMethodProblem](
             "cats.effect.unsafe.WorkStealingThreadPool.scheduleFiber"),
           ProblemFilters.exclude[IncompatibleResultTypeProblem](
-            "cats.effect.unsafe.WorkStealingThreadPool.stealFromOtherWorkerThread")
+            "cats.effect.unsafe.WorkStealingThreadPool.stealFromOtherWorkerThread"),
+          ProblemFilters.exclude[ReversedMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.reschedule")
         )
       } else Seq()
     }

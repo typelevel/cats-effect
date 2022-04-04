@@ -39,5 +39,20 @@ class AsyncPlatformSpec extends BaseSpec {
         _ <- IO(cf.join() must throwA[CancellationException])
       } yield ok
     }
+
+    "backpressure on CompletableFuture cancelation" in ticked { implicit ticker =>
+      // a non-cancelable, never-completing CompletableFuture
+      def cf = new CompletableFuture[Unit] {
+        override def cancel(mayInterruptIfRunning: Boolean) = false
+      }
+
+      val io = for {
+        fiber <- IO.fromCompletableFuture(IO(cf)).start
+        _ <- smallDelay // time for the callback to be set-up
+        _ <- fiber.cancel
+      } yield ()
+
+      io must nonTerminate
+    }
   }
 }
