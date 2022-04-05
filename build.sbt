@@ -341,7 +341,8 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.kernel.testkit.TestContext#Task.this"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.kernel.testkit.TestContext#Task.copy"))
+        "cats.effect.kernel.testkit.TestContext#Task.copy")
+    )
   )
 
 /**
@@ -781,7 +782,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
   )
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test,
-    tlFatalWarnings := tlFatalWarnings.value && !tlIsScala3.value   // TODO remove when we update to Scala >=3.1
+    tlFatalWarnings := tlFatalWarnings.value && !tlIsScala3.value // TODO remove when we update to Scala >=3.1
   )
 
 /**
