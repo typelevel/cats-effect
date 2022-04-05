@@ -457,7 +457,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *   IO to be executed (if the current IO fails)
    * @return
    */
-  def orElse[B >: A](other: IO[B]): IO[B] =
+  def orElse[B >: A](other: => IO[B]): IO[B] =
     handleErrorWith(_ => other)
 
   /**
