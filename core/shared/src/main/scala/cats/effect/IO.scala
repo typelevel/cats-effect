@@ -458,7 +458,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @return
    */
   def orElse[B >: A](other: IO[B]): IO[B] =
-    handleErrorWith(_ => other)
+    SemigroupK[IO].combineK(this, other)
 
   /**
    * Handle any error, potentially recovering from it, by mapping it to another `IO` value.
