@@ -16,27 +16,13 @@
 
 package cats.effect.std
 
-import cats.Functor
-import cats.implicits._
+import cats.effect.kernel.Sync
 
 import java.util.UUID
 
-/**
- * A purely functional UUID Generator
- */
-trait UUIDGen[F[_]] {
-
-  /**
-   * Generates a UUID in a pseudorandom manner.
-   * @return
-   *   randomly generated UUID
-   */
-  def randomUUID: F[UUID]
-}
-
-object UUIDGen extends UUIDGenCompanionPlatform {
-  def apply[F[_]](implicit ev: UUIDGen[F]): UUIDGen[F] = ev
-
-  def randomUUID[F[_]: UUIDGen]: F[UUID] = UUIDGen[F].randomUUID
-  def randomString[F[_]: UUIDGen: Functor]: F[String] = randomUUID.map(_.toString)
+private[std] trait UUIDGenCompanionPlatform {
+  implicit def fromSync[F[_]](implicit ev: Sync[F]): UUIDGen[F] = new UUIDGen[F] {
+    override final val randomUUID: F[UUID] =
+      ev.blocking(UUID.randomUUID())
+  }
 }
