@@ -48,6 +48,8 @@ jobs:
             **/node_modules
           key: ${{ runner.os }}-yarn-cache-v2-${{ hashFiles('website/package.json') }}
 
+      - uses: mxschmitt/action-tmate@v3
+
       - name: Build
         run: ./build.sh
 
