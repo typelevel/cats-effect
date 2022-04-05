@@ -155,8 +155,6 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * @param ttl
    *   The period of time after which the cached real time will be refreshed. Note that it will
    *   only be refreshed upon execution of the nested effect
-   * @see
-   *   [[timeout]] for a variant which respects backpressure and does not leak fibers
    */
   def cachedRealTime(ttl: Duration): F[F[FiniteDuration]] = {
     implicit val self = this
