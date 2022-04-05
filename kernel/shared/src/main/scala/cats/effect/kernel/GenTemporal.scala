@@ -141,7 +141,9 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * Returns a nested effect which returns the time in a much faster way than
    * `Clock[F]#realTime`. This is achieved by caching the real time when the outer effect is run
    * and, when the inner effect is run, the offset is used in combination with
-   * `Clock[F]#monotonic` to give an approximation of the real time.
+   * `Clock[F]#monotonic` to give an approximation of the real time. The practical benefit of this is a reduction
+   * in the number of syscalls, since `realTime` will only be sequenced once per `refreshTime` window, and it
+   * tends to be (on most platforms) multiple orders of magnitude slower than `monotonic`.
    *
    * This should generally be used in situations where precise "to the millisecond" alignment to the
    * system real clock is not needed. In particular, if the system clock is updated (e.g. via an NTP sync),
