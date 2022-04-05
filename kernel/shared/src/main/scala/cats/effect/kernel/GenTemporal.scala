@@ -143,7 +143,10 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * and, when the inner effect is run, the offset is used in combination with
    * `Clock[F]#monotonic` to give an approximation of the real time.
    *
-   * This should only be used in situations where precise time does not need to be guaranteed.
+   * This should generally be used in situations where precise "to the millisecond" alignment to the
+   * system real clock is not needed. In particular, if the system clock is updated (e.g. via an NTP sync),
+   * the inner effect will not observe that update until up to `refreshPeriod`. This is an acceptable
+   * tradeoff in most practical scenarios, particularly with frequent sequencing of the inner effect.
    *
    * @param refreshPeriod
    *   The period of time after which the cached real time will be refreshed. Note that it will
