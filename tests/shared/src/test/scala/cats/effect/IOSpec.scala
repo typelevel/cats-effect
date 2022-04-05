@@ -91,7 +91,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "Return current IO if successful" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
-        (IO.pure(42)  orElse IO.raiseError[Int](TestException)) must completeAs(42)
+        (IO.pure(42) orElse IO.raiseError[Int](TestException)) must completeAs(42)
       }
 
       "attempt is redeem with Left(_) for recover and Right(_) for map" in ticked {

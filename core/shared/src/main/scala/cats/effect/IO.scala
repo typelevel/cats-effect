@@ -452,13 +452,13 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     handleErrorWith[B](t => IO.pure(f(t)))
 
   /**
-   * Runs the current IO, if it fails with an error(exception), the other IO  will be executed.
+   * Runs the current IO, if it fails with an error(exception), the other IO will be executed.
    * @param other
-   * IO to be executed (if the current IO fails)  
+   *   IO to be executed (if the current IO fails)
    * @return
    */
   def orElse[B >: A](other: IO[B]): IO[B] =
-    SemigroupK[IO].combineK(this, other)
+    handleErrorWith(_ => other)
 
   /**
    * Handle any error, potentially recovering from it, by mapping it to another `IO` value.
@@ -1493,7 +1493,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   protected class IOSemigroupK extends SemigroupK[IO] {
     final override def combineK[A](a: IO[A], b: IO[A]): IO[A] =
-      a.handleErrorWith(_ => b)
+      a orElse b
   }
 
   implicit def alignForIO: Align[IO] = _alignForIO
