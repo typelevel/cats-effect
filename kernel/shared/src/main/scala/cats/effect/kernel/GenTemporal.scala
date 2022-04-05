@@ -141,45 +141,46 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * Returns a nested effect which returns the time in a much faster way than
    * `Clock[F]#realTime`. This is achieved by caching the real time when the outer effect is run
    * and, when the inner effect is run, the offset is used in combination with
-   * `Clock[F]#monotonic` to give an approximation of the real time. The practical benefit of this is a reduction
-   * in the number of syscalls, since `realTime` will only be sequenced once per `refreshTime` window, and it
-   * tends to be (on most platforms) multiple orders of magnitude slower than `monotonic`.
+   * `Clock[F]#monotonic` to give an approximation of the real time. The practical benefit of
+   * this is a reduction in the number of syscalls, since `realTime` will only be sequenced once
+   * per `refreshTime` window, and it tends to be (on most platforms) multiple orders of
+   * magnitude slower than `monotonic`.
    *
-   * This should generally be used in situations where precise "to the millisecond" alignment to the
-   * system real clock is not needed. In particular, if the system clock is updated (e.g. via an NTP sync),
-   * the inner effect will not observe that update until up to `refreshPeriod`. This is an acceptable
-   * tradeoff in most practical scenarios, particularly with frequent sequencing of the inner effect.
+   * This should generally be used in situations where precise "to the millisecond" alignment to
+   * the system real clock is not needed. In particular, if the system clock is updated (e.g.
+   * via an NTP sync), the inner effect will not observe that update until up to `ttl`. This is
+   * an acceptable tradeoff in most practical scenarios, particularly with frequent sequencing
+   * of the inner effect.
    *
-   * @param refreshPeriod
+   * @param ttl
    *   The period of time after which the cached real time will be refreshed. Note that it will
    *   only be refreshed upon execution of the nested effect
    * @see
    *   [[timeout]] for a variant which respects backpressure and does not leak fibers
    */
-  def cachedRealTime(refreshPeriod: Duration): F[F[FiniteDuration]] = {
-    val cacheValuesF = flatMap(realTime)(realTimeNow =>
-      map(monotonic)(cacheRefreshTime => (cacheRefreshTime, realTimeNow - cacheRefreshTime)))
+  def cachedRealTime(ttl: Duration): F[F[FiniteDuration]] = {
+    implicit val self = this
+
+    val cacheValuesF = for {
+      realTimeNow <- realTime
+      cacheRefreshTime <- monotonic
+    } yield (cacheRefreshTime, realTimeNow - cacheRefreshTime)
 
     // Take two measurements and keep the one with the minimum offset. This will no longer be
     // required when `IO.unyielding` is merged (see #2633)
-    val minCacheValuesF = flatMap(cacheValuesF) {
-      case cacheValues1 @ (_, offset1) =>
-        map(cacheValuesF) {
-          case cacheValues2 @ (_, offset2) if offset2 < offset1 => cacheValues2
-          case _ => cacheValues1
-        }
+    val minCacheValuesF = (cacheValuesF, cacheValuesF) mapN {
+      case (cacheValues1 @ (_, offset1), cacheValues2 @ (_, offset2)) =>
+        if (offset1 < offset2) cacheValues1 else cacheValues2
     }
 
-    val cacheValuesRefF = flatMap(minCacheValuesF)(ref)
-
-    map(cacheValuesRefF) { cacheValuesRef =>
-      flatMap(monotonic) { timeNow =>
-        flatMap(cacheValuesRef.access) {
-          case ((cacheRefreshTime, offset), setCacheValues) =>
-            if (timeNow >= cacheRefreshTime + refreshPeriod)
-              flatMap(minCacheValuesF) {
+    minCacheValuesF.flatMap(ref).map { cacheValuesRef =>
+      monotonic.flatMap { timeNow =>
+        cacheValuesRef.get.flatMap {
+          case (cacheRefreshTime, offset) =>
+            if (timeNow >= cacheRefreshTime + ttl)
+              minCacheValuesF.flatMap {
                 case cacheValues @ (cacheRefreshTime, offset) =>
-                  map(setCacheValues(cacheValues)) { _ => cacheRefreshTime + offset }
+                  cacheValuesRef.set(cacheValues).map(_ => cacheRefreshTime + offset)
               }
             else
               pure(timeNow + offset)
