@@ -677,9 +677,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
           ProblemFilters.exclude[ReversedMissingMethodProblem](
             "cats.effect.unsafe.WorkStealingThreadPool.canExecuteBlockingCode"),
           ProblemFilters.exclude[ReversedMissingMethodProblem](
-            "cats.effect.unsafe.FiberMonitor.monitorSuspended"),
-          ProblemFilters.exclude[IncompatibleMethTypeProblem](
-            "cats.effect.std.Console.make")
+            "cats.effect.unsafe.FiberMonitor.monitorSuspended")
         )
       } else Seq()
     }
@@ -784,7 +782,12 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
   )
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test,
-    tlFatalWarnings := tlFatalWarnings.value && !tlIsScala3.value // TODO remove when we update to Scala >=3.1
+    tlFatalWarnings := tlFatalWarnings.value && !tlIsScala3.value, // TODO remove when we update to Scala >=3.1
+    mimaBinaryIssueFilters ++= Seq(
+      // introduced by #2604, Fix Console on JS
+      // changes to a static forwarder, which are meaningless on JS
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.std.Console.make")
+    )
   )
 
 /**
