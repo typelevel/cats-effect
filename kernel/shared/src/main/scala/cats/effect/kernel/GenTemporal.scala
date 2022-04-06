@@ -143,7 +143,7 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * and, when the inner effect is run, the offset is used in combination with
    * `Clock[F]#monotonic` to give an approximation of the real time. The practical benefit of
    * this is a reduction in the number of syscalls, since `realTime` will only be sequenced once
-   * per `refreshTime` window, and it tends to be (on most platforms) multiple orders of
+   * per `ttl` window, and it tends to be (on most platforms) multiple orders of
    * magnitude slower than `monotonic`.
    *
    * This should generally be used in situations where precise "to the millisecond" alignment to
