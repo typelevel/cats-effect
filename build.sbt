@@ -18,6 +18,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 import com.typesafe.tools.mima.core._
+import com.github.sbt.git.SbtGit.GitKeys._
 import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.firefox.FirefoxOptions
 import org.scalajs.jsenv.nodejs.NodeJSEnv
@@ -26,13 +27,24 @@ import sbtcrossproject.CrossProject
 
 import JSEnv._
 
-ThisBuild / baseVersion := "3.4"
+// sbt-git workarounds
+ThisBuild / useConsoleForROGit := true
+
+ThisBuild / git.gitUncommittedChanges := {
+  import scala.sys.process._
+  import scala.util.Try
+
+  Try("git status -s".!!.trim.length > 0).getOrElse(true)
+}
+
+ThisBuild / tlBaseVersion := "3.4"
+ThisBuild / tlUntaggedAreSnapshots := false
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
+ThisBuild / tlSonatypeUseLegacyHost := false
 
 ThisBuild / startYear := Some(2020)
-ThisBuild / endYear := Some(2022)
 
 ThisBuild / developers := List(
   Developer(
@@ -100,15 +112,18 @@ val Scala213 = "2.13.8"
 val Scala3 = "3.0.2"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
+ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
+ThisBuild / tlJdkRelease := Some(8)
 
-ThisBuild / githubWorkflowUseSbtThinClient := false
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.*")
+ThisBuild / tlCiReleaseTags := false
+ThisBuild / tlCiReleaseBranches := Nil
 
 val OldGuardJava = JavaSpec.temurin("8")
 val LTSJava = JavaSpec.temurin("11")
 val LatestJava = JavaSpec.temurin("17")
 val ScalaJSJava = OldGuardJava
-val GraalVM = JavaSpec.graalvm("21.3.0", "11")
+val GraalVM = JavaSpec.graalvm("11")
 
 ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
@@ -160,7 +175,7 @@ val ciVariants = CI.AllCIs.map(_.command)
 val jsCiVariants = CI.AllJSCIs.map(_.command)
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
-ThisBuild / githubWorkflowBuildMatrixExclusions ++= {
+ThisBuild / githubWorkflowBuildMatrixExclusions := {
   val scalaJavaFilters = for {
     scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
     java <- (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(OldGuardJava))
@@ -238,7 +253,8 @@ val CoopVersion = "1.1.1"
 
 val MacrotaskExecutorVersion = "1.0.0"
 
-replaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
+tlReplaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
+addCommandAlias("release", "tlRelease")
 
 addCommandAlias(CI.JVM.command, CI.JVM.toString)
 addCommandAlias(CI.JS.command, CI.JS.toString)
@@ -315,7 +331,18 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "coop" % CoopVersion),
     mimaBinaryIssueFilters ++= Seq(
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.kernel.testkit.TestContext.this"))
+        "cats.effect.kernel.testkit.TestContext.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext#State.execute"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext#State.scheduleOnce"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext#Task.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext#Task.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext#Task.copy")
+    )
   )
 
 /**
@@ -343,7 +370,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(kernel, std)
   .settings(
     name := "cats-effect",
-    mimaPreviousArtifacts += "org.typelevel" %%% "cats-effect" % "3.3.4",
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
@@ -489,7 +515,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       // added signaling from CallbackStack to indicate successful invocation
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.CallbackStack.apply")
     ) ++ {
-      if (isDotty.value) {
+      if (tlIsScala3.value) {
         // Scala 3 specific exclusions
         Seq(
           // introduced by #2769, Simplify the transfer of WorkerThread data structures when blocking
@@ -531,16 +557,131 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
           ProblemFilters.exclude[IncompatibleResultTypeProblem](
             "cats.effect.unsafe.WorkStealingThreadPool.stealFromOtherWorkerThread"),
           ProblemFilters.exclude[ReversedMissingMethodProblem](
-            "cats.effect.unsafe.WorkStealingThreadPool.reschedule")
+            "cats.effect.unsafe.WorkStealingThreadPool.reschedule"),
+          // introduced by #2857, when we properly turned on MiMa for Scala 3
+          ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOFiber.this"),
+          ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOFiber.cancel_="),
+          ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOFiber.join_="),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.IOFiberPlatform.interruptibleImpl"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.stealFromOtherWorkerThread"),
+          ProblemFilters.exclude[FinalClassProblem](
+            "cats.effect.unsafe.metrics.LocalQueueSampler"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.metrics.LocalQueueSampler.getOverflowSpilloverCount"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.metrics.LocalQueueSampler.getBatchedSpilloverCount"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.metrics.LocalQueueSamplerMBean.getOverflowSpilloverCount"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.metrics.LocalQueueSamplerMBean.getBatchedSpilloverCount"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.metrics.LocalQueueSamplerMBean.getTotalSpilloverCount"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.FiberMonitor.weakMapToSet"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.FiberMonitor.monitorSuspended"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.FiberMonitor.weakMapToSet"),
+          ProblemFilters.exclude[IncompatibleMethTypeProblem](
+            "cats.effect.unsafe.IORuntime.installGlobal"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.LocalQueue.EmptyDrain"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.notifyHelper"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.transitionHelperToParked"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.removeParkedHelper"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.Tracing.bumpVersion"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.Tracing.castEntry"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.Tracing.match"),
+          ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.tracing.Tracing.put"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.Tracing.version")
         )
       } else Seq()
     }
   )
-  .jvmSettings(
-    javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
-  )
   .jsSettings(
-    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion)
+    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion,
+    mimaBinaryIssueFilters ++= {
+      Seq(
+        // introduced by #2857, when we properly turned on MiMa for Scala.js
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.unsafe.ES2021FiberMonitor.monitorSuspended"),
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.IterableWeakMap"),
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.IterableWeakMap$"),
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.unsafe.IterableWeakMap$Finalizer"),
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.unsafe.IterableWeakMap$Finalizer$"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.unsafe.NoOpFiberMonitor.monitorSuspended"),
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WeakMap"),
+        ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO.interruptible"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.IOFiberConstants.EvalOnR"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.IOFiberConstants.AfterBlockingFailedR"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.IOFiberConstants.AfterBlockingSuccessfulR"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.IOFiberConstants.ChildMaskOffset"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.IOFiberConstants.ChildMaskOffset"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.IOFiberConstants.AfterBlockingSuccessfulR"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.IOFiberConstants.AfterBlockingFailedR"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.IOFiberConstants.EvalOnR"),
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.unsafe.PolyfillExecutionContext"),
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.unsafe.PolyfillExecutionContext$"),
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread")
+      )
+    },
+    mimaBinaryIssueFilters ++= {
+      if (tlIsScala3.value) {
+        Seq(
+          // introduced by #2857, when we properly turned on MiMa for Scala.js and Scala 3
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.Tracing.bumpVersion"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.Tracing.castEntry"),
+          ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.tracing.Tracing.get"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.Tracing.match"),
+          ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.tracing.Tracing.put"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.Tracing.remove"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.Tracing.version"),
+          ProblemFilters.exclude[MissingTypesProblem]("cats.effect.tracing.Tracing$"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.Tracing.computeValue"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.TracingConstants.enhancedExceptions"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.TracingConstants.traceBufferLogSize"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.TracingConstants.traceBufferLogSize"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.tracing.TracingConstants.enhancedExceptions"),
+          ProblemFilters.exclude[ReversedMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.canExecuteBlockingCode"),
+          ProblemFilters.exclude[ReversedMissingMethodProblem](
+            "cats.effect.unsafe.FiberMonitor.monitorSuspended")
+        )
+      } else Seq()
+    }
+  )
 
 /**
  * Test support for the core project, providing various helpful instances like ScalaCheck
@@ -640,7 +781,13 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
     )
   )
   .jsSettings(
-    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
+    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test,
+    tlFatalWarnings := tlFatalWarnings.value && !tlIsScala3.value, // TODO remove when we update to Scala >=3.1
+    mimaBinaryIssueFilters ++= Seq(
+      // introduced by #2604, Fix Console on JS
+      // changes to a static forwarder, which are meaningless on JS
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.std.Console.make")
+    )
   )
 
 /**
