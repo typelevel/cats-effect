@@ -677,7 +677,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
           ProblemFilters.exclude[ReversedMissingMethodProblem](
             "cats.effect.unsafe.WorkStealingThreadPool.canExecuteBlockingCode"),
           ProblemFilters.exclude[ReversedMissingMethodProblem](
-            "cats.effect.unsafe.FiberMonitor.monitorSuspended")
+            "cats.effect.unsafe.FiberMonitor.monitorSuspended"),
+          ProblemFilters.exclude[IncompatibleMethTypeProblem](
+            "cats.effect.std.Console.make")
         )
       } else Seq()
     }
