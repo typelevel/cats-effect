@@ -143,8 +143,8 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * and, when the inner effect is run, the offset is used in combination with
    * `Clock[F]#monotonic` to give an approximation of the real time. The practical benefit of
    * this is a reduction in the number of syscalls, since `realTime` will only be sequenced once
-   * per `ttl` window, and it tends to be (on most platforms) multiple orders of
-   * magnitude slower than `monotonic`.
+   * per `ttl` window, and it tends to be (on most platforms) multiple orders of magnitude
+   * slower than `monotonic`.
    *
    * This should generally be used in situations where precise "to the millisecond" alignment to
    * the system real clock is not needed. In particular, if the system clock is updated (e.g.
@@ -159,10 +159,9 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
   def cachedRealTime(ttl: Duration): F[F[FiniteDuration]] = {
     implicit val self = this
 
-    val cacheValuesF = for {
-      realTimeNow <- realTime
-      cacheRefreshTime <- monotonic
-    } yield (cacheRefreshTime, realTimeNow - cacheRefreshTime)
+    val cacheValuesF = (realTime, monotonic) mapN {
+      case (realTimeNow, cacheRefreshTime) => (cacheRefreshTime, realTimeNow - cacheRefreshTime)
+    }
 
     // Take two measurements and keep the one with the minimum offset. This will no longer be
     // required when `IO.unyielding` is merged (see #2633)
