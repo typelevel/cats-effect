@@ -21,7 +21,7 @@ class SupervisorSpec extends BaseSpec {
 
   "Supervisor" should {
     "start a fiber that completes successfully" in ticked { implicit ticker =>
-      val test = Supervisor[IO].use { supervisor =>
+      val test = Supervisor[IO]().use { supervisor =>
         supervisor.supervise(IO(1)).flatMap(_.join)
       }
 
@@ -30,7 +30,7 @@ class SupervisorSpec extends BaseSpec {
 
     "start a fiber that raises an error" in ticked { implicit ticker =>
       val t = new Throwable("failed")
-      val test = Supervisor[IO].use { supervisor =>
+      val test = Supervisor[IO]().use { supervisor =>
         supervisor.supervise(IO.raiseError[Unit](t)).flatMap(_.join)
       }
 
@@ -38,7 +38,7 @@ class SupervisorSpec extends BaseSpec {
     }
 
     "start a fiber that self-cancels" in ticked { implicit ticker =>
-      val test = Supervisor[IO].use { supervisor =>
+      val test = Supervisor[IO]().use { supervisor =>
         supervisor.supervise(IO.canceled).flatMap(_.join)
       }
 
@@ -47,11 +47,19 @@ class SupervisorSpec extends BaseSpec {
 
     "cancel active fibers when supervisor exits" in ticked { implicit ticker =>
       val test = for {
-        fiber <- Supervisor[IO].use { supervisor => supervisor.supervise(IO.never[Unit]) }
+        fiber <- Supervisor[IO]().use { supervisor => supervisor.supervise(IO.never[Unit]) }
         outcome <- fiber.join
       } yield outcome
 
       test must completeAs(Outcome.canceled[IO, Throwable, Unit])
+    }
+
+    "await active fibers when supervisor exits with await = true" in ticked { implicit ticker =>
+      val test = Supervisor[IO](await = true).use { supervisor =>
+        supervisor.supervise(IO.never[Unit]).void
+      }
+
+      test must nonTerminate
     }
   }
 
