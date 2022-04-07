@@ -61,7 +61,7 @@ object CI {
           "set Global / testJSIOApp := true",
           "testsJVM/testOnly *.IOAppSpec",
           "set Global / testJSIOApp := false"),
-        mimaReport = false,
+        mimaReport = true,
         suffixCommands = List("exampleJS/compile"))
 
   case object Firefox
@@ -72,6 +72,7 @@ object CI {
         testCommands = List(
           "testOnly *tracing*",
           "testOnly *.ConsoleJSSpec",
+          "testOnly *.RandomSpec",
           "testOnly *.SchedulerSpec"
         ),
         mimaReport = false,
@@ -85,6 +86,7 @@ object CI {
         testCommands = List(
           "testOnly *tracing*",
           "testOnly *.ConsoleJSSpec",
+          "testOnly *.RandomSpec",
           "testOnly *.SchedulerSpec"
         ),
         mimaReport = false,

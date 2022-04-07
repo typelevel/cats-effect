@@ -16,27 +16,4 @@
 
 package cats.effect.std
 
-import cats.Functor
-import cats.implicits._
-
-import java.util.UUID
-
-/**
- * A purely functional UUID Generator
- */
-trait UUIDGen[F[_]] {
-
-  /**
-   * Generates a UUID in a pseudorandom manner.
-   * @return
-   *   randomly generated UUID
-   */
-  def randomUUID: F[UUID]
-}
-
-object UUIDGen extends UUIDGenCompanionPlatform {
-  def apply[F[_]](implicit ev: UUIDGen[F]): UUIDGen[F] = ev
-
-  def randomUUID[F[_]: UUIDGen]: F[UUID] = UUIDGen[F].randomUUID
-  def randomString[F[_]: UUIDGen: Functor]: F[String] = randomUUID.map(_.toString)
-}
+private[std] trait RandomCompanionPlatform

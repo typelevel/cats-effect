@@ -20,6 +20,10 @@ import cats.effect.kernel._
 import cats.effect.kernel.implicits._
 import cats.syntax.all._
 
+import scala.collection.mutable.ListBuffer
+
+import java.util.concurrent.ConcurrentHashMap
+
 /**
  * A fiber-based supervisor that monitors the lifecycle of all fibers that are started via its
  * interface. The supervisor is managed by a singular fiber to which the lifecycles of all
@@ -104,33 +108,73 @@ object Supervisor {
    * this scope exits, all supervised fibers will be finalized.
    */
   def apply[F[_]](implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
+    F match {
+      case asyncF: Async[F] => applyForAsync(asyncF)
+      case _ => applyForConcurrent
+    }
+  }
+
+  private trait State[F[_]] {
+    def remove(token: Unique.Token): F[Unit]
+    def add(token: Unique.Token, cancel: F[Unit]): F[Unit]
+    // run all the finalizers
+    def cancelAll(): F[Unit]
+  }
+
+  private def supervisor[F[_]](mkState: F[State[F]])(
+      implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     // It would have preferable to use Scope here but explicit cancelation is
     // intertwined with resource management
     for {
-      stateRef <- Resource.make(F.ref[Map[Unique.Token, F[Unit]]](Map.empty)) { state =>
-        state
-          .get
-          .flatMap { fibers =>
-            // run all the finalizers
-            fibers.values.toList.parSequence
-          }
-          .void
-      }
-    } yield {
-      new Supervisor[F] {
-        override def supervise[A](fa: F[A]): F[Fiber[F, Throwable, A]] =
-          F.uncancelable { _ =>
-            for {
-              done <- Ref.of[F, Boolean](false)
-              token <- F.unique
-              cleanup = stateRef.update(_ - token)
-              action = fa.guarantee(done.set(true) >> cleanup)
-              fiber <- F.start(action)
-              _ <- stateRef.update(_ + (token -> fiber.cancel))
-              _ <- done.get.ifM(cleanup, F.unit)
-            } yield fiber
-          }
+      state <- Resource.make(mkState)(_.cancelAll())
+    } yield new Supervisor[F] {
+      override def supervise[A](fa: F[A]): F[Fiber[F, Throwable, A]] =
+        F.uncancelable { _ =>
+          for {
+            done <- Ref.of[F, Boolean](false)
+            token <- F.unique
+            cleanup = state.remove(token)
+            action = fa.guarantee(done.set(true) >> cleanup)
+            fiber <- F.start(action)
+            _ <- state.add(token, fiber.cancel)
+            _ <- done.get.ifM(cleanup, F.unit)
+          } yield fiber
+        }
+    }
+  }
+
+  private def applyForConcurrent[F[_]](
+      implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
+    val mkState = F.ref[Map[Unique.Token, F[Unit]]](Map.empty).map { stateRef =>
+      new State[F] {
+        override def remove(token: Unique.Token): F[Unit] = stateRef.update(_ - token)
+        override def add(token: Unique.Token, cancel: F[Unit]): F[Unit] =
+          stateRef.update(_ + (token -> cancel))
+        override def cancelAll(): F[Unit] =
+          stateRef.get.flatMap { fibers => fibers.values.toList.parUnorderedSequence.void }
       }
     }
+    supervisor(mkState)
+  }
+
+  private def applyForAsync[F[_]](implicit F: Async[F]): Resource[F, Supervisor[F]] = {
+    val mkState = F.delay {
+      val state = new ConcurrentHashMap[Unique.Token, F[Unit]]
+      new State[F] {
+        override def remove(token: Unique.Token): F[Unit] = F.delay(state.remove(token)).void
+        override def add(token: Unique.Token, cancel: F[Unit]): F[Unit] =
+          F.delay(state.put(token, cancel)).void
+        override def cancelAll(): F[Unit] = F.defer {
+          val fibersToCancel = ListBuffer.empty[F[Unit]]
+          fibersToCancel.sizeHint(state.size())
+          val values = state.values().iterator()
+          while (values.hasNext) {
+            fibersToCancel += values.next()
+          }
+          fibersToCancel.result().parUnorderedSequence.void
+        }
+      }
+    }
+    supervisor(mkState)
   }
 }
