@@ -111,7 +111,7 @@ object Dispatcher {
     final case class CancelToken(cancelToken: () => Future[Unit]) extends CancelState
 
     for {
-      supervisor <- Supervisor[F]()
+      supervisor <- Supervisor[F]
       latches <- Resource.eval(F delay {
         val latches = new Array[AtomicReference[() => Unit]](Cpus)
         var i = 0

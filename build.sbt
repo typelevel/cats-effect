@@ -780,8 +780,6 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Console$SyncConsole"),
       // introduced by #2951
       // added configurability to Supervisor's scope termination behavior
-      // Java static forwarder
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.std.Supervisor.apply"),
       // the following are package-private APIs
       ProblemFilters.exclude[IncompatibleMethTypeProblem](
         "cats.effect.std.Supervisor#State.add"),

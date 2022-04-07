@@ -107,7 +107,7 @@ object Supervisor {
    * Creates a [[cats.effect.kernel.Resource]] scope within which fibers can be monitored. When
    * this scope exits, all supervised fibers will be finalized.
    */
-  def apply[F[_]](await: Boolean = false)(
+  def apply[F[_]](await: Boolean)(
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     F match {
       case asyncF: Async[F] => applyForAsync(await)(asyncF)
@@ -115,8 +115,8 @@ object Supervisor {
     }
   }
 
-  private[effect] def apply[F[_]: Concurrent]: Resource[F, Supervisor[F]] =
-    apply[F]()
+  def apply[F[_]: Concurrent]: Resource[F, Supervisor[F]] =
+    apply[F](false)
 
   private trait State[F[_]] {
     def remove(token: Unique.Token): F[Unit]
