@@ -107,8 +107,7 @@ object Supervisor {
    * Creates a [[cats.effect.kernel.Resource]] scope within which fibers can be monitored. When
    * this scope exits, all supervised fibers will be finalized.
    */
-  def apply[F[_]](await: Boolean)(
-      implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
+  def apply[F[_]](await: Boolean)(implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     F match {
       case asyncF: Async[F] => applyForAsync(await)(asyncF)
       case _ => applyForConcurrent(await)
