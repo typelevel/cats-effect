@@ -53,6 +53,14 @@ class SupervisorSpec extends BaseSpec {
 
       test must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
+
+    "await active fibers when supervisor exits with await = true" in ticked { implicit ticker =>
+      val test = Supervisor[IO](await = true).use { supervisor =>
+        supervisor.supervise(IO.never[Unit]).void
+      }
+
+      test must nonTerminate
+    }
   }
 
 }

@@ -780,7 +780,16 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #2604, Fix Console on JS
       // changes to `cats.effect.std` package private code
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Console$SyncConsole")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Console$SyncConsole"),
+      // introduced by #2951
+      // added configurability to Supervisor's scope termination behavior
+      // the following are package-private APIs
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.std.Supervisor#State.add"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem](
+        "cats.effect.std.Supervisor#State.add"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem](
+        "cats.effect.std.Supervisor#State.joinAll")
     )
   )
   .jsSettings(
