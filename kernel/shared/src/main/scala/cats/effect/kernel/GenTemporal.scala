@@ -99,8 +99,7 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    *   The time span for which we wait for the source to complete; in the event that the
    *   specified time has passed without the source completing, a `TimeoutException` is raised
    */
-  def timeout[A](fa: F[A], duration: Duration)(
-      implicit ev: TimeoutException <:< E): F[A] = {
+  def timeout[A](fa: F[A], duration: Duration)(implicit ev: TimeoutException <:< E): F[A] = {
     handleFinite(fa, duration) { finiteDuration =>
       flatMap(race(fa, sleep(finiteDuration))) {
         case Left(a) => pure(a)
