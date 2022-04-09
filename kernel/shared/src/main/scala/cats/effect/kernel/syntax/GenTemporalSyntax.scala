@@ -43,6 +43,9 @@ final class GenTemporalOps_[F[_], A] private[syntax] (private val wrapped: F[A])
   def timeoutTo(duration: Duration, fallback: F[A])(implicit F: GenTemporal[F, _]): F[A] =
     F.timeoutTo(wrapped, duration, fallback)
 
+  def timeoutTo(duration: FiniteDuration, fallback: F[A])(implicit F: GenTemporal[F, _]): F[A] =
+    F.timeoutTo(wrapped, duration, fallback)
+
   def delayBy(time: FiniteDuration)(implicit F: GenTemporal[F, _]): F[A] =
     F.delayBy(wrapped, time)
 
@@ -58,7 +61,17 @@ final class GenTemporalOps[F[_], A, E] private[syntax] (private val wrapped: F[A
       timeoutToE: TimeoutException <:< E
   ): F[A] = F.timeout(wrapped, duration)
 
+  def timeout(duration: Duration)(
+      implicit F: GenTemporal[F, E],
+      timeoutToE: TimeoutException <:< E
+  ): F[A] = F.timeout(wrapped, duration)
+
   def timeoutAndForget(duration: FiniteDuration)(
+      implicit F: GenTemporal[F, E],
+      timeoutToE: TimeoutException <:< E
+  ): F[A] = F.timeoutAndForget(wrapped, duration)
+
+  def timeoutAndForget(duration: Duration)(
       implicit F: GenTemporal[F, E],
       timeoutToE: TimeoutException <:< E
   ): F[A] = F.timeoutAndForget(wrapped, duration)
