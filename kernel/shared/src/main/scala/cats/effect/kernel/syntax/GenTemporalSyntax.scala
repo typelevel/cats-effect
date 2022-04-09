@@ -18,7 +18,7 @@ package cats.effect.kernel.syntax
 
 import cats.effect.kernel.GenTemporal
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 import java.util.concurrent.TimeoutException
 
@@ -40,7 +40,7 @@ trait GenTemporalSyntax {
 final class GenTemporalOps_[F[_], A] private[syntax] (private val wrapped: F[A])
     extends AnyVal {
 
-  def timeoutTo(duration: FiniteDuration, fallback: F[A])(implicit F: GenTemporal[F, _]): F[A] =
+  def timeoutTo(duration: Duration, fallback: F[A])(implicit F: GenTemporal[F, _]): F[A] =
     F.timeoutTo(wrapped, duration, fallback)
 
   def delayBy(time: FiniteDuration)(implicit F: GenTemporal[F, _]): F[A] =

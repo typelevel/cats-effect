@@ -21,7 +21,7 @@ import cats.data._
 import cats.syntax.all._
 
 import scala.concurrent.TimeoutException
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /**
  * A typeclass that encodes the notion of suspending fibers for a given duration. Analogous to
@@ -78,10 +78,12 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * @param fallback
    *   The task evaluated after the duration has passed and the source canceled
    */
-  def timeoutTo[A](fa: F[A], duration: FiniteDuration, fallback: F[A]): F[A] =
-    flatMap(race(fa, sleep(duration))) {
-      case Left(a) => pure(a)
-      case Right(_) => fallback
+  def timeoutTo[A](fa: F[A], duration: Duration, fallback: F[A]): F[A] =
+    handleFinite(fa, duration) { finiteDuration =>
+      flatMap(race(fa, sleep(finiteDuration))) {
+        case Left(a) => pure(a)
+        case Right(_) => fallback
+      }
     }
 
   /**
@@ -97,11 +99,20 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    *   The time span for which we wait for the source to complete; in the event that the
    *   specified time has passed without the source completing, a `TimeoutException` is raised
    */
-  def timeout[A](fa: F[A], duration: FiniteDuration)(
+  def timeout[A](fa: F[A], duration: Duration)(
       implicit ev: TimeoutException <:< E): F[A] = {
-    flatMap(race(fa, sleep(duration))) {
-      case Left(a) => pure(a)
-      case Right(_) => raiseError[A](ev(new TimeoutException(duration.toString())))
+    handleFinite(fa, duration) { finiteDuration =>
+      flatMap(race(fa, sleep(finiteDuration))) {
+        case Left(a) => pure(a)
+        case Right(_) => raiseError[A](ev(new TimeoutException(duration.toString())))
+      }
+    }
+  }
+
+  def handleFinite[A](fa: F[A], duration: Duration)(f: FiniteDuration => F[A]): F[A] = {
+    duration match {
+      case _: Duration.Infinite => fa
+      case finite: FiniteDuration => f(finite)
     }
   }
 
@@ -123,17 +134,19 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * @see
    *   [[timeout]] for a variant which respects backpressure and does not leak fibers
    */
-  def timeoutAndForget[A](fa: F[A], duration: FiniteDuration)(
+  def timeoutAndForget[A](fa: F[A], duration: Duration)(
       implicit ev: TimeoutException <:< E): F[A] =
-    uncancelable { poll =>
-      implicit val F: GenTemporal[F, E] = this
+    handleFinite(fa, duration) { finiteDuration =>
+      uncancelable { poll =>
+        implicit val F: GenTemporal[F, E] = this
 
-      racePair(fa, sleep(duration)) flatMap {
-        case Left((oc, f)) =>
-          poll(f.cancel *> oc.embedNever)
+        racePair(fa, sleep(finiteDuration)) flatMap {
+          case Left((oc, f)) =>
+            poll(f.cancel *> oc.embedNever)
 
-        case Right((f, _)) =>
-          start(f.cancel) *> raiseError[A](ev(new TimeoutException(duration.toString)))
+          case Right((f, _)) =>
+            start(f.cancel) *> raiseError[A](ev(new TimeoutException(duration.toString)))
+        }
       }
     }
 }

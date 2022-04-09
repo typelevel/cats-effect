@@ -664,7 +664,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *   is the time span for which we wait for the source to complete; in the event that the
    *   specified time has passed without the source completing, a `TimeoutException` is raised
    */
-  def timeout[A2 >: A](duration: FiniteDuration): IO[A2] =
+  def timeout[A2 >: A](duration: Duration): IO[A2] =
     timeoutTo(duration, IO.defer(IO.raiseError(new TimeoutException(duration.toString))))
 
   /**
@@ -683,11 +683,16 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @param fallback
    *   is the task evaluated after the duration has passed and the source canceled
    */
-  def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2]): IO[A2] =
-    race(IO.sleep(duration)).flatMap {
-      case Right(_) => fallback
-      case Left(value) => IO.pure(value)
+  def timeoutTo[A2 >: A](duration: Duration, fallback: IO[A2]): IO[A2] = {
+    duration match {
+      case _: Duration.Infinite => this
+      case finite: FiniteDuration =>
+        race(IO.sleep(finite)).flatMap {
+          case Right(_) => fallback
+          case Left(value) => IO.pure(value)
+        }
     }
+  }
 
   /**
    * Returns an IO that either completes with the result of the source within the specified time
@@ -1541,7 +1546,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def handleError[A](fa: IO[A])(f: Throwable => A): IO[A] =
       fa.handleError(f)
 
-    override def timeout[A](fa: IO[A], duration: FiniteDuration)(
+    override def timeout[A](fa: IO[A], duration: Duration)(
         implicit ev: TimeoutException <:< Throwable): IO[A] = {
       fa.timeout(duration)
     }
