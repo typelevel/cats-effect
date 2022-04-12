@@ -5,7 +5,7 @@ title: Supervisor
 
 ## Motivation
 
-There are multiple ways to spawn a fiber to run an action:
+[Spawn](../typeclasses/spawn.md) provides multiple ways to spawn a [fiber](../concepts.md#fibers) to run an action:
 
 `Spawn[F]#start`: start and forget, no lifecycle management for the spawned fiber 
 
