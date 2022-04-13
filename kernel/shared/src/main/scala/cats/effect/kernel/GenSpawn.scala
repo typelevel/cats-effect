@@ -63,7 +63,7 @@ import cats.syntax.all._
  *   1. A1, B1, B2, A2
  *   1. B1, B2, A1, A2
  *   1. B1, A1, B2, A2
- *   1. B1, A1, A2, B3
+ *   1. B1, A1, A2, B2
  *
  * Notice how every execution preserves sequential consistency of the effects within each fiber:
  * `A1` always prints before `A2`, and `B1` always prints before `B2`. However, there are no
