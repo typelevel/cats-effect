@@ -99,12 +99,28 @@ object Dispatcher {
   @deprecated(
     "3.4.0",
     "use parallel or sequential instead; the former corresponds to the current semantics of this method")
-  def apply[F[_]: Async]: Resource[F, Dispatcher[F]] = parallel[F]
+  def apply[F[_]: Async]: Resource[F, Dispatcher[F]] = parallel[F](await = false)
 
   /**
    * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
    * exits, all active effects will be canceled, and attempts to submit new effects will throw
    * an exception.
+   */
+  def parallel[F[_]: Async]: Resource[F, Dispatcher[F]] =
+    parallel[F](await = false)
+
+  /**
+   * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
+   * exits, all active effects will be canceled, and attempts to submit new effects will throw
+   * an exception.
+   */
+  def sequential[F[_]: Async]: Resource[F, Dispatcher[F]] =
+    sequential[F](await = false)
+
+  /**
+   * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
+   * exits, depending on the termination policy all active effects will be canceled or awaited,
+   * and attempts to submit new effects will throw an exception.
    *
    * This corresponds to a pattern in which a single `Dispatcher` is being used by multiple
    * calling threads simultaneously, with complex (potentially long-running) actions submitted
@@ -114,15 +130,35 @@ object Dispatcher {
    * `Dispatcher` is being widely shared across the application, and where sequencing is not
    * assumed.
    *
+   * The lifecycle of spawned fibers is managed by [[Supervisor]]. The termination policy can be
+   * configured by the `await` parameter.
+   *
    * @see
-   *   [[sequential]]
+   *   [[Supervisor]] for the termination policy details
+   *
+   * @note
+   *   if an effect that never completes, is evaluating by a `Dispatcher` with awaiting
+   *   termination policy, the termination of the `Dispatcher` is indefinitely suspended
+   *   {{{
+   *   val io: IO[Unit] = // never completes
+   *     Dispatcher.parallel[F](await = true).use { dispatcher =>
+   *       dispatcher.unsafeRunAndForget(Concurrent[F].never)
+   *       Concurrent[F].unit
+   *     }
+   *   }}}
+   *
+   * @param await
+   *   the termination policy of the internal [[Supervisor]].
+   *   - true - wait for the completion of the active fibers
+   *   - false - cancel the active fibers
    */
-  def parallel[F[_]: Async]: Resource[F, Dispatcher[F]] = apply(Mode.Parallel)
+  def parallel[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] =
+    apply(Mode.Parallel, await)
 
   /**
    * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
-   * exits, all active effects will be canceled, and attempts to submit new effects will throw
-   * an exception.
+   * exits, depending on the termination policy all active effects will be canceled or awaited,
+   * and attempts to submit new effects will throw an exception.
    *
    * This corresponds to a [[Dispatcher]] mode in which submitted actions are evaluated strictly
    * in sequence (FIFO). In this mode, any actions submitted to
@@ -136,12 +172,26 @@ object Dispatcher {
    * across multiple producers. To be clear, shared dispatchers in sequential mode will still
    * function correctly, but performance will be suboptimal due to single-point contention.
    *
-   * @see
-   *   [[parallel]]
+   * @note
+   *   if an effect that never completes, is evaluating by a `Dispatcher` with awaiting
+   *   termination policy, the termination of the `Dispatcher` is indefinitely suspended
+   *   {{{
+   *   val io: IO[Unit] = // never completes
+   *     Dispatcher.sequential[F](await = true).use { dispatcher =>
+   *       dispatcher.unsafeRunAndForget(Concurrent[F].never)
+   *       Concurrent[F].unit
+   *     }
+   *   }}}
+   *
+   * @param await
+   *   the termination policy.
+   *   - true - wait for the completion of the active fiber
+   *   - false - cancel the active fiber
    */
-  def sequential[F[_]: Async]: Resource[F, Dispatcher[F]] = apply(Mode.Sequential)
+  def sequential[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] =
+    apply(Mode.Sequential, await)
 
-  private[this] def apply[F[_]](mode: Mode)(
+  private[this] def apply[F[_]](mode: Mode, await: Boolean)(
       implicit F: Async[F]): Resource[F, Dispatcher[F]] = {
     final case class Registration(action: F[Unit], prepareCancel: F[Unit] => Unit)
         extends AtomicBoolean(true)
@@ -151,13 +201,21 @@ object Dispatcher {
     final case class CanceledNoToken(promise: Promise[Unit]) extends CancelState
     final case class CancelToken(cancelToken: () => Future[Unit]) extends CancelState
 
-    for {
-      supervisor <- Supervisor[F]
+    val (workers, makeFork) =
+      mode match {
+        case Mode.Parallel =>
+          (Cpus, Supervisor[F](await).map(s => s.supervise(_: F[Unit]).map(_.cancel)))
 
-      (workers, fork) = mode match {
-        case Mode.Parallel => (Cpus, supervisor.supervise(_: F[Unit]).map(_.cancel))
-        case Mode.Sequential => (1, (_: F[Unit]).as(F.unit).handleError(_ => F.unit))
+        case Mode.Sequential =>
+          (
+            1,
+            Resource
+              .pure[F, F[Unit] => F[F[Unit]]]((_: F[Unit]).as(F.unit).handleError(_ => F.unit))
+          )
       }
+
+    for {
+      fork <- makeFork
 
       latches <- Resource.eval(F delay {
         val latches = new Array[AtomicReference[() => Unit]](workers)
@@ -225,7 +283,7 @@ object Dispatcher {
 
                 mode match {
                   case Dispatcher.Mode.Parallel => runAll.uncancelable
-                  case Dispatcher.Mode.Sequential => runAll
+                  case Dispatcher.Mode.Sequential => if (await) runAll.uncancelable else runAll
                 }
               }
           } yield ()

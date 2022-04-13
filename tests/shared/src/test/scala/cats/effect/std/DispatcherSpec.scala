@@ -25,36 +25,37 @@ import scala.concurrent.duration._
 
 class DispatcherSpec extends BaseSpec {
 
-  "sequential dispatcher" should {
-    val D = Dispatcher.sequential[IO]
+  "sequential dispatcher (await = true)" should {
+    val D = Dispatcher.sequential[IO](await = true)
 
-    "run a synchronous IO" in real {
-      val ioa = IO(1).map(_ + 2)
-      val rec =
-        D.flatMap(runner => Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
-      rec.use(i => IO(i mustEqual 3))
-    }
+    sequential(D)
 
-    "run an asynchronous IO" in real {
-      val ioa = (IO(1) <* IO.cede).map(_ + 2)
-      val rec =
-        D.flatMap(runner => Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
-      rec.use(i => IO(i mustEqual 3))
-    }
+    awaitTermination(D)
 
-    "run several IOs back to back" in real {
-      @volatile
-      var counter = 0
-      val increment = IO(counter += 1)
+  }
 
-      val num = 10
+  "sequential dispatcher (await = false)" should {
+    val D = Dispatcher.sequential[IO](await = false)
 
-      val rec = D flatMap { runner =>
-        Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(increment))).replicateA(num).void)
+    sequential(D)
+
+    "cancel all inner effects when canceled" in real {
+      var canceled = false
+
+      val body = D use { runner =>
+        IO(runner.unsafeRunAndForget(IO.never.onCancel(IO { canceled = true }))) *> IO.never
       }
 
-      rec.use(_ => IO(counter mustEqual num))
+      val action = body.start flatMap { f => IO.sleep(500.millis) *> f.cancel }
+
+      TestControl.executeEmbed(action *> IO(canceled must beTrue))
     }
+
+  }
+
+  private def sequential(dispatcher: Resource[IO, Dispatcher[IO]]) = {
+
+    common(dispatcher)
 
     "strictly sequentialize multiple IOs" in real {
       val length = 1000
@@ -63,7 +64,7 @@ class DispatcherSpec extends BaseSpec {
         results <- IO.ref(Vector[Int]())
         gate <- CountDownLatch[IO](length)
 
-        _ <- D use { runner =>
+        _ <- dispatcher use { runner =>
           IO {
             0.until(length) foreach { i =>
               runner.unsafeRunAndForget(results.update(_ :+ i).guarantee(gate.release))
@@ -79,7 +80,7 @@ class DispatcherSpec extends BaseSpec {
     "ignore action cancelation" in real {
       var canceled = false
 
-      val rec = D flatMap { runner =>
+      val rec = dispatcher flatMap { runner =>
         val run = IO {
           runner
             .unsafeToFutureCancelable(IO.sleep(500.millis).onCancel(IO { canceled = true }))
@@ -94,113 +95,21 @@ class DispatcherSpec extends BaseSpec {
       TestControl.executeEmbed(rec.use(_ => IO(canceled must beFalse)))
     }
 
-    "cancel all inner effects when canceled" in real {
-      var canceled = false
-
-      val body = D use { runner =>
-        IO(runner.unsafeRunAndForget(IO.never.onCancel(IO { canceled = true }))) *> IO.never
-      }
-
-      val action = body.start flatMap { f => IO.sleep(500.millis) *> f.cancel }
-
-      TestControl.executeEmbed(action *> IO(canceled must beTrue))
-    }
-
-    "raise an error on leaked runner" in real {
-      D.use(IO.pure(_)) flatMap { runner =>
-        IO {
-          runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException]
-        }
-      }
-    }
   }
 
-  "parallel dispatcher" should {
-    val D = Dispatcher.parallel[IO]
+  "parallel dispatcher (await = true)" should {
+    val D = Dispatcher.parallel[IO](await = true)
 
-    "run a synchronous IO" in real {
-      val ioa = IO(1).map(_ + 2)
-      val rec =
-        D.flatMap(runner => Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
-      rec.use(i => IO(i mustEqual 3))
-    }
+    parallel(D)
 
-    "run an asynchronous IO" in real {
-      val ioa = (IO(1) <* IO.cede).map(_ + 2)
-      val rec =
-        D.flatMap(runner => Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
-      rec.use(i => IO(i mustEqual 3))
-    }
+    awaitTermination(D)
 
-    "run several IOs back to back" in real {
-      @volatile
-      var counter = 0
-      val increment = IO(counter += 1)
+  }
 
-      val num = 10
+  "parallel dispatcher (await = false)" should {
+    val D = Dispatcher.parallel[IO](await = false)
 
-      val rec = D flatMap { runner =>
-        Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(increment))).replicateA(num).void)
-      }
-
-      rec.use(_ => IO(counter mustEqual num))
-    }
-
-    "run multiple IOs in parallel" in real {
-      val num = 10
-
-      for {
-        latches <- (0 until num).toList.traverse(_ => Deferred[IO, Unit])
-        awaitAll = latches.parTraverse_(_.get)
-
-        // engineer a deadlock: all subjects must be run in parallel or this will hang
-        subjects = latches.map(latch => latch.complete(()) >> awaitAll)
-
-        _ <- {
-          val rec = D flatMap { runner =>
-            Resource.eval(subjects.parTraverse_(act => IO(runner.unsafeRunAndForget(act))))
-          }
-
-          rec.use(_ => IO.unit)
-        }
-      } yield ok
-    }
-
-    "run many IOs simultaneously to full completion" in real {
-      val length = 256 // 10000 times out on my machine
-
-      for {
-        results <- IO.ref(Vector[Int]())
-        gate <- CountDownLatch[IO](length)
-
-        _ <- D use { runner =>
-          IO {
-            0.until(length) foreach { i =>
-              runner.unsafeRunAndForget(results.update(_ :+ i).guarantee(gate.release))
-            }
-          } *> gate.await
-        }
-
-        vec <- results.get
-        _ <- IO(vec must containAllOf(0.until(length).toVector))
-      } yield ok
-    }
-
-    "forward cancelation onto the inner action" in real {
-      var canceled = false
-
-      val rec = D flatMap { runner =>
-        val run = IO {
-          runner.unsafeToFutureCancelable(IO.never.onCancel(IO { canceled = true }))._2
-        }
-
-        Resource eval {
-          run.flatMap(ct => IO.sleep(500.millis) >> IO.fromFuture(IO(ct())))
-        }
-      }
-
-      TestControl.executeEmbed(rec.use(_ => IO(canceled must beTrue)))
-    }
+    parallel(D)
 
     "cancel all inner effects when canceled" in real {
       for {
@@ -233,13 +142,139 @@ class DispatcherSpec extends BaseSpec {
         _ <- gate2.acquireN(2) // if both are not run in parallel, then this will hang
       } yield ok
     }
+  }
+
+  private def parallel(dispatcher: Resource[IO, Dispatcher[IO]]) = {
+
+    common(dispatcher)
+
+    "run multiple IOs in parallel" in real {
+      val num = 10
+
+      for {
+        latches <- (0 until num).toList.traverse(_ => Deferred[IO, Unit])
+        awaitAll = latches.parTraverse_(_.get)
+
+        // engineer a deadlock: all subjects must be run in parallel or this will hang
+        subjects = latches.map(latch => latch.complete(()) >> awaitAll)
+
+        _ <- {
+          val rec = dispatcher flatMap { runner =>
+            Resource.eval(subjects.parTraverse_(act => IO(runner.unsafeRunAndForget(act))))
+          }
+
+          rec.use(_ => IO.unit)
+        }
+      } yield ok
+    }
+
+    "run many IOs simultaneously to full completion" in real {
+      val length = 256 // 10000 times out on my machine
+
+      for {
+        results <- IO.ref(Vector[Int]())
+        gate <- CountDownLatch[IO](length)
+
+        _ <- dispatcher use { runner =>
+          IO {
+            0.until(length) foreach { i =>
+              runner.unsafeRunAndForget(results.update(_ :+ i).guarantee(gate.release))
+            }
+          } *> gate.await
+        }
+
+        vec <- results.get
+        _ <- IO(vec must containAllOf(0.until(length).toVector))
+      } yield ok
+    }
+
+    "forward cancelation onto the inner action" in real {
+      var canceled = false
+
+      val rec = dispatcher flatMap { runner =>
+        val run = IO {
+          runner.unsafeToFutureCancelable(IO.never.onCancel(IO { canceled = true }))._2
+        }
+
+        Resource eval {
+          run.flatMap(ct => IO.sleep(500.millis) >> IO.fromFuture(IO(ct())))
+        }
+      }
+
+      TestControl.executeEmbed(rec.use(_ => IO(canceled must beTrue)))
+    }
+  }
+
+  private def common(dispatcher: Resource[IO, Dispatcher[IO]]) = {
+
+    "run a synchronous IO" in real {
+      val ioa = IO(1).map(_ + 2)
+      val rec =
+        dispatcher.flatMap(runner =>
+          Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
+      rec.use(i => IO(i mustEqual 3))
+    }
+
+    "run an asynchronous IO" in real {
+      val ioa = (IO(1) <* IO.cede).map(_ + 2)
+      val rec =
+        dispatcher.flatMap(runner =>
+          Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(ioa)))))
+      rec.use(i => IO(i mustEqual 3))
+    }
+
+    "run several IOs back to back" in real {
+      @volatile
+      var counter = 0
+      val increment = IO(counter += 1)
+
+      val num = 10
+
+      val rec = dispatcher flatMap { runner =>
+        Resource.eval(IO.fromFuture(IO(runner.unsafeToFuture(increment))).replicateA(num).void)
+      }
+
+      rec.use(_ => IO(counter mustEqual num))
+    }
 
     "raise an error on leaked runner" in real {
-      D.use(IO.pure(_)) flatMap { runner =>
+      dispatcher.use(IO.pure(_)) flatMap { runner =>
         IO {
           runner.unsafeRunAndForget(IO(ko)) must throwAn[IllegalStateException]
         }
       }
     }
   }
+
+  private def awaitTermination(dispatcher: Resource[IO, Dispatcher[IO]]) = {
+
+    "wait for the completion of the active fibers" in real {
+      def makeRunner(releaseInner: CountDownLatch[IO]) =
+        for {
+          runner <- dispatcher
+          _ <- Resource.make(IO.unit)(_ => releaseInner.release)
+        } yield runner
+
+      for {
+        releaseInner <- CountDownLatch[IO](1)
+        fiberLatch <- CountDownLatch[IO](1)
+
+        fiber <- makeRunner(releaseInner).use { runner =>
+          for {
+            cdl <- CountDownLatch[IO](1)
+            _ <- IO(runner.unsafeRunAndForget(cdl.release >> fiberLatch.await))
+            _ <- cdl.await // make sure the execution of fiber has started
+          } yield ()
+        }.start
+        _ <- releaseInner.await // release process has started
+        released1 <- fiber.join.as(true).timeoutTo(200.millis, IO(false))
+        _ <- fiberLatch.release
+        released2 <- fiber.join.as(true).timeoutTo(200.millis, IO(false))
+      } yield {
+        released1 must beFalse
+        released2 must beTrue
+      }
+    }
+  }
+
 }

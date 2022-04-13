@@ -67,7 +67,7 @@ class DispatcherBenchmark {
       }))
 
     Dispatcher
-      .parallel[IO]
+      .parallel[IO](await = false)
       .use { disp =>
         List
           .range(0, size)
