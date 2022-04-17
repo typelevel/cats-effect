@@ -723,6 +723,7 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test
     ),
     buildInfoPackage := "catseffect",
+    tlFatalWarnings := tlFatalWarnings.value && !tlIsScala3.value, // TODO remove when we update to Scala >=3.1
     Test / unmanagedSourceDirectories ++= {
       if (scalaBinaryVersion.value != "2.12")
         Seq(baseDirectory.value / ".." / "shared" / "src" / "test" / "scala-2.13+")
