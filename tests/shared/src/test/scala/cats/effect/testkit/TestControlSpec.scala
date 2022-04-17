@@ -112,6 +112,16 @@ class TestControlSpec extends BaseSpec {
         } yield ok
       }
     }
+
+    "produce Duration.Zero from nextInterval when no tasks" in real {
+      TestControl.execute(deadlock) flatMap { control =>
+        for {
+          _ <- control.tick
+          i <- control.nextInterval
+          _ <- IO(i mustEqual Duration.Zero)
+        } yield ok
+      }
+    }
   }
 
   "executeEmbed" should {
