@@ -799,7 +799,10 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #2604, Fix Console on JS
       // changes to a static forwarder, which are meaningless on JS
-      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.std.Console.make")
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.std.Console.make"),
+      // introduced by #2905, Add a SecureRandom algebra
+      // relocated a package-private class
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.JavaSecureRandom")
     )
   )
 
