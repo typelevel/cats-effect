@@ -802,7 +802,8 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.std.Console.make"),
       // introduced by #2905, Add a SecureRandom algebra
       // relocated a package-private class
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.JavaSecureRandom")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.JavaSecureRandom"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.JavaSecureRandom$")
     )
   )
 
