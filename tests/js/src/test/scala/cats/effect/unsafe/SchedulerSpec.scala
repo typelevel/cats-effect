@@ -26,8 +26,19 @@ class SchedulerSpec extends BaseSpec {
       // When the provided timeout in milliseconds overflows a signed 32-bit int, the implementation defaults to 1 millisecond
       IO.sleep(Long.MaxValue.nanos).race(IO.sleep(100.millis)) mustEqual Right(())
     }
-    "is using the correct max timeout" in real {
+    "use the correct max timeout" in real {
       IO.sleep(Int.MaxValue.millis).race(IO.sleep(100.millis)) mustEqual Right(())
+    }
+    "use high-precision time" in real {
+      IO.realTime.product(IO.cede *> IO.realTime).map {
+        case (x, y) => (y - x).toMicros % 1000 should not(be_==(0L))
+      }
+    }
+    "correctly calculate real time" in real {
+      IO.realTime.product(IO(System.currentTimeMillis())).map {
+        case (realTime, currentTime) =>
+          (realTime.toMillis - currentTime) should be_<=(1L)
+      }
     }
   }
 
