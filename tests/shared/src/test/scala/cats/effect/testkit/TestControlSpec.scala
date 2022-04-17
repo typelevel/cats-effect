@@ -18,6 +18,7 @@ package cats.effect
 package testkit
 
 import cats.Id
+import cats.syntax.all._
 
 import org.specs2.matcher.Matcher
 
@@ -120,6 +121,49 @@ class TestControlSpec extends BaseSpec {
           i <- control.nextInterval
           _ <- IO(i mustEqual Duration.Zero)
         } yield ok
+      }
+    }
+
+    "tickFor" >> {
+      "not advance beyond limit" in real {
+        TestControl.execute(IO.sleep(1.second).as(42)) flatMap { control =>
+          for {
+            r1 <- control.results
+            _ <- IO(r1 must beNone)
+
+            _ <- control.tickFor(500.millis)
+            r2 <- control.results
+            _ <- IO(r2 must beNone)
+
+            i1 <- control.nextInterval
+            _ <- IO(i1 mustEqual 500.millis)
+
+            _ <- control.tickFor(250.millis)
+            r3 <- control.results
+            _ <- IO(r3 must beNone)
+
+            i2 <- control.nextInterval
+            _ <- IO(i2 mustEqual 250.millis)
+
+            _ <- control.tickFor(250.millis)
+            r4 <- control.results
+            _ <- IO(r4 must beSome(beSucceeded(42)))
+          } yield ok
+        }
+      }
+
+      "advance incrementally in minimum steps" in real {
+        val step = IO.sleep(1.second) *> IO.realTime
+
+        TestControl.execute((step, step).tupled) flatMap { control =>
+          for {
+            _ <- control.tickFor(1.second + 500.millis)
+            _ <- control.tickAll
+
+            r <- control.results
+            _ <- IO(r must beSome(beSucceeded((1.second, 2.seconds))))
+          } yield ok
+        }
       }
     }
   }
