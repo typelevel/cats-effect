@@ -127,7 +127,8 @@ final class TestControl[A] private (
 
   /**
    * Produces the minimum time which must elapse for a fiber to become eligible for execution.
-   * If fibers are currently eligible for execution, the result will be `Duration.Zero`.
+   * If fibers are currently eligible for execution, or if the program is entirely deadlocked,
+   * the result will be `Duration.Zero`.
    */
   val nextInterval: IO[FiniteDuration] =
     IO(ctx.nextInterval())
