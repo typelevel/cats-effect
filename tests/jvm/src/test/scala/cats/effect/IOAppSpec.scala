@@ -26,8 +26,8 @@ import java.io.File
 class IOAppSpec extends Specification {
 
   abstract class Platform(val id: String) { outer =>
-    def builder(proto: IOApp, args: List[String]): ProcessBuilder
-    def pid(proto: IOApp): Option[Int]
+    def builder(proto: AnyRef, args: List[String]): ProcessBuilder
+    def pid(proto: AnyRef): Option[Int]
 
     def dumpSignal: String
 
@@ -36,7 +36,7 @@ class IOAppSpec extends Specification {
       ()
     }
 
-    def apply(proto: IOApp, args: List[String]): Handle = {
+    def apply(proto: AnyRef, args: List[String]): Handle = {
       val stdoutBuffer = new StringBuffer()
       val stderrBuffer = new StringBuffer()
       val p = builder(proto, args).run(BasicIO(false, stdoutBuffer, None).withError { in =>
@@ -70,13 +70,13 @@ class IOAppSpec extends Specification {
 
     val dumpSignal = "USR1"
 
-    def builder(proto: IOApp, args: List[String]) = Process(
+    def builder(proto: AnyRef, args: List[String]) = Process(
       s"$JavaHome/bin/java",
       List("-cp", ClassPath, proto.getClass.getName.replaceAll("\\$$", "")) ::: args)
 
     // scala.sys.process.Process and java.lang.Process lack getting PID support. Java 9+ introduced it but
     // whatever because it's very hard to obtain a java.lang.Process from scala.sys.process.Process.
-    def pid(proto: IOApp): Option[Int] = {
+    def pid(proto: AnyRef): Option[Int] = {
       val mainName = proto.getClass.getSimpleName.replace("$", "")
       val jpsStdoutBuffer = new StringBuffer()
       val jpsProcess =
@@ -92,14 +92,14 @@ class IOAppSpec extends Specification {
   object Node extends Platform("node") {
     val dumpSignal = "USR2"
 
-    def builder(proto: IOApp, args: List[String]) =
+    def builder(proto: AnyRef, args: List[String]) =
       Process(
         s"node",
         "--enable-source-maps" :: BuildInfo
           .jsRunner
           .getAbsolutePath :: proto.getClass.getName.init :: args)
 
-    def pid(proto: IOApp): Option[Int] = {
+    def pid(proto: AnyRef): Option[Int] = {
       val mainName = proto.getClass.getName.init
       val stdoutBuffer = new StringBuffer()
       val process =
@@ -209,6 +209,14 @@ class IOAppSpec extends Specification {
           val h = platform(FatalError, List.empty)
           h.awaitStatus() mustEqual 1
           h.stderr() must contain("Boom!")
+          h.stdout() must not(contain("sadness"))
+        }
+
+        "exit on fatal error without IOApp" in {
+          val h = platform(FatalErrorRaw, List.empty)
+          h.awaitStatus()
+          h.stdout() must not(contain("sadness"))
+          h.stderr() must not(contain("Promise already completed"))
         }
 
         "exit on fatal error with other unsafe runs" in {
@@ -279,6 +287,16 @@ class IOAppSpec extends Specification {
             val stderr = h.stderr()
             stderr must contain("cats.effect.IOFiber")
           }
+        }
+
+        if (!BuildInfo.testJSIOApp) {
+          "support main thread evaluation" in {
+            val h = platform(EvalOnMainThread, List.empty)
+            h.awaitStatus() mustEqual 0
+          }
+        } else {
+          "support main thread evaluation" in skipped(
+            "JavaScript is all main thread, all the time")
         }
       }
     }

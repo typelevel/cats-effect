@@ -37,5 +37,4 @@ private[effect] object process {
     Try(js.Dynamic.global.process.on(eventName, listener).asInstanceOf[Unit]).recover {
       case _ => () // Silently ignore failure
     }.get
-
 }

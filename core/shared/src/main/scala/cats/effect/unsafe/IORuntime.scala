@@ -19,6 +19,8 @@ package unsafe
 
 import scala.concurrent.ExecutionContext
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 @annotation.implicitNotFound("""Could not find an implicit IORuntime.
 
 Instead of calling unsafe methods directly, consider using cats.effect.IOApp, which
@@ -82,4 +84,7 @@ object IORuntime extends IORuntimeCompanionPlatform {
 
   private[effect] final val allRuntimes: ThreadSafeHashtable[IORuntime] =
     new ThreadSafeHashtable(4)
+
+  private[effect] final val globalFatalFailureHandled: AtomicBoolean =
+    new AtomicBoolean(false)
 }

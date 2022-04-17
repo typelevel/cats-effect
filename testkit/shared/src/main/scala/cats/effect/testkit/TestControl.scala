@@ -321,6 +321,9 @@ object TestControl {
           def nowMillis() =
             ctx.now().toMillis
 
+          override def nowMicros(): Long =
+            ctx.now().toMicros
+
           def monotonicNanos() =
             ctx.now().toNanos
         },

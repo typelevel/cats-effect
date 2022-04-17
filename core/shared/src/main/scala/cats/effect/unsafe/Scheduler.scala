@@ -28,6 +28,9 @@ trait Scheduler {
 
   def nowMillis(): Long
 
+  def nowMicros(): Long =
+    nowMillis() * 1000
+
   def monotonicNanos(): Long
 }
 
