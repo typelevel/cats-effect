@@ -257,7 +257,7 @@ object Ref {
    * }}}
    */
   def lens[F[_], A, B](ref: Ref[F, A])(get: A => B, set: A => B => A)(
-      implicit F: Monad[F]): Ref[F, B] =
+      implicit F: Functor[F]): Ref[F, B] =
     new LensRef[F, A, B](ref)(get, set)
 
   @deprecated("Signature preserved for bincompat", "3.4.0")
@@ -385,7 +385,7 @@ object Ref {
   final private[kernel] class LensRef[F[_], A, B](underlying: Ref[F, A])(
       lensGet: A => B,
       lensSet: A => B => A
-  )(implicit F: Monad[F])
+  )(implicit F: Functor[F])
       extends Ref[F, B] {
 
     def this(underlying: Ref[F, A], lensGet: A => B, lensSet: A => B => A, F: Sync[F]) =
