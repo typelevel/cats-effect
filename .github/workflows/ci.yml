@@ -30,8 +30,6 @@ jobs:
           - scala: 3.0.2
             java: temurin@11
           - scala: 3.0.2
-            java: temurin@17
-          - scala: 3.0.2
             java: graalvm@11
           - scala: 2.12.15
             java: temurin@11
