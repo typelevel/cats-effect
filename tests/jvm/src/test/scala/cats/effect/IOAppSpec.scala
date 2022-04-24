@@ -249,6 +249,9 @@ class IOAppSpec extends Specification {
         if (isJava8) {
           "live fiber snapshot" in skipped(
             "JDK 8 does not have free signals for live fiber snapshots")
+        } else if (isWindows) {
+          "live fiber snapshot" in skipped(
+            "cannot observe signals sent to process termination on Windows")
         } else {
           "live fiber snapshot" in {
             val h = platform(LiveFiberSnapshot, List.empty)
