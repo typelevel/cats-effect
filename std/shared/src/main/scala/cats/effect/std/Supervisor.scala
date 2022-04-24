@@ -147,7 +147,7 @@ object Supervisor {
     }
   }
 
-  private def applyForConcurrent[F[_]](await: Boolean)(
+  private[effect] def applyForConcurrent[F[_]](await: Boolean)(
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     val mkState = F.ref[Map[Unique.Token, Fiber[F, Throwable, _]]](Map.empty).map { stateRef =>
       new State[F] {
@@ -165,7 +165,7 @@ object Supervisor {
     supervisor(mkState, await)
   }
 
-  private def applyForAsync[F[_]](await: Boolean)(
+  private[effect] def applyForAsync[F[_]](await: Boolean)(
       implicit F: Async[F]): Resource[F, Supervisor[F]] = {
     val mkState = F.delay {
       val state = new ConcurrentHashMap[Unique.Token, Fiber[F, Throwable, _]]
