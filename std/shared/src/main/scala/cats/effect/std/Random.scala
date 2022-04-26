@@ -457,9 +457,12 @@ object Random extends RandomCompanionPlatform {
     def nextBytes(n: Int): F[Array[Byte]] =
       for {
         r <- f
-        bytes = new Array[Byte](0 max n)
-        _ <- Sync[F].delay(r.nextBytes(bytes))
-      } yield bytes
+        out <- Sync[F].delay {
+          val bytes = new Array[Byte](0 max n)
+          r.nextBytes(bytes)
+          bytes
+        }
+      } yield out
 
     def nextDouble: F[Double] =
       for {
@@ -526,9 +529,10 @@ object Random extends RandomCompanionPlatform {
     def nextBoolean: F[Boolean] =
       Sync[F].delay(localRandom().nextBoolean())
 
-    def nextBytes(n: Int): F[Array[Byte]] = {
+    def nextBytes(n: Int): F[Array[Byte]] = Sync[F].delay {
       val bytes = new Array[Byte](0 max n)
-      Sync[F].delay(localRandom().nextBytes(bytes)).as(bytes)
+      localRandom().nextBytes(bytes)
+      bytes
     }
 
     def nextDouble: F[Double] =
