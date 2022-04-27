@@ -256,9 +256,17 @@ object Ref {
    *     Ref.lens[IO, Foo, String](refA)(_.bar, (foo: Foo) => (bar: String) => foo.copy(bar = bar))
    * }}}
    */
-  def lens[F[_], A, B <: AnyRef](ref: Ref[F, A])(get: A => B, set: A => B => A)(
-      implicit F: Sync[F]): Ref[F, B] =
+  def lens[F[_], A, B](ref: Ref[F, A])(get: A => B, set: A => B => A)(
+      implicit F: Functor[F]): Ref[F, B] =
     new LensRef[F, A, B](ref)(get, set)
+
+  @deprecated("Signature preserved for bincompat", "3.4.0")
+  def lens[F[_], A, B <: AnyRef](
+      ref: Ref[F, A],
+      get: A => B,
+      set: A => B => A,
+      F: Sync[F]): Ref[F, B] =
+    new LensRef[F, A, B](ref)(get, set)(F)
 
   final class ApplyBuilders[F[_]](val mk: Make[F]) extends AnyVal {
 
@@ -374,11 +382,14 @@ object Ref {
       trans(F.compose[(A, *)].compose[A => *].map(underlying.access)(trans(_)))
   }
 
-  final private[kernel] class LensRef[F[_], A, B <: AnyRef](underlying: Ref[F, A])(
+  final private[kernel] class LensRef[F[_], A, B](underlying: Ref[F, A])(
       lensGet: A => B,
       lensSet: A => B => A
-  )(implicit F: Sync[F])
+  )(implicit F: Functor[F])
       extends Ref[F, B] {
+
+    def this(underlying: Ref[F, A], lensGet: A => B, lensSet: A => B => A, F: Sync[F]) =
+      this(underlying)(lensGet, lensSet)(F)
     override def get: F[B] = F.map(underlying.get)(a => lensGet(a))
 
     override def set(b: B): F[Unit] = underlying.update(a => lensModify(a)(_ => b))
@@ -417,23 +428,9 @@ object Ref {
     }
 
     override val access: F[(B, B => F[Boolean])] =
-      F.flatMap(underlying.get) { snapshotA =>
-        val snapshotB = lensGet(snapshotA)
-        val setter = F.delay {
-          val hasBeenCalled = new AtomicBoolean(false)
-
-          (b: B) => {
-            F.flatMap(F.delay(hasBeenCalled.compareAndSet(false, true))) { hasBeenCalled =>
-              F.map(underlying.tryModify { a =>
-                if (hasBeenCalled && (lensGet(a) eq snapshotB))
-                  (lensSet(a)(b), true)
-                else
-                  (a, false)
-              })(_.getOrElse(false))
-            }
-          }
-        }
-        setter.tupleLeft(snapshotB)
+      F.map(underlying.access) {
+        case (a, update) =>
+          (lensGet(a), b => update(lensSet(a)(b)))
       }
 
     private def lensModify(s: A)(f: B => B): A = lensSet(s)(f(lensGet(s)))
