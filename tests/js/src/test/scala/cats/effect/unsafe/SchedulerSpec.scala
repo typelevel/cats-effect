@@ -30,7 +30,11 @@ class SchedulerSpec extends BaseSpec {
       IO.sleep(Int.MaxValue.millis).race(IO.sleep(100.millis)) mustEqual Right(())
     }
     "use high-precision time" in real {
-      IO.realTime.replicateA(100).map(_.exists(_.toMicros % 1000 != 0))
+      for {
+        start <- IO.realTime
+        times <- IO.realTime.replicateA(100)
+        deltas = times.map(_ - start)
+      } yield deltas.exists(_.toMicros % 1000 != 0)
     }
     "correctly calculate real time" in real {
       IO.realTime.product(IO(System.currentTimeMillis())).map {
