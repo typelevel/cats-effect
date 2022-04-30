@@ -28,6 +28,25 @@ class RandomSpec extends BaseSpec {
         bytes2 <- random2.nextBytes(256)
       } yield bytes1.length == 128 && bytes2.length == 256
     }
+
+    "prevent array reference from leaking in ThreadLocalRandom.nextBytes impl" in real {
+      val random = Random.javaUtilConcurrentThreadLocalRandom[IO]
+      val nextBytes = random.nextBytes(128)
+      for {
+        bytes1 <- nextBytes
+        bytes2 <- nextBytes
+      } yield bytes1 ne bytes2
+    }
+
+    "prevent array reference from leaking in ScalaRandom.nextBytes impl" in real {
+      for {
+        random <- Random.scalaUtilRandom[IO]
+        nextBytes = random.nextBytes(128)
+        bytes1 <- nextBytes
+        bytes2 <- nextBytes
+      } yield bytes1 ne bytes2
+    }
+
   }
 
 }
