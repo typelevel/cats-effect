@@ -142,7 +142,7 @@ value configured by the system property must be a power of two and will be round
 specify the following JVM system properties:</p>
 <pre><code class="hljs">-Dcats.effect.tracing.mode=full -Dcats.effect.tracing.buffer.size=1024
 </code></pre>
-<p>For instructions how to configure these settings on JS see the <a href="scaling-and-tuning/io-runtime-config.md"><code>IORuntime</code> configuration page</a>.
+<p>For instructions how to configure these settings on JS see the <a href="/cats-effect/docs/core/io-runtime-config"><code>IORuntime</code> configuration page</a>.
 Additionally, we recommend installing the npm package <a href="https://www.npmjs.com/package/source-map-support">source-map-support</a>.
 This will use the <a href="https://nodejs.medium.com/source-maps-in-node-js-482872b56116">source map</a> to create stack traces with line numbers for Scala code (and not line numbers for generated JS code, which are not so helpful!).
 Note that tracing is currently only supported on Scala.js in <code>fastLinkJS</code> (aka <code>fastOptJS</code>) mode.

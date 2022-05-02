@@ -65,7 +65,7 @@
 </ol>
 <h3><a class="anchor" aria-hidden="true" id="before-you-begin-this-isnt-a-quick-start-guide"></a><a href="#before-you-begin-this-isnt-a-quick-start-guide" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Before You Begin: This Isn't A &quot;Quick Start&quot; Guide</h3>
 <p>This guide is meant for existing users of Cats Effect 2 who want to upgrade their applications
-to 3.3.9.</p>
+to 3.3.11.</p>
 <blockquote>
 <p>If you haven't used Cats Effect before and want to give it a try,
 please follow the <a href="/cats-effect/docs/next/getting-started">getting started guide</a> instead!</p>
@@ -105,9 +105,9 @@ all use either the 2.x.x versions or the 3.x.x versions).</p>
 <h3><a class="anchor" aria-hidden="true" id="which-modules-should-i-use"></a><a href="#which-modules-should-i-use" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Which Modules Should I Use?</h3>
 <p>Cats Effect 3 splits the code dependency into multiple modules. If you were previously using <code>cats-effect</code>, you can keep doing so, but if you're a user of another effect system (Monix, ZIO, ...), or a library author, you might be able to depend on a subset of it instead.</p>
 <p>The current non-test modules are:</p>
-<pre><code class="hljs css language-scala"><span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect-kernel"</span> % <span class="hljs-string">"3.3.9"</span>,
-<span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect-std"</span>    % <span class="hljs-string">"3.3.9"</span>,
-<span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect"</span>        % <span class="hljs-string">"3.3.9"</span>,
+<pre><code class="hljs css language-scala"><span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect-kernel"</span> % <span class="hljs-string">"3.3.11"</span>,
+<span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect-std"</span>    % <span class="hljs-string">"3.3.11"</span>,
+<span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect"</span>        % <span class="hljs-string">"3.3.11"</span>,
 </code></pre>
 <ul>
 <li><code>kernel</code> - type class definitions, simple concurrency primitives</li>
@@ -120,7 +120,7 @@ all use either the 2.x.x versions or the 3.x.x versions).</p>
 <pre><code class="hljs css language-diff">libraryDependencies ++= Seq(
   //...
 <span class="hljs-deletion">-  "org.typelevel" %% "cats-effect" % "2.4.0",</span>
-<span class="hljs-addition">+  "org.typelevel" %% "cats-effect" % "3.3.9",</span>
+<span class="hljs-addition">+  "org.typelevel" %% "cats-effect" % "3.3.11",</span>
   //...
 )
 </code></pre>
@@ -129,8 +129,8 @@ all use either the 2.x.x versions or the 3.x.x versions).</p>
 [error] stack trace is suppressed; run last core / update <span class="hljs-keyword">for</span> the full output
 [error] (core / update) found version conflict(s) in library dependencies; some are suspected to be binary incompatible:
 [error]
-[error]     * org.typelevel:cats-effect_2<span class="hljs-number">.13</span>:<span class="hljs-number">3.3</span><span class="hljs-number">.9</span> (early-semver) is selected over {<span class="hljs-number">2.3</span><span class="hljs-number">.1</span>, <span class="hljs-number">2.1</span><span class="hljs-number">.4</span>}
-[error]         +- com.example:core-core_2<span class="hljs-number">.13</span>:<span class="hljs-number">0.0</span><span class="hljs-number">.7</span><span class="hljs-number">-26</span><span class="hljs-number">-3183519</span>d       (depends on <span class="hljs-number">3.3</span><span class="hljs-number">.9</span>)
+[error]     * org.typelevel:cats-effect_2<span class="hljs-number">.13</span>:<span class="hljs-number">3.3</span><span class="hljs-number">.11</span> (early-semver) is selected over {<span class="hljs-number">2.3</span><span class="hljs-number">.1</span>, <span class="hljs-number">2.1</span><span class="hljs-number">.4</span>}
+[error]         +- com.example:core-core_2<span class="hljs-number">.13</span>:<span class="hljs-number">0.0</span><span class="hljs-number">.7</span><span class="hljs-number">-26</span><span class="hljs-number">-3183519</span>d       (depends on <span class="hljs-number">3.3</span><span class="hljs-number">.11</span>)
 [error]         +- io.monix:monix-catnap_2<span class="hljs-number">.13</span>:<span class="hljs-number">3.3</span><span class="hljs-number">.0</span>                   (depends on <span class="hljs-number">2.1</span><span class="hljs-number">.4</span>)
 [error]         +- com.github.valskalla:odin-core_2<span class="hljs-number">.13</span>:<span class="hljs-number">0.11</span><span class="hljs-number">.0</span>         (depends on <span class="hljs-number">2.3</span><span class="hljs-number">.1</span>)
 [error]
@@ -261,7 +261,7 @@ on the other hand using <code>interruptible</code> the interrupt will be attempt
 <p>The blocking thread pool, similarly to the compute pool, is provided in <code>IORuntime</code> when you run your <code>IO</code>.
 For other effect systems it could be a <code>Runtime</code> or <code>Scheduler</code>, etc. You can learn more about CE3 <a href="/cats-effect/docs/next/schedulers">schedulers</a> and <a href="/cats-effect/docs/next/thread-model">the thread model in comparison to CE2's</a>.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> runtime = cats.effect.unsafe.<span class="hljs-type">IORuntime</span>.global
-<span class="hljs-comment">// runtime: cats.effect.unsafe.IORuntime = IORuntime(cats.effect.unsafe.WorkStealingThreadPool@1f1501fd, cats.effect.unsafe.SchedulerCompanionPlatform$$anon$1@5343c4ce, IORuntimeConfig(512,1024,true,16,Duration.Inf))</span>
+<span class="hljs-comment">// runtime: cats.effect.unsafe.IORuntime = IORuntime(cats.effect.unsafe.WorkStealingThreadPool@57b320c0, cats.effect.unsafe.SchedulerCompanionPlatform$$anon$1@7375bf0d, IORuntimeConfig(512,1024,true,16,Duration.Inf))</span>
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">showThread</span></span>() = java.lang.<span class="hljs-type">Thread</span>.currentThread().getName()
 
@@ -270,7 +270,7 @@ For other effect systems it could be a <code>Runtime</code> or <code>Scheduler</
     <span class="hljs-type">IO</span>(showThread())
   )
   .unsafeRunSync()(runtime)
-<span class="hljs-comment">// res0: (String, String) = ("io-compute-2", "io-compute-2")</span>
+<span class="hljs-comment">// res0: (String, String) = ("io-compute-1", "io-compute-1")</span>
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="no-blockon"></a><a href="#no-blockon" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>No <code>blockOn</code>?</h4>
 <p>It should be noted that <code>blockOn</code> is missing. There is now no <em>standard</em> way to wrap an effect and move it to a blocking pool,
@@ -339,7 +339,7 @@ instead of having the user provide the time unit and getting a <code>Long</code>
 <span class="hljs-comment">// )</span>
 
 clocks.unsafeRunSync()
-<span class="hljs-comment">// res1: concurrent.duration.FiniteDuration = 749792 nanoseconds</span>
+<span class="hljs-comment">// res1: concurrent.duration.FiniteDuration = 866311 nanoseconds</span>
 </code></pre>
 <p>Because <code>Clock</code> is no longer a &quot;usual&quot; value but a type class, it's not possible to create new values of it through <code>create</code> and <code>mapK</code>.</p>
 <p><code>Clock</code> is a part of <code>Sync</code> and thus it should be easy to get an instance inductively for any monad transformer, or directly for any effect that is a <code>Sync</code>.</p>
