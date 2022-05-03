@@ -207,6 +207,14 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
     fold(f, identity)
 
   /**
+   * For a resource that allocates an action (type `F[B]`), allocate that action, run it and
+   * release it.
+   */
+
+  def useIt[B](implicit ev: A <:< F[B], F: MonadCancel[F, Throwable]): F[B] =
+    use(ev)
+
+  /**
    * Allocates a resource with a non-terminating use action. Useful to run programs that are
    * expressed entirely in `Resource`.
    *
