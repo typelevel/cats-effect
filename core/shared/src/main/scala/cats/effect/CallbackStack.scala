@@ -45,25 +45,19 @@ private final class CallbackStack[A](private[this] var callback: OutcomeIO[A] =>
   }
 
   /**
-   * Invokes *all* non-null callbacks in the queue, starting with the current one. Returns true
-   * iff *any* callbacks were invoked.
+   * Invokes *all* non-null callbacks in the queue, starting with the current one.
    */
   @tailrec
-  def apply(oc: OutcomeIO[A], invoked: Boolean): Boolean = {
+  def apply(oc: OutcomeIO[A]): Unit = {
     val cb = callback
-
-    val invoked2 = if (cb != null) {
+    if (cb != null) {
       cb(oc)
-      true
-    } else {
-      invoked
     }
 
     val next = get()
-    if (next != null)
-      next(oc, invoked2)
-    else
-      invoked2
+    if (next != null) {
+      next(oc)
+    }
   }
 
   /**
