@@ -11,6 +11,97 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
 import java.util.concurrent.TimeUnit
 
+abstract class Retry[M[_]] {
+  def decideNextRetry: RetryStatus => M[PolicyDecision]
+  def show: String = toString
+
+  def followedBy(rp: RetryPolicy[M])(implicit M: Apply[M]): RetryPolicy[M] =
+    RetryPolicy.withShow(
+      status =>
+        M.map2(decideNextRetry(status), rp.decideNextRetry(status)) {
+          case (GiveUp, pd) => pd
+          case (pd, _) => pd
+        },
+      show"$show.followedBy($rp)"
+    )
+
+  /**
+   * Combine this schedule with another schedule, giving up when either of the schedules want to
+   * give up and choosing the maximum of the two delays when both of the schedules want to delay
+   * the next retry. The dual of the `meet` operation.
+   */
+  def join(rp: RetryPolicy[M])(implicit M: Apply[M]): RetryPolicy[M] =
+    RetryPolicy.withShow[M](
+      status =>
+        M.map2(decideNextRetry(status), rp.decideNextRetry(status)) {
+          case (DelayAndRetry(a), DelayAndRetry(b)) => DelayAndRetry(a max b)
+          case _ => GiveUp
+        },
+      show"$show.join($rp)"
+    )
+
+  /**
+   * Combine this schedule with another schedule, giving up when both of the schedules want to
+   * give up and choosing the minimum of the two delays when both of the schedules want to delay
+   * the next retry. The dual of the `join` operation.
+   */
+  def meet(rp: RetryPolicy[M])(implicit M: Apply[M]): RetryPolicy[M] =
+    RetryPolicy.withShow[M](
+      status =>
+        M.map2(decideNextRetry(status), rp.decideNextRetry(status)) {
+          case (DelayAndRetry(a), DelayAndRetry(b)) => DelayAndRetry(a min b)
+          case (s @ DelayAndRetry(_), GiveUp) => s
+          case (GiveUp, s @ DelayAndRetry(_)) => s
+          case _ => GiveUp
+        },
+      show"$show.meet($rp)"
+    )
+
+  def mapDelay(
+      f: FiniteDuration => FiniteDuration
+  )(implicit M: Functor[M]): RetryPolicy[M] =
+    RetryPolicy.withShow(
+      status =>
+        M.map(decideNextRetry(status)) {
+          case GiveUp => GiveUp
+          case DelayAndRetry(d) => DelayAndRetry(f(d))
+        },
+      show"$show.mapDelay(<function>)"
+    )
+
+  def flatMapDelay(
+      f: FiniteDuration => M[FiniteDuration]
+  )(implicit M: Monad[M]): RetryPolicy[M] =
+    RetryPolicy.withShow(
+      status =>
+        M.flatMap(decideNextRetry(status)) {
+          case GiveUp => M.pure(GiveUp)
+          case DelayAndRetry(d) => M.map(f(d))(DelayAndRetry(_))
+        },
+      show"$show.flatMapDelay(<function>)"
+    )
+
+  def mapK[N[_]](nt: FunctionK[M, N]): RetryPolicy[N] =
+    RetryPolicy.withShow(
+      status => nt(decideNextRetry(status)),
+      show"$show.mapK(<FunctionK>)"
+    )
+}
+object Retry {
+  final case class Status(
+      retriesSoFar: Int,
+      cumulativeDelay: FiniteDuration,
+      previousDelay: Option[FiniteDuration]
+  ) {
+    def addRetry(delay: FiniteDuration): Retry.Status = Retry.Status(
+      retriesSoFar = this.retriesSoFar + 1,
+      cumulativeDelay = this.cumulativeDelay + delay,
+      previousDelay = Some(delay)
+    )
+  }
+
+  val NoRetriesYet = Retry.Status(0, Duration.Zero, None)
+}
 
 final case class RetryStatus(
     retriesSoFar: Int,
@@ -27,7 +118,6 @@ final case class RetryStatus(
 object RetryStatus {
   val NoRetriesYet = RetryStatus(0, Duration.Zero, None)
 }
-
 
 sealed trait PolicyDecision
 
@@ -49,37 +139,39 @@ case class RetryPolicy[M[_]](
       status =>
         M.map2(decideNextRetry(status), rp.decideNextRetry(status)) {
           case (GiveUp, pd) => pd
-          case (pd, _)      => pd
+          case (pd, _) => pd
         },
       show"$show.followedBy($rp)"
     )
 
-  /** Combine this schedule with another schedule, giving up when either of the schedules want to give up
-    * and choosing the maximum of the two delays when both of the schedules want to delay the next retry.
-    * The dual of the `meet` operation.
-    */
+  /**
+   * Combine this schedule with another schedule, giving up when either of the schedules want to
+   * give up and choosing the maximum of the two delays when both of the schedules want to delay
+   * the next retry. The dual of the `meet` operation.
+   */
   def join(rp: RetryPolicy[M])(implicit M: Apply[M]): RetryPolicy[M] =
     RetryPolicy.withShow[M](
       status =>
         M.map2(decideNextRetry(status), rp.decideNextRetry(status)) {
           case (DelayAndRetry(a), DelayAndRetry(b)) => DelayAndRetry(a max b)
-          case _                                    => GiveUp
+          case _ => GiveUp
         },
       show"$show.join($rp)"
     )
 
-  /** Combine this schedule with another schedule, giving up when both of the schedules want to give up
-    * and choosing the minimum of the two delays when both of the schedules want to delay the next retry.
-    * The dual of the `join` operation.
-    */
+  /**
+   * Combine this schedule with another schedule, giving up when both of the schedules want to
+   * give up and choosing the minimum of the two delays when both of the schedules want to delay
+   * the next retry. The dual of the `join` operation.
+   */
   def meet(rp: RetryPolicy[M])(implicit M: Apply[M]): RetryPolicy[M] =
     RetryPolicy.withShow[M](
       status =>
         M.map2(decideNextRetry(status), rp.decideNextRetry(status)) {
           case (DelayAndRetry(a), DelayAndRetry(b)) => DelayAndRetry(a min b)
-          case (s @ DelayAndRetry(_), GiveUp)       => s
-          case (GiveUp, s @ DelayAndRetry(_))       => s
-          case _                                    => GiveUp
+          case (s @ DelayAndRetry(_), GiveUp) => s
+          case (GiveUp, s @ DelayAndRetry(_)) => s
+          case _ => GiveUp
         },
       show"$show.meet($rp)"
     )
@@ -90,7 +182,7 @@ case class RetryPolicy[M[_]](
     RetryPolicy.withShow(
       status =>
         M.map(decideNextRetry(status)) {
-          case GiveUp           => GiveUp
+          case GiveUp => GiveUp
           case DelayAndRetry(d) => DelayAndRetry(f(d))
         },
       show"$show.mapDelay(<function>)"
@@ -102,7 +194,7 @@ case class RetryPolicy[M[_]](
     RetryPolicy.withShow(
       status =>
         M.flatMap(decideNextRetry(status)) {
-          case GiveUp           => M.pure(GiveUp)
+          case GiveUp => M.pure(GiveUp)
           case DelayAndRetry(d) => M.map(f(d))(DelayAndRetry(_))
         },
       show"$show.flatMapDelay(<function>)"
@@ -118,9 +210,7 @@ case class RetryPolicy[M[_]](
 object RetryPolicy {
   def lift[M[_]](
       f: RetryStatus => PolicyDecision
-  )(implicit
-      M: Applicative[M]
-  ): RetryPolicy[M] =
+  )(implicit M: Applicative[M]): RetryPolicy[M] =
     RetryPolicy[M](decideNextRetry = retryStatus => M.pure(f(retryStatus)))
 
   def withShow[M[_]](
@@ -128,7 +218,7 @@ object RetryPolicy {
       pretty: => String
   ): RetryPolicy[M] =
     new RetryPolicy[M](decideNextRetry) {
-      override def show: String     = pretty
+      override def show: String = pretty
       override def toString: String = pretty
     }
 
@@ -138,9 +228,8 @@ object RetryPolicy {
   ): RetryPolicy[M] =
     withShow(rs => Applicative[M].pure(decideNextRetry(rs)), pretty)
 
-  implicit def boundedSemilatticeForRetryPolicy[M[_]](implicit
-      M: Applicative[M]
-  ): BoundedSemilattice[RetryPolicy[M]] =
+  implicit def boundedSemilatticeForRetryPolicy[M[_]](
+      implicit M: Applicative[M]): BoundedSemilattice[RetryPolicy[M]] =
     new BoundedSemilattice[RetryPolicy[M]] {
       override def empty: RetryPolicy[M] =
         RetryPolicies.constantDelay[M](Duration.Zero)
@@ -170,27 +259,31 @@ object RetryPolicies {
       duration: FiniteDuration,
       multiplier: Long
   ): FiniteDuration = {
-    val durationNanos   = BigInt(duration.toNanos)
-    val resultNanos     = durationNanos * BigInt(multiplier)
+    val durationNanos = BigInt(duration.toNanos)
+    val resultNanos = durationNanos * BigInt(multiplier)
     val safeResultNanos = resultNanos min LongMax
     FiniteDuration(safeResultNanos.toLong, TimeUnit.NANOSECONDS)
   }
 
-  /** Don't retry at all and always give up. Only really useful for combining with other policies.
-    */
+  /**
+   * Don't retry at all and always give up. Only really useful for combining with other
+   * policies.
+   */
   def alwaysGiveUp[M[_]: Applicative]: RetryPolicy[M] =
     RetryPolicy.liftWithShow(Function.const(GiveUp), "alwaysGiveUp")
 
-  /** Delay by a constant amount before each retry. Never give up.
-    */
+  /**
+   * Delay by a constant amount before each retry. Never give up.
+   */
   def constantDelay[M[_]: Applicative](delay: FiniteDuration): RetryPolicy[M] =
     RetryPolicy.liftWithShow(
       Function.const(DelayAndRetry(delay)),
       show"constantDelay($delay)"
     )
 
-  /** Each delay is twice as long as the previous one. Never give up.
-    */
+  /**
+   * Each delay is twice as long as the previous one. Never give up.
+   */
   def exponentialBackoff[M[_]: Applicative](
       baseDelay: FiniteDuration
   ): RetryPolicy[M] =
@@ -203,8 +296,9 @@ object RetryPolicies {
       show"exponentialBackOff(baseDelay=$baseDelay)"
     )
 
-  /** Retry without delay, giving up after the given number of retries.
-    */
+  /**
+   * Retry without delay, giving up after the given number of retries.
+   */
   def limitRetries[M[_]: Applicative](maxRetries: Int): RetryPolicy[M] =
     RetryPolicy.liftWithShow(
       { status =>
@@ -217,11 +311,12 @@ object RetryPolicies {
       show"limitRetries(maxRetries=$maxRetries)"
     )
 
-  /** Delay(n) = Delay(n - 2) + Delay(n - 1)
-    *
-    * e.g. if `baseDelay` is 10 milliseconds, the delays before each retry will be
-    * 10 ms, 10 ms, 20 ms, 30ms, 50ms, 80ms, 130ms, ...
-    */
+  /**
+   * Delay(n) = Delay(n - 2) + Delay(n - 1)
+   *
+   * e.g. if `baseDelay` is 10 milliseconds, the delays before each retry will be 10 ms, 10 ms,
+   * 20 ms, 30ms, 50ms, 80ms, 130ms, ...
+   */
   def fibonacciBackoff[M[_]: Applicative](
       baseDelay: FiniteDuration
   ): RetryPolicy[M] =
@@ -234,33 +329,36 @@ object RetryPolicies {
       show"fibonacciBackoff(baseDelay=$baseDelay)"
     )
 
-  /** "Full jitter" backoff algorithm.
-    * See https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
-    */
+  /**
+   * "Full jitter" backoff algorithm. See
+   * https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+   */
   def fullJitter[M[_]: Applicative](baseDelay: FiniteDuration): RetryPolicy[M] =
     RetryPolicy.liftWithShow(
       { status =>
-        val e          = Math.pow(2, status.retriesSoFar).toLong
-        val maxDelay   = safeMultiply(baseDelay, e)
+        val e = Math.pow(2, status.retriesSoFar).toLong
+        val maxDelay = safeMultiply(baseDelay, e)
         val delayNanos = (maxDelay.toNanos * Random.nextDouble()).toLong
         DelayAndRetry(new FiniteDuration(delayNanos, TimeUnit.NANOSECONDS))
       },
       show"fullJitter(baseDelay=$baseDelay)"
     )
 
-  /** Set an upper bound on any individual delay produced by the given policy.
-    */
+  /**
+   * Set an upper bound on any individual delay produced by the given policy.
+   */
   def capDelay[M[_]: Applicative](
       cap: FiniteDuration,
       policy: RetryPolicy[M]
   ): RetryPolicy[M] =
     policy.meet(constantDelay(cap))
 
-  /** Add an upper bound to a policy such that once the given time-delay
-    * amount <b>per try</b> has been reached or exceeded, the policy will stop
-    * retrying and give up. If you need to stop retrying once <b>cumulative</b>
-    * delay reaches a time-delay amount, use [[limitRetriesByCumulativeDelay]].
-    */
+  /**
+   * Add an upper bound to a policy such that once the given time-delay amount <b>per try</b>
+   * has been reached or exceeded, the policy will stop retrying and give up. If you need to
+   * stop retrying once <b>cumulative</b> delay reaches a time-delay amount, use
+   * [[limitRetriesByCumulativeDelay]].
+   */
   def limitRetriesByDelay[M[_]: Applicative](
       threshold: FiniteDuration,
       policy: RetryPolicy[M]
@@ -278,10 +376,10 @@ object RetryPolicies {
     )
   }
 
-  /** Add an upperbound to a policy such that once the cumulative delay
-    * over all retries has reached or exceeded the given limit, the
-    * policy will stop retrying and give up.
-    */
+  /**
+   * Add an upperbound to a policy such that once the cumulative delay over all retries has
+   * reached or exceeded the given limit, the policy will stop retrying and give up.
+   */
   def limitRetriesByCumulativeDelay[M[_]: Applicative](
       threshold: FiniteDuration,
       policy: RetryPolicy[M]
@@ -299,7 +397,6 @@ object RetryPolicies {
     )
   }
 }
-
 
 trait Sleep[M[_]] {
   def sleep(delay: FiniteDuration): M[Unit]
@@ -326,9 +423,9 @@ object RetryDetails {
       totalRetries: Int,
       totalDelay: FiniteDuration
   ) extends RetryDetails {
-    val retriesSoFar: Int                     = totalRetries
-    val cumulativeDelay: FiniteDuration       = totalDelay
-    val givingUp: Boolean                     = true
+    val retriesSoFar: Int = totalRetries
+    val cumulativeDelay: FiniteDuration = totalDelay
+    val givingUp: Boolean = true
     val upcomingDelay: Option[FiniteDuration] = None
   }
 
@@ -337,14 +434,14 @@ object RetryDetails {
       retriesSoFar: Int,
       cumulativeDelay: FiniteDuration
   ) extends RetryDetails {
-    val givingUp: Boolean                     = false
+    val givingUp: Boolean = false
     val upcomingDelay: Option[FiniteDuration] = Some(nextDelay)
   }
 }
 
 package object retry_ {
   @deprecated("Use retryingOnFailures instead", "2.1.0")
-  def retryingM[A]          = new RetryingOnFailuresPartiallyApplied[A]
+  def retryingM[A] = new RetryingOnFailuresPartiallyApplied[A]
   def retryingOnFailures[A] = new RetryingOnFailuresPartiallyApplied[A]
 
   private def retryingOnFailuresImpl[M[_], A](
@@ -353,14 +450,11 @@ package object retry_ {
       onFailure: (A, RetryDetails) => M[Unit],
       status: RetryStatus,
       a: A
-  )(implicit
-      M: Monad[M],
-      S: Sleep[M]
-  ): M[Either[RetryStatus, A]] = {
+  )(implicit M: Monad[M], S: Sleep[M]): M[Either[RetryStatus, A]] = {
 
     def onFalse: M[Either[RetryStatus, A]] = for {
       nextStep <- applyPolicy(policy, status)
-      _        <- onFailure(a, buildRetryDetails(status, nextStep))
+      _ <- onFailure(a, buildRetryDetails(status, nextStep))
       result <- nextStep match {
         case NextStep.RetryAfterDelay(delay, updatedStatus) =>
           S.sleep(delay) *>
@@ -383,13 +477,11 @@ package object retry_ {
         onFailure: (A, RetryDetails) => M[Unit]
     )(
         action: => M[A]
-    )(implicit
-        M: Monad[M],
-        S: Sleep[M]
-    ): M[A] = M.tailRecM(RetryStatus.NoRetriesYet) { status =>
-      action.flatMap { a =>
-        retryingOnFailuresImpl(policy, wasSuccessful, onFailure, status, a)
-      }
+    )(implicit M: Monad[M], S: Sleep[M]): M[A] = M.tailRecM(RetryStatus.NoRetriesYet) {
+      status =>
+        action.flatMap { a =>
+          retryingOnFailuresImpl(policy, wasSuccessful, onFailure, status, a)
+        }
     }
   }
 
@@ -401,15 +493,12 @@ package object retry_ {
       onError: (E, RetryDetails) => M[Unit],
       status: RetryStatus,
       attempt: Either[E, A]
-  )(implicit
-      ME: MonadError[M, E],
-      S: Sleep[M]
-  ): M[Either[RetryStatus, A]] = attempt match {
+  )(implicit ME: MonadError[M, E], S: Sleep[M]): M[Either[RetryStatus, A]] = attempt match {
     case Left(error) =>
       isWorthRetrying(error).ifM(
         for {
           nextStep <- applyPolicy(policy, status)
-          _        <- onError(error, buildRetryDetails(status, nextStep))
+          _ <- onError(error, buildRetryDetails(status, nextStep))
           result <- nextStep match {
             case NextStep.RetryAfterDelay(delay, updatedStatus) =>
               S.sleep(delay) *>
@@ -431,20 +520,18 @@ package object retry_ {
         onError: (E, RetryDetails) => M[Unit]
     )(
         action: => M[A]
-    )(implicit
-        ME: MonadError[M, E],
-        S: Sleep[M]
-    ): M[A] = ME.tailRecM(RetryStatus.NoRetriesYet) { status =>
-      ME.attempt(action).flatMap { attempt =>
-        retryingOnSomeErrorsImpl(
-          policy,
-          isWorthRetrying,
-          onError,
-          status,
-          attempt
-        )
+    )(implicit ME: MonadError[M, E], S: Sleep[M]): M[A] =
+      ME.tailRecM(RetryStatus.NoRetriesYet) { status =>
+        ME.attempt(action).flatMap { attempt =>
+          retryingOnSomeErrorsImpl(
+            policy,
+            isWorthRetrying,
+            onError,
+            status,
+            attempt
+          )
+        }
       }
-    }
   }
 
   def retryingOnAllErrors[A] = new RetryingOnAllErrorsPartiallyApplied[A]
@@ -455,10 +542,7 @@ package object retry_ {
         onError: (E, RetryDetails) => M[Unit]
     )(
         action: => M[A]
-    )(implicit
-        ME: MonadError[M, E],
-        S: Sleep[M]
-    ): M[A] =
+    )(implicit ME: MonadError[M, E], S: Sleep[M]): M[A] =
       retryingOnSomeErrors[A].apply[M, E](policy, _ => ME.pure(true), onError)(
         action
       )
@@ -476,10 +560,7 @@ package object retry_ {
         onError: (E, RetryDetails) => M[Unit]
     )(
         action: => M[A]
-    )(implicit
-        ME: MonadError[M, E],
-        S: Sleep[M]
-    ): M[A] = {
+    )(implicit ME: MonadError[M, E], S: Sleep[M]): M[A] = {
 
       ME.tailRecM(RetryStatus.NoRetriesYet) { status =>
         ME.attempt(action).flatMap {
@@ -509,20 +590,16 @@ package object retry_ {
         onError: (E, RetryDetails) => M[Unit]
     )(
         action: => M[A]
-    )(implicit
-        ME: MonadError[M, E],
-        S: Sleep[M]
-    ): M[A] =
-      retryingOnFailuresAndSomeErrors[A]
-        .apply[M, E](
-          policy,
-          wasSuccessful,
-          _ => ME.pure(true),
-          onFailure,
-          onError
-        )(
-          action
-        )
+    )(implicit ME: MonadError[M, E], S: Sleep[M]): M[A] =
+      retryingOnFailuresAndSomeErrors[A].apply[M, E](
+        policy,
+        wasSuccessful,
+        _ => ME.pure(true),
+        onFailure,
+        onError
+      )(
+        action
+      )
   }
 
   def noop[M[_]: Monad, A]: (A, RetryDetails) => M[Unit] =
@@ -569,7 +646,6 @@ package object retry_ {
   }
 }
 
-
 trait AllSyntax extends RetrySyntax
 
 trait RetrySyntax {
@@ -590,19 +666,14 @@ final class RetryingOps[M[_], A](action: => M[A]) {
       wasSuccessful: A => M[Boolean],
       policy: RetryPolicy[M],
       onFailure: (A, RetryDetails) => M[Unit]
-  )(implicit
-      M: Monad[M],
-      S: Sleep[M]
-  ): M[A] = retryingOnFailures(wasSuccessful, policy, onFailure)
+  )(implicit M: Monad[M], S: Sleep[M]): M[A] =
+    retryingOnFailures(wasSuccessful, policy, onFailure)
 
   def retryingOnFailures[E](
       wasSuccessful: A => M[Boolean],
       policy: RetryPolicy[M],
       onFailure: (A, RetryDetails) => M[Unit]
-  )(implicit
-      M: Monad[M],
-      S: Sleep[M]
-  ): M[A] =
+  )(implicit M: Monad[M], S: Sleep[M]): M[A] =
     retry_.retryingOnFailures(
       policy = policy,
       wasSuccessful = wasSuccessful,
@@ -610,9 +681,7 @@ final class RetryingOps[M[_], A](action: => M[A]) {
     )(action)
 }
 
-final class RetryingErrorOps[M[_], A, E](action: => M[A])(implicit
-    M: MonadError[M, E]
-) {
+final class RetryingErrorOps[M[_], A, E](action: => M[A])(implicit M: MonadError[M, E]) {
   def retryingOnAllErrors(
       policy: RetryPolicy[M],
       onError: (E, RetryDetails) => M[Unit]
@@ -676,8 +745,8 @@ object Fibonacci {
     case 0 => (0, 1)
     case m =>
       val (a, b) = fib(m / 2)
-      val c      = a * (b * 2 - a)
-      val d      = a * a + b * b
+      val c = a * (b * 2 - a)
+      val d = a * a + b * b
       if (n % 2 == 0)
         (c, d)
       else
