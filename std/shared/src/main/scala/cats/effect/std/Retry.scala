@@ -11,29 +11,22 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
 import java.util.concurrent.TimeUnit
 
-object Fibonacci {
-  def fibonacci(n: Int): Long = {
-    if (n > 0)
-      fib(n)._1
-    else
-      0
-  }
 
-  // "Fast doubling" Fibonacci algorithm.
-  // See e.g. http://funloop.org/post/2017-04-14-computing-fibonacci-numbers.html for explanation.
-  private def fib(n: Int): (Long, Long) = n match {
-    case 0 => (0, 1)
-    case m =>
-      val (a, b) = fib(m / 2)
-      val c      = a * (b * 2 - a)
-      val d      = a * a + b * b
-      if (n % 2 == 0)
-        (c, d)
-      else
-        (d, c + d)
-  }
+final case class RetryStatus(
+    retriesSoFar: Int,
+    cumulativeDelay: FiniteDuration,
+    previousDelay: Option[FiniteDuration]
+) {
+  def addRetry(delay: FiniteDuration): RetryStatus = RetryStatus(
+    retriesSoFar = this.retriesSoFar + 1,
+    cumulativeDelay = this.cumulativeDelay + delay,
+    previousDelay = Some(delay)
+  )
 }
 
+object RetryStatus {
+  val NoRetriesYet = RetryStatus(0, Duration.Zero, None)
+}
 
 
 sealed trait PolicyDecision
@@ -45,35 +38,6 @@ object PolicyDecision {
       delay: FiniteDuration
   ) extends PolicyDecision
 }
-
-sealed trait RetryDetails {
-  def retriesSoFar: Int
-  def cumulativeDelay: FiniteDuration
-  def givingUp: Boolean
-  def upcomingDelay: Option[FiniteDuration]
-}
-
-object RetryDetails {
-  final case class GivingUp(
-      totalRetries: Int,
-      totalDelay: FiniteDuration
-  ) extends RetryDetails {
-    val retriesSoFar: Int                     = totalRetries
-    val cumulativeDelay: FiniteDuration       = totalDelay
-    val givingUp: Boolean                     = true
-    val upcomingDelay: Option[FiniteDuration] = None
-  }
-
-  final case class WillDelayAndRetry(
-      nextDelay: FiniteDuration,
-      retriesSoFar: Int,
-      cumulativeDelay: FiniteDuration
-  ) extends RetryDetails {
-    val givingUp: Boolean                     = false
-    val upcomingDelay: Option[FiniteDuration] = Some(nextDelay)
-  }
-}
-
 
 case class RetryPolicy[M[_]](
     decideNextRetry: RetryStatus => M[PolicyDecision]
@@ -337,26 +301,6 @@ object RetryPolicies {
 }
 
 
-
-final case class RetryStatus(
-    retriesSoFar: Int,
-    cumulativeDelay: FiniteDuration,
-    previousDelay: Option[FiniteDuration]
-) {
-  def addRetry(delay: FiniteDuration): RetryStatus = RetryStatus(
-    retriesSoFar = this.retriesSoFar + 1,
-    cumulativeDelay = this.cumulativeDelay + delay,
-    previousDelay = Some(delay)
-  )
-}
-
-object RetryStatus {
-  val NoRetriesYet = RetryStatus(0, Duration.Zero, None)
-}
-
-
-
-
 trait Sleep[M[_]] {
   def sleep(delay: FiniteDuration): M[Unit]
 }
@@ -370,6 +314,33 @@ object Sleep {
 
 object implicits extends syntax.AllSyntax
 
+sealed trait RetryDetails {
+  def retriesSoFar: Int
+  def cumulativeDelay: FiniteDuration
+  def givingUp: Boolean
+  def upcomingDelay: Option[FiniteDuration]
+}
+
+object RetryDetails {
+  final case class GivingUp(
+      totalRetries: Int,
+      totalDelay: FiniteDuration
+  ) extends RetryDetails {
+    val retriesSoFar: Int                     = totalRetries
+    val cumulativeDelay: FiniteDuration       = totalDelay
+    val givingUp: Boolean                     = true
+    val upcomingDelay: Option[FiniteDuration] = None
+  }
+
+  final case class WillDelayAndRetry(
+      nextDelay: FiniteDuration,
+      retriesSoFar: Int,
+      cumulativeDelay: FiniteDuration
+  ) extends RetryDetails {
+    val givingUp: Boolean                     = false
+    val upcomingDelay: Option[FiniteDuration] = Some(nextDelay)
+  }
+}
 
 package object retry_ {
   @deprecated("Use retryingOnFailures instead", "2.1.0")
@@ -601,9 +572,6 @@ package object retry_ {
 
 trait AllSyntax extends RetrySyntax
 
-
-
-
 trait RetrySyntax {
   implicit final def retrySyntaxBase[M[_], A](
       action: => M[A]
@@ -694,3 +662,25 @@ final class RetryingErrorOps[M[_], A, E](action: => M[A])(implicit
     )(action)
 }
 
+object Fibonacci {
+  def fibonacci(n: Int): Long = {
+    if (n > 0)
+      fib(n)._1
+    else
+      0
+  }
+
+  // "Fast doubling" Fibonacci algorithm.
+  // See e.g. http://funloop.org/post/2017-04-14-computing-fibonacci-numbers.html for explanation.
+  private def fib(n: Int): (Long, Long) = n match {
+    case 0 => (0, 1)
+    case m =>
+      val (a, b) = fib(m / 2)
+      val c      = a * (b * 2 - a)
+      val d      = a * a + b * b
+      if (n % 2 == 0)
+        (c, d)
+      else
+        (d, c + d)
+  }
+}
