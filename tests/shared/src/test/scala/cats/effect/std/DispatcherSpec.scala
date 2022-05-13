@@ -124,11 +124,11 @@ class DispatcherSpec extends BaseSpec {
             IO {
               // these finalizers never return, so this test is intentionally designed to hang
               // they flip their gates first though; this is just testing that both run in parallel
-              val a = (gate1.release *> IO.never) onCancel {
+              val a = gate1.release *> IO.never onCancel {
                 gate2.release *> IO.never
               }
 
-              val b = (gate1.release *> IO.never) onCancel {
+              val b = gate1.release *> IO.never onCancel {
                 gate2.release *> IO.never
               }
 

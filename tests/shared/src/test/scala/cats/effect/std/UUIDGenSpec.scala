@@ -29,7 +29,7 @@ class UUIDGenSpec extends BaseSpec {
     "use the correct variant and version" in real {
       for {
         uuid <- UUIDGen.randomUUID[IO]
-      } yield (uuid.variant should be_==(2)) and (uuid.version should be_==(4))
+      } yield uuid.variant should be_==(2) and (uuid.version should be_==(4))
     }
   }
 

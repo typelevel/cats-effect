@@ -57,7 +57,7 @@ object SleepDrift extends IOApp.Simple {
       start <- IO.monotonic
       _ <- delayTwoMinutes
       end <- IO.monotonic
-    } yield ((end - start) / 2.minutes) - 1
+    } yield (end - start) / 2.minutes - 1
 
   val run =
     for {

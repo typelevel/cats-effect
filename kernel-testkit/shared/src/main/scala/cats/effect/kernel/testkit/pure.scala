@@ -64,7 +64,7 @@ object pure {
      * FlatMapK and TraverseK typeclasses would make this a one-liner.
      */
 
-    val cancelationCheck = new (FiberR[E, *] ~> PureConc[E, *]) {
+    val cancelationCheck = new FiberR[E, *] ~> PureConc[E, *] {
       def apply[α](ka: FiberR[E, α]): PureConc[E, α] = {
         val back = Kleisli.ask[IdOC[E, *], FiberCtx[E]] map { ctx =>
           val checker = ctx
@@ -84,7 +84,7 @@ object pure {
       val outerStripped = pc.mapF(_.mapK(cancelationCheck)).run(u) // run the outer mvar kleisli
 
       val traversed = outerStripped mapK { // run the inner mvar kleisli
-        new (PureConc[E, *] ~> ThreadT[FiberR[E, *], *]) {
+        new PureConc[E, *] ~> ThreadT[FiberR[E, *], *] {
           def apply[a](fa: PureConc[E, a]) = fa.run(u)
         }
       }
@@ -102,7 +102,7 @@ object pure {
         val fiber = new PureFiber[E, A](state0)
 
         val identified = canceled mapF { ta =>
-          val fk = new (FiberR[E, *] ~> IdOC[E, *]) {
+          val fk = new FiberR[E, *] ~> IdOC[E, *] {
             def apply[a](ke: FiberR[E, a]) =
               ke.run(FiberCtx(fiber))
           }
@@ -122,7 +122,7 @@ object pure {
 
           case Succeeded(fa) =>
             val identifiedCompletion = fa.mapF { ta =>
-              val fk = new (FiberR[E, *] ~> IdOC[E, *]) {
+              val fk = new FiberR[E, *] ~> IdOC[E, *] {
                 def apply[a](ke: FiberR[E, a]) =
                   ke.run(FiberCtx(fiber))
               }
@@ -156,7 +156,7 @@ object pure {
       }
     }
 
-    val optLift = new (Id ~> Option) {
+    val optLift = new Id ~> Option {
       def apply[a](a: a) = Some(a)
     }
 
@@ -312,7 +312,7 @@ object pure {
 
       // we happen to know this is non-memoizing, so we're just using it as a shortcut
       def unique: PureConc[E, Unique.Token] =
-        Defer[PureConc[E, *]].defer(pure(new Unique.Token()))
+        Defer[PureConc[E, *]].defer(pure(new Unique.Token))
 
       def forceR[A, B](fa: PureConc[E, A])(fb: PureConc[E, B]): PureConc[E, B] =
         Thread.annotate("forceR")(productR(attempt(fa))(fb))
@@ -354,7 +354,7 @@ object pure {
 
   private[this] def localCtx[E, A](ctx: FiberCtx[E], around: PureConc[E, A]): PureConc[E, A] =
     around.mapF { ft =>
-      val fk = new (FiberR[E, *] ~> FiberR[E, *]) {
+      val fk = new FiberR[E, *] ~> FiberR[E, *] {
         def apply[a](ka: FiberR[E, a]) =
           Kleisli(_ => ka.run(ctx))
       }

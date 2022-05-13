@@ -30,7 +30,7 @@ private[effect] final class RingBuffer private (logSize: Int) {
     index += 1
   }
 
-  def peek: TracingEvent = buffer((index - 1) & mask)
+  def peek: TracingEvent = buffer(index - 1 & mask)
 
   /**
    * Returns a list in reverse order of insertion.

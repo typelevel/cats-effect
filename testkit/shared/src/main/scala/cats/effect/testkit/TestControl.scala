@@ -360,10 +360,10 @@ object TestControl {
       config: IORuntimeConfig = IORuntimeConfig(),
       seed: Option[String] = None): IO[A] =
     execute(program, config = config, seed = seed) flatMap { c =>
-      val nt = new (Id ~> IO) { def apply[E](e: E) = IO.pure(e) }
+      val nt = new Id ~> IO { def apply[E](e: E) = IO.pure(e) }
 
-      val onCancel = IO.defer(IO.raiseError(new CancellationException()))
-      val onNever = IO.raiseError(new NonTerminationException())
+      val onCancel = IO.defer(IO.raiseError(new CancellationException))
+      val onNever = IO.raiseError(new NonTerminationException)
       val embedded = c.results.flatMap(_.map(_.mapK(nt).embed(onCancel)).getOrElse(onNever))
 
       c.tickAll *> embedded

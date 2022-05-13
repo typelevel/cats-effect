@@ -84,7 +84,7 @@ class WorkStealingBenchmark {
         val size = math.max(100, math.min(n, 2000))
         val array = new Array[AnyRef](size)
         for (i <- (0 until size)) {
-          array(i) = new AnyRef()
+          array(i) = new AnyRef
         }
         array
       }

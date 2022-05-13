@@ -141,5 +141,5 @@ final class IORuntimeBuilder protected (
 
 object IORuntimeBuilder {
   def apply(): IORuntimeBuilder =
-    new IORuntimeBuilder()
+    new IORuntimeBuilder
 }

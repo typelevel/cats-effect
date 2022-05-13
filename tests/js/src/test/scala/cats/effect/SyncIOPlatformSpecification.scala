@@ -25,7 +25,7 @@ trait SyncIOPlatformSpecification { self: BaseSpec =>
         val op = for {
           realTime <- SyncIO.realTime
           jsDate <- SyncIO.realTimeDate
-        } yield (jsDate.getTime().toLong - realTime.toMillis) <= 30
+        } yield jsDate.getTime().toLong - realTime.toMillis <= 30
 
         op must completeAsSync(true)
       }

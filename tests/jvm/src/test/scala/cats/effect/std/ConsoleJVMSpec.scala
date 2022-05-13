@@ -56,7 +56,7 @@ class ConsoleJVMSpec extends BaseSpec {
 
   private def standardOutTest(io: => IO[Unit]): IO[String] = {
     val test = for {
-      out <- Resource.eval(IO(new ByteArrayOutputStream()))
+      out <- Resource.eval(IO(new ByteArrayOutputStream))
       ps <- printStream(out)
       _ <- replaceStandardOut(ps)
     } yield out
@@ -69,7 +69,7 @@ class ConsoleJVMSpec extends BaseSpec {
 
   private def standardErrTest(io: => IO[Unit]): IO[String] = {
     val test = for {
-      out <- Resource.eval(IO(new ByteArrayOutputStream()))
+      out <- Resource.eval(IO(new ByteArrayOutputStream))
       ps <- printStream(out)
       _ <- replaceStandardErr(ps)
     } yield out
@@ -78,7 +78,7 @@ class ConsoleJVMSpec extends BaseSpec {
   }
 
   private def throwableToString(t: Throwable): String = {
-    val baos = new ByteArrayOutputStream()
+    val baos = new ByteArrayOutputStream
     val ps = new PrintStream(baos)
     t.printStackTrace(ps)
     baos.toString

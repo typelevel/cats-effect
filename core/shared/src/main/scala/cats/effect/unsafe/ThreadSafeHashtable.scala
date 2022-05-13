@@ -41,7 +41,7 @@ private[effect] final class ThreadSafeHashtable[A <: AnyRef](
   def put(a: A, hash: Int): Unit = this.synchronized {
     val sz = size
     val cap = capacity
-    if ((sz << 1) >= cap) { // the << 1 ensures that the load factor will remain between 0.25 and 0.5
+    if (sz << 1 >= cap) { // the << 1 ensures that the load factor will remain between 0.25 and 0.5
       val newCap = cap << 1
       val newMask = newCap - 1
       val newHashtable = new Array[AnyRef](newCap)
@@ -83,7 +83,7 @@ private[effect] final class ThreadSafeHashtable[A <: AnyRef](
         table(idx) = a
         return
       } else {
-        idx = (idx + 1) & mask
+        idx = idx + 1 & mask
       }
       remaining -= 1
     }
@@ -105,7 +105,7 @@ private[effect] final class ThreadSafeHashtable[A <: AnyRef](
 
         val sz = size
         val cap = capacity
-        if (cap > initialCapacity && (sz << 2) < cap) {
+        if (cap > initialCapacity && sz << 2 < cap) {
           // halve the capacity of the table if it has been filled with less
           // than 1/4 of the capacity
           val newCap = cap >>> 1
@@ -132,7 +132,7 @@ private[effect] final class ThreadSafeHashtable[A <: AnyRef](
         return
       } else if (cur ne null) {
         // Skip over references of other callbacks and `Tombstone` objects.
-        idx = (idx + 1) & msk
+        idx = idx + 1 & msk
       } else {
         // Reached a `null` reference. The callback was not in the hash table.
         return
@@ -161,5 +161,5 @@ private object ThreadSafeHashtable {
    * Sentinel object for marking removed callbacks. Used to keep the linear probing chain
    * intact.
    */
-  private[ThreadSafeHashtable] final val Tombstone: AnyRef = new AnyRef()
+  private[ThreadSafeHashtable] final val Tombstone: AnyRef = new AnyRef
 }

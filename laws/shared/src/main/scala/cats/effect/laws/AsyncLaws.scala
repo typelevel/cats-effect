@@ -49,7 +49,7 @@ trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
     F.never[A] <-> F.async[A](_ => F.pure(None))
 
   def executionContextCommutativity[A](fa: F[A]) =
-    (fa *> F.executionContext) <-> (F.executionContext <* fa)
+    fa *> F.executionContext <-> (F.executionContext <* fa)
 
   def evalOnLocalPure(ec: ExecutionContext) =
     F.evalOn(F.executionContext, ec) <-> F.evalOn(F.pure(ec), ec)

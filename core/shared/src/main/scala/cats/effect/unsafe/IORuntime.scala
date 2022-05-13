@@ -43,7 +43,7 @@ final class IORuntime private[unsafe] (
     val config: IORuntimeConfig
 ) {
 
-  private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
+  private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable
 
   /*
    * Forwarder methods for `IOFiber`.
@@ -80,7 +80,7 @@ object IORuntime extends IORuntimeCompanionPlatform {
     IORuntimeBuilder()
 
   private[effect] def testRuntime(ec: ExecutionContext, scheduler: Scheduler): IORuntime =
-    new IORuntime(ec, ec, scheduler, new NoOpFiberMonitor(), () => (), IORuntimeConfig())
+    new IORuntime(ec, ec, scheduler, new NoOpFiberMonitor, () => (), IORuntimeConfig())
 
   private[effect] final val allRuntimes: ThreadSafeHashtable[IORuntime] =
     new ThreadSafeHashtable(4)

@@ -50,7 +50,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
           f <- q.take.start
           _ <- q.offer(2)
           v2 <- f.joinWithNever
-          r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(2)))
+          r <- IO(v1 must beEqualTo(1) and (v2 must beEqualTo(2)))
         } yield r
       }
 
@@ -227,7 +227,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
           offerR <- tryOfferN(q, List(1, 2, 3, 4, 5))
           takeR <- tryTakeN(q, None)
           r <- IO(
-            (transform(takeR) must beEqualTo(List(1, 2, 3, 4, 5))) and
+            transform(takeR) must beEqualTo(List(1, 2, 3, 4, 5)) and
               (offerR must beEqualTo(List.empty)))
         } yield r
       }
@@ -248,7 +248,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
           offerR <- tryOfferN(q, List(1, 2, 3, 4, 5, 6, 7))
           takeR <- tryTakeN(q, None)
           r <- IO(
-            (transform(takeR) must beEqualTo(List(1, 2, 3, 4, 5))) and
+            transform(takeR) must beEqualTo(List(1, 2, 3, 4, 5)) and
               (offerR must beEqualTo(List(6, 7))))
         } yield r
       }
@@ -398,7 +398,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
           _ <- f.cancel
           v1 <- take(q)
           v2 <- tryTake(q)
-          r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(None)))
+          r <- IO(v1 must beEqualTo(1) and (v2 must beEqualTo(None)))
         } yield r
       }
     }
@@ -486,7 +486,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
           v1 <- take(q)
           _ <- offer(q, 2)
           v2 <- take(q)
-          r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(2)))
+          r <- IO(v1 must beEqualTo(1) and (v2 must beEqualTo(2)))
         } yield r
       }
 

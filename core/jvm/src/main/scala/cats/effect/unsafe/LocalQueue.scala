@@ -795,7 +795,7 @@ private final class LocalQueue extends LocalQueuePadding {
    * @return
    *   a 32 bit integer value which is a concatenation of the input values
    */
-  private[this] def pack(msb: Int, lsb: Int): Int = (msb << 16) | lsb
+  private[this] def pack(msb: Int, lsb: Int): Int = msb << 16 | lsb
 
   /**
    * Encodes addition of unsigned 16 bit values as an operation on 32 bit integers. After

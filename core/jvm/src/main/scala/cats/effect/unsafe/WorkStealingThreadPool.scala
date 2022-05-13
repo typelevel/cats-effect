@@ -108,12 +108,12 @@ private[effect] final class WorkStealingThreadPool(
     // Set up the worker threads.
     var i = 0
     while (i < threadCount) {
-      val queue = new LocalQueue()
+      val queue = new LocalQueue
       localQueues(i) = queue
       val parkedSignal = new AtomicBoolean(false)
       parkedSignals(i) = parkedSignal
       val index = i
-      val fiberBag = new WeakBag[Runnable]()
+      val fiberBag = new WeakBag[Runnable]
       fiberBags(i) = fiberBag
       val thread =
         new WorkerThread(index, queue, parkedSignal, externalQueue, fiberBag, this)
@@ -253,7 +253,7 @@ private[effect] final class WorkStealingThreadPool(
    */
   private[this] def notifyShouldWakeup(): Boolean = {
     val st = state.get()
-    (st & SearchMask) == 0 && ((st & UnparkMask) >>> UnparkShift) < threadCount
+    (st & SearchMask) == 0 && (st & UnparkMask) >>> UnparkShift < threadCount
   }
 
   /**
@@ -450,7 +450,7 @@ private[effect] final class WorkStealingThreadPool(
       val worker = workerThreads(i)
       val _ = parkedSignals(i).get()
       val active = Option(worker.active)
-      map += (worker -> (active -> localFibers))
+      map += worker -> (active -> localFibers)
       suspended ++= worker.suspendedSnapshot()
       i += 1
     }

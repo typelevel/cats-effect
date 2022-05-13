@@ -229,7 +229,7 @@ trait TestInstances extends ParallelFGenerators with OutcomeGenerators with Sync
 
   private def unsafeRunSyncSupressedError[A](ioa: SyncIO[A]): Outcome[Id, Throwable, A] = {
     val old = System.err
-    val err = new PrintStream(new ByteArrayOutputStream())
+    val err = new PrintStream(new ByteArrayOutputStream)
     try {
       System.setErr(err)
       unsafeRunSync(ioa)

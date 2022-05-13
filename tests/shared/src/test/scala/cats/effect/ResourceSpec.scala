@@ -676,7 +676,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         var fired = false
 
         val test =
-          (Resource.eval(IO.canceled)).uncancelable.onCancel(Resource.eval(IO { fired = true }))
+          Resource.eval(IO.canceled).uncancelable.onCancel(Resource.eval(IO { fired = true }))
 
         test.use_.unsafeToFuture()
         ticker.ctx.tick()

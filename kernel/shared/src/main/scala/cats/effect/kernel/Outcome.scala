@@ -210,7 +210,7 @@ object Outcome extends LowPriorityImplicits {
   implicit def monadError[F[_], E](
       implicit F: Monad[F],
       FT: Traverse[F]): MonadError[Outcome[F, E, *], E] =
-    new OutcomeApplicativeError[F, E]()(F) with MonadError[Outcome[F, E, *], E] {
+    new OutcomeApplicativeError[F, E](F) with MonadError[Outcome[F, E, *], E] {
 
       override def map[A, B](fa: Outcome[F, E, A])(f: A => B): Outcome[F, E, B] =
         bimap(fa)(identity, f)

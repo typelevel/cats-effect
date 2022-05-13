@@ -88,7 +88,7 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
       F.forceR(F.uncancelable(_ => F.forceR(fin1)(fin2)))(F.canceled)
 
   def uncancelableCanceledAssociatesRightOverFlatMapAttempt[A](fa: F[A]) =
-    (F.uncancelable(_ => F.canceled >> fa).attempt >> F.unit) <->
+    F.uncancelable(_ => F.canceled >> fa).attempt >> F.unit <->
       F.forceR(F.uncancelable(_ => fa))(F.canceled)
 
   def canceledAssociatesLeftOverFlatMap[A](fa: F[A]) =

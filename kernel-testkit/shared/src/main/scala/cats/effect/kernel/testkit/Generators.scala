@@ -252,13 +252,13 @@ trait GenSpawnGenerators[F[_], E] extends MonadCancelGenerators[F, E] {
       cancel <- arbitrary[Boolean]
 
       back = F.racePair(fa, fb).flatMap {
-        case Left((oc, f)) =>
+        case Left(oc, f) =>
           if (cancel)
             f.cancel *> oc.embedNever
           else
             f.join *> oc.embedNever
 
-        case Right((f, oc)) =>
+        case Right(f, oc) =>
           if (cancel)
             f.cancel *> oc.embedNever
           else

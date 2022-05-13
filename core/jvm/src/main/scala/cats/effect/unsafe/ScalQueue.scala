@@ -63,7 +63,7 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     val queues = new Array[ConcurrentLinkedQueue[A]](nq)
     var i = 0
     while (i < nq) {
-      queues(i) = new ConcurrentLinkedQueue()
+      queues(i) = new ConcurrentLinkedQueue
       i += 1
     }
     queues
@@ -132,7 +132,7 @@ private final class ScalQueue[A <: AnyRef](threadCount: Int) {
     var a = null.asInstanceOf[A]
 
     while ((a eq null) && i < nq) {
-      val idx = (from + i) & mask
+      val idx = from + i & mask
       a = queues(idx).poll()
       i += 1
     }

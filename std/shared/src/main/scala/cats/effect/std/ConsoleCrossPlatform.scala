@@ -182,7 +182,7 @@ private[std] abstract class ConsoleCompanionCrossPlatform {
           .onMalformedInput(CodingErrorAction.REPORT)
           .onUnmappableCharacter(CodingErrorAction.REPLACE)
         val bytes = ByteBuffer.allocate(64)
-        val builder = new JStringBuilder()
+        val builder = new JStringBuilder
 
         def decodeNext(): CharBuffer = {
           bytes.clear()
@@ -216,7 +216,7 @@ private[std] abstract class ConsoleCompanionCrossPlatform {
           if (buffer == null) {
             val result = builder.toString()
             if (result.nonEmpty) result
-            else throw new EOFException()
+            else throw new EOFException
           } else {
             val decoded = buffer.toString()
             if (decoded == "\n") {
@@ -262,7 +262,7 @@ private[std] abstract class ConsoleCompanionCrossPlatform {
   }
 
   private[std] def printStackTrace[F[_]](c: Console[F])(t: Throwable): F[Unit] = {
-    val baos = new ByteArrayOutputStream()
+    val baos = new ByteArrayOutputStream
     val ps = new PrintStream(baos)
     t.printStackTrace(ps)
     c.error(baos.toString)

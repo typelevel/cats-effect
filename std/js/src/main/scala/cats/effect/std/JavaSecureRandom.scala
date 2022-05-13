@@ -67,7 +67,7 @@ private[std] class JavaSecureRandom() extends java.util.Random(0L) {
       val buffer = new Int32Array(1)
       getRandomValuesFun(buffer)
       val rand32 = buffer(0)
-      rand32 & (-1 >>> (32 - numBits)) // Clear the (32 - numBits) higher order bits
+      rand32 & -1 >>> 32 - numBits // Clear the (32 - numBits) higher order bits
     }
   }
 }

@@ -366,7 +366,7 @@ trait IOApp {
               // threads to gracefully complete their work, and managed
               // environments to execute their own shutdown hooks.
               if (isForked && NonDaemonThreadLogger.isEnabled())
-                new NonDaemonThreadLogger().start()
+                new NonDaemonThreadLogger.start()
               else
                 ()
             } else if (isForked) {

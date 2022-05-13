@@ -83,8 +83,8 @@ private final class IOFiber[A](
 
   private[this] var localState: IOLocalState = initState
   private[this] var currentCtx: ExecutionContext = startEC
-  private[this] val objectState: ArrayStack[AnyRef] = new ArrayStack()
-  private[this] val finalizers: ArrayStack[IO[Unit]] = new ArrayStack()
+  private[this] val objectState: ArrayStack[AnyRef] = new ArrayStack
+  private[this] val finalizers: ArrayStack[IO[Unit]] = new ArrayStack
   private[this] val callbacks: CallbackStack[A] = new CallbackStack(cb)
   private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: AnyRef = startIO
@@ -231,7 +231,7 @@ private final class IOFiber[A](
     } else {
       /* Null IO, blow up but keep the failure within IO */
       val cur0: IO[Any] = if (_cur0 == null) {
-        IO.Error(new NullPointerException())
+        IO.Error(new NullPointerException)
       } else {
         _cur0
       }

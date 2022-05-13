@@ -20,9 +20,9 @@ private object ByteStack {
 
   final def toDebugString(stack: Array[Int], translate: Byte => String = _.toString): String = {
     val count = size(stack)
-    ((count - 1) to 0 by -1)
+    (count - 1 to 0 by -1)
       .foldLeft(
-        new StringBuilder()
+        new StringBuilder
           .append("Stack:")
           .append(" capacity = ")
           .append((stack.length - 1) * 8)
@@ -37,10 +37,10 @@ private object ByteStack {
   }
 
   final def create(initialMaxOps: Int): Array[Int] =
-    new Array[Int](1 + 1 + ((initialMaxOps - 1) >> 3)) // count-slot + 1 for each set of 8 ops
+    new Array[Int](1 + 1 + (initialMaxOps - 1 >> 3)) // count-slot + 1 for each set of 8 ops
 
   final def growIfNeeded(stack: Array[Int], count: Int): Array[Int] = {
-    if ((1 + ((count + 1) >> 3)) < stack.length) {
+    if (1 + (count + 1 >> 3) < stack.length) {
       stack
     } else {
       val bigger = new Array[Int](stack.length << 1)
@@ -54,7 +54,7 @@ private object ByteStack {
     val use = growIfNeeded(stack, c) // alias so we add to the right place
     val s = (c >> 3) + 1 // current slot in `use`
     val shift = (c & 7) << 2 // BEGIN MAGIC
-    use(s) = (use(s) & ~(0xffffffff << shift)) | (op << shift) // END MAGIC
+    use(s) = use(s) & ~(0xffffffff << shift) | op << shift // END MAGIC
     use(0) += 1 // write the new count
     use
   }
@@ -66,14 +66,14 @@ private object ByteStack {
     stack(0) < 1
 
   final def read(stack: Array[Int], pos: Int): Byte = {
-    if (pos < 0 || pos >= stack(0)) throw new ArrayIndexOutOfBoundsException()
-    ((stack((pos >> 3) + 1) >>> ((pos & 7) << 2)) & 0x0000000f).toByte
+    if (pos < 0 || pos >= stack(0)) throw new ArrayIndexOutOfBoundsException
+    (stack((pos >> 3) + 1) >>> ((pos & 7) << 2) & 0x0000000f).toByte
   }
 
   final def peek(stack: Array[Int]): Byte = {
     val c = stack(0) - 1
-    if (c < 0) throw new ArrayIndexOutOfBoundsException()
-    ((stack((c >> 3) + 1) >>> ((c & 7) << 2)) & 0x0000000f).toByte
+    if (c < 0) throw new ArrayIndexOutOfBoundsException
+    (stack((c >> 3) + 1) >>> ((c & 7) << 2) & 0x0000000f).toByte
   }
 
   final def pop(stack: Array[Int]): Byte = {

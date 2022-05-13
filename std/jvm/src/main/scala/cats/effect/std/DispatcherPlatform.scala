@@ -28,7 +28,7 @@ private[std] trait DispatcherPlatform[F[_]] { this: Dispatcher[F] =>
    * its evaluation.
    */
   def unsafeToCompletableFuture[A](fa: F[A]): CompletableFuture[A] = {
-    val cf = new CompletableFuture[A]()
+    val cf = new CompletableFuture[A]
 
     unsafeRunAsync(fa) {
       case Left(t) =>

@@ -64,7 +64,7 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
 
   private[this] val random = new Random(_seed)
 
-  private[this] val stateRef = new ConcurrentState()
+  private[this] val stateRef = new ConcurrentState
 
   def execute(runnable: Runnable): Unit = {
     val current = stateRef
@@ -277,10 +277,10 @@ object TestContext {
     new TestContext(new String(Decoder.decode(seed)).toLong)
 
   final class ConcurrentState(
-      val currentID: AtomicLong = new AtomicLong(),
-      val currentNanos: AtomicLong = new AtomicLong(),
+      val currentID: AtomicLong = new AtomicLong,
+      val currentNanos: AtomicLong = new AtomicLong,
       val tasks: ConcurrentSkipListSet[Task] = new ConcurrentSkipListSet(Task.comparator),
-      val lastReportedFailure: AtomicReference[Throwable] = new AtomicReference()
+      val lastReportedFailure: AtomicReference[Throwable] = new AtomicReference
   )
 
   /**

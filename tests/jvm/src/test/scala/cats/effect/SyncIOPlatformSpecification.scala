@@ -25,7 +25,7 @@ trait SyncIOPlatformSpecification { self: BaseSpec =>
         val op = for {
           realTime <- SyncIO.realTime
           now <- SyncIO.realTimeInstant
-        } yield (now.toEpochMilli - realTime.toMillis) <= 10000
+        } yield now.toEpochMilli - realTime.toMillis <= 10000
 
         op must completeAsSync(true)
       }

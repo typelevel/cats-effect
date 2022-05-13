@@ -126,7 +126,7 @@ object Hotswap {
             case Some(previous) =>
               Some(next) -> previous
             case None =>
-              None -> (next *> raise("Cannot swap after finalization"))
+              None -> next *> raise("Cannot swap after finalization")
           }.flatten
 
       }

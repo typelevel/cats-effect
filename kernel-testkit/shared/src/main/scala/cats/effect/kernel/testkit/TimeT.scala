@@ -56,7 +56,7 @@ private[effect] object TimeT {
     Kleisli.liftF(fa)
 
   def liftK[F[_]]: F ~> TimeT[F, *] =
-    new (F ~> TimeT[F, *]) {
+    new F ~> TimeT[F, *] {
       override def apply[A](fa: F[A]): TimeT[F, A] = liftF(fa)
     }
 
@@ -113,11 +113,11 @@ private[effect] object TimeT {
 
         // TODO this doesn't work (yet) because we need to force the "faster" effect to win the race, which right now isn't happening
         F.racePair(fa.run(forkA), fb.run(forkB)).map {
-          case Left((oca, delegate)) =>
+          case Left(oca, delegate) =>
             time.now = forkA.now
             Left((oca.mapK(TimeT.liftK[F]), fiberize(forkB, delegate)))
 
-          case Right((delegate, ocb)) =>
+          case Right(delegate, ocb) =>
             time.now = forkB.now
             Right((fiberize(forkA, delegate), ocb.mapK(TimeT.liftK[F])))
         }

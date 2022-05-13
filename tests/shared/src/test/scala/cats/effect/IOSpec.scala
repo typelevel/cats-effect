@@ -86,12 +86,12 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "orElse must return other if previous IO Fails" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
-        (IO.raiseError[Int](TestException) orElse IO.pure(42)) must completeAs(42)
+        IO.raiseError[Int](TestException) orElse IO.pure(42) must completeAs(42)
       }
 
       "Return current IO if successful" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
-        (IO.pure(42) orElse IO.raiseError[Int](TestException)) must completeAs(42)
+        IO.pure(42) orElse IO.raiseError[Int](TestException) must completeAs(42)
       }
 
       "attempt is redeem with Left(_) for recover and Right(_) for map" in ticked {
@@ -660,7 +660,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             _ <- IO.race(IO.unit, IO.race(IO.never, IO.sleep(10.seconds)))
             end <- IO.monotonic
 
-            result <- IO((end - start) must beLessThan(5.seconds))
+            result <- IO(end - start must beLessThan(5.seconds))
           } yield result
         }
       }
@@ -1268,7 +1268,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "sleep for ten seconds and continue" in ticked { implicit ticker =>
         var affected = false
-        (IO.sleep(10.seconds) >> IO { affected = true }) must completeAs(())
+        IO.sleep(10.seconds) >> IO { affected = true } must completeAs(())
         affected must beTrue
       }
 

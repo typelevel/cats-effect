@@ -38,7 +38,7 @@ import scala.util.control.NonFatal
  * the JVM blocks the calling thread while the async part of the computation is run and doing so
  * on Scala.js is not supported.
  */
-sealed abstract class SyncIO[+A] private () extends Serializable {
+sealed abstract class SyncIO[+A] private extends Serializable {
 
   private[effect] def tag: Byte
 

@@ -28,7 +28,7 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
   def raceDerivesFromRacePairLeft[A, B](fa: F[A]) = {
     val results: F[Either[A, B]] = F uncancelable { poll =>
       F.flatMap(F.racePair(fa, F.never[B])) {
-        case Left((oc, f)) =>
+        case Left(oc, f) =>
           oc match {
             case Outcome.Succeeded(fa) => F.productR(f.cancel)(F.map(fa)(Left(_)))
             case Outcome.Errored(ea) => F.productR(f.cancel)(F.raiseError(ea))
@@ -39,7 +39,7 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
                 case Outcome.Canceled() => F.productR(F.canceled)(F.never)
               }
           }
-        case Right((f, oc)) =>
+        case Right(f, oc) =>
           oc match {
             case Outcome.Succeeded(fb) => F.productR(f.cancel)(F.map(fb)(Right(_)))
             case Outcome.Errored(eb) => F.productR(f.cancel)(F.raiseError(eb))
@@ -59,7 +59,7 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
   def raceDerivesFromRacePairRight[A, B](fb: F[B]) = {
     val results: F[Either[A, B]] = F uncancelable { poll =>
       F.flatMap(F.racePair(F.never[A], fb)) {
-        case Left((oc, f)) =>
+        case Left(oc, f) =>
           oc match {
             case Outcome.Succeeded(fa) => F.productR(f.cancel)(F.map(fa)(Left(_)))
             case Outcome.Errored(ea) => F.productR(f.cancel)(F.raiseError(ea))
@@ -70,7 +70,7 @@ trait GenSpawnLaws[F[_], E] extends MonadCancelLaws[F, E] with UniqueLaws[F] {
                 case Outcome.Canceled() => F.productR(F.canceled)(F.never)
               }
           }
-        case Right((f, oc)) =>
+        case Right(f, oc) =>
           oc match {
             case Outcome.Succeeded(fb) => F.productR(f.cancel)(F.map(fb)(Right(_)))
             case Outcome.Errored(eb) => F.productR(f.cancel)(F.raiseError(eb))

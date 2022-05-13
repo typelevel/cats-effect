@@ -224,14 +224,14 @@ ThisBuild / jsEnv := {
   useJSEnv.value match {
     case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
     case Firefox =>
-      val profile = new FirefoxProfile()
+      val profile = new FirefoxProfile
       profile.setPreference("privacy.reduceTimerPrecision", false)
-      val options = new FirefoxOptions()
+      val options = new FirefoxOptions
       options.setProfile(profile)
       options.setHeadless(true)
       new SeleniumJSEnv(options)
     case Chrome =>
-      val options = new ChromeOptions()
+      val options = new ChromeOptions
       options.setHeadless(true)
       new SeleniumJSEnv(options)
   }

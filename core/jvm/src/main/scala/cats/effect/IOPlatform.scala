@@ -87,7 +87,7 @@ abstract private[effect] class IOPlatform[+A] extends Serializable { self: IO[A]
 
   final def unsafeToCompletableFuture()(
       implicit runtime: unsafe.IORuntime): CompletableFuture[A @uncheckedVariance] = {
-    val cf = new CompletableFuture[A]()
+    val cf = new CompletableFuture[A]
 
     unsafeRunAsync {
       case Left(t) =>

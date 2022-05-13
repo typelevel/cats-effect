@@ -39,7 +39,7 @@ class SchedulerSpec extends BaseSpec {
     "correctly calculate real time" in real {
       IO.realTime.product(IO(System.currentTimeMillis())).map {
         case (realTime, currentTime) =>
-          (realTime.toMillis - currentTime) should be_<=(1L)
+          realTime.toMillis - currentTime should be_<=(1L)
       }
     }
   }

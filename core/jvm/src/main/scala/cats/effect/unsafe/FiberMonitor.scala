@@ -133,7 +133,7 @@ private[effect] sealed class FiberMonitor(
 
         val localAndActive = workersMap.foldLeft(Set.empty[IOFiber[_]]) {
           case (acc, (_, (active, local))) =>
-            (acc ++ local) ++ active.toSet.collect(justFibers)
+            acc ++ local ++ active.toSet.collect(justFibers)
         }
         val external = rawExternal -- localAndActive
         val suspended = rawSuspended -- localAndActive -- external
@@ -220,12 +220,12 @@ private[effect] object FiberMonitor {
 
   private[FiberMonitor] final val Bags: ThreadLocal[WeakBag[Runnable]] =
     ThreadLocal.withInitial { () =>
-      val bag = new WeakBag[Runnable]()
+      val bag = new WeakBag[Runnable]
       BagReferences.offer(new WeakReference(bag))
       bag
     }
 
   private[FiberMonitor] final val BagReferences
       : ConcurrentLinkedQueue[WeakReference[WeakBag[Runnable]]] =
-    new ConcurrentLinkedQueue()
+    new ConcurrentLinkedQueue
 }

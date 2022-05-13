@@ -87,7 +87,7 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
         f <- take(q).start
         _ <- offer(q, 2)
         v2 <- f.joinWithNever
-        r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(2)))
+        r <- IO(v1 must beEqualTo(1) and (v2 must beEqualTo(2)))
       } yield r
     }
 

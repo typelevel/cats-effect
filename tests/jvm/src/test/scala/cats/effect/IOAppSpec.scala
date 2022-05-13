@@ -37,8 +37,8 @@ class IOAppSpec extends Specification {
     }
 
     def apply(proto: AnyRef, args: List[String]): Handle = {
-      val stdoutBuffer = new StringBuffer()
-      val stderrBuffer = new StringBuffer()
+      val stdoutBuffer = new StringBuffer
+      val stderrBuffer = new StringBuffer
       val p = builder(proto, args).run(BasicIO(false, stdoutBuffer, None).withError { in =>
         val err = Source.fromInputStream(in).getLines().mkString(System.lineSeparator())
         stderrBuffer.append(err)
@@ -78,7 +78,7 @@ class IOAppSpec extends Specification {
     // whatever because it's very hard to obtain a java.lang.Process from scala.sys.process.Process.
     def pid(proto: AnyRef): Option[Int] = {
       val mainName = proto.getClass.getSimpleName.replace("$", "")
-      val jpsStdoutBuffer = new StringBuffer()
+      val jpsStdoutBuffer = new StringBuffer
       val jpsProcess =
         Process(s"$JavaHome/bin/jps", List.empty).run(BasicIO(false, jpsStdoutBuffer, None))
       jpsProcess.exitValue()
@@ -101,7 +101,7 @@ class IOAppSpec extends Specification {
 
     def pid(proto: AnyRef): Option[Int] = {
       val mainName = proto.getClass.getName.init
-      val stdoutBuffer = new StringBuffer()
+      val stdoutBuffer = new StringBuffer
       val process =
         Process("ps", List("aux")).run(BasicIO(false, stdoutBuffer, None))
       process.exitValue()

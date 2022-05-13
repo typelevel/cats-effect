@@ -232,7 +232,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
    * given Kleisli.
    */
   def useKleisliK[B >: A](implicit F: MonadCancel[F, Throwable]): Kleisli[F, B, *] ~> F =
-    new (Kleisli[F, B, *] ~> F) {
+    new Kleisli[F, B, *] ~> F {
       def apply[C](fa: Kleisli[F, B, C]): F[C] = useKleisli(fa)
     }
 
@@ -492,7 +492,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
    * terminates, fails or gets interrupted
    */
   def surroundK(implicit F: MonadCancel[F, Throwable]): F ~> F =
-    new (F ~> F) {
+    new F ~> F {
       override def apply[B](gb: F[B]): F[B] = surround(gb)
     }
 
@@ -618,7 +618,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
         Resource.applyFull { poll =>
           resource(poll).attempt.map {
             case Left(error) => (Left(error), (_: ExitCase) => F.unit)
-            case Right((a, release)) => (Right(a), release)
+            case Right(a, release) => (Right(a), release)
           }
         }
       case Bind(source, f) =>
@@ -861,7 +861,7 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    * Lifts an applicative into a resource as a `FunctionK`. The resource has a no-op release.
    */
   def liftK[F[_]]: F ~> Resource[F, *] =
-    new (F ~> Resource[F, *]) {
+    new F ~> Resource[F, *] {
       def apply[A](fa: F[A]): Resource[F, A] = Resource.eval(fa)
     }
 
@@ -965,12 +965,12 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
             def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (cb, ga, nt) =>
               type D[A] = Kleisli[G, Ref[G, ExitCase => F[Unit]], A]
 
-              val nt2 = new (Resource[F, *] ~> D) {
+              val nt2 = new Resource[F, *] ~> D {
                 def apply[A](rfa: Resource[F, A]) =
                   Kleisli { r =>
                     nt(rfa.allocatedCase) flatMap {
                       case (a, fin) =>
-                        r.update(f => (ec: ExitCase) => f(ec) !> (F.unit >> fin(ec))).as(a)
+                        r.update(f => (ec: ExitCase) => f(ec) !> F.unit >> fin(ec)).as(a)
                     }
                   }
               }

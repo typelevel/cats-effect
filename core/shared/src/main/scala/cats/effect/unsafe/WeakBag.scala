@@ -28,7 +28,7 @@ private final class WeakBag[A <: AnyRef] {
 
   private[this] final val MaxSizePow2: Int = 1 << 30
 
-  private[this] val queue: ReferenceQueue[A] = new ReferenceQueue()
+  private[this] val queue: ReferenceQueue[A] = new ReferenceQueue
   private[this] var capacity: Int = 256
   private[this] var table: Array[Entry[A]] = new Array(capacity)
   private[this] var index: Int = 0

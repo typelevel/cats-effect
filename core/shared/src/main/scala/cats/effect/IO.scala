@@ -103,7 +103,7 @@ import java.util.UUID
  * @see
  *   [[IOApp]] for the preferred way of executing whole programs wrapped in `IO`
  */
-sealed abstract class IO[+A] private () extends IOPlatform[A] {
+sealed abstract class IO[+A] private extends IOPlatform[A] {
 
   private[effect] def tag: Byte
 
@@ -199,8 +199,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def bothOutcome[B](that: IO[B]): IO[(OutcomeIO[A @uncheckedVariance], OutcomeIO[B])] =
     IO.uncancelable { poll =>
       racePair(that).flatMap {
-        case Left((oc, f)) => poll(f.join).onCancel(f.cancel).map((oc, _))
-        case Right((f, oc)) => poll(f.join).onCancel(f.cancel).map((_, oc))
+        case Left(oc, f) => poll(f.join).onCancel(f.cancel).map((oc, _))
+        case Right(f, oc) => poll(f.join).onCancel(f.cancel).map((_, oc))
       }
     }
 
@@ -509,8 +509,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def raceOutcome[B](that: IO[B]): IO[Either[OutcomeIO[A @uncheckedVariance], OutcomeIO[B]]] =
     IO.uncancelable { _ =>
       racePair(that).flatMap {
-        case Left((oc, f)) => f.cancel.as(Left(oc))
-        case Right((f, oc)) => f.cancel.as(Right(oc))
+        case Left(oc, f) => f.cancel.as(Left(oc))
+        case Right(f, oc) => f.cancel.as(Right(oc))
       }
     }
 
@@ -1836,20 +1836,20 @@ private object SyncStep {
         case IO.Map(ioe, f, _) =>
           interpret(ioe, limit - 1).map {
             case Left(io) => Left(io.map(f))
-            case Right((a, limit)) => Right((f(a), limit))
+            case Right(a, limit) => Right((f(a), limit))
           }
 
         case IO.FlatMap(ioe, f, _) =>
           interpret(ioe, limit - 1).flatMap {
             case Left(io) => G.pure(Left(io.flatMap(f)))
-            case Right((a, limit)) => interpret(f(a), limit - 1)
+            case Right(a, limit) => interpret(f(a), limit - 1)
           }
 
         case IO.Attempt(ioe) =>
           interpret(ioe, limit - 1)
             .map {
               case Left(io) => Left(io.attempt)
-              case Right((a, limit)) => Right((a.asRight[Throwable], limit))
+              case Right(a, limit) => Right((a.asRight[Throwable], limit))
             }
             .handleError(t => Right((t.asLeft[IO[B]], limit - 1)))
 

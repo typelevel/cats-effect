@@ -28,7 +28,7 @@ private[effect] object Tracing extends TracingPlatform {
   // private[this] val Line = "│"
 
   private[tracing] def buildEvent(): TracingEvent = {
-    new TracingEvent.StackTrace()
+    new TracingEvent.StackTrace
   }
 
   private[this] final val runLoopFilter: Array[String] =

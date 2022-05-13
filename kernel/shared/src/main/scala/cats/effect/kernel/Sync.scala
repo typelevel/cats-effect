@@ -36,7 +36,7 @@ trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Unique[F] 
    * Yields a value that is guaranteed to be unique ie (F.unique, F.unique).mapN(_ =!= _)
    */
   def unique: F[Unique.Token] =
-    delay(new Unique.Token())
+    delay(new Unique.Token)
 
   /**
    * The synchronous FFI - lifts any by-name parameter into the `F[_]` context.

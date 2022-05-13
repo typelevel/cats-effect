@@ -50,7 +50,7 @@ private final class ES2021FiberMonitor(
     // operates. `null` if the compute pool of the `IORuntime` is not a `FiberAwareExecutionContext`.
     private[this] val compute: FiberAwareExecutionContext
 ) extends FiberMonitor {
-  private[this] val bag = new WeakBag[IOFiber[_]]()
+  private[this] val bag = new WeakBag[IOFiber[_]]
 
   override def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle =
     bag.insert(fiber)
@@ -102,7 +102,7 @@ private[effect] object FiberMonitor {
         new ES2021FiberMonitor(null)
       }
     } else {
-      new NoOpFiberMonitor()
+      new NoOpFiberMonitor
     }
   }
 

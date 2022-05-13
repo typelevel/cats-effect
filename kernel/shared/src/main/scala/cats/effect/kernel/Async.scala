@@ -112,7 +112,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * [[Async.evalOn]] as a natural transformation.
    */
   def evalOnK(ec: ExecutionContext): F ~> F =
-    new (F ~> F) {
+    new F ~> F {
       def apply[A](fa: F[A]): F[A] = evalOn(fa, ec)
     }
 
@@ -286,7 +286,7 @@ object Async {
     override protected final def C = F
 
     override def unique: OptionT[F, Unique.Token] =
-      delay(new Unique.Token())
+      delay(new Unique.Token)
 
     override def syncStep[G[_], A](fa: OptionT[F, A], limit: Int)(
         implicit G: Sync[G]): G[Either[OptionT[F, A], A]] =
@@ -357,7 +357,7 @@ object Async {
     override protected final def C = F
 
     override def unique: EitherT[F, E, Unique.Token] =
-      delay(new Unique.Token())
+      delay(new Unique.Token)
 
     override def syncStep[G[_], A](fa: EitherT[F, E, A], limit: Int)(
         implicit G: Sync[G]): G[Either[EitherT[F, E, A], A]] =
@@ -429,7 +429,7 @@ object Async {
     override protected final def C = F
 
     override def unique: IorT[F, L, Unique.Token] =
-      delay(new Unique.Token())
+      delay(new Unique.Token)
 
     override def syncStep[G[_], A](fa: IorT[F, L, A], limit: Int)(
         implicit G: Sync[G]): G[Either[IorT[F, L, A], A]] =
@@ -500,7 +500,7 @@ object Async {
     override protected final def C = F
 
     override def unique: WriterT[F, L, Unique.Token] =
-      delay(new Unique.Token())
+      delay(new Unique.Token)
 
     override def syncStep[G[_], A](fa: WriterT[F, L, A], limit: Int)(
         implicit G: Sync[G]): G[Either[WriterT[F, L, A], A]] =
@@ -568,7 +568,7 @@ object Async {
     override protected final def C = F
 
     override def unique: Kleisli[F, R, Unique.Token] =
-      delay(new Unique.Token())
+      delay(new Unique.Token)
 
     override def syncStep[G[_], A](fa: Kleisli[F, R, A], limit: Int)(
         implicit G: Sync[G]): G[Either[Kleisli[F, R, A], A]] =
