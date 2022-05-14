@@ -11,81 +11,30 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
 import java.util.concurrent.TimeUnit
 
-abstract class Retry[M[_]] {
-  def decideNextRetry: RetryStatus => M[PolicyDecision]
-  def show: String = toString
+abstract class Retry[F[_]] {
+  def decideNextRetry: Retry.Status => F[PolicyDecision]
 
-  def followedBy(rp: RetryPolicy[M])(implicit M: Apply[M]): RetryPolicy[M] =
-    RetryPolicy.withShow(
-      status =>
-        M.map2(decideNextRetry(status), rp.decideNextRetry(status)) {
-          case (GiveUp, pd) => pd
-          case (pd, _) => pd
-        },
-      show"$show.followedBy($rp)"
-    )
+  def followedBy(rp: Retry[F]): Retry[F]
 
   /**
    * Combine this schedule with another schedule, giving up when either of the schedules want to
    * give up and choosing the maximum of the two delays when both of the schedules want to delay
    * the next retry. The dual of the `meet` operation.
    */
-  def join(rp: RetryPolicy[M])(implicit M: Apply[M]): RetryPolicy[M] =
-    RetryPolicy.withShow[M](
-      status =>
-        M.map2(decideNextRetry(status), rp.decideNextRetry(status)) {
-          case (DelayAndRetry(a), DelayAndRetry(b)) => DelayAndRetry(a max b)
-          case _ => GiveUp
-        },
-      show"$show.join($rp)"
-    )
+  def join(rp: Retry[F]): Retry[F]
 
   /**
    * Combine this schedule with another schedule, giving up when both of the schedules want to
    * give up and choosing the minimum of the two delays when both of the schedules want to delay
    * the next retry. The dual of the `join` operation.
    */
-  def meet(rp: RetryPolicy[M])(implicit M: Apply[M]): RetryPolicy[M] =
-    RetryPolicy.withShow[M](
-      status =>
-        M.map2(decideNextRetry(status), rp.decideNextRetry(status)) {
-          case (DelayAndRetry(a), DelayAndRetry(b)) => DelayAndRetry(a min b)
-          case (s @ DelayAndRetry(_), GiveUp) => s
-          case (GiveUp, s @ DelayAndRetry(_)) => s
-          case _ => GiveUp
-        },
-      show"$show.meet($rp)"
-    )
+  def meet(rp: Retry[F]): Retry[F]
 
-  def mapDelay(
-      f: FiniteDuration => FiniteDuration
-  )(implicit M: Functor[M]): RetryPolicy[M] =
-    RetryPolicy.withShow(
-      status =>
-        M.map(decideNextRetry(status)) {
-          case GiveUp => GiveUp
-          case DelayAndRetry(d) => DelayAndRetry(f(d))
-        },
-      show"$show.mapDelay(<function>)"
-    )
+  def mapDelay(f: FiniteDuration => FiniteDuration): Retry[F]
 
-  def flatMapDelay(
-      f: FiniteDuration => M[FiniteDuration]
-  )(implicit M: Monad[M]): RetryPolicy[M] =
-    RetryPolicy.withShow(
-      status =>
-        M.flatMap(decideNextRetry(status)) {
-          case GiveUp => M.pure(GiveUp)
-          case DelayAndRetry(d) => M.map(f(d))(DelayAndRetry(_))
-        },
-      show"$show.flatMapDelay(<function>)"
-    )
+  def flatMapDelay(f: FiniteDuration => F[FiniteDuration]): Retry[F]
 
-  def mapK[N[_]](nt: FunctionK[M, N]): RetryPolicy[N] =
-    RetryPolicy.withShow(
-      status => nt(decideNextRetry(status)),
-      show"$show.mapK(<FunctionK>)"
-    )
+  def mapK[G[_]: Monad](f: F ~> G): Retry[G]
 }
 object Retry {
   final case class Status(
@@ -101,7 +50,108 @@ object Retry {
   }
 
   val NoRetriesYet = Retry.Status(0, Duration.Zero, None)
+
+// def lift[F[_]](
+//     f: Retry.Status => PolicyDecision
+// )(implicit F: Applicative[F]): Retry[F] =
+//   Retry[F](decideNextRetry = retryStatus => F.pure(f(retryStatus)))
+
+def withShow[F[_]: Monad](
+    decideNextRetry: Retry.Status => F[PolicyDecision],
+    pretty: => String
+): Retry[F] =
+  new RetryImpl[F](decideNextRetry, pretty)
+
+// def liftWithShow[F[_]: Applicative](
+//     decideNextRetry: Retry.Status => PolicyDecision,
+//     pretty: => String
+// ): Retry[F] =
+//   withShow(rs => Applicative[F].pure(decideNextRetry(rs)), pretty)
+
+// implicit def boundedSemilatticeForRetry[F[_]](
+//     implicit F: Applicative[F]): BoundedSemilattice[Retry[F]] =
+//   new BoundedSemilattice[Retry[F]] {
+//     override def empty: Retry[F] =
+//       RetryPolicies.constantDelay[F](Duration.Zero)
+
+//     override def combine(
+//         x: Retry[F],
+//         y: Retry[F]
+//     ): Retry[F] = x.join(y)
+//   }
+
+// implicit def showForRetry[F[_]]: Show[Retry[F]] =
+//   Show.show(_.show)
+
+  private final case class RetryImpl[F[_]](decideNextRetry: Retry.Status => F[PolicyDecision], pretty: String)(implicit F: Monad[F]) extends Retry[F] {
+
+    override def toString: String = pretty
+
+    def followedBy(rp: Retry[F]): Retry[F] =
+      Retry.withShow(
+        status =>
+        F.map2(decideNextRetry(status), rp.decideNextRetry(status)) {
+          case (GiveUp, pd) => pd
+          case (pd, _) => pd
+        },
+      s"$this.followedBy($rp)"
+    )
+
+  def join(rp: Retry[F]): Retry[F] =
+    Retry.withShow[F](
+      status =>
+        F.map2(decideNextRetry(status), rp.decideNextRetry(status)) {
+          case (DelayAndRetry(a), DelayAndRetry(b)) => DelayAndRetry(a max b)
+          case _ => GiveUp
+        },
+      s"$this.join($rp)"
+    )
+
+  def meet(rp: Retry[F]): Retry[F] =
+    Retry.withShow[F](
+      status =>
+        F.map2(decideNextRetry(status), rp.decideNextRetry(status)) {
+          case (DelayAndRetry(a), DelayAndRetry(b)) => DelayAndRetry(a min b)
+          case (s @ DelayAndRetry(_), GiveUp) => s
+          case (GiveUp, s @ DelayAndRetry(_)) => s
+          case _ => GiveUp
+        },
+      s"$this.meet($rp)"
+    )
+
+  def mapDelay(
+      f: FiniteDuration => FiniteDuration
+  ): Retry[F] =
+    Retry.withShow(
+      status =>
+        F.map(decideNextRetry(status)) {
+          case GiveUp => GiveUp
+          case DelayAndRetry(d) => DelayAndRetry(f(d))
+        },
+      s"$this.mapDelay(<function>)"
+    )
+
+  def flatMapDelay(
+      f: FiniteDuration => F[FiniteDuration]
+  ): Retry[F] =
+    Retry.withShow(
+      status =>
+        F.flatMap(decideNextRetry(status)) {
+          case GiveUp => F.pure(GiveUp)
+          case DelayAndRetry(d) => F.map(f(d))(DelayAndRetry(_))
+        },
+      s"$this.flatMapDelay(<function>)"
+    )
+
+  def mapK[G[_]: Monad](f: F ~> G): Retry[G] =
+    Retry.withShow(
+      status => f(decideNextRetry(status)),
+      s"$this.mapK(<FunctionK>)"
+    )
+  }
 }
+
+/////// 
 
 final case class RetryStatus(
     retriesSoFar: Int,
