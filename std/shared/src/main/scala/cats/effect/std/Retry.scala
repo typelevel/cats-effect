@@ -12,7 +12,7 @@ import scala.util.Random
 import java.util.concurrent.TimeUnit
 
 abstract class Retry[F[_]] {
-  def nextRetry: Retry.Status => F[PolicyDecision]
+  def nextRetry(status: Retry.Status): F[PolicyDecision]
 
   def followedBy(r: Retry[F]): Retry[F]
 
@@ -81,7 +81,10 @@ object Retry {
 // implicit def showForRetry[F[_]]: Show[Retry[F]] =
 //   Show.show(_.show)
 
-  private final case class RetryImpl[F[_]: Monad](nextRetry: Retry.Status => F[PolicyDecision], pretty: String) extends Retry[F] {
+  private final case class RetryImpl[F[_]: Monad](nextRetry_ : Retry.Status => F[PolicyDecision], pretty: String) extends Retry[F] {
+
+    override def nextRetry(status: Retry.Status): F[PolicyDecision] =
+      nextRetry_(status)
 
     override def toString: String = pretty
 
