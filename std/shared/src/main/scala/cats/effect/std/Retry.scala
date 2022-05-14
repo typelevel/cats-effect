@@ -83,14 +83,14 @@ def withShow[F[_]: Monad](
 // implicit def showForRetry[F[_]]: Show[Retry[F]] =
 //   Show.show(_.show)
 
-  private final case class RetryImpl[F[_]](nextRetry: Retry.Status => F[PolicyDecision], pretty: String)(implicit F: Monad[F]) extends Retry[F] {
+  private final case class RetryImpl[F[_]: Monad](nextRetry: Retry.Status => F[PolicyDecision], pretty: String) extends Retry[F] {
 
     override def toString: String = pretty
 
     def followedBy(r: Retry[F]): Retry[F] =
       Retry.withShow(
         status =>
-        F.map2(nextRetry(status), r.nextRetry(status)) {
+        (nextRetry(status), r.nextRetry(status)).mapN {
           case (GiveUp, pd) => pd
           case (pd, _) => pd
         },
@@ -100,7 +100,7 @@ def withShow[F[_]: Monad](
   def join(r: Retry[F]): Retry[F] =
     Retry.withShow[F](
       status =>
-        F.map2(nextRetry(status), r.nextRetry(status)) {
+        (nextRetry(status), r.nextRetry(status)).mapN {
           case (DelayAndRetry(a), DelayAndRetry(b)) => DelayAndRetry(a max b)
           case _ => GiveUp
         },
@@ -110,7 +110,7 @@ def withShow[F[_]: Monad](
   def meet(r: Retry[F]): Retry[F] =
     Retry.withShow[F](
       status =>
-        F.map2(nextRetry(status), r.nextRetry(status)) {
+        (nextRetry(status), r.nextRetry(status)).mapN {
           case (DelayAndRetry(a), DelayAndRetry(b)) => DelayAndRetry(a min b)
           case (s @ DelayAndRetry(_), GiveUp) => s
           case (GiveUp, s @ DelayAndRetry(_)) => s
@@ -124,7 +124,7 @@ def withShow[F[_]: Monad](
   ): Retry[F] =
     Retry.withShow(
       status =>
-        F.map(nextRetry(status)) {
+        nextRetry(status).map {
           case GiveUp => GiveUp
           case DelayAndRetry(d) => DelayAndRetry(f(d))
         },
@@ -136,9 +136,9 @@ def withShow[F[_]: Monad](
   ): Retry[F] =
     Retry.withShow(
       status =>
-        F.flatMap(nextRetry(status)) {
-          case GiveUp => F.pure(GiveUp)
-          case DelayAndRetry(d) => F.map(f(d))(DelayAndRetry(_))
+        nextRetry(status).flatMap {
+          case GiveUp => GiveUp.pure[F].widen[PolicyDecision]
+          case DelayAndRetry(d) => f(d).map(DelayAndRetry(_))
         },
       s"$this.flatMapDelay(<function>)"
     )
