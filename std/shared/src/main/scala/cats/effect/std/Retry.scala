@@ -51,22 +51,20 @@ object Retry {
 
   val NoRetriesYet = Retry.Status(0, Duration.Zero, None)
 
-// def lift[F[_]](
-//     f: Retry.Status => PolicyDecision
-// )(implicit F: Applicative[F]): Retry[F] =
-//   Retry[F](nextRetry = retryStatus => F.pure(f(retryStatus)))
-
-def withShow[F[_]: Monad](
+  def apply[F[_]: Monad](
     nextRetry: Retry.Status => F[PolicyDecision],
-    pretty: => String
-): Retry[F] =
-  new RetryImpl[F](nextRetry, pretty)
+    pretty: String = "<retry>"
+  ): Retry[F] =
+    new RetryImpl[F](nextRetry, pretty)
 
-// def liftWithShow[F[_]: Applicative](
-//     nextRetry: Retry.Status => PolicyDecision,
-//     pretty: => String
-// ): Retry[F] =
-//   withShow(rs => Applicative[F].pure(nextRetry(rs)), pretty)
+  def lift[F[_]: Monad](
+    nextRetry: Retry.Status => PolicyDecision,
+    pretty: String = "<retry>"
+  ): Retry[F] =
+    apply[F](
+      status => nextRetry(status).pure[F],
+      pretty
+    )
 
 // implicit def boundedSemilatticeForRetry[F[_]](
 //     implicit F: Applicative[F]): BoundedSemilattice[Retry[F]] =
@@ -88,66 +86,57 @@ def withShow[F[_]: Monad](
     override def toString: String = pretty
 
     def followedBy(r: Retry[F]): Retry[F] =
-      Retry.withShow(
-        status =>
-        (nextRetry(status), r.nextRetry(status)).mapN {
+      Retry(
+        status => (nextRetry(status), r.nextRetry(status)).mapN {
           case (GiveUp, pd) => pd
           case (pd, _) => pd
         },
-      s"$this.followedBy($r)"
-    )
+        s"$this.followedBy($r)"
+      )
 
-  def join(r: Retry[F]): Retry[F] =
-    Retry.withShow[F](
-      status =>
-        (nextRetry(status), r.nextRetry(status)).mapN {
+    def join(r: Retry[F]): Retry[F] =
+      Retry[F](
+        status => (nextRetry(status), r.nextRetry(status)).mapN {
           case (DelayAndRetry(a), DelayAndRetry(b)) => DelayAndRetry(a max b)
           case _ => GiveUp
         },
-      s"$this.join($r)"
-    )
+        s"$this.join($r)"
+      )
 
-  def meet(r: Retry[F]): Retry[F] =
-    Retry.withShow[F](
-      status =>
-        (nextRetry(status), r.nextRetry(status)).mapN {
+    def meet(r: Retry[F]): Retry[F] =
+      Retry[F](
+        status => (nextRetry(status), r.nextRetry(status)).mapN {
           case (DelayAndRetry(a), DelayAndRetry(b)) => DelayAndRetry(a min b)
           case (s @ DelayAndRetry(_), GiveUp) => s
           case (GiveUp, s @ DelayAndRetry(_)) => s
           case _ => GiveUp
         },
-      s"$this.meet($r)"
-    )
+        s"$this.meet($r)"
+      )
 
-  def mapDelay(
-      f: FiniteDuration => FiniteDuration
-  ): Retry[F] =
-    Retry.withShow(
-      status =>
-        nextRetry(status).map {
+    def mapDelay(f: FiniteDuration => FiniteDuration): Retry[F] =
+      Retry(
+        status => nextRetry(status).map {
           case GiveUp => GiveUp
           case DelayAndRetry(d) => DelayAndRetry(f(d))
         },
-      s"$this.mapDelay(<function>)"
+        s"$this.mapDelay(<function>)"
     )
 
-  def flatMapDelay(
-      f: FiniteDuration => F[FiniteDuration]
-  ): Retry[F] =
-    Retry.withShow(
-      status =>
-        nextRetry(status).flatMap {
+    def flatMapDelay(f: FiniteDuration => F[FiniteDuration]): Retry[F] =
+      Retry(
+        status => nextRetry(status).flatMap {
           case GiveUp => GiveUp.pure[F].widen[PolicyDecision]
           case DelayAndRetry(d) => f(d).map(DelayAndRetry(_))
         },
-      s"$this.flatMapDelay(<function>)"
-    )
+        s"$this.flatMapDelay(<function>)"
+      )
 
-  def mapK[G[_]: Monad](f: F ~> G): Retry[G] =
-    Retry.withShow(
-      status => f(nextRetry(status)),
-      s"$this.mapK(<FunctionK>)"
-    )
+    def mapK[G[_]: Monad](f: F ~> G): Retry[G] =
+      Retry(
+        status => f(nextRetry(status)),
+        s"$this.mapK(<FunctionK>)"
+      )
   }
 }
 
