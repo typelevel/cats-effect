@@ -178,7 +178,7 @@ object Ref {
   /**
    * Creates a Ref with empty content
    */
-  def ofEmpty[F[_]: Make, A: Monoid]: F[Ref[F, A]] = of(Monoid[A].empty)
+  def empty[F[_]: Make, A: Monoid]: F[Ref[F, A]] = of(Monoid[A].empty)
 
   /**
    * Creates a Ref starting with the value of the one in `source`.
@@ -279,9 +279,9 @@ object Ref {
      * Creates a thread-safe, concurrent mutable reference initialized to the empty value.
      *
      * @see
-     *   [[Ref.ofEmpty]]
+     *   [[Ref.empty]]
      */
-    def ofEmpty[A: Monoid]: F[Ref[F, A]] = of(Monoid[A].empty)
+    def empty[A: Monoid]: F[Ref[F, A]] = of(Monoid[A].empty)
   }
 
   final private class SyncRef[F[_], A](ar: AtomicReference[A])(implicit F: Sync[F])
