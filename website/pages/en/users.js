@@ -35,6 +35,7 @@ const users = [
   ['OVO Energy', 'https://www.ovoenergy.com'],
   ['Packlink', 'https://www.packlink.com'],
   ['Paidy', 'https://www.paidy.com'],
+  ['Permutive', 'https://permutive.com/'],
   ['Philips', 'https://www.philips.com/'],
   ['Precog', 'https://precog.com'],
   ['Prezi', 'https://prezi.com'],
