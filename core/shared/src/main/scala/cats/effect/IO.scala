@@ -1584,7 +1584,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
      * interrupts in the event of cancelation. The interrupt will be attempted repeatedly until
      * the blocking operation completes or exits.
 
-     * Note that this _really_ means what it says - it will throw exceptions in a
+     * @note that this _really_ means what it says - it will throw exceptions in a
      * tight loop until the offending blocking operation exits.  This is extremely
      * expensive if it happens on a hot path and the blocking operation is badly
      * behaved and doesn't exit immediately.
