@@ -14,7 +14,7 @@ title: FAQ
 import cats.effect._
 
 object HelloWorld extends IOApp.Simple {
-  override val run: IO[Unit] = IO.println("Hello world")
+  val run: IO[Unit] = IO.println("Hello world")
 }
 ```
 
