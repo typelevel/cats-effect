@@ -11,8 +11,8 @@
 
 ## Getting Started
 
-- Wired: **3.3.11**
-- Tired: **2.5.4**
+- Wired: **3.3.11** (actively maintained)
+- Tired: **2.5.5** (end of life)
 
 ```scala
 libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.11"
