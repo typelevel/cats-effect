@@ -23,6 +23,7 @@ package cats.effect
 package std
 
 import cats.arrow.FunctionK
+import cats.syntax.all._
 
 import org.specs2.specification.core.Fragments
 
@@ -99,6 +100,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
       negativeCapacityConstructionTests(constructor)
       tryOfferOnFullTests(constructor, _.offer(_), _.tryOffer(_), false)
       cancelableOfferTests(constructor, _.offer(_), _.take, _.tryTake)
+      cancelableTakeTests(constructor, _.offer(_), _.take, _.tryTakeN(_))
       tryOfferTryTakeTests(constructor, _.tryOffer(_), _.tryTake)
       commonTests(constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
       batchTakeTests(constructor, _.offer(_), _.tryTakeN(_))
@@ -144,6 +146,7 @@ class DroppingQueueSpec extends BaseSpec with QueueTests[Queue] {
     zeroCapacityConstructionTests(constructor)
     tryOfferOnFullTests(constructor, _.offer(_), _.tryOffer(_), false)
     cancelableOfferTests(constructor, _.offer(_), _.take, _.tryTake)
+    cancelableTakeTests(constructor, _.offer(_), _.take, _.tryTakeN(_))
     tryOfferTryTakeTests(constructor, _.tryOffer(_), _.tryTake)
     commonTests(constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
     batchTakeTests(constructor, _.offer(_), _.tryTakeN(_))
@@ -364,6 +367,62 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         v2 <- tryTake(q)
         r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(None)))
       } yield r
+    }
+  }
+
+  def cancelableTakeTests(
+      constructor: Int => IO[Q[IO, Int]],
+      offer: (Q[IO, Int], Int) => IO[Unit],
+      take: Q[IO, Int] => IO[Int],
+      tryTakeN: (Q[IO, Int], Option[Int]) => IO[List[Int]]): Fragments = {
+
+    "not lose data on canceled take" in real {
+      // this is a race condition test so we iterate
+      val test = 0.until(10000).toList traverse_ { _ =>
+        for {
+          q <- constructor(100)
+          _ <- 0.until(100).toList.traverse_(offer(q, _))
+
+          latch <- IO.deferred[Unit]
+          backR <- IO.ref(Vector[Int]())
+
+          fiber <- {
+            val action = for {
+              // take half of the queue's contents
+              front <- 0.until(50).toVector.traverse(_ => take(q))
+              _ <- backR.set(front)
+
+              // release the canceler to race with us
+              _ <- latch.complete(())
+
+              // take the other half of the contents with atomic writing
+              _ <- 50.until(100).toVector traverse { _ =>
+                IO uncancelable { poll =>
+                  // if data is lost, it would need to manifest here
+                  // specifically, take would claim a value but flatMap wouldn't run
+                  poll(take(q)).flatMap(a => backR.update(_ :+ a))
+                }
+              }
+            } yield ()
+
+            action.start
+          }
+
+          _ <- latch.get
+          _ <- fiber.cancel
+
+          // grab whatever is left in the queue
+          remainder <- tryTakeN(q, None)
+          _ <- backR.update(_ ++ remainder.toVector)
+
+          // if we lost data, we'll be missing a value in backR
+          results <- backR.get
+          _ <- IO(results must contain(0.until(100)))
+        } yield ()
+      }
+
+      test.as(ok)
+
     }
   }
 
