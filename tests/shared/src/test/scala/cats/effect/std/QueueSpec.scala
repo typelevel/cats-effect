@@ -33,80 +33,77 @@ import scala.concurrent.duration._
 class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
 
   "BoundedQueue" should {
-    boundedQueueTests("BoundedQueue", Queue.bounded)
-    boundedQueueTests("BoundedQueue mapK", Queue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
+    boundedQueueTests(Queue.bounded)
   }
 
-  private def boundedQueueTests(
-      name: String,
-      constructor: Int => IO[Queue[IO, Int]]): Fragments = {
+  "BoundedQueue mapK" should {
+    boundedQueueTests(Queue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
+  }
 
-    name should {
-
-      "demonstrate offer and take with zero capacity" in real {
-        for {
-          q <- constructor(0)
-          _ <- q.offer(1).start
-          v1 <- q.take
-          f <- q.take.start
-          _ <- q.offer(2)
-          v2 <- f.joinWithNever
-          r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(2)))
-        } yield r
-      }
-
-      "async take with zero capacity" in realWithRuntime { implicit rt =>
-        for {
-          q <- constructor(0)
-          _ <- q.offer(1).start
-          v1 <- q.take
-          _ <- IO(v1 must beEqualTo(1))
-          ff <- IO(q.take.unsafeToFuture()).start
-          f <- ff.joinWithNever
-          _ <- IO(f.value must beEqualTo(None))
-          _ <- q.offer(2)
-          v2 <- IO.fromFuture(IO.pure(f))
-          r <- IO(v2 must beEqualTo(2))
-        } yield r
-      }
-
-      "offer/take with zero capacity" in real {
-        val count = 1000
-
-        def producer(q: Queue[IO, Int], n: Int): IO[Unit] =
-          if (n > 0) q.offer(count - n).flatMap(_ => producer(q, n - 1))
-          else IO.unit
-
-        def consumer(
-            q: Queue[IO, Int],
-            n: Int,
-            acc: ScalaQueue[Int] = ScalaQueue.empty
-        ): IO[Long] =
-          if (n > 0)
-            q.take.flatMap { a => consumer(q, n - 1, acc.enqueue(a)) }
-          else
-            IO.pure(acc.foldLeft(0L)(_ + _))
-
-        for {
-          q <- constructor(0)
-          p <- producer(q, count).start
-          c <- consumer(q, count).start
-          _ <- p.join
-          v <- c.joinWithNever
-          r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
-        } yield r
-      }
-
-      negativeCapacityConstructionTests(constructor)
-      tryOfferOnFullTests(constructor, _.offer(_), _.tryOffer(_), false)
-      cancelableOfferTests(constructor, _.offer(_), _.take, _.tryTake)
-      cancelableTakeTests(constructor, _.offer(_), _.take, _.tryTakeN(_))
-      tryOfferTryTakeTests(constructor, _.tryOffer(_), _.tryTake)
-      commonTests(constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
-      batchTakeTests(constructor, _.offer(_), _.tryTakeN(_))
-      batchOfferTests(constructor, _.tryOfferN(_), _.tryTakeN(_))
-      boundedBatchOfferTests(constructor, _.tryOfferN(_), _.tryTakeN(_))
+  private def boundedQueueTests(constructor: Int => IO[Queue[IO, Int]]): Fragments = {
+    "demonstrate offer and take with zero capacity" in real {
+      for {
+        q <- constructor(0)
+        _ <- q.offer(1).start
+        v1 <- q.take
+        f <- q.take.start
+        _ <- q.offer(2)
+        v2 <- f.joinWithNever
+        r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(2)))
+      } yield r
     }
+
+    "async take with zero capacity" in realWithRuntime { implicit rt =>
+      for {
+        q <- constructor(0)
+        _ <- q.offer(1).start
+        v1 <- q.take
+        _ <- IO(v1 must beEqualTo(1))
+        ff <- IO(q.take.unsafeToFuture()).start
+        f <- ff.joinWithNever
+        _ <- IO(f.value must beEqualTo(None))
+        _ <- q.offer(2)
+        v2 <- IO.fromFuture(IO.pure(f))
+        r <- IO(v2 must beEqualTo(2))
+      } yield r
+    }
+
+    "offer/take with zero capacity" in real {
+      val count = 1000
+
+      def producer(q: Queue[IO, Int], n: Int): IO[Unit] =
+        if (n > 0) q.offer(count - n).flatMap(_ => producer(q, n - 1))
+        else IO.unit
+
+      def consumer(
+          q: Queue[IO, Int],
+          n: Int,
+          acc: ScalaQueue[Int] = ScalaQueue.empty
+      ): IO[Long] =
+        if (n > 0)
+          q.take.flatMap { a => consumer(q, n - 1, acc.enqueue(a)) }
+        else
+          IO.pure(acc.foldLeft(0L)(_ + _))
+
+      for {
+        q <- constructor(0)
+        p <- producer(q, count).start
+        c <- consumer(q, count).start
+        _ <- p.join
+        v <- c.joinWithNever
+        r <- IO(v must beEqualTo(count.toLong * (count - 1) / 2))
+      } yield r
+    }
+
+    negativeCapacityConstructionTests(constructor)
+    tryOfferOnFullTests(constructor, _.offer(_), _.tryOffer(_), false)
+    cancelableOfferTests(constructor, _.offer(_), _.take, _.tryTake)
+    cancelableTakeTests(constructor, _.offer(_), _.take, _.tryTakeN(_))
+    tryOfferTryTakeTests(constructor, _.tryOffer(_), _.tryTake)
+    commonTests(constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
+    batchTakeTests(constructor, _.offer(_), _.tryTakeN(_))
+    batchOfferTests(constructor, _.tryOfferN(_), _.tryTakeN(_))
+    boundedBatchOfferTests(constructor, _.tryOfferN(_), _.tryTakeN(_))
   }
 }
 
