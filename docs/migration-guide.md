@@ -16,7 +16,7 @@ Here is an overview of the steps you should take to migrate your application to 
 ### Before You Begin: This Isn't A "Quick Start" Guide
 
 This guide is meant for existing users of Cats Effect 2 who want to upgrade their applications
-to 3.3.11.
+to 3.3.12.
 
 > If you haven't used Cats Effect before and want to give it a try,
 > please follow the [getting started guide](./getting-started.md) instead!
@@ -81,9 +81,9 @@ Cats Effect 3 splits the code dependency into multiple modules. If you were prev
 The current non-test modules are:
 
 ```scala
-"org.typelevel" %% "cats-effect-kernel" % "3.3.11",
-"org.typelevel" %% "cats-effect-std"    % "3.3.11",
-"org.typelevel" %% "cats-effect"        % "3.3.11",
+"org.typelevel" %% "cats-effect-kernel" % "3.3.12",
+"org.typelevel" %% "cats-effect-std"    % "3.3.12",
+"org.typelevel" %% "cats-effect"        % "3.3.12",
 ```
 
 - `kernel` - type class definitions, simple concurrency primitives
@@ -96,7 +96,7 @@ The current non-test modules are:
 libraryDependencies ++= Seq(
   //...
 -  "org.typelevel" %% "cats-effect" % "2.4.0",
-+  "org.typelevel" %% "cats-effect" % "3.3.11",
++  "org.typelevel" %% "cats-effect" % "3.3.12",
   //...
 )
 ```
@@ -108,8 +108,8 @@ sbt:demo> update
 [error] stack trace is suppressed; run last core / update for the full output
 [error] (core / update) found version conflict(s) in library dependencies; some are suspected to be binary incompatible:
 [error]
-[error] 	* org.typelevel:cats-effect_2.13:3.3.11 (early-semver) is selected over {2.3.1, 2.1.4}
-[error] 	    +- com.example:core-core_2.13:0.0.7-26-3183519d       (depends on 3.3.11)
+[error] 	* org.typelevel:cats-effect_2.13:3.3.12 (early-semver) is selected over {2.3.1, 2.1.4}
+[error] 	    +- com.example:core-core_2.13:0.0.7-26-3183519d       (depends on 3.3.12)
 [error] 	    +- io.monix:monix-catnap_2.13:3.3.0                   (depends on 2.1.4)
 [error] 	    +- com.github.valskalla:odin-core_2.13:0.11.0         (depends on 2.3.1)
 [error]
@@ -630,18 +630,18 @@ def io: IO[Unit] = ???
 
 io.unsafeRunSync()
 // error: Could not find an implicit IORuntime.
-// 
+//
 // Instead of calling unsafe methods directly, consider using cats.effect.IOApp, which
 // runs your IO. If integrating with non-functional code or experimenting in a REPL / Worksheet,
 // add the following import:
-// 
+//
 // import cats.effect.unsafe.implicits.global
-// 
+//
 // Alternatively, you can create an explicit IORuntime value and put it in implicit scope.
 // This may be useful if you have a pre-existing fixed thread pool and/or scheduler which you
 // wish to use to execute IO programs. Please be sure to review thread pool best practices to
 // avoid unintentionally degrading your application performance.
-// 
+//
 // io.unsafeRunSync()
 // ^^^^^^^^^^^^^^^^^^
 ```

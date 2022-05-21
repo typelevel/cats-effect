@@ -42,11 +42,11 @@ running the code snippets in this tutorial, it is recommended to use the same
 ```scala
 name := "cats-effect-tutorial"
 
-version := "3.3.11"
+version := "3.3.12"
 
 scalaVersion := "2.13.6"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.11" withSources() withJavadoc()
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.12" withSources() withJavadoc()
 
 scalacOptions ++= Seq(
   "-feature",
@@ -115,7 +115,7 @@ use and then release resources. See this code:
 
 ```scala mdoc:compile-only
 import cats.effect.{IO, Resource}
-import java.io._ 
+import java.io._
 
 def inputStream(f: File): Resource[IO, FileInputStream] =
   Resource.make {
@@ -126,7 +126,7 @@ def inputStream(f: File): Resource[IO, FileInputStream] =
 
 def outputStream(f: File): Resource[IO, FileOutputStream] =
   Resource.make {
-    IO.blocking(new FileOutputStream(f))                         // build 
+    IO.blocking(new FileOutputStream(f))                         // build
   } { outStream =>
     IO.blocking(outStream.close()).handleErrorWith(_ => IO.unit) // release
   }
@@ -183,8 +183,8 @@ def inputOutputStreams(in: File, out: File): Resource[IO, (InputStream, OutputSt
 // transfer will do the real work
 def transfer(origin: InputStream, destination: OutputStream): IO[Long] = ???
 
-def copy(origin: File, destination: File): IO[Long] = 
-  inputOutputStreams(origin, destination).use { case (in, out) => 
+def copy(origin: File, destination: File): IO[Long] =
+  inputOutputStreams(origin, destination).use { case (in, out) =>
     transfer(in, out)
   }
 ```
@@ -214,8 +214,8 @@ follows:
 
 ```scala mdoc:compile-only
 import cats.effect.IO
-import cats.syntax.all._ 
-import java.io._ 
+import cats.syntax.all._
+import java.io._
 
 // function inputOutputStreams not needed
 
@@ -226,7 +226,7 @@ def copy(origin: File, destination: File): IO[Long] = {
   val inIO: IO[InputStream]  = IO(new FileInputStream(origin))
   val outIO:IO[OutputStream] = IO(new FileOutputStream(destination))
 
-  (inIO, outIO)              // Stage 1: Getting resources 
+  (inIO, outIO)              // Stage 1: Getting resources
     .tupled                  // From (IO[InputStream], IO[OutputStream]) to IO[(InputStream, OutputStream)]
     .bracket{
       case (in, out) =>
@@ -267,8 +267,8 @@ the main loop, and leave the actual transmission of data to another function
 
 ```scala mdoc:compile-only
 import cats.effect.IO
-import cats.syntax.all._ 
-import java.io._ 
+import cats.syntax.all._
+import java.io._
 
 def transmit(origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): IO[Long] =
   for {
@@ -298,7 +298,7 @@ is equivalent to `first.flatMap(_ => second)`). In the code above that means
 that after each write operation we recursively call `transmit` again, but as
 `IO` is stack safe we are not concerned about stack overflow issues. At each
 iteration we increase the counter `acc` with the amount of bytes read at that
-iteration. 
+iteration.
 
 We are making progress, and already have a version of `copy` that can be used.
 If any exception is raised when `transfer` is running, then the streams will be
@@ -440,7 +440,7 @@ restrictive, as functions are not tied to `IO` but are applicable to any `F[_]`
 as long as there is an instance of the type class required (`Sync[F[_]]` ,
 `Async[F[_]]`...) in scope. The type class to use will depend on the
 requirements of our code.
- 
+
 #### Copy program code, polymorphic version
 The polymorphic version of our copy program in full is available
 [here](https://github.com/lrodero/cats-effect-tutorial/blob/series/3.x/src/main/scala/catseffecttutorial/copyfile/CopyFilePolymorphic.scala).
@@ -507,8 +507,23 @@ to signal that the wrapped code will block the thread.  Cats-effect uses that
 info as a hint to optimize `IO` scheduling.
 
 Another difference with threads is that fibers are very cheap entities. We can
-spawn millions of them at ease without impacting the performance. 
+spawn millions of them at ease without impacting the performance.
 
+<<<<<<< Updated upstream
+=======
+A worthy note is that you do not have to explicitly shut down fibers. If you spawn
+a fiber and it finishes actively running its `IO` it will get cleaned up by the
+garbage collector unless there is some other active memory reference to it. So basically
+you can treat a fiber as any other regular object, except that when the fiber is _running_
+(present tense), the cats-effect runtime itself keeps the fiber alive.
+
+This has some interesting implications as well. Like if you create an `IO.async` node and
+register the callback with something, and you're in a Fiber which has no strong object
+references anywhere else (i.e. you did some sort of fire-and-forget thing), then the callback
+itself is the only strong reference to the fiber. Meaning if the registration fails or the
+system you registered with throws it away, the fiber will just gracefully disappear.
+
+>>>>>>> Stashed changes
 Cats-effect implements some concurrency primitives to coordinate concurrent
 fibers: [Deferred](std/deferred.md), [Ref](std/ref.md), `Semaphore`...
 
@@ -665,7 +680,7 @@ have no way to observe that until the producer fiber has finished. Alarmingly,
 note that in our example the producer _never_ finishes and thus the error would
 _never_ be observed!  And even if the producer fiber did finish, it would have
 been consuming resources for nothing.
- 
+
 In contrast `parMapN` does promote any error it finds to the caller _and_ takes
 care of canceling the other running fibers. As a result `parMapN` is simpler to
 use, more concise, and easier to reason about. _Because of that, unless you
@@ -862,7 +877,7 @@ and `offerers` are each one empty or not. For each escenario a consumer shall:
     2. If `offerers` is not empty (there is some producer waiting) then things
        are more complicated. The `queue` head will be returned to the consumer.
        Now we have a free bucket available in `queue`. So the first waiting
-       offerer can use that bucket to add the element it offers. That element 
+       offerer can use that bucket to add the element it offers. That element
        will be added to `queue`, and the `Deferred` instance will be completed
        so the producer is released (unblocked).
 2. If `queue` is empty:
