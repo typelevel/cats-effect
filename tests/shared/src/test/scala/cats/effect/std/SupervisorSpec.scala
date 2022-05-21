@@ -17,50 +17,63 @@
 package cats.effect
 package std
 
+import org.specs2.specification.core.Fragments
+
 class SupervisorSpec extends BaseSpec {
 
   "Supervisor" should {
-    "start a fiber that completes successfully" in ticked { implicit ticker =>
-      val test = Supervisor[IO].use { supervisor =>
-        supervisor.supervise(IO(1)).flatMap(_.join)
-      }
-
-      test must completeAs(Outcome.succeeded[IO, Throwable, Int](IO.pure(1)))
-    }
-
-    "start a fiber that raises an error" in ticked { implicit ticker =>
-      val t = new Throwable("failed")
-      val test = Supervisor[IO].use { supervisor =>
-        supervisor.supervise(IO.raiseError[Unit](t)).flatMap(_.join)
-      }
-
-      test must completeAs(Outcome.errored[IO, Throwable, Unit](t))
-    }
-
-    "start a fiber that self-cancels" in ticked { implicit ticker =>
-      val test = Supervisor[IO].use { supervisor =>
-        supervisor.supervise(IO.canceled).flatMap(_.join)
-      }
-
-      test must completeAs(Outcome.canceled[IO, Throwable, Unit])
-    }
-
-    "cancel active fibers when supervisor exits" in ticked { implicit ticker =>
-      val test = for {
-        fiber <- Supervisor[IO].use { supervisor => supervisor.supervise(IO.never[Unit]) }
-        outcome <- fiber.join
-      } yield outcome
-
-      test must completeAs(Outcome.canceled[IO, Throwable, Unit])
-    }
-
-    "await active fibers when supervisor exits with await = true" in ticked { implicit ticker =>
-      val test = Supervisor[IO](await = true).use { supervisor =>
-        supervisor.supervise(IO.never[Unit]).void
-      }
-
-      test must nonTerminate
-    }
+    supervisorTests("Supervisor (concurrent)", Supervisor.applyForConcurrent)
+    supervisorTests("Supervisor (async)", Supervisor.applyForAsync)
   }
 
+  private def supervisorTests(
+      name: String,
+      constructor: Boolean => Resource[IO, Supervisor[IO]]): Fragments = {
+
+    name >> {
+
+      "start a fiber that completes successfully" in ticked { implicit ticker =>
+        val test = constructor(false).use { supervisor =>
+          supervisor.supervise(IO(1)).flatMap(_.join)
+        }
+
+        test must completeAs(Outcome.succeeded[IO, Throwable, Int](IO.pure(1)))
+      }
+
+      "start a fiber that raises an error" in ticked { implicit ticker =>
+        val t = new Throwable("failed")
+        val test = constructor(false).use { supervisor =>
+          supervisor.supervise(IO.raiseError[Unit](t)).flatMap(_.join)
+        }
+
+        test must completeAs(Outcome.errored[IO, Throwable, Unit](t))
+      }
+
+      "start a fiber that self-cancels" in ticked { implicit ticker =>
+        val test = constructor(false).use { supervisor =>
+          supervisor.supervise(IO.canceled).flatMap(_.join)
+        }
+
+        test must completeAs(Outcome.canceled[IO, Throwable, Unit])
+      }
+
+      "cancel active fibers when supervisor exits" in ticked { implicit ticker =>
+        val test = for {
+          fiber <- constructor(false).use { supervisor => supervisor.supervise(IO.never[Unit]) }
+          outcome <- fiber.join
+        } yield outcome
+
+        test must completeAs(Outcome.canceled[IO, Throwable, Unit])
+      }
+
+      "await active fibers when supervisor exits with await = true" in ticked {
+        implicit ticker =>
+          val test = constructor(true).use { supervisor =>
+            supervisor.supervise(IO.never[Unit]).void
+          }
+
+          test must nonTerminate
+      }
+    }
+  }
 }
