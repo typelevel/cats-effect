@@ -82,7 +82,7 @@ Congratulations, you've just run your first `IO` within the REPL! The `unsafeRun
 The easiest way to write unit tests which use Cats Effect is with [MUnit](https://scalameta.org/munit/) and [MUnit Cats Effect](https://github.com/typelevel/munit-cats-effect). To get started, add the following to your **build.sbt**:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "munit-cats-effect-3" % "1.0.6" % Test
+libraryDependencies += "org.typelevel" %% "munit-cats-effect-3" % "1.0.7" % Test
 ```
 
 With this dependency, you can now write unit tests which directly return `IO` programs without being forced to run them using one of the `unsafe` functions. This is particularly useful if you're either using ScalaJS (where the fact that the `unsafe` functions block the event dispatcher would result in deadlock), or if you simply want your tests to run more efficiently (since MUnit can run them in parallel):
@@ -109,7 +109,7 @@ class ExampleSuite extends CatsEffectSuite {
 To get started, add the following to your **build.sbt**:
 
 ```scala
-libraryDependencies += "com.disneystreaming" %% "weaver-cats" % "0.7.6" % Test
+libraryDependencies += "com.disneystreaming" %% "weaver-cats" % "0.7.11" % Test
 testFrameworks += new TestFramework("weaver.framework.CatsEffect")
 ```
 
