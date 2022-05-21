@@ -1591,6 +1591,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def start[A](fa: IO[A]): IO[FiberIO[A]] =
       fa.start
 
+    override def racePair[A, B](
+        left: IO[A],
+        right: IO[B]): IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] =
+      IO.racePair(left, right)
+
     def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
       IO.uncancelable(body)
 
@@ -1633,6 +1638,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
      * Like [[IO.blocking]] but will attempt to abort the blocking operation using thread
      * interrupts in the event of cancelation. The interrupt will be attempted repeatedly until
      * the blocking operation completes or exits.
+     *
+     * @note
+     *   that this _really_ means what it says - it will throw exceptions in a tight loop until
+     *   the offending blocking operation exits. This is extremely expensive if it happens on a
+     *   hot path and the blocking operation is badly behaved and doesn't exit immediately.
      *
      * @param thunk
      *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
