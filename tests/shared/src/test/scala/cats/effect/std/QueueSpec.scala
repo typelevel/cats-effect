@@ -374,8 +374,8 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       tryTakeN: (Q[IO, Int], Option[Int]) => IO[List[Int]]): Fragments = {
 
     "not lose data on canceled take" in real {
-      // this is a race condition test so we iterate
-      val test = 0.until(10000).toList traverse_ { _ =>
+      // this is a race condition test so we iterate (in parallel just so it finishes faster)
+      val test = 0.until(10).toList parTraverse { _ =>
         for {
           q <- constructor(100)
           _ <- 0.until(100).toList.traverse_(offer(q, _))
@@ -414,12 +414,11 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
           // if we lost data, we'll be missing a value in backR
           results <- backR.get
-          _ <- IO(results must contain(0.until(100)))
+          _ <- IO(results must containAllOf(0.until(100)))
         } yield ()
       }
 
       test.as(ok)
-
     }
   }
 

@@ -159,19 +159,21 @@ object Queue {
     protected def onTryOfferNoCapacity(s: State[F, A], a: A): (State[F, A], F[Boolean])
 
     def offer(a: A): F[Unit] =
-      F.deferred[Unit].flatMap { offerer =>
-        F.uncancelable { poll =>
-          state.modify {
+      F.deferred[Unit] flatMap { offerer =>
+        F uncancelable { poll =>
+          val modificationF = state modify {
             case State(queue, size, takers, offerers) if takers.nonEmpty =>
               val (taker, rest) = takers.dequeue
-              State(queue, size, rest, offerers) -> taker.complete(a).void
+              State(queue.enqueue(a), size, rest, offerers) -> taker.complete(()).void
 
             case State(queue, size, takers, offerers) if size < capacity =>
               State(queue.enqueue(a), size + 1, takers, offerers) -> F.unit
 
             case s =>
               onOfferNoCapacity(s, a, offerer, poll)
-          }.flatten
+          }
+
+          modificationF.flatten
         }
       }
 
@@ -180,7 +182,7 @@ object Queue {
         .modify {
           case State(queue, size, takers, offerers) if takers.nonEmpty =>
             val (taker, rest) = takers.dequeue
-            State(queue, size, rest, offerers) -> taker.complete(a).as(true)
+            State(queue.enqueue(a), size, rest, offerers) -> taker.complete(()).as(true)
 
           case State(queue, size, takers, offerers) if size < capacity =>
             State(queue.enqueue(a), size + 1, takers, offerers) -> F.pure(true)
@@ -192,9 +194,9 @@ object Queue {
         .uncancelable
 
     val take: F[A] =
-      F.deferred[A].flatMap { taker =>
-        F.uncancelable { poll =>
-          state.modify {
+      F.deferred[Unit] flatMap { taker =>
+        F uncancelable { poll =>
+          val modificationF = state modify {
             case State(queue, size, takers, offerers) if queue.nonEmpty && offerers.isEmpty =>
               val (a, rest) = queue.dequeue
               State(rest, size - 1, takers, offerers) -> F.pure(a)
@@ -211,8 +213,10 @@ object Queue {
             case State(queue, size, takers, offerers) =>
               val cleanup = state.update { s => s.copy(takers = s.takers.filter(_ ne taker)) }
               State(queue, size, takers.enqueue(taker), offerers) ->
-                poll(taker.get).onCancel(cleanup)
-          }.flatten
+                (poll(taker.get).onCancel(cleanup) *> poll(take))
+          }
+
+          modificationF.flatten
         }
       }
 
@@ -305,7 +309,7 @@ object Queue {
   private final case class State[F[_], A](
       queue: ScalaQueue[A],
       size: Int,
-      takers: ScalaQueue[Deferred[F, A]],
+      takers: ScalaQueue[Deferred[F, Unit]],
       offerers: ScalaQueue[(A, Deferred[F, Unit])]
   )
 
