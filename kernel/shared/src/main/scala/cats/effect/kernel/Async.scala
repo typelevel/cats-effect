@@ -141,7 +141,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   def executionContext: F[ExecutionContext]
 
   /**
-   * Obtain a reference to the current execution context as a `java.util.concurrent.Executor]]`.
+   * Obtain a reference to the current execution context as a `java.util.concurrent.Executor`.
    */
   def executor: F[Executor] = map(executionContext) {
     case exec: Executor => exec
