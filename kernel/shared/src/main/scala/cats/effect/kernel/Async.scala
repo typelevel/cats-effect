@@ -68,7 +68,10 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * callback is invoked.
    *
    * `k` returns an `Option[F[Unit]]` which is an optional finalizer to be run in the event that
-   * the fiber running {{{async(k)}}} is canceled.
+   * the fiber running `async(k)` is canceled. If passed `k` is [[None]], then created effect
+   * will be uncancelable.
+   *
+   * Also, note that `async` is uncancelable during its registration.
    */
   def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
     val body = new Cont[F, A, A] {
@@ -87,7 +90,8 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
 
   /**
    * A convenience version of [[Async.async]] for when we don't need to perform `F[_]` effects
-   * or perform finalization in the event of cancelation.
+   * or perform finalization in the event of cancelation (i.e. created effect will be
+   * uncancelable).
    */
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): F[A] =
     async[A](cb => as(delay(k(cb)), None))
