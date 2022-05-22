@@ -305,15 +305,20 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * `fa`. If the evaluation of `fa` completes without encountering a cancelation, the finalizer
    * is unregistered before proceeding.
    *
+   * Note that if `fa` is uncancelable (e.g. created via [[uncancelable]]) then `fin` won't be
+   * fired.
+   *
+   * {{{
+   *   F.onCancel(F.uncancelable(_ => F.canceled), fin) <-> F.unit
+   * }}}
+   *
    * During finalization, all actively registered finalizers are run exactly once. The order by
    * which finalizers are run is dictated by nesting: innermost finalizers are run before
    * outermost finalizers. For example, in the following program, the finalizer `f1` is run
    * before the finalizer `f2`:
    *
    * {{{
-   *
    *   F.onCancel(F.onCancel(F.canceled, f1), f2)
-   *
    * }}}
    *
    * If a finalizer throws an error during evaluation, the error is suppressed, and
