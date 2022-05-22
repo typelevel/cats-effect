@@ -312,6 +312,26 @@ trait PQueueSink[F[_], A] {
    *   blocking
    */
   def tryOffer(a: A): F[Boolean]
+
+  /**
+   * Attempts to enqueue the given elements without semantically blocking.
+   * If an item in the list cannot be enqueued, the remaining elements will be
+   * returned. This is a convenience method that recursively runs `tryOffer` and does not offer
+   * any additional performance benefits.
+   *
+   * @param list
+   *   the elements to be put in the PQueue
+   * @return
+   *   an effect that contains the remaining valus that could not be offered.
+   */
+  def tryOfferN(list: List[A])(implicit F: Monad[F]): F[List[A]] = list match {
+    case Nil => F.pure(list)
+    case h :: t =>
+      tryOffer(h).ifM(
+        tryOfferN(t),
+        F.pure(list)
+      )
+  }
 }
 
 object PQueueSink {
