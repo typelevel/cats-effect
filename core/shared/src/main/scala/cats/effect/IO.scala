@@ -52,6 +52,7 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 import java.util.UUID
+import java.util.concurrent.Executor
 
 /**
  * A pure abstraction representing the intention to perform a side effect, where the result of
@@ -1128,6 +1129,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     IOCont[K, R](body, Tracing.calculateTracingEvent(body))
 
   def executionContext: IO[ExecutionContext] = ReadEC
+
+  def executor: IO[Executor] = _asyncForIO.executor
 
   def monotonic: IO[FiniteDuration] = Monotonic
 
