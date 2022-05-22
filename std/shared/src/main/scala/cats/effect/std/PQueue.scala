@@ -314,10 +314,10 @@ trait PQueueSink[F[_], A] {
   def tryOffer(a: A): F[Boolean]
 
   /**
-   * Attempts to enqueue the given elements without semantically blocking.
-   * If an item in the list cannot be enqueued, the remaining elements will be
-   * returned. This is a convenience method that recursively runs `tryOffer` and does not offer
-   * any additional performance benefits.
+   * Attempts to enqueue the given elements without semantically blocking. If an item in the
+   * list cannot be enqueued, the remaining elements will be returned. This is a convenience
+   * method that recursively runs `tryOffer` and does not offer any additional performance
+   * benefits.
    *
    * @param list
    *   the elements to be put in the PQueue
