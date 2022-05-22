@@ -33,7 +33,7 @@ package unsafe
 import cats.effect.tracing.TracingConstants
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.Duration
 
 import java.util.Comparator
@@ -60,7 +60,7 @@ private[effect] final class WorkStealingThreadPool(
     threadCount: Int, // number of worker threads
     private[unsafe] val threadPrefix: String, // prefix for the name of worker threads
     private[unsafe] val runtimeBlockingExpiration: Duration
-) extends ExecutionContext {
+) extends ExecutionContextExecutor {
 
   import TracingConstants._
   import WorkStealingThreadPoolConstants._
