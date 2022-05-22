@@ -24,8 +24,8 @@ import cats.implicits._
 import scala.annotation.{nowarn, tailrec}
 import scala.concurrent.{ExecutionContext, Future}
 
-import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A typeclass that encodes the notion of suspending asynchronous side effects in the `F[_]`
