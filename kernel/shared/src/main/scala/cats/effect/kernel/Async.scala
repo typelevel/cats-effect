@@ -25,6 +25,7 @@ import scala.annotation.{nowarn, tailrec}
 import scala.concurrent.{ExecutionContext, Future}
 
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.Executor
 
 /**
  * A typeclass that encodes the notion of suspending asynchronous side effects in the `F[_]`
@@ -138,6 +139,14 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * Obtain a reference to the current execution context.
    */
   def executionContext: F[ExecutionContext]
+
+  /**
+   * Obtain a reference to the current execution context as a [[java.util.concurrent.Executor]].
+   */
+  def executor: F[Executor] = map(executionContext) {
+    case exec: Executor => exec
+    case ec => ec.execute(_)
+  }
 
   /**
    * Lifts a [[scala.concurrent.Future]] into an `F` effect.
