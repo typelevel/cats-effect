@@ -823,7 +823,7 @@ lazy val example = crossProject(JSPlatform, JVMPlatform)
  */
 lazy val benchmarks = project
   .in(file("benchmarks"))
-  .dependsOn(core.jvm)
+  .dependsOn(core.jvm, std.jvm)
   .settings(
     name := "cats-effect-benchmarks",
     javaOptions ++= Seq(

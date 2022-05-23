@@ -144,6 +144,19 @@ trait Random[F[_]] { self =>
   def shuffleVector[A](v: Vector[A]): F[Vector[A]]
 
   /**
+   * Pseudorandomly chooses one of the given values.
+   */
+  def oneOf[A](x: A, xs: A*): F[A]
+
+  /**
+   * Pseudorandomly chooses an element of the given collection.
+   *
+   * @return
+   *   a failed effect (NoSuchElementException) if the given collection is empty
+   */
+  def elementOf[A](xs: scala.collection.Seq[A], reservoir: Boolean): F[A]
+
+  /**
    * Modifies the context in which this [[Random]] operates using the natural transformation
    * `f`.
    *
@@ -206,6 +219,11 @@ trait Random[F[_]] { self =>
       override def shuffleVector[A](v: Vector[A]): G[Vector[A]] =
         f(self.shuffleVector(v))
 
+      override def oneOf[A](x: A, xs: A*): G[A] =
+        f(self.oneOf(x, xs: _*))
+
+      override def elementOf[A](xs: scala.collection.Seq[A], reservoir: Boolean): G[A] =
+        f(self.elementOf(xs, reservoir))
     }
 }
 
@@ -443,9 +461,63 @@ object Random extends RandomCompanionPlatform {
       } yield finalOffset + int
     }
 
+    def oneOf[A](x: A, xs: A*): F[A] =
+      if (xs.isEmpty) {
+        x.pure[F]
+      } else {
+        nextIntBounded(1 + xs.size).map {
+          case 0 => x
+          case i => xs(i - 1)
+        }
+      }
+
+    def elementOf[A](xs: scala.collection.Seq[A], reservoir: Boolean): F[A] =
+      requireNonEmpty(xs) *> {
+        xs match {
+          case _: scala.collection.IndexedSeq[_] =>
+            nextIntBounded(xs.size).map(i => xs(i))
+          case _ =>
+            if (reservoir) reservoirSample(xs)
+            else nextIntBounded(xs.size).map(i => xs(i))
+        }
+      }
+
+    private def reservoirSample[A](xs: scala.collection.Seq[A]): F[A] = {
+      def go(it: Iterator[A], current: A, n: Int): F[A] = {
+        if (it.hasNext) {
+          nextIntBounded(n).flatMap {
+            case 0 =>
+              // update current
+              go(it, it.next(), n + 1)
+            case _ =>
+              // leave current as-is
+              it.next()
+              go(it, current, n + 1)
+          }
+        } else {
+          current.pure[F]
+        }
+      }
+
+      Sync[F]
+        .delay {
+          val it = xs.iterator
+          val head = it.next()
+          (it, head)
+        }
+        .flatMap { case (it, head) => go(it, head, 2) }
+    }
+
     private def require(condition: Boolean, errorMessage: => String): F[Unit] =
       if (condition) ().pure[F]
       else new IllegalArgumentException(errorMessage).raiseError[F, Unit]
+
+    private def requireNonEmpty(xs: Iterable[_]): F[Unit] =
+      if (xs.nonEmpty) ().pure[F]
+      else
+        new NoSuchElementException("Cannot choose a random element of an empty collection")
+          .raiseError[F, Unit]
+
   }
 
   private abstract class ScalaRandom[F[_]: Sync](f: F[SRandom]) extends RandomCommon[F] {

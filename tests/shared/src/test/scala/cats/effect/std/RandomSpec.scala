@@ -47,6 +47,54 @@ class RandomSpec extends BaseSpec {
       } yield bytes1 ne bytes2
     }
 
+    "oneOf" >> {
+      "return the only value provided" in real {
+        for {
+          random <- Random.scalaUtilRandom[IO]
+          chosen <- random.oneOf(42)
+        } yield chosen == 42
+      }
+
+      "eventually choose all the given values at least once" in real {
+        val values = List(1, 2, 3, 4, 5)
+        def chooseAndAccumulate(random: Random[IO], ref: Ref[IO, Set[Int]]): IO[Set[Int]] =
+          random.oneOf(values.head, values.tail: _*).flatMap(x => ref.updateAndGet(_ + x))
+        def haveChosenAllValues(ref: Ref[IO, Set[Int]]): IO[Boolean] =
+          ref.get.map(_ == values.toSet)
+
+        for {
+          random <- Random.scalaUtilRandom[IO]
+          ref <- Ref.of[IO, Set[Int]](Set.empty)
+          _ <- chooseAndAccumulate(random, ref).untilM_(haveChosenAllValues(ref))
+          success <- haveChosenAllValues(ref)
+        } yield success
+      }
+    }
+
+    "elementOf" >> {
+      "reject an empty collection" in real {
+        for {
+          random <- Random.scalaUtilRandom[IO]
+          result <- random.elementOf(Nil, reservoir = true).attempt
+        } yield result.isLeft
+      }
+
+      "eventually choose all elements of the given collection at least once" in real {
+        val xs = List(1, 2, 3, 4, 5)
+        def chooseAndAccumulate(random: Random[IO], ref: Ref[IO, Set[Int]]): IO[Set[Int]] =
+          random.elementOf(xs, reservoir = true).flatMap(x => ref.updateAndGet(_ + x))
+        def haveChosenAllElements(ref: Ref[IO, Set[Int]]): IO[Boolean] =
+          ref.get.map(_ == xs.toSet)
+
+        for {
+          random <- Random.scalaUtilRandom[IO]
+          ref <- Ref.of[IO, Set[Int]](Set.empty)
+          _ <- chooseAndAccumulate(random, ref).untilM_(haveChosenAllElements(ref))
+          success <- haveChosenAllElements(ref)
+        } yield success
+      }
+    }
+
   }
 
 }
