@@ -31,8 +31,8 @@ import cats.data.{
 import cats.effect.kernel._
 import cats.syntax.all._
 
-import scala.util.{Random => SRandom}
 import scala.annotation.tailrec
+import scala.util.{Random => SRandom}
 
 /**
  * Random is the ability to get random information, each time getting a different result.
