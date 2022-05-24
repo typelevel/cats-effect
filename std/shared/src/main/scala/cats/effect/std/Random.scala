@@ -147,7 +147,15 @@ trait Random[F[_]] { self =>
   /**
    * Pseudorandomly chooses one of the given values.
    */
-  def oneOf[A](x: A, xs: A*): F[A]
+  def oneOf[A](x: A, xs: A*)(implicit ev: Applicative[F]): F[A] =
+    if (xs.isEmpty) {
+      x.pure[F]
+    } else {
+      nextIntBounded(1 + xs.size).map {
+        case 0 => x
+        case i => xs(i - 1)
+      }
+    }
 
   /**
    * Pseudorandomly chooses an element of the given collection.
@@ -155,7 +163,29 @@ trait Random[F[_]] { self =>
    * @return
    *   a failed effect (NoSuchElementException) if the given collection is empty
    */
-  def elementOf[A](xs: Iterable[A]): F[A]
+  def elementOf[A](xs: Iterable[A])(implicit ev: MonadThrow[F]): F[A] = {
+    val requireNonEmpty: F[Unit] =
+      if (xs.nonEmpty) ().pure[F]
+      else
+        new NoSuchElementException("Cannot choose a random element of an empty collection")
+          .raiseError[F, Unit]
+
+    requireNonEmpty *> nextIntBounded(xs.size).map { i =>
+      xs match {
+        case seq: scala.collection.Seq[A] => seq(i)
+        case _ =>
+          // we don't have an apply method, so iterate through
+          // the collection's iterator until we reach the chosen index
+          @tailrec
+          def loop(it: Iterator[A], n: Int): A = {
+            val next = it.next()
+            if (n == i) next
+            else loop(it, n + 1)
+          }
+          loop(xs.iterator, 0)
+      }
+    }
+  }
 
   /**
    * Modifies the context in which this [[Random]] operates using the natural transformation
@@ -219,12 +249,6 @@ trait Random[F[_]] { self =>
 
       override def shuffleVector[A](v: Vector[A]): G[Vector[A]] =
         f(self.shuffleVector(v))
-
-      override def oneOf[A](x: A, xs: A*): G[A] =
-        f(self.oneOf(x, xs: _*))
-
-      override def elementOf[A](xs: Iterable[A]): G[A] =
-        f(self.elementOf(xs))
     }
 }
 
@@ -462,42 +486,9 @@ object Random extends RandomCompanionPlatform {
       } yield finalOffset + int
     }
 
-    def oneOf[A](x: A, xs: A*): F[A] =
-      if (xs.isEmpty) {
-        x.pure[F]
-      } else {
-        nextIntBounded(1 + xs.size).map {
-          case 0 => x
-          case i => xs(i - 1)
-        }
-      }
-
-    def elementOf[A](xs: Iterable[A]): F[A] =
-      requireNonEmpty(xs) *> nextIntBounded(xs.size).map { i =>
-        xs match {
-          case seq: scala.collection.Seq[A] => seq(i)
-          case _ =>
-            // we don't have an apply method, so iterate through
-            // the collection's iterator until we reach the chosen index
-            @tailrec
-            def loop(it: Iterator[A], n: Int): A = {
-              val next = it.next()
-              if (n == i) next
-              else loop(it, n + 1)
-            }
-            loop(xs.iterator, 0)
-        }
-      }
-
     private def require(condition: Boolean, errorMessage: => String): F[Unit] =
       if (condition) ().pure[F]
       else new IllegalArgumentException(errorMessage).raiseError[F, Unit]
-
-    private def requireNonEmpty(xs: Iterable[_]): F[Unit] =
-      if (xs.nonEmpty) ().pure[F]
-      else
-        new NoSuchElementException("Cannot choose a random element of an empty collection")
-          .raiseError[F, Unit]
 
   }
 
