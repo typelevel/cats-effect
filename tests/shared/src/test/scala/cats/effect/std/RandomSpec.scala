@@ -75,14 +75,14 @@ class RandomSpec extends BaseSpec {
       "reject an empty collection" in real {
         for {
           random <- Random.scalaUtilRandom[IO]
-          result <- random.elementOf(Nil, reservoir = true).attempt
+          result <- random.elementOf(Nil).attempt
         } yield result.isLeft
       }
 
       "eventually choose all elements of the given collection at least once" in real {
         val xs = List(1, 2, 3, 4, 5)
         def chooseAndAccumulate(random: Random[IO], ref: Ref[IO, Set[Int]]): IO[Set[Int]] =
-          random.elementOf(xs, reservoir = true).flatMap(x => ref.updateAndGet(_ + x))
+          random.elementOf(xs).flatMap(x => ref.updateAndGet(_ + x))
         def haveChosenAllElements(ref: Ref[IO, Set[Int]]): IO[Boolean] =
           ref.get.map(_ == xs.toSet)
 

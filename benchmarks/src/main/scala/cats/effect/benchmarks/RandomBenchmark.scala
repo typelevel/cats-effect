@@ -47,21 +47,25 @@ class RandomBenchmark {
   @Param(Array("10000", "100000", "1000000"))
   var size: Int = _
 
-  @Param(Array("true", "false"))
-  var reservoir: Boolean = _
-
-  var xs: List[Int] = _
+  var list: List[Int] = _
+  var vector: Vector[Int] = _
 
   @Setup
   def setup(): Unit = {
-    xs = (1 to size).toList
+    list = (1 to size).toList
+    vector = (1 to size).toVector
   }
 
   val random: Random[IO] = Random.scalaUtilRandom[IO].unsafeRunSync()
 
   @Benchmark
-  def elementOf(): Int = {
-    random.elementOf(xs, reservoir).unsafeRunSync()
+  def elementOfList(): Int = {
+    random.elementOf(list).unsafeRunSync()
+  }
+
+  @Benchmark
+  def elementOfVector(): Int = {
+    random.elementOf(vector).unsafeRunSync()
   }
 
 }

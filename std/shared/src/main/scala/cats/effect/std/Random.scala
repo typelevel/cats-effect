@@ -154,7 +154,7 @@ trait Random[F[_]] { self =>
    * @return
    *   a failed effect (NoSuchElementException) if the given collection is empty
    */
-  def elementOf[A](xs: scala.collection.Seq[A], reservoir: Boolean): F[A]
+  def elementOf[A](xs: scala.collection.Seq[A]): F[A]
 
   /**
    * Modifies the context in which this [[Random]] operates using the natural transformation
@@ -222,8 +222,8 @@ trait Random[F[_]] { self =>
       override def oneOf[A](x: A, xs: A*): G[A] =
         f(self.oneOf(x, xs: _*))
 
-      override def elementOf[A](xs: scala.collection.Seq[A], reservoir: Boolean): G[A] =
-        f(self.elementOf(xs, reservoir))
+      override def elementOf[A](xs: scala.collection.Seq[A]): G[A] =
+        f(self.elementOf(xs))
     }
 }
 
@@ -471,42 +471,8 @@ object Random extends RandomCompanionPlatform {
         }
       }
 
-    def elementOf[A](xs: scala.collection.Seq[A], reservoir: Boolean): F[A] =
-      requireNonEmpty(xs) *> {
-        xs match {
-          case _: scala.collection.IndexedSeq[_] =>
-            nextIntBounded(xs.size).map(i => xs(i))
-          case _ =>
-            if (reservoir) reservoirSample(xs)
-            else nextIntBounded(xs.size).map(i => xs(i))
-        }
-      }
-
-    private def reservoirSample[A](xs: scala.collection.Seq[A]): F[A] = {
-      def go(it: Iterator[A], current: A, n: Int): F[A] = {
-        if (it.hasNext) {
-          nextIntBounded(n).flatMap {
-            case 0 =>
-              // update current
-              go(it, it.next(), n + 1)
-            case _ =>
-              // leave current as-is
-              it.next()
-              go(it, current, n + 1)
-          }
-        } else {
-          current.pure[F]
-        }
-      }
-
-      Sync[F]
-        .delay {
-          val it = xs.iterator
-          val head = it.next()
-          (it, head)
-        }
-        .flatMap { case (it, head) => go(it, head, 2) }
-    }
+    def elementOf[A](xs: scala.collection.Seq[A]): F[A] =
+      requireNonEmpty(xs) *> nextIntBounded(xs.size).map(i => xs(i))
 
     private def require(condition: Boolean, errorMessage: => String): F[Unit] =
       if (condition) ().pure[F]
