@@ -32,6 +32,7 @@ import cats.effect.kernel._
 import cats.syntax.all._
 
 import scala.util.{Random => SRandom}
+import scala.annotation.tailrec
 
 /**
  * Random is the ability to get random information, each time getting a different result.
@@ -154,7 +155,7 @@ trait Random[F[_]] { self =>
    * @return
    *   a failed effect (NoSuchElementException) if the given collection is empty
    */
-  def elementOf[A](xs: scala.collection.Seq[A]): F[A]
+  def elementOf[A](xs: Iterable[A]): F[A]
 
   /**
    * Modifies the context in which this [[Random]] operates using the natural transformation
@@ -222,7 +223,7 @@ trait Random[F[_]] { self =>
       override def oneOf[A](x: A, xs: A*): G[A] =
         f(self.oneOf(x, xs: _*))
 
-      override def elementOf[A](xs: scala.collection.Seq[A]): G[A] =
+      override def elementOf[A](xs: Iterable[A]): G[A] =
         f(self.elementOf(xs))
     }
 }
@@ -471,8 +472,22 @@ object Random extends RandomCompanionPlatform {
         }
       }
 
-    def elementOf[A](xs: scala.collection.Seq[A]): F[A] =
-      requireNonEmpty(xs) *> nextIntBounded(xs.size).map(i => xs(i))
+    def elementOf[A](xs: Iterable[A]): F[A] =
+      requireNonEmpty(xs) *> nextIntBounded(xs.size).map { i =>
+        xs match {
+          case seq: scala.collection.Seq[A] => seq(i)
+          case _ =>
+            // we don't have an apply method, so iterate through
+            // the collection's iterator until we reach the chosen index
+            @tailrec
+            def loop(it: Iterator[A], n: Int): A = {
+              val next = it.next()
+              if (n == i) next
+              else loop(it, n + 1)
+            }
+            loop(xs.iterator, 0)
+        }
+      }
 
     private def require(condition: Boolean, errorMessage: => String): F[Unit] =
       if (condition) ().pure[F]
