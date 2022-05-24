@@ -49,11 +49,13 @@ class RandomBenchmark {
 
   var list: List[Int] = _
   var vector: Vector[Int] = _
+  var map: Map[String, Int] = _
 
   @Setup
   def setup(): Unit = {
     list = (1 to size).toList
     vector = (1 to size).toVector
+    map = (1 to size).map(x => (x.toString, x)).toMap
   }
 
   val random: Random[IO] = Random.scalaUtilRandom[IO].unsafeRunSync()
@@ -66,6 +68,11 @@ class RandomBenchmark {
   @Benchmark
   def elementOfVector(): Int = {
     random.elementOf(vector).unsafeRunSync()
+  }
+
+  @Benchmark
+  def elementOfMap(): (String, Int) = {
+    random.elementOf(map).unsafeRunSync()
   }
 
 }
