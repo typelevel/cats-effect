@@ -833,7 +833,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    */
   def unsafeRunAndForget()(implicit runtime: unsafe.IORuntime): Unit =
     unsafeRunAsync {
-      case Left(NonFatal(e)) => ()
+      case Left(NonFatal(_)) => ()
       case Left(e) => System.err.println(e)
       case _ => ()
     }
