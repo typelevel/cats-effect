@@ -17,42 +17,43 @@
 package cats.effect
 
 import cats.{
-  Monoid,
-  Id,
   Align,
-  SemigroupK,
+  Alternative,
+  Applicative,
   CommutativeApplicative,
+  Eval,
+  Functor,
+  Id,
+  Monad,
+  Monoid,
+  Now,
   Parallel,
   Semigroup,
-  StackSafeMonad,
-  Eval,
-  Now,
-  Monad,
-  Applicative,
-  Functor,
+  SemigroupK,
   Show,
-  Alternative,
+  StackSafeMonad,
   Traverse
 }
 import cats.data.Ior
 import cats.effect.instances.spawn
-import cats.effect.std.{UUIDGen, Console, Env}
-import cats.effect.tracing.{TracingEvent, Tracing}
+import cats.effect.std.{Console, Env, UUIDGen}
+import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.syntax.all._
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{
-  TimeoutException,
   CancellationException,
   ExecutionContext,
   Future,
-  Promise
+  Promise,
+  TimeoutException
 }
 import scala.concurrent.duration._
-import scala.util.{Try, Success, Failure}
+import scala.util.{Failure, Success, Try}
+import scala.util.control.NonFatal
+
 import java.util.UUID
 import java.util.concurrent.Executor
-import scala.util.control.NonFatal
 
 /**
  * A pure abstraction representing the intention to perform a side effect, where the result of
@@ -834,7 +835,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def unsafeRunAndForget()(implicit runtime: unsafe.IORuntime): Unit =
     unsafeRunAsync {
       case Left(NonFatal(_)) => ()
-      case Left(e) => System.err.println(e)
+      case Left(e) => e.printStackTrace()
       case _ => ()
     }
 
