@@ -123,28 +123,28 @@ object Dequeue {
       extends Dequeue[F, A] {
 
     override def offerBack(a: A): F[Unit] =
-      _offer(a, queue => queue.pushBack(a))
+      _offer(a, _.pushBack(a))
 
     override def tryOfferBack(a: A): F[Boolean] =
-      _tryOffer(a, queue => queue.pushBack(a))
+      _tryOffer(_.pushBack(a))
 
     override def takeBack: F[A] =
-      _take(queue => queue.tryPopBack)
+      _take(_.tryPopBack)
 
     override def tryTakeBack: F[Option[A]] =
-      _tryTake(queue => queue.tryPopBack)
+      _tryTake(_.tryPopBack)
 
     override def offerFront(a: A): F[Unit] =
-      _offer(a, queue => queue.pushFront(a))
+      _offer(a, _.pushFront(a))
 
     override def tryOfferFront(a: A): F[Boolean] =
-      _tryOffer(a, queue => queue.pushFront(a))
+      _tryOffer(_.pushFront(a))
 
     override def takeFront: F[A] =
-      _take(queue => queue.tryPopFront)
+      _take(_.tryPopFront)
 
     override def tryTakeFront: F[Option[A]] =
-      _tryTake(queue => queue.tryPopFront)
+      _tryTake(_.tryPopFront)
 
     override def reverse: F[Unit] =
       state.update {
@@ -158,7 +158,7 @@ object Dequeue {
           state.modify {
             case State(queue, size, takers, offerers) if takers.nonEmpty =>
               val (taker, rest) = takers.dequeue
-              State(queue, size, rest, offerers) -> taker.complete(a).void
+              State(update(queue), size, rest, offerers) -> taker.complete(()).void
 
             case State(queue, size, takers, offerers) if size < capacity =>
               State(update(queue), size + 1, takers, offerers) -> F.unit
@@ -174,12 +174,12 @@ object Dequeue {
         }
       }
 
-    private def _tryOffer(a: A, update: BankersQueue[A] => BankersQueue[A]) =
+    private def _tryOffer(update: BankersQueue[A] => BankersQueue[A]) =
       state
         .modify {
           case State(queue, size, takers, offerers) if takers.nonEmpty =>
             val (taker, rest) = takers.dequeue
-            State(queue, size, rest, offerers) -> taker.complete(a).as(true)
+            State(update(queue), size, rest, offerers) -> taker.complete(()).as(true)
 
           case State(queue, size, takers, offerers) if size < capacity =>
             State(update(queue), size + 1, takers, offerers) -> F.pure(true)
@@ -191,9 +191,9 @@ object Dequeue {
         .uncancelable
 
     private def _take(dequeue: BankersQueue[A] => (BankersQueue[A], Option[A])): F[A] =
-      F.deferred[A].flatMap { taker =>
-        F.uncancelable { poll =>
-          state.modify {
+      F.deferred[Unit] flatMap { taker =>
+        F uncancelable { poll =>
+          val modificationF = state modify {
             case State(queue, size, takers, offerers) if queue.nonEmpty && offerers.isEmpty =>
               val (rest, ma) = dequeue(queue)
               val a = ma.get
@@ -212,8 +212,10 @@ object Dequeue {
             case State(queue, size, takers, offerers) =>
               val cleanup = state.update { s => s.copy(takers = s.takers.filter(_ ne taker)) }
               State(queue, size, takers.enqueue(taker), offerers) ->
-                poll(taker.get).onCancel(cleanup)
-          }.flatten
+                poll(taker.get).onCancel(cleanup) *> poll(_take(dequeue))
+          }
+
+          modificationF.flatten
         }
       }
 
@@ -249,7 +251,7 @@ object Dequeue {
   private[std] final case class State[F[_], A](
       queue: BankersQueue[A],
       size: Int,
-      takers: ScalaQueue[Deferred[F, A]],
+      takers: ScalaQueue[Deferred[F, Unit]],
       offerers: ScalaQueue[(A, Deferred[F, Unit])]
   )
 
