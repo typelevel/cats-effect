@@ -28,13 +28,17 @@ import sbtcrossproject.CrossProject
 import JSEnv._
 
 // sbt-git workarounds
-ThisBuild / useConsoleForROGit := true
+ThisBuild / useConsoleForROGit := !(ThisBuild / githubIsWorkflowBuild).value
 
 ThisBuild / git.gitUncommittedChanges := {
-  import scala.sys.process._
-  import scala.util.Try
+  if ((ThisBuild / githubIsWorkflowBuild).value) {
+    git.gitUncommittedChanges.value
+  } else {
+    import scala.sys.process._
+    import scala.util.Try
 
-  Try("git status -s".!!.trim.length > 0).getOrElse(true)
+    Try("git status -s".!!.trim.length > 0).getOrElse(true)
+  }
 }
 
 ThisBuild / tlBaseVersion := "3.4"
@@ -131,8 +135,8 @@ ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Use(
     UseRef.Public("actions", "setup-node", "v2.4.0"),
-    name = Some("Setup NodeJS v14 LTS"),
-    params = Map("node-version" -> "14"),
+    name = Some("Setup NodeJS v16 LTS"),
+    params = Map("node-version" -> "16"),
     cond = Some("matrix.ci == 'ciJS'")
   ),
   WorkflowStep.Run(
@@ -179,6 +183,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
   val scalaJavaFilters = for {
     scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
     java <- (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(OldGuardJava))
+    if !(scala == Scala3 && java == LatestJava)
   } yield MatrixExclude(Map("scala" -> scala, "java" -> java.render))
 
   val windowsAndMacScalaFilters =

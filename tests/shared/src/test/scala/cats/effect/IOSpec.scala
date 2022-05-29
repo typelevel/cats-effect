@@ -277,6 +277,32 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
         action must completeAs(Nil)
       }
+
+      // https://github.com/typelevel/cats-effect/issues/2962
+      "not report failures in timeout" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        val action = IO.executionContext flatMap { ec =>
+          IO defer {
+            var ts: List[Throwable] = Nil
+
+            val ec2 = new ExecutionContext {
+              def reportFailure(t: Throwable) = ts ::= t
+              def execute(r: Runnable) = ec.execute(r)
+            }
+
+            for {
+              f <- (IO.sleep(10.millis) *> IO
+                .raiseError(TestException)
+                .timeoutTo(1.minute, IO.pure(42))).start.evalOn(ec2)
+              _ <- f.join
+              back <- IO(ts)
+            } yield back
+          }
+        }
+
+        action must completeAs(Nil)
+      }
     }
 
     "suspension of side effects" should {
