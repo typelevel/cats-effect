@@ -99,7 +99,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
     negativeCapacityConstructionTests(constructor)
     tryOfferOnFullTests(constructor, _.offer(_), _.tryOffer(_), false)
     cancelableOfferTests(constructor, _.offer(_), _.take, _.tryTake)
-    cancelableTakeTests(constructor, _.offer(_), _.take, _.tryTakeN(_))
+    cancelableTakeTests(constructor, _.offer(_), _.take)
     tryOfferTryTakeTests(constructor, _.tryOffer(_), _.tryTake)
     commonTests(constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
     batchTakeTests(constructor, _.offer(_), _.tryTakeN(_))
@@ -144,7 +144,7 @@ class DroppingQueueSpec extends BaseSpec with QueueTests[Queue] {
     zeroCapacityConstructionTests(constructor)
     tryOfferOnFullTests(constructor, _.offer(_), _.tryOffer(_), false)
     cancelableOfferTests(constructor, _.offer(_), _.take, _.tryTake)
-    cancelableTakeTests(constructor, _.offer(_), _.take, _.tryTakeN(_))
+    cancelableTakeTests(constructor, _.offer(_), _.take)
     tryOfferTryTakeTests(constructor, _.tryOffer(_), _.tryTake)
     commonTests(constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
     batchTakeTests(constructor, _.offer(_), _.tryTakeN(_))
@@ -371,14 +371,13 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
   def cancelableTakeTests(
       constructor: Int => IO[Q[IO, Int]],
       offer: (Q[IO, Int], Int) => IO[Unit],
-      take: Q[IO, Int] => IO[Int],
-      tryTakeN: (Q[IO, Int], Option[Int]) => IO[List[Int]]): Fragments = {
+      take: Q[IO, Int] => IO[Int]): Fragments = {
 
     "not lose data on canceled take" in real {
       val test = for {
         q <- constructor(100)
 
-        producerFiber <- 0.until(100).toList.traverse_(offer(q, _) *> IO.cede).start
+        _ <- 0.until(100).toList.traverse_(offer(q, _) *> IO.cede).start
 
         results <- IO.ref(-1)
         latch <- IO.deferred[Unit]
@@ -386,9 +385,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         consumer = for {
           _ <- latch.complete(())
           _ <- 0.until(100).toList traverse_ { _ =>
-            IO uncancelable { poll =>
-              poll(take(q)).flatMap(results.set(_))
-            }
+            IO uncancelable { poll => poll(take(q)).flatMap(results.set(_)) }
           }
         } yield ()
 
@@ -398,17 +395,18 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         _ <- consumerFiber.cancel
 
         max <- results.get
-        continue <- if (max < 99) {
-          for {
-            next <- take(q)
-            _ <- IO(next mustEqual (max + 1))
-          } yield false
-        } else {
-          IO.pure(true)
-        }
+        continue <-
+          if (max < 99) {
+            for {
+              next <- take(q)
+              _ <- IO(next mustEqual (max + 1))
+            } yield false
+          } else {
+            IO.pure(true)
+          }
       } yield continue
 
-      val Bound = 10    // only try ten times before skipping
+      val Bound = 10 // only try ten times before skipping
       def loop(i: Int): IO[Result] = {
         if (i > Bound) {
           IO.pure(skipped(s"attempted $i times and could not reproduce scenario"))
