@@ -26,8 +26,8 @@ import java.io.File
 class IOAppSpec extends Specification {
 
   abstract class Platform(val id: String) { outer =>
-    def builder(proto: IOApp, args: List[String]): ProcessBuilder
-    def pid(proto: IOApp): Option[Int]
+    def builder(proto: AnyRef, args: List[String]): ProcessBuilder
+    def pid(proto: AnyRef): Option[Int]
 
     def dumpSignal: String
 
@@ -36,7 +36,7 @@ class IOAppSpec extends Specification {
       ()
     }
 
-    def apply(proto: IOApp, args: List[String]): Handle = {
+    def apply(proto: AnyRef, args: List[String]): Handle = {
       val stdoutBuffer = new StringBuffer()
       val stderrBuffer = new StringBuffer()
       val p = builder(proto, args).run(BasicIO(false, stdoutBuffer, None).withError { in =>
@@ -70,13 +70,13 @@ class IOAppSpec extends Specification {
 
     val dumpSignal = "USR1"
 
-    def builder(proto: IOApp, args: List[String]) = Process(
+    def builder(proto: AnyRef, args: List[String]) = Process(
       s"$JavaHome/bin/java",
       List("-cp", ClassPath, proto.getClass.getName.replaceAll("\\$$", "")) ::: args)
 
     // scala.sys.process.Process and java.lang.Process lack getting PID support. Java 9+ introduced it but
     // whatever because it's very hard to obtain a java.lang.Process from scala.sys.process.Process.
-    def pid(proto: IOApp): Option[Int] = {
+    def pid(proto: AnyRef): Option[Int] = {
       val mainName = proto.getClass.getSimpleName.replace("$", "")
       val jpsStdoutBuffer = new StringBuffer()
       val jpsProcess =
@@ -92,14 +92,14 @@ class IOAppSpec extends Specification {
   object Node extends Platform("node") {
     val dumpSignal = "USR2"
 
-    def builder(proto: IOApp, args: List[String]) =
+    def builder(proto: AnyRef, args: List[String]) =
       Process(
         s"node",
         "--enable-source-maps" :: BuildInfo
           .jsRunner
           .getAbsolutePath :: proto.getClass.getName.init :: args)
 
-    def pid(proto: IOApp): Option[Int] = {
+    def pid(proto: AnyRef): Option[Int] = {
       val mainName = proto.getClass.getName.init
       val stdoutBuffer = new StringBuffer()
       val process =
@@ -124,6 +124,8 @@ class IOAppSpec extends Specification {
     s"IOApp (${platform.id})" should {
       import catseffect.examples._
 
+      val isWindows = System.getProperty("os.name").toLowerCase.contains("windows")
+
       "evaluate and print hello world" in {
         val h = platform(HelloWorld, Nil)
         h.awaitStatus() mustEqual 0
@@ -140,129 +142,116 @@ class IOAppSpec extends Specification {
           System.lineSeparator())
       }
 
-      if (System.getProperty("os.name").toLowerCase.contains("windows")) {
+      if (isWindows) {
         // The jvm cannot gracefully terminate processes on Windows, so this
         // test cannot be carried out properly. Same for testing IOApp in sbt.
         "run finalizers on TERM" in skipped(
           "cannot observe graceful process termination on Windows")
-        "exit on fatal error" in skipped(
-          "cannot observe graceful process termination on Windows")
-        "exit on fatal error with other unsafe runs" in skipped(
-          "cannot observe graceful process termination on Windows")
-        "exit on canceled" in skipped("cannot observe graceful process termination on Windows")
-        "warn on global runtime collision" in skipped(
-          "cannot observe graceful process termination on Windows")
-        "abort awaiting shutdown hooks" in skipped(
-          "cannot observe graceful process termination on Windows")
-        "live fiber snapshot" in skipped(
-          "cannot observe graceful process termination on Windows")
       } else {
         "run finalizers on TERM" in {
-          if (System.getProperty("os.name").toLowerCase.contains("windows")) {
-            // The jvm cannot gracefully terminate processes on Windows, so this
-            // test cannot be carried out properly. Same for testing IOApp in sbt.
-            ok
-          } else {
-            import _root_.java.io.{BufferedReader, FileReader}
+          import _root_.java.io.{BufferedReader, FileReader}
 
-            // we have to resort to this convoluted approach because Process#destroy kills listeners before killing the process
-            val test = File.createTempFile("cats-effect", "finalizer-test")
-            def readTest(): String = {
-              val reader = new BufferedReader(new FileReader(test))
-              try {
-                reader.readLine()
-              } finally {
-                reader.close()
-              }
+          // we have to resort to this convoluted approach because Process#destroy kills listeners before killing the process
+          val test = File.createTempFile("cats-effect", "finalizer-test")
+          def readTest(): String = {
+            val reader = new BufferedReader(new FileReader(test))
+            try {
+              reader.readLine()
+            } finally {
+              reader.close()
             }
-
-            val h = platform(Finalizers, test.getAbsolutePath() :: Nil)
-
-            var i = 0
-            while (!h.stdout().contains("Started") && i < 100) {
-              Thread.sleep(100)
-              i += 1
-            }
-
-            Thread.sleep(
-              100
-            ) // give thread scheduling just a sec to catch up and get us into the latch.await()
-
-            h.term()
-            h.awaitStatus() mustEqual 143
-
-            i = 0
-            while (readTest() == null && i < 100) {
-              i += 1
-            }
-            readTest() must contain("canceled")
           }
-        }
 
-        "exit on non-fatal error" in {
-          val h = platform(NonFatalError, List.empty)
-          h.awaitStatus() mustEqual 1
-          h.stderr() must contain("Boom!")
-        }
+          val h = platform(Finalizers, test.getAbsolutePath() :: Nil)
 
-        "exit on fatal error" in {
-          val h = platform(FatalError, List.empty)
-          h.awaitStatus() mustEqual 1
-          h.stderr() must contain("Boom!")
-        }
+          var i = 0
+          while (!h.stdout().contains("Started") && i < 100) {
+            Thread.sleep(100)
+            i += 1
+          }
 
-        "exit on fatal error with other unsafe runs" in {
-          val h = platform(FatalErrorUnsafeRun, List.empty)
-          h.awaitStatus() mustEqual 1
-          h.stderr() must contain("Boom!")
-        }
+          Thread.sleep(
+            100
+          ) // give thread scheduling just a sec to catch up and get us into the latch.await()
 
-        "exit on canceled" in {
-          val h = platform(Canceled, List.empty)
-          h.awaitStatus() mustEqual 1
-        }
+          h.term()
+          h.awaitStatus() mustEqual 143
 
-        "exit with leaked fibers" in {
-          val h = platform(LeakedFiber, List.empty)
+          i = 0
+          while (readTest() == null && i < 100) {
+            i += 1
+          }
+          readTest() must contain("canceled")
+        }
+      }
+
+      "exit on non-fatal error" in {
+        val h = platform(NonFatalError, List.empty)
+        h.awaitStatus() mustEqual 1
+        h.stderr() must contain("Boom!")
+      }
+
+      "exit on fatal error" in {
+        val h = platform(FatalError, List.empty)
+        h.awaitStatus() mustEqual 1
+        h.stderr() must contain("Boom!")
+        h.stdout() must not(contain("sadness"))
+      }
+
+      "exit on fatal error without IOApp" in {
+        val h = platform(FatalErrorRaw, List.empty)
+        h.awaitStatus()
+        h.stdout() must not(contain("sadness"))
+        h.stderr() must not(contain("Promise already completed"))
+      }
+
+      "exit on fatal error with other unsafe runs" in {
+        val h = platform(FatalErrorUnsafeRun, List.empty)
+        h.awaitStatus() mustEqual 1
+        h.stderr() must contain("Boom!")
+      }
+
+      "exit on canceled" in {
+        val h = platform(Canceled, List.empty)
+        h.awaitStatus() mustEqual 1
+      }
+
+      "exit with leaked fibers" in {
+        val h = platform(LeakedFiber, List.empty)
+        h.awaitStatus() mustEqual 0
+      }
+
+      "warn on global runtime collision" in {
+        val h = platform(GlobalRacingInit, List.empty)
+        h.awaitStatus() mustEqual 0
+        h.stderr() must contain(
+          "Cats Effect global runtime already initialized; custom configurations will be ignored")
+        h.stderr() must not(contain("boom"))
+      }
+
+      "abort awaiting shutdown hooks" in {
+        val h = platform(ShutdownHookImmediateTimeout, List.empty)
+        h.awaitStatus() mustEqual 0
+      }
+
+      if (BuildInfo.testJSIOApp) {
+        "gracefully ignore undefined process.exit" in {
+          val h = platform(UndefinedProcessExit, List.empty)
           h.awaitStatus() mustEqual 0
         }
 
-        "warn on global runtime collision" in {
-          val h = platform(GlobalRacingInit, List.empty)
-          h.awaitStatus() mustEqual 0
-          h.stderr() must contain(
-            "Cats Effect global runtime already initialized; custom configurations will be ignored")
-          h.stderr() must not(contain("boom"))
-        }
+        "support main thread evaluation" in skipped(
+          "JavaScript is all main thread, all the time")
 
-        "abort awaiting shutdown hooks" in {
-          val h = platform(ShutdownHookImmediateTimeout, List.empty)
-          h.awaitStatus() mustEqual 0
-        }
+      } else {
+        val isJava8 = sys.props.get("java.version").filter(_.startsWith("1.8")).isDefined
 
-        if (!BuildInfo.testJSIOApp) {
-          "shutdown on worker thread interruption" in {
-            val h = platform(WorkerThreadInterrupt, List.empty)
-            h.awaitStatus() mustEqual 1
-            h.stderr() must contain("java.lang.InterruptedException")
-            ok
-          }
-        }
-
-        if (BuildInfo.testJSIOApp) {
-          "gracefully ignore undefined process.exit" in {
-            val h = platform(UndefinedProcessExit, List.empty)
-            h.awaitStatus() mustEqual 0
-          }
-        }
-
-        if (!BuildInfo.testJSIOApp && sys
-            .props
-            .get("java.version")
-            .filter(_.startsWith("1.8"))
-            .isDefined) {
+        if (isJava8) {
           "live fiber snapshot" in skipped(
             "JDK 8 does not have free signals for live fiber snapshots")
+        } else if (isWindows) {
+          "live fiber snapshot" in skipped(
+            "cannot observe signals sent to process termination on Windows")
         } else {
           "live fiber snapshot" in {
             val h = platform(LiveFiberSnapshot, List.empty)
@@ -279,6 +268,18 @@ class IOAppSpec extends Specification {
             val stderr = h.stderr()
             stderr must contain("cats.effect.IOFiber")
           }
+        }
+
+        "shutdown on worker thread interruption" in {
+          val h = platform(WorkerThreadInterrupt, List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("java.lang.InterruptedException")
+          ok
+        }
+
+        "support main thread evaluation" in {
+          val h = platform(EvalOnMainThread, List.empty)
+          h.awaitStatus() mustEqual 0
         }
       }
     }

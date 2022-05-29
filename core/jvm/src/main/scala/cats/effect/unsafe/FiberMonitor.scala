@@ -20,7 +20,6 @@ package unsafe
 import cats.effect.tracing.TracingConstants
 import cats.effect.unsafe.ref.WeakReference
 
-import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -53,6 +52,10 @@ private[effect] sealed class FiberMonitor(
   private[this] final val Bags = FiberMonitor.Bags
   private[this] final val BagReferences = FiberMonitor.BagReferences
 
+  private[this] val justFibers: PartialFunction[Runnable, IOFiber[_]] = {
+    case fiber: IOFiber[_] => fiber
+  }
+
   /**
    * Registers a suspended fiber.
    *
@@ -80,8 +83,24 @@ private[effect] sealed class FiberMonitor(
    * Obtains a snapshot of the fibers currently live on the [[IORuntime]] which this fiber
    * monitor instance belongs to.
    *
-   * @return
-   *   a textual representation of the runtime snapshot, `None` if a snapshot cannot be obtained
+   * `print` function can be used to print or accumulate a textual representation of the runtime
+   * snapshot.
+   *
+   * @example
+   *   Accumulate a live snapshot
+   *   {{{
+   *   val monitor: FiberMonitor = ???
+   *   val buffer = new ArrayBuffer[String]
+   *   monitor.liveFiberSnapshot(buffer += _)
+   *   buffer.toArray
+   *   }}}
+   *
+   * @example
+   *   Print a live snapshot
+   *   {{{
+   *   val monitor: FiberMonitor = ???
+   *   monitor.liveFiberSnapshot(System.out.print(_))
+   *   }}}
    */
   def liveFiberSnapshot(print: String => Unit): Unit =
     if (TracingConstants.isStackTracing)
@@ -89,7 +108,20 @@ private[effect] sealed class FiberMonitor(
         printFibers(foreignFibers(), "ACTIVE")(print)
         print(newline)
       } { compute =>
-        val (rawExternal, workersMap, rawSuspended) = compute.liveFibers()
+        val (rawExternal, workersMap, rawSuspended) = {
+          val (external, workers, suspended) = compute.liveFibers()
+          val externalFibers = external.collect(justFibers).filterNot(_.isDone)
+          val suspendedFibers = suspended.collect(justFibers).filterNot(_.isDone)
+          val workersMapping: Map[WorkerThread, (Option[IOFiber[_]], Set[IOFiber[_]])] =
+            workers.map {
+              case (thread, (opt, set)) =>
+                val filteredOpt = opt.collect(justFibers)
+                val filteredSet = set.collect(justFibers)
+                (thread, (filteredOpt, filteredSet))
+            }
+
+          (externalFibers, workersMapping, suspendedFibers)
+        }
         val rawForeign = foreignFibers()
 
         // We trust the sources of data in the following order, ordered from
@@ -101,7 +133,7 @@ private[effect] sealed class FiberMonitor(
 
         val localAndActive = workersMap.foldLeft(Set.empty[IOFiber[_]]) {
           case (acc, (_, (active, local))) =>
-            (acc ++ local) ++ active.toSet
+            (acc ++ local) ++ active.toSet.collect(justFibers)
         }
         val external = rawExternal -- localAndActive
         val suspended = rawSuspended -- localAndActive -- external
@@ -109,14 +141,16 @@ private[effect] sealed class FiberMonitor(
 
         val workersStatuses = workersMap map {
           case (worker, (active, local)) =>
+            val yielding = local.filterNot(_.isDone)
+
             val status =
               if (worker.getState() == Thread.State.RUNNABLE) "RUNNING" else "BLOCKED"
 
-            val workerString = s"$worker (#${worker.index}): ${local.size} enqueued"
+            val workerString = s"$worker (#${worker.index}): ${yielding.size} enqueued"
 
             print(doubleNewline)
             active.map(fiberString(_, status)).foreach(print(_))
-            printFibers(local, "YIELDING")(print)
+            printFibers(yielding, "YIELDING")(print)
 
             workerString
         }
@@ -144,18 +178,27 @@ private[effect] sealed class FiberMonitor(
     handle
   }
 
+  /**
+   * Returns a set of active fibers (SUSPENDED or RUNNING). Completed fibers are filtered out.
+   *
+   * @see
+   *   [[cats.effect.IOFiber.isDone IOFiber#isDone]] for 'completed' condition
+   *
+   * @return
+   *   a set of active fibers
+   */
   private[this] def foreignFibers(): Set[IOFiber[_]] = {
-    val foreign = mutable.Set.empty[IOFiber[_]]
+    val foreign = Set.newBuilder[IOFiber[_]]
 
     BagReferences.iterator().forEachRemaining { bagRef =>
       val bag = bagRef.get()
       if (bag ne null) {
         val _ = bag.synchronizationPoint.get()
-        foreign ++= bag.toSet
+        foreign ++= bag.toSet.collect(justFibers).filterNot(_.isDone)
       }
     }
 
-    foreign.toSet
+    foreign.result()
   }
 }
 
@@ -175,14 +218,14 @@ private[effect] object FiberMonitor {
     }
   }
 
-  private[FiberMonitor] final val Bags: ThreadLocal[WeakBag[IOFiber[_]]] =
+  private[FiberMonitor] final val Bags: ThreadLocal[WeakBag[Runnable]] =
     ThreadLocal.withInitial { () =>
-      val bag = new WeakBag[IOFiber[_]]()
+      val bag = new WeakBag[Runnable]()
       BagReferences.offer(new WeakReference(bag))
       bag
     }
 
   private[FiberMonitor] final val BagReferences
-      : ConcurrentLinkedQueue[WeakReference[WeakBag[IOFiber[_]]]] =
+      : ConcurrentLinkedQueue[WeakReference[WeakBag[Runnable]]] =
     new ConcurrentLinkedQueue()
 }

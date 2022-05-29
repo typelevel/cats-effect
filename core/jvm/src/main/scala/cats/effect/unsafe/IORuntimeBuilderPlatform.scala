@@ -18,8 +18,7 @@ package cats.effect.unsafe
 
 private[unsafe] abstract class IORuntimeBuilderPlatform { self: IORuntimeBuilder =>
 
-  protected def platformSpecificBuild = {
-    var runtime: IORuntime = null
+  protected def platformSpecificBuild: IORuntime = {
     val (compute, computeShutdown) =
       customCompute.getOrElse(
         IORuntime.createWorkStealingComputeThreadPool(reportFailure = failureReporter))
@@ -35,14 +34,13 @@ private[unsafe] abstract class IORuntimeBuilderPlatform { self: IORuntimeBuilder
     }
     val runtimeConfig = customConfig.getOrElse(IORuntimeConfig())
 
-    runtime = IORuntime.apply(
+    IORuntime.apply(
       computeTransform(compute),
       blockingTransform(blocking),
       scheduler,
       shutdown,
       runtimeConfig
     )
-    runtime
   }
 
 }

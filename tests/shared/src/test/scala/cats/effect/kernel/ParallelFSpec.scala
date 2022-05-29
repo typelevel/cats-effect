@@ -29,7 +29,7 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 class ParallelFSpec extends BaseSpec with Discipline {
 
-  implicit def alleyEq[A: Eq]: Eq[PureConc[Unit, A]] = { (x, y) =>
+  def alleyEq[E, A: Eq]: Eq[PureConc[E, A]] = { (x, y) =>
     import Outcome._
     (run(x), run(y)) match {
       case (Succeeded(Some(a)), Succeeded(Some(b))) => a eqv b
@@ -37,6 +37,9 @@ class ParallelFSpec extends BaseSpec with Discipline {
       case _ => true
     }
   }
+
+  implicit def alleyEqUnit[A: Eq]: Eq[PureConc[Unit, A]] = alleyEq[Unit, A]
+  implicit def alleyEqThrowable[A: Eq]: Eq[PureConc[Throwable, A]] = alleyEq[Throwable, A]
 
   checkAll(
     "ParallelF[PureConc]",
@@ -50,5 +53,20 @@ class ParallelFSpec extends BaseSpec with Discipline {
   checkAll(
     "ParallelF[PureConc]",
     AlignTests[ParallelF[PureConc[Unit, *], *]].align[Int, Int, Int, Int])
+
+  checkAll(
+    "ParallelF[Resource[PureConc]]",
+    ParallelTests[
+      Resource[PureConc[Throwable, *], *],
+      ParallelF[Resource[PureConc[Throwable, *], *], *]].parallel[Int, Int])
+
+  checkAll(
+    "ParallelF[Resource[PureConc]]",
+    CommutativeApplicativeTests[ParallelF[Resource[PureConc[Throwable, *], *], *]]
+      .commutativeApplicative[Int, Int, Int])
+
+  checkAll(
+    "ParallelF[Resource[PureConc]]",
+    AlignTests[ParallelF[Resource[PureConc[Throwable, *], *], *]].align[Int, Int, Int, Int])
 
 }

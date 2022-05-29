@@ -16,25 +16,23 @@
 
 import sbt._, Keys._
 
-import scalafix.sbt.ScalafixPlugin.autoImport._
-import sbtspiewak.SpiewakPlugin, SpiewakPlugin.autoImport._
-import sbt.testing.TaskDef
+import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport._
+import org.typelevel.sbt.TypelevelPlugin
+import org.typelevel.sbt.TypelevelKernelPlugin.autoImport._
+import scalafix.sbt.ScalafixPlugin, ScalafixPlugin.autoImport._
 
 object Common extends AutoPlugin {
 
-  override def requires = plugins.JvmPlugin && SpiewakPlugin
+  override def requires = plugins.JvmPlugin && TypelevelPlugin && ScalafixPlugin
   override def trigger = allRequirements
 
   override def projectSettings =
     Seq(
-      libraryDependencies ++= {
-        if (isDotty.value)
-          Nil
-        else
-          Seq(compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"))
-      },
+      headerLicense := Some(
+        HeaderLicense.ALv2(s"${startYear.value.get}-2022", organizationName.value)
+      ),
       ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0",
-      ThisBuild / semanticdbEnabled := !isDotty.value,
+      ThisBuild / semanticdbEnabled := !tlIsScala3.value,
       ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
     )
 }

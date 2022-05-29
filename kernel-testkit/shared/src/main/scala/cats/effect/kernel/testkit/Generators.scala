@@ -27,12 +27,12 @@ import scala.collection.immutable.SortedMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
-trait GenK[F[_]] {
+trait GenK[F[_]] extends Serializable {
   def apply[A: Arbitrary: Cogen]: Gen[F[A]]
 }
 
 // Generators for * -> * kinded types
-trait Generators1[F[_]] {
+trait Generators1[F[_]] extends Serializable {
   protected val maxDepth: Int = 10
 
   // todo: uniqueness based on... names, I guess. Have to solve the diamond problem somehow
@@ -307,6 +307,28 @@ trait AsyncGenerators[F[_]] extends GenTemporalGenerators[F, Throwable] with Syn
       fa <- deeper[A]
       ec <- arbitraryEC.arbitrary
     } yield F.evalOn(fa, ec)
+}
+
+trait AsyncGeneratorsWithoutEvalShift[F[_]]
+    extends GenTemporalGenerators[F, Throwable]
+    with SyncGenerators[F] {
+  implicit val F: Async[F]
+  implicit protected val cogenFU: Cogen[F[Unit]] = Cogen[Unit].contramap(_ => ())
+
+  override protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]) =
+    ("async" -> genAsync[A](deeper)) :: super.recursiveGen[A](deeper)
+
+  private def genAsync[A: Arbitrary](deeper: GenK[F]) =
+    for {
+      result <- arbitrary[Either[Throwable, A]]
+
+      fo <- deeper[Option[F[Unit]]](
+        Arbitrary(Gen.option[F[Unit]](deeper[Unit])),
+        Cogen.cogenOption(cogenFU))
+    } yield F
+      .async[A](k => F.delay(k(result)) >> fo)
+      .flatMap(F.pure(_))
+      .handleErrorWith(F.raiseError(_))
 }
 
 trait ParallelFGenerators {

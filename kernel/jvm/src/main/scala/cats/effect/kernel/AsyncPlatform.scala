@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 import java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage}
 
-private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
+private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] =>
 
   def fromCompletionStage[A](completionStage: F[CompletionStage[A]]): F[A] =
     fromCompletableFuture(flatMap(completionStage) { cs => delay(cs.toCompletableFuture()) })
@@ -42,7 +42,14 @@ private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
               }))
           }
 
-          Some(void(delay(cf.cancel(false))))
+          Some(
+            ifM(delay(cf.cancel(false)))(
+              unit,
+              async_[Unit] { cb =>
+                cf.handle[Unit]((_, _) => cb(Right(())))
+                ()
+              }
+            ))
         }
       }
     }

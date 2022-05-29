@@ -149,7 +149,7 @@ import scala.concurrent.duration.FiniteDuration
  * @tparam A
  *   the type of resource
  */
-sealed abstract class Resource[F[_], +A] {
+sealed abstract class Resource[F[_], +A] extends Serializable {
   import Resource._
 
   private[effect] def fold[B](
@@ -610,7 +610,11 @@ sealed abstract class Resource[F[_], +A] {
   }
 
   def evalOn(ec: ExecutionContext)(implicit F: Async[F]): Resource[F, A] =
-    Resource.applyFull { poll => poll(this.allocatedCase).evalOn(ec) }
+    Resource.applyFull { poll =>
+      poll(this.allocatedCase).evalOn(ec).map {
+        case (a, release) => (a, release.andThen(_.evalOn(ec)))
+      }
+    }
 
   def attempt[E](implicit F: ApplicativeError[F, E]): Resource[F, Either[E, A]] =
     this match {
@@ -1104,6 +1108,10 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
 
   implicit def parallelForResource[F[_]: Concurrent]: Parallel.Aux[Resource[F, *], Par[F, *]] =
     spawn.parallelForGenSpawn[Resource[F, *], Throwable]
+
+  implicit def commutativeApplicativeForResource[F[_]: Concurrent]
+      : CommutativeApplicative[Par[F, *]] =
+    spawn.commutativeApplicativeForParallelF[Resource[F, *], Throwable]
 }
 
 private[effect] trait ResourceHOInstances0 extends ResourceHOInstances1 {

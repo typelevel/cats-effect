@@ -20,8 +20,8 @@ package unsafe
 import scala.concurrent.ExecutionContext
 
 /**
- * Builder object for creating custom `IORuntime`s. Useful for creating `IORuntime` based on the
- * default one but with some wrappers around execution contexts or custom shutdown hooks.
+ * Builder object for creating custom `IORuntime`s. Useful for creating [[IORuntime]] based on
+ * the default one but with some wrappers around execution contexts or custom shutdown hooks.
  */
 final class IORuntimeBuilder protected (
     protected var customCompute: Option[(ExecutionContext, () => Unit)] = None,
@@ -39,11 +39,11 @@ final class IORuntimeBuilder protected (
    * Set a custom compute pool
    *
    * @param compute
-   *   `ExecutionContext` for compute
+   *   the [[scala.concurrent.ExecutionContext ExecutionContext]] for the compute pool
    * @param shutdown
-   *   shutdown hook upon [[IORuntime]] shutdown
+   *   [[IORuntime]] shutdown hook
    */
-  def setCompute(compute: ExecutionContext, shutdown: () => Unit) = {
+  def setCompute(compute: ExecutionContext, shutdown: () => Unit): IORuntimeBuilder = {
     if (customCompute.isDefined) {
       throw new IllegalStateException("Compute can be set only once")
     }
@@ -56,8 +56,9 @@ final class IORuntimeBuilder protected (
    * default compute but add extra logic to `execute`, e.g. for adding instrumentation.
    *
    * @param transform
+   *   the modification of the current compute execution context
    */
-  def transformCompute(transform: ExecutionContext => ExecutionContext) = {
+  def transformCompute(transform: ExecutionContext => ExecutionContext): IORuntimeBuilder = {
     computeTransform = transform.andThen(computeTransform)
     this
   }
@@ -65,12 +66,12 @@ final class IORuntimeBuilder protected (
   /**
    * Override the default blocking execution context
    *
-   * @param compute
-   *   execution context for blocking
+   * @param blocking
+   *   the [[scala.concurrent.ExecutionContext ExecutionContext]] for blocking operations
    * @param shutdown
-   *   method called upon blocking context shutdown
+   *   [[scala.concurrent.ExecutionContext ExecutionContext]] shutdown hook
    */
-  def setBlocking(blocking: ExecutionContext, shutdown: () => Unit) = {
+  def setBlocking(blocking: ExecutionContext, shutdown: () => Unit): IORuntimeBuilder = {
     if (customBlocking.isDefined) {
       throw new RuntimeException("Blocking can only be set once")
     }
@@ -84,32 +85,33 @@ final class IORuntimeBuilder protected (
    * instrumentation.
    *
    * @param transform
+   *   the modification of the current blocking execution context
    */
-  def transformBlocking(transform: ExecutionContext => ExecutionContext) = {
+  def transformBlocking(transform: ExecutionContext => ExecutionContext): IORuntimeBuilder = {
     blockingTransform = transform.andThen(blockingTransform)
     this
   }
 
   /**
-   * Provide custom IORuntimConfig for created IORuntime
+   * Provide custom [[IORuntimeConfig]] for created [[IORuntime]]
    *
    * @param config
-   * @return
+   *   the runtime configuration
    */
-  def setConfig(config: IORuntimeConfig) = {
+  def setConfig(config: IORuntimeConfig): IORuntimeBuilder = {
     customConfig = Some(config)
     this
   }
 
   /**
-   * Override the defaul scheduler
+   * Override the default scheduler
    *
-   * @param compute
-   *   execution context for compute
+   * @param scheduler
+   *   the custom scheduler
    * @param shutdown
-   *   method called upon compute context shutdown
+   *   [[Scheduler]] shutdown hook
    */
-  def setScheduler(scheduler: Scheduler, shutdown: () => Unit) = {
+  def setScheduler(scheduler: Scheduler, shutdown: () => Unit): IORuntimeBuilder = {
     if (customScheduler.isDefined) {
       throw new RuntimeException("Scheduler can only be set once")
     }
@@ -127,15 +129,15 @@ final class IORuntimeBuilder protected (
    * shutdown logic is invoked
    *
    * @param shutdown
-   * @return
+   *   the shutdown hook executed upon [[IORuntime]] shutdown
    */
-  def addShutdownHook(shutdown: () => Unit) = {
+  def addShutdownHook(shutdown: () => Unit): IORuntimeBuilder = {
     extraShutdownHooks = shutdown :: extraShutdownHooks
     this
   }
 
   def build(): IORuntime =
-    if (builderExecuted) throw new RuntimeException("Build can only be performe once")
+    if (builderExecuted) throw new RuntimeException("Build can only be performed once")
     else {
       builderExecuted = true
       platformSpecificBuild

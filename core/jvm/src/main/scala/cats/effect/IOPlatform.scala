@@ -22,7 +22,7 @@ import scala.concurrent.duration._
 
 import java.util.concurrent.{ArrayBlockingQueue, CompletableFuture, TimeUnit}
 
-abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
+abstract private[effect] class IOPlatform[+A] extends Serializable { self: IO[A] =>
 
   /**
    * Produces the result by running the encapsulated effects as impure side effects.

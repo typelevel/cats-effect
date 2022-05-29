@@ -19,16 +19,19 @@ package cats.effect
 import cats.effect.implicits._
 import cats.effect.laws.AsyncTests
 import cats.effect.testkit.TestContext
+import cats.kernel.laws.SerializableLaws.serializable
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{AlignTests, SemigroupKTests}
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
 
-import org.scalacheck.Prop.forAll
+import org.scalacheck.Prop
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.{ExecutionContext, TimeoutException}
 import scala.concurrent.duration._
+
+import Prop.forAll
 
 class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
@@ -79,6 +82,16 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "errors can be handled" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
         IO.raiseError[Unit](TestException).attempt must completeAs(Left(TestException))
+      }
+
+      "orElse must return other if previous IO Fails" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        (IO.raiseError[Int](TestException) orElse IO.pure(42)) must completeAs(42)
+      }
+
+      "Return current IO if successful" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        (IO.pure(42) orElse IO.raiseError[Int](TestException)) must completeAs(42)
       }
 
       "attempt is redeem with Left(_) for recover and Right(_) for map" in ticked {
@@ -222,6 +235,74 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
               }(_ => IO.raiseError(WrongException))
           io.attempt must completeAs(Left(TestException))
         })
+
+      "report unhandled failure to the execution context" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        val action = IO.executionContext flatMap { ec =>
+          IO defer {
+            var ts: List[Throwable] = Nil
+
+            val ec2 = new ExecutionContext {
+              def reportFailure(t: Throwable) = ts ::= t
+              def execute(r: Runnable) = ec.execute(r)
+            }
+
+            IO.raiseError(TestException).start.evalOn(ec2) *> IO.sleep(10.millis) *> IO(ts)
+          }
+        }
+
+        action must completeAs(List(TestException))
+      }
+
+      "not report observed failures to the execution context" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        val action = IO.executionContext flatMap { ec =>
+          IO defer {
+            var ts: List[Throwable] = Nil
+
+            val ec2 = new ExecutionContext {
+              def reportFailure(t: Throwable) = ts ::= t
+              def execute(r: Runnable) = ec.execute(r)
+            }
+
+            for {
+              f <- (IO.sleep(10.millis) *> IO.raiseError(TestException)).start.evalOn(ec2)
+              _ <- f.join
+              back <- IO(ts)
+            } yield back
+          }
+        }
+
+        action must completeAs(Nil)
+      }
+
+      // https://github.com/typelevel/cats-effect/issues/2962
+      "not report failures in timeout" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        val action = IO.executionContext flatMap { ec =>
+          IO defer {
+            var ts: List[Throwable] = Nil
+
+            val ec2 = new ExecutionContext {
+              def reportFailure(t: Throwable) = ts ::= t
+              def execute(r: Runnable) = ec.execute(r)
+            }
+
+            for {
+              f <- (IO.sleep(10.millis) *> IO
+                .raiseError(TestException)
+                .timeoutTo(1.minute, IO.pure(42))).start.evalOn(ec2)
+              _ <- f.join
+              back <- IO(ts)
+            } yield back
+          }
+        }
+
+        action must completeAs(Nil)
+      }
     }
 
     "suspension of side effects" should {
@@ -1452,6 +1533,14 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         _ <- fibers.traverse(_.join)
         res <- IO(ok)
       } yield res
+    }
+
+    "serialize" in {
+      forAll { (io: IO[Int]) => serializable(io) }(
+        implicitly,
+        arbitraryIOWithoutContextShift,
+        implicitly,
+        implicitly)
     }
 
     platformSpecs

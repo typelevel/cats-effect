@@ -52,6 +52,7 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 import java.util.UUID
+import java.util.concurrent.Executor
 
 /**
  * A pure abstraction representing the intention to perform a side effect, where the result of
@@ -450,6 +451,15 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def handleError[B >: A](f: Throwable => B): IO[B] =
     handleErrorWith[B](t => IO.pure(f(t)))
+
+  /**
+   * Runs the current IO, if it fails with an error(exception), the other IO will be executed.
+   * @param other
+   *   IO to be executed (if the current IO fails)
+   * @return
+   */
+  def orElse[B >: A](other: => IO[B]): IO[B] =
+    handleErrorWith(_ => other)
 
   /**
    * Handle any error, potentially recovering from it, by mapping it to another `IO` value.
@@ -1134,6 +1144,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def executionContext: IO[ExecutionContext] = ReadEC
 
+  def executor: IO[Executor] = _asyncForIO.executor
+
   def monotonic: IO[FiniteDuration] = Monotonic
 
   /**
@@ -1498,7 +1510,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   protected class IOSemigroupK extends SemigroupK[IO] {
     final override def combineK[A](a: IO[A], b: IO[A]): IO[A] =
-      a.handleErrorWith(_ => b)
+      a orElse b
   }
 
   implicit def alignForIO: Align[IO] = _alignForIO
@@ -1596,6 +1608,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def start[A](fa: IO[A]): IO[FiberIO[A]] =
       fa.start
 
+    override def racePair[A, B](
+        left: IO[A],
+        right: IO[B]): IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] =
+      IO.racePair(left, right)
+
     def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
       IO.uncancelable(body)
 
@@ -1638,6 +1655,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
      * Like [[IO.blocking]] but will attempt to abort the blocking operation using thread
      * interrupts in the event of cancelation. The interrupt will be attempted repeatedly until
      * the blocking operation completes or exits.
+     *
+     * @note
+     *   that this _really_ means what it says - it will throw exceptions in a tight loop until
+     *   the offending blocking operation exits. This is extremely expensive if it happens on a
+     *   hot path and the blocking operation is badly behaved and doesn't exit immediately.
      *
      * @param thunk
      *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution

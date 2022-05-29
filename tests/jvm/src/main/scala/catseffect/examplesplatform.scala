@@ -62,4 +62,12 @@ package examples {
   object UndefinedProcessExit extends IOApp {
     def run(args: List[String]): IO[ExitCode] = IO.never
   }
+
+  object EvalOnMainThread extends IOApp {
+    def run(args: List[String]): IO[ExitCode] =
+      IO(Thread.currentThread().getId()).evalOn(MainThread) map {
+        case 1L => ExitCode.Success
+        case _ => ExitCode.Error
+      }
+  }
 }

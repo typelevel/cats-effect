@@ -33,7 +33,7 @@ package unsafe
 import cats.effect.tracing.TracingConstants
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.Duration
 
 import java.util.Comparator
@@ -43,7 +43,7 @@ import java.util.concurrent.locks.LockSupport
 
 /**
  * Work-stealing thread pool which manages a pool of [[WorkerThread]] s for the specific purpose
- * of executing [[cats.effect.IOFiber]] instancess with work-stealing scheduling semantics.
+ * of executing [[java.lang.Runnable]] instancess with work-stealing scheduling semantics.
  *
  * The thread pool starts with `threadCount` worker threads in the active state, looking to find
  * fibers to execute in their own local work stealing queues, or externally scheduled work
@@ -61,7 +61,7 @@ private[effect] final class WorkStealingThreadPool(
     private[unsafe] val threadPrefix: String, // prefix for the name of worker threads
     private[unsafe] val runtimeBlockingExpiration: Duration,
     reportFailure0: Throwable => Unit
-) extends ExecutionContext {
+) extends ExecutionContextExecutor {
 
   import TracingConstants._
   import WorkStealingThreadPoolConstants._
@@ -72,7 +72,7 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val workerThreads: Array[WorkerThread] = new Array(threadCount)
   private[unsafe] val localQueues: Array[LocalQueue] = new Array(threadCount)
   private[unsafe] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
-  private[unsafe] val fiberBags: Array[WeakBag[IOFiber[_]]] = new Array(threadCount)
+  private[unsafe] val fiberBags: Array[WeakBag[Runnable]] = new Array(threadCount)
 
   /**
    * Atomic variable for used for publishing changes to the references in the `workerThreads`
@@ -114,7 +114,7 @@ private[effect] final class WorkStealingThreadPool(
       val parkedSignal = new AtomicBoolean(false)
       parkedSignals(i) = parkedSignal
       val index = i
-      val fiberBag = new WeakBag[IOFiber[_]]()
+      val fiberBag = new WeakBag[Runnable]()
       fiberBags(i) = fiberBag
       val thread =
         new WorkerThread(index, queue, parkedSignal, externalQueue, fiberBag, this)
@@ -152,7 +152,7 @@ private[effect] final class WorkStealingThreadPool(
   private[unsafe] def stealFromOtherWorkerThread(
       dest: Int,
       random: ThreadLocalRandom,
-      destWorker: WorkerThread): IOFiber[_] = {
+      destWorker: WorkerThread): Runnable = {
     val destQueue = localQueues(dest)
     val from = random.nextInt(threadCount)
 
@@ -176,11 +176,11 @@ private[effect] final class WorkStealingThreadPool(
     // The worker thread could not steal any work. Fall back to checking the
     // external queue.
     val element = externalQueue.poll(random)
-    if (element.isInstanceOf[Array[IOFiber[_]]]) {
-      val batch = element.asInstanceOf[Array[IOFiber[_]]]
+    if (element.isInstanceOf[Array[Runnable]]) {
+      val batch = element.asInstanceOf[Array[Runnable]]
       destQueue.enqueueBatch(batch, destWorker)
-    } else if (element.isInstanceOf[IOFiber[_]]) {
-      val fiber = element.asInstanceOf[IOFiber[_]]
+    } else if (element.isInstanceOf[Runnable]) {
+      val fiber = element.asInstanceOf[Runnable]
 
       if (isStackTracing) {
         destWorker.active = fiber
@@ -369,38 +369,9 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Schedules a fiber on this thread pool.
+   * Rechedules a [[java.lang.Runnable]] on this thread pool.
    *
-   * If the request comes from a [[WorkerThread]], the fiber is enqueued on the local queue of
-   * that thread.
-   *
-   * If the request comes from a [[HelperTread]] or an external thread, the fiber is enqueued on
-   * the external queue. Furthermore, if the request comes from an external thread, worker
-   * threads are notified of new work.
-   *
-   * @param fiber
-   *   the fiber to be executed on the thread pool
-   */
-  private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit = {
-    val pool = this
-    val thread = Thread.currentThread()
-
-    if (thread.isInstanceOf[WorkerThread]) {
-      val worker = thread.asInstanceOf[WorkerThread]
-      if (worker.isOwnedBy(pool)) {
-        worker.reschedule(fiber)
-      } else {
-        scheduleExternal(fiber)
-      }
-    } else {
-      scheduleExternal(fiber)
-    }
-  }
-
-  /**
-   * Reschedules a fiber on this thread pool.
-   *
-   * If the request comes from a [[WorkerThread]], depending on the current load, the fiber can
+   * If the request comes from a [[WorkerThread]], depending on the current load, the task can
    * be scheduled for immediate execution on the worker thread, potentially bypassing the local
    * queue and reducing the stealing pressure.
    *
@@ -408,22 +379,22 @@ private[effect] final class WorkStealingThreadPool(
    * the external queue. Furthermore, if the request comes from an external thread, worker
    * threads are notified of new work.
    *
-   * @param fiber
-   *   the fiber to be executed on the thread pool
+   * @param runnable
+   *   the runnable to be executed on the thread pool
    */
-  private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit = {
+  private[effect] def reschedule(runnable: Runnable): Unit = {
     val pool = this
     val thread = Thread.currentThread()
 
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
       if (worker.isOwnedBy(pool)) {
-        worker.schedule(fiber)
+        worker.reschedule(runnable)
       } else {
-        scheduleExternal(fiber)
+        scheduleExternal(runnable)
       }
     } else {
-      scheduleExternal(fiber)
+      scheduleExternal(runnable)
     }
   }
 
@@ -448,7 +419,7 @@ private[effect] final class WorkStealingThreadPool(
    * @param fiber
    *   the fiber to be executed on the thread pool
    */
-  private[this] def scheduleExternal(fiber: IOFiber[_]): Unit = {
+  private[this] def scheduleExternal(fiber: Runnable): Unit = {
     val random = ThreadLocalRandom.current()
     externalQueue.offer(fiber, random)
     notifyParked(random)
@@ -463,18 +434,16 @@ private[effect] final class WorkStealingThreadPool(
    *   threads to the currently active fiber and fibers enqueued on the local queue of that
    *   worker thread and a set of suspended fibers tracked by this thread pool
    */
-  private[unsafe] def liveFibers(): (
-      Set[IOFiber[_]],
-      Map[WorkerThread, (Option[IOFiber[_]], Set[IOFiber[_]])],
-      Set[IOFiber[_]]) = {
+  private[unsafe] def liveFibers()
+      : (Set[Runnable], Map[WorkerThread, (Option[Runnable], Set[Runnable])], Set[Runnable]) = {
     val externalFibers = externalQueue.snapshot().flatMap {
-      case batch: Array[IOFiber[_]] => batch.toSet[IOFiber[_]]
-      case fiber: IOFiber[_] => Set[IOFiber[_]](fiber)
-      case _ => Set.empty[IOFiber[_]]
+      case batch: Array[Runnable] => batch.toSet[Runnable]
+      case fiber: Runnable => Set[Runnable](fiber)
+      case _ => Set.empty[Runnable]
     }
 
-    val map = mutable.Map.empty[WorkerThread, (Option[IOFiber[_]], Set[IOFiber[_]])]
-    val suspended = mutable.Set.empty[IOFiber[_]]
+    val map = mutable.Map.empty[WorkerThread, (Option[Runnable], Set[Runnable])]
+    val suspended = mutable.Set.empty[Runnable]
 
     var i = 0
     while (i < threadCount) {
@@ -493,14 +462,12 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * Executes a [[java.lang.Runnable]] on the [[WorkStealingThreadPool]].
    *
-   * If the submitted `runnable` is a general purpose computation, it is suspended in
-   * [[cats.effect.IO]] and executed as a fiber on this pool.
+   * If the request comes from a [[WorkerThread]], the task is enqueued on the local queue of
+   * that thread.
    *
-   * On the other hand, if the submitted `runnable` is an instance of [[cats.effect.IOFiber]],
-   * it is directly executed on this pool without any wrapping or indirection. This
-   * functionality is used as a fast path in the [[cats.effect.IOFiber]] runloop for quick
-   * scheduling of fibers which are resumed on the thread pool as part of the asynchronous node
-   * of [[cats.effect.IO]].
+   * If the request comes from a [[HelperTread]] or an external thread, the task is enqueued on
+   * the external queue. Furthermore, if the request comes from an external thread, worker
+   * threads are notified of new work.
    *
    * This method fulfills the `ExecutionContext` interface.
    *
@@ -508,14 +475,18 @@ private[effect] final class WorkStealingThreadPool(
    *   the runnable to be executed
    */
   override def execute(runnable: Runnable): Unit = {
-    if (runnable.isInstanceOf[IOFiber[_]]) {
-      val fiber = runnable.asInstanceOf[IOFiber[_]]
-      // Fast-path scheduling of a fiber without wrapping.
-      scheduleFiber(fiber)
+    val pool = this
+    val thread = Thread.currentThread()
+
+    if (thread.isInstanceOf[WorkerThread]) {
+      val worker = thread.asInstanceOf[WorkerThread]
+      if (worker.isOwnedBy(pool)) {
+        worker.schedule(runnable)
+      } else {
+        scheduleExternal(runnable)
+      }
     } else {
-      // Executing a general purpose computation on the thread pool.
-      val fiber = new IOFiber[Unit](runnable, this)
-      scheduleFiber(fiber)
+      scheduleExternal(runnable)
     }
   }
 
