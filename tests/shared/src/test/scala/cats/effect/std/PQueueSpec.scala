@@ -107,6 +107,8 @@ class BoundedPQueueSpec extends BaseSpec with PQueueTests {
     tryOfferTryTakeTests(constructor, _.tryOffer(_), _.tryTake)
     commonTests(constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
     dequeueInPriorityOrder(constructor)
+    batchTakeTests(constructor, _.offer(_), _.tryTakeN(_))
+    batchOfferTests(constructor, _.tryOfferN(_), _.tryTakeN(_))
   }
 }
 
@@ -130,6 +132,8 @@ class UnboundedPQueueSpec extends BaseSpec with PQueueTests {
     tryOfferTryTakeTests(_ => constructor, _.tryOffer(_), _.tryTake)
     commonTests(_ => constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
     dequeueInPriorityOrder(_ => constructor)
+    batchTakeTests(_ => constructor, _.offer(_), _.tryTakeN(_))
+    batchOfferTests(_ => constructor, _.tryOfferN(_), _.tryTakeN(_))
   }
 }
 
