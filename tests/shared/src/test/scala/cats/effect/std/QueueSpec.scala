@@ -25,6 +25,7 @@ package std
 import cats.arrow.FunctionK
 import cats.syntax.all._
 
+import org.specs2.execute.Result
 import org.specs2.specification.core.Fragments
 
 import scala.collection.immutable.{Queue => ScalaQueue}
@@ -374,51 +375,52 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       tryTakeN: (Q[IO, Int], Option[Int]) => IO[List[Int]]): Fragments = {
 
     "not lose data on canceled take" in real {
-      // this is a race condition test so we iterate (in parallel just so it finishes faster)
-      val test = 0.until(10).toList parTraverse { _ =>
-        for {
-          q <- constructor(100)
-          _ <- 0.until(100).toList.traverse_(offer(q, _))
+      val test = for {
+        q <- constructor(100)
 
-          latch <- IO.deferred[Unit]
-          backR <- IO.ref(Vector[Int]())
+        producerFiber <- 0.until(100).toList.traverse_(offer(q, _) *> IO.cede).start
 
-          fiber <- {
-            val action = for {
-              // take half of the queue's contents
-              front <- 0.until(50).toVector.traverse(_ => take(q))
-              _ <- backR.set(front)
+        results <- IO.ref(-1)
+        latch <- IO.deferred[Unit]
 
-              // release the canceler to race with us
-              _ <- latch.complete(())
-
-              // take the other half of the contents with atomic writing
-              _ <- 50.until(100).toVector traverse { _ =>
-                IO uncancelable { poll =>
-                  // if data is lost, it would need to manifest here
-                  // specifically, take would claim a value but flatMap wouldn't run
-                  poll(take(q)).flatMap(a => backR.update(_ :+ a))
-                }
-              }
-            } yield ()
-
-            action.start
+        consumer = for {
+          _ <- latch.complete(())
+          _ <- 0.until(100).toList traverse_ { _ =>
+            IO uncancelable { poll =>
+              poll(take(q)).flatMap(results.set(_))
+            }
           }
-
-          _ <- latch.get
-          _ <- fiber.cancel
-
-          // grab whatever is left in the queue
-          remainder <- tryTakeN(q, None)
-          _ <- backR.update(_ ++ remainder.toVector)
-
-          // if we lost data, we'll be missing a value in backR
-          results <- backR.get
-          _ <- IO(results must containAllOf(0.until(100)))
         } yield ()
+
+        consumerFiber <- consumer.start
+
+        _ <- latch.get
+        _ <- consumerFiber.cancel
+
+        max <- results.get
+        continue <- if (max < 99) {
+          for {
+            next <- take(q)
+            _ <- IO(next mustEqual (max + 1))
+          } yield false
+        } else {
+          IO.pure(true)
+        }
+      } yield continue
+
+      val Bound = 10    // only try ten times before skipping
+      def loop(i: Int): IO[Result] = {
+        if (i > Bound) {
+          IO.pure(skipped(s"attempted $i times and could not reproduce scenario"))
+        } else {
+          test flatMap {
+            case true => loop(i + 1)
+            case false => IO.pure(ok)
+          }
+        }
       }
 
-      test.as(ok)
+      loop(0).replicateA_(100).as(ok)
     }
   }
 
