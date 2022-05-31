@@ -233,10 +233,46 @@ trait PQueueSource[F[_], A] {
    */
   def tryTake: F[Option[A]]
 
+  /**
+   * Attempts to dequeue elements from the PQueue, if they are available without semantically
+   * blocking. This is a convenience method that recursively runs `tryTake`. It does not provide
+   * any additional performance benefits.
+   *
+   * @param maxN
+   *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
+   *
+   * @return
+   *   an effect that contains the dequeued elements from the PQueue
+   *
+   * Note: If there are multiple elements with least priority, the order in which they are
+   * dequeued is undefined.
+   */
+  def tryTakeN(maxN: Option[Int])(implicit F: Monad[F]): F[List[A]] = {
+    PQueueSource.assertMaxNPositive(maxN)
+    F.tailRecM[(List[A], Int), List[A]](
+      (List.empty[A], 0)
+    ) {
+      case (list, i) =>
+        if (maxN.contains(i)) list.reverse.asRight.pure[F]
+        else {
+          tryTake.map {
+            case None => list.reverse.asRight
+            case Some(x) => (x +: list, i + 1).asLeft
+          }
+        }
+    }
+  }
+
   def size: F[Int]
 }
 
 object PQueueSource {
+  private def assertMaxNPositive(maxN: Option[Int]): Unit = maxN match {
+    case Some(n) if n <= 0 =>
+      throw new IllegalArgumentException(s"Provided maxN parameter must be positive, was $n")
+    case _ => ()
+  }
+
   implicit def catsFunctorForPQueueSource[F[_]: Functor]: Functor[PQueueSource[F, *]] =
     new Functor[PQueueSource[F, *]] {
       override def map[A, B](fa: PQueueSource[F, A])(f: A => B): PQueueSource[F, B] =
@@ -276,6 +312,26 @@ trait PQueueSink[F[_], A] {
    *   blocking
    */
   def tryOffer(a: A): F[Boolean]
+
+  /**
+   * Attempts to enqueue the given elements without semantically blocking. If an item in the
+   * list cannot be enqueued, the remaining elements will be returned. This is a convenience
+   * method that recursively runs `tryOffer` and does not offer any additional performance
+   * benefits.
+   *
+   * @param list
+   *   the elements to be put in the PQueue
+   * @return
+   *   an effect that contains the remaining valus that could not be offered.
+   */
+  def tryOfferN(list: List[A])(implicit F: Monad[F]): F[List[A]] = list match {
+    case Nil => F.pure(list)
+    case h :: t =>
+      tryOffer(h).ifM(
+        tryOfferN(t),
+        F.pure(list)
+      )
+  }
 }
 
 object PQueueSink {

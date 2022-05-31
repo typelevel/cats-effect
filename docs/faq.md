@@ -21,3 +21,32 @@ object HelloWorld extends IOApp.Simple {
 ```sh
 scala-cli Hello.scala
 ```
+
+## Blocking Behaviour
+
+Prior to the 3.3.2 release, running the following code : -
+
+```scala
+  def run: IO[Unit] =
+    IO(println(Thread.currentThread.getName)) >>
+      IO.blocking(println(Thread.currentThread.getName)) >>
+      IO(println(Thread.currentThread.getName))
+```
+
+will output the following: -
+```
+io-compute-4
+io-blocking-0
+io-compute-4
+```
+
+Running the same code on >= 3.3.2 release will output: -
+
+```
+io-compute-4
+io-compute-4
+io-compute-4
+```
+
+This is expected behaviour and not a bug. It is related to some optimizations that were introduced in the use of `cats.effect.unsafe.WorkStealingThreadPool`. For full
+details, please refer to [this issue comment](https://github.com/typelevel/cats-effect/issues/3005#issuecomment-1134974318).
