@@ -797,9 +797,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * impure side effects.
    *
    * Any exceptions raised within the effect will be passed to the callback in the `Either`. The
-   * callback will be invoked at most *once*. Note that it is very possible to construct an IO
-   * which never returns while still never blocking a thread, and attempting to evaluate that IO
-   * with this method will result in a situation where the callback is *never* invoked.
+   * callback will be invoked at most *once*. In addition, fatal errors will be printed. Note
+   * that it is very possible to construct an IO which never returns while still never blocking
+   * a thread, and attempting to evaluate that IO with this method will result in a situation
+   * where the callback is *never* invoked.
    *
    * As the name says, this is an UNSAFE function as it is impure and performs side effects. You
    * should ideally only call this function ''once'', at the very end of your program.
@@ -808,8 +809,12 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       implicit runtime: unsafe.IORuntime): Unit = {
     unsafeRunFiber(
       cb(Left(new CancellationException("The fiber was canceled"))),
-      t => cb(Left(t)),
-      a => cb(Right(a)))
+      t => {
+        if (NonFatal(t)) t.printStackTrace()
+        cb(Left(t))
+      },
+      a => cb(Right(a))
+    )
     ()
   }
 
@@ -817,7 +822,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       implicit runtime: unsafe.IORuntime): Unit = {
     unsafeRunFiber(
       cb(Outcome.canceled),
-      t => cb(Outcome.errored(t)),
+      t => {
+        if (NonFatal(t)) t.printStackTrace()
+        cb(Outcome.errored(t))
+      },
       a => cb(Outcome.succeeded(a: Id[A])))
     ()
   }
@@ -833,11 +841,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * should never be totally silent.
    */
   def unsafeRunAndForget()(implicit runtime: unsafe.IORuntime): Unit =
-    unsafeRunAsync {
-      case Left(NonFatal(_)) => ()
-      case Left(e) => e.printStackTrace()
-      case _ => ()
-    }
+    unsafeRunAsync(_ => ())
 
   /**
    * Evaluates the effect and produces the result in a `Future`.
