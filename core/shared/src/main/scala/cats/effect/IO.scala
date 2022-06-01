@@ -810,7 +810,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     unsafeRunFiber(
       cb(Left(new CancellationException("The fiber was canceled"))),
       t => {
-        if (NonFatal(t)) t.printStackTrace()
+        if (!NonFatal(t)) {
+          t.printStackTrace()
+        }
         cb(Left(t))
       },
       a => cb(Right(a))
@@ -823,7 +825,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     unsafeRunFiber(
       cb(Outcome.canceled),
       t => {
-        if (NonFatal(t)) t.printStackTrace()
+        if (!NonFatal(t)) {
+          t.printStackTrace()
+        }
         cb(Outcome.errored(t))
       },
       a => cb(Outcome.succeeded(a: Id[A])))
