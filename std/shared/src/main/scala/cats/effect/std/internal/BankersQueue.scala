@@ -53,6 +53,16 @@ private[std] final case class BankersQueue[A](
     } else if (frontLen > 0) BankersQueue(Nil, 0, back, backLen) -> Some(front.head)
     else this -> None
 
+  def peekFront: Option[A] =
+    if (frontLen > 0) Some(front.head)
+    else if (backLen > 0) Some(back.head)
+    else None
+
+  def peekBack: Option[A] =
+    if (backLen > 0) Some(back.head)
+    else if (frontLen > 0) Some(front.head)
+    else None
+
   def reverse: BankersQueue[A] = BankersQueue(back, backLen, front, frontLen)
 
   private def rebalance(): BankersQueue[A] =

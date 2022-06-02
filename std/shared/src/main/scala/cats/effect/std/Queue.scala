@@ -51,6 +51,7 @@ abstract class Queue[F[_], A] extends QueueSource[F, A] with QueueSink[F, A] { s
       def size: G[Int] = f(self.size)
       val take: G[A] = f(self.take)
       val tryTake: G[Option[A]] = f(self.tryTake)
+      val peek: G[Option[A]] = f(self.peek)
     }
 }
 
@@ -238,6 +239,23 @@ object Queue {
         .flatten
         .uncancelable
 
+    val peek: F[Option[A]] =
+      state
+        .get
+        .map {
+          case State(queue, _, _, offerers) if queue.nonEmpty && offerers.isEmpty =>
+            val elem = queue.front
+            F.pure(elem.some)
+
+          case State(_, _, _, offerers) if offerers.nonEmpty =>
+            val (elem, _) = offerers.head
+            F.pure(elem.some)
+
+          case _ => F.pure(none[A])
+        }
+        .flatten
+        .uncancelable
+
     def size: F[Int] = state.get.map(_.size)
 
   }
@@ -326,6 +344,8 @@ object Queue {
             fa.take.map(f)
           override def tryTake: F[Option[B]] =
             fa.tryTake.map(_.map(f))
+          override def peek: F[Option[B]] =
+            fa.peek.map(_.map(f))
           override def size: F[Int] =
             fa.size
         }
@@ -349,6 +369,14 @@ trait QueueSource[F[_], A] {
    *   without blocking, with `None` denoting that no element was available
    */
   def tryTake: F[Option[A]]
+
+  /**
+   * Returns the element at the front of the queue, or `None`` otherwise
+   *
+   * @return
+   *   an effect that contains the element
+   */
+  def peek: F[Option[A]]
 
   /**
    * Attempts to dequeue elements from the front of the queue, if they are available without
@@ -393,9 +421,10 @@ object QueueSource {
         new QueueSource[F, B] {
           override def take: F[B] =
             fa.take.map(f)
-          override def tryTake: F[Option[B]] = {
+          override def tryTake: F[Option[B]] =
             fa.tryTake.map(_.map(f))
-          }
+          override def peek: F[Option[B]] =
+            fa.peek.map(_.map(f))
           override def size: F[Int] =
             fa.size
         }

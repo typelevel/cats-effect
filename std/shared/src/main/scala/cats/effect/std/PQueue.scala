@@ -48,6 +48,7 @@ abstract class PQueue[F[_], A] extends PQueueSource[F, A] with PQueueSink[F, A] 
       def size: G[Int] = f(self.size)
       val take: G[A] = f(self.take)
       val tryTake: G[Option[A]] = f(self.tryTake)
+      val peek: G[Option[A]] = f(self.peek)
     }
 
 }
@@ -157,6 +158,21 @@ object PQueue {
         .flatten
         .uncancelable
 
+    def peek: F[Option[A]] =
+      ref
+        .get
+        .map {
+          case State(heap, _, _, _) if heap.nonEmpty =>
+            F.pure(heap.peek)
+
+          case State(_, _, _, offerers) if offerers.nonEmpty =>
+            F.pure(offerers.head._1.some)
+
+          case _ => F.pure(none[A])
+        }
+        .flatten
+        .uncancelable
+
     def size: F[Int] =
       ref.get.map(_.size)
   }
@@ -189,6 +205,8 @@ object PQueue {
             fa.take.map(f)
           override def tryTake: F[Option[B]] =
             fa.tryTake.map(_.map(f))
+          override def peek: F[Option[B]] =
+            fa.peek.map(_.map(f))
           override def size: F[Int] =
             fa.size
         }
@@ -232,6 +250,23 @@ trait PQueueSource[F[_], A] {
    * for `Order[A]`.
    */
   def tryTake: F[Option[A]]
+
+  /**
+   * Attempts to return the least element from the PQueue, if one is available without
+   * semantically blocking.
+   *
+   * O(log(n))
+   *
+   * @return
+   *   an effect that describes whether the dequeueing of an element from the PQueue succeeded
+   *   without blocking, with `None` denoting that no element was available
+   *
+   * Note: If there are multiple elements with least priority, the order in which they are
+   * dequeued is undefined. If you want to break ties with FIFO order you will need an
+   * additional `Ref[F, Long]` to track insertion, and embed that information into your instance
+   * for `Order[A]`.
+   */
+  def peek: F[Option[A]]
 
   /**
    * Attempts to dequeue elements from the PQueue, if they are available without semantically
@@ -281,6 +316,8 @@ object PQueueSource {
             fa.take.map(f)
           override def tryTake: F[Option[B]] =
             fa.tryTake.map(_.map(f))
+          override def peek: F[Option[B]] =
+            fa.peek.map(_.map(f))
           override def size: F[Int] =
             fa.size
         }

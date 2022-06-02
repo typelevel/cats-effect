@@ -39,6 +39,7 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       _.tryOfferBack(_),
       _.takeFront,
       _.tryTakeFront,
+      _.peekFront,
       _.size
     )
     boundedDequeueTests(
@@ -48,6 +49,7 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       _.tryOfferFront(_),
       _.takeBack,
       _.tryTakeBack,
+      _.peekBack,
       _.size
     )
     boundedDequeueTests(
@@ -57,6 +59,7 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       _.tryOfferBack(_),
       _.takeFront,
       _.tryTakeFront,
+      _.peekFront,
       _.size
     )
     boundedDequeueTests(
@@ -66,6 +69,7 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       _.tryOfferFront(_),
       _.takeBack,
       _.tryTakeBack,
+      _.peekBack,
       _.size
     )
   }
@@ -77,6 +81,7 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       tryOffer: (Dequeue[IO, Int], Int) => IO[Boolean],
       take: Dequeue[IO, Int] => IO[Int],
       tryTake: Dequeue[IO, Int] => IO[Option[Int]],
+      peek: Dequeue[IO, Int] => IO[Option[Int]],
       size: Dequeue[IO, Int] => IO[Int]
   ): Fragments = {
     s"$name - demonstrate offer and take with zero capacity" in real {
@@ -137,7 +142,7 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
     tryOfferOnFullTests(name, constructor, offer, tryOffer, false)
     cancelableOfferTests(name, constructor, offer, take, tryTake)
     tryOfferTryTakeTests(name, constructor, tryOffer, tryTake)
-    commonTests(name, constructor, offer, tryOffer, take, tryTake, size)
+    commonTests(name, constructor, offer, tryOffer, take, tryTake, peek, size)
     batchTakeTests(name, constructor, _.offer(_), _.tryTakeFrontN(_))
     batchTakeTests(name, constructor, _.offer(_), _.tryTakeBackN(_), _.reverse)
     batchOfferTests(name, constructor, _.tryOfferBackN(_), _.tryTakeFrontN(_))
@@ -161,6 +166,7 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
       _.tryOfferBack(_),
       _.takeFront,
       _.tryTakeFront,
+      _.peekFront,
       _.size)
 
     unboundedDequeueTests(
@@ -170,6 +176,7 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
       _.tryOfferFront(_),
       _.takeBack,
       _.tryTakeBack,
+      _.peekBack,
       _.size)
 
     unboundedDequeueTests(
@@ -179,6 +186,7 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
       _.tryOfferBack(_),
       _.takeFront,
       _.tryTakeFront,
+      _.peekFront,
       _.size
     )
 
@@ -189,6 +197,7 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
       _.tryOfferFront(_),
       _.takeBack,
       _.tryTakeBack,
+      _.peekBack,
       _.size
     )
   }
@@ -200,10 +209,11 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
       tryOffer: (Dequeue[IO, Int], Int) => IO[Boolean],
       take: Dequeue[IO, Int] => IO[Int],
       tryTake: Dequeue[IO, Int] => IO[Option[Int]],
+      peek: Dequeue[IO, Int] => IO[Option[Int]],
       size: Dequeue[IO, Int] => IO[Int]): Fragments = {
     tryOfferOnFullTests(name, _ => constructor, offer, tryOffer, true)
     tryOfferTryTakeTests(name, _ => constructor, tryOffer, tryTake)
-    commonTests(name, _ => constructor, offer, tryOffer, take, tryTake, size)
+    commonTests(name, _ => constructor, offer, tryOffer, take, tryTake, peek, size)
     batchTakeTests(name, _ => constructor, _.offer(_), _.tryTakeFrontN(_))
     batchTakeTests(name, _ => constructor, _.offer(_), _.tryTakeBackN(_), _.reverse)
     batchOfferTests(name, _ => constructor, _.tryOfferBackN(_), _.tryTakeFrontN(_))

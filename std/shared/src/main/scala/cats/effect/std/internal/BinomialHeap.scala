@@ -58,6 +58,8 @@ private[std] abstract case class BinomialHeap[A](trees: List[BinomialTree[A]]) {
     val (ts, head) = BinomialHeap.take(trees)
     BinomialHeap(ts) -> head
   }
+
+  def peek: Option[A] = BinomialHeap.peek(trees)
 }
 
 private[std] object BinomialHeap {
@@ -118,6 +120,26 @@ private[std] object BinomialHeap {
         val (t, ts) = min(l)
         merge(t.children.reverse, ts) -> Some(t.value)
       }
+    }
+
+  }
+
+  def peek[A](trees: List[BinomialTree[A]])(implicit Ord: Order[A]): Option[A] = {
+    // Note this is partial but we don't want to allocate a NonEmptyList
+    def min(trees: List[BinomialTree[A]]): BinomialTree[A] =
+      trees match {
+        case t :: Nil => t
+        case t :: ts =>
+          val t1 = min(ts)
+          if (Ord.lteqv(t.value, t1.value)) t else t1
+        case _ => throw new AssertionError
+      }
+
+    trees match {
+      case Nil => None
+      case l =>
+        val t = min(l)
+        Some(t.value)
     }
 
   }

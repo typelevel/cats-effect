@@ -101,7 +101,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
     tryOfferOnFullTests(name, constructor, _.offer(_), _.tryOffer(_), false)
     cancelableOfferTests(name, constructor, _.offer(_), _.take, _.tryTake)
     tryOfferTryTakeTests(name, constructor, _.tryOffer(_), _.tryTake)
-    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
+    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.peek, _.size)
     batchTakeTests(name, constructor, _.offer(_), _.tryTakeN(_))
     batchOfferTests(name, constructor, _.tryOfferN(_), _.tryTakeN(_))
     boundedBatchOfferTests(name, constructor, _.tryOfferN(_), _.tryTakeN(_))
@@ -121,7 +121,15 @@ class UnboundedQueueSpec extends BaseSpec with QueueTests[Queue] {
   private def unboundedQueueTests(name: String, constructor: IO[Queue[IO, Int]]): Fragments = {
     tryOfferOnFullTests(name, _ => constructor, _.offer(_), _.tryOffer(_), true)
     tryOfferTryTakeTests(name, _ => constructor, _.tryOffer(_), _.tryTake)
-    commonTests(name, _ => constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
+    commonTests(
+      name,
+      _ => constructor,
+      _.offer(_),
+      _.tryOffer(_),
+      _.take,
+      _.tryTake,
+      _.peek,
+      _.size)
     batchTakeTests(name, _ => constructor, _.offer(_), _.tryTakeN(_))
     batchOfferTests(name, _ => constructor, _.tryOfferN(_), _.tryTakeN(_))
   }
@@ -146,7 +154,7 @@ class DroppingQueueSpec extends BaseSpec with QueueTests[Queue] {
     tryOfferOnFullTests(name, constructor, _.offer(_), _.tryOffer(_), false)
     cancelableOfferTests(name, constructor, _.offer(_), _.take, _.tryTake)
     tryOfferTryTakeTests(name, constructor, _.tryOffer(_), _.tryTake)
-    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
+    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.peek, _.size)
     batchTakeTests(name, constructor, _.offer(_), _.tryTakeN(_))
     batchOfferTests(name, constructor, _.tryOfferN(_), _.tryTakeN(_))
   }
@@ -169,7 +177,7 @@ class CircularBufferQueueSpec extends BaseSpec with QueueTests[Queue] {
     negativeCapacityConstructionTests(name, constructor)
     zeroCapacityConstructionTests(name, constructor)
     tryOfferOnFullTests(name, constructor, _.offer(_), _.tryOffer(_), true)
-    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
+    commonTests(name, constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.peek, _.size)
     batchTakeTests(name, constructor, _.offer(_), _.tryTakeN(_))
     batchOfferTests(name, constructor, _.tryOfferN(_), _.tryTakeN(_))
   }
@@ -456,6 +464,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       tryOffer: (Q[IO, Int], Int) => IO[Boolean],
       take: Q[IO, Int] => IO[Int],
       tryTake: Q[IO, Int] => IO[Option[Int]],
+      peek: Q[IO, Int] => IO[Option[Int]],
       size: Q[IO, Int] => IO[Int]): Fragments = {
 
     name >> {
@@ -466,6 +475,26 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
           _ <- offer(q, 1)
           _ <- take(q)
           _ <- offer(q, 2)
+          sz <- size(q)
+          r <- IO(sz must beEqualTo(1))
+        } yield r
+      }
+
+      "peek should return first element" in real {
+        for {
+          q <- constructor(1)
+          a1 <- peek(q)
+          _ <- offer(q, 1)
+          a2 <- peek(q)
+          r <- IO((a1 must beEqualTo(None)) and (a2 must beEqualTo(Some(1))))
+        } yield r
+      }
+
+      "peek should not affect size" in real {
+        for {
+          q <- constructor(1)
+          _ <- offer(q, 1)
+          _ <- peek(q)
           sz <- size(q)
           r <- IO(sz must beEqualTo(1))
         } yield r

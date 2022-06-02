@@ -49,6 +49,8 @@ trait Dequeue[F[_], A] extends Queue[F, A] with DequeueSource[F, A] with Dequeue
       def tryOfferFront(a: A): G[Boolean] = f(self.tryOfferFront(a))
       def takeFront: G[A] = f(self.takeFront)
       def tryTakeFront: G[Option[A]] = f(self.tryTakeFront)
+      def peekFront: G[Option[A]] = f(self.peekFront)
+      def peekBack: G[Option[A]] = f(self.peekBack)
       def reverse: G[Unit] = f(self.reverse)
       def size: G[Int] = f(self.size)
     }
@@ -97,6 +99,12 @@ object Dequeue {
           override def takeFront: F[B] =
             fa.takeFront.map(f)
 
+          override def peekFront: F[Option[B]] =
+            fa.peekFront.map(_.map(f))
+
+          override def peekBack: F[Option[B]] =
+            fa.peekBack.map(_.map(f))
+
           override def tryTakeFront: F[Option[B]] =
             fa.tryTakeFront.map(_.map(f))
 
@@ -134,6 +142,9 @@ object Dequeue {
     override def tryTakeBack: F[Option[A]] =
       _tryTake(queue => queue.tryPopBack)
 
+    override def peekBack: F[Option[A]] =
+      _peek(queue => queue.peekBack)
+
     override def offerFront(a: A): F[Unit] =
       _offer(a, queue => queue.pushFront(a))
 
@@ -145,6 +156,9 @@ object Dequeue {
 
     override def tryTakeFront: F[Option[A]] =
       _tryTake(queue => queue.tryPopFront)
+
+    override def peekFront: F[Option[A]] =
+      _peek(queue => queue.peekFront)
 
     override def reverse: F[Unit] =
       state.update {
@@ -240,6 +254,21 @@ object Dequeue {
         .flatten
         .uncancelable
 
+    private def _peek(peek: BankersQueue[A] => Option[A]): F[Option[A]] =
+      state
+        .get
+        .map {
+          case State(queue, _, _, _) if queue.nonEmpty =>
+            F.pure(peek(queue))
+
+          case State(_, _, _, offerers) if offerers.nonEmpty =>
+            F.pure(offerers.head._1.some)
+
+          case _ => F.pure(none[A])
+        }
+        .flatten
+        .uncancelable
+
     override def size: F[Int] = state.get.map(_.size)
   }
 
@@ -323,6 +352,16 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
     _tryTakeN(tryTakeFront)(maxN)
 
   /**
+   * Returns the element at the front of the queue
+   */
+  def peekFront: F[Option[A]]
+
+  /**
+   * Returns the element at the back of the queue
+   */
+  def peekBack: F[Option[A]]
+
+  /**
    * Alias for takeFront in order to implement Queue
    */
   override def take: F[A] = takeFront
@@ -331,6 +370,11 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
    * Alias for tryTakeFront in order to implement Queue
    */
   override def tryTake: F[Option[A]] = tryTakeFront
+
+  /**
+   * Alias for peekFront in order to implement Queue
+   */
+  override def peek: F[Option[A]] = peekFront
 
   private def _tryTakeN(_tryTake: F[Option[A]])(maxN: Option[Int])(
       implicit F: Monad[F]): F[List[A]] = {
@@ -373,6 +417,12 @@ object DequeueSource {
 
           override def tryTakeFront: F[Option[B]] =
             fa.tryTakeFront.map(_.map(f))
+
+          override def peekFront: F[Option[B]] =
+            fa.peekFront.map(_.map(f))
+
+          override def peekBack: F[Option[B]] =
+            fa.peekBack.map(_.map(f))
 
           override def size: F[Int] =
             fa.size

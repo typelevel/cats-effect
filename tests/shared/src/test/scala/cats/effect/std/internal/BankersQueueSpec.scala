@@ -60,6 +60,13 @@ class BankersQueueSpec extends Specification with ScalaCheck {
 
       toListFromFront(queue.reverse) must beEqualTo(elems.reverse)
     }
+
+    "peek" in prop { (elems: List[Int]) =>
+      val queue = buildQueue(elems)
+      queue.peekFront must beEqualTo(elems.headOption)
+      queue.peekBack must beEqualTo(elems.lastOption)
+      toListFromFront(queue) must beEqualTo(elems)
+    }
   }
 
   private def buildQueue[A](elems: List[A]): BankersQueue[A] =
