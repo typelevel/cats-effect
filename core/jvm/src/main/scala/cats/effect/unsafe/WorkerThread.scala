@@ -596,6 +596,10 @@ private final class WorkerThread(
       // Logically enter the blocking region.
       blocking = true
 
+      val prefix = pool.blockerThreadPrefix
+      // Set the name of this thread to a blocker prefixed name.
+      setName(s"$prefix-$nameIndex")
+
       val cached = pool.cachedThreads.pollFirst()
       if (cached ne null) {
         // There is a cached worker thread that can be reused.
@@ -630,6 +634,10 @@ private final class WorkerThread(
     queue = pool.localQueues(newIdx)
     parked = pool.parkedSignals(newIdx)
     fiberBag = pool.fiberBags(newIdx)
+
+    // Reset the name of the thread to the regular prefix.
+    val prefix = pool.threadPrefix
+    setName(s"$prefix-$newIdx")
   }
 
   /**
