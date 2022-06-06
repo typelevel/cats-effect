@@ -23,7 +23,7 @@ import scala.scalajs.js.annotation._
 @JSExportTopLevel("dummy")
 object exports extends js.Object {
   if (js.typeOf(js.Dynamic.global.process) == "undefined")
-    js.Dynamic.global.process = js.Object()
+    js.special.fileLevelThis.asInstanceOf[js.Dynamic].process = js.Object()
   if (js.typeOf(js.Dynamic.global.process.env) == "undefined")
     js.Dynamic.global.process.env = js.Object()
   js.Dynamic.global.process.env.CATS_EFFECT_TRACING_MODE = "cached"
