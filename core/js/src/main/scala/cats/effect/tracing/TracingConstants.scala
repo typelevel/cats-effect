@@ -17,10 +17,19 @@
 package cats.effect
 package tracing
 
+import scala.scalajs.js
+
 private[effect] object TracingConstants {
 
   private[this] final val stackTracingMode: String =
-    process.env("CATS_EFFECT_TRACING_MODE").filterNot(_.isEmpty).getOrElse("none")
+    process.env("CATS_EFFECT_TRACING_MODE").filterNot(_.isEmpty).getOrElse {
+      if (js.typeOf(js.Dynamic.global.process) != "undefined"
+        && js.typeOf(js.Dynamic.global.process.release) != "undefined"
+        && js.Dynamic.global.process.release.name == "node".asInstanceOf[js.Any])
+        "cached"
+      else
+        "none"
+    }
 
   final val isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
 
