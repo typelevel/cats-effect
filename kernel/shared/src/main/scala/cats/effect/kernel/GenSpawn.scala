@@ -466,6 +466,17 @@ object GenSpawn extends GenSpawnLowPriority0 {
     new EitherTGenSpawn[F, E, E] {
       override implicit protected def F: GenSpawn[F, E] = F0
       override def delegate = EitherT.catsDataMonadErrorForEitherT
+
+      override def liftOutcome[A](
+          oc: Outcome[F, E, Either[E, A]]): F[Outcome[EitherT[F, E, *], E, A]] =
+        oc match {
+          case Outcome.Canceled() => F.pure(Outcome.Canceled())
+          case Outcome.Errored(e) => F.pure(Outcome.Errored(e))
+          case Outcome.Succeeded(foa) => foa.map {
+            case Left(e) => Outcome.Errored(e)
+            case Right(a) => Outcome.Succeeded(EitherT.right(F.pure(a)))
+          }
+        }
     }
 
   private[kernel] def instantiateGenSpawnForEitherT[F[_], E0, E](
@@ -618,9 +629,9 @@ object GenSpawn extends GenSpawnLowPriority0 {
         (Outcome[EitherT[F, E0, *], E, A], Fiber[EitherT[F, E0, *], E, B]),
         (Fiber[EitherT[F, E0, *], E, A], Outcome[EitherT[F, E0, *], E, B])]] = {
       EitherT.liftF(F.uncancelable(poll =>
-        poll(F.racePair(fa.value, fb.value)).map {
-          case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-          case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+        poll(F.racePair(fa.value, fb.value)).flatMap {
+          case Left((oc, fib)) => liftOutcome(oc).map(x => Left((x, liftFiber(fib))))
+          case Right((fib, oc)) => liftOutcome(oc).map(x => Right((liftFiber(fib), x)))
         }))
     }
 
@@ -638,27 +649,31 @@ object GenSpawn extends GenSpawnLowPriority0 {
       F,
       E0,
       Either[Outcome[EitherT[F, E0, *], E, A], Outcome[EitherT[F, E0, *], E, B]]] =
-      EitherT.liftF(
-        F.raceOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+      EitherT.liftF(F.raceOutcome(fa.value, fb.value).flatMap {
+        case Left(a) => liftOutcome(a).map(Left(_))
+        case Right(b) => liftOutcome(b).map(Right(_))
+      })
 
     override def bothOutcome[A, B](fa: EitherT[F, E0, A], fb: EitherT[F, E0, B])
         : EitherT[F, E0, (Outcome[EitherT[F, E0, *], E, A], Outcome[EitherT[F, E0, *], E, B])] =
-      EitherT.liftF(
-        F.bothOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+      EitherT.liftF(F.bothOutcome(fa.value, fb.value).flatMap {
+        case (a, b) =>
+          F.product(liftOutcome(a), liftOutcome(b))
+      })
 
-    private def liftOutcome[A](
-        oc: Outcome[F, E, Either[E0, A]]): Outcome[EitherT[F, E0, *], E, A] =
+    protected def liftOutcome[A](
+        oc: Outcome[F, E, Either[E0, A]]): F[Outcome[EitherT[F, E0, *], E, A]] =
       oc match {
-        case Outcome.Canceled() => Outcome.Canceled()
-        case Outcome.Errored(e) => Outcome.Errored(e)
-        case Outcome.Succeeded(foa) => Outcome.Succeeded(EitherT(foa))
+        case Outcome.Canceled() => F.pure(Outcome.Canceled())
+        case Outcome.Errored(e) => F.pure(Outcome.Errored(e))
+        case Outcome.Succeeded(foa) => F.pure(Outcome.Succeeded(EitherT(foa)))
       }
 
     private def liftFiber[A](fib: Fiber[F, E, Either[E0, A]]): Fiber[EitherT[F, E0, *], E, A] =
       new Fiber[EitherT[F, E0, *], E, A] {
         def cancel: EitherT[F, E0, Unit] = EitherT.liftF(fib.cancel)
         def join: EitherT[F, E0, Outcome[EitherT[F, E0, *], E, A]] =
-          EitherT.liftF(fib.join.map(liftOutcome))
+          EitherT.liftF(fib.join.flatMap(liftOutcome))
       }
   }
 

@@ -220,6 +220,18 @@ object GenTemporal extends GenTemporalLowPriority0 {
     new EitherTTemporal[F, E, E] {
       override implicit protected def F: GenTemporal[F, E] = F0
       override def delegate = EitherT.catsDataMonadErrorForEitherT(F)
+
+      override def liftOutcome[A](
+          oc: Outcome[F, E, Either[E, A]]): F[Outcome[EitherT[F, E, *], E, A]] =
+        oc match {
+          case Outcome.Canceled() => F.pure(Outcome.Canceled())
+          case Outcome.Errored(e) => F.pure(Outcome.Errored(e))
+          case Outcome.Succeeded(foa) =>
+            foa.map {
+              case Left(e) => Outcome.Errored(e)
+              case Right(a) => Outcome.Succeeded(EitherT.right(F.pure(a)))
+            }
+        }
     }
 
   private[kernel] def instantiateGenTemporalForEitherT[F[_], E0, E](
