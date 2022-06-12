@@ -111,7 +111,7 @@ trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Unique[F] 
   def suspend[A](hint: Sync.Type)(thunk: => A): F[A]
 }
 
-object Sync {
+object Sync extends SyncLowPriority0 {
 
   def apply[F[_]](implicit F: Sync[F]): F.type = F
 
@@ -129,18 +129,28 @@ object Sync {
       implicit protected def F: Sync[F] = F0
     }
 
-  implicit def syncForEitherT[F[_], E](implicit F0: Sync[F]): Sync[EitherT[F, E, *]] =
+  implicit def syncForEitherTThrowable[F[_]](
+      implicit F0: Sync[F]): Sync[EitherT[F, Throwable, *]] =
     F0 match {
       case async: Async[F @unchecked] =>
-        Async.asyncForEitherT[F, E](async)
+        Async.asyncForEitherTThrowable(async)
       case sync =>
-        instantiateSyncForEitherT(sync)
+        instantiateSyncForEitherTThrowable(sync)
+    }
+
+  private[kernel] def instantiateSyncForEitherTThrowable[F[_]](
+      F0: Sync[F]): EitherTSync[F, Throwable] =
+    new EitherTSync[F, Throwable] {
+      def rootCancelScope = F0.rootCancelScope
+      implicit protected def F: Sync[F] = F0
+      override def delegate = EitherT.catsDataMonadErrorForEitherT(F)
     }
 
   private[kernel] def instantiateSyncForEitherT[F[_], E](F0: Sync[F]): EitherTSync[F, E] =
     new EitherTSync[F, E] {
       def rootCancelScope = F0.rootCancelScope
       implicit protected def F: Sync[F] = F0
+      override def delegate = EitherT.catsDataMonadErrorFForEitherT(F)
     }
 
   implicit def syncForStateT[F[_], S](implicit F0: Sync[F]): Sync[StateT[F, S, *]] =
@@ -294,4 +304,16 @@ object Sync {
     case object InterruptibleOnce extends Type
     case object InterruptibleMany extends Type
   }
+}
+
+private[kernel] sealed trait SyncLowPriority0 { this: Sync.type =>
+
+  implicit def syncForEitherT[F[_], E](implicit F0: Sync[F]): Sync[EitherT[F, E, *]] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForEitherT[F, E](async)
+      case sync =>
+        instantiateSyncForEitherT(sync)
+    }
+
 }

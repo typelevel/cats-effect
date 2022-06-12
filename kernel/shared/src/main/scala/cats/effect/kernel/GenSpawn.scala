@@ -417,7 +417,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
     }
 }
 
-object GenSpawn {
+object GenSpawn extends GenSpawnLowPriority0 {
   import MonadCancel.{
     EitherTMonadCancel,
     IorTMonadCancel,
@@ -448,23 +448,31 @@ object GenSpawn {
       override implicit protected def F: GenSpawn[F, E] = F0
     }
 
-  implicit def genSpawnForEitherT[F[_], E0, E](
-      implicit F0: GenSpawn[F, E]): GenSpawn[EitherT[F, E0, *], E] =
+  implicit def genSpawnForConsistentEitherT[F[_], E](
+      implicit F0: GenSpawn[F, E]): GenSpawn[EitherT[F, E, *], E] =
     F0 match {
       case async: Async[F @unchecked] =>
-        Async.asyncForEitherT[F, E0](async)
+        Async.asyncForEitherTThrowable[F](async)
       case temporal: GenTemporal[F @unchecked, E @unchecked] =>
-        GenTemporal.instantiateGenTemporalForEitherT[F, E0, E](temporal)
+        GenTemporal.instantiateGenTemporalForConsistentEitherT[F, E](temporal)
       case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
-        GenConcurrent.instantiateGenConcurrentForEitherT[F, E0, E](concurrent)
+        GenConcurrent.instantiateGenConcurrentForConsistentEitherT[F, E](concurrent)
       case spawn =>
-        instantiateGenSpawnForEitherT(spawn)
+        instantiateGenSpawnForConsistentEitherT(spawn)
+    }
+
+  private[kernel] def instantiateGenSpawnForConsistentEitherT[F[_], E](
+      F0: GenSpawn[F, E]): EitherTGenSpawn[F, E, E] =
+    new EitherTGenSpawn[F, E, E] {
+      override implicit protected def F: GenSpawn[F, E] = F0
+      override def delegate = EitherT.catsDataMonadErrorForEitherT
     }
 
   private[kernel] def instantiateGenSpawnForEitherT[F[_], E0, E](
       F0: GenSpawn[F, E]): EitherTGenSpawn[F, E0, E] =
     new EitherTGenSpawn[F, E0, E] {
       override implicit protected def F: GenSpawn[F, E] = F0
+      override def delegate = EitherT.catsDataMonadErrorFForEitherT
     }
 
   implicit def genSpawnForKleisli[F[_], R, E](
@@ -847,4 +855,21 @@ object GenSpawn {
           WriterT.liftF(fib.join.map(liftOutcome))
       }
   }
+}
+
+private[kernel] trait GenSpawnLowPriority0 { this: GenSpawn.type =>
+
+  implicit def genSpawnForEitherT[F[_], E0, E](
+      implicit F0: GenSpawn[F, E]): GenSpawn[EitherT[F, E0, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForEitherT[F, E0](async)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForEitherT[F, E0, E](temporal)
+      case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+        GenConcurrent.instantiateGenConcurrentForEitherT[F, E0, E](concurrent)
+      case spawn =>
+        instantiateGenSpawnForEitherT(spawn)
+    }
+
 }

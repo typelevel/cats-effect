@@ -136,7 +136,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
   }
 }
 
-object GenConcurrent {
+object GenConcurrent extends GenConcurrentLowPriority0 {
   def apply[F[_], E](implicit F: GenConcurrent[F, E]): F.type = F
   def apply[F[_]](implicit F: GenConcurrent[F, _], d: DummyImplicit): F.type = F
 
@@ -164,21 +164,29 @@ object GenConcurrent {
       override implicit protected def F: GenConcurrent[F, E] = F0
     }
 
-  implicit def genConcurrentForEitherT[F[_], E0, E](
-      implicit F0: GenConcurrent[F, E]): GenConcurrent[EitherT[F, E0, *], E] =
+  implicit def genConcurrentForConsistentEitherT[F[_], E](
+      implicit F0: GenConcurrent[F, E]): GenConcurrent[EitherT[F, E, *], E] =
     F0 match {
       case async: Async[F @unchecked] =>
-        Async.asyncForEitherT[F, E0](async)
+        Async.asyncForEitherTThrowable[F](async)
       case temporal: GenTemporal[F @unchecked, E @unchecked] =>
-        GenTemporal.instantiateGenTemporalForEitherT[F, E0, E](temporal)
+        GenTemporal.instantiateGenTemporalForConsistentEitherT[F, E](temporal)
       case concurrent =>
-        instantiateGenConcurrentForEitherT(concurrent)
+        instantiateGenConcurrentForConsistentEitherT(concurrent)
+    }
+
+  private[kernel] def instantiateGenConcurrentForConsistentEitherT[F[_], E](
+      F0: GenConcurrent[F, E]): EitherTGenConcurrent[F, E, E] =
+    new EitherTGenConcurrent[F, E, E] {
+      override implicit protected def F: GenConcurrent[F, E] = F0
+      override def delegate = EitherT.catsDataMonadErrorForEitherT(F)
     }
 
   private[kernel] def instantiateGenConcurrentForEitherT[F[_], E0, E](
       F0: GenConcurrent[F, E]): EitherTGenConcurrent[F, E0, E] =
     new EitherTGenConcurrent[F, E0, E] {
       override implicit protected def F: GenConcurrent[F, E] = F0
+      override def delegate = EitherT.catsDataMonadErrorFForEitherT(F)
     }
 
   implicit def genConcurrentForKleisli[F[_], R, E](
@@ -340,4 +348,17 @@ object GenConcurrent {
       super.racePair(fa, fb)
   }
 
+}
+
+private[kernel] sealed trait GenConcurrentLowPriority0 { this: GenConcurrent.type =>
+  implicit def genConcurrentForEitherT[F[_], E0, E](
+      implicit F0: GenConcurrent[F, E]): GenConcurrent[EitherT[F, E0, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForEitherT[F, E0](async)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForEitherT[F, E0, E](temporal)
+      case concurrent =>
+        instantiateGenConcurrentForEitherT(concurrent)
+    }
 }

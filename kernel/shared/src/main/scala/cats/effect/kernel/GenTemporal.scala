@@ -187,7 +187,7 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
   }
 }
 
-object GenTemporal {
+object GenTemporal extends GenTemporalLowPriority0 {
   def apply[F[_], E](implicit F: GenTemporal[F, E]): F.type = F
   def apply[F[_]](implicit F: GenTemporal[F, _], d: DummyImplicit): F.type = F
 
@@ -206,19 +206,27 @@ object GenTemporal {
       override implicit protected def F: GenTemporal[F, E] = F0
     }
 
-  implicit def genTemporalForEitherT[F[_], E0, E](
-      implicit F0: GenTemporal[F, E]): GenTemporal[EitherT[F, E0, *], E] =
+  implicit def genTemporalForConsistentEitherT[F[_], E](
+      implicit F0: GenTemporal[F, E]): GenTemporal[EitherT[F, E, *], E] =
     F0 match {
       case async: Async[F @unchecked] =>
-        Async.asyncForEitherT[F, E0](async)
+        Async.asyncForEitherTThrowable[F](async)
       case temporal =>
-        instantiateGenTemporalForEitherT(temporal)
+        instantiateGenTemporalForConsistentEitherT(temporal)
+    }
+
+  private[kernel] def instantiateGenTemporalForConsistentEitherT[F[_], E](
+      F0: GenTemporal[F, E]): EitherTTemporal[F, E, E] =
+    new EitherTTemporal[F, E, E] {
+      override implicit protected def F: GenTemporal[F, E] = F0
+      override def delegate = EitherT.catsDataMonadErrorForEitherT(F)
     }
 
   private[kernel] def instantiateGenTemporalForEitherT[F[_], E0, E](
       F0: GenTemporal[F, E]): EitherTTemporal[F, E0, E] =
     new EitherTTemporal[F, E0, E] {
       override implicit protected def F: GenTemporal[F, E] = F0
+      override def delegate = EitherT.catsDataMonadErrorFForEitherT(F)
     }
 
   implicit def genTemporalForKleisli[F[_], R, E](
@@ -343,4 +351,16 @@ object GenTemporal {
     def sleep(time: FiniteDuration): Kleisli[F, R, Unit] = Kleisli.liftF(F.sleep(time))
   }
 
+}
+
+private[kernel] sealed trait GenTemporalLowPriority0 { this: GenTemporal.type =>
+
+  implicit def genTemporalForEitherT[F[_], E0, E](
+      implicit F0: GenTemporal[F, E]): GenTemporal[EitherT[F, E0, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForEitherT[F, E0](async)
+      case temporal =>
+        instantiateGenTemporalForEitherT(temporal)
+    }
 }

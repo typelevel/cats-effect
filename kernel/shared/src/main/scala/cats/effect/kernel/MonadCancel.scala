@@ -459,7 +459,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
     }
 }
 
-object MonadCancel {
+object MonadCancel extends MonadCancelLowPriority0 {
 
   def apply[F[_], E](implicit F: MonadCancel[F, E]): F.type = F
   def apply[F[_]](implicit F: MonadCancel[F, _], d: DummyImplicit): F.type = F
@@ -484,23 +484,24 @@ object MonadCancel {
         }
     }
 
-  implicit def monadCancelForEitherT[F[_], E0, E](
-      implicit F0: MonadCancel[F, E]): MonadCancel[EitherT[F, E0, *], E] =
+  implicit def monadCancelForConsistentEitherT[F[_], E](
+      implicit F0: MonadCancel[F, E]): MonadCancel[EitherT[F, E, *], E] =
     F0 match {
       case async: Async[F @unchecked] =>
-        Async.asyncForEitherT[F, E0](async)
+        Async.asyncForEitherTThrowable[F](async)
       case sync: Sync[F @unchecked] =>
-        Sync.instantiateSyncForEitherT[F, E0](sync)
+        Sync.instantiateSyncForEitherTThrowable[F](sync)
       case temporal: GenTemporal[F @unchecked, E @unchecked] =>
-        GenTemporal.instantiateGenTemporalForEitherT[F, E0, E](temporal)
+        GenTemporal.instantiateGenTemporalForConsistentEitherT[F, E](temporal)
       case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
-        GenConcurrent.instantiateGenConcurrentForEitherT[F, E0, E](concurrent)
+        GenConcurrent.instantiateGenConcurrentForConsistentEitherT[F, E](concurrent)
       case spawn: GenSpawn[F @unchecked, E @unchecked] =>
-        GenSpawn.instantiateGenSpawnForEitherT[F, E0, E](spawn)
+        GenSpawn.instantiateGenSpawnForConsistentEitherT[F, E](spawn)
       case cancel =>
-        new EitherTMonadCancel[F, E0, E] {
+        new EitherTMonadCancel[F, E, E] {
           def rootCancelScope = F0.rootCancelScope
           override implicit protected def F: MonadCancel[F, E] = cancel
+          override def delegate = EitherT.catsDataMonadErrorForEitherT(F)
         }
     }
 
@@ -669,8 +670,7 @@ object MonadCancel {
 
     implicit protected def F: MonadCancel[F, E]
 
-    protected def delegate: MonadError[EitherT[F, E0, *], E] =
-      EitherT.catsDataMonadErrorFForEitherT[F, E, E0]
+    protected def delegate: MonadError[EitherT[F, E0, *], E]
 
     def uncancelable[A](body: Poll[EitherT[F, E0, *]] => EitherT[F, E0, A]): EitherT[F, E0, A] =
       EitherT(
@@ -1009,4 +1009,29 @@ object MonadCancel {
         }
       }
   }
+}
+
+private[kernel] sealed trait MonadCancelLowPriority0 { this: MonadCancel.type =>
+
+  implicit def monadCancelForEitherT[F[_], E0, E](
+      implicit F0: MonadCancel[F, E]): MonadCancel[EitherT[F, E0, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForEitherT[F, E0](async)
+      case sync: Sync[F @unchecked] =>
+        Sync.instantiateSyncForEitherT[F, E0](sync)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForEitherT[F, E0, E](temporal)
+      case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+        GenConcurrent.instantiateGenConcurrentForEitherT[F, E0, E](concurrent)
+      case spawn: GenSpawn[F @unchecked, E @unchecked] =>
+        GenSpawn.instantiateGenSpawnForEitherT[F, E0, E](spawn)
+      case cancel =>
+        new EitherTMonadCancel[F, E0, E] {
+          def rootCancelScope = F0.rootCancelScope
+          override implicit protected def F: MonadCancel[F, E] = cancel
+          override def delegate = EitherT.catsDataMonadErrorFForEitherT(F)
+        }
+    }
+
 }

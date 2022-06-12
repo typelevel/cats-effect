@@ -186,7 +186,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   def cont[K, R](body: Cont[F, K, R]): F[R]
 }
 
-object Async {
+object Async extends AsyncLowPriority0 {
   def apply[F[_]](implicit F: Async[F]): F.type = F
 
   def defaultCont[F[_], K, R](body: Cont[F, K, R])(implicit F: Async[F]): F[R] = {
@@ -256,9 +256,11 @@ object Async {
       override implicit protected def F: Async[F] = F0
     }
 
-  implicit def asyncForEitherT[F[_], E](implicit F0: Async[F]): Async[EitherT[F, E, *]] =
-    new EitherTAsync[F, E] {
+  implicit def asyncForEitherTThrowable[F[_]](
+      implicit F0: Async[F]): Async[EitherT[F, Throwable, *]] =
+    new EitherTAsync[F, Throwable] {
       override implicit protected def F: Async[F] = F0
+      override def delegate = EitherT.catsDataMonadErrorForEitherT(F)
     }
 
   implicit def asyncForIorT[F[_], L](
@@ -362,7 +364,6 @@ object Async {
 
     implicit protected def F: Async[F]
 
-    override protected final def delegate = super.delegate
     override protected final def C = F
 
     override def unique: EitherT[F, E, Unique.Token] =
@@ -632,4 +633,14 @@ object Async {
       delegate.handleErrorWith(fa)(f)
 
   }
+}
+
+private[kernel] sealed trait AsyncLowPriority0 { this: Async.type =>
+
+  implicit def asyncForEitherT[F[_], E](implicit F0: Async[F]): Async[EitherT[F, E, *]] =
+    new EitherTAsync[F, E] {
+      override implicit protected def F: Async[F] = F0
+      override def delegate = EitherT.catsDataMonadErrorFForEitherT(F)
+    }
+
 }
