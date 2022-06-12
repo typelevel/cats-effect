@@ -17,7 +17,10 @@
 package cats.effect
 package laws
 
+import cats.MonadThrow
 import cats.data.EitherT
+import cats.effect.kernel.MonadCancelThrow
+import cats.effect.kernel.Outcome
 import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._
 import cats.effect.kernel.testkit.TimeT._
 import cats.laws.discipline.arbitrary._
@@ -42,4 +45,25 @@ class EitherTPureConcSpec extends Specification with Discipline with BaseSpec {
     GenTemporalTests[EitherT[TimeT[PureConc[Int, *], *], Int, *], Int]
       .temporal[Int, Int, Int](10.millis)
   )
+
+  "MonadCancelThrow" should {
+    "be consistent with MonadThrow" in {
+      def monadThrow[F[_]](fa: F[Unit])(implicit F: MonadThrow[F]): F[Unit] =
+        F.handleError(fa)(_ => ())
+
+      def monadCancelThrow[F[_]](fa: F[Unit])(implicit F: MonadCancelThrow[F]): F[Unit] =
+        F.handleError(fa)(_ => ())
+
+      val fa: EitherT[PureConc[Throwable, *], Throwable, Unit] =
+        EitherT.leftT(new Exception("Yooo Fabiooo"): Throwable)
+
+      pure.run(monadThrow(fa).value) should beLike {
+        case Outcome.Succeeded(Some(Right(()))) => ok
+      }
+
+      pure.run(monadCancelThrow(fa).value) should beLike {
+        case Outcome.Succeeded(Some(Right(()))) => ok
+      }
+    }
+  }
 }
