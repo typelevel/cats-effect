@@ -16,13 +16,12 @@
 
 package catseffect
 
-import cats.effect.ExitCode
-import cats.effect.IO
-import cats.effect.IOApp
+import cats.effect.{ExitCode, IO, IOApp}
 import cats.syntax.all._
 
-import java.io.File
 import scala.concurrent.duration.Duration
+
+import java.io.File
 
 package examples {
 
@@ -62,5 +61,13 @@ package examples {
   // just a stub to satisfy compiler, never run on JVM
   object UndefinedProcessExit extends IOApp {
     def run(args: List[String]): IO[ExitCode] = IO.never
+  }
+
+  object EvalOnMainThread extends IOApp {
+    def run(args: List[String]): IO[ExitCode] =
+      IO(Thread.currentThread().getId()).evalOn(MainThread) map {
+        case 1L => ExitCode.Success
+        case _ => ExitCode.Error
+      }
   }
 }

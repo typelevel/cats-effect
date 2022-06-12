@@ -18,14 +18,15 @@ package cats
 package effect
 package kernel
 
-import cats.syntax.all._
 import cats.effect.kernel.syntax.all._
+import cats.syntax.all._
+
 import scala.collection.immutable.{Queue => ScalaQueue}
 
 /**
  * A cut-down version of semaphore used to implement parTraverseN
  */
-private[kernel] abstract class MiniSemaphore[F[_]] {
+private[kernel] abstract class MiniSemaphore[F[_]] extends Serializable {
 
   /**
    * Sequence an action while holding a permit

@@ -20,9 +20,10 @@ package std
 
 import cats.arrow.FunctionK
 import cats.syntax.all._
-import scala.concurrent.duration._
 
 import org.specs2.specification.core.Fragments
+
+import scala.concurrent.duration._
 
 class SemaphoreSpec extends BaseSpec { outer =>
 
@@ -53,6 +54,14 @@ class SemaphoreSpec extends BaseSpec { outer =>
       sc(1).flatMap { sem => sem.permit.surround(IO.unit).mustEqual(()) }
     }
 
+    "tryPermit returns true if permit is available for it" in real {
+      sc(1).flatMap { sem => sem.tryPermit.use(IO.pure).mustEqual(true) }
+    }
+
+    "tryPermit returns false if permit is not available for it" in real {
+      sc(0).flatMap { sem => sem.tryPermit.use(IO.pure).mustEqual(false) }
+    }
+
     "unblock when permit is released" in ticked { implicit ticker =>
       val p =
         for {
@@ -67,7 +76,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       p must completeAs(true)
     }
 
-    "release permit if withPermit errors" in real {
+    "release permit if permit errors" in real {
       for {
         sem <- sc(1)
         _ <- sem.permit.surround(IO.raiseError(new Exception)).attempt
@@ -75,11 +84,59 @@ class SemaphoreSpec extends BaseSpec { outer =>
       } yield res
     }
 
+    "release permit if tryPermit errors" in real {
+      for {
+        sem <- sc(1)
+        _ <- sem.tryPermit.surround(IO.raiseError(new Exception)).attempt
+        res <- sem.permit.surround(IO.unit).mustEqual(())
+      } yield res
+    }
+
+    "release permit if permit completes" in real {
+      for {
+        sem <- sc(1)
+        _ <- sem.permit.surround(IO.unit)
+        res <- sem.permit.surround(IO.unit).mustEqual(())
+      } yield res
+    }
+
+    "release permit if tryPermit completes" in real {
+      for {
+        sem <- sc(1)
+        _ <- sem.tryPermit.surround(IO.unit)
+        res <- sem.permit.surround(IO.unit).mustEqual(())
+      } yield res
+    }
+
+    "not release permit if tryPermit completes without acquiring a permit" in ticked {
+      implicit ticker =>
+        val p = for {
+          sem <- sc(0)
+          _ <- sem.tryPermit.surround(IO.unit)
+          res <- sem.permit.surround(IO.unit)
+        } yield res
+
+        p must nonTerminate
+    }
+
     "release permit if action gets canceled" in ticked { implicit ticker =>
       val p =
         for {
           sem <- sc(1)
           fiber <- sem.permit.surround(IO.never).start
+          _ <- IO.sleep(1.second)
+          _ <- fiber.cancel
+          _ <- sem.permit.surround(IO.unit)
+        } yield ()
+
+      p must completeAs(())
+    }
+
+    "release tryPermit if action gets canceled" in ticked { implicit ticker =>
+      val p =
+        for {
+          sem <- sc(1)
+          fiber <- sem.tryPermit.surround(IO.never).start
           _ <- IO.sleep(1.second)
           _ <- fiber.cancel
           _ <- sem.permit.surround(IO.unit)

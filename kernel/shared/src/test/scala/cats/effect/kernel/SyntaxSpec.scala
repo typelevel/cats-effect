@@ -16,8 +16,9 @@
 
 package cats.effect.kernel
 
-import org.specs2.mutable.Specification
 import cats.implicits._
+
+import org.specs2.mutable.Specification
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration

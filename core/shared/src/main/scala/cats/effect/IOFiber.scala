@@ -16,10 +16,9 @@
 
 package cats.effect
 
+import cats.arrow.FunctionK
 import cats.effect.tracing._
 import cats.effect.unsafe._
-
-import cats.arrow.FunctionK
 
 import scala.annotation.{switch, tailrec}
 import scala.concurrent.ExecutionContext
@@ -65,53 +64,33 @@ import java.util.concurrent.atomic.AtomicBoolean
  * by the Executor read/write barriers, but their writes are
  * merely a fast-path and are not necessary for correctness.
  */
-private final class IOFiber[A] private (
-    private[this] var localState: IOLocalState,
-    private[this] val objectState: ArrayStack[AnyRef],
-    private[this] var currentCtx: ExecutionContext,
-    private[this] val finalizers: ArrayStack[IO[Unit]],
-    private[this] val callbacks: CallbackStack[A],
-    private[this] var resumeTag: Byte,
-    private[this] var resumeIO: AnyRef,
-    private[this] val tracingEvents: RingBuffer,
-    private[this] val runtime: IORuntime
+private final class IOFiber[A](
+    initState: IOLocalState,
+    cb: OutcomeIO[A] => Unit,
+    startIO: IO[A],
+    startEC: ExecutionContext,
+    rt: IORuntime
 ) extends IOFiberPlatform[A]
     with FiberIO[A]
     with Runnable {
   /* true when semantically blocking (ensures that we only unblock *once*) */
   suspended: AtomicBoolean =>
 
-  def this(
-      localState: IOLocalState,
-      cb: OutcomeIO[A] => Unit,
-      startIO: IO[A],
-      startEC: ExecutionContext,
-      runtime: IORuntime) = this(
-    localState,
-    new ArrayStack(),
-    startEC,
-    new ArrayStack(),
-    new CallbackStack(cb),
-    IOFiberConstants.ExecR,
-    startIO,
-    if (TracingConstants.isStackTracing) RingBuffer.empty(runtime.traceBufferLogSize) else null,
-    runtime
-  )
-
-  def this(runnable: Runnable, startEC: ExecutionContext, runtime: IORuntime) = this(
-    null,
-    null,
-    startEC,
-    null,
-    null,
-    IOFiberConstants.ExecuteRunnableR,
-    runnable,
-    null,
-    runtime)
-
+  import IOFiber._
   import IO._
   import IOFiberConstants._
   import TracingConstants._
+
+  private[this] var localState: IOLocalState = initState
+  private[this] var currentCtx: ExecutionContext = startEC
+  private[this] val objectState: ArrayStack[AnyRef] = new ArrayStack()
+  private[this] val finalizers: ArrayStack[IO[Unit]] = new ArrayStack()
+  private[this] val callbacks: CallbackStack[A] = new CallbackStack(cb)
+  private[this] var resumeTag: Byte = ExecR
+  private[this] var resumeIO: AnyRef = startIO
+  private[this] val runtime: IORuntime = rt
+  private[this] val tracingEvents: RingBuffer =
+    if (TracingConstants.isStackTracing) RingBuffer.empty(runtime.traceBufferLogSize) else null
 
   /*
    * Ideally these would be on the stack, but they can't because we sometimes need to
@@ -297,7 +276,7 @@ private final class IOFiber[A] private (
         /* RealTime */
         case 3 =>
           runLoop(
-            succeeded(runtime.scheduler.nowMillis().millis, 0),
+            succeeded(runtime.scheduler.nowMicros().micros, 0),
             nextCancelation,
             nextAutoCede)
 
@@ -367,7 +346,7 @@ private final class IOFiber[A] private (
               runLoop(nextIO, nextCancelation - 1, nextAutoCede)
 
             case 3 =>
-              val realTime = runtime.scheduler.nowMillis().millis
+              val realTime = runtime.scheduler.nowMicros().micros
               runLoop(next(realTime), nextCancelation - 1, nextAutoCede)
 
             case 4 =>
@@ -432,7 +411,7 @@ private final class IOFiber[A] private (
               runLoop(result, nextCancelation - 1, nextAutoCede)
 
             case 3 =>
-              val realTime = runtime.scheduler.nowMillis().millis
+              val realTime = runtime.scheduler.nowMicros().micros
               runLoop(next(realTime), nextCancelation - 1, nextAutoCede)
 
             case 4 =>
@@ -493,7 +472,7 @@ private final class IOFiber[A] private (
               runLoop(next, nextCancelation - 1, nextAutoCede)
 
             case 3 =>
-              val realTime = runtime.scheduler.nowMillis().millis
+              val realTime = runtime.scheduler.nowMicros().micros
               runLoop(succeeded(Right(realTime), 0), nextCancelation - 1, nextAutoCede)
 
             case 4 =>
@@ -1281,7 +1260,7 @@ private final class IOFiber[A] private (
   private[this] def rescheduleFiber(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
       val wstp = ec.asInstanceOf[WorkStealingThreadPool]
-      wstp.rescheduleFiber(fiber)
+      wstp.reschedule(fiber)
     } else {
       scheduleOnForeignEC(ec, fiber)
     }
@@ -1290,7 +1269,7 @@ private final class IOFiber[A] private (
   private[this] def scheduleFiber(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
     if (ec.isInstanceOf[WorkStealingThreadPool]) {
       val wstp = ec.asInstanceOf[WorkStealingThreadPool]
-      wstp.scheduleFiber(fiber)
+      wstp.execute(fiber)
     } else {
       scheduleOnForeignEC(ec, fiber)
     }
@@ -1491,43 +1470,9 @@ private final class IOFiber[A] private (
     }
   }
 
-  private[this] def onFatalFailure(t: Throwable): Null = {
-    Thread.interrupted()
-    runtime.shutdown()
-
-    // Make sure the shutdown did not interrupt this thread.
-    val interrupted = Thread.interrupted()
-
-    var idx = 0
-    val tables = runtime.fiberErrorCbs.tables
-    val numTables = runtime.fiberErrorCbs.numTables
-    while (idx < numTables) {
-      val table = tables(idx)
-      table.synchronized {
-        val hashtable = table.unsafeHashtable()
-        val len = hashtable.length
-        var i = 0
-        while (i < len) {
-          val cb = hashtable(i)
-          if (cb ne null) {
-            cb(t)
-          }
-          i += 1
-        }
-      }
-      idx += 1
-    }
-
-    if (interrupted) {
-      Thread.currentThread().interrupt()
-    }
-
-    throw t
-  }
-
   // overrides the AtomicReference#toString
   override def toString: String = {
-    val state = if (suspended.get()) "SUSPENDED" else "RUNNING"
+    val state = if (suspended.get()) "SUSPENDED" else if (isDone) "COMPLETED" else "RUNNING"
     val tracingEvents = this.tracingEvents
 
     // There are race conditions here since a running fiber is writing to `tracingEvents`,
@@ -1538,6 +1483,9 @@ private final class IOFiber[A] private (
 
     s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
   }
+
+  private[effect] def isDone: Boolean =
+    resumeTag == DoneR
 
   private[effect] def prettyPrintTrace(): String =
     if (isStackTracing) {
@@ -1553,4 +1501,56 @@ private object IOFiber {
   private[IOFiber] val TypeBlocking = Sync.Type.Blocking
   private[IOFiber] val OutcomeCanceled = Outcome.Canceled()
   private[effect] val RightUnit = Right(())
+
+  def onFatalFailure(t: Throwable): Null = {
+    val interrupted = Thread.interrupted()
+
+    if (IORuntime.globalFatalFailureHandled.compareAndSet(false, true)) {
+      IORuntime.allRuntimes.synchronized {
+        var r = 0
+        val runtimes = IORuntime.allRuntimes.unsafeHashtable()
+        val length = runtimes.length
+        while (r < length) {
+          val ref = runtimes(r)
+          if (ref.isInstanceOf[IORuntime]) {
+            val rt = ref.asInstanceOf[IORuntime]
+
+            rt.shutdown()
+
+            // Make sure the shutdown did not interrupt this thread.
+            Thread.interrupted()
+
+            var idx = 0
+            val tables = rt.fiberErrorCbs.tables
+            val numTables = rt.fiberErrorCbs.numTables
+            while (idx < numTables) {
+              val table = tables(idx)
+              table.synchronized {
+                val hashtable = table.unsafeHashtable()
+                val len = hashtable.length
+                var i = 0
+                while (i < len) {
+                  val ref = hashtable(i)
+                  if (ref.isInstanceOf[_ => _]) {
+                    val cb = ref.asInstanceOf[Throwable => Unit]
+                    cb(t)
+                  }
+                  i += 1
+                }
+              }
+              idx += 1
+            }
+          }
+
+          r += 1
+        }
+      }
+    }
+
+    if (interrupted) {
+      Thread.currentThread().interrupt()
+    }
+
+    throw t
+  }
 }

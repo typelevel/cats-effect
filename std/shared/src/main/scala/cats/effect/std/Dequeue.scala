@@ -16,7 +16,7 @@
 
 package cats.effect.std
 
-import cats.{~>, Contravariant, Functor, Invariant}
+import cats.{~>, Contravariant, Functor, Invariant, Monad}
 import cats.effect.kernel.{Deferred, GenConcurrent, Ref}
 import cats.effect.kernel.syntax.all._
 import cats.effect.std.internal.BankersQueue
@@ -279,6 +279,20 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
   def tryTakeBack: F[Option[A]]
 
   /**
+   * Attempts to dequeue elements from the back of the dequeue, if they available without
+   * semantically blocking. This is a convenience method that recursively runs `tryTakeBack`. It
+   * does not provide any additional performance benefits.
+   *
+   * @param maxN
+   *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
+   *
+   * @return
+   *   an effect that contains the dequeued elements
+   */
+  def tryTakeBackN(maxN: Option[Int])(implicit F: Monad[F]): F[List[A]] =
+    _tryTakeN(tryTakeBack)(maxN)
+
+  /**
    * Dequeues an element from the front of the dequeue, possibly semantically blocking until an
    * element becomes available.
    */
@@ -295,6 +309,20 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
   def tryTakeFront: F[Option[A]]
 
   /**
+   * Attempts to dequeue elements from the front of the dequeue, if they available without
+   * semantically blocking. This is a convenience method that recursively runs `tryTakeFront`.
+   * It does not provide any additional performance benefits.
+   *
+   * @param maxN
+   *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
+   *
+   * @return
+   *   an effect that contains the dequeued elements
+   */
+  def tryTakeFrontN(maxN: Option[Int])(implicit F: Monad[F]): F[List[A]] =
+    _tryTakeN(tryTakeFront)(maxN)
+
+  /**
    * Alias for takeFront in order to implement Queue
    */
   override def take: F[A] = takeFront
@@ -304,9 +332,32 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
    */
   override def tryTake: F[Option[A]] = tryTakeFront
 
+  private def _tryTakeN(_tryTake: F[Option[A]])(maxN: Option[Int])(
+      implicit F: Monad[F]): F[List[A]] = {
+    DequeueSource.assertMaxNPositive(maxN)
+    F.tailRecM[(List[A], Int), List[A]](
+      (List.empty[A], 0)
+    ) {
+      case (list, i) =>
+        if (maxN.contains(i)) list.reverse.asRight.pure[F]
+        else {
+          _tryTake.map {
+            case None => list.reverse.asRight
+            case Some(x) => (x +: list, i + 1).asLeft
+          }
+        }
+    }
+  }
+
 }
 
 object DequeueSource {
+  private def assertMaxNPositive(maxN: Option[Int]): Unit = maxN match {
+    case Some(n) if n <= 0 =>
+      throw new IllegalArgumentException(s"Provided maxN parameter must be positive, was $n")
+    case _ => ()
+  }
+
   implicit def catsFunctorForDequeueSource[F[_]: Functor]: Functor[DequeueSource[F, *]] =
     new Functor[DequeueSource[F, *]] {
       override def map[A, B](fa: DequeueSource[F, A])(f: A => B): DequeueSource[F, B] =
@@ -353,6 +404,20 @@ trait DequeueSink[F[_], A] extends QueueSink[F, A] {
   def tryOfferBack(a: A): F[Boolean]
 
   /**
+   * Attempts to enqueue the given elements at the back of the queue without semantically
+   * blocking. If an item in the list cannot be enqueued, the remaining elements will be
+   * returned. This is a convenience method that recursively runs `tryOffer` and does not offer
+   * any additional performance benefits.
+   *
+   * @param list
+   *   the elements to be put at the back of the queue
+   * @return
+   *   an effect that contains the remaining valus that could not be offered.
+   */
+  def tryOfferBackN(list: List[A])(implicit F: Monad[F]): F[List[A]] =
+    _tryOfferN(list)(tryOfferBack)
+
+  /**
    * Enqueues the given element at the front of the dequeue, possibly semantically blocking
    * until sufficient capacity becomes available.
    *
@@ -374,6 +439,20 @@ trait DequeueSink[F[_], A] extends QueueSink[F, A] {
   def tryOfferFront(a: A): F[Boolean]
 
   /**
+   * Attempts to enqueue the given elements at the front of the queue without semantically
+   * blocking. If an item in the list cannot be enqueued, the remaining elements will be
+   * returned. This is a convenience method that recursively runs `tryOffer` and does not offer
+   * any additional performance benefits.
+   *
+   * @param list
+   *   the elements to be put at the front of the queue
+   * @return
+   *   an effect that contains the remaining valus that could not be offered.
+   */
+  def tryOfferFrontN(list: List[A])(implicit F: Monad[F]): F[List[A]] =
+    _tryOfferN(list)(tryOfferFront)
+
+  /**
    * Alias for offerBack in order to implement Queue
    */
   override def offer(a: A): F[Unit] = offerBack(a)
@@ -382,6 +461,16 @@ trait DequeueSink[F[_], A] extends QueueSink[F, A] {
    * Alias for tryOfferBack in order to implement Queue
    */
   override def tryOffer(a: A): F[Boolean] = tryOfferBack(a)
+
+  private def _tryOfferN(list: List[A])(_tryOffer: A => F[Boolean])(
+      implicit F: Monad[F]): F[List[A]] = list match {
+    case Nil => F.pure(list)
+    case h :: t =>
+      _tryOffer(h).ifM(
+        tryOfferN(t),
+        F.pure(list)
+      )
+  }
 
 }
 

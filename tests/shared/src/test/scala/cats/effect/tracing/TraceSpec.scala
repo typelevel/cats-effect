@@ -16,8 +16,8 @@
 
 package tracing // Get out of the CE package so our traces don't get filtered
 
-import cats.effect.testkit.TestInstances
 import cats.effect.{BaseSpec, DetectPlatform, IO}
+import cats.effect.testkit.TestInstances
 
 // Separate from TracingSpec so it can exist outside of cats.effect package
 class TraceSpec extends BaseSpec with TestInstances with DetectPlatform { self =>

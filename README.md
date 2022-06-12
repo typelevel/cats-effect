@@ -128,11 +128,7 @@ And, just as with arithmetic, even when you don't directly leverage the nature o
 
 ## Contributing
 
-There's always lots to do! This is an incredibly exciting project used by countless teams and companies around the world. Ask in the [Discord development channel](https://discord.gg/QNnHKHq5Ts) (make sure to select the **dev** role in the **role-selection** channel) if you are unsure where to begin, or check out our [issue tracker](https://github.com/typelevel/cats-effect/issues) and try your hand at something that looks interesting! Please note that all of the Cats Effect maintainers are, unfortunately, extremely busy most of the time, so don't get discouraged if you don't get a response right away! We love you and we want you to join us, we just may have our hair on fire inside a melting production server at the exact moment you asked.
-
-Cats Effect is built with [sbt](https://github.com/sbt/sbt), and you should be able to jump right in by running `sbt test`. I will note, however, that `sbt +test` takes about two hours on my laptop, so you probably *shouldn't* start there...
-
-We use a typical pull request workflow, with automated builds run within GitHub Actions.
+Please see [**CONTRIBUTING.md**](CONTRIBUTING.md) for more details. Lots to do!
 
 ### Website
 
@@ -180,4 +176,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-[Code of Conduct]: https://github.com/typelevel/cats-effect/blob/series/2.x/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/typelevel/cats-effect/blob/series/3.x/CODE_OF_CONDUCT.md

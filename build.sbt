@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
 import com.typesafe.tools.mima.core._
 import com.github.sbt.git.SbtGit.GitKeys._
 import org.openqa.selenium.chrome.ChromeOptions
-import org.openqa.selenium.firefox.FirefoxOptions
+import org.openqa.selenium.firefox.{FirefoxOptions, FirefoxProfile}
 import org.scalajs.jsenv.nodejs.NodeJSEnv
 import org.scalajs.jsenv.selenium.SeleniumJSEnv
 import sbtcrossproject.CrossProject
@@ -41,7 +41,7 @@ ThisBuild / git.gitUncommittedChanges := {
   }
 }
 
-ThisBuild / tlBaseVersion := "3.3"
+ThisBuild / tlBaseVersion := "3.4"
 ThisBuild / tlUntaggedAreSnapshots := false
 
 ThisBuild / organization := "org.typelevel"
@@ -112,7 +112,7 @@ val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
 val MacOS = "macos-latest"
 
-val Scala213 = "2.13.7"
+val Scala213 = "2.13.8"
 val Scala3 = "3.0.2"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
@@ -147,6 +147,11 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
 )
 
 ThisBuild / githubWorkflowBuild := Seq(
+  WorkflowStep.Sbt(
+    List("root/scalafixAll --check"),
+    name = Some("Check that scalafix has been run"),
+    cond = Some(s"matrix.scala != '$Scala3'")
+  ),
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
     List("docs/mdoc"),
@@ -224,7 +229,10 @@ ThisBuild / jsEnv := {
   useJSEnv.value match {
     case NodeJS => new NodeJSEnv(NodeJSEnv.Config().withSourceMap(true))
     case Firefox =>
+      val profile = new FirefoxProfile()
+      profile.setPreference("privacy.reduceTimerPrecision", false)
       val options = new FirefoxOptions()
+      options.setProfile(profile)
       options.setHeadless(true)
       new SeleniumJSEnv(options)
     case Chrome =>
@@ -246,7 +254,7 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.7.0"
-val Specs2Version = "4.13.1"
+val Specs2Version = "4.15.0"
 val ScalaCheckVersion = "1.15.4"
 val DisciplineVersion = "1.2.5"
 val CoopVersion = "1.1.1"
@@ -261,7 +269,9 @@ addCommandAlias(CI.JS.command, CI.JS.toString)
 addCommandAlias(CI.Firefox.command, CI.Firefox.toString)
 addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
 
-addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
+addCommandAlias(
+  "prePR",
+  "; root/clean; root/scalafixAll; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
 val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
@@ -275,6 +285,7 @@ lazy val root = project
   .enablePlugins(NoPublishPlugin)
   .enablePlugins(ScalaUnidocPlugin)
   .settings(
+    name := "cats-effect",
     ScalaUnidoc / unidoc / unidocProjectFilter := {
       undocumentedRefs.foldLeft(inAnyProject)((acc, a) => acc -- inProjects(a))
     }
@@ -328,7 +339,18 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "coop" % CoopVersion),
     mimaBinaryIssueFilters ++= Seq(
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.kernel.testkit.TestContext.this"))
+        "cats.effect.kernel.testkit.TestContext.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext#State.execute"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext#State.scheduleOnce"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext#Task.apply"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext#Task.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.kernel.testkit.TestContext#Task.copy")
+    )
   )
 
 /**
@@ -471,9 +493,32 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$Data"),
+      // introduced by #2732, lambda lifting for private[this] queue
+      ProblemFilters.exclude[ReversedMissingMethodProblem](
+        "cats.effect.IOApp.cats$effect$IOApp$_setter_$cats$effect$IOApp$$queue_="),
+      ProblemFilters.exclude[ReversedMissingMethodProblem](
+        "cats.effect.IOApp.cats$effect$IOApp$$queue"),
       // introduced by #2844, Thread local fallback weak bag
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.SynchronizedWeakBag"),
+      // introduced by #2873, The WSTP can run Futures just as fast as ExecutionContext.global
+      // changes to `cats.effect.unsafe` package private code
+      ProblemFilters.exclude[IncompatibleResultTypeProblem](
+        "cats.effect.unsafe.LocalQueue.bufferForwarder"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem](
+        "cats.effect.unsafe.LocalQueue.dequeue"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.unsafe.LocalQueue.enqueue"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.unsafe.LocalQueue.enqueueBatch"),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem](
+        "cats.effect.unsafe.LocalQueue.stealInto"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.unsafe.WorkerThread.monitor"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.unsafe.WorkerThread.reschedule"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.unsafe.WorkerThread.schedule"),
       // introduced by #2868
       // added signaling from CallbackStack to indicate successful invocation
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.CallbackStack.apply")
@@ -487,6 +532,40 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
             "cats.effect.unsafe.WorkStealingThreadPool.localQueuesForwarder"),
           ProblemFilters.exclude[DirectMissingMethodProblem](
             "cats.effect.unsafe.WorkerThread.NullData"),
+          // introduced by #2811, Support shutting down multiple runtimes
+          // changes to `cats.effect.unsafe` package private code
+          ProblemFilters.exclude[IncompatibleMethTypeProblem](
+            "cats.effect.unsafe.ThreadSafeHashtable.put"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.IORuntime.apply"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.IORuntimeCompanionPlatform.apply"),
+          ProblemFilters.exclude[IncompatibleMethTypeProblem](
+            "cats.effect.unsafe.ThreadSafeHashtable.remove"),
+          ProblemFilters.exclude[IncompatibleResultTypeProblem](
+            "cats.effect.unsafe.ThreadSafeHashtable.unsafeHashtable"),
+          ProblemFilters.exclude[IncompatibleResultTypeProblem](
+            "cats.effect.unsafe.ThreadSafeHashtable.Tombstone"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.this"),
+          // introduced by #2853, Configurable caching of blocking threads, properly
+          // changes to `cats.effect.unsafe` package private code
+          ProblemFilters.exclude[IncompatibleMethTypeProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.this"),
+          // introduced by #2873, The WSTP can run Futures just as fast as ExecutionContext.global
+          // changes to `cats.effect.unsafe` package private code
+          ProblemFilters.exclude[IncompatibleResultTypeProblem](
+            "cats.effect.unsafe.WorkerThread.active"),
+          ProblemFilters.exclude[IncompatibleMethTypeProblem](
+            "cats.effect.unsafe.WorkerThread.active_="),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.rescheduleFiber"),
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.scheduleFiber"),
+          ProblemFilters.exclude[IncompatibleResultTypeProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.stealFromOtherWorkerThread"),
+          ProblemFilters.exclude[ReversedMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.reschedule"),
           // introduced by #2857, when we properly turned on MiMa for Scala 3
           ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOFiber.this"),
           ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOFiber.cancel_="),
@@ -648,7 +727,13 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test
     ),
-    buildInfoPackage := "catseffect"
+    buildInfoPackage := "catseffect",
+    Test / unmanagedSourceDirectories ++= {
+      if (scalaBinaryVersion.value != "2.12")
+        Seq(baseDirectory.value / ".." / "shared" / "src" / "test" / "scala-2.13+")
+      else
+        Seq.empty
+    }
   )
   .jsSettings(
     Compile / scalaJSUseMainModuleInitializer := true,
@@ -696,10 +781,30 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
         .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
         .exclude("org.scalacheck", "scalacheck_2.13")
         .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
+    ),
+    mimaBinaryIssueFilters ++= Seq(
+      // introduced by #2604, Fix Console on JS
+      // changes to `cats.effect.std` package private code
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.Console$SyncConsole"),
+      // introduced by #2951
+      // added configurability to Supervisor's scope termination behavior
+      // the following are package-private APIs
+      ProblemFilters.exclude[IncompatibleMethTypeProblem](
+        "cats.effect.std.Supervisor#State.add"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem](
+        "cats.effect.std.Supervisor#State.add"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem](
+        "cats.effect.std.Supervisor#State.joinAll")
     )
   )
   .jsSettings(
-    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
+    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test,
+    tlFatalWarnings := tlFatalWarnings.value && !tlIsScala3.value, // TODO remove when we update to Scala >=3.1
+    mimaBinaryIssueFilters ++= Seq(
+      // introduced by #2604, Fix Console on JS
+      // changes to a static forwarder, which are meaningless on JS
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.std.Console.make")
+    )
   )
 
 /**

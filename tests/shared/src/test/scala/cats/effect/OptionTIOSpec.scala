@@ -22,9 +22,8 @@ import cats.effect.laws.AsyncTests
 import cats.effect.syntax.all._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
+
 import org.scalacheck.Prop
-// import org.scalacheck.rng.Seed
-// import org.specs2.scalacheck.Parameters
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._

@@ -17,6 +17,7 @@
 package cats.effect.unsafe
 
 import cats.effect.tracing.TracingConstants
+
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 
 import scala.concurrent.ExecutionContext
@@ -59,5 +60,10 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     }
 
     _global
+  }
+
+  private[effect] def registerFiberMonitorMBean(fiberMonitor: FiberMonitor): () => Unit = {
+    val _ = fiberMonitor
+    () => ()
   }
 }

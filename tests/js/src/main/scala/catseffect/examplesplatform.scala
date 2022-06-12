@@ -16,9 +16,7 @@
 
 package catseffect
 
-import cats.effect.ExitCode
-import cats.effect.IO
-import cats.effect.IOApp
+import cats.effect.{ExitCode, IO, IOApp}
 import cats.syntax.all._
 
 import scala.annotation.nowarn
@@ -95,5 +93,9 @@ package examples {
 
   object UndefinedProcessExit extends IOApp {
     def run(args: List[String]): IO[ExitCode] = IO.pure(ExitCode.Success)
+  }
+
+  object EvalOnMainThread extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = IO.never
   }
 }

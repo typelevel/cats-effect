@@ -16,19 +16,17 @@
 
 package cats.effect.kernel
 
-import cats.Applicative
+import cats.{Applicative, Defer, Monad}
 import cats.data._
+import cats.kernel.{Monoid, Semigroup}
 
 import scala.concurrent.duration.FiniteDuration
-
-import cats.kernel.{Monoid, Semigroup}
-import cats.{Defer, Monad}
 
 /**
  * A typeclass which encodes various notions of time. Analogous to some of the time functions
  * exposed by `java.lang.System`.
  */
-trait Clock[F[_]] extends ClockPlatform[F] {
+trait Clock[F[_]] extends ClockPlatform[F] with Serializable {
 
   def applicative: Applicative[F]
 

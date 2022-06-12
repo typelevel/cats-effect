@@ -7,8 +7,6 @@ title: Dispatcher
 
 `Dispatcher` is a [fiber](../concepts.md#fibers)-based [`Supervisor`](./supervisor.md) utility for evaluating effects across an impure boundary. This is useful when working with reactive interfaces that produce potentially many values (as opposed to one), and for each value, some effect in `F` must be performed (like inserting each value into a queue).
 
-Users of Cats Effect 2 may be familiar with the `Effect` and `ConcurrentEffect` typeclasses. These have been removed as they constrained implementations of the typeclasses too much by forcing them to be embeddable in `IO` via `def toIO[A](fa: F[A]): IO[A]`. However, these typeclasses also had a valid use-case for unsafe running of effects to interface with impure APIs (`Future`, NIO, etc).
-
 An instance of `Dispatcher` can be derived for any effect type conforming to the [`Async`](../typeclasses/async.md) typeclass.
 
 Let's say we are integrating with an interface that looks like this:
@@ -51,14 +49,14 @@ without actually executing it. (Here the `scalac` option `-Ywarn-value-discard` 
 It is in these cases that `Dispatcher` comes in handy. Here's how it could be used:
 
 ```scala
-Dispatcher[IO].use { dispatcher =>
+Dispatcher.sequential[IO] use { dispatcher =>
   for {
     queue <- Queue.unbounded[IO, String]
     impureInterface <-
       IO.delay {
         new ImpureInterface {
           override def onMessage(msg: String): Unit =
-            dispatcher.unsafeRunSync(queue.offer(msg))
+            dispatcher.unsafeRunAndForget(queue.offer(msg))
         }
       }
     _ <- IO.delay(impureInterface.init())
@@ -72,7 +70,7 @@ Dispatcher[IO].use { dispatcher =>
 
 It prints "Value found in queue! init"!
 
-The example above calls `unsafeRunSync` on the dispatcher, but more functions are exposed:
+The example above calls `unsafeRunAndForget` on the dispatcher, but more functions are exposed:
 
 ```scala
 

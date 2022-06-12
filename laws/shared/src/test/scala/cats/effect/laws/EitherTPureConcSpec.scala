@@ -19,11 +19,12 @@ package laws
 
 import cats.MonadThrow
 import cats.data.EitherT
-import cats.effect.kernel.MonadCancelThrow
-import cats.effect.kernel.Outcome
-import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._
+import cats.effect.kernel.{MonadCancelThrow, Outcome}
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}
 import cats.effect.kernel.testkit.TimeT._
+import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.arbitrary._
+
 import org.scalacheck.Prop
 import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline

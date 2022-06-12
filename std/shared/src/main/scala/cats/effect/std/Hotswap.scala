@@ -16,9 +16,9 @@
 
 package cats.effect.std
 
-import cats.syntax.all._
-import cats.effect.kernel.syntax.all._
 import cats.effect.kernel.{Concurrent, Ref, Resource}
+import cats.effect.kernel.syntax.all._
+import cats.syntax.all._
 
 /**
  * A concurrent data structure that exposes a linear sequence of `R` resources as a single

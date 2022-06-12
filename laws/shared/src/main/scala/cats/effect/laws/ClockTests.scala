@@ -20,7 +20,6 @@ package laws
 import cats.effect.kernel.Clock
 
 import org.scalacheck._
-
 import org.typelevel.discipline.Laws
 
 trait ClockTests[F[_]] extends Laws {

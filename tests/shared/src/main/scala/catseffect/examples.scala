@@ -16,9 +16,7 @@
 
 package catseffect
 
-import cats.effect.IO
-import cats.effect.IOApp
-import cats.effect.ExitCode
+import cats.effect.{ExitCode, IO, IOApp}
 import cats.syntax.all._
 
 package examples {

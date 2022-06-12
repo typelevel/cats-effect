@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import scalajs.js
+import scala.scalajs.js
 
 private[effect] trait ClockPlatform[F[_]] { self: Clock[F] =>
 

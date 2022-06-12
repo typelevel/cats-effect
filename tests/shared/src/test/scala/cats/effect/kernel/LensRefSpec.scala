@@ -214,21 +214,6 @@ class LensRefSpec extends BaseSpec { outer =>
       op must completeAs((true, Foo(1, -1)))
     }
 
-    "access - successfully modifies underlying Ref after A is modified without affecting B" in ticked {
-      implicit ticker =>
-        val op = for {
-          refA <- Ref[IO].of(Foo(0, -1))
-          refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-          valueAndSetter <- refB.access
-          (value, setter) = valueAndSetter
-          _ <- refA.update(_.copy(baz = -2))
-          success <- setter(value + 1)
-          a <- refA.get
-        } yield (success, a)
-
-        op must completeAs((true, Foo(1, -2)))
-    }
-
     "access - setter fails to modify underlying Ref if value is modified before setter is called" in ticked {
       implicit ticker =>
         val op = for {

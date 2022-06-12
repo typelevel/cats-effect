@@ -16,11 +16,10 @@
 
 package cats.effect.kernel
 
-import cats.{~>, Applicative}
+import cats.{~>, Applicative, Monoid, Semigroup}
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
-import cats.{Monoid, Semigroup}
-import cats.syntax.all._
 import cats.effect.kernel.syntax.monadCancel._
+import cats.syntax.all._
 
 /**
  * A typeclass that characterizes monads which support spawning and racing of fibers.
@@ -64,7 +63,7 @@ import cats.effect.kernel.syntax.monadCancel._
  *   1. A1, B1, B2, A2
  *   1. B1, B2, A1, A2
  *   1. B1, A1, B2, A2
- *   1. B1, A1, A2, B3
+ *   1. B1, A1, A2, B2
  *
  * Notice how every execution preserves sequential consistency of the effects within each fiber:
  * `A1` always prints before `A2`, and `B1` always prints before `B2`. However, there are no
@@ -432,42 +431,100 @@ object GenSpawn {
 
   implicit def genSpawnForOptionT[F[_], E](
       implicit F0: GenSpawn[F, E]): GenSpawn[OptionT[F, *], E] =
-    new OptionTGenSpawn[F, E] {
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForOptionT[F](async)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForOptionT[F, E](temporal)
+      case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+        GenConcurrent.instantiateGenConcurrentForOptionT[F, E](concurrent)
+      case spawn =>
+        instantiateGenSpawnForOptionT(spawn)
+    }
 
+  private[kernel] def instantiateGenSpawnForOptionT[F[_], E](
+      F0: GenSpawn[F, E]): OptionTGenSpawn[F, E] =
+    new OptionTGenSpawn[F, E] {
       override implicit protected def F: GenSpawn[F, E] = F0
     }
 
   implicit def genSpawnForEitherT[F[_], E0, E](
       implicit F0: GenSpawn[F, E]): GenSpawn[EitherT[F, E0, *], E] =
-    new EitherTGenSpawn[F, E0, E] {
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForEitherT[F, E0](async)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForEitherT[F, E0, E](temporal)
+      case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+        GenConcurrent.instantiateGenConcurrentForEitherT[F, E0, E](concurrent)
+      case spawn =>
+        instantiateGenSpawnForEitherT(spawn)
+    }
 
+  private[kernel] def instantiateGenSpawnForEitherT[F[_], E0, E](
+      F0: GenSpawn[F, E]): EitherTGenSpawn[F, E0, E] =
+    new EitherTGenSpawn[F, E0, E] {
       override implicit protected def F: GenSpawn[F, E] = F0
     }
 
   implicit def genSpawnForKleisli[F[_], R, E](
       implicit F0: GenSpawn[F, E]): GenSpawn[Kleisli[F, R, *], E] =
-    new KleisliGenSpawn[F, R, E] {
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForKleisli[F, R](async)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForKleisli[F, R, E](temporal)
+      case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+        GenConcurrent.instantiateGenConcurrentForKleisli[F, R, E](concurrent)
+      case spawn =>
+        instantiateGenSpawnForKleisli(spawn)
+    }
 
+  private[kernel] def instantiateGenSpawnForKleisli[F[_], R, E](
+      F0: GenSpawn[F, E]): KleisliGenSpawn[F, R, E] =
+    new KleisliGenSpawn[F, R, E] {
       override implicit protected def F: GenSpawn[F, E] = F0
     }
 
   implicit def genSpawnForIorT[F[_], L, E](
       implicit F0: GenSpawn[F, E],
       L0: Semigroup[L]): GenSpawn[IorT[F, L, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForIorT[F, L](async, L0)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForIorT[F, L, E](temporal)
+      case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+        GenConcurrent.instantiateGenConcurrentForIorT[F, L, E](concurrent)
+      case spawn =>
+        instantiateGenSpawnForIorT(spawn)
+    }
+
+  private[kernel] def instantiateGenSpawnForIorT[F[_], L, E](F0: GenSpawn[F, E])(
+      implicit L0: Semigroup[L]): IorTGenSpawn[F, L, E] =
     new IorTGenSpawn[F, L, E] {
-
       override implicit protected def F: GenSpawn[F, E] = F0
-
       override implicit protected def L: Semigroup[L] = L0
     }
 
   implicit def genSpawnForWriterT[F[_], L, E](
       implicit F0: GenSpawn[F, E],
       L0: Monoid[L]): GenSpawn[WriterT[F, L, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForWriterT[F, L](async, L0)
+      case temporal: GenTemporal[F @unchecked, E @unchecked] =>
+        GenTemporal.instantiateGenTemporalForWriterT[F, L, E](temporal)
+      case concurrent: GenConcurrent[F @unchecked, E @unchecked] =>
+        GenConcurrent.instantiateGenConcurrentForWriterT[F, L, E](concurrent)
+      case spawn =>
+        instantiateGenSpawnForWriterT(spawn)
+    }
+
+  private[kernel] def instantiateGenSpawnForWriterT[F[_], L, E](F0: GenSpawn[F, E])(
+      implicit L0: Monoid[L]): WriterTGenSpawn[F, L, E] =
     new WriterTGenSpawn[F, L, E] {
-
       override implicit protected def F: GenSpawn[F, E] = F0
-
       override implicit protected def L: Monoid[L] = L0
     }
 
@@ -667,7 +724,7 @@ object GenSpawn {
       Kleisli.liftF(F.unique)
 
     def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[Kleisli[F, R, *], E, A]] =
-      Kleisli { r => (F.start(fa.run(r)).map(liftFiber)) }
+      Kleisli { r => F.start(fa.run(r)).map(liftFiber) }
 
     def never[A]: Kleisli[F, R, A] = Kleisli.liftF(F.never)
 
@@ -681,7 +738,7 @@ object GenSpawn {
         (Fiber[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B])]] = {
       Kleisli { r =>
         F.uncancelable(poll =>
-          poll((F.racePair(fa.run(r), fb.run(r))).map {
+          poll(F.racePair(fa.run(r), fb.run(r)).map {
             case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
             case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
           }))

@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import scala.concurrent.Future
 import scala.scalajs.js.{|, Function1, JavaScriptException, Promise, Thenable}
 
 abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
@@ -45,4 +46,40 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
           resolve(value)
           ()
       })
+
+  /**
+   * Evaluates the effect and produces the result in a `Future`.
+   *
+   * This is similar to `unsafeToFuture` in that it evaluates the `IO` as a side effect in a
+   * non-blocking fashion, but begins by taking a `syncStep` limited by the runtime's auto-yield
+   * threshold. This function should really only be used if it is critical to attempt to
+   * evaluate this `IO` without first yielding to the event loop.
+   *
+   * @see
+   *   [[IO.syncStep(limit:Int)*]]
+   */
+  def unsafeRunSyncToFuture()(implicit runtime: unsafe.IORuntime): Future[A] =
+    self.syncStep(runtime.config.autoYieldThreshold).attempt.unsafeRunSync() match {
+      case Left(t) => Future.failed(t)
+      case Right(Left(ioa)) => ioa.unsafeToFuture()
+      case Right(Right(a)) => Future.successful(a)
+    }
+
+  /**
+   * Evaluates the effect and produces the result in a JavaScript `Promise`.
+   *
+   * This is similar to `unsafeToPromise` in that it evaluates the `IO` as a side effect in a
+   * non-blocking fashion, but begins by taking a `syncStep` limited by the runtime's auto-yield
+   * threshold. This function should really only be used if it is critical to attempt to
+   * evaluate this `IO` without first yielding to the event loop.
+   *
+   * @see
+   *   [[IO.syncStep(limit:Int)*]]
+   */
+  def unsafeRunSyncToPromise()(implicit runtime: unsafe.IORuntime): Promise[A] =
+    self.syncStep(runtime.config.autoYieldThreshold).attempt.unsafeRunSync() match {
+      case Left(t) => Promise.reject(t)
+      case Right(Left(ioa)) => ioa.unsafeToPromise()
+      case Right(Right(a)) => Promise.resolve[A](a)
+    }
 }

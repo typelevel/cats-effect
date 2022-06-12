@@ -17,6 +17,7 @@
 package cats.effect.std
 
 import cats.effect.kernel.{Async, Concurrent, Deferred, GenConcurrent, Ref, Sync}
+
 import org.specs2.mutable.Specification
 
 class SyntaxSpec extends Specification {
@@ -24,7 +25,9 @@ class SyntaxSpec extends Specification {
 
   def async[F[_]: Async] = {
     Ref.of[F, String]("foo")
+    Ref.empty[F, String]
     Ref[F].of(15)
+    Ref[F].empty[String]
     Deferred[F, Unit]
     Semaphore[F](15)
   }
@@ -41,6 +44,8 @@ class SyntaxSpec extends Specification {
   def preciseConstraints[F[_]: Ref.Make] = {
     Ref.of[F, String]("foo")
     Ref[F].of(15)
+    Ref.empty[F, String]
+    Ref[F].empty[String]
   }
 
   def semaphoreIsDeriveable[F[_]](implicit F: Concurrent[F]) =

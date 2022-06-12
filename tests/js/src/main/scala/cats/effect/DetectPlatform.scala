@@ -16,8 +16,8 @@
 
 package cats.effect
 
-import scala.util.Try
 import scala.scalajs.js
+import scala.util.Try
 
 trait DetectPlatform {
 

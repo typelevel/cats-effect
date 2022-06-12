@@ -16,24 +16,22 @@
 
 package cats.effect
 
-import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.{AlignTests, SemigroupKTests}
-import cats.laws.discipline.arbitrary._
-
 import cats.effect.implicits._
 import cats.effect.laws.AsyncTests
 import cats.effect.testkit.TestContext
+import cats.kernel.laws.SerializableLaws.serializable
+import cats.kernel.laws.discipline.MonoidTests
+import cats.laws.discipline.{AlignTests, SemigroupKTests}
+import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
 
-import org.scalacheck.Prop, Prop.forAll
-// import org.scalacheck.rng.Seed
-
-// import org.specs2.scalacheck.Parameters
-
+import org.scalacheck.Prop
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.{ExecutionContext, TimeoutException}
 import scala.concurrent.duration._
+
+import Prop.forAll
 
 class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
@@ -86,6 +84,16 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         IO.raiseError[Unit](TestException).attempt must completeAs(Left(TestException))
       }
 
+      "orElse must return other if previous IO Fails" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        (IO.raiseError[Int](TestException) orElse IO.pure(42)) must completeAs(42)
+      }
+
+      "Return current IO if successful" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        (IO.pure(42) orElse IO.raiseError[Int](TestException)) must completeAs(42)
+      }
+
       "attempt is redeem with Left(_) for recover and Right(_) for map" in ticked {
         implicit ticker =>
           forAll { (io: IO[Int]) => io.attempt eqv io.redeem(Left(_), Right(_)) }
@@ -95,6 +103,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         forAll { (io: IO[Int], recover: Throwable => IO[String], bind: Int => IO[String]) =>
           io.attempt.flatMap(_.fold(recover, bind)) eqv io.redeemWith(recover, bind)
         }
+      }
+
+      "rethrow is inverse of attempt" in ticked { implicit ticker =>
+        forAll { (io: IO[Int]) => io.attempt.rethrow eqv io }
       }
 
       "redeem is flattened redeemWith" in ticked { implicit ticker =>
@@ -143,6 +155,35 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         case object TestException extends RuntimeException
         IO.raiseError[Unit](TestException)
           .redeemWith(_ => IO.pure(42), _ => IO.pure(43)) must completeAs(42)
+      }
+
+      "recover correctly recovers from errors" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        IO.raiseError[Int](TestException).recover { case TestException => 42 } must completeAs(
+          42)
+      }
+
+      "recoverWith correctly recovers from errors" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        IO.raiseError[Int](TestException).recoverWith {
+          case TestException => IO.pure(42)
+        } must completeAs(42)
+      }
+
+      "recoverWith does not recover from unmatched errors" in ticked { implicit ticker =>
+        case object UnmatchedException extends RuntimeException
+        case object ThrownException extends RuntimeException
+        IO.raiseError[Int](ThrownException)
+          .recoverWith { case UnmatchedException => IO.pure(42) }
+          .attempt must completeAs(Left(ThrownException))
+      }
+
+      "recover does not recover from unmatched errors" in ticked { implicit ticker =>
+        case object UnmatchedException extends RuntimeException
+        case object ThrownException extends RuntimeException
+        IO.raiseError[Int](ThrownException)
+          .recover { case UnmatchedException => 42 }
+          .attempt must completeAs(Left(ThrownException))
       }
 
       "redeemWith binds successful results" in ticked { implicit ticker =>
@@ -541,7 +582,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             _ <- IO(ticker.ctx.tick())
             l2 <- l.get
             r2 <- r.get
-          } yield (l2 -> r2)) must completeAs(true -> true)
+          } yield l2 -> r2) must completeAs(true -> true)
         }
 
       }
@@ -617,7 +658,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             _ <- IO(ticker.ctx.tick())
             l2 <- l.get
             r2 <- r.get
-          } yield (l2 -> r2)) must completeAs(true -> true)
+          } yield l2 -> r2) must completeAs(true -> true)
         }
 
         "evaluate a timeout using sleep and race" in ticked { implicit ticker =>
@@ -1351,7 +1392,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             .flatMap { _ => IO.pure(42) }
         }
 
-        io.syncStep.map {
+        io.syncStep(1024).map {
           case Left(_) => throw new RuntimeException("Boom!")
           case Right(n) => n
         } must completeAsSync(42)
@@ -1363,7 +1404,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         case object TestException extends RuntimeException
         val io = IO.raiseError[Unit](TestException)
 
-        io.syncStep.map {
+        io.syncStep(1024).map {
           case Left(_) => throw new RuntimeException("Boom!")
           case Right(()) => ()
         } must failAsSync(TestException)
@@ -1393,7 +1434,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
               }
             }
 
-          io.syncStep.flatMap {
+          io.syncStep(1024).flatMap {
             case Left(remaining) =>
               SyncIO.delay {
                 inDelay must beTrue
@@ -1411,9 +1452,28 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           } must completeAsSync(())
       }
 
+      "evaluate up to limit and no further" in {
+        var first = false
+        var second = false
+
+        val program = IO { first = true } *> IO { second = true }
+
+        val test = program.syncStep(2) flatMap { results =>
+          SyncIO {
+            first must beTrue
+            second must beFalse
+            results must beLeft
+
+            ()
+          }
+        }
+
+        test must completeAsSync(())
+      }
+
       "should not execute effects twice for map (#2858)" in ticked { implicit ticker =>
         var i = 0
-        val io = (IO(i += 1) *> IO.cede).void.syncStep.unsafeRunSync() match {
+        val io = (IO(i += 1) *> IO.cede).void.syncStep(Int.MaxValue).unsafeRunSync() match {
           case Left(io) => io
           case Right(_) => IO.unit
         }
@@ -1423,20 +1483,22 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "should not execute effects twice for flatMap (#2858)" in ticked { implicit ticker =>
         var i = 0
-        val io = (IO(i += 1) *> IO.cede *> IO.unit).syncStep.unsafeRunSync() match {
-          case Left(io) => io
-          case Right(_) => IO.unit
-        }
+        val io =
+          (IO(i += 1) *> IO.cede *> IO.unit).syncStep(Int.MaxValue).unsafeRunSync() match {
+            case Left(io) => io
+            case Right(_) => IO.unit
+          }
         io must completeAs(())
         i must beEqualTo(1)
       }
 
       "should not execute effects twice for attempt (#2858)" in ticked { implicit ticker =>
         var i = 0
-        val io = (IO(i += 1) *> IO.cede).attempt.void.syncStep.unsafeRunSync() match {
-          case Left(io) => io
-          case Right(_) => IO.unit
-        }
+        val io =
+          (IO(i += 1) *> IO.cede).attempt.void.syncStep(Int.MaxValue).unsafeRunSync() match {
+            case Left(io) => io
+            case Right(_) => IO.unit
+          }
         io must completeAs(())
         i must beEqualTo(1)
       }
@@ -1446,7 +1508,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           var i = 0
           val io = (IO(i += 1) *> IO.cede)
             .handleErrorWith(_ => IO.unit)
-            .syncStep
+            .syncStep(Int.MaxValue)
             .unsafeRunSync() match {
             case Left(io) => io
             case Right(_) => IO.unit
@@ -1471,6 +1533,14 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         _ <- fibers.traverse(_.join)
         res <- IO(ok)
       } yield res
+    }
+
+    "serialize" in {
+      forAll { (io: IO[Int]) => serializable(io) }(
+        implicitly,
+        arbitraryIOWithoutContextShift,
+        implicitly,
+        implicitly)
     }
 
     platformSpecs

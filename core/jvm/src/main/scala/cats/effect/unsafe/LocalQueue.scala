@@ -38,7 +38,7 @@ import java.util.concurrent.ThreadLocalRandom
  *
  * The queue supports exclusive write access '''only''' by the owner [[WorkerThread]] to the
  * `tail`, which represents the pointer for updating the underlying `buffer` of
- * [[cats.effect.IOFiber]] object references.
+ * [[java.lang.Runnable]] object references.
  *
  * The queue supports multi-threaded reading from the `head` pointer, both for local dequeue
  * operations by the owner [[WorkerThread]], as well as for work stealing purposes by other
@@ -125,10 +125,10 @@ private final class LocalQueue extends LocalQueuePadding {
   import TracingConstants._
 
   /**
-   * The array of [[cats.effect.IOFiber]] object references physically backing the circular
+   * The array of [[java.lang.Runnable]] object references physically backing the circular
    * buffer queue.
    */
-  private[this] val buffer: Array[IOFiber[_]] = new Array(LocalQueueCapacity)
+  private[this] val buffer: Array[Runnable] = new Array(LocalQueueCapacity)
 
   /*
    * What follows is a collection of counters exposed through the
@@ -194,10 +194,7 @@ private final class LocalQueue extends LocalQueuePadding {
    *   a reference to an uncontended source of randomness, to be passed along to the striped
    *   concurrent queues when executing their enqueue operations
    */
-  def enqueue(
-      fiber: IOFiber[_],
-      external: ScalQueue[AnyRef],
-      random: ThreadLocalRandom): Unit = {
+  def enqueue(fiber: Runnable, external: ScalQueue[AnyRef], random: ThreadLocalRandom): Unit = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -257,14 +254,14 @@ private final class LocalQueue extends LocalQueuePadding {
         // `WorkerThread`, to be transferred to the batched queue.
         // Due to the new tuning, half of the local queue does not equal a
         // single batch anymore, so several batches are created.
-        val batches = new Array[Array[IOFiber[_]]](BatchesInHalfQueueCapacity)
+        val batches = new Array[Array[Runnable]](BatchesInHalfQueueCapacity)
         var b = 0
         var offset = 0
 
         // Each batch is populated with fibers from the local queue. References
         // in the buffer are nulled out for garbage collection purposes.
         while (b < BatchesInHalfQueueCapacity) {
-          val batch = new Array[IOFiber[_]](SpilloverBatchSize)
+          val batch = new Array[Runnable](SpilloverBatchSize)
           var i = 0
           while (i < SpilloverBatchSize) {
             val idx = index(real + offset)
@@ -340,7 +337,7 @@ private final class LocalQueue extends LocalQueuePadding {
    * @return
    *   a fiber to be executed directly
    */
-  def enqueueBatch(batch: Array[IOFiber[_]], worker: WorkerThread): IOFiber[_] = {
+  def enqueueBatch(batch: Array[Runnable], worker: WorkerThread): Runnable = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -413,7 +410,7 @@ private final class LocalQueue extends LocalQueuePadding {
    *   the fiber at the head of the queue, or `null` if the queue is empty (in order to avoid
    *   unnecessary allocations)
    */
-  def dequeue(worker: WorkerThread): IOFiber[_] = {
+  def dequeue(worker: WorkerThread): Runnable = {
     // A plain, unsynchronized load of the tail of the local queue.
     val tl = tail
 
@@ -490,7 +487,7 @@ private final class LocalQueue extends LocalQueuePadding {
    *   a reference to the first fiber to be executed by the stealing [[WorkerThread]], or `null`
    *   if the stealing was unsuccessful
    */
-  def stealInto(dst: LocalQueue, dstWorker: WorkerThread): IOFiber[_] = {
+  def stealInto(dst: LocalQueue, dstWorker: WorkerThread): Runnable = {
     // A plain, unsynchronized load of the tail of the destination queue, owned
     // by the executing thread.
     val dstTl = dst.tail
@@ -690,7 +687,7 @@ private final class LocalQueue extends LocalQueuePadding {
         // The head has been successfully moved forward and a batch of fibers
         // secured. Proceed to null out the references to the fibers and
         // transfer them to the batch.
-        val batch = new Array[IOFiber[_]](SpilloverBatchSize)
+        val batch = new Array[Runnable](SpilloverBatchSize)
         var i = 0
 
         while (i < SpilloverBatchSize) {
@@ -755,7 +752,7 @@ private final class LocalQueue extends LocalQueuePadding {
    * @return
    *   a reference to [[LocalQueue#buf]]
    */
-  def bufferForwarder: Array[IOFiber[_]] = buffer
+  def bufferForwarder: Array[Runnable] = buffer
 
   /**
    * Computes the index into the circular buffer for a given integer value.
@@ -832,7 +829,7 @@ private final class LocalQueue extends LocalQueuePadding {
    * @return
    *   a set of the currently enqueued fibers
    */
-  def snapshot(): Set[IOFiber[_]] = {
+  def snapshot(): Set[Runnable] = {
     // load fence to get a more recent snapshot of the enqueued fibers
     val _ = size()
     buffer.toSet - null

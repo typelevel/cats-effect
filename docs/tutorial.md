@@ -499,7 +499,7 @@ recycled by cats-effect so it is available for other fibers. When the fiber
 execution can be resumed cats-effect will look for some free thread to continue
 the execution. The term "_semantically blocked_" is used sometimes to denote
 that blocking the fiber does not involve halting any thread. Cats-effect also
-recycles threads of finished and canceled fibers.  But keep in mind that, in
+recycles threads of finished and canceled fibers. But keep in mind that, in
 contrast, if the fiber is truly blocked by some external action like waiting for
 some input from a TCP socket, then cats-effect has no way to recover back that
 thread until the action finishes. Such calls should be wrapped by `IO.blocking`
@@ -507,23 +507,20 @@ to signal that the wrapped code will block the thread.  Cats-effect uses that
 info as a hint to optimize `IO` scheduling.
 
 Another difference with threads is that fibers are very cheap entities. We can
-spawn millions of them at ease without impacting the performance.
+spawn millions of them at ease without impacting the performance. 
 
-<<<<<<< Updated upstream
-=======
 A worthy note is that you do not have to explicitly shut down fibers. If you spawn
-a fiber and it finishes actively running its `IO` it will get cleaned up by the
+a fiber and it finishes actively running its `IO` it will get cleaned up by the 
 garbage collector unless there is some other active memory reference to it. So basically
-you can treat a fiber as any other regular object, except that when the fiber is _running_
+you can treat a fiber as any other regular object, except that when the fiber is _running_ 
 (present tense), the cats-effect runtime itself keeps the fiber alive.
 
-This has some interesting implications as well. Like if you create an `IO.async` node and
-register the callback with something, and you're in a Fiber which has no strong object
-references anywhere else (i.e. you did some sort of fire-and-forget thing), then the callback
-itself is the only strong reference to the fiber. Meaning if the registration fails or the
+This has some interesting implications as well. Like if you create an `IO.async` node and 
+register the callback with something, and you're in a Fiber which has no strong object 
+references anywhere else (i.e. you did some sort of fire-and-forget thing), then the callback 
+itself is the only strong reference to the fiber. Meaning if the registration fails or the 
 system you registered with throws it away, the fiber will just gracefully disappear.
 
->>>>>>> Stashed changes
 Cats-effect implements some concurrency primitives to coordinate concurrent
 fibers: [Deferred](std/deferred.md), [Ref](std/ref.md), `Semaphore`...
 
