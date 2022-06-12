@@ -420,6 +420,47 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
       loop(0).replicateA_(100).as(ok)
     }
+
+    "ensure takers are awakened under all circumstances" in real {
+      val test = for {
+        // _ <- IO.println(s"$prefix >> iterating...")
+        q <- constructor(64)
+        takenR <- IO.deferred[Option[Int]]
+
+        // start two takers and race them against each other. one populates takenR
+        taker1 = take(q) guaranteeCase {
+          case Outcome.Succeeded(ioa) =>
+            ioa.flatMap(taken => takenR.complete(Some(taken))).void
+
+          case _ =>
+            takenR.complete(None).void
+        }
+
+        take1 <- taker1.start
+        take2 <- take(q) /*.guarantee(IO.println(s"$prefix >> take2 finished"))*/ .start
+
+        // wait for state to quiesce
+        _ <- IO.sleep(250.millis)
+        // _ <- IO.println(s"$prefix >> waking")
+        // race the enqueue against canceling the ref-populating taker
+        _ <- IO.both(offer(q, 42), take1.cancel)
+
+        // detect the race condition
+        taken <- takenR.get
+        // _ <- IO.println(s"$prefix >> received $taken")
+
+        // what we're testing here is that *one* of the two got the element
+        _ <- taken match {
+          // if take1 got the element, we couldn't reproduce the race condition
+          case Some(_) => /*IO.println(s"$prefix >> canceling") >>*/ take2.cancel
+
+          // if neither taker got the element, then we'll be None from take1 and take2.join will hang
+          case None => /*IO.println(s"$prefix >> joining") >>*/ take2.join
+        }
+      } yield ()
+
+      test.parReplicateA(16).as(ok)
+    }
   }
 
   def tryOfferTryTakeTests(

@@ -159,12 +159,12 @@ object Queue {
     protected def onTryOfferNoCapacity(s: State[F, A], a: A): (State[F, A], F[Boolean])
 
     def offer(a: A): F[Unit] =
-      F.deferred[Unit] flatMap { offerer =>
-        F uncancelable { poll =>
+      F uncancelable { poll =>
+        F.deferred[Unit] flatMap { offerer =>
           val modificationF = state modify {
             case State(queue, size, takers, offerers) if takers.nonEmpty =>
               val (taker, rest) = takers.dequeue
-              State(queue.enqueue(a), size, rest, offerers) -> taker.complete(()).void
+              State(queue.enqueue(a), size + 1, rest, offerers) -> taker.complete(()).void
 
             case State(queue, size, takers, offerers) if size < capacity =>
               State(queue.enqueue(a), size + 1, takers, offerers) -> F.unit
@@ -182,7 +182,7 @@ object Queue {
         .modify {
           case State(queue, size, takers, offerers) if takers.nonEmpty =>
             val (taker, rest) = takers.dequeue
-            State(queue.enqueue(a), size, rest, offerers) -> taker.complete(()).as(true)
+            State(queue.enqueue(a), size + 1, rest, offerers) -> taker.complete(()).as(true)
 
           case State(queue, size, takers, offerers) if size < capacity =>
             State(queue.enqueue(a), size + 1, takers, offerers) -> F.pure(true)
@@ -194,8 +194,8 @@ object Queue {
         .uncancelable
 
     val take: F[A] =
-      F.deferred[Unit] flatMap { taker =>
-        F uncancelable { poll =>
+      F.uncancelable { poll =>
+        F.deferred[Unit] flatMap { taker =>
           val modificationF = state modify {
             case State(queue, size, takers, offerers) if queue.nonEmpty && offerers.isEmpty =>
               val (a, rest) = queue.dequeue
@@ -211,9 +211,27 @@ object Queue {
               State(queue, size, takers, rest) -> release.complete(()).as(a)
 
             case State(queue, size, takers, offerers) =>
-              val cleanup = state.update { s => s.copy(takers = s.takers.filter(_ ne taker)) }
+              /*
+               * In the case that we're notified as we're canceled and the cancelation wins the
+               * race, we need to not only remove ourselves from the queue but also grab the next
+               * in line and notify *them*. Since this scenario cannot be detected reliably, we
+               * just unconditionally notify. If the notification was spurious, the taker we notify
+               * will end up going to the back of the queue, violating fairness.
+               */
+              val cleanup = state modify { s =>
+                val takers2 = s.takers.filter(_ ne taker)
+                if (takers2.isEmpty) {
+                  s.copy(takers = takers2) -> F.unit
+                } else {
+                  val (taker, rest) = takers2.dequeue
+                  s.copy(takers = rest) -> taker.complete(()).void
+                }
+              }
+
+              // it would be safe to throw cleanup around *both* polls, but we micro-optimize slightly here
               State(queue, size, takers.enqueue(taker), offerers) ->
-                (poll(taker.get).onCancel(cleanup) *> poll(take))
+                (poll(taker.get).onCancel(cleanup.flatten) *> poll(take).onCancel(
+                  notifyNextTaker.flatten))
           }
 
           modificationF.flatten
@@ -242,8 +260,16 @@ object Queue {
         .flatten
         .uncancelable
 
-    def size: F[Int] = state.get.map(_.size)
+    val size: F[Int] = state.get.map(_.size)
 
+    private[this] val notifyNextTaker = state modify { s =>
+      if (s.takers.isEmpty) {
+        s -> F.unit
+      } else {
+        val (taker, rest) = s.takers.dequeue
+        s.copy(takers = rest) -> taker.complete(()).void
+      }
+    }
   }
 
   private final class BoundedQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(

@@ -191,8 +191,8 @@ object Dequeue {
         .uncancelable
 
     private def _take(dequeue: BankersQueue[A] => (BankersQueue[A], Option[A])): F[A] =
-      F.deferred[Unit] flatMap { taker =>
-        F uncancelable { poll =>
+      F uncancelable { poll =>
+        F.deferred[Unit] flatMap { taker =>
           val modificationF = state modify {
             case State(queue, size, takers, offerers) if queue.nonEmpty && offerers.isEmpty =>
               val (rest, ma) = dequeue(queue)
@@ -210,12 +210,32 @@ object Dequeue {
               State(queue, size, takers, rest) -> release.complete(()).as(a)
 
             case State(queue, size, takers, offerers) =>
-              val cleanup = state.update { s => s.copy(takers = s.takers.filter(_ ne taker)) }
+              val cleanup = state modify { s =>
+                val takers2 = s.takers.filter(_ ne taker)
+                if (takers2.isEmpty) {
+                  s.copy(takers = takers2) -> F.unit
+                } else {
+                  val (taker, rest) = takers2.dequeue
+                  s.copy(takers = rest) -> taker.complete(()).void
+                }
+              }
+
               State(queue, size, takers.enqueue(taker), offerers) ->
-                poll(taker.get).onCancel(cleanup) *> poll(_take(dequeue))
+                (poll(taker.get).onCancel(cleanup.flatten) *> poll(_take(dequeue))
+                  .onCancel(notifyNextTaker.flatten))
           }
 
           modificationF.flatten
+        }
+      }
+
+    private[this] val notifyNextTaker =
+      state modify { s =>
+        if (s.takers.isEmpty) {
+          s -> F.unit
+        } else {
+          val (taker, rest) = s.takers.dequeue
+          s.copy(takers = rest) -> taker.complete(()).void
         }
       }
 
