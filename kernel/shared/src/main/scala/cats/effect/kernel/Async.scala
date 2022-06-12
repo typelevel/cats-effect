@@ -349,7 +349,7 @@ object Async {
 
                   }
 
-                body[EitherT[G, E, *]](MonadCancel.monadCancelForEitherT(G, implicitly)).apply(cb, EitherT.liftF(ga), natT).value
+                body[EitherT[G, E, *]].apply(cb, EitherT.liftF(ga), natT).value
               }
           }
         )

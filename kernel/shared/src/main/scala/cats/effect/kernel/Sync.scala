@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.{Applicative, Defer, MonadError, Monoid, Semigroup}
+import cats.{Applicative, Defer, Monoid, Semigroup}
 import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 
 /**
@@ -123,18 +123,12 @@ object Sync {
       implicit def F: Sync[F] = F0
     }
 
-  @deprecated("Preserved for bincompat", "3.4.0")
-  def syncForEitherT[F[_], E](implicit F0: Sync[F]): Sync[EitherT[F, E, *]] =
-    syncForEitherT(F0, EitherT.catsDataMonadErrorFForEitherT)
-
-  implicit def syncForEitherT[F[_], E](implicit F0: Sync[F], monadErrorEitherT: MonadError[EitherT[F, E, *], Throwable]): Sync[EitherT[F, E, *]] =
+  implicit def syncForEitherT[F[_], E](implicit F0: Sync[F]): Sync[EitherT[F, E, *]] =
     new EitherTSync[F, E] {
 
       def rootCancelScope = F0.rootCancelScope
 
       implicit def F: Sync[F] = F0
-
-      def delegate = monadErrorEitherT
     }
 
   implicit def syncForStateT[F[_], S](implicit F0: Sync[F]): Sync[StateT[F, S, *]] =

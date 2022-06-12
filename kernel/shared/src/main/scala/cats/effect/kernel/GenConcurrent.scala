@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.{MonadError, Monoid, Semigroup, Traverse}
+import cats.{Monoid, Semigroup, Traverse}
 import cats.syntax.all._
 import cats.effect.kernel.syntax.all._
 import cats.effect.kernel.instances.spawn._
@@ -154,19 +154,10 @@ object GenConcurrent {
       override implicit protected def F: GenConcurrent[F, E] = F0
     }
 
-  @deprecated("Preserved for bincompat", "3.4.0")
-  def genConcurrentForEitherT[F[_], E0, E](
-      implicit F0: GenConcurrent[F, E]
-  ): GenConcurrent[EitherT[F, E0, *], E] =
-    genConcurrentForEitherT(F0, EitherT.catsDataMonadErrorFForEitherT)
-
   implicit def genConcurrentForEitherT[F[_], E0, E](
-      implicit F0: GenConcurrent[F, E],
-      monadErrorEitherT: MonadError[EitherT[F, E0, *], E])
-      : GenConcurrent[EitherT[F, E0, *], E] =
+      implicit F0: GenConcurrent[F, E]): GenConcurrent[EitherT[F, E0, *], E] =
     new EitherTGenConcurrent[F, E0, E] {
       override implicit protected def F: GenConcurrent[F, E] = F0
-      def delegate = monadErrorEitherT
     }
 
   implicit def genConcurrentForKleisli[F[_], R, E](
