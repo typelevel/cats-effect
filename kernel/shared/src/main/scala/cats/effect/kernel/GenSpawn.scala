@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.{~>, Applicative}
+import cats.{~>, Applicative, MonadError}
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{Monoid, Semigroup}
 import cats.syntax.all._
@@ -437,11 +437,18 @@ object GenSpawn {
       override implicit protected def F: GenSpawn[F, E] = F0
     }
 
-  implicit def genSpawnForEitherT[F[_], E0, E](
+  @deprecated("Preserved for bincompat", "3.4.0")
+  def genSpawnForEitherT[F[_], E0, E](
       implicit F0: GenSpawn[F, E]): GenSpawn[EitherT[F, E0, *], E] =
+    genSpawnForEitherT(F0, EitherT.catsDataMonadErrorFForEitherT)
+
+  implicit def genSpawnForEitherT[F[_], E0, E](
+      implicit F0: GenSpawn[F, E],
+      monadErrorEitherT: MonadError[EitherT[F, E0, *], E]): GenSpawn[EitherT[F, E0, *], E] =
     new EitherTGenSpawn[F, E0, E] {
 
       override implicit protected def F: GenSpawn[F, E] = F0
+      def delegate = monadErrorEitherT
     }
 
   implicit def genSpawnForKleisli[F[_], R, E](

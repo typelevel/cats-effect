@@ -473,12 +473,21 @@ object MonadCancel {
       override implicit protected def F: MonadCancel[F, E] = F0
     }
 
+  @deprecated("Preserved for bincompat", "3.4.0")
+  def monadCancelForEitherT[F[_], E0, E](
+      implicit F0: MonadCancel[F, E]
+  ): MonadCancel[EitherT[F, E0, *], E] =
+    monadCancelForEitherT(F0, EitherT.catsDataMonadErrorFForEitherT)
+
   implicit def monadCancelForEitherT[F[_], E0, E](
-      implicit F0: MonadCancel[F, E]): MonadCancel[EitherT[F, E0, *], E] =
+      implicit F0: MonadCancel[F, E],
+      monadErrorEitherT: MonadError[EitherT[F, E0, *], E]
+  ): MonadCancel[EitherT[F, E0, *], E] =
     new EitherTMonadCancel[F, E0, E] {
 
       def rootCancelScope = F0.rootCancelScope
 
+      def delegate = monadErrorEitherT
       override implicit protected def F: MonadCancel[F, E] = F0
     }
 
@@ -610,8 +619,7 @@ object MonadCancel {
 
     implicit protected def F: MonadCancel[F, E]
 
-    protected def delegate: MonadError[EitherT[F, E0, *], E] =
-      EitherT.catsDataMonadErrorFForEitherT[F, E, E0]
+    protected def delegate: MonadError[EitherT[F, E0, *], E]
 
     def uncancelable[A](body: Poll[EitherT[F, E0, *]] => EitherT[F, E0, A]): EitherT[F, E0, A] =
       EitherT(
