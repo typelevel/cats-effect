@@ -153,8 +153,8 @@ object Queue {
         s: State[F, A],
         a: A,
         offerer: Deferred[F, Unit],
-        poll: Poll[F]
-    ): (State[F, A], F[Unit])
+        poll: Poll[F],
+        recurse: => F[Unit]): (State[F, A], F[Unit])
 
     protected def onTryOfferNoCapacity(s: State[F, A], a: A): (State[F, A], F[Boolean])
 
@@ -170,7 +170,7 @@ object Queue {
               State(queue.enqueue(a), size + 1, takers, offerers) -> F.unit
 
             case s =>
-              onOfferNoCapacity(s, a, offerer, poll)
+              onOfferNoCapacity(s, a, offerer, poll, offer(a))
           }
 
           modificationF.flatten
@@ -203,12 +203,8 @@ object Queue {
 
             case State(queue, size, takers, offerers) if queue.nonEmpty =>
               val (a, rest) = queue.dequeue
-              val ((move, release), tail) = offerers.dequeue
-              State(rest.enqueue(move), size, takers, tail) -> release.complete(()).as(a)
-
-            case State(queue, size, takers, offerers) if offerers.nonEmpty =>
-              val ((a, release), rest) = offerers.dequeue
-              State(queue, size, takers, rest) -> release.complete(()).as(a)
+              val (release, tail) = offerers.dequeue
+              State(rest, size - 1, takers, tail) -> release.complete(()).as(a)
 
             case State(queue, size, takers, offerers) =>
               /*
@@ -228,10 +224,18 @@ object Queue {
                 }
               }
 
+              val await = poll(taker.get).onCancel(cleanup.flatten) *>
+                poll(take).onCancel(notifyNextTaker.flatten)
+
+              val (fulfill, offerers2) = if (offerers.isEmpty) {
+                (await, offerers)
+              } else {
+                val (release, rest) = offerers.dequeue
+                (release.complete(()) *> await, rest)
+              }
+
               // it would be safe to throw cleanup around *both* polls, but we micro-optimize slightly here
-              State(queue, size, takers.enqueue(taker), offerers) ->
-                (poll(taker.get).onCancel(cleanup.flatten) *> poll(take).onCancel(
-                  notifyNextTaker.flatten))
+              State(queue, size, takers.enqueue(taker), offerers2) -> fulfill
           }
 
           modificationF.flatten
@@ -247,12 +251,13 @@ object Queue {
 
           case State(queue, size, takers, offerers) if queue.nonEmpty =>
             val (a, rest) = queue.dequeue
-            val ((move, release), tail) = offerers.dequeue
-            State(rest.enqueue(move), size, takers, tail) -> release.complete(()).as(a.some)
+            val (release, tail) = offerers.dequeue
+            State(rest, size, takers, tail) -> release.complete(()).as(a.some)
 
           case State(queue, size, takers, offerers) if offerers.nonEmpty =>
-            val ((a, release), rest) = offerers.dequeue
-            State(queue, size, takers, rest) -> release.complete(()).as(a.some)
+            val (release, rest) = offerers.dequeue
+            // we'll give it another try and see how the race condition works out
+            State(queue, size, takers, rest) -> release.complete(()) *> tryTake
 
           case s =>
             s -> F.pure(none[A])
@@ -280,17 +285,28 @@ object Queue {
         s: State[F, A],
         a: A,
         offerer: Deferred[F, Unit],
-        poll: Poll[F]
-    ): (State[F, A], F[Unit]) = {
+        poll: Poll[F],
+        recurse: => F[Unit]): (State[F, A], F[Unit]) = {
+
       val State(queue, size, takers, offerers) = s
-      val cleanup = state.update { s => s.copy(offerers = s.offerers.filter(_._2 ne offerer)) }
-      State(queue, size, takers, offerers.enqueue(a -> offerer)) -> poll(offerer.get)
-        .onCancel(cleanup)
+
+      val cleanup = state modify { s =>
+        val offerers2 = s.offerers.filter(_ ne offerer)
+
+        if (offerers2.isEmpty) {
+          s.copy(offerers = offerers2) -> F.unit
+        } else {
+          val (offerer, rest) = offerers2.dequeue
+          s.copy(offerers = rest) -> offerer.complete(()).void
+        }
+      }
+
+      State(queue, size, takers, offerers.enqueue(offerer)) ->
+        (poll(offerer.get) *> poll(recurse)).onCancel(cleanup.flatten)
     }
 
     protected def onTryOfferNoCapacity(s: State[F, A], a: A): (State[F, A], F[Boolean]) =
       s -> F.pure(false)
-
   }
 
   private final class DroppingQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
@@ -301,7 +317,8 @@ object Queue {
         s: State[F, A],
         a: A,
         offerer: Deferred[F, Unit],
-        poll: Poll[F]
+        poll: Poll[F],
+        recurse: => F[Unit]
     ): (State[F, A], F[Unit]) =
       s -> F.unit
 
@@ -317,8 +334,8 @@ object Queue {
         s: State[F, A],
         a: A,
         offerer: Deferred[F, Unit],
-        poll: Poll[F]
-    ): (State[F, A], F[Unit]) = {
+        poll: Poll[F],
+        recurse: => F[Unit]): (State[F, A], F[Unit]) = {
       // dotty doesn't like cats map on tuples
       val (ns, fb) = onTryOfferNoCapacity(s, a)
       (ns, fb.void)
@@ -336,8 +353,7 @@ object Queue {
       queue: ScalaQueue[A],
       size: Int,
       takers: ScalaQueue[Deferred[F, Unit]],
-      offerers: ScalaQueue[(A, Deferred[F, Unit])]
-  )
+      offerers: ScalaQueue[Deferred[F, Unit]])
 
   private object State {
     def empty[F[_], A]: State[F, A] =

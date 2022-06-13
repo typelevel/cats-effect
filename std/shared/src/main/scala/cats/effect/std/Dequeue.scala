@@ -153,8 +153,8 @@ object Dequeue {
       }
 
     private def _offer(a: A, update: BankersQueue[A] => BankersQueue[A]): F[Unit] =
-      F.deferred[Unit].flatMap { offerer =>
-        F.uncancelable { poll =>
+      F.uncancelable { poll =>
+        F.deferred[Unit].flatMap { offerer =>
           state.modify {
             case State(queue, size, takers, offerers) if takers.nonEmpty =>
               val (taker, rest) = takers.dequeue
@@ -165,11 +165,20 @@ object Dequeue {
 
             case s =>
               val State(queue, size, takers, offerers) = s
-              val cleanup = state.update { s =>
-                s.copy(offerers = s.offerers.filter(_._2 ne offerer))
+
+              val cleanup = state modify { s =>
+                val offerers2 = s.offerers.filter(_ ne offerer)
+
+                if (offerers2.isEmpty) {
+                  s.copy(offerers = offerers2) -> F.unit
+                } else {
+                  val (release, rest) = offerers2.dequeue
+                  s.copy(offerers = rest) -> release.complete(()).void
+                }
               }
-              State(queue, size, takers, offerers.enqueue(a -> offerer)) -> poll(offerer.get)
-                .onCancel(cleanup)
+
+              State(queue, size, takers, offerers.enqueue(offerer)) ->
+                (poll(offerer.get) *> poll(_offer(a, update))).onCancel(cleanup.flatten)
           }.flatten
         }
       }
@@ -202,12 +211,8 @@ object Dequeue {
             case State(queue, size, takers, offerers) if queue.nonEmpty =>
               val (rest, ma) = dequeue(queue)
               val a = ma.get
-              val ((move, release), tail) = offerers.dequeue
-              State(rest.pushBack(move), size, takers, tail) -> release.complete(()).as(a)
-
-            case State(queue, size, takers, offerers) if offerers.nonEmpty =>
-              val ((a, release), rest) = offerers.dequeue
-              State(queue, size, takers, rest) -> release.complete(()).as(a)
+              val (release, tail) = offerers.dequeue
+              State(rest, size - 1, takers, tail) -> release.complete(()).as(a)
 
             case State(queue, size, takers, offerers) =>
               val cleanup = state modify { s =>
@@ -220,9 +225,17 @@ object Dequeue {
                 }
               }
 
-              State(queue, size, takers.enqueue(taker), offerers) ->
-                (poll(taker.get).onCancel(cleanup.flatten) *> poll(_take(dequeue))
-                  .onCancel(notifyNextTaker.flatten))
+              val await = poll(taker.get).onCancel(cleanup.flatten) *> poll(_take(dequeue))
+                .onCancel(notifyNextTaker.flatten)
+
+              val (fulfill, offerers2) = if (offerers.isEmpty) {
+                (await, offerers)
+              } else {
+                val (release, rest) = offerers.dequeue
+                (release.complete(()) *> await, rest)
+              }
+
+              State(queue, size, takers.enqueue(taker), offerers2) -> fulfill
           }
 
           modificationF.flatten
@@ -249,12 +262,13 @@ object Dequeue {
 
           case State(queue, size, takers, offerers) if queue.nonEmpty =>
             val (rest, ma) = dequeue(queue)
-            val ((move, release), tail) = offerers.dequeue
-            State(rest.pushBack(move), size, takers, tail) -> release.complete(()).as(ma)
+            val (release, tail) = offerers.dequeue
+            State(rest, size, takers, tail) -> release.complete(()).as(ma)
 
           case State(queue, size, takers, offerers) if offerers.nonEmpty =>
-            val ((a, release), rest) = offerers.dequeue
-            State(queue, size, takers, rest) -> release.complete(()).as(a.some)
+            val (release, rest) = offerers.dequeue
+            // try to get lucky on the race condition
+            State(queue, size, takers, rest) -> (release.complete(()) *> _tryTake(dequeue))
 
           case s =>
             s -> F.pure(none[A])
@@ -272,8 +286,7 @@ object Dequeue {
       queue: BankersQueue[A],
       size: Int,
       takers: ScalaQueue[Deferred[F, Unit]],
-      offerers: ScalaQueue[(A, Deferred[F, Unit])]
-  )
+      offerers: ScalaQueue[Deferred[F, Unit]])
 
   private[std] object State {
     def empty[F[_], A]: State[F, A] =

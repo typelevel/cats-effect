@@ -104,6 +104,7 @@ class BoundedPQueueSpec extends BaseSpec with PQueueTests {
     negativeCapacityConstructionTests(constructor)
     tryOfferOnFullTests(constructor, _.offer(_), _.tryOffer(_), false)
     cancelableOfferTests(constructor, _.offer(_), _.take, _.tryTake)
+    cancelableTakeTests(constructor, _.offer(_), _.take)
     tryOfferTryTakeTests(constructor, _.tryOffer(_), _.tryTake)
     commonTests(constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
     dequeueInPriorityOrder(constructor)

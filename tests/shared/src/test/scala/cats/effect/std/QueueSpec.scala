@@ -366,6 +366,50 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(None)))
       } yield r
     }
+
+    "ensure offerers are awakened under all circumstances" in real {
+      val test = for {
+        // _ <- IO.println(s"$prefix >> iterating...")
+        q <- constructor(5)
+        offeredR <- IO.deferred[Boolean]
+
+        // fill the queue
+        _ <- 0.until(5).toVector.traverse_(offer(q, _))
+
+        // start two offerers and race them against each other. one populates offeredR
+        offerer1 = offer(q, 42) guaranteeCase {
+          case Outcome.Succeeded(_) =>
+            offeredR.complete(true).void
+
+          case _ =>
+            offeredR.complete(false).void
+        }
+
+        offer1 <- offerer1.start
+        offer2 <- offer(q, 24) /*.guarantee(IO.println(s"$prefix >> take2 finished"))*/ .start
+
+        // wait for state to quiesce
+        _ <- IO.sleep(250.millis)
+        // _ <- IO.println(s"$prefix >> waking")
+        // race the dequeue against canceling the ref-populating offerer
+        _ <- IO.both(take(q), offer1.cancel)
+
+        // detect the race condition
+        offered <- offeredR.get
+        // _ <- IO.println(s"$prefix >> received $taken")
+
+        // what we're testing here is that *one* of the two ran
+        _ <-
+          if (offered)
+            // if offer1 was resumed, we couldn't reproduce the race condition
+            offer2.cancel
+          else
+            // if neither offerer resumed, then we'll be false from offer1 and offer2.join will hang
+            offer2.join
+      } yield ()
+
+      test.parReplicateA(16).as(ok)
+    }
   }
 
   def cancelableTakeTests(
