@@ -66,5 +66,20 @@ class EitherTPureConcSpec extends Specification with Discipline with BaseSpec {
         case Outcome.Succeeded(Some(Right(()))) => ok
       }
     }
+
+    "bla" in {
+      val F = cats.effect.kernel.GenSpawn[PureConc[Int, *]]
+      GenSpawnLaws[EitherT[PureConc[Int, *], Int, *], Int]
+        .raceDerivesFromRacePairLeft[Int, Int](EitherT(F.raiseError(-42)))
+        .toProp
+    }
+
+    "more bla" in {
+      val F = cats.effect.kernel.GenSpawn[PureConc[Int, *]]
+      GenSpawnLaws[EitherT[PureConc[Int, *], Int, *], Int]
+        .fiberJoinIsGuaranteeCase[Unit](EitherT(F.raiseError(-42)), _ => EitherT.rightT(()))
+        .toProp
+    }
+
   }
 }
