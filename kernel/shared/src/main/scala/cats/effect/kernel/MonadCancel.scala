@@ -16,7 +16,7 @@
 
 package cats.effect.kernel
 
-import cats.{MonadError, Monoid, Semigroup}
+import cats.{~>, MonadError, Monoid, Semigroup}
 import cats.data.{
   EitherT,
   IndexedReaderWriterStateT,
@@ -498,10 +498,9 @@ object MonadCancel extends MonadCancelLowPriority0 {
       case spawn: GenSpawn[F @unchecked, E @unchecked] =>
         GenSpawn.instantiateGenSpawnForConsistentEitherT[F, E](spawn)
       case cancel =>
-        new EitherTMonadCancel[F, E, E] {
+        new ConsistentEitherTMonadCancel[F, E] {
           def rootCancelScope = F0.rootCancelScope
           override implicit protected def F: MonadCancel[F, E] = cancel
-          override def delegate = EitherT.catsDataMonadErrorForEitherT(F)
         }
     }
 
@@ -665,12 +664,77 @@ object MonadCancel extends MonadCancelLowPriority0 {
       delegate.tailRecM(a)(f)
   }
 
+  private[kernel] trait ConsistentEitherTMonadCancel[F[_], E]
+      extends MonadCancel[EitherT[F, E, *], E] {
+
+    implicit protected def F: MonadCancel[F, E]
+
+    protected final def lift[A](fa: F[A]): EitherT[F, E, A] =
+      EitherT(F.attempt(fa))
+
+    protected final def liftK: F ~> EitherT[F, E, *] =
+      new (F ~> EitherT[F, E, *]) {
+        def apply[A](fa: F[A]) = lift(fa)
+      }
+
+    protected final def liftOutcome[A](outcome: Outcome[F, E, A]) =
+      outcome.mapK(liftK)
+
+    protected final def lower[A](efa: EitherT[F, E, A]): F[A] =
+      F.rethrow(efa.value)
+
+    protected final def lowerK: EitherT[F, E, *] ~> F =
+      new (EitherT[F, E, *] ~> F) {
+        def apply[A](efa: EitherT[F, E, A]) = lower(efa)
+      }
+
+    protected final def lowerOutcome[A](outcome: Outcome[EitherT[F, E, *], E, A]) =
+      outcome.mapK(lowerK)
+
+    def uncancelable[A](body: Poll[EitherT[F, E, *]] => EitherT[F, E, A]): EitherT[F, E, A] =
+      lift(F.uncancelable { poll =>
+        lower(
+          body(
+            new Poll[EitherT[F, E, *]] {
+              def apply[A](efa: EitherT[F, E, A]) = lift(poll(lower(efa)))
+            }
+          )
+        )
+      })
+
+    def canceled = lift(F.canceled)
+
+    def onCancel[A](fa: EitherT[F, E, A], fin: EitherT[F, E, Unit]) =
+      lift(F.onCancel(lower(fa), lower(fin)))
+
+    def forceR[A, B](fa: EitherT[F, E, A])(fb: EitherT[F, E, B]) =
+      lift(F.forceR(lower(fa))(lower(fb)))
+
+    override def guaranteeCase[A](fa: EitherT[F, E, A])(
+        fin: Outcome[EitherT[F, E, *], E, A] => EitherT[F, E, Unit]) =
+      lift(F.guaranteeCase(lower(fa))(fin.compose(liftOutcome[A]).andThen(lower(_))))
+
+    def pure[A](x: A) = lift(F.pure(x))
+
+    def raiseError[A](e: E) = lift(F.raiseError[A](e))
+
+    def handleErrorWith[A](fa: EitherT[F, E, A])(f: E => EitherT[F, E, A]) =
+      lift(F.handleErrorWith(lower(fa))(f.andThen(lower(_))))
+
+    def flatMap[A, B](fa: EitherT[F, E, A])(f: A => EitherT[F, E, B]) =
+      lift(F.flatMap(lower(fa))(f.andThen(lower(_))))
+
+    def tailRecM[A, B](a: A)(f: A => EitherT[F, E, Either[A, B]]) =
+      lift(F.tailRecM(a)(f.andThen(lower(_))))
+  }
+
   private[kernel] trait EitherTMonadCancel[F[_], E0, E]
       extends MonadCancel[EitherT[F, E0, *], E] {
 
     implicit protected def F: MonadCancel[F, E]
 
-    protected def delegate: MonadError[EitherT[F, E0, *], E]
+    protected def delegate: MonadError[EitherT[F, E0, *], E] =
+      EitherT.catsDataMonadErrorFForEitherT[F, E, E0]
 
     def uncancelable[A](body: Poll[EitherT[F, E0, *]] => EitherT[F, E0, A]): EitherT[F, E0, A] =
       EitherT(

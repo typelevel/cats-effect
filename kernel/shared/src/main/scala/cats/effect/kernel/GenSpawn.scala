@@ -419,6 +419,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
 
 object GenSpawn extends GenSpawnLowPriority0 {
   import MonadCancel.{
+    ConsistentEitherTMonadCancel,
     EitherTMonadCancel,
     IorTMonadCancel,
     KleisliMonadCancel,
@@ -462,21 +463,9 @@ object GenSpawn extends GenSpawnLowPriority0 {
     }
 
   private[kernel] def instantiateGenSpawnForConsistentEitherT[F[_], E](
-      F0: GenSpawn[F, E]): EitherTGenSpawn[F, E, E] =
-    new EitherTGenSpawn[F, E, E] {
+      F0: GenSpawn[F, E]): ConsistentEitherTGenSpawn[F, E] =
+    new ConsistentEitherTGenSpawn[F, E] {
       override implicit protected def F: GenSpawn[F, E] = F0
-      override def delegate = EitherT.catsDataMonadErrorForEitherT
-
-      override def liftOutcome[A](
-          oc: Outcome[F, E, Either[E, A]]): F[Outcome[EitherT[F, E, *], E, A]] =
-        oc match {
-          case Outcome.Canceled() => F.pure(Outcome.Canceled())
-          case Outcome.Errored(e) => F.pure(Outcome.Errored(e))
-          case Outcome.Succeeded(foa) => foa.map {
-            case Left(e) => Outcome.Errored(e)
-            case Right(a) => Outcome.Succeeded(EitherT.right(F.pure(a)))
-          }
-        }
     }
 
   private[kernel] def instantiateGenSpawnForEitherT[F[_], E0, E](
@@ -604,6 +593,47 @@ object GenSpawn extends GenSpawnLowPriority0 {
         def join: OptionT[F, Outcome[OptionT[F, *], E, A]] =
           OptionT.liftF(fib.join.map(liftOutcome))
       }
+  }
+
+  private[kernel] trait ConsistentEitherTGenSpawn[F[_], E]
+      extends GenSpawn[EitherT[F, E, *], E]
+      with ConsistentEitherTMonadCancel[F, E] {
+
+    implicit protected def F: GenSpawn[F, E]
+
+    protected def liftFiber[A](fiber: Fiber[F, E, A]) =
+      new Fiber[EitherT[F, E, *], E, A] {
+        def cancel = lift(fiber.cancel)
+        def join = lift(F.map(fiber.join)(liftOutcome))
+      }
+
+    def unique = lift(F.unique)
+
+    def start[A](fa: EitherT[F, E, A]) =
+      lift(F.map(F.start(lower(fa)))(liftFiber))
+
+    def never[A] = lift(F.never[A])
+
+    def cede = lift(F.cede)
+
+    def racePair[A, B](fa: EitherT[F, E, A], fb: EitherT[F, E, B]) =
+      lift(F.map(F.racePair(lower(fa), lower(fb))) {
+        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+      })
+
+    override def race[A, B](fa: EitherT[F, E, A], fb: EitherT[F, E, B]) =
+      lift(F.race(lower(fa), lower(fb)))
+
+    override def both[A, B](fa: EitherT[F, E, A], fb: EitherT[F, E, B]) =
+      lift(F.both(lower(fa), lower(fb)))
+
+    override def raceOutcome[A, B](fa: EitherT[F, E, A], fb: EitherT[F, E, B]) =
+      lift(F.map(F.raceOutcome(lower(fa), lower(fb)))(_.bimap(liftOutcome, liftOutcome)))
+
+    override def bothOutcome[A, B](fa: EitherT[F, E, A], fb: EitherT[F, E, B]) =
+      lift(F.map(F.bothOutcome(lower(fa), lower(fb)))(_.bimap(liftOutcome, liftOutcome)))
+
   }
 
   private[kernel] trait EitherTGenSpawn[F[_], E0, E]
