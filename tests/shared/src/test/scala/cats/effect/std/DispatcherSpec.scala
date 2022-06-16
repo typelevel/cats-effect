@@ -169,7 +169,7 @@ class DispatcherSpec extends BaseSpec {
     }
 
     "run many IOs simultaneously to full completion" in real {
-      val length = 256 // 10000 times out on my machine
+      val length = 32 // 10000 times out on my machine
 
       for {
         results <- IO.ref(Vector[Int]())
