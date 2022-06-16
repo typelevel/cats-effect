@@ -83,7 +83,7 @@ class WorkStealingBenchmark {
       IO {
         val size = math.max(100, math.min(n, 2000))
         val array = new Array[AnyRef](size)
-        for (i <- (0 until size)) {
+        for (i <- 0 until size) {
           array(i) = new AnyRef()
         }
         array
@@ -176,7 +176,7 @@ class WorkStealingBenchmark {
       (Scheduler.fromScheduledExecutor(executor), () => executor.shutdown())
     }
 
-    val compute = new WorkStealingThreadPool(256, "io-compute", 60.seconds)
+    val compute = new WorkStealingThreadPool(256, "io-compute", 60.seconds, _.printStackTrace())
 
     val cancelationCheckThreshold =
       System.getProperty("cats.effect.cancelation.check.threshold", "512").toInt
