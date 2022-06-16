@@ -106,6 +106,21 @@ object Supervisor {
   /**
    * Creates a [[cats.effect.kernel.Resource]] scope within which fibers can be monitored. When
    * this scope exits, all supervised fibers will be finalized.
+   *
+   * @note
+   *   if an effect that never completes, is supervised by a `Supervisor` with awaiting
+   *   termination policy, the termination of the `Supervisor` is indefinitely suspended
+   *   {{{
+   *   val io: F[Unit] = // never completes
+   *     Supervisor[F](await = true).use { supervisor =>
+   *       supervisor.supervise(Concurrent[F].never).void
+   *     }
+   *   }}}
+   *
+   * @param await
+   *   the termination policy
+   *   - true - wait for the completion of the active fibers
+   *   - false - cancel the active fibers
    */
   def apply[F[_]](await: Boolean)(implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     F match {
@@ -147,7 +162,7 @@ object Supervisor {
     }
   }
 
-  private def applyForConcurrent[F[_]](await: Boolean)(
+  private[effect] def applyForConcurrent[F[_]](await: Boolean)(
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     val mkState = F.ref[Map[Unique.Token, Fiber[F, Throwable, _]]](Map.empty).map { stateRef =>
       new State[F] {
@@ -165,7 +180,7 @@ object Supervisor {
     supervisor(mkState, await)
   }
 
-  private def applyForAsync[F[_]](await: Boolean)(
+  private[effect] def applyForAsync[F[_]](await: Boolean)(
       implicit F: Async[F]): Resource[F, Supervisor[F]] = {
     val mkState = F.delay {
       val state = new ConcurrentHashMap[Unique.Token, Fiber[F, Throwable, _]]

@@ -28,13 +28,17 @@ import sbtcrossproject.CrossProject
 import JSEnv._
 
 // sbt-git workarounds
-ThisBuild / useConsoleForROGit := true
+ThisBuild / useConsoleForROGit := !(ThisBuild / githubIsWorkflowBuild).value
 
 ThisBuild / git.gitUncommittedChanges := {
-  import scala.sys.process._
-  import scala.util.Try
+  if ((ThisBuild / githubIsWorkflowBuild).value) {
+    git.gitUncommittedChanges.value
+  } else {
+    import scala.sys.process._
+    import scala.util.Try
 
-  Try("git status -s".!!.trim.length > 0).getOrElse(true)
+    Try("git status -s".!!.trim.length > 0).getOrElse(true)
+  }
 }
 
 ThisBuild / tlBaseVersion := "3.4"
@@ -131,8 +135,8 @@ ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Use(
     UseRef.Public("actions", "setup-node", "v2.4.0"),
-    name = Some("Setup NodeJS v14 LTS"),
-    params = Map("node-version" -> "14"),
+    name = Some("Setup NodeJS v16 LTS"),
+    params = Map("node-version" -> "16"),
     cond = Some("matrix.ci == 'ciJS'")
   ),
   WorkflowStep.Run(
@@ -179,6 +183,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
   val scalaJavaFilters = for {
     scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
     java <- (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(OldGuardJava))
+    if !(scala == Scala3 && java == LatestJava)
   } yield MatrixExclude(Map("scala" -> scala, "java" -> java.render))
 
   val windowsAndMacScalaFilters =
@@ -516,7 +521,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
         "cats.effect.unsafe.WorkerThread.schedule"),
       // introduced by #2868
       // added signaling from CallbackStack to indicate successful invocation
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.CallbackStack.apply")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.CallbackStack.apply"),
+      // introduced by #2869
+      // package-private method
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO.unsafeRunFiber")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -823,7 +831,7 @@ lazy val example = crossProject(JSPlatform, JVMPlatform)
  */
 lazy val benchmarks = project
   .in(file("benchmarks"))
-  .dependsOn(core.jvm)
+  .dependsOn(core.jvm, std.jvm)
   .settings(
     name := "cats-effect-benchmarks",
     javaOptions ++= Seq(

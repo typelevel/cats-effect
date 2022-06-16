@@ -31,6 +31,7 @@ import cats.data.{
 import cats.effect.kernel._
 import cats.syntax.all._
 
+import scala.annotation.tailrec
 import scala.util.{Random => SRandom}
 
 /**
@@ -142,6 +143,49 @@ trait Random[F[_]] { self =>
    * Returns a new collection of the same type in a randomly chosen order.
    */
   def shuffleVector[A](v: Vector[A]): F[Vector[A]]
+
+  /**
+   * Pseudorandomly chooses one of the given values.
+   */
+  def oneOf[A](x: A, xs: A*)(implicit ev: Applicative[F]): F[A] =
+    if (xs.isEmpty) {
+      x.pure[F]
+    } else {
+      nextIntBounded(1 + xs.size).map {
+        case 0 => x
+        case i => xs(i - 1)
+      }
+    }
+
+  /**
+   * Pseudorandomly chooses an element of the given collection.
+   *
+   * @return
+   *   a failed effect (NoSuchElementException) if the given collection is empty
+   */
+  def elementOf[A](xs: Iterable[A])(implicit ev: MonadThrow[F]): F[A] = {
+    val requireNonEmpty: F[Unit] =
+      if (xs.nonEmpty) ().pure[F]
+      else
+        new NoSuchElementException("Cannot choose a random element of an empty collection")
+          .raiseError[F, Unit]
+
+    requireNonEmpty *> nextIntBounded(xs.size).map { i =>
+      xs match {
+        case seq: scala.collection.Seq[A] => seq(i)
+        case _ =>
+          // we don't have an apply method, so iterate through
+          // the collection's iterator until we reach the chosen index
+          @tailrec
+          def loop(it: Iterator[A], n: Int): A = {
+            val next = it.next()
+            if (n == i) next
+            else loop(it, n + 1)
+          }
+          loop(xs.iterator, 0)
+      }
+    }
+  }
 
   /**
    * Modifies the context in which this [[Random]] operates using the natural transformation
@@ -387,6 +431,7 @@ object Random extends RandomCompanionPlatform {
     private def require(condition: Boolean, errorMessage: => String): F[Unit] =
       if (condition) ().pure[F]
       else new IllegalArgumentException(errorMessage).raiseError[F, Unit]
+
   }
 
   private[std] abstract class ScalaRandom[F[_]: Sync](f: F[SRandom]) extends RandomCommon[F] {
@@ -399,9 +444,12 @@ object Random extends RandomCompanionPlatform {
     def nextBytes(n: Int): F[Array[Byte]] =
       for {
         r <- f
-        bytes = new Array[Byte](0 max n)
-        _ <- Sync[F].delay(r.nextBytes(bytes))
-      } yield bytes
+        out <- Sync[F].delay {
+          val bytes = new Array[Byte](0 max n)
+          r.nextBytes(bytes)
+          bytes
+        }
+      } yield out
 
     def nextDouble: F[Double] =
       for {
@@ -468,9 +516,10 @@ object Random extends RandomCompanionPlatform {
     def nextBoolean: F[Boolean] =
       Sync[F].delay(localRandom().nextBoolean())
 
-    def nextBytes(n: Int): F[Array[Byte]] = {
+    def nextBytes(n: Int): F[Array[Byte]] = Sync[F].delay {
       val bytes = new Array[Byte](0 max n)
-      Sync[F].delay(localRandom().nextBytes(bytes)).as(bytes)
+      localRandom().nextBytes(bytes)
+      bytes
     }
 
     def nextDouble: F[Double] =
