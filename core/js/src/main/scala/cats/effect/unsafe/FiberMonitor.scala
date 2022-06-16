@@ -57,8 +57,8 @@ private final class ES2021FiberMonitor(
 
   def liveFiberSnapshot(print: String => Unit): Unit =
     Option(compute).foreach { compute =>
-      val queued = compute.liveFibers()
-      val rawForeign = bag.toSet
+      val queued = compute.liveFibers().filterNot(_.isDone)
+      val rawForeign = bag.toSet.filterNot(_.isDone)
 
       // We trust the sources of data in the following order, ordered from
       // most trustworthy to least trustworthy.

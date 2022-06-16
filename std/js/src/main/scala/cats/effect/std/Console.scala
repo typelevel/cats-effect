@@ -31,13 +31,18 @@ import java.nio.charset.Charset
  * console. Suited only for extremely simple console input and output.
  *
  * @example
- *   {{{ import cats.effect.std.Console import cats.effect.kernel.Sync import cats.syntax.all._
+ *   {{{
+ *  import cats.Monad
+ *  import cats.effect.std.Console
+ *  import cats.syntax.all._
  *
- * implicit val console = Console.sync[F]
- *
- * def myProgram[F[_]: Console]: F[Unit] = for { _ <- Console[F].println("Please enter your
- * name: ") n <- Console[F].readLine _ <- if (n.nonEmpty) Console[F].println("Hello, " + n) else
- * Console[F].errorln("Name is empty!") } yield () }}}
+ *  def myProgram[F[_]: Console: Monad]: F[Unit] =
+ *    for {
+ *      _ <- Console[F].println("Please enter your name: ")
+ *      n <- Console[F].readLine
+ *      _ <- if (n.nonEmpty) Console[F].println("Hello, " + n) else Console[F].errorln("Name is empty!")
+ *    } yield ()
+ *   }}}
  */
 trait Console[F[_]] extends ConsoleCrossPlatform[F] {
 

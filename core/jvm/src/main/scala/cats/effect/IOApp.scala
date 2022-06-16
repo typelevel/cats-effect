@@ -17,10 +17,9 @@
 package cats.effect
 
 import cats.effect.tracing.TracingConstants._
-import cats.effect.unsafe.FiberMonitor
 import cats.syntax.all._
 
-import scala.concurrent.{blocking, CancellationException}
+import scala.concurrent.{blocking, CancellationException, ExecutionContext}
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
@@ -186,6 +185,43 @@ trait IOApp {
   protected def computeWorkerThreadCount: Int =
     Math.max(2, Runtime.getRuntime().availableProcessors())
 
+  // arbitrary constant is arbitrary
+  private[this] val queue = new ArrayBlockingQueue[AnyRef](32)
+
+  /**
+   * Executes the provided actions on the JVM's `main` thread. Note that this is, by definition,
+   * a single-threaded executor, and should not be used for anything which requires a meaningful
+   * amount of performance. Additionally, and also by definition, this process conflicts with
+   * producing the results of an application. If one fiber calls `evalOn(MainThread)` while the
+   * main fiber is returning, the first one will "win" and will cause the second one to wait its
+   * turn. Once the main fiber produces results (or errors, or cancels), any remaining enqueued
+   * actions are ignored and discarded (a mostly irrelevant issue since the process is, at that
+   * point, terminating).
+   *
+   * This is ''not'' recommended for use in most applications, and is really only appropriate
+   * for scenarios where some third-party library is sensitive to the exact identity of the
+   * calling thread (for example, LWJGL). In these scenarios, it is recommended that the
+   * absolute minimum possible amount of work is handed off to the main thread.
+   */
+  protected lazy val MainThread: ExecutionContext =
+    new ExecutionContext {
+      def reportFailure(t: Throwable): Unit =
+        t match {
+          case NonFatal(t) =>
+            t.printStackTrace()
+
+          case t =>
+            runtime.shutdown()
+            queue.clear()
+            queue.put(t)
+        }
+
+      def execute(r: Runnable): Unit =
+        if (!queue.offer(r)) {
+          runtime.blocking.execute(() => queue.put(r))
+        }
+    }
+
   /**
    * Controls whether non-daemon threads blocking application exit are logged to stderr when the
    * `IO` produced by `run` has completed. This mechanism works by starting a daemon thread
@@ -262,7 +298,7 @@ trait IOApp {
 
       val installed = IORuntime installGlobal {
         val (compute, compDown) =
-          IORuntime.createDefaultComputeThreadPool(runtime, threads = computeWorkerThreadCount)
+          IORuntime.createWorkStealingComputeThreadPool(threads = computeWorkerThreadCount)
 
         val (blocking, blockDown) =
           IORuntime.createDefaultBlockingExecutionContext()
@@ -270,17 +306,11 @@ trait IOApp {
         val (scheduler, schedDown) =
           IORuntime.createDefaultScheduler()
 
-        val fiberMonitor = FiberMonitor(compute)
-
-        val unregisterFiberMonitorMBean = IORuntime.registerFiberMonitorMBean(fiberMonitor)
-
         IORuntime(
           compute,
           blocking,
           scheduler,
-          fiberMonitor,
           { () =>
-            unregisterFiberMonitorMBean()
             compDown()
             blockDown()
             schedDown()
@@ -315,7 +345,6 @@ trait IOApp {
     }
 
     val rt = Runtime.getRuntime()
-    val queue = new ArrayBlockingQueue[AnyRef](1)
     val counter = new AtomicInteger(1)
 
     val ioa = run(args.toList)
@@ -323,19 +352,22 @@ trait IOApp {
     val fiber =
       ioa.unsafeRunFiber(
         {
-          counter.decrementAndGet()
-          queue.offer(new CancellationException("IOApp main fiber was canceled"))
-          ()
+          if (counter.decrementAndGet() == 0) {
+            queue.clear()
+          }
+          queue.put(new CancellationException("IOApp main fiber was canceled"))
         },
         { t =>
-          counter.decrementAndGet()
-          queue.offer(t)
-          ()
+          if (counter.decrementAndGet() == 0) {
+            queue.clear()
+          }
+          queue.put(t)
         },
         { a =>
-          counter.decrementAndGet()
-          queue.offer(a)
-          ()
+          if (counter.decrementAndGet() == 0) {
+            queue.clear()
+          }
+          queue.put(a)
         }
       )(runtime)
 
@@ -373,43 +405,70 @@ trait IOApp {
     }
 
     try {
-      val result = blocking(queue.take())
-      result match {
-        case ec: ExitCode =>
-          // Clean up after ourselves, relevant for running IOApps in sbt,
-          // otherwise scheduler threads will accumulate over time.
-          runtime.shutdown()
-          if (ec == ExitCode.Success) {
-            // Return naturally from main. This allows any non-daemon
-            // threads to gracefully complete their work, and managed
-            // environments to execute their own shutdown hooks.
-            if (isForked && logNonDaemonThreadsEnabled)
-              new NonDaemonThreadLogger(logNonDaemonThreadsInterval).start()
+      var done = false
+
+      while (!done) {
+        val result = blocking(queue.take())
+        result match {
+          case ec: ExitCode =>
+            // Clean up after ourselves, relevant for running IOApps in sbt,
+            // otherwise scheduler threads will accumulate over time.
+            runtime.shutdown()
+            if (ec == ExitCode.Success) {
+              // Return naturally from main. This allows any non-daemon
+              // threads to gracefully complete their work, and managed
+              // environments to execute their own shutdown hooks.
+              if (isForked && logNonDaemonThreadsEnabled)
+                new NonDaemonThreadLogger(logNonDaemonThreadsInterval).start()
+              else
+                ()
+            } else if (isForked) {
+              System.exit(ec.code)
+            }
+
+            done = true
+
+          case e: CancellationException =>
+            if (isForked)
+              // Do not report cancelation exceptions but still exit with an error code.
+              System.exit(1)
             else
-              ()
-          } else if (isForked) {
-            System.exit(ec.code)
-          }
+              // if we're unforked, the only way to report cancelation is to throw
+              throw e
 
-        case e: CancellationException =>
-          if (isForked)
-            // Do not report cancelation exceptions but still exit with an error code.
-            System.exit(1)
-          else
-            // if we're unforked, the only way to report cancelation is to throw
-            throw e
+          case NonFatal(t) =>
+            if (isForked) {
+              t.printStackTrace()
+              System.exit(1)
+            } else {
+              throw t
+            }
 
-        case NonFatal(t) =>
-          if (isForked) {
+          case t: Throwable =>
             t.printStackTrace()
-            System.exit(1)
-          } else {
-            throw t
-          }
+            rt.halt(1)
 
-        case t: Throwable =>
-          t.printStackTrace()
-          rt.halt(1)
+          case r: Runnable =>
+            try {
+              r.run()
+            } catch {
+              case NonFatal(t) =>
+                if (isForked) {
+                  t.printStackTrace()
+                  System.exit(1)
+                } else {
+                  throw t
+                }
+
+              case t: Throwable =>
+                t.printStackTrace()
+                rt.halt(1)
+            }
+
+          case null =>
+            println(
+              s"result is null but is interrupted? ${Thread.currentThread().isInterrupted()}")
+        }
       }
     } catch {
       // this handles sbt when fork := false

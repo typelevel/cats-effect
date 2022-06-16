@@ -31,6 +31,7 @@ import org.scalacheck.Prop.forAll
 import org.specs2.ScalaCheck
 import org.typelevel.discipline.specs2.mutable.Discipline
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -665,6 +666,16 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           surrounded eqv surroundee
       }
     }
+
+    "evalOn" should {
+      "run acquire and release on provided ExecutionContext" in ticked { implicit ticker =>
+        forAll { (executionContext: ExecutionContext) =>
+          val assertion =
+            IO.executionContext.flatMap(ec => IO(ec mustEqual executionContext)).void
+          Resource.make(assertion)(_ => assertion).evalOn(executionContext).use_.as(true)
+        }
+      }
+    }
   }
 
   "Async[Resource]" >> {
@@ -676,7 +687,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         var fired = false
 
         val test =
-          (Resource.eval(IO.canceled)).uncancelable.onCancel(Resource.eval(IO { fired = true }))
+          Resource.eval(IO.canceled).uncancelable.onCancel(Resource.eval(IO { fired = true }))
 
         test.use_.unsafeToFuture()
         ticker.ctx.tick()

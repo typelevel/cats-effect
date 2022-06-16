@@ -20,6 +20,7 @@ import cats.{
   Align,
   Alternative,
   Applicative,
+  CommutativeApplicative,
   Eval,
   Functor,
   Id,
@@ -35,7 +36,7 @@ import cats.{
 }
 import cats.data.Ior
 import cats.effect.instances.spawn
-import cats.effect.std.{Console, Env}
+import cats.effect.std.{Console, Env, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.syntax.all._
 
@@ -49,6 +50,9 @@ import scala.concurrent.{
 }
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
+
+import java.util.UUID
+import java.util.concurrent.Executor
 
 /**
  * A pure abstraction representing the intention to perform a side effect, where the result of
@@ -447,6 +451,15 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def handleError[B >: A](f: Throwable => B): IO[B] =
     handleErrorWith[B](t => IO.pure(f(t)))
+
+  /**
+   * Runs the current IO, if it fails with an error(exception), the other IO will be executed.
+   * @param other
+   *   IO to be executed (if the current IO fails)
+   * @return
+   */
+  def orElse[B >: A](other: => IO[B]): IO[B] =
+    handleErrorWith(_ => other)
 
   /**
    * Handle any error, potentially recovering from it, by mapping it to another `IO` value.
@@ -907,59 +920,14 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   /**
    * Translates this `IO[A]` into a `SyncIO` value which, when evaluated, runs the original `IO`
-   * to its completion, the `limit` number of stages, or until the first asynchronous boundary,
-   * whichever is encountered first.
+   * to its completion, the `limit` number of stages, or until the first stage that cannot be
+   * expressed with `SyncIO` (typically an asynchronous boundary).
    *
    * @param limit
-   *   The number of stages to evaluate prior to forcibly yielding to `IO`
+   *   The maximum number of stages to evaluate prior to forcibly yielding to `IO`
    */
-  def syncStep(limit: Int): SyncIO[Either[IO[A], A]] = {
-    def interpret[B](io: IO[B], limit: Int): SyncIO[Either[IO[B], (B, Int)]] = {
-      if (limit <= 0) {
-        SyncIO.pure(Left(io))
-      } else {
-        io match {
-          case IO.Pure(a) => SyncIO.pure(Right((a, limit)))
-          case IO.Error(t) => SyncIO.raiseError(t)
-          case IO.Delay(thunk, _) => SyncIO.delay(thunk()).map(a => Right((a, limit)))
-          case IO.RealTime => SyncIO.realTime.map(a => Right((a, limit)))
-          case IO.Monotonic => SyncIO.monotonic.map(a => Right((a, limit)))
-
-          case IO.Map(ioe, f, _) =>
-            interpret(ioe, limit - 1).map {
-              case Left(_) => Left(io)
-              case Right((a, limit)) => Right((f(a), limit))
-            }
-
-          case IO.FlatMap(ioe, f, _) =>
-            interpret(ioe, limit - 1).flatMap {
-              case Left(_) => SyncIO.pure(Left(io))
-              case Right((a, limit)) => interpret(f(a), limit - 1)
-            }
-
-          case IO.Attempt(ioe) =>
-            interpret(ioe, limit - 1)
-              .map {
-                case Left(_) => Left(io)
-                case Right((a, limit)) => Right((a.asRight[Throwable], limit))
-              }
-              .handleError(t => Right((t.asLeft[IO[B]], limit - 1)))
-
-          case IO.HandleErrorWith(ioe, f, _) =>
-            interpret(ioe, limit - 1)
-              .map {
-                case Left(_) => Left(io)
-                case r @ Right(_) => r
-              }
-              .handleErrorWith(t => interpret(f(t), limit - 1))
-
-          case _ => SyncIO.pure(Left(io))
-        }
-      }
-    }
-
-    interpret(this, limit).map(_.map(_._1))
-  }
+  def syncStep(limit: Int): SyncIO[Either[IO[A], A]] =
+    IO.asyncForIO.syncStep[SyncIO, A](this, limit)
 
   /**
    * Evaluates the current `IO` in an infinite loop, terminating only on error or cancelation.
@@ -1013,6 +981,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * devoid of boxing issues and a good choice until opaque types will land in Scala.
    */
   type Par[A] = ParallelF[IO, A]
+
+  implicit def commutativeApplicativeForIOPar: CommutativeApplicative[IO.Par] =
+    instances.spawn.commutativeApplicativeForParallelF
+
+  implicit def alignForIOPar: Align[IO.Par] =
+    instances.spawn.alignForParallelF
 
   // constructors
 
@@ -1156,6 +1130,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def executionContext: IO[ExecutionContext] = ReadEC
 
+  def executor: IO[Executor] = _asyncForIO.executor
+
   def monotonic: IO[FiniteDuration] = Monotonic
 
   /**
@@ -1219,6 +1195,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    */
   def raiseError[A](t: Throwable): IO[A] = Error(t)
 
+  /**
+   * @return
+   *   a randomly-generated UUID
+   *
+   * This is equivalent to `UUIDGen[IO].randomUUID`, just provided as a method for convenience
+   */
+  def randomUUID: IO[UUID] = UUIDGen[IO].randomUUID
+
   def realTime: IO[FiniteDuration] = RealTime
 
   /**
@@ -1242,8 +1226,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * The created task is cancelable and so it can be used safely in race conditions without
    * resource leakage.
    *
-   * @param duration
-   *   is the time span to wait before emitting the tick
+   * @param delay
+   *   the time span to wait before emitting the tick
    *
    * @return
    *   a new asynchronous and cancelable `IO` that will sleep for the specified duration and
@@ -1401,8 +1385,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Returns `raiseError` when the `cond` is true, otherwise `IO.unit`
    *
    * @example
-   *   {{{ val tooMany = 5 val x: Int = ??? IO.raiseWhen(x >= tooMany)(new
-   *   IllegalArgumentException("Too many")) }}}
+   *   {{{
+   * val tooMany = 5
+   * val x: Int = ???
+   * IO.raiseWhen(x >= tooMany)(new IllegalArgumentException("Too many"))
+   *   }}}
    */
   def raiseWhen(cond: Boolean)(e: => Throwable): IO[Unit] =
     IO.whenA(cond)(IO.raiseError(e))
@@ -1411,8 +1398,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Returns `raiseError` when `cond` is false, otherwise IO.unit
    *
    * @example
-   *   {{{ val tooMany = 5 val x: Int = ??? IO.raiseUnless(x < tooMany)(new
-   *   IllegalArgumentException("Too many")) }}}
+   *   {{{
+   * val tooMany = 5
+   * val x: Int = ???
+   * IO.raiseUnless(x < tooMany)(new IllegalArgumentException("Too many"))
+   *   }}}
    */
   def raiseUnless(cond: Boolean)(e: => Throwable): IO[Unit] =
     IO.unlessA(cond)(IO.raiseError(e))
@@ -1506,7 +1496,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   protected class IOSemigroupK extends SemigroupK[IO] {
     final override def combineK[A](a: IO[A], b: IO[A]): IO[A] =
-      a.handleErrorWith(_ => b)
+      a orElse b
   }
 
   implicit def alignForIO: Align[IO] = _alignForIO
@@ -1604,6 +1594,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def start[A](fa: IO[A]): IO[FiberIO[A]] =
       fa.start
 
+    override def racePair[A, B](
+        left: IO[A],
+        right: IO[B]): IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] =
+      IO.racePair(left, right)
+
     def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
       IO.uncancelable(body)
 
@@ -1647,6 +1642,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
      * interrupts in the event of cancelation. The interrupt will be attempted repeatedly until
      * the blocking operation completes or exits.
      *
+     * @note
+     *   that this _really_ means what it says - it will throw exceptions in a tight loop until
+     *   the offending blocking operation exits. This is extremely expensive if it happens on a
+     *   hot path and the blocking operation is badly behaved and doesn't exit immediately.
+     *
      * @param thunk
      *   The side effect which is to be suspended in `IO` and evaluated on a blocking execution
      *   context
@@ -1676,6 +1676,13 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
           b <- fb.value
         } yield fn(a, b)
       )
+
+    override def syncStep[G[_], A](fa: IO[A], limit: Int)(
+        implicit G: Sync[G]): G[Either[IO[A], A]] = {
+      type H[+B] = G[B @uncheckedVariance]
+      val H = G.asInstanceOf[Sync[H]]
+      G.map(SyncStep.interpret[H, A](fa, limit)(H))(_.map(_._1))
+    }
   }
 
   implicit def asyncForIO: kernel.Async[IO] = _asyncForIO
@@ -1822,6 +1829,54 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
   private[effect] case object EndFiber extends IO[Nothing] {
     def tag = -1
+  }
+
+}
+
+private object SyncStep {
+  def interpret[G[+_], B](io: IO[B], limit: Int)(
+      implicit G: Sync[G]): G[Either[IO[B], (B, Int)]] = {
+    if (limit <= 0) {
+      G.pure(Left(io))
+    } else {
+      io match {
+        case IO.Pure(a) => G.pure(Right((a, limit)))
+        case IO.Error(t) => G.raiseError(t)
+        case IO.Delay(thunk, _) => G.delay(thunk()).map(a => Right((a, limit)))
+        case IO.RealTime => G.realTime.map(a => Right((a, limit)))
+        case IO.Monotonic => G.monotonic.map(a => Right((a, limit)))
+
+        case IO.Map(ioe, f, _) =>
+          interpret(ioe, limit - 1).map {
+            case Left(io) => Left(io.map(f))
+            case Right((a, limit)) => Right((f(a), limit))
+          }
+
+        case IO.FlatMap(ioe, f, _) =>
+          interpret(ioe, limit - 1).flatMap {
+            case Left(io) => G.pure(Left(io.flatMap(f)))
+            case Right((a, limit)) => interpret(f(a), limit - 1)
+          }
+
+        case IO.Attempt(ioe) =>
+          interpret(ioe, limit - 1)
+            .map {
+              case Left(io) => Left(io.attempt)
+              case Right((a, limit)) => Right((a.asRight[Throwable], limit))
+            }
+            .handleError(t => Right((t.asLeft[IO[B]], limit - 1)))
+
+        case IO.HandleErrorWith(ioe, f, _) =>
+          interpret(ioe, limit - 1)
+            .map {
+              case Left(io) => Left(io.handleErrorWith(f))
+              case r @ Right(_) => r
+            }
+            .handleErrorWith(t => interpret(f(t), limit - 1))
+
+        case _ => G.pure(Left(io))
+      }
+    }
   }
 
 }

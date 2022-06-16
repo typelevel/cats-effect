@@ -14,12 +14,9 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect
 
-import scala.concurrent.duration.Duration
-
-private object IORuntimeConfigDefaults {
-  final val DefaultEnhancedExceptions: Boolean = true
-  final val DefaultTraceBufferSize: Int = 16
-  final val DefaultShutdownHookTimeout: Duration = Duration.Inf
+trait DetectPlatform {
+  def isWSL: Boolean = System.getProperty("os.version").contains("-WSL")
+  def isJS: Boolean = false
 }
