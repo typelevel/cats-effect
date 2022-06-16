@@ -35,10 +35,15 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   def createWorkStealingComputeThreadPool(
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
       threadPrefix: String = "io-compute",
-      runtimeBlockingExpiration: Duration = 60.seconds)
+      runtimeBlockingExpiration: Duration = 60.seconds,
+      reportFailure: Throwable => Unit = _.printStackTrace())
       : (WorkStealingThreadPool, () => Unit) = {
     val threadPool =
-      new WorkStealingThreadPool(threads, threadPrefix, runtimeBlockingExpiration)
+      new WorkStealingThreadPool(
+        threads,
+        threadPrefix,
+        runtimeBlockingExpiration,
+        reportFailure)
 
     val unregisterMBeans =
       if (isStackTracing) {

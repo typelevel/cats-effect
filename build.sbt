@@ -113,9 +113,9 @@ val Windows = "windows-latest"
 val MacOS = "macos-latest"
 
 val Scala213 = "2.13.8"
-val Scala3 = "3.0.2"
+val Scala3 = "3.1.2"
 
-ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
+ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.16", Scala213)
 ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
 ThisBuild / tlJdkRelease := Some(8)
 
@@ -254,9 +254,9 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.7.0"
-val Specs2Version = "4.15.0"
+val Specs2Version = "4.16.0"
 val ScalaCheckVersion = "1.16.0"
-val DisciplineVersion = "1.2.5"
+val DisciplineVersion = "1.3.1"
 val CoopVersion = "1.1.1"
 
 val MacrotaskExecutorVersion = "1.0.0"
@@ -521,7 +521,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
         "cats.effect.unsafe.WorkerThread.schedule"),
       // introduced by #2868
       // added signaling from CallbackStack to indicate successful invocation
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.CallbackStack.apply")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.CallbackStack.apply"),
+      // introduced by #2869
+      // package-private method
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO.unsafeRunFiber")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -728,6 +731,7 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test
     ),
     buildInfoPackage := "catseffect",
+    tlFatalWarnings := tlFatalWarnings.value && !tlIsScala3.value, // TODO remove when we update to Scala >=3.1
     Test / unmanagedSourceDirectories ++= {
       if (scalaBinaryVersion.value != "2.12")
         Seq(baseDirectory.value / ".." / "shared" / "src" / "test" / "scala-2.13+")
@@ -799,11 +803,14 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
   )
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test,
-    tlFatalWarnings := tlFatalWarnings.value && !tlIsScala3.value, // TODO remove when we update to Scala >=3.1
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #2604, Fix Console on JS
       // changes to a static forwarder, which are meaningless on JS
-      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.std.Console.make")
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.std.Console.make"),
+      // introduced by #2905, Add a SecureRandom algebra
+      // relocated a package-private class
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.JavaSecureRandom"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.JavaSecureRandom$")
     )
   )
 
@@ -823,7 +830,7 @@ lazy val example = crossProject(JSPlatform, JVMPlatform)
  */
 lazy val benchmarks = project
   .in(file("benchmarks"))
-  .dependsOn(core.jvm)
+  .dependsOn(core.jvm, std.jvm)
   .settings(
     name := "cats-effect-benchmarks",
     javaOptions ++= Seq(
