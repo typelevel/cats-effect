@@ -50,6 +50,7 @@ import scala.concurrent.{
 }
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
+import scala.util.control.NonFatal
 
 import java.util.UUID
 import java.util.concurrent.Executor
@@ -796,9 +797,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * impure side effects.
    *
    * Any exceptions raised within the effect will be passed to the callback in the `Either`. The
-   * callback will be invoked at most *once*. Note that it is very possible to construct an IO
-   * which never returns while still never blocking a thread, and attempting to evaluate that IO
-   * with this method will result in a situation where the callback is *never* invoked.
+   * callback will be invoked at most *once*. In addition, fatal errors will be printed. Note
+   * that it is very possible to construct an IO which never returns while still never blocking
+   * a thread, and attempting to evaluate that IO with this method will result in a situation
+   * where the callback is *never* invoked.
    *
    * As the name says, this is an UNSAFE function as it is impure and performs side effects. You
    * should ideally only call this function ''once'', at the very end of your program.
@@ -807,8 +809,14 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       implicit runtime: unsafe.IORuntime): Unit = {
     unsafeRunFiber(
       cb(Left(new CancellationException("The fiber was canceled"))),
-      t => cb(Left(t)),
-      a => cb(Right(a)))
+      t => {
+        if (!NonFatal(t)) {
+          t.printStackTrace()
+        }
+        cb(Left(t))
+      },
+      a => cb(Right(a))
+    )
     ()
   }
 
@@ -816,7 +824,12 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       implicit runtime: unsafe.IORuntime): Unit = {
     unsafeRunFiber(
       cb(Outcome.canceled),
-      t => cb(Outcome.errored(t)),
+      t => {
+        if (!NonFatal(t)) {
+          t.printStackTrace()
+        }
+        cb(Outcome.errored(t))
+      },
       a => cb(Outcome.succeeded(a: Id[A])))
     ()
   }
@@ -831,8 +844,17 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Note that errors still get logged (via IO's internal logger), because errors being thrown
    * should never be totally silent.
    */
-  def unsafeRunAndForget()(implicit runtime: unsafe.IORuntime): Unit =
-    unsafeRunAsync(_ => ())
+  def unsafeRunAndForget()(implicit runtime: unsafe.IORuntime): Unit = {
+    val _ = unsafeRunFiber((), _ => (), _ => ())
+    ()
+  }
+
+  // internally used for error reporting
+  private[effect] def unsafeRunAndForgetWithoutCallback()(
+      implicit runtime: unsafe.IORuntime): Unit = {
+    val _ = unsafeRunFiber((), _ => (), _ => (), false)
+    ()
+  }
 
   /**
    * Evaluates the effect and produces the result in a `Future`.
@@ -886,7 +908,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   private[effect] def unsafeRunFiber(
       canceled: => Unit,
       failure: Throwable => Unit,
-      success: A => Unit)(implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
+      success: A => Unit,
+      registerCallback: Boolean = true)(
+      implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber[A](
       Map.empty,
@@ -910,7 +934,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       runtime
     )
 
-    runtime.fiberErrorCbs.put(failure)
+    if (registerCallback) {
+      runtime.fiberErrorCbs.put(failure)
+    }
+
     runtime.compute.execute(fiber)
     fiber
   }

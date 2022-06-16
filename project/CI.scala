@@ -73,7 +73,8 @@ object CI {
           "testOnly *tracing*",
           "testOnly *.ConsoleJSSpec",
           "testOnly *.RandomSpec",
-          "testOnly *.SchedulerSpec"
+          "testOnly *.SchedulerSpec",
+          "testOnly *.SecureRandomSpec"
         ),
         mimaReport = false,
         suffixCommands = List())
@@ -85,9 +86,11 @@ object CI {
         jsEnv = Some(JSEnv.Chrome),
         testCommands = List(
           "testOnly *tracing*",
+          "testOnly *tracing*",
           "testOnly *.ConsoleJSSpec",
           "testOnly *.RandomSpec",
-          "testOnly *.SchedulerSpec"
+          "testOnly *.SchedulerSpec",
+          "testOnly *.SecureRandomSpec"
         ),
         mimaReport = false,
         suffixCommands = List())
