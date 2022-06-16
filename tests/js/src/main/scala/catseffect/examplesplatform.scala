@@ -47,7 +47,7 @@ package examples {
     register(LeakedFiber)
     register(UndefinedProcessExit)
 
-    @nowarn("cat=unused")
+    @nowarn("msg=never used")
     def main(paperweight: Array[String]): Unit = {
       val args = js.Dynamic.global.process.argv.asInstanceOf[js.Array[String]]
       val app = args(2)
