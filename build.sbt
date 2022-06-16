@@ -521,7 +521,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
         "cats.effect.unsafe.WorkerThread.schedule"),
       // introduced by #2868
       // added signaling from CallbackStack to indicate successful invocation
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.CallbackStack.apply")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.CallbackStack.apply"),
+      // introduced by #2869
+      // package-private method
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO.unsafeRunFiber")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
