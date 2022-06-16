@@ -14,29 +14,20 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats.effect
+package std
 
-import cats.Functor
-import cats.implicits._
+class SecureRandomSpec extends BaseSpec {
 
-import java.util.UUID
+  "SecureRandom" should {
+    "securely generate random bytes" in real {
+      for {
+        random1 <- SecureRandom.javaSecuritySecureRandom[IO]
+        bytes1 <- random1.nextBytes(128)
+        random2 <- SecureRandom.javaSecuritySecureRandom[IO](2)
+        bytes2 <- random2.nextBytes(256)
+      } yield bytes1.length == 128 && bytes2.length == 256
+    }
+  }
 
-/**
- * A purely functional UUID Generator
- */
-trait UUIDGen[F[_]] {
-
-  /**
-   * Generates a UUID in a pseudorandom manner.
-   * @return
-   *   randomly generated UUID
-   */
-  def randomUUID: F[UUID]
-}
-
-object UUIDGen extends UUIDGenCompanionPlatform {
-  def apply[F[_]](implicit ev: UUIDGen[F]): UUIDGen[F] = ev
-
-  def randomUUID[F[_]: UUIDGen]: F[UUID] = UUIDGen[F].randomUUID
-  def randomString[F[_]: UUIDGen: Functor]: F[String] = randomUUID.map(_.toString)
 }

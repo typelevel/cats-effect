@@ -31,7 +31,8 @@ final class IORuntimeBuilder protected (
     protected var customConfig: Option[IORuntimeConfig] = None,
     protected var customScheduler: Option[(Scheduler, () => Unit)] = None,
     protected var extraShutdownHooks: List[() => Unit] = Nil,
-    protected var builderExecuted: Boolean = false
+    protected var builderExecuted: Boolean = false,
+    protected var failureReporter: Throwable => Unit = _.printStackTrace()
 ) extends IORuntimeBuilderPlatform {
 
   /**
@@ -115,6 +116,11 @@ final class IORuntimeBuilder protected (
       throw new RuntimeException("Scheduler can only be set once")
     }
     customScheduler = Some((scheduler, shutdown))
+    this
+  }
+
+  def setFailureReporter(f: Throwable => Unit) = {
+    failureReporter = f
     this
   }
 

@@ -1503,7 +1503,7 @@ private object IOFiber {
   private[effect] val RightUnit = Right(())
 
   def onFatalFailure(t: Throwable): Null = {
-    Thread.interrupted()
+    val interrupted = Thread.interrupted()
 
     if (IORuntime.globalFatalFailureHandled.compareAndSet(false, true)) {
       IORuntime.allRuntimes.synchronized {
@@ -1547,7 +1547,10 @@ private object IOFiber {
       }
     }
 
-    Thread.currentThread().interrupt()
-    null
+    if (interrupted) {
+      Thread.currentThread().interrupt()
+    }
+
+    throw t
   }
 }

@@ -17,9 +17,8 @@
 package cats.effect.benchmarks
 
 import cats.effect.IO
-import cats.effect.std.Dispatcher
-import cats.effect.unsafe._
-import cats.syntax.all._
+import cats.effect.std.Random
+import cats.effect.unsafe.implicits.global
 
 import org.openjdk.jmh.annotations._
 
@@ -28,13 +27,13 @@ import java.util.concurrent.TimeUnit
 /**
  * To do comparative benchmarks between versions:
  *
- * benchmarks/run-benchmark DispatcherBenchmark
+ * benchmarks/run-benchmark RandomBenchmark
  *
  * This will generate results in `benchmarks/results`.
  *
  * Or to run the benchmark from within sbt:
  *
- * jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.DispatcherBenchmark
+ * jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.RandomBenchmark
  *
  * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread". Please note that
  * benchmarks should be usually executed at least in 10 iterations (as a rule of thumb), but
@@ -42,45 +41,38 @@ import java.util.concurrent.TimeUnit
  */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
-@OutputTimeUnit(TimeUnit.MINUTES)
-class DispatcherBenchmark {
+@OutputTimeUnit(TimeUnit.SECONDS)
+class RandomBenchmark {
 
-  @Param(Array("1000"))
+  @Param(Array("10000", "100000", "1000000"))
   var size: Int = _
 
-  def benchmark(implicit runtime: IORuntime): Int = {
-    def fiber(dispatcher: Dispatcher[IO], i: Int): IO[Int] =
-      IO.fromFuture(IO(dispatcher.unsafeToFuture {
-        IO(i).flatMap { i =>
-          IO.fromFuture(IO(dispatcher.unsafeToFuture {
-            if (i > 100) {
-              IO.fromFuture(IO(dispatcher.unsafeToFuture {
-                IO.pure(i)
-              }))
-            } else {
-              IO.fromFuture(IO(dispatcher.unsafeToFuture {
-                fiber(dispatcher, i + 1)
-              }))
-            }
-          }))
-        }
-      }))
+  var list: List[Int] = _
+  var vector: Vector[Int] = _
+  var map: Map[String, Int] = _
 
-    Dispatcher
-      .parallel[IO](await = false)
-      .use { disp =>
-        List
-          .range(0, size)
-          .traverse(_ => fiber(disp, 0).start)
-          .flatMap(_.traverse(_.joinWithNever))
-          .map(_.sum)
-      }
-      .unsafeRunSync()
+  @Setup
+  def setup(): Unit = {
+    list = (1 to size).toList
+    vector = (1 to size).toVector
+    map = (1 to size).map(x => (x.toString, x)).toMap
+  }
+
+  val random: Random[IO] = Random.scalaUtilRandom[IO].unsafeRunSync()
+
+  @Benchmark
+  def elementOfList(): Int = {
+    random.elementOf(list).unsafeRunSync()
   }
 
   @Benchmark
-  def scheduling(): Int = {
-    import cats.effect.unsafe.implicits.global
-    benchmark
+  def elementOfVector(): Int = {
+    random.elementOf(vector).unsafeRunSync()
   }
+
+  @Benchmark
+  def elementOfMap(): (String, Int) = {
+    random.elementOf(map).unsafeRunSync()
+  }
+
 }
