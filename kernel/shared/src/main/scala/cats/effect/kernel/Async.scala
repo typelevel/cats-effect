@@ -171,7 +171,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * @param limit
    *   The maximum number of stages to evaluate prior to forcibly yielding to `F`
    */
-  @nowarn("cat=unused")
+  @nowarn("msg=never used")
   def syncStep[G[_], A](fa: F[A], limit: Int)(implicit G: Sync[G]): G[Either[F[A], A]] =
     G.pure(Left(fa))
 
