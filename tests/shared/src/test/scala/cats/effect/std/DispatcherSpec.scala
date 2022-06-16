@@ -25,6 +25,8 @@ import scala.concurrent.duration._
 
 class DispatcherSpec extends BaseSpec {
 
+  override def executionTimeout = 30.seconds
+
   "sequential dispatcher" should {
     "await = true" >> {
       val D = Dispatcher.sequential[IO](await = true)
@@ -169,7 +171,7 @@ class DispatcherSpec extends BaseSpec {
     }
 
     "run many IOs simultaneously to full completion" in real {
-      val length = 32 // 10000 times out on my machine
+      val length = 256 // 10000 times out on my machine
 
       for {
         results <- IO.ref(Vector[Int]())
