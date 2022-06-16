@@ -731,6 +731,7 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test
     ),
     buildInfoPackage := "catseffect",
+    tlFatalWarnings := tlFatalWarnings.value && !tlIsScala3.value, // TODO remove when we update to Scala >=3.1
     Test / unmanagedSourceDirectories ++= {
       if (scalaBinaryVersion.value != "2.12")
         Seq(baseDirectory.value / ".." / "shared" / "src" / "test" / "scala-2.13+")
@@ -806,7 +807,11 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #2604, Fix Console on JS
       // changes to a static forwarder, which are meaningless on JS
-      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.std.Console.make")
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.std.Console.make"),
+      // introduced by #2905, Add a SecureRandom algebra
+      // relocated a package-private class
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.JavaSecureRandom"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.JavaSecureRandom$")
     )
   )
 

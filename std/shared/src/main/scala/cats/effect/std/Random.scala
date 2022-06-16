@@ -195,61 +195,8 @@ trait Random[F[_]] { self =>
    *   a [[Random]] in the new context obtained by mapping the current one using `f`
    */
   def mapK[G[_]](f: F ~> G): Random[G] =
-    new Random[G] {
-      override def betweenDouble(minInclusive: Double, maxExclusive: Double): G[Double] =
-        f(self.betweenDouble(minInclusive, maxExclusive))
+    new Random.TranslatedRandom[F, G](self)(f) {}
 
-      override def betweenFloat(minInclusive: Float, maxExclusive: Float): G[Float] =
-        f(self.betweenFloat(minInclusive, maxExclusive))
-
-      override def betweenInt(minInclusive: Int, maxExclusive: Int): G[Int] =
-        f(self.betweenInt(minInclusive, maxExclusive))
-
-      override def betweenLong(minInclusive: Long, maxExclusive: Long): G[Long] =
-        f(self.betweenLong(minInclusive, maxExclusive))
-
-      override def nextAlphaNumeric: G[Char] =
-        f(self.nextAlphaNumeric)
-
-      override def nextBoolean: G[Boolean] =
-        f(self.nextBoolean)
-
-      override def nextBytes(n: Int): G[Array[Byte]] =
-        f(self.nextBytes(n))
-
-      override def nextDouble: G[Double] =
-        f(self.nextDouble)
-
-      override def nextFloat: G[Float] =
-        f(self.nextFloat)
-
-      override def nextGaussian: G[Double] =
-        f(self.nextGaussian)
-
-      override def nextInt: G[Int] =
-        f(self.nextInt)
-
-      override def nextIntBounded(n: Int): G[Int] =
-        f(self.nextIntBounded(n))
-
-      override def nextLong: G[Long] =
-        f(self.nextLong)
-
-      override def nextLongBounded(n: Long): G[Long] =
-        f(self.nextLongBounded(n))
-
-      override def nextPrintableChar: G[Char] =
-        f(self.nextPrintableChar)
-
-      override def nextString(length: Int): G[String] =
-        f(self.nextString(length))
-
-      override def shuffleList[A](l: List[A]): G[List[A]] =
-        f(self.shuffleList(l))
-
-      override def shuffleVector[A](v: Vector[A]): G[Vector[A]] =
-        f(self.shuffleVector(v))
-    }
 }
 
 object Random extends RandomCompanionPlatform {
@@ -375,20 +322,15 @@ object Random extends RandomCompanionPlatform {
   def javaUtilConcurrentThreadLocalRandom[F[_]: Sync]: Random[F] =
     new ThreadLocalRandom[F] {}
 
+  @deprecated("Call SecureRandom.javaSecuritySecureRandom", "3.4.0")
   def javaSecuritySecureRandom[F[_]: Sync](n: Int): F[Random[F]] =
-    for {
-      ref <- Ref[F].of(0)
-      array <- Sync[F].delay(Array.fill(n)(new SRandom(new JavaSecureRandom)))
-    } yield {
-      def incrGet = ref.modify(i => (if (i < (n - 1)) i + 1 else 0, i))
-      def selectRandom = incrGet.map(array(_))
-      new ScalaRandom[F](selectRandom) {}
-    }
+    SecureRandom.javaSecuritySecureRandom[F](n).widen[Random[F]]
 
+  @deprecated("Call SecureRandom.javaSecuritySecureRandom", "3.4.0")
   def javaSecuritySecureRandom[F[_]: Sync]: F[Random[F]] =
-    Sync[F].delay(new JavaSecureRandom).flatMap(r => javaUtilRandom(r))
+    SecureRandom.javaSecuritySecureRandom[F].widen[Random[F]]
 
-  private sealed abstract class RandomCommon[F[_]: Sync] extends Random[F] {
+  private[std] sealed abstract class RandomCommon[F[_]: Sync] extends Random[F] {
     def betweenDouble(minInclusive: Double, maxExclusive: Double): F[Double] =
       for {
         _ <- require(minInclusive < maxExclusive, "Invalid bounds")
@@ -492,7 +434,7 @@ object Random extends RandomCompanionPlatform {
 
   }
 
-  private abstract class ScalaRandom[F[_]: Sync](f: F[SRandom]) extends RandomCommon[F] {
+  private[std] abstract class ScalaRandom[F[_]: Sync](f: F[SRandom]) extends RandomCommon[F] {
     def nextBoolean: F[Boolean] =
       for {
         r <- f
@@ -613,4 +555,62 @@ object Random extends RandomCompanionPlatform {
 
   private[this] def localRandom() = new SRandom(
     java.util.concurrent.ThreadLocalRandom.current())
+
+  private[std] abstract class TranslatedRandom[F[_], G[_]](self: Random[F])(f: F ~> G)
+      extends Random[G] {
+    override def betweenDouble(minInclusive: Double, maxExclusive: Double): G[Double] =
+      f(self.betweenDouble(minInclusive, maxExclusive))
+
+    override def betweenFloat(minInclusive: Float, maxExclusive: Float): G[Float] =
+      f(self.betweenFloat(minInclusive, maxExclusive))
+
+    override def betweenInt(minInclusive: Int, maxExclusive: Int): G[Int] =
+      f(self.betweenInt(minInclusive, maxExclusive))
+
+    override def betweenLong(minInclusive: Long, maxExclusive: Long): G[Long] =
+      f(self.betweenLong(minInclusive, maxExclusive))
+
+    override def nextAlphaNumeric: G[Char] =
+      f(self.nextAlphaNumeric)
+
+    override def nextBoolean: G[Boolean] =
+      f(self.nextBoolean)
+
+    override def nextBytes(n: Int): G[Array[Byte]] =
+      f(self.nextBytes(n))
+
+    override def nextDouble: G[Double] =
+      f(self.nextDouble)
+
+    override def nextFloat: G[Float] =
+      f(self.nextFloat)
+
+    override def nextGaussian: G[Double] =
+      f(self.nextGaussian)
+
+    override def nextInt: G[Int] =
+      f(self.nextInt)
+
+    override def nextIntBounded(n: Int): G[Int] =
+      f(self.nextIntBounded(n))
+
+    override def nextLong: G[Long] =
+      f(self.nextLong)
+
+    override def nextLongBounded(n: Long): G[Long] =
+      f(self.nextLongBounded(n))
+
+    override def nextPrintableChar: G[Char] =
+      f(self.nextPrintableChar)
+
+    override def nextString(length: Int): G[String] =
+      f(self.nextString(length))
+
+    override def shuffleList[A](l: List[A]): G[List[A]] =
+      f(self.shuffleList(l))
+
+    override def shuffleVector[A](v: Vector[A]): G[Vector[A]] =
+      f(self.shuffleVector(v))
+
+  }
 }

@@ -19,14 +19,16 @@ package std
 
 import org.specs2.specification.core.Fragments
 
+import scala.annotation.nowarn
+
 class RandomSpec extends BaseSpec {
 
   "Random" should {
     "securely generate random bytes" in real {
       for {
-        random1 <- Random.javaSecuritySecureRandom[IO]
+        random1 <- Random.javaSecuritySecureRandom[IO]: @nowarn("cat=deprecation")
         bytes1 <- random1.nextBytes(128)
-        random2 <- Random.javaSecuritySecureRandom[IO](2)
+        random2 <- Random.javaSecuritySecureRandom[IO](2): @nowarn("cat=deprecation")
         bytes2 <- random2.nextBytes(256)
       } yield bytes1.length == 128 && bytes2.length == 256
     }
