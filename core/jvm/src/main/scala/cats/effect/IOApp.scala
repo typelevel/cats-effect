@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
 import cats.syntax.all._
 
@@ -223,6 +224,16 @@ trait IOApp {
     }
 
   /**
+   * Configures the action to perform when unhandled errors are caught by the runtime. By
+   * default, this simply delegates to [[cats.effect.std.Console!.printStackTrace]]. It is safe
+   * to perform any `IO` action within this handler; it will not block the progress of the
+   * runtime. With that said, some care should be taken to avoid raising unhandled errors as a
+   * result of handling unhandled errors, since that will result in the obvious chaos.
+   */
+  protected def reportFailure(err: Throwable): IO[Unit] =
+    Console[IO].printStackTrace(err)
+
+  /**
    * Controls whether non-daemon threads blocking application exit are logged to stderr when the
    * `IO` produced by `run` has completed. This mechanism works by starting a daemon thread
    * which periodically polls all active threads on the system, checking for any remaining
@@ -298,7 +309,9 @@ trait IOApp {
 
       val installed = IORuntime installGlobal {
         val (compute, compDown) =
-          IORuntime.createWorkStealingComputeThreadPool(threads = computeWorkerThreadCount)
+          IORuntime.createWorkStealingComputeThreadPool(
+            threads = computeWorkerThreadCount,
+            reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime))
 
         val (blocking, blockDown) =
           IORuntime.createDefaultBlockingExecutionContext()
