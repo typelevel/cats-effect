@@ -523,7 +523,16 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.CallbackStack.apply"),
       // introduced by #2869
       // package-private method
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO.unsafeRunFiber")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IO.unsafeRunFiber"),
+      // introduced by #4248
+      // changes to package private code
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.NonDaemonThreadLogger.isEnabled"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.NonDaemonThreadLogger.sleepIntervalMillis"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.NonDaemonThreadLogger.this"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.NonDaemonThreadLogger$")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
