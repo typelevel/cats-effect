@@ -78,7 +78,7 @@ In the event that you're either running on a platform which doesn't support POSI
 
 ## Configuration
 
-Fiber dumps are enabled by default and controlled by the same [configuration as tracing](../scaling-and-tuning/io-runtime-config.md). Note that there is noticeable overhead for certain workloads, see [#2634](https://github.com/typelevel/cats-effect/issues/2634#issuecomment-1003152586) for discussion), but overall, performance remains very good.
+Fiber dumps are enabled by default and controlled by the same [configuration as tracing](../core/io-runtime-config.md). Note that there is noticeable overhead for certain workloads, see [#2634](https://github.com/typelevel/cats-effect/issues/2634#issuecomment-1003152586) for discussion), but overall, performance remains very good.
 
 ## JavaScript runtimes
 

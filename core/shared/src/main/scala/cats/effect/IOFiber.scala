@@ -276,7 +276,7 @@ private final class IOFiber[A](
         /* RealTime */
         case 3 =>
           runLoop(
-            succeeded(runtime.scheduler.nowMillis().millis, 0),
+            succeeded(runtime.scheduler.nowMicros().micros, 0),
             nextCancelation,
             nextAutoCede)
 
@@ -346,7 +346,7 @@ private final class IOFiber[A](
               runLoop(nextIO, nextCancelation - 1, nextAutoCede)
 
             case 3 =>
-              val realTime = runtime.scheduler.nowMillis().millis
+              val realTime = runtime.scheduler.nowMicros().micros
               runLoop(next(realTime), nextCancelation - 1, nextAutoCede)
 
             case 4 =>
@@ -411,7 +411,7 @@ private final class IOFiber[A](
               runLoop(result, nextCancelation - 1, nextAutoCede)
 
             case 3 =>
-              val realTime = runtime.scheduler.nowMillis().millis
+              val realTime = runtime.scheduler.nowMicros().micros
               runLoop(next(realTime), nextCancelation - 1, nextAutoCede)
 
             case 4 =>
@@ -472,7 +472,7 @@ private final class IOFiber[A](
               runLoop(next, nextCancelation - 1, nextAutoCede)
 
             case 3 =>
-              val realTime = runtime.scheduler.nowMillis().millis
+              val realTime = runtime.scheduler.nowMicros().micros
               runLoop(succeeded(Right(realTime), 0), nextCancelation - 1, nextAutoCede)
 
             case 4 =>
@@ -1001,7 +1001,12 @@ private final class IOFiber[A](
     outcome = oc
 
     try {
-      callbacks(oc)
+      if (!callbacks(oc, false)) {
+        oc match {
+          case Outcome.Errored(e) => currentCtx.reportFailure(e)
+          case _ => ()
+        }
+      }
     } finally {
       callbacks.lazySet(null) /* avoid leaks */
     }
@@ -1498,7 +1503,7 @@ private object IOFiber {
   private[effect] val RightUnit = Right(())
 
   def onFatalFailure(t: Throwable): Null = {
-    Thread.interrupted()
+    val interrupted = Thread.interrupted()
 
     if (IORuntime.globalFatalFailureHandled.compareAndSet(false, true)) {
       IORuntime.allRuntimes.synchronized {
@@ -1542,7 +1547,10 @@ private object IOFiber {
       }
     }
 
-    Thread.currentThread().interrupt()
-    null
+    if (interrupted) {
+      Thread.currentThread().interrupt()
+    }
+
+    throw t
   }
 }

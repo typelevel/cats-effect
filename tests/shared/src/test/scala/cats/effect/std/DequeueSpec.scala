@@ -31,9 +31,8 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
 
   override def executionTimeout = 20.seconds
 
-  "BoundedDequeue" should {
+  "BoundedDequeue (forward)" should {
     boundedDequeueTests(
-      "BoundedDequeue",
       Dequeue.bounded(_),
       _.offerBack(_),
       _.tryOfferBack(_),
@@ -41,8 +40,10 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       _.tryTakeFront,
       _.size
     )
+  }
+
+  "BoundedDequeue (reversed)" should {
     boundedDequeueTests(
-      "BoundedDequeue - reverse",
       Dequeue.bounded(_),
       _.offerFront(_),
       _.tryOfferFront(_),
@@ -50,8 +51,10 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       _.tryTakeBack,
       _.size
     )
+  }
+
+  "BoundedDequeue mapK (forward)" should {
     boundedDequeueTests(
-      "BoundedDequeue mapK",
       Dequeue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)),
       _.offerBack(_),
       _.tryOfferBack(_),
@@ -59,8 +62,10 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       _.tryTakeFront,
       _.size
     )
+  }
+
+  "BoundedDequeue mapK (reversed)" should {
     boundedDequeueTests(
-      "BoundedDequeue mapK - reverse",
       Dequeue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)),
       _.offerFront(_),
       _.tryOfferFront(_),
@@ -71,7 +76,6 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
   }
 
   private def boundedDequeueTests(
-      name: String,
       constructor: Int => IO[Dequeue[IO, Int]],
       offer: (Dequeue[IO, Int], Int) => IO[Unit],
       tryOffer: (Dequeue[IO, Int], Int) => IO[Boolean],
@@ -79,7 +83,7 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       tryTake: Dequeue[IO, Int] => IO[Option[Int]],
       size: Dequeue[IO, Int] => IO[Int]
   ): Fragments = {
-    s"$name - demonstrate offer and take with zero capacity" in real {
+    "demonstrate offer and take with zero capacity" in real {
       for {
         q <- constructor(0)
         _ <- offer(q, 1).start
@@ -91,7 +95,7 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       } yield r
     }
 
-    s"$name - async take with zero capacity" in realWithRuntime { implicit rt =>
+    "async take with zero capacity" in realWithRuntime { implicit rt =>
       for {
         q <- constructor(0)
         _ <- offer(q, 1).start
@@ -106,7 +110,7 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       } yield r
     }
 
-    s"$name - offer/take with zero capacity" in real {
+    "offer/take with zero capacity" in real {
       val count = 1000
 
       def producer(q: Dequeue[IO, Int], n: Int): IO[Unit] =
@@ -133,57 +137,49 @@ class BoundedDequeueSpec extends BaseSpec with DequeueTests {
       } yield r
     }
 
-    negativeCapacityConstructionTests(name, constructor)
-    tryOfferOnFullTests(name, constructor, offer, tryOffer, false)
-    cancelableOfferTests(name, constructor, offer, take, tryTake)
-    tryOfferTryTakeTests(name, constructor, tryOffer, tryTake)
-    commonTests(name, constructor, offer, tryOffer, take, tryTake, size)
-    batchTakeTests(name, constructor, _.offer(_), _.tryTakeFrontN(_))
-    batchTakeTests(name, constructor, _.offer(_), _.tryTakeBackN(_), _.map(_.reverse))
-    batchOfferTests(name, constructor, _.tryOfferBackN(_), _.tryTakeFrontN(_))
-    batchOfferTests(name, constructor, _.tryOfferFrontN(_), _.tryTakeFrontN(_))
-    batchOfferTests(name, constructor, _.tryOfferBackN(_), _.tryTakeBackN(_), _.map(_.reverse))
-    batchOfferTests(name, constructor, _.tryOfferFrontN(_), _.tryTakeBackN(_), _.map(_.reverse))
-    boundedBatchOfferTests(
-      name,
-      constructor,
-      _.tryOfferBackN(_),
-      _.tryTakeBackN(_),
-      _.map(_.reverse))
-    boundedBatchOfferTests(
-      name,
-      constructor,
-      _.tryOfferFrontN(_),
-      _.tryTakeBackN(_),
-      _.map(_.reverse))
-    reverse(name, constructor)
+    negativeCapacityConstructionTests(constructor)
+    tryOfferOnFullTests(constructor, offer, tryOffer, false)
+    cancelableOfferTests(constructor, offer, take, tryTake)
+    cancelableTakeTests(constructor, offer, take)
+    tryOfferTryTakeTests(constructor, tryOffer, tryTake)
+    commonTests(constructor, offer, tryOffer, take, tryTake, size)
+    batchTakeTests(constructor, _.offer(_), _.tryTakeFrontN(_))
+    batchTakeTests(constructor, _.offer(_), _.tryTakeBackN(_), _.reverse)
+    batchOfferTests(constructor, _.tryOfferBackN(_), _.tryTakeFrontN(_))
+    batchOfferTests(constructor, _.tryOfferFrontN(_), _.tryTakeFrontN(_))
+    batchOfferTests(constructor, _.tryOfferBackN(_), _.tryTakeBackN(_), _.reverse)
+    batchOfferTests(constructor, _.tryOfferFrontN(_), _.tryTakeBackN(_), _.reverse)
+    boundedBatchOfferTests(constructor, _.tryOfferBackN(_), _.tryTakeBackN(_), _.reverse)
+    boundedBatchOfferTests(constructor, _.tryOfferFrontN(_), _.tryTakeBackN(_), _.reverse)
+    reverse(constructor)
   }
 }
 
 class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
   sequential
 
-  "UnboundedDequeue" should {
+  "UnboundedDequeue (forward)" should {
     unboundedDequeueTests(
-      "UnboundedDequeue",
       Dequeue.unbounded,
       _.offerBack(_),
       _.tryOfferBack(_),
       _.takeFront,
       _.tryTakeFront,
       _.size)
+  }
 
+  "UnboundedDequeue (reversed)" should {
     unboundedDequeueTests(
-      "UnboundedDequeue - reverse",
       Dequeue.unbounded,
       _.offerFront(_),
       _.tryOfferFront(_),
       _.takeBack,
       _.tryTakeBack,
       _.size)
+  }
 
+  "UnboundedDequeue mapK (forward)" should {
     unboundedDequeueTests(
-      "UnboundedDequeue mapK",
       Dequeue.unbounded[IO, Int].map(_.mapK(FunctionK.id)),
       _.offerBack(_),
       _.tryOfferBack(_),
@@ -191,9 +187,10 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
       _.tryTakeFront,
       _.size
     )
+  }
 
+  "UnboundedDequeue mapK (reversed)" should {
     unboundedDequeueTests(
-      "UnboundedDequeue mapK - reverse",
       Dequeue.unbounded[IO, Int].map(_.mapK(FunctionK.id)),
       _.offerFront(_),
       _.tryOfferFront(_),
@@ -204,43 +201,32 @@ class UnboundedDequeueSpec extends BaseSpec with QueueTests[Dequeue] {
   }
 
   private def unboundedDequeueTests(
-      name: String,
       constructor: IO[Dequeue[IO, Int]],
       offer: (Dequeue[IO, Int], Int) => IO[Unit],
       tryOffer: (Dequeue[IO, Int], Int) => IO[Boolean],
       take: Dequeue[IO, Int] => IO[Int],
       tryTake: Dequeue[IO, Int] => IO[Option[Int]],
       size: Dequeue[IO, Int] => IO[Int]): Fragments = {
-    tryOfferOnFullTests(name, _ => constructor, offer, tryOffer, true)
-    tryOfferTryTakeTests(name, _ => constructor, tryOffer, tryTake)
-    commonTests(name, _ => constructor, offer, tryOffer, take, tryTake, size)
-    batchTakeTests(name, _ => constructor, _.offer(_), _.tryTakeFrontN(_))
-    batchTakeTests(name, _ => constructor, _.offer(_), _.tryTakeBackN(_), _.map(_.reverse))
-    batchOfferTests(name, _ => constructor, _.tryOfferBackN(_), _.tryTakeFrontN(_))
-    batchOfferTests(name, _ => constructor, _.tryOfferFrontN(_), _.tryTakeFrontN(_))
-    batchOfferTests(
-      name,
-      _ => constructor,
-      _.tryOfferBackN(_),
-      _.tryTakeBackN(_),
-      _.map(_.reverse))
-    batchOfferTests(
-      name,
-      _ => constructor,
-      _.tryOfferFrontN(_),
-      _.tryTakeBackN(_),
-      _.map(_.reverse))
+    tryOfferOnFullTests(_ => constructor, offer, tryOffer, true)
+    tryOfferTryTakeTests(_ => constructor, tryOffer, tryTake)
+    commonTests(_ => constructor, offer, tryOffer, take, tryTake, size)
+    batchTakeTests(_ => constructor, _.offer(_), _.tryTakeFrontN(_))
+    batchTakeTests(_ => constructor, _.offer(_), _.tryTakeBackN(_), _.reverse)
+    batchOfferTests(_ => constructor, _.tryOfferBackN(_), _.tryTakeFrontN(_))
+    batchOfferTests(_ => constructor, _.tryOfferFrontN(_), _.tryTakeFrontN(_))
+    batchOfferTests(_ => constructor, _.tryOfferBackN(_), _.tryTakeBackN(_), _.reverse)
+    batchOfferTests(_ => constructor, _.tryOfferFrontN(_), _.tryTakeBackN(_), _.reverse)
   }
 }
 
 trait DequeueTests extends QueueTests[Dequeue] { self: BaseSpec =>
 
-  def reverse(name: String, constructor: Int => IO[Dequeue[IO, Int]]): Fragments = {
+  def reverse(constructor: Int => IO[Dequeue[IO, Int]]): Fragments = {
 
     /**
      * Hand-rolled scalacheck effect as we don't have that for CE3 yet
      */
-    s"$name - reverse" in realProp(arbitrary[List[Int]]) { in =>
+    "reverse" in realProp(arbitrary[List[Int]]) { in =>
       for {
         q <- constructor(Int.MaxValue)
         _ <- in.traverse_(q.offer(_))

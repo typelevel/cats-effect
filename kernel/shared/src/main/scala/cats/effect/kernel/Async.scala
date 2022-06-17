@@ -24,6 +24,7 @@ import cats.implicits._
 import scala.annotation.{nowarn, tailrec}
 import scala.concurrent.{ExecutionContext, Future}
 
+import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -140,6 +141,14 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   def executionContext: F[ExecutionContext]
 
   /**
+   * Obtain a reference to the current execution context as a `java.util.concurrent.Executor`.
+   */
+  def executor: F[Executor] = map(executionContext) {
+    case exec: Executor => exec
+    case ec => ec.execute(_)
+  }
+
+  /**
    * Lifts a [[scala.concurrent.Future]] into an `F` effect.
    */
   def fromFuture[A](fut: F[Future[A]]): F[A] =
@@ -162,7 +171,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * @param limit
    *   The maximum number of stages to evaluate prior to forcibly yielding to `F`
    */
-  @nowarn("cat=unused")
+  @nowarn("msg=never used")
   def syncStep[G[_], A](fa: F[A], limit: Int)(implicit G: Sync[G]): G[Either[F[A], A]] =
     G.pure(Left(fa))
 
