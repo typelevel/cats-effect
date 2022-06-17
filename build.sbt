@@ -798,7 +798,19 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
       ProblemFilters.exclude[ReversedMissingMethodProblem](
         "cats.effect.std.Supervisor#State.add"),
       ProblemFilters.exclude[ReversedMissingMethodProblem](
-        "cats.effect.std.Supervisor#State.joinAll")
+        "cats.effect.std.Supervisor#State.joinAll"),
+      // introduced by #3000
+      // package-private or private stuff
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.std.Queue#AbstractQueue.onOfferNoCapacity"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem](
+        "cats.effect.std.Queue#AbstractQueue.onOfferNoCapacity"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.std.Queue#BoundedQueue.onOfferNoCapacity"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.std.Queue#CircularBufferQueue.onOfferNoCapacity"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity")
     )
   )
   .jsSettings(
