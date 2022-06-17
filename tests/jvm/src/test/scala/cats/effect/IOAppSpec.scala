@@ -126,28 +126,80 @@ class IOAppSpec extends Specification {
 
       val isWindows = System.getProperty("os.name").toLowerCase.contains("windows")
 
-      "evaluate and print hello world" in {
-        val h = platform(HelloWorld, Nil)
-        h.awaitStatus() mustEqual 0
-        h.stdout() mustEqual s"Hello, World!${System.lineSeparator()}"
-      }
-
-      "pass all arguments to child" in {
-        val expected = List("the", "quick", "brown", "fox jumped", "over")
-        val h = platform(Arguments, expected)
-        h.awaitStatus() mustEqual 0
-        h.stdout() mustEqual expected.mkString(
-          "",
-          System.lineSeparator(),
-          System.lineSeparator())
-      }
-
       if (isWindows) {
+        // these tests have all been emperically flaky on Windows CI builds, so they're disabled
+        "evaluate and print hello world" in skipped("this test is unreliable on Windows")
+        "pass all arguments to child" in skipped("this test is unreliable on Windows")
+
+        "exit with leaked fibers" in skipped("this test is unreliable on Windows")
+
+        "exit on non-fatal error" in skipped("this test is unreliable on Windows")
+        "exit on fatal error" in skipped("this test is unreliable on Windows")
+
+        "exit on fatal error with other unsafe runs" in skipped(
+          "this test is unreliable on Windows")
+
+        "warn on global runtime collision" in skipped("this test is unreliable on Windows")
+        "abort awaiting shutdown hooks" in skipped("this test is unreliable on Windows")
+
         // The jvm cannot gracefully terminate processes on Windows, so this
         // test cannot be carried out properly. Same for testing IOApp in sbt.
         "run finalizers on TERM" in skipped(
           "cannot observe graceful process termination on Windows")
       } else {
+        "evaluate and print hello world" in {
+          val h = platform(HelloWorld, Nil)
+          h.awaitStatus() mustEqual 0
+          h.stdout() mustEqual s"Hello, World!${System.lineSeparator()}"
+        }
+
+        "pass all arguments to child" in {
+          val expected = List("the", "quick", "brown", "fox jumped", "over")
+          val h = platform(Arguments, expected)
+          h.awaitStatus() mustEqual 0
+          h.stdout() mustEqual expected.mkString(
+            "",
+            System.lineSeparator(),
+            System.lineSeparator())
+        }
+
+        "exit on non-fatal error" in {
+          val h = platform(NonFatalError, List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("Boom!")
+        }
+
+        "exit with leaked fibers" in {
+          val h = platform(LeakedFiber, List.empty)
+          h.awaitStatus() mustEqual 0
+        }
+
+        "exit on fatal error" in {
+          val h = platform(FatalError, List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("Boom!")
+          h.stdout() must not(contain("sadness"))
+        }
+
+        "exit on fatal error with other unsafe runs" in {
+          val h = platform(FatalErrorUnsafeRun, List.empty)
+          h.awaitStatus() mustEqual 1
+          h.stderr() must contain("Boom!")
+        }
+
+        "warn on global runtime collision" in {
+          val h = platform(GlobalRacingInit, List.empty)
+          h.awaitStatus() mustEqual 0
+          h.stderr() must contain(
+            "Cats Effect global runtime already initialized; custom configurations will be ignored")
+          h.stderr() must not(contain("boom"))
+        }
+
+        "abort awaiting shutdown hooks" in {
+          val h = platform(ShutdownHookImmediateTimeout, List.empty)
+          h.awaitStatus() mustEqual 0
+        }
+
         "run finalizers on TERM" in {
           import _root_.java.io.{BufferedReader, FileReader}
 
@@ -185,19 +237,6 @@ class IOAppSpec extends Specification {
         }
       }
 
-      "exit on non-fatal error" in {
-        val h = platform(NonFatalError, List.empty)
-        h.awaitStatus() mustEqual 1
-        h.stderr() must contain("Boom!")
-      }
-
-      "exit on fatal error" in {
-        val h = platform(FatalError, List.empty)
-        h.awaitStatus() mustEqual 1
-        h.stderr() must contain("Boom!")
-        h.stdout() must not(contain("sadness"))
-      }
-
       "exit on fatal error without IOApp" in {
         val h = platform(FatalErrorRaw, List.empty)
         h.awaitStatus()
@@ -205,33 +244,9 @@ class IOAppSpec extends Specification {
         h.stderr() must not(contain("Promise already completed"))
       }
 
-      "exit on fatal error with other unsafe runs" in {
-        val h = platform(FatalErrorUnsafeRun, List.empty)
-        h.awaitStatus() mustEqual 1
-        h.stderr() must contain("Boom!")
-      }
-
       "exit on canceled" in {
         val h = platform(Canceled, List.empty)
         h.awaitStatus() mustEqual 1
-      }
-
-      "exit with leaked fibers" in {
-        val h = platform(LeakedFiber, List.empty)
-        h.awaitStatus() mustEqual 0
-      }
-
-      "warn on global runtime collision" in {
-        val h = platform(GlobalRacingInit, List.empty)
-        h.awaitStatus() mustEqual 0
-        h.stderr() must contain(
-          "Cats Effect global runtime already initialized; custom configurations will be ignored")
-        h.stderr() must not(contain("boom"))
-      }
-
-      "abort awaiting shutdown hooks" in {
-        val h = platform(ShutdownHookImmediateTimeout, List.empty)
-        h.awaitStatus() mustEqual 0
       }
 
       if (BuildInfo.testJSIOApp) {
