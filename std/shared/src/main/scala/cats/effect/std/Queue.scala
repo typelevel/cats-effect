@@ -402,65 +402,75 @@ object Queue {
     // private[this] val takers = new ConcurrentLinkedQueue[AtomicReference[Either[Throwable, Unit] => Unit]]()
     // private[this] val offerers = new ConcurrentLinkedQueue[AtomicReference[Either[Throwable, Unit] => Unit]]()
 
-    def offer(a: A): F[Unit] = F defer {
-      try {
-        // attempt to put into the buffer; if the buffer is full, it will raise an exception
-        buffer.put(a)
-        // println(s"offered: size = ${buffer.size()}")
+    def offer(a: A): F[Unit] =
+      F uncancelable { poll =>
+        F defer {
+          try {
+            // attempt to put into the buffer; if the buffer is full, it will raise an exception
+            buffer.put(a)
+            // println(s"offered: size = ${buffer.size()}")
 
-        // we successfully put, if there are any takers, grab the first one and wake it up
-        notifyOne(takers)
-        F.unit
-      } catch {
-        case FailureSignal =>
-          // capture whether or not we were successful in our retry
-          var succeeded = false
+            // we successfully put, if there are any takers, grab the first one and wake it up
+            notifyOne(takers)
+            F.unit
+          } catch {
+            case FailureSignal =>
+              // capture whether or not we were successful in our retry
+              var succeeded = false
 
-          // a latch blocking until some taker notifies us
-          val wait = F.async[Unit] { k =>
-            F delay {
-              // add ourselves to the listeners queue
-              val clear = offerers.put(k)
+              // a latch blocking until some taker notifies us
+              val wait = F.async[Unit] { k =>
+                F delay {
+                  // add ourselves to the listeners queue
+                  val clear = offerers.put(k)
 
-              try {
-                // now that we're listening, re-attempt putting
-                buffer.put(a)
+                  try {
+                    // now that we're listening, re-attempt putting
+                    buffer.put(a)
 
-                // it worked! clear ourselves out of the queue
-                clear()
-                // our retry succeeded
-                succeeded = true
+                    // it worked! clear ourselves out of the queue
+                    clear()
+                    // our retry succeeded
+                    succeeded = true
 
-                // manually complete our own callback
-                // note that we could have a race condition here where we're already completed
-                // async will deduplicate these calls for us
-                // additionally, the continuation (below) is held until the registration completes
-                k(EitherUnit)
+                    // manually complete our own callback
+                    // note that we could have a race condition here where we're already completed
+                    // async will deduplicate these calls for us
+                    // additionally, the continuation (below) is held until the registration completes
+                    k(EitherUnit)
 
-                // we *might* have negated a notification by succeeding here
-                // unnecessary wake-ups are mostly harmless (only slight fairness loss)
-                notifyOne(offerers)
+                    // we *might* have negated a notification by succeeding here
+                    // unnecessary wake-ups are mostly harmless (only slight fairness loss)
+                    notifyOne(offerers)
 
-                // technically it's possible to already have waiting takers. notify one of them
-                notifyOne(takers)
+                    // technically it's possible to already have waiting takers. notify one of them
+                    notifyOne(takers)
 
-                // we're immediately complete, so no point in creating a finalizer
-                None
-              } catch {
-                case FailureSignal =>
-                  // our retry failed, meaning the queue is still full and we're listening, so suspend
-                  // println(s"failed offer size = ${buffer.size()}")
-                  Some(F.delay(clear()))
+                    // we're immediately complete, so no point in creating a finalizer
+                    None
+                  } catch {
+                    case FailureSignal =>
+                      // our retry failed, meaning the queue is still full and we're listening, so suspend
+                      // println(s"failed offer size = ${buffer.size()}")
+                      Some(F.delay(clear()))
+                  }
+                }
               }
-            }
-          }
 
-          // suspend until the buffer put can succeed
-          // if succeeded is true then we've *already* put
-          // if it's false, then some taker woke us up, so race the retry with other offers
-          wait *> F.defer(if (succeeded) F.unit else offer(a))
+              val notifyAnyway = F delay {
+                // we might have been awakened and canceled simultaneously
+                // try waking up another offerer just in case
+                notifyOne(offerers)
+              }
+
+              // suspend until the buffer put can succeed
+              // if succeeded is true then we've *already* put
+              // if it's false, then some taker woke us up, so race the retry with other offers
+              (poll(wait) *> F.defer(if (succeeded) F.unit else poll(offer(a))))
+                .onCancel(notifyAnyway)
+          }
+        }
       }
-    }
 
     def tryOffer(a: A): F[Boolean] = F delay {
       try {
@@ -475,62 +485,72 @@ object Queue {
 
     val size: F[Int] = F.delay(buffer.size())
 
-    val take: F[A] = F defer {
-      try {
-        // attempt to take from the buffer. if it's empty, this will raise an exception
-        val result = buffer.take()
-        // println(s"took: size = ${buffer.size()}")
+    val take: F[A] =
+      F uncancelable { poll =>
+        F defer {
+          try {
+            // attempt to take from the buffer. if it's empty, this will raise an exception
+            val result = buffer.take()
+            // println(s"took: size = ${buffer.size()}")
 
-        // still alive! notify an offerer that there's some space
-        notifyOne(offerers)
-        F.pure(result)
-      } catch {
-        case FailureSignal =>
-          // buffer was empty
-          // capture the fact that our retry succeeded and the value we were able to take
-          var received = false
-          var result: A = null.asInstanceOf[A]
+            // still alive! notify an offerer that there's some space
+            notifyOne(offerers)
+            F.pure(result)
+          } catch {
+            case FailureSignal =>
+              // buffer was empty
+              // capture the fact that our retry succeeded and the value we were able to take
+              var received = false
+              var result: A = null.asInstanceOf[A]
 
-          // a latch to block until some offerer wakes us up
-          val wait = F.async[Unit] { k =>
-            F delay {
-              // register ourselves as a listener for offers
-              val clear = takers.put(k)
+              // a latch to block until some offerer wakes us up
+              val wait = F.async[Unit] { k =>
+                F delay {
+                  // register ourselves as a listener for offers
+                  val clear = takers.put(k)
 
-              try {
-                // now that we're registered, retry the take
-                result = buffer.take()
+                  try {
+                    // now that we're registered, retry the take
+                    result = buffer.take()
 
-                // it worked! clear out our listener
-                clear()
-                // we got a result, so received should be true now
-                received = true
+                    // it worked! clear out our listener
+                    clear()
+                    // we got a result, so received should be true now
+                    received = true
 
-                // complete our own callback. see notes in offer about raced redundant completion
-                k(EitherUnit)
+                    // complete our own callback. see notes in offer about raced redundant completion
+                    k(EitherUnit)
 
-                // we *might* have negated a notification by succeeding here
-                // unnecessary wake-ups are mostly harmless (only slight fairness loss)
-                notifyOne(takers)
+                    // we *might* have negated a notification by succeeding here
+                    // unnecessary wake-ups are mostly harmless (only slight fairness loss)
+                    notifyOne(takers)
 
-                // it's technically possible to already have queued offerers. wake up one of them
-                notifyOne(offerers)
+                    // it's technically possible to already have queued offerers. wake up one of them
+                    notifyOne(offerers)
 
-                // don't bother with a finalizer since we're already complete
-                None
-              } catch {
-                case FailureSignal =>
-                  // println(s"failed take size = ${buffer.size()}")
-                  // our retry failed, we're registered as a listener, so suspend
-                  Some(F.delay(clear()))
+                    // don't bother with a finalizer since we're already complete
+                    None
+                  } catch {
+                    case FailureSignal =>
+                      // println(s"failed take size = ${buffer.size()}")
+                      // our retry failed, we're registered as a listener, so suspend
+                      Some(F.delay(clear()))
+                  }
+                }
               }
-            }
-          }
 
-          // suspend until an offerer wakes us or our retry succeeds, then return a result
-          wait *> F.defer(if (received) F.pure(result) else take)
+              val notifyAnyway = F delay {
+                // we might have been awakened and canceled simultaneously
+                // try waking up another taker just in case
+                notifyOne(takers)
+              }
+
+              // suspend until an offerer wakes us or our retry succeeds, then return a result
+              (poll(wait) *> F.defer(if (received) F.pure(result) else poll(take)))
+                .onCancel(notifyAnyway)
+          }
+        }
       }
-    }
 
     val tryTake: F[Option[A]] = F delay {
       try {
