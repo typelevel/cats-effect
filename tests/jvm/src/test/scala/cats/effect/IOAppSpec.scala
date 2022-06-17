@@ -131,6 +131,8 @@ class IOAppSpec extends Specification {
         "evaluate and print hello world" in skipped("this test is unreliable on Windows")
         "pass all arguments to child" in skipped("this test is unreliable on Windows")
 
+        "exit with leaked fibers" in skipped("this test is unreliable on Windows")
+
         "exit on non-fatal error" in skipped("this test is unreliable on Windows")
         "exit on fatal error" in skipped("this test is unreliable on Windows")
 
@@ -165,6 +167,11 @@ class IOAppSpec extends Specification {
           val h = platform(NonFatalError, List.empty)
           h.awaitStatus() mustEqual 1
           h.stderr() must contain("Boom!")
+        }
+
+        "exit with leaked fibers" in {
+          val h = platform(LeakedFiber, List.empty)
+          h.awaitStatus() mustEqual 0
         }
 
         "exit on fatal error" in {
@@ -240,11 +247,6 @@ class IOAppSpec extends Specification {
       "exit on canceled" in {
         val h = platform(Canceled, List.empty)
         h.awaitStatus() mustEqual 1
-      }
-
-      "exit with leaked fibers" in {
-        val h = platform(LeakedFiber, List.empty)
-        h.awaitStatus() mustEqual 0
       }
 
       if (BuildInfo.testJSIOApp) {
