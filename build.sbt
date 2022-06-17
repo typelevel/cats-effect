@@ -256,10 +256,8 @@ ThisBuild / autoAPIMappings := true
 val CatsVersion = "2.7.0"
 val Specs2Version = "4.16.0"
 val ScalaCheckVersion = "1.16.0"
-val DisciplineVersion = "1.5-a28cf96-SNAPSHOT"
+val DisciplineVersion = "1.4.0"
 val CoopVersion = "1.1.1"
-
-ThisBuild / resolvers += "s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
 
 val MacrotaskExecutorVersion = "1.0.0"
 
