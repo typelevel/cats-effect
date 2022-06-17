@@ -96,12 +96,103 @@ object Dispatcher {
 
   private[this] val Completed: Either[Throwable, Unit] = Right(())
 
+  @deprecated(
+    "3.4.0",
+    "use parallel or sequential instead; the former corresponds to the current semantics of this method")
+  def apply[F[_]: Async]: Resource[F, Dispatcher[F]] = parallel[F](await = false)
+
   /**
    * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
    * exits, all active effects will be canceled, and attempts to submit new effects will throw
    * an exception.
    */
-  def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]] = {
+  def parallel[F[_]: Async]: Resource[F, Dispatcher[F]] =
+    parallel[F](await = false)
+
+  /**
+   * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
+   * exits, all active effects will be canceled, and attempts to submit new effects will throw
+   * an exception.
+   */
+  def sequential[F[_]: Async]: Resource[F, Dispatcher[F]] =
+    sequential[F](await = false)
+
+  /**
+   * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
+   * exits, depending on the termination policy all active effects will be canceled or awaited,
+   * and attempts to submit new effects will throw an exception.
+   *
+   * This corresponds to a pattern in which a single `Dispatcher` is being used by multiple
+   * calling threads simultaneously, with complex (potentially long-running) actions submitted
+   * for evaluation. In this mode, order of operation is not in any way guaranteed, and
+   * execution of each submitted action has some unavoidable overhead due to the forking of a
+   * new fiber for each action. This mode is most appropriate for scenarios in which a single
+   * `Dispatcher` is being widely shared across the application, and where sequencing is not
+   * assumed.
+   *
+   * The lifecycle of spawned fibers is managed by [[Supervisor]]. The termination policy can be
+   * configured by the `await` parameter.
+   *
+   * @see
+   *   [[Supervisor]] for the termination policy details
+   *
+   * @note
+   *   if an effect that never completes, is evaluating by a `Dispatcher` with awaiting
+   *   termination policy, the termination of the `Dispatcher` is indefinitely suspended
+   *   {{{
+   *   val io: IO[Unit] = // never completes
+   *     Dispatcher.parallel[F](await = true).use { dispatcher =>
+   *       dispatcher.unsafeRunAndForget(Concurrent[F].never)
+   *       Concurrent[F].unit
+   *     }
+   *   }}}
+   *
+   * @param await
+   *   the termination policy of the internal [[Supervisor]].
+   *   - true - wait for the completion of the active fibers
+   *   - false - cancel the active fibers
+   */
+  def parallel[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] =
+    apply(Mode.Parallel, await)
+
+  /**
+   * Create a [[Dispatcher]] that can be used within a resource scope. Once the resource scope
+   * exits, depending on the termination policy all active effects will be canceled or awaited,
+   * and attempts to submit new effects will throw an exception.
+   *
+   * This corresponds to a [[Dispatcher]] mode in which submitted actions are evaluated strictly
+   * in sequence (FIFO). In this mode, any actions submitted to
+   * [[Dispatcher.unsafeRunAndForget]] are guaranteed to run in exactly the order submitted, and
+   * subsequent actions will not start evaluation until previous actions are completed. This
+   * avoids a significant amount of overhead associated with the [[Parallel]] mode and allows
+   * callers to make assumptions around ordering, but the downside is that long-running actions
+   * will starve subsequent actions, and all submitters must contend for a singular coordination
+   * resource. Thus, this mode is most appropriate for cases where the actions are relatively
+   * trivial (such as [[Queue.offer]]) ''and'' the `Dispatcher` in question is ''not'' shared
+   * across multiple producers. To be clear, shared dispatchers in sequential mode will still
+   * function correctly, but performance will be suboptimal due to single-point contention.
+   *
+   * @note
+   *   if an effect that never completes, is evaluating by a `Dispatcher` with awaiting
+   *   termination policy, the termination of the `Dispatcher` is indefinitely suspended
+   *   {{{
+   *   val io: IO[Unit] = // never completes
+   *     Dispatcher.sequential[F](await = true).use { dispatcher =>
+   *       dispatcher.unsafeRunAndForget(Concurrent[F].never)
+   *       Concurrent[F].unit
+   *     }
+   *   }}}
+   *
+   * @param await
+   *   the termination policy.
+   *   - true - wait for the completion of the active fiber
+   *   - false - cancel the active fiber
+   */
+  def sequential[F[_]: Async](await: Boolean): Resource[F, Dispatcher[F]] =
+    apply(Mode.Sequential, await)
+
+  private[this] def apply[F[_]](mode: Mode, await: Boolean)(
+      implicit F: Async[F]): Resource[F, Dispatcher[F]] = {
     final case class Registration(action: F[Unit], prepareCancel: F[Unit] => Unit)
         extends AtomicBoolean(true)
 
@@ -110,23 +201,37 @@ object Dispatcher {
     final case class CanceledNoToken(promise: Promise[Unit]) extends CancelState
     final case class CancelToken(cancelToken: () => Future[Unit]) extends CancelState
 
+    val (workers, makeFork) =
+      mode match {
+        case Mode.Parallel =>
+          (Cpus, Supervisor[F](await).map(s => s.supervise(_: F[Unit]).map(_.cancel)))
+
+        case Mode.Sequential =>
+          (
+            1,
+            Resource
+              .pure[F, F[Unit] => F[F[Unit]]]((_: F[Unit]).as(F.unit).handleError(_ => F.unit))
+          )
+      }
+
     for {
-      supervisor <- Supervisor[F]
+      fork <- makeFork
+
       latches <- Resource.eval(F delay {
-        val latches = new Array[AtomicReference[() => Unit]](Cpus)
+        val latches = new Array[AtomicReference[() => Unit]](workers)
         var i = 0
-        while (i < Cpus) {
+        while (i < workers) {
           latches(i) = new AtomicReference(Noop)
           i += 1
         }
         latches
       })
       states <- Resource.eval(F delay {
-        val states = Array.ofDim[AtomicReference[List[Registration]]](Cpus, Cpus)
+        val states = Array.ofDim[AtomicReference[List[Registration]]](workers, workers)
         var i = 0
-        while (i < Cpus) {
+        while (i < workers) {
           var j = 0
-          while (j < Cpus) {
+          while (j < workers) {
             states(i)(j) = new AtomicReference(Nil)
             j += 1
           }
@@ -147,7 +252,7 @@ object Dispatcher {
             regs <- F delay {
               val buffer = mutable.ListBuffer.empty[Registration]
               var i = 0
-              while (i < Cpus) {
+              while (i < workers) {
                 val st = state(i)
                 if (st.get() ne Nil) {
                   val list = st.getAndSet(Nil)
@@ -167,25 +272,29 @@ object Dispatcher {
                   }
                 }
               } else {
-                regs.traverse_ {
+                val runAll = regs traverse_ {
                   case r @ Registration(action, prepareCancel) =>
-                    def supervise: F[Unit] =
-                      supervisor
-                        .supervise(action)
-                        .flatMap(f => F.delay(prepareCancel(f.cancel)))
+                    val supervise: F[Unit] =
+                      fork(action).flatMap(cancel => F.delay(prepareCancel(cancel)))
 
                     // Check for task cancelation before executing.
                     if (r.get()) supervise else F.unit
-                }.uncancelable
+                }
+
+                mode match {
+                  case Dispatcher.Mode.Parallel => runAll.uncancelable
+                  case Dispatcher.Mode.Sequential => if (await) runAll.uncancelable else runAll
+                }
               }
           } yield ()
 
-        (0 until Cpus)
+        (0 until workers)
           .toList
           .traverse_(n => dispatcher(latches(n), states(n)).foreverM[Unit].background)
       }
     } yield {
       new Dispatcher[F] {
+
         def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
           val promise = Promise[E]()
 
@@ -232,14 +341,19 @@ object Dispatcher {
           }
 
           if (alive.get()) {
-            val rand = ThreadLocalRandom.current()
-            val dispatcher = rand.nextInt(Cpus)
-            val inner = rand.nextInt(Cpus)
-            val state = states(dispatcher)(inner)
+            val (state, lt) = if (workers > 1) {
+              val rand = ThreadLocalRandom.current()
+              val dispatcher = rand.nextInt(workers)
+              val inner = rand.nextInt(workers)
+
+              (states(dispatcher)(inner), latches(dispatcher))
+            } else {
+              (states(0)(0), latches(0))
+            }
+
             val reg = Registration(action, registerCancel _)
             enqueue(state, reg)
 
-            val lt = latches(dispatcher)
             if (lt.get() ne Open) {
               val f = lt.getAndSet(Open)
               f()
@@ -283,5 +397,12 @@ object Dispatcher {
         }
       }
     }
+  }
+
+  private sealed trait Mode extends Product with Serializable
+
+  private object Mode {
+    case object Parallel extends Mode
+    case object Sequential extends Mode
   }
 }

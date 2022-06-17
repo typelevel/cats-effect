@@ -16,9 +16,12 @@
 
 package cats.effect
 
+import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
+import cats.syntax.all._
 
 import scala.concurrent.{blocking, CancellationException, ExecutionContext}
+import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
 import java.util.concurrent.{ArrayBlockingQueue, CountDownLatch}
@@ -221,6 +224,67 @@ trait IOApp {
     }
 
   /**
+   * Configures the action to perform when unhandled errors are caught by the runtime. By
+   * default, this simply delegates to [[cats.effect.std.Console!.printStackTrace]]. It is safe
+   * to perform any `IO` action within this handler; it will not block the progress of the
+   * runtime. With that said, some care should be taken to avoid raising unhandled errors as a
+   * result of handling unhandled errors, since that will result in the obvious chaos.
+   */
+  protected def reportFailure(err: Throwable): IO[Unit] =
+    Console[IO].printStackTrace(err)
+
+  /**
+   * Controls whether non-daemon threads blocking application exit are logged to stderr when the
+   * `IO` produced by `run` has completed. This mechanism works by starting a daemon thread
+   * which periodically polls all active threads on the system, checking for any remaining
+   * non-daemon threads and enumerating them. This can be very useful for determining why your
+   * application ''isn't'' gracefully exiting, since the alternative is that the JVM will just
+   * hang waiting for the non-daemon threads to terminate themselves. This mechanism will not,
+   * by itself, block shutdown in any way. For this reason, it defaults to `true`.
+   *
+   * In the event that your application exit is being blocked by a non-daemon thread which you
+   * cannot control (i.e. a bug in some dependency), you can circumvent the blockage by
+   * appending the following to the `IO` returned from `run`:
+   *
+   * {{{
+   *   val program: IO[ExitCode] = ???                      // the original IO returned from `run`
+   *   program.guarantee(IO(Runtime.getRuntime().halt(0)))  // the bit you need to add
+   * }}}
+   *
+   * This finalizer will forcibly terminate the JVM (kind of like `kill -9`), ignoring daemon
+   * threads ''and'' shutdown hooks, but only after all native Cats Effect finalizers have
+   * completed. In most cases, this should be a relatively benign thing to do, though it's
+   * definitely a bad default. Only use this to workaround a blocking non-daemon thread that you
+   * cannot otherwise influence!
+   *
+   * Can also be configured by setting the `cats.effect.logNonDaemonThreadsOnExit` system
+   * property.
+   *
+   * @see
+   *   [[logNonDaemonThreadsInterval]]
+   */
+  protected def logNonDaemonThreadsEnabled: Boolean =
+    Option(System.getProperty("cats.effect.logNonDaemonThreadsOnExit"))
+      .map(_.toLowerCase()) match {
+      case Some(value) => value.equalsIgnoreCase("true")
+      case None => true // default to enabled
+    }
+
+  /**
+   * Controls the interval used by the non-daemon thread detector. Defaults to `10.seconds`.
+   *
+   * Can also be configured by setting the `cats.effect.logNonDaemonThreads.sleepIntervalMillis`
+   * system property.
+   *
+   * @see
+   *   [[logNonDaemonThreadsEnabled]]
+   */
+  protected def logNonDaemonThreadsInterval: FiniteDuration =
+    Option(System.getProperty("cats.effect.logNonDaemonThreads.sleepIntervalMillis"))
+      .flatMap(time => Either.catchOnly[NumberFormatException](time.toLong.millis).toOption)
+      .getOrElse(10.seconds)
+
+  /**
    * The entry point for your application. Will be called by the runtime when the process is
    * started. If the underlying runtime supports it, any arguments passed to the process will be
    * made available in the `args` parameter. The numeric value within the resulting [[ExitCode]]
@@ -245,7 +309,9 @@ trait IOApp {
 
       val installed = IORuntime installGlobal {
         val (compute, compDown) =
-          IORuntime.createWorkStealingComputeThreadPool(threads = computeWorkerThreadCount)
+          IORuntime.createWorkStealingComputeThreadPool(
+            threads = computeWorkerThreadCount,
+            reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime))
 
         val (blocking, blockDown) =
           IORuntime.createDefaultBlockingExecutionContext()
@@ -365,8 +431,8 @@ trait IOApp {
               // Return naturally from main. This allows any non-daemon
               // threads to gracefully complete their work, and managed
               // environments to execute their own shutdown hooks.
-              if (isForked && NonDaemonThreadLogger.isEnabled())
-                new NonDaemonThreadLogger().start()
+              if (isForked && logNonDaemonThreadsEnabled)
+                new NonDaemonThreadLogger(logNonDaemonThreadsInterval).start()
               else
                 ()
             } else if (isForked) {
