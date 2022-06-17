@@ -14,7 +14,20 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats.effect
+package std
 
-// Vestigial shim
-private[std] trait RandomCompanionPlatform
+class SecureRandomSpec extends BaseSpec {
+
+  "SecureRandom" should {
+    "securely generate random bytes" in real {
+      for {
+        random1 <- SecureRandom.javaSecuritySecureRandom[IO]
+        bytes1 <- random1.nextBytes(128)
+        random2 <- SecureRandom.javaSecuritySecureRandom[IO](2)
+        bytes2 <- random2.nextBytes(256)
+      } yield bytes1.length == 128 && bytes2.length == 256
+    }
+  }
+
+}

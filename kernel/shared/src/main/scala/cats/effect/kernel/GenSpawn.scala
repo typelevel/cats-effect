@@ -724,7 +724,7 @@ object GenSpawn {
       Kleisli.liftF(F.unique)
 
     def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[Kleisli[F, R, *], E, A]] =
-      Kleisli { r => (F.start(fa.run(r)).map(liftFiber)) }
+      Kleisli { r => F.start(fa.run(r)).map(liftFiber) }
 
     def never[A]: Kleisli[F, R, A] = Kleisli.liftF(F.never)
 
@@ -738,7 +738,7 @@ object GenSpawn {
         (Fiber[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B])]] = {
       Kleisli { r =>
         F.uncancelable(poll =>
-          poll((F.racePair(fa.run(r), fb.run(r))).map {
+          poll(F.racePair(fa.run(r), fb.run(r)).map {
             case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
             case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
           }))

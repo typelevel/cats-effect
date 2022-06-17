@@ -34,7 +34,7 @@ import java.util.UUID
 
 private[std] trait UUIDGenCompanionPlatform {
   implicit def fromSync[F[_]](implicit ev: Sync[F]): UUIDGen[F] = new UUIDGen[F] {
-    private val csprng = new JavaSecureRandom()
+    private val csprng = new SecureRandom.JavaSecureRandom()
     private val randomUUIDBuffer = new Array[Byte](16)
     override final val randomUUID: F[UUID] =
       ev.delay {

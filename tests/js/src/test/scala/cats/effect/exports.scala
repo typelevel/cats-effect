@@ -14,7 +14,18 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats.effect
 
-// Vestigial shim
-private[std] trait RandomCompanionPlatform
+import scala.scalajs.js
+import scala.scalajs.js.annotation._
+
+// we don't care about this object, but we want to run its initializer
+@JSExportTopLevel("dummy")
+object exports extends js.Object {
+  if (js.typeOf(js.Dynamic.global.process) == "undefined") {
+    js.special.fileLevelThis.asInstanceOf[js.Dynamic].process = js.Object()
+    if (js.typeOf(js.Dynamic.global.process.env) == "undefined")
+      js.Dynamic.global.process.env = js.Object()
+    js.Dynamic.global.process.env.CATS_EFFECT_TRACING_MODE = "cached"
+  }
+}
