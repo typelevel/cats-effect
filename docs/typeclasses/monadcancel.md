@@ -135,12 +135,14 @@ The use of the `outer` poll within the inner `uncancelable` is simply ignored un
 ```scala
 MonadCancel[F] uncancelable { outer =>
   MonadCancel[F] uncancelable { inner =>
-    outer(inner(fa))
+    inner(outer(fa))
   }
 }
 ```
 
 This is simply equivalent to writing `fa`. Which is to say, `poll` composes in the way you would expect.
+
+They are applied to `fa` outermost-first as when the program is interpreted this order is reversed: the `inner` `poll` will be evaluated first, which removes the inner `uncancelable`, followed by the `outer` `poll`, which removes the outer `uncancelable` and allows cancelation. 
 
 ### Self-Cancelation
 

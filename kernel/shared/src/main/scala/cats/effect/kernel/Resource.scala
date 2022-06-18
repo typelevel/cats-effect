@@ -610,7 +610,11 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
   }
 
   def evalOn(ec: ExecutionContext)(implicit F: Async[F]): Resource[F, A] =
-    Resource.applyFull { poll => poll(this.allocatedCase).evalOn(ec) }
+    Resource.applyFull { poll =>
+      poll(this.allocatedCase).evalOn(ec).map {
+        case (a, release) => (a, release.andThen(_.evalOn(ec)))
+      }
+    }
 
   def attempt[E](implicit F: ApplicativeError[F, E]): Resource[F, Either[E, A]] =
     this match {

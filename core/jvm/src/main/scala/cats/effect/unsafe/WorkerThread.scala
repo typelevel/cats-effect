@@ -652,6 +652,7 @@ private final class WorkerThread(
         val clone =
           new WorkerThread(idx, queue, parked, external, fiberBag, pool)
         pool.replaceWorker(idx, clone)
+        pool.blockedWorkerThreadCounter.incrementAndGet()
         clone.start()
       }
 

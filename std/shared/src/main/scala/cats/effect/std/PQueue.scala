@@ -73,23 +73,32 @@ object PQueue {
     implicit val Ord: Order[A]
 
     def offer(a: A): F[Unit] =
-      F.deferred[Unit].flatMap { offerer =>
-        F.uncancelable { poll =>
+      F.uncancelable { poll =>
+        F.deferred[Unit].flatMap { offerer =>
           ref.modify {
             case State(heap, size, takers, offerers) if takers.nonEmpty =>
               val (taker, rest) = takers.dequeue
-              State(heap, size, rest, offerers) -> taker.complete(a).void
+              State(heap.insert(a), size + 1, rest, offerers) -> taker.complete(()).void
 
             case State(heap, size, takers, offerers) if size < capacity =>
               State(heap.insert(a), size + 1, takers, offerers) -> F.unit
 
             case s => {
               val State(heap, size, takers, offerers) = s
-              val cleanup = ref.update { s =>
-                s.copy(offerers = s.offerers.filter(_._2 ne offerer))
+
+              val cleanup = ref modify { s =>
+                val offerers2 = s.offerers.filter(_ ne offerer)
+
+                if (offerers2.isEmpty) {
+                  s.copy(offerers = offerers2) -> F.unit
+                } else {
+                  val (release, rest) = offerers2.dequeue
+                  s.copy(offerers = rest) -> release.complete(()).void
+                }
               }
-              State(heap, size, takers, offerers.enqueue(a -> offerer)) -> poll(offerer.get)
-                .onCancel(cleanup)
+
+              State(heap, size, takers, offerers.enqueue(offerer)) ->
+                (poll(offerer.get) *> poll(offer(a))).onCancel(cleanup.flatten)
             }
           }.flatten
         }
@@ -100,7 +109,7 @@ object PQueue {
         .modify {
           case State(heap, size, takers, offerers) if takers.nonEmpty =>
             val (taker, rest) = takers.dequeue
-            State(heap, size, rest, offerers) -> taker.complete(a).as(true)
+            State(heap.insert(a), size + 1, rest, offerers) -> taker.complete(()).as(true)
 
           case State(heap, size, takers, offerers) if size < capacity =>
             State(heap.insert(a), size + 1, takers, offerers) -> F.pure(true)
@@ -110,9 +119,9 @@ object PQueue {
         .flatten
         .uncancelable
 
-    def take: F[A] =
-      F.deferred[A].flatMap { taker =>
-        F.uncancelable { poll =>
+    val take: F[A] =
+      F.uncancelable { poll =>
+        F.deferred[Unit] flatMap { taker =>
           ref.modify {
             case State(heap, size, takers, offerers) if heap.nonEmpty && offerers.isEmpty =>
               val (rest, a) = heap.take
@@ -120,22 +129,36 @@ object PQueue {
 
             case State(heap, size, takers, offerers) if heap.nonEmpty =>
               val (rest, a) = heap.take
-              val ((move, release), tail) = offerers.dequeue
-              State(rest.insert(move), size, takers, tail) -> release.complete(()).as(a)
-
-            case State(heap, size, takers, offerers) if offerers.nonEmpty =>
-              val ((a, release), rest) = offerers.dequeue
-              State(heap, size, takers, rest) -> release.complete(()).as(a)
+              val (release, tail) = offerers.dequeue
+              State(rest, size - 1, takers, tail) -> release.complete(()).as(a)
 
             case State(heap, size, takers, offerers) =>
-              val cleanup = ref.update { s => s.copy(takers = s.takers.filter(_ ne taker)) }
-              State(heap, size, takers.enqueue(taker), offerers) ->
-                poll(taker.get).onCancel(cleanup)
+              val cleanup = ref modify { s =>
+                val takers2 = s.takers.filter(_ ne taker)
+
+                if (takers2.isEmpty) {
+                  s.copy(takers = takers2) -> F.unit
+                } else {
+                  val (release, rest) = takers2.dequeue
+                  s.copy(takers = rest) -> release.complete(()).void
+                }
+              }
+
+              val await = (poll(taker.get) *> poll(take)).onCancel(cleanup.flatten)
+
+              val (fulfill, offerers2) = if (offerers.isEmpty) {
+                (await, offerers)
+              } else {
+                val (release, rest) = offerers.dequeue
+                (release.complete(()) *> await, rest)
+              }
+
+              State(heap, size, takers.enqueue(taker), offerers2) -> fulfill
           }.flatten
         }
       }
 
-    def tryTake: F[Option[A]] =
+    val tryTake: F[Option[A]] =
       ref
         .modify {
           case State(heap, size, takers, offerers) if heap.nonEmpty && offerers.isEmpty =>
@@ -144,12 +167,12 @@ object PQueue {
 
           case State(heap, size, takers, offerers) if heap.nonEmpty =>
             val (rest, a) = heap.take
-            val ((move, release), tail) = offerers.dequeue
-            State(rest.insert(move), size, takers, tail) -> release.complete(()).as(a.some)
+            val (release, tail) = offerers.dequeue
+            State(rest, size - 1, takers, tail) -> release.complete(()).as(a.some)
 
           case State(heap, size, takers, offerers) if offerers.nonEmpty =>
-            val ((a, release), rest) = offerers.dequeue
-            State(heap, size, takers, rest) -> release.complete(()).as(a.some)
+            val (release, rest) = offerers.dequeue
+            State(heap, size, takers, rest) -> (release.complete(()) *> tryTake)
 
           case s =>
             s -> F.pure(none[A])
@@ -164,8 +187,8 @@ object PQueue {
   private[std] final case class State[F[_], A](
       heap: BinomialHeap[A],
       size: Int,
-      takers: ScalaQueue[Deferred[F, A]],
-      offerers: ScalaQueue[(A, Deferred[F, Unit])])
+      takers: ScalaQueue[Deferred[F, Unit]],
+      offerers: ScalaQueue[Deferred[F, Unit]])
 
   private[std] object State {
     def empty[F[_], A: Order]: State[F, A] =
@@ -233,10 +256,46 @@ trait PQueueSource[F[_], A] {
    */
   def tryTake: F[Option[A]]
 
+  /**
+   * Attempts to dequeue elements from the PQueue, if they are available without semantically
+   * blocking. This is a convenience method that recursively runs `tryTake`. It does not provide
+   * any additional performance benefits.
+   *
+   * @param maxN
+   *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
+   *
+   * @return
+   *   an effect that contains the dequeued elements from the PQueue
+   *
+   * Note: If there are multiple elements with least priority, the order in which they are
+   * dequeued is undefined.
+   */
+  def tryTakeN(maxN: Option[Int])(implicit F: Monad[F]): F[List[A]] = {
+    PQueueSource.assertMaxNPositive(maxN)
+    F.tailRecM[(List[A], Int), List[A]](
+      (List.empty[A], 0)
+    ) {
+      case (list, i) =>
+        if (maxN.contains(i)) list.reverse.asRight.pure[F]
+        else {
+          tryTake.map {
+            case None => list.reverse.asRight
+            case Some(x) => (x +: list, i + 1).asLeft
+          }
+        }
+    }
+  }
+
   def size: F[Int]
 }
 
 object PQueueSource {
+  private def assertMaxNPositive(maxN: Option[Int]): Unit = maxN match {
+    case Some(n) if n <= 0 =>
+      throw new IllegalArgumentException(s"Provided maxN parameter must be positive, was $n")
+    case _ => ()
+  }
+
   implicit def catsFunctorForPQueueSource[F[_]: Functor]: Functor[PQueueSource[F, *]] =
     new Functor[PQueueSource[F, *]] {
       override def map[A, B](fa: PQueueSource[F, A])(f: A => B): PQueueSource[F, B] =
@@ -276,6 +335,26 @@ trait PQueueSink[F[_], A] {
    *   blocking
    */
   def tryOffer(a: A): F[Boolean]
+
+  /**
+   * Attempts to enqueue the given elements without semantically blocking. If an item in the
+   * list cannot be enqueued, the remaining elements will be returned. This is a convenience
+   * method that recursively runs `tryOffer` and does not offer any additional performance
+   * benefits.
+   *
+   * @param list
+   *   the elements to be put in the PQueue
+   * @return
+   *   an effect that contains the remaining valus that could not be offered.
+   */
+  def tryOfferN(list: List[A])(implicit F: Monad[F]): F[List[A]] = list match {
+    case Nil => F.pure(list)
+    case h :: t =>
+      tryOffer(h).ifM(
+        tryOfferN(t),
+        F.pure(list)
+      )
+  }
 }
 
 object PQueueSink {
