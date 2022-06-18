@@ -18,7 +18,7 @@ package cats
 package effect
 package std
 
-import cats.effect.kernel.{Async, Deferred, GenConcurrent, Poll, Ref}
+import cats.effect.kernel.{Async, Cont, Deferred, GenConcurrent, MonadCancelThrow, Poll, Ref}
 import cats.effect.kernel.syntax.all._
 import cats.syntax.all._
 
@@ -504,40 +504,47 @@ object Queue {
               var result: A = null.asInstanceOf[A]
 
               // a latch to block until some offerer wakes us up
-              val wait = F.async[Unit] { k =>
-                F delay {
-                  // register ourselves as a listener for offers
-                  val clear = takers.put(k)
+              // we need to use cont to avoid calling `get` on the double-check
+              val wait = F.cont[Unit, Unit](new Cont[F, Unit, Unit] {
+                override def apply[G[_]](implicit G: MonadCancelThrow[G]) = { (k, get, lift) =>
+                  G uncancelable { poll =>
+                    val lifted = lift {
+                      F delay {
+                        // register ourselves as a listener for offers
+                        val clear = takers.put(k)
 
-                  try {
-                    // now that we're registered, retry the take
-                    result = buffer.take()
+                        try {
+                          // now that we're registered, retry the take
+                          result = buffer.take()
 
-                    // it worked! clear out our listener
-                    clear()
-                    // we got a result, so received should be true now
-                    received = true
+                          // it worked! clear out our listener
+                          clear()
+                          // we got a result, so received should be true now
+                          received = true
 
-                    // complete our own callback. see notes in offer about raced redundant completion
-                    k(EitherUnit)
+                          // we *might* have negated a notification by succeeding here
+                          // unnecessary wake-ups are mostly harmless (only slight fairness loss)
+                          notifyOne(takers)
 
-                    // we *might* have negated a notification by succeeding here
-                    // unnecessary wake-ups are mostly harmless (only slight fairness loss)
-                    notifyOne(takers)
+                          // it's technically possible to already have queued offerers. wake up one of them
+                          notifyOne(offerers)
 
-                    // it's technically possible to already have queued offerers. wake up one of them
-                    notifyOne(offerers)
+                          // we skip `get` here because we already have a value
+                          // this is the thing that `async` doesn't allow us to do
+                          G.unit
+                        } catch {
+                          case FailureSignal =>
+                            // println(s"failed take size = ${buffer.size()}")
+                            // our retry failed, we're registered as a listener, so suspend
+                            poll(get).onCancel(lift(F.delay(clear())))
+                        }
+                      }
+                    }
 
-                    // don't bother with a finalizer since we're already complete
-                    None
-                  } catch {
-                    case FailureSignal =>
-                      // println(s"failed take size = ${buffer.size()}")
-                      // our retry failed, we're registered as a listener, so suspend
-                      Some(F.delay(clear()))
+                    lifted.flatten
                   }
                 }
-              }
+              })
 
               val notifyAnyway = F delay {
                 // we might have been awakened and canceled simultaneously

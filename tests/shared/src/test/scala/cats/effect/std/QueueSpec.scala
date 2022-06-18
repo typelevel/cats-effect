@@ -481,30 +481,39 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
         consumer = for {
           _ <- latch.complete(())
-          _ <- 0.until(100).toList traverse_ { _ =>
-            IO uncancelable { poll => poll(take(q)).flatMap(results.set(_)) }
-          }
+
+          // grab an element and attempt to atomically set it into `results`
+          // if `take` itself is not atomic, then we might lose an element here
+          _ <- IO.uncancelable(_(take(q)).flatMap(results.set(_))).replicateA_(100)
         } yield ()
 
         consumerFiber <- consumer.start
 
         _ <- latch.get
+        // note that, since cancelation backpressures, we're guaranteed to finish setting `results`
         _ <- consumerFiber.cancel
 
+        // grab the last result taken
         max <- results.get
+
         continue <-
           if (max < 99) {
             for {
               next <- take(q)
+
+              // if this doesn't line up, then it means that we lost an element in the middle
+              // namely, when we were canceled, we took an element from the queue without producing
               _ <- IO(next mustEqual (max + 1))
             } yield false
           } else {
+            // we consumed the whole sequence from the queue before cancelation, so no possible race
             IO.pure(true)
           }
       } yield continue
 
       val Bound = 10 // only try ten times before skipping
       def loop(i: Int): IO[Result] = {
+        // we try iterating a few times to get canceled in the middle
         if (i > Bound) {
           IO.pure(skipped(s"attempted $i times and could not reproduce scenario"))
         } else {
@@ -515,6 +524,8 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         }
       }
 
+      // even if we replicate the "cancelation in the middle", we might not hit a race condition
+      // replicate this a bunch of times to build confidence that it works
       loop(0).replicateA_(100).as(ok)
     }
 
