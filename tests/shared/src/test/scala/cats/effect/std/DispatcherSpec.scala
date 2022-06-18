@@ -48,7 +48,7 @@ class DispatcherSpec extends BaseSpec {
           IO(runner.unsafeRunAndForget(IO.never.onCancel(IO { canceled = true }))) *> IO.never
         }
 
-        val action = body.start flatMap { f => IO.sleep(500.millis) *> f.cancel }
+        val action = body.start.flatMap(f => IO.sleep(500.millis) *> f.cancel)
 
         TestControl.executeEmbed(action *> IO(canceled must beTrue))
       }
@@ -164,7 +164,11 @@ class DispatcherSpec extends BaseSpec {
 
         _ <- {
           val rec = dispatcher flatMap { runner =>
-            Resource.eval(subjects.parTraverse_(act => IO(runner.unsafeRunAndForget(act))))
+            Resource eval {
+              subjects
+                .parTraverse_(act => IO(runner.unsafeRunAndForget(act)))
+                .timeoutTo(2.seconds, IO(false must beTrue))
+            }
           }
 
           rec.use(_ => IO.unit)
