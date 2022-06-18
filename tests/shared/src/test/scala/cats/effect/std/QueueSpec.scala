@@ -285,7 +285,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       tryTakeN: (Q[IO, Int], Option[Int]) => IO[List[Int]],
       transform: List[Int] => List[Int] = identity): Fragments = {
 
-    "should take batches for all records when None is provided" in real {
+    "take batches for all records when None is provided" in real {
       for {
         q <- constructor(5)
         _ <- offer(q, 1)
@@ -297,7 +297,8 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         r <- IO(transform(b) must beEqualTo(List(1, 2, 3, 4, 5)))
       } yield r
     }
-    "should take batches for all records when maxN is provided" in real {
+
+    "take batches for all records when maxN is provided" in real {
       for {
         q <- constructor(5)
         _ <- offer(q, 1)
@@ -309,7 +310,8 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         r <- IO(transform(b) must beEqualTo(List(1, 2, 3, 4, 5)))
       } yield r
     }
-    "Should take all records when maxN > queue size" in real {
+
+    "take all records when maxN > queue size" in real {
       for {
         q <- constructor(5)
         _ <- offer(q, 1)
@@ -321,7 +323,8 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         r <- IO(transform(b) must beEqualTo(List(1, 2, 3, 4, 5)))
       } yield r
     }
-    "Should be empty when queue is empty" in real {
+
+    "be empty when queue is empty" in real {
       for {
         q <- constructor(5)
         b <- tryTakeN(q, Some(5))
@@ -329,7 +332,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       } yield r
     }
 
-    "should raise an exception when maxN is not > 0" in real {
+    "raise an exception when maxN is not > 0" in real {
       val toAttempt = for {
         q <- constructor(5)
         _ <- tryTakeN(q, Some(-1))
@@ -342,6 +345,50 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         }
       }
     }
+
+    "release one offerer when queue is full" in real {
+      val test = for {
+        q <- constructor(5)
+        _ <- offer(q, 0).replicateA_(5)
+
+        latch <- IO.deferred[Unit]
+        expected <- CountDownLatch[IO](1)
+
+        _ <- (latch.complete(()) *> offer(q, 0) *> expected.release).start
+
+        _ <- latch.get
+        results <- tryTakeN(q, None)
+
+        _ <-
+          if (results.nonEmpty)
+            expected.await
+          else
+            IO(skipped("did not take any results"))
+      } yield ok
+
+      test.parReplicateA(10).as(ok)
+    }
+
+    "release all offerers when queue is full" in real {
+      val test = for {
+        q <- constructor(5)
+        _ <- offer(q, 0).replicateA_(5)
+
+        latch <- CountDownLatch[IO](5)
+        expected <- CountDownLatch[IO](5)
+
+        _ <- (latch.release *> offer(q, 0) *> expected.release).start.replicateA_(5)
+
+        _ <- latch.await
+        results <- tryTakeN(q, None)
+
+        // release whatever we didn't receive
+        _ <- expected.release.replicateA_(5 - results.length)
+        _ <- expected.await
+      } yield ok
+
+      test // .parReplicateA(10).as(ok)
+    }
   }
 
   def tryOfferOnFullTests(
@@ -350,7 +397,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       tryOffer: (Q[IO, Int], Int) => IO[Boolean],
       expected: Boolean): Fragments = {
 
-    "should return false on tryOffer when the queue is full" in real {
+    "return false on tryOffer when the queue is full" in real {
       for {
         q <- constructor(2)
         _ <- offer(q, 0)
