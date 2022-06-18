@@ -218,14 +218,14 @@ private[effect] object FiberMonitor {
     }
   }
 
+  private[FiberMonitor] final val BagReferences
+      : ConcurrentLinkedQueue[WeakReference[WeakBag[Runnable]]] =
+    new ConcurrentLinkedQueue()
+
   private[FiberMonitor] final val Bags: ThreadLocal[WeakBag[Runnable]] =
     ThreadLocal.withInitial { () =>
       val bag = new WeakBag[Runnable]()
       BagReferences.offer(new WeakReference(bag))
       bag
     }
-
-  private[FiberMonitor] final val BagReferences
-      : ConcurrentLinkedQueue[WeakReference[WeakBag[Runnable]]] =
-    new ConcurrentLinkedQueue()
 }
