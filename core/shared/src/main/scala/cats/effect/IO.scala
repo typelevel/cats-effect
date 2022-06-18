@@ -670,7 +670,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def timeout[A2 >: A](duration: Duration): IO[A2] =
     handleFinite(this, duration)(finiteDuration => timeout(finiteDuration))
 
-  protected def timeout[A2 >: A](duration: FiniteDuration): IO[A2] =
+  private[effect] def timeout(duration: FiniteDuration): IO[A] =
     timeoutTo(duration, IO.defer(IO.raiseError(new TimeoutException(duration.toString))))
 
   /**
@@ -693,7 +693,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     handleFinite[IO, A2](this, duration)(finiteDuration => timeoutTo(finiteDuration, fallback))
   }
 
-  protected def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2]): IO[A2] = {
+  private[effect] def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2]): IO[A2] = {
     race(IO.sleep(duration)).flatMap {
       case Right(_) => fallback
       case Left(value) => IO.pure(value)
@@ -718,7 +718,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @see
    *   [[timeout]] for a variant which respects backpressure and does not leak fibers
    */
-  protected def timeoutAndForget(duration: FiniteDuration): IO[A] =
+  private[effect] def timeoutAndForget(duration: FiniteDuration): IO[A] =
     Temporal[IO].timeoutAndForget(this, duration)
 
   /**
@@ -1587,7 +1587,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def handleError[A](fa: IO[A])(f: Throwable => A): IO[A] =
       fa.handleError(f)
 
-    override protected def timeout[A](fa: IO[A], duration: FiniteDuration)(
+    override def timeout[A](fa: IO[A], duration: FiniteDuration)(
         implicit ev: TimeoutException <:< Throwable): IO[A] = {
       fa.timeout(duration)
     }

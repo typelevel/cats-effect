@@ -276,7 +276,8 @@ object GenTemporal {
         instantiateGenTemporalForWriterT(temporal)
     }
 
-  def handleFinite[F[_], A](fa: F[A], duration: Duration)(f: FiniteDuration => F[A]): F[A] = {
+  private[effect] def handleFinite[F[_], A](fa: F[A], duration: Duration)(
+      f: FiniteDuration => F[A]): F[A] = {
     duration match {
       case _: Duration.Infinite => fa
       case finite: FiniteDuration => f(finite)
