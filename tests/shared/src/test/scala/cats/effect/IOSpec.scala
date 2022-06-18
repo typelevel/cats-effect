@@ -84,6 +84,16 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         IO.raiseError[Unit](TestException).attempt must completeAs(Left(TestException))
       }
 
+      "orElse must return other if previous IO Fails" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        (IO.raiseError[Int](TestException) orElse IO.pure(42)) must completeAs(42)
+      }
+
+      "Return current IO if successful" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        (IO.pure(42) orElse IO.raiseError[Int](TestException)) must completeAs(42)
+      }
+
       "attempt is redeem with Left(_) for recover and Right(_) for map" in ticked {
         implicit ticker =>
           forAll { (io: IO[Int]) => io.attempt eqv io.redeem(Left(_), Right(_)) }
@@ -225,6 +235,74 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
               }(_ => IO.raiseError(WrongException))
           io.attempt must completeAs(Left(TestException))
         })
+
+      "report unhandled failure to the execution context" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        val action = IO.executionContext flatMap { ec =>
+          IO defer {
+            var ts: List[Throwable] = Nil
+
+            val ec2 = new ExecutionContext {
+              def reportFailure(t: Throwable) = ts ::= t
+              def execute(r: Runnable) = ec.execute(r)
+            }
+
+            IO.raiseError(TestException).start.evalOn(ec2) *> IO.sleep(10.millis) *> IO(ts)
+          }
+        }
+
+        action must completeAs(List(TestException))
+      }
+
+      "not report observed failures to the execution context" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        val action = IO.executionContext flatMap { ec =>
+          IO defer {
+            var ts: List[Throwable] = Nil
+
+            val ec2 = new ExecutionContext {
+              def reportFailure(t: Throwable) = ts ::= t
+              def execute(r: Runnable) = ec.execute(r)
+            }
+
+            for {
+              f <- (IO.sleep(10.millis) *> IO.raiseError(TestException)).start.evalOn(ec2)
+              _ <- f.join
+              back <- IO(ts)
+            } yield back
+          }
+        }
+
+        action must completeAs(Nil)
+      }
+
+      // https://github.com/typelevel/cats-effect/issues/2962
+      "not report failures in timeout" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        val action = IO.executionContext flatMap { ec =>
+          IO defer {
+            var ts: List[Throwable] = Nil
+
+            val ec2 = new ExecutionContext {
+              def reportFailure(t: Throwable) = ts ::= t
+              def execute(r: Runnable) = ec.execute(r)
+            }
+
+            for {
+              f <- (IO.sleep(10.millis) *> IO
+                .raiseError(TestException)
+                .timeoutTo(1.minute, IO.pure(42))).start.evalOn(ec2)
+              _ <- f.join
+              back <- IO(ts)
+            } yield back
+          }
+        }
+
+        action must completeAs(Nil)
+      }
     }
 
     "suspension of side effects" should {
@@ -504,7 +582,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             _ <- IO(ticker.ctx.tick())
             l2 <- l.get
             r2 <- r.get
-          } yield (l2 -> r2)) must completeAs(true -> true)
+          } yield l2 -> r2) must completeAs(true -> true)
         }
 
       }
@@ -580,7 +658,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             _ <- IO(ticker.ctx.tick())
             l2 <- l.get
             r2 <- r.get
-          } yield (l2 -> r2)) must completeAs(true -> true)
+          } yield l2 -> r2) must completeAs(true -> true)
         }
 
         "evaluate a timeout using sleep and race" in ticked { implicit ticker =>

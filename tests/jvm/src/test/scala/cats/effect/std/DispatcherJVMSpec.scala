@@ -34,7 +34,7 @@ class DispatcherJVMSpec extends BaseSpec {
         subjects = latches.map(latch => latch.complete(()) >> awaitAll)
 
         _ <- {
-          val rec = Dispatcher[IO] flatMap { runner =>
+          val rec = Dispatcher.parallel[IO](await = false) flatMap { runner =>
             Resource.eval(subjects.parTraverse_(act => IO(runner.unsafeRunSync(act))))
           }
 

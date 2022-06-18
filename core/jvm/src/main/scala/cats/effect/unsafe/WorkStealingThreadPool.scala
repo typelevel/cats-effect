@@ -33,7 +33,7 @@ package unsafe
 import cats.effect.tracing.TracingConstants
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.Duration
 
 import java.util.Comparator
@@ -59,8 +59,9 @@ import java.util.concurrent.locks.LockSupport
 private[effect] final class WorkStealingThreadPool(
     threadCount: Int, // number of worker threads
     private[unsafe] val threadPrefix: String, // prefix for the name of worker threads
-    private[unsafe] val runtimeBlockingExpiration: Duration
-) extends ExecutionContext {
+    private[unsafe] val runtimeBlockingExpiration: Duration,
+    reportFailure0: Throwable => Unit
+) extends ExecutionContextExecutor {
 
   import TracingConstants._
   import WorkStealingThreadPoolConstants._
@@ -490,16 +491,14 @@ private[effect] final class WorkStealingThreadPool(
   }
 
   /**
-   * Reports unhandled exceptions and errors by printing them to the error stream.
+   * Reports unhandled exceptions and errors according to the configured handler.
    *
    * This method fulfills the `ExecutionContext` interface.
    *
    * @param cause
    *   the unhandled throwable instances
    */
-  override def reportFailure(cause: Throwable): Unit = {
-    cause.printStackTrace()
-  }
+  override def reportFailure(cause: Throwable): Unit = reportFailure0(cause)
 
   /**
    * Shut down the thread pool and clean up the pool state. Calling this method after the pool

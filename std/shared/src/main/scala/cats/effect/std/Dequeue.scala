@@ -123,28 +123,28 @@ object Dequeue {
       extends Dequeue[F, A] {
 
     override def offerBack(a: A): F[Unit] =
-      _offer(a, queue => queue.pushBack(a))
+      _offer(a, _.pushBack(a))
 
     override def tryOfferBack(a: A): F[Boolean] =
-      _tryOffer(a, queue => queue.pushBack(a))
+      _tryOffer(_.pushBack(a))
 
     override def takeBack: F[A] =
-      _take(queue => queue.tryPopBack)
+      _take(_.tryPopBack)
 
     override def tryTakeBack: F[Option[A]] =
-      _tryTake(queue => queue.tryPopBack)
+      _tryTake(_.tryPopBack)
 
     override def offerFront(a: A): F[Unit] =
-      _offer(a, queue => queue.pushFront(a))
+      _offer(a, _.pushFront(a))
 
     override def tryOfferFront(a: A): F[Boolean] =
-      _tryOffer(a, queue => queue.pushFront(a))
+      _tryOffer(_.pushFront(a))
 
     override def takeFront: F[A] =
-      _take(queue => queue.tryPopFront)
+      _take(_.tryPopFront)
 
     override def tryTakeFront: F[Option[A]] =
-      _tryTake(queue => queue.tryPopFront)
+      _tryTake(_.tryPopFront)
 
     override def reverse: F[Unit] =
       state.update {
@@ -153,33 +153,42 @@ object Dequeue {
       }
 
     private def _offer(a: A, update: BankersQueue[A] => BankersQueue[A]): F[Unit] =
-      F.deferred[Unit].flatMap { offerer =>
-        F.uncancelable { poll =>
+      F.uncancelable { poll =>
+        F.deferred[Unit].flatMap { offerer =>
           state.modify {
             case State(queue, size, takers, offerers) if takers.nonEmpty =>
               val (taker, rest) = takers.dequeue
-              State(queue, size, rest, offerers) -> taker.complete(a).void
+              State(update(queue), size, rest, offerers) -> taker.complete(()).void
 
             case State(queue, size, takers, offerers) if size < capacity =>
               State(update(queue), size + 1, takers, offerers) -> F.unit
 
             case s =>
               val State(queue, size, takers, offerers) = s
-              val cleanup = state.update { s =>
-                s.copy(offerers = s.offerers.filter(_._2 ne offerer))
+
+              val cleanup = state modify { s =>
+                val offerers2 = s.offerers.filter(_ ne offerer)
+
+                if (offerers2.isEmpty) {
+                  s.copy(offerers = offerers2) -> F.unit
+                } else {
+                  val (release, rest) = offerers2.dequeue
+                  s.copy(offerers = rest) -> release.complete(()).void
+                }
               }
-              State(queue, size, takers, offerers.enqueue(a -> offerer)) -> poll(offerer.get)
-                .onCancel(cleanup)
+
+              State(queue, size, takers, offerers.enqueue(offerer)) ->
+                (poll(offerer.get) *> poll(_offer(a, update))).onCancel(cleanup.flatten)
           }.flatten
         }
       }
 
-    private def _tryOffer(a: A, update: BankersQueue[A] => BankersQueue[A]) =
+    private def _tryOffer(update: BankersQueue[A] => BankersQueue[A]) =
       state
         .modify {
           case State(queue, size, takers, offerers) if takers.nonEmpty =>
             val (taker, rest) = takers.dequeue
-            State(queue, size, rest, offerers) -> taker.complete(a).as(true)
+            State(update(queue), size, rest, offerers) -> taker.complete(()).as(true)
 
           case State(queue, size, takers, offerers) if size < capacity =>
             State(update(queue), size + 1, takers, offerers) -> F.pure(true)
@@ -191,9 +200,9 @@ object Dequeue {
         .uncancelable
 
     private def _take(dequeue: BankersQueue[A] => (BankersQueue[A], Option[A])): F[A] =
-      F.deferred[A].flatMap { taker =>
-        F.uncancelable { poll =>
-          state.modify {
+      F uncancelable { poll =>
+        F.deferred[Unit] flatMap { taker =>
+          val modificationF = state modify {
             case State(queue, size, takers, offerers) if queue.nonEmpty && offerers.isEmpty =>
               val (rest, ma) = dequeue(queue)
               val a = ma.get
@@ -202,18 +211,44 @@ object Dequeue {
             case State(queue, size, takers, offerers) if queue.nonEmpty =>
               val (rest, ma) = dequeue(queue)
               val a = ma.get
-              val ((move, release), tail) = offerers.dequeue
-              State(rest.pushBack(move), size, takers, tail) -> release.complete(()).as(a)
-
-            case State(queue, size, takers, offerers) if offerers.nonEmpty =>
-              val ((a, release), rest) = offerers.dequeue
-              State(queue, size, takers, rest) -> release.complete(()).as(a)
+              val (release, tail) = offerers.dequeue
+              State(rest, size - 1, takers, tail) -> release.complete(()).as(a)
 
             case State(queue, size, takers, offerers) =>
-              val cleanup = state.update { s => s.copy(takers = s.takers.filter(_ ne taker)) }
-              State(queue, size, takers.enqueue(taker), offerers) ->
-                poll(taker.get).onCancel(cleanup)
-          }.flatten
+              val cleanup = state modify { s =>
+                val takers2 = s.takers.filter(_ ne taker)
+                if (takers2.isEmpty) {
+                  s.copy(takers = takers2) -> F.unit
+                } else {
+                  val (taker, rest) = takers2.dequeue
+                  s.copy(takers = rest) -> taker.complete(()).void
+                }
+              }
+
+              val await = poll(taker.get).onCancel(cleanup.flatten) *> poll(_take(dequeue))
+                .onCancel(notifyNextTaker.flatten)
+
+              val (fulfill, offerers2) = if (offerers.isEmpty) {
+                (await, offerers)
+              } else {
+                val (release, rest) = offerers.dequeue
+                (release.complete(()) *> await, rest)
+              }
+
+              State(queue, size, takers.enqueue(taker), offerers2) -> fulfill
+          }
+
+          modificationF.flatten
+        }
+      }
+
+    private[this] val notifyNextTaker =
+      state modify { s =>
+        if (s.takers.isEmpty) {
+          s -> F.unit
+        } else {
+          val (taker, rest) = s.takers.dequeue
+          s.copy(takers = rest) -> taker.complete(()).void
         }
       }
 
@@ -227,12 +262,13 @@ object Dequeue {
 
           case State(queue, size, takers, offerers) if queue.nonEmpty =>
             val (rest, ma) = dequeue(queue)
-            val ((move, release), tail) = offerers.dequeue
-            State(rest.pushBack(move), size, takers, tail) -> release.complete(()).as(ma)
+            val (release, tail) = offerers.dequeue
+            State(rest, size, takers, tail) -> release.complete(()).as(ma)
 
           case State(queue, size, takers, offerers) if offerers.nonEmpty =>
-            val ((a, release), rest) = offerers.dequeue
-            State(queue, size, takers, rest) -> release.complete(()).as(a.some)
+            val (release, rest) = offerers.dequeue
+            // try to get lucky on the race condition
+            State(queue, size, takers, rest) -> (release.complete(()) *> _tryTake(dequeue))
 
           case s =>
             s -> F.pure(none[A])
@@ -249,9 +285,8 @@ object Dequeue {
   private[std] final case class State[F[_], A](
       queue: BankersQueue[A],
       size: Int,
-      takers: ScalaQueue[Deferred[F, A]],
-      offerers: ScalaQueue[(A, Deferred[F, Unit])]
-  )
+      takers: ScalaQueue[Deferred[F, Unit]],
+      offerers: ScalaQueue[Deferred[F, Unit]])
 
   private[std] object State {
     def empty[F[_], A]: State[F, A] =
@@ -287,10 +322,9 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
    *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
    *
    * @return
-   *   an effect that describes whether the dequeueing of an element from the dequeue succeeded
-   *   without blocking, with `None` denoting that no element was available
+   *   an effect that contains the dequeued elements
    */
-  def tryTakeBackN(maxN: Option[Int])(implicit F: Monad[F]): F[Option[List[A]]] =
+  def tryTakeBackN(maxN: Option[Int])(implicit F: Monad[F]): F[List[A]] =
     _tryTakeN(tryTakeBack)(maxN)
 
   /**
@@ -318,10 +352,9 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
    *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
    *
    * @return
-   *   an effect that describes whether the dequeueing of an element from the dequeue succeeded
-   *   without blocking, with `None` denoting that no element was available
+   *   an effect that contains the dequeued elements
    */
-  def tryTakeFrontN(maxN: Option[Int])(implicit F: Monad[F]): F[Option[List[A]]] =
+  def tryTakeFrontN(maxN: Option[Int])(implicit F: Monad[F]): F[List[A]] =
     _tryTakeN(tryTakeFront)(maxN)
 
   /**
@@ -335,19 +368,17 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
   override def tryTake: F[Option[A]] = tryTakeFront
 
   private def _tryTakeN(_tryTake: F[Option[A]])(maxN: Option[Int])(
-      implicit F: Monad[F]): F[Option[List[A]]] = {
+      implicit F: Monad[F]): F[List[A]] = {
     DequeueSource.assertMaxNPositive(maxN)
-    F.tailRecM[(Option[List[A]], Int), Option[List[A]]](
-      (None, 0)
+    F.tailRecM[(List[A], Int), List[A]](
+      (List.empty[A], 0)
     ) {
       case (list, i) =>
-        if (maxN.contains(i)) list.map(_.reverse).asRight.pure[F]
+        if (maxN.contains(i)) list.reverse.asRight.pure[F]
         else {
           _tryTake.map {
-            case None => list.map(_.reverse).asRight
-            case Some(x) =>
-              if (list.isEmpty) (Some(List(x)), i + 1).asLeft
-              else (list.map(x +: _), i + 1).asLeft
+            case None => list.reverse.asRight
+            case Some(x) => (x +: list, i + 1).asLeft
           }
         }
     }

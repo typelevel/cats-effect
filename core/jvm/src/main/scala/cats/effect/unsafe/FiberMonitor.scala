@@ -194,7 +194,7 @@ private[effect] sealed class FiberMonitor(
       val bag = bagRef.get()
       if (bag ne null) {
         val _ = bag.synchronizationPoint.get()
-        foreign ++= bag.toSet.collect { case fiber: IOFiber[_] => fiber }.filterNot(_.isDone)
+        foreign ++= bag.toSet.collect(justFibers).filterNot(_.isDone)
       }
     }
 
