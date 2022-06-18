@@ -18,6 +18,7 @@ package cats.effect.kernel
 
 import cats.{Applicative, MonadError, Monoid, Semigroup}
 import cats.data._
+import cats.effect.kernel.GenTemporal.handleFinite
 import cats.syntax.all._
 
 import scala.concurrent.TimeoutException
@@ -78,7 +79,10 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * @param fallback
    *   The task evaluated after the duration has passed and the source canceled
    */
-  def timeoutTo[A](fa: F[A], duration: FiniteDuration, fallback: F[A]): F[A] =
+  def timeoutTo[A](fa: F[A], duration: Duration, fallback: F[A]): F[A] =
+    handleFinite(fa, duration)(finiteDuration => timeoutTo(fa, finiteDuration, fallback))
+
+  protected def timeoutTo[A](fa: F[A], duration: FiniteDuration, fallback: F[A]): F[A] =
     flatMap(race(fa, sleep(duration))) {
       case Left(a) => pure(a)
       case Right(_) => fallback
@@ -97,7 +101,11 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    *   The time span for which we wait for the source to complete; in the event that the
    *   specified time has passed without the source completing, a `TimeoutException` is raised
    */
-  def timeout[A](fa: F[A], duration: FiniteDuration)(
+  def timeout[A](fa: F[A], duration: Duration)(implicit ev: TimeoutException <:< E): F[A] = {
+    handleFinite(fa, duration)(finiteDuration => timeout(fa, finiteDuration))
+  }
+
+  protected def timeout[A](fa: F[A], duration: FiniteDuration)(
       implicit ev: TimeoutException <:< E): F[A] = {
     flatMap(race(fa, sleep(duration))) {
       case Left(a) => pure(a)
@@ -110,10 +118,12 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * time `duration` or otherwise raises a `TimeoutException`.
    *
    * The source is canceled in the event that it takes longer than the specified time duration
-   * to complete. Unlike [[timeout]], the cancelation of the source will be ''requested'' but
-   * not awaited, and the exception will be raised immediately upon the completion of the timer.
-   * This may more closely match intuitions about timeouts, but it also violates backpressure
-   * guarantees and intentionally leaks fibers.
+   * to complete. Unlike
+   * [[timeout[A](fa:F[A],duration:scala\.concurrent\.duration\.Duration)* timeout]], the
+   * cancelation of the source will be ''requested'' but not awaited, and the exception will be
+   * raised immediately upon the completion of the timer. This may more closely match intuitions
+   * about timeouts, but it also violates backpressure guarantees and intentionally leaks
+   * fibers.
    *
    * This combinator should be applied very carefully.
    *
@@ -121,9 +131,15 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    *   The time span for which we wait for the source to complete; in the event that the
    *   specified time has passed without the source completing, a `TimeoutException` is raised
    * @see
-   *   [[timeout]] for a variant which respects backpressure and does not leak fibers
+   *   [[timeout[A](fa:F[A],duration:scala\.concurrent\.duration\.Duration)* timeout]] for a
+   *   variant which respects backpressure and does not leak fibers
    */
-  def timeoutAndForget[A](fa: F[A], duration: FiniteDuration)(
+  def timeoutAndForget[A](fa: F[A], duration: Duration)(
+      implicit ev: TimeoutException <:< E): F[A] = {
+    handleFinite(fa, duration)(finiteDuration => timeoutAndForget(fa, finiteDuration))
+  }
+
+  protected def timeoutAndForget[A](fa: F[A], duration: FiniteDuration)(
       implicit ev: TimeoutException <:< E): F[A] =
     uncancelable { poll =>
       implicit val F: GenTemporal[F, E] = this
@@ -262,6 +278,14 @@ object GenTemporal {
       case temporal =>
         instantiateGenTemporalForWriterT(temporal)
     }
+
+  private[effect] def handleFinite[F[_], A](fa: F[A], duration: Duration)(
+      f: FiniteDuration => F[A]): F[A] = {
+    duration match {
+      case _: Duration.Infinite => fa
+      case finite: FiniteDuration => f(finite)
+    }
+  }
 
   private[kernel] def instantiateGenTemporalForWriterT[F[_], L, E](F0: GenTemporal[F, E])(
       implicit L0: Monoid[L]): WriterTTemporal[F, L, E] =
