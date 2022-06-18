@@ -279,7 +279,7 @@ val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
 
 val nativeProjects: Seq[ProjectReference] =
-  Seq(kernel.native, kernelTestkit.native, laws.native, std.native)
+  Seq(kernel.native, kernelTestkit.native, laws.native, core.native, std.native)
 
 val undocumentedRefs =
   jsProjects ++ nativeProjects ++ Seq[ProjectReference](
@@ -383,7 +383,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform, NativePlatform)
  * contains some general datatypes built on top of IO which are useful in their own right, as
  * well as some utilities (such as IOApp). This is the "batteries included" dependency.
  */
-lazy val core = crossProject(JSPlatform, JVMPlatform)
+lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core"))
   .dependsOn(kernel, std)
   .settings(

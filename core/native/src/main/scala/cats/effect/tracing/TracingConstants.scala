@@ -15,17 +15,13 @@
  */
 
 package cats.effect
-package unsafe
+package tracing
 
-import scala.concurrent.ExecutionContext
+private[effect] object TracingConstants {
 
-// Can you imagine a thread pool on JS? Have fun trying to extend or instantiate
-// this class. Unfortunately, due to the explicit branching, this type leaks
-// into the shared source code of IOFiber.scala.
-private[effect] sealed abstract class WorkStealingThreadPool private ()
-    extends ExecutionContext {
-  def execute(runnable: Runnable): Unit
-  def reportFailure(cause: Throwable): Unit
-  private[effect] def reschedule(runnable: Runnable): Unit
-  private[effect] def canExecuteBlockingCode(): Boolean
+  final val isCachedStackTracing = false
+
+  final val isFullStackTracing = false
+
+  final val isStackTracing = isFullStackTracing || isCachedStackTracing
 }
