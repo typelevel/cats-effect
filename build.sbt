@@ -279,7 +279,7 @@ val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
 
 val nativeProjects: Seq[ProjectReference] =
-  Seq(kernel.native, kernelTestkit.native)
+  Seq(kernel.native, kernelTestkit.native, laws.native)
 
 val undocumentedRefs =
   jsProjects ++ nativeProjects ++ Seq[ProjectReference](
@@ -368,7 +368,7 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
  * dependency issues. As a consequence of this split, some things which are defined in
  * kernelTestkit are *tested* in the Test scope of this project.
  */
-lazy val laws = crossProject(JSPlatform, JVMPlatform)
+lazy val laws = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("laws"))
   .dependsOn(kernel, kernelTestkit % Test)
   .settings(

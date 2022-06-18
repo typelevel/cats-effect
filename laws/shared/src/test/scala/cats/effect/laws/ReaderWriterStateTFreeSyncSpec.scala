@@ -26,6 +26,7 @@ import cats.laws.discipline.MiniInt
 import cats.laws.discipline.arbitrary._
 
 import org.specs2.mutable._
+import org.specs2.scalacheck._
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class ReaderWriterStateTFreeSyncSpec
@@ -35,6 +36,12 @@ class ReaderWriterStateTFreeSyncSpec
     with LowPriorityImplicits {
   import FreeSyncGenerators._
   import SyncTypeGenerators._
+
+  implicit val params =
+    if (cats.platform.Platform.isNative)
+      Parameters(minTestsOk = 5)
+    else
+      Parameters(minTestsOk = 100)
 
   implicit val scala_2_12_is_buggy
       : Eq[FreeT[Eval, Either[Throwable, *], Either[Int, Either[Throwable, Int]]]] =
