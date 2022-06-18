@@ -34,7 +34,7 @@ private[effect] object GlobalBusyWaitScheduler extends Scheduler {
         task.run()
       else
         ExecutionContext.global.execute(go)
-    val _ = go
+    go.run()
     () => canceled = true
   }
 
