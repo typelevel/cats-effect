@@ -53,6 +53,8 @@ final class GenTemporalOps_[F[_], A] private[syntax] (private val wrapped: F[A])
     F.andWait(wrapped, time)
 }
 
+object GenTemporalOps_ extends GenTemporalOps_CompanionCompat
+
 final class GenTemporalOps[F[_], A, E] private[syntax] (private val wrapped: F[A])
     extends AnyVal {
 
@@ -76,3 +78,5 @@ final class GenTemporalOps[F[_], A, E] private[syntax] (private val wrapped: F[A
       timeoutToE: TimeoutException <:< E
   ): F[A] = F.timeoutAndForget(wrapped, duration)
 }
+
+object GenTemporalOps extends GenTemporalOpsCompanionCompat
