@@ -71,7 +71,7 @@ class DispatcherSpec extends BaseSpec {
             0.until(length) foreach { i =>
               runner.unsafeRunAndForget(results.update(_ :+ i).guarantee(gate.release))
             }
-          } *> gate.await
+          } *> gate.await.timeoutTo(2.seconds, IO(false must beTrue))
         }
 
         vec <- results.get
@@ -140,7 +140,9 @@ class DispatcherSpec extends BaseSpec {
           }
 
           _ <- rec.use(_ => gate1.acquireN(2)).start
-          _ <- gate2.acquireN(2) // if both are not run in parallel, then this will hang
+
+          // if both are not run in parallel, then this will hang
+          _ <- gate2.acquireN(2).timeoutTo(2.seconds, IO(false must beTrue))
         } yield ok
       }
     }
@@ -182,7 +184,7 @@ class DispatcherSpec extends BaseSpec {
             0.until(length) foreach { i =>
               runner.unsafeRunAndForget(results.update(_ :+ i).guarantee(gate.release))
             }
-          } *> gate.await
+          } *> gate.await.timeoutTo(2.seconds, IO(false must beTrue))
         }
 
         vec <- results.get
@@ -268,7 +270,7 @@ class DispatcherSpec extends BaseSpec {
             _ <- cdl.await // make sure the execution of fiber has started
           } yield ()
         }.start
-        _ <- releaseInner.await // release process has started
+        _ <- releaseInner.await.timeoutTo(2.seconds, IO(false must beTrue)) // release process has started
         released1 <- fiber.join.as(true).timeoutTo(200.millis, IO(false))
         _ <- fiberLatch.release
         released2 <- fiber.join.as(true).timeoutTo(200.millis, IO(false))
