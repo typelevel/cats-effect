@@ -253,11 +253,13 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 
 ThisBuild / autoAPIMappings := true
 
+ThisBuild / resolvers += "s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+
 val CatsVersion = "2.8.0"
 val Specs2Version = "4.16.0"
 val ScalaCheckVersion = "1.16.0"
 val DisciplineVersion = "1.4.0"
-val CoopVersion = "1.1.1"
+val CoopVersion = "1.2-bf7cfd8-SNAPSHOT"
 
 val MacrotaskExecutorVersion = "1.0.0"
 
@@ -277,7 +279,7 @@ val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
 
 val nativeProjects: Seq[ProjectReference] =
-  Seq(kernel.native)
+  Seq(kernel.native, kernelTestkit.native)
 
 val undocumentedRefs =
   jsProjects ++ nativeProjects ++ Seq[ProjectReference](
@@ -336,7 +338,7 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
  * generators, and useful tools for testing code written against Cats Effect.
  */
-lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
+lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("kernel-testkit"))
   .dependsOn(kernel)
   .settings(
@@ -344,7 +346,7 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-free" % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      "org.typelevel" %%% "coop" % CoopVersion),
+      "com.armanbilge" %%% "coop" % CoopVersion),
     mimaBinaryIssueFilters ++= Seq(
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.kernel.testkit.TestContext.this"),
