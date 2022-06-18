@@ -239,7 +239,7 @@ final class TestControl[A] private (
    * Notably, the first component of the results tuple here is `1.second`, meaning that the
    * first `IO.realTime` evaluated after the clock had ''only'' advanced by `1.second`. This is
    * in contrast to what would have happened with `control.advanceAndTick(1.second +
-   * 500.millis)`, which would have caused the first `realTime` to produce `1500.millis` as a
+   * 500.millis)`, which would have caused the first `realTime` to produce `2500.millis` as a
    * result, rather than the correct answer of `1.second`. In other words, [[advanceAndTick]] is
    * maximally aggressive on time advancement, while `tickFor` is maximally conservative and
    * only ticks as much as necessary each time.
