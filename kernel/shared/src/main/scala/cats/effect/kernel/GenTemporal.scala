@@ -118,10 +118,12 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * time `duration` or otherwise raises a `TimeoutException`.
    *
    * The source is canceled in the event that it takes longer than the specified time duration
-   * to complete. Unlike [[timeout]], the cancelation of the source will be ''requested'' but
-   * not awaited, and the exception will be raised immediately upon the completion of the timer.
-   * This may more closely match intuitions about timeouts, but it also violates backpressure
-   * guarantees and intentionally leaks fibers.
+   * to complete. Unlike
+   * [[timeout[A](fa:F[A],duration:scala\.concurrent\.duration\.Duration)* timeout]], the
+   * cancelation of the source will be ''requested'' but not awaited, and the exception will be
+   * raised immediately upon the completion of the timer. This may more closely match intuitions
+   * about timeouts, but it also violates backpressure guarantees and intentionally leaks
+   * fibers.
    *
    * This combinator should be applied very carefully.
    *
@@ -129,7 +131,8 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    *   The time span for which we wait for the source to complete; in the event that the
    *   specified time has passed without the source completing, a `TimeoutException` is raised
    * @see
-   *   [[timeout]] for a variant which respects backpressure and does not leak fibers
+   *   [[timeout[A](fa:F[A],duration:scala\.concurrent\.duration\.Duration)* timeout]] for a
+   *   variant which respects backpressure and does not leak fibers
    */
   def timeoutAndForget[A](fa: F[A], duration: Duration)(
       implicit ev: TimeoutException <:< E): F[A] = {
