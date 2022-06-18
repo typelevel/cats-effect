@@ -276,12 +276,19 @@ addCommandAlias(
 val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
 
+val nativeProjects: Seq[ProjectReference] =
+  Seq(kernel.native)
+
 val undocumentedRefs =
-  jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm, tests.jvm, tests.js)
+  jsProjects ++ nativeProjects ++ Seq[ProjectReference](
+    benchmarks,
+    example.jvm,
+    tests.jvm,
+    tests.js)
 
 lazy val root = project
   .in(file("."))
-  .aggregate(rootJVM, rootJS)
+  .aggregate(rootJVM, rootJS, rootNative)
   .enablePlugins(NoPublishPlugin)
   .enablePlugins(ScalaUnidocPlugin)
   .settings(
@@ -306,11 +313,13 @@ lazy val rootJVM = project
 
 lazy val rootJS = project.aggregate(jsProjects: _*).enablePlugins(NoPublishPlugin)
 
+lazy val rootNative = project.aggregate(nativeProjects: _*).enablePlugins(NoPublishPlugin)
+
 /**
  * The core abstractions and syntax. This is the most general definition of Cats Effect, without
  * any concrete implementations. This is the "batteries not included" dependency.
  */
-lazy val kernel = crossProject(JSPlatform, JVMPlatform)
+lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("kernel"))
   .settings(
     name := "cats-effect-kernel",
