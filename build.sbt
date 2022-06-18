@@ -279,7 +279,7 @@ val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
 
 val nativeProjects: Seq[ProjectReference] =
-  Seq(kernel.native, kernelTestkit.native, laws.native)
+  Seq(kernel.native, kernelTestkit.native, laws.native, std.native)
 
 val undocumentedRefs =
   jsProjects ++ nativeProjects ++ Seq[ProjectReference](
@@ -786,7 +786,7 @@ lazy val testsJVM = tests
  * implementations will require IO, and thus those tests will be located within the core
  * project.
  */
-lazy val std = crossProject(JSPlatform, JVMPlatform)
+lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("std"))
   .dependsOn(kernel)
   .settings(

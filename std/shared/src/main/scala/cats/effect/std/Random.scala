@@ -614,3 +614,6 @@ object Random extends RandomCompanionPlatform {
 
   }
 }
+
+// Vestigial shim
+private[std] trait RandomCompanionPlatform

@@ -16,5 +16,4 @@
 
 package cats.effect.std
 
-// Vestigial shim
-private[std] trait RandomCompanionPlatform
+private[std] trait DispatcherPlatform[F[_]]

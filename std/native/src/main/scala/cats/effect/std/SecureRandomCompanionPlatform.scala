@@ -16,5 +16,6 @@
 
 package cats.effect.std
 
-// Vestigial shim
-private[std] trait RandomCompanionPlatform
+private[std] trait SecureRandomCompanionPlatform {
+  private[std] type JavaSecureRandom = java.util.Random
+}
