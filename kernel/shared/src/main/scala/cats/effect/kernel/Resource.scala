@@ -211,7 +211,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
    * release it.
    */
 
-  def useIt[B](implicit ev: A <:< F[B], F: MonadCancel[F, Throwable]): F[B] =
+  def useEval[B](implicit ev: A <:< F[B], F: MonadCancel[F, Throwable]): F[B] =
     use(ev)
 
   /**
