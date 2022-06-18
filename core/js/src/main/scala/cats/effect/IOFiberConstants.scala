@@ -19,35 +19,35 @@ package cats.effect
 // defined in Java for the JVM, Scala for ScalaJS (where object field access is faster)
 private object IOFiberConstants {
 
-  final val MaxStackDepth: Int = 512
+  final val MaxStackDepth = 512
 
   // continuation ids (should all be inlined)
-  final val MapK: Byte = 0
-  final val FlatMapK: Byte = 1
-  final val CancelationLoopK: Byte = 2
-  final val RunTerminusK: Byte = 3
-  final val EvalOnK: Byte = 4
-  final val HandleErrorWithK: Byte = 5
-  final val OnCancelK: Byte = 6
-  final val UncancelableK: Byte = 7
-  final val UnmaskK: Byte = 8
-  final val AttemptK: Byte = 9
+  final val MapK = 0
+  final val FlatMapK = 1
+  final val CancelationLoopK = 2
+  final val RunTerminusK = 3
+  final val EvalOnK = 4
+  final val HandleErrorWithK = 5
+  final val OnCancelK = 6
+  final val UncancelableK = 7
+  final val UnmaskK = 8
+  final val AttemptK = 9
 
   // resume ids
-  final val ExecR: Byte = 0
-  final val AsyncContinueSuccessfulR: Byte = 1
-  final val AsyncContinueFailedR: Byte = 2
-  final val AsyncContinueCanceledR: Byte = 3
+  final val ExecR = 0
+  final val AsyncContinueSuccessfulR = 1
+  final val AsyncContinueFailedR = 2
+  final val AsyncContinueCanceledR = 3
   final val AsyncContinueCanceledWithFinalizerR = 4
-  final val BlockingR: Byte = 5
-  final val CedeR: Byte = 6
-  final val AutoCedeR: Byte = 7
-  final val ExecuteRunnableR: Byte = 8
-  final val DoneR: Byte = 9
+  final val BlockingR = 5
+  final val CedeR = 6
+  final val AutoCedeR = 7
+  final val ExecuteRunnableR = 8
+  final val DoneR = 9
 
   // ContState tags
-  final val ContStateInitial: Int = 0
-  final val ContStateWaiting: Int = 1
-  final val ContStateWinner: Int = 2
-  final val ContStateResult: Int = 3
+  final val ContStateInitial = 0
+  final val ContStateWaiting = 1
+  final val ContStateWinner = 2
+  final val ContStateResult = 3
 }

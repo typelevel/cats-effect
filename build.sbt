@@ -573,7 +573,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
           "cats.effect.unsafe.PolyfillExecutionContext"),
         ProblemFilters.exclude[MissingClassProblem](
           "cats.effect.unsafe.PolyfillExecutionContext$"),
-        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread")
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread"),
+        ProblemFilters.exclude[Problem]("cats.effect.IOFiberConstants.*"),
+        ProblemFilters.exclude[Problem]("cats.effect.SyncIOConstants.*")
       )
     },
     mimaBinaryIssueFilters ++= {
