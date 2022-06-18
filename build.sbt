@@ -279,7 +279,7 @@ val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
 
 val nativeProjects: Seq[ProjectReference] =
-  Seq(kernel.native, kernelTestkit.native, laws.native, core.native, std.native)
+  Seq(kernel.native, kernelTestkit.native, laws.native, core.native, std.native, example.native)
 
 val undocumentedRefs =
   jsProjects ++ nativeProjects ++ Seq[ProjectReference](
@@ -332,6 +332,9 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
+  )
+  .nativeSettings(
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.4.0"
   )
 
 /**
@@ -839,7 +842,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
  * A trivial pair of trivial example apps primarily used to show that IOApp works as a practical
  * runtime on both target platforms.
  */
-lazy val example = crossProject(JSPlatform, JVMPlatform)
+lazy val example = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("example"))
   .dependsOn(core)
   .enablePlugins(NoPublishPlugin)

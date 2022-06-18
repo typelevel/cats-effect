@@ -1,0 +1,68 @@
+/*
+ * Copyright 2020-2022 Typelevel
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package cats.effect
+package unsafe
+
+import cats.effect.tracing.TracingConstants
+
+import scala.annotation.nowarn
+import scala.concurrent.ExecutionContext
+
+/**
+ * A slightly more involved implementation of an unordered bag used for tracking asynchronously
+ * suspended fiber instances on the JVM. This bag is backed by an array of synchronized
+ * `java.util.WeakHashMap` instances. This decision is based on several factors:
+ *   1. A `java.util.WeakHashMap` is used because we want the resumed fibers to be automatically
+ *      removed from the hash map data structure by the GC, whenever their keys expire (which is
+ *      right around their resumption).
+ *   1. `java.util.WeakHashMap` is **not** thread safe by nature. In the official javadoc for
+ *      this class it is recommended that an instance be wrapped in
+ *      `java.util.Collections.synchronizedMap` before writing to the hash map from different
+ *      threads. This is absolutely crucial in our use case, because fibers can be carried by
+ *      any thread (including threads external to the compute thread pool, e.g. when using
+ *      `IO#evalOn`).
+ *   1. Because `java.util.Collections.synchronizedMap` is a simple wrapper around any map which
+ *      just synchronizes the access to the map through the built in JVM `synchronized`
+ *      mechanism, we need several instances of these synchronized `WeakHashMap`s just to reduce
+ *      contention between threads. A particular instance is selected using a thread local
+ *      source of randomness using an instance of `java.util.concurrent.ThreadLocalRandom`.
+ */
+@nowarn
+private[effect] sealed class FiberMonitor(
+    // A reference to the compute pool of the `IORuntime` in which this suspended fiber bag
+    // operates. `null` if the compute pool of the `IORuntime` is not a `WorkStealingThreadPool`.
+    private[this] val compute: WorkStealingThreadPool
+) extends FiberMonitorShared {
+
+  private final val noop: WeakBag.Handle = () => ()
+  def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle = noop
+  def liveFiberSnapshot(print: String => Unit): Unit = {}
+}
+
+private[effect] final class NoOpFiberMonitor extends FiberMonitor(null)
+
+private[effect] object FiberMonitor {
+  def apply(compute: ExecutionContext): FiberMonitor = {
+    if (TracingConstants.isStackTracing && compute.isInstanceOf[WorkStealingThreadPool]) {
+      val wstp = compute.asInstanceOf[WorkStealingThreadPool]
+      new FiberMonitor(wstp)
+    } else {
+      new FiberMonitor(null)
+    }
+  }
+
+}

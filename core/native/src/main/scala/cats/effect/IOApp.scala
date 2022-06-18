@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import cats.effect.unsafe.QueueExecutorScheduler
+
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
 
@@ -226,7 +228,7 @@ trait IOApp {
         c => hardExit(c.code)
       )(runtime)
 
-      ()
+    QueueExecutorScheduler.loop()
   }
 
 }
