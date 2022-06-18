@@ -12,4 +12,4 @@
 
 package java.util.concurrent
 
-class ConcurrentHashMap[K, V] extends java.util.HashMap
+class ConcurrentHashMap[K, V] extends java.util.HashMap[K, V]
