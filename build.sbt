@@ -279,7 +279,15 @@ val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
 
 val nativeProjects: Seq[ProjectReference] =
-  Seq(kernel.native, kernelTestkit.native, laws.native, core.native, std.native, example.native)
+  Seq(
+    kernel.native,
+    kernelTestkit.native,
+    laws.native,
+    core.native,
+    testkit.native,
+    tests.native,
+    std.native,
+    example.native)
 
 val undocumentedRefs =
   jsProjects ++ nativeProjects ++ Seq[ProjectReference](
@@ -720,7 +728,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
  * Test support for the core project, providing various helpful instances like ScalaCheck
  * generators for IO and SyncIO.
  */
-lazy val testkit = crossProject(JSPlatform, JVMPlatform)
+lazy val testkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("testkit"))
   .dependsOn(core, kernelTestkit)
   .settings(
@@ -734,7 +742,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform)
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
  */
-lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
+lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("tests"))
   .dependsOn(core, laws % Test, kernelTestkit % Test, testkit % Test)
   .enablePlugins(BuildInfoPlugin, NoPublishPlugin)
