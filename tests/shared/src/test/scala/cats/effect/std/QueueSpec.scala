@@ -139,7 +139,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
         offerers &> takers
       }
 
-      action.as(ok)
+      action.as(ok).timeoutTo(2.seconds, IO(false must beTrue))
     }
 
     negativeCapacityConstructionTests(constructor)
@@ -361,7 +361,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
         _ <-
           if (results.nonEmpty)
-            expected.await
+            expected.await.timeoutTo(2.seconds, IO(false must beTrue))
           else
             IO(skipped("did not take any results"))
       } yield ok
@@ -384,10 +384,10 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
         // release whatever we didn't receive
         _ <- expected.release.replicateA_(5 - results.length)
-        _ <- expected.await
-      } yield ok
+        _ <- expected.await.timeoutTo(2.seconds, IO(false must beTrue))
+      } yield ()
 
-      test // .parReplicateA(10).as(ok)
+      test.parReplicateA(10).as(ok)
     }
   }
 
@@ -505,7 +505,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
             offer2.cancel
           else
             // if neither offerer resumed, then we'll be false from offer1 and offer2.join will hang
-            offer2.join
+            offer2.join.timeoutTo(2.seconds, IO(false must beTrue))
       } yield ()
 
       test.parReplicateA(16).as(ok)
@@ -607,10 +607,10 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         // what we're testing here is that *one* of the two got the element
         _ <- taken match {
           // if take1 got the element, we couldn't reproduce the race condition
-          case Some(_) => /*IO.println(s"$prefix >> canceling") >>*/ take2.cancel
+          case Some(_) => take2.cancel
 
           // if neither taker got the element, then we'll be None from take1 and take2.join will hang
-          case None => /*IO.println(s"$prefix >> joining") >>*/ take2.join
+          case None => take2.join.timeoutTo(2.seconds, IO(false must beTrue))
         }
       } yield ()
 
