@@ -157,8 +157,12 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
 class UnboundedQueueSpec extends BaseSpec with QueueTests[Queue] {
   sequential
 
-  "UnboundedQueue" should {
-    unboundedQueueTests(Queue.unbounded)
+  "UnboundedQueue (concurrent)" should {
+    unboundedQueueTests(Queue.unboundedForConcurrent)
+  }
+
+  "UnboundedQueue (async)" should {
+    unboundedQueueTests(Queue.unboundedForAsync)
   }
 
   "UnboundedQueue mapk" should {
