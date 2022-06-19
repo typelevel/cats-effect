@@ -109,8 +109,12 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
    */
   def nextInterval(): FiniteDuration = {
     val current = stateRef
-    val diff = current.tasks.first().runsAt - current.currentNanos.get().nanos
-    diff.max(Duration.Zero)
+    if (current.tasks.isEmpty) {
+      Duration.Zero
+    } else {
+      val diff = current.tasks.first().runsAt - current.currentNanos.get().nanos
+      diff.max(Duration.Zero)
+    }
   }
 
   def advance(time: FiniteDuration): Unit = {
