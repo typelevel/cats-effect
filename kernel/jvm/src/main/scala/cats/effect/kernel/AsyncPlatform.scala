@@ -16,7 +16,13 @@
 
 package cats.effect.kernel
 
-import java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage}
+import java.util.concurrent.{
+  CancellationException,
+  CompletableFuture,
+  CompletionException,
+  CompletionStage,
+  Future
+}
 
 private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] =>
 
@@ -53,4 +59,16 @@ private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] 
         }
       }
     }
+
+  def fromJavaFuture[A](fut: F[Future[A]], mayInterruptIfRunning: Boolean): F[A] =
+    flatMap(fut) { fut =>
+      map(
+        race(
+          onCancel(never, void(delay(fut.cancel(mayInterruptIfRunning)))),
+          recoverWith(blocking(fut.get())) {
+            case _: CancellationException => productR(canceled)(never)
+          }
+        ))(_.toOption.get)
+    }
+
 }
