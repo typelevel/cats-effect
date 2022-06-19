@@ -31,7 +31,7 @@ import org.specs2.specification.core.Fragments
 import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.concurrent.duration._
 
-class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
+class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatform {
 
   "BoundedQueue (concurrent)" should {
     boundedQueueTests(Queue.boundedForConcurrent)
@@ -124,7 +124,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
     }
 
     "offer/take at high contention" in real {
-      val size = 10000
+      val size = if (isJS) 10000 else 100000
 
       val action = constructor(size) flatMap { q =>
         def par(action: IO[Unit], num: Int): IO[Unit] =
