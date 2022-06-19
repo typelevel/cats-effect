@@ -20,13 +20,13 @@ import cats.effect.{BaseSpec, IO}
 
 import scala.concurrent.duration._
 
-import java.util.concurrent.{CancellationException, CompletableFuture}
+import java.util.concurrent.{CancellationException, CompletableFuture, FutureTask}
 
 class AsyncPlatformSpec extends BaseSpec {
 
   val smallDelay: IO[Unit] = IO.sleep(1.second)
 
-  "AsyncPlatform CompletableFuture conversion" should {
+  "AsyncPlatform" should {
     "cancel CompletableFuture on fiber cancellation" in real {
       lazy val cf = CompletableFuture.supplyAsync { () =>
         Thread.sleep(2000) // some computation
@@ -53,6 +53,19 @@ class AsyncPlatformSpec extends BaseSpec {
       } yield ()
 
       io must nonTerminate
+    }
+
+    "cancel Java Future on fiber cancellation" in real {
+      // some computation
+      lazy val fut = new FutureTask(() => Thread.sleep(2000), ())
+
+      for {
+        fiber <- IO.fromJavaFuture(IO(fut), mayInterruptIfRunning = true).start
+        _ <- smallDelay // time for the callback to be set-up
+        _ <- fiber.cancel
+        _ <- IO(fut.isCancelled must beTrue)
+        _ <- IO(fut.get() must throwA[CancellationException])
+      } yield ok
     }
   }
 }
