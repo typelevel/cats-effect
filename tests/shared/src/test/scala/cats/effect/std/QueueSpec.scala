@@ -124,7 +124,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
     }
 
     "offer/take at high contention" in real {
-      val size = 100000
+      val size = 10000
 
       val action = constructor(size) flatMap { q =>
         def par(action: IO[Unit], num: Int): IO[Unit] =
@@ -139,7 +139,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
         offerers &> takers
       }
 
-      action.as(ok).timeoutTo(2.seconds, IO(false must beTrue))
+      action.as(ok).timeoutTo(8.seconds, IO(false must beTrue))
     }
 
     negativeCapacityConstructionTests(constructor)
