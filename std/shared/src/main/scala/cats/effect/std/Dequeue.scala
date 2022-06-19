@@ -263,12 +263,7 @@ object Dequeue {
           case State(queue, size, takers, offerers) if queue.nonEmpty =>
             val (rest, ma) = dequeue(queue)
             val (release, tail) = offerers.dequeue
-            State(rest, size, takers, tail) -> release.complete(()).as(ma)
-
-          case State(queue, size, takers, offerers) if offerers.nonEmpty =>
-            val (release, rest) = offerers.dequeue
-            // try to get lucky on the race condition
-            State(queue, size, takers, rest) -> (release.complete(()) *> _tryTake(dequeue))
+            State(rest, size - 1, takers, tail) -> release.complete(()).as(ma)
 
           case s =>
             s -> F.pure(none[A])
@@ -369,18 +364,21 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
 
   private def _tryTakeN(_tryTake: F[Option[A]])(maxN: Option[Int])(
       implicit F: Monad[F]): F[List[A]] = {
+
     DequeueSource.assertMaxNPositive(maxN)
-    F.tailRecM[(List[A], Int), List[A]](
-      (List.empty[A], 0)
-    ) {
-      case (list, i) =>
-        if (maxN.contains(i)) list.reverse.asRight.pure[F]
-        else {
-          _tryTake.map {
-            case None => list.reverse.asRight
-            case Some(x) => (x +: list, i + 1).asLeft
-          }
+
+    def loop(i: Int, limit: Int, acc: List[A]): F[List[A]] =
+      if (i >= limit)
+        F.pure(acc.reverse)
+      else
+        _tryTake flatMap {
+          case Some(a) => loop(i + 1, limit, a :: acc)
+          case None => F.pure(acc.reverse)
         }
+
+    maxN match {
+      case Some(limit) => loop(0, limit, Nil)
+      case None => loop(0, Int.MaxValue, Nil)
     }
   }
 

@@ -31,7 +31,7 @@ import org.specs2.specification.core.Fragments
 import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.concurrent.duration._
 
-class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
+class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatform {
 
   "BoundedQueue (concurrent)" should {
     boundedQueueTests(Queue.boundedForConcurrent)
@@ -124,7 +124,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
     }
 
     "offer/take at high contention" in real {
-      val size = 100000
+      val size = if (isJS) 10000 else 100000
 
       val action = constructor(size) flatMap { q =>
         def par(action: IO[Unit], num: Int): IO[Unit] =
@@ -139,7 +139,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] {
         offerers &> takers
       }
 
-      action.as(ok)
+      action.as(ok).timeoutTo(8.seconds, IO(false must beTrue))
     }
 
     negativeCapacityConstructionTests(constructor)
@@ -289,7 +289,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       tryTakeN: (Q[IO, Int], Option[Int]) => IO[List[Int]],
       transform: List[Int] => List[Int] = identity): Fragments = {
 
-    "should take batches for all records when None is provided" in real {
+    "take batches for all records when None is provided" in real {
       for {
         q <- constructor(5)
         _ <- offer(q, 1)
@@ -301,7 +301,8 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         r <- IO(transform(b) must beEqualTo(List(1, 2, 3, 4, 5)))
       } yield r
     }
-    "should take batches for all records when maxN is provided" in real {
+
+    "take batches for all records when maxN is provided" in real {
       for {
         q <- constructor(5)
         _ <- offer(q, 1)
@@ -313,7 +314,8 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         r <- IO(transform(b) must beEqualTo(List(1, 2, 3, 4, 5)))
       } yield r
     }
-    "Should take all records when maxN > queue size" in real {
+
+    "take all records when maxN > queue size" in real {
       for {
         q <- constructor(5)
         _ <- offer(q, 1)
@@ -325,7 +327,8 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         r <- IO(transform(b) must beEqualTo(List(1, 2, 3, 4, 5)))
       } yield r
     }
-    "Should be empty when queue is empty" in real {
+
+    "be empty when queue is empty" in real {
       for {
         q <- constructor(5)
         b <- tryTakeN(q, Some(5))
@@ -333,7 +336,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       } yield r
     }
 
-    "should raise an exception when maxN is not > 0" in real {
+    "raise an exception when maxN is not > 0" in real {
       val toAttempt = for {
         q <- constructor(5)
         _ <- tryTakeN(q, Some(-1))
@@ -346,6 +349,50 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         }
       }
     }
+
+    "release one offerer when queue is full" in real {
+      val test = for {
+        q <- constructor(5)
+        _ <- offer(q, 0).replicateA_(5)
+
+        latch <- IO.deferred[Unit]
+        expected <- CountDownLatch[IO](1)
+
+        _ <- (latch.complete(()) *> offer(q, 0) *> expected.release).start
+
+        _ <- latch.get
+        results <- tryTakeN(q, None)
+
+        _ <-
+          if (results.nonEmpty)
+            expected.await.timeoutTo(2.seconds, IO(false must beTrue))
+          else
+            IO(skipped("did not take any results"))
+      } yield ok
+
+      test.parReplicateA(10).as(ok)
+    }
+
+    "release all offerers when queue is full" in real {
+      val test = for {
+        q <- constructor(5)
+        _ <- offer(q, 0).replicateA_(5)
+
+        latch <- CountDownLatch[IO](5)
+        expected <- CountDownLatch[IO](5)
+
+        _ <- (latch.release *> offer(q, 0) *> expected.release).start.replicateA_(5)
+
+        _ <- latch.await
+        results <- tryTakeN(q, None)
+
+        // release whatever we didn't receive
+        _ <- expected.release.replicateA_(5 - results.length)
+        _ <- expected.await.timeoutTo(2.seconds, IO(false must beTrue))
+      } yield ()
+
+      test.parReplicateA(10).as(ok)
+    }
   }
 
   def tryOfferOnFullTests(
@@ -354,7 +401,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       tryOffer: (Q[IO, Int], Int) => IO[Boolean],
       expected: Boolean): Fragments = {
 
-    "should return false on tryOffer when the queue is full" in real {
+    "return false on tryOffer when the queue is full" in real {
       for {
         q <- constructor(2)
         _ <- offer(q, 0)
@@ -462,7 +509,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
             offer2.cancel
           else
             // if neither offerer resumed, then we'll be false from offer1 and offer2.join will hang
-            offer2.join
+            offer2.join.timeoutTo(2.seconds, IO(false must beTrue))
       } yield ()
 
       test.parReplicateA(16).as(ok)
@@ -564,10 +611,10 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
         // what we're testing here is that *one* of the two got the element
         _ <- taken match {
           // if take1 got the element, we couldn't reproduce the race condition
-          case Some(_) => /*IO.println(s"$prefix >> canceling") >>*/ take2.cancel
+          case Some(_) => take2.cancel
 
           // if neither taker got the element, then we'll be None from take1 and take2.join will hang
-          case None => /*IO.println(s"$prefix >> joining") >>*/ take2.join
+          case None => take2.join.timeoutTo(2.seconds, IO(false must beTrue))
         }
       } yield ()
 
