@@ -48,7 +48,7 @@ class DispatcherSpec extends BaseSpec {
           IO(runner.unsafeRunAndForget(IO.never.onCancel(IO { canceled = true }))) *> IO.never
         }
 
-        val action = body.start flatMap { f => IO.sleep(500.millis) *> f.cancel }
+        val action = body.start.flatMap(f => IO.sleep(500.millis) *> f.cancel)
 
         TestControl.executeEmbed(action *> IO(canceled must beTrue))
       }
@@ -71,7 +71,7 @@ class DispatcherSpec extends BaseSpec {
             0.until(length) foreach { i =>
               runner.unsafeRunAndForget(results.update(_ :+ i).guarantee(gate.release))
             }
-          } *> gate.await
+          } *> gate.await.timeoutTo(2.seconds, IO(false must beTrue))
         }
 
         vec <- results.get
@@ -140,7 +140,9 @@ class DispatcherSpec extends BaseSpec {
           }
 
           _ <- rec.use(_ => gate1.acquireN(2)).start
-          _ <- gate2.acquireN(2) // if both are not run in parallel, then this will hang
+
+          // if both are not run in parallel, then this will hang
+          _ <- gate2.acquireN(2).timeoutTo(2.seconds, IO(false must beTrue))
         } yield ok
       }
     }
@@ -162,7 +164,11 @@ class DispatcherSpec extends BaseSpec {
 
         _ <- {
           val rec = dispatcher flatMap { runner =>
-            Resource.eval(subjects.parTraverse_(act => IO(runner.unsafeRunAndForget(act))))
+            Resource eval {
+              subjects
+                .parTraverse_(act => IO(runner.unsafeRunAndForget(act)))
+                .timeoutTo(2.seconds, IO(false must beTrue))
+            }
           }
 
           rec.use(_ => IO.unit)
@@ -182,7 +188,7 @@ class DispatcherSpec extends BaseSpec {
             0.until(length) foreach { i =>
               runner.unsafeRunAndForget(results.update(_ :+ i).guarantee(gate.release))
             }
-          } *> gate.await
+          } *> gate.await.timeoutTo(2.seconds, IO(false must beTrue))
         }
 
         vec <- results.get
@@ -268,7 +274,7 @@ class DispatcherSpec extends BaseSpec {
             _ <- cdl.await // make sure the execution of fiber has started
           } yield ()
         }.start
-        _ <- releaseInner.await // release process has started
+        _ <- releaseInner.await.timeoutTo(2.seconds, IO(false must beTrue)) // release process has started
         released1 <- fiber.join.as(true).timeoutTo(200.millis, IO(false))
         _ <- fiberLatch.release
         released2 <- fiber.join.as(true).timeoutTo(200.millis, IO(false))
