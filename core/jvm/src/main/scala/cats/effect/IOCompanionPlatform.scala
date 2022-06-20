@@ -122,8 +122,8 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   def fromCompletionStage[A](completionStage: IO[CompletionStage[A]]): IO[A] =
     asyncForIO.fromCompletionStage(completionStage)
 
-  def fromJavaFuture[A](fut: IO[Future[A]], mayInterruptIfRunning: Boolean): IO[A] =
-    asyncForIO.fromJavaFuture(fut, mayInterruptIfRunning)
+  def fromJavaFuture[A](fut: IO[Future[A]]): IO[A] =
+    asyncForIO.fromJavaFuture(fut)
 
   def realTimeInstant: IO[Instant] = asyncForIO.realTimeInstant
 

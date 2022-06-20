@@ -60,13 +60,13 @@ private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] 
       }
     }
 
-  def fromJavaFuture[A](fut: F[Future[A]], mayInterruptIfRunning: Boolean): F[A] =
+  def fromJavaFuture[A](fut: F[Future[A]]): F[A] =
     flatMap(fut) {
       case fut: CompletableFuture[A] => fromCompletableFuture(pure(fut))
       case fut =>
         map(
           race(
-            onCancel(never, void(delay(fut.cancel(mayInterruptIfRunning)))),
+            onCancel(never, void(delay(fut.cancel(false)))),
             recoverWith(blocking(fut.get())) {
               case _: CancellationException => productR(canceled)(never)
             }

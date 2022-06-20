@@ -60,7 +60,7 @@ class AsyncPlatformSpec extends BaseSpec {
       lazy val fut = new FutureTask(() => Thread.sleep(2000), ())
 
       for {
-        fiber <- IO.fromJavaFuture(IO(fut), mayInterruptIfRunning = true).start
+        fiber <- IO.fromJavaFuture(IO(fut)).start
         _ <- smallDelay // time for the callback to be set-up
         _ <- fiber.cancel
         _ <- IO(fut.isCancelled must beTrue)
