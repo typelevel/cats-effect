@@ -108,6 +108,132 @@ trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Unique[F] 
    */
   def interruptibleMany[A](thunk: => A): F[A] = suspend(InterruptibleMany)(thunk)
 
+  /**
+   * Suspends a [[scala.Predef#assert(assertion:Boolean,message:=>Any)*]] assertion in `F[_]`:
+   *
+   * Tests an expression, sequencing an exception of type [[java.lang.AssertionError]] if false.
+   *
+   * Assertions can be disabled by using the scalac option `-Xdisable-assertions`, or by
+   * configuring the scalac option `-Xelide-below` with a value greater than
+   * [[scala.annotation.elidable.ASSERTION ASSERTION]].
+   *
+   * When assertions are disabled exceptions are not sequenced, and this method is equivalent to
+   * [[cats.InvariantMonoidal#unit]]
+   *
+   * @param assertion
+   *   the expression to test
+   * @param message
+   *   a String to include in the failure message
+   */
+  def assert(assertion: Boolean, message: => String): F[Unit] =
+    delay(Predef.assert(assertion, message))
+
+  /**
+   * Suspends a [[scala.Predef#assert(assertion:Boolean)*]] assertion in `F[_]`:
+   *
+   * Tests an expression, sequencing an exception of type [[java.lang.AssertionError]] if false.
+   *
+   * Assertions can be disabled by using the scalac option `-Xdisable-assertions`, or by
+   * configuring the scalac option `-Xelide-below` with a value greater than
+   * [[scala.annotation.elidable.ASSERTION ASSERTION]].
+   *
+   * When assertions are disabled exceptions are not sequenced, and this method is equivalent to
+   * [[cats.InvariantMonoidal#unit]]
+   *
+   * @param assertion
+   *   the expression to test
+   */
+  def assert(assertion: Boolean): F[Unit] =
+    delay(Predef.assert(assertion))
+
+  /**
+   * Suspends a [[scala.Predef#assume(assumption:Boolean,message:=>Any)*]] assumption in `F[_]`:
+   *
+   * Tests an expression, sequencing an exception of type [[java.lang.AssertionError]] if false.
+   *
+   * This method differs from
+   * [[cats.effect.kernel.Sync#assert(assertion:Boolean,message:=>String)* assert]] only in the
+   * intent expressed: `assert` contains a predicate which needs to be proven, while `assume`
+   * contains an axiom for a static checker.
+   *
+   * Assertions can be disabled by using the scalac option `-Xdisable-assertions`, or by
+   * configuring the scalac option `-Xelide-below` with a value greater than
+   * [[scala.annotation.elidable.ASSERTION ASSERTION]].
+   *
+   * When assertions are disabled exceptions are not sequenced, and this method is equivalent to
+   * [[cats.InvariantMonoidal#unit]]
+   *
+   * @param assumption
+   *   the expression to test
+   * @param message
+   *   a String to include in the failure message
+   */
+  def assume(assumption: Boolean, message: => String): F[Unit] =
+    delay(Predef.assume(assumption, message))
+
+  /**
+   * Suspends a [[scala.Predef#assume(assumption:Boolean)*]] assumption in `F[_]`:
+   *
+   * Tests an expression, sequencing an exception of type [[java.lang.AssertionError]] if false.
+   *
+   * This method differs from [[cats.effect.kernel.Sync#assert(assertion:Boolean)* assert]] only
+   * in the intent expressed: `assert` contains a predicate which needs to be proven, while
+   * `assume` contains an axiom for a static checker.
+   *
+   * Assertions can be disabled by using the scalac option `-Xdisable-assertions`, or by
+   * configuring the scalac option `-Xelide-below` with a value greater than
+   * [[scala.annotation.elidable.ASSERTION ASSERTION]].
+   *
+   * When assertions are disabled exceptions are not sequenced, and this method is equivalent to
+   * [[cats.InvariantMonoidal#unit]]
+   *
+   * @param assumption
+   *   the expression to test
+   */
+  def assume(assumption: Boolean): F[Unit] =
+    delay(Predef.assume(assumption))
+
+  /**
+   * Suspends a [[scala.Predef#require(requirement:Boolean,message:=>Any)*]] requirement in
+   * `F[_]`:
+   *
+   * Tests an expression, sequencing an exception of type [[java.lang.IllegalArgumentException]]
+   * if false.
+   *
+   * This method is similar to
+   * [[cats.effect.kernel.Sync#assert(assertion:Boolean,message:=>String)* assert]], but blames
+   * the caller of the method for violating the condition.
+   *
+   * Since requirements express a precondition that must be met by the caller, they cannot be
+   * disabled using `-Xdisable-assertions`.
+   *
+   * @param requirement
+   *   the expression to test
+   * @param message
+   *   a String to include in the failure message
+   */
+  def require(requirement: Boolean, message: => String): F[Unit] =
+    delay(Predef.require(requirement, message))
+
+  /**
+   * Suspends a [[scala.Predef#require(requirement:Boolean)*]] requirement in `F[_]`:
+   *
+   * Tests an expression, sequencing an exception of type [[java.lang.IllegalArgumentException]]
+   * if false.
+   *
+   * This method is similar to [[cats.effect.kernel.Sync#assert(assertion:Boolean)* assert]],
+   * but blames the caller of the method for violating the condition.
+   *
+   * Since requirements express a precondition that must be met by the caller, they cannot be
+   * disabled using `-Xdisable-assertions`.
+   *
+   * @param requirement
+   *   the expression to test
+   * @return
+   */
+  def require(requirement: Boolean): F[Unit] =
+    delay(Predef.require(requirement))
+
   def suspend[A](hint: Sync.Type)(thunk: => A): F[A]
 }
 
