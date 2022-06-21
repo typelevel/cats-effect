@@ -229,7 +229,6 @@ trait Sync[F[_]] extends MonadCancel[F, Throwable] with Clock[F] with Unique[F] 
    *
    * @param requirement
    *   the expression to test
-   * @return
    */
   def require(requirement: Boolean): F[Unit] =
     delay(Predef.require(requirement))
