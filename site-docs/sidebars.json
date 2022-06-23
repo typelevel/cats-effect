@@ -15,7 +15,8 @@
       "schedulers",
       "core/io-runtime-config",
       "core/native-image",
-      "core/jlink"
+      "core/jlink",
+      "core/io-local"
     ],
     "Typeclasses": [
       "typeclasses",

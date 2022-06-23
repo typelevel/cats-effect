@@ -25,12 +25,13 @@ package cats.effect
  * That means, two fibers can never access the same [[IOLocal]], they will always be working on
  * their own copies.
  *
- * In some scenarios, [[IOLocal]] can be considered as a replacement for
+ * In some scenarios, [[IOLocal]] can be considered as an alternative to
  * [[https://typelevel.org/cats-mtl/mtl-classes/local.html cats.mtl.Local]]
  *
  * @example
  *   {{{
  *  import cats.Monad
+ *  import cats.effect.{IO, IOLocal, Sync, Resource}
  *  import cats.effect.std.{Console, Random}
  *  import cats.syntax.flatMap._
  *  import cats.syntax.functor._
