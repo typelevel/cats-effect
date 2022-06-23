@@ -16,6 +16,73 @@
 
 package cats.effect
 
+/**
+ * [[IOLocal]] provides a handy way of sharing a context within the fiber runtime.
+ *
+ * [[IO]] stores local states as `scala.collection.immutable.Map[IOLocal[_], Any]` under the
+ * hood.
+ *
+ * That means, two fibers can never access the same [[IOLocal]], they will always be working on
+ * their own copies.
+ *
+ * In some scenarios, [[IOLocal]] can be considered as a replacement for
+ * [[https://typelevel.org/cats-mtl/mtl-classes/local.html cats.mtl.Local]]
+ *
+ * @example
+ *   {{{
+ *  import cats.Monad
+ *  import cats.effect.std.{Console, Random}
+ *  import cats.syntax.flatMap._
+ *  import cats.syntax.functor._
+ *
+ *  case class TraceId(value: String)
+ *
+ *  object TraceId {
+ *    def gen[F[_]: Sync]: F[TraceId] =
+ *     Random.scalaUtilRandom[F].flatMap(_.nextString(8)).map(TraceId(_))
+ *  }
+ *
+ *  trait TraceIdScope[F[_]] {
+ *    def get: F[TraceId]
+ *    def scope(traceId: TraceId): Resource[F, Unit]
+ *  }
+ *
+ *  object TraceIdScope {
+ *    def apply[F[_]](implicit ev: TraceIdScope[F]): TraceIdScope[F] = ev
+ *
+ *    def fromIOLocal: IO[TraceIdScope[IO]] =
+ *      for {
+ *        local <- IOLocal(TraceId("global"))
+ *      } yield new TraceIdScope[IO] {
+ *        def get: IO[TraceId] =
+ *          local.get
+ *
+ *        def scope(traceId: TraceId): Resource[IO, Unit] =
+ *          Resource.make(local.getAndSet(traceId))(previous => local.set(previous)).void
+ *      }
+ *  }
+ *
+ *  def service[F[_]: Sync: Console: TraceIdScope]: F[String] =
+ *    for {
+ *      traceId <- TraceId.gen[F]
+ *      result <- TraceIdScope[F].scope(traceId).use(_ => callRemote[F])
+ *    } yield result
+ *
+ *  def callRemote[F[_]: Monad: Console: TraceIdScope]: F[String] =
+ *    for {
+ *      traceId <- TraceIdScope[F].get
+ *      _ <- Console[F].println(s"Processing request. TraceId: $${traceId}")
+ *    } yield "some response"
+ *
+ *  TraceIdScope.fromIOLocal.flatMap { implicit traceIdScope: TraceIdScope[IO] =>
+ *    service[IO]
+ *  }
+ *
+ *   }}}
+ *
+ * @tparam A
+ *   the type of the local value
+ */
 sealed trait IOLocal[A] {
 
   def get: IO[A]
@@ -36,6 +103,17 @@ sealed trait IOLocal[A] {
 
 object IOLocal {
 
+  /**
+   * Creates a new instance of [[IOLocal]] with the given default value.
+   *
+   * The creation is effectful, because [[IOLocal]] models mutable state, and allocating mutable
+   * state is not pure.
+   *
+   * @param default
+   *   the default value
+   * @tparam A
+   *   the type of the local value
+   */
   def apply[A](default: A): IO[IOLocal[A]] =
     IO {
       new IOLocal[A] { self =>
