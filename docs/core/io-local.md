@@ -6,7 +6,7 @@ title: IOLocal
 `IOLocal` provides a handy way of sharing a context within the fiber runtime.  
 `IO` stores local states as `scala.collection.immutable.Map[IOLocal[_], Any]` under the hood.  
 That means, two fibers can never access the same `IOLocal`, they will always be working on their own copies.  
-In some scenarios, `IOLocal` can be considered as an alternative to [[https://typelevel.org/cats-mtl/mtl-classes/local.html cats.mtl.Local]].  
+In some scenarios, `IOLocal` can be considered as an alternative to `cats.data.Reader` or `cats.data.Kleisli`.  
 
 See the following example, of how the `IOLocal` can be used for the propagation of a `TraceId`:
 
