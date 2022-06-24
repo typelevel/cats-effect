@@ -19,33 +19,40 @@ package cats.effect
 /**
  * [[IOLocal]] provides a handy way of manipulating a context on different scopes.
  *
- * In some scenarios, [[IOLocal]] can be considered as an alternative to [[cats.data.Reader]] or
- * [[cats.data.Kleisli]].
+ * In some scenarios, [[IOLocal]] can be considered as an alternative to [[cats.data.Kleisli]].
  *
  * [[IOLocal]] should not be treated as [[cats.effect.kernel.Ref Ref]], since the former abides
  * different laws.
  *
- * For example, two forked fibers can never access the same [[IOLocal]], they will always be
- * working on their own copies.
+ * Once a fiber is forked, for example by `Spawn[F].start`, the forked fiber manipulates the
+ * copy of the parent's context. For example, two forked fibers will never see each other's
+ * modifications to the same [[IOLocal]], each fiber will only see its own modifications.
  *
  * ===Operations on [[IOLocal]] are visible to the fiber===
  *
  * {{{
- *  def inc(idx: Int, local: IOLocal[Int]): IO[Unit] =
- *    local.update(_ + 1) >> local.get.flatMap(current => IO.println(s"child $$idx: $$current"))
+ * ┌────────────┐               ┌────────────┐               ┌────────────┐
+ * │  Fiber A   │ update(_ + 1) │  Fiber A   │ update(_ + 1) │  Fiber A   │
+ * │ (local 42) │──────────────►│ (local 43) │──────────────►│ (local 44) │
+ * └────────────┘               └────────────┘               └────────────┘
+ * }}}
+ *
+ * {{{
+ *  def inc(name: String, local: IOLocal[Int]): IO[Unit] =
+ *    local.update(_ + 1) >> local.get.flatMap(current => IO.println(s"fiber $$name: $$current"))
  *
  *  for {
  *    local   <- IOLocal(42)
  *    _       <- inc(1, local)
  *    _       <- inc(2, local)
  *    current <- local.get
- *    _       <- IO.println("parent: $$current")
+ *    _       <- IO.println(s"fiber A: $$current")
  *  } yield ()
  *
- *  // output
- *  // child 1: 43
- *  // child 2: 44
- *  // parent: 44
+ *  // output:
+ *  // update 1: 43
+ *  // update 2: 44
+ *  // fiber A: 44
  * }}}
  *
  * ===A forked fiber operates on a copy of the parent [[IOLocal]]===
@@ -54,101 +61,76 @@ package cats.effect
  * `IOLocal`. Hence, the children operations are not reflected on the parent context.
  *
  * {{{
- *  def inc(idx: Int, local: IOLocal[Int]): IO[Unit] =
- *    local.update(_ + 1) >> local.get.flatMap(current => IO.println(s"child $$idx: $$current"))
+ *                       ┌────────────┐               ┌────────────┐
+ *                  fork │  Fiber B   │ update(_ - 1) │  Fiber B   │
+ *                ┌─────►│ (local 42) │──────────────►│ (local 41) │
+ *                │      └────────────┘               └────────────┘
+ * ┌────────────┐─┘                                   ┌────────────┐
+ * │  Fiber A   │                                     │  Fiber A   │
+ * │ (local 42) │────────────────────────────────────►│ (local 42) │
+ * └────────────┘─┐                                   └────────────┘
+ *                │      ┌────────────┐               ┌────────────┐
+ *                │ fork │  Fiber C   │ update(_ + 1) │  Fiber C   │
+ *                └─────►│ (local 42) │──────────────►│ (local 43) │
+ *                       └────────────┘               └────────────┘
+ * }}}
+ *
+ * {{{
+ *  def update(name: String, local: IOLocal[Int], f: Int => Int): IO[Unit] =
+ *    local.update(f) >> local.get.flatMap(current => IO.println(s"fiber $$name: $$current"))
  *
  *  for {
  *    local   <- IOLocal(42)
- *    fiber1  <- inc(1, local).start
- *    fiber2  <- inc(2, local).start
+ *    fiber1  <- update("B", local, _ - 1).start
+ *    fiber2  <- update("C", local, _ + 1).start
  *    _       <- fiber1.joinWithNever
  *    _       <- fiber2.joinWithNever
  *    current <- local.get
- *    _       <- IO.println("parent: $$current")
+ *    _       <- IO.println(s"fiber A: $$current")
  *  } yield ()
  *
- *  // output
- *  // child 1: 43
- *  // child 2: 43
- *  // parent: 42
+ *  // output:
+ *  // fiber B: 41
+ *  // fiber C: 43
+ *  // fiber A: 42
  * }}}
  *
- * ===Parent operations on [[IOLocal]] is invisible to children===
+ * ===Parent operations on [[IOLocal]] are invisible to children===
  *
  * {{{
- *  def inc(idx: Int, local: IOLocal[Int]): IO[Unit] =
- *    IO.sleep(1.second) >> local.update(_ + 1) >> local.get.flatMap(current => IO.println(s"child $$idx: $$current"))
+ *                       ┌────────────┐               ┌────────────┐
+ *                  fork │  Fiber B   │ update(_ + 1) │  Fiber B   │
+ *                ┌─────►│ (local 42) │──────────────►│ (local 43) │
+ *                │      └────────────┘               └────────────┘
+ * ┌────────────┐─┘                                   ┌────────────┐
+ * │  Fiber A   │        update(_ - 1)                │  Fiber A   │
+ * │ (local 42) │────────────────────────────────────►│ (local 41) │
+ * └────────────┘─┐                                   └────────────┘
+ *                │      ┌────────────┐               ┌────────────┐
+ *                │ fork │  Fiber C   │ update(_ + 2) │  Fiber C   │
+ *                └─────►│ (local 42) │──────────────►│ (local 44) │
+ *                       └────────────┘               └────────────┘
+ * }}}
+ *
+ * {{{
+ *  def update(name: String, local: IOLocal[Int], f: Int => Int): IO[Unit] =
+ *    IO.sleep(1.second) >> local.update(f) >> local.get.flatMap(current => IO.println(s"fiber $$name: $$current"))
  *
  *  for {
  *    local   <- IOLocal(42)
- *    fiber1  <- inc(1, local).start
- *    fiber2  <- inc(2, local).start
+ *    fiber1  <- update("B", local, _ + 1).start
+ *    fiber2  <- update("C", local, _ + 2).start
  *    _       <- local.update(_ - 1)
  *    _       <- fiber1.joinWithNever
  *    _       <- fiber2.joinWithNever
  *    current <- local.get
- *    _       <- IO.println("parent: $$current")
+ *    _       <- IO.println(s"fiber A: $$current")
  *  } yield ()
  *
- *  // output
- *  // child 1: 43
- *  // child 2: 43
- *  // parent: 41
- * }}}
- *
- * @example
- *   Propagated tracing id:
- *
- * {{{
- *  import cats.Monad
- *  import cats.effect.{IO, IOLocal, Sync, Resource}
- *  import cats.effect.std.{Console, Random}
- *  import cats.syntax.flatMap._
- *  import cats.syntax.functor._
- *
- *  case class TraceId(value: String)
- *
- *  object TraceId {
- *    def gen[F[_]: Sync]: F[TraceId] =
- *     Random.scalaUtilRandom[F].flatMap(_.nextString(8)).map(TraceId(_))
- *  }
- *
- *  trait TraceIdScope[F[_]] {
- *    def get: F[TraceId]
- *    def scope(traceId: TraceId): Resource[F, Unit]
- *  }
- *
- *  object TraceIdScope {
- *    def apply[F[_]](implicit ev: TraceIdScope[F]): TraceIdScope[F] = ev
- *
- *    def fromIOLocal: IO[TraceIdScope[IO]] =
- *      for {
- *        local <- IOLocal(TraceId("global"))
- *      } yield new TraceIdScope[IO] {
- *        def get: IO[TraceId] =
- *          local.get
- *
- *        def scope(traceId: TraceId): Resource[IO, Unit] =
- *          Resource.make(local.getAndSet(traceId))(previous => local.set(previous)).void
- *      }
- *  }
- *
- *  def service[F[_]: Sync: Console: TraceIdScope]: F[String] =
- *    for {
- *      traceId <- TraceId.gen[F]
- *      result  <- TraceIdScope[F].scope(traceId).use(_ => callRemote[F])
- *    } yield result
- *
- *  def callRemote[F[_]: Monad: Console: TraceIdScope]: F[String] =
- *    for {
- *      traceId <- TraceIdScope[F].get
- *      _       <- Console[F].println(s"Processing request. TraceId: $${traceId}")
- *    } yield "some response"
- *
- *  TraceIdScope.fromIOLocal.flatMap { implicit traceIdScope: TraceIdScope[IO] =>
- *    service[IO]
- *  }
- *
+ *  // output:
+ *  // fiber B: 43
+ *  // fiber C: 44
+ *  // fiber A: 41
  * }}}
  *
  * @tparam A
