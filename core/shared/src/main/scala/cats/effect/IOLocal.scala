@@ -138,18 +138,53 @@ package cats.effect
  */
 sealed trait IOLocal[A] {
 
+  /**
+   * Returns the current value.
+   */
   def get: IO[A]
 
+  /**
+   * Sets the current value to `value`.
+   */
   def set(value: A): IO[Unit]
 
+  /**
+   * Replaces the current value with the initial value.
+   */
   def reset: IO[Unit]
 
+  /**
+   * Modifies the current value using the given update function.
+   */
   def update(f: A => A): IO[Unit]
 
+  /**
+   * Like [[update]] but allows the update function to return an output value of type `B`.
+   */
   def modify[B](f: A => (A, B)): IO[B]
 
+  /**
+   * Replaces the current value with `value`, returning the previous value.
+   *
+   * The combination of [[get]] and [[set]].
+   *
+   * @see
+   *   [[get]]
+   * @see
+   *   [[set]]
+   */
   def getAndSet(value: A): IO[A]
 
+  /**
+   * Replaces the current value with the initial value, returning the previous value.
+   *
+   * The combination of [[get]] and [[reset]].
+   *
+   * @see
+   *   [[get]]
+   * @see
+   *   [[reset]]
+   */
   def getAndReset: IO[A]
 
 }
