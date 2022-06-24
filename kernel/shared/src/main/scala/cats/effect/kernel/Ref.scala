@@ -36,7 +36,7 @@ import scala.annotation.tailrec
  * The default implementation is nonblocking and lightweight, consisting essentially of a purely
  * functional wrapper over an `AtomicReference`. Consequently it ''must not'' be used to store mutable
  * data as `AtomicReference#compareAndSet` and friends are not threadsafe and are dependent
- * upon object reference identity.
+ * upon object reference equality.
  */
 abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
 

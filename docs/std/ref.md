@@ -22,7 +22,7 @@ The default implementation is nonblocking and lightweight, consisting
 essentially of a purely functional wrapper over an `AtomicReference`.
 Consequently it _must not_ be used to store mutable data as
 `AtomicReference#compareAndSet` and friends are not threadsafe and are dependent
-upon object reference identity.
+upon object reference equality.
 
 
 ### Concurrent Counter
