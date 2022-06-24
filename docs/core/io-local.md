@@ -66,12 +66,12 @@ Hence, the children operations are not reflected on the parent context.
 
 ```scala mdoc:nest:silent
 def update(name: String, local: IOLocal[Int], f: Int => Int): IO[Unit] =
-  local.update(f) >> local.get.flatMap(current => IO.println(s"fiber $name: $current"))
+  local.update(f) >> local.get.flatMap(current => IO.println(s"$name: $current"))
     
 for {
   local   <- IOLocal(42)
-  fiberA  <- update("B", local, _ - 1).start
-  fiberB  <- update("C", local, _ + 1).start
+  fiberA  <- update("fiber B", local, _ - 1).start
+  fiberB  <- update("fiber C", local, _ + 1).start
   _       <- fiberA.joinWithNever
   _       <- fiberB.joinWithNever
   current <- local.get
@@ -105,17 +105,15 @@ for {
 
 ```scala mdoc:nest:passthrough
 def update(name: String, local: IOLocal[Int], f: Int => Int): IO[Unit] =
-  IO.sleep(1.second) >> local.update(f) >> local.get.flatMap(current => IO.println(s"fiber $name: $current"))
+  IO.sleep(1.second) >> local.update(f) >> local.get.flatMap(current => IO.println(s"$name: $current"))
   
 for {
-  local   <- IOLocal(42)
-  fiber1  <- update("B", local, _ + 1).start
-  fiber2  <- update("C", local, _ + 2).start
-  _       <- local.update(_ - 1)
-  _       <- fiber1.joinWithNever
-  _       <- fiber2.joinWithNever
-  current <- local.get
-  _       <- IO.println(s"fiber A: $current")
+  local  <- IOLocal(42)
+  fiber1 <- update("fiber B", local, _ + 1).start
+  fiber2 <- update("fiber C", local, _ + 2).start
+  _      <- fiber1.joinWithNever
+  _      <- fiber2.joinWithNever
+  _      <- update("fiber A", local, _ - 1)
 } yield ()
 
 // output:
