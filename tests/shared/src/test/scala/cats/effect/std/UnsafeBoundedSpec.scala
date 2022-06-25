@@ -19,8 +19,12 @@ package std
 
 import cats.syntax.all._
 
+import scala.concurrent.duration._
+
 class UnsafeBoundedSpec extends BaseSpec {
   import Queue.UnsafeBounded
+
+  override def executionTimeout = 30.seconds
 
   "unsafe bounded queue" should {
     "enqueue max items and dequeue in order" >> {
@@ -37,11 +41,13 @@ class UnsafeBoundedSpec extends BaseSpec {
       "parallel put, parallel take" >> real {
         val q = new UnsafeBounded[Int](length)
 
-        for {
+        val test = for {
           _ <- 0.until(length).toList.parTraverse_(i => IO(q.put(i)))
           results <- 0.until(length).toList.parTraverse(_ => IO(q.take()))
           _ <- IO(results.toList must containTheSameElementsAs(0.until(length)))
         } yield ok
+
+        test.timeoutTo(8.seconds, IO(false must beTrue))
       }
 
       "parallel put and take" >> real {
@@ -54,11 +60,13 @@ class UnsafeBoundedSpec extends BaseSpec {
         val puts = 1.to(length * 2).toList.parTraverse_(i => retry(IO(q.put(i))))
         val takes = 1.to(length * 2).toList.parTraverse(_ => retry(IO(q.take())))
 
-        for {
+        val test = for {
           results <- puts &> takes
           _ <- IO(q.size() mustEqual 0)
           _ <- IO(results.toList must containTheSameElementsAs(1.to(length * 2)))
         } yield ok
+
+        test.timeoutTo(30.seconds, IO(false must beTrue))
       }
     }
 
