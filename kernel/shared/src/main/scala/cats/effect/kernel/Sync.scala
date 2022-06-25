@@ -290,8 +290,9 @@ object Sync {
 
   object Type {
     case object Delay extends Type
-    case object Blocking extends Type
-    case object InterruptibleOnce extends Type
-    case object InterruptibleMany extends Type
+    sealed trait BlockingOrInterruptible extends Type
+    case object Blocking extends BlockingOrInterruptible
+    case object InterruptibleOnce extends BlockingOrInterruptible
+    case object InterruptibleMany extends BlockingOrInterruptible
   }
 }
