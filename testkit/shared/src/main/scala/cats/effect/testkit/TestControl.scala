@@ -21,7 +21,7 @@ import cats.{~>, Id}
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 
 import scala.concurrent.CancellationException
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -127,7 +127,8 @@ final class TestControl[A] private (
 
   /**
    * Produces the minimum time which must elapse for a fiber to become eligible for execution.
-   * If fibers are currently eligible for execution, the result will be `Duration.Zero`.
+   * If fibers are currently eligible for execution, or if the program is entirely deadlocked,
+   * the result will be `Duration.Zero`.
    */
   val nextInterval: IO[FiniteDuration] =
     IO(ctx.nextInterval())
@@ -164,10 +165,14 @@ final class TestControl[A] private (
    * itself, or simply use [[tickAll]] if you do not need to run assertions between time
    * windows.
    *
+   * In most cases, [[tickFor]] will provide a more intuitive execution semantic.
+   *
    * @see
    *   [[advance]]
    * @see
    *   [[tick]]
+   * @see
+   *   [[tickFor]]
    */
   def advanceAndTick(time: FiniteDuration): IO[Unit] =
     IO(ctx.advanceAndTick(time))
@@ -208,6 +213,58 @@ final class TestControl[A] private (
    */
   val tickAll: IO[Unit] =
     IO(ctx.tickAll())
+
+  /**
+   * Drives the runtime incrementally forward until all fibers have been executed, or until the
+   * specified `time` has elapsed. The semantics of this function are very distinct from
+   * [[advance]] in that the runtime will tick for the minimum time necessary to reach the next
+   * batch of tasks within each interval, and then continue ticking as long as necessary to
+   * cumulatively reach the time limit (or the end of the program). This behavior can be seen in
+   * programs such as the following:
+   *
+   * {{{
+   *   val tick = IO.sleep(1.second) *> IO.realTime
+   *
+   *   TestControl.execute((tick, tick).tupled) flatMap { control =>
+   *     for {
+   *       _ <- control.tickFor(1.second + 500.millis)
+   *       _ <- control.tickAll
+   *
+   *       r <- control.results
+   *       _ <- IO(assert(r == Some(Outcome.succeeded(1.second, 2.seconds))))
+   *     } yield ()
+   *   }
+   * }}}
+   *
+   * Notably, the first component of the results tuple here is `1.second`, meaning that the
+   * first `IO.realTime` evaluated after the clock had ''only'' advanced by `1.second`. This is
+   * in contrast to what would have happened with `control.advanceAndTick(1.second +
+   * 500.millis)`, which would have caused the first `realTime` to produce `2500.millis` as a
+   * result, rather than the correct answer of `1.second`. In other words, [[advanceAndTick]] is
+   * maximally aggressive on time advancement, while `tickFor` is maximally conservative and
+   * only ticks as much as necessary each time.
+   *
+   * @see
+   *   [[tick]]
+   * @see
+   *   [[advance]]
+   */
+  def tickFor(time: FiniteDuration): IO[Unit] =
+    tick *> nextInterval flatMap { next =>
+      val step = time.min(next)
+      val remaining = time - step
+
+      if (step <= Duration.Zero) {
+        IO.unit
+      } else {
+        advance(step) *> {
+          if (remaining <= Duration.Zero)
+            tick
+          else
+            tickFor(remaining)
+        }
+      }
+    }
 
   /**
    * Produces `true` if the runtime has no remaining fibers, sleeping or otherwise, indicating

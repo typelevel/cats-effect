@@ -36,6 +36,7 @@ import cats.{
 }
 import cats.data.Ior
 import cats.effect.instances.spawn
+import cats.effect.kernel.GenTemporal.handleFinite
 import cats.effect.std.{Console, Env, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.syntax.all._
@@ -666,7 +667,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *   is the time span for which we wait for the source to complete; in the event that the
    *   specified time has passed without the source completing, a `TimeoutException` is raised
    */
-  def timeout[A2 >: A](duration: FiniteDuration): IO[A2] =
+  def timeout[A2 >: A](duration: Duration): IO[A2] =
+    handleFinite(this, duration)(finiteDuration => timeout(finiteDuration))
+
+  private[effect] def timeout(duration: FiniteDuration): IO[A] =
     timeoutTo(duration, IO.defer(IO.raiseError(new TimeoutException(duration.toString))))
 
   /**
@@ -685,11 +689,16 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @param fallback
    *   is the task evaluated after the duration has passed and the source canceled
    */
-  def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2]): IO[A2] =
+  def timeoutTo[A2 >: A](duration: Duration, fallback: IO[A2]): IO[A2] = {
+    handleFinite[IO, A2](this, duration)(finiteDuration => timeoutTo(finiteDuration, fallback))
+  }
+
+  private[effect] def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2]): IO[A2] = {
     race(IO.sleep(duration)).flatMap {
       case Right(_) => fallback
       case Left(value) => IO.pure(value)
     }
+  }
 
   /**
    * Returns an IO that either completes with the result of the source within the specified time
@@ -709,7 +718,14 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @see
    *   [[timeout]] for a variant which respects backpressure and does not leak fibers
    */
-  def timeoutAndForget(duration: FiniteDuration): IO[A] =
+  private[effect] def timeoutAndForget(duration: FiniteDuration): IO[A] =
+    Temporal[IO].timeoutAndForget(this, duration)
+
+  /**
+   * @see
+   *   [[timeoutAndForget]]
+   */
+  def timeoutAndForget(duration: Duration): IO[A] =
     Temporal[IO].timeoutAndForget(this, duration)
 
   def timed: IO[(FiniteDuration, A)] =
@@ -1572,6 +1588,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       fa.handleError(f)
 
     override def timeout[A](fa: IO[A], duration: FiniteDuration)(
+        implicit ev: TimeoutException <:< Throwable): IO[A] = {
+      fa.timeout(duration)
+    }
+
+    override def timeout[A](fa: IO[A], duration: Duration)(
         implicit ev: TimeoutException <:< Throwable): IO[A] = {
       fa.timeout(duration)
     }
