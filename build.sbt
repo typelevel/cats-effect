@@ -270,6 +270,7 @@ tlReplaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 addCommandAlias("release", "tlRelease")
 
 addCommandAlias(CI.JVM.command, CI.JVM.toString)
+addCommandAlias(CI.Native.command, CI.Native.toString)
 addCommandAlias(CI.JS.command, CI.JS.toString)
 addCommandAlias(CI.Firefox.command, CI.Firefox.toString)
 addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
