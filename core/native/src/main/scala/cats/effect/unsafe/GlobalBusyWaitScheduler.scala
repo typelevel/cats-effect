@@ -23,7 +23,7 @@ import java.time.Instant
 import java.time.temporal.ChronoField
 
 private[effect] object GlobalBusyWaitScheduler extends Scheduler {
-  
+
   def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
     var canceled = false
     val when = monotonicNanos() + delay.toNanos

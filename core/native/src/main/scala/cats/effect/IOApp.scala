@@ -226,7 +226,7 @@ trait IOApp {
         c => hardExit(c.code)
       )(runtime)
 
-      ()
+    ()
   }
 
 }
