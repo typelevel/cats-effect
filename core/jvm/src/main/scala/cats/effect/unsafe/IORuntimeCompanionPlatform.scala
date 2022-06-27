@@ -111,7 +111,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       self: () => IORuntime,
       threads: Int,
       threadPrefix: String): (WorkStealingThreadPool, () => Unit) =
-    createDefaultComputeThreadPool(self(), threads, threadPrefix, DefaultBlockerPrefix)
+    createDefaultComputeThreadPool(self(), threads, threadPrefix)
 
   def createDefaultBlockingExecutionContext(
       threadPrefix: String = "io-blocking"): (ExecutionContext, () => Unit) = {
