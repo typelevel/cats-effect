@@ -253,13 +253,11 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 
 ThisBuild / autoAPIMappings := true
 
-ThisBuild / resolvers += "s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots/"
-
 val CatsVersion = "2.8.0"
 val Specs2Version = "4.16.0"
 val ScalaCheckVersion = "1.16.0"
 val DisciplineVersion = "1.4.0"
-val CoopVersion = "1.2-bf7cfd8-SNAPSHOT"
+val CoopVersion = "1.2.0"
 
 val MacrotaskExecutorVersion = "1.0.0"
 
@@ -357,7 +355,7 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-free" % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      "com.armanbilge" %%% "coop" % CoopVersion),
+      "org.typelevel" %%% "coop" % CoopVersion),
     mimaBinaryIssueFilters ++= Seq(
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.kernel.testkit.TestContext.this"),
