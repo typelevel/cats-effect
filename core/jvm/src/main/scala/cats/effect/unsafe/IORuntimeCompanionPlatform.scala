@@ -29,7 +29,7 @@ import javax.management.ObjectName
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
-  private[this] val DefaultBlockerPrefix = "io-compute-blocker"
+  private[this] final val DefaultBlockerPrefix = "io-compute-blocker"
 
   // The default compute thread pool on the JVM is now a work stealing thread pool.
   def createDefaultComputeThreadPool(
