@@ -30,7 +30,7 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 class ParallelFSpec extends BaseSpec with Discipline {
 
-  implicit val params =
+  implicit val params: Parameters =
     if (cats.platform.Platform.isNative)
       Parameters(minTestsOk = 5)
     else

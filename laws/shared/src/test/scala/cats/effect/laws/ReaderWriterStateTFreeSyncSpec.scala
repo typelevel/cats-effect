@@ -37,7 +37,7 @@ class ReaderWriterStateTFreeSyncSpec
   import FreeSyncGenerators._
   import SyncTypeGenerators._
 
-  implicit val params =
+  implicit val params: Parameters =
     if (cats.platform.Platform.isNative)
       Parameters(minTestsOk = 5)
     else
