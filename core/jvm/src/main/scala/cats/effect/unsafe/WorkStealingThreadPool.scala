@@ -58,6 +58,7 @@ import java.util.concurrent.locks.LockSupport
 private[effect] final class WorkStealingThreadPool(
     threadCount: Int, // number of worker threads
     private[unsafe] val threadPrefix: String, // prefix for the name of worker threads
+    private[unsafe] val blockerThreadPrefix: String, // prefix for the name of worker threads currently in a blocking region
     self0: => IORuntime
 ) extends ExecutionContext {
 

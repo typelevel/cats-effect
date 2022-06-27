@@ -37,7 +37,8 @@ class StripedHashtableSpec extends BaseSpec {
       val (compute, compDown) =
         IORuntime.createDefaultComputeThreadPool(
           rt,
-          threadPrefix = s"io-compute-${getClass.getName}")
+          threadPrefix = s"io-compute-${getClass.getName}",
+          blockerThreadPrefix = s"io-blocker-${getClass.getName}")
 
       IORuntime(
         compute,

@@ -33,9 +33,11 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   def createDefaultComputeThreadPool(
       self: => IORuntime,
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
-      threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) = {
+      threadPrefix: String = "io-compute",
+      blockerThreadPrefix: String = "io-compute-blocker")
+      : (WorkStealingThreadPool, () => Unit) = {
     val threadPool =
-      new WorkStealingThreadPool(threads, threadPrefix, self)
+      new WorkStealingThreadPool(threads, threadPrefix, blockerThreadPrefix, self)
 
     val unregisterMBeans =
       if (isStackTracing) {
