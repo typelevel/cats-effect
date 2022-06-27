@@ -168,6 +168,11 @@ ThisBuild / githubWorkflowBuild := Seq(
     cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")
   ),
   WorkflowStep.Run(
+    List("example/test-native.sh ${{ matrix.scala }}"),
+    name = Some("Test Example Native App Using Binary"),
+    cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")
+  ),
+  WorkflowStep.Run(
     List("cd scalafix", "sbt test"),
     name = Some("Scalafix tests"),
     cond =
@@ -198,7 +203,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
     ci <- jsCiVariants.tail
   } yield MatrixExclude(Map("ci" -> ci, "scala" -> scala))
 
-  val jsJavaAndOSFilters = jsCiVariants.flatMap { ci =>
+  val nativeJsJavaAndOSFilters = (CI.Native.command :: jsCiVariants).flatMap { ci =>
     val javaFilters =
       (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)).map { java =>
         MatrixExclude(Map("ci" -> ci, "java" -> java.render))
@@ -214,7 +219,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
     MatrixExclude(Map("os" -> Windows, "java" -> GraalVM.render))
   )
 
-  scalaJavaFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ jsJavaAndOSFilters ++ flakyFilters
+  scalaJavaFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ nativeJsJavaAndOSFilters ++ flakyFilters
 }
 
 lazy val useJSEnv =
