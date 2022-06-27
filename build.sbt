@@ -170,7 +170,7 @@ ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Run(
     List("example/test-native.sh ${{ matrix.scala }}"),
     name = Some("Test Example Native App Using Binary"),
-    cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")
+    cond = Some(s"matrix.ci == 'ciNative' && matrix.os == '$PrimaryOS'")
   ),
   WorkflowStep.Run(
     List("cd scalafix", "sbt test"),

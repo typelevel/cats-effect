@@ -221,7 +221,7 @@ jobs:
         run: example/test-js.sh ${{ matrix.scala }}
 
       - name: Test Example Native App Using Binary
-        if: matrix.ci == 'ciJS' && matrix.os == 'ubuntu-latest'
+        if: matrix.ci == 'ciNative' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: example/test-native.sh ${{ matrix.scala }}
 
