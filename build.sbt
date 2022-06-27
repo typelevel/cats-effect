@@ -42,9 +42,9 @@ ThisBuild / git.gitUncommittedChanges := {
 }
 
 ThisBuild / tlBaseVersion := "3.4"
-ThisBuild / tlUntaggedAreSnapshots := true
+ThisBuild / tlUntaggedAreSnapshots := false
 
-ThisBuild / organization := "com.armanbilge"
+ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
 ThisBuild / tlSonatypeUseLegacyHost := false
 
