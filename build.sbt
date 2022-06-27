@@ -531,7 +531,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
             "cats.effect.tracing.Tracing.match"),
           ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.tracing.Tracing.put"),
           ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.tracing.Tracing.version")
+            "cats.effect.tracing.Tracing.version"),
+          // introduced by #3012
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.this")
         )
       } else Seq()
     }
