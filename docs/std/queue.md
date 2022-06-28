@@ -19,10 +19,11 @@ trait Queue[F[_], A] {
 }
 ```
 
-`take` is semantically blocking when the queue is empty. A `Queue` may be constructed
+`take` is fiber blocking when the queue is empty. A `Queue` may be constructed
 with different policies for the behaviour of `offer` when the queue has reached
 capacity:
-- `bounded(capacity: Int)`: `offer` is semantically blocking when the queue is full
+
+- `bounded(capacity: Int)`: `offer` is fiber blocking when the queue is full
 - `synchronous`: equivalent to `bounded(0)` - `offer` and `take` are both blocking
   until another fiber invokes the opposite action
 - `unbounded`: `offer` never blocks
@@ -35,7 +36,7 @@ capacity:
 
 `Queue` is split into a `QueueSource` with a `Functor` instance and a
 `QueueSink` with a `Contravariant` functor instance. This allows us to
-treat a `Queue[F, A]` as a `QueueSource[F, B]` by mapping with `A => B` 
+treat a `Queue[F, A]` as a `QueueSource[F, B]` by mapping with `A => B`
 or as a `QueueSink[F, B]` by contramapping with `B => A`.
 
 ```scala mdoc:reset
@@ -68,4 +69,3 @@ def contravariant(list: List[Boolean]): IO[List[Int]] = (
 
 contravariant(List(true, false)).flatMap(IO.println(_)).unsafeRunSync()
 ```
-
