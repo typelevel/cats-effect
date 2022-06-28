@@ -73,7 +73,7 @@ private final class IOFiber[A](
 ) extends IOFiberPlatform[A]
     with FiberIO[A]
     with Runnable {
-  /* true when semantically blocking (ensures that we only unblock *once*) */
+  /* true when fiber blocking (ensures that we only unblock *once*) */
   suspended: AtomicBoolean =>
 
   import IOFiber._

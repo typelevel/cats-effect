@@ -223,7 +223,7 @@ object PQueue {
 trait PQueueSource[F[_], A] {
 
   /**
-   * Dequeues the least element from the PQueue, possibly semantically blocking until an element
+   * Dequeues the least element from the PQueue, possibly fiber blocking until an element
    * becomes available.
    *
    * O(log(n))
@@ -236,8 +236,8 @@ trait PQueueSource[F[_], A] {
   def take: F[A]
 
   /**
-   * Attempts to dequeue the least element from the PQueue, if one is available without
-   * semantically blocking.
+   * Attempts to dequeue the least element from the PQueue, if one is available without fiber
+   * blocking.
    *
    * O(log(n))
    *
@@ -311,8 +311,8 @@ object PQueueSource {
 trait PQueueSink[F[_], A] {
 
   /**
-   * Enqueues the given element, possibly semantically blocking until sufficient capacity
-   * becomes available.
+   * Enqueues the given element, possibly fiber blocking until sufficient capacity becomes
+   * available.
    *
    * O(log(n))
    *
@@ -322,7 +322,7 @@ trait PQueueSink[F[_], A] {
   def offer(a: A): F[Unit]
 
   /**
-   * Attempts to enqueue the given element without semantically blocking.
+   * Attempts to enqueue the given element without fiber blocking.
    *
    * O(log(n))
    *
