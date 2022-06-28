@@ -21,12 +21,5 @@ import cats.effect.unsafe._
 import scala.scalanative.runtime.ExecutionContext
 
 trait RunnersPlatform {
-  protected def runtime(): IORuntime =
-    IORuntime(
-      ExecutionContext.global,
-      ExecutionContext.global,
-      GlobalBusyWaitScheduler,
-      () => (),
-      IORuntimeConfig()
-    )
+  protected def runtime(): IORuntime = IORuntime.global
 }
