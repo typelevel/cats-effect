@@ -28,15 +28,15 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
 
   import PollingExecutorScheduler._
 
-  private[this] var state: State = State.Idle
+  private[this] var needsReschedule: Boolean = true
 
   private[this] val executeQueue: ListBuffer[Runnable] = new ListBuffer
   private[this] val sleepQueue: PriorityQueue[ScheduledTask] =
     new PriorityQueue()(Ordering.by(-_.at))
 
-  private[this] def scheduleIfNeeded(): Unit = if (state == State.Idle) {
+  private[this] def scheduleIfNeeded(): Unit = if (needsReschedule) {
     ExecutionContext.global.execute(() => loop())
-    state = State.Scheduled
+    needsReschedule = false
   }
 
   final def execute(runnable: Runnable): Unit = {
@@ -66,7 +66,7 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
   def poll(timeout: Duration): Unit
 
   private[this] def loop(): Unit = {
-    state = State.Running
+    needsReschedule = false
 
     while (executeQueue.nonEmpty || sleepQueue.nonEmpty) {
 
@@ -104,19 +104,12 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
 
     }
 
-    state = State.Idle
+    needsReschedule = true
   }
 
 }
 
 object PollingExecutorScheduler {
-
-  private sealed abstract class State
-  private object State {
-    case object Idle extends State // nothing to do
-    case object Scheduled extends State // scheduled on global EC
-    case object Running extends State // running
-  }
 
   private final class ScheduledTask(
       val at: Long,
