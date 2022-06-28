@@ -264,7 +264,7 @@ val ScalaCheckVersion = "1.16.0"
 val DisciplineVersion = "1.4.0"
 val CoopVersion = "1.2.0"
 
-val MacrotaskExecutorVersion = "1.0.0"
+val MacrotaskExecutorVersion = "1.1.0"
 
 tlReplaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 addCommandAlias("release", "tlRelease")
@@ -647,7 +647,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
             "cats.effect.tracing.Tracing.match"),
           ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.tracing.Tracing.put"),
           ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.tracing.Tracing.version")
+            "cats.effect.tracing.Tracing.version"),
+          // introduced by #3012
+          ProblemFilters.exclude[DirectMissingMethodProblem](
+            "cats.effect.unsafe.WorkStealingThreadPool.this")
         )
       } else Seq()
     }
@@ -689,7 +692,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           "cats.effect.unsafe.PolyfillExecutionContext"),
         ProblemFilters.exclude[MissingClassProblem](
           "cats.effect.unsafe.PolyfillExecutionContext$"),
-        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread")
+        ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread"),
+        ProblemFilters.exclude[Problem]("cats.effect.IOFiberConstants.*"),
+        ProblemFilters.exclude[Problem]("cats.effect.SyncIOConstants.*")
       )
     },
     mimaBinaryIssueFilters ++= {

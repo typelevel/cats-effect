@@ -37,8 +37,8 @@ import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, AtomicLongArray, 
  *
  * The [[Queue#take]] operation semantically blocks when the queue is empty.
  *
- * The [[Queue#tryOffer]] and [[Queue#tryTake]] allow for usecases which want to avoid
- * semantically blocking a fiber.
+ * The [[Queue#tryOffer]] and [[Queue#tryTake]] allow for usecases which want to avoid fiber
+ * blocking a fiber.
  */
 abstract class Queue[F[_], A] extends QueueSource[F, A] with QueueSink[F, A] { self =>
 
@@ -1032,14 +1032,14 @@ object Queue {
 trait QueueSource[F[_], A] {
 
   /**
-   * Dequeues an element from the front of the queue, possibly semantically blocking until an
-   * element becomes available.
+   * Dequeues an element from the front of the queue, possibly fiber blocking until an element
+   * becomes available.
    */
   def take: F[A]
 
   /**
    * Attempts to dequeue an element from the front of the queue, if one is available without
-   * semantically blocking.
+   * fiber blocking.
    *
    * @return
    *   an effect that describes whether the dequeueing of an element from the queue succeeded
@@ -1105,7 +1105,7 @@ object QueueSource {
 trait QueueSink[F[_], A] {
 
   /**
-   * Enqueues the given element at the back of the queue, possibly semantically blocking until
+   * Enqueues the given element at the back of the queue, possibly fiber blocking until
    * sufficient capacity becomes available.
    *
    * @param a
