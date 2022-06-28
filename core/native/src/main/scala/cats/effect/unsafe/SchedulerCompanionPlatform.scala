@@ -18,6 +18,6 @@ package cats.effect.unsafe
 
 private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
 
-  def createDefaultScheduler(): (Scheduler, () => Unit) = (GlobalBusyWaitScheduler, () => ())
+  def createDefaultScheduler(): (Scheduler, () => Unit) = (QueueExecutorScheduler, () => ())
 
 }
