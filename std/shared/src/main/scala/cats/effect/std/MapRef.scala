@@ -544,7 +544,7 @@ object MapRef extends MapRefCompanionPlatform {
    * not waste space. // Some(default) -- None
    */
   def defaultedRef[F[_]: Functor, A: Eq](ref: Ref[F, Option[A]], default: A): Ref[F, A] =
-    new LiftedRefDefaultStorage[F, A](ref, default, Eq[A].eqv)
+    new LiftedRefDefaultStorage[F, A](ref, default)
 
   def defaultedMapRef[F[_]: Functor, K, A: Eq](
       mapref: MapRef[F, K, Option[A]],
@@ -560,8 +560,7 @@ object MapRef extends MapRefCompanionPlatform {
    */
   private class LiftedRefDefaultStorage[F[_]: Functor, A: Eq](
       val ref: Ref[F, Option[A]],
-      val default: A,
-      val eqv: (A, A) => Boolean
+      val default: A
   ) extends Ref[F, A] {
     def get: F[A] = ref.get.map(_.getOrElse(default))
 
