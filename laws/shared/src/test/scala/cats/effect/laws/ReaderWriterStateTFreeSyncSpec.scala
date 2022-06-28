@@ -31,6 +31,7 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 class ReaderWriterStateTFreeSyncSpec
     extends Specification
+    with DetectPlatform
     with Discipline
     with BaseSpec
     with LowPriorityImplicits {
@@ -38,7 +39,7 @@ class ReaderWriterStateTFreeSyncSpec
   import SyncTypeGenerators._
 
   implicit val params: Parameters =
-    if (cats.platform.Platform.isNative)
+    if (isNative)
       Parameters(minTestsOk = 5)
     else
       Parameters(minTestsOk = 100)

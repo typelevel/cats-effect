@@ -19,4 +19,5 @@ package cats.effect
 trait DetectPlatform {
   def isWSL: Boolean = false
   def isJS: Boolean = false
+  def isNative: Boolean = true
 }

@@ -28,10 +28,10 @@ import cats.syntax.all._
 import org.specs2.scalacheck._
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class ParallelFSpec extends BaseSpec with Discipline {
+class ParallelFSpec extends BaseSpec with Discipline with DetectPlatform {
 
   implicit val params: Parameters =
-    if (cats.platform.Platform.isNative)
+    if (isNative)
       Parameters(minTestsOk = 5)
     else
       Parameters(minTestsOk = 100)
