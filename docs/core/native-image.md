@@ -13,4 +13,7 @@ reflective approach.
 
 Luckily, GraalVM Native Image has full support for both `Proxy` and POSIX
 signals. Cats Effect jars contain extra metadata that makes building native
-images seamless, without the need of extra configuration.
+images seamless, without the need of extra configuration. The only caveat
+is that this configuration metadata is specific to GraalVM 21.0 and later.
+Previous versions of GraalVM are supported, but Native Image support requires
+at least 21.0.
