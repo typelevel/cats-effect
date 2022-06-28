@@ -29,12 +29,14 @@ import javax.management.ObjectName
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
+  private[this] final val DefaultBlockerPrefix = "io-compute-blocker"
+
   // The default compute thread pool on the JVM is now a work stealing thread pool.
   def createDefaultComputeThreadPool(
       self: => IORuntime,
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
       threadPrefix: String = "io-compute",
-      blockerThreadPrefix: String = "io-compute-blocker")
+      blockerThreadPrefix: String = DefaultBlockerPrefix)
       : (WorkStealingThreadPool, () => Unit) = {
     val threadPool =
       new WorkStealingThreadPool(threads, threadPrefix, blockerThreadPrefix, self)
@@ -103,6 +105,13 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
         threadPool.shutdown()
       })
   }
+
+  @deprecated("bincompat shim for previous default method overload", "3.3.13")
+  def createDefaultComputeThreadPool(
+      self: () => IORuntime,
+      threads: Int,
+      threadPrefix: String): (WorkStealingThreadPool, () => Unit) =
+    createDefaultComputeThreadPool(self(), threads, threadPrefix)
 
   def createDefaultBlockingExecutionContext(
       threadPrefix: String = "io-blocking"): (ExecutionContext, () => Unit) = {
