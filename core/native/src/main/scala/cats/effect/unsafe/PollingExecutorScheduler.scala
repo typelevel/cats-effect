@@ -110,7 +110,7 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
       }
 
       val sleepIter = sleepQueue.iterator()
-      while (sleepQueue.iterator().hasNext()) {
+      while (sleepIter.hasNext()) {
         if (sleepIter.next().canceled) sleepIter.remove()
       }
 
