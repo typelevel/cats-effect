@@ -16,14 +16,13 @@
 
 package cats.effect.unsafe
 
-import scala.collection.mutable.PriorityQueue
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
 import java.time.Instant
 import java.time.temporal.ChronoField
-import java.util.ArrayDeque
+import java.util.{ArrayDeque, PriorityQueue}
 
 abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Scheduler {
 
@@ -32,8 +31,7 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
   private[this] var needsReschedule: Boolean = true
 
   private[this] val executeQueue: ArrayDeque[Runnable] = new ArrayDeque
-  private[this] val sleepQueue: PriorityQueue[ScheduledTask] =
-    new PriorityQueue()(Ordering.by(-_.at))
+  private[this] val sleepQueue: PriorityQueue[ScheduledTask] = new PriorityQueue
 
   private[this] def scheduleIfNeeded(): Unit = if (needsReschedule) {
     ExecutionContext.global.execute(() => loop())
@@ -48,7 +46,7 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
   final def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
     scheduleIfNeeded()
     val scheduledTask = new ScheduledTask(monotonicNanos() + delay.toNanos, task)
-    sleepQueue += scheduledTask
+    sleepQueue.offer(scheduledTask)
     () =>
       scheduledTask.canceled = true // TODO this is a memory leak, better to remove completely
   }
@@ -69,7 +67,7 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
   private[this] def loop(): Unit = {
     needsReschedule = false
 
-    while (!executeQueue.isEmpty() || sleepQueue.nonEmpty) {
+    while (!executeQueue.isEmpty() || !sleepQueue.isEmpty()) {
 
       if (!executeQueue.isEmpty()) {
         val runnable = executeQueue.poll()
@@ -81,22 +79,22 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
         }
       }
 
-      while (sleepQueue.nonEmpty && sleepQueue.head.canceled) {
-        sleepQueue.dequeue()
+      while (!sleepQueue.isEmpty() && sleepQueue.peek().canceled) {
+        sleepQueue.poll()
       }
 
-      if (sleepQueue.nonEmpty) {
+      if (!sleepQueue.isEmpty()) {
         val now = monotonicNanos()
-        val task = sleepQueue.head
+        val task = sleepQueue.peek()
         if (now >= task.at) {
-          sleepQueue.dequeue()
+          sleepQueue.poll()
           try {
             task.runnable.run()
           } catch {
             case NonFatal(t) =>
               reportFailure(t)
           }
-        } else if (executeQueue.isEmpty) {
+        } else if (executeQueue.isEmpty()) {
           val delta = task.at - now
           poll(delta.nanos)
         }
@@ -116,6 +114,11 @@ object PollingExecutorScheduler {
       val at: Long,
       val runnable: Runnable,
       var canceled: Boolean = false
-  )
+  ) extends Comparable[ScheduledTask] {
+
+    def compareTo(that: ScheduledTask): Int =
+      java.lang.Long.compare(this.at, that.at)
+
+  }
 
 }
