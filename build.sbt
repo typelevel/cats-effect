@@ -842,9 +842,6 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.JavaSecureRandom$")
     )
   )
-  .nativeSettings(
-    Compile / doc / sources := Seq.empty
-  )
 
 /**
  * A trivial pair of trivial example apps primarily used to show that IOApp works as a practical
