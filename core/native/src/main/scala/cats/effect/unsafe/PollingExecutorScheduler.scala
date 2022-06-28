@@ -35,6 +35,8 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
   private[this] var cachedExecuteQueue: ArrayDeque[Runnable] = new ArrayDeque
   private[this] val sleepQueue: PriorityQueue[ScheduledTask] = new PriorityQueue
 
+  private[this] val noop: Runnable = () => ()
+
   private[this] def scheduleIfNeeded(): Unit = if (needsReschedule) {
     ExecutionContext.global.execute(() => loop())
     needsReschedule = false
@@ -48,12 +50,12 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
   final def sleep(delay: FiniteDuration, task: Runnable): Runnable =
     if (delay == Duration.Zero) {
       execute(task)
-      () => ()
+      noop
     } else {
       scheduleIfNeeded()
       val scheduledTask = new ScheduledTask(cachedNow + delay.toNanos, task)
       sleepQueue.offer(scheduledTask)
-      () => scheduledTask.canceled = true
+      scheduledTask
     }
 
   def reportFailure(t: Throwable): Unit = t.printStackTrace()
@@ -143,7 +145,10 @@ object PollingExecutorScheduler {
       val at: Long,
       val runnable: Runnable,
       var canceled: Boolean = false
-  ) extends Comparable[ScheduledTask] {
+  ) extends Runnable
+      with Comparable[ScheduledTask] {
+
+    def run(): Unit = canceled = true
 
     def compareTo(that: ScheduledTask): Int =
       java.lang.Long.compare(this.at, that.at)
