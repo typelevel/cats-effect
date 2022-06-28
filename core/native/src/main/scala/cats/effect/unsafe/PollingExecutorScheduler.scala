@@ -29,6 +29,7 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
   import PollingExecutorScheduler._
 
   private[this] var needsReschedule: Boolean = true
+  private[this] var inLoop: Boolean = false
   private[this] var cachedNow: Long = _
 
   private[this] var executeQueue: ArrayDeque[Runnable] = new ArrayDeque
@@ -53,7 +54,8 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
       noop
     } else {
       scheduleIfNeeded()
-      val scheduledTask = new ScheduledTask(cachedNow + delay.toNanos, task)
+      val now = if (inLoop) cachedNow else monotonicNanos()
+      val scheduledTask = new ScheduledTask(now + delay.toNanos, task)
       sleepQueue.offer(scheduledTask)
       scheduledTask
     }
@@ -77,6 +79,7 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
 
   private[this] def loop(): Unit = {
     needsReschedule = false
+    inLoop = true
 
     var continue = true
 
@@ -135,6 +138,7 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
     }
 
     needsReschedule = true
+    inLoop = false
   }
 
 }
