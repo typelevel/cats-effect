@@ -204,8 +204,6 @@ trait IOApp {
     lazy val keepAlive: IO[Nothing] =
       IO.sleep(1.hour) >> keepAlive
 
-    val hardExit: Int => Unit = System.exit(_)
-
     Spawn[IO]
       .raceOutcome[ExitCode, Nothing](run(args.toList), keepAlive)
       .flatMap {
@@ -217,13 +215,12 @@ trait IOApp {
         case Right(_) => sys.error("impossible")
       }
       .unsafeRunFiber(
-        hardExit(0),
+        System.exit(0),
         t => {
           t.printStackTrace()
-          hardExit(1)
-          throw t // For runtimes where hardExit is a no-op
+          System.exit(1)
         },
-        c => hardExit(c.code)
+        c => System.exit(c.code)
       )(runtime)
 
     ()
