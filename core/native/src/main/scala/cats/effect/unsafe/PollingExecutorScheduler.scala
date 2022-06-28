@@ -45,12 +45,16 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
     executeQueue.addLast(runnable)
   }
 
-  final def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-    scheduleIfNeeded()
-    val scheduledTask = new ScheduledTask(cachedNow + delay.toNanos, task)
-    sleepQueue.offer(scheduledTask)
-    () => scheduledTask.canceled = true
-  }
+  final def sleep(delay: FiniteDuration, task: Runnable): Runnable =
+    if (delay == Duration.Zero) {
+      execute(task)
+      () => ()
+    } else {
+      scheduleIfNeeded()
+      val scheduledTask = new ScheduledTask(cachedNow + delay.toNanos, task)
+      sleepQueue.offer(scheduledTask)
+      () => scheduledTask.canceled = true
+    }
 
   def reportFailure(t: Throwable): Unit = t.printStackTrace()
 
