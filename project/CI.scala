@@ -71,7 +71,7 @@ object CI {
         jsEnv = None,
         testCommands = List("test"),
         mimaReport = true,
-        suffixCommands = List("exampleJVM/compile")
+        suffixCommands = List("exampleNative/compile")
       )
 
   case object Firefox
