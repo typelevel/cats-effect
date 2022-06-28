@@ -257,7 +257,7 @@ val CatsVersion = "2.8.0"
 val Specs2Version = "4.16.0"
 val ScalaCheckVersion = "1.16.0"
 val DisciplineVersion = "1.4.0"
-val CoopVersion = "1.1.1"
+val CoopVersion = "1.2.0"
 
 val MacrotaskExecutorVersion = "1.1.0"
 
