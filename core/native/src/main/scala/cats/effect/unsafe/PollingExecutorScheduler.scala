@@ -29,8 +29,10 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
   import PollingExecutorScheduler._
 
   private[this] var needsReschedule: Boolean = true
+  private[this] var cachedNow: Long = _
 
-  private[this] val executeQueue: ArrayDeque[Runnable] = new ArrayDeque
+  private[this] var executeQueue: ArrayDeque[Runnable] = new ArrayDeque
+  private[this] var cachedExecuteQueue: ArrayDeque[Runnable] = new ArrayDeque
   private[this] val sleepQueue: PriorityQueue[ScheduledTask] = new PriorityQueue
 
   private[this] def scheduleIfNeeded(): Unit = if (needsReschedule) {
@@ -45,10 +47,9 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
 
   final def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
     scheduleIfNeeded()
-    val scheduledTask = new ScheduledTask(monotonicNanos() + delay.toNanos, task)
+    val scheduledTask = new ScheduledTask(cachedNow + delay.toNanos, task)
     sleepQueue.offer(scheduledTask)
-    () =>
-      scheduledTask.canceled = true // TODO this is a memory leak, better to remove completely
+    () => scheduledTask.canceled = true
   }
 
   def reportFailure(t: Throwable): Unit = t.printStackTrace()
@@ -62,15 +63,29 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
 
   def monotonicNanos() = System.nanoTime()
 
-  def poll(timeout: Duration): Unit
+  /**
+   * @return
+   *   whether poll should be called again (i.e., there is more work queued)
+   */
+  def poll(timeout: Duration): Boolean
 
   private[this] def loop(): Unit = {
     needsReschedule = false
 
-    while (!executeQueue.isEmpty() || !sleepQueue.isEmpty()) {
+    var continue = true
 
-      if (!executeQueue.isEmpty()) {
-        val runnable = executeQueue.poll()
+    while (continue) {
+      // cache the timestamp for this tick
+      cachedNow = monotonicNanos()
+
+      // swap the task queues
+      val todo = executeQueue
+      executeQueue = cachedExecuteQueue
+      cachedExecuteQueue = todo
+
+      // do all the tasks
+      while (!todo.isEmpty()) {
+        val runnable = todo.poll()
         try {
           runnable.run()
         } catch {
@@ -79,28 +94,38 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
         }
       }
 
+      // execute the timers
       while (!sleepQueue.isEmpty() && sleepQueue.peek().canceled) {
         sleepQueue.poll()
       }
 
-      if (!sleepQueue.isEmpty()) {
-        val now = monotonicNanos()
-        val task = sleepQueue.peek()
-        if (now >= task.at) {
-          sleepQueue.poll()
-          try {
-            task.runnable.run()
-          } catch {
-            case NonFatal(t) =>
-              reportFailure(t)
-          }
-        } else if (executeQueue.isEmpty()) {
-          val delta = task.at - now
-          poll(delta.nanos)
+      while (!sleepQueue.isEmpty() && sleepQueue.peek().at <= cachedNow) {
+        val task = sleepQueue.poll()
+        try {
+          task.runnable.run()
+        } catch {
+          case NonFatal(t) =>
+            reportFailure(t)
         }
-
       }
 
+      val sleepIter = sleepQueue.iterator()
+      while (sleepQueue.iterator().hasNext()) {
+        if (sleepIter.next().canceled) sleepIter.remove()
+      }
+
+      // now we poll
+      val timeout =
+        if (!executeQueue.isEmpty())
+          Duration.Zero
+        else if (!sleepQueue.isEmpty())
+          (sleepQueue.peek().at - cachedNow).nanos
+        else
+          Duration.Inf
+
+      val needsPoll = poll(timeout)
+
+      continue = needsPoll || !executeQueue.isEmpty() || !sleepQueue.isEmpty()
     }
 
     needsReschedule = true

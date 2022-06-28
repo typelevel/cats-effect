@@ -20,9 +20,12 @@ import scala.concurrent.duration._
 
 private[effect] object QueueExecutorScheduler extends PollingExecutorScheduler {
 
-  def poll(timeout: Duration): Unit = {
-    val nanos = timeout.toNanos
-    Thread.sleep(nanos / 1000000, (nanos % 1000000).toInt)
+  def poll(timeout: Duration): Boolean = {
+    if (timeout != Duration.Zero && timeout.isFinite) {
+      val nanos = timeout.toNanos
+      Thread.sleep(nanos / 1000000, (nanos % 1000000).toInt)
+    }
+    false
   }
 
 }
