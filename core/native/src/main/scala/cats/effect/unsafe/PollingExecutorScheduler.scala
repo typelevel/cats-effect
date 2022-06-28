@@ -16,13 +16,14 @@
 
 package cats.effect.unsafe
 
-import scala.collection.mutable.{ListBuffer, PriorityQueue}
+import scala.collection.mutable.PriorityQueue
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
 import java.time.Instant
 import java.time.temporal.ChronoField
+import java.util.ArrayDeque
 
 abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Scheduler {
 
@@ -30,7 +31,7 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
 
   private[this] var needsReschedule: Boolean = true
 
-  private[this] val executeQueue: ListBuffer[Runnable] = new ListBuffer
+  private[this] val executeQueue: ArrayDeque[Runnable] = new ArrayDeque
   private[this] val sleepQueue: PriorityQueue[ScheduledTask] =
     new PriorityQueue()(Ordering.by(-_.at))
 
@@ -41,7 +42,7 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
 
   final def execute(runnable: Runnable): Unit = {
     scheduleIfNeeded()
-    executeQueue += runnable
+    executeQueue.addLast(runnable)
   }
 
   final def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
@@ -68,10 +69,10 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
   private[this] def loop(): Unit = {
     needsReschedule = false
 
-    while (executeQueue.nonEmpty || sleepQueue.nonEmpty) {
+    while (!executeQueue.isEmpty() || sleepQueue.nonEmpty) {
 
-      if (executeQueue.nonEmpty) {
-        val runnable = executeQueue.remove(0)
+      if (!executeQueue.isEmpty()) {
+        val runnable = executeQueue.poll()
         try {
           runnable.run()
         } catch {
