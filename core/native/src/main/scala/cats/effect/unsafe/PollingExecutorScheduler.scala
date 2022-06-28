@@ -39,12 +39,12 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
     state = State.Scheduled
   }
 
-  def execute(runnable: Runnable): Unit = {
+  final def execute(runnable: Runnable): Unit = {
     scheduleIfNeeded()
     executeQueue += runnable
   }
 
-  def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
+  final def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
     scheduleIfNeeded()
     val scheduledTask = new ScheduledTask(monotonicNanos() + delay.toNanos, task)
     sleepQueue += scheduledTask
@@ -65,7 +65,7 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
 
   def poll(timeout: Duration): Unit
 
-  def loop(): Unit = {
+  private[this] def loop(): Unit = {
     state = State.Running
 
     while (executeQueue.nonEmpty || sleepQueue.nonEmpty) {
