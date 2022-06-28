@@ -16,6 +16,41 @@
 
 package cats.effect.std
 
+import scala.annotation.nowarn
+import scala.scalanative.libc.errno
+import scala.scalanative.unsafe._
+import scala.scalanative.unsigned._
+
 private[std] trait SecureRandomCompanionPlatform {
-  private[std] type JavaSecureRandom = java.util.Random
+
+  private[std] class JavaSecureRandom() extends java.util.Random(0L) {
+
+    override def setSeed(x: Long): Unit = ()
+
+    override def nextBytes(bytes: Array[Byte]): Unit = {
+      val len = bytes.length
+      val buffer = stackalloc[Byte](256)
+      var i = 0
+      while (i < len) {
+        val n = Math.min(256, len - i)
+        if (sysrandom.getentropy(buffer, n.toULong) < 0)
+          throw new RuntimeException(s"getentropy: ${errno.errno}")
+
+        var j = 0L
+        while (j < n) {
+          bytes(i) = buffer(j)
+          i += 1
+          j += 1
+        }
+      }
+    }
+
+  }
+
+}
+
+@extern
+@nowarn
+private[std] object sysrandom {
+  def getentropy(buf: Ptr[Byte], buflen: CSize): Int = extern
 }
