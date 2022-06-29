@@ -1961,13 +1961,16 @@ private object SyncStep {
             }
             .handleErrorWith(t => interpret(f(t), limit - 1))
 
-        case IO.Uncancelable(body, _) =>
+        case IO.Uncancelable(body, _)
+            if G.isInstanceOf[MonadCancel.Uncancelable[G, Throwable] @unchecked] =>
           val ioa = body(new Poll[IO] {
             def apply[C](ioc: IO[C]): IO[C] = ioc
           })
           interpret(ioa, limit)
 
-        case IO.OnCancel(ioa, _) => interpret(ioa, limit)
+        case IO.OnCancel(ioa, _)
+            if G.isInstanceOf[MonadCancel.Uncancelable[G, Throwable] @unchecked] =>
+          interpret(ioa, limit)
 
         case _ => G.pure(Left(io))
       }
