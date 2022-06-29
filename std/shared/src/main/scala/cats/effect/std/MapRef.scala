@@ -28,10 +28,8 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * This is a total Map from K to Ref[F, V]. this allows us to use the Ref api backed by a
- * ConcurrentHashMap
- *
- * This uses java universal hashCode and equality on K
+ * This is a total map from K to Ref[F, V]. This allows us to use the Ref API backed by a
+ * ConcurrentHashMap or similar.
  */
 trait MapRef[F[_], K, V] extends Function1[K, Ref[F, V]] {
 
@@ -150,8 +148,10 @@ object MapRef extends MapRefCompanionPlatform {
 
   /**
    * Creates a sharded map ref to reduce atomic contention on the Map, given an efficient and
-   * equally distributed Hash, the contention should allow for interaction like a general
+   * equally distributed hash, the contention should allow for interaction like a general
    * datastructure.
+   *
+   * This uses universal hashCode and equality on K.
    */
   def ofShardedImmutableMap[F[_]: Concurrent, K, V](
       shardCount: Int
@@ -165,8 +165,10 @@ object MapRef extends MapRefCompanionPlatform {
 
   /**
    * Creates a sharded map ref to reduce atomic contention on the Map, given an efficient and
-   * equally distributed Hash, the contention should allow for interaction like a general
+   * equally distributed hash, the contention should allow for interaction like a general
    * datastructure. Created in G, operates in F.
+   *
+   * This uses universal hashCode and equality on K.
    */
   def inShardedImmutableMap[G[_]: Sync, F[_]: Async, K, V](
       shardCount: Int
@@ -178,6 +180,11 @@ object MapRef extends MapRefCompanionPlatform {
       .map(fromSeqRefs(_))
   }
 
+  /**
+   * Creates a sharded map ref from a sequence of refs.
+   *
+   * This uses universal hashCode and equality on K.
+   */
   def fromSeqRefs[F[_]: Concurrent, K, V](
       seq: scala.collection.immutable.Seq[Ref[F, Map[K, V]]]
   ): MapRef[F, K, Option[V]] = {
@@ -192,6 +199,8 @@ object MapRef extends MapRefCompanionPlatform {
 
   /**
    * Heavy Contention on Use
+   *
+   * This uses universal hashCode and equality on K.
    */
   def ofSingleImmutableMap[F[_]: Concurrent, K, V](
       map: Map[K, V] = Map.empty[K, V]): F[MapRef[F, K, Option[V]]] =
@@ -199,6 +208,8 @@ object MapRef extends MapRefCompanionPlatform {
 
   /**
    * Heavy Contention on Use. Created in G, operates in F.
+   *
+   * This uses universal hashCode and equality on K.
    */
   def inSingleImmutableMap[G[_]: Sync, F[_]: Async, K, V](
       map: Map[K, V] = Map.empty[K, V]): G[MapRef[F, K, Option[V]]] =
@@ -207,6 +218,8 @@ object MapRef extends MapRefCompanionPlatform {
   /**
    * Heavy Contention on Use, Allows you to access the underlying map through processes outside
    * of this interface. Useful for Atomic Map[K, V] => Map[K, V] interactions.
+   *
+   * This uses universal hashCode and equality on K.
    */
   def fromSingleImmutableMapRef[F[_]: Concurrent, K, V](
       ref: Ref[F, Map[K, V]]): MapRef[F, K, Option[V]] =
@@ -341,6 +354,8 @@ object MapRef extends MapRefCompanionPlatform {
 
   /**
    * Takes a ConcurrentHashMap, giving you access to the mutable state from the constructor.
+   *
+   * This uses universal hashCode and equality on K.
    */
   def fromConcurrentHashMap[F[_]: Sync, K, V](
       map: ConcurrentHashMap[K, V]): MapRef[F, K, Option[V]] =
@@ -353,6 +368,8 @@ object MapRef extends MapRefCompanionPlatform {
    * It is usually a mistake to have a `G[RefMap[F, K, V]]` field. You want `RefMap[F, K, V]`
    * field which means the thing that needs it will also have to be inside of `F[_]`, which is
    * because it needs access to mutable state so allocating it is also an effect.
+   *
+   * This uses universal hashCode and equality on K.
    */
   def inConcurrentHashMap[G[_]: Sync, F[_]: Sync, K, V](
       initialCapacity: Int = 16,
@@ -370,6 +387,8 @@ object MapRef extends MapRefCompanionPlatform {
    * It is usually a mistake to have a `F[RefMap[F, K, V]]` field. You want `RefMap[F, K, V]`
    * field which means the thing that needs it will also have to be inside of `F[_]`, which is
    * because it needs access to mutable state so allocating it is also an effect.
+   *
+   * This uses universal hashCode and equality on K.
    */
   def ofConcurrentHashMap[F[_]: Sync, K, V](
       initialCapacity: Int = 16,
@@ -381,7 +400,7 @@ object MapRef extends MapRefCompanionPlatform {
       .map(fromConcurrentHashMap[F, K, V])
 
   /**
-   * Takes a scala.collection.conurrent.Map, giving you access to the mutable state from the
+   * Takes a scala.collection.concurrent.Map, giving you access to the mutable state from the
    * constructor.
    */
   def fromScalaConcurrentMap[F[_]: Sync, K, V](
@@ -525,7 +544,7 @@ object MapRef extends MapRefCompanionPlatform {
    * not waste space. // Some(default) -- None
    */
   def defaultedRef[F[_]: Functor, A: Eq](ref: Ref[F, Option[A]], default: A): Ref[F, A] =
-    new LiftedRefDefaultStorage[F, A](ref, default, Eq[A].eqv)
+    new LiftedRefDefaultStorage[F, A](ref, default)
 
   def defaultedMapRef[F[_]: Functor, K, A: Eq](
       mapref: MapRef[F, K, Option[A]],
@@ -541,8 +560,7 @@ object MapRef extends MapRefCompanionPlatform {
    */
   private class LiftedRefDefaultStorage[F[_]: Functor, A: Eq](
       val ref: Ref[F, Option[A]],
-      val default: A,
-      val eqv: (A, A) => Boolean
+      val default: A
   ) extends Ref[F, A] {
     def get: F[A] = ref.get.map(_.getOrElse(default))
 
