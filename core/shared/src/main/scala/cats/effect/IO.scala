@@ -1965,7 +1965,9 @@ private object SyncStep {
           val ioa = body(new Poll[IO] {
             def apply[C](ioc: IO[C]): IO[C] = ioc
           })
-          interpret(ioa, limit - 1)
+          interpret(ioa, limit)
+
+        case IO.OnCancel(ioa, _) => interpret(ioa, limit)
 
         case _ => G.pure(Left(io))
       }
