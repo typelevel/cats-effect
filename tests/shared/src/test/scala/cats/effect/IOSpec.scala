@@ -1523,7 +1523,8 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       }
 
       "synchronously allocate a vanilla resource" in {
-        val sio = Resource.make(IO.unit)(_ => IO.unit).allocated.map(_._1).syncStep(Int.MaxValue)
+        val sio =
+          Resource.make(IO.unit)(_ => IO.unit).allocated.map(_._1).syncStep(Int.MaxValue)
         sio.map(_.bimap(_ => (), _ => ())) must completeAsSync(Right(()))
       }
     }
