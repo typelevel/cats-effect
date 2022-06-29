@@ -1961,6 +1961,12 @@ private object SyncStep {
             }
             .handleErrorWith(t => interpret(f(t), limit - 1))
 
+        case IO.Uncancelable(body, _) =>
+          val ioa = body(new Poll[IO] {
+            def apply[A](ioa: IO[A]): IO[A] = ioa
+          })
+          interpret(ioa, limit - 1)
+
         case _ => G.pure(Left(io))
       }
     }
