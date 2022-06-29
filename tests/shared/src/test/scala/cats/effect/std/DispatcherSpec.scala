@@ -274,7 +274,9 @@ class DispatcherSpec extends BaseSpec {
             _ <- cdl.await // make sure the execution of fiber has started
           } yield ()
         }.start
-        _ <- releaseInner.await.timeoutTo(2.seconds, IO(false must beTrue)) // release process has started
+        _ <- releaseInner
+          .await
+          .timeoutTo(2.seconds, IO(false must beTrue)) // release process has started
         released1 <- fiber.join.as(true).timeoutTo(200.millis, IO(false))
         _ <- fiberLatch.release
         released2 <- fiber.join.as(true).timeoutTo(200.millis, IO(false))
