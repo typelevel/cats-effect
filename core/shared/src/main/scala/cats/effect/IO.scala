@@ -869,6 +869,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
             }
             .handleErrorWith(t => interpret(f(t)))
 
+        case IO.Uncancelable(body, _) =>
+          interpret(body(new Poll[IO] {
+            def apply[A](ioa: IO[A]): IO[A] = ioa
+          }))
+
         case _ => SyncIO.pure(Left(io))
       }
 
