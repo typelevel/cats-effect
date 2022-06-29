@@ -138,7 +138,10 @@ object Supervisor {
   }
 
   def apply[F[_]: Concurrent]: Resource[F, Supervisor[F]] =
-    apply[F](false)
+    apply[F](
+      false,
+      None
+    ) // TODO we have to do this for now because Scala 3 doesn't like it (lampepfl/dotty#15546)
 
   private trait State[F[_]] {
     def remove(token: Unique.Token): F[Unit]

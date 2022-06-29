@@ -204,7 +204,8 @@ object Dispatcher {
     val (workers, makeFork) =
       mode match {
         case Mode.Parallel =>
-          (Cpus, Supervisor[F](await).map(s => s.supervise(_: F[Unit]).map(_.cancel)))
+          // TODO we have to do this for now because Scala 3 doesn't like it (lampepfl/dotty#15546)
+          (Cpus, Supervisor[F](await, None).map(s => s.supervise(_: F[Unit]).map(_.cancel)))
 
         case Mode.Sequential =>
           (
