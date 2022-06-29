@@ -87,22 +87,6 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
       // cache the timestamp for this tick
       cachedNow = monotonicNanos()
 
-      // swap the task queues
-      val todo = executeQueue
-      executeQueue = cachedExecuteQueue
-      cachedExecuteQueue = todo
-
-      // do all the tasks
-      while (!todo.isEmpty()) {
-        val runnable = todo.poll()
-        try {
-          runnable.run()
-        } catch {
-          case NonFatal(t) =>
-            reportFailure(t)
-        }
-      }
-
       // execute the timers
       while (!sleepQueue.isEmpty() && sleepQueue.peek().canceled) {
         sleepQueue.poll()
@@ -133,6 +117,22 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
           Duration.Inf
 
       val needsPoll = poll(timeout)
+
+      // swap the task queues
+      val todo = executeQueue
+      executeQueue = cachedExecuteQueue
+      cachedExecuteQueue = todo
+
+      // do all the tasks
+      while (!todo.isEmpty()) {
+        val runnable = todo.poll()
+        try {
+          runnable.run()
+        } catch {
+          case NonFatal(t) =>
+            reportFailure(t)
+        }
+      }
 
       continue = needsPoll || !executeQueue.isEmpty() || !sleepQueue.isEmpty()
     }
