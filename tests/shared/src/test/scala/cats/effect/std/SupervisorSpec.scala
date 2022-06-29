@@ -19,6 +19,8 @@ package std
 
 import org.specs2.specification.core.Fragments
 
+import scala.concurrent.duration._
+
 class SupervisorSpec extends BaseSpec {
 
   "Supervisor" should {
@@ -146,6 +148,31 @@ class SupervisorSpec extends BaseSpec {
       }
 
       test must completeAs(42)
+    }
+
+    "cancel inner fiber and ignore restart if outer canceled" in real {
+      val test = IO.deferred[Unit] flatMap { latch =>
+        constructor(true, Some(_.fold(true, _ => false, _ => false))).use { supervisor =>
+          supervisor.supervise(latch.complete(()) >> IO.canceled) >> latch.get >> IO.canceled
+        }
+      }
+
+      // if this doesn't work properly, the test will hang
+      test.start.flatMap(_.join).as(ok).timeoutTo(2.seconds, IO(false must beTrue))
+    }
+
+    "cancel inner fiber and ignore restart if outer errored" in real {
+      case object TestException extends RuntimeException
+
+      val test = IO.deferred[Unit] flatMap { latch =>
+        constructor(true, Some(_.fold(true, _ => false, _ => false))).use { supervisor =>
+          supervisor.supervise(latch.complete(()) >> IO.canceled) >> latch.get >> IO.raiseError(
+            TestException)
+        }
+      }
+
+      // if this doesn't work properly, the test will hang
+      test.start.flatMap(_.join).as(ok).timeoutTo(2.seconds, IO(false must beTrue))
     }
   }
 }
