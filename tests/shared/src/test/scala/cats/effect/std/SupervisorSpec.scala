@@ -19,8 +19,6 @@ package std
 
 import org.specs2.specification.core.Fragments
 
-import scala.concurrent.duration._
-
 class SupervisorSpec extends BaseSpec {
 
   "Supervisor" should {
@@ -81,6 +79,38 @@ class SupervisorSpec extends BaseSpec {
       }
 
       test must nonTerminate
+    }
+
+    "cancel awaited fibers when exiting with error" in ticked { implicit ticker =>
+      case object TestException extends RuntimeException
+
+      val test = IO.deferred[Unit] flatMap { latch =>
+        IO.deferred[Unit] flatMap { canceled =>
+          val supervision = constructor(true, None) use { supervisor =>
+            val action = (latch.complete(()) >> IO.never).onCancel(canceled.complete(()).void)
+            supervisor.supervise(action) >> latch.get >> IO.raiseError(TestException)
+          }
+
+          supervision.guarantee(canceled.get)
+        }
+      }
+
+      test must failAs(TestException)
+    }
+
+    "cancel awaited fibers when canceled" in ticked { implicit ticker =>
+      val test = IO.deferred[Unit] flatMap { latch =>
+        IO.deferred[Unit] flatMap { canceled =>
+          val supervision = constructor(true, None) use { supervisor =>
+            val action = (latch.complete(()) >> IO.never).onCancel(canceled.complete(()).void)
+            supervisor.supervise(action) >> latch.get >> IO.canceled
+          }
+
+          supervision.guarantee(canceled.get)
+        }
+      }
+
+      test must selfCancel
     }
 
     "check restart a fiber if it produces an error" in ticked { implicit ticker =>

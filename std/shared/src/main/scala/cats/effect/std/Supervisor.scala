@@ -156,7 +156,10 @@ object Supervisor {
     // It would have preferable to use Scope here but explicit cancelation is
     // intertwined with resource management
     for {
-      state <- Resource.make(mkState)(st => if (await) st.joinAll else st.cancelAll)
+      state <- Resource.makeCase(mkState) {
+        case (st, Resource.ExitCase.Succeeded) if await => st.joinAll
+        case (st, _) => st.cancelAll
+      }
     } yield new Supervisor[F] {
 
       def supervise[A](fa: F[A]): F[Fiber[F, Throwable, A]] =
