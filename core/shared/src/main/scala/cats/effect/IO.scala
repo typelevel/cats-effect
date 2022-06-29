@@ -1963,7 +1963,7 @@ private object SyncStep {
 
         case IO.Uncancelable(body, _) =>
           val ioa = body(new Poll[IO] {
-            def apply[A](ioa: IO[A]): IO[A] = ioa
+            def apply[C](ioc: IO[C]): IO[C] = ioc
           })
           interpret(ioa, limit - 1)
 
