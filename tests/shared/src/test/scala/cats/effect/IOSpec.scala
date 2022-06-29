@@ -1455,6 +1455,11 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           i must beEqualTo(1)
       }
 
+      "handle uncancelable" in {
+        val sio = IO.unit.uncancelable.syncStep
+        sio.map(_.bimap(_ => (), _ => ())) must completeAsSync(Right(()))
+      }
+
       "synchronously allocate a vanilla resource" in {
         val sio = Resource.make(IO.unit)(_ => IO.unit).allocated.map(_._1).syncStep
         sio.map(_.bimap(_ => (), _ => ())) must completeAsSync(Right(()))
