@@ -141,9 +141,10 @@ private[effect] object Tracing extends TracingPlatform {
       .collect { case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace) }
       .filter(_ ne null)
 
-  def prettyPrint(events: RingBuffer): String = {
-    val frames = getFrames(events)
+  def prettyPrint(events: RingBuffer): String =
+    prettyPrint(getFrames(events))
 
+  def prettyPrint(frames: List[StackTraceElement]): String =
     frames
       .zipWithIndex
       .map {
@@ -152,5 +153,5 @@ private[effect] object Tracing extends TracingPlatform {
           s" $junc $frame"
       }
       .mkString(System.lineSeparator())
-  }
+
 }
