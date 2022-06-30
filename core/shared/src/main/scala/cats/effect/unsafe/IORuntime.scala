@@ -43,10 +43,6 @@ final class IORuntime private[unsafe] (
     val config: IORuntimeConfig
 ) {
 
-  def liveFiberSnapshot(): Unit = liveFiberSnapshot(System.err.println(_))
-  def liveFiberSnapshot(print: String => Unit): Unit =
-    fiberMonitor.liveFiberSnapshot(print)
-
   private[effect] val fiberErrorCbs: StripedHashtable = new StripedHashtable()
 
   /*
