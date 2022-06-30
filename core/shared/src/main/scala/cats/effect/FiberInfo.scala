@@ -18,7 +18,17 @@ package cats.effect
 
 import cats.effect.tracing.Tracing
 
-final case class FiberInfo(fiber: Fiber[IO, _, _], state: FiberState, trace: FiberTrace)
+final case class FiberInfo(fiber: Fiber[IO, _, _], state: FiberState, trace: FiberTrace) {
+  def pretty = {
+    val id = System.identityHashCode(fiber).toHexString
+    val trace = fiber match {
+      case ioFiber: IOFiber[_] => ioFiber.prettyPrintTrace()
+      case _ => ""
+    }
+    val prefixedTrace = if (trace.isEmpty) "" else "\n" + trace
+    s"cats.effect.IOFiber@$id $state$prefixedTrace"
+  }
+}
 
 sealed abstract class FiberState(override val toString: String)
     extends Product
