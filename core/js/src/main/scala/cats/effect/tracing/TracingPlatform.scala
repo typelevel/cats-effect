@@ -69,8 +69,7 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
     "githubusercontent.com/typelevel/cats-effect/",
     "githubusercontent.com/typelevel/cats/",
     "githubusercontent.com/scala-js/",
-    "githubusercontent.com/scala/",
-    "MacrotaskExecutor.scala" // TODO temporary workaround
+    "githubusercontent.com/scala/"
   )
 
   private[this] def isInternalFile(fileName: String): Boolean = {
