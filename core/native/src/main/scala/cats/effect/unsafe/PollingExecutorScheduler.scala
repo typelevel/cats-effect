@@ -16,12 +16,13 @@
 
 package cats.effect.unsafe
 
+import scala.annotation.nowarn
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.concurrent.duration._
+import scala.scalanative.libc.errno
+import scala.scalanative.unsafe._
 import scala.util.control.NonFatal
 
-import java.time.Instant
-import java.time.temporal.ChronoField
 import java.util.{ArrayDeque, PriorityQueue}
 
 abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Scheduler {
@@ -65,8 +66,11 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
   def nowMillis() = System.currentTimeMillis()
 
   override def nowMicros(): Long = {
-    val now = Instant.now()
-    now.getEpochSecond * 1000000 + now.getLong(ChronoField.MICRO_OF_SECOND)
+    import time._
+    val tp = stackalloc[timespec_t]()
+    if (clock_gettime(CLOCK_REALTIME, tp) != 0)
+      throw new RuntimeException(s"clock_gettime: ${errno.errno}")
+    tp._1 * 1000000 + tp._2 / 1000
   }
 
   def monotonicNanos() = System.nanoTime()
@@ -158,5 +162,17 @@ object PollingExecutorScheduler {
       java.lang.Long.compare(this.at, that.at)
 
   }
+
+}
+
+@extern
+@nowarn
+private[unsafe] object time {
+
+  final val CLOCK_REALTIME = 0
+
+  type timespec_t = CStruct2[Int, Long]
+
+  def clock_gettime(clockid: Int, tp: Ptr[timespec_t]): Int = extern
 
 }
