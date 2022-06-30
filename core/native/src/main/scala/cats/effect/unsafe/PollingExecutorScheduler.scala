@@ -171,7 +171,7 @@ private[unsafe] object time {
 
   final val CLOCK_REALTIME = 0
 
-  type timespec_t = CStruct2[Int, Long]
+  type timespec_t = CStruct2[CLong, CLong]
 
   def clock_gettime(clockid: Int, tp: Ptr[timespec_t]): Int = extern
 
