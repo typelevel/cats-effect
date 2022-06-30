@@ -20,6 +20,7 @@ import scala.annotation.nowarn
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.concurrent.duration._
 import scala.scalanative.libc.errno
+import scala.scalanative.meta.LinktimeInfo
 import scala.scalanative.unsafe._
 import scala.util.control.NonFatal
 
@@ -65,7 +66,9 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
 
   def nowMillis() = System.currentTimeMillis()
 
-  override def nowMicros(): Long = {
+  override def nowMicros(): Long = if (LinktimeInfo.isWindows) {
+    super.nowMicros()
+  } else {
     import time._
     val tp = stackalloc[timespec_t]()
     if (clock_gettime(CLOCK_REALTIME, tp) != 0)
