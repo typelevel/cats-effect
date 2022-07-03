@@ -53,7 +53,8 @@ object Main extends IOApp.Simple {
 
 The code can be compiled using `sbt nativeImage` and a native-image executable can then
 be found under `target/native-image/cats-effect-3-hello-world`, and executed as any native
-executable with the benefit of a really fast startup time
+executable with the benefit of a really fast startup time ([hyperfine](https://github.com/sharkdp/hyperfine) 
+is a command line benchmarking tool written in Rust)
 
 ```sh
 $ ./target/native-image/cats-effect-3-hello-world
