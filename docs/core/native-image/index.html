@@ -67,4 +67,48 @@ images seamless, without the need of extra configuration. The only caveat
 is that this configuration metadata is specific to GraalVM 21.0 and later.
 Previous versions of GraalVM are supported, but Native Image support requires
 at least 21.0.</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/core/io-runtime-config"><span class="arrow-prev">← </span><span>IORuntime Configuration</span></a><a class="docs-next button" href="/cats-effect/docs/core/jlink"><span>Jlink image</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/getting-started">Getting Started</a><a href="/cats-effect/docs/tutorial">Tutorial</a><a href="/cats-effect/docs/typeclasses">Typeclasses</a><a href="/cats-effect/docs/schedulers">Schedulers</a></div><div><h5>Community</h5><a target="_blank" href="https://typelevel.org/blog/">Blog</a><a target="_blank" href="https://discord.gg/HmPs7rAtEY">Discord</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2022 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
+<h2><a class="anchor" aria-hidden="true" id="native-image-example"></a><a href="#native-image-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Native Image example</h2>
+<p>Here's an example of an Hello world project compiled with GraalVM Native Image
+using <a href="https://github.com/scalameta/sbt-native-image">sbt-native-image plugin</a>.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-comment">// project/plugins.sbt</span>
+addSbtPlugin(<span class="hljs-string">"org.scalameta"</span> % <span class="hljs-string">"sbt-native-image"</span> % <span class="hljs-string">"0.3.1"</span>)
+
+<span class="hljs-comment">// build.sbt</span>
+<span class="hljs-type">ThisBuild</span> / organization := <span class="hljs-string">"com.example"</span>
+<span class="hljs-type">ThisBuild</span> / scalaVersion := <span class="hljs-string">"2.13.8"</span>
+
+<span class="hljs-keyword">lazy</span> <span class="hljs-keyword">val</span> root = (project in file(<span class="hljs-string">"."</span>)).enablePlugins(<span class="hljs-type">NativeImagePlugin</span>).settings(
+  name                := <span class="hljs-string">"cats-effect-3-hello-world"</span>,
+  libraryDependencies += <span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect"</span> % <span class="hljs-string">"3.3.13"</span>,
+  <span class="hljs-type">Compile</span> / mainClass := <span class="hljs-type">Some</span>(<span class="hljs-string">"com.example.Main"</span>),
+  nativeImageOptions  += <span class="hljs-string">"--no-fallback"</span>,
+  nativeImageVersion  := <span class="hljs-string">"22.1.0"</span> <span class="hljs-comment">// It should be at least version 21.0.0</span>
+)
+
+<span class="hljs-comment">// src/main/scala/com/example/Main.scala</span>
+<span class="hljs-keyword">package</span> com.example
+
+<span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">IOApp</span>}
+
+<span class="hljs-class"><span class="hljs-keyword">object</span> <span class="hljs-title">Main</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">IOApp</span>.<span class="hljs-title">Simple</span> </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>: <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = <span class="hljs-type">IO</span>.println(<span class="hljs-string">"Hello Cats Effect!"</span>)
+}
+</code></pre>
+<blockquote>
+<p>Note: <code>nativeImageOptions += &quot;--no-fallback&quot;</code> is required, otherwise native-image will try searching a static reflection configuration for <a href="https://github.com/scala/scala/blob/v2.13.8/src/library/scala/Enumeration.scala#L190-L215=">this Enumeration method</a>. Thus using this flag is safe only if you're not using <code>Enumeration</code>s in your codebase, see <a href="https://github.com/typelevel/cats-effect/issues/3051#issuecomment-1167026949">this comment</a> for more info.</p>
+</blockquote>
+<p>The code can be compiled using <code>sbt nativeImage</code> and a native-image executable can then
+be found under <code>target/native-image/cats-effect-3-hello-world</code>, and executed as any native
+executable with the benefit of a really fast startup time (<a href="https://github.com/sharkdp/hyperfine">hyperfine</a>
+is a command line benchmarking tool written in Rust)</p>
+<pre><code class="hljs css language-sh">$ ./target/native-image/cats-effect-3-hello-world
+Hello Cats Effect!
+
+$ hyperfine ./target/native-image/cats-effect-3-hello-world
+Benchmark 1: ./target/native-image/cats-effect-3-hello-world
+  Time   (mean ± σ):    11.2 ms ±   0.6 ms    [User: 6.7 ms, System: 4.8 ms]
+  Range (min … max):     9.4 ms …  12.9 ms    182 runs
+</code></pre>
+<p>Another way to get your cats effect app compiled with native-image is to leverage
+the package command of scala-cli, like in the <a href="/cats-effect/docs/faq#Native-Image-Example">example</a></p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/core/io-runtime-config"><span class="arrow-prev">← </span><span>IORuntime Configuration</span></a><a class="docs-next button" href="/cats-effect/docs/core/jlink"><span>Jlink image</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#native-image-example">Native Image example</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/cats-effect-logo.svg" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/getting-started">Getting Started</a><a href="/cats-effect/docs/tutorial">Tutorial</a><a href="/cats-effect/docs/typeclasses">Typeclasses</a><a href="/cats-effect/docs/schedulers">Schedulers</a></div><div><h5>Community</h5><a target="_blank" href="https://typelevel.org/blog/">Blog</a><a target="_blank" href="https://discord.gg/HmPs7rAtEY">Discord</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2022 Typelevel</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
