@@ -1246,6 +1246,13 @@ abstract private[effect] class ResourceConcurrent[F[_]]
 
   override def both[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, (A, B)] =
     fa.both(fb)
+
+  override def memoize[A](fa: Resource[F, A]): Resource[F, Resource[F, A]] = {
+    Resource
+      .makeCaseFull[F, F[(A, Resource.ExitCase => F[Unit])]](poll =>
+        poll(F.memoize(fa.allocatedCase))) { (memo, exit) => memo.flatMap(_._2.apply(exit)) }
+      .map(memo => Resource.eval(memo.map(_._1)))
+  }
 }
 
 private[effect] trait ResourceClock[F[_]] extends Clock[Resource[F, *]] {
