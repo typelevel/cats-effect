@@ -958,6 +958,26 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         rightReleased must beTrue
       }
     }
+
+    "memoize" >> {
+      "allocates once and releases at end" in ticked { implicit ticker =>
+        (IO.ref(0), IO.ref(0))
+          .mapN { (acquired, released) =>
+            val r = Resource.make(acquired.update(_ + 1).void)(_ => released.update(_ + 1))
+            def acquiredMustBe(i: Int) = acquired.get.map(_ must be_==(i)).void
+            def releasedMustBe(i: Int) = released.get.map(_ must be_==(i)).void
+            r.memoize.use { memo =>
+              acquiredMustBe(0) *> releasedMustBe(0) *>
+                memo.surround(acquiredMustBe(1) *> releasedMustBe(0)) *>
+                acquiredMustBe(1) *> releasedMustBe(0) *>
+                memo.surround(acquiredMustBe(1) *> releasedMustBe(0)) *>
+                acquiredMustBe(1) *> releasedMustBe(0)
+            } *> acquiredMustBe(1) *> releasedMustBe(1)
+          }
+          .flatten
+          .void must completeAs(())
+      }
+    }
   }
 
   "uncancelable" >> {
