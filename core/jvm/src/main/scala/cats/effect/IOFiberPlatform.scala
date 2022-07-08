@@ -149,18 +149,12 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                 }
               }
 
-              def loop(): IO[Unit] = IO.defer {
-                if (done.get() || reallyTryToInterrupt()) {
-                  IO {
-                    manyDone.set(true) // signal that we're done looping
-                    finCb(RightUnit)
-                  }
-                } else {
-                  loop()
-                }
+              def loop: IO[Unit] = IO.defer {
+                if (done.get() || reallyTryToInterrupt()) IO.unit
+                else loop
               }
 
-              loop()
+              loop.guarantee(IO { manyDone.set(true) }) *> IO { finCb(RightUnit) }
 
             } else {
               IO {
