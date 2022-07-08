@@ -1249,7 +1249,7 @@ abstract private[effect] class ResourceConcurrent[F[_]]
 
   override def memoize[A](fa: Resource[F, A]): Resource[F, Resource[F, A]] = {
     Resource.eval(F.ref(false)).flatMap { allocated =>
-      val fa2 = F.uncancelable(poll => allocated.set(true) *> poll(fa.allocatedCase))
+      val fa2 = F.uncancelable(poll => poll(fa.allocatedCase) <* allocated.set(true))
       Resource
         .makeCaseFull[F, F[(A, Resource.ExitCase => F[Unit])]](poll => poll(F.memoize(fa2)))(
           (memo, exit) => allocated.get.ifM(memo.flatMap(_._2.apply(exit)), F.unit))
