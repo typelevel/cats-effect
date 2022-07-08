@@ -72,6 +72,8 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                     null
 
                   case NonFatal(t) =>
+                    canInterrupt.acquire()
+                    manyDone.set(true) // in this case, we weren't interrupted
                     Left(t)
                 } finally {
                   canInterrupt.tryAcquire()
