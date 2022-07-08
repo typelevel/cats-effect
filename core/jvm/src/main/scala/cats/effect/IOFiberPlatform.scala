@@ -59,7 +59,16 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
               val result =
                 try {
                   canInterrupt.release()
-                  val back = Right(cur.thunk())
+                  val back = {
+                    try {
+                      Right(cur.thunk())
+                    } catch {
+                      case ex: InterruptedException =>
+                        throw ex
+                      case NonFatal(t) =>
+                        Left(t)
+                    }
+                  }
 
                   // this is why it has to be a semaphore rather than an atomic boolean
                   // this needs to hard-block if we're in the process of being interrupted
@@ -70,11 +79,6 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                 } catch {
                   case _: InterruptedException =>
                     null
-
-                  case NonFatal(t) =>
-                    canInterrupt.acquire()
-                    manyDone.set(true) // in this case, we weren't interrupted
-                    Left(t)
                 } finally {
                   canInterrupt.tryAcquire()
                   done.set(true)
