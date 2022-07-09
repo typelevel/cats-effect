@@ -49,6 +49,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
         cb <- IO(new AtomicReference[Either[Throwable, Unit] => Unit](null))
 
         canInterrupt <- IO(new juc.Semaphore(0))
+        manyDone <- IO(new AtomicBoolean(false))
 
         target <- IO uncancelable { _ =>
           IO.async[Thread] { initCb =>
@@ -58,23 +59,41 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
               val result =
                 try {
                   canInterrupt.release()
-                  val back = Right(cur.thunk())
+
+                  val back =
+                    try {
+                      Right(cur.thunk())
+                    } catch {
+                      // this won't suppress the interruption
+                      case NonFatal(t) => Left(t)
+                    }
 
                   // this is why it has to be a semaphore rather than an atomic boolean
                   // this needs to hard-block if we're in the process of being interrupted
+                  // once we acquire this lock, we cannot be interrupted
                   canInterrupt.acquire()
+
+                  if (many) {
+                    manyDone.set(true) // in this case, we weren't interrupted
+                  }
+
                   back
                 } catch {
                   case _: InterruptedException =>
                     null
-
-                  case NonFatal(t) =>
-                    Left(t)
                 } finally {
                   canInterrupt.tryAcquire()
                   done.set(true)
 
-                  if (!many) {
+                  if (many) {
+                    // wait for the hot loop to finish
+                    // we can probably also do this with canInterrupt, but that seems confusing
+                    // this needs to be a busy-wait otherwise it will be interrupted
+                    while (!manyDone.get()) {}
+                    Thread.interrupted() // clear the status
+
+                    ()
+                  } else {
                     val cb0 = cb.getAndSet(null)
                     if (cb0 != null) {
                       cb0(RightUnit)
@@ -115,16 +134,21 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
 
             val repeat = if (many) {
               IO {
-                while (!done.get()) {
-                  if (canInterrupt.tryAcquire()) {
-                    try {
-                      while (!done.get()) {
-                        target.interrupt() // it's hammer time!
+                // we need the outer try because we may be done *before* we enter
+                try {
+                  while (!done.get()) {
+                    if (canInterrupt.tryAcquire()) {
+                      try {
+                        while (!done.get()) {
+                          target.interrupt() // it's hammer time!
+                        }
+                      } finally {
+                        canInterrupt.release()
                       }
-                    } finally {
-                      canInterrupt.release()
                     }
                   }
+                } finally {
+                  manyDone.set(true) // signal that we're done looping
                 }
 
                 finCb(RightUnit)
