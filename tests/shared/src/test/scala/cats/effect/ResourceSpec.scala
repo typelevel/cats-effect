@@ -960,6 +960,9 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     }
 
     "memoize" >> {
+      "memoize and then flatten is identity" in ticked { implicit ticker =>
+        forAll { (r: Resource[IO, Int]) => r.memoize.flatten eqv r }
+      }
       "allocates once and releases at end" in ticked { implicit ticker =>
         (IO.ref(0), IO.ref(0))
           .mapN { (acquired, released) =>
