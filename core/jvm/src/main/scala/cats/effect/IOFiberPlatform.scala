@@ -59,22 +59,24 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
               val result =
                 try {
                   canInterrupt.release()
-                  val back = {
+
+                  val back =
                     try {
                       Right(cur.thunk())
                     } catch {
-                      case ex: InterruptedException =>
-                        throw ex
-                      case NonFatal(t) =>
-                        Left(t)
+                      // this won't suppress the interruption
+                      case NonFatal(t) => Left(t)
                     }
-                  }
 
                   // this is why it has to be a semaphore rather than an atomic boolean
                   // this needs to hard-block if we're in the process of being interrupted
                   // once we acquire this lock, we cannot be interrupted
                   canInterrupt.acquire()
-                  manyDone.set(true) // in this case, we weren't interrupted
+
+                  if (many) {
+                    manyDone.set(true) // in this case, we weren't interrupted
+                  }
+
                   back
                 } catch {
                   case _: InterruptedException =>
@@ -83,12 +85,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                   canInterrupt.tryAcquire()
                   done.set(true)
 
-                  if (!many) {
-                    val cb0 = cb.getAndSet(null)
-                    if (cb0 != null) {
-                      cb0(RightUnit)
-                    }
-                  } else {
+                  if (many) {
                     // wait for the hot loop to finish
                     // we can probably also do this with canInterrupt, but that seems confusing
                     // this needs to be a busy-wait otherwise it will be interrupted
@@ -96,6 +93,11 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                     Thread.interrupted() // clear the status
 
                     ()
+                  } else {
+                    val cb0 = cb.getAndSet(null)
+                    if (cb0 != null) {
+                      cb0(RightUnit)
+                    }
                   }
                 }
 
