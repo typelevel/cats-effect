@@ -62,6 +62,36 @@ import java.util.concurrent.atomic.AtomicReference
 trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
 
   /**
+   * The asynchronous FFI with option for immediate result.
+   *
+   * `k` takes a callback of type `Either[Throwable, A] => Unit` to signal the result of the
+   * asynchronous computation.
+   *
+   * `k` returns an `Either[Option[F[Unit]], A]` where:
+   *   - right side `A` signals immediately available result;
+   *   - left side `Option[F[Unit]]` is an optional finalizer to be run in the event that
+   *     the fiber running `async(k)` is canceled.
+   *
+   * In case where `k` returns left side the  execution of `async(k)` is semantically blocked
+   * until the  callback is invoked. In case of a right side callback invocation is silently dropped.
+   */
+  def asyncPoll[A](k: (Either[Throwable, A] => Unit) => F[Either[Option[F[Unit]], A]]): F[A] = {
+    val body = new Cont[F, A, A] {
+      def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
+        G.uncancelable { poll =>
+          lift(k(resume)) flatMap {
+            case Right(a) => G.pure(a)
+            case Left(Some(fin)) => G.onCancel(poll(get), lift(fin))
+            case Left(None) => poll(get)
+          }
+        }
+      }
+    }
+
+    cont(body)
+  }
+
+  /**
    * The asynchronous FFI.
    *
    * `k` takes a callback of type `Either[Throwable, A] => Unit` to signal the result of the
@@ -71,20 +101,8 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * `k` returns an `Option[F[Unit]]` which is an optional finalizer to be run in the event that
    * the fiber running {{{async(k)}}} is canceled.
    */
-  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
-    val body = new Cont[F, A, A] {
-      def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
-        G.uncancelable { poll =>
-          lift(k(resume)) flatMap {
-            case Some(fin) => G.onCancel(poll(get), lift(fin))
-            case None => poll(get)
-          }
-        }
-      }
-    }
-
-    cont(body)
-  }
+  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] =
+    asyncPoll[A](cb => map(k(cb))(Left(_)))
 
   /**
    * A convenience version of [[Async.async]] for when we don't need to perform `F[_]` effects

@@ -56,6 +56,18 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         i mustEqual 42
       }
 
+      "preserve monad identity on asyncPoll immediate result" in ticked { implicit ticker =>
+        val fa = IO.asyncPoll[Int](_ => IO(Right(42)))
+        fa.flatMap(i => IO.pure(i)) must completeAs(42)
+        fa must completeAs(42)
+      }
+
+      "preserve monad identity on asyncPoll suspended result" in ticked { implicit ticker =>
+        val fa = IO.asyncPoll[Int](cb => IO(cb(Right(42))).as(Left(None)))
+        fa.flatMap(i => IO.pure(i)) must completeAs(42)
+        fa must completeAs(42)
+      }
+
       "preserve monad identity on async" in ticked { implicit ticker =>
         val fa = IO.async[Int](cb => IO(cb(Right(42))).as(None))
         fa.flatMap(i => IO.pure(i)) must completeAs(42)
@@ -67,6 +79,11 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "capture errors in suspensions" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
         IO(throw TestException) must failAs(TestException)
+      }
+
+      "resume error continuation within asyncPoll" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        IO.asyncPoll[Unit](k => IO(k(Left(TestException))).as(Left(None))) must failAs(TestException)
       }
 
       "resume error continuation within async" in ticked { implicit ticker =>
@@ -409,6 +426,154 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         test must completeAs(())
       }
 
+    }
+
+    "asyncPoll" should {
+
+      "resume value continuation within asyncPoll with immediate result" in ticked { implicit ticker =>
+        IO.asyncPoll[Int](_ => IO(Right(42))) must completeAs(42)
+      }
+
+      "resume value continuation within asyncPoll with suspended result" in ticked { implicit ticker =>
+        IO.asyncPoll[Int](k => IO(k(Right(42))).as(Left(None))) must completeAs(42)
+      }
+
+      "continue from the results of an asyncPoll immediate result produced prior to registration" in ticked {
+        implicit ticker =>
+          IO.asyncPoll[Int](_ => IO(Right(42))).map(_ + 2) must completeAs(44)
+      }
+
+      "continue from the results of an asyncPoll suspended result produced prior to registration" in ticked {
+        implicit ticker =>
+          IO.asyncPoll[Int](cb => IO(cb(Right(42))).as(Left(None))).map(_ + 2) must completeAs(44)
+      }
+
+      // format: off
+      "produce a failure when the registration raises an error after result" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        IO.asyncPoll[Int](_ => IO(Right(42))
+          .flatMap(_ => IO.raiseError(TestException)))
+          .void must failAs(TestException)
+      }
+      // format: on
+
+      // format: off
+      "produce a failure when the registration raises an error after callback" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        IO.asyncPoll[Int](cb => IO(cb(Right(42)))
+          .flatMap(_ => IO.raiseError(TestException)))
+          .void must failAs(TestException)
+      }
+      // format: on
+
+      "ignore asyncPoll callback" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        var cb: Either[Throwable, Int] => Unit = null
+
+        val asyncPoll = IO.asyncPoll[Int] { cb0 => IO { cb = cb0 } *> IO.pure(Right(42)) }
+
+        val test = for {
+          fiber <- asyncPoll.start
+          _ <- IO(ticker.ctx.tick())
+          _ <- IO(cb(Right(43)))
+          _ <- IO(ticker.ctx.tick())
+          _ <- IO(cb(Left(TestException)))
+          _ <- IO(ticker.ctx.tick())
+          value <- fiber.joinWithNever
+        } yield value
+
+        test must completeAs(42)
+      }
+
+      "ignore asyncPoll callback real" in real {
+        case object TestException extends RuntimeException
+
+        var cb: Either[Throwable, Int] => Unit = null
+
+        val test = for {
+          latch1 <- Deferred[IO, Unit]
+          latch2 <- Deferred[IO, Unit]
+          fiber <-
+            IO.asyncPoll[Int] { cb0 =>
+              IO { cb = cb0 } *> latch1.complete(()) *> latch2.get *> IO.pure(Right(42))
+            }.start
+          _ <- latch1.get
+          _ <- IO(cb(Right(43)))
+          _ <- IO(cb(Left(TestException)))
+          _ <- latch2.complete(())
+          value <- fiber.joinWithNever
+        } yield value
+
+        test.attempt.flatMap { n => IO(n mustEqual Right(42)) }
+      }
+
+      "repeated asyncPoll callback" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        var cb: Either[Throwable, Int] => Unit = null
+
+        val asyncPoll = IO.asyncPoll[Int] { cb0 => IO { cb = cb0} *> IO.pure(Left(None)) }
+
+        val test = for {
+          fiber <- asyncPoll.start
+          _ <- IO(ticker.ctx.tick())
+          _ <- IO(cb(Right(42)))
+          _ <- IO(ticker.ctx.tick())
+          _ <- IO(cb(Right(43)))
+          _ <- IO(ticker.ctx.tick())
+          _ <- IO(cb(Left(TestException)))
+          _ <- IO(ticker.ctx.tick())
+          value <- fiber.joinWithNever
+        } yield value
+
+        test must completeAs(42)
+      }
+
+      "repeated asyncPoll callback real" in real {
+        case object TestException extends RuntimeException
+
+        var cb: Either[Throwable, Int] => Unit = null
+
+        val test = for {
+          latch1 <- Deferred[IO, Unit]
+          latch2 <- Deferred[IO, Unit]
+          fiber <-
+            IO.asyncPoll[Int] { cb0 =>
+              IO { cb = cb0 } *> latch1.complete(()) *> latch2.get *> IO.pure(Left(None))
+            }.start
+          _ <- latch1.get
+          _ <- IO(cb(Right(42)))
+          _ <- IO(cb(Right(43)))
+          _ <- IO(cb(Left(TestException)))
+          _ <- latch2.complete(())
+          value <- fiber.joinWithNever
+        } yield value
+
+        test.attempt.flatMap { n => IO(n mustEqual Right(42)) }
+      }
+
+      "allow for misordered nesting" in ticked { implicit ticker =>
+        var outerR = 0
+        var innerR = 0
+
+        val outer = IO.asyncPoll[Int] { cb1 =>
+          val inner = IO.asyncPoll[Int] { cb2 =>
+            IO(cb1(Right(1))) *>
+              IO.executionContext.flatMap(ec => IO(ec.execute(() => cb2(Right(2))))).as(Left(None))
+          }
+
+          inner.flatMap(i => IO { innerR = i }).as(Left(None))
+        }
+
+        val test = outer.flatMap(i => IO { outerR = i })
+
+        test must completeAs(())
+        outerR mustEqual 1
+        innerR mustEqual 2
+      }
     }
 
     "async" should {
