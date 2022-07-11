@@ -112,47 +112,56 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
       } yield {
         Some {
           IO async { finCb =>
-            val trigger = IO {
+            val trigger = IO.defer {
               if (!many) {
                 cb.set(finCb)
               }
 
               // if done is false, and we can't get the semaphore, it means
               // that the action hasn't *yet* started, so we busy-wait for it
-              var break = true
-              while (break && !done.get()) {
-                if (canInterrupt.tryAcquire()) {
+
+              def busyWait(): IO[Unit] = { // NB: side-effecting, see `defer` above
+                if (done.get()) {
+                  IO.unit // ok, we're done
+                } else if (canInterrupt.tryAcquire()) {
                   try {
                     target.interrupt()
                   } finally {
-                    break = false
                     canInterrupt.release()
                   }
+                  IO.unit // ok, we've interrupted it
+                } else {
+                  IO.defer(busyWait()) // retry
                 }
               }
+
+              busyWait()
             }
 
             val repeat = if (many) {
-              IO {
-                // we need the outer try because we may be done *before* we enter
-                try {
-                  while (!done.get()) {
-                    if (canInterrupt.tryAcquire()) {
-                      try {
-                        while (!done.get()) {
-                          target.interrupt() // it's hammer time!
-                        }
-                      } finally {
-                        canInterrupt.release()
-                      }
-                    }
-                  }
-                } finally {
-                  manyDone.set(true) // signal that we're done looping
-                }
 
-                finCb(RightUnit)
+              def reallyTryToInterrupt(): Boolean = {
+                if (canInterrupt.tryAcquire()) {
+                  try {
+                    while (!done.get()) {
+                      target.interrupt() // it's hammer time!
+                    }
+                  } finally {
+                    canInterrupt.release()
+                  }
+                  true // ok
+                } else {
+                  false // retry
+                }
               }
+
+              def loop: IO[Unit] = IO.defer {
+                if (done.get() || reallyTryToInterrupt()) IO.unit
+                else loop
+              }
+
+              loop.guarantee(IO { manyDone.set(true) }) *> IO { finCb(RightUnit) }
+
             } else {
               IO {
                 if (done.get() && cb.get() != null) {
