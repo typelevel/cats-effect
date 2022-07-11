@@ -362,27 +362,39 @@ trait IOApp {
 
     val ioa = run(args.toList)
 
-    val fiber =
-      ioa.unsafeRunFiber(
-        {
-          if (counter.decrementAndGet() == 0) {
-            queue.clear()
+    val cpuStarvationChecker: IO[Unit] =
+      IO.monotonic
+        .flatMap { now =>
+          IO.sleep(1.second) >> IO.monotonic.map(_ - now).flatMap { delta =>
+            Console[IO].errorln("[WARNING] you're probably starving").whenA(delta > 100.millis)
           }
-          queue.put(new CancellationException("IOApp main fiber was canceled"))
-        },
-        { t =>
-          if (counter.decrementAndGet() == 0) {
-            queue.clear()
-          }
-          queue.put(t)
-        },
-        { a =>
-          if (counter.decrementAndGet() == 0) {
-            queue.clear()
-          }
-          queue.put(a)
         }
-      )(runtime)
+        .foreverM
+
+    val fiber =
+      cpuStarvationChecker
+        .background
+        .surround(ioa)
+        .unsafeRunFiber(
+          {
+            if (counter.decrementAndGet() == 0) {
+              queue.clear()
+            }
+            queue.put(new CancellationException("IOApp main fiber was canceled"))
+          },
+          { t =>
+            if (counter.decrementAndGet() == 0) {
+              queue.clear()
+            }
+            queue.put(t)
+          },
+          { a =>
+            if (counter.decrementAndGet() == 0) {
+              queue.clear()
+            }
+            queue.put(a)
+          }
+        )(runtime)
 
     if (isStackTracing)
       runtime.fiberMonitor.monitorSuspended(fiber)
