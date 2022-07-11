@@ -83,7 +83,8 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       "resume error continuation within asyncPoll" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
-        IO.asyncPoll[Unit](k => IO(k(Left(TestException))).as(Left(None))) must failAs(TestException)
+        IO.asyncPoll[Unit](k => IO(k(Left(TestException))).as(Left(None))) must failAs(
+          TestException)
       }
 
       "resume error continuation within async" in ticked { implicit ticker =>
@@ -430,22 +431,23 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
     "asyncPoll" should {
 
-      "resume value continuation within asyncPoll with immediate result" in ticked { implicit ticker =>
-        IO.asyncPoll[Int](_ => IO(Right(42))) must completeAs(42)
+      "resume value continuation within asyncPoll with immediate result" in ticked {
+        implicit ticker => IO.asyncPoll[Int](_ => IO(Right(42))) must completeAs(42)
       }
 
-      "resume value continuation within asyncPoll with suspended result" in ticked { implicit ticker =>
-        IO.asyncPoll[Int](k => IO(k(Right(42))).as(Left(None))) must completeAs(42)
+      "resume value continuation within asyncPoll with suspended result" in ticked {
+        implicit ticker =>
+          IO.asyncPoll[Int](k => IO(k(Right(42))).as(Left(None))) must completeAs(42)
       }
 
       "continue from the results of an asyncPoll immediate result produced prior to registration" in ticked {
-        implicit ticker =>
-          IO.asyncPoll[Int](_ => IO(Right(42))).map(_ + 2) must completeAs(44)
+        implicit ticker => IO.asyncPoll[Int](_ => IO(Right(42))).map(_ + 2) must completeAs(44)
       }
 
       "continue from the results of an asyncPoll suspended result produced prior to registration" in ticked {
         implicit ticker =>
-          IO.asyncPoll[Int](cb => IO(cb(Right(42))).as(Left(None))).map(_ + 2) must completeAs(44)
+          IO.asyncPoll[Int](cb => IO(cb(Right(42))).as(Left(None))).map(_ + 2) must completeAs(
+            44)
       }
 
       // format: off
@@ -515,7 +517,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
         var cb: Either[Throwable, Int] => Unit = null
 
-        val asyncPoll = IO.asyncPoll[Int] { cb0 => IO { cb = cb0} *> IO.pure(Left(None)) }
+        val asyncPoll = IO.asyncPoll[Int] { cb0 => IO { cb = cb0 } *> IO.pure(Left(None)) }
 
         val test = for {
           fiber <- asyncPoll.start
@@ -562,7 +564,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         val outer = IO.asyncPoll[Int] { cb1 =>
           val inner = IO.asyncPoll[Int] { cb2 =>
             IO(cb1(Right(1))) *>
-              IO.executionContext.flatMap(ec => IO(ec.execute(() => cb2(Right(2))))).as(Left(None))
+              IO.executionContext
+                .flatMap(ec => IO(ec.execute(() => cb2(Right(2)))))
+                .as(Left(None))
           }
 
           inner.flatMap(i => IO { innerR = i }).as(Left(None))

@@ -1068,11 +1068,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * Suspends an asynchronous side effect with optional immediate result in `IO`.
    *
    * The given function will be invoked during evaluation of the `IO` to:
-   *  - check if result is already available;
-   *  - "schedule" the asynchronous callback, where the callback of type
-   *    `Either[Throwable, A] => Unit` is the parameter passed to that function.
-   *    Only the ''first'' invocation of the callback will be effective!
-   *    All subsequent invocations will be silently dropped.
+   *   - check if result is already available;
+   *   - "schedule" the asynchronous callback, where the callback of type `Either[Throwable, A]
+   *     \=> Unit` is the parameter passed to that function. Only the ''first'' invocation of
+   *     the callback will be effective! All subsequent invocations will be silently dropped.
    *
    * The process of registering the callback itself is suspended in `IO` (the outer `IO` of
    * `IO[Either[Option[IO[Unit]], A]]`).
@@ -1671,7 +1670,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   private[this] val _asyncForIO: kernel.Async[IO] = new kernel.Async[IO]
     with StackSafeMonad[IO] {
 
-    override def asyncPoll[A](k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[Unit]], A]]): IO[A] =
+    override def asyncPoll[A](
+        k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[Unit]], A]]): IO[A] =
       IO.asyncPoll(k)
 
     override def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =

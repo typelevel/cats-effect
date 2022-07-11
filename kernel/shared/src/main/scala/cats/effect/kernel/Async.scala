@@ -69,11 +69,12 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    *
    * `k` returns an `Either[Option[F[Unit]], A]` where:
    *   - right side `A` signals immediately available result;
-   *   - left side `Option[F[Unit]]` is an optional finalizer to be run in the event that
-   *     the fiber running `async(k)` is canceled.
+   *   - left side `Option[F[Unit]]` is an optional finalizer to be run in the event that the
+   *     fiber running `async(k)` is canceled.
    *
-   * In case where `k` returns left side the  execution of `async(k)` is semantically blocked
-   * until the  callback is invoked. In case of a right side callback invocation is silently dropped.
+   * In case where `k` returns left side the execution of `async(k)` is semantically blocked
+   * until the callback is invoked. In case of a right side callback invocation is silently
+   * dropped.
    */
   def asyncPoll[A](k: (Either[Throwable, A] => Unit) => F[Either[Option[F[Unit]], A]]): F[A] = {
     val body = new Cont[F, A, A] {
