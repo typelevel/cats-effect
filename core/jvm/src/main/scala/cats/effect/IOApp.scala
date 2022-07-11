@@ -365,11 +365,17 @@ trait IOApp {
     val cpuStarvationChecker: IO[Unit] =
       IO.monotonic
         .flatMap { now =>
-          IO.sleep(1.second) >> IO.monotonic.map(_ - now).flatMap { delta =>
-            Console[IO].errorln("[WARNING] you're probably starving").whenA(delta > 100.millis)
-          }
+          IO.sleep(runtimeConfig.cpuStarvationCheckInterval) >> IO
+            .monotonic
+            .map(_ - now)
+            .flatMap { delta =>
+              Console[IO]
+                .errorln("[WARNING] you're probably starving")
+                .whenA(delta > runtimeConfig.cpuStarvationCheckThreshold)
+            }
         }
         .foreverM
+        .delayBy(runtimeConfig.cpuStarvationCheckInitialDelay)
 
     val fiber =
       cpuStarvationChecker

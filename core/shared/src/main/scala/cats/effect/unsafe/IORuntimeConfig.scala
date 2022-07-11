@@ -24,7 +24,10 @@ final case class IORuntimeConfig private (
     val autoYieldThreshold: Int,
     val enhancedExceptions: Boolean,
     val traceBufferSize: Int,
-    val shutdownHookTimeout: Duration) {
+    val shutdownHookTimeout: Duration,
+    val cpuStarvationCheckInterval: FiniteDuration,
+    val cpuStarvationCheckInitialDelay: FiniteDuration,
+    val cpuStarvationCheckThreshold: FiniteDuration) {
 
   private[unsafe] def this(cancelationCheckThreshold: Int, autoYieldThreshold: Int) =
     this(
@@ -32,7 +35,11 @@ final case class IORuntimeConfig private (
       autoYieldThreshold,
       IORuntimeConfig.DefaultEnhancedExceptions,
       IORuntimeConfig.DefaultTraceBufferSize,
-      IORuntimeConfig.DefaultShutdownHookTimeout)
+      IORuntimeConfig.DefaultShutdownHookTimeout,
+      IORuntimeConfig.DefaultCpuStarvationCheckInterval,
+      IORuntimeConfig.DefaultCpuStarvationCheckInitialDelay,
+      IORuntimeConfig.DefaultCpuStarvationCheckThreshold
+    )
 
   def copy(
       cancelationCheckThreshold: Int = this.cancelationCheckThreshold,
@@ -45,7 +52,11 @@ final case class IORuntimeConfig private (
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
-      shutdownHookTimeout)
+      shutdownHookTimeout,
+      cpuStarvationCheckInterval,
+      cpuStarvationCheckInitialDelay,
+      cpuStarvationCheckThreshold
+    )
 
   // shims for binary compat
   private[unsafe] def this(
@@ -58,7 +69,11 @@ final case class IORuntimeConfig private (
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
-      IORuntimeConfig.DefaultShutdownHookTimeout)
+      IORuntimeConfig.DefaultShutdownHookTimeout,
+      IORuntimeConfig.DefaultCpuStarvationCheckInterval,
+      IORuntimeConfig.DefaultCpuStarvationCheckInitialDelay,
+      IORuntimeConfig.DefaultCpuStarvationCheckThreshold
+    )
 
   private[unsafe] def copy(
       cancelationCheckThreshold: Int,
@@ -70,7 +85,11 @@ final case class IORuntimeConfig private (
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
-      shutdownHookTimeout)
+      shutdownHookTimeout,
+      cpuStarvationCheckInterval,
+      cpuStarvationCheckInitialDelay,
+      cpuStarvationCheckThreshold
+    )
 
   private[unsafe] def copy(
       cancelationCheckThreshold: Int,
@@ -80,7 +99,11 @@ final case class IORuntimeConfig private (
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
-      shutdownHookTimeout)
+      shutdownHookTimeout,
+      cpuStarvationCheckInterval,
+      cpuStarvationCheckInitialDelay,
+      cpuStarvationCheckThreshold
+    )
 
   private[effect] val traceBufferLogSize: Int =
     Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt
@@ -92,6 +115,9 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
   private[unsafe] def DefaultEnhancedExceptions = true
   private[unsafe] def DefaultTraceBufferSize = 16
   private[unsafe] def DefaultShutdownHookTimeout = Duration.Inf
+  private[unsafe] def DefaultCpuStarvationCheckInterval = 1.second
+  private[unsafe] def DefaultCpuStarvationCheckInitialDelay = 10.millis
+  private[unsafe] def DefaultCpuStarvationCheckThreshold = 100.millis
 
   def apply(): IORuntimeConfig = Default
 
@@ -101,7 +127,11 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       autoYieldThreshold,
       DefaultEnhancedExceptions,
       DefaultTraceBufferSize,
-      DefaultShutdownHookTimeout)
+      DefaultShutdownHookTimeout,
+      DefaultCpuStarvationCheckInterval,
+      DefaultCpuStarvationCheckInitialDelay,
+      DefaultCpuStarvationCheckThreshold
+    )
 
   def apply(
       cancelationCheckThreshold: Int,
@@ -127,7 +157,10 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
         autoYieldThreshold,
         enhancedExceptions,
         1 << Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt,
-        shutdownHookTimeout)
+        shutdownHookTimeout,
+        DefaultCpuStarvationCheckInterval,
+        DefaultCpuStarvationCheckInitialDelay,
+        DefaultCpuStarvationCheckThreshold)
     else
       throw new AssertionError(
         s"Auto yield threshold $autoYieldThreshold must be a multiple of cancelation check threshold $cancelationCheckThreshold")
