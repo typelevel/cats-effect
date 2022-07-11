@@ -17,7 +17,7 @@
 package cats.effect
 package unsafe
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Try
 
 private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntimeConfig.type =>
@@ -44,11 +44,33 @@ private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntim
         .map(Duration(_))
         .getOrElse(DefaultShutdownHookTimeout)
 
+    val cpuStarvationCheckInterval =
+      Try(System.getProperty("cats.effect.cpu.starvation.check.interval"))
+        .map(Duration(_))
+        .flatMap { d => Try(d.asInstanceOf[FiniteDuration]) }
+        .getOrElse(DefaultCpuStarvationCheckInterval)
+
+    val cpuStarvationCheckInitialDelay =
+      Try(System.getProperty("cats.effect.cpu.starvation.check.initial.delay"))
+        .map(Duration(_))
+        .flatMap { d => Try(d.asInstanceOf[FiniteDuration]) }
+        .getOrElse(DefaultCpuStarvationCheckInitialDelay)
+
+    val cpuStarvationCheckThreshold =
+      Try(System.getProperty("cats.effect.cpu.starvation.check.threshold"))
+        .map(Duration(_))
+        .flatMap { d => Try(d.asInstanceOf[FiniteDuration]) }
+        .getOrElse(DefaultCpuStarvationCheckThreshold)
+
     apply(
       cancelationCheckThreshold,
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
-      shutdownHookTimeout)
+      shutdownHookTimeout,
+      cpuStarvationCheckInterval,
+      cpuStarvationCheckInitialDelay,
+      cpuStarvationCheckThreshold
+    )
   }
 }

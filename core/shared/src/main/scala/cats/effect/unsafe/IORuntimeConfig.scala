@@ -150,7 +150,28 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       autoYieldThreshold: Int,
       enhancedExceptions: Boolean,
       traceBufferSize: Int,
-      shutdownHookTimeout: Duration): IORuntimeConfig = {
+      shutdownHookTimeout: Duration): IORuntimeConfig =
+    apply(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize,
+      shutdownHookTimeout,
+      DefaultCpuStarvationCheckInterval,
+      DefaultCpuStarvationCheckInitialDelay,
+      DefaultCpuStarvationCheckThreshold
+    )
+
+  def apply(
+      cancelationCheckThreshold: Int,
+      autoYieldThreshold: Int,
+      enhancedExceptions: Boolean,
+      traceBufferSize: Int,
+      shutdownHookTimeout: Duration,
+      cpuStarvationCheckInterval: FiniteDuration,
+      cpuStarvationCheckInitialDelay: FiniteDuration,
+      cpuStarvationCheckThreshold: FiniteDuration
+  ): IORuntimeConfig = {
     if (autoYieldThreshold % cancelationCheckThreshold == 0)
       new IORuntimeConfig(
         cancelationCheckThreshold,
@@ -158,9 +179,9 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
         enhancedExceptions,
         1 << Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt,
         shutdownHookTimeout,
-        DefaultCpuStarvationCheckInterval,
-        DefaultCpuStarvationCheckInitialDelay,
-        DefaultCpuStarvationCheckThreshold)
+        cpuStarvationCheckInterval,
+        cpuStarvationCheckInitialDelay,
+        cpuStarvationCheckThreshold)
     else
       throw new AssertionError(
         s"Auto yield threshold $autoYieldThreshold must be a multiple of cancelation check threshold $cancelationCheckThreshold")
