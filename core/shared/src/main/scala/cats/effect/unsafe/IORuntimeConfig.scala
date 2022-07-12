@@ -46,7 +46,11 @@ final case class IORuntimeConfig private (
       autoYieldThreshold: Int = this.autoYieldThreshold,
       enhancedExceptions: Boolean = this.enhancedExceptions,
       traceBufferSize: Int = this.traceBufferSize,
-      shutdownHookTimeout: Duration = this.shutdownHookTimeout): IORuntimeConfig =
+      shutdownHookTimeout: Duration = this.shutdownHookTimeout,
+      cpuStarvationCheckInterval: FiniteDuration = this.cpuStarvationCheckInterval,
+      cpuStarvationCheckInitialDelay: FiniteDuration = this.cpuStarvationCheckInitialDelay,
+      cpuStarvationCheckThreshold: FiniteDuration = this.cpuStarvationCheckThreshold
+  ): IORuntimeConfig =
     new IORuntimeConfig(
       cancelationCheckThreshold,
       autoYieldThreshold,
