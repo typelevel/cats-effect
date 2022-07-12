@@ -33,7 +33,7 @@ ThisBuild / scalaVersion := "2.13.8"
 
 lazy val root = (project in file(".")).enablePlugins(NativeImagePlugin).settings(
   name                := "cats-effect-3-hello-world",
-  libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.13",
+  libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.14",
   Compile / mainClass := Some("com.example.Main"),
   nativeImageOptions  += "--no-fallback",
   nativeImageVersion  := "22.1.0" // It should be at least version 21.0.0
