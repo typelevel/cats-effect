@@ -26,7 +26,7 @@ final case class IORuntimeConfig private (
     val traceBufferSize: Int,
     val shutdownHookTimeout: Duration,
     val cpuStarvationCheckInterval: FiniteDuration,
-    val cpuStarvationCheckInitialDelay: FiniteDuration,
+    val cpuStarvationCheckInitialDelay: Duration,
     val cpuStarvationCheckThreshold: FiniteDuration) {
 
   private[unsafe] def this(cancelationCheckThreshold: Int, autoYieldThreshold: Int) =
@@ -48,7 +48,7 @@ final case class IORuntimeConfig private (
       traceBufferSize: Int = this.traceBufferSize,
       shutdownHookTimeout: Duration = this.shutdownHookTimeout,
       cpuStarvationCheckInterval: FiniteDuration = this.cpuStarvationCheckInterval,
-      cpuStarvationCheckInitialDelay: FiniteDuration = this.cpuStarvationCheckInitialDelay,
+      cpuStarvationCheckInitialDelay: Duration = this.cpuStarvationCheckInitialDelay,
       cpuStarvationCheckThreshold: FiniteDuration = this.cpuStarvationCheckThreshold
   ): IORuntimeConfig =
     new IORuntimeConfig(
