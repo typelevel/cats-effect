@@ -1323,7 +1323,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *   then finally emit a tick
    */
   def sleep(delay: Duration): IO[Unit] =
-    handleDuration[IO[Unit]](delay, IO.never)(delay => Sleep(delay))
+    handleDuration[IO[Unit]](delay, IO.never)(Sleep(_))
 
   def sleep(delay: FiniteDuration): IO[Unit] =
     sleep(delay: Duration)
