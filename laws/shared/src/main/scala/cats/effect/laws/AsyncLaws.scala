@@ -27,6 +27,21 @@ trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
   implicit val F: Async[F]
 
   // format: off
+  def asyncPollImmediateIsPure[A](a: A) =
+    (F.asyncPoll[A](_ => F.pure(Right(a))) <* F.unit) <-> (F.pure(a))
+  // format: on
+
+  // format: off
+  def asyncPollSuspendedRightIsAsyncRight[A](a: A, fu: F[Unit]) =
+    (F.asyncPoll[A](k => F.delay(k(Right(a))) >> fu.as(Left(None))) <* F.unit) <-> (F.async[A](k => F.delay(k(Right(a))) >> fu.as(None)) <* F.unit)
+  // format: on
+
+  // format: off
+  def asyncPollSuspendedLeftIsAsyncLeft[A](e: Throwable, fu: F[Unit]) =
+    (F.asyncPoll[A](k => F.delay(k(Left(e))) >> fu.as(Left(None))) <* F.unit) <-> (F.async[A](k => F.delay(k(Left(e))) >> fu.as(None)) <* F.unit)
+  // format: on
+
+  // format: off
   def asyncRightIsUncancelableSequencedPure[A](a: A, fu: F[Unit]) =
     (F.async[A](k => F.delay(k(Right(a))) >> fu.as(None)) <* F.unit) <-> (F.uncancelable(_ => fu) >> F.pure(a))
   // format: on
