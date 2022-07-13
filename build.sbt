@@ -143,6 +143,11 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
     List("npm install"),
     name = Some("Install jsdom and source-map-support"),
     cond = Some("matrix.ci == 'ciJS'")
+  ),
+  WorkflowStep.Run(
+    List("gu install native-image"),
+    name = Some("Install GraalVM Native Image"),
+    cond = Some(s"matrix.java == '${GraalVM.render}'")
   )
 )
 
@@ -161,6 +166,12 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("example/test-js.sh ${{ matrix.scala }}"),
     name = Some("Test Example JavaScript App Using Node"),
     cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")
+  ),
+  WorkflowStep.Sbt(
+    List("exampleJVM/nativeImage"),
+    name = Some("Test GraalVM Native Image"),
+    cond = Some(
+      s"matrix.scala == '$Scala213' && matrix.java == '${GraalVM.render}' && matrix.os == '$PrimaryOS'")
   ),
   WorkflowStep.Run(
     List("cd scalafix", "sbt test"),
@@ -711,6 +722,11 @@ lazy val example = crossProject(JSPlatform, JVMPlatform)
   .dependsOn(core)
   .enablePlugins(NoPublishPlugin)
   .settings(name := "cats-effect-example")
+  .jvmConfigure(_.enablePlugins(NativeImagePlugin))
+  .jvmSettings(
+    nativeImageOptions += "-H:+ReportExceptionStackTraces",
+    nativeImageInstalled := true
+  )
   .jsSettings(scalaJSUseMainModuleInitializer := true)
 
 /**
