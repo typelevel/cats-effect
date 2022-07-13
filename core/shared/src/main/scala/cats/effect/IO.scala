@@ -641,7 +641,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @param duration
    *   The duration to wait before executing the source
    */
-  def delayBy(duration: FiniteDuration): IO[A] =
+  def delayBy(duration: Duration): IO[A] =
+    IO.sleep(duration) *> this
+
+  private[effect] def delayBy(duration: FiniteDuration): IO[A] =
     IO.sleep(duration) *> this
 
   /**
@@ -651,7 +654,13 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @param duration
    *   The duration to wait after executing the source
    */
-  def andWait(duration: FiniteDuration): IO[A] =
+  def andWait(duration: Duration): IO[A] =
+    duration match {
+      case t: FiniteDuration => andWait(t)
+      case _ => this <* IO.never
+    }
+
+  private[effect] def andWait(duration: FiniteDuration): IO[A] =
     this <* IO.sleep(duration)
 
   /**
@@ -1315,7 +1324,13 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *   a new asynchronous and cancelable `IO` that will sleep for the specified duration and
    *   then finally emit a tick
    */
-  def sleep(delay: FiniteDuration): IO[Unit] =
+  def sleep(delay: Duration): IO[Unit] =
+    delay match {
+      case t: FiniteDuration => sleep(t)
+      case _ => never
+    }
+
+  private[effect] def sleep(delay: FiniteDuration): IO[Unit] =
     Sleep(delay)
 
   def trace: IO[Trace] =
