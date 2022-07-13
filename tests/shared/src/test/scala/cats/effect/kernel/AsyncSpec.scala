@@ -21,6 +21,7 @@ import cats.{Eq, Order, StackSafeMonad}
 import cats.arrow.FunctionK
 import cats.effect.laws.AsyncTests
 import cats.laws.discipline.arbitrary._
+
 import org.scalacheck.{Arbitrary, Cogen, Prop}
 import org.scalacheck.Arbitrary.arbitrary
 import org.typelevel.discipline.specs2.mutable.Discipline
