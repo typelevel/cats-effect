@@ -969,9 +969,9 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
   def sleep[F[_]](time: Duration)(implicit F: GenTemporal[F, _]): Resource[F, Unit] =
     Resource.eval(F.sleep(time))
 
-  private[kernel] def sleep[F[_]](time: FiniteDuration)(
-      implicit F: GenTemporal[F, _]): Resource[F, Unit] =
-    sleep(time: Duration)
+  @deprecated("Use overload with Duration", "3.4.0")
+  def sleep[F[_]](time: FiniteDuration, F: GenTemporal[F, _]): Resource[F, Unit] =
+    sleep(time: Duration)(F)
 
   def cont[F[_], K, R](body: Cont[Resource[F, *], K, R])(implicit F: Async[F]): Resource[F, R] =
     Resource.applyFull { poll =>

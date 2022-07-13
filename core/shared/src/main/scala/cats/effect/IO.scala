@@ -1325,7 +1325,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def sleep(delay: Duration): IO[Unit] =
     handleDuration[IO[Unit]](delay, IO.never)(delay => Sleep(delay))
 
-  private[effect] def sleep(delay: FiniteDuration): IO[Unit] =
+  def sleep(delay: FiniteDuration): IO[Unit] =
     sleep(delay: Duration)
 
   def trace: IO[Trace] =
