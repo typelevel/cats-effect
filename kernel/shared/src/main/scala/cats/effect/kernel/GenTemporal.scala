@@ -287,14 +287,14 @@ object GenTemporal {
         instantiateGenTemporalForWriterT(temporal)
     }
 
-  private[effect] def handleDuration[A](duration: Duration, ifInfinite: => A)(
+  private[effect] def handleDuration[A](duration: Duration, ifInf: => A)(
       ifFinite: FiniteDuration => A): A =
     duration match {
       case fd: FiniteDuration => ifFinite(fd)
-      case _: Duration.Infinite => ifInfinite
+      case Duration.Inf => ifInf
       case d =>
         throw new IllegalArgumentException(
-          s"Duration must be either a `FiniteDuration` or `Duration.Infinite`, but got: $d")
+          s"Duration must be either a `FiniteDuration` or `Duration.Inf`, but got: $d")
     }
 
   private[kernel] def instantiateGenTemporalForWriterT[F[_], L, E](F0: GenTemporal[F, E])(
