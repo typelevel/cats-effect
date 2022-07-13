@@ -79,7 +79,7 @@ addSbtPlugin(<span class="hljs-string">"org.scalameta"</span> % <span class="hlj
 
 <span class="hljs-keyword">lazy</span> <span class="hljs-keyword">val</span> root = (project in file(<span class="hljs-string">"."</span>)).enablePlugins(<span class="hljs-type">NativeImagePlugin</span>).settings(
   name                := <span class="hljs-string">"cats-effect-3-hello-world"</span>,
-  libraryDependencies += <span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect"</span> % <span class="hljs-string">"3.3.13"</span>,
+  libraryDependencies += <span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect"</span> % <span class="hljs-string">"3.3.14"</span>,
   <span class="hljs-type">Compile</span> / mainClass := <span class="hljs-type">Some</span>(<span class="hljs-string">"com.example.Main"</span>),
   nativeImageOptions  += <span class="hljs-string">"--no-fallback"</span>,
   nativeImageVersion  := <span class="hljs-string">"22.1.0"</span> <span class="hljs-comment">// It should be at least version 21.0.0</span>
