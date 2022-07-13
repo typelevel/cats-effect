@@ -37,7 +37,13 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * @param time
    *   The duration to semantically block for
    */
-  def sleep(time: FiniteDuration): F[Unit]
+  def sleep(time: Duration): F[Unit] =
+    time match {
+      case t: FiniteDuration => sleep(t)
+      case _ => never
+    }
+
+  protected def sleep(time: FiniteDuration): F[Unit]
 
   /**
    * Delay the execution of `fa` by a given duration.
@@ -48,7 +54,13 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * @param time
    *   The duration to wait before executing fa
    */
-  def delayBy[A](fa: F[A], time: FiniteDuration): F[A] =
+  def delayBy[A](fa: F[A], time: Duration): F[A] =
+    time match {
+      case t: FiniteDuration => delayBy(fa, t)
+      case _ => never
+    }
+
+  protected def delayBy[A](fa: F[A], time: FiniteDuration): F[A] =
     productR(sleep(time))(fa)
 
   /**
@@ -59,7 +71,13 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * @param time
    *   The duration to wait after executing fa
    */
-  def andWait[A](fa: F[A], time: FiniteDuration): F[A] =
+  def andWait[A](fa: F[A], time: Duration): F[A] =
+    time match {
+      case t: FiniteDuration => delayBy(fa, t)
+      case _ => productL(fa)(never)
+    }
+
+  protected def andWait[A](fa: F[A], time: FiniteDuration): F[A] =
     productL(fa)(sleep(time))
 
   /**
