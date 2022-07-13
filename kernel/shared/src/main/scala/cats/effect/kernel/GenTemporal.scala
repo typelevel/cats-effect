@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 import cats.{Applicative, MonadError, Monoid, Semigroup}
 import cats.data._
-import cats.effect.kernel.GenTemporal.handleFinite
+import cats.effect.kernel.GenTemporal.handleDuration
 import cats.syntax.all._
 
 import scala.concurrent.TimeoutException
@@ -37,7 +37,10 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * @param time
    *   The duration to semantically block for
    */
-  def sleep(time: FiniteDuration): F[Unit]
+  def sleep(time: Duration): F[Unit] =
+    handleDuration[F[Unit]](time, never)(sleep(_))
+
+  protected def sleep(time: FiniteDuration): F[Unit]
 
   /**
    * Delay the execution of `fa` by a given duration.
@@ -48,7 +51,10 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * @param time
    *   The duration to wait before executing fa
    */
-  def delayBy[A](fa: F[A], time: FiniteDuration): F[A] =
+  def delayBy[A](fa: F[A], time: Duration): F[A] =
+    handleDuration[F[A]](time, never)(delayBy(fa, _))
+
+  protected def delayBy[A](fa: F[A], time: FiniteDuration): F[A] =
     productR(sleep(time))(fa)
 
   /**
@@ -59,7 +65,10 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * @param time
    *   The duration to wait after executing fa
    */
-  def andWait[A](fa: F[A], time: FiniteDuration): F[A] =
+  def andWait[A](fa: F[A], time: Duration): F[A] =
+    handleDuration(time, productL(fa)(never))(andWait(fa, _))
+
+  protected def andWait[A](fa: F[A], time: FiniteDuration): F[A] =
     productL(fa)(sleep(time))
 
   /**
@@ -79,7 +88,7 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    *   The task evaluated after the duration has passed and the source canceled
    */
   def timeoutTo[A](fa: F[A], duration: Duration, fallback: F[A]): F[A] =
-    handleFinite(fa, duration)(finiteDuration => timeoutTo(fa, finiteDuration, fallback))
+    handleDuration(duration, fa)(timeoutTo(fa, _, fallback))
 
   protected def timeoutTo[A](fa: F[A], duration: FiniteDuration, fallback: F[A]): F[A] =
     flatMap(race(fa, sleep(duration))) {
@@ -101,7 +110,7 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    *   specified time has passed without the source completing, a `TimeoutException` is raised
    */
   def timeout[A](fa: F[A], duration: Duration)(implicit ev: TimeoutException <:< E): F[A] = {
-    handleFinite(fa, duration)(finiteDuration => timeout(fa, finiteDuration))
+    handleDuration(duration, fa)(timeout(fa, _))
   }
 
   protected def timeout[A](fa: F[A], duration: FiniteDuration)(
@@ -135,7 +144,7 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    */
   def timeoutAndForget[A](fa: F[A], duration: Duration)(
       implicit ev: TimeoutException <:< E): F[A] = {
-    handleFinite(fa, duration)(finiteDuration => timeoutAndForget(fa, finiteDuration))
+    handleDuration(duration, fa)(timeoutAndForget(fa, _))
   }
 
   protected def timeoutAndForget[A](fa: F[A], duration: FiniteDuration)(
@@ -278,13 +287,15 @@ object GenTemporal {
         instantiateGenTemporalForWriterT(temporal)
     }
 
-  private[effect] def handleFinite[F[_], A](fa: F[A], duration: Duration)(
-      f: FiniteDuration => F[A]): F[A] = {
+  private[effect] def handleDuration[A](duration: Duration, ifInfinite: => A)(
+      ifFinite: FiniteDuration => A): A =
     duration match {
-      case _: Duration.Infinite => fa
-      case finite: FiniteDuration => f(finite)
+      case fd: FiniteDuration => ifFinite(fd)
+      case _: Duration.Infinite => ifInfinite
+      case d =>
+        throw new IllegalArgumentException(
+          s"Duration must be either a `FiniteDuration` or `Duration.Infinite`, but got: $d")
     }
-  }
 
   private[kernel] def instantiateGenTemporalForWriterT[F[_], L, E](F0: GenTemporal[F, E])(
       implicit L0: Monoid[L]): WriterTTemporal[F, L, E] =

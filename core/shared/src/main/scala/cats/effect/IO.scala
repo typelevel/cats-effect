@@ -36,7 +36,7 @@ import cats.{
 }
 import cats.data.Ior
 import cats.effect.instances.spawn
-import cats.effect.kernel.GenTemporal.handleFinite
+import cats.effect.kernel.GenTemporal.handleDuration
 import cats.effect.std.{Console, Env, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.syntax.all._
@@ -641,8 +641,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @param duration
    *   The duration to wait before executing the source
    */
-  def delayBy(duration: FiniteDuration): IO[A] =
+  def delayBy(duration: Duration): IO[A] =
     IO.sleep(duration) *> this
+
+  private[effect] def delayBy(duration: FiniteDuration): IO[A] =
+    delayBy(duration: Duration)
 
   /**
    * Returns an IO that will wait for the given duration after the execution of the source
@@ -651,8 +654,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @param duration
    *   The duration to wait after executing the source
    */
-  def andWait(duration: FiniteDuration): IO[A] =
+  def andWait(duration: Duration): IO[A] =
     this <* IO.sleep(duration)
+
+  private[effect] def andWait(duration: FiniteDuration): IO[A] =
+    andWait(duration: Duration)
 
   /**
    * Returns an IO that either completes with the result of the source within the specified time
@@ -668,10 +674,14 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *   specified time has passed without the source completing, a `TimeoutException` is raised
    */
   def timeout[A2 >: A](duration: Duration): IO[A2] =
-    handleFinite(this, duration)(finiteDuration => timeout(finiteDuration))
+    handleDuration(duration, this) { finiteDuration =>
+      timeoutTo(
+        finiteDuration,
+        IO.defer(IO.raiseError(new TimeoutException(finiteDuration.toString))))
+    }
 
   private[effect] def timeout(duration: FiniteDuration): IO[A] =
-    timeoutTo(duration, IO.defer(IO.raiseError(new TimeoutException(duration.toString))))
+    timeout(duration: Duration)
 
   /**
    * Returns an IO that either completes with the result of the source within the specified time
@@ -690,15 +700,16 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *   is the task evaluated after the duration has passed and the source canceled
    */
   def timeoutTo[A2 >: A](duration: Duration, fallback: IO[A2]): IO[A2] = {
-    handleFinite[IO, A2](this, duration)(finiteDuration => timeoutTo(finiteDuration, fallback))
-  }
-
-  private[effect] def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2]): IO[A2] = {
-    race(IO.sleep(duration)).flatMap {
-      case Right(_) => fallback
-      case Left(value) => IO.pure(value)
+    handleDuration[IO[A2]](duration, this) { finiteDuration =>
+      race(IO.sleep(finiteDuration)).flatMap {
+        case Right(_) => fallback
+        case Left(value) => IO.pure(value)
+      }
     }
   }
+
+  private[effect] def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2]): IO[A2] =
+    timeoutTo(duration: Duration, fallback)
 
   /**
    * Returns an IO that either completes with the result of the source within the specified time
@@ -718,15 +729,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @see
    *   [[timeout]] for a variant which respects backpressure and does not leak fibers
    */
-  private[effect] def timeoutAndForget(duration: FiniteDuration): IO[A] =
-    Temporal[IO].timeoutAndForget(this, duration)
-
-  /**
-   * @see
-   *   [[timeoutAndForget]]
-   */
   def timeoutAndForget(duration: Duration): IO[A] =
     Temporal[IO].timeoutAndForget(this, duration)
+
+  private[effect] def timeoutAndForget(duration: FiniteDuration): IO[A] =
+    timeoutAndForget(duration: Duration)
 
   def timed: IO[(FiniteDuration, A)] =
     Clock[IO].timed(this)
@@ -1315,8 +1322,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *   a new asynchronous and cancelable `IO` that will sleep for the specified duration and
    *   then finally emit a tick
    */
-  def sleep(delay: FiniteDuration): IO[Unit] =
-    Sleep(delay)
+  def sleep(delay: Duration): IO[Unit] =
+    handleDuration[IO[Unit]](delay, IO.never)(delay => Sleep(delay))
+
+  private[effect] def sleep(delay: FiniteDuration): IO[Unit] =
+    sleep(delay: Duration)
 
   def trace: IO[Trace] =
     IOTrace

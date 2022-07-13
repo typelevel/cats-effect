@@ -26,7 +26,7 @@ import cats.syntax.all._
 import scala.annotation.tailrec
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /**
  * `Resource` is a data structure which encodes the idea of executing an action which has an
@@ -966,8 +966,12 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
   def suspend[F[_], A](hint: Sync.Type)(thunk: => A)(implicit F: Sync[F]): Resource[F, A] =
     Resource.eval(F.suspend(hint)(thunk))
 
-  def sleep[F[_]](time: FiniteDuration)(implicit F: GenTemporal[F, _]): Resource[F, Unit] =
+  def sleep[F[_]](time: Duration)(implicit F: GenTemporal[F, _]): Resource[F, Unit] =
     Resource.eval(F.sleep(time))
+
+  private[kernel] def sleep[F[_]](time: FiniteDuration)(
+      implicit F: GenTemporal[F, _]): Resource[F, Unit] =
+    sleep(time: Duration)
 
   def cont[F[_], K, R](body: Cont[Resource[F, *], K, R])(implicit F: Async[F]): Resource[F, R] =
     Resource.applyFull { poll =>
