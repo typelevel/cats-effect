@@ -1040,7 +1040,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    * Alias for [[IO.delay]].
    */
-  def apply[A](thunk: => A): IO[A] = delay(thunk)
+  inline def apply[A](inline thunk: => A): IO[A] = delay(thunk)
 
   /**
    * Suspends a synchronous side effect in `IO`. Use [[IO.delay]] if your side effect is not
@@ -1049,9 +1049,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *
    * Any exceptions thrown by the effect will be caught and sequenced into the `IO`.
    */
-  def delay[A](thunk: => A): IO[A] = {
-    val fn = Thunk.asFunction0(thunk)
-    Delay(fn, Tracing.calculateTracingEvent(fn))
+  inline def delay[A](inline _thunk: => A): IO[A] = {
+    new Delay[A] {
+      def thunk() = _thunk
+    }
   }
 
   /**
@@ -1800,9 +1801,20 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 1
   }
 
-  private[effect] final case class Delay[+A](thunk: () => A, event: TracingEvent)
-      extends IO[A] {
+  private[effect] sealed abstract class Delay[+A](val event: TracingEvent) extends IO[A] {
+    def this() = this(Tracing.calculateTracingEvent(this))
+
     def tag = 2
+
+    def thunk(): A
+  }
+
+  private[effect] object Delay {
+    def apply[A](_thunk: () => A, event: TracingEvent): Delay[A] = new Delay[A](event) {
+      def thunk() = _thunk()
+    }
+
+    def unapply[A](delay: Delay[A]): Some[Tuple1[TracingEvent]] = Some(Tuple1(delay.event))
   }
 
   private[effect] case object RealTime extends IO[FiniteDuration] {
@@ -1929,7 +1941,7 @@ private object SyncStep {
       io match {
         case IO.Pure(a) => G.pure(Right((a, limit)))
         case IO.Error(t) => G.raiseError(t)
-        case IO.Delay(thunk, _) => G.delay(thunk()).map(a => Right((a, limit)))
+        case delay @ IO.Delay(_) => G.delay(delay.thunk()).map(a => Right((a, limit)))
         case IO.RealTime => G.realTime.map(a => Right((a, limit)))
         case IO.Monotonic => G.monotonic.map(a => Right((a, limit)))
 
