@@ -1516,6 +1516,31 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           io must completeAs(())
           i must beEqualTo(1)
       }
+
+      "handle uncancelable" in {
+        val sio = IO.unit.uncancelable.syncStep(1024)
+        sio.map(_.bimap(_ => (), _ => ())) must completeAsSync(Right(()))
+      }
+
+      "handle onCancel" in {
+        val sio = IO.unit.onCancel(IO.unit).syncStep(1024)
+        sio.map(_.bimap(_ => (), _ => ())) must completeAsSync(Right(()))
+      }
+
+      "synchronously allocate a vanilla resource" in {
+        val sio = Resource.make(IO.unit)(_ => IO.unit).allocated.map(_._1).syncStep(1024)
+        sio.map(_.bimap(_ => (), _ => ())) must completeAsSync(Right(()))
+      }
+
+      "synchronously allocate a evalMapped resource" in {
+        val sio = Resource
+          .make(IO.unit)(_ => IO.unit)
+          .evalMap(_ => IO.unit)
+          .allocated
+          .map(_._1)
+          .syncStep(1024)
+        sio.map(_.bimap(_ => (), _ => ())) must completeAsSync(Right(()))
+      }
     }
 
     "fiber repeated yielding test" in real {

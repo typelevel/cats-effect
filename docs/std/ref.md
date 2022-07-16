@@ -18,7 +18,12 @@ Provides safe concurrent access and modification of its content, but no function
 
 For this reason, a `Ref` is always initialised to a value.
 
-The default implementation is nonblocking and lightweight, consisting essentially of a purely functional wrapper over an `AtomicReference`.
+The default implementation is nonblocking and lightweight, consisting
+essentially of a purely functional wrapper over an `AtomicReference`.
+Consequently it _must not_ be used to store mutable data as
+`AtomicReference#compareAndSet` and friends are not threadsafe and are dependent
+upon object reference equality.
+
 
 ### Concurrent Counter
 
