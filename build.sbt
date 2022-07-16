@@ -143,6 +143,11 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
     List("npm install"),
     name = Some("Install jsdom and source-map-support"),
     cond = Some("matrix.ci == 'ciJS'")
+  ),
+  WorkflowStep.Run(
+    List("gu install native-image"),
+    name = Some("Install GraalVM Native Image"),
+    cond = Some(s"matrix.java == '${GraalVM.render}'")
   )
 )
 
@@ -161,6 +166,12 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("example/test-js.sh ${{ matrix.scala }}"),
     name = Some("Test Example JavaScript App Using Node"),
     cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")
+  ),
+  WorkflowStep.Sbt(
+    List("graalVMExample/nativeImage", "graalVMExample/nativeImageRun"),
+    name = Some("Test GraalVM Native Image"),
+    cond = Some(
+      s"matrix.scala == '$Scala213' && matrix.java == '${GraalVM.render}' && matrix.os == '$PrimaryOS'")
   ),
   WorkflowStep.Run(
     List("cd scalafix", "sbt test"),
@@ -267,7 +278,12 @@ val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
 
 val undocumentedRefs =
-  jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm, tests.jvm, tests.js)
+  jsProjects ++ Seq[ProjectReference](
+    benchmarks,
+    example.jvm,
+    graalVMExample,
+    tests.jvm,
+    tests.js)
 
 lazy val root = project
   .in(file("."))
@@ -290,6 +306,7 @@ lazy val rootJVM = project
     testsJVM,
     std.jvm,
     example.jvm,
+    graalVMExample,
     benchmarks)
   .enablePlugins(NoPublishPlugin)
 
@@ -717,6 +734,19 @@ lazy val example = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(NoPublishPlugin)
   .settings(name := "cats-effect-example")
   .jsSettings(scalaJSUseMainModuleInitializer := true)
+
+/**
+ * A trivial app to test GraalVM Native image with.
+ */
+lazy val graalVMExample = project
+  .in(file("graalvm-example"))
+  .dependsOn(core.jvm)
+  .enablePlugins(NoPublishPlugin, NativeImagePlugin)
+  .settings(
+    name := "cats-effect-graalvm-example",
+    nativeImageOptions += "-H:+ReportExceptionStackTraces",
+    nativeImageInstalled := true
+  )
 
 /**
  * JMH benchmarks for IO and other things.
