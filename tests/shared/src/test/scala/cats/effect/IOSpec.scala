@@ -1518,17 +1518,18 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       }
 
       "handle uncancelable" in {
-        val sio = IO.unit.uncancelable.syncStep(1024)
+        val sio = IO.unit.uncancelable.syncStep(Int.MaxValue)
         sio.map(_.bimap(_ => (), _ => ())) must completeAsSync(Right(()))
       }
 
       "handle onCancel" in {
-        val sio = IO.unit.onCancel(IO.unit).syncStep(1024)
+        val sio = IO.unit.onCancel(IO.unit).syncStep(Int.MaxValue)
         sio.map(_.bimap(_ => (), _ => ())) must completeAsSync(Right(()))
       }
 
       "synchronously allocate a vanilla resource" in {
-        val sio = Resource.make(IO.unit)(_ => IO.unit).allocated.map(_._1).syncStep(1024)
+        val sio =
+          Resource.make(IO.unit)(_ => IO.unit).allocated.map(_._1).syncStep(Int.MaxValue)
         sio.map(_.bimap(_ => (), _ => ())) must completeAsSync(Right(()))
       }
 
@@ -1538,7 +1539,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           .evalMap(_ => IO.unit)
           .allocated
           .map(_._1)
-          .syncStep(1024)
+          .syncStep(Int.MaxValue)
         sio.map(_.bimap(_ => (), _ => ())) must completeAsSync(Right(()))
       }
     }
