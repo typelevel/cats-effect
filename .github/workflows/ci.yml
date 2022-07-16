@@ -213,7 +213,7 @@ jobs:
       - name: Test GraalVM Native Image
         if: matrix.scala == '2.13.7' && matrix.java == 'graalvm@11' && matrix.os == 'ubuntu-latest'
         shell: bash
-        run: sbt '++${{ matrix.scala }}' exampleJVM/nativeImage
+        run: sbt '++${{ matrix.scala }}' graalVMExample/nativeImage graalVMExample/nativeImageRun
 
       - name: Scalafix tests
         if: matrix.scala == '2.13.7' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
