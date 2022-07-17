@@ -156,7 +156,18 @@ The above will result in a canceled evaluation, and `fa` will never be run, *pro
 
 Self-cancelation is somewhat similar to raising an error with `raiseError` in that it will short-circuit evaluation and begin "popping" back up the stack until it hits a handler. Just as `raiseError` can be observed using the `onError` method, `canceled` can be observed using `onCancel`.
 
-The primary differences between self-cancelation and `raiseError` are two-fold. First, `uncancelable` suppresses `canceled` *within its body* (unless `poll`ed!), turning it into something equivalent to just `().pure[F]`. Note however that cancelation will be observed as soon as `uncancelable` terminates ie `uncancelable` only suppresses the cancelation until the end of its body, not indefinitely.
+The primary differences between self-cancelation and `raiseError` are two-fold. First, `uncancelable` suppresses `canceled` within its body unless `poll`ed. For this reason, `canceled` has a return type of `F[Unit]` and not `F[Nothing]`:
+
+```scala
+IO.uncancelable { poll =>
+  val cancelation: IO[Unit] = IO.canceled
+  cancelation.flatMap { x =>
+    IO.println(s"This will print, meaning $x is not a Nothing")
+  }
+}
+```
+
+In this case, `canceled` is equivalent to just `().pure[F]`. Note however that cancelation will be observed as soon as `uncancelable` terminates, i.e. `uncancelable` only suppresses the cancelation until the end of its body, not indefinitely.
 
 ```scala mdoc
 import cats.effect.IO
