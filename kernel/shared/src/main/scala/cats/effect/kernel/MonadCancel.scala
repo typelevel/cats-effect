@@ -286,9 +286,12 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
   /**
    * An effect that requests self-cancelation on the current fiber.
    *
-   * In the following example, the fiber requests self-cancelation in a masked region, so
-   * cancelation is suppressed until the fiber is completely unmasked. `fa` will run but `fb`
-   * will not.
+   * `canceled` has a return type of `F[Unit]` instead of `F[Nothing]` due to execution
+   * continuing in a masked region. In the following example, the fiber requests
+   * self-cancelation in a masked region, so cancelation is suppressed until the fiber is
+   * completely unmasked. `fa` will run but `fb` will not. If `canceled` had a return type of
+   * `F[Nothing]`, then it would not be possible to continue execution to `fa` (there would be
+   * no `Nothing` value to pass to the `flatMap`).
    *
    * {{{
    *
