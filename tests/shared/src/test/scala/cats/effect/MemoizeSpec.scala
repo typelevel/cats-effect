@@ -17,30 +17,36 @@
 package cats
 package effect
 
+import cats.~>
+import cats.arrow.FunctionK
 import cats.data.{EitherT, Ior, IorT, OptionT, WriterT}
 import cats.syntax.all._
+import cats.effect.syntax.all._
 import org.scalacheck.Prop, Prop.forAll
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
+import scala.concurrent.TimeoutException
 import scala.util.Success
 
 class MemoizeSpec extends BaseSpec with Discipline {
 
   sequential
 
-  "Concurrent.memoize" >> {
+  def tests[F[_]: Concurrent: LiftIO](lowerK: F ~> IO) = {
+
+    val liftK = LiftIO.liftK
 
     "Concurrent.memoize does not evaluate the effect if the inner `F[A]` isn't bound" in ticked {
       implicit ticker =>
         val op = for {
-          ref <- Ref.of[IO, Int](0)
+          ref <- Ref.of[F, Int](0)
           action = ref.update(_ + 1)
-          _ <- Concurrent[IO].memoize(action)
+          _ <- Concurrent[F].memoize(action)
           v <- ref.get
         } yield v
 
-        val result = op.unsafeToFuture()
+        val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tick()
 
         result.value mustEqual Some(Success(0))
@@ -49,18 +55,18 @@ class MemoizeSpec extends BaseSpec with Discipline {
     "Concurrent.memoize evaluates effect once if inner `F[A]` is bound twice" in ticked {
       implicit ticker =>
         val op = for {
-          ref <- Ref.of[IO, Int](0)
+          ref <- Ref.of[F, Int](0)
           action = ref.modify { s =>
             val ns = s + 1
             ns -> ns
           }
-          memoized <- Concurrent[IO].memoize(action)
+          memoized <- Concurrent[F].memoize(action)
           x <- memoized
           y <- memoized
           v <- ref.get
         } yield (x, y, v)
 
-        val result = op.unsafeToFuture()
+        val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tick()
 
         result.value mustEqual Some(Success((1, 1, 1)))
@@ -69,42 +75,42 @@ class MemoizeSpec extends BaseSpec with Discipline {
     "Concurrent.memoize effect evaluates effect once if the inner `F[A]` is bound twice (race)" in ticked {
       implicit ticker =>
         val op = for {
-          ref <- Ref.of[IO, Int](0)
+          ref <- Ref.of[F, Int](0)
           action = ref.modify { s =>
             val ns = s + 1
             ns -> ns
           }
-          memoized <- Concurrent[IO].memoize(action)
+          memoized <- Concurrent[F].memoize(action)
           _ <- memoized.start
           x <- memoized
-          _ <- IO(ticker.ctx.tick())
+          _ <- liftK(IO(ticker.ctx.tick()))
           v <- ref.get
         } yield x -> v
 
-        val result = op.unsafeToFuture()
+        val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tick()
 
         result.value mustEqual Some(Success((1, 1)))
     }
 
     "Concurrent.memoize and then flatten is identity" in ticked { implicit ticker =>
-      forAll { (fa: IO[Int]) => Concurrent[IO].memoize(fa).flatten eqv fa }
+      forAll { (fa: IO[Int]) => lowerK(Concurrent[F].memoize(liftK(fa)).flatten) eqv fa }
     }
 
     "Memoized effects can be canceled when there are no other active subscribers (1)" in ticked {
       implicit ticker =>
         val op = for {
-          completed <- Ref[IO].of(false)
-          action = IO.sleep(200.millis) >> completed.set(true)
-          memoized <- Concurrent[IO].memoize(action)
+          completed <- Ref[F].of(false)
+          action = liftK(IO.sleep(200.millis)) >> completed.set(true)
+          memoized <- Concurrent[F].memoize(action)
           fiber <- memoized.start
-          _ <- IO.sleep(100.millis)
+          _ <- liftK(IO.sleep(100.millis))
           _ <- fiber.cancel
-          _ <- IO.sleep(300.millis)
+          _ <- liftK(IO.sleep(300.millis))
           res <- completed.get
         } yield res
 
-        val result = op.unsafeToFuture()
+        val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tickAll()
 
         result.value mustEqual Some(Success(false))
@@ -113,20 +119,20 @@ class MemoizeSpec extends BaseSpec with Discipline {
     "Memoized effects can be canceled when there are no other active subscribers (2)" in ticked {
       implicit ticker =>
         val op = for {
-          completed <- Ref[IO].of(false)
-          action = IO.sleep(300.millis) >> completed.set(true)
-          memoized <- Concurrent[IO].memoize(action)
+          completed <- Ref[F].of(false)
+          action = liftK(IO.sleep(300.millis)) >> completed.set(true)
+          memoized <- Concurrent[F].memoize(action)
           fiber1 <- memoized.start
-          _ <- IO.sleep(100.millis)
+          _ <- liftK(IO.sleep(100.millis))
           fiber2 <- memoized.start
-          _ <- IO.sleep(100.millis)
+          _ <- liftK(IO.sleep(100.millis))
           _ <- fiber2.cancel
           _ <- fiber1.cancel
-          _ <- IO.sleep(400.millis)
+          _ <- liftK(IO.sleep(400.millis))
           res <- completed.get
         } yield res
 
-        val result = op.unsafeToFuture()
+        val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tickAll()
 
         result.value mustEqual Some(Success(false))
@@ -135,20 +141,20 @@ class MemoizeSpec extends BaseSpec with Discipline {
     "Memoized effects can be canceled when there are no other active subscribers (3)" in ticked {
       implicit ticker =>
         val op = for {
-          completed <- Ref[IO].of(false)
-          action = IO.sleep(300.millis) >> completed.set(true)
-          memoized <- Concurrent[IO].memoize(action)
+          completed <- Ref[F].of(false)
+          action = liftK(IO.sleep(300.millis)) >> completed.set(true)
+          memoized <- Concurrent[F].memoize(action)
           fiber1 <- memoized.start
-          _ <- IO.sleep(100.millis)
+          _ <- liftK(IO.sleep(100.millis))
           fiber2 <- memoized.start
-          _ <- IO.sleep(100.millis)
+          _ <- liftK(IO.sleep(100.millis))
           _ <- fiber1.cancel
           _ <- fiber2.cancel
-          _ <- IO.sleep(400.millis)
+          _ <- liftK(IO.sleep(400.millis))
           res <- completed.get
         } yield res
 
-        val result = op.unsafeToFuture()
+        val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tickAll()
 
         result.value mustEqual Some(Success(false))
@@ -157,19 +163,22 @@ class MemoizeSpec extends BaseSpec with Discipline {
     "Running a memoized effect after it was previously canceled reruns it" in ticked {
       implicit ticker =>
         val op = for {
-          started <- Ref[IO].of(0)
-          completed <- Ref[IO].of(0)
-          action = started.update(_ + 1) >> IO.sleep(200.millis) >> completed.update(_ + 1)
-          memoized <- Concurrent[IO].memoize(action)
+          started <- Ref[F].of(0)
+          completed <- Ref[F].of(0)
+          action = started.update(_ + 1) >> liftK(IO.sleep(200.millis)) >> completed.update(
+            _ + 1)
+          memoized <- Concurrent[F].memoize(action)
           fiber <- memoized.start
-          _ <- IO.sleep(100.millis)
+          _ <- liftK(IO.sleep(100.millis))
           _ <- fiber.cancel
-          _ <- memoized.timeout(1.second)
+          _ <- memoized
+            .race(liftK(IO.sleep(1.second) *> IO.raiseError(new TimeoutException)))
+            .void
           v1 <- started.get
           v2 <- completed.get
         } yield v1 -> v2
 
-        val result = op.unsafeToFuture()
+        val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tickAll()
 
         result.value mustEqual Some(Success((2, 1)))
@@ -178,23 +187,36 @@ class MemoizeSpec extends BaseSpec with Discipline {
     "Attempting to cancel a memoized effect with active subscribers is a no-op" in ticked {
       implicit ticker =>
         val op = for {
-          condition <- Deferred[IO, Unit]
-          action = IO.sleep(200.millis) >> condition.complete(())
-          memoized <- Concurrent[IO].memoize(action)
+          condition <- Deferred[F, Unit]
+          action = liftK(IO.sleep(200.millis)) >> condition.complete(())
+          memoized <- Concurrent[F].memoize(action)
           fiber1 <- memoized.start
-          _ <- IO.sleep(50.millis)
+          _ <- liftK(IO.sleep(50.millis))
           fiber2 <- memoized.start
-          _ <- IO.sleep(50.millis)
+          _ <- liftK(IO.sleep(50.millis))
           _ <- fiber1.cancel
           _ <- fiber2.join // Make sure no exceptions are swallowed by start
-          v <- condition.get.timeout(1.second).as(true)
+          v <- condition
+            .get
+            .race(liftK(IO.sleep(1.second) *> IO.raiseError(new TimeoutException)))
+            .as(true)
         } yield v
 
-        val result = op.unsafeToFuture()
+        val result = lowerK(op).unsafeToFuture()
         ticker.ctx.tickAll()
 
         result.value mustEqual Some(Success(true))
     }
+
+  }
+
+  "Concurrent.memoize" >> {
+
+    "IO" >> tests[IO](FunctionK.id)
+
+    "Resource[IO, *]" >> tests[Resource[IO, *]](new ~>[Resource[IO, *], IO] {
+      def apply[A](ra: Resource[IO, A]): IO[A] = ra.use(IO.pure)
+    })
 
     "Monad transformers" >> {
 
