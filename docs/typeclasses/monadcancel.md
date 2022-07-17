@@ -162,7 +162,7 @@ The primary differences between self-cancelation and `raiseError` are two-fold. 
 IO.uncancelable { poll =>
   val cancelation: IO[Unit] = IO.canceled
   cancelation.flatMap { x =>
-    IO.println(s"This will print, meaning $x is not a Nothing")
+    IO.println(s"This will print, meaning $x cannot be Nothing")
   }
 }
 ```
