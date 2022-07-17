@@ -744,7 +744,7 @@ lazy val graalVMExample = project
   .enablePlugins(NoPublishPlugin, NativeImagePlugin)
   .settings(
     name := "cats-effect-graalvm-example",
-    nativeImageOptions += "-H:+ReportExceptionStackTraces",
+    nativeImageOptions ++= Seq("--no-fallback", "-H:+ReportExceptionStackTraces"),
     nativeImageInstalled := true
   )
 
