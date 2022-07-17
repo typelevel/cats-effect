@@ -36,6 +36,7 @@ import cats.{
 }
 import cats.data.Ior
 import cats.effect.instances.spawn
+import cats.effect.kernel.CancelScope
 import cats.effect.kernel.GenTemporal.handleFinite
 import cats.effect.std.{Console, Env, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
@@ -1960,6 +1961,15 @@ private object SyncStep {
               case r @ Right(_) => r
             }
             .handleErrorWith(t => interpret(f(t), limit - 1))
+
+        case IO.Uncancelable(body, _) if G.rootCancelScope == CancelScope.Uncancelable =>
+          val ioa = body(new Poll[IO] {
+            def apply[C](ioc: IO[C]): IO[C] = ioc
+          })
+          interpret(ioa, limit)
+
+        case IO.OnCancel(ioa, _) if G.rootCancelScope == CancelScope.Uncancelable =>
+          interpret(ioa, limit)
 
         case _ => G.pure(Left(io))
       }
