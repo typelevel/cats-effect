@@ -164,7 +164,15 @@ of making its interior cancelable. Then if we had</p>
 </code></pre>
 <p>The above will result in a canceled evaluation, and <code>fa</code> will never be run, <em>provided</em> that it isn't wrapped in an <code>uncancelable</code> block. If the above is wrapped in <code>uncancelable</code>, then the <code>canceled</code> effect will be ignored.</p>
 <p>Self-cancelation is somewhat similar to raising an error with <code>raiseError</code> in that it will short-circuit evaluation and begin &quot;popping&quot; back up the stack until it hits a handler. Just as <code>raiseError</code> can be observed using the <code>onError</code> method, <code>canceled</code> can be observed using <code>onCancel</code>.</p>
-<p>The primary differences between self-cancelation and <code>raiseError</code> are two-fold. First, <code>uncancelable</code> suppresses <code>canceled</code> <em>within its body</em> (unless <code>poll</code>ed!), turning it into something equivalent to just <code>().pure[F]</code>. Note however that cancelation will be observed as soon as <code>uncancelable</code> terminates ie <code>uncancelable</code> only suppresses the cancelation until the end of its body, not indefinitely.</p>
+<p>The primary differences between self-cancelation and <code>raiseError</code> are two-fold. First, <code>uncancelable</code> suppresses <code>canceled</code> within its body unless <code>poll</code>ed. For this reason, <code>canceled</code> has a return type of <code>F[Unit]</code> and not <code>F[Nothing]</code>:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">IO</span>.uncancelable { poll =&gt;
+  <span class="hljs-keyword">val</span> cancelation: <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = <span class="hljs-type">IO</span>.canceled
+  cancelation.flatMap { x =&gt;
+    <span class="hljs-type">IO</span>.println(<span class="hljs-string">s"This will print, meaning <span class="hljs-subst">$x</span> cannot be Nothing"</span>)
+  }
+}
+</code></pre>
+<p>In this case, <code>canceled</code> is equivalent to just <code>().pure[F]</code>. Note however that cancelation will be observed as soon as <code>uncancelable</code> terminates, i.e. <code>uncancelable</code> only suppresses the cancelation until the end of its body, not indefinitely.</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">IO</span>
 <span class="hljs-keyword">import</span> cats.effect.unsafe.implicits.global
 
@@ -183,7 +191,7 @@ of making its interior cancelable. Then if we had</p>
 <span class="hljs-comment">//         body = &lt;function1&gt;,</span>
 <span class="hljs-comment">//         event = cats.effect.tracing.TracingEvent$StackTrace</span>
 <span class="hljs-comment">//       ),</span>
-<span class="hljs-comment">//       f = cats.effect.IO$$Lambda$11832/0x000000080342c040@3150e460,</span>
+<span class="hljs-comment">//       f = cats.effect.IO$$Lambda$12605/0x0000000803760040@7e1da1f,</span>
 <span class="hljs-comment">//       event = cats.effect.tracing.TracingEvent$StackTrace</span>
 <span class="hljs-comment">//     )</span>
 <span class="hljs-comment">//   ),</span>

@@ -81,7 +81,7 @@ fiber blocking if the pqueue is empty.</p>
 <span class="hljs-comment">// list: List[Int] = List(1, 4, 3, 7, 5, 2, 6, 9, 8)</span>
 
 <span class="hljs-keyword">implicit</span> <span class="hljs-keyword">val</span> orderForInt: <span class="hljs-type">Order</span>[<span class="hljs-type">Int</span>] = <span class="hljs-type">Order</span>.fromLessThan((x, y) =&gt; x &lt; y)
-<span class="hljs-comment">// orderForInt: Order[Int] = cats.kernel.Order$$anon$124@1f0c33a0</span>
+<span class="hljs-comment">// orderForInt: Order[Int] = cats.kernel.Order$$anon$124@434c6888</span>
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">absurdlyOverengineeredSort</span></span>(list: <span class="hljs-type">List</span>[<span class="hljs-type">Int</span>]) = (
   <span class="hljs-keyword">for</span> {
@@ -106,7 +106,7 @@ or as a <code>PQueueSink[F, B]</code> by contramapping with <code>B =&gt; A</cod
 <span class="hljs-keyword">import</span> cats.effect.unsafe.implicits.global
 
 <span class="hljs-keyword">implicit</span> <span class="hljs-keyword">val</span> orderForInt: <span class="hljs-type">Order</span>[<span class="hljs-type">Int</span>] = <span class="hljs-type">Order</span>.fromLessThan((x, y) =&gt; x &lt; y)
-<span class="hljs-comment">// orderForInt: Order[Int] = cats.kernel.Order$$anon$124@13655ae2</span>
+<span class="hljs-comment">// orderForInt: Order[Int] = cats.kernel.Order$$anon$124@2c9875d6</span>
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">covariant</span></span>(list: <span class="hljs-type">List</span>[<span class="hljs-type">Int</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">List</span>[<span class="hljs-type">Long</span>]] = (
   <span class="hljs-keyword">for</span> {
