@@ -478,9 +478,7 @@ trait IOApp {
                 rt.halt(1)
             }
 
-          case null =>
-            println(
-              s"result is null but is interrupted? ${Thread.currentThread().isInterrupted()}")
+          case _ => // should never happen
         }
       }
     } catch {
