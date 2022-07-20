@@ -5,7 +5,7 @@ title: Dispatcher
 
 ![](assets/dispatcher.jpeg)
 
-`Dispatcher` is a [fiber](../concepts.md#fibers)-based [`Supervisor`](./supervisor.md) utility for evaluating effects across an impure boundary. This is useful when working with reactive interfaces that produce potentially many values (as opposed to one), and for each value, some effect in `F` (like inserting each value into a queue) must be performed as a side effect by an impure callback. This scenario is sometimes facetiously referred to as [Soviet interop](https://knowyourmeme.com/memes/in-soviet-russia) because "impure code invokes you", in contrast with the more common interoperation scenario where impure code is wrapped in an effect.
+`Dispatcher` is a [fiber](../concepts.md#fibers)-based [`Supervisor`](./supervisor.md) utility for evaluating effects across an impure boundary. This is useful when working with reactive interfaces that produce potentially many values (as opposed to one), and for each value, some effect in `F` (like inserting each value into a queue) must be performed as a side effect by an impure callback. This scenario is sometimes facetiously referred to as [Soviet interop](https://knowyourmeme.com/memes/in-soviet-russia) because "impure code runs you", in contrast with the more common interoperation scenario where impure code is wrapped in an effect.
 
 An instance of `Dispatcher` can be derived for any effect type conforming to the [`Async`](../typeclasses/async.md) typeclass.
 
@@ -96,7 +96,6 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 
 Creating an instance of `Dispatcher` is very cheap - you are encouraged to instantiate it 
 where necessary rather than wiring a single instance throughout an application.
-
 ## Cats Effect 2
 
 Users of Cats Effect 2 may be familiar with the `Effect` and `ConcurrentEffect`
