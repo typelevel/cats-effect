@@ -96,6 +96,8 @@ trait Dispatcher[F[_]] extends DispatcherPlatform[F] {
 
 Creating an instance of `Dispatcher` is very cheap - you are encouraged to instantiate it 
 where necessary rather than wiring a single instance throughout an application.
+
+
 ## Cats Effect 2
 
 Users of Cats Effect 2 may be familiar with the `Effect` and `ConcurrentEffect`
