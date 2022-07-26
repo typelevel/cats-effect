@@ -509,8 +509,6 @@ info as a hint to optimize `IO` scheduling.
 Another difference with threads is that fibers are very cheap entities. We can
 spawn millions of them at ease without impacting the performance.
 
-<<<<<<< Updated upstream
-=======
 A worthy note is that you do not have to explicitly shut down fibers. If you spawn
 a fiber and it finishes actively running its `IO` it will get cleaned up by the
 garbage collector unless there is some other active memory reference to it. So basically
@@ -523,7 +521,6 @@ references anywhere else (i.e. you did some sort of fire-and-forget thing), then
 itself is the only strong reference to the fiber. Meaning if the registration fails or the
 system you registered with throws it away, the fiber will just gracefully disappear.
 
->>>>>>> Stashed changes
 Cats-effect implements some concurrency primitives to coordinate concurrent
 fibers: [Deferred](std/deferred.md), [Ref](std/ref.md), `Semaphore`...
 
