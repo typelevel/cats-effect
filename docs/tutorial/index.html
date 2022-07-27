@@ -485,7 +485,6 @@ to signal that the wrapped code will block the thread.  Cats-effect uses that
 info as a hint to optimize <code>IO</code> scheduling.</p>
 <p>Another difference with threads is that fibers are very cheap entities. We can
 spawn millions of them at ease without impacting the performance.</p>
-<h1><a class="anchor" aria-hidden="true" id="-updated-upstream"></a><a href="#-updated-upstream" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>&lt;&lt;&lt;&lt;&lt;&lt;&lt; Updated upstream</h1>
 <p>A worthy note is that you do not have to explicitly shut down fibers. If you spawn
 a fiber and it finishes actively running its <code>IO</code> it will get cleaned up by the
 garbage collector unless there is some other active memory reference to it. So basically
@@ -496,23 +495,8 @@ register the callback with something, and you're in a Fiber which has no strong 
 references anywhere else (i.e. you did some sort of fire-and-forget thing), then the callback
 itself is the only strong reference to the fiber. Meaning if the registration fails or the
 system you registered with throws it away, the fiber will just gracefully disappear.</p>
-<blockquote>
-<blockquote>
-<blockquote>
-<blockquote>
-<blockquote>
-<blockquote>
-<blockquote>
-<p>Stashed changes
-Cats-effect implements some concurrency primitives to coordinate concurrent
+<p>Cats-effect implements some concurrency primitives to coordinate concurrent
 fibers: <a href="/cats-effect/docs/std/deferred">Deferred</a>, <a href="/cats-effect/docs/std/ref">Ref</a>, <code>Semaphore</code>...</p>
-</blockquote>
-</blockquote>
-</blockquote>
-</blockquote>
-</blockquote>
-</blockquote>
-</blockquote>
 <p>Way more detailed info about concurrency in cats-effect can be found in <a href="https://github.com/slouc/concurrency-in-scala-with-ce">this
 other tutorial 'Concurrency in Scala with
 Cats-Effect'</a>.</p>
