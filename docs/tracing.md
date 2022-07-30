@@ -16,7 +16,7 @@ takes. This limitation is even more pronounced with Scala's `Future`
 (pre- 2.13), where an asynchronous boundary is inserted after each operation.
 As an inherently asynchronous data type, `IO` suffers a similar problem, but
 even the stack trace of an `IO` program executed completely synchronously is
-poluted with the implementation methods of the `IO` run-loop, trace information
+polluted with the implementation methods of the `IO` run-loop, trace information
 which is unnecessary and confusing for the end-user application.
 
 `IO` solves this problem by collecting a stack trace at various `IO` operations
