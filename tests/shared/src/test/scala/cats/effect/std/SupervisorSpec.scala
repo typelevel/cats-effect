@@ -83,6 +83,58 @@ class SupervisorSpec extends BaseSpec {
       test must nonTerminate
     }
 
+    "await active fibers when supervisor with restarter exits with await = true" in ticked { implicit ticker =>
+      val test = constructor(true, Some(_ => true)) use { supervisor =>
+        supervisor.supervise(IO.never[Unit]).void
+      }
+
+      test must nonTerminate
+    }
+
+    "await active fibers through a fiber when supervisor with restarter exits with await = true" in ticked { implicit ticker =>
+      val test = constructor(true, Some(_ => true)) use { supervisor =>
+        supervisor.supervise(IO.never[Unit]).void
+      }
+
+      test.start.flatMap(_.join).void must nonTerminate
+    }
+
+    "stop restarting fibers when supervisor exits with await = true" in ticked { implicit ticker =>
+      val test = for {
+        counter <- IO.ref(0)
+        signal <- Semaphore[IO](1)
+        done <- IO.deferred[Unit]
+
+        fiber <- constructor(true, Some(_ => true)).use { supervisor =>
+          for {
+            _ <- signal.acquire
+            _ <- supervisor.supervise(signal.acquire >> counter.update(_ + 1))
+
+            _ <- IO.sleep(1.millis)
+            _ <- signal.release
+            _ <- IO.sleep(1.millis)
+            _ <- signal.release
+            _ <- IO.sleep(1.millis)
+
+            _ <- done.complete(())
+          } yield ()
+        }.start
+
+        _ <- done.get
+        completed1 <- fiber.join.as(true).timeoutTo(200.millis, IO.pure(false))
+        _ <- IO(completed1 must beFalse)
+
+        _ <- signal.release
+        completed2 <- fiber.join.as(true).timeoutTo(200.millis, IO.pure(false))
+        _ <- IO(completed2 must beTrue)
+
+        count <- counter.get
+        _ <- IO(count mustEqual 3)
+      } yield ()
+
+      test must completeAs(())
+    }
+
     "cancel awaited fibers when exiting with error" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
 

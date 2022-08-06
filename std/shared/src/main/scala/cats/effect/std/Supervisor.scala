@@ -159,9 +159,10 @@ object Supervisor {
     // It would have preferable to use Scope here but explicit cancelation is
     // intertwined with resource management
     for {
+      doneR <- Resource.eval(F.ref(false))
       state <- Resource.makeCase(mkState) {
-        case (st, Resource.ExitCase.Succeeded) if await => st.joinAll
-        case (st, _) => st.cancelAll
+        case (st, Resource.ExitCase.Succeeded) if await => doneR.set(true) >> st.joinAll
+        case (st, _) => doneR.set(true) >> st.cancelAll
       }
     } yield new Supervisor[F] {
 
@@ -176,10 +177,12 @@ object Supervisor {
                       val started = F start {
                         fa guaranteeCase { oc =>
                           canceledR.get flatMap { canceled =>
-                            if (!canceled && restart(oc))
-                              action.void
-                            else
-                              fin.guarantee(resultR.complete(oc).void)
+                            doneR.get flatMap { done =>
+                              if (!canceled && !done && restart(oc))
+                                action.void
+                              else
+                                fin.guarantee(resultR.complete(oc).void)
+                            }
                           }
                         }
                       }
