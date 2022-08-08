@@ -108,7 +108,11 @@ trait Supervisor[F[_]] {
    */
   def superviseRestart[A](fa: F[A])(
       checkRestart: Outcome[F, Throwable, A] => Boolean
-  ): F[Fiber[F, Throwable, A]]
+  )(implicit F: Spawn[F]): F[Fiber[F, Throwable, A]] = {
+    def go: F[A] =
+      fa.background.use(identity).flatMap { oc => if (checkRestart(oc)) go else oc.embedNever }
+    supervise(go)
+  }
 
 }
 
@@ -179,60 +183,63 @@ object Supervisor {
       def supervise[A](fa: F[A]): F[Fiber[F, Throwable, A]] =
         superviseImpl(fa)((fa, fin) => F.start(fa.guarantee(fin)))
 
-      def superviseRestart[A](fa: F[A])(
+      override def superviseRestart[A](fa: F[A])(
           checkRestart: Outcome[F, Throwable, A] => Boolean
-      ): F[Fiber[F, Throwable, A]] = superviseImpl(fa) { (fa, fin) =>
-        F.deferred[Outcome[F, Throwable, A]] flatMap { resultR =>
-          F.ref(false) flatMap { canceledR =>
-            F.deferred[Ref[F, Fiber[F, Throwable, A]]] flatMap { currentR =>
-              lazy val action: F[Unit] = F uncancelable { _ =>
-                val started = F start {
-                  fa guaranteeCase { oc =>
-                    canceledR.get flatMap { canceled =>
-                      doneR.get flatMap { done =>
-                        if (!canceled && !done && checkRestart(oc))
-                          action.void
-                        else
-                          fin.guarantee(resultR.complete(oc).void)
-                      }
-                    }
-                  }
-                }
-
-                started flatMap { f =>
-                  lazy val loop: F[Unit] = currentR.tryGet flatMap {
-                    case Some(inner) =>
-                      inner.set(f)
-
-                    case None =>
-                      F.ref(f).flatMap(inner => currentR.complete(inner).ifM(F.unit, loop))
-                  }
-
-                  loop
-                }
-              }
-
-              action map { _ =>
-                new Fiber[F, Throwable, A] {
-                  private[this] val delegateF = currentR.get.flatMap(_.get)
-
-                  val cancel: F[Unit] = F uncancelable { _ =>
-                    canceledR.set(true) >> delegateF flatMap { fiber =>
-                      fiber.cancel >> fiber.join flatMap {
-                        case Outcome.Canceled() =>
-                          resultR.complete(Outcome.Canceled()).void
-                        case _ => cancel
+      )(implicit ignore: Spawn[F]): F[Fiber[F, Throwable, A]] = if (true)
+        super.superviseRestart(fa)(checkRestart)
+      else
+        superviseImpl(fa) { (fa, fin) =>
+          F.deferred[Outcome[F, Throwable, A]] flatMap { resultR =>
+            F.ref(false) flatMap { canceledR =>
+              F.deferred[Ref[F, Fiber[F, Throwable, A]]] flatMap { currentR =>
+                lazy val action: F[Unit] = F uncancelable { _ =>
+                  val started = F start {
+                    fa guaranteeCase { oc =>
+                      canceledR.get flatMap { canceled =>
+                        doneR.get flatMap { done =>
+                          if (!canceled && !done && checkRestart(oc))
+                            action.void
+                          else
+                            fin.guarantee(resultR.complete(oc).void)
+                        }
                       }
                     }
                   }
 
-                  val join = resultR.get
+                  started flatMap { f =>
+                    lazy val loop: F[Unit] = currentR.tryGet flatMap {
+                      case Some(inner) =>
+                        inner.set(f)
+
+                      case None =>
+                        F.ref(f).flatMap(inner => currentR.complete(inner).ifM(F.unit, loop))
+                    }
+
+                    loop
+                  }
+                }
+
+                action map { _ =>
+                  new Fiber[F, Throwable, A] {
+                    private[this] val delegateF = currentR.get.flatMap(_.get)
+
+                    val cancel: F[Unit] = F uncancelable { _ =>
+                      canceledR.set(true) >> delegateF flatMap { fiber =>
+                        fiber.cancel >> fiber.join flatMap {
+                          case Outcome.Canceled() =>
+                            resultR.complete(Outcome.Canceled()).void
+                          case _ => cancel
+                        }
+                      }
+                    }
+
+                    val join = resultR.get
+                  }
                 }
               }
             }
           }
         }
-      }
     }
   }
 
