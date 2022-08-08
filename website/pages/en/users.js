@@ -33,6 +33,7 @@ const users = [
   ['Moda Operandi', 'https://www.modaoperandi.com/'],
   ['Ocado Technology', 'https://ocadotechnology.com/'],
   ['On Air Entertainment', 'https://onairentertainment.com/'],
+  ['oneFactor', 'https://onefactor.ru'],
   ['OVO Energy', 'https://www.ovoenergy.com'],
   ['Packlink', 'https://www.packlink.com'],
   ['Paidy', 'https://www.paidy.com'],
