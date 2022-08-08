@@ -34,13 +34,10 @@ class SupervisorSpec extends BaseSpec {
   }
 
   private def supervisorTests(
-      constructor: (
-          Boolean,
-          Option[Outcome[IO, Throwable, _] => Boolean]) => Resource[IO, Supervisor[IO]])
-      : Fragments = {
+      constructor: Boolean => Resource[IO, Supervisor[IO]]): Fragments = {
 
     "start a fiber that completes successfully" in ticked { implicit ticker =>
-      val test = constructor(false, None).use { supervisor =>
+      val test = constructor(false).use { supervisor =>
         supervisor.supervise(IO(1)).flatMap(_.join)
       }
 
@@ -49,7 +46,7 @@ class SupervisorSpec extends BaseSpec {
 
     "start a fiber that raises an error" in ticked { implicit ticker =>
       val t = new Throwable("failed")
-      val test = constructor(false, None).use { supervisor =>
+      val test = constructor(false).use { supervisor =>
         supervisor.supervise(IO.raiseError[Unit](t)).flatMap(_.join)
       }
 
@@ -57,7 +54,7 @@ class SupervisorSpec extends BaseSpec {
     }
 
     "start a fiber that self-cancels" in ticked { implicit ticker =>
-      val test = constructor(false, None).use { supervisor =>
+      val test = constructor(false).use { supervisor =>
         supervisor.supervise(IO.canceled).flatMap(_.join)
       }
 
@@ -66,9 +63,7 @@ class SupervisorSpec extends BaseSpec {
 
     "cancel active fibers when supervisor exits" in ticked { implicit ticker =>
       val test = for {
-        fiber <- constructor(false, None).use { supervisor =>
-          supervisor.supervise(IO.never[Unit])
-        }
+        fiber <- constructor(false).use { supervisor => supervisor.supervise(IO.never[Unit]) }
         outcome <- fiber.join
       } yield outcome
 
@@ -76,63 +71,67 @@ class SupervisorSpec extends BaseSpec {
     }
 
     "await active fibers when supervisor exits with await = true" in ticked { implicit ticker =>
-      val test = constructor(true, None).use { supervisor =>
+      val test = constructor(true).use { supervisor =>
         supervisor.supervise(IO.never[Unit]).void
       }
 
       test must nonTerminate
     }
 
-    "await active fibers when supervisor with restarter exits with await = true" in ticked { implicit ticker =>
-      val test = constructor(true, Some(_ => true)) use { supervisor =>
-        supervisor.supervise(IO.never[Unit]).void
-      }
+    "await active fibers when supervisor with restarter exits with await = true" in ticked {
+      implicit ticker =>
+        val test = constructor(true) use { supervisor =>
+          supervisor.superviseRestart(IO.never[Unit])(_ => true).void
+        }
 
-      test must nonTerminate
+        test must nonTerminate
     }
 
-    "await active fibers through a fiber when supervisor with restarter exits with await = true" in ticked { implicit ticker =>
-      val test = constructor(true, Some(_ => true)) use { supervisor =>
-        supervisor.supervise(IO.never[Unit]).void
-      }
+    "await active fibers through a fiber when supervisor with restarter exits with await = true" in ticked {
+      implicit ticker =>
+        val test = constructor(true) use { supervisor =>
+          supervisor.superviseRestart(IO.never[Unit])(_ => true).void
+        }
 
-      test.start.flatMap(_.join).void must nonTerminate
+        test.start.flatMap(_.join).void must nonTerminate
     }
 
-    "stop restarting fibers when supervisor exits with await = true" in ticked { implicit ticker =>
-      val test = for {
-        counter <- IO.ref(0)
-        signal <- Semaphore[IO](1)
-        done <- IO.deferred[Unit]
+    "stop restarting fibers when supervisor exits with await = true" in ticked {
+      implicit ticker =>
+        val test = for {
+          counter <- IO.ref(0)
+          signal <- Semaphore[IO](1)
+          done <- IO.deferred[Unit]
 
-        fiber <- constructor(true, Some(_ => true)).use { supervisor =>
-          for {
-            _ <- signal.acquire
-            _ <- supervisor.supervise(signal.acquire >> counter.update(_ + 1))
+          fiber <- constructor(true).use { supervisor =>
+            for {
+              _ <- signal.acquire
+              _ <- supervisor.superviseRestart(signal.acquire >> counter.update(_ + 1))(_ =>
+                true)
 
-            _ <- IO.sleep(1.millis)
-            _ <- signal.release
-            _ <- IO.sleep(1.millis)
-            _ <- signal.release
-            _ <- IO.sleep(1.millis)
+              _ <- IO.sleep(1.millis)
+              _ <- signal.release
+              _ <- IO.sleep(1.millis)
+              _ <- signal.release
+              _ <- IO.sleep(1.millis)
 
-            _ <- done.complete(())
-          } yield ()
-        }.start
+              _ <- done.complete(())
+            } yield ()
+          }.start
 
-        _ <- done.get
-        completed1 <- fiber.join.as(true).timeoutTo(200.millis, IO.pure(false))
-        _ <- IO(completed1 must beFalse)
+          _ <- done.get
+          completed1 <- fiber.join.as(true).timeoutTo(200.millis, IO.pure(false))
+          _ <- IO(completed1 must beFalse)
 
-        _ <- signal.release
-        completed2 <- fiber.join.as(true).timeoutTo(200.millis, IO.pure(false))
-        _ <- IO(completed2 must beTrue)
+          _ <- signal.release
+          completed2 <- fiber.join.as(true).timeoutTo(200.millis, IO.pure(false))
+          _ <- IO(completed2 must beTrue)
 
-        count <- counter.get
-        _ <- IO(count mustEqual 3)
-      } yield ()
+          count <- counter.get
+          _ <- IO(count mustEqual 3)
+        } yield ()
 
-      test must completeAs(())
+        test must completeAs(())
     }
 
     "cancel awaited fibers when exiting with error" in ticked { implicit ticker =>
@@ -140,7 +139,7 @@ class SupervisorSpec extends BaseSpec {
 
       val test = IO.deferred[Unit] flatMap { latch =>
         IO.deferred[Unit] flatMap { canceled =>
-          val supervision = constructor(true, None) use { supervisor =>
+          val supervision = constructor(true) use { supervisor =>
             val action = (latch.complete(()) >> IO.never).onCancel(canceled.complete(()).void)
             supervisor.supervise(action) >> latch.get >> IO.raiseError(TestException)
           }
@@ -155,7 +154,7 @@ class SupervisorSpec extends BaseSpec {
     "cancel awaited fibers when canceled" in ticked { implicit ticker =>
       val test = IO.deferred[Unit] flatMap { latch =>
         IO.deferred[Unit] flatMap { canceled =>
-          val supervision = constructor(true, None) use { supervisor =>
+          val supervision = constructor(true) use { supervisor =>
             val action = (latch.complete(()) >> IO.never).onCancel(canceled.complete(()).void)
             supervisor.supervise(action) >> latch.get >> IO.canceled
           }
@@ -178,8 +177,10 @@ class SupervisorSpec extends BaseSpec {
           val flipRaise = raiseR.set(false) >> IO.raiseError(TestException)
           val action = (counterR.update(_ + 1) >> raiseR.get).ifM(flipRaise, IO.pure(42))
 
-          constructor(true, Some(_.fold(false, _ => true, _ => false))).use { supervisor =>
-            supervisor.supervise(action).flatMap(_.joinWithNever)
+          constructor(true).use { supervisor =>
+            supervisor
+              .superviseRestart(action)(_.fold(false, _ => true, _ => false))
+              .flatMap(_.joinWithNever)
           } <* counterR.get.flatMap(count => IO(count mustEqual 2))
         }
       }
@@ -193,8 +194,10 @@ class SupervisorSpec extends BaseSpec {
           val flipCancel = raiseR.set(false) >> IO.canceled.as(1)
           val action = (counterR.update(_ + 1) >> raiseR.get).ifM(flipCancel, IO.pure(42))
 
-          constructor(true, Some(_.fold(true, _ => false, _ => false))).use { supervisor =>
-            supervisor.supervise(action).flatMap(_.joinWithNever)
+          constructor(true).use { supervisor =>
+            supervisor
+              .superviseRestart(action)(_.fold(true, _ => false, _ => false))
+              .flatMap(_.joinWithNever)
           } <* counterR.get.flatMap(count => IO(count mustEqual 2))
         }
       }
@@ -204,8 +207,9 @@ class SupervisorSpec extends BaseSpec {
 
     "cancel inner fiber and ignore restart if outer canceled" in real {
       val test = IO.deferred[Unit] flatMap { latch =>
-        constructor(true, Some(_.fold(true, _ => false, _ => false))).use { supervisor =>
-          supervisor.supervise(latch.complete(()) >> IO.canceled) >> latch.get >> IO.canceled
+        constructor(true).use { supervisor =>
+          supervisor.superviseRestart(latch.complete(()) >> IO.canceled)(
+            _.fold(true, _ => false, _ => false)) >> latch.get >> IO.canceled
         }
       }
 
@@ -217,9 +221,9 @@ class SupervisorSpec extends BaseSpec {
       case object TestException extends RuntimeException
 
       val test = IO.deferred[Unit] flatMap { latch =>
-        constructor(true, Some(_.fold(true, _ => false, _ => false))).use { supervisor =>
-          supervisor.supervise(latch.complete(()) >> IO.canceled) >> latch.get >> IO.raiseError(
-            TestException)
+        constructor(true).use { supervisor =>
+          supervisor.superviseRestart(latch.complete(()) >> IO.canceled)(
+            _.fold(true, _ => false, _ => false)) >> latch.get >> IO.raiseError(TestException)
         }
       }
 

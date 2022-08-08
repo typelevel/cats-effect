@@ -99,6 +99,17 @@ trait Supervisor[F[_]] {
    *   a [[cats.effect.kernel.Fiber]] that represents a handle to the started fiber.
    */
   def supervise[A](fa: F[A]): F[Fiber[F, Throwable, A]]
+
+  /**
+   * @param checkRestart
+   *   A function which will be applied to the outcome of the child fibers when they complete.
+   *   If this function returns `true` for a given outcome, the child fiber will be restarted.
+   *   Otherwise, it will be allowed to silently terminate.
+   */
+  def superviseRestart[A](fa: F[A])(
+      checkRestart: Outcome[F, Throwable, A] => Boolean
+  ): F[Fiber[F, Throwable, A]]
+
 }
 
 object Supervisor {
@@ -121,27 +132,16 @@ object Supervisor {
    *   the termination policy
    *   - true - wait for the completion of the active fibers
    *   - false - cancel the active fibers
-   *
-   * @param checkRestart
-   *   An optional function which will be applied to the outcome of the child fibers when they
-   *   complete. If this function returns `true` for a given outcome, the child fiber will be
-   *   restarted. Otherwise, it will be allowed to silently terminate.
    */
-  def apply[F[_]](
-      await: Boolean,
-      checkRestart: Option[Outcome[F, Throwable, _] => Boolean] = None)(
-      implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
+  def apply[F[_]](await: Boolean)(implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     F match {
-      case asyncF: Async[F] => applyForAsync(await, checkRestart)(asyncF)
-      case _ => applyForConcurrent(await, checkRestart)
+      case asyncF: Async[F] => applyForAsync(await)(asyncF)
+      case _ => applyForConcurrent(await)
     }
   }
 
   def apply[F[_]: Concurrent]: Resource[F, Supervisor[F]] =
-    apply[F](
-      false,
-      None
-    ) // TODO we have to do this for now because Scala 3 doesn't like it (lampepfl/dotty#15546)
+    apply[F](false)
 
   private trait State[F[_]] {
     def remove(token: Unique.Token): F[Unit]
@@ -151,10 +151,7 @@ object Supervisor {
     val cancelAll: F[Unit]
   }
 
-  private def supervisor[F[_]](
-      mkState: F[State[F]],
-      await: Boolean,
-      checkRestart: Option[Outcome[F, Throwable, _] => Boolean])(
+  private def supervisor[F[_]](mkState: F[State[F]], await: Boolean)(
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     // It would have preferable to use Scope here but explicit cancelation is
     // intertwined with resource management
@@ -166,66 +163,9 @@ object Supervisor {
       }
     } yield new Supervisor[F] {
 
-      def supervise[A](fa: F[A]): F[Fiber[F, Throwable, A]] =
+      private def superviseImpl[A](fa: F[A])(
+          monitor: (F[A], F[Unit]) => F[Fiber[F, Throwable, A]]) =
         F.uncancelable { _ =>
-          val monitor: (F[A], F[Unit]) => F[Fiber[F, Throwable, A]] = checkRestart match {
-            case Some(restart) => { (fa, fin) =>
-              F.deferred[Outcome[F, Throwable, A]] flatMap { resultR =>
-                F.ref(false) flatMap { canceledR =>
-                  F.deferred[Ref[F, Fiber[F, Throwable, A]]] flatMap { currentR =>
-                    lazy val action: F[Unit] = F uncancelable { _ =>
-                      val started = F start {
-                        fa guaranteeCase { oc =>
-                          canceledR.get flatMap { canceled =>
-                            doneR.get flatMap { done =>
-                              if (!canceled && !done && restart(oc))
-                                action.void
-                              else
-                                fin.guarantee(resultR.complete(oc).void)
-                            }
-                          }
-                        }
-                      }
-
-                      started flatMap { f =>
-                        lazy val loop: F[Unit] = currentR.tryGet flatMap {
-                          case Some(inner) =>
-                            inner.set(f)
-
-                          case None =>
-                            F.ref(f)
-                              .flatMap(inner => currentR.complete(inner).ifM(F.unit, loop))
-                        }
-
-                        loop
-                      }
-                    }
-
-                    action map { _ =>
-                      new Fiber[F, Throwable, A] {
-                        private[this] val delegateF = currentR.get.flatMap(_.get)
-
-                        val cancel: F[Unit] = F uncancelable { _ =>
-                          canceledR.set(true) >> delegateF flatMap { fiber =>
-                            fiber.cancel >> fiber.join flatMap {
-                              case Outcome.Canceled() =>
-                                resultR.complete(Outcome.Canceled()).void
-                              case _ => cancel
-                            }
-                          }
-                        }
-
-                        val join = resultR.get
-                      }
-                    }
-                  }
-                }
-              }
-            }
-
-            case None => (fa, fin) => F.start(fa.guarantee(fin))
-          }
-
           for {
             done <- F.ref(false)
             token <- F.unique
@@ -235,12 +175,68 @@ object Supervisor {
             _ <- done.get.ifM(cleanup, F.unit)
           } yield fiber
         }
+
+      def supervise[A](fa: F[A]): F[Fiber[F, Throwable, A]] =
+        superviseImpl(fa)((fa, fin) => F.start(fa.guarantee(fin)))
+
+      def superviseRestart[A](fa: F[A])(
+          checkRestart: Outcome[F, Throwable, A] => Boolean
+      ): F[Fiber[F, Throwable, A]] = superviseImpl(fa) { (fa, fin) =>
+        F.deferred[Outcome[F, Throwable, A]] flatMap { resultR =>
+          F.ref(false) flatMap { canceledR =>
+            F.deferred[Ref[F, Fiber[F, Throwable, A]]] flatMap { currentR =>
+              lazy val action: F[Unit] = F uncancelable { _ =>
+                val started = F start {
+                  fa guaranteeCase { oc =>
+                    canceledR.get flatMap { canceled =>
+                      doneR.get flatMap { done =>
+                        if (!canceled && !done && checkRestart(oc))
+                          action.void
+                        else
+                          fin.guarantee(resultR.complete(oc).void)
+                      }
+                    }
+                  }
+                }
+
+                started flatMap { f =>
+                  lazy val loop: F[Unit] = currentR.tryGet flatMap {
+                    case Some(inner) =>
+                      inner.set(f)
+
+                    case None =>
+                      F.ref(f).flatMap(inner => currentR.complete(inner).ifM(F.unit, loop))
+                  }
+
+                  loop
+                }
+              }
+
+              action map { _ =>
+                new Fiber[F, Throwable, A] {
+                  private[this] val delegateF = currentR.get.flatMap(_.get)
+
+                  val cancel: F[Unit] = F uncancelable { _ =>
+                    canceledR.set(true) >> delegateF flatMap { fiber =>
+                      fiber.cancel >> fiber.join flatMap {
+                        case Outcome.Canceled() =>
+                          resultR.complete(Outcome.Canceled()).void
+                        case _ => cancel
+                      }
+                    }
+                  }
+
+                  val join = resultR.get
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 
-  private[effect] def applyForConcurrent[F[_]](
-      await: Boolean,
-      checkRestart: Option[Outcome[F, Throwable, _] => Boolean])(
+  private[effect] def applyForConcurrent[F[_]](await: Boolean)(
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
     val mkState = F.ref[Map[Unique.Token, Fiber[F, Throwable, _]]](Map.empty).map { stateRef =>
       new State[F] {
@@ -256,12 +252,10 @@ object Supervisor {
       }
     }
 
-    supervisor(mkState, await, checkRestart)
+    supervisor(mkState, await)
   }
 
-  private[effect] def applyForAsync[F[_]](
-      await: Boolean,
-      checkRestart: Option[Outcome[F, Throwable, _] => Boolean])(
+  private[effect] def applyForAsync[F[_]](await: Boolean)(
       implicit F: Async[F]): Resource[F, Supervisor[F]] = {
     val mkState = F.delay {
       val state = new ConcurrentHashMap[Unique.Token, Fiber[F, Throwable, _]]
@@ -289,6 +283,6 @@ object Supervisor {
       }
     }
 
-    supervisor(mkState, await, checkRestart)
+    supervisor(mkState, await)
   }
 }
