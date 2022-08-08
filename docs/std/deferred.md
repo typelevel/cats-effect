@@ -35,14 +35,14 @@ Finally, the blocking mentioned above is semantic only, no actual threads are bl
 
 Whenever you are in a scenario when many processes can modify the same value but you only care about the first one in doing so and stop processing, then this is a great use case of `Deferred[F, A]`.
 
-Two processes will try to complete at the same time but only one will succeed, completing the deferred primitive exactly once. The loser one will raise an error when trying to complete a deferred already completed and automatically be canceled by the `IO.race` mechanism, that’s why we call attempt on the evaluation.
+Two processes will try to complete at the same time but only one will succeed, completing the deferred primitive exactly once. The loser one will get a `false` in `F` when trying to complete a `Deferred` already completed or automatically be canceled by the `IO.race` mechanism.
 
 ```scala mdoc:reset:silent
 import cats.effect.{IO, Deferred}
 import cats.syntax.all._
 
 def start(d: Deferred[IO, Int]): IO[Unit] = {
-  val attemptCompletion: Int => IO[Unit] = n => d.complete(n).attempt.void
+  val attemptCompletion: Int => IO[Unit] = n => d.complete(n).void
 
   List(
     IO.race(attemptCompletion(1), attemptCompletion(2)),
