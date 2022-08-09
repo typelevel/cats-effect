@@ -270,6 +270,14 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    *
    * }}}
    *
+   * Note that a masked fiber can be canceled *before* it starts executing, in which case it will
+   * not run at all. To prevent this scenario, use [[GenConcurrent.forceStart]] instead of [[start]].
+   *
+   * {{{
+   *   F.uncancelable(fa).start.flatMap(_.cancel)      // fa is not guaranteed to run
+   *   F.uncancelable(fa).forceStart.flatMap(_.cancel) // fa is guaranteed to run
+   * }}}
+   *
    * The following operations are no-ops:
    *
    *   1. Polling in the wrong order

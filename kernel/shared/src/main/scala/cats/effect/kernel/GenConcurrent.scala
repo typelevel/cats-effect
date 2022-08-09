@@ -31,6 +31,21 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
   def deferred[A]: F[Deferred[F, A]]
 
   /**
+   * Like [[start]], but cancellation of the resulting fiber cannot occur before it starts
+   * running.
+   */
+  def forceStart[A](fa: F[A]): F[Fiber[F, E, A]] =
+    flatMap(deferred[Unit]) { gate =>
+      map(start(flatMap(gate.complete(()))(_ => fa))) { fiber =>
+        new Fiber[F, E, A] {
+          override def cancel: F[Unit] = flatMap(gate.get)(_ => fiber.cancel)
+
+          override def join: F[Outcome[F, E, A]] = fiber.join
+        }
+      }
+    }
+
+  /**
    * Caches the result of `fa`.
    *
    * The returned inner effect, hence referred to as `get`, when sequenced, will evaluate `fa`
