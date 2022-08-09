@@ -17,9 +17,16 @@
 package cats.effect.kernel.syntax
 
 import cats.Traverse
-import cats.effect.kernel.GenConcurrent
+import cats.effect.kernel.{Fiber, GenConcurrent}
 
 trait GenConcurrentSyntax {
+
+  implicit def genConcurrentOps[F[_], A, E](
+      wrapped: F[A]
+  )(implicit F: GenConcurrent[F, E]): GenConcurrentOps[F, A, E] = {
+    val _ = F
+    new GenConcurrentOps(wrapped)
+  }
 
   implicit def genConcurrentOps_[F[_], A](wrapped: F[A]): GenConcurrentOps_[F, A] =
     new GenConcurrentOps_(wrapped)
@@ -33,6 +40,14 @@ trait GenConcurrentSyntax {
       wrapped: T[F[A]]
   ): ConcurrentParSequenceNOps[T, F, A] =
     new ConcurrentParSequenceNOps(wrapped)
+
+}
+
+final class GenConcurrentOps[F[_], A, E] private[syntax] (private val wrapped: F[A])
+    extends AnyVal {
+
+  def forceStart(implicit F: GenConcurrent[F, E]): F[Fiber[F, E, A]] =
+    F.forceStart(wrapped)
 
 }
 

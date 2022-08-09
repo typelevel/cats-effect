@@ -360,6 +360,20 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         } must completeAs(42)
       }
 
+      "prevent cancellation before execution when started with forceStart" in ticked {
+        implicit ticker =>
+          // verifying that early cancelation occurs with `start`
+          IO(42).uncancelable.start.flatTap(_.cancel).flatMap(_.join) must completeAs(
+            Outcome.canceled[IO, Throwable, Int])
+
+          // the actual test case
+          IO(42)
+            .uncancelable
+            .forceStart
+            .flatTap(_.cancel)
+            .flatMap(_.joinWithNever) must completeAs(42)
+      }
+
       "joinWithNever on a canceled fiber" in ticked { implicit ticker =>
         (for {
           fib <- IO.sleep(2.seconds).start

@@ -767,6 +767,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def start: IO[FiberIO[A @uncheckedVariance]] =
     IO.Start(this)
 
+  def forceStart: IO[Fiber[IO, Throwable, A @uncheckedVariance]] =
+    Concurrent[IO].forceStart(this)
+
   /**
    * Returns a resource that will start execution of this IO in the background.
    *
