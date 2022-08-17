@@ -233,4 +233,22 @@ object IOLocal {
       }
     }
 
+  /**
+   * Alters the `T` value that is observed by an `IO[G]` value using [[IOLocal]].
+   *
+   * The updated value can only be observed from within that `IO[G]` value.
+   *
+   * @param local
+   *   The [[IOLocal]] to update
+   * @param value
+   *   The new value to use as the context for task
+   * @param task
+   *   The task to be executed with the update context.
+   * @tparam G
+   *   The type of the task result
+   * @tparam T
+   *   The type of the local value
+   */
+  def scope[G, T](local: IOLocal[T], value: T)(task: IO[G]): IO[G] =
+    local.getAndSet(value).bracket(_ => task)(local.set)
 }
