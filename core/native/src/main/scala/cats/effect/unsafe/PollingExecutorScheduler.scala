@@ -79,10 +79,17 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
   def monotonicNanos() = System.nanoTime()
 
   /**
+   * @param timeout
+   *   the maximum duration for which to block. ''However'', if `timeout == Inf` and there are
+   *   no remaining events to poll for, this method should return `false` immediately. This is
+   *   unfortunate but necessary so that this `ExecutionContext` can yield to the Scala Native
+   *   global `ExecutionContext` which is currently hard-coded into every test framework,
+   *   including JUnit, MUnit, and specs2.
+   *
    * @return
-   *   whether poll should be called again (i.e., there is more work queued)
+   *   whether poll should be called again (i.e., there are more events to be polled)
    */
-  def poll(timeout: Duration): Boolean
+  protected def poll(timeout: Duration): Boolean
 
   private[this] def loop(): Unit = {
     needsReschedule = false
