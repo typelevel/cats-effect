@@ -121,17 +121,6 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
         if (sleepIter.next().canceled) sleepIter.remove()
       }
 
-      // now we poll
-      val timeout =
-        if (!executeQueue.isEmpty())
-          Duration.Zero
-        else if (!sleepQueue.isEmpty())
-          (sleepQueue.peek().at - cachedNow).nanos
-        else
-          Duration.Inf
-
-      val needsPoll = poll(timeout)
-
       // swap the task queues
       val todo = executeQueue
       executeQueue = cachedExecuteQueue
@@ -147,6 +136,17 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
             reportFailure(t)
         }
       }
+
+      // finally we poll
+      val timeout =
+        if (!executeQueue.isEmpty())
+          Duration.Zero
+        else if (!sleepQueue.isEmpty())
+          (sleepQueue.peek().at - cachedNow).nanos
+        else
+          Duration.Inf
+
+      val needsPoll = poll(timeout)
 
       continue = needsPoll || !executeQueue.isEmpty() || !sleepQueue.isEmpty()
     }
