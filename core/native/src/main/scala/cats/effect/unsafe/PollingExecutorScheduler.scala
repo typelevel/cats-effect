@@ -116,11 +116,6 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
         }
       }
 
-      val sleepIter = sleepQueue.iterator()
-      while (sleepIter.hasNext()) {
-        if (sleepIter.next().canceled) sleepIter.remove()
-      }
-
       // swap the task queues
       val todo = executeQueue
       executeQueue = cachedExecuteQueue
@@ -135,6 +130,12 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
           case NonFatal(t) =>
             reportFailure(t)
         }
+      }
+
+      // cleanup canceled timers
+      val sleepIter = sleepQueue.iterator()
+      while (sleepIter.hasNext()) {
+        if (sleepIter.next().canceled) sleepIter.remove()
       }
 
       // finally we poll
