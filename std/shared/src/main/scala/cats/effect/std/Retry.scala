@@ -34,6 +34,25 @@ abstract class Retry[F[_]] {
 
   def flatMapDelay(f: FiniteDuration => F[FiniteDuration]): Retry[F]
 
+    /**
+   * Set an upper bound on any individual delay produced by the given policy.
+   */
+  def capDelay(cap: FiniteDuration): Retry[F]
+
+  /**
+    * Add an upper bound to a policy such that once the given time-delay amount <b>per try</b>
+    * has been reached or exceeded, the policy will stop retrying and give up. If you need to
+    * stop retrying once <b>cumulative</b> delay reaches a time-delay amount, use
+    * [[limitRetriesByCumulativeDelay]].
+    */
+  def limitRetriesByDelay(threshold: FiniteDuration): Retry[F]
+
+  /**
+   * Add an upperbound to a policy such that once the cumulative delay over all retries has
+   * reached or exceeded the given limit, the policy will stop retrying and give up.
+   */
+  def limitRetriesByCumulativeDelay(threshold: FiniteDuration): Retry[F]
+
   def mapK[G[_]: Monad](f: F ~> G): Retry[G]
 }
 object Retry {
@@ -145,58 +164,6 @@ object Retry {
       show"fullJitter(baseDelay=$baseDelay)"
     )
 
-  /**
-   * Set an upper bound on any individual delay produced by the given policy.
-   */
-  def capDelay[F[_]: Monad](
-      cap: FiniteDuration,
-      policy: Retry[F]
-  ): Retry[F] =
-    policy.meet(constantDelay(cap))
-
-  /**
-   * Add an upper bound to a policy such that once the given time-delay amount <b>per try</b>
-   * has been reached or exceeded, the policy will stop retrying and give up. If you need to
-   * stop retrying once <b>cumulative</b> delay reaches a time-delay amount, use
-   * [[limitRetriesByCumulativeDelay]].
-   */
-  def limitRetriesByDelay[F[_]: Monad](
-      threshold: FiniteDuration,
-      policy: Retry[F]
-  ): Retry[F] = {
-    def decideNextRetry(status: Retry.Status): F[PolicyDecision] =
-      policy.nextRetry(status).map {
-        case r @ DelayAndRetry(delay) =>
-          if (delay > threshold) GiveUp else r
-        case GiveUp => GiveUp
-      }
-
-    Retry[F](
-      decideNextRetry,
-      s"limitRetriesByDelay(threshold=$threshold, $policy)"
-    )
-  }
-
-  /**
-   * Add an upperbound to a policy such that once the cumulative delay over all retries has
-   * reached or exceeded the given limit, the policy will stop retrying and give up.
-   */
-  def limitRetriesByCumulativeDelay[F[_]: Monad](
-      threshold: FiniteDuration,
-      policy: Retry[F]
-  ): Retry[F] = {
-    def decideNextRetry(status: Retry.Status): F[PolicyDecision] =
-      policy.nextRetry(status).map {
-        case r @ DelayAndRetry(delay) =>
-          if (status.cumulativeDelay + delay >= threshold) GiveUp else r
-        case GiveUp => GiveUp
-      }
-
-    Retry[F](
-      decideNextRetry,
-      s"limitRetriesByCumulativeDelay(threshold=$threshold, $policy)"
-    )
-  }
 // implicit def boundedSemilatticeForRetry[F[_]](
 //     implicit F: Monad[F]): BoundedSemilattice[Retry[F]] =
 //   new BoundedSemilattice[Retry[F]] {
@@ -286,10 +253,42 @@ object Retry {
         s"$this.flatMapDelay(<function>)"
       )
 
+    def capDelay(cap: FiniteDuration): Retry[F] =
+      meet(constantDelay(cap))
+
+    def limitRetriesByDelay(threshold: FiniteDuration): Retry[F] = {
+      def decideNextRetry(status: Retry.Status): F[PolicyDecision] =
+        nextRetry(status).map {
+          case r @ DelayAndRetry(delay) =>
+            if (delay > threshold) GiveUp else r
+          case GiveUp => GiveUp
+        }
+
+      Retry[F](
+        decideNextRetry,
+        s"limitRetriesByDelay(threshold=$threshold, $this)"
+      )
+    }
+
+    def limitRetriesByCumulativeDelay(threshold: FiniteDuration): Retry[F] = {
+      def decideNextRetry(status: Retry.Status): F[PolicyDecision] =
+        nextRetry(status).map {
+          case r @ DelayAndRetry(delay) =>
+            if (status.cumulativeDelay + delay >= threshold) GiveUp else r
+          case GiveUp => GiveUp
+        }
+
+      Retry[F](
+        decideNextRetry,
+        s"limitRetriesByCumulativeDelay(threshold=$threshold, $this)"
+      )
+    }
+
     def mapK[G[_]: Monad](f: F ~> G): Retry[G] =
       Retry(
         status => f(nextRetry(status)),
         s"$this.mapK(<FunctionK>)"
       )
-  }
-}
+   }
+ }
+
