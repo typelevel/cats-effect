@@ -73,6 +73,8 @@ object Retry {
     final case class DelayAndRetry(delay: FiniteDuration) extends Decision
   }
 
+  import Decision._
+
   val noRetriesYet = Retry.Status(0, Duration.Zero, None)
 
   def apply[F[_]: Monad](
@@ -95,14 +97,14 @@ object Retry {
    * policies.
    */
   def alwaysGiveUp[F[_]: Monad]: Retry[F] =
-    Retry.lift[F](Function.const(Decision.GiveUp), "alwaysDecision.GiveUp")
+    Retry.lift[F](Function.const(GiveUp), "alwaysGiveUp")
 
   /**
    * Delay by a constant amount before each retry. Never give up.
    */
   def constantDelay[F[_]: Monad](delay: FiniteDuration): Retry[F] =
     Retry.lift[F](
-      Function.const(Decision.DelayAndRetry(delay)),
+      Function.const(DelayAndRetry(delay)),
       show"constantDelay($delay)"
     )
 
@@ -116,7 +118,7 @@ object Retry {
       { status =>
         val delay =
           safeMultiply(baseDelay, Math.pow(2, status.retriesSoFar).toLong)
-        Decision.DelayAndRetry(delay)
+        DelayAndRetry(delay)
       },
       show"exponentialBackOff(baseDelay=$baseDelay)"
     )
@@ -128,9 +130,9 @@ object Retry {
     Retry.lift[F](
       { status =>
         if (status.retriesSoFar >= maxRetries) {
-          Decision.GiveUp
+          GiveUp
         } else {
-          Decision.DelayAndRetry(Duration.Zero)
+          DelayAndRetry(Duration.Zero)
         }
       },
       show"limitRetries(maxRetries=$maxRetries)"
@@ -149,7 +151,7 @@ object Retry {
       { status =>
         val delay =
           safeMultiply(baseDelay, Fibonacci.fibonacci(status.retriesSoFar + 1))
-        Decision.DelayAndRetry(delay)
+        DelayAndRetry(delay)
       },
       show"fibonacciBackoff(baseDelay=$baseDelay)"
     )
@@ -164,7 +166,7 @@ object Retry {
         val e = Math.pow(2, status.retriesSoFar).toLong
         val maxDelay = safeMultiply(baseDelay, e)
         val delayNanos = (maxDelay.toNanos * Random.nextDouble()).toLong
-        Decision.DelayAndRetry(new FiniteDuration(delayNanos, TimeUnit.NANOSECONDS))
+        DelayAndRetry(new FiniteDuration(delayNanos, TimeUnit.NANOSECONDS))
       },
       show"fullJitter(baseDelay=$baseDelay)"
     )
@@ -214,7 +216,7 @@ object Retry {
     def followedBy(r: Retry[F]): Retry[F] =
       Retry(
         status => (nextRetry(status), r.nextRetry(status)).mapN {
-          case (Decision.GiveUp, pd) => pd
+          case (GiveUp, pd) => pd
           case (pd, _) => pd
         },
         s"$this.followedBy($r)"
@@ -223,8 +225,8 @@ object Retry {
     def join(r: Retry[F]): Retry[F] =
       Retry[F](
         status => (nextRetry(status), r.nextRetry(status)).mapN {
-          case (Decision.DelayAndRetry(a), Decision.DelayAndRetry(b)) => Decision.DelayAndRetry(a max b)
-          case _ => Decision.GiveUp
+          case (DelayAndRetry(a), DelayAndRetry(b)) => DelayAndRetry(a max b)
+          case _ => GiveUp
         },
         s"$this.join($r)"
       )
@@ -232,10 +234,10 @@ object Retry {
     def meet(r: Retry[F]): Retry[F] =
       Retry[F](
         status => (nextRetry(status), r.nextRetry(status)).mapN {
-          case (Decision.DelayAndRetry(a), Decision.DelayAndRetry(b)) => Decision.DelayAndRetry(a min b)
-          case (s @ Decision.DelayAndRetry(_), Decision.GiveUp) => s
-          case (Decision.GiveUp, s @ Decision.DelayAndRetry(_)) => s
-          case _ => Decision.GiveUp
+          case (DelayAndRetry(a), DelayAndRetry(b)) => DelayAndRetry(a min b)
+          case (s @ DelayAndRetry(_), GiveUp) => s
+          case (GiveUp, s @ DelayAndRetry(_)) => s
+          case _ => GiveUp
         },
         s"$this.meet($r)"
       )
@@ -243,8 +245,8 @@ object Retry {
     def mapDelay(f: FiniteDuration => FiniteDuration): Retry[F] =
       Retry(
         status => nextRetry(status).map {
-          case Decision.GiveUp => Decision.GiveUp
-          case Decision.DelayAndRetry(d) => Decision.DelayAndRetry(f(d))
+          case GiveUp => GiveUp
+          case DelayAndRetry(d) => DelayAndRetry(f(d))
         },
         s"$this.mapDelay(<function>)"
     )
@@ -252,8 +254,8 @@ object Retry {
     def flatMapDelay(f: FiniteDuration => F[FiniteDuration]): Retry[F] =
       Retry(
         status => nextRetry(status).flatMap {
-          case Decision.GiveUp => Decision.GiveUp.pure[F].widen[Retry.Decision]
-          case Decision.DelayAndRetry(d) => f(d).map(Decision.DelayAndRetry(_))
+          case GiveUp => GiveUp.pure[F].widen[Retry.Decision]
+          case DelayAndRetry(d) => f(d).map(DelayAndRetry(_))
         },
         s"$this.flatMapDelay(<function>)"
       )
@@ -264,9 +266,9 @@ object Retry {
     def limitRetriesByDelay(threshold: FiniteDuration): Retry[F] = {
       def decideNextRetry(status: Retry.Status): F[Retry.Decision] =
         nextRetry(status).map {
-          case r @ Decision.DelayAndRetry(delay) =>
-            if (delay > threshold) Decision.GiveUp else r
-          case Decision.GiveUp => Decision.GiveUp
+          case r @ DelayAndRetry(delay) =>
+            if (delay > threshold) GiveUp else r
+          case GiveUp => GiveUp
         }
 
       Retry[F](
@@ -278,9 +280,9 @@ object Retry {
     def limitRetriesByCumulativeDelay(threshold: FiniteDuration): Retry[F] = {
       def decideNextRetry(status: Retry.Status): F[Retry.Decision] =
         nextRetry(status).map {
-          case r @ Decision.DelayAndRetry(delay) =>
-            if (status.cumulativeDelay + delay >= threshold) Decision.GiveUp else r
-          case Decision.GiveUp => Decision.GiveUp
+          case r @ DelayAndRetry(delay) =>
+            if (status.cumulativeDelay + delay >= threshold) GiveUp else r
+          case GiveUp => GiveUp
         }
 
       Retry[F](
