@@ -77,6 +77,152 @@ object Retry {
 
   val noRetriesYet = Retry.Status(0, Duration.Zero, None)
 
+  sealed trait RetryDetails {
+    def retriesSoFar: Int
+    def cumulativeDelay: FiniteDuration
+    def givingUp: Boolean
+    def upcomingDelay: Option[FiniteDuration]
+  }
+
+  object RetryDetails {
+    final case class GivingUp(
+      totalRetries: Int,
+      totalDelay: FiniteDuration
+    ) extends RetryDetails {
+      val retriesSoFar: Int = totalRetries
+      val cumulativeDelay: FiniteDuration = totalDelay
+      val givingUp: Boolean = true
+      val upcomingDelay: Option[FiniteDuration] = None
+    }
+
+    final case class WillDelayAndRetry(
+      nextDelay: FiniteDuration,
+      retriesSoFar: Int,
+      cumulativeDelay: FiniteDuration
+    ) extends RetryDetails {
+      val givingUp: Boolean = false
+      val upcomingDelay: Option[FiniteDuration] = Some(nextDelay)
+    }
+  }
+
+  def retry[F[_]: Temporal, A](
+    policy: Retry[F],
+    action: F[A],
+    wasSuccessful: A => F[Boolean],
+    isWorthRetrying: Throwable => F[Boolean],
+    onFailure: (A, RetryDetails) => F[Unit],
+    onError: (Throwable, RetryDetails) => F[Unit]
+  ): F[A] = {
+
+    def applyPolicy(
+      policy: Retry[F],
+      retryStatus: Retry.Status
+    ): F[NextStep] =
+      policy.nextRetry(retryStatus).map {
+        case Decision.DelayAndRetry(delay) =>
+          NextStep.RetryAfterDelay(delay, retryStatus.addRetry(delay))
+        case Decision.GiveUp =>
+          NextStep.GiveUp
+    }
+
+    def buildRetryDetails(
+      currentStatus: Retry.Status,
+      nextStep: NextStep
+    ): RetryDetails =
+      nextStep match {
+        case NextStep.RetryAfterDelay(delay, _) =>
+          RetryDetails.WillDelayAndRetry(
+            delay,
+            currentStatus.retriesSoFar,
+            currentStatus.cumulativeDelay
+          )
+        case NextStep.GiveUp =>
+          RetryDetails.GivingUp(
+            currentStatus.retriesSoFar,
+            currentStatus.cumulativeDelay
+          )
+      }
+
+    sealed trait NextStep
+
+    object NextStep {
+      case object GiveUp extends NextStep
+
+      final case class RetryAfterDelay(
+        delay: FiniteDuration,
+        updatedStatus: Retry.Status
+      ) extends NextStep
+    }
+
+    def retryingOnFailuresImpl(
+      policy: Retry[F],
+      wasSuccessful: A => F[Boolean],
+      onFailure: (A, RetryDetails) => F[Unit],
+      status: Retry.Status,
+      a: A
+    ): F[Either[Retry.Status, A]] = {
+
+      def onFalse: F[Either[Retry.Status, A]] = for {
+        nextStep <- applyPolicy(policy, status)
+        _ <- onFailure(a, buildRetryDetails(status, nextStep))
+        result <- nextStep match {
+          case NextStep.RetryAfterDelay(delay, updatedStatus) =>
+            Temporal[F].sleep(delay) *>
+            updatedStatus.asLeft.pure[F] // continue recursion
+          case NextStep.GiveUp =>
+            a.asRight.pure[F] // stop the recursion
+        }
+      } yield result
+
+      wasSuccessful(a).ifM(
+        a.asRight.pure[F],
+        onFalse
+      )
+    }
+
+    def retryingOnSomeErrorsImpl[A](
+      policy: Retry[F],
+      isWorthRetrying: Throwable => F[Boolean],
+      onError: (Throwable, RetryDetails) => F[Unit],
+      status: Retry.Status,
+      attempt: Either[Throwable, A]
+    ): F[Either[Retry.Status, A]] = attempt match {
+      case Left(error) =>
+        isWorthRetrying(error).ifM(
+          for {
+            nextStep <- applyPolicy(policy, status)
+            _ <- onError(error, buildRetryDetails(status, nextStep))
+            result <- nextStep match {
+              case NextStep.RetryAfterDelay(delay, updatedStatus) =>
+                Temporal[F].sleep(delay) *>
+                updatedStatus.asLeft.pure[F] // continue recursion
+              case NextStep.GiveUp =>
+                Temporal[F].raiseError[A](error).map(Right(_)) // stop the recursion
+            }
+          } yield result,
+          Temporal[F].raiseError[A](error).map(Right(_)) // stop the recursion
+        )
+      case Right(success) =>
+        success.asRight.pure[F] // stop the recursion
+    }
+
+
+    Temporal[F].tailRecM(Retry.noRetriesYet) { status =>
+      action.attempt.flatMap {
+        case Right(a) =>
+          retryingOnFailuresImpl(policy, wasSuccessful, onFailure, status, a)
+        case attempt =>
+          retryingOnSomeErrorsImpl(
+            policy,
+            isWorthRetrying,
+            onError,
+            status,
+            attempt
+          )
+      }
+    }
+  }
+
   def apply[F[_]: Monad](
     nextRetry: Retry.Status => F[Retry.Decision],
     pretty: String = "<retry>"
@@ -263,6 +409,7 @@ object Retry {
     def capDelay(cap: FiniteDuration): Retry[F] =
       meet(constantDelay(cap))
 
+    // TODO inline these decideNextRetry definitions
     def limitRetriesByDelay(threshold: FiniteDuration): Retry[F] = {
       def decideNextRetry(status: Retry.Status): F[Retry.Decision] =
         nextRetry(status).map {
