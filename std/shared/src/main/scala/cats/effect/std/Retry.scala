@@ -105,6 +105,7 @@ object Retry {
     }
   }
 
+  // TODO replace the name policy
   def retry[F[_]: Temporal, A](
     policy: Retry[F],
     action: F[A],
@@ -114,43 +115,32 @@ object Retry {
 
     def applyPolicy(
       policy: Retry[F],
-      retryStatus: Retry.Status
+      status: Retry.Status
     ): F[NextStep] =
-      policy.nextRetry(retryStatus).map {
-        case Decision.DelayAndRetry(delay) =>
-          NextStep.RetryAfterDelay(delay, retryStatus.addRetry(delay))
-        case Decision.GiveUp =>
-          NextStep.GiveUp
+      policy.nextRetry(status).map {
+        case decision @ Decision.DelayAndRetry(delay) =>
+          NextStep(status.addRetry(delay), decision)
+        case decision @ Decision.GiveUp =>
+          NextStep(status, decision)
     }
 
-    def buildRetryDetails(
-      currentStatus: Retry.Status,
-      nextStep: NextStep
-    ): RetryDetails =
-      nextStep match {
-        case NextStep.RetryAfterDelay(delay, _) =>
+    def buildRetryDetails(nextStep: NextStep): RetryDetails = {
+      nextStep.decision match {
+        case Decision.DelayAndRetry(delay) =>
           RetryDetails.WillDelayAndRetry(
             delay,
-            currentStatus.retriesSoFar,
-            currentStatus.cumulativeDelay
+            nextStep.status.retriesSoFar,
+            nextStep.status.cumulativeDelay
           )
-        case NextStep.GiveUp =>
+        case Decision.GiveUp =>
           RetryDetails.GivingUp(
-            currentStatus.retriesSoFar,
-            currentStatus.cumulativeDelay
+            nextStep.status.retriesSoFar,
+            nextStep.status.cumulativeDelay
           )
       }
-
-    sealed trait NextStep
-
-    object NextStep {
-      case object GiveUp extends NextStep
-
-      final case class RetryAfterDelay(
-        delay: FiniteDuration,
-        updatedStatus: Retry.Status
-      ) extends NextStep
     }
+
+    case class NextStep(status: Retry.Status, decision: Retry.Decision)
 
     def retryingOnSomeErrorsImpl[A](
       policy: Retry[F],
@@ -163,12 +153,12 @@ object Retry {
         isWorthRetrying(error).ifM(
           for {
             nextStep <- applyPolicy(policy, status)
-            _ <- onError(error, buildRetryDetails(status, nextStep))
+            _ <- onError(error, buildRetryDetails(nextStep))
             result <- nextStep match {
-              case NextStep.RetryAfterDelay(delay, updatedStatus) =>
+              case NextStep(updatedStatus, Decision.DelayAndRetry(delay)) =>
                 Temporal[F].sleep(delay) *>
                 updatedStatus.asLeft.pure[F] // continue recursion
-              case NextStep.GiveUp =>
+              case NextStep(_, GiveUp) =>
                 Temporal[F].raiseError[A](error).map(Right(_)) // stop the recursion
             }
           } yield result,
