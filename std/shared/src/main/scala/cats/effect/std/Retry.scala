@@ -107,17 +107,16 @@ object Retry {
     ): F[Either[Retry.Status, A]] = attempt match {
       case Left(error) =>
         isWorthRetrying(error).ifM(
-          for {
-            nextStep <- applyPolicy(policy, status)
-            _ <- onError(error, nextStep.status, nextStep.decision)
-            result <- nextStep match {
+          applyPolicy(policy, status).flatMap { nextStep =>
+            onError(error, nextStep.status, nextStep.decision) >>
+            (nextStep match {
               case NextStep(updatedStatus, Decision.DelayAndRetry(delay)) =>
                 Temporal[F].sleep(delay) *>
                 updatedStatus.asLeft.pure[F] // continue recursion
               case NextStep(_, GiveUp) =>
                 Temporal[F].raiseError[A](error).map(Right(_)) // stop the recursion
-            }
-          } yield result,
+            })
+          },
           Temporal[F].raiseError[A](error).map(Right(_)) // stop the recursion
         )
       case Right(success) =>
