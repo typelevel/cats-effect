@@ -108,9 +108,7 @@ object Retry {
   def retry[F[_]: Temporal, A](
     policy: Retry[F],
     action: F[A],
-    wasSuccessful: A => F[Boolean],
     isWorthRetrying: Throwable => F[Boolean],
-    onFailure: (A, RetryDetails) => F[Unit],
     onError: (Throwable, RetryDetails) => F[Unit]
   ): F[A] = {
 
@@ -154,32 +152,6 @@ object Retry {
       ) extends NextStep
     }
 
-    def retryingOnFailuresImpl(
-      policy: Retry[F],
-      wasSuccessful: A => F[Boolean],
-      onFailure: (A, RetryDetails) => F[Unit],
-      status: Retry.Status,
-      a: A
-    ): F[Either[Retry.Status, A]] = {
-
-      def onFalse: F[Either[Retry.Status, A]] = for {
-        nextStep <- applyPolicy(policy, status)
-        _ <- onFailure(a, buildRetryDetails(status, nextStep))
-        result <- nextStep match {
-          case NextStep.RetryAfterDelay(delay, updatedStatus) =>
-            Temporal[F].sleep(delay) *>
-            updatedStatus.asLeft.pure[F] // continue recursion
-          case NextStep.GiveUp =>
-            a.asRight.pure[F] // stop the recursion
-        }
-      } yield result
-
-      wasSuccessful(a).ifM(
-        a.asRight.pure[F],
-        onFalse
-      )
-    }
-
     def retryingOnSomeErrorsImpl[A](
       policy: Retry[F],
       isWorthRetrying: Throwable => F[Boolean],
@@ -210,7 +182,7 @@ object Retry {
     Temporal[F].tailRecM(Retry.noRetriesYet) { status =>
       action.attempt.flatMap {
         case Right(a) =>
-          retryingOnFailuresImpl(policy, wasSuccessful, onFailure, status, a)
+          a.asRight.pure[F]
         case attempt =>
           retryingOnSomeErrorsImpl(
             policy,
