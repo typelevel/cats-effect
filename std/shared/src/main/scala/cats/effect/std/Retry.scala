@@ -77,40 +77,12 @@ object Retry {
 
   val noRetriesYet = Retry.Status(0, Duration.Zero, None)
 
-  sealed trait RetryDetails {
-    def retriesSoFar: Int
-    def cumulativeDelay: FiniteDuration
-    def givingUp: Boolean
-    def upcomingDelay: Option[FiniteDuration]
-  }
-
-  object RetryDetails {
-    final case class GivingUp(
-      totalRetries: Int,
-      totalDelay: FiniteDuration
-    ) extends RetryDetails {
-      val retriesSoFar: Int = totalRetries
-      val cumulativeDelay: FiniteDuration = totalDelay
-      val givingUp: Boolean = true
-      val upcomingDelay: Option[FiniteDuration] = None
-    }
-
-    final case class WillDelayAndRetry(
-      nextDelay: FiniteDuration,
-      retriesSoFar: Int,
-      cumulativeDelay: FiniteDuration
-    ) extends RetryDetails {
-      val givingUp: Boolean = false
-      val upcomingDelay: Option[FiniteDuration] = Some(nextDelay)
-    }
-  }
-
   // TODO replace the name policy
   def retry[F[_]: Temporal, A](
     policy: Retry[F],
     action: F[A],
     isWorthRetrying: Throwable => F[Boolean],
-    onError: (Throwable, RetryDetails) => F[Unit]
+    onError: (Throwable, Retry.Status, Retry.Decision) => F[Unit]
   ): F[A] = {
 
     def applyPolicy(
@@ -124,28 +96,12 @@ object Retry {
           NextStep(status, decision)
     }
 
-    def buildRetryDetails(nextStep: NextStep): RetryDetails = {
-      nextStep.decision match {
-        case Decision.DelayAndRetry(delay) =>
-          RetryDetails.WillDelayAndRetry(
-            delay,
-            nextStep.status.retriesSoFar,
-            nextStep.status.cumulativeDelay
-          )
-        case Decision.GiveUp =>
-          RetryDetails.GivingUp(
-            nextStep.status.retriesSoFar,
-            nextStep.status.cumulativeDelay
-          )
-      }
-    }
-
     case class NextStep(status: Retry.Status, decision: Retry.Decision)
 
     def retryingOnSomeErrorsImpl[A](
       policy: Retry[F],
       isWorthRetrying: Throwable => F[Boolean],
-      onError: (Throwable, RetryDetails) => F[Unit],
+      onError: (Throwable, Retry.Status, Retry.Decision) => F[Unit],
       status: Retry.Status,
       attempt: Either[Throwable, A]
     ): F[Either[Retry.Status, A]] = attempt match {
@@ -153,7 +109,7 @@ object Retry {
         isWorthRetrying(error).ifM(
           for {
             nextStep <- applyPolicy(policy, status)
-            _ <- onError(error, buildRetryDetails(nextStep))
+            _ <- onError(error, nextStep.status, nextStep.decision)
             result <- nextStep match {
               case NextStep(updatedStatus, Decision.DelayAndRetry(delay)) =>
                 Temporal[F].sleep(delay) *>
