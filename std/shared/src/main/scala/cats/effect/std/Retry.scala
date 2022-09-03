@@ -85,19 +85,6 @@ object Retry {
     onError: (Throwable, Retry.Status, Retry.Decision) => F[Unit]
   ): F[A] = {
 
-    def applyPolicy(
-      policy: Retry[F],
-      status: Retry.Status
-    ): F[NextStep] =
-      policy.nextRetry(status).map {
-        case decision @ Decision.DelayAndRetry(delay) =>
-          NextStep(status.addRetry(delay), decision)
-        case decision @ Decision.GiveUp =>
-          NextStep(status, decision)
-    }
-
-    case class NextStep(status: Retry.Status, decision: Retry.Decision)
-
     def retryingOnSomeErrorsImpl[A](
       policy: Retry[F],
       isWorthRetrying: Throwable => F[Boolean],
@@ -107,15 +94,22 @@ object Retry {
     ): F[Either[Retry.Status, A]] = attempt match {
       case Left(error) =>
         isWorthRetrying(error).ifM(
-          applyPolicy(policy, status).flatMap { nextStep =>
-            onError(error, nextStep.status, nextStep.decision) >>
-            (nextStep match {
-              case NextStep(updatedStatus, Decision.DelayAndRetry(delay)) =>
-                Temporal[F].sleep(delay) *>
-                updatedStatus.asLeft.pure[F] // continue recursion
-              case NextStep(_, GiveUp) =>
-                Temporal[F].raiseError[A](error).map(Right(_)) // stop the recursion
-            })
+          policy.nextRetry(status) // TODO the map below will become the definition of Retry
+            .map {
+              case decision @ Decision.DelayAndRetry(delay) =>
+                (status.addRetry(delay), decision)
+              case decision @ Decision.GiveUp =>
+                (status, decision)
+            }
+            .flatTap { case (status, decision) => onError(error, status, decision) }
+            .flatMap { case (status, decision) =>
+              decision match {
+                case Decision.DelayAndRetry(delay) =>
+                  Temporal[F].sleep(delay) *>
+                  status.asLeft.pure[F] // continue recursion
+                case Decision.GiveUp =>
+                  Temporal[F].raiseError[A](error).map(_.asRight) // stop the recursion
+              }
           },
           Temporal[F].raiseError[A](error).map(Right(_)) // stop the recursion
         )
