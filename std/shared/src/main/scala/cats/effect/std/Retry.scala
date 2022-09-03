@@ -56,16 +56,10 @@ abstract class Retry[F[_]] {
 }
 object Retry {
   final case class Status(
-      retriesSoFar: Int,
-      cumulativeDelay: FiniteDuration,
-      previousDelay: Option[FiniteDuration]
-  ) {
-    def addRetry(delay: FiniteDuration): Retry.Status = Retry.Status(
-      retriesSoFar = this.retriesSoFar + 1,
-      cumulativeDelay = this.cumulativeDelay + delay,
-      previousDelay = Some(delay)
-    )
-  }
+    retriesSoFar: Int,
+    cumulativeDelay: FiniteDuration,
+    previousDelay: Option[FiniteDuration]
+  )
 
   sealed trait Decision
   object Decision {
@@ -85,47 +79,36 @@ object Retry {
     onError: (Throwable, Retry.Status, Retry.Decision) => F[Unit]
   ): F[A] = {
 
-    def logic[A](
-      policy: Retry[F],
-      isWorthRetrying: Throwable => F[Boolean],
-      onError: (Throwable, Retry.Status, Retry.Decision) => F[Unit],
-      status: Retry.Status,
-      attempt: Either[Throwable, A]
-    ): F[Either[Retry.Status, A]] = attempt match {
-      case Left(error) =>
-        isWorthRetrying(error).ifM(
-          policy
-            .nextRetry(status)
-            .flatMap {
-              case decision @ Decision.DelayAndRetry(delay) =>
-                val newStatus = status.addRetry(delay)
+    def logic[A](status: Retry.Status, attempt: Either[Throwable, A]): F[Either[Retry.Status, A]] =
+      attempt match {
+        case Left(error) =>
+          isWorthRetrying(error).ifM(
+            policy
+              .nextRetry(status)
+              .flatMap {
+                case decision @ Decision.DelayAndRetry(delay) =>
+                  val newStatus = Retry.Status(
+                    retriesSoFar = status.retriesSoFar + 1,
+                    cumulativeDelay = status.cumulativeDelay + delay,
+                    previousDelay = delay.some
+                  )
 
-                onError(error, newStatus, decision) >>
-                Temporal[F].sleep(delay) >>
-                newStatus.asLeft.pure[F] // continue recursion
-              case decision @ Decision.GiveUp =>
-                onError(error, status, decision) >>
-                Temporal[F].raiseError[A](error).map(_.asRight) // stop the recursion
-            },
-          Temporal[F].raiseError[A](error).map(Right(_)) // stop the recursion
-        )
-      case Right(success) =>
-        success.asRight.pure[F] // stop the recursion
-    }
-
+                  onError(error, newStatus, decision) >>
+                  Temporal[F].sleep(delay).as(newStatus.asLeft) // continue recursion
+                case decision @ Decision.GiveUp =>
+                  onError(error, status, decision) >>
+                  Temporal[F].raiseError[A](error).map(_.asRight) // stop the recursion
+              },
+            Temporal[F].raiseError[A](error).map(Right(_)) // stop the recursion
+          )
+        case Right(success) =>
+          success.asRight.pure[F] // stop the recursion
+      }
 
     Temporal[F].tailRecM(Retry.noRetriesYet) { status =>
       action.attempt.flatMap {
-        case Right(a) =>
-          a.asRight.pure[F]
-        case attempt =>
-          logic(
-            policy,
-            isWorthRetrying,
-            onError,
-            status,
-            attempt
-          )
+        case Right(a) => a.asRight.pure[F]
+        case attempt => logic(status, attempt )
       }
     }
   }
