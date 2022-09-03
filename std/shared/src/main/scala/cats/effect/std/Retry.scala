@@ -85,7 +85,7 @@ object Retry {
     onError: (Throwable, Retry.Status, Retry.Decision) => F[Unit]
   ): F[A] = {
 
-    def retryingOnSomeErrorsImpl[A](
+    def logic[A](
       policy: Retry[F],
       isWorthRetrying: Throwable => F[Boolean],
       onError: (Throwable, Retry.Status, Retry.Decision) => F[Unit],
@@ -94,23 +94,19 @@ object Retry {
     ): F[Either[Retry.Status, A]] = attempt match {
       case Left(error) =>
         isWorthRetrying(error).ifM(
-          policy.nextRetry(status) // TODO the map below will become the definition of Retry
-            .map {
+          policy
+            .nextRetry(status)
+            .flatMap {
               case decision @ Decision.DelayAndRetry(delay) =>
-                (status.addRetry(delay), decision)
+                val newStatus = status.addRetry(delay)
+
+                onError(error, newStatus, decision) >>
+                Temporal[F].sleep(delay) >>
+                newStatus.asLeft.pure[F] // continue recursion
               case decision @ Decision.GiveUp =>
-                (status, decision)
-            }
-            .flatTap { case (status, decision) => onError(error, status, decision) }
-            .flatMap { case (status, decision) =>
-              decision match {
-                case Decision.DelayAndRetry(delay) =>
-                  Temporal[F].sleep(delay) *>
-                  status.asLeft.pure[F] // continue recursion
-                case Decision.GiveUp =>
-                  Temporal[F].raiseError[A](error).map(_.asRight) // stop the recursion
-              }
-          },
+                onError(error, status, decision) >>
+                Temporal[F].raiseError[A](error).map(_.asRight) // stop the recursion
+            },
           Temporal[F].raiseError[A](error).map(Right(_)) // stop the recursion
         )
       case Right(success) =>
@@ -123,7 +119,7 @@ object Retry {
         case Right(a) =>
           a.asRight.pure[F]
         case attempt =>
-          retryingOnSomeErrorsImpl(
+          logic(
             policy,
             isWorthRetrying,
             onError,
