@@ -78,39 +78,31 @@ object Retry {
     isWorthRetrying: Throwable => F[Boolean],
     onError: (Throwable, Retry.Status, Retry.Decision) => F[Unit]
   ): F[A] = {
+    def loop(status: Retry.Status): F[A] =
+      action.handleErrorWith { error =>
+        isWorthRetrying(error).ifM(
+          policy
+            .nextRetry(status)
+            .flatMap {
+              case decision @ Decision.DelayAndRetry(delay) =>
+                val newStatus = Retry.Status(
+                  retriesSoFar = status.retriesSoFar + 1,
+                  cumulativeDelay = status.cumulativeDelay + delay,
+                  previousDelay = delay.some
+                )
 
-    def logic[A](status: Retry.Status, attempt: Either[Throwable, A]): F[Either[Retry.Status, A]] =
-      attempt match {
-        case Left(error) =>
-          isWorthRetrying(error).ifM(
-            policy
-              .nextRetry(status)
-              .flatMap {
-                case decision @ Decision.DelayAndRetry(delay) =>
-                  val newStatus = Retry.Status(
-                    retriesSoFar = status.retriesSoFar + 1,
-                    cumulativeDelay = status.cumulativeDelay + delay,
-                    previousDelay = delay.some
-                  )
-
-                  onError(error, newStatus, decision) >>
-                  Temporal[F].sleep(delay).as(newStatus.asLeft) // continue recursion
-                case decision @ Decision.GiveUp =>
-                  onError(error, status, decision) >>
-                  Temporal[F].raiseError[A](error).map(_.asRight) // stop the recursion
-              },
-            Temporal[F].raiseError[A](error).map(Right(_)) // stop the recursion
-          )
-        case Right(success) =>
-          success.asRight.pure[F] // stop the recursion
+                onError(error, newStatus, decision) >>
+                Temporal[F].sleep(delay) >>
+                loop(newStatus)
+              case decision @ Decision.GiveUp =>
+                onError(error, status, decision) >>
+                Temporal[F].raiseError[A](error)
+            },
+          Temporal[F].raiseError[A](error)
+        )
       }
 
-    Temporal[F].tailRecM(Retry.noRetriesYet) { status =>
-      action.attempt.flatMap {
-        case Right(a) => a.asRight.pure[F]
-        case attempt => logic(status, attempt )
-      }
-    }
+    loop(noRetriesYet)
   }
 
   def apply[F[_]: Monad](
