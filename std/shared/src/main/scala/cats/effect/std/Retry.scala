@@ -11,7 +11,7 @@ import scala.util.Random
 import java.util.concurrent.TimeUnit
 
 abstract class Retry[F[_]] {
-  def nextRetry(status: Retry.Status): F[Retry.Decision]
+  def nextRetry(status: Retry.Status, error: Throwable): F[Retry.Decision]
 
   def followedBy(r: Retry[F]): Retry[F]
 
@@ -81,7 +81,7 @@ object Retry {
       action.handleErrorWith { error =>
         isWorthRetrying(error).ifM(
           r
-            .nextRetry(status)
+            .nextRetry(status, error)
             .flatMap {
               case decision @ Decision.DelayAndRetry(delay) =>
                 val newStatus = Retry.Status(
@@ -105,14 +105,19 @@ object Retry {
   }
 
   def apply[F[_]: Monad](
-    nextRetry: Retry.Status => F[Retry.Decision]
+    nextRetry: (Retry.Status, Throwable) => F[Retry.Decision]
   ): Retry[F] =
     new RetryImpl[F](nextRetry)
+
+  def liftF[F[_]: Monad](
+    nextRetry: Retry.Status => F[Retry.Decision]
+  ): Retry[F] =
+    Retry((status, _) => nextRetry(status))
 
   def lift[F[_]: Monad](
     nextRetry: Retry.Status => Retry.Decision
   ): Retry[F] =
-    apply[F](status => nextRetry(status).pure[F])
+    liftF[F](status => nextRetry(status).pure[F])
 
   /**
    * Don't retry at all and always give up. Only really useful for combining with other
@@ -207,28 +212,28 @@ object Retry {
   }
 
 
-  private final case class RetryImpl[F[_]: Monad](nextRetry_ : Retry.Status => F[Retry.Decision]) extends Retry[F] {
+  private final case class RetryImpl[F[_]: Monad](nextRetry_ : (Retry.Status, Throwable) => F[Retry.Decision]) extends Retry[F] {
 
-    def nextRetry(status: Retry.Status): F[Retry.Decision] =
-      nextRetry_(status)
+    def nextRetry(status: Retry.Status, error: Throwable): F[Retry.Decision] =
+      nextRetry_(status, error)
 
-    def followedBy(r: Retry[F]) = Retry { status =>
-      (nextRetry(status), r.nextRetry(status)).mapN {
+    def followedBy(r: Retry[F]) = Retry { (status, error) =>
+      (nextRetry(status, error), r.nextRetry(status, error)).mapN {
         case (GiveUp, decision) => decision
         case (decision, _) => decision
       }
     }
 
-    def join(r: Retry[F]) = Retry[F] { status =>
-      (nextRetry(status), r.nextRetry(status)).mapN {
+    def join(r: Retry[F]) = Retry[F] { (status, error) =>
+      (nextRetry(status, error), r.nextRetry(status, error)).mapN {
         case (DelayAndRetry(t1), DelayAndRetry(t2)) => DelayAndRetry(t1 max t2)
         case _ => GiveUp
       }
     }
 
 
-    def meet(r: Retry[F]) = Retry { status =>
-      (nextRetry(status), r.nextRetry(status)).mapN {
+    def meet(r: Retry[F]) = Retry { (status, error) =>
+      (nextRetry(status, error), r.nextRetry(status, error)).mapN {
         case (DelayAndRetry(t1), DelayAndRetry(t2)) => DelayAndRetry(t1 min t2)
         case (retrying @ DelayAndRetry(_), GiveUp) => retrying
         case (GiveUp, retrying @ DelayAndRetry(_)) => retrying
@@ -236,25 +241,29 @@ object Retry {
       }
     }
 
-    def mapDelay(f: FiniteDuration => FiniteDuration) = Retry { status =>
-      nextRetry(status).map {
+    def mapDelay(f: FiniteDuration => FiniteDuration) = Retry { (status, error) =>
+      nextRetry(status, error).map {
         case GiveUp => GiveUp
         case DelayAndRetry(delay) => DelayAndRetry(f(delay))
       }
     }
 
-    def flatMapDelay(f: FiniteDuration => F[FiniteDuration]) = Retry { status =>
-      nextRetry(status).flatMap {
+    def flatMapDelay(f: FiniteDuration => F[FiniteDuration]) = Retry { (status, error) =>
+      nextRetry(status, error).flatMap {
         case GiveUp => GiveUp.pure[F].widen[Retry.Decision]
         case DelayAndRetry(delay) => f(delay).map(DelayAndRetry(_))
       }
     }
 
+    // TODO
+    // This implementation doesn't work, a retry that only retries on specific errors
+    // will always retry once capped since constant delay never gives up, and meet only gives up if
+    // both retries do
     def capDelay(cap: FiniteDuration): Retry[F] =
       meet(constantDelay(cap))
 
-    def limitRetriesByDelay(threshold: FiniteDuration) = Retry { status =>
-      nextRetry(status).map {
+    def limitRetriesByDelay(threshold: FiniteDuration) = Retry { (status, error) =>
+      nextRetry(status, error).map {
         case retrying @ DelayAndRetry(delay) =>
           if (delay > threshold) GiveUp else retrying
         case GiveUp => GiveUp
@@ -262,8 +271,8 @@ object Retry {
     }
 
     def limitRetriesByCumulativeDelay(threshold: FiniteDuration) =
-      Retry { status =>
-        nextRetry(status).map {
+      Retry { (status, error) =>
+        nextRetry(status, error).map {
           case retrying @ DelayAndRetry(delay) =>
             if (status.cumulativeDelay + delay >= threshold) GiveUp
             else retrying
@@ -272,7 +281,7 @@ object Retry {
     }
 
     def mapK[G[_]: Monad](f: F ~> G): Retry[G] =
-      Retry(status => f(nextRetry(status)))
+      Retry((status, error) => f(nextRetry(status, error)))
 
     override def toString: String = "Retry(...)"
   }
