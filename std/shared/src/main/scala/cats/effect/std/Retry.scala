@@ -65,7 +65,13 @@ object Retry {
     retriesSoFar: Int,
     cumulativeDelay: FiniteDuration,
     previousDelay: Option[FiniteDuration]
-  )
+  ) {
+    def addRetry(delay: FiniteDuration) = Retry.Status(
+      retriesSoFar = retriesSoFar + 1,
+      cumulativeDelay = cumulativeDelay + delay,
+      previousDelay = delay.some
+    )
+  }
 
   sealed trait Decision
   object Decision {
@@ -84,13 +90,7 @@ object Retry {
           .nextRetry(status, error)
           .flatMap {
             case DelayAndRetry(delay) =>
-              val newStatus = Retry.Status(
-                retriesSoFar = status.retriesSoFar + 1,
-                cumulativeDelay = status.cumulativeDelay + delay,
-                previousDelay = delay.some
-              )
-
-              Temporal[F].sleep(delay) >> loop(newStatus)
+              Temporal[F].sleep(delay) >> loop(status.addRetry(delay))
             case GiveUp =>
               Temporal[F].raiseError[A](error)
           }
@@ -289,13 +289,7 @@ object Retry {
       Retry { (status, error) =>
         nextRetry(status, error).flatTap {
           case decision @ DelayAndRetry(delay) =>
-            val newStatus = Retry.Status(
-              retriesSoFar = status.retriesSoFar + 1,
-              cumulativeDelay = status.cumulativeDelay + delay,
-              previousDelay = delay.some
-            )
-
-            f(error, decision, newStatus)
+            f(error, decision, status.addRetry(delay))
           case decision @ GiveUp =>
             f(error, decision, status)
         }
