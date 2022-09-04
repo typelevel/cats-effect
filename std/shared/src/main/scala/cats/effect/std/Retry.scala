@@ -256,12 +256,8 @@ object Retry {
       }
     }
 
-    // TODO
-    // This implementation doesn't work, a retry that only retries on specific errors
-    // will always retry once capped since constant delay never gives up, and meet only gives up if
-    // both retries do
     def capDelay(cap: FiniteDuration): Retry[F] =
-      meet(constantDelay(cap))
+      mapDelay(delay => delay.min(cap))
 
     def limitRetriesByDelay(threshold: FiniteDuration) = Retry { (status, error) =>
       nextRetry(status, error).map {
