@@ -16,18 +16,16 @@ abstract class Retry[F[_]] {
   def followedBy(r: Retry[F]): Retry[F]
 
   /**
-   * Combine this schedule with another schedule, giving up when either of the schedules want to
-   * give up and choosing the maximum of the two delays when both of the schedules want to delay
-   * the next retry. The dual of the `meet` operation.
+   * Combine this schedule with another schedule, retrying when both schedules want to retry
+   * and choosing the maximum of the two delays.
    */
-  def join(r: Retry[F]): Retry[F]
+  def and(r: Retry[F]): Retry[F]
 
   /**
-   * Combine this schedule with another schedule, giving up when both of the schedules want to
-   * give up and choosing the minimum of the two delays when both of the schedules want to delay
-   * the next retry. The dual of the `join` operation.
+   * Combine this schedule with another schedule, retrying when either schedule wants to retry
+   * and choosing the minimum of the two delays when both schedules want to retry.
    */
-  def meet(r: Retry[F]): Retry[F]
+  def or(r: Retry[F]): Retry[F]
 
   def mapDelay(f: FiniteDuration => FiniteDuration): Retry[F]
 
@@ -219,7 +217,7 @@ object Retry {
       }
     }
 
-    def join(r: Retry[F]) = Retry[F] { (status, error) =>
+    def and(r: Retry[F]) = Retry[F] { (status, error) =>
       (nextRetry(status, error), r.nextRetry(status, error)).mapN {
         case (DelayAndRetry(t1), DelayAndRetry(t2)) => DelayAndRetry(t1 max t2)
         case _ => GiveUp
@@ -227,7 +225,7 @@ object Retry {
     }
 
 
-    def meet(r: Retry[F]) = Retry { (status, error) =>
+    def or(r: Retry[F]) = Retry { (status, error) =>
       (nextRetry(status, error), r.nextRetry(status, error)).mapN {
         case (DelayAndRetry(t1), DelayAndRetry(t2)) => DelayAndRetry(t1 min t2)
         case (retrying @ DelayAndRetry(_), GiveUp) => retrying
