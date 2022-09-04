@@ -56,6 +56,7 @@ abstract class Retry[F[_]] {
 
   def selectErrorWith(f: Throwable => F[Boolean]): Retry[F]
 
+  def flatTap(f: (Throwable, Retry.Decision, Retry.Status) => F[Unit]): Retry[F]
 
   def mapK[G[_]: Monad](f: F ~> G): Retry[G]
 }
@@ -76,28 +77,21 @@ object Retry {
 
   val noRetriesYet = Retry.Status(0, Duration.Zero, None)
 
-  def retry[F[_]: Temporal, A](
-    r: Retry[F],
-    action: F[A],
-    onError: (Throwable, Retry.Status, Retry.Decision) => F[Unit]
-  ): F[A] = {
+  def retry[F[_]: Temporal, A](r: Retry[F], action: F[A]): F[A] = {
     def loop(status: Retry.Status): F[A] =
       action.handleErrorWith { error =>
         r
           .nextRetry(status, error)
           .flatMap {
-            case decision @ Decision.DelayAndRetry(delay) =>
+            case DelayAndRetry(delay) =>
               val newStatus = Retry.Status(
                 retriesSoFar = status.retriesSoFar + 1,
                 cumulativeDelay = status.cumulativeDelay + delay,
                 previousDelay = delay.some
               )
 
-              onError(error, newStatus, decision) >>
-              Temporal[F].sleep(delay) >>
-              loop(newStatus)
-            case decision @ Decision.GiveUp =>
-              onError(error, status, decision) >>
+              Temporal[F].sleep(delay) >> loop(newStatus)
+            case GiveUp =>
               Temporal[F].raiseError[A](error)
           }
       }
@@ -288,6 +282,22 @@ object Retry {
         f(error).flatMap {
           case true => nextRetry(status, error)
           case false => GiveUp.pure[F].widen[Decision]
+        }
+      }
+
+    def flatTap(f: (Throwable, Retry.Decision, Retry.Status) => F[Unit]): Retry[F] =
+      Retry { (status, error) =>
+        nextRetry(status, error).flatTap {
+          case decision @ DelayAndRetry(delay) =>
+            val newStatus = Retry.Status(
+              retriesSoFar = status.retriesSoFar + 1,
+              cumulativeDelay = status.cumulativeDelay + delay,
+              previousDelay = delay.some
+            )
+
+            f(error, decision, newStatus)
+          case decision @ GiveUp =>
+            f(error, decision, status)
         }
       }
 
