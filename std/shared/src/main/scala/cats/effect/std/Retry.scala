@@ -52,6 +52,11 @@ abstract class Retry[F[_]] {
    */
   def limitRetriesByCumulativeDelay(threshold: FiniteDuration): Retry[F]
 
+  def selectError(f: Throwable => Boolean): Retry[F]
+
+  def selectErrorWith(f: Throwable => F[Boolean]): Retry[F]
+
+
   def mapK[G[_]: Monad](f: F ~> G): Retry[G]
 }
 object Retry {
@@ -74,31 +79,27 @@ object Retry {
   def retry[F[_]: Temporal, A](
     r: Retry[F],
     action: F[A],
-    isWorthRetrying: Throwable => F[Boolean],
     onError: (Throwable, Retry.Status, Retry.Decision) => F[Unit]
   ): F[A] = {
     def loop(status: Retry.Status): F[A] =
       action.handleErrorWith { error =>
-        isWorthRetrying(error).ifM(
-          r
-            .nextRetry(status, error)
-            .flatMap {
-              case decision @ Decision.DelayAndRetry(delay) =>
-                val newStatus = Retry.Status(
-                  retriesSoFar = status.retriesSoFar + 1,
-                  cumulativeDelay = status.cumulativeDelay + delay,
-                  previousDelay = delay.some
-                )
+        r
+          .nextRetry(status, error)
+          .flatMap {
+            case decision @ Decision.DelayAndRetry(delay) =>
+              val newStatus = Retry.Status(
+                retriesSoFar = status.retriesSoFar + 1,
+                cumulativeDelay = status.cumulativeDelay + delay,
+                previousDelay = delay.some
+              )
 
-                onError(error, newStatus, decision) >>
-                Temporal[F].sleep(delay) >>
-                loop(newStatus)
-              case decision @ Decision.GiveUp =>
-                onError(error, status, decision) >>
-                Temporal[F].raiseError[A](error)
-            },
-          Temporal[F].raiseError[A](error)
-        )
+              onError(error, newStatus, decision) >>
+              Temporal[F].sleep(delay) >>
+              loop(newStatus)
+            case decision @ Decision.GiveUp =>
+              onError(error, status, decision) >>
+              Temporal[F].raiseError[A](error)
+          }
       }
 
     loop(noRetriesYet)
@@ -279,6 +280,20 @@ object Retry {
           case GiveUp => GiveUp
         }
     }
+
+    def selectError(f: Throwable => Boolean): Retry[F] =
+      Retry { (status, error) =>
+        if(f(error)) nextRetry(status, error)
+        else GiveUp.pure[F].widen[Decision]
+      }
+
+    def selectErrorWith(f: Throwable => F[Boolean]): Retry[F] =
+      Retry { (status, error) =>
+        f(error).flatMap {
+          case true => nextRetry(status, error)
+          case false => GiveUp.pure[F].widen[Decision]
+        }
+      }
 
     def mapK[G[_]: Monad](f: F ~> G): Retry[G] =
       Retry((status, error) => f(nextRetry(status, error)))
