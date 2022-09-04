@@ -23,11 +23,12 @@ import java.time.Instant
 private[effect] abstract class IOCompanionPlatform { this: IO.type =>
 
   def blocking[A](thunk: => A): IO[A] =
-    apply(thunk)
+    // do our best to mitigate blocking
+    IO.cede *> apply(thunk) <* IO.cede
 
   private[effect] def interruptible[A](many: Boolean, thunk: => A): IO[A] = {
     val _ = many
-    apply(thunk)
+    blocking(thunk)
   }
 
   def interruptible[A](thunk: => A): IO[A] = interruptible(false, thunk)
