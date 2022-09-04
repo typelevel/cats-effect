@@ -34,21 +34,21 @@ abstract class Retry[F[_]] {
   def flatMapDelay(f: FiniteDuration => F[FiniteDuration]): Retry[F]
 
     /**
-   * Set an upper bound on any individual delay produced by the given policy.
+   * Set an upper bound on any individual delay produced by the given Retry.
    */
   def capDelay(cap: FiniteDuration): Retry[F]
 
   /**
-    * Add an upper bound to a policy such that once the given time-delay amount <b>per try</b>
-    * has been reached or exceeded, the policy will stop retrying and give up. If you need to
+    * Add an upper bound to a Retry such that once the given time-delay amount <b>per try</b>
+    * has been reached or exceeded, the Retry will stop retrying and give up. If you need to
     * stop retrying once <b>cumulative</b> delay reaches a time-delay amount, use
     * [[limitRetriesByCumulativeDelay]].
     */
   def limitRetriesByDelay(threshold: FiniteDuration): Retry[F]
 
   /**
-   * Add an upperbound to a policy such that once the cumulative delay over all retries has
-   * reached or exceeded the given limit, the policy will stop retrying and give up.
+   * Add an upperbound to a Retry such that once the cumulative delay over all retries has
+   * reached or exceeded the given limit, the Retry will stop retrying and give up.
    */
   def limitRetriesByCumulativeDelay(threshold: FiniteDuration): Retry[F]
 
@@ -71,9 +71,8 @@ object Retry {
 
   val noRetriesYet = Retry.Status(0, Duration.Zero, None)
 
-  // TODO replace the name policy
   def retry[F[_]: Temporal, A](
-    policy: Retry[F],
+    r: Retry[F],
     action: F[A],
     isWorthRetrying: Throwable => F[Boolean],
     onError: (Throwable, Retry.Status, Retry.Decision) => F[Unit]
@@ -81,7 +80,7 @@ object Retry {
     def loop(status: Retry.Status): F[A] =
       action.handleErrorWith { error =>
         isWorthRetrying(error).ifM(
-          policy
+          r
             .nextRetry(status)
             .flatMap {
               case decision @ Decision.DelayAndRetry(delay) =>
