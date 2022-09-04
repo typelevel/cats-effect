@@ -253,7 +253,6 @@ object Retry {
     def capDelay(cap: FiniteDuration): Retry[F] =
       meet(constantDelay(cap))
 
-    // TODO inline these decideNextRetry definitions
     def limitRetriesByDelay(threshold: FiniteDuration) = Retry { status =>
       nextRetry(status).map {
         case retrying @ DelayAndRetry(delay) =>
