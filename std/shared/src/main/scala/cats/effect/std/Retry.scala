@@ -36,6 +36,8 @@ abstract class Retry[F[_]] {
    */
   def capDelay(cap: FiniteDuration): Retry[F]
 
+  def limitRetries(maxRetries: Int): Retry[F]
+
   /**
     * Add an upper bound to a Retry such that once the given time-delay amount <b>per try</b>
     * has been reached or exceeded, the Retry will stop retrying and give up. If you need to
@@ -136,16 +138,6 @@ object Retry {
       DelayAndRetry(delay)
     }
 
-
-  /**
-   * Retry without delay, giving up after the given number of retries.
-   */
-  def limitRetries[F[_]: Monad](maxRetries: Int): Retry[F] =
-    Retry.lift[F] { status =>
-        if (status.retriesSoFar >= maxRetries) GiveUp
-        else DelayAndRetry(Duration.Zero)
-    }
-
   /**
    * Delay(n) = Delay(n - 2) + Delay(n - 1)
    *
@@ -204,7 +196,6 @@ object Retry {
     FiniteDuration(safeResultNanos.toLong, TimeUnit.NANOSECONDS)
   }
 
-
   private final case class RetryImpl[F[_]: Monad](nextRetry_ : (Retry.Status, Throwable) => F[Retry.Decision]) extends Retry[F] {
 
     def nextRetry(status: Retry.Status, error: Throwable): F[Retry.Decision] =
@@ -250,6 +241,11 @@ object Retry {
 
     def capDelay(cap: FiniteDuration): Retry[F] =
       mapDelay(delay => delay.min(cap))
+
+    def limitRetries(maxRetries: Int): Retry[F] = Retry { (status, error) =>
+      if (status.retriesSoFar >= maxRetries) GiveUp.pure[F].widen[Decision]
+      else nextRetry(status, error)
+    }
 
     def limitRetriesByDelay(threshold: FiniteDuration) = Retry { (status, error) =>
       nextRetry(status, error).map {
