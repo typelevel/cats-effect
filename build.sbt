@@ -113,7 +113,7 @@ val Windows = "windows-latest"
 val MacOS = "macos-latest"
 
 val Scala213 = "2.13.7"
-val Scala3 = "3.0.2"
+val Scala3 = "3.2.0"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
 ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
@@ -189,7 +189,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
   val scalaJavaFilters = for {
     scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
     java <- (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(OldGuardJava))
-    if !(scala == Scala3 && java == LatestJava)
+    if !(scala == Scala3 && (java == LatestJava || java == GraalVM))
   } yield MatrixExclude(Map("scala" -> scala, "java" -> java.render))
 
   val windowsAndMacScalaFilters =
