@@ -5,7 +5,9 @@ title: Dispatcher
 
 ![](assets/dispatcher.jpeg)
 
-`Dispatcher` is a [fiber](../concepts.md#fibers)-based [`Supervisor`](./supervisor.md) utility for evaluating effects across an impure boundary. This is useful when working with reactive interfaces that produce potentially many values (as opposed to one), and for each value, some effect in `F` (like inserting each value into a queue) must be performed as a side effect by an impure callback. This scenario is sometimes facetiously referred to as [Soviet interop](https://knowyourmeme.com/memes/in-soviet-russia) because "impure code runs you", in contrast with the more common interoperation scenario where impure code is wrapped in an effect.
+`Dispatcher` is a [fiber](../concepts.md#fibers)-based [`Supervisor`](./supervisor.md) utility for evaluating effects across an impure boundary. This is useful when working with reactive interfaces that produce potentially many values (as opposed to one), and for each value, some effect in `F` (like inserting each value into a queue) must be performed as a side effect by an impure callback. This allows effectful code to be sequenced within the control flow of impure code, reversing the more common scenario where impure code, suspended using `delay` or `blocking`, is sequenced within effectful code. 
+
+contrast with the more common interoperation scenario where impure code is wrapped in an effect.
 
 An instance of `Dispatcher` can be derived for any effect type conforming to the [`Async`](../typeclasses/async.md) typeclass.
 
