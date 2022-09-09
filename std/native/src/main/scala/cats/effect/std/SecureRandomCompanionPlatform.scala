@@ -45,6 +45,17 @@ private[std] trait SecureRandomCompanionPlatform {
       }
     }
 
+    override protected final def next(numBits: Int): Int = {
+      if (numBits <= 0) {
+        0 // special case because the formula on the last line is incorrect for numBits == 0
+      } else {
+        val bytes = stackalloc[CInt]()
+        sysrandom.getentropy(bytes.asInstanceOf[Ptr[Byte]], sizeof[CInt])
+        val rand32: Int = !bytes
+        rand32 & (-1 >>> (32 - numBits)) // Clear the (32 - numBits) higher order bits
+      }
+    }
+
   }
 
 }
