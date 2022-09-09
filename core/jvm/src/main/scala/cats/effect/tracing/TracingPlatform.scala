@@ -39,7 +39,7 @@ private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent]
     }
   }
 
-  @nowarn("cat=unused")
+  @nowarn("msg=never used")
   private[tracing] def applyStackTraceFilter(
       callSiteClassName: String,
       callSiteMethodName: String,

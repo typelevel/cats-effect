@@ -36,4 +36,5 @@ trait DetectPlatform {
   }
 
   def isJS: Boolean = true
+  def isNative: Boolean = false
 }

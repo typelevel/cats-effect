@@ -113,7 +113,7 @@ val Windows = "windows-latest"
 val MacOS = "macos-latest"
 
 val Scala213 = "2.13.7"
-val Scala3 = "3.0.2"
+val Scala3 = "3.1.2"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.15", Scala213)
 ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
@@ -163,6 +163,11 @@ ThisBuild / githubWorkflowBuild := Seq(
     cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")
   ),
   WorkflowStep.Run(
+    List("example/test-native.sh ${{ matrix.scala }}"),
+    name = Some("Test Example Native App Using Binary"),
+    cond = Some(s"matrix.ci == 'ciNative' && matrix.os == '$PrimaryOS'")
+  ),
+  WorkflowStep.Run(
     List("cd scalafix", "sbt test"),
     name = Some("Scalafix tests"),
     cond =
@@ -193,7 +198,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
     ci <- jsCiVariants.tail
   } yield MatrixExclude(Map("ci" -> ci, "scala" -> scala))
 
-  val jsJavaAndOSFilters = jsCiVariants.flatMap { ci =>
+  val nativeJsJavaAndOSFilters = (CI.Native.command :: jsCiVariants).flatMap { ci =>
     val javaFilters =
       (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)).map { java =>
         MatrixExclude(Map("ci" -> ci, "java" -> java.render))
@@ -209,7 +214,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
     MatrixExclude(Map("os" -> Windows, "java" -> GraalVM.render))
   )
 
-  scalaJavaFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ jsJavaAndOSFilters ++ flakyFilters
+  scalaJavaFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ nativeJsJavaAndOSFilters ++ flakyFilters
 }
 
 lazy val useJSEnv =
@@ -245,11 +250,11 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 
 ThisBuild / autoAPIMappings := true
 
-val CatsVersion = "2.7.0"
-val Specs2Version = "4.13.1"
-val ScalaCheckVersion = "1.15.4"
-val DisciplineVersion = "1.2.5"
-val CoopVersion = "1.1.1"
+val CatsVersion = "2.8.0"
+val Specs2Version = "4.16.0"
+val ScalaCheckVersion = "1.16.0"
+val DisciplineVersion = "1.4.0"
+val CoopVersion = "1.2.0"
 
 val MacrotaskExecutorVersion = "1.0.0"
 
@@ -257,21 +262,37 @@ tlReplaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 addCommandAlias("release", "tlRelease")
 
 addCommandAlias(CI.JVM.command, CI.JVM.toString)
+addCommandAlias(CI.Native.command, CI.Native.toString)
 addCommandAlias(CI.JS.command, CI.JS.toString)
 addCommandAlias(CI.Firefox.command, CI.Firefox.toString)
 addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
 
 addCommandAlias("prePR", "; root/clean; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
 
+val nativeProjects: Seq[ProjectReference] =
+  Seq(
+    kernel.native,
+    kernelTestkit.native,
+    laws.native,
+    core.native,
+    testkit.native,
+    tests.native,
+    std.native,
+    example.native)
+
 val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
 
 val undocumentedRefs =
-  jsProjects ++ Seq[ProjectReference](benchmarks, example.jvm, tests.jvm, tests.js)
+  jsProjects ++ nativeProjects ++ Seq[ProjectReference](
+    benchmarks,
+    example.jvm,
+    tests.jvm,
+    tests.js)
 
 lazy val root = project
   .in(file("."))
-  .aggregate(rootJVM, rootJS)
+  .aggregate(rootJVM, rootJS, rootNative)
   .enablePlugins(NoPublishPlugin)
   .enablePlugins(ScalaUnidocPlugin)
   .settings(
@@ -295,29 +316,32 @@ lazy val rootJVM = project
 
 lazy val rootJS = project.aggregate(jsProjects: _*).enablePlugins(NoPublishPlugin)
 
+lazy val rootNative = project.aggregate(nativeProjects: _*).enablePlugins(NoPublishPlugin)
+
 /**
  * The core abstractions and syntax. This is the most general definition of Cats Effect, without
  * any concrete implementations. This is the "batteries not included" dependency.
  */
-lazy val kernel = crossProject(JSPlatform, JVMPlatform)
+lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("kernel"))
   .settings(
     name := "cats-effect-kernel",
     libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion)
   .settings(
-    libraryDependencies += ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
-      .cross(CrossVersion.for3Use2_13)
-      .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
+    libraryDependencies += "org.specs2" %%% "specs2-core" % Specs2Version % Test
   )
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
+  )
+  .nativeSettings(
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.4.0"
   )
 
 /**
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
  * generators, and useful tools for testing code written against Cats Effect.
  */
-lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
+lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("kernel-testkit"))
   .dependsOn(kernel)
   .settings(
@@ -336,7 +360,7 @@ lazy val kernelTestkit = crossProject(JSPlatform, JVMPlatform)
  * dependency issues. As a consequence of this split, some things which are defined in
  * kernelTestkit are *tested* in the Test scope of this project.
  */
-lazy val laws = crossProject(JSPlatform, JVMPlatform)
+lazy val laws = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("laws"))
   .dependsOn(kernel, kernelTestkit % Test)
   .settings(
@@ -351,7 +375,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
  * contains some general datatypes built on top of IO which are useful in their own right, as
  * well as some utilities (such as IOApp). This is the "batteries included" dependency.
  */
-lazy val core = crossProject(JSPlatform, JVMPlatform)
+lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core"))
   .dependsOn(kernel, std)
   .settings(
@@ -621,23 +645,21 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
  * Test support for the core project, providing various helpful instances like ScalaCheck
  * generators for IO and SyncIO.
  */
-lazy val testkit = crossProject(JSPlatform, JVMPlatform)
+lazy val testkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("testkit"))
   .dependsOn(core, kernelTestkit)
   .settings(
     name := "cats-effect-testkit",
     libraryDependencies ++= Seq(
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      ("org.specs2" %%% "specs2-core" % Specs2Version % Test)
-        .cross(CrossVersion.for3Use2_13)
-        .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
+      "org.specs2" %%% "specs2-core" % Specs2Version % Test
     )
   )
 
 /**
  * Unit tests for the core project, utilizing the support provided by testkit.
  */
-lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
+lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("tests"))
   .dependsOn(core, laws % Test, kernelTestkit % Test, testkit % Test)
   .enablePlugins(BuildInfoPlugin, NoPublishPlugin)
@@ -645,11 +667,7 @@ lazy val tests: CrossProject = crossProject(JSPlatform, JVMPlatform)
     name := "cats-effect-tests",
     libraryDependencies ++= Seq(
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
-        .cross(CrossVersion.for3Use2_13)
-        .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
-        .exclude("org.scalacheck", "scalacheck_2.13")
-        .exclude("org.scalacheck", "scalacheck_sjs1_2.13"),
+      "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test,
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.typelevel" %%% "cats-kernel-laws" % CatsVersion % Test
     ),
@@ -689,18 +707,14 @@ lazy val testsJVM = tests
  * implementations will require IO, and thus those tests will be located within the core
  * project.
  */
-lazy val std = crossProject(JSPlatform, JVMPlatform)
+lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("std"))
   .dependsOn(kernel)
   .settings(
     name := "cats-effect-std",
     libraryDependencies ++= Seq(
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
-      ("org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test)
-        .cross(CrossVersion.for3Use2_13)
-        .exclude("org.scala-js", "scala-js-macrotask-executor_sjs1_2.13")
-        .exclude("org.scalacheck", "scalacheck_2.13")
-        .exclude("org.scalacheck", "scalacheck_sjs1_2.13")
+      "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     )
   )
   .jsSettings(
@@ -711,7 +725,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform)
  * A trivial pair of trivial example apps primarily used to show that IOApp works as a practical
  * runtime on both target platforms.
  */
-lazy val example = crossProject(JSPlatform, JVMPlatform)
+lazy val example = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("example"))
   .dependsOn(core)
   .enablePlugins(NoPublishPlugin)

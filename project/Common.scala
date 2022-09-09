@@ -17,7 +17,10 @@
 import sbt._, Keys._
 
 import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport._
+import org.typelevel.sbt.TypelevelMimaPlugin.autoImport._
 import org.typelevel.sbt.TypelevelPlugin
+import sbtcrossproject.CrossPlugin.autoImport._
+import scalanativecrossproject.NativePlatform
 
 object Common extends AutoPlugin {
 
@@ -28,6 +31,12 @@ object Common extends AutoPlugin {
     Seq(
       headerLicense := Some(
         HeaderLicense.ALv2(s"${startYear.value.get}-2022", organizationName.value)
-      )
+      ),
+      tlVersionIntroduced ++= {
+        if (crossProjectPlatform.?.value.contains(NativePlatform))
+          List("2.12", "2.13", "3").map(_ -> "3.4.0").toMap
+        else
+          Map.empty
+      }
     )
 }
