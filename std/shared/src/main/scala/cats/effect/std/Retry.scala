@@ -1,5 +1,4 @@
 package cats.effect.std
-package retry
 
 import cats._
 import cats.syntax.all._
