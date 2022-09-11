@@ -2,7 +2,6 @@ package cats.effect.std
 
 import cats._
 import cats.syntax.all._
-//import cats.kernel.BoundedSemilattice
 import cats.effect.kernel.Temporal
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
@@ -188,18 +187,6 @@ object Retry {
       val delayNanos = (maxDelay.toNanos * Random.nextDouble()).toLong
       DelayAndRetry(new FiniteDuration(delayNanos, TimeUnit.NANOSECONDS))
     }
-
-// implicit def boundedSemilatticeForRetry[F[_]](
-//     implicit F: Monad[F]): BoundedSemilattice[Retry[F]] =
-//   new BoundedSemilattice[Retry[F]] {
-//     override def empty: Retry[F] =
-//       RetryPolicies.constantDelay[F](Duration.Zero)
-
-//     override def combine(
-//         x: Retry[F],
-//         y: Retry[F]
-//     ): Retry[F] = x.join(y)
-//   }
 
   /*
    * Multiply the given duration by the given multiplier, but cap the result to
