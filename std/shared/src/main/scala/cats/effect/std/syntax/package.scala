@@ -24,4 +24,6 @@ package object syntax {
 
   object retry extends RetrySyntax
 
+  object backpressure extends BackpressureSyntax
+
 }
