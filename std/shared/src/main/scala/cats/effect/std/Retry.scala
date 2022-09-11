@@ -204,15 +204,12 @@ object Retry {
   /*
    * Multiply the given duration by the given multiplier, but cap the result to
    * ensure we don't try to create a FiniteDuration longer than 2^63 - 1 nanoseconds.
-   *
-   * Note: despite the "safe" in the name, we can still create an invalid
-   * FiniteDuration if the multiplier is negative. But an assumption of the library
-   * as a whole is that nobody would be silly enough to use negative delays.
    */
   private def safeMultiply(
     duration: FiniteDuration,
     multiplier: Long
   ): FiniteDuration = {
+    assert(multiplier > 0, "Don't use a negative delay")
     val longMax: BigInt = BigInt(Long.MaxValue)
     val durationNanos = BigInt(duration.toNanos)
     val resultNanos = durationNanos * BigInt(multiplier)
