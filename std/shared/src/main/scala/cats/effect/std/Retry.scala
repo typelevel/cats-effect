@@ -132,7 +132,7 @@ object Retry {
       baseDelay: FiniteDuration
   ): Retry[F] =
     Retry.lift[F] { status =>
-      val delay = safeMultiply(baseDelay, Math.pow(2, status.retriesSoFar).toLong)
+      val delay = safeMultiply(baseDelay, Math.pow(2, status.retriesSoFar.toDouble).toLong)
       DelayAndRetry(delay)
     }
 
@@ -183,7 +183,7 @@ object Retry {
    */
   def fullJitter[F[_]: Monad](baseDelay: FiniteDuration): Retry[F] =
     Retry.lift[F] { status =>
-      val e = Math.pow(2, status.retriesSoFar).toLong
+      val e = Math.pow(2, status.retriesSoFar.toDouble).toLong
       val maxDelay = safeMultiply(baseDelay, e)
       val delayNanos = (maxDelay.toNanos * Random.nextDouble()).toLong
       DelayAndRetry(new FiniteDuration(delayNanos, TimeUnit.NANOSECONDS))
