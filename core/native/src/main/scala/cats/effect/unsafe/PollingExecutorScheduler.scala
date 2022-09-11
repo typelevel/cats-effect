@@ -50,7 +50,7 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
   }
 
   final def sleep(delay: FiniteDuration, task: Runnable): Runnable =
-    if (delay == Duration.Zero) {
+    if (delay <= Duration.Zero) {
       execute(task)
       noop
     } else {
