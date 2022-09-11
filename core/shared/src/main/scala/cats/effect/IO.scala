@@ -36,7 +36,7 @@ import cats.{
 }
 import cats.data.Ior
 import cats.effect.instances.spawn
-import cats.effect.std.{Console, Env, UUIDGen}
+import cats.effect.std.{Console, Env, UUIDGen, Retry}
 import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.syntax.all._
 
@@ -483,6 +483,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    */
   def recoverWith[B >: A](pf: PartialFunction[Throwable, IO[B]]): IO[B] =
     handleErrorWith(e => pf.applyOrElse(e, IO.raiseError))
+
+
+  def retry(r: Retry[IO]): IO[A] =
+    Retry.retry(r, this)
 
   def ifM[B](ifTrue: => IO[B], ifFalse: => IO[B])(implicit ev: A <:< Boolean): IO[B] =
     flatMap(a => if (ev(a)) ifTrue else ifFalse)
