@@ -145,12 +145,38 @@ object Retry {
    */
   def fibonacciBackoff[F[_]: Monad](
       baseDelay: FiniteDuration
-  ): Retry[F] =
+  ): Retry[F] = {
+    // "Fast doubling" Fibonacci algorithm.
+    // See e.g. http://funloop.org/post/2017-04-14-computing-fibonacci-numbers.html for explanation.
+    def fib(n: Int): (Long, Long) = n match {
+      case 0 => (0, 1)
+      case m =>
+        val (a, b) = fib(m / 2)
+        val c = a * (b * 2 - a)
+        val d = a * a + b * b
+        if (n % 2 == 0)
+          (c, d)
+        else
+        (d, c + d)
+    }
+
+    // TODO
+    // this can probably be eliminated (after tests) since it only
+    // exists for that > 0 test, which is a condition that cannot
+    // happen at use site
+    def fibonacci(n: Int): Long = {
+      if (n > 0)
+        fib(n)._1
+      else
+        0
+    }
+
     Retry.lift[F] { status =>
         val delay =
-          safeMultiply(baseDelay, Fibonacci.fibonacci(status.retriesSoFar + 1))
+          safeMultiply(baseDelay, fibonacci(status.retriesSoFar + 1))
         DelayAndRetry(delay)
     }
+  }
 
   /**
    * "Full jitter" backoff algorithm. See
