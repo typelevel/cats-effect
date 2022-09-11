@@ -3,8 +3,7 @@ package retry
 
 import cats._
 import cats.syntax.all._
-import cats.arrow.FunctionK
-import cats.kernel.BoundedSemilattice
+//import cats.kernel.BoundedSemilattice
 import cats.effect.kernel.Temporal
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
