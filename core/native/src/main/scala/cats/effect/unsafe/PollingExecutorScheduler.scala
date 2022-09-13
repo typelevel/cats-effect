@@ -33,7 +33,7 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
   private[this] var cachedNow: Long = _
 
   private[this] val executeQueue: ArrayDeque[Runnable] = new ArrayDeque
-  private[this] val sleepQueue: PriorityQueue[ScheduledTask] = new PriorityQueue
+  private[this] val sleepQueue: PriorityQueue[SleepTask] = new PriorityQueue
 
   private[this] val noop: Runnable = () => ()
 
@@ -54,9 +54,9 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
     } else {
       scheduleIfNeeded()
       val now = if (inLoop) cachedNow else monotonicNanos()
-      val scheduledTask = new ScheduledTask(now + delay.toNanos, task)
-      sleepQueue.offer(scheduledTask)
-      scheduledTask
+      val SleepTask = new SleepTask(now + delay.toNanos, task)
+      sleepQueue.offer(SleepTask)
+      SleepTask
     }
 
   def reportFailure(t: Throwable): Unit = t.printStackTrace()
@@ -144,16 +144,16 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
 
 object PollingExecutorScheduler {
 
-  private final class ScheduledTask(
+  private final class SleepTask(
       val at: Long,
       val runnable: Runnable,
       var canceled: Boolean = false
   ) extends Runnable
-      with Comparable[ScheduledTask] {
+      with Comparable[SleepTask] {
 
     def run(): Unit = canceled = true
 
-    def compareTo(that: ScheduledTask): Int =
+    def compareTo(that: SleepTask): Int =
       java.lang.Long.compare(this.at, that.at)
 
   }
