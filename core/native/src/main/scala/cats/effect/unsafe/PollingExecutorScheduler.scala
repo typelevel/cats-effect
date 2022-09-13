@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect
+package unsafe
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.concurrent.duration._
@@ -103,18 +104,18 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
       // cache the timestamp for this tick
       cachedNow = monotonicNanos()
 
-      // execute the timers
+      // remove canceled timers
       while (!sleepQueue.isEmpty() && sleepQueue.peek().canceled) {
         sleepQueue.poll()
       }
 
+      // execute the timers
       while (!sleepQueue.isEmpty() && sleepQueue.peek().at <= cachedNow) {
         val task = sleepQueue.poll()
-        try {
-          task.runnable.run()
-        } catch {
-          case NonFatal(t) =>
-            reportFailure(t)
+        try task.runnable.run()
+        catch {
+          case NonFatal(t) => reportFailure(t)
+          case t: Throwable => IOFiber.onFatalFailure(t)
         }
       }
 
@@ -122,11 +123,10 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
       var i = 0
       while (i < pollEvery && !executeQueue.isEmpty()) {
         val runnable = executeQueue.poll()
-        try {
-          runnable.run()
-        } catch {
-          case NonFatal(t) =>
-            reportFailure(t)
+        try runnable.run()
+        catch {
+          case NonFatal(t) => reportFailure(t)
+          case t: Throwable => IOFiber.onFatalFailure(t)
         }
         i += 1
       }
