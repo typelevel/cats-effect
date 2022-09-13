@@ -18,7 +18,8 @@ package cats.effect.unsafe
 
 import scala.concurrent.duration._
 
-private[effect] object QueueExecutorScheduler extends PollingExecutorScheduler {
+// JVM WSTP sets ExternalQueueTicks = 64 so we steal it here
+private[effect] object QueueExecutorScheduler extends PollingExecutorScheduler(64) {
 
   def poll(timeout: Duration): Boolean = {
     if (timeout != Duration.Zero && timeout.isFinite) {

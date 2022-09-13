@@ -25,7 +25,9 @@ import scala.util.control.NonFatal
 
 import java.util.{ArrayDeque, PriorityQueue}
 
-abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Scheduler {
+abstract class PollingExecutorScheduler(pollEvery: Int)
+    extends ExecutionContextExecutor
+    with Scheduler {
 
   import PollingExecutorScheduler._
 
@@ -33,8 +35,7 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
   private[this] var inLoop: Boolean = false
   private[this] var cachedNow: Long = _
 
-  private[this] var executeQueue: ArrayDeque[Runnable] = new ArrayDeque
-  private[this] var cachedExecuteQueue: ArrayDeque[Runnable] = new ArrayDeque
+  private[this] val executeQueue: ArrayDeque[Runnable] = new ArrayDeque
   private[this] val sleepQueue: PriorityQueue[ScheduledTask] = new PriorityQueue
 
   private[this] val noop: Runnable = () => ()
@@ -117,20 +118,17 @@ abstract class PollingExecutorScheduler extends ExecutionContextExecutor with Sc
         }
       }
 
-      // swap the task queues
-      val todo = executeQueue
-      executeQueue = cachedExecuteQueue
-      cachedExecuteQueue = todo
-
-      // do all the tasks
-      while (!todo.isEmpty()) {
-        val runnable = todo.poll()
+      // do up to pollEvery tasks
+      var i = 0
+      while (i < pollEvery && !executeQueue.isEmpty()) {
+        val runnable = executeQueue.poll()
         try {
           runnable.run()
         } catch {
           case NonFatal(t) =>
             reportFailure(t)
         }
+        i += 1
       }
 
       // cleanup canceled timers
