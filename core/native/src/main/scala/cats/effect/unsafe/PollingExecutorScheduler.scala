@@ -26,8 +26,6 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
     extends ExecutionContextExecutor
     with Scheduler {
 
-  import PollingExecutorScheduler._
-
   private[this] var needsReschedule: Boolean = true
   private[this] var inLoop: Boolean = false
   private[this] var cachedNow: Long = _
@@ -54,9 +52,9 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
     } else {
       scheduleIfNeeded()
       val now = if (inLoop) cachedNow else monotonicNanos()
-      val SleepTask = new SleepTask(now + delay.toNanos, task)
-      sleepQueue.offer(SleepTask)
-      SleepTask
+      val sleepTask = new SleepTask(now + delay.toNanos, task)
+      sleepQueue.offer(sleepTask)
+      sleepTask
     }
 
   def reportFailure(t: Throwable): Unit = t.printStackTrace()
@@ -89,10 +87,6 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
       cachedNow = monotonicNanos()
 
       // execute the timers
-      while (!sleepQueue.isEmpty() && sleepQueue.peek().canceled) {
-        sleepQueue.poll()
-      }
-
       while (!sleepQueue.isEmpty() && sleepQueue.peek().at <= cachedNow) {
         val task = sleepQueue.poll()
         try {
@@ -116,12 +110,6 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
         i += 1
       }
 
-      // cleanup canceled timers
-      val sleepIter = sleepQueue.iterator()
-      while (sleepIter.hasNext()) {
-        if (sleepIter.next().canceled) sleepIter.remove()
-      }
-
       // finally we poll
       val timeout =
         if (!executeQueue.isEmpty())
@@ -140,22 +128,19 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
     inLoop = false
   }
 
-}
-
-object PollingExecutorScheduler {
-
-  private final class SleepTask(
+  private[this] final class SleepTask(
       val at: Long,
-      val runnable: Runnable,
-      var canceled: Boolean = false
+      val runnable: Runnable
   ) extends Runnable
       with Comparable[SleepTask] {
 
-    def run(): Unit = canceled = true
+    def run(): Unit = {
+      sleepQueue.remove(this)
+      ()
+    }
 
     def compareTo(that: SleepTask): Int =
       java.lang.Long.compare(this.at, that.at)
-
   }
 
 }
