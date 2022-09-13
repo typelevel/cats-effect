@@ -3,7 +3,8 @@ id: sync
 title: Sync
 ---
 
-`Sync` is the synchronous FFI for suspending side-effectful operations. The
+`Sync` is the synchronous [Foreign Function Interface](https://en.wikipedia.org/wiki/Foreign_function_interface) 
+(FFI) for suspending side-effectful operations. The
 means of suspension is dependent on whether the side effect you want to
 suspend is blocking or not (see the [thread model docs](../thread-model.md)
 for more details on why this is the case).

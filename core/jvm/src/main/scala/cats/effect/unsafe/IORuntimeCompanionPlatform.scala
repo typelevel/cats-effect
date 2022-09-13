@@ -114,13 +114,6 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       })
   }
 
-  @deprecated("bincompat shim for previous default method overload", "3.3.13")
-  def createDefaultComputeThreadPool(
-      self: () => IORuntime,
-      threads: Int,
-      threadPrefix: String): (WorkStealingThreadPool, () => Unit) =
-    createDefaultComputeThreadPool(self(), threads, threadPrefix)
-
   @deprecated(
     message = "Replaced by the simpler and safer `createWorkStealingComputePool`",
     since = "3.4.0"
@@ -129,8 +122,16 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       self: => IORuntime,
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
       threadPrefix: String = "io-compute",
-      blockerThreadPrefix: String = "io-blocking"): (WorkStealingThreadPool, () => Unit) =
-    createWorkStealingComputeThreadPool(threads, threadPrefix)
+      blockerThreadPrefix: String = DefaultBlockerPrefix)
+      : (WorkStealingThreadPool, () => Unit) =
+    createWorkStealingComputeThreadPool(threads, threadPrefix, blockerThreadPrefix)
+
+  @deprecated("bincompat shim for previous default method overload", "3.3.13")
+  def createDefaultComputeThreadPool(
+      self: () => IORuntime,
+      threads: Int,
+      threadPrefix: String): (WorkStealingThreadPool, () => Unit) =
+    createDefaultComputeThreadPool(self(), threads, threadPrefix)
 
   def createDefaultBlockingExecutionContext(
       threadPrefix: String = "io-blocking"): (ExecutionContext, () => Unit) = {

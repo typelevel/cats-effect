@@ -132,39 +132,37 @@ private final class IOFiber[A](
 
   /* this is swapped for an `IO.unit` when we complete */
   private[this] var _cancel: IO[Unit] = IO uncancelable { _ =>
-    IO defer {
-      canceled = true
+    canceled = true
 
-      // println(s"${name}: attempting cancelation")
+    // println(s"${name}: attempting cancelation")
 
-      /* check to see if the target fiber is suspended */
-      if (resume()) {
-        /* ...it was! was it masked? */
-        if (isUnmasked()) {
-          /* ...nope! take over the target fiber's runloop and run the finalizers */
-          // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
+    /* check to see if the target fiber is suspended */
+    if (resume()) {
+      /* ...it was! was it masked? */
+      if (isUnmasked()) {
+        /* ...nope! take over the target fiber's runloop and run the finalizers */
+        // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
-          /* if we have async finalizers, runLoop may return early */
-          IO.async_[Unit] { fin =>
-            // println(s"${name}: canceller started at ${Thread.currentThread().getName} + ${suspended.get()}")
-            val ec = currentCtx
-            resumeTag = AsyncContinueCanceledWithFinalizerR
-            objectState.push(fin)
-            scheduleFiber(ec, this)
-          }
-        } else {
-          /*
-           * it was masked, so we need to wait for it to finish whatever
-           * it was doing  and cancel itself
-           */
-          suspend() /* allow someone else to take the runloop */
-          join.void
+        /* if we have async finalizers, runLoop may return early */
+        IO.async_[Unit] { fin =>
+          // println(s"${name}: canceller started at ${Thread.currentThread().getName} + ${suspended.get()}")
+          val ec = currentCtx
+          resumeTag = AsyncContinueCanceledWithFinalizerR
+          objectState.push(fin)
+          scheduleFiber(ec, this)
         }
       } else {
-        // println(s"${name}: had to join")
-        /* it's already being run somewhere; await the finalizers */
+        /*
+         * it was masked, so we need to wait for it to finish whatever
+         * it was doing  and cancel itself
+         */
+        suspend() /* allow someone else to take the runloop */
         join.void
       }
+    } else {
+      // println(s"${name}: had to join")
+      /* it's already being run somewhere; await the finalizers */
+      join.void
     }
   }
 

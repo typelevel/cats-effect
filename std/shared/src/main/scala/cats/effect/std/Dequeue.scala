@@ -309,10 +309,9 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
   def tryTakeBack: F[Option[A]]
 
   /**
-   * Dequeues an element from the front of the dequeue, possibly fiber blocking until an element
-   * becomes available. Attempts to dequeue elements from the back of the dequeue, if they
-   * available without semantically blocking. This is a convenience method that recursively runs
-   * `tryTakeBack`. It does not provide any additional performance benefits.
+   * Attempts to dequeue elements from the back of the dequeue, if they available without
+   * semantically blocking. This is a convenience method that recursively runs `tryTakeBack`. It
+   * does not provide any additional performance benefits.
    *
    * @param maxN
    *   The max elements to dequeue. Passing `None` will try to dequeue the whole queue.
@@ -438,11 +437,10 @@ trait DequeueSink[F[_], A] extends QueueSink[F, A] {
   def tryOfferBack(a: A): F[Boolean]
 
   /**
-   * Enqueues the given element at the front of the dequeue, possibly fiber blocking until
-   * sufficient capacity becomes available. Attempts to enqueue the given elements at the back
-   * of the queue without semantically blocking. If an item in the list cannot be enqueued, the
-   * remaining elements will be returned. This is a convenience method that recursively runs
-   * `tryOffer` and does not offer any additional performance benefits.
+   * Attempts to enqueue the given elements at the back of the queue without semantically
+   * blocking. If an item in the list cannot be enqueued, the remaining elements will be
+   * returned. This is a convenience method that recursively runs `tryOffer` and does not offer
+   * any additional performance benefits.
    *
    * @param list
    *   the elements to be put at the back of the queue
