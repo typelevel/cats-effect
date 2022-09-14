@@ -22,6 +22,8 @@ import java.time.Instant
 
 private[effect] abstract class IOCompanionPlatform { this: IO.type =>
 
+  private[this] val TypeDelay = Sync.Type.Delay
+
   def blocking[A](thunk: => A): IO[A] =
     // do our best to mitigate blocking
     IO.cede *> apply(thunk).guarantee(IO.cede)
@@ -35,10 +37,11 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
 
   def interruptibleMany[A](thunk: => A): IO[A] = interruptible(true, thunk)
 
-  def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] = {
-    val _ = hint
-    apply(thunk)
-  }
+  def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
+    if (hint eq TypeDelay)
+      apply(thunk)
+    else
+      blocking(thunk)
 
   def realTimeInstant: IO[Instant] = asyncForIO.realTimeInstant
 
