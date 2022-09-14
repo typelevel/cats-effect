@@ -40,9 +40,7 @@ final class MutexSpec extends BaseSpec {
 
   def tests(mutex: IO[Mutex[IO]]): Fragments = {
     "execute action if free" in real {
-      mutex.flatMap { m =>
-        m.lock.surround(IO.unit).mustEqual(())
-      }
+      mutex.flatMap { m => m.lock.surround(IO.unit).mustEqual(()) }
     }
 
     "be reusable" in real {
@@ -57,7 +55,7 @@ final class MutexSpec extends BaseSpec {
       mutex.flatMap { m =>
         val p =
           m.lock.surround(IO.raiseError(new Exception)).attempt >>
-          m.lock.surround(IO.unit)
+            m.lock.surround(IO.unit)
 
         p.mustEqual(())
       }
@@ -66,7 +64,7 @@ final class MutexSpec extends BaseSpec {
     "block action if not free" in ticked { implicit ticker =>
       mutex.flatMap { m =>
         m.lock.surround(IO.never) >>
-        m.lock.surround(IO.unit)
+          m.lock.surround(IO.unit)
       } must nonTerminate
     }
 
@@ -74,7 +72,7 @@ final class MutexSpec extends BaseSpec {
       mutex.flatMap { m =>
         val p =
           IO.sleep(1.second) >>
-          m.lock.surround(IO.unit)
+            m.lock.surround(IO.unit)
 
         (p, p).parTupled
       } must completeAs(((), ()))
