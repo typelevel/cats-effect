@@ -26,7 +26,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
   private[this] var _global: IORuntime = null
 
-  def installGlobal(global: => IORuntime): Boolean = {
+  private[effect] def installGlobal(global: => IORuntime): Boolean = {
     if (_global == null) {
       _global = global
       true
