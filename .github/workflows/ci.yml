@@ -23,13 +23,13 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        scala: [3.0.2, 2.12.15, 2.13.7]
+        scala: [3.1.2, 2.12.15, 2.13.7]
         java: [temurin@8, temurin@11, temurin@17, graalvm@11]
-        ci: [ciJVM, ciJS, ciFirefox, ciChrome]
+        ci: [ciJVM, ciNative, ciJS, ciFirefox, ciChrome]
         exclude:
-          - scala: 3.0.2
+          - scala: 3.1.2
             java: temurin@11
-          - scala: 3.0.2
+          - scala: 3.1.2
             java: graalvm@11
           - scala: 2.12.15
             java: temurin@11
@@ -38,21 +38,31 @@ jobs:
           - scala: 2.12.15
             java: graalvm@11
           - os: windows-latest
-            scala: 3.0.2
+            scala: 3.1.2
           - os: macos-latest
-            scala: 3.0.2
+            scala: 3.1.2
           - os: windows-latest
             scala: 2.12.15
           - os: macos-latest
             scala: 2.12.15
           - ci: ciFirefox
-            scala: 3.0.2
+            scala: 3.1.2
           - ci: ciChrome
-            scala: 3.0.2
+            scala: 3.1.2
           - ci: ciFirefox
             scala: 2.12.15
           - ci: ciChrome
             scala: 2.12.15
+          - ci: ciNative
+            java: temurin@11
+          - ci: ciNative
+            java: temurin@17
+          - ci: ciNative
+            java: graalvm@11
+          - os: windows-latest
+            ci: ciNative
+          - os: macos-latest
+            ci: ciNative
           - ci: ciJS
             java: temurin@11
           - ci: ciJS
@@ -191,7 +201,7 @@ jobs:
       - shell: bash
         run: sbt '++${{ matrix.scala }}' '${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.7' || matrix.scala == '3.0.2') && matrix.ci == 'ciJVM'
+      - if: (matrix.scala == '2.13.7' || matrix.scala == '3.1.2') && matrix.ci == 'ciJVM'
         shell: bash
         run: sbt '++${{ matrix.scala }}' docs/mdoc
 
@@ -204,6 +214,11 @@ jobs:
         if: matrix.ci == 'ciJS' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: example/test-js.sh ${{ matrix.scala }}
+
+      - name: Test Example Native App Using Binary
+        if: matrix.ci == 'ciNative' && matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: example/test-native.sh ${{ matrix.scala }}
 
       - name: Scalafix tests
         if: matrix.scala == '2.13.7' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'

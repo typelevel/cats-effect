@@ -29,4 +29,14 @@ private[effect] sealed abstract class WorkStealingThreadPool private ()
   private[effect] def rescheduleFiber(fiber: IOFiber[_]): Unit
   private[effect] def scheduleFiber(fiber: IOFiber[_]): Unit
   private[effect] def canExecuteBlockingCode(): Boolean
+  private[unsafe] def liveFibers(): (
+      Set[IOFiber[_]],
+      Map[WorkerThread, (Option[IOFiber[_]], Set[IOFiber[_]])],
+      Set[IOFiber[_]]) = ???
+}
+
+private[unsafe] sealed abstract class WorkerThread private () extends Thread {
+  private[unsafe] def isOwnedBy(threadPool: WorkStealingThreadPool): Boolean
+  private[unsafe] def monitor(fiber: IOFiber[_]): WeakBag.Handle
+  private[unsafe] def index: Int
 }
