@@ -31,8 +31,6 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
     with Scheduler {
 
   private[this] var needsReschedule: Boolean = true
-  private[this] var inLoop: Boolean = false
-  private[this] var cachedNow: Long = _
 
   private[this] val executeQueue: ArrayDeque[Runnable] = new ArrayDeque
   private[this] val sleepQueue: PriorityQueue[SleepTask] = new PriorityQueue
@@ -55,7 +53,7 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
       noop
     } else {
       scheduleIfNeeded()
-      val now = if (inLoop) cachedNow else monotonicNanos()
+      val now = monotonicNanos()
       val sleepTask = new SleepTask(now + delay.toNanos, task)
       sleepQueue.offer(sleepTask)
       sleepTask
@@ -94,16 +92,13 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
 
   private[this] def loop(): Unit = {
     needsReschedule = false
-    inLoop = true
 
     var continue = true
 
     while (continue) {
-      // cache the timestamp for this tick
-      cachedNow = monotonicNanos()
-
       // execute the timers
-      while (!sleepQueue.isEmpty() && sleepQueue.peek().at <= cachedNow) {
+      val now = monotonicNanos()
+      while (!sleepQueue.isEmpty() && sleepQueue.peek().at <= now) {
         val task = sleepQueue.poll()
         try task.runnable.run()
         catch {
@@ -129,7 +124,7 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
         if (!executeQueue.isEmpty())
           Duration.Zero
         else if (!sleepQueue.isEmpty())
-          (sleepQueue.peek().at - cachedNow).nanos
+          Math.max(sleepQueue.peek().at - monotonicNanos(), 0).nanos
         else
           Duration.Inf
 
@@ -139,7 +134,6 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
     }
 
     needsReschedule = true
-    inLoop = false
   }
 
   private[this] final class SleepTask(
