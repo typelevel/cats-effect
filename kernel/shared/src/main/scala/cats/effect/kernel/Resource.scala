@@ -902,8 +902,19 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    * In most real world cases, implementors of AutoCloseable are blocking as well, so the close
    * action runs in the blocking context.
    *
-   * Example:
-   * {{{
+   * @example
+   *   {{{
+   *   import cats.effect._
+   *   import scala.io.Source
+   *
+   *   def reader(data: String): Resource[IO, Source] =
+   *     Resource.fromAutoCloseable(IO.blocking {
+   *       Source.fromString(data)
+   *     })
+   *   }}}
+   *
+   * @example
+   *   {{{
    *   import cats.effect._
    *   import scala.io.Source
    *
@@ -911,7 +922,8 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    *     Resource.fromAutoCloseable(F.blocking {
    *       Source.fromString(data)
    *     })
-   * }}}
+   *   }}}
+   *
    * @param acquire
    *   The effect with the resource to acquire.
    * @param F

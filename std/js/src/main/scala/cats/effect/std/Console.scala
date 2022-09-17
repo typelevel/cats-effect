@@ -32,6 +32,19 @@ import java.nio.charset.Charset
  *
  * @example
  *   {{{
+ *  import cats.effect.IO
+ *  import cats.effect.std.Console
+ *
+ *  def myProgram: IO[Unit] =
+ *    for {
+ *      _ <- Console[IO].println("Please enter your name: ")
+ *      n <- Console[IO].readLine
+ *      _ <- if (n.nonEmpty) Console[IO].println("Hello, " + n) else Console[IO].errorln("Name is empty!")
+ *    } yield ()
+ *   }}}
+ *
+ * @example
+ *   {{{
  *  import cats.Monad
  *  import cats.effect.std.Console
  *  import cats.syntax.all._

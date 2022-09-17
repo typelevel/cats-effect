@@ -20,13 +20,13 @@ import cats.~>
 
 /**
  * This construction supports `Async.cont`
- * ```
+ * {{{
  * trait Async[F[_]] {
- * ...
+ *   ...
  *
- * def cont[A](body: Cont[F, A]): F[A]
+ *   def cont[A](body: Cont[F, A]): F[A]
  * }
- * ```
+ * }}}
  * It's a low level operation meant for implementors, end users should use `async`, `start` or
  * `Deferred` instead, depending on the use case.
  *
