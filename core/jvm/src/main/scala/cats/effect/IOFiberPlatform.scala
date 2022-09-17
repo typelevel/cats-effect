@@ -20,6 +20,7 @@ import scala.util.control.NonFatal
 
 import java.util.{concurrent => juc}
 import juc.atomic.{AtomicBoolean, AtomicReference}
+import java.nio.channels.ClosedByInterruptException
 
 private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
   this: IOFiber[A] =>
@@ -64,7 +65,9 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                     try {
                       Right(cur.thunk())
                     } catch {
-                      // this won't suppress the interruption
+                      case ex: ClosedByInterruptException => throw ex
+
+                      // this won't suppress InterruptedException:
                       case NonFatal(t) => Left(t)
                     }
 
@@ -79,7 +82,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
 
                   back
                 } catch {
-                  case _: InterruptedException =>
+                  case _: InterruptedException | _: ClosedByInterruptException =>
                     null
                 } finally {
                   canInterrupt.tryAcquire()
