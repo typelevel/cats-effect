@@ -33,6 +33,8 @@ header nav li:last-child a {
   height: 32px;
   background-image: url(/cats-effect/img/github.png);
   background-size: 32px 32px;
+  background-repeat: no-repeat;
+  background-position-y: center;
   text-indent: -9999px;
 }
 
