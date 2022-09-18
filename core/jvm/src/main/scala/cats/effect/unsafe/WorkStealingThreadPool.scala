@@ -542,7 +542,7 @@ private[effect] final class WorkStealingThreadPool(
    */
   def shutdown(): Unit = {
     // Clear the interrupt flag.
-    Thread.interrupted()
+    val interruptCalling = Thread.interrupted()
 
     // Execute the shutdown logic only once.
     if (done.compareAndSet(false, true)) {
@@ -572,7 +572,7 @@ private[effect] final class WorkStealingThreadPool(
 
       // Drain the external queue.
       externalQueue.clear()
-      Thread.currentThread().interrupt()
+      if (interruptCalling) Thread.currentThread().interrupt()
     }
   }
 
