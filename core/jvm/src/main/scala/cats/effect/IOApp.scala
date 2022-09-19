@@ -204,7 +204,7 @@ trait IOApp {
     // checked in openjdk 8-17; this attempts to detect when we're running under artificial environments, like sbt
     val isForked = Thread.currentThread().getId() == 1
 
-    if (runtime == null) {
+    val installed = if (runtime == null) {
       import unsafe.IORuntime
 
       val installed = IORuntime installGlobal {
@@ -235,14 +235,18 @@ trait IOApp {
           runtimeConfig)
       }
 
-      if (!installed) {
-        System
-          .err
-          .println(
-            "WARNING: Cats Effect global runtime already initialized; custom configurations will be ignored")
-      }
-
       _runtime = IORuntime.global
+
+      installed
+    } else {
+      unsafe.IORuntime.installGlobal(runtime)
+    }
+
+    if (!installed) {
+      System
+        .err
+        .println(
+          "WARNING: Cats Effect global runtime already initialized; custom configurations will be ignored")
     }
 
     if (isStackTracing) {
