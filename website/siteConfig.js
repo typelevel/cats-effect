@@ -18,8 +18,7 @@ const siteConfig = {
   headerLinks: [
     {doc: 'getting-started', label: 'Docs'},
     {href: `/cats-effect/api/3.x/cats/effect/index.html`, label: 'API'},
-    {},
-    {href: 'https://github.com/typelevel/cats-effect', label: "GitHub", class: "github", external: true},
+    {href: 'https://github.com/typelevel/cats-effect', label: "GitHub", external: true},
     // {href: '/cats-effect/resources.html', label: 'Resources'}
   ],
 
