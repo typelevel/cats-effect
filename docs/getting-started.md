@@ -73,6 +73,20 @@ program.unsafeRunSync()
 
 Congratulations, you've just run your first `IO` within the REPL! The `unsafeRunSync()` function is not meant to be used within a normal application. As the name suggests, its implementation is unsafe in several ways, but it is very useful for REPL-based experimentation and sometimes useful for testing.
 
+### Cancelling a long-running REPL task
+
+`unsafeRunCancelable()` is another variant to launch a task, that allows a long-running task to be cancelled. This can be useful to clean up long or infinite tasks that have been spawned from the REPL.  
+
+```scala
+import cats.effect.unsafe.implicits._
+import cats.effect.IO
+
+lazy val loop: IO[Unit] = IO.println("loop until cancel..") >> IO.sleep(2.seconds) >> loop
+val cancel = loop.unsafeRunCancelable()
+```
+
+`unsafeRunCancelable` starts the loop task running, but also emits an invocable handle value which when invoked (ie `cancel()`) cancels the loop. This can be useful when running in SBT with the `console` command, where by default terminating the REPL doesn't terminate the process, and thus the task will remain executing in the background.
+
 ## Testing
 
 ### Munit
