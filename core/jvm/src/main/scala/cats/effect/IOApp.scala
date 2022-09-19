@@ -478,7 +478,8 @@ trait IOApp {
                 rt.halt(1)
             }
 
-          case _ => // should never happen
+          case _ =>
+            throw new IllegalStateException(s"${result.getClass.getName} in MainThread queue")
         }
       }
     } catch {
