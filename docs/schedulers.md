@@ -68,13 +68,24 @@ Ultimately, though, `IO` is able to achieve this with exceptionally high perform
   - Opera 9.5+
 - [Web Workers implementing `MessageChannel`](https://developer.mozilla.org/en-US/docs/Web/API/MessageChannel#browser_compatibility)
 
+## Scala Native
+
+The [Scala Native](https://github.com/scala-native/scala-native) runtime is [single-threaded](https://scala-native.org/en/latest/user/lang.html#multithreading), similarly to ScalaJS. That's why the `IO#unsafeRunSync` is not available.
+
+Due to platform limitations, some functionality is provided by third-party libraries:
+- TCP support requires [epollcat](https://github.com/armanbilge/epollcat) in the classpath
+- TLS support requires [s2n-tls](https://github.com/aws/s2n-tls) installed in the system
+
+[epollcat](https://github.com/armanbilge/epollcat) is the I/O-integrated runtime for Cats Effect on Scala Native, implemented with the [epoll](https://man7.org/linux/man-pages/man7/epoll.7.html) API on Linux and the [kqueue](https://en.wikipedia.org/wiki/Kqueue) API on macOS.
+The library offers drop-in replacements for `IOApp` and `IOApp.Simple`. Use `EpollApp` or `EpollApp.Simple` respectively.
+
 ### Yielding
 
 The primary mechanism which needs to be provided for `IO` to successfully implement fibers is often referred to as a *yield*. In JavaScript terms, this means the ability to submit a callback to the event loop which will be invoked at some point in the future when the event loop has capacity. In a sense, it's submitting a callback which "goes to the back of the queue", waiting for everything else to have its turn before running again.
 
 This mechanism, by the way, corresponds *precisely* to the `IO.cede` effect: it cooperatively releases control to the other fibers, allowing them a chance to run before resuming the current fiber.
 
-With this primitive, fibers can be implemented by simply scheduling each one at a time. Each fiber runs until it reaches a *yield point* (usually an asynchronous call or a `cede` effect), at which point it yields back to the event loop and allows the other fibers to run. Eventually, those fibers will yield back around the queue until the first fiber has a chance to run again, and the process continues. Nothing is actually running *simultaneously*, but parallelism is still expressed as a concept in a way which is semantically compatible with the JVM, which allows libraries and application code to fully cross-compile despite the the differences in platform semantics.
+With this primitive, fibers can be implemented by simply scheduling each one at a time. Each fiber runs until it reaches a *yield point* (usually an asynchronous call or a `cede` effect), at which point it yields back to the event loop and allows the other fibers to run. Eventually, those fibers will yield back around the queue until the first fiber has a chance to run again, and the process continues. Nothing is actually running *simultaneously*, but parallelism is still expressed as a concept in a way which is semantically compatible with the JVM, which allows libraries and application code to fully cross-compile despite the differences in platform semantics.
 
 The *problem* is how to implement this yield operation in a fashion which is highly performant, compatible across all JavaScript environments, and doesn't interfere with other JavaScript functionality. Perhaps unsurprisingly, this is quite hard. Find the full story in the [scala-js-macrotask-executor](https://github.com/scala-js/scala-js-macrotask-executor) project's README.
 
