@@ -22,7 +22,12 @@ import cats.effect.IOApp
 import cats.syntax.all._
 
 import java.io.File
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
+
+package object examples {
+  def exampleExecutionContext = ExecutionContext.global
+}
 
 package examples {
 

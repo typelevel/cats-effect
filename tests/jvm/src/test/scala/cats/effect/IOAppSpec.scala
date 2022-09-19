@@ -244,6 +244,11 @@ class IOAppSpec extends Specification {
           h.stderr() must not(contain("boom"))
         }
 
+        "custome runtime installed as global" in {
+          val h = platform(CustomRuntime, List.empty)
+          h.awaitStatus() mustEqual 0
+        }
+
         "abort awaiting shutdown hooks" in {
           val h = platform(ShutdownHookImmediateTimeout, List.empty)
           h.awaitStatus() mustEqual 0

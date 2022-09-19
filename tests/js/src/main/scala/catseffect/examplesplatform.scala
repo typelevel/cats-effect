@@ -20,11 +20,16 @@ import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.IOApp
 import cats.syntax.all._
+import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 
 import scala.annotation.nowarn
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.scalajs.js
+
+package object examples {
+  def exampleExecutionContext = MacrotaskExecutor
+}
 
 package examples {
 
@@ -48,6 +53,7 @@ package examples {
     register(Finalizers)
     register(LeakedFiber)
     register(UndefinedProcessExit)
+    register(CustomRuntime)
 
     @nowarn("cat=unused")
     def main(paperweight: Array[String]): Unit = {
