@@ -34,11 +34,13 @@ package object examples {
 package examples {
 
   object JSRunner {
-    val apps = mutable.Map.empty[String, IOApp]
-    def register(app: IOApp): Unit = apps(app.getClass.getName.init) = app
+    val apps = mutable.Map.empty[String, () => IOApp]
+    def register(app: IOApp): Unit = apps(app.getClass.getName.init) = () => app
+    def registerLazy(name: String, app: => IOApp): Unit =
+      apps(name) = () => app
 
-    val rawApps = mutable.Map.empty[String, RawApp]
-    def registerRaw(app: RawApp): Unit = rawApps(app.getClass.getName.init) = app
+    val rawApps = mutable.Map.empty[String, () => RawApp]
+    def registerRaw(app: RawApp): Unit = rawApps(app.getClass.getName.init) = () => app
 
     register(HelloWorld)
     register(Arguments)
@@ -46,7 +48,7 @@ package examples {
     register(FatalError)
     registerRaw(FatalErrorRaw)
     register(Canceled)
-    register(GlobalRacingInit)
+    registerLazy("catseffect.examples.GlobalRacingInit", GlobalRacingInit)
     register(ShutdownHookImmediateTimeout)
     register(LiveFiberSnapshot)
     register(FatalErrorUnsafeRun)
@@ -65,8 +67,8 @@ package examples {
       args.shift()
       apps
         .get(app)
-        .map(_.main(Array.empty))
-        .orElse(rawApps.get(app).map(_.main(Array.empty)))
+        .map(_().main(Array.empty))
+        .orElse(rawApps.get(app).map(_().main(Array.empty)))
         .get
     }
   }
