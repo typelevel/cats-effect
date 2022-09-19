@@ -112,10 +112,11 @@ val PrimaryOS = "ubuntu-latest"
 val Windows = "windows-latest"
 val MacOS = "macos-latest"
 
+val Scala212 = "2.12.17"
 val Scala213 = "2.13.8"
 val Scala3 = "3.1.2"
 
-ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.17", Scala213)
+ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
 ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
 ThisBuild / tlJdkRelease := Some(8)
 
@@ -127,6 +128,7 @@ val OldGuardJava = JavaSpec.temurin("8")
 val LTSJava = JavaSpec.temurin("11")
 val LatestJava = JavaSpec.temurin("17")
 val ScalaJSJava = OldGuardJava
+val ScalaNativeJava = OldGuardJava
 val GraalVM = JavaSpec.graalvm("11")
 
 ThisBuild / githubWorkflowJavaVersions := Seq(OldGuardJava, LTSJava, LatestJava, GraalVM)
@@ -203,7 +205,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
     ci <- jsCiVariants.tail
   } yield MatrixExclude(Map("ci" -> ci, "scala" -> scala))
 
-  val nativeJsJavaAndOSFilters = (CI.Native.command :: jsCiVariants).flatMap { ci =>
+  val jsJavaAndOSFilters = jsCiVariants.flatMap { ci =>
     val javaFilters =
       (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)).map { java =>
         MatrixExclude(Map("ci" -> ci, "java" -> java.render))
@@ -214,12 +216,28 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
       MatrixExclude(Map("os" -> MacOS, "ci" -> ci)))
   }
 
+  val nativeJavaAndOSFilters = {
+    val ci = CI.Native.command
+
+    val javaFilters =
+      (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaNativeJava)).map {
+        java => MatrixExclude(Map("ci" -> ci, "java" -> java.render))
+      }
+
+    javaFilters ++ Seq(
+      MatrixExclude(Map("os" -> Windows, "ci" -> ci)),
+      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala212)),
+      // keep a native+2.13+macos job
+      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala3))
+    )
+  }
+
   // Nice-to-haves but unreliable in CI
   val flakyFilters = Seq(
     MatrixExclude(Map("os" -> Windows, "java" -> GraalVM.render))
   )
 
-  scalaJavaFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ nativeJsJavaAndOSFilters ++ flakyFilters
+  scalaJavaFilters ++ windowsAndMacScalaFilters ++ jsScalaFilters ++ jsJavaAndOSFilters ++ nativeJavaAndOSFilters ++ flakyFilters
 }
 
 lazy val useJSEnv =
