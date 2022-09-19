@@ -115,7 +115,7 @@ val MacOS = "macos-latest"
 val Scala213 = "2.13.8"
 val Scala3 = "3.1.2"
 
-ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.16", Scala213)
+ThisBuild / crossScalaVersions := Seq(Scala3, "2.12.17", Scala213)
 ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
 ThisBuild / tlJdkRelease := Some(8)
 
@@ -260,7 +260,7 @@ ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.8.0"
 val Specs2Version = "4.16.1"
-val ScalaCheckVersion = "1.16.0"
+val ScalaCheckVersion = "1.17.0"
 val DisciplineVersion = "1.4.0"
 val CoopVersion = "1.2.0"
 
