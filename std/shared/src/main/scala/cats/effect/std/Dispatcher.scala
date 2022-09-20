@@ -261,7 +261,7 @@ object Dispatcher {
                 val st = state(i)
                 if (st.get() ne Nil) {
                   val list = st.getAndSet(Nil)
-                  buffer ++= list.reverse   // FIFO order here is a form of fairness
+                  buffer ++= list.reverse // FIFO order here is a form of fairness
                 }
                 i += 1
               }
