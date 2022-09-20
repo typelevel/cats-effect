@@ -32,7 +32,8 @@ final case class IORuntimeConfig private (
       autoYieldThreshold,
       IORuntimeConfig.DefaultEnhancedExceptions,
       IORuntimeConfig.DefaultTraceBufferSize,
-      IORuntimeConfig.DefaultShutdownHookTimeout)
+      IORuntimeConfig.DefaultShutdownHookTimeout
+    )
 
   def copy(
       cancelationCheckThreshold: Int = this.cancelationCheckThreshold,
@@ -127,7 +128,8 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
         autoYieldThreshold,
         enhancedExceptions,
         1 << Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt,
-        shutdownHookTimeout)
+        shutdownHookTimeout
+      )
     else
       throw new AssertionError(
         s"Auto yield threshold $autoYieldThreshold must be a multiple of cancelation check threshold $cancelationCheckThreshold")

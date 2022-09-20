@@ -31,10 +31,13 @@ import javax.management.ObjectName
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
+  private[this] final val DefaultBlockerPrefix = "io-compute-blocker"
+
   // The default compute thread pool on the JVM is now a work stealing thread pool.
   def createWorkStealingComputeThreadPool(
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
       threadPrefix: String = "io-compute",
+      blockerThreadPrefix: String = DefaultBlockerPrefix,
       runtimeBlockingExpiration: Duration = 60.seconds,
       reportFailure: Throwable => Unit = _.printStackTrace())
       : (WorkStealingThreadPool, () => Unit) = {
@@ -42,6 +45,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       new WorkStealingThreadPool(
         threads,
         threadPrefix,
+        blockerThreadPrefix,
         runtimeBlockingExpiration,
         reportFailure)
 
@@ -117,8 +121,17 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   def createDefaultComputeThreadPool(
       self: => IORuntime,
       threads: Int = Math.max(2, Runtime.getRuntime().availableProcessors()),
-      threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) =
-    createWorkStealingComputeThreadPool(threads, threadPrefix)
+      threadPrefix: String = "io-compute",
+      blockerThreadPrefix: String = DefaultBlockerPrefix)
+      : (WorkStealingThreadPool, () => Unit) =
+    createWorkStealingComputeThreadPool(threads, threadPrefix, blockerThreadPrefix)
+
+  @deprecated("bincompat shim for previous default method overload", "3.3.13")
+  def createDefaultComputeThreadPool(
+      self: () => IORuntime,
+      threads: Int,
+      threadPrefix: String): (WorkStealingThreadPool, () => Unit) =
+    createDefaultComputeThreadPool(self(), threads, threadPrefix)
 
   def createDefaultBlockingExecutionContext(
       threadPrefix: String = "io-blocking"): (ExecutionContext, () => Unit) = {

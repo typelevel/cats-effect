@@ -478,9 +478,8 @@ trait IOApp {
                 rt.halt(1)
             }
 
-          case null =>
-            println(
-              s"result is null but is interrupted? ${Thread.currentThread().isInterrupted()}")
+          case _ =>
+            throw new IllegalStateException(s"${result.getClass.getName} in MainThread queue")
         }
       }
     } catch {

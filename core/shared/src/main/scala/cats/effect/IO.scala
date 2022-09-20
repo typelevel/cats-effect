@@ -36,6 +36,7 @@ import cats.{
 }
 import cats.data.Ior
 import cats.effect.instances.spawn
+import cats.effect.kernel.CancelScope
 import cats.effect.kernel.GenTemporal.handleFinite
 import cats.effect.std.{Console, Env, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
@@ -1162,6 +1163,45 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def canceled: IO[Unit] = Canceled
 
+  /**
+   * Introduces a fairness boundary that yields control back to the scheduler of the runtime
+   * system. This allows the carrier thread to resume execution of another waiting fiber.
+   *
+   * This function is primarily useful when performing long-running computation that is outside
+   * of the monadic context. For example:
+   *
+   * {{{
+   *   fa.map(data => expensiveWork(data))
+   * }}}
+   *
+   * In the above, we're assuming that `expensiveWork` is a function which is entirely
+   * compute-bound but very long-running. A good rule of thumb is to consider a function
+   * "expensive" when its runtime is around three or more orders of magnitude higher than the
+   * overhead of the `map` function itself (which runs in around 5 nanoseconds on modern
+   * hardware). Thus, any `expensiveWork` function which requires around 10 microseconds or
+   * longer to execute should be considered "long-running".
+   *
+   * The danger is that these types of long-running actions outside of the monadic context can
+   * result in degraded fairness properties. The solution is to add an explicit `cede` both
+   * before and after the expensive operation:
+   *
+   * {{{
+   *   (fa <* IO.cede).map(data => expensiveWork(data)) <* IO.cede
+   * }}}
+   *
+   * Note that extremely long-running `expensiveWork` functions can still cause fairness issues,
+   * even when used with `cede`. This problem is somewhat fundamental to the nature of
+   * scheduling such computation on carrier threads. Whenever possible, it is best to break
+   * apart any such functions into multiple pieces invoked independently (e.g. via chained `map`
+   * calls) whenever the execution time exceeds five or six orders of magnitude beyond the
+   * overhead of `map` itself (around 1 millisecond on most hardware).
+   *
+   * This operation is not ''required'' in most applications, particularly those which are
+   * primarily I/O bound, as `IO` itself will automatically introduce fairness boundaries
+   * without requiring user input. These automatic boundaries are controlled by the
+   * [[cats.effect.unsafe.IORuntimeConfig.autoYieldThreshold]] configuration parameter, which in
+   * turn may be adjusted by overriding [[IOApp.runtimeConfig]].
+   */
   def cede: IO[Unit] = Cede
 
   /**
@@ -1921,6 +1961,15 @@ private object SyncStep {
               case r @ Right(_) => r
             }
             .handleErrorWith(t => interpret(f(t), limit - 1))
+
+        case IO.Uncancelable(body, _) if G.rootCancelScope == CancelScope.Uncancelable =>
+          val ioa = body(new Poll[IO] {
+            def apply[C](ioc: IO[C]): IO[C] = ioc
+          })
+          interpret(ioa, limit)
+
+        case IO.OnCancel(ioa, _) if G.rootCancelScope == CancelScope.Uncancelable =>
+          interpret(ioa, limit)
 
         case _ => G.pure(Left(io))
       }

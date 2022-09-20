@@ -111,9 +111,9 @@ object Supervisor {
    *   if an effect that never completes, is supervised by a `Supervisor` with awaiting
    *   termination policy, the termination of the `Supervisor` is indefinitely suspended
    *   {{{
-   *   val io: F[Unit] = // never completes
-   *     Supervisor[F](await = true).use { supervisor =>
-   *       supervisor.supervise(Concurrent[F].never).void
+   *   val io: IO[Unit] = // never completes
+   *     Supervisor[IO](await = true).use { supervisor =>
+   *       supervisor.supervise(IO.never).void
    *     }
    *   }}}
    *

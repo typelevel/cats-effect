@@ -17,11 +17,11 @@
 package cats.effect
 
 private object SyncIOConstants {
-  val MaxStackDepth = 512
+  final val MaxStackDepth = 512
 
-  val MapK: Byte = 0
-  val FlatMapK: Byte = 1
-  val HandleErrorWithK: Byte = 2
-  val RunTerminusK: Byte = 3
-  val AttemptK: Byte = 4
+  final val MapK = 0
+  final val FlatMapK = 1
+  final val HandleErrorWithK = 2
+  final val RunTerminusK = 3
+  final val AttemptK = 4
 }

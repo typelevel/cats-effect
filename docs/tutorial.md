@@ -42,11 +42,11 @@ running the code snippets in this tutorial, it is recommended to use the same
 ```scala
 name := "cats-effect-tutorial"
 
-version := "3.3.12"
+version := "3.3.14"
 
 scalaVersion := "2.13.6"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.12" withSources() withJavadoc()
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.14" withSources() withJavadoc()
 
 scalacOptions ++= Seq(
   "-feature",
@@ -235,7 +235,7 @@ def copy(origin: File, destination: File): IO[Long] = {
       case (in, out) =>      // Stage 3: Freeing resources
         (IO(in.close()), IO(out.close()))
         .tupled              // From (IO[Unit], IO[Unit]) to IO[(Unit, Unit)]
-        .handleErrorWith(_ => IO.unit).void
+        .void.handleErrorWith(_ => IO.unit)
     }
 }
 ```

@@ -3,7 +3,7 @@ id: async
 title: Async
 ---
 
-`Async` is the asynchronous FFI for suspending side-effectful operations that
+`Async` is the asynchronous [Foreign Function Interface](https://en.wikipedia.org/wiki/Foreign_function_interface) (FFI) for suspending side-effectful operations that
 are completed elsewhere (often on another threadpool via a future-like API).
 This typeclass allows us to sequence asynchronous operations without stumbling
 into [callback hell](http://callbackhell.com/) and also gives us the ability to

@@ -5,7 +5,7 @@ title:  Semaphore
 
 ![](assets/semaphore.png)
 
-A semaphore has a non-negative number of permits available. Acquiring a permit decrements the current number of permits and releasing a permit increases the current number of permits. An acquire that occurs when there are no permits available results in semantic blocking until a permit becomes available.
+A semaphore has a non-negative number of permits available. Acquiring a permit decrements the current number of permits and releasing a permit increases the current number of permits. An acquire that occurs when there are no permits available results in fiber blocking until a permit becomes available.
 
 ```scala
 abstract class Semaphore[F[_]] {
@@ -16,9 +16,9 @@ abstract class Semaphore[F[_]] {
 }
 ```
 
-## Semantic Blocking and Cancellation
+## Fiber Blocking and Cancellation
 
-Semaphore does what we call "semantic" blocking, meaning that no actual threads are 
+Semaphore does what we call "fiber" blocking (aka "semantic" blocking), meaning that no actual threads are
 being blocked while waiting to acquire a permit. Blocking acquires are cancelable.
 
 ## Shared Resource

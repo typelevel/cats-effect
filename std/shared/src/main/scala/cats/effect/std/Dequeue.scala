@@ -293,14 +293,14 @@ object Dequeue {
 trait DequeueSource[F[_], A] extends QueueSource[F, A] {
 
   /**
-   * Dequeues an element from the back of the dequeue, possibly semantically blocking until an
-   * element becomes available.
+   * Dequeues an element from the back of the dequeue, possibly fiber blocking until an element
+   * becomes available.
    */
   def takeBack: F[A]
 
   /**
    * Attempts to dequeue an element from the back of the dequeue, if one is available without
-   * semantically blocking.
+   * fiber blocking.
    *
    * @return
    *   an effect that describes whether the dequeueing of an element from the dequeue succeeded
@@ -330,7 +330,7 @@ trait DequeueSource[F[_], A] extends QueueSource[F, A] {
 
   /**
    * Attempts to dequeue an element from the front of the dequeue, if one is available without
-   * semantically blocking.
+   * fiber blocking.
    *
    * @return
    *   an effect that describes whether the dequeueing of an element from the dequeue succeeded
@@ -416,7 +416,7 @@ object DequeueSource {
 trait DequeueSink[F[_], A] extends QueueSink[F, A] {
 
   /**
-   * Enqueues the given element at the back of the dequeue, possibly semantically blocking until
+   * Enqueues the given element at the back of the dequeue, possibly fiber blocking until
    * sufficient capacity becomes available.
    *
    * @param a

@@ -176,9 +176,9 @@ object Dispatcher {
    *   termination policy, the termination of the `Dispatcher` is indefinitely suspended
    *   {{{
    *   val io: IO[Unit] = // never completes
-   *     Dispatcher.sequential[F](await = true).use { dispatcher =>
-   *       dispatcher.unsafeRunAndForget(Concurrent[F].never)
-   *       Concurrent[F].unit
+   *     Dispatcher.sequential[IO](await = true).use { dispatcher =>
+   *       dispatcher.unsafeRunAndForget(IO.never)
+   *       IO.unit
    *     }
    *   }}}
    *

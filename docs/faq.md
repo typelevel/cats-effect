@@ -9,7 +9,7 @@ title: FAQ
 
 ```scala-cli
 //> using scala "2.13.8"
-//> using lib "org.typelevel::cats-effect::3.3.12"
+//> using lib "org.typelevel::cats-effect::3.3.14"
 
 import cats.effect._
 
@@ -19,7 +19,21 @@ object HelloWorld extends IOApp.Simple {
 ```
 
 ```sh
-scala-cli Hello.scala
+$ scala-cli Hello.scala
+Hello world
+```
+
+### Native Image Example
+
+[Scala CLI](https://scala-cli.virtuslab.org/) can be leveraged to produce a native-image executable using the [package command](https://scala-cli.virtuslab.org/docs/commands/package#native-image):
+
+```sh
+$ scala-cli package --native-image --graalvm-version 22.1.0 -f Hello.scala -- --no-fallback
+[...]
+$ ./HelloWorld
+Hello world
+
+> Note: GraalVm Native Image > 21.0.0 and `--no-fallback` are mandatory: see [here](core/native-image.md) for details
 ```
 
 ## Blocking Behaviour
