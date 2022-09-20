@@ -122,9 +122,7 @@ object Supervisor {
    *   - true - wait for the completion of the active fibers
    *   - false - cancel the active fibers
    */
-  def apply[F[_]](
-      await: Boolean)(
-      implicit F: Concurrent[F]): Resource[F, Supervisor[F]] =
+  def apply[F[_]](await: Boolean)(implicit F: Concurrent[F]): Resource[F, Supervisor[F]] =
     apply[F](await, None)(F)
 
   private[std] def apply[F[_]](
