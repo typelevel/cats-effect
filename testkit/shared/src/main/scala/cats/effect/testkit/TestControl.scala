@@ -84,7 +84,7 @@ import java.util.concurrent.atomic.AtomicReference
  * In order to advance time, you must use the [[advance]] effect to move the clock forward by a
  * specified offset (which must be greater than 0). If you use the `tickAll` effect, the clock
  * will be automatically advanced by the minimum amount necessary to reach the next pending
- * task. For example, if the program contains an [[IO.sleep]] for `500.millis`, and there are no
+ * task. For example, if the program contains an [[IO.sleep(delay*]] for `500.millis`, and there are no
  * shorter sleeps, then time will need to be advanced by 500 milliseconds in order to make that
  * fiber eligible for execution.
  *
@@ -98,13 +98,13 @@ import java.util.concurrent.atomic.AtomicReference
  * situation on the production runtime would have manifested as an asynchronous deadlock.
  *
  * You should ''never'' use this runtime in a production code path. It is strictly meant for
- * testing purposes, particularly testing programs that involve time functions and [[IO.sleep]].
+ * testing purposes, particularly testing programs that involve time functions and [[IO.sleep(delay*]].
  *
  * Due to the semantics of this runtime, time will behave entirely consistently with a plausible
  * production execution environment provided that you ''never'' observe time via side-effects,
- * and exclusively through the [[IO.realTime]], [[IO.monotonic]], and [[IO.sleep]] functions
+ * and exclusively through the [[IO.realTime]], [[IO.monotonic]], and [[IO.sleep(delay*]] functions
  * (and other functions built on top of these). From the perspective of these functions, all
- * computation is infinitely fast, and the only effect which advances time is [[IO.sleep]] (or
+ * computation is infinitely fast, and the only effect which advances time is [[IO.sleep(delay*]] (or
  * if something external, such as the test harness, sequences the [[advance]] effect). However,
  * an effect such as `IO(System.currentTimeMillis())` will "see through" the illusion, since the
  * system clock is unaffected by this runtime. This is one reason why it is important to always
@@ -153,7 +153,7 @@ final class TestControl[A] private (
    *   TestControl.execute(program).flatMap(_.advanceAndTick(1.second))
    * }}}
    *
-   * This is very subtle, but the problem is that time is advanced ''before'' the [[IO.sleep]]
+   * This is very subtle, but the problem is that time is advanced ''before'' the [[IO.sleep(delay*]]
    * even has a chance to get scheduled! This means that when `sleep` is finally submitted to
    * the runtime, it is scheduled for the time offset equal to `1.second + 100.millis`, since
    * time was already advanced `1.second` before it had a chance to submit. Of course, time has
@@ -398,7 +398,7 @@ object TestControl {
    * very similar to calling `unsafeRunSync` on the program and wrapping it in an `IO`, except
    * that the scheduler will use a mocked and quantized notion of time, all while executing on a
    * singleton worker thread. This can cause some programs to deadlock which would otherwise
-   * complete normally, but it also allows programs which involve [[IO.sleep]] s of any length
+   * complete normally, but it also allows programs which involve [[IO.sleep(delay*]] s of any length
    * to complete almost instantly with correct semantics.
    *
    * Note that any program which involves an [[IO.async]] that waits for some external thread
