@@ -162,7 +162,7 @@ object Supervisor {
       doneR <- Resource.eval(F.ref(false))
       state <- Resource.makeCase(mkState) {
         case (st, Resource.ExitCase.Succeeded) if await => doneR.set(true) >> st.joinAll
-        case (st, _) => doneR.set(true) >> st.cancelAll
+        case (st, _) => doneR.set(true) >> {/*println("canceling all!");*/ st.cancelAll}
       }
     } yield new Supervisor[F] {
 
@@ -210,7 +210,9 @@ object Supervisor {
                             fiber.cancel >> fiber.join flatMap {
                               case Outcome.Canceled() =>
                                 resultR.complete(Outcome.Canceled()).void
-                              case _ => cancel
+
+                              case _ =>
+                                resultR.tryGet.map(_.isDefined).ifM(F.unit, cancel)
                             }
                           }
                         }

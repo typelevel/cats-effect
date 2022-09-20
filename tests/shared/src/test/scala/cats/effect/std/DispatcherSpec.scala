@@ -252,6 +252,24 @@ class DispatcherSpec extends BaseSpec {
         }
       }
     }
+
+    "respect self-cancelation" in real {
+      dispatcher use { runner =>
+        for {
+          resultR <- IO.ref(false)
+          latch <- IO.deferred[Unit]
+
+          // if the inner action is erroneously masked, `resultR` will be flipped because cancelation will be suppressed
+          _ <- IO(
+            runner.unsafeRunAndForget(
+              (IO.canceled >> resultR.set(true)).guarantee(latch.complete(()).void)))
+          _ <- latch.get
+
+          result <- resultR.get
+          _ <- IO(result must beFalse)
+        } yield ok
+      }
+    }
   }
 
   private def awaitTermination(dispatcher: Resource[IO, Dispatcher[IO]]) = {
@@ -285,6 +303,28 @@ class DispatcherSpec extends BaseSpec {
         released2 must beTrue
       }
     }
-  }
 
+    "cancel active fibers when an error is produced" in real {
+      case object TestException extends RuntimeException
+
+      IO.deferred[Unit] flatMap { canceled =>
+        IO.deferred[Unit] flatMap { gate =>
+          val test = dispatcher use { runner =>
+            for {
+              _ <- IO(
+                runner.unsafeRunAndForget(
+                  (gate.complete(()) >> IO.never).onCancel(canceled.complete(()).void)))
+              _ <- gate.get
+              _ <- IO.raiseError(TestException).void
+            } yield ()
+          }
+
+          test.handleError(_ => ()) >> canceled
+            .get
+            .as(ok)
+            .timeoutTo(2.seconds, IO(false must beTrue))
+        }
+      }
+    }
+  }
 }
