@@ -56,11 +56,10 @@ the package command of scala-cli, like in the [example](../faq.md#Scala-Native-E
 
 ## Limitations
 
-The Scala Native runtime is [single-threaded](https://scala-native.org/en/latest/user/lang.html#multithreading), similarly to ScalaJS. That's why the `IO#unsafeRunSync` is not available.
+The [Scala Native](https://github.com/scala-native/scala-native) runtime is [single-threaded](https://scala-native.org/en/latest/user/lang.html#multithreading), similarly to ScalaJS. That's why the `IO#unsafeRunSync` is not available.
+Be careful with `IO.blocking(...)` as it blocks the thread since there is no dedicated blocking thread pool.
+For more in-depth details, see the [article](https://typelevel.org/blog/2022/09/19/typelevel-native.html#how-does-it-work) with explanations of how the Native runtime works. 
 
-Due to platform limitations, some functionality is provided by third-party libraries:
-- TCP support requires [epollcat](https://github.com/armanbilge/epollcat) in the classpath
-- TLS support requires [s2n-tls](https://github.com/aws/s2n-tls) installed in the system
+## Showcase projects
 
-[epollcat](https://github.com/armanbilge/epollcat) is the I/O-integrated runtime for Cats Effect on Scala Native, implemented with the [epoll](https://man7.org/linux/man-pages/man7/epoll.7.html) API on Linux and the [kqueue](https://en.wikipedia.org/wiki/Kqueue) API on macOS.
-The library offers drop-in replacements for `IOApp` and `IOApp.Simple`. Use `EpollApp` or `EpollApp.Simple` respectively.
+- [scala-native-ember-example](https://github.com/ChristopherDavenport/scala-native-ember-example) shows how you can run the [http4s](https://github.com/http4s/http4s) server as a native binary

@@ -68,17 +68,6 @@ Ultimately, though, `IO` is able to achieve this with exceptionally high perform
   - Opera 9.5+
 - [Web Workers implementing `MessageChannel`](https://developer.mozilla.org/en-US/docs/Web/API/MessageChannel#browser_compatibility)
 
-## Scala Native
-
-The [Scala Native](https://github.com/scala-native/scala-native) runtime is [single-threaded](https://scala-native.org/en/latest/user/lang.html#multithreading), similarly to ScalaJS. That's why the `IO#unsafeRunSync` is not available.
-
-Due to platform limitations, some functionality is provided by third-party libraries:
-- TCP support requires [epollcat](https://github.com/armanbilge/epollcat) in the classpath
-- TLS support requires [s2n-tls](https://github.com/aws/s2n-tls) installed in the system
-
-[epollcat](https://github.com/armanbilge/epollcat) is the I/O-integrated runtime for Cats Effect on Scala Native, implemented with the [epoll](https://man7.org/linux/man-pages/man7/epoll.7.html) API on Linux and the [kqueue](https://en.wikipedia.org/wiki/Kqueue) API on macOS.
-The library offers drop-in replacements for `IOApp` and `IOApp.Simple`. Use `EpollApp` or `EpollApp.Simple` respectively.
-
 ### Yielding
 
 The primary mechanism which needs to be provided for `IO` to successfully implement fibers is often referred to as a *yield*. In JavaScript terms, this means the ability to submit a callback to the event loop which will be invoked at some point in the future when the event loop has capacity. In a sense, it's submitting a callback which "goes to the back of the queue", waiting for everything else to have its turn before running again.
@@ -90,3 +79,9 @@ With this primitive, fibers can be implemented by simply scheduling each one at 
 The *problem* is how to implement this yield operation in a fashion which is highly performant, compatible across all JavaScript environments, and doesn't interfere with other JavaScript functionality. Perhaps unsurprisingly, this is quite hard. Find the full story in the [scala-js-macrotask-executor](https://github.com/scala-js/scala-js-macrotask-executor) project's README.
 
 For the most part, you should never have to worry about any of this. Just understand that Cats Effect `IO` schedules fibers to play nicely with other asynchronous events such as I/O or DOM changes while avoiding overhead.
+
+## Scala Native
+
+The [Scala Native](https://github.com/scala-native/scala-native) runtime is [single-threaded](https://scala-native.org/en/latest/user/lang.html#multithreading), similarly to ScalaJS. That's why the `IO#unsafeRunSync` is not available.
+Be careful with `IO.blocking(...)` as it blocks the thread since there is no dedicated blocking thread pool. 
+For more in-depth details, see the [article](https://typelevel.org/blog/2022/09/19/typelevel-native.html#how-does-it-work) with explanations of how the Native runtime works. 
