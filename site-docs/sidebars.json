@@ -5,7 +5,8 @@
       "concepts",
       "tutorial",
       "faq",
-      "migration-guide"
+      "migration-guide",
+      "third-party-resources"
     ],
     "Core Runtime": [
       "core/test-runtime",
