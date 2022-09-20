@@ -34,4 +34,16 @@ $ ./HelloWorld
 Hello world
 ```
 
-> Note: GraalVm Native Image > 21.0.0 and `--no-fallback` are mandatory: see [here](core/native-image.md) for details
+> Note: GraalVM Native Image > 21.0.0 and `--no-fallback` are mandatory: see [here](core/native-image.md) for details
+
+### Scala Native Example
+
+[Scala CLI](https://scala-cli.virtuslab.org/) can be leveraged to produce a [Scala Native](https://github.com/scala-native/scala-native) executable using the [package command](https://scala-cli.virtuslab.org/docs/commands/package/#scala-native):
+See [here](core/scala-native.md) for details.
+
+```sh
+$ scala-cli package --native Hello.scala
+[...]
+$ ./HelloWorld
+Hello world
+```
