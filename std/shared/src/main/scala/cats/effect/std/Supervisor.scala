@@ -162,7 +162,10 @@ object Supervisor {
       doneR <- Resource.eval(F.ref(false))
       state <- Resource.makeCase(mkState) {
         case (st, Resource.ExitCase.Succeeded) if await => doneR.set(true) >> st.joinAll
-        case (st, _) => doneR.set(true) >> {/*println("canceling all!");*/ st.cancelAll}
+        case (st, _) =>
+          doneR.set(true) >> { /*println("canceling all!");*/
+            st.cancelAll
+          }
       }
     } yield new Supervisor[F] {
 
