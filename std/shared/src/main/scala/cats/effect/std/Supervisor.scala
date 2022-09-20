@@ -121,13 +121,13 @@ object Supervisor {
    *   the termination policy
    *   - true - wait for the completion of the active fibers
    *   - false - cancel the active fibers
-   *
-   * @param checkRestart
-   *   An optional function which will be applied to the outcome of the child fibers when they
-   *   complete. If this function returns `true` for a given outcome, the child fiber will be
-   *   restarted. Otherwise, it will be allowed to silently terminate.
    */
   def apply[F[_]](
+      await: Boolean)(
+      implicit F: Concurrent[F]): Resource[F, Supervisor[F]] =
+    apply[F](await, None)(F)
+
+  private[std] def apply[F[_]](
       await: Boolean,
       checkRestart: Option[Outcome[F, Throwable, _] => Boolean] = None)(
       implicit F: Concurrent[F]): Resource[F, Supervisor[F]] = {
