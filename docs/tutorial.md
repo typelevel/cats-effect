@@ -235,7 +235,7 @@ def copy(origin: File, destination: File): IO[Long] = {
       case (in, out) =>      // Stage 3: Freeing resources
         (IO(in.close()), IO(out.close()))
         .tupled              // From (IO[Unit], IO[Unit]) to IO[(Unit, Unit)]
-        .handleErrorWith(_ => IO.unit).void
+        .void.handleErrorWith(_ => IO.unit)
     }
 }
 ```
