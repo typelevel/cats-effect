@@ -51,10 +51,10 @@ import scala.concurrent.duration._
  * produce an exit code of 1.
  *
  * Note that exit codes are an implementation-specific feature of the underlying runtime, as are
- * process arguments. Naturally, all JVMs support these functions, as does NodeJS, but some
- * JavaScript execution environments will be unable to replicate these features (or they simply
- * may not make sense). In such cases, exit codes may be ignored and/or argument lists may be
- * empty.
+ * process arguments. Naturally, all JVMs support these functions, as does Node.js and Scala
+ * Native, but some JavaScript execution environments will be unable to replicate these features
+ * (or they simply may not make sense). In such cases, exit codes may be ignored and/or argument
+ * lists may be empty.
  *
  * Note that in the case of the above example, we would actually be better off using
  * [[IOApp.Simple]] rather than `IOApp` directly, since we are neither using `args` nor are we
@@ -121,6 +121,13 @@ import scala.concurrent.duration._
  * in steady-state operations. In such a performance profile, it is usually better to reduce the
  * number of compute worker threads to "make room" for the I/O workers, such that they all sum
  * to the number of physical threads exposed by the kernel.
+ *
+ * @note
+ *   The Scala Native runtime has several limitations compared to its JVM and JS counterparts
+ *   and should generally be considered experimental at this stage. Limitations include:
+ *   - No blocking threadpool: [[IO.blocking]] will simply block the main thread
+ *   - No support for graceful termination: finalizers will not run on external cancelation
+ *   - No support for tracing or fiber dumps
  *
  * @see
  *   [[IO]]
