@@ -46,8 +46,14 @@ final class GenTemporalOps_[F[_], A] private[syntax] (private val wrapped: F[A])
   def timeoutTo(duration: FiniteDuration, fallback: F[A])(implicit F: GenTemporal[F, _]): F[A] =
     F.timeoutTo(wrapped, duration, fallback)
 
+  def delayBy(time: Duration)(implicit F: GenTemporal[F, _]): F[A] =
+    F.delayBy(wrapped, time)
+
   def delayBy(time: FiniteDuration)(implicit F: GenTemporal[F, _]): F[A] =
     F.delayBy(wrapped, time)
+
+  def andWait(time: Duration)(implicit F: GenTemporal[F, _]): F[A] =
+    F.andWait(wrapped, time)
 
   def andWait(time: FiniteDuration)(implicit F: GenTemporal[F, _]): F[A] =
     F.andWait(wrapped, time)
