@@ -25,7 +25,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         scala: [3.1.2, 2.12.17, 2.13.8]
         java: [temurin@8, temurin@11, temurin@17, graalvm@11]
-        ci: [ciJVM, ciJS, ciFirefox, ciChrome]
+        ci: [ciJVM, ciNative, ciJS, ciFirefox, ciChrome]
         exclude:
           - scala: 3.1.2
             java: temurin@11
@@ -83,6 +83,20 @@ jobs:
             ci: ciChrome
           - os: macos-latest
             ci: ciChrome
+          - ci: ciNative
+            java: temurin@11
+          - ci: ciNative
+            java: temurin@17
+          - ci: ciNative
+            java: graalvm@11
+          - os: windows-latest
+            ci: ciNative
+          - os: macos-latest
+            ci: ciNative
+            scala: 2.12.17
+          - os: macos-latest
+            ci: ciNative
+            scala: 3.1.2
           - os: windows-latest
             java: graalvm@11
     runs-on: ${{ matrix.os }}
@@ -209,6 +223,11 @@ jobs:
         if: matrix.ci == 'ciJS' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: example/test-js.sh ${{ matrix.scala }}
+
+      - name: Test Example Native App Using Binary
+        if: matrix.ci == 'ciNative' && matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: example/test-native.sh ${{ matrix.scala }}
 
       - name: Scalafix tests
         if: matrix.scala == '2.13.8' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'

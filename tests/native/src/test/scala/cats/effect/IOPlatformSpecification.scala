@@ -14,7 +14,21 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats.effect
 
-// Vestigial shim
-private[std] trait RandomCompanionPlatform
+import org.specs2.ScalaCheck
+
+trait IOPlatformSpecification { self: BaseSpec with ScalaCheck =>
+
+  def platformSpecs = "platform" should {
+    "realTimeInstant should return an Instant constructed from realTime" in ticked {
+      implicit ticker =>
+        val op = for {
+          now <- IO.realTimeInstant
+          realTime <- IO.realTime
+        } yield now.toEpochMilli == realTime.toMillis
+
+        op must completeAs(true)
+    }
+  }
+}
