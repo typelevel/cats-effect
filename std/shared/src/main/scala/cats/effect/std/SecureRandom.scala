@@ -109,6 +109,10 @@ object SecureRandom extends SecureRandomCompanionPlatform {
   ]: SecureRandom[IndexedReaderWriterStateT[F, E, L, S, S, *]] =
     SecureRandom[F].mapK(IndexedReaderWriterStateT.liftK)
 
+  /**
+   * @see
+   *   implementation notes at [[[javaSecuritySecureRandom[F[_]](implicit*]]].
+   */
   def javaSecuritySecureRandom[F[_]: Sync](n: Int): F[SecureRandom[F]] =
     for {
       ref <- Ref[F].of(0)
@@ -119,6 +123,19 @@ object SecureRandom extends SecureRandomCompanionPlatform {
       new ScalaRandom[F](selectRandom) with SecureRandom[F] {}
     }
 
+  /**
+   * On the JVM, delegates to [[java.security.SecureRandom]].
+   *
+   * In browsers, delegates to the
+   * [[https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API Web Crypto API]].
+   *
+   * In Node.js, delegates to the [[https://nodejs.org/api/crypto.html crypto module]].
+   *
+   * On Native, delegates to
+   * [[https://man7.org/linux/man-pages/man3/getentropy.3.html getentropy]] which is supported
+   * on Linux, macOS, and BSD. Unsupported platforms such as Windows will encounter link-time
+   * errors.
+   */
   def javaSecuritySecureRandom[F[_]: Sync]: F[SecureRandom[F]] =
     Sync[F]
       .delay(new JavaSecureRandom())
