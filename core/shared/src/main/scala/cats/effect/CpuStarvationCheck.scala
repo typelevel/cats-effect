@@ -16,9 +16,10 @@
 
 package cats.effect
 
-import cats.syntax.all._
-import unsafe.IORuntimeConfig
 import cats.effect.std.Console
+import cats.effect.unsafe.IORuntimeConfig
+import cats.syntax.all._
+
 
 private[effect] object CpuStarvationCheck {
   def run(runtimeConfig: IORuntimeConfig): IO[Unit] =
