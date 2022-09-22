@@ -362,23 +362,9 @@ trait IOApp {
 
     val ioa = run(args.toList)
 
-    val cpuStarvationChecker: IO[Unit] =
-      IO.monotonic
-        .flatMap { now =>
-          IO.sleep(runtimeConfig.cpuStarvationCheckInterval) >> IO
-            .monotonic
-            .map(_ - now)
-            .flatMap { delta =>
-              Console[IO]
-                .errorln("[WARNING] you're probably starving")
-                .whenA(delta > runtimeConfig.cpuStarvationCheckThreshold)
-            }
-        }
-        .foreverM
-        .delayBy(runtimeConfig.cpuStarvationCheckInitialDelay)
-
     val fiber =
-      cpuStarvationChecker
+      CpuStarvationCheck
+        .run(runtimeConfig)
         .background
         .surround(ioa)
         .unsafeRunFiber(

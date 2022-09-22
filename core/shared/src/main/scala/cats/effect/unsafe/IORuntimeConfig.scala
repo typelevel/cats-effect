@@ -185,7 +185,8 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
         shutdownHookTimeout,
         cpuStarvationCheckInterval,
         cpuStarvationCheckInitialDelay,
-        cpuStarvationCheckThreshold)
+        cpuStarvationCheckThreshold
+      )
     else
       throw new AssertionError(
         s"Auto yield threshold $autoYieldThreshold must be a multiple of cancelation check threshold $cancelationCheckThreshold")
