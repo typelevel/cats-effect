@@ -53,7 +53,6 @@ private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntim
     val cpuStarvationCheckInitialDelay =
       Try(System.getProperty("cats.effect.cpu.starvation.check.initialDelay"))
         .map(Duration(_))
-        .flatMap { d => Try(d.asInstanceOf[FiniteDuration]) }
         .getOrElse(DefaultCpuStarvationCheckInitialDelay)
 
     val cpuStarvationCheckThreshold =
