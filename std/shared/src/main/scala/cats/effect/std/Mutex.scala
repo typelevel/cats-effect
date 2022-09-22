@@ -38,6 +38,9 @@ import cats.syntax.all._
  * }
  * }}}
  *
+ * '''Note''': This look is not reentrant, thus this `mutex.lock.surround(mutex.lock.use_)` will
+ * deadlock.
+ *
  * @see
  *   [[cats.effect.std.AtomicCell]]
  */
@@ -69,6 +72,9 @@ object Mutex {
   def in[F[_], G[_]](implicit F: Sync[F], G: Async[G]): F[Mutex[G]] =
     Semaphore.in[F, G](n = 1).map(sem => new Impl(sem))
 
+  // TODO: In case in a future cats-effect provides a way to identify fibers,
+  // then this implementation can be made reentrant.
+  // Or, we may also provide an alternative implementation using LiftIO + IOLocal
   private final class Impl[F[_]](sem: Semaphore[F]) extends Mutex[F] {
     override final val lock: Resource[F, Unit] =
       sem.permit
