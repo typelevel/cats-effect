@@ -51,7 +51,7 @@ private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntim
         .getOrElse(DefaultCpuStarvationCheckInterval)
 
     val cpuStarvationCheckInitialDelay =
-      Try(System.getProperty("cats.effect.cpu.starvation.check.initial.delay"))
+      Try(System.getProperty("cats.effect.cpu.starvation.check.initialDelay"))
         .map(Duration(_))
         .flatMap { d => Try(d.asInstanceOf[FiniteDuration]) }
         .getOrElse(DefaultCpuStarvationCheckInitialDelay)
