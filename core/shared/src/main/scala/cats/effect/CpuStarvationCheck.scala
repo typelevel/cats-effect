@@ -20,7 +20,6 @@ import cats.effect.std.Console
 import cats.effect.unsafe.IORuntimeConfig
 import cats.syntax.all._
 
-
 private[effect] object CpuStarvationCheck {
   def run(runtimeConfig: IORuntimeConfig): IO[Unit] =
     IO.monotonic
