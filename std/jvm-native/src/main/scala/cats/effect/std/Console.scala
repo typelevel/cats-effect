@@ -23,7 +23,21 @@ import java.nio.charset.Charset
 
 /**
  * Effect type agnostic `Console` with common methods to write to and read from the standard
- * console. Suited only for extremely simple console input and output.
+ * console. Due to issues around cancellation in `readLine`, suited only for extremely simple
+ * console input and output in trivial applications.
+ *
+ * @example
+ *   {{{
+ *  import cats.effect.IO
+ *  import cats.effect.std.Console
+ *
+ *  def myProgram: IO[Unit] =
+ *    for {
+ *      _ <- Console[IO].println("Please enter your name: ")
+ *      n <- Console[IO].readLine
+ *      _ <- if (n.nonEmpty) Console[IO].println("Hello, " + n) else Console[IO].errorln("Name is empty!")
+ *    } yield ()
+ *   }}}
  *
  * @example
  *   {{{
@@ -31,7 +45,7 @@ import java.nio.charset.Charset
  *  import cats.effect.std.Console
  *  import cats.syntax.all._
  *
- *  def myProgram[F[_] : Console : Monad]: F[Unit] =
+ *  def myProgram[F[_]: Console: Monad]: F[Unit] =
  *    for {
  *      _ <- Console[F].println("Please enter your name: ")
  *      n <- Console[F].readLine

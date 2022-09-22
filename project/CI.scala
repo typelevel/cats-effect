@@ -62,7 +62,18 @@ object CI {
           "testsJVM/testOnly *.IOAppSpec",
           "set Global / testJSIOApp := false"),
         mimaReport = true,
-        suffixCommands = List("exampleJS/compile"))
+        suffixCommands = List("exampleJS/compile")
+      )
+
+  case object Native
+      extends CI(
+        command = "ciNative",
+        rootProject = "rootNative",
+        jsEnv = None,
+        testCommands = List("test"),
+        mimaReport = true,
+        suffixCommands = List("exampleNative/compile")
+      )
 
   case object Firefox
       extends CI(
@@ -77,7 +88,8 @@ object CI {
           "testOnly *.SecureRandomSpec"
         ),
         mimaReport = false,
-        suffixCommands = List())
+        suffixCommands = List()
+      )
 
   case object Chrome
       extends CI(
@@ -93,8 +105,9 @@ object CI {
           "testOnly *.SecureRandomSpec"
         ),
         mimaReport = false,
-        suffixCommands = List())
+        suffixCommands = List()
+      )
 
   val AllJSCIs: List[CI] = List(JS, Firefox, Chrome)
-  val AllCIs: List[CI] = JVM :: AllJSCIs
+  val AllCIs: List[CI] = JVM :: Native :: AllJSCIs
 }

@@ -19,7 +19,10 @@ import sbt._, Keys._
 import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport._
 import org.typelevel.sbt.TypelevelPlugin
 import org.typelevel.sbt.TypelevelKernelPlugin.autoImport._
+import org.typelevel.sbt.TypelevelMimaPlugin.autoImport._
 import scalafix.sbt.ScalafixPlugin, ScalafixPlugin.autoImport._
+import sbtcrossproject.CrossPlugin.autoImport._
+import scalanativecrossproject.NativePlatform
 
 object Common extends AutoPlugin {
 
@@ -33,6 +36,12 @@ object Common extends AutoPlugin {
       ),
       ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0",
       ThisBuild / semanticdbEnabled := !tlIsScala3.value,
-      ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
+      ThisBuild / semanticdbVersion := scalafixSemanticdb.revision,
+      tlVersionIntroduced ++= {
+        if (crossProjectPlatform.?.value.contains(NativePlatform))
+          List("2.12", "2.13", "3").map(_ -> "3.4.0").toMap
+        else
+          Map.empty
+      }
     )
 }

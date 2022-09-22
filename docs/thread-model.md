@@ -70,20 +70,16 @@ opposed to pre-emptive) so it is the responsibility of a fiber to yield control
 of the CPU by suspending its runloop periodically. In practice this is rarely an
 issue as fibers automatically yield at asynchronous boundaries (eg I/O) but it
 does means that it is actually possible for a fiber to take control of a CPU
-core and never give it back if it executes a tight CPU-bound loop like
+core and never give it back if it executes some heavily CPU-bound operations like
 
 ```scala
-def factorial(n: BigInt): IO[BigInt] = n match {
-   case 0 => IO.pure(1)
-   case n => factorial(n-1).flatMap {
-      m => IO.pure(m * n)
-   }
-}
-
-factorial(10000).unsafeRunSync()
+def calculate(data: Vector[BigInt]): IO[BigInt] =
+  IO(longSubTaskA(data))
+    .map(xs => longSubTaskB(xs))
+    .map(ys => longSubTaskC(ys))
 ```
 
-If you have such a loop then you can insert a fairness boundary via `IO.shift`
+If you have such operations then you can insert a fairness boundary via `IO.shift`
 (CE2 but has other potential side-effects) or `IO.cede` (CE3), which will give
 another fiber an opportunity to run on the thread.
 

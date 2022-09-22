@@ -3,7 +3,7 @@ id: ref
 title: Ref
 ---
 
-An asynchronous, concurrent mutable reference.
+A concurrent mutable reference.
 
 ```scala mdoc:silent
 abstract class Ref[F[_], A] {
