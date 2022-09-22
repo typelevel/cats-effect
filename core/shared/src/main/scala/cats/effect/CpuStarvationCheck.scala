@@ -29,7 +29,7 @@ private[effect] object CpuStarvationCheck {
           .map(_ - now)
           .flatMap { delta =>
             Console[IO]
-              .errorln("[WARNING] you're CPU threadpool is probably starving")
+              .errorln("[WARNING] your CPU threadpool is probably starving")
               .whenA(delta > runtimeConfig.cpuStarvationCheckThreshold)
           }
       }

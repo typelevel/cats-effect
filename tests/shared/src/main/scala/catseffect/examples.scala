@@ -17,6 +17,7 @@
 package catseffect
 
 import cats.effect.{ExitCode, IO, IOApp}
+import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 
 package examples {
@@ -61,19 +62,18 @@ package examples {
 
   object GlobalRacingInit extends IOApp {
 
+    var r: IORuntime = null
+
     def foo(): Unit = {
       // touch the global runtime to force its initialization
-      val _ = cats.effect.unsafe.implicits.global
+      r = cats.effect.unsafe.implicits.global
       ()
     }
 
     foo()
 
-    // indirect assertion that we *don't* use the custom config
-    override def runtimeConfig = sys.error("boom")
-
     def run(args: List[String]): IO[ExitCode] =
-      IO.pure(ExitCode.Success)
+      IO.println("boom").whenA(!r.eq(runtime)) >> IO.pure(ExitCode.Success)
   }
 
   object LiveFiberSnapshot extends IOApp.Simple {
@@ -106,5 +106,16 @@ package examples {
 
   object LeakedFiber extends IOApp.Simple {
     val run = IO.cede.foreverM.start.void
+  }
+
+  object CpuStarvation extends IOApp.Simple {
+
+    def fib(n: Long): Long = n match {
+      case 0 => 0
+      case 1 => 1
+      case n => fib(n - 1) + fib(n - 2)
+    }
+
+    val run = IO.delay(fib(1000)).replicateA_(50)
   }
 }

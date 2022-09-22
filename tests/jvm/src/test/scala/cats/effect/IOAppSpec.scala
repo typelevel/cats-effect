@@ -195,6 +195,14 @@ class IOAppSpec extends Specification {
           h.stderr() must not(contain("boom"))
         }
 
+        "warn on cpu starvation" in {
+          val h = platform(CpuStarvation, List.empty)
+          Thread.sleep(3000)
+          h.term()
+          val err = h.stderr()
+          err must contain("[WARNING] your CPU threadpool is probably starving")
+        }
+
         "abort awaiting shutdown hooks" in {
           val h = platform(ShutdownHookImmediateTimeout, List.empty)
           h.awaitStatus() mustEqual 0
