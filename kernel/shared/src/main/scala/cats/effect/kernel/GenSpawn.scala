@@ -266,7 +266,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    * before and after the expensive operation:
    *
    * {{{
-   *   (fa <* F.cede).map(data => expensiveWork(data)) <* F.cede
+   *   (fa <* F.cede).map(data => expensiveWork(data)).guarantee(F.cede)
    * }}}
    *
    * Note that extremely long-running `expensiveWork` functions can still cause fairness issues,

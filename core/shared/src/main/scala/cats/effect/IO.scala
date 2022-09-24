@@ -1089,7 +1089,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * before and after the expensive operation:
    *
    * {{{
-   *   (fa <* IO.cede).map(data => expensiveWork(data)) <* IO.cede
+   *   (fa <* IO.cede).map(data => expensiveWork(data)).guarantee(IO.cede)
    * }}}
    *
    * Note that extremely long-running `expensiveWork` functions can still cause fairness issues,
