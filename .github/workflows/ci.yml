@@ -23,7 +23,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        scala: [3.1.2, 2.12.17, 2.13.9]
+        scala: [3.1.2, 2.12.17, 2.13.8]
         java: [temurin@8, temurin@11, temurin@17, graalvm@11]
         ci: [ciJVM, ciNative, ciJS, ciFirefox, ciChrome]
         exclude:
@@ -210,7 +210,7 @@ jobs:
       - shell: bash
         run: sbt '++${{ matrix.scala }}' '${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.9' || matrix.scala == '3.1.2') && matrix.ci == 'ciJVM'
+      - if: (matrix.scala == '2.13.8' || matrix.scala == '3.1.2') && matrix.ci == 'ciJVM'
         shell: bash
         run: sbt '++${{ matrix.scala }}' docs/mdoc
 
@@ -230,7 +230,7 @@ jobs:
         run: example/test-native.sh ${{ matrix.scala }}
 
       - name: Scalafix tests
-        if: matrix.scala == '2.13.9' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13.8' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           cd scalafix
@@ -242,7 +242,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        scala: [2.13.9]
+        scala: [2.13.8]
         java: [temurin@8]
     runs-on: ${{ matrix.os }}
     steps:
