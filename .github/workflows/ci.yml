@@ -23,14 +23,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        scala: [3.1.2, 2.12.17, 2.13.8]
+        scala: [3.2.0, 2.12.17, 2.13.8]
         java: [temurin@8, temurin@11, temurin@17, graalvm@11]
         ci: [ciJVM, ciNative, ciJS, ciFirefox, ciChrome]
         exclude:
-          - scala: 3.1.2
+          - scala: 3.2.0
             java: temurin@11
-          - scala: 3.1.2
-            java: graalvm@11
           - scala: 2.12.17
             java: temurin@11
           - scala: 2.12.17
@@ -38,17 +36,17 @@ jobs:
           - scala: 2.12.17
             java: graalvm@11
           - os: windows-latest
-            scala: 3.1.2
+            scala: 3.2.0
           - os: macos-latest
-            scala: 3.1.2
+            scala: 3.2.0
           - os: windows-latest
             scala: 2.12.17
           - os: macos-latest
             scala: 2.12.17
           - ci: ciFirefox
-            scala: 3.1.2
+            scala: 3.2.0
           - ci: ciChrome
-            scala: 3.1.2
+            scala: 3.2.0
           - ci: ciFirefox
             scala: 2.12.17
           - ci: ciChrome
@@ -96,7 +94,7 @@ jobs:
             scala: 2.12.17
           - os: macos-latest
             ci: ciNative
-            scala: 3.1.2
+            scala: 3.2.0
           - os: windows-latest
             java: graalvm@11
     runs-on: ${{ matrix.os }}
@@ -208,14 +206,14 @@ jobs:
         run: sbt '++${{ matrix.scala }}' 'project /' githubWorkflowCheck
 
       - name: Check that scalafix has been run
-        if: matrix.scala != '3.1.2' && matrix.os != 'windows-latest'
+        if: matrix.scala != '3.2.0' && matrix.os != 'windows-latest'
         shell: bash
         run: sbt '++${{ matrix.scala }}' 'root/scalafixAll --check'
 
       - shell: bash
         run: sbt '++${{ matrix.scala }}' '${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.8' || matrix.scala == '3.1.2') && matrix.ci == 'ciJVM'
+      - if: (matrix.scala == '2.13.8' || matrix.scala == '3.2.0') && matrix.ci == 'ciJVM'
         shell: bash
         run: sbt '++${{ matrix.scala }}' docs/mdoc
 
