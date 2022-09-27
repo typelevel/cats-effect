@@ -225,7 +225,9 @@ class SyncIOSpec
       } yield res
     }
 
-    scalaVersionSpecs
+    "serialize" in {
+      forAll { (io: SyncIO[Int]) => serializable(io) }
+    }
   }
 
   {
