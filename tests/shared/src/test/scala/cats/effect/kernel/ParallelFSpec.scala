@@ -25,9 +25,16 @@ import cats.laws.discipline.{AlignTests, CommutativeApplicativeTests, ParallelTe
 import cats.laws.discipline.arbitrary.catsLawsCogenForIor
 import cats.syntax.all._
 
+import org.specs2.scalacheck._
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class ParallelFSpec extends BaseSpec with Discipline {
+class ParallelFSpec extends BaseSpec with Discipline with DetectPlatform {
+
+  implicit val params: Parameters =
+    if (isNative)
+      Parameters(minTestsOk = 5)
+    else
+      Parameters(minTestsOk = 100)
 
   def alleyEq[E, A: Eq]: Eq[PureConc[E, A]] = { (x, y) =>
     import Outcome._

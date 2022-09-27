@@ -124,7 +124,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
     }
 
     "offer/take at high contention" in real {
-      val size = if (isJS) 10000 else 100000
+      val size = if (isJS || isNative) 10000 else 100000
 
       val action = constructor(size) flatMap { q =>
         def par(action: IO[Unit], num: Int): IO[Unit] =

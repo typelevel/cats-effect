@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
-package cats.effect.std
+package cats.effect
+package tracing
 
-// Vestigial shim
-private[std] trait RandomCompanionPlatform
+private[effect] object TracingConstants {
+
+  final val isCachedStackTracing = false
+
+  final val isFullStackTracing = false
+
+  final val isStackTracing = isFullStackTracing || isCachedStackTracing
+}

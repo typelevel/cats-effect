@@ -17,6 +17,7 @@
 package catseffect
 
 import cats.effect.{ExitCode, IO, IOApp}
+import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 import cats.syntax.all._
 
 package examples {
@@ -106,5 +107,22 @@ package examples {
 
   object LeakedFiber extends IOApp.Simple {
     val run = IO.cede.foreverM.start.void
+  }
+
+  object CustomRuntime extends IOApp.Simple {
+    override lazy val runtime = IORuntime(
+      exampleExecutionContext,
+      exampleExecutionContext,
+      Scheduler.createDefaultScheduler()._1,
+      () => (),
+      IORuntimeConfig()
+    )
+
+    def run = IO {
+      if (runtime eq IORuntime.global)
+        ()
+      else
+        throw new AssertionError("Custom runtime not installed as global")
+    }
   }
 }

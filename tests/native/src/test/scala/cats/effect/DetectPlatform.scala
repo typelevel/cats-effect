@@ -15,17 +15,9 @@
  */
 
 package cats.effect
-package unsafe
 
-import scala.concurrent.ExecutionContext
-
-// Can you imagine a thread pool on JS? Have fun trying to extend or instantiate
-// this class. Unfortunately, due to the explicit branching, this type leaks
-// into the shared source code of IOFiber.scala.
-private[effect] sealed abstract class WorkStealingThreadPool private ()
-    extends ExecutionContext {
-  def execute(runnable: Runnable): Unit
-  def reportFailure(cause: Throwable): Unit
-  private[effect] def reschedule(runnable: Runnable): Unit
-  private[effect] def canExecuteBlockingCode(): Boolean
+trait DetectPlatform {
+  def isWSL: Boolean = System.getProperty("os.version").contains("-WSL")
+  def isJS: Boolean = false
+  def isNative: Boolean = true
 }
