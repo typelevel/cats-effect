@@ -16,6 +16,7 @@
       "schedulers",
       "core/io-runtime-config",
       "core/native-image",
+      "core/scala-native",
       "core/jlink",
       "core/io-local"
     ],

@@ -145,6 +145,11 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
     List("npm install"),
     name = Some("Install jsdom and source-map-support"),
     cond = Some("matrix.ci == 'ciJS'")
+  ),
+  WorkflowStep.Run(
+    List("gu install native-image"),
+    name = Some("Install GraalVM Native Image"),
+    cond = Some(s"matrix.java == '${GraalVM.render}'")
   )
 )
 
@@ -168,6 +173,12 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("example/test-js.sh ${{ matrix.scala }}"),
     name = Some("Test Example JavaScript App Using Node"),
     cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")
+  ),
+  WorkflowStep.Sbt(
+    List("graalVMExample/nativeImage", "graalVMExample/nativeImageRun"),
+    name = Some("Test GraalVM Native Image"),
+    cond = Some(
+      s"matrix.scala == '$Scala213' && matrix.java == '${GraalVM.render}' && matrix.os == '$PrimaryOS'")
   ),
   WorkflowStep.Run(
     List("example/test-native.sh ${{ matrix.scala }}"),
@@ -315,6 +326,7 @@ val undocumentedRefs =
   jsProjects ++ nativeProjects ++ Seq[ProjectReference](
     benchmarks,
     example.jvm,
+    graalVMExample,
     tests.jvm,
     tests.js)
 
@@ -340,6 +352,7 @@ lazy val rootJVM = project
     testsJVM,
     std.jvm,
     example.jvm,
+    graalVMExample,
     benchmarks)
   .enablePlugins(NoPublishPlugin)
 
@@ -876,6 +889,19 @@ lazy val example = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .enablePlugins(NoPublishPlugin)
   .settings(name := "cats-effect-example")
   .jsSettings(scalaJSUseMainModuleInitializer := true)
+
+/**
+ * A trivial app to test GraalVM Native image with.
+ */
+lazy val graalVMExample = project
+  .in(file("graalvm-example"))
+  .dependsOn(core.jvm)
+  .enablePlugins(NoPublishPlugin, NativeImagePlugin)
+  .settings(
+    name := "cats-effect-graalvm-example",
+    nativeImageOptions ++= Seq("--no-fallback", "-H:+ReportExceptionStackTraces"),
+    nativeImageInstalled := true
+  )
 
 /**
  * JMH benchmarks for IO and other things.
