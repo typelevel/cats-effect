@@ -15,11 +15,16 @@
  */
 
 package cats.effect
+package example
 
-import org.specs2.mutable.SpecificationLike
-import org.specs2.specification.core.Fragments
+import cats._
+import cats.effect._
+import cats.syntax.all._
 
-// collapse this back into SyncIOSpec once we're on a release with lampepfl/dotty#14686
-trait SyncIOScalaVersionSpecification extends SpecificationLike {
-  def scalaVersionSpecs = Fragments.empty
+object GraalVMExample extends IOApp.Simple {
+
+  def run = foo[IO] *> IO.println("grrrraal")
+
+  def foo[F[_]: Async: Parallel] = Async[F].unit &> Async[F].unit
+
 }

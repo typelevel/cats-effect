@@ -14,17 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect
+package catseffect
 
-import cats.kernel.laws.SerializableLaws.serializable
+import scala.concurrent.ExecutionContext
 
-import org.scalacheck.Prop.forAll
-import org.typelevel.discipline.specs2.mutable.Discipline
-
-// collapse this back into SyncIOSpec once we're on a release with lampepfl/dotty#14686
-trait SyncIOScalaVersionSpecification extends BaseSpec with Discipline {
-  def scalaVersionSpecs =
-    "serialize" in {
-      forAll { (io: SyncIO[Int]) => serializable(io) }
-    }
+package object examples {
+  def exampleExecutionContext = ExecutionContext.global
 }
