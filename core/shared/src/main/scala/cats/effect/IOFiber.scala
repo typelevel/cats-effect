@@ -1540,7 +1540,7 @@ private final class IOFiber[A] private (
   }
 
   private[effect] def prettyPrintTrace(): String =
-    if (isStackTracing) {
+    if (tracingEvents ne null) {
       suspended.get()
       Tracing.prettyPrint(tracingEvents)
     } else {
