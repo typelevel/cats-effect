@@ -16,8 +16,7 @@
 
 package cats.effect.std
 
-import cats.effect.kernel.{Async, Resource}
-import cats.effect.kernel.implicits._
+import cats.effect.kernel.{Async, Outcome, Ref, Resource}
 import cats.syntax.all._
 
 import scala.annotation.tailrec
@@ -204,14 +203,14 @@ object Dispatcher {
     val (workers, makeFork) =
       mode match {
         case Mode.Parallel =>
-          (Cpus, Supervisor[F](await).map(s => s.supervise(_: F[Unit]).map(_.cancel)))
+          // TODO we have to do this for now because Scala 3 doesn't like it (lampepfl/dotty#15546)
+          (Cpus, Supervisor[F](await, None).map(s => s.supervise(_: F[Unit]).map(_.cancel)))
 
         case Mode.Sequential =>
           (
             1,
             Resource
-              .pure[F, F[Unit] => F[F[Unit]]]((_: F[Unit]).as(F.unit).handleError(_ => F.unit))
-          )
+              .pure[F, F[Unit] => F[F[Unit]]]((_: F[Unit]).as(F.unit).handleError(_ => F.unit)))
       }
 
     for {
@@ -242,11 +241,17 @@ object Dispatcher {
       ec <- Resource.eval(F.executionContext)
       alive <- Resource.make(F.delay(new AtomicBoolean(true)))(ref => F.delay(ref.set(false)))
 
+      // supervisor for the main loop, which needs to always restart unless the Supervisor itself is canceled
+      // critically, inner actions can be canceled without impacting the loop itself
+      supervisor <- Supervisor[F](await, Some((_: Outcome[F, Throwable, _]) => true))
+
       _ <- {
         def dispatcher(
+            doneR: Ref[F, Boolean],
             latch: AtomicReference[() => Unit],
-            state: Array[AtomicReference[List[Registration]]]): F[Unit] =
-          for {
+            state: Array[AtomicReference[List[Registration]]]): F[Unit] = {
+
+          val step = for {
             _ <- F.delay(latch.set(Noop)) // reset latch
 
             regs <- F delay {
@@ -256,7 +261,7 @@ object Dispatcher {
                 val st = state(i)
                 if (st.get() ne Nil) {
                   val list = st.getAndSet(Nil)
-                  buffer ++= list.reverse
+                  buffer ++= list.reverse // FIFO order here is a form of fairness
                 }
                 i += 1
               }
@@ -272,29 +277,33 @@ object Dispatcher {
                   }
                 }
               } else {
-                val runAll = regs traverse_ {
+                regs traverse_ {
                   case r @ Registration(action, prepareCancel) =>
                     val supervise: F[Unit] =
                       fork(action).flatMap(cancel => F.delay(prepareCancel(cancel)))
 
                     // Check for task cancelation before executing.
-                    if (r.get()) supervise else F.unit
-                }
-
-                mode match {
-                  case Dispatcher.Mode.Parallel => runAll.uncancelable
-                  case Dispatcher.Mode.Sequential => if (await) runAll.uncancelable else runAll
+                    F.delay(r.get()).ifM(supervise, F.unit)
                 }
               }
           } yield ()
 
-        (0 until workers)
-          .toList
-          .traverse_(n => dispatcher(latches(n), states(n)).foreverM[Unit].background)
+          // if we're marked as done, yield immediately to give other fibers a chance to shut us down
+          // we might loop on this a few times since we're marked as done before the supervisor is canceled
+          doneR.get.ifM(F.cede, step)
+        }
+
+        0.until(workers).toList traverse_ { n =>
+          Resource.eval(F.ref(false)) flatMap { doneR =>
+            val latch = latches(n)
+            val worker = dispatcher(doneR, latch, states(n))
+            val release = F.delay(latch.getAndSet(Open)())
+            Resource.make(supervisor.supervise(worker))(_ => doneR.set(true) >> release)
+          }
+        }
       }
     } yield {
       new Dispatcher[F] {
-
         def unsafeToFutureCancelable[E](fe: F[E]): (Future[E], () => Future[Unit]) = {
           val promise = Promise[E]()
 
