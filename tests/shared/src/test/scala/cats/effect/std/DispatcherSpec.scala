@@ -267,6 +267,10 @@ class DispatcherSpec extends BaseSpec {
 
           result <- resultR.get
           _ <- IO(result must beFalse)
+
+          secondLatch <- IO.deferred[Unit]
+          _ <- IO(runner.unsafeRunAndForget(secondLatch.complete(()).void))
+          _ <- secondLatch.get // if the dispatcher itself is dead, this will hang
         } yield ok
       }
     }
