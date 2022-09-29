@@ -16,6 +16,9 @@
 
 package cats.effect.kernel
 
+import scala.annotation.nowarn
+import scala.reflect.ClassTag
+
 import java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage}
 
 private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] =>
@@ -53,4 +56,14 @@ private[kernel] trait AsyncPlatform[F[_]] extends Serializable { this: Async[F] 
         }
       }
     }
+
+  /**
+   * Attempts to retrieve the runtime's polling system, if present and an instance of `S`.
+   *
+   * If successful, it invokes the side-effect `f` with it and returns the result.
+   *
+   * If no polling system of type `S` is available, then `f` is not run and `None` is returned.
+   */
+  @nowarn
+  def delayWithPollingSystem[S: ClassTag, A](f: S => A): F[Option[A]] = pure(None)
 }

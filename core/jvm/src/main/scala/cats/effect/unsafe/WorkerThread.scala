@@ -39,7 +39,7 @@ import java.util.concurrent.locks.LockSupport
  * system when compared to a fixed size thread pool whose worker threads all draw tasks from a
  * single global work queue.
  */
-private final class WorkerThread(
+private[effect] final class WorkerThread(
     idx: Int,
     // Local queue instance with exclusive write access.
     private[this] var queue: LocalQueue,
@@ -97,6 +97,8 @@ private final class WorkerThread(
   private[this] val runtimeBlockingExpiration: Duration = pool.runtimeBlockingExpiration
 
   val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.incrementAndGet()
+
+  def pollingSystem: Any = ??? // stub
 
   // Constructor code.
   {

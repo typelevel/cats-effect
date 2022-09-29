@@ -18,6 +18,9 @@ package cats.effect
 
 import cats.effect.std.Console
 import cats.effect.tracing.Tracing
+import cats.effect.unsafe.WorkerThread
+
+import scala.reflect.ClassTag
 
 import java.time.Instant
 import java.util.concurrent.{CompletableFuture, CompletionStage}
@@ -141,4 +144,15 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
    */
   def readLine: IO[String] =
     Console[IO].readLine
+
+  def delayWithPollingSystem[S, A](f: S => A)(implicit ct: ClassTag[S]): IO[Option[A]] = delay {
+    Thread.currentThread() match {
+      case worker: WorkerThread =>
+        val system = worker.pollingSystem
+        if (ct.runtimeClass.isInstance(system))
+          Some(f(system.asInstanceOf[S]))
+        else None
+      case _ => None
+    }
+  }
 }
