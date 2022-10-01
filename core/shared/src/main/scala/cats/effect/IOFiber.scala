@@ -1345,7 +1345,7 @@ private final class IOFiber[A](
       }
 
     if (isStackTracing) {
-      // Remove the reference to the fiber monitor key
+      // Remove the reference to the fiber monitor handle
       objectState.pop().asInstanceOf[WeakBag.Handle].deregister()
     }
 
@@ -1446,8 +1446,8 @@ private final class IOFiber[A](
 
   private[this] def evalOnFailureK(t: Throwable): IO[Any] = {
     if (isStackTracing) {
-      // Remove the reference to the fiber monitor key
-      objectState.pop()
+      // Remove the reference to the fiber monitor handle
+      objectState.pop().asInstanceOf[WeakBag.Handle].deregister()
     }
     val ec = objectState.pop().asInstanceOf[ExecutionContext]
     currentCtx = ec
