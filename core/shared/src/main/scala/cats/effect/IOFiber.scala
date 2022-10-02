@@ -766,6 +766,15 @@ private final class IOFiber[A] private (
              */
             state.wasFinalizing = finalizing
 
+            if (isStackTracing) {
+              state.handle = monitor()
+              finalizers.push(IO {
+                state.handle.deregister()
+                ()
+              })
+              conts = ByteStack.push(conts, OnCancelK) // remove the above finalizer if the Get completes without getting cancelled
+            }
+
             /*
              * You should probably just read this as `suspended.compareAndSet(false, true)`.
              * This CAS should always succeed since we own the runloop,
@@ -773,9 +782,6 @@ private final class IOFiber[A] private (
              * which ensures we will always see the most up-to-date value
              * for `canceled` in `shouldFinalize`, ensuring no finalisation leaks
              */
-            if (isStackTracing) {
-              state.handle = monitor()
-            }
             suspended.getAndSet(true)
 
             /*
