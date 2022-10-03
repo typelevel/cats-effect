@@ -772,7 +772,8 @@ private final class IOFiber[A] private (
                 state.handle.deregister()
                 ()
               })
-              conts = ByteStack.push(conts, OnCancelK) // remove the above finalizer if the Get completes without getting cancelled
+              // remove the above finalizer if the Get completes without getting cancelled
+              conts = ByteStack.push(conts, OnCancelK)
             }
 
             /*
