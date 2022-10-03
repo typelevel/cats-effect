@@ -22,6 +22,8 @@ private[effect] object Tracing extends TracingPlatform {
 
   import TracingConstants._
 
+  type FiberTrace = String
+
   private[this] val TurnRight = "╰"
   // private[this] val InverseTurnRight = "╭"
   private[this] val Junction = "├"

@@ -31,6 +31,7 @@ package cats.effect
 package unsafe
 
 import cats.effect.tracing.TracingConstants
+import cats.effect.tracing.Tracing.FiberTrace
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -468,31 +469,43 @@ private[effect] final class WorkStealingThreadPool(
    *   threads to the currently active fiber and fibers enqueued on the local queue of that
    *   worker thread and a set of suspended fibers tracked by this thread pool
    */
-  private[unsafe] def liveFibers(): (
-      Set[IOFiber[_]],
-      Map[WorkerThread, (Option[IOFiber[_]], Set[IOFiber[_]])],
-      Set[IOFiber[_]]) = {
-    val externalFibers = externalQueue.snapshot().flatMap {
-      case batch: Array[IOFiber[_]] => batch.toSet[IOFiber[_]]
-      case fiber: IOFiber[_] => Set[IOFiber[_]](fiber)
-      case _ => Set.empty[IOFiber[_]]
-    }
+  private[unsafe] def liveFiberTraces(): (
+      Map[IOFiber[_], FiberTrace],
+      Map[
+        WorkerThread,
+        (Thread.State, Option[(IOFiber[_], FiberTrace)], Map[IOFiber[_], FiberTrace])],
+      Map[IOFiber[_], FiberTrace]) = {
+    val externalFibers: Map[IOFiber[_], FiberTrace] = externalQueue
+      .snapshot()
+      .iterator
+      .flatMap {
+        case batch: Array[IOFiber[_]] =>
+          batch.map(f => f -> f.prettyPrintTrace()).toMap[IOFiber[_], FiberTrace]
+        case fiber: IOFiber[_] => Map[IOFiber[_], FiberTrace](fiber -> fiber.prettyPrintTrace())
+        case _ => Map.empty[IOFiber[_], FiberTrace]
+      }
+      .toMap
 
-    val map = mutable.Map.empty[WorkerThread, (Option[IOFiber[_]], Set[IOFiber[_]])]
-    val suspended = mutable.Set.empty[IOFiber[_]]
+    val map = mutable
+      .Map
+      .empty[
+        WorkerThread,
+        (Thread.State, Option[(IOFiber[_], FiberTrace)], Map[IOFiber[_], FiberTrace])]
+    val suspended = mutable.Map.empty[IOFiber[_], FiberTrace]
 
     var i = 0
     while (i < threadCount) {
-      val localFibers = localQueues(i).snapshot()
+      val localFibers =
+        localQueues(i).snapshot().iterator.map(f => f -> f.prettyPrintTrace()).toMap
       val worker = workerThreads(i)
       val _ = parkedSignals(i).get()
-      val active = Option(worker.active)
-      map += (worker -> (active -> localFibers))
-      suspended ++= worker.suspendedSnapshot()
+      val active = Option(worker.active).map(f => f -> f.prettyPrintTrace())
+      map += (worker -> (worker.getState, active, localFibers))
+      suspended ++= worker.suspendedTraces()
       i += 1
     }
 
-    (externalFibers, map.toMap, suspended.toSet)
+    (externalFibers, map.toMap, suspended.toMap)
   }
 
   /**

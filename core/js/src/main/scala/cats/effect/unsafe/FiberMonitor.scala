@@ -17,6 +17,9 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.Tracing.FiberTrace
+
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.scalajs.js
 import scala.scalajs.LinkingInfo
@@ -56,19 +59,25 @@ private final class ES2021FiberMonitor(
   override def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle =
     bag.insert(fiber)
 
+  def foreignTraces(): Map[IOFiber[_], FiberTrace] = {
+    val foreign = mutable.Map.empty[IOFiber[Any], FiberTrace]
+    bag.forEach(fiber =>
+      foreign += (fiber.asInstanceOf[IOFiber[Any]] -> fiber.prettyPrintTrace()))
+    foreign.toMap
+  }
+
   def liveFiberSnapshot(print: String => Unit): Unit =
     Option(compute).foreach { compute =>
-      val queued = compute.liveFibers()
-      val rawForeign = bag.toSet
+      val queued = compute.liveFiberTraces()
+      val rawForeign = foreignTraces()
 
       // We trust the sources of data in the following order, ordered from
       // most trustworthy to least trustworthy.
       // 1. Fibers from the macrotask executor
       // 2. Fibers from the foreign fallback weak GC map
 
-      val allForeign = rawForeign -- queued
-      val suspended = allForeign.filter(_.get())
-      val foreign = allForeign.filterNot(_.get())
+      val allForeign = rawForeign -- queued.keys
+      val (suspended, foreign) = allForeign.partition { case (f, _) => f.get() }
 
       printFibers(queued, "YIELDING")(print)
       printFibers(foreign, "YIELDING")(print)
