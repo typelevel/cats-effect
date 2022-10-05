@@ -122,6 +122,20 @@ final case class IORuntimeConfig private (
 
   private[effect] val traceBufferLogSize: Int =
     Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt
+
+  def withCancelationCheckThreshold(n: Int): IORuntimeConfig =
+    copy(cancelationCheckThreshold = n)
+
+  def withAutoYieldThreshold(n: Int): IORuntimeConfig = copy(autoYieldThreshold = n)
+
+  def withEnhancedExceptions(b: Boolean): IORuntimeConfig = copy(enhancedExceptions = b)
+
+  def withTraceBufferSize(n: Int): IORuntimeConfig = copy(traceBufferSize = n)
+
+  def withShutdownHookTimeout(d: Duration): IORuntimeConfig = copy(shutdownHookTimeout = d)
+
+  def withReportUnhandledFiberErrors(b: Boolean): IORuntimeConfig =
+    copy(reportUnhandledFiberErrors = b)
 }
 
 object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
