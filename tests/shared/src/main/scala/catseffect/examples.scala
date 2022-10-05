@@ -110,12 +110,6 @@ package examples {
 
   object CpuStarvation extends IOApp.Simple {
 
-    def fib(n: Long): Long = n match {
-      case 0 => 1
-      case 1 => 1
-      case n => fib(n - 1) + fib(n - 2)
-    }
-
-    val run = IO.delay(fib(1000)).replicateA_(50)
+    val run = IO.delay(Thread.sleep(30000)).replicateA_(50)
   }
 }
