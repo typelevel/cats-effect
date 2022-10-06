@@ -19,6 +19,7 @@ package cats.effect
 import cats.effect.std.Console
 import cats.effect.unsafe.IORuntimeConfig
 import cats.syntax.all._
+
 import scala.concurrent.duration.FiniteDuration
 
 private[effect] object CpuStarvationCheck {

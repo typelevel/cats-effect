@@ -17,9 +17,10 @@
 package catseffect
 
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 import cats.effect.std.Console
+import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 import cats.syntax.all._
+
 import scala.concurrent.duration._
 
 package examples {
