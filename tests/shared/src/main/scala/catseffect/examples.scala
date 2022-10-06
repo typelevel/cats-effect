@@ -129,9 +129,9 @@ package examples {
     val run = Random.scalaUtilRandom[IO].flatMap { rand =>
       // jitter to give the cpu starvation checker a chance to run at all
       val jitter = rand.nextIntBounded(100).flatMap(n => IO.sleep(n.millis))
-      (jitter >> IO(Thread.sleep(500)))
-        .foreverM
-        .parReplicateA_(Runtime.getRuntime().availableProcessors() * 2)
+      (jitter >> IO(Thread.sleep(400)))
+        .replicateA_(10)
+        .parReplicateA_(Runtime.getRuntime().availableProcessors()* 2)
     }
   }
 

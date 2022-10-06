@@ -197,8 +197,7 @@ class IOAppSpec extends Specification {
 
         "warn on cpu starvation" in {
           val h = platform(CpuStarvation, List.empty)
-          Thread.sleep(10000)
-          h.term()
+          h.awaitStatus()
           val err = h.stderr()
           err must contain("[WARNING] Your CPU is probably starving")
         }
