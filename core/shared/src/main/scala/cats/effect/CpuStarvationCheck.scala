@@ -28,7 +28,7 @@ private[effect] object CpuStarvationCheck {
       IO.sleep(runtimeConfig.cpuStarvationCheckInterval) >> IO.monotonic.flatMap { now =>
         val delta = now - initial
         Console[IO]
-          .errorln("[WARNING] your CPU threadpool is probably starving")
+          .errorln(warning)
           .whenA(delta >=
             runtimeConfig.cpuStarvationCheckInterval * (1 + runtimeConfig.cpuStarvationCheckThreshold)) >>
           go(now)
@@ -36,4 +36,8 @@ private[effect] object CpuStarvationCheck {
 
     IO.monotonic.flatMap(go(_)).delayBy(runtimeConfig.cpuStarvationCheckInitialDelay)
   }
+
+  private[this] val warning =
+    """[WARNING] Your CPU is probably starving. Consider reducing the granularity of your `delay`s or adding more `cede`s. This may also be a sign that you are unintentionally running blocking I/O operations (such as File or InetAddress) without the `blocking` combinator."""
+
 }

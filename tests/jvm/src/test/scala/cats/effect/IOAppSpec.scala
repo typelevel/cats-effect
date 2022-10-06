@@ -200,7 +200,7 @@ class IOAppSpec extends Specification {
           Thread.sleep(10000)
           h.term()
           val err = h.stderr()
-          err must contain("[WARNING] your CPU threadpool is probably starving")
+          err must contain("[WARNING] Your CPU is probably starving")
         }
 
         "abort awaiting shutdown hooks" in {
