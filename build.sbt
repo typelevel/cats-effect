@@ -114,7 +114,7 @@ val MacOS = "macos-latest"
 
 val Scala212 = "2.12.17"
 val Scala213 = "2.13.8"
-val Scala3 = "3.1.2"
+val Scala3 = "3.2.0"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
 ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
@@ -145,6 +145,11 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
     List("npm install"),
     name = Some("Install jsdom and source-map-support"),
     cond = Some("matrix.ci == 'ciJS'")
+  ),
+  WorkflowStep.Run(
+    List("gu install native-image"),
+    name = Some("Install GraalVM Native Image"),
+    cond = Some(s"matrix.java == '${GraalVM.render}'")
   )
 )
 
@@ -152,7 +157,9 @@ ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(
     List("root/scalafixAll --check"),
     name = Some("Check that scalafix has been run"),
-    cond = Some(s"matrix.scala != '$Scala3'")
+    cond = Some(
+      s"matrix.scala != '$Scala3' && matrix.os != 'windows-latest'"
+    ) // windows has file lock issues due to shared sources
   ),
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
@@ -168,6 +175,12 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("example/test-js.sh ${{ matrix.scala }}"),
     name = Some("Test Example JavaScript App Using Node"),
     cond = Some(s"matrix.ci == 'ciJS' && matrix.os == '$PrimaryOS'")
+  ),
+  WorkflowStep.Sbt(
+    List("graalVMExample/nativeImage", "graalVMExample/nativeImageRun"),
+    name = Some("Test GraalVM Native Image"),
+    cond = Some(
+      s"matrix.scala == '$Scala213' && matrix.java == '${GraalVM.render}' && matrix.os == '$PrimaryOS'")
   ),
   WorkflowStep.Run(
     List("example/test-native.sh ${{ matrix.scala }}"),
@@ -190,7 +203,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
   val scalaJavaFilters = for {
     scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
     java <- (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(OldGuardJava))
-    if !(scala == Scala3 && java == LatestJava)
+    if !(scala == Scala3 && (java == LatestJava || java == GraalVM))
   } yield MatrixExclude(Map("scala" -> scala, "java" -> java.render))
 
   val windowsAndMacScalaFilters =
@@ -277,7 +290,7 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 ThisBuild / autoAPIMappings := true
 
 val CatsVersion = "2.8.0"
-val Specs2Version = "4.16.1"
+val Specs2Version = "4.17.0"
 val ScalaCheckVersion = "1.17.0"
 val DisciplineVersion = "1.4.0"
 val CoopVersion = "1.2.0"
@@ -315,6 +328,7 @@ val undocumentedRefs =
   jsProjects ++ nativeProjects ++ Seq[ProjectReference](
     benchmarks,
     example.jvm,
+    graalVMExample,
     tests.jvm,
     tests.js)
 
@@ -340,6 +354,7 @@ lazy val rootJVM = project
     testsJVM,
     std.jvm,
     example.jvm,
+    graalVMExample,
     benchmarks)
   .enablePlugins(NoPublishPlugin)
 
@@ -668,7 +683,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
             "cats.effect.tracing.Tracing.version"),
           // introduced by #3012
           ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.unsafe.WorkStealingThreadPool.this")
+            "cats.effect.unsafe.WorkStealingThreadPool.this"),
+          // annoying consequence of reverting #2473
+          ProblemFilters.exclude[AbstractClassProblem]("cats.effect.ExitCode")
         )
       } else Seq()
     }
@@ -876,6 +893,19 @@ lazy val example = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .enablePlugins(NoPublishPlugin)
   .settings(name := "cats-effect-example")
   .jsSettings(scalaJSUseMainModuleInitializer := true)
+
+/**
+ * A trivial app to test GraalVM Native image with.
+ */
+lazy val graalVMExample = project
+  .in(file("graalvm-example"))
+  .dependsOn(core.jvm)
+  .enablePlugins(NoPublishPlugin, NativeImagePlugin)
+  .settings(
+    name := "cats-effect-graalvm-example",
+    nativeImageOptions ++= Seq("--no-fallback", "-H:+ReportExceptionStackTraces"),
+    nativeImageInstalled := true
+  )
 
 /**
  * JMH benchmarks for IO and other things.

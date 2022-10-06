@@ -45,6 +45,11 @@ private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntim
       .flatMap(x => Try(Duration(x)).toOption)
       .getOrElse(DefaultShutdownHookTimeout)
 
+    val reportUnhandledFiberErrors =
+      Option(System.getenv("CATS_EFFECT_REPORT_UNHANDLED_FIBER_ERRORS"))
+        .flatMap(x => Try(x.toBoolean).toOption)
+        .getOrElse(DefaultReportUnhandledFiberErrors)
+
     val cpuStarvationCheckInterval =
       Option(System.getenv("CATS_EFFECT_CPU_STARVATION_CHECK_INTERNAL"))
         .map(Duration(_))
@@ -67,6 +72,7 @@ private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntim
       enhancedExceptions,
       traceBufferSize,
       shutdownHookTimeout,
+      reportUnhandledFiberErrors,
       cpuStarvationCheckInterval,
       cpuStarvationCheckInitialDelay,
       cpuStarvationCheckThreshold

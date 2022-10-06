@@ -37,6 +37,9 @@ import java.util.concurrent.atomic.AtomicReference
  * functional wrapper over an `AtomicReference`. Consequently it ''must not'' be used to store
  * mutable data as `AtomicReference#compareAndSet` and friends are not threadsafe and are
  * dependent upon object reference equality.
+ *
+ * @see
+ *   [[cats.effect.std.AtomicCell]]
  */
 abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
 

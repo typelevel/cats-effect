@@ -180,7 +180,7 @@ trait IOApp {
   def run(args: List[String]): IO[ExitCode]
 
   final def main(args: Array[String]): Unit = {
-    if (runtime == null) {
+    val installed = if (runtime == null) {
       import unsafe.IORuntime
 
       val installed = IORuntime installGlobal {
@@ -192,14 +192,18 @@ trait IOApp {
           runtimeConfig)
       }
 
-      if (!installed) {
-        System
-          .err
-          .println(
-            "WARNING: Cats Effect global runtime already initialized; custom configurations will be ignored")
-      }
-
       _runtime = IORuntime.global
+
+      installed
+    } else {
+      unsafe.IORuntime.installGlobal(runtime)
+    }
+
+    if (!installed) {
+      System
+        .err
+        .println(
+          "WARNING: Cats Effect global runtime already initialized; custom configurations will be ignored")
     }
 
     // An infinite heartbeat to keep main alive.  This is similar to

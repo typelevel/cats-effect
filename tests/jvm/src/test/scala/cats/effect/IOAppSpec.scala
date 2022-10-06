@@ -195,12 +195,18 @@ class IOAppSpec extends Specification {
           h.stderr() must not(contain("boom"))
         }
 
+<<<<<<< HEAD
         "warn on cpu starvation" in {
           val h = platform(CpuStarvation, List.empty)
           Thread.sleep(10000)
           h.term()
           val err = h.stderr()
           err must contain("[WARNING] Your CPU is probably starving")
+=======
+        "custome runtime installed as global" in {
+          val h = platform(CustomRuntime, List.empty)
+          h.awaitStatus() mustEqual 0
+>>>>>>> upstream/series/3.x
         }
 
         "abort awaiting shutdown hooks" in {

@@ -999,7 +999,7 @@ private final class IOFiber[A](
     outcome = oc
 
     try {
-      if (!callbacks(oc, false)) {
+      if (!callbacks(oc, false) && runtime.config.reportUnhandledFiberErrors) {
         oc match {
           case Outcome.Errored(e) => currentCtx.reportFailure(e)
           case _ => ()
@@ -1486,7 +1486,7 @@ private final class IOFiber[A](
     resumeTag == DoneR
 
   private[effect] def prettyPrintTrace(): String =
-    if (isStackTracing) {
+    if (tracingEvents ne null) {
       suspended.get()
       Tracing.prettyPrint(tracingEvents)
     } else {

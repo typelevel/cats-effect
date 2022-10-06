@@ -17,7 +17,7 @@
 package catseffect
 
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
+import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 import cats.effect.std.Console
 import cats.syntax.all._
 import scala.concurrent.duration._
@@ -131,6 +131,23 @@ package examples {
       (jitter >> IO(Thread.sleep(500)))
         .foreverM
         .parReplicateA_(Runtime.getRuntime().availableProcessors() * 2)
+    }
+  }
+
+  object CustomRuntime extends IOApp.Simple {
+    override lazy val runtime = IORuntime(
+      exampleExecutionContext,
+      exampleExecutionContext,
+      Scheduler.createDefaultScheduler()._1,
+      () => (),
+      IORuntimeConfig()
+    )
+
+    def run = IO {
+      if (runtime eq IORuntime.global)
+        ()
+      else
+        throw new AssertionError("Custom runtime not installed as global")
     }
   }
 }
