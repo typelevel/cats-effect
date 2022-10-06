@@ -21,6 +21,7 @@ import cats.effect.unsafe.IORuntimeConfig
 import cats.syntax.all._
 
 private[effect] object CpuStarvationCheck {
+
   def run(runtimeConfig: IORuntimeConfig): IO[Unit] =
     IO.monotonic
       .flatMap { now =>
@@ -30,7 +31,8 @@ private[effect] object CpuStarvationCheck {
           .flatMap { delta =>
             Console[IO]
               .errorln("[WARNING] your CPU threadpool is probably starving")
-              .whenA(delta > runtimeConfig.cpuStarvationCheckThreshold)
+              .whenA(
+                delta >= runtimeConfig.cpuStarvationCheckInterval * (1 + runtimeConfig.cpuStarvationCheckThreshold))
           }
       }
       .foreverM

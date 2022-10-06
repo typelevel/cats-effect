@@ -27,7 +27,7 @@ final case class IORuntimeConfig private (
     val shutdownHookTimeout: Duration,
     val cpuStarvationCheckInterval: FiniteDuration,
     val cpuStarvationCheckInitialDelay: Duration,
-    val cpuStarvationCheckThreshold: FiniteDuration) {
+    val cpuStarvationCheckThreshold: Double) {
 
   private[unsafe] def this(cancelationCheckThreshold: Int, autoYieldThreshold: Int) =
     this(
@@ -49,7 +49,7 @@ final case class IORuntimeConfig private (
       shutdownHookTimeout: Duration = this.shutdownHookTimeout,
       cpuStarvationCheckInterval: FiniteDuration = this.cpuStarvationCheckInterval,
       cpuStarvationCheckInitialDelay: Duration = this.cpuStarvationCheckInitialDelay,
-      cpuStarvationCheckThreshold: FiniteDuration = this.cpuStarvationCheckThreshold
+      cpuStarvationCheckThreshold: Double = this.cpuStarvationCheckThreshold
   ): IORuntimeConfig =
     new IORuntimeConfig(
       cancelationCheckThreshold,
@@ -120,8 +120,8 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
   private[unsafe] def DefaultTraceBufferSize = 16
   private[unsafe] def DefaultShutdownHookTimeout = Duration.Inf
   private[unsafe] def DefaultCpuStarvationCheckInterval = 1.second
-  private[unsafe] def DefaultCpuStarvationCheckInitialDelay = 10.millis
-  private[unsafe] def DefaultCpuStarvationCheckThreshold = 100.millis
+  private[unsafe] def DefaultCpuStarvationCheckInitialDelay = 10.seconds
+  private[unsafe] def DefaultCpuStarvationCheckThreshold = 0.1d
 
   def apply(): IORuntimeConfig = Default
 
@@ -174,7 +174,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       shutdownHookTimeout: Duration,
       cpuStarvationCheckInterval: FiniteDuration,
       cpuStarvationCheckInitialDelay: FiniteDuration,
-      cpuStarvationCheckThreshold: FiniteDuration
+      cpuStarvationCheckThreshold: Double
   ): IORuntimeConfig = {
     if (autoYieldThreshold % cancelationCheckThreshold == 0)
       new IORuntimeConfig(

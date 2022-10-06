@@ -24,6 +24,8 @@ import scala.concurrent.duration._
 
 package examples {
 
+  import cats.effect.std.Random
+
   object HelloWorld extends IOApp.Simple {
     def run: IO[Unit] =
       IO(println("Hello, World!"))
@@ -75,7 +77,7 @@ package examples {
     foo()
 
     def run(args: List[String]): IO[ExitCode] =
-      Console[IO].error("boom").whenA(!r.eq(runtime)) >> IO.pure(ExitCode.Success)
+      Console[IO].errorln("boom").whenA(!r.eq(runtime)) >> IO.pure(ExitCode.Success)
   }
 
   object LiveFiberSnapshot extends IOApp.Simple {
@@ -110,14 +112,25 @@ package examples {
     val run = IO.cede.foreverM.start.void
   }
 
+  // The parameters here were chosen experimentally and seem to be
+  // relatively reliable. The trick is finding a balance such that
+  // we end up with every WSTP thread being blocked but not permanently
+  // so that the starvation detector fiber still gets to run and
+  // therefore report its warning
   object CpuStarvation extends IOApp.Simple {
 
     override protected def runtimeConfig: IORuntimeConfig = IORuntimeConfig().copy(
-      cpuStarvationCheckInterval = 1.second,
+      cpuStarvationCheckInterval = 200.millis,
       cpuStarvationCheckInitialDelay = 0.millis,
-      cpuStarvationCheckThreshold = 100.millis
+      cpuStarvationCheckThreshold = 0.2d
     )
 
-    val run = IO.delay(Thread.sleep(30000)).replicateA_(50)
+    val run = Random.scalaUtilRandom[IO].flatMap { rand =>
+      // jitter to give the cpu starvation checker a chance to run at all
+      val jitter = rand.nextIntBounded(100).flatMap(n => IO.sleep(n.millis))
+      (jitter >> IO(Thread.sleep(500)))
+        .foreverM
+        .parReplicateA_(Runtime.getRuntime().availableProcessors() * 2)
+    }
   }
 }

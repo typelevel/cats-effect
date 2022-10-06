@@ -57,8 +57,7 @@ private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntim
 
     val cpuStarvationCheckThreshold =
       Try(System.getProperty("cats.effect.cpu.starvation.check.threshold"))
-        .map(Duration(_))
-        .flatMap { d => Try(d.asInstanceOf[FiniteDuration]) }
+        .flatMap(p => Try(p.toDouble))
         .getOrElse(DefaultCpuStarvationCheckThreshold)
 
     apply(
