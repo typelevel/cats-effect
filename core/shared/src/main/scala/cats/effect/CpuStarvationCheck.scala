@@ -19,22 +19,21 @@ package cats.effect
 import cats.effect.std.Console
 import cats.effect.unsafe.IORuntimeConfig
 import cats.syntax.all._
+import scala.concurrent.duration.FiniteDuration
 
 private[effect] object CpuStarvationCheck {
 
-  def run(runtimeConfig: IORuntimeConfig): IO[Unit] =
-    IO.monotonic
-      .flatMap { now =>
-        IO.sleep(runtimeConfig.cpuStarvationCheckInterval) >> IO
-          .monotonic
-          .map(_ - now)
-          .flatMap { delta =>
-            Console[IO]
-              .errorln("[WARNING] your CPU threadpool is probably starving")
-              .whenA(
-                delta >= runtimeConfig.cpuStarvationCheckInterval * (1 + runtimeConfig.cpuStarvationCheckThreshold))
-          }
+  def run(runtimeConfig: IORuntimeConfig): IO[Nothing] = {
+    def go(initial: FiniteDuration): IO[Nothing] =
+      IO.sleep(runtimeConfig.cpuStarvationCheckInterval) >> IO.monotonic.flatMap { now =>
+        val delta = now - initial
+        Console[IO]
+          .errorln("[WARNING] your CPU threadpool is probably starving")
+          .whenA(delta >=
+            runtimeConfig.cpuStarvationCheckInterval * (1 + runtimeConfig.cpuStarvationCheckThreshold)) >>
+          go(now)
       }
-      .foreverM
-      .delayBy(runtimeConfig.cpuStarvationCheckInitialDelay)
+
+    IO.monotonic.flatMap(go(_)).delayBy(runtimeConfig.cpuStarvationCheckInitialDelay)
+  }
 }
