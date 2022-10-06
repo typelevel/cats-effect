@@ -17,8 +17,9 @@
 package catseffect
 
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.effect.unsafe.IORuntime
+import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
 import cats.syntax.all._
+import scala.concurrent.duration._
 
 package examples {
 
@@ -109,6 +110,12 @@ package examples {
   }
 
   object CpuStarvation extends IOApp.Simple {
+
+    override protected def runtimeConfig: IORuntimeConfig = IORuntimeConfig().copy(
+      cpuStarvationCheckInterval = 1.second,
+      cpuStarvationCheckInitialDelay = 0.millis,
+      cpuStarvationCheckThreshold = 100.millis
+    )
 
     val run = IO.delay(Thread.sleep(30000)).replicateA_(50)
   }
