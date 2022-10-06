@@ -131,7 +131,7 @@ package examples {
       val jitter = rand.nextIntBounded(100).flatMap(n => IO.sleep(n.millis))
       (jitter >> IO(Thread.sleep(400)))
         .replicateA_(10)
-        .parReplicateA_(Runtime.getRuntime().availableProcessors()* 2)
+        .parReplicateA_(Runtime.getRuntime().availableProcessors() * 2)
     }
   }
 
