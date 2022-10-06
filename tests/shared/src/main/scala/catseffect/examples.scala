@@ -18,6 +18,7 @@ package catseffect
 
 import cats.effect.{ExitCode, IO, IOApp}
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
+import cats.effect.std.Console
 import cats.syntax.all._
 import scala.concurrent.duration._
 
@@ -74,7 +75,7 @@ package examples {
     foo()
 
     def run(args: List[String]): IO[ExitCode] =
-      IO.println("boom").whenA(!r.eq(runtime)) >> IO.pure(ExitCode.Success)
+      Console[IO].error("boom").whenA(!r.eq(runtime)) >> IO.pure(ExitCode.Success)
   }
 
   object LiveFiberSnapshot extends IOApp.Simple {
