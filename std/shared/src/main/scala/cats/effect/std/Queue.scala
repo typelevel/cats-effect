@@ -589,16 +589,24 @@ object Queue {
         @tailrec
         def loop(i: Int): Unit = {
           if (i >= 0) {
+            var took = false
+
             val f =
               try {
-                offerers.take()
+                val back = offerers.take()
+                took = true
+                back
               } catch {
                 case FailureSignal => null
               }
 
-            if (f != null) {
-              f(EitherUnit)
-              loop(i - 1)
+            if (took) {
+              if (f != null) {
+                f(EitherUnit)
+                loop(i - 1)
+              } else {
+                loop(i)
+              }
             }
           }
         }
@@ -770,7 +778,6 @@ object Queue {
     private[this] val LookAheadStep = Math.max(2, Math.min(bound / 4, 4096)) // TODO tunable
 
     0.until(bound).foreach(i => sequenceBuffer.set(i, i.toLong))
-
 
     def debug(): String = buffer.mkString("[", ", ", "]")
 
