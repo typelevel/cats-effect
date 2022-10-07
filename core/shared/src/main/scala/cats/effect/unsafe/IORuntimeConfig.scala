@@ -225,17 +225,21 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       cpuStarvationCheckThreshold: Double
   ): IORuntimeConfig = {
     if (autoYieldThreshold % cancelationCheckThreshold == 0)
-      new IORuntimeConfig(
-        cancelationCheckThreshold,
-        autoYieldThreshold,
-        enhancedExceptions,
-        1 << Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt,
-        shutdownHookTimeout,
-        reportUnhandledFiberErrors,
-        cpuStarvationCheckInterval,
-        cpuStarvationCheckInitialDelay,
-        cpuStarvationCheckThreshold
-      )
+      if (cpuStarvationCheckThreshold > 0)
+        new IORuntimeConfig(
+          cancelationCheckThreshold,
+          autoYieldThreshold,
+          enhancedExceptions,
+          1 << Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt,
+          shutdownHookTimeout,
+          reportUnhandledFiberErrors,
+          cpuStarvationCheckInterval,
+          cpuStarvationCheckInitialDelay,
+          cpuStarvationCheckThreshold
+        )
+      else
+        throw new AssertionError(
+          s"CPU starvation check threshold $cpuStarvationCheckThreshold must be > 0")
     else
       throw new AssertionError(
         s"Auto yield threshold $autoYieldThreshold must be a multiple of cancelation check threshold $cancelationCheckThreshold")
