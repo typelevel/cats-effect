@@ -34,7 +34,7 @@ import scala.concurrent.duration._
 class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatform {
 
   "BoundedQueue (concurrent)" should {
-    boundedQueueTests(Queue.boundedForConcurrent)
+    boundedQueueTests(i => if (i == 0) Queue.synchronous else Queue.boundedForConcurrent(i))
   }
 
   "BoundedQueue (async)" should {
@@ -56,6 +56,84 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
         v2 <- f.joinWithNever
         r <- IO((v1 must beEqualTo(1)) and (v2 must beEqualTo(2)))
       } yield r
+    }
+
+    "respect fifo order with zero capacity" in ticked { implicit ticker =>
+      val test = for {
+        q <- constructor(0)
+
+        _ <- 0.until(5).toList traverse { i => (IO.sleep(i.millis) *> q.offer(i)).start }
+
+        _ <- IO.sleep(10.millis)
+
+        results <- q.take.replicateA(5)
+      } yield results
+
+      test must completeAs(List(0, 1, 2, 3, 4))
+    }
+
+    "demonstrate cancelable offer with zero capacity" in ticked { implicit ticker =>
+      val test1 = for {
+        q <- constructor(0)
+
+        offerer1 <- (IO.sleep(1.millis) *> q.offer(0)).start
+        offerer2 <- (IO.sleep(2.millis) *> q.offer(1)).start
+        _ <- IO.sleep(10.millis)
+
+        _ <- offerer1.cancel
+
+        result <- q.take
+        outcome <- offerer2.join
+      } yield (result, outcome.isSuccess)
+
+      test1 must completeAs((1, true))
+
+      val test2 = for {
+        q <- constructor(0)
+
+        offerer1 <- (IO.sleep(1.millis) *> q.offer(0)).start
+        offerer2 <- (IO.sleep(2.millis) *> q.offer(1)).start
+        _ <- IO.sleep(10.millis)
+
+        _ <- offerer2.cancel
+
+        result <- q.take
+        outcome <- offerer1.join
+      } yield (result, outcome.isSuccess)
+
+      test2 must completeAs((0, true))
+    }
+
+    "demonstrate cancelable take with zero capacity" in ticked { implicit ticker =>
+      val test1 = for {
+        q <- constructor(0)
+
+        taker1 <- (IO.sleep(1.millis) *> q.take).start
+        taker2 <- (IO.sleep(2.millis) *> q.take).start
+        _ <- IO.sleep(10.millis)
+
+        _ <- taker1.cancel
+
+        _ <- q.offer(42)
+        result <- taker2.joinWithNever
+      } yield result
+
+      test1 must completeAs(42)
+
+      val test2 = for {
+        q <- constructor(0)
+
+        taker1 <- (IO.sleep(1.millis) *> q.take).start
+        taker2 <- (IO.sleep(2.millis) *> q.take).start
+        _ <- IO.sleep(10.millis)
+
+        _ <- taker1.cancel
+
+        _ <- q.offer(42)
+        result <- taker2.joinWithNever
+      } yield result
+
+      test2 must completeAs(42)
     }
 
     "async take with zero capacity" in realWithRuntime { implicit rt =>
