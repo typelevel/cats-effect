@@ -142,6 +142,42 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
       action.as(ok).timeoutTo(8.seconds, IO(false must beTrue))
     }
 
+    "offer/take with a single consumer and high contention" in real {
+      constructor(8) flatMap { q =>
+        val offerer = List.fill(8)(List.fill(8)(0)).parTraverse_(_.traverse(q.offer(_)))
+
+        (offerer &> 0.until(8 * 8).toList
+          .traverse_(_ => q.take)
+          .timeoutTo(8.seconds, IO(false must beTrue)))
+          .replicateA_(1000) *>
+          q.size.flatMap(s => IO(s mustEqual 0))
+      }
+    }
+
+    "offer/take/takeN with a single consumer and high contention" in real {
+      constructor(8) flatMap { q =>
+        val offerer = List.fill(8)(List.fill(8)(0)).parTraverse_(_.traverse(q.offer(_)))
+
+        def taker(acc: Int): IO[Unit] = {
+          if (acc >= 8 * 8) {
+            IO.unit
+          } else {
+            q.tryTakeN(None) flatMap {
+              case Nil =>
+                q.take *> taker(acc + 1)
+
+              case as =>
+                taker(acc + as.length)
+            }
+          }
+        }
+
+        (offerer &> taker(0).timeoutTo(8.seconds, IO(false must beTrue)))
+          .replicateA_(1000) *>
+          q.size.flatMap(s => IO(s mustEqual 0))
+      }
+    }
+
     negativeCapacityConstructionTests(constructor)
     tryOfferOnFullTests(constructor, _.offer(_), _.tryOffer(_), false)
     cancelableOfferTests(constructor, _.offer(_), _.take, _.tryTake)
