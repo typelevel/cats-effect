@@ -45,7 +45,8 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
   private[tracing] def applyStackTraceFilter(
       callSiteClassName: String,
       callSiteMethodName: String,
-      callSiteFileName: String): Boolean = false
+      callSiteFileName: String): Boolean =
+    isInternalClass(callSiteClassName)
 
   private[tracing] def decodeMethodName(name: String): String = name
 
