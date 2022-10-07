@@ -17,8 +17,8 @@
 package catseffect
 
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.effect.unsafe.IORuntimeConfig
 import cats.effect.std.Random
+import cats.effect.unsafe.IORuntimeConfig
 import cats.syntax.all._
 
 import scala.concurrent.ExecutionContext

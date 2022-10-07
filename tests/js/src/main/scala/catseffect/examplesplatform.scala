@@ -17,18 +17,15 @@
 package catseffect
 
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.effect.unsafe.IORuntimeConfig
 import cats.effect.std.Random
-
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
+import cats.effect.unsafe.IORuntimeConfig
 import cats.syntax.all._
 
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 
 import scala.annotation.nowarn
 import scala.collection.mutable
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, _}
 import scala.scalajs.js
 
 package object examples {

@@ -21,11 +21,7 @@ import cats.effect.std.Console
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 import cats.syntax.all._
 
-import scala.concurrent.duration._
-
 package examples {
-
-  import cats.effect.std.Random
 
   object HelloWorld extends IOApp.Simple {
     def run: IO[Unit] =
