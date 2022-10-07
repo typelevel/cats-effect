@@ -19,7 +19,7 @@ package tracing
 
 private[effect] object TracingConstants {
 
-  final val isCachedStackTracing = false
+  final val isCachedStackTracing = true
 
   final val isFullStackTracing = false
 
