@@ -113,28 +113,6 @@ package examples {
     val run = IO.cede.foreverM.start.void
   }
 
-  // The parameters here were chosen experimentally and seem to be
-  // relatively reliable. The trick is finding a balance such that
-  // we end up with every WSTP thread being blocked but not permanently
-  // so that the starvation detector fiber still gets to run and
-  // therefore report its warning
-  object CpuStarvation extends IOApp.Simple {
-
-    override protected def runtimeConfig: IORuntimeConfig = IORuntimeConfig().copy(
-      cpuStarvationCheckInterval = 200.millis,
-      cpuStarvationCheckInitialDelay = 0.millis,
-      cpuStarvationCheckThreshold = 0.2d
-    )
-
-    val run = Random.scalaUtilRandom[IO].flatMap { rand =>
-      // jitter to give the cpu starvation checker a chance to run at all
-      val jitter = rand.nextIntBounded(100).flatMap(n => IO.sleep(n.millis))
-      (jitter >> IO(Thread.sleep(400)))
-        .replicateA_(10)
-        .parReplicateA_(Runtime.getRuntime().availableProcessors() * 2)
-    }
-  }
-
   object CustomRuntime extends IOApp.Simple {
     override lazy val runtime = IORuntime(
       exampleExecutionContext,
