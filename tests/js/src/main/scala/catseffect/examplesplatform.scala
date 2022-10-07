@@ -17,15 +17,13 @@
 package catseffect
 
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.effect.std.Random
-import cats.effect.unsafe.IORuntimeConfig
 import cats.syntax.all._
 
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 
 import scala.annotation.nowarn
 import scala.collection.mutable
-import scala.concurrent.duration.{Duration, _}
+import scala.concurrent.duration.Duration
 import scala.scalajs.js
 
 package object examples {
@@ -57,6 +55,7 @@ package examples {
     register(LeakedFiber)
     register(UndefinedProcessExit)
     register(CustomRuntime)
+    register(CpuStarvation)
 
     @nowarn("msg=never used")
     def main(paperweight: Array[String]): Unit = {
@@ -108,34 +107,6 @@ package examples {
 
   object EvalOnMainThread extends IOApp {
     def run(args: List[String]): IO[ExitCode] = IO.never
-  }
-
-  // The parameters here were chosen experimentally and seem to be
-  // relatively reliable. The trick is finding a balance such that
-  // we end up with every WSTP thread being blocked but not permanently
-  // so that the starvation detector fiber still gets to run and
-  // therefore report its warning
-  object CpuStarvation extends IOApp.Simple {
-
-    override protected def runtimeConfig: IORuntimeConfig = IORuntimeConfig().copy(
-      cpuStarvationCheckInterval = 200.millis,
-      cpuStarvationCheckInitialDelay = 0.millis,
-      cpuStarvationCheckThreshold = 0.2d
-    )
-
-    def fib(n: Long): Long = n match {
-      case 0 => 0
-      case 1 => 1
-      case n => fib(n - 1) + fib(n - 2)
-    }
-
-    val run = Random.scalaUtilRandom[IO].flatMap { rand =>
-      // jitter to give the cpu starvation checker a chance to run at all
-      val jitter = rand.nextIntBounded(100).flatMap(n => IO.sleep(n.millis))
-      (jitter >> IO(fib(42)))
-        .replicateA_(10)
-        .parReplicateA_(Runtime.getRuntime().availableProcessors() * 2)
-    }
   }
 
 }

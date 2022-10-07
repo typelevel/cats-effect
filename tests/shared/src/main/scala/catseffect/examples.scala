@@ -17,9 +17,11 @@
 package catseffect
 
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.effect.std.Console
+import cats.effect.std.{Console, Random}
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 import cats.syntax.all._
+
+import scala.concurrent.duration._
 
 package examples {
 
@@ -123,6 +125,33 @@ package examples {
         ()
       else
         throw new AssertionError("Custom runtime not installed as global")
+    }
+  }
+
+  // The parameters here were chosen experimentally and seem to be
+  // relatively reliable. The trick is finding a balance such that
+  // we end up with every WSTP thread being blocked but not permanently
+  // so that the starvation detector fiber still gets to run and
+  // therefore report its warning
+  object CpuStarvation extends IOApp.Simple {
+
+    override protected def runtimeConfig: IORuntimeConfig = IORuntimeConfig().copy(
+      cpuStarvationCheckInterval = 200.millis,
+      cpuStarvationCheckInitialDelay = 0.millis,
+      cpuStarvationCheckThreshold = 0.2d
+    )
+
+    private def fib(n: Long): Long = n match {
+      case 0 => 0
+      case 1 => 1
+      case n => fib(n - 1) + fib(n - 2)
+    }
+
+    val run = Random.scalaUtilRandom[IO].flatMap { rand =>
+      // jitter to give the cpu starvation checker a chance to run at all
+      val jitter = rand.nextIntBounded(100).flatMap(n => IO.sleep(n.millis))
+
+      (jitter >> IO(fib(42))).replicateA_(2).parReplicateA_(8)
     }
   }
 }
