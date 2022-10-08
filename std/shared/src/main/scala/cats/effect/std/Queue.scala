@@ -71,30 +71,32 @@ object Queue {
    * @return
    *   an empty, bounded queue
    */
-  def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
-    F match {
-      case f0: Async[F] =>
-        if (capacity > 1) // jctools implementation cannot handle size = 1
-          boundedForAsync[F, A](capacity)(f0)
-        else
-          boundedForConcurrent[F, A](capacity)
+  def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
+    assertNonNegative(capacity)
 
-      case _ =>
-        boundedForConcurrent[F, A](capacity)
+    // async queue can't handle capacity == 1
+    if (capacity > 1) {
+      F match {
+        case f0: Async[F] =>
+          boundedForAsync[F, A](capacity)(f0)
+
+        case _ =>
+          boundedForConcurrent[F, A](capacity)
+      }
+    } else if (capacity == 1) {
+      boundedForConcurrent[F, A](capacity)
+    } else {
+      synchronous[F, A]
     }
+  }
 
   private[effect] def boundedForConcurrent[F[_], A](capacity: Int)(
-      implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
-    assertNonNegative(capacity)
+      implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     F.ref(State.empty[F, A]).map(new BoundedQueue(capacity, _))
-  }
 
   private[effect] def boundedForAsync[F[_], A](capacity: Int)(
-      implicit F: Async[F]): F[Queue[F, A]] = {
-    assertNonNegative(capacity)
-
+      implicit F: Async[F]): F[Queue[F, A]] =
     F.delay(new BoundedAsyncQueue(capacity))
-  }
 
   private[effect] def unboundedForConcurrent[F[_], A](
       implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
@@ -114,7 +116,7 @@ object Queue {
    *   a synchronous queue
    */
   def synchronous[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
-    bounded(0)
+    F.ref(SyncState.empty[F, A]).map(new Synchronous(_))
 
   /**
    * Constructs an empty, unbounded queue for `F` data types that are
@@ -179,6 +181,90 @@ object Queue {
       throw new IllegalArgumentException(
         s"$name queue capacity must be positive, was: $capacity")
     else ()
+
+  private final class Synchronous[F[_], A](stateR: Ref[F, SyncState[F, A]])(
+      implicit F: GenConcurrent[F, _])
+      extends Queue[F, A] {
+
+    def offer(a: A): F[Unit] =
+      F.deferred[Deferred[F, A]] flatMap { latch =>
+        F uncancelable { poll =>
+          val cleanupF = stateR update {
+            case SyncState(offerers, takers) =>
+              SyncState(offerers.filter(_ ne latch), takers)
+          }
+
+          val modificationF = stateR modify {
+            case SyncState(offerers, takers) if takers.nonEmpty =>
+              val (taker, tail) = takers.dequeue
+              SyncState(offerers, tail) -> taker.complete(a).void
+
+            case SyncState(offerers, takers) =>
+              SyncState(offerers.enqueue(latch), takers) ->
+                poll(latch.get).onCancel(cleanupF).flatMap(_.complete(a).void)
+          }
+
+          modificationF.flatten
+        }
+      }
+
+    def tryOffer(a: A): F[Boolean] = {
+      val modificationF = stateR modify {
+        case SyncState(offerers, takers) if takers.nonEmpty =>
+          val (taker, tail) = takers.dequeue
+          SyncState(offerers, tail) -> taker.complete(a).as(true)
+
+        case st =>
+          st -> F.pure(false)
+      }
+
+      modificationF.flatten.uncancelable
+    }
+
+    val take: F[A] =
+      F.deferred[A] flatMap { latch =>
+        val modificationF = stateR modify {
+          case SyncState(offerers, takers) if offerers.nonEmpty =>
+            val (offerer, tail) = offerers.dequeue
+            SyncState(tail, takers) -> offerer.complete(latch).void
+
+          case SyncState(offerers, takers) =>
+            SyncState(offerers, takers.enqueue(latch)) -> F.unit
+        }
+
+        val cleanupF = stateR update {
+          case SyncState(offerers, takers) =>
+            SyncState(offerers, takers.filter(_ ne latch))
+        }
+
+        F uncancelable { poll => modificationF.flatten *> poll(latch.get).onCancel(cleanupF) }
+      }
+
+    val tryTake: F[Option[A]] = {
+      val modificationF = stateR modify {
+        case SyncState(offerers, takers) if offerers.nonEmpty =>
+          val (offerer, tail) = offerers.dequeue
+          SyncState(tail, takers) -> F
+            .deferred[A]
+            .flatMap(d => offerer.complete(d) *> d.get.map(_.some))
+
+        case st =>
+          st -> none[A].pure[F]
+      }
+
+      modificationF.flatten.uncancelable
+    }
+
+    val size: F[Int] = F.pure(0)
+  }
+
+  private final case class SyncState[F[_], A](
+      offerers: ScalaQueue[Deferred[F, Deferred[F, A]]],
+      takers: ScalaQueue[Deferred[F, A]])
+
+  private object SyncState {
+    def empty[F[_], A]: SyncState[F, A] = SyncState(ScalaQueue(), ScalaQueue())
+  }
 
   private sealed abstract class AbstractQueue[F[_], A](
       capacity: Int,
@@ -312,6 +398,8 @@ object Queue {
   private final class BoundedQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
       implicit F: GenConcurrent[F, _]
   ) extends AbstractQueue(capacity, state) {
+
+    require(capacity > 0)
 
     protected def onOfferNoCapacity(
         s: State[F, A],
