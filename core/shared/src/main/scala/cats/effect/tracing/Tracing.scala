@@ -142,11 +142,13 @@ private[effect] object Tracing extends TracingPlatform {
     }
   }
 
-  def getFrames(events: RingBuffer): List[StackTraceElement] =
-    events
-      .toList()
+  def getFrames(events: RingBuffer): List[StackTraceElement] = {
+    val evs = events.toList()
+    evs.headOption.collect { case ev: Throwable => ev }.foreach(_.printStackTrace())
+    evs
       .collect { case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace) }
       .filter(_ ne null)
+  }
 
   def prettyPrint(events: RingBuffer): String = {
     val frames = getFrames(events)

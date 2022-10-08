@@ -70,7 +70,7 @@ object CI {
         command = "ciNative",
         rootProject = "rootNative",
         jsEnv = None,
-        testCommands = List("test"),
+        testCommands = List("testsNative/testOnly *.IOFiberSpec"),
         mimaReport = true,
         suffixCommands = List("exampleNative/compile")
       )
