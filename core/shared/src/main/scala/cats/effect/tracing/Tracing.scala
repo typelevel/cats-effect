@@ -32,7 +32,11 @@ private[effect] object Tracing extends TracingPlatform {
   }
 
   private[this] final val runLoopFilter: Array[String] =
-    Array("cats.effect.", "scala.runtime.", "scala.scalajs.runtime.")
+    Array(
+      "cats.effect.",
+      "scala.runtime.",
+      "scala.scalajs.runtime.",
+      "scala.scalanative.runtime.")
 
   private[tracing] final val stackTraceClassNameFilter: Array[String] = Array(
     "cats.",
@@ -79,6 +83,9 @@ private[effect] object Tracing extends TracingPlatform {
       val callSiteClassName = callSite.getClassName
       val callSiteMethodName = callSite.getMethodName
       val callSiteFileName = callSite.getFileName
+
+      if (callSiteClassName == "scala.scalanative.runtime.package$")
+        return null // short-circuit, effective end of stack
 
       if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName, callSiteFileName))
         return combineOpAndCallSite(methodSite, callSite)
