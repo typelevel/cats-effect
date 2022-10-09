@@ -326,8 +326,14 @@ object Queue {
 
             case State(queue, size, takers, offerers) if queue.nonEmpty =>
               val (a, rest) = queue.dequeue
-              val (release, tail) = offerers.dequeue
-              State(rest, size - 1, takers, tail) -> release.complete(()).as(a)
+
+              // if we haven't made enough space for a new offerer, don't disturb the water
+              if (size - 1 < capacity) {
+                val (release, tail) = offerers.dequeue
+                State(rest, size - 1, takers, tail) -> release.complete(()).as(a)
+              } else {
+                State(rest, size - 1, takers, offerers) -> F.pure(a)
+              }
 
             case State(queue, size, takers, offerers) =>
               /*

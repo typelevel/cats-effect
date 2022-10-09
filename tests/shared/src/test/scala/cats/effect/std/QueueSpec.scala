@@ -45,6 +45,28 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
     boundedQueueTests(Queue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
   }
 
+  "synchronous queue" should {
+    "respect fifo order" in ticked { implicit ticker =>
+      val test = for {
+        q <- Queue.synchronous[IO, Int]
+
+        _ <- 0.until(5).toList traverse_ { i =>
+          val f = for {
+            _ <- IO.sleep(i.second)
+            _ <- q.offer(i)
+          } yield ()
+
+          f.start
+        }
+
+        _ <- IO.sleep(5.seconds)
+        result <- q.take.replicateA(5)
+      } yield result
+
+      test must completeAs(0.until(5).toList)
+    }
+  }
+
   private def boundedQueueTests(constructor: Int => IO[Queue[IO, Int]]): Fragments = {
     "demonstrate offer and take with zero capacity" in real {
       for {
