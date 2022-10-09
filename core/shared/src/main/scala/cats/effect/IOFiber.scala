@@ -1492,12 +1492,12 @@ private final class IOFiber[A](
   private[effect] def isDone: Boolean =
     resumeTag == DoneR
 
-  private[effect] def prettyPrintTrace(): String =
+  private[effect] def captureTrace(): Trace =
     if (tracingEvents ne null) {
       suspended.get()
-      Tracing.prettyPrint(tracingEvents)
+      Trace(tracingEvents)
     } else {
-      ""
+      Trace(RingBuffer.empty(1))
     }
 }
 

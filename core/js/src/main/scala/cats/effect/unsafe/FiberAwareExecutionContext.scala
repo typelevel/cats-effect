@@ -17,15 +17,13 @@
 package cats.effect
 package unsafe
 
-import cats.effect.tracing.Tracing.FiberTrace
-
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 private final class FiberAwareExecutionContext(ec: ExecutionContext) extends ExecutionContext {
 
-  def liveFiberTraces(): Map[IOFiber[_], FiberTrace] =
-    fiberBag.iterator.map(f => f -> f.prettyPrintTrace()).toMap
+  def liveTraces(): Map[IOFiber[_], Trace] =
+    fiberBag.iterator.map(f => f -> f.captureTrace()).toMap
 
   private[this] val fiberBag = mutable.Set.empty[IOFiber[_]]
 

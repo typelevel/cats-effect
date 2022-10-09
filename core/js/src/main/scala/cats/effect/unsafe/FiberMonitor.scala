@@ -17,11 +17,9 @@
 package cats.effect
 package unsafe
 
-import cats.effect.tracing.Tracing.FiberTrace
-
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
-import scala.scalajs.{LinkingInfo, js}
+import scala.scalajs.{js, LinkingInfo}
 
 private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
 
@@ -58,16 +56,15 @@ private final class ES2021FiberMonitor(
   override def monitorSuspended(fiber: IOFiber[_]): WeakBag.Handle =
     bag.insert(fiber)
 
-  def foreignTraces(): Map[IOFiber[_], FiberTrace] = {
-    val foreign = mutable.Map.empty[IOFiber[Any], FiberTrace]
-    bag.forEach(fiber =>
-      foreign += (fiber.asInstanceOf[IOFiber[Any]] -> fiber.prettyPrintTrace()))
+  def foreignTraces(): Map[IOFiber[_], Trace] = {
+    val foreign = mutable.Map.empty[IOFiber[Any], Trace]
+    bag.forEach(fiber => foreign += (fiber.asInstanceOf[IOFiber[Any]] -> fiber.captureTrace()))
     foreign.toMap
   }
 
   def liveFiberSnapshot(print: String => Unit): Unit =
     Option(compute).foreach { compute =>
-      val queued = compute.liveFiberTraces()
+      val queued = compute.liveTraces()
       val rawForeign = foreignTraces()
 
       // We trust the sources of data in the following order, ordered from

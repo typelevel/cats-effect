@@ -30,12 +30,13 @@
 package cats.effect
 package unsafe
 
-import cats.effect.tracing.Tracing.{FiberTrace, captureTrace}
+import cats.effect.tracing.Tracing.captureTrace
 import cats.effect.tracing.TracingConstants
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.Duration
+
 import java.util.Comparator
 import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
@@ -435,16 +436,25 @@ private[effect] final class WorkStealingThreadPool(
    *   threads to the currently active fiber and fibers enqueued on the local queue of that
    *   worker thread and a set of suspended fibers tracked by this thread pool
    */
-  private[unsafe] def liveFiberTraces()
-      : (Map[Runnable, FiberTrace], Map[WorkerThread, (Thread.State, Option[(Runnable, FiberTrace)], Map[Runnable, FiberTrace])], Map[Runnable, FiberTrace]) = {
-    val externalFibers: Map[Runnable, FiberTrace] = externalQueue.snapshot().iterator.flatMap{
-      case batch: Array[Runnable] => batch.map(r => r -> captureTrace(r)).toMap[Runnable, FiberTrace]
-      case r: Runnable => Map[Runnable, FiberTrace](r -> captureTrace(r))
-      case _ => Map.empty[Runnable, FiberTrace]
-    }.toMap
+  private[unsafe] def liveTraces(): (
+      Map[Runnable, Trace],
+      Map[WorkerThread, (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])],
+      Map[Runnable, Trace]) = {
+    val externalFibers: Map[Runnable, Trace] = externalQueue
+      .snapshot()
+      .iterator
+      .flatMap {
+        case batch: Array[Runnable] =>
+          batch.map(r => r -> captureTrace(r)).toMap[Runnable, Trace]
+        case r: Runnable => Map[Runnable, Trace](r -> captureTrace(r))
+        case _ => Map.empty[Runnable, Trace]
+      }
+      .toMap
 
-    val map = mutable.Map.empty[WorkerThread, (Thread.State, Option[(Runnable, FiberTrace)], Map[Runnable, FiberTrace])]
-    val suspended = mutable.Map.empty[Runnable, FiberTrace]
+    val map = mutable
+      .Map
+      .empty[WorkerThread, (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])]
+    val suspended = mutable.Map.empty[Runnable, Trace]
 
     var i = 0
     while (i < threadCount) {
@@ -452,7 +462,10 @@ private[effect] final class WorkStealingThreadPool(
       val worker = workerThreads(i)
       val _ = parkedSignals(i).get()
       val active = Option(worker.active)
-      map += (worker -> (worker.getState() ,active.map(a => a -> captureTrace(a)), localFibers))
+      map += (worker -> ((
+        worker.getState(),
+        active.map(a => a -> captureTrace(a)),
+        localFibers)))
       suspended ++= worker.suspendedTraces()
       i += 1
     }

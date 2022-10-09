@@ -17,17 +17,18 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.Tracing.captureTrace
 import cats.effect.tracing.TracingConstants
 
 import scala.annotation.switch
+import scala.collection.mutable
 import scala.concurrent.{BlockContext, CanAwait}
 import scala.concurrent.duration.Duration
 import scala.util.control.NonFatal
+
 import java.util.concurrent.{ArrayBlockingQueue, ThreadLocalRandom}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
-import scala.collection.mutable
-import cats.effect.tracing.Tracing.{FiberTrace, captureTrace}
 
 /**
  * Implementation of the worker thread at the heart of the [[WorkStealingThreadPool]].
@@ -218,8 +219,8 @@ private final class WorkerThread(
    * @return
    *   a set of suspended fibers tracked by this worker thread
    */
-  private[unsafe] def suspendedTraces(): Map[Runnable, FiberTrace] = {
-    val foreign = mutable.Map.empty[Runnable, FiberTrace]
+  private[unsafe] def suspendedTraces(): Map[Runnable, Trace] = {
+    val foreign = mutable.Map.empty[Runnable, Trace]
     fiberBag.forEach(r => foreign += (r -> captureTrace(r)))
     foreign.toMap
   }
