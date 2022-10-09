@@ -69,8 +69,8 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * callback is invoked.
    *
    * `k` returns an `Option[F[Unit]]` which is an optional finalizer to be run in the event that
-   * the fiber running `async(k)` is canceled. If passed `k` is [[None]], then created effect
-   * will be uncancelable.
+   * the fiber running `async(k)` is canceled. If passed `k` is `None`, then created effect will
+   * be uncancelable.
    *
    * Also, note that `async` is uncancelable during its registration.
    */
