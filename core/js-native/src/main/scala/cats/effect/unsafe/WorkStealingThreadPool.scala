@@ -18,6 +18,7 @@ package cats.effect
 package unsafe
 
 import scala.concurrent.ExecutionContext
+import cats.effect.tracing.Tracing.FiberTrace
 
 // Can you imagine a thread pool on JS? Have fun trying to extend or instantiate
 // this class. Unfortunately, due to the explicit branching, this type leaks
@@ -28,8 +29,8 @@ private[effect] sealed abstract class WorkStealingThreadPool private ()
   def reportFailure(cause: Throwable): Unit
   private[effect] def reschedule(runnable: Runnable): Unit
   private[effect] def canExecuteBlockingCode(): Boolean
-  private[unsafe] def liveFibers()
-      : (Set[Runnable], Map[WorkerThread, (Option[Runnable], Set[Runnable])], Set[Runnable])
+  private[unsafe] def liveFiberTraces()
+  : (Map[Runnable, FiberTrace], Map[WorkerThread, (Thread.State, Option[(Runnable, FiberTrace)], Map[Runnable, FiberTrace])], Map[Runnable, FiberTrace])
 }
 
 private[unsafe] sealed abstract class WorkerThread private () extends Thread {

@@ -17,24 +17,24 @@
 package cats.effect.unsafe
 
 import cats.effect.IOFiber
+import cats.effect.tracing.Tracing.FiberTrace
 
 private[unsafe] abstract class FiberMonitorShared {
 
   protected val newline = System.lineSeparator()
   protected val doubleNewline = s"$newline $newline"
 
-  protected def fiberString(fiber: IOFiber[_], status: String): String = {
+  protected def fiberString(fiber: IOFiber[_], trace: FiberTrace, status: String): String = {
     val id = System.identityHashCode(fiber).toHexString
-    val trace = fiber.prettyPrintTrace()
     val prefixedTrace = if (trace.isEmpty) "" else newline + trace
     s"cats.effect.IOFiber@$id $status$prefixedTrace"
   }
 
-  protected def printFibers(fibers: Set[IOFiber[_]], status: String)(
+  protected def printFibers(fibers: Map[IOFiber[_], FiberTrace],  status: String)(
       print: String => Unit): Unit =
-    fibers foreach { fiber =>
+    fibers foreach { case (fiber, trace) =>
       print(doubleNewline)
-      print(fiberString(fiber, status))
+      print(fiberString(fiber, trace, status))
     }
 
 }

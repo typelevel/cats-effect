@@ -30,12 +30,12 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.Tracing.{FiberTrace, captureTrace}
 import cats.effect.tracing.TracingConstants
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.Duration
-
 import java.util.Comparator
 import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
@@ -435,29 +435,29 @@ private[effect] final class WorkStealingThreadPool(
    *   threads to the currently active fiber and fibers enqueued on the local queue of that
    *   worker thread and a set of suspended fibers tracked by this thread pool
    */
-  private[unsafe] def liveFibers()
-      : (Set[Runnable], Map[WorkerThread, (Option[Runnable], Set[Runnable])], Set[Runnable]) = {
-    val externalFibers = externalQueue.snapshot().flatMap {
-      case batch: Array[Runnable] => batch.toSet[Runnable]
-      case fiber: Runnable => Set[Runnable](fiber)
-      case _ => Set.empty[Runnable]
-    }
+  private[unsafe] def liveFiberTraces()
+      : (Map[Runnable, FiberTrace], Map[WorkerThread, (Thread.State, Option[(Runnable, FiberTrace)], Map[Runnable, FiberTrace])], Map[Runnable, FiberTrace]) = {
+    val externalFibers: Map[Runnable, FiberTrace] = externalQueue.snapshot().iterator.flatMap{
+      case batch: Array[Runnable] => batch.map(r => r -> captureTrace(r)).toMap[Runnable, FiberTrace]
+      case r: Runnable => Map[Runnable, FiberTrace](r -> captureTrace(r))
+      case _ => Map.empty[Runnable, FiberTrace]
+    }.toMap
 
-    val map = mutable.Map.empty[WorkerThread, (Option[Runnable], Set[Runnable])]
-    val suspended = mutable.Set.empty[Runnable]
+    val map = mutable.Map.empty[WorkerThread, (Thread.State, Option[(Runnable, FiberTrace)], Map[Runnable, FiberTrace])]
+    val suspended = mutable.Map.empty[Runnable, FiberTrace]
 
     var i = 0
     while (i < threadCount) {
-      val localFibers = localQueues(i).snapshot()
+      val localFibers = localQueues(i).snapshot().iterator.map(r => r -> captureTrace(r)).toMap
       val worker = workerThreads(i)
       val _ = parkedSignals(i).get()
       val active = Option(worker.active)
-      map += (worker -> (active -> localFibers))
-      suspended ++= worker.suspendedSnapshot()
+      map += (worker -> (worker.getState() ,active.map(a => a -> captureTrace(a)), localFibers))
+      suspended ++= worker.suspendedTraces()
       i += 1
     }
 
-    (externalFibers, map.toMap, suspended.toSet)
+    (externalFibers, map.toMap, suspended.toMap)
   }
 
   /**

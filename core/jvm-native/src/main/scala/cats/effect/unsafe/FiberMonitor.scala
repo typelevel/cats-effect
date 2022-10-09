@@ -18,10 +18,10 @@ package cats.effect
 package unsafe
 
 import cats.effect.tracing.TracingConstants
+import cats.effect.tracing.Tracing.FiberTrace
 import cats.effect.unsafe.ref.WeakReference
 
 import scala.concurrent.ExecutionContext
-
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
@@ -52,8 +52,8 @@ private[effect] sealed class FiberMonitor(
   private[this] final val Bags = FiberMonitor.Bags
   private[this] final val BagReferences = FiberMonitor.BagReferences
 
-  private[this] val justFibers: PartialFunction[Runnable, IOFiber[_]] = {
-    case fiber: IOFiber[_] => fiber
+  private[this] val justFibers: PartialFunction[(Runnable, FiberTrace), (IOFiber[_], FiberTrace)] = {
+    case (fiber: IOFiber[_], trace) => fiber -> trace
   }
 
   /**
@@ -109,15 +109,15 @@ private[effect] sealed class FiberMonitor(
         print(newline)
       } { compute =>
         val (rawExternal, workersMap, rawSuspended) = {
-          val (external, workers, suspended) = compute.liveFibers()
-          val externalFibers = external.collect(justFibers).filterNot(_.isDone)
-          val suspendedFibers = suspended.collect(justFibers).filterNot(_.isDone)
-          val workersMapping: Map[WorkerThread, (Option[IOFiber[_]], Set[IOFiber[_]])] =
+          val (external, workers, suspended) = compute.liveFiberTraces()
+          val externalFibers = external.collect(justFibers)
+          val suspendedFibers = suspended.collect(justFibers)
+          val workersMapping: Map[WorkerThread, (Thread.State, Option[(IOFiber[_], FiberTrace)], Map[IOFiber[_], FiberTrace])] =
             workers.map {
-              case (thread, (opt, set)) =>
+              case (thread, (state, opt, set)) =>
                 val filteredOpt = opt.collect(justFibers)
                 val filteredSet = set.collect(justFibers)
-                (thread, (filteredOpt, filteredSet))
+                (thread, (state, filteredOpt, filteredSet))
             }
 
           (externalFibers, workersMapping, suspendedFibers)
@@ -131,25 +131,25 @@ private[effect] sealed class FiberMonitor(
         // 3. Fibers from the foreign synchronized fallback weak GC maps
         // 4. Fibers from the suspended thread local GC maps
 
-        val localAndActive = workersMap.foldLeft(Set.empty[IOFiber[_]]) {
-          case (acc, (_, (active, local))) =>
-            (acc ++ local) ++ active.toSet.collect(justFibers)
+        val localAndActive = workersMap.foldLeft(Map.empty[IOFiber[_], FiberTrace]) {
+          case (acc, (_, (_, active, local))) =>
+            (acc ++ local) ++ active.collect(justFibers)
         }
-        val external = rawExternal -- localAndActive
-        val suspended = rawSuspended -- localAndActive -- external
-        val foreign = rawForeign -- localAndActive -- external -- suspended
+        val external = rawExternal -- localAndActive.keys
+        val suspended = rawSuspended -- localAndActive.keys -- external.keys
+        val foreign = rawForeign -- localAndActive.keys -- external.keys -- suspended.keys
 
         val workersStatuses = workersMap map {
-          case (worker, (active, local)) =>
-            val yielding = local.filterNot(_.isDone)
+          case (worker, (state, active, local)) =>
+            val yielding = local
 
             val status =
-              if (worker.getState() == Thread.State.RUNNABLE) "RUNNING" else "BLOCKED"
+              if (state == Thread.State.RUNNABLE) "RUNNING" else "BLOCKED"
 
             val workerString = s"$worker (#${worker.index}): ${yielding.size} enqueued"
 
             print(doubleNewline)
-            active.map(fiberString(_, status)).foreach(print(_))
+            active.map{ case (fiber, trace) => fiberString(fiber, trace, status)}.foreach(print(_))
             printFibers(yielding, "YIELDING")(print)
 
             workerString
@@ -187,14 +187,17 @@ private[effect] sealed class FiberMonitor(
    * @return
    *   a set of active fibers
    */
-  private[this] def foreignFibers(): Set[IOFiber[_]] = {
-    val foreign = Set.newBuilder[IOFiber[_]]
+  private[this] def foreignFibers(): Map[IOFiber[_], FiberTrace] = {
+    val foreign = Map.newBuilder[IOFiber[_], FiberTrace]
 
     BagReferences.iterator().forEachRemaining { bagRef =>
       val bag = bagRef.get()
       if (bag ne null) {
         val _ = bag.synchronizationPoint.get()
-        foreign ++= bag.toSet.collect(justFibers).filterNot(_.isDone)
+        bag.forEach{
+          case fiber: IOFiber[_] => foreign += (fiber.asInstanceOf[IOFiber[Any]] -> fiber.prettyPrintTrace())
+          case _ => ()
+        }
       }
     }
 

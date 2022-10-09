@@ -16,11 +16,15 @@
 
 package cats.effect.tracing
 
+import cats.effect.IOFiber
+
 import scala.collection.mutable.ArrayBuffer
 
 private[effect] object Tracing extends TracingPlatform {
 
   import TracingConstants._
+
+  type FiberTrace = String
 
   private[this] val TurnRight = "╰"
   // private[this] val InverseTurnRight = "╭"
@@ -152,5 +156,12 @@ private[effect] object Tracing extends TracingPlatform {
           s" $junc $frame"
       }
       .mkString(System.lineSeparator())
+  }
+
+  def captureTrace(runnable: Runnable): FiberTrace = {
+    runnable match {
+      case f: IOFiber[_] => f.prettyPrintTrace()
+      case _ => ""
+    }
   }
 }
