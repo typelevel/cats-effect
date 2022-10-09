@@ -220,9 +220,46 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
       action.as(ok).timeoutTo(8.seconds, IO(false must beTrue))
     }
 
+    "offer/take with a single consumer and high contention" in real {
+      constructor(8) flatMap { q =>
+        val offerer = List.fill(8)(List.fill(8)(0)).parTraverse_(_.traverse(q.offer(_)))
+
+        (offerer &> 0
+          .until(8 * 8)
+          .toList
+          .traverse_(_ => q.take)
+          .timeoutTo(8.seconds, IO(false must beTrue))).replicateA_(1000) *>
+          q.size.flatMap(s => IO(s mustEqual 0))
+      }
+    }
+
+    "offer/take/takeN with a single consumer and high contention" in real {
+      constructor(8) flatMap { q =>
+        val offerer = List.fill(8)(List.fill(8)(0)).parTraverse_(_.traverse(q.offer(_)))
+
+        def taker(acc: Int): IO[Unit] = {
+          if (acc >= 8 * 8) {
+            IO.unit
+          } else {
+            q.tryTakeN(None) flatMap {
+              case Nil =>
+                q.take *> taker(acc + 1)
+
+              case as =>
+                taker(acc + as.length)
+            }
+          }
+        }
+
+        (offerer &> taker(0).timeoutTo(8.seconds, IO(false must beTrue))).replicateA_(1000) *>
+          q.size.flatMap(s => IO(s mustEqual 0))
+      }
+    }
+
     negativeCapacityConstructionTests(constructor)
     tryOfferOnFullTests(constructor, _.offer(_), _.tryOffer(_), false)
     cancelableOfferTests(constructor, _.offer(_), _.take, _.tryTake)
+    cancelableOfferBoundedTests(constructor, _.offer(_), _.take, _.tryTakeN(_))
     cancelableTakeTests(constructor, _.offer(_), _.take)
     tryOfferTryTakeTests(constructor, _.tryOffer(_), _.tryTake)
     commonTests(constructor, _.offer(_), _.tryOffer(_), _.take, _.tryTake, _.size)
@@ -591,6 +628,48 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
       } yield ()
 
       test.parReplicateA(16).as(ok)
+    }
+  }
+
+  def cancelableOfferBoundedTests(
+      constructor: Int => IO[Q[IO, Int]],
+      offer: (Q[IO, Int], Int) => IO[Unit],
+      take: Q[IO, Int] => IO[Int],
+      tryTakeN: (Q[IO, Int], Option[Int]) => IO[List[Int]]): Fragments = {
+
+    "ensure offerers are awakened by tryTakeN after cancelation" in ticked { implicit ticker =>
+      val test = for {
+        q <- constructor(4)
+
+        // fill the queue
+        _ <- 0.until(4).toList.traverse_(offer(q, _))
+
+        offerers <- 0.until(4).toList traverse { i =>
+          // the sleep is to ensure the offerers are ordered
+          (IO.sleep(i.millis) *> offer(q, 10 + i)).start
+        }
+
+        // allow quiescence
+        _ <- IO.sleep(10.millis)
+
+        // take the *not*-first offerer and cancel it
+        _ <- offerers(1).cancel
+
+        // fill up the offerers again
+        _ <- offer(q, 20).start
+        _ <- IO.sleep(1.millis)
+
+        // drain the queue. this most notify *all* offerers
+        taken1 <- tryTakeN(q, None)
+        _ <- IO(taken1 mustEqual List(0, 1, 2, 3))
+
+        // drain it again
+        // if the offerers weren't awakened, this will hang
+        taken2 <- 0.until(4).toList.traverse(_ => take(q))
+        _ <- IO(taken2 must containTheSameElementsAs(List(10, 12, 13, 20)))
+      } yield ()
+
+      test should completeAs(())
     }
   }
 

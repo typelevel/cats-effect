@@ -26,7 +26,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.collection.mutable.ListBuffer
 
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, AtomicLongArray, AtomicReference}
+import java.util.concurrent.atomic.{AtomicLong, AtomicLongArray, AtomicReference}
 
 /**
  * A purely functional, concurrent data structure which allows insertion and retrieval of
@@ -677,16 +677,24 @@ object Queue {
         @tailrec
         def loop(i: Int): Unit = {
           if (i >= 0) {
+            var took = false
+
             val f =
               try {
-                offerers.take()
+                val back = offerers.take()
+                took = true
+                back
               } catch {
                 case FailureSignal => null
               }
 
-            if (f != null) {
-              f(EitherUnit)
-              loop(i - 1)
+            if (took) {
+              if (f != null) {
+                f(EitherUnit)
+                loop(i - 1)
+              } else {
+                loop(i)
+              }
             }
           }
         }
@@ -859,11 +867,25 @@ object Queue {
 
     0.until(bound).foreach(i => sequenceBuffer.set(i, i.toLong))
 
-    private[this] val length = new AtomicInteger(0)
-
     def debug(): String = buffer.mkString("[", ", ", "]")
 
-    def size(): Int = length.get()
+    @tailrec
+    def size(): Int = {
+      val before = head.get()
+      val currentTail = tail.get()
+      val after = head.get()
+
+      if (before == after) {
+        val size = currentTail - after
+
+        if (size < 0)
+          0
+        else
+          size.toInt
+      } else {
+        size()
+      }
+    }
 
     def put(data: A): Unit = {
       @tailrec
@@ -894,7 +916,6 @@ object Queue {
 
       buffer(project(currentTail)) = data.asInstanceOf[AnyRef]
       sequenceBuffer.incrementAndGet(project(currentTail))
-      length.incrementAndGet()
 
       ()
     }
@@ -929,7 +950,6 @@ object Queue {
       val back = buffer(project(currentHead)).asInstanceOf[A]
       buffer(project(currentHead)) = null
       sequenceBuffer.set(project(currentHead), currentHead + bound)
-      length.decrementAndGet()
 
       back
     }
