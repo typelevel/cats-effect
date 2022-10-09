@@ -582,7 +582,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             _ <- IO(ticker.ctx.tick())
             l2 <- l.get
             r2 <- r.get
-          } yield (l2 -> r2)) must completeAs(true -> true)
+          } yield l2 -> r2) must completeAs(true -> true)
         }
 
       }
@@ -658,7 +658,7 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             _ <- IO(ticker.ctx.tick())
             l2 <- l.get
             r2 <- r.get
-          } yield (l2 -> r2)) must completeAs(true -> true)
+          } yield l2 -> r2) must completeAs(true -> true)
         }
 
         "evaluate a timeout using sleep and race" in ticked { implicit ticker =>
@@ -1515,6 +1515,32 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           }
           io must completeAs(())
           i must beEqualTo(1)
+      }
+
+      "handle uncancelable" in {
+        val sio = IO.unit.uncancelable.syncStep(Int.MaxValue)
+        sio.map(_.bimap(_ => (), _ => ())) must completeAsSync(Right(()))
+      }
+
+      "handle onCancel" in {
+        val sio = IO.unit.onCancel(IO.unit).syncStep(Int.MaxValue)
+        sio.map(_.bimap(_ => (), _ => ())) must completeAsSync(Right(()))
+      }
+
+      "synchronously allocate a vanilla resource" in {
+        val sio =
+          Resource.make(IO.unit)(_ => IO.unit).allocated.map(_._1).syncStep(Int.MaxValue)
+        sio.map(_.bimap(_ => (), _ => ())) must completeAsSync(Right(()))
+      }
+
+      "synchronously allocate a evalMapped resource" in {
+        val sio = Resource
+          .make(IO.unit)(_ => IO.unit)
+          .evalMap(_ => IO.unit)
+          .allocated
+          .map(_._1)
+          .syncStep(Int.MaxValue)
+        sio.map(_.bimap(_ => (), _ => ())) must completeAsSync(Right(()))
       }
     }
 

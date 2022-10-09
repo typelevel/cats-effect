@@ -36,6 +36,8 @@ import cats.{
 }
 import cats.data.Ior
 import cats.effect.instances.spawn
+import cats.effect.kernel.CancelScope
+import cats.effect.kernel.GenTemporal.handleDuration
 import cats.effect.std.{Console, Env, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.syntax.all._
@@ -50,8 +52,10 @@ import scala.concurrent.{
 }
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
+import scala.util.control.NonFatal
 
 import java.util.UUID
+import java.util.concurrent.Executor
 
 /**
  * A pure abstraction representing the intention to perform a side effect, where the result of
@@ -638,8 +642,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @param duration
    *   The duration to wait before executing the source
    */
-  def delayBy(duration: FiniteDuration): IO[A] =
+  def delayBy(duration: Duration): IO[A] =
     IO.sleep(duration) *> this
+
+  private[effect] def delayBy(duration: FiniteDuration): IO[A] =
+    delayBy(duration: Duration)
 
   /**
    * Returns an IO that will wait for the given duration after the execution of the source
@@ -648,8 +655,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @param duration
    *   The duration to wait after executing the source
    */
-  def andWait(duration: FiniteDuration): IO[A] =
+  def andWait(duration: Duration): IO[A] =
     this <* IO.sleep(duration)
+
+  private[effect] def andWait(duration: FiniteDuration): IO[A] =
+    andWait(duration: Duration)
 
   /**
    * Returns an IO that either completes with the result of the source within the specified time
@@ -664,8 +674,15 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *   is the time span for which we wait for the source to complete; in the event that the
    *   specified time has passed without the source completing, a `TimeoutException` is raised
    */
-  def timeout[A2 >: A](duration: FiniteDuration): IO[A2] =
-    timeoutTo(duration, IO.defer(IO.raiseError(new TimeoutException(duration.toString))))
+  def timeout[A2 >: A](duration: Duration): IO[A2] =
+    handleDuration(duration, this) { finiteDuration =>
+      timeoutTo(
+        finiteDuration,
+        IO.defer(IO.raiseError(new TimeoutException(finiteDuration.toString))))
+    }
+
+  private[effect] def timeout(duration: FiniteDuration): IO[A] =
+    timeout(duration: Duration)
 
   /**
    * Returns an IO that either completes with the result of the source within the specified time
@@ -683,11 +700,17 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @param fallback
    *   is the task evaluated after the duration has passed and the source canceled
    */
-  def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2]): IO[A2] =
-    race(IO.sleep(duration)).flatMap {
-      case Right(_) => fallback
-      case Left(value) => IO.pure(value)
+  def timeoutTo[A2 >: A](duration: Duration, fallback: IO[A2]): IO[A2] = {
+    handleDuration[IO[A2]](duration, this) { finiteDuration =>
+      race(IO.sleep(finiteDuration)).flatMap {
+        case Right(_) => fallback
+        case Left(value) => IO.pure(value)
+      }
     }
+  }
+
+  private[effect] def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2]): IO[A2] =
+    timeoutTo(duration: Duration, fallback)
 
   /**
    * Returns an IO that either completes with the result of the source within the specified time
@@ -707,8 +730,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * @see
    *   [[timeout]] for a variant which respects backpressure and does not leak fibers
    */
-  def timeoutAndForget(duration: FiniteDuration): IO[A] =
+  def timeoutAndForget(duration: Duration): IO[A] =
     Temporal[IO].timeoutAndForget(this, duration)
+
+  private[effect] def timeoutAndForget(duration: FiniteDuration): IO[A] =
+    timeoutAndForget(duration: Duration)
 
   def timed: IO[(FiniteDuration, A)] =
     Clock[IO].timed(this)
@@ -795,9 +821,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * impure side effects.
    *
    * Any exceptions raised within the effect will be passed to the callback in the `Either`. The
-   * callback will be invoked at most *once*. Note that it is very possible to construct an IO
-   * which never returns while still never blocking a thread, and attempting to evaluate that IO
-   * with this method will result in a situation where the callback is *never* invoked.
+   * callback will be invoked at most *once*. In addition, fatal errors will be printed. Note
+   * that it is very possible to construct an IO which never returns while still never blocking
+   * a thread, and attempting to evaluate that IO with this method will result in a situation
+   * where the callback is *never* invoked.
    *
    * As the name says, this is an UNSAFE function as it is impure and performs side effects. You
    * should ideally only call this function ''once'', at the very end of your program.
@@ -806,8 +833,14 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       implicit runtime: unsafe.IORuntime): Unit = {
     unsafeRunFiber(
       cb(Left(new CancellationException("The fiber was canceled"))),
-      t => cb(Left(t)),
-      a => cb(Right(a)))
+      t => {
+        if (!NonFatal(t)) {
+          t.printStackTrace()
+        }
+        cb(Left(t))
+      },
+      a => cb(Right(a))
+    )
     ()
   }
 
@@ -815,7 +848,12 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       implicit runtime: unsafe.IORuntime): Unit = {
     unsafeRunFiber(
       cb(Outcome.canceled),
-      t => cb(Outcome.errored(t)),
+      t => {
+        if (!NonFatal(t)) {
+          t.printStackTrace()
+        }
+        cb(Outcome.errored(t))
+      },
       a => cb(Outcome.succeeded(a: Id[A])))
     ()
   }
@@ -830,8 +868,17 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * Note that errors still get logged (via IO's internal logger), because errors being thrown
    * should never be totally silent.
    */
-  def unsafeRunAndForget()(implicit runtime: unsafe.IORuntime): Unit =
-    unsafeRunAsync(_ => ())
+  def unsafeRunAndForget()(implicit runtime: unsafe.IORuntime): Unit = {
+    val _ = unsafeRunFiber((), _ => (), _ => ())
+    ()
+  }
+
+  // internally used for error reporting
+  private[effect] def unsafeRunAndForgetWithoutCallback()(
+      implicit runtime: unsafe.IORuntime): Unit = {
+    val _ = unsafeRunFiber((), _ => (), _ => (), false)
+    ()
+  }
 
   /**
    * Evaluates the effect and produces the result in a `Future`.
@@ -885,7 +932,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   private[effect] def unsafeRunFiber(
       canceled: => Unit,
       failure: Throwable => Unit,
-      success: A => Unit)(implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
+      success: A => Unit,
+      registerCallback: Boolean = true)(
+      implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber[A](
       Map.empty,
@@ -909,7 +958,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       runtime
     )
 
-    runtime.fiberErrorCbs.put(failure)
+    if (registerCallback) {
+      runtime.fiberErrorCbs.put(failure)
+    }
+
     runtime.compute.execute(fiber)
     fiber
   }
@@ -1118,6 +1170,45 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def canceled: IO[Unit] = Canceled
 
+  /**
+   * Introduces a fairness boundary that yields control back to the scheduler of the runtime
+   * system. This allows the carrier thread to resume execution of another waiting fiber.
+   *
+   * This function is primarily useful when performing long-running computation that is outside
+   * of the monadic context. For example:
+   *
+   * {{{
+   *   fa.map(data => expensiveWork(data))
+   * }}}
+   *
+   * In the above, we're assuming that `expensiveWork` is a function which is entirely
+   * compute-bound but very long-running. A good rule of thumb is to consider a function
+   * "expensive" when its runtime is around three or more orders of magnitude higher than the
+   * overhead of the `map` function itself (which runs in around 5 nanoseconds on modern
+   * hardware). Thus, any `expensiveWork` function which requires around 10 microseconds or
+   * longer to execute should be considered "long-running".
+   *
+   * The danger is that these types of long-running actions outside of the monadic context can
+   * result in degraded fairness properties. The solution is to add an explicit `cede` both
+   * before and after the expensive operation:
+   *
+   * {{{
+   *   (fa <* IO.cede).map(data => expensiveWork(data)).guarantee(IO.cede)
+   * }}}
+   *
+   * Note that extremely long-running `expensiveWork` functions can still cause fairness issues,
+   * even when used with `cede`. This problem is somewhat fundamental to the nature of
+   * scheduling such computation on carrier threads. Whenever possible, it is best to break
+   * apart any such functions into multiple pieces invoked independently (e.g. via chained `map`
+   * calls) whenever the execution time exceeds five or six orders of magnitude beyond the
+   * overhead of `map` itself (around 1 millisecond on most hardware).
+   *
+   * This operation is not ''required'' in most applications, particularly those which are
+   * primarily I/O bound, as `IO` itself will automatically introduce fairness boundaries
+   * without requiring user input. These automatic boundaries are controlled by the
+   * [[cats.effect.unsafe.IORuntimeConfig.autoYieldThreshold]] configuration parameter, which in
+   * turn may be adjusted by overriding [[IOApp.runtimeConfig]].
+   */
   def cede: IO[Unit] = Cede
 
   /**
@@ -1128,6 +1219,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     IOCont[K, R](body, Tracing.calculateTracingEvent(body))
 
   def executionContext: IO[ExecutionContext] = ReadEC
+
+  def executor: IO[Executor] = _asyncForIO.executor
 
   def monotonic: IO[FiniteDuration] = Monotonic
 
@@ -1230,8 +1323,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *   a new asynchronous and cancelable `IO` that will sleep for the specified duration and
    *   then finally emit a tick
    */
-  def sleep(delay: FiniteDuration): IO[Unit] =
-    Sleep(delay)
+  def sleep(delay: Duration): IO[Unit] =
+    handleDuration[IO[Unit]](delay, IO.never)(Sleep(_))
+
+  def sleep(finiteDelay: FiniteDuration): IO[Unit] =
+    sleep(finiteDelay: Duration)
 
   def trace: IO[Trace] =
     IOTrace
@@ -1542,6 +1638,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       fa.handleError(f)
 
     override def timeout[A](fa: IO[A], duration: FiniteDuration)(
+        implicit ev: TimeoutException <:< Throwable): IO[A] = {
+      fa.timeout(duration)
+    }
+
+    override def timeout[A](fa: IO[A], duration: Duration)(
         implicit ev: TimeoutException <:< Throwable): IO[A] = {
       fa.timeout(duration)
     }
@@ -1870,6 +1971,15 @@ private object SyncStep {
               case r @ Right(_) => r
             }
             .handleErrorWith(t => interpret(f(t), limit - 1))
+
+        case IO.Uncancelable(body, _) if G.rootCancelScope == CancelScope.Uncancelable =>
+          val ioa = body(new Poll[IO] {
+            def apply[C](ioc: IO[C]): IO[C] = ioc
+          })
+          interpret(ioa, limit)
+
+        case IO.OnCancel(ioa, _) if G.rootCancelScope == CancelScope.Uncancelable =>
+          interpret(ioa, limit)
 
         case _ => G.pure(Left(io))
       }

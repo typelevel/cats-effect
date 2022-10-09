@@ -29,8 +29,8 @@ sealed abstract class CI(
         jsEnv.fold("")(env => s"set Global / useJSEnv := JSEnv.$env"),
         "headerCheck",
         "scalafmtSbtCheck",
-        "scalafmtCheck",
-        "javafmtCheck",
+        "scalafmtCheckAll",
+        "javafmtCheckAll",
         "clean"
       ) ++ testCommands ++ List(
         jsEnv.fold("")(_ => s"set Global / useJSEnv := JSEnv.NodeJS"),
@@ -62,7 +62,18 @@ object CI {
           "testsJVM/testOnly *.IOAppSpec",
           "set Global / testJSIOApp := false"),
         mimaReport = true,
-        suffixCommands = List("exampleJS/compile"))
+        suffixCommands = List("exampleJS/compile")
+      )
+
+  case object Native
+      extends CI(
+        command = "ciNative",
+        rootProject = "rootNative",
+        jsEnv = None,
+        testCommands = List("test"),
+        mimaReport = true,
+        suffixCommands = List("exampleNative/compile")
+      )
 
   case object Firefox
       extends CI(
@@ -73,10 +84,12 @@ object CI {
           "testOnly *tracing*",
           "testOnly *.ConsoleJSSpec",
           "testOnly *.RandomSpec",
-          "testOnly *.SchedulerSpec"
+          "testOnly *.SchedulerSpec",
+          "testOnly *.SecureRandomSpec"
         ),
         mimaReport = false,
-        suffixCommands = List())
+        suffixCommands = List()
+      )
 
   case object Chrome
       extends CI(
@@ -85,13 +98,16 @@ object CI {
         jsEnv = Some(JSEnv.Chrome),
         testCommands = List(
           "testOnly *tracing*",
+          "testOnly *tracing*",
           "testOnly *.ConsoleJSSpec",
           "testOnly *.RandomSpec",
-          "testOnly *.SchedulerSpec"
+          "testOnly *.SchedulerSpec",
+          "testOnly *.SecureRandomSpec"
         ),
         mimaReport = false,
-        suffixCommands = List())
+        suffixCommands = List()
+      )
 
   val AllJSCIs: List[CI] = List(JS, Firefox, Chrome)
-  val AllCIs: List[CI] = JVM :: AllJSCIs
+  val AllCIs: List[CI] = JVM :: Native :: AllJSCIs
 }

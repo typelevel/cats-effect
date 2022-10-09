@@ -80,7 +80,7 @@ private[std] object BinomialHeap {
       case Nil => tree :: Nil
       case l @ (t :: ts) =>
         if (tree.rank < t.rank)
-          (tree :: l)
+          tree :: l
         else insert(tree.link(t), ts)
     }
 

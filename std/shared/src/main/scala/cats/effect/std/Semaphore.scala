@@ -31,7 +31,7 @@ import scala.collection.immutable.{Queue => Q}
  *
  * A semaphore has a non-negative number of permits available. Acquiring a permit decrements the
  * current number of permits and releasing a permit increases the current number of permits. An
- * acquire that occurs when there are no permits available results in semantic blocking until a
+ * acquire that occurs when there are no permits available results in fiber blocking until a
  * permit becomes available.
  */
 abstract class Semaphore[F[_]] {
@@ -160,7 +160,7 @@ object Semaphore {
 
     /*
      * Invariant:
-     *    (waiting.empty && permits >= 0) || (permits.nonEmpty && permits == 0)
+     *    (waiting.empty && permits >= 0) || (waiting.nonEmpty && permits == 0)
      */
     case class State(permits: Long, waiting: Q[Request])
     def initialState = State(n, Q())

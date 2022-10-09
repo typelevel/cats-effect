@@ -21,7 +21,7 @@ import cats.{~>, Id}
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 
 import scala.concurrent.CancellationException
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -84,9 +84,9 @@ import java.util.concurrent.atomic.AtomicReference
  * In order to advance time, you must use the [[advance]] effect to move the clock forward by a
  * specified offset (which must be greater than 0). If you use the `tickAll` effect, the clock
  * will be automatically advanced by the minimum amount necessary to reach the next pending
- * task. For example, if the program contains an [[IO.sleep]] for `500.millis`, and there are no
- * shorter sleeps, then time will need to be advanced by 500 milliseconds in order to make that
- * fiber eligible for execution.
+ * task. For example, if the program contains an [[IO.sleep(delay*]] for `500.millis`, and there
+ * are no shorter sleeps, then time will need to be advanced by 500 milliseconds in order to
+ * make that fiber eligible for execution.
  *
  * At this point, the process repeats until all tasks are exhausted. If the program has reached
  * a concluding value or exception, then it will be produced from the `unsafeRun` method which
@@ -98,18 +98,19 @@ import java.util.concurrent.atomic.AtomicReference
  * situation on the production runtime would have manifested as an asynchronous deadlock.
  *
  * You should ''never'' use this runtime in a production code path. It is strictly meant for
- * testing purposes, particularly testing programs that involve time functions and [[IO.sleep]].
+ * testing purposes, particularly testing programs that involve time functions and
+ * [[IO.sleep(delay*]].
  *
  * Due to the semantics of this runtime, time will behave entirely consistently with a plausible
  * production execution environment provided that you ''never'' observe time via side-effects,
- * and exclusively through the [[IO.realTime]], [[IO.monotonic]], and [[IO.sleep]] functions
- * (and other functions built on top of these). From the perspective of these functions, all
- * computation is infinitely fast, and the only effect which advances time is [[IO.sleep]] (or
- * if something external, such as the test harness, sequences the [[advance]] effect). However,
- * an effect such as `IO(System.currentTimeMillis())` will "see through" the illusion, since the
- * system clock is unaffected by this runtime. This is one reason why it is important to always
- * and exclusively rely on `realTime` and `monotonic`, either directly on `IO` or via the
- * typeclass abstractions.
+ * and exclusively through the [[IO.realTime]], [[IO.monotonic]], and [[IO.sleep(delay*]]
+ * functions (and other functions built on top of these). From the perspective of these
+ * functions, all computation is infinitely fast, and the only effect which advances time is
+ * [[IO.sleep(delay*]] (or if something external, such as the test harness, sequences the
+ * [[advance]] effect). However, an effect such as `IO(System.currentTimeMillis())` will "see
+ * through" the illusion, since the system clock is unaffected by this runtime. This is one
+ * reason why it is important to always and exclusively rely on `realTime` and `monotonic`,
+ * either directly on `IO` or via the typeclass abstractions.
  *
  * WARNING: ''Never'' use this runtime on programs which use the [[IO#evalOn]] method! The test
  * runtime will detect this situation as an asynchronous deadlock.
@@ -127,7 +128,8 @@ final class TestControl[A] private (
 
   /**
    * Produces the minimum time which must elapse for a fiber to become eligible for execution.
-   * If fibers are currently eligible for execution, the result will be `Duration.Zero`.
+   * If fibers are currently eligible for execution, or if the program is entirely deadlocked,
+   * the result will be `Duration.Zero`.
    */
   val nextInterval: IO[FiniteDuration] =
     IO(ctx.nextInterval())
@@ -152,22 +154,26 @@ final class TestControl[A] private (
    *   TestControl.execute(program).flatMap(_.advanceAndTick(1.second))
    * }}}
    *
-   * This is very subtle, but the problem is that time is advanced ''before'' the [[IO.sleep]]
-   * even has a chance to get scheduled! This means that when `sleep` is finally submitted to
-   * the runtime, it is scheduled for the time offset equal to `1.second + 100.millis`, since
-   * time was already advanced `1.second` before it had a chance to submit. Of course, time has
-   * only been advanced by `1.second`, thus the `sleep` never completes and the `println` cannot
-   * ever run.
+   * This is very subtle, but the problem is that time is advanced ''before'' the
+   * [[IO.sleep(delay*]] even has a chance to get scheduled! This means that when `sleep` is
+   * finally submitted to the runtime, it is scheduled for the time offset equal to `1.second +
+   * 100.millis`, since time was already advanced `1.second` before it had a chance to submit.
+   * Of course, time has only been advanced by `1.second`, thus the `sleep` never completes and
+   * the `println` cannot ever run.
    *
    * There are two possible solutions to this problem: either sequence [[tick]] ''first''
    * (before sequencing `advanceAndTick`) to ensure that the `sleep` has a chance to schedule
    * itself, or simply use [[tickAll]] if you do not need to run assertions between time
    * windows.
    *
+   * In most cases, [[tickFor]] will provide a more intuitive execution semantic.
+   *
    * @see
    *   [[advance]]
    * @see
    *   [[tick]]
+   * @see
+   *   [[tickFor]]
    */
   def advanceAndTick(time: FiniteDuration): IO[Unit] =
     IO(ctx.advanceAndTick(time))
@@ -208,6 +214,58 @@ final class TestControl[A] private (
    */
   val tickAll: IO[Unit] =
     IO(ctx.tickAll())
+
+  /**
+   * Drives the runtime incrementally forward until all fibers have been executed, or until the
+   * specified `time` has elapsed. The semantics of this function are very distinct from
+   * [[advance]] in that the runtime will tick for the minimum time necessary to reach the next
+   * batch of tasks within each interval, and then continue ticking as long as necessary to
+   * cumulatively reach the time limit (or the end of the program). This behavior can be seen in
+   * programs such as the following:
+   *
+   * {{{
+   *   val tick = IO.sleep(1.second) *> IO.realTime
+   *
+   *   TestControl.execute((tick, tick).tupled) flatMap { control =>
+   *     for {
+   *       _ <- control.tickFor(1.second + 500.millis)
+   *       _ <- control.tickAll
+   *
+   *       r <- control.results
+   *       _ <- IO(assert(r == Some(Outcome.succeeded(1.second, 2.seconds))))
+   *     } yield ()
+   *   }
+   * }}}
+   *
+   * Notably, the first component of the results tuple here is `1.second`, meaning that the
+   * first `IO.realTime` evaluated after the clock had ''only'' advanced by `1.second`. This is
+   * in contrast to what would have happened with `control.advanceAndTick(1.second +
+   * 500.millis)`, which would have caused the first `realTime` to produce `2500.millis` as a
+   * result, rather than the correct answer of `1.second`. In other words, [[advanceAndTick]] is
+   * maximally aggressive on time advancement, while `tickFor` is maximally conservative and
+   * only ticks as much as necessary each time.
+   *
+   * @see
+   *   [[tick]]
+   * @see
+   *   [[advance]]
+   */
+  def tickFor(time: FiniteDuration): IO[Unit] =
+    tick *> nextInterval flatMap { next =>
+      val step = time.min(next)
+      val remaining = time - step
+
+      if (step <= Duration.Zero) {
+        IO.unit
+      } else {
+        advance(step) *> {
+          if (remaining <= Duration.Zero)
+            tick
+          else
+            tickFor(remaining)
+        }
+      }
+    }
 
   /**
    * Produces `true` if the runtime has no remaining fibers, sleeping or otherwise, indicating
@@ -341,8 +399,8 @@ object TestControl {
    * very similar to calling `unsafeRunSync` on the program and wrapping it in an `IO`, except
    * that the scheduler will use a mocked and quantized notion of time, all while executing on a
    * singleton worker thread. This can cause some programs to deadlock which would otherwise
-   * complete normally, but it also allows programs which involve [[IO.sleep]] s of any length
-   * to complete almost instantly with correct semantics.
+   * complete normally, but it also allows programs which involve [[IO.sleep(delay*]] s of any
+   * length to complete almost instantly with correct semantics.
    *
    * Note that any program which involves an [[IO.async]] that waits for some external thread
    * (including [[IO.evalOn]]) will be detected as a deadlock and will result in the

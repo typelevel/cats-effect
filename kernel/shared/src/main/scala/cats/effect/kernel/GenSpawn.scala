@@ -246,6 +246,35 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    * Introduces a fairness boundary that yields control back to the scheduler of the runtime
    * system. This allows the carrier thread to resume execution of another waiting fiber.
    *
+   * This function is primarily useful when performing long-running computation that is outside
+   * of the monadic context. For example:
+   *
+   * {{{
+   *   fa.map(data => expensiveWork(data))
+   * }}}
+   *
+   * In the above, we're assuming that `expensiveWork` is a function which is entirely
+   * compute-bound but very long-running. A good rule of thumb is to consider a function
+   * "expensive" when its runtime is around three or more orders of magnitude higher than the
+   * overhead of the `map` function itself (which runs in around 5 nanoseconds on modern
+   * hardware). Thus, any `expensiveWork` function which requires around 10 microseconds or
+   * longer to execute should be considered "long-running".
+   *
+   * The danger is that these types of long-running actions outside of the monadic context can
+   * result in degraded fairness properties. The solution is to add an explicit `cede` both
+   * before and after the expensive operation:
+   *
+   * {{{
+   *   (fa <* F.cede).map(data => expensiveWork(data)).guarantee(F.cede)
+   * }}}
+   *
+   * Note that extremely long-running `expensiveWork` functions can still cause fairness issues,
+   * even when used with `cede`. This problem is somewhat fundamental to the nature of
+   * scheduling such computation on carrier threads. Whenever possible, it is best to break
+   * apart any such functions into multiple pieces invoked independently (e.g. via chained `map`
+   * calls) whenever the execution time exceeds five or six orders of magnitude beyond the
+   * overhead of `map` itself (around 1 millisecond on most hardware).
+   *
    * Note that `cede` is merely a hint to the runtime system; implementations have the liberty
    * to interpret this method to their liking as long as it obeys the respective laws. For
    * example, a lawful, but atypical, implementation of this function is `F.unit`, in which case
@@ -724,7 +753,7 @@ object GenSpawn {
       Kleisli.liftF(F.unique)
 
     def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[Kleisli[F, R, *], E, A]] =
-      Kleisli { r => (F.start(fa.run(r)).map(liftFiber)) }
+      Kleisli { r => F.start(fa.run(r)).map(liftFiber) }
 
     def never[A]: Kleisli[F, R, A] = Kleisli.liftF(F.never)
 
@@ -738,7 +767,7 @@ object GenSpawn {
         (Fiber[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B])]] = {
       Kleisli { r =>
         F.uncancelable(poll =>
-          poll((F.racePair(fa.run(r), fb.run(r))).map {
+          poll(F.racePair(fa.run(r), fb.run(r)).map {
             case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
             case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
           }))

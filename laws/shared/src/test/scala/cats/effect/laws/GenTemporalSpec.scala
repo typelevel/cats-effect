@@ -37,6 +37,30 @@ class GenTemporalSpec extends Specification { outer =>
 
   val loop: TimeT[F, Unit] = F.sleep(5.millis).foreverM
 
+  "temporal" should {
+    "timeout" should {
+      "return identity when infinite duration" in {
+        val fa = F.pure(true)
+        F.timeout(fa, Duration.Inf) mustEqual fa
+      }
+    }
+
+    "timeoutTo" should {
+      "return identity when infinite duration" in {
+        val fa: TimeT[F, Boolean] = F.pure(true)
+        val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
+        F.timeoutTo(fa, Duration.Inf, fallback) mustEqual fa
+      }
+    }
+
+    "timeoutAndForget" should {
+      "return identity when infinite duration" in {
+        val fa: TimeT[F, Boolean] = F.pure(true)
+        F.timeoutAndForget(fa, Duration.Inf) mustEqual fa
+      }
+    }
+  }
+
   // TODO enable these tests once Temporal for TimeT is fixed
   /*"temporal" should {
     "timeout" should {

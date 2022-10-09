@@ -25,32 +25,34 @@ import scala.concurrent.duration._
 
 class DispatcherSpec extends BaseSpec {
 
-  "sequential dispatcher (await = true)" should {
-    val D = Dispatcher.sequential[IO](await = true)
+  override def executionTimeout = 30.seconds
 
-    sequential(D)
+  "sequential dispatcher" should {
+    "await = true" >> {
+      val D = Dispatcher.sequential[IO](await = true)
 
-    awaitTermination(D)
+      sequential(D)
 
-  }
-
-  "sequential dispatcher (await = false)" should {
-    val D = Dispatcher.sequential[IO](await = false)
-
-    sequential(D)
-
-    "cancel all inner effects when canceled" in real {
-      var canceled = false
-
-      val body = D use { runner =>
-        IO(runner.unsafeRunAndForget(IO.never.onCancel(IO { canceled = true }))) *> IO.never
-      }
-
-      val action = body.start flatMap { f => IO.sleep(500.millis) *> f.cancel }
-
-      TestControl.executeEmbed(action *> IO(canceled must beTrue))
+      awaitTermination(D)
     }
 
+    "await = false" >> {
+      val D = Dispatcher.sequential[IO](await = false)
+
+      sequential(D)
+
+      "cancel all inner effects when canceled" in real {
+        var canceled = false
+
+        val body = D use { runner =>
+          IO(runner.unsafeRunAndForget(IO.never.onCancel(IO { canceled = true }))) *> IO.never
+        }
+
+        val action = body.start.flatMap(f => IO.sleep(500.millis) *> f.cancel)
+
+        TestControl.executeEmbed(action *> IO(canceled must beTrue))
+      }
+    }
   }
 
   private def sequential(dispatcher: Resource[IO, Dispatcher[IO]]) = {
@@ -69,7 +71,7 @@ class DispatcherSpec extends BaseSpec {
             0.until(length) foreach { i =>
               runner.unsafeRunAndForget(results.update(_ :+ i).guarantee(gate.release))
             }
-          } *> gate.await
+          } *> gate.await.timeoutTo(2.seconds, IO(false must beTrue))
         }
 
         vec <- results.get
@@ -94,53 +96,55 @@ class DispatcherSpec extends BaseSpec {
 
       TestControl.executeEmbed(rec.use(_ => IO(canceled must beFalse)))
     }
-
   }
 
-  "parallel dispatcher (await = true)" should {
-    val D = Dispatcher.parallel[IO](await = true)
+  "parallel dispatcher" should {
+    "await = true" >> {
+      val D = Dispatcher.parallel[IO](await = true)
 
-    parallel(D)
+      parallel(D)
 
-    awaitTermination(D)
+      awaitTermination(D)
+    }
 
-  }
+    "await = false" >> {
+      val D = Dispatcher.parallel[IO](await = false)
 
-  "parallel dispatcher (await = false)" should {
-    val D = Dispatcher.parallel[IO](await = false)
+      parallel(D)
 
-    parallel(D)
+      "cancel all inner effects when canceled" in real {
+        for {
+          gate1 <- Semaphore[IO](2)
+          _ <- gate1.acquireN(2)
 
-    "cancel all inner effects when canceled" in real {
-      for {
-        gate1 <- Semaphore[IO](2)
-        _ <- gate1.acquireN(2)
+          gate2 <- Semaphore[IO](2)
+          _ <- gate2.acquireN(2)
 
-        gate2 <- Semaphore[IO](2)
-        _ <- gate2.acquireN(2)
+          rec = D flatMap { runner =>
+            Resource eval {
+              IO {
+                // these finalizers never return, so this test is intentionally designed to hang
+                // they flip their gates first though; this is just testing that both run in parallel
+                val a = (gate1.release *> IO.never) onCancel {
+                  gate2.release *> IO.never
+                }
 
-        rec = D flatMap { runner =>
-          Resource eval {
-            IO {
-              // these finalizers never return, so this test is intentionally designed to hang
-              // they flip their gates first though; this is just testing that both run in parallel
-              val a = (gate1.release *> IO.never) onCancel {
-                gate2.release *> IO.never
+                val b = (gate1.release *> IO.never) onCancel {
+                  gate2.release *> IO.never
+                }
+
+                runner.unsafeRunAndForget(a)
+                runner.unsafeRunAndForget(b)
               }
-
-              val b = (gate1.release *> IO.never) onCancel {
-                gate2.release *> IO.never
-              }
-
-              runner.unsafeRunAndForget(a)
-              runner.unsafeRunAndForget(b)
             }
           }
-        }
 
-        _ <- rec.use(_ => gate1.acquireN(2)).start
-        _ <- gate2.acquireN(2) // if both are not run in parallel, then this will hang
-      } yield ok
+          _ <- rec.use(_ => gate1.acquireN(2)).start
+
+          // if both are not run in parallel, then this will hang
+          _ <- gate2.acquireN(2).timeoutTo(2.seconds, IO(false must beTrue))
+        } yield ok
+      }
     }
   }
 
@@ -160,7 +164,11 @@ class DispatcherSpec extends BaseSpec {
 
         _ <- {
           val rec = dispatcher flatMap { runner =>
-            Resource.eval(subjects.parTraverse_(act => IO(runner.unsafeRunAndForget(act))))
+            Resource eval {
+              subjects
+                .parTraverse_(act => IO(runner.unsafeRunAndForget(act)))
+                .timeoutTo(2.seconds, IO(false must beTrue))
+            }
           }
 
           rec.use(_ => IO.unit)
@@ -180,7 +188,7 @@ class DispatcherSpec extends BaseSpec {
             0.until(length) foreach { i =>
               runner.unsafeRunAndForget(results.update(_ :+ i).guarantee(gate.release))
             }
-          } *> gate.await
+          } *> gate.await.timeoutTo(2.seconds, IO(false must beTrue))
         }
 
         vec <- results.get
@@ -244,6 +252,28 @@ class DispatcherSpec extends BaseSpec {
         }
       }
     }
+
+    "respect self-cancelation" in real {
+      dispatcher use { runner =>
+        for {
+          resultR <- IO.ref(false)
+          latch <- IO.deferred[Unit]
+
+          // if the inner action is erroneously masked, `resultR` will be flipped because cancelation will be suppressed
+          _ <- IO(
+            runner.unsafeRunAndForget(
+              (IO.canceled >> resultR.set(true)).guarantee(latch.complete(()).void)))
+          _ <- latch.get
+
+          result <- resultR.get
+          _ <- IO(result must beFalse)
+
+          secondLatch <- IO.deferred[Unit]
+          _ <- IO(runner.unsafeRunAndForget(secondLatch.complete(()).void))
+          _ <- secondLatch.get // if the dispatcher itself is dead, this will hang
+        } yield ok
+      }
+    }
   }
 
   private def awaitTermination(dispatcher: Resource[IO, Dispatcher[IO]]) = {
@@ -266,7 +296,9 @@ class DispatcherSpec extends BaseSpec {
             _ <- cdl.await // make sure the execution of fiber has started
           } yield ()
         }.start
-        _ <- releaseInner.await // release process has started
+        _ <- releaseInner
+          .await
+          .timeoutTo(2.seconds, IO(false must beTrue)) // release process has started
         released1 <- fiber.join.as(true).timeoutTo(200.millis, IO(false))
         _ <- fiberLatch.release
         released2 <- fiber.join.as(true).timeoutTo(200.millis, IO(false))
@@ -275,6 +307,28 @@ class DispatcherSpec extends BaseSpec {
         released2 must beTrue
       }
     }
-  }
 
+    "cancel active fibers when an error is produced" in real {
+      case object TestException extends RuntimeException
+
+      IO.deferred[Unit] flatMap { canceled =>
+        IO.deferred[Unit] flatMap { gate =>
+          val test = dispatcher use { runner =>
+            for {
+              _ <- IO(
+                runner.unsafeRunAndForget(
+                  (gate.complete(()) >> IO.never).onCancel(canceled.complete(()).void)))
+              _ <- gate.get
+              _ <- IO.raiseError(TestException).void
+            } yield ()
+          }
+
+          test.handleError(_ => ()) >> canceled
+            .get
+            .as(ok)
+            .timeoutTo(2.seconds, IO(false must beTrue))
+        }
+      }
+    }
+  }
 }

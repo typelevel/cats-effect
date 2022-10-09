@@ -60,7 +60,7 @@ private[effect] trait BaseSpec {
     run(sbool.runF).fold(
       Prop.exception(_),
       f =>
-        run((f(MiniInt.unsafeFromInt(0))))
+        run(f(MiniInt.unsafeFromInt(0)))
           .fold(Prop.exception(_), b => if (b._2) Prop.proved else Prop.falsified)
     )
 

@@ -18,6 +18,7 @@ package cats.effect.kernel
 
 import cats.{Applicative, MonadError, Monoid, Semigroup}
 import cats.data._
+import cats.effect.kernel.GenTemporal.handleDuration
 import cats.syntax.all._
 
 import scala.concurrent.TimeoutException
@@ -25,8 +26,7 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /**
  * A typeclass that encodes the notion of suspending fibers for a given duration. Analogous to
- * `Thread.sleep` but is only semantically blocking rather than blocking an underlying OS
- * pthread.
+ * `Thread.sleep` but is only fiber blocking rather than blocking an underlying OS pthread.
  */
 trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
   override def applicative: Applicative[F] = this
@@ -37,7 +37,10 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * @param time
    *   The duration to semantically block for
    */
-  def sleep(time: FiniteDuration): F[Unit]
+  def sleep(time: Duration): F[Unit] =
+    handleDuration[F[Unit]](time, never)(sleep(_))
+
+  protected def sleep(time: FiniteDuration): F[Unit]
 
   /**
    * Delay the execution of `fa` by a given duration.
@@ -48,7 +51,10 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * @param time
    *   The duration to wait before executing fa
    */
-  def delayBy[A](fa: F[A], time: FiniteDuration): F[A] =
+  def delayBy[A](fa: F[A], time: Duration): F[A] =
+    handleDuration[F[A]](time, never)(delayBy(fa, _))
+
+  protected def delayBy[A](fa: F[A], time: FiniteDuration): F[A] =
     productR(sleep(time))(fa)
 
   /**
@@ -59,7 +65,10 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * @param time
    *   The duration to wait after executing fa
    */
-  def andWait[A](fa: F[A], time: FiniteDuration): F[A] =
+  def andWait[A](fa: F[A], time: Duration): F[A] =
+    handleDuration(time, productL(fa)(never))(andWait(fa, _))
+
+  protected def andWait[A](fa: F[A], time: FiniteDuration): F[A] =
     productL(fa)(sleep(time))
 
   /**
@@ -78,7 +87,10 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * @param fallback
    *   The task evaluated after the duration has passed and the source canceled
    */
-  def timeoutTo[A](fa: F[A], duration: FiniteDuration, fallback: F[A]): F[A] =
+  def timeoutTo[A](fa: F[A], duration: Duration, fallback: F[A]): F[A] =
+    handleDuration(duration, fa)(timeoutTo(fa, _, fallback))
+
+  protected def timeoutTo[A](fa: F[A], duration: FiniteDuration, fallback: F[A]): F[A] =
     flatMap(race(fa, sleep(duration))) {
       case Left(a) => pure(a)
       case Right(_) => fallback
@@ -97,7 +109,11 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    *   The time span for which we wait for the source to complete; in the event that the
    *   specified time has passed without the source completing, a `TimeoutException` is raised
    */
-  def timeout[A](fa: F[A], duration: FiniteDuration)(
+  def timeout[A](fa: F[A], duration: Duration)(implicit ev: TimeoutException <:< E): F[A] = {
+    handleDuration(duration, fa)(timeout(fa, _))
+  }
+
+  protected def timeout[A](fa: F[A], duration: FiniteDuration)(
       implicit ev: TimeoutException <:< E): F[A] = {
     flatMap(race(fa, sleep(duration))) {
       case Left(a) => pure(a)
@@ -110,10 +126,12 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    * time `duration` or otherwise raises a `TimeoutException`.
    *
    * The source is canceled in the event that it takes longer than the specified time duration
-   * to complete. Unlike [[timeout]], the cancelation of the source will be ''requested'' but
-   * not awaited, and the exception will be raised immediately upon the completion of the timer.
-   * This may more closely match intuitions about timeouts, but it also violates backpressure
-   * guarantees and intentionally leaks fibers.
+   * to complete. Unlike
+   * [[timeout[A](fa:F[A],duration:scala\.concurrent\.duration\.Duration)* timeout]], the
+   * cancelation of the source will be ''requested'' but not awaited, and the exception will be
+   * raised immediately upon the completion of the timer. This may more closely match intuitions
+   * about timeouts, but it also violates backpressure guarantees and intentionally leaks
+   * fibers.
    *
    * This combinator should be applied very carefully.
    *
@@ -121,9 +139,15 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
    *   The time span for which we wait for the source to complete; in the event that the
    *   specified time has passed without the source completing, a `TimeoutException` is raised
    * @see
-   *   [[timeout]] for a variant which respects backpressure and does not leak fibers
+   *   [[timeout[A](fa:F[A],duration:scala\.concurrent\.duration\.Duration)* timeout]] for a
+   *   variant which respects backpressure and does not leak fibers
    */
-  def timeoutAndForget[A](fa: F[A], duration: FiniteDuration)(
+  def timeoutAndForget[A](fa: F[A], duration: Duration)(
+      implicit ev: TimeoutException <:< E): F[A] = {
+    handleDuration(duration, fa)(timeoutAndForget(fa, _))
+  }
+
+  protected def timeoutAndForget[A](fa: F[A], duration: FiniteDuration)(
       implicit ev: TimeoutException <:< E): F[A] =
     uncancelable { poll =>
       implicit val F: GenTemporal[F, E] = this
@@ -261,6 +285,16 @@ object GenTemporal {
         Async.asyncForWriterT[F, L](async, L0)
       case temporal =>
         instantiateGenTemporalForWriterT(temporal)
+    }
+
+  private[effect] def handleDuration[A](duration: Duration, ifInf: => A)(
+      ifFinite: FiniteDuration => A): A =
+    duration match {
+      case fd: FiniteDuration => ifFinite(fd)
+      case Duration.Inf => ifInf
+      case d =>
+        throw new IllegalArgumentException(
+          s"Duration must be either a `FiniteDuration` or `Duration.Inf`, but got: $d")
     }
 
   private[kernel] def instantiateGenTemporalForWriterT[F[_], L, E](F0: GenTemporal[F, E])(

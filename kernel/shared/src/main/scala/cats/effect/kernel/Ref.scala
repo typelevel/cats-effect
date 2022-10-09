@@ -24,7 +24,7 @@ import cats.syntax.all._
 
 import scala.annotation.tailrec
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A thread-safe, concurrent mutable reference.
@@ -34,7 +34,12 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
  * initialised to a value.
  *
  * The default implementation is nonblocking and lightweight, consisting essentially of a purely
- * functional wrapper over an `AtomicReference`.
+ * functional wrapper over an `AtomicReference`. Consequently it ''must not'' be used to store
+ * mutable data as `AtomicReference#compareAndSet` and friends are not threadsafe and are
+ * dependent upon object reference equality.
+ *
+ * @see
+ *   [[cats.effect.std.AtomicCell]]
  */
 abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
 
@@ -65,7 +70,7 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
    * (in which case `false` is returned) if another concurrent call to `access` uses its setter
    * first.
    *
-   * Once it has noop'd or been used once, a setter never succeeds again.
+   * Once it has noop'd a setter will never succeed.
    *
    * Satisfies: `r.access.map(_._1) == r.get` `r.access.flatMap { case (v, setter) =>
    * setter(f(v)) } == r.tryUpdate(f).map(_.isDefined)`
@@ -314,10 +319,7 @@ object Ref {
     def access: F[(A, A => F[Boolean])] =
       F.delay {
         val snapshot = ar.get
-        val hasBeenCalled = new AtomicBoolean(false)
-        def setter =
-          (a: A) =>
-            F.delay(hasBeenCalled.compareAndSet(false, true) && ar.compareAndSet(snapshot, a))
+        def setter = (a: A) => F.delay(ar.compareAndSet(snapshot, a))
         (snapshot, setter)
       }
 
