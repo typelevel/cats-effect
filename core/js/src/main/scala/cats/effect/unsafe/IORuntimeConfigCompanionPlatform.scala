@@ -55,14 +55,14 @@ private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntim
 
     val cpuStarvationCheckInterval =
       process
-        .env("CATS_EFFECT_CPU_STARVATION_CHECK_INTERNAL")
+        .env("CATS_EFFECT_CPU_STARVATION_CHECK_INTERVAL")
         .map(Duration(_))
         .flatMap { d => Try(d.asInstanceOf[FiniteDuration]).toOption }
         .getOrElse(DefaultCpuStarvationCheckInterval)
 
     val cpuStarvationCheckInitialDelay =
       process
-        .env("CATS_EFFECT_CPU_STARVATION_CHECK_INITIALDELAY")
+        .env("CATS_EFFECT_CPU_STARVATION_CHECK_INITIAL_DELAY")
         .map(Duration(_))
         .getOrElse(DefaultCpuStarvationCheckInitialDelay)
 

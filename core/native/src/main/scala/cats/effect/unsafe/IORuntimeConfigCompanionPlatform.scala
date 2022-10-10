@@ -51,13 +51,13 @@ private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntim
         .getOrElse(DefaultReportUnhandledFiberErrors)
 
     val cpuStarvationCheckInterval =
-      Option(System.getenv("CATS_EFFECT_CPU_STARVATION_CHECK_INTERNAL"))
+      Option(System.getenv("CATS_EFFECT_CPU_STARVATION_CHECK_INTERVAL"))
         .map(Duration(_))
         .flatMap { d => Try(d.asInstanceOf[FiniteDuration]).toOption }
         .getOrElse(DefaultCpuStarvationCheckInterval)
 
     val cpuStarvationCheckInitialDelay =
-      Option(System.getenv("CATS_EFFECT_CPU_STARVATION_CHECK_INITIALDELAY"))
+      Option(System.getenv("CATS_EFFECT_CPU_STARVATION_CHECK_INITIAL_DELAY"))
         .map(Duration(_))
         .getOrElse(DefaultCpuStarvationCheckInitialDelay)
 

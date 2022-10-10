@@ -40,8 +40,8 @@ private[effect] object CpuStarvationCheck {
 
   private[this] val warning =
     """[WARNING] Your CPU is probably starving. Consider increasing the granularity
-      |of your `delay`s or adding more `cede`s. This may also be a sign that you are
+      |of your delays or adding more cedes. This may also be a sign that you are
       |unintentionally running blocking I/O operations (such as File or InetAddress)
-      |without the `blocking` combinator.""".stripMargin
+      |without the blocking combinator.""".stripMargin
 
 }
