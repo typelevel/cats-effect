@@ -55,6 +55,7 @@ package examples {
     register(LeakedFiber)
     register(UndefinedProcessExit)
     register(CustomRuntime)
+    register(CpuStarvation)
 
     @nowarn("msg=never used")
     def main(paperweight: Array[String]): Unit = {
@@ -107,4 +108,5 @@ package examples {
   object EvalOnMainThread extends IOApp {
     def run(args: List[String]): IO[ExitCode] = IO.never
   }
+
 }

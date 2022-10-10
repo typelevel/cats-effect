@@ -230,7 +230,9 @@ trait IOApp {
 
     var cancelCode = 1 // So this can be updated by external cancellation
     val fiber = Spawn[IO]
-      .raceOutcome[ExitCode, Nothing](run(argList), keepAlive)
+      .raceOutcome[ExitCode, Nothing](
+        CpuStarvationCheck.run(runtimeConfig).background.surround(run(argList)),
+        keepAlive)
       .flatMap {
         case Left(Outcome.Canceled()) =>
           IO.raiseError(new CancellationException("IOApp main fiber was canceled"))

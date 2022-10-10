@@ -367,26 +367,30 @@ trait IOApp {
     val ioa = run(args.toList)
 
     val fiber =
-      ioa.unsafeRunFiber(
-        {
-          if (counter.decrementAndGet() == 0) {
-            queue.clear()
+      CpuStarvationCheck
+        .run(runtimeConfig)
+        .background
+        .surround(ioa)
+        .unsafeRunFiber(
+          {
+            if (counter.decrementAndGet() == 0) {
+              queue.clear()
+            }
+            queue.put(new CancellationException("IOApp main fiber was canceled"))
+          },
+          { t =>
+            if (counter.decrementAndGet() == 0) {
+              queue.clear()
+            }
+            queue.put(t)
+          },
+          { a =>
+            if (counter.decrementAndGet() == 0) {
+              queue.clear()
+            }
+            queue.put(a)
           }
-          queue.put(new CancellationException("IOApp main fiber was canceled"))
-        },
-        { t =>
-          if (counter.decrementAndGet() == 0) {
-            queue.clear()
-          }
-          queue.put(t)
-        },
-        { a =>
-          if (counter.decrementAndGet() == 0) {
-            queue.clear()
-          }
-          queue.put(a)
-        }
-      )(runtime)
+        )(runtime)
 
     if (isStackTracing)
       runtime.fiberMonitor.monitorSuspended(fiber)
