@@ -58,7 +58,8 @@ private final class ES2021FiberMonitor(
 
   def foreignTraces(): Map[IOFiber[_], Trace] = {
     val foreign = mutable.Map.empty[IOFiber[Any], Trace]
-    bag.forEach(fiber => foreign += (fiber.asInstanceOf[IOFiber[Any]] -> fiber.captureTrace()))
+    bag.forEach(fiber =>
+      if (!fiber.isDone) foreign += (fiber.asInstanceOf[IOFiber[Any]] -> fiber.captureTrace()))
     foreign.toMap
   }
 

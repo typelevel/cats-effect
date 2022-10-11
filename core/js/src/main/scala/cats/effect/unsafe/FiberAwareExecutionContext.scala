@@ -23,7 +23,7 @@ import scala.concurrent.ExecutionContext
 private final class FiberAwareExecutionContext(ec: ExecutionContext) extends ExecutionContext {
 
   def liveTraces(): Map[IOFiber[_], Trace] =
-    fiberBag.iterator.map(f => f -> f.captureTrace()).toMap
+    fiberBag.iterator.filterNot(_.isDone).map(f => f -> f.captureTrace()).toMap
 
   private[this] val fiberBag = mutable.Set.empty[IOFiber[_]]
 

@@ -221,7 +221,7 @@ private final class WorkerThread(
    */
   private[unsafe] def suspendedTraces(): Map[Runnable, Trace] = {
     val foreign = mutable.Map.empty[Runnable, Trace]
-    fiberBag.forEach(r => foreign += (r -> captureTrace(r)))
+    fiberBag.forEach(r => foreign ++= captureTrace(r))
     foreign.toMap
   }
 

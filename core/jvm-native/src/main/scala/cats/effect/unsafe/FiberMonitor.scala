@@ -199,7 +199,7 @@ private[effect] sealed class FiberMonitor(
       if (bag ne null) {
         val _ = bag.synchronizationPoint.get()
         bag.forEach {
-          case fiber: IOFiber[_] =>
+          case fiber: IOFiber[_] if !fiber.isDone =>
             foreign += (fiber.asInstanceOf[IOFiber[Any]] -> fiber.captureTrace())
           case _ => ()
         }

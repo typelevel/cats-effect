@@ -445,8 +445,8 @@ private[effect] final class WorkStealingThreadPool(
       .iterator
       .flatMap {
         case batch: Array[Runnable] =>
-          batch.map(r => r -> captureTrace(r)).toMap[Runnable, Trace]
-        case r: Runnable => Map[Runnable, Trace](r -> captureTrace(r))
+          batch.flatMap(r => captureTrace(r)).toMap[Runnable, Trace]
+        case r: Runnable => captureTrace(r).toMap[Runnable, Trace]
         case _ => Map.empty[Runnable, Trace]
       }
       .toMap
@@ -458,13 +458,13 @@ private[effect] final class WorkStealingThreadPool(
 
     var i = 0
     while (i < threadCount) {
-      val localFibers = localQueues(i).snapshot().iterator.map(r => r -> captureTrace(r)).toMap
+      val localFibers = localQueues(i).snapshot().iterator.flatMap(r => captureTrace(r)).toMap
       val worker = workerThreads(i)
       val _ = parkedSignals(i).get()
       val active = Option(worker.active)
       map += (worker -> ((
         worker.getState(),
-        active.map(a => a -> captureTrace(a)),
+        active.flatMap(a => captureTrace(a)),
         localFibers)))
       suspended ++= worker.suspendedTraces()
       i += 1

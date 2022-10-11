@@ -156,10 +156,11 @@ private[effect] object Tracing extends TracingPlatform {
       .mkString(System.lineSeparator())
   }
 
-  def captureTrace(runnable: Runnable): Trace = {
+  def captureTrace(runnable: Runnable): Option[(Runnable, Trace)] = {
     runnable match {
-      case f: IOFiber[_] => f.captureTrace()
-      case _ => Trace(RingBuffer.empty(1))
+      case f: IOFiber[_] if f.isDone => None
+      case f: IOFiber[_] => Some(runnable -> f.captureTrace())
+      case _ => Some(runnable -> Trace(RingBuffer.empty(1)))
     }
   }
 }
