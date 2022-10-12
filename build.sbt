@@ -551,11 +551,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$Data"),
-      // introduced by #2732, lambda lifting for private[this] queue
-      ProblemFilters.exclude[ReversedMissingMethodProblem](
-        "cats.effect.IOApp.cats$effect$IOApp$_setter_$cats$effect$IOApp$$queue_="),
-      ProblemFilters.exclude[ReversedMissingMethodProblem](
-        "cats.effect.IOApp.cats$effect$IOApp$$queue"),
       // introduced by #2844, Thread local fallback weak bag
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.SynchronizedWeakBag"),
