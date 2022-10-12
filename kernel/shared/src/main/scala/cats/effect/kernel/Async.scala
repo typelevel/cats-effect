@@ -80,7 +80,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
         G.uncancelable { poll =>
           lift(k(resume)) flatMap {
             case Some(fin) => G.onCancel(poll(get), lift(fin))
-            case None => poll(get)
+            case None => get
           }
         }
       }
