@@ -187,7 +187,7 @@ trait IOApp {
     Math.max(2, Runtime.getRuntime().availableProcessors())
 
   // arbitrary constant is arbitrary
-  private[this] val queue = new ArrayBlockingQueue[AnyRef](32)
+  private[this] lazy val queue = new ArrayBlockingQueue[AnyRef](32)
 
   /**
    * Executes the provided actions on the JVM's `main` thread. Note that this is, by definition,
