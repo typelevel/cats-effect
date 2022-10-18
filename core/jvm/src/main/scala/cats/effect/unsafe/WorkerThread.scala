@@ -17,9 +17,11 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.Tracing.captureTrace
 import cats.effect.tracing.TracingConstants
 
 import scala.annotation.switch
+import scala.collection.mutable
 import scala.concurrent.{BlockContext, CanAwait}
 import scala.concurrent.duration.Duration
 import scala.util.control.NonFatal
@@ -217,8 +219,11 @@ private final class WorkerThread(
    * @return
    *   a set of suspended fibers tracked by this worker thread
    */
-  private[unsafe] def suspendedSnapshot(): Set[Runnable] =
-    fiberBag.toSet
+  private[unsafe] def suspendedTraces(): Map[Runnable, Trace] = {
+    val foreign = mutable.Map.empty[Runnable, Trace]
+    fiberBag.forEach(r => foreign ++= captureTrace(r))
+    foreign.toMap
+  }
 
   /**
    * The run loop of the [[WorkerThread]].
