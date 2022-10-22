@@ -74,8 +74,8 @@ object Queue {
   def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
     assertNonNegative(capacity)
 
-    // async queue can't handle capacity == 1
-    if (capacity > 1) {
+    // async queue can't handle capacity == 1 and allocates eagerly
+    if (1 < capacity && capacity < Short.MaxValue) {
       F match {
         case f0: Async[F] =>
           boundedForAsync[F, A](capacity)(f0)
@@ -83,7 +83,7 @@ object Queue {
         case _ =>
           boundedForConcurrent[F, A](capacity)
       }
-    } else if (capacity == 1) {
+    } else if (capacity > 0) {
       boundedForConcurrent[F, A](capacity)
     } else {
       synchronous[F, A]
