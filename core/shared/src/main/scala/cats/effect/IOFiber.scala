@@ -970,6 +970,15 @@ private final class IOFiber[A](
 
         case 23 =>
           runLoop(succeeded(Trace(tracingEvents), 0), nextCancelation, nextAutoCede)
+        case 24 =>
+          val cur = cur0.asInstanceOf[RedeemWith[Any, Any]]
+          val ioe = cur.ioe
+
+          objectState.push(cur.map)
+          objectState.push(cur.recover)
+          conts = ByteStack.push(conts, RedeemWithK)
+
+          runLoop(ioe, nextCancelation, nextAutoCede)
       }
     }
   }
@@ -1190,6 +1199,18 @@ private final class IOFiber[A](
 
       case 9 => // attemptK
         succeeded(Right(result), depth)
+
+      case 10 => // redeemWithK
+        objectState.pop()
+        val map = objectState.pop().asInstanceOf[Any => IO[Any]]
+
+        try map(result)
+        catch {
+          case NonFatal(t) =>
+            failed(t, depth + 1)
+          case t: Throwable =>
+            onFatalFailure(t)
+        }
     }
 
   private[this] def failed(error: Throwable, depth: Int): IO[Any] = {
@@ -1252,6 +1273,18 @@ private final class IOFiber[A](
         failed(error, depth + 1)
 
       case 9 => succeeded(Left(error), depth) // attemptK
+
+      case 10 => // redeemWithK
+        val recover = objectState.pop().asInstanceOf[Throwable => IO[Any]]
+        objectState.pop()
+
+        try recover(error)
+        catch {
+          case NonFatal(t) =>
+            failed(t, depth + 1)
+          case t: Throwable =>
+            onFatalFailure(t)
+        }
     }
   }
 

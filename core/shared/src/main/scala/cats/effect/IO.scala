@@ -567,7 +567,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *   is a function used for mapping the result of the source in case it ends in success
    */
   def redeem[B](recover: Throwable => B, map: A => B): IO[B] =
-    attempt.map(_.fold(recover, map))
+    IO.RedeemWith[A, B](this, recover.andThen(IO.pure(_)), map.andThen(IO.pure(_)))
 
   /**
    * Returns a new value that transforms the result of the source, given the `recover` or `bind`
@@ -599,7 +599,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *   is the function that gets to transform the source in case of success
    */
   def redeemWith[B](recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
-    attempt.flatMap(_.fold(recover, bind))
+    IO.RedeemWith(this, recover, bind)
 
   def replicateA(n: Int): IO[List[A]] =
     if (n <= 0)
@@ -1922,6 +1922,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] case object IOTrace extends IO[Trace] {
     def tag = 23
+  }
+
+  private[effect] final case class RedeemWith[E, +A](
+      ioe: IO[E],
+      recover: Throwable => IO[A],
+      map: E => IO[A])
+      extends IO[A] {
+    def tag = 24
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
