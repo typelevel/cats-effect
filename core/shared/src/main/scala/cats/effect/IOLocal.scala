@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import cats.syntax.functor._
+
 /**
  * [[IOLocal]] provides a handy way of manipulating a context on different scopes.
  *
@@ -188,6 +190,27 @@ sealed trait IOLocal[A] {
    */
   def getAndReset: IO[A]
 
+  /**
+   * Creates a scope with the given value. The original value is restored upon the finalization
+   * of a resource. It means all changes made inside of the resource will not be propagated to
+   * the outside.
+   *
+   * @example
+   *
+   * {{{
+   *   for {
+   *     local <- IOLocal(42)
+   *     _     <- local.get // returns 42
+   *     _     <- local.scope(0).surround(local.getAndSet(1)) // returns 0
+   *     _     <- local.get // returns 42, even though 1 was set inside of the resource
+   *   } yield ()
+   * }}}
+   *
+   * @param value
+   *   the value to make a scope with
+   */
+  def scope(value: A): Resource[IO, Unit]
+
 }
 
 object IOLocal {
@@ -230,6 +253,8 @@ object IOLocal {
         override def getAndReset: IO[A] =
           get <* reset
 
+        override def scope(value: A): Resource[IO, Unit] =
+          Resource.make(getAndSet(value))(p => set(p)).void
       }
     }
 
