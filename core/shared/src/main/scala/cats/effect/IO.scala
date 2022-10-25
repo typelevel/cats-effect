@@ -1927,7 +1927,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   private[effect] final case class RedeemWith[E, +A](
       ioe: IO[E],
       recover: Throwable => IO[A],
-      map: E => IO[A])
+      bind: E => IO[A])
       extends IO[A] {
     def tag = 24
   }

@@ -974,7 +974,7 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[RedeemWith[Any, Any]]
           val ioe = cur.ioe
 
-          objectState.push(cur.map)
+          objectState.push(cur.bind)
           objectState.push(cur.recover)
           conts = ByteStack.push(conts, RedeemWithK)
 
@@ -1202,9 +1202,9 @@ private final class IOFiber[A](
 
       case 10 => // redeemWithK
         objectState.pop()
-        val map = objectState.pop().asInstanceOf[Any => IO[Any]]
+        val bind = objectState.pop().asInstanceOf[Any => IO[Any]]
 
-        try map(result)
+        try bind(result)
         catch {
           case NonFatal(t) =>
             failed(t, depth + 1)
