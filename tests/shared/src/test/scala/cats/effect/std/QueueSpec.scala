@@ -90,7 +90,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
           .timeoutTo(2.seconds, IO(false must beTrue))
       } yield ()
 
-      test.parReplicateA(1000).as(ok)
+      test.parReplicateA(if (isJS || isNative) 1 else 1000).as(ok)
     }
   }
 
