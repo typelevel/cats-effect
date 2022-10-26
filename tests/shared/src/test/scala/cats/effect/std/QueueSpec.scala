@@ -41,6 +41,12 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
     boundedQueueTests(Queue.bounded)
   }
 
+  "BoundedQueue constructor" should {
+    "not OOM" in real {
+      Queue.bounded[IO, Unit](Int.MaxValue).as(true)
+    }
+  }
+
   "BoundedQueue mapK" should {
     boundedQueueTests(Queue.bounded[IO, Int](_).map(_.mapK(FunctionK.id)))
   }
