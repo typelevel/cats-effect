@@ -189,11 +189,22 @@ object Queue {
     def offer(a: A): F[Unit] =
       F.deferred[Deferred[F, A]] flatMap { latch =>
         F uncancelable { poll =>
-          val cleanupF = stateR update {
+          val cleanupF = stateR modify {
             case SyncState(offerers, takers) =>
-              SyncState(offerers.filter(_ ne latch), takers)
+              val fallback = latch.tryGet flatMap {
+                case Some(offerer) => offerer.complete(a).void
+                case None => F.unit
+              }
+
+              SyncState(offerers.filter(_ ne latch), takers) -> fallback
           }
 
+          /*
+           * Okay there's a bug here. If an offerer is canceled during
+           * `latch.get`, and then a taker completes the Deferred
+           * *before* `cleanupF` finishes, then the taker is lost and
+           * the result is a deadlock.
+           */
           val modificationF = stateR modify {
             case SyncState(offerers, takers) if takers.nonEmpty =>
               val (taker, tail) = takers.dequeue
@@ -201,7 +212,7 @@ object Queue {
 
             case SyncState(offerers, takers) =>
               SyncState(offerers.enqueue(latch), takers) ->
-                poll(latch.get).onCancel(cleanupF).flatMap(_.complete(a).void)
+                poll(latch.get).onCancel(cleanupF.flatten).flatMap(_.complete(a).void)
           }
 
           modificationF.flatten

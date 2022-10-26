@@ -65,6 +65,33 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
 
       test must completeAs(0.until(5).toList)
     }
+
+    "not lose takers when offerer is canceled and there are no other takers" in real {
+      val test = for {
+        q <- Queue.synchronous[IO, Unit]
+
+        latch1 <- IO.deferred[Unit]
+        offerer <- IO.uncancelable(p => latch1.complete(()) >> p(q.offer(()))).start
+        _ <- latch1.get
+
+        // take and cancel the offerer at the same time
+        // the race condition we're going for is *simultaneous*
+        // failing to repeat the race is likely, in which case the
+        // offerer will be canceled before we finish registering the take
+        taker <- IO.both(q.take, offerer.cancel).start
+
+        // if we failed the race condition above, this offer will unblock the take
+        // if we succeeded in replicating the race, this offer will have no taker
+        // with the bug, this will timeout since both will block
+        // with the bug fix, either the join will return immediately, or it will
+        // be unblocked by the offer
+        _ <- IO
+          .race(taker.joinWithNever, q.offer(()).delayBy(500.millis))
+          .timeoutTo(2.seconds, IO(false must beTrue))
+      } yield ()
+
+      test.parReplicateA(1000).as(ok)
+    }
   }
 
   private def boundedQueueTests(constructor: Int => IO[Queue[IO, Int]]): Fragments = {
