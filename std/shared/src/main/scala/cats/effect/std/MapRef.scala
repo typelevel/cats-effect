@@ -41,111 +41,6 @@ trait MapRef[F[_], K, V] extends Function1[K, Ref[F, V]] {
 
 object MapRef extends MapRefCompanionPlatform {
 
-  private class ShardedImmutableMapImpl[F[_]: Concurrent, K, V](
-      ref: K => Ref[F, Map[K, V]] // Function.const(Ref[F, Map[K, V]])
-  ) extends MapRef[F, K, Option[V]] {
-    class HandleRef(k: K) extends Ref[F, Option[V]] {
-
-      def access: F[(Option[V], Option[V] => F[Boolean])] = {
-        val thisRef = ref(k)
-        thisRef.get.map { current =>
-          current.get(k) match {
-            case None =>
-              val set: Option[V] => F[Boolean] = { (opt: Option[V]) =>
-                opt match {
-                  case None => thisRef.get.map(!_.isDefinedAt(k))
-                  case Some(newV) =>
-                    thisRef.modify(map =>
-                      if (!map.isDefinedAt(k)) (map + (k -> newV), true)
-                      else (map, false))
-                }
-              }
-              (None, set)
-            case s @ Some(_) =>
-              val set: Option[V] => F[Boolean] = { opt =>
-                opt match {
-                  case None =>
-                    thisRef.modify(map =>
-                      if (map.get(k) == s) {
-                        (map - k, true)
-                      } else {
-                        (map, false)
-                      })
-                  case Some(value) =>
-                    thisRef.modify(map =>
-                      if (map.get(k) == s) {
-                        (map + (k -> value), true)
-                      } else {
-                        (map, false)
-                      })
-                }
-              }
-              (s, { opt => set(opt) })
-          }
-        }
-      }
-
-      def get: F[Option[V]] = ref(k).get.map(_.get(k))
-
-      override def getAndSet(a: Option[V]): F[Option[V]] =
-        a match {
-          case None => ref(k).modify(map => (map - k, map.get(k)))
-          case Some(v) => ref(k).modify(map => (map + (k -> v), map.get(k)))
-        }
-
-      def modify[B](f: Option[V] => (Option[V], B)): F[B] =
-        ref(k).modify { map =>
-          val current = map.get(k)
-          val (setTo, out) = f(current)
-          val finalMap = setTo match {
-            case None => map - k
-            case Some(v) => map + (k -> v)
-          }
-          (finalMap, out)
-        }
-
-      def modifyState[B](state: State[Option[V], B]): F[B] =
-        modify(state.run(_).value)
-
-      def set(a: Option[V]): F[Unit] = {
-        ref(k).update(m =>
-          a match {
-            case None => m - k
-            case Some(v) => m + (k -> v)
-          })
-      }
-      def tryModify[B](f: Option[V] => (Option[V], B)): F[Option[B]] = {
-        ref(k).tryModify { map =>
-          val current = map.get(k)
-          val (setTo, out) = f(current)
-          val finalMap = setTo match {
-            case None => map - k
-            case Some(v) => map + (k -> v)
-          }
-          (finalMap, out)
-        }
-      }
-      def tryModifyState[B](state: State[Option[V], B]): F[Option[B]] =
-        tryModify(state.run(_).value)
-      def tryUpdate(f: Option[V] => Option[V]): F[Boolean] = {
-        ref(k).tryUpdate(m =>
-          f(m.get(k)) match {
-            case None => m - k
-            case Some(v) => m + (k -> v)
-          })
-      }
-      def update(f: Option[V] => Option[V]): F[Unit] = {
-        ref(k).update(m =>
-          f(m.get(k)) match {
-            case None => m - k
-            case Some(v) => m + (k -> v)
-          })
-      }
-    }
-
-    def apply(k: K): Ref[F, Option[V]] = new HandleRef(k)
-  }
-
   /**
    * Creates a sharded map ref to reduce atomic contention on the Map, given an efficient and
    * equally distributed hash, the contention should allow for interaction like a general
@@ -170,7 +65,7 @@ object MapRef extends MapRefCompanionPlatform {
    *
    * This uses universal hashCode and equality on K.
    */
-  def inShardedImmutableMap[G[_]: Sync, F[_]: Async, K, V](
+  def inShardedImmutableMap[G[_]: Sync, F[_]: Sync, K, V](
       shardCount: Int
   ): G[MapRef[F, K, Option[V]]] = Sync[G].defer {
     assert(shardCount >= 1, "MapRef.sharded should have at least 1 shard")
@@ -180,12 +75,19 @@ object MapRef extends MapRefCompanionPlatform {
       .map(fromSeqRefs(_))
   }
 
+  @deprecated("Use override with Sync constraints", "3.4.0")
+  def inShardedImmutableMap[G[_], F[_], K, V](
+      shardCount: Int,
+      G: Sync[G],
+      F: Async[F]
+  ): G[MapRef[F, K, Option[V]]] = inShardedImmutableMap(shardCount)(G, F)
+
   /**
    * Creates a sharded map ref from a sequence of refs.
    *
    * This uses universal hashCode and equality on K.
    */
-  def fromSeqRefs[F[_]: Concurrent, K, V](
+  def fromSeqRefs[F[_]: Functor, K, V](
       seq: scala.collection.immutable.Seq[Ref[F, Map[K, V]]]
   ): MapRef[F, K, Option[V]] = {
     val array = seq.toArray
@@ -194,8 +96,14 @@ object MapRef extends MapRefCompanionPlatform {
       val location = Math.abs(k.## % shardCount)
       array(location)
     }
-    new ShardedImmutableMapImpl[F, K, V](refFunction)
+    k => fromSingleImmutableMapRef(refFunction(k)).apply(k)
   }
+
+  @deprecated("Use override with Functor constraint", "3.4.0")
+  def fromSeqRefs[F[_], K, V](
+      seq: scala.collection.immutable.Seq[Ref[F, Map[K, V]]],
+      F: Concurrent[F]
+  ): MapRef[F, K, Option[V]] = fromSeqRefs(seq, F)
 
   /**
    * Heavy Contention on Use
