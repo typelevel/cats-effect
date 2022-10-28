@@ -103,7 +103,7 @@ object MapRef extends MapRefCompanionPlatform {
   def fromSeqRefs[F[_], K, V](
       seq: scala.collection.immutable.Seq[Ref[F, Map[K, V]]],
       F: Concurrent[F]
-  ): MapRef[F, K, Option[V]] = fromSeqRefs(seq, F)
+  ): MapRef[F, K, Option[V]] = fromSeqRefs(seq)(F)
 
   /**
    * Heavy Contention on Use
