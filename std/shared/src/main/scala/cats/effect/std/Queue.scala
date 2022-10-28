@@ -199,12 +199,6 @@ object Queue {
               SyncState(offerers.filter(_ ne latch), takers) -> fallback
           }
 
-          /*
-           * Okay there's a bug here. If an offerer is canceled during
-           * `latch.get`, and then a taker completes the Deferred
-           * *before* `cleanupF` finishes, then the taker is lost and
-           * the result is a deadlock.
-           */
           val modificationF = stateR modify {
             case SyncState(offerers, takers) if takers.nonEmpty =>
               val (taker, tail) = takers.dequeue
