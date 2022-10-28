@@ -221,9 +221,15 @@ object MapRef extends MapRefCompanionPlatform {
    *
    * This uses universal hashCode and equality on K.
    */
-  def fromSingleImmutableMapRef[F[_]: Concurrent, K, V](
+  def fromSingleImmutableMapRef[F[_]: Functor, K, V](
       ref: Ref[F, Map[K, V]]): MapRef[F, K, Option[V]] =
-    new ShardedImmutableMapImpl[F, K, V](_ => ref)
+    k => Ref.lens(ref)(_.get(k), m => _.fold(m - k)(v => m + (k -> v)))
+
+  @deprecated("Use override with Functor constraint", "3.4.0")
+  def fromSingleImmutableMapRef[F[_], K, V](
+      ref: Ref[F, Map[K, V]],
+      F: Concurrent[F]): MapRef[F, K, Option[V]] =
+    fromSingleImmutableMapRef(ref)(F)
 
   private class ConcurrentHashMapImpl[F[_], K, V](chm: ConcurrentHashMap[K, V], sync: Sync[F])
       extends MapRef[F, K, Option[V]] {
