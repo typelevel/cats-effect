@@ -211,9 +211,16 @@ object MapRef extends MapRefCompanionPlatform {
    *
    * This uses universal hashCode and equality on K.
    */
-  def inSingleImmutableMap[G[_]: Sync, F[_]: Async, K, V](
+  def inSingleImmutableMap[G[_]: Sync, F[_]: Sync, K, V](
       map: Map[K, V] = Map.empty[K, V]): G[MapRef[F, K, Option[V]]] =
     Ref.in[G, F, Map[K, V]](map).map(fromSingleImmutableMapRef[F, K, V](_))
+
+  @deprecated("Use override with Sync constraint", "3.4.0")
+  def inSingleImmutableMap[G[_], F[_], K, V](
+      map: Map[K, V],
+      G: Sync[G],
+      F: Async[F]): G[MapRef[F, K, Option[V]]] =
+    inSingleImmutableMap(map)(G, F)
 
   /**
    * Heavy Contention on Use, Allows you to access the underlying map through processes outside
