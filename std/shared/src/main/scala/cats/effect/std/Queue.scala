@@ -189,9 +189,14 @@ object Queue {
     def offer(a: A): F[Unit] =
       F.deferred[Deferred[F, A]] flatMap { latch =>
         F uncancelable { poll =>
-          val cleanupF = stateR update {
+          val cleanupF = stateR modify {
             case SyncState(offerers, takers) =>
-              SyncState(offerers.filter(_ ne latch), takers)
+              val fallback = latch.tryGet flatMap {
+                case Some(offerer) => offerer.complete(a).void
+                case None => F.unit
+              }
+
+              SyncState(offerers.filter(_ ne latch), takers) -> fallback
           }
 
           val modificationF = stateR modify {
@@ -201,7 +206,7 @@ object Queue {
 
             case SyncState(offerers, takers) =>
               SyncState(offerers.enqueue(latch), takers) ->
-                poll(latch.get).onCancel(cleanupF).flatMap(_.complete(a).void)
+                poll(latch.get).onCancel(cleanupF.flatten).flatMap(_.complete(a).void)
           }
 
           modificationF.flatten
