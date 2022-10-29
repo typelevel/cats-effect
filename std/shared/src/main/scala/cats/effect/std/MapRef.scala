@@ -75,13 +75,6 @@ object MapRef extends MapRefCompanionPlatform {
       .map(fromSeqRefs(_))
   }
 
-  @deprecated("Use override with Sync constraints", "3.4.0")
-  def inShardedImmutableMap[G[_], F[_], K, V](
-      shardCount: Int,
-      G: Sync[G],
-      F: Async[F]
-  ): G[MapRef[F, K, Option[V]]] = inShardedImmutableMap(shardCount)(G, F)
-
   /**
    * Creates a sharded map ref from a sequence of refs.
    *
@@ -98,12 +91,6 @@ object MapRef extends MapRefCompanionPlatform {
     }
     k => fromSingleImmutableMapRef(refFunction(k)).apply(k)
   }
-
-  @deprecated("Use override with Functor constraint", "3.4.0")
-  def fromSeqRefs[F[_], K, V](
-      seq: scala.collection.immutable.Seq[Ref[F, Map[K, V]]],
-      F: Concurrent[F]
-  ): MapRef[F, K, Option[V]] = fromSeqRefs(seq)(F)
 
   /**
    * Heavy Contention on Use
@@ -123,13 +110,6 @@ object MapRef extends MapRefCompanionPlatform {
       map: Map[K, V] = Map.empty[K, V]): G[MapRef[F, K, Option[V]]] =
     Ref.in[G, F, Map[K, V]](map).map(fromSingleImmutableMapRef[F, K, V](_))
 
-  @deprecated("Use override with Sync constraint", "3.4.0")
-  def inSingleImmutableMap[G[_], F[_], K, V](
-      map: Map[K, V],
-      G: Sync[G],
-      F: Async[F]): G[MapRef[F, K, Option[V]]] =
-    inSingleImmutableMap(map)(G, F)
-
   /**
    * Heavy Contention on Use, Allows you to access the underlying map through processes outside
    * of this interface. Useful for Atomic Map[K, V] => Map[K, V] interactions.
@@ -139,12 +119,6 @@ object MapRef extends MapRefCompanionPlatform {
   def fromSingleImmutableMapRef[F[_]: Functor, K, V](
       ref: Ref[F, Map[K, V]]): MapRef[F, K, Option[V]] =
     k => Ref.lens(ref)(_.get(k), m => _.fold(m - k)(v => m + (k -> v)))
-
-  @deprecated("Use override with Functor constraint", "3.4.0")
-  def fromSingleImmutableMapRef[F[_], K, V](
-      ref: Ref[F, Map[K, V]],
-      F: Concurrent[F]): MapRef[F, K, Option[V]] =
-    fromSingleImmutableMapRef(ref)(F)
 
   private class ConcurrentHashMapImpl[F[_], K, V](chm: ConcurrentHashMap[K, V], sync: Sync[F])
       extends MapRef[F, K, Option[V]] {
