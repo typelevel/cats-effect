@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,14 @@ package laws
 
 import cats.{Eq, Eval}
 import cats.data.ReaderWriterStateT
-import cats.effect.kernel.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}
+import cats.effect.kernel.testkit.{FreeSyncGenerators, SyncTypeGenerators}
+import cats.effect.kernel.testkit.freeEval.{syncForFreeT, FreeEitherSync}
 import cats.free.FreeT
-import cats.laws.discipline.{arbitrary, MiniInt}, arbitrary._
-import freeEval.{syncForFreeT, FreeEitherSync}
+import cats.laws.discipline.MiniInt
+import cats.laws.discipline.arbitrary._
+
 import org.specs2.mutable._
+import org.specs2.scalacheck._
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class ReaderWriterStateTFreeSyncSpec
@@ -33,6 +36,12 @@ class ReaderWriterStateTFreeSyncSpec
     with LowPriorityImplicits {
   import FreeSyncGenerators._
   import SyncTypeGenerators._
+
+  implicit val params: Parameters =
+    if (cats.platform.Platform.isNative)
+      Parameters(minTestsOk = 5)
+    else
+      Parameters(minTestsOk = 100)
 
   implicit val scala_2_12_is_buggy
       : Eq[FreeT[Eval, Either[Throwable, *], Either[Int, Either[Throwable, Int]]]] =

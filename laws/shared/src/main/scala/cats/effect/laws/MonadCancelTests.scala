@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,8 @@ import cats.effect.kernel.{CancelScope, MonadCancel}
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
-import org.scalacheck._, Prop.forAll
+import org.scalacheck._
+import org.scalacheck.Prop.forAll
 import org.scalacheck.util.Pretty
 
 trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import scala.concurrent.duration._
 
 import java.util.concurrent.CountDownLatch
 
-class StripedHashtableSpec extends BaseSpec with Runners {
+class StripedHashtableSpec extends BaseSpec {
 
   override def executionTimeout: FiniteDuration = 30.seconds
 
@@ -33,9 +33,9 @@ class StripedHashtableSpec extends BaseSpec with Runners {
         IORuntime.createDefaultBlockingExecutionContext(threadPrefix =
           s"io-blocking-${getClass.getName}")
       val (compute, compDown) =
-        IORuntime.createDefaultComputeThreadPool(
-          rt,
-          threadPrefix = s"io-compute-${getClass.getName}")
+        IORuntime.createWorkStealingComputeThreadPool(
+          threadPrefix = s"io-compute-${getClass.getName}",
+          blockerThreadPrefix = s"io-blocker-${getClass.getName}")
 
       IORuntime(
         compute,

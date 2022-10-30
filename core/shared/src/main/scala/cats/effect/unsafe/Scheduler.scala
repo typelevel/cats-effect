@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,12 +21,15 @@ import scala.concurrent.duration.FiniteDuration
 trait Scheduler {
 
   /**
-   * Schedules a side-effect to run after the delay interval. Produces
-   * another side-effect which cancels the scheduling.
+   * Schedules a side-effect to run after the delay interval. Produces another side-effect which
+   * cancels the scheduling.
    */
   def sleep(delay: FiniteDuration, task: Runnable): Runnable
 
   def nowMillis(): Long
+
+  def nowMicros(): Long =
+    nowMillis() * 1000
 
   def monotonicNanos(): Long
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ package cats.effect.kernel.instances
 
 import cats.{~>, Align, Applicative, CommutativeApplicative, Eval, Functor, Monad, Parallel}
 import cats.data.Ior
-import cats.implicits._
 import cats.effect.kernel.{GenSpawn, Outcome, ParallelF}
+import cats.implicits._
 
 trait GenSpawnInstances {
 
@@ -74,7 +74,7 @@ trait GenSpawnInstances {
               }
 
               a <- F
-                .onCancel(poll(fiberA.join), F.both(fiberA.cancel, fiberB.cancel).void)
+                .onCancel(poll(fiberA.join), bothUnit(fiberA.cancel, fiberB.cancel))
                 .flatMap[A] {
                   case Outcome.Succeeded(fa) =>
                     fa
@@ -139,7 +139,7 @@ trait GenSpawnInstances {
                 }
 
                 a <- F
-                  .onCancel(poll(fiberA.join), F.both(fiberA.cancel, fiberB.cancel).void)
+                  .onCancel(poll(fiberA.join), bothUnit(fiberA.cancel, fiberB.cancel))
                   .flatMap[A] {
                     case Outcome.Succeeded(fa) =>
                       fa
@@ -194,6 +194,10 @@ trait GenSpawnInstances {
 
       final override def unit: ParallelF[F, Unit] =
         ParallelF(F.unit)
+
+      // assumed to be uncancelable
+      private[this] def bothUnit(a: F[Unit], b: F[Unit]): F[Unit] =
+        F.start(a).flatMap(f => b *> f.join.void)
     }
 
   implicit def alignForParallelF[F[_], E](implicit F: GenSpawn[F, E]): Align[ParallelF[F, *]] =

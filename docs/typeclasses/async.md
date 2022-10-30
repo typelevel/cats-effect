@@ -3,7 +3,7 @@ id: async
 title: Async
 ---
 
-`Async` is the asynchronous FFI for suspending side-effectful operations that
+`Async` is the asynchronous [Foreign Function Interface](https://en.wikipedia.org/wiki/Foreign_function_interface) (FFI) for suspending side-effectful operations that
 are completed elsewhere (often on another threadpool via a future-like API).
 This typeclass allows us to sequence asynchronous operations without stumbling
 into [callback hell](http://callbackhell.com/) and also gives us the ability to
@@ -35,7 +35,7 @@ def fromFuture[A](fut: F[Future[A]]): F[A] =
   }
 ```
 
-`async_` is somewhat contrained however. We can't perform any `F` effects
+`async_` is somewhat constrained however. We can't perform any `F` effects
 in the process of registering the callback and we also can't register
 a finalizer to cancel the asynchronous task in the event that the fiber
 running `async_` is canceled.

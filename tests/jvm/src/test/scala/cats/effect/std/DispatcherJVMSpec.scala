@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ class DispatcherJVMSpec extends BaseSpec {
         subjects = latches.map(latch => latch.complete(()) >> awaitAll)
 
         _ <- {
-          val rec = Dispatcher[IO] flatMap { runner =>
+          val rec = Dispatcher.parallel[IO](await = false) flatMap { runner =>
             Resource.eval(subjects.parTraverse_(act => IO(runner.unsafeRunSync(act))))
           }
 

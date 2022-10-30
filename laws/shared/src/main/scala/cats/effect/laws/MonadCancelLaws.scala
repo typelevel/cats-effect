@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ package cats.effect
 package laws
 
 import cats.effect.kernel.MonadCancel
-import cats.syntax.all._
 import cats.laws.MonadErrorLaws
+import cats.syntax.all._
 
 trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
 

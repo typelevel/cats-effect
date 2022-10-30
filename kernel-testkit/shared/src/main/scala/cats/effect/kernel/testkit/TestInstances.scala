@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,8 @@ import cats.Applicative
 import cats.kernel.Eq
 import cats.syntax.all._
 
-import org.scalacheck.{Arbitrary, Gen}, Arbitrary.arbitrary
+import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary.arbitrary
 
 trait TestInstances {
 
@@ -65,9 +66,8 @@ trait TestInstances {
   }
 
   /**
-   * Defines equality for a `Resource`.  Two resources are deemed
-   * equivalent if they allocate an equivalent resource.  Cleanup,
-   * which is run purely for effect, is not considered.
+   * Defines equality for a `Resource`. Two resources are deemed equivalent if they allocate an
+   * equivalent resource. Cleanup, which is run purely for effect, is not considered.
    */
   implicit def eqResource[F[_], A](
       implicit E: Eq[F[A]],

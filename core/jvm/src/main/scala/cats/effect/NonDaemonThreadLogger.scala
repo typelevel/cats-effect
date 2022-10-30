@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,31 +16,10 @@
 
 package cats.effect
 
-import cats.syntax.all._
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.duration.FiniteDuration
 
-private[effect] object NonDaemonThreadLogger {
-
-  /**
-   * Whether or not we should check for non-daemon threads on jvm exit
-   */
-  def isEnabled(): Boolean =
-    Option(System.getProperty("cats.effect.logNonDaemonThreadsOnExit"))
-      .map(_.toLowerCase()) match {
-      case Some(value) => value.equalsIgnoreCase("true")
-      case None => true // default to enabled
-    }
-
-  /**
-   * Time to sleep between checking for non-daemon threads present
-   */
-  def sleepIntervalMillis: Long =
-    Option(System.getProperty("cats.effect.logNonDaemonThreads.sleepIntervalMillis"))
-      .flatMap(time => Either.catchOnly[NumberFormatException](time.toLong).toOption)
-      .getOrElse(10000L)
-}
-
-private[effect] class NonDaemonThreadLogger
+private[effect] class NonDaemonThreadLogger(interval: FiniteDuration)
     extends Thread("cats-effect-nondaemon-thread-logger") {
 
   setDaemon(true)
@@ -48,7 +27,7 @@ private[effect] class NonDaemonThreadLogger
   override def run(): Unit = {
     var done = false
     while (!done) {
-      Thread.sleep(NonDaemonThreadLogger.sleepIntervalMillis)
+      Thread.sleep(interval.toMillis)
 
       val runningThreads = detectThreads()
       if (runningThreads.isEmpty) {
@@ -57,9 +36,9 @@ private[effect] class NonDaemonThreadLogger
       } else {
         printThreads(runningThreads)
       }
-
     }
   }
+
   private[this] def detectThreads(): List[String] = {
     val threads = Thread.getAllStackTraces().keySet()
     val nonDaemons = ListBuffer[String]()

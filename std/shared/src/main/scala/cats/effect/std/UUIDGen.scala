@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package cats.effect.std
 
 import cats.Functor
-import cats.effect.kernel.Sync
 import cats.implicits._
 
 import java.util.UUID
@@ -29,17 +28,15 @@ trait UUIDGen[F[_]] {
 
   /**
    * Generates a UUID in a pseudorandom manner.
-   * @return randomly generated UUID
+   * @return
+   *   randomly generated UUID
    */
   def randomUUID: F[UUID]
 }
 
-object UUIDGen {
+object UUIDGen extends UUIDGenCompanionPlatform {
   def apply[F[_]](implicit ev: UUIDGen[F]): UUIDGen[F] = ev
 
-  implicit def fromSync[F[_]: Sync]: UUIDGen[F] = new UUIDGen[F] {
-    override def randomUUID: F[UUID] = Sync[F].delay(UUID.randomUUID())
-  }
   def randomUUID[F[_]: UUIDGen]: F[UUID] = UUIDGen[F].randomUUID
   def randomString[F[_]: UUIDGen: Functor]: F[String] = randomUUID.map(_.toString)
 }

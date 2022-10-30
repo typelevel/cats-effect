@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,22 +18,20 @@ package cats.effect
 
 import cats.{~>, SemigroupK}
 import cats.data.{Kleisli, OptionT}
-import cats.effect.laws.AsyncTests
+import cats.effect.implicits._
 import cats.effect.kernel.testkit.TestContext
+import cats.effect.laws.AsyncTests
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
-import cats.effect.implicits._
 
-import org.scalacheck.{Cogen, Prop}, Prop.forAll
-// import org.scalacheck.rng.Seed
-
+import org.scalacheck.Cogen
+import org.scalacheck.Prop.forAll
 import org.specs2.ScalaCheck
-// import org.specs2.scalacheck.Parameters
-
 import org.typelevel.discipline.specs2.mutable.Discipline
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -469,7 +467,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         // after 1 second:
         //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
         //  resources are still open during `use` (correctness)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(1.second)
         leftAllocated must beTrue
         rightAllocated must beTrue
         leftReleasing must beFalse
@@ -477,7 +476,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 2 seconds:
         //  both resources have started cleanup (correctness)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftReleasing must beTrue
         rightReleasing must beTrue
         leftReleased must beFalse
@@ -485,7 +484,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 3 seconds:
         //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftReleased must beTrue
         rightReleased must beTrue
       }
@@ -518,7 +517,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         // after 1 second:
         //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
         //  resources are still open during `flatMap` (correctness)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(1.second)
         leftAllocated must beTrue
         rightAllocated must beTrue
         leftReleasing must beFalse
@@ -526,7 +526,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 2 seconds:
         //  both resources have started cleanup (interruption, or rhs would start releasing after 3 seconds)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftReleasing must beTrue
         rightReleasing must beTrue
         leftReleased must beFalse
@@ -534,7 +534,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 3 seconds:
         //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftReleased must beTrue
         rightReleased must beTrue
       }
@@ -565,7 +565,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 1 second:
         //  rhs has partially allocated, lhs executing
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(1.second)
         leftAllocated must beFalse
         rightAllocated must beTrue
         rightErrored must beFalse
@@ -574,7 +575,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 2 seconds:
         //  rhs has failed, release blocked since lhs is in uninterruptible allocation
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftAllocated must beFalse
         rightAllocated must beTrue
         rightErrored must beTrue
@@ -584,7 +585,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         // after 3 seconds:
         //  lhs completes allocation (concurrency, serially it would happen after 4 seconds)
         //  both resources have started cleanup (correctness, error propagates to both sides)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftAllocated must beTrue
         leftReleasing must beTrue
         rightReleasing must beTrue
@@ -593,7 +594,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 4 seconds:
         //  both resource have terminated cleanup (concurrency, serially it would happen after 5 seconds)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftReleased must beTrue
         rightReleased must beTrue
       }
@@ -665,6 +666,16 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           surrounded eqv surroundee
       }
     }
+
+    "evalOn" should {
+      "run acquire and release on provided ExecutionContext" in ticked { implicit ticker =>
+        forAll { (executionContext: ExecutionContext) =>
+          val assertion =
+            IO.executionContext.flatMap(ec => IO(ec mustEqual executionContext)).void
+          Resource.make(assertion)(_ => assertion).evalOn(executionContext).use_.as(true)
+        }
+      }
+    }
   }
 
   "Async[Resource]" >> {
@@ -676,10 +687,10 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         var fired = false
 
         val test =
-          (Resource.eval(IO.canceled)).uncancelable.onCancel(Resource.eval(IO { fired = true }))
+          Resource.eval(IO.canceled).uncancelable.onCancel(Resource.eval(IO { fired = true }))
 
         test.use_.unsafeToFuture()
-        ticker.ctx.tickAll()
+        ticker.ctx.tick()
 
         fired must beFalse
       }
@@ -699,11 +710,12 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         (outerInit *> async *> waitR).use_.unsafeToFuture()
 
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(1.second)
         innerClosed must beFalse
         outerClosed must beFalse
 
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         innerClosed must beTrue
         outerClosed must beTrue
       }
@@ -720,11 +732,12 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         target.use_.unsafeToFuture()
 
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(1.second)
         leftClosed must beTrue
         rightClosed must beFalse
 
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         rightClosed must beTrue
       }
     }
@@ -790,25 +803,26 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
           target.use_.unsafeToFuture()
 
-          ticker.ctx.tick(50.millis)
+          ticker.ctx.tick()
+          ticker.ctx.advanceAndTick(50.millis)
           winnerClosed must beFalse
           loserClosed must beFalse
           completed must beFalse
           results must beNull
 
-          ticker.ctx.tick(50.millis)
+          ticker.ctx.advanceAndTick(50.millis)
           winnerClosed must beFalse
           loserClosed must beTrue
           completed must beFalse
           results must beLeft("winner")
 
-          ticker.ctx.tick(50.millis)
+          ticker.ctx.advanceAndTick(50.millis)
           winnerClosed must beFalse
           loserClosed must beTrue
           completed must beFalse
           results must beLeft("winner")
 
-          ticker.ctx.tick(1.second)
+          ticker.ctx.advanceAndTick(1.second)
           winnerClosed must beTrue
           completed must beTrue
       }
@@ -820,7 +834,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         val target = waitR.start *> waitR *> Resource.eval(IO { completed = true })
 
         target.use_.unsafeToFuture()
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tickAll()
         completed must beTrue
       }
 
@@ -843,12 +857,12 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           val target = Resource.make(wait)(_ => IO(i += 1)).start *> finish
 
           target.use_.unsafeToFuture()
-          ticker.ctx.tick(50.millis)
+          ticker.ctx.advanceAndTick(50.millis)
 
           completed must beTrue
           i mustEqual 0
 
-          ticker.ctx.tick(1.second)
+          ticker.ctx.advanceAndTick(1.second)
           i mustEqual 1
       }
 
@@ -860,10 +874,11 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         target.use_.unsafeToFuture()
 
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(1.second)
         i mustEqual 1
 
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         i mustEqual 1
       }
 
@@ -880,14 +895,15 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         target.use_.unsafeToFuture()
 
-        ticker.ctx.tick(100.millis)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(100.millis)
         i mustEqual 0
 
-        ticker.ctx.tick(900.millis)
+        ticker.ctx.advanceAndTick(900.millis)
         i mustEqual 0
         completed must beFalse
 
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         i mustEqual 1
         completed must beTrue
       }
@@ -917,7 +933,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         // after 1 second:
         //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
         //  resources are still open during `use` (correctness)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.tick()
+        ticker.ctx.advanceAndTick(1.second)
         leftAllocated must beTrue
         rightAllocated must beTrue
         leftReleasing must beFalse
@@ -925,7 +942,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 2 seconds:
         //  both resources have started cleanup (correctness)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftReleasing must beTrue
         rightReleasing must beTrue
         leftReleased must beFalse
@@ -933,10 +950,90 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
         // after 3 seconds:
         //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
-        ticker.ctx.tick(1.second)
+        ticker.ctx.advanceAndTick(1.second)
         leftReleased must beTrue
         rightReleased must beTrue
       }
+    }
+
+    "memoize" >> {
+      "memoize and then flatten is identity" in ticked { implicit ticker =>
+        forAll { (r: Resource[IO, Int]) => r.memoize.flatten eqv r }
+      }
+      "allocates once and releases at end" in ticked { implicit ticker =>
+        (IO.ref(0), IO.ref(0))
+          .mapN { (acquired, released) =>
+            val r = Resource.make(acquired.update(_ + 1).void)(_ => released.update(_ + 1))
+            def acquiredMustBe(i: Int) = acquired.get.map(_ must be_==(i)).void
+            def releasedMustBe(i: Int) = released.get.map(_ must be_==(i)).void
+            r.memoize.use { memo =>
+              acquiredMustBe(0) *> releasedMustBe(0) *>
+                memo.surround(acquiredMustBe(1) *> releasedMustBe(0)) *>
+                acquiredMustBe(1) *> releasedMustBe(0) *>
+                memo.surround(acquiredMustBe(1) *> releasedMustBe(0)) *>
+                acquiredMustBe(1) *> releasedMustBe(0)
+            } *> acquiredMustBe(1) *> releasedMustBe(1)
+          }
+          .flatten
+          .void must completeAs(())
+      }
+      "does not allocate if not used" in ticked { implicit ticker =>
+        (IO.ref(0), IO.ref(0))
+          .mapN { (acquired, released) =>
+            val r = Resource.make(acquired.update(_ + 1).void)(_ => released.update(_ + 1))
+            def acquiredMustBe(i: Int) = acquired.get.map(_ must be_==(i)).void
+            def releasedMustBe(i: Int) = released.get.map(_ must be_==(i)).void
+            r.memoize.surround(acquiredMustBe(0) *> releasedMustBe(0)) *>
+              acquiredMustBe(0) *> releasedMustBe(0)
+          }
+          .flatten
+          .void must completeAs(())
+      }
+    }
+  }
+
+  "uncancelable" >> {
+    "does not suppress errors within use" in real {
+      case object TestException extends RuntimeException
+
+      for {
+        slot <- IO.deferred[Resource.ExitCase]
+        rsrc = Resource.makeCase(IO.unit)((_, ec) => slot.complete(ec).void)
+        _ <- rsrc.uncancelable.use(_ => IO.raiseError(TestException)).handleError(_ => ())
+        results <- slot.get
+
+        _ <- IO {
+          results mustEqual Resource.ExitCase.Errored(TestException)
+        }
+      } yield ok
+    }
+
+    "use is stack-safe over binds" in ticked { implicit ticker =>
+      val res = Resource.make(IO.unit)(_ => IO.unit)
+      val r = (1 to 50000)
+        .foldLeft(res) {
+          case (r, _) =>
+            r.flatMap(_ => res)
+        }
+        .uncancelable
+        .use_
+      r eqv IO.unit
+    }
+
+  }
+
+  "allocatedCase" >> {
+    "is stack-safe over binds" in ticked { implicit ticker =>
+      val res = Resource.make(IO.unit)(_ => IO.unit)
+      val r = (1 to 50000)
+        .foldLeft(res) {
+          case (r, _) =>
+            r.flatMap(_ => res)
+        }
+        .allocatedCase
+        .map(_._1)
+      r eqv IO.unit
+
     }
   }
 
@@ -951,6 +1048,18 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       r.flattenK.use(IO.pure(_)) must completeAs(42)
       results mustEqual "ab"
     }
+
+    "flattenK is stack-safe over binds" in ticked { implicit ticker =>
+      val res = Resource.make(IO.unit)(_ => IO.unit)
+      val r: Resource[IO, Unit] = (1 to 50000).foldLeft(res) {
+        case (r, _) => {
+          Resource.make(r)(_ => Resource.eval(IO.unit)).flattenK
+        }
+      }
+
+      r.use_ eqv IO.unit
+    }
+
   }
 
   {

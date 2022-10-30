@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,9 @@ package cats.effect.unsafe
 
 import scala.concurrent.duration.FiniteDuration
 
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.Executors
+import java.time.Instant
+import java.time.temporal.ChronoField
+import java.util.concurrent.{Executors, ScheduledExecutorService}
 
 private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
   def createDefaultScheduler(): (Scheduler, () => Unit) = {
@@ -45,6 +46,11 @@ private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type
       }
 
       def nowMillis() = System.currentTimeMillis()
+
+      override def nowMicros(): Long = {
+        val now = Instant.now()
+        now.getEpochSecond * 1000000 + now.getLong(ChronoField.MICRO_OF_SECOND)
+      }
 
       def monotonicNanos() = System.nanoTime()
     }

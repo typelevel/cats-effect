@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,8 +28,9 @@ object ExitCode {
   /**
    * Creates an `ExitCode`.
    *
-   * @param i the value whose 8 least significant bits are used to
-   * construct an exit code within the valid range.
+   * @param i
+   *   the value whose 8 least significant bits are used to construct an exit code within the
+   *   valid range.
    */
   def apply(i: Int): ExitCode = new ExitCode(i & 0xff) {}
 

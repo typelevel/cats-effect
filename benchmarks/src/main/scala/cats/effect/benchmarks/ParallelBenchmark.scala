@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,17 +28,17 @@ import java.util.concurrent.TimeUnit
 /**
  * To do comparative benchmarks between versions:
  *
- *     benchmarks/run-benchmark ParallelBenchmark
+ * benchmarks/run-benchmark ParallelBenchmark
  *
  * This will generate results in `benchmarks/results`.
  *
  * Or to run the benchmark from within sbt:
  *
- *     jmh:run -i 10 -wi 10 -f 2 -t 4 cats.effect.benchmarks.ParallelBenchmark
+ * jmh:run -i 10 -wi 10 -f 2 -t 4 cats.effect.benchmarks.ParallelBenchmark
  *
- * Which means "10 iterations", "10 warm-up iterations", "2 forks", "4 thread".
- * Please note that benchmarks should be usually executed at least in
- * 10 iterations (as a rule of thumb), but more is better.
+ * Which means "10 iterations", "10 warm-up iterations", "2 forks", "4 thread". Please note that
+ * benchmarks should be usually executed at least in 10 iterations (as a rule of thumb), but
+ * more is better.
  */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))

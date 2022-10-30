@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,15 +18,15 @@ package cats
 package effect
 package kernel
 
-import cats.syntax.all._
 import cats.effect.kernel.syntax.all._
+import cats.syntax.all._
+
 import scala.collection.immutable.{Queue => ScalaQueue}
 
 /**
- * A cut-down version of semaphore used to implement
- * parTraverseN
+ * A cut-down version of semaphore used to implement parTraverseN
  */
-private[kernel] abstract class MiniSemaphore[F[_]] {
+private[kernel] abstract class MiniSemaphore[F[_]] extends Serializable {
 
   /**
    * Sequence an action while holding a permit
@@ -37,8 +37,7 @@ private[kernel] abstract class MiniSemaphore[F[_]] {
 private[kernel] object MiniSemaphore {
 
   /**
-   * Creates a new `Semaphore`, initialized with `n` available permits.
-   * `n` must be > 0
+   * Creates a new `Semaphore`, initialized with `n` available permits. `n` must be > 0
    */
   def apply[F[_]](n: Int)(implicit F: GenConcurrent[F, _]): F[MiniSemaphore[F]] = {
     require(n >= 0, s"n must be nonnegative, was: $n")

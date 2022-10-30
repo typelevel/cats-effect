@@ -4,11 +4,21 @@
       "getting-started",
       "concepts",
       "tutorial",
-      "tracing",
+      "faq",
       "migration-guide",
+      "third-party-resources"
+    ],
+    "Core Runtime": [
+      "core/test-runtime",
+      "core/fiber-dumps",
+      "tracing",
       "thread-model",
-      "typeclasses",
-      "schedulers"
+      "schedulers",
+      "core/io-runtime-config",
+      "core/native-image",
+      "core/scala-native",
+      "core/jlink",
+      "core/io-local"
     ],
     "Typeclasses": [
       "typeclasses",

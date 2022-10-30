@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,7 @@
 
 sealed abstract class JSEnv
 object JSEnv {
-  case object Chrome extends JSEnv
   case object Firefox extends JSEnv
-  case object JSDOMNodeJS extends JSEnv
+  case object Chrome extends JSEnv
   case object NodeJS extends JSEnv
 }

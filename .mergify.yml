@@ -5,34 +5,6 @@ pull_request_rules:
     actions:
       label:
         add: [dependencies]
-  - name: automatically merge scala-steward's patch PRs
-    conditions:
-      - author=scala-steward
-      - status-success=Build and Test (ubuntu-latest, 3.0.1, adopt@1.8, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 3.0.1, adopt@1.8, ciJS)
-      - status-success=Build and Test (ubuntu-latest, 3.0.1, adopt@1.8, ciFirefox)
-      - status-success=Build and Test (ubuntu-latest, 3.0.1, adopt@1.11, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 3.0.1, adopt@1.16, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 3.0.1, graalvm-ce-java8@21.1, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 2.12.14, adopt@1.8, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 2.12.14, adopt@1.8, ciJS)
-      - status-success=Build and Test (ubuntu-latest, 2.12.14, adopt@1.8, ciFirefox)
-      - status-success=Build and Test (ubuntu-latest, 2.12.14, adopt@1.11, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 2.12.14, adopt@1.16, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 2.12.14, graalvm-ce-java8@21.1, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 2.13.6, adopt@1.8, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 2.13.6, adopt@1.8, ciJS)
-      - status-success=Build and Test (ubuntu-latest, 2.13.6, adopt@1.8, ciFirefox)
-      - status-success=Build and Test (ubuntu-latest, 2.13.6, adopt@1.11, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 2.13.6, adopt@1.16, ciJVM)
-      - status-success=Build and Test (ubuntu-latest, 2.13.6, graalvm-ce-java8@21.1, ciJVM)
-      - status-success=Build and Test (windows-latest, 2.13.6, adopt@1.8, ciJVM)
-      - status-success=Build and Test (windows-latest, 2.13.6, adopt@1.11, ciJVM)
-      - status-success=Build and Test (windows-latest, 2.13.6, graalvm-ce-java8@21.1, ciJVM)
-      - body~=labels:.*semver-patch
-    actions:
-      merge:
-        method: merge
   - name: automatically merge dependabot docs PRs
     conditions:
       - author=dependabot[bot]

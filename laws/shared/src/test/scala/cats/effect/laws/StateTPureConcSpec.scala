@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,12 @@ package laws
 
 import cats.{Eq, FlatMap}
 import cats.data.StateT
-import cats.effect.kernel.testkit.{pure, PureConcGenerators}, pure._
-import cats.laws.discipline.{arbitrary, eq, MiniInt}, arbitrary._, eq._
-// import org.scalacheck.rng.Seed
+import cats.effect.kernel.testkit.PureConcGenerators
+import cats.effect.kernel.testkit.pure._
+import cats.laws.discipline.MiniInt
+import cats.laws.discipline.arbitrary._
+import cats.laws.discipline.eq._
+
 import org.specs2.mutable._
 import org.specs2.scalacheck.Parameters
 import org.typelevel.discipline.specs2.mutable.Discipline

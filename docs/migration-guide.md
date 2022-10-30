@@ -16,14 +16,14 @@ Here is an overview of the steps you should take to migrate your application to 
 ### Before You Begin: This Isn't A "Quick Start" Guide
 
 This guide is meant for existing users of Cats Effect 2 who want to upgrade their applications
-to 3.0.0.
+to 3.3.14.
 
 > If you haven't used Cats Effect before and want to give it a try,
 > please follow the [getting started guide](./getting-started.md) instead!
 
 ### 🤔 Need Help?
 
-If any point of the migration turns out to be difficult and you feel like you need help, feel free to [explain your problem on Gitter](https://gitter.im/typelevel/cats-effect) and we will do our best to assist you.
+If any point of the migration turns out to be difficult and you feel like you need help, feel free to [explain your problem in Discord](https://discord.gg/QNnHKHq5Ts) and we will do our best to assist you.
 If you spot a mistake in the guide or the library itself, you can [report an issue on GitHub](https://github.com/typelevel/cats-effect/issues/new)
 or [fix it with a pull request](https://github.com/typelevel/cats-effect/compare).
 
@@ -43,7 +43,7 @@ Before you make any changes to your build or your code, you should make sure all
 
 There isn't any automated way to do this, but you can just go ahead and [try to upgrade the dependencies](#upgrade-dependencies), then stash the changes and return to here.
 
-If you're using an open source library that hasn't made a compatible release yet, [let us know - we are keeping track of the efforts of library authors](https://github.com/typelevel/cats-effect/issues/1330) to publish compatible releases as soon as possible when 3.0.0 final is out.
+If you're using an open source library that hasn't made a compatible release yet, [let us know - we are keeping track of the efforts of library authors](https://github.com/typelevel/cats-effect/issues/1330) to publish compatible releases as soon as possible.
 
 ## Run the Scalafix Migration
 
@@ -81,9 +81,9 @@ Cats Effect 3 splits the code dependency into multiple modules. If you were prev
 The current non-test modules are:
 
 ```scala
-"org.typelevel" %% "cats-effect-kernel" % "3.0.0",
-"org.typelevel" %% "cats-effect-std"    % "3.0.0",
-"org.typelevel" %% "cats-effect"        % "3.0.0",
+"org.typelevel" %% "cats-effect-kernel" % "3.3.14",
+"org.typelevel" %% "cats-effect-std"    % "3.3.14",
+"org.typelevel" %% "cats-effect"        % "3.3.14",
 ```
 
 - `kernel` - type class definitions, simple concurrency primitives
@@ -96,7 +96,7 @@ The current non-test modules are:
 libraryDependencies ++= Seq(
   //...
 -  "org.typelevel" %% "cats-effect" % "2.4.0",
-+  "org.typelevel" %% "cats-effect" % "3.0.0",
++  "org.typelevel" %% "cats-effect" % "3.3.14",
   //...
 )
 ```
@@ -108,8 +108,8 @@ sbt:demo> update
 [error] stack trace is suppressed; run last core / update for the full output
 [error] (core / update) found version conflict(s) in library dependencies; some are suspected to be binary incompatible:
 [error]
-[error] 	* org.typelevel:cats-effect_2.13:3.0.0 (early-semver) is selected over {2.3.1, 2.1.4}
-[error] 	    +- com.example:core-core_2.13:0.0.7-26-3183519d       (depends on 3.0.0)
+[error] 	* org.typelevel:cats-effect_2.13:3.3.14 (early-semver) is selected over {2.3.1, 2.1.4}
+[error] 	    +- com.example:core-core_2.13:0.0.7-26-3183519d       (depends on 3.3.14)
 [error] 	    +- io.monix:monix-catnap_2.13:3.3.0                   (depends on 2.1.4)
 [error] 	    +- com.github.valskalla:odin-core_2.13:0.11.0         (depends on 2.3.1)
 [error]
@@ -158,6 +158,7 @@ Learn more about `global` [in the `IO` section](#io).
 | `Async.memoize`                   | `Concurrent[F].memoize`                            |
 | `Async.parTraverseN`              | `Concurrent[F].parTraverseN`                       |
 | `Async.parSequenceN`              | `Concurrent[F].parSequenceN`                       |
+| `Async.parReplicateAN`            | `Concurrent[F].parReplicateAN`                     |
 | `Async[F].liftIO`, `Async.liftIO` | `LiftIO[F].liftIO`                                 |
 | `Async <: LiftIO`                 | No subtyping relationship                          |
 
@@ -217,7 +218,7 @@ Please refer to each library's appropriate documentation/changelog to see how to
 | Cats Effect 2.x                               | Cats Effect 3                               | Notes                                                                           |
 | --------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------- |
 | `Blocker.apply`                               | -                                           | blocking pool is [provided by runtime](#where-does-the-blocking-pool-come-from) |
-| `Blocker#delay`                               | `Sync[F].blocking`, `Sync[F].interruptible` | `Blocker` was removed                                                           |
+| `Blocker#delay`                               | `Sync[F].blocking`, `Sync[F].interruptible`, `Sync[F].interruptibleMany` | `Blocker` was removed                                                           |
 | `Blocker(ec).blockOn(fa)`, `Blocker.blockOnK` | [see notes](#no-blockon)                    |                                                                                 |
 
 `Blocker` has been removed. Instead of that, you should either use your specific effect type's method of blocking...
@@ -240,10 +241,14 @@ val programSync = Sync[IO].blocking(println("hello Sync blocking!"))
 It is now possible to make the blocking task interruptible using [`Sync`](./typeclasses/sync.md):
 
 ```scala mdoc
-// many: whether it's okay to try interrupting more than once
 val programInterruptible =
-  Sync[IO].interruptible(many = false)(println("hello Sync blocking!"))
+  Sync[IO].interruptible(println("hello Sync blocking!"))
 ```
+
+If we require our operation to be more sensitive to cancelation we can use `interruptibleMany`.
+The difference between `interruptible` and `interruptibleMany` is that in case of cancelation
+`interruptibleMany` will repeatedly attempt to interrupt until the blocking operation completes or exits,
+on the other hand using `interruptible` the interrupt will be attempted only once.
 
 #### Where Does The Blocking Pool Come From?
 
@@ -356,6 +361,7 @@ Because `Clock` is no longer a "usual" value but a type class, it's not possible
 | `Concurrent.memoize`                        | `Concurrent[F].memoize`         |                                                |
 | `Concurrent.parTraverseN`                   | `Concurrent[F].parTraverseN`    |                                                |
 | `Concurrent.parSequenceN`                   | `Concurrent[F].parSequenceN`    |                                                |
+| `Concurrent.parReplicateAN`                 | `Concurrent[F].parReplicateAN`  |                                                |
 
 This is arguably the most changed type class. Similarly to `Async`, it is [no longer related to `LiftIO`](#relationship-with-liftio).
 
@@ -429,11 +435,12 @@ All the `*Effect` type classes have been removed. Instead, the recommended way t
 
 This is something you might want to do in a situation where you have an effect, but a third-party library expects a callback that has to complete synchronously (or in a `scala.concurrent.Future`, or a Java future).
 
-You can get an instance of it with `Dispatcher.apply[F]` for any `F[_]: Async`:
+You can get an instance of it with `Dispatcher.parallel[F]` (or `sequential[F]`) for any `F[_]: Async`:
 
 ```scala
 object Dispatcher {
-  def apply[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]]
+  def parallel[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]]
+  def sequential[F[_]](implicit F: Async[F]): Resource[F, Dispatcher[F]]
 }
 ```
 
@@ -460,7 +467,7 @@ In CE2 you could run an effect in `onNext` using `Effect` like this:
 // CE2
 def consumer[F[_]: Effect, A](handler: A => F[Unit]): Consumer[A] =
   new Consumer[A] {
-    def onNext(a: A): Unit = handler(a).toIO.unsafeRunSync()
+    def onNext(a: A): Unit = handler(a).toIO.unsafeRunAndForget()
   }
 ```
 
@@ -473,9 +480,9 @@ import cats.effect.std.Dispatcher
 
 // CE3
 def consumer[F[_]: Async, A](handler: A => F[Unit]): Resource[F, Consumer[A]] =
-  Dispatcher[F].map { dispatcher =>
+  Dispatcher.sequential[F] map { dispatcher =>
     new Consumer[A] {
-      def onNext(a: A): Unit = dispatcher.unsafeRunSync(handler(a))
+      def onNext(a: A): Unit = dispatcher.unsafeRunAndForget(handler(a))
     }
   }
 ```
@@ -489,7 +496,7 @@ It is recommended to pass it **explicitly**, as `Dispatcher` isn't a type class 
 ```scala mdoc
 def consumer2[F[_], A](dispatcher: Dispatcher[F], handler: A => F[Unit]): Consumer[A] =
   new Consumer[A] {
-    def onNext(a: A): Unit = dispatcher.unsafeRunSync(handler(a))
+    def onNext(a: A): Unit = dispatcher.unsafeRunAndForget(handler(a))
   }
 ```
 
@@ -624,18 +631,18 @@ def io: IO[Unit] = ???
 
 io.unsafeRunSync()
 // error: Could not find an implicit IORuntime.
-// 
+//
 // Instead of calling unsafe methods directly, consider using cats.effect.IOApp, which
 // runs your IO. If integrating with non-functional code or experimenting in a REPL / Worksheet,
 // add the following import:
-// 
+//
 // import cats.effect.unsafe.implicits.global
-// 
+//
 // Alternatively, you can create an explicit IORuntime value and put it in implicit scope.
 // This may be useful if you have a pre-existing fixed thread pool and/or scheduler which you
 // wish to use to execute IO programs. Please be sure to review thread pool best practices to
 // avoid unintentionally degrading your application performance.
-// 
+//
 // io.unsafeRunSync()
 // ^^^^^^^^^^^^^^^^^^
 ```

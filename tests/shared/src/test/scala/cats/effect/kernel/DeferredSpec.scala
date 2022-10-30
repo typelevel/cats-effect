@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,12 +71,12 @@ class DeferredSpec extends BaseSpec { outer =>
           p <- Deferred[IO, Int]
           fiber <- p.get.start
           _ <- fiber.cancel
-          _ <- (fiber
+          _ <- fiber
             .join
             .flatMap {
               case Outcome.Succeeded(ioi) => ioi.flatMap(i => r.set(Some(i)))
               case _ => IO.raiseError(new RuntimeException)
-            })
+            }
             .start
           _ <- IO.sleep(100.millis)
           _ <- p.complete(42)

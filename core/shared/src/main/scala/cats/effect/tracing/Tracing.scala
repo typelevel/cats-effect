@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,52 +17,55 @@
 package cats.effect.tracing
 
 import scala.collection.mutable.ArrayBuffer
-import scala.reflect.NameTransformer
 
-private[effect] object Tracing extends ClassValue[TracingEvent] {
+private[effect] object Tracing extends TracingPlatform {
 
   import TracingConstants._
 
-  override protected def computeValue(cls: Class[_]): TracingEvent = {
-    buildEvent()
-  }
+  private[this] val TurnRight = "╰"
+  // private[this] val InverseTurnRight = "╭"
+  private[this] val Junction = "├"
+  // private[this] val Line = "│"
 
-  def calculateTracingEvent(cls: Class[_]): TracingEvent = {
-    if (isCachedStackTracing) {
-      get(cls)
-    } else if (isFullStackTracing) {
-      buildEvent()
-    } else {
-      null
-    }
-  }
-
-  private[this] def buildEvent(): TracingEvent = {
+  private[tracing] def buildEvent(): TracingEvent = {
     new TracingEvent.StackTrace()
   }
 
-  private[this] final val runLoopFilter: Array[String] = Array("cats.effect.", "scala.runtime.")
+  private[this] final val runLoopFilter: Array[String] =
+    Array("cats.effect.", "scala.runtime.", "scala.scalajs.runtime.")
 
-  private[this] final val stackTraceFilter: Array[String] = Array(
-    "cats.effect.",
+  private[tracing] final val stackTraceClassNameFilter: Array[String] = Array(
     "cats.",
     "sbt.",
     "java.",
+    "jdk.",
     "sun.",
-    "scala."
+    "scala.",
+    "org.scalajs."
   )
 
-  private[this] def applyStackTraceFilter(callSiteClassName: String): Boolean = {
-    val len = stackTraceFilter.length
-    var idx = 0
-    while (idx < len) {
-      if (callSiteClassName.startsWith(stackTraceFilter(idx))) {
+  private[tracing] def combineOpAndCallSite(
+      methodSite: StackTraceElement,
+      callSite: StackTraceElement): StackTraceElement = {
+    val methodSiteMethodName = methodSite.getMethodName
+    val op = decodeMethodName(methodSiteMethodName)
+
+    new StackTraceElement(
+      op + " @ " + callSite.getClassName,
+      callSite.getMethodName,
+      callSite.getFileName,
+      callSite.getLineNumber
+    )
+  }
+
+  private[tracing] def isInternalClass(className: String): Boolean = {
+    var i = 0
+    val len = stackTraceClassNameFilter.length
+    while (i < len) {
+      if (className.startsWith(stackTraceClassNameFilter(i)))
         return true
-      }
-
-      idx += 1
+      i += 1
     }
-
     false
   }
 
@@ -74,18 +77,11 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
       val methodSite = stackTrace(idx - 1)
       val callSite = stackTrace(idx)
       val callSiteClassName = callSite.getClassName
+      val callSiteMethodName = callSite.getMethodName
+      val callSiteFileName = callSite.getFileName
 
-      if (!applyStackTraceFilter(callSiteClassName)) {
-        val methodSiteMethodName = methodSite.getMethodName
-        val op = NameTransformer.decode(methodSiteMethodName)
-
-        return new StackTraceElement(
-          op + " @ " + callSiteClassName,
-          callSite.getMethodName,
-          callSite.getFileName,
-          callSite.getLineNumber
-        )
-      }
+      if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName, callSiteFileName))
+        return combineOpAndCallSite(methodSite, callSite)
 
       idx += 1
     }
@@ -141,8 +137,20 @@ private[effect] object Tracing extends ClassValue[TracingEvent] {
 
   def getFrames(events: RingBuffer): List[StackTraceElement] =
     events
-      .toList
+      .toList()
       .collect { case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace) }
       .filter(_ ne null)
 
+  def prettyPrint(events: RingBuffer): String = {
+    val frames = getFrames(events)
+
+    frames
+      .zipWithIndex
+      .map {
+        case (frame, index) =>
+          val junc = if (index == frames.length - 1) TurnRight else Junction
+          s" $junc $frame"
+      }
+      .mkString(System.lineSeparator())
+  }
 }

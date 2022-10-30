@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,26 +20,28 @@ import cats.effect.IO
 import cats.effect.unsafe._
 import cats.syntax.all._
 
+import org.openjdk.jmh.annotations._
+
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 import java.util.concurrent.{Executors, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
-import org.openjdk.jmh.annotations._
 
 /**
  * To do comparative benchmarks between versions:
  *
- *     benchmarks/run-benchmark WorkStealingBenchmark
+ * benchmarks/run-benchmark WorkStealingBenchmark
  *
  * This will generate results in `benchmarks/results`.
  *
  * Or to run the benchmark from within sbt:
  *
- *     jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.WorkStealingBenchmark
+ * jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.WorkStealingBenchmark
  *
- * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
- * Please note that benchmarks should be usually executed at least in
- * 10 iterations (as a rule of thumb), but more is better.
+ * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread". Please note that
+ * benchmarks should be usually executed at least in 10 iterations (as a rule of thumb), but
+ * more is better.
  */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -81,7 +83,7 @@ class WorkStealingBenchmark {
       IO {
         val size = math.max(100, math.min(n, 2000))
         val array = new Array[AnyRef](size)
-        for (i <- (0 until size)) {
+        for (i <- 0 until size) {
           array(i) = new AnyRef()
         }
         array
@@ -132,17 +134,23 @@ class WorkStealingBenchmark {
       }
     }
 
-    (0 to theSize).foreach(_ => run(0))
+    (0 until theSize).foreach(_ => run(0))
 
     countDown.await()
   }
 
   /**
-   * Demonstrates performance of WorkStealingThreadPool when executing Runnables (that includes Futures).
+   * Demonstrates performance of WorkStealingThreadPool when executing Runnables (that includes
+   * Futures).
    */
   @Benchmark
   def runnableScheduling(): Unit = {
     runnableSchedulingBenchmark(cats.effect.unsafe.implicits.global.compute)
+  }
+
+  @Benchmark
+  def runnableSchedulingScalaGlobal(): Unit = {
+    runnableSchedulingBenchmark(ExecutionContext.global)
   }
 
   lazy val manyThreadsRuntime: IORuntime = {
@@ -157,7 +165,12 @@ class WorkStealingBenchmark {
       (ExecutionContext.fromExecutor(executor), () => executor.shutdown())
     }
 
-    val compute = new WorkStealingThreadPool(256, "io-compute", manyThreadsRuntime)
+    val compute = new WorkStealingThreadPool(
+      256, 
+      "io-compute", 
+      "io-blocker",
+      60.seconds,
+      _.printStackTrace())
 
     val cancelationCheckThreshold =
       System.getProperty("cats.effect.cancelation.check.threshold", "512").toInt

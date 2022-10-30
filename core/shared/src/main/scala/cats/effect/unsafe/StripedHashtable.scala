@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,9 @@
 package cats.effect.unsafe
 
 /**
- * A conceptual hash table which balances between several
- * [[ThreadSafeHashtable]]s, in order to reduce the contention on the single
- * lock by spreading it to several different locks controlling parts of the
- * hash table.
+ * A conceptual hash table which balances between several [[ThreadSafeHashtable]] s, in order to
+ * reduce the contention on the single lock by spreading it to several different locks
+ * controlling parts of the hash table.
  */
 private[effect] final class StripedHashtable {
   private[this] val log2NumTables: Int = StripedHashtable.log2NumTables
@@ -31,8 +30,8 @@ private[effect] final class StripedHashtable {
 
   private[this] def initialCapacity: Int = 8
 
-  val tables: Array[ThreadSafeHashtable] = {
-    val array = new Array[ThreadSafeHashtable](numTables)
+  val tables: Array[ThreadSafeHashtable[Throwable => Unit]] = {
+    val array = new Array[ThreadSafeHashtable[Throwable => Unit]](numTables)
     var i = 0
     while (i < numTables) {
       array(i) = new ThreadSafeHashtable(initialCapacity)

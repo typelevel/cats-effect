@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import cats.data.{Kleisli, State, WriterT}
 import cats.effect.kernel._
 import cats.free.FreeT
 import cats.syntax.all._
+
 import coop.{ApplicativeThread, MVar, ThreadT}
 
 object pure {
@@ -142,9 +143,8 @@ object pure {
   }
 
   /**
-   * Produces Succeeded(None) when the main fiber is deadlocked. Note that
-   * deadlocks outside of the main fiber are ignored when results are
-   * appropriately produced (i.e. daemon semantics).
+   * Produces Succeeded(None) when the main fiber is deadlocked. Note that deadlocks outside of
+   * the main fiber are ignored when results are appropriately produced (i.e. daemon semantics).
    */
   def run[E, A](pc: PureConc[E, A]): Outcome[Option, E, A] = {
     val scheduled = ThreadT.roundRobin {
@@ -362,8 +362,10 @@ object pure {
       ft.mapK(fk)
     }
 
+  // todo: MVar is not Serializable, release then update here
   final class PureFiber[E, A](val state0: MVar[Outcome[PureConc[E, *], E, A]])
-      extends Fiber[PureConc[E, *], E, A] {
+      extends Fiber[PureConc[E, *], E, A]
+      with Serializable {
 
     private[this] val state = state0[PureConc[E, *]]
 
@@ -377,7 +379,7 @@ object pure {
         checkM.ifM(
           canceled.ifM(
             // if unmasked and canceled, finalize
-            ctx.finalizers.sequence_.as(true),
+            allocateForPureConc[E].uncancelable(_ => ctx.finalizers.sequence_.as(true)),
             // if unmasked but not canceled, ignore
             false.pure[PureConc[E, *]]
           ),

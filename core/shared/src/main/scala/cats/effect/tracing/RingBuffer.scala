@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ private[effect] final class RingBuffer private (logSize: Int) {
   private[this] val length = 1 << logSize
   private[this] val mask = length - 1
 
-  private[this] val buffer: Array[TracingEvent] = new Array(length)
+  private[this] var buffer: Array[TracingEvent] = new Array(length)
   private[this] var index: Int = 0
 
   def push(te: TracingEvent): Unit = {
@@ -30,10 +30,12 @@ private[effect] final class RingBuffer private (logSize: Int) {
     index += 1
   }
 
+  def peek: TracingEvent = buffer((index - 1) & mask)
+
   /**
    * Returns a list in reverse order of insertion.
    */
-  def toList: List[TracingEvent] = {
+  def toList(): List[TracingEvent] = {
     var result = List.empty[TracingEvent]
     val msk = mask
     val idx = index
@@ -46,8 +48,14 @@ private[effect] final class RingBuffer private (logSize: Int) {
     }
     result
   }
+
+  def invalidate(): Unit = {
+    index = 0
+    buffer = null
+  }
 }
 
 private[effect] object RingBuffer {
-  def empty(logSize: Int): RingBuffer = new RingBuffer(logSize)
+  def empty(logSize: Int): RingBuffer =
+    new RingBuffer(logSize)
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@ package cats
 package effect
 package laws
 
-import cats.syntax.all._
-import cats.effect.kernel.{/*Outcome,*/ Temporal} // , Outcome._
-import cats.effect.kernel.testkit.pure._
+import cats.effect.kernel.Temporal
 import cats.effect.kernel.testkit.TimeT
+import cats.effect.kernel.testkit.pure._
+import cats.syntax.all._
 
 import org.specs2.mutable.Specification
 
@@ -37,7 +37,31 @@ class GenTemporalSpec extends Specification { outer =>
 
   val loop: TimeT[F, Unit] = F.sleep(5.millis).foreverM
 
-  //TODO enable these tests once Temporal for TimeT is fixed
+  "temporal" should {
+    "timeout" should {
+      "return identity when infinite duration" in {
+        val fa = F.pure(true)
+        F.timeout(fa, Duration.Inf) mustEqual fa
+      }
+    }
+
+    "timeoutTo" should {
+      "return identity when infinite duration" in {
+        val fa: TimeT[F, Boolean] = F.pure(true)
+        val fallback: TimeT[F, Boolean] = F.raiseError(new RuntimeException)
+        F.timeoutTo(fa, Duration.Inf, fallback) mustEqual fa
+      }
+    }
+
+    "timeoutAndForget" should {
+      "return identity when infinite duration" in {
+        val fa: TimeT[F, Boolean] = F.pure(true)
+        F.timeoutAndForget(fa, Duration.Inf) mustEqual fa
+      }
+    }
+  }
+
+  // TODO enable these tests once Temporal for TimeT is fixed
   /*"temporal" should {
     "timeout" should {
       "succeed" in {

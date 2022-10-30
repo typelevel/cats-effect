@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,13 @@ package laws
 import cats.Applicative
 import cats.data.OptionT
 import cats.effect.kernel.Outcome
-import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure._
-import cats.effect.kernel.testkit.TimeT._
 import cats.effect.kernel.syntax.all._
+import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}
+import cats.effect.kernel.testkit.TimeT._
+import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
+
 import org.scalacheck.Prop
 import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline

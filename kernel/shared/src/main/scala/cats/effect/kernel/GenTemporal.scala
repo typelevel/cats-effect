@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,17 @@
 
 package cats.effect.kernel
 
-import cats.data._
 import cats.{Applicative, MonadError, Monoid, Semigroup}
+import cats.data._
+import cats.effect.kernel.GenTemporal.handleDuration
+import cats.syntax.all._
 
 import scala.concurrent.TimeoutException
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /**
- * A typeclass that encodes the notion of suspending fibers for
- * a given duration. Analogous to `Thread.sleep` but is
- * only semantically blocking rather than blocking an underlying
- * OS pthread.
+ * A typeclass that encodes the notion of suspending fibers for a given duration. Analogous to
+ * `Thread.sleep` but is only fiber blocking rather than blocking an underlying OS pthread.
  */
 trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
   override def applicative: Applicative[F] = this
@@ -34,66 +34,180 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
   /**
    * Semantically block the fiber for the specified duration.
    *
-   * @param time The duration to semantically block for
+   * @param time
+   *   The duration to semantically block for
    */
-  def sleep(time: FiniteDuration): F[Unit]
+  def sleep(time: Duration): F[Unit] =
+    handleDuration[F[Unit]](time, never)(sleep(_))
+
+  protected def sleep(time: FiniteDuration): F[Unit]
 
   /**
    * Delay the execution of `fa` by a given duration.
    *
-   * @param fa The effect to execute
+   * @param fa
+   *   The effect to execute
    *
-   * @param time The duration to wait before executing fa
+   * @param time
+   *   The duration to wait before executing fa
    */
-  def delayBy[A](fa: F[A], time: FiniteDuration): F[A] =
+  def delayBy[A](fa: F[A], time: Duration): F[A] =
+    handleDuration[F[A]](time, never)(delayBy(fa, _))
+
+  protected def delayBy[A](fa: F[A], time: FiniteDuration): F[A] =
     productR(sleep(time))(fa)
 
   /**
-   * Wait for the specified duration after the execution of `fa`
-   * before returning the result.
+   * Wait for the specified duration after the execution of `fa` before returning the result.
    *
-   * @param fa The effect to execute
-   * @param time The duration to wait after executing fa
+   * @param fa
+   *   The effect to execute
+   * @param time
+   *   The duration to wait after executing fa
    */
-  def andWait[A](fa: F[A], time: FiniteDuration): F[A] =
+  def andWait[A](fa: F[A], time: Duration): F[A] =
+    handleDuration(time, productL(fa)(never))(andWait(fa, _))
+
+  protected def andWait[A](fa: F[A], time: FiniteDuration): F[A] =
     productL(fa)(sleep(time))
 
   /**
-   * Returns an effect that either completes with the result of the source within
-   * the specified time `duration` or otherwise evaluates the `fallback`.
+   * Returns an effect that either completes with the result of the source within the specified
+   * time `duration` or otherwise evaluates the `fallback`.
    *
-   * The source is canceled in the event that it takes longer than
-   * the `FiniteDuration` to complete, the evaluation of the fallback
-   * happening immediately after that.
+   * The source is canceled in the event that it takes longer than the specified time duration
+   * to complete. Once the source has been successfully canceled (and has completed its
+   * finalizers), the fallback will be sequenced. If the source is uncancelable, the resulting
+   * effect will wait for it to complete before evaluating the fallback.
    *
-   * @param duration The time span for which we wait for the source to
-   *        complete; in the event that the specified time has passed without
-   *        the source completing, the `fallback` gets evaluated
+   * @param duration
+   *   The time span for which we wait for the source to complete; in the event that the
+   *   specified time has passed without the source completing, the `fallback` gets evaluated
    *
-   * @param fallback The task evaluated after the duration has passed and
-   *        the source canceled
+   * @param fallback
+   *   The task evaluated after the duration has passed and the source canceled
    */
-  def timeoutTo[A](fa: F[A], duration: FiniteDuration, fallback: F[A]): F[A] =
+  def timeoutTo[A](fa: F[A], duration: Duration, fallback: F[A]): F[A] =
+    handleDuration(duration, fa)(timeoutTo(fa, _, fallback))
+
+  protected def timeoutTo[A](fa: F[A], duration: FiniteDuration, fallback: F[A]): F[A] =
     flatMap(race(fa, sleep(duration))) {
       case Left(a) => pure(a)
       case Right(_) => fallback
     }
 
   /**
-   * Returns an effect that either completes with the result of the source within
-   * the specified time `duration` or otherwise raises a `TimeoutException`.
+   * Returns an effect that either completes with the result of the source within the specified
+   * time `duration` or otherwise raises a `TimeoutException`.
    *
-   * The source is canceled in the event that it takes longer than
-   * the specified time duration to complete.
+   * The source is canceled in the event that it takes longer than the specified time duration
+   * to complete. Once the source has been successfully canceled (and has completed its
+   * finalizers), the `TimeoutException` will be raised. If the source is uncancelable, the
+   * resulting effect will wait for it to complete before raising the exception.
    *
-   * @param duration The time span for which we wait for the source to
-   *        complete; in the event that the specified time has passed without
-   *        the source completing, a `TimeoutException` is raised
+   * @param duration
+   *   The time span for which we wait for the source to complete; in the event that the
+   *   specified time has passed without the source completing, a `TimeoutException` is raised
    */
-  def timeout[A](fa: F[A], duration: FiniteDuration)(
+  def timeout[A](fa: F[A], duration: Duration)(implicit ev: TimeoutException <:< E): F[A] = {
+    handleDuration(duration, fa)(timeout(fa, _))
+  }
+
+  protected def timeout[A](fa: F[A], duration: FiniteDuration)(
       implicit ev: TimeoutException <:< E): F[A] = {
-    val timeoutException = raiseError[A](ev(new TimeoutException(duration.toString)))
-    timeoutTo(fa, duration, timeoutException)
+    flatMap(race(fa, sleep(duration))) {
+      case Left(a) => pure(a)
+      case Right(_) => raiseError[A](ev(new TimeoutException(duration.toString())))
+    }
+  }
+
+  /**
+   * Returns an effect that either completes with the result of the source within the specified
+   * time `duration` or otherwise raises a `TimeoutException`.
+   *
+   * The source is canceled in the event that it takes longer than the specified time duration
+   * to complete. Unlike
+   * [[timeout[A](fa:F[A],duration:scala\.concurrent\.duration\.Duration)* timeout]], the
+   * cancelation of the source will be ''requested'' but not awaited, and the exception will be
+   * raised immediately upon the completion of the timer. This may more closely match intuitions
+   * about timeouts, but it also violates backpressure guarantees and intentionally leaks
+   * fibers.
+   *
+   * This combinator should be applied very carefully.
+   *
+   * @param duration
+   *   The time span for which we wait for the source to complete; in the event that the
+   *   specified time has passed without the source completing, a `TimeoutException` is raised
+   * @see
+   *   [[timeout[A](fa:F[A],duration:scala\.concurrent\.duration\.Duration)* timeout]] for a
+   *   variant which respects backpressure and does not leak fibers
+   */
+  def timeoutAndForget[A](fa: F[A], duration: Duration)(
+      implicit ev: TimeoutException <:< E): F[A] = {
+    handleDuration(duration, fa)(timeoutAndForget(fa, _))
+  }
+
+  protected def timeoutAndForget[A](fa: F[A], duration: FiniteDuration)(
+      implicit ev: TimeoutException <:< E): F[A] =
+    uncancelable { poll =>
+      implicit val F: GenTemporal[F, E] = this
+
+      racePair(fa, sleep(duration)) flatMap {
+        case Left((oc, f)) =>
+          poll(f.cancel *> oc.embedNever)
+
+        case Right((f, _)) =>
+          start(f.cancel) *> raiseError[A](ev(new TimeoutException(duration.toString)))
+      }
+    }
+
+  /**
+   * Returns a nested effect which returns the time in a much faster way than
+   * `Clock[F]#realTime`. This is achieved by caching the real time when the outer effect is run
+   * and, when the inner effect is run, the offset is used in combination with
+   * `Clock[F]#monotonic` to give an approximation of the real time. The practical benefit of
+   * this is a reduction in the number of syscalls, since `realTime` will only be sequenced once
+   * per `ttl` window, and it tends to be (on most platforms) multiple orders of magnitude
+   * slower than `monotonic`.
+   *
+   * This should generally be used in situations where precise "to the millisecond" alignment to
+   * the system real clock is not needed. In particular, if the system clock is updated (e.g.
+   * via an NTP sync), the inner effect will not observe that update until up to `ttl`. This is
+   * an acceptable tradeoff in most practical scenarios, particularly with frequent sequencing
+   * of the inner effect.
+   *
+   * @param ttl
+   *   The period of time after which the cached real time will be refreshed. Note that it will
+   *   only be refreshed upon execution of the nested effect
+   */
+  def cachedRealTime(ttl: Duration): F[F[FiniteDuration]] = {
+    implicit val self = this
+
+    val cacheValuesF = (realTime, monotonic) mapN {
+      case (realTimeNow, cacheRefreshTime) => (cacheRefreshTime, realTimeNow - cacheRefreshTime)
+    }
+
+    // Take two measurements and keep the one with the minimum offset. This will no longer be
+    // required when `IO.unyielding` is merged (see #2633)
+    val minCacheValuesF = (cacheValuesF, cacheValuesF) mapN {
+      case (cacheValues1 @ (_, offset1), cacheValues2 @ (_, offset2)) =>
+        if (offset1 < offset2) cacheValues1 else cacheValues2
+    }
+
+    minCacheValuesF.flatMap(ref).map { cacheValuesRef =>
+      monotonic.flatMap { timeNow =>
+        cacheValuesRef.get.flatMap {
+          case (cacheRefreshTime, offset) =>
+            if (timeNow >= cacheRefreshTime + ttl)
+              minCacheValuesF.flatMap {
+                case cacheValues @ (cacheRefreshTime, offset) =>
+                  cacheValuesRef.set(cacheValues).map(_ => cacheRefreshTime + offset)
+              }
+            else
+              pure(timeNow + offset)
+        }
+      }
+    }
   }
 }
 
@@ -103,18 +217,45 @@ object GenTemporal {
 
   implicit def genTemporalForOptionT[F[_], E](
       implicit F0: GenTemporal[F, E]): GenTemporal[OptionT[F, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForOptionT[F](async)
+      case temporal =>
+        instantiateGenTemporalForOptionT(temporal)
+    }
+
+  private[kernel] def instantiateGenTemporalForOptionT[F[_], E](
+      F0: GenTemporal[F, E]): OptionTTemporal[F, E] =
     new OptionTTemporal[F, E] {
       override implicit protected def F: GenTemporal[F, E] = F0
     }
 
   implicit def genTemporalForEitherT[F[_], E0, E](
       implicit F0: GenTemporal[F, E]): GenTemporal[EitherT[F, E0, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForEitherT[F, E0](async)
+      case temporal =>
+        instantiateGenTemporalForEitherT(temporal)
+    }
+
+  private[kernel] def instantiateGenTemporalForEitherT[F[_], E0, E](
+      F0: GenTemporal[F, E]): EitherTTemporal[F, E0, E] =
     new EitherTTemporal[F, E0, E] {
       override implicit protected def F: GenTemporal[F, E] = F0
     }
 
   implicit def genTemporalForKleisli[F[_], R, E](
       implicit F0: GenTemporal[F, E]): GenTemporal[Kleisli[F, R, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForKleisli[F, R](async)
+      case temporal =>
+        instantiateGenTemporalForKleisli(temporal)
+    }
+
+  private[kernel] def instantiateGenTemporalForKleisli[F[_], R, E](
+      F0: GenTemporal[F, E]): KleisliTemporal[F, R, E] =
     new KleisliTemporal[F, R, E] {
       override implicit protected def F: GenTemporal[F, E] = F0
     }
@@ -122,18 +263,44 @@ object GenTemporal {
   implicit def genTemporalForIorT[F[_], L, E](
       implicit F0: GenTemporal[F, E],
       L0: Semigroup[L]): GenTemporal[IorT[F, L, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForIorT[F, L](async, L0)
+      case temporal =>
+        instantiateGenTemporalForIorT(temporal)
+    }
+
+  private[kernel] def instantiateGenTemporalForIorT[F[_], L, E](F0: GenTemporal[F, E])(
+      implicit L0: Semigroup[L]): IorTTemporal[F, L, E] =
     new IorTTemporal[F, L, E] {
       override implicit protected def F: GenTemporal[F, E] = F0
-
       override implicit protected def L: Semigroup[L] = L0
     }
 
   implicit def genTemporalForWriterT[F[_], L, E](
       implicit F0: GenTemporal[F, E],
       L0: Monoid[L]): GenTemporal[WriterT[F, L, *], E] =
+    F0 match {
+      case async: Async[F @unchecked] =>
+        Async.asyncForWriterT[F, L](async, L0)
+      case temporal =>
+        instantiateGenTemporalForWriterT(temporal)
+    }
+
+  private[effect] def handleDuration[A](duration: Duration, ifInf: => A)(
+      ifFinite: FiniteDuration => A): A =
+    duration match {
+      case fd: FiniteDuration => ifFinite(fd)
+      case Duration.Inf => ifInf
+      case d =>
+        throw new IllegalArgumentException(
+          s"Duration must be either a `FiniteDuration` or `Duration.Inf`, but got: $d")
+    }
+
+  private[kernel] def instantiateGenTemporalForWriterT[F[_], L, E](F0: GenTemporal[F, E])(
+      implicit L0: Monoid[L]): WriterTTemporal[F, L, E] =
     new WriterTTemporal[F, L, E] {
       override implicit protected def F: GenTemporal[F, E] = F0
-
       override implicit protected def L: Monoid[L] = L0
     }
 

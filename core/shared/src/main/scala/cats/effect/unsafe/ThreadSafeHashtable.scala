@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,33 +18,33 @@ package cats.effect
 package unsafe
 
 /**
- * A primitive thread safe hash table implementation specialized for a single
- * purpose, to hold references to the error callbacks of fibers. The hashing
- * function is [[System.identityHashCode]] simply because the callbacks are
- * functions and therefore have no defined notion of [[Object#hashCode]]. The
- * thread safety is achieved by pessimistically locking the whole structure.
- * This is fine in practice because this data structure is only accessed when
- * running [[cats.effect.IO#unsafeRunFiber]], which is not expected to be
- * executed often in a realistic system.
+ * A primitive thread safe hash table implementation specialized for a single purpose, to hold
+ * references to the error callbacks of fibers. The hashing function is
+ * [[System.identityHashCode]] simply because the callbacks are functions and therefore have no
+ * defined notion of [[Object#hashCode]]. The thread safety is achieved by pessimistically
+ * locking the whole structure. This is fine in practice because this data structure is only
+ * accessed when running [[cats.effect.IO#unsafeRunFiber]], which is not expected to be executed
+ * often in a realistic system.
  *
- * @param initialCapacity the initial capacity of the hashtable, ''must'' be a
- *                        power of 2
+ * @param initialCapacity
+ *   the initial capacity of the hashtable, ''must'' be a power of 2
  */
-private[effect] final class ThreadSafeHashtable(private[this] val initialCapacity: Int) {
-  private[this] var hashtable: Array[Throwable => Unit] = new Array(initialCapacity)
+private[effect] final class ThreadSafeHashtable[A <: AnyRef](
+    private[this] val initialCapacity: Int) {
+  private[this] var hashtable: Array[AnyRef] = new Array(initialCapacity)
   private[this] var size: Int = 0
   private[this] var mask: Int = initialCapacity - 1
   private[this] var capacity: Int = initialCapacity
   private[this] val log2NumTables: Int = StripedHashtable.log2NumTables
-  private[this] val Tombstone: Throwable => Unit = ThreadSafeHashtable.Tombstone
+  private[this] val Tombstone: AnyRef = ThreadSafeHashtable.Tombstone
 
-  def put(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {
+  def put(a: A, hash: Int): Unit = this.synchronized {
     val sz = size
     val cap = capacity
     if ((sz << 1) >= cap) { // the << 1 ensures that the load factor will remain between 0.25 and 0.5
       val newCap = cap << 1
       val newMask = newCap - 1
-      val newHashtable = new Array[Throwable => Unit](newCap)
+      val newHashtable = new Array[AnyRef](newCap)
 
       val table = hashtable
       var i = 0
@@ -63,20 +63,15 @@ private[effect] final class ThreadSafeHashtable(private[this] val initialCapacit
       capacity = newCap
     }
 
-    insert(hashtable, mask, cb, hash)
+    insert(hashtable, mask, a, hash)
     size = sz + 1
   }
 
   /**
-   * ''Must'' be called with the lock on the whole `ThreadSafeHashtable` object
-   * already held. The `table` should contain at least one empty space to
-   * place the callback in.
+   * ''Must'' be called with the lock on the whole `ThreadSafeHashtable` object already held.
+   * The `table` should contain at least one empty space to place the callback in.
    */
-  private[this] def insert(
-      table: Array[Throwable => Unit],
-      mask: Int,
-      cb: Throwable => Unit,
-      hash: Int): Unit = {
+  private[this] def insert(table: Array[AnyRef], mask: Int, a: AnyRef, hash: Int): Unit = {
     var idx = hash & mask
     var remaining = mask
 
@@ -85,7 +80,7 @@ private[effect] final class ThreadSafeHashtable(private[this] val initialCapacit
       if ((cur eq null) || (cur eq Tombstone)) {
         // Both null and `Tombstone` references are considered empty and new
         // references can be inserted in their place.
-        table(idx) = cb
+        table(idx) = a
         return
       } else {
         idx = (idx + 1) & mask
@@ -94,7 +89,7 @@ private[effect] final class ThreadSafeHashtable(private[this] val initialCapacit
     }
   }
 
-  def remove(cb: Throwable => Unit, hash: Int): Unit = this.synchronized {
+  def remove(a: A, hash: Int): Unit = this.synchronized {
     val msk = mask
     val init = hash & msk
     var idx = init
@@ -103,7 +98,7 @@ private[effect] final class ThreadSafeHashtable(private[this] val initialCapacit
 
     while (remaining >= 0) {
       val cur = table(idx)
-      if (cb eq cur) {
+      if (a eq cur) {
         // Mark the removed callback with the `Tombstone` reference.
         table(idx) = Tombstone
         size -= 1
@@ -115,7 +110,7 @@ private[effect] final class ThreadSafeHashtable(private[this] val initialCapacit
           // than 1/4 of the capacity
           val newCap = cap >>> 1
           val newMask = newCap - 1
-          val newHashtable = new Array[Throwable => Unit](newCap)
+          val newHashtable = new Array[AnyRef](newCap)
 
           val table = hashtable
           var i = 0
@@ -146,7 +141,7 @@ private[effect] final class ThreadSafeHashtable(private[this] val initialCapacit
     }
   }
 
-  def unsafeHashtable(): Array[Throwable => Unit] = hashtable
+  def unsafeHashtable(): Array[AnyRef] = hashtable
 
   /*
    * Only used in testing.
@@ -163,8 +158,8 @@ private[effect] final class ThreadSafeHashtable(private[this] val initialCapacit
 private object ThreadSafeHashtable {
 
   /**
-   * Sentinel object for marking removed callbacks. Used to keep the linear
-   * probing chain intact.
+   * Sentinel object for marking removed callbacks. Used to keep the linear probing chain
+   * intact.
    */
-  private[ThreadSafeHashtable] final val Tombstone: Throwable => Unit = _ => ()
+  private[ThreadSafeHashtable] final val Tombstone: AnyRef = new AnyRef()
 }

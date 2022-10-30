@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 
 sealed abstract class CI(
+    val command: String,
     rootProject: String,
     jsEnv: Option[JSEnv],
     testCommands: List[String],
@@ -28,7 +29,8 @@ sealed abstract class CI(
         jsEnv.fold("")(env => s"set Global / useJSEnv := JSEnv.$env"),
         "headerCheck",
         "scalafmtSbtCheck",
-        "scalafmtCheck",
+        "scalafmtCheckAll",
+        "javafmtCheckAll",
         "clean"
       ) ++ testCommands ++ List(
         jsEnv.fold("")(_ => s"set Global / useJSEnv := JSEnv.NodeJS"),
@@ -42,43 +44,70 @@ sealed abstract class CI(
 object CI {
   case object JVM
       extends CI(
+        command = "ciJVM",
         rootProject = "rootJVM",
         jsEnv = None,
         testCommands = List("test"),
         mimaReport = true,
-        suffixCommands = List("root/unidoc213", "exampleJVM/compile"))
+        suffixCommands = List("root/unidoc", "exampleJVM/compile"))
 
   case object JS
       extends CI(
+        command = "ciJS",
         rootProject = "rootJS",
         jsEnv = Some(JSEnv.NodeJS),
+        testCommands = List(
+          "test",
+          "set Global / testJSIOApp := true",
+          "testsJVM/testOnly *.IOAppSpec",
+          "set Global / testJSIOApp := false"),
+        mimaReport = true,
+        suffixCommands = List("exampleJS/compile")
+      )
+
+  case object Native
+      extends CI(
+        command = "ciNative",
+        rootProject = "rootNative",
+        jsEnv = None,
         testCommands = List("test"),
-        mimaReport = false,
-        suffixCommands = List("exampleJS/compile"))
+        mimaReport = true,
+        suffixCommands = List("exampleNative/compile")
+      )
 
   case object Firefox
       extends CI(
+        command = "ciFirefox",
         rootProject = "rootJS",
         jsEnv = Some(JSEnv.Firefox),
-        testCommands = List("testsJS/test", "webWorkerTests/test"),
+        testCommands = List(
+          "testOnly *tracing*",
+          "testOnly *.ConsoleJSSpec",
+          "testOnly *.RandomSpec",
+          "testOnly *.SchedulerSpec",
+          "testOnly *.SecureRandomSpec"
+        ),
         mimaReport = false,
-        suffixCommands = List())
+        suffixCommands = List()
+      )
 
   case object Chrome
       extends CI(
+        command = "ciChrome",
         rootProject = "rootJS",
         jsEnv = Some(JSEnv.Chrome),
-        testCommands = List("testsJS/test", "webWorkerTests/test"),
+        testCommands = List(
+          "testOnly *tracing*",
+          "testOnly *tracing*",
+          "testOnly *.ConsoleJSSpec",
+          "testOnly *.RandomSpec",
+          "testOnly *.SchedulerSpec",
+          "testOnly *.SecureRandomSpec"
+        ),
         mimaReport = false,
-        suffixCommands = List())
+        suffixCommands = List()
+      )
 
-  case object JSDOMNodeJS
-      extends CI(
-        rootProject = "rootJS",
-        jsEnv = Some(JSEnv.JSDOMNodeJS),
-        testCommands = List("testsJS/test"),
-        mimaReport = false,
-        suffixCommands = List())
-
-  val AllCIs: List[CI] = List(JVM, JS, Firefox, Chrome, JSDOMNodeJS)
+  val AllJSCIs: List[CI] = List(JS, Firefox, Chrome)
+  val AllCIs: List[CI] = JVM :: Native :: AllJSCIs
 }

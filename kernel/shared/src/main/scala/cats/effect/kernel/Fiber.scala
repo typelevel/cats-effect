@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,59 +19,69 @@ package cats.effect.kernel
 import cats.syntax.all._
 
 /**
- * A datatype that represents a handle to a fiber and allows for waiting and
- * cancelation against that fiber.
+ * A datatype that represents a handle to a fiber and allows for waiting and cancelation against
+ * that fiber.
  *
- * @see [[GenSpawn]] documentation for more detailed information on the
- * concurrency of fibers.
+ * @see
+ *   [[GenSpawn]] documentation for more detailed information on the concurrency of fibers.
  */
-trait Fiber[F[_], E, A] {
+trait Fiber[F[_], E, A] extends Serializable {
 
   /**
-   * Requests the cancelation of the fiber bound to this `Fiber` handle
-   * and awaits its finalization.
+   * Requests the cancelation of the fiber bound to this `Fiber` handle and awaits its
+   * finalization.
    *
-   * [[cancel]] semantically blocks the caller until finalization of the
-   * cancellee has completed. This means that if the cancellee is currently
-   * masked, [[cancel]] will block until it is unmasked and finalized.
+   * [[cancel]] semantically blocks the caller until finalization of the cancellee has
+   * completed. This means that if the cancellee is currently masked, [[cancel]] will block
+   * until it is unmasked and finalized.
    *
-   * Cancelation is idempotent, so repeated calls to [[cancel]] simply block
-   * until finalization is complete. If [[cancel]] is called after finalization
-   * is complete, it will return immediately.
+   * Cancelation is idempotent, so repeated calls to [[cancel]] simply block until finalization
+   * is complete. If [[cancel]] is called after finalization is complete, it will return
+   * immediately.
    *
-   * [[cancel]] is uncancelable; a fiber that is canceling another fiber
-   * is masked from cancelation.
+   * [[cancel]] is uncancelable; a fiber that is canceling another fiber is masked from
+   * cancelation.
    *
-   * @see [[GenSpawn]] documentation for more details on cancelation
+   * @see
+   *   [[GenSpawn]] documentation for more details on cancelation
    */
   def cancel: F[Unit]
 
   /**
-   * Awaits the completion of the fiber bound to this [[Fiber]] and returns
-   * its [[Outcome]] once it completes.
+   * Awaits the completion of the fiber bound to this [[Fiber]] and returns its [[Outcome]] once
+   * it completes.
    */
   def join: F[Outcome[F, E, A]]
 
   /**
-   * Awaits the completion of the bound fiber and returns its result once
-   * it completes.
+   * Awaits the completion of the bound fiber and returns its result once it completes.
    *
-   * If the fiber completes with [[Outcome.Succeeded]], the successful value is
-   * returned. If the fiber completes with [[Outcome.Errored]], the error is raised.
-   * If the fiber completes with [[Outcome.Canceled]], `onCancel` is run.
+   * If the fiber completes with [[Outcome.Succeeded]], the successful value is returned. If the
+   * fiber completes with [[Outcome.Errored]], the error is raised. If the fiber completes with
+   * [[Outcome.Canceled]], `onCancel` is run.
    */
   def joinWith(onCancel: F[A])(implicit F: MonadCancel[F, E]): F[A] =
     join.flatMap(_.embed(onCancel))
 
   /**
-   * Awaits the completion of the bound fiber and returns its result once
-   * it completes.
+   * Awaits the completion of the bound fiber and returns its result once it completes.
    *
-   * If the fiber completes with [[Outcome.Succeeded]], the successful value is
-   * returned. If the fiber completes with [[Outcome.Errored]], the error is raised.
-   * If the fiber completes with [[Outcome.Canceled]], the caller is indefinitely
-   * suspended without termination.
+   * If the fiber completes with [[Outcome.Succeeded]], the successful value is returned. If the
+   * fiber completes with [[Outcome.Errored]], the error is raised. If the fiber completes with
+   * [[Outcome.Canceled]], the caller is indefinitely suspended without termination.
    */
   def joinWithNever(implicit F: GenSpawn[F, E]): F[A] =
     joinWith(F.never)
+
+  /**
+   * Awaits the completion of the bound fiber and returns its result once it completes.
+   *
+   * If the fiber completes with [[Outcome.Succeeded]], the successful value is returned. If the
+   * fiber completes with [[Outcome.Errored]], the error is raised. If the fiber completes with
+   * [[Outcome.Canceled]], the result is ignored.
+   */
+  def joinWithUnit(implicit F: MonadCancel[F, E], ev: Unit <:< A): F[A] = {
+    val _ = ev
+    joinWith(F.unit.asInstanceOf[F[A]])
+  }
 }

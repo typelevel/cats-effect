@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -212,21 +212,6 @@ class LensRefSpec extends BaseSpec { outer =>
       } yield (success, a)
 
       op must completeAs((true, Foo(1, -1)))
-    }
-
-    "access - successfully modifies underlying Ref after A is modified without affecting B" in ticked {
-      implicit ticker =>
-        val op = for {
-          refA <- Ref[IO].of(Foo(0, -1))
-          refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-          valueAndSetter <- refB.access
-          (value, setter) = valueAndSetter
-          _ <- refA.update(_.copy(baz = -2))
-          success <- setter(value + 1)
-          a <- refA.get
-        } yield (success, a)
-
-        op must completeAs((true, Foo(1, -2)))
     }
 
     "access - setter fails to modify underlying Ref if value is modified before setter is called" in ticked {

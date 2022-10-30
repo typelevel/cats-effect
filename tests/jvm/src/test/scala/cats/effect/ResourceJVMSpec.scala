@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,17 +18,17 @@ package cats.effect
 
 import cats.arrow.FunctionK
 import cats.syntax.eq._
-import org.specs2.mutable.Specification
 
-class ResourceJVMSpec extends Specification with Runners {
+class ResourceJVMSpec extends BaseSpec {
 
   "platform" should {
 
     /**
-     * Recursively calls itself until a [[StackOverflowError]] is encountered,
-     * at which point, the current depth is returned.
+     * Recursively calls itself until a [[StackOverflowError]] is encountered, at which point,
+     * the current depth is returned.
      *
-     * @return the stack depth at which [[StackOverflowError]] occurs
+     * @return
+     *   the stack depth at which [[StackOverflowError]] occurs
      */
     def verifyThatSoeIsReproducibleWithStackDepth(): Int = {
       var depth = 0

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,12 +21,13 @@ import cats.Order
 import cats.data.Kleisli
 import cats.effect.kernel.Outcome
 import cats.effect.kernel.testkit.{pure, OutcomeGenerators, PureConcGenerators, Time, TimeT}
-import cats.effect.kernel.testkit.pure._
 import cats.effect.kernel.testkit.TimeT._
+import cats.effect.kernel.testkit.pure._
 import cats.laws.discipline.{arbitrary, MiniInt}
+
 import org.scalacheck.{Arbitrary, Cogen, Prop}
-import org.specs2.scalacheck.Parameters
 import org.specs2.mutable._
+import org.specs2.scalacheck.Parameters
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
@@ -39,11 +40,11 @@ class KleisliPureConcSpec
   import PureConcGenerators._
   import arbitrary.{catsLawsArbitraryForKleisli => _, _}
 
-  //This is highly dubious
+  // This is highly dubious
   implicit def orderKleisli[F[_], A](implicit Ord: Order[F[A]]): Order[Kleisli[F, MiniInt, A]] =
     Order.by(_.run(MiniInt.unsafeFromInt(0)))
 
-  //This is highly dubious
+  // This is highly dubious
   implicit def exec(sbool: Kleisli[TimeT[PureConc[Int, *], *], MiniInt, Boolean]): Prop =
     Prop(
       pure

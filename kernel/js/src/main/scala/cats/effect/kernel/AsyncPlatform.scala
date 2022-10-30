@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,10 @@ import scala.scalajs.js.{|, defined, Function1, JavaScriptException, Promise, Th
 
 private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
 
-  def fromPromise[A](iop: F[Promise[A]]): F[A] =
-    flatMap(iop) { p =>
+  def fromPromise[A](iop: F[Promise[A]]): F[A] = fromThenable(widen(iop))
+
+  def fromThenable[A](iot: F[Thenable[A]]): F[A] =
+    flatMap(iot) { t =>
       async_[A] { cb =>
         val onFulfilled: Function1[A, Unit | Thenable[Unit]] =
           (v: A) => cb(Right(v)): Unit | Thenable[Unit]
@@ -35,7 +37,7 @@ private[kernel] trait AsyncPlatform[F[_]] { this: Async[F] =>
           cb(Left(e)): Unit | Thenable[Unit]
         }
 
-        p.`then`[Unit](onFulfilled, defined(onRejected))
+        t.`then`[Unit](onFulfilled, defined(onRejected))
 
         ()
       }

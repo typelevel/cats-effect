@@ -5,7 +5,7 @@ package fix
 
 import cats.effect.Async
 import cats.effect.ContextShift
-import cats.effect.{ ContextShift => CtxShift }
+import cats.effect.{ContextShift => CtxShift}
 import cats.effect.Sync
 
 object ContextShiftRewrites {

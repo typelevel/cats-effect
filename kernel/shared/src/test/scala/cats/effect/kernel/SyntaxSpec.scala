@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,12 @@
 
 package cats.effect.kernel
 
-import org.specs2.mutable.Specification
 import cats.implicits._
 
+import org.specs2.mutable.Specification
+
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 class SyntaxSpec extends Specification {
 
@@ -47,6 +48,11 @@ class SyntaxSpec extends Specification {
 
     {
       val result = List(target).parSequenceN(3)
+      result: F[List[A]]
+    }
+
+    {
+      val result = target.parReplicateAN(3)(5)
       result: F[List[A]]
     }
   }
@@ -152,6 +158,13 @@ class SyntaxSpec extends Specification {
     }
 
     {
+      val param1: Duration = null.asInstanceOf[Duration]
+      val param2: F[A] = null.asInstanceOf[F[A]]
+      val result = target.timeoutTo(param1, param2)
+      result: F[A]
+    }
+
+    {
       val param: FiniteDuration = null.asInstanceOf[FiniteDuration]
       val result = target.delayBy(param)
       result: F[A]
@@ -171,6 +184,12 @@ class SyntaxSpec extends Specification {
 
     {
       val param: FiniteDuration = null.asInstanceOf[FiniteDuration]
+      val result = target.timeout(param)
+      result: F[A]
+    }
+
+    {
+      val param: Duration = null.asInstanceOf[Duration]
       val result = target.timeout(param)
       result: F[A]
     }

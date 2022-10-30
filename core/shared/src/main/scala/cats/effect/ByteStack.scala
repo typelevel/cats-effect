@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package cats.effect
 
-private[effect] object ByteStack {
+private object ByteStack {
 
   final def toDebugString(stack: Array[Int], translate: Byte => String = _.toString): String = {
     val count = size(stack)
