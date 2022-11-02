@@ -83,4 +83,3 @@ private object ArrayStack {
   def apply[A <: AnyRef](size: Int): ArrayStack[A] = new ArrayStack(size)
 
 }
-
