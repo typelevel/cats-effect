@@ -242,7 +242,7 @@ sealed abstract class SyncIO[+A] private () extends Serializable {
           val r =
             try cur.thunk()
             catch {
-              case NonFatal(t) => error = t
+              case t if NonFatal(t) => error = t
             }
 
           val next =
@@ -348,7 +348,7 @@ sealed abstract class SyncIO[+A] private () extends Serializable {
       val transformed =
         try f(result)
         catch {
-          case NonFatal(t) => error = t
+          case t if NonFatal(t) => error = t
         }
 
       if (depth > MaxStackDepth) {
@@ -365,7 +365,7 @@ sealed abstract class SyncIO[+A] private () extends Serializable {
 
       try f(result)
       catch {
-        case NonFatal(t) => failed(t, depth + 1)
+        case t if NonFatal(t) => failed(t, depth + 1)
       }
     }
 
@@ -374,7 +374,7 @@ sealed abstract class SyncIO[+A] private () extends Serializable {
 
       try f(t)
       catch {
-        case NonFatal(t) => failed(t, depth + 1)
+        case t if NonFatal(t) => failed(t, depth + 1)
       }
     }
 

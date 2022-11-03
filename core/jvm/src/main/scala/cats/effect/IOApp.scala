@@ -208,7 +208,7 @@ trait IOApp {
     new ExecutionContext {
       def reportFailure(t: Throwable): Unit =
         t match {
-          case NonFatal(t) =>
+          case t if NonFatal(t) =>
             t.printStackTrace()
 
           case t =>
@@ -457,23 +457,24 @@ trait IOApp {
               // if we're unforked, the only way to report cancelation is to throw
               throw e
 
-          case NonFatal(t) =>
-            if (isForked) {
-              t.printStackTrace()
-              System.exit(1)
-            } else {
-              throw t
-            }
-
           case t: Throwable =>
-            t.printStackTrace()
-            rt.halt(1)
+            if (NonFatal(t)) {
+              if (isForked) {
+                t.printStackTrace()
+                System.exit(1)
+              } else {
+                throw t
+              }
+            } else {
+              t.printStackTrace()
+              rt.halt(1)
+            }
 
           case r: Runnable =>
             try {
               r.run()
             } catch {
-              case NonFatal(t) =>
+              case t if NonFatal(t) =>
                 if (isForked) {
                   t.printStackTrace()
                   System.exit(1)
