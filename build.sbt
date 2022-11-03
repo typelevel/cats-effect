@@ -726,7 +726,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[Problem]("cats.effect.IOFiberConstants.*"),
         ProblemFilters.exclude[Problem]("cats.effect.SyncIOConstants.*"),
         // introduced by #3196. Changes in an internal API.
-        ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.FiberAwareExecutionContext.liveFibers")
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.unsafe.FiberAwareExecutionContext.liveFibers"),
+        // introduced by #3222. Optimized ArrayStack internal API
+        ProblemFilters.exclude[Problem]("cats.effect.ArrayStack*")
       )
     },
     mimaBinaryIssueFilters ++= {
