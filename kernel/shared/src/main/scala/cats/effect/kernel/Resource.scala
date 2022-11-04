@@ -1206,10 +1206,14 @@ private[effect] trait ResourceHOInstances4 extends ResourceHOInstances5 {
 }
 
 private[effect] trait ResourceHOInstances5 {
-  implicit def catsEffectMonadForResource[F[_]](implicit F0: Monad[F]): Monad[Resource[F, *]] =
-    new ResourceMonad[F] {
-      def F = F0
-    }
+  implicit def catsEffectMonadForResource[F[_]]: Monad[Resource[F, *]] =
+    new ResourceMonad[F]
+
+  @deprecated("Use overload without constraint", "3.4.0")
+  def catsEffectMonadForResource[F[_]](F: Monad[F]): Monad[Resource[F, *]] = {
+    val _ = F
+    catsEffectMonadForResource[F]
+  }
 }
 
 abstract private[effect] class ResourceFOInstances0 extends ResourceFOInstances1 {
@@ -1370,11 +1374,9 @@ abstract private[effect] class ResourceMonadError[F[_], E]
     Resource.raiseError[F, A, E](e)
 }
 
-abstract private[effect] class ResourceMonad[F[_]]
+private[effect] class ResourceMonad[F[_]]
     extends Monad[Resource[F, *]]
     with StackSafeMonad[Resource[F, *]] {
-
-  implicit protected def F: Monad[F]
 
   def pure[A](a: A): Resource[F, A] =
     Resource.pure(a)
