@@ -18,18 +18,18 @@ package cats.effect.unsafe
 
 import cats.effect.tracing.TracingConstants
 
-import org.scalajs.macrotaskexecutor.MacrotaskExecutor
-
 import scala.concurrent.ExecutionContext
 import scala.scalajs.LinkingInfo
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
-  def defaultComputeExecutionContext: ExecutionContext =
+  def defaultComputeExecutionContext: ExecutionContext = {
+    val ec = new BatchingMacrotaskExecutor(64)
     if (LinkingInfo.developmentMode && TracingConstants.isStackTracing && FiberMonitor.weakRefsAvailable)
-      new FiberAwareExecutionContext(MacrotaskExecutor)
+      new FiberAwareExecutionContext(ec)
     else
-      MacrotaskExecutor
+      ec
+  }
 
   def defaultScheduler: Scheduler = Scheduler.createDefaultScheduler()._1
 
