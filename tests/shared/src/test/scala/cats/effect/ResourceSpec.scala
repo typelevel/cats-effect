@@ -829,16 +829,26 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       }
 
       "closes the loser eagerly" in real {
-        val go = IO.deferred[Either[Unit, Unit]].flatMap { loser =>
-          val left = Resource.make(IO.unit)(_ => loser.complete(Left[Unit, Unit](())).void)
-          val right = Resource.make(IO.unit)(_ => loser.complete(Right[Unit, Unit](())).void)
+        val go = (
+          IO.ref(false),
+          IO.ref(false),
+          IO.deferred[Either[Unit, Unit]]
+        ).flatMapN { (acquiredLeft, acquiredRight, loserReleased) =>
+          val left = Resource.make(acquiredLeft.set(true))(_ =>
+            loserReleased.complete(Left[Unit, Unit](())).void)
+
+          val right = Resource.make(acquiredRight.set(true))(_ =>
+            loserReleased.complete(Right[Unit, Unit](())).void)
+
           Resource.race(left, right).use {
-            case Left(()) => loser.get.map(_ must beRight[Unit]).void
-            case Right(()) => loser.get.map(_ must beLeft[Unit]).void
+            case Left(()) =>
+              acquiredRight.get.ifM(loserReleased.get.map(_ must beRight[Unit]), IO.unit)
+            case Right(()) =>
+              acquiredLeft.get.ifM(loserReleased.get.map(_ must beLeft[Unit]).void, IO.unit)
           }
         }
 
-        TestControl.executeEmbed(go).as(true)
+        TestControl.executeEmbed(go.replicateA_(100)).as(true)
       }
     }
 
