@@ -1337,6 +1337,9 @@ abstract private[effect] class ResourceConcurrent[F[_]]
   override def both[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, (A, B)] =
     fa.both(fb)
 
+  override def race[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, Either[A, B]] =
+    fa.race(fb)
+
   override def memoize[A](fa: Resource[F, A]): Resource[F, Resource[F, A]] = {
     Resource.eval(F.ref(false)).flatMap { allocated =>
       val fa2 = F.uncancelable(poll => poll(fa.allocatedCase) <* allocated.set(true))
