@@ -303,7 +303,67 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
   def race[B](
       that: Resource[F, B]
   )(implicit F: Concurrent[F]): Resource[F, Either[A, B]] =
-    Concurrent[Resource[F, *]].race(this, that)
+    Resource.applyFull { poll =>
+      def cancelLoser[C](f: Fiber[F, Throwable, (C, ExitCase => F[Unit])]): F[Unit] =
+        f.cancel *>
+          f.join
+            .flatMap(
+              _.fold(
+                F.unit,
+                F.raiseError[Unit](_),
+                _.flatMap(_._2.apply(ExitCase.Canceled))
+              )
+            )
+
+      poll(F.racePair(this.allocatedCase, that.allocatedCase)).flatMap {
+        case Left((oc, f)) =>
+          oc match {
+            case Outcome.Succeeded(fa) =>
+              cancelLoser(f).start.flatMap { f =>
+                fa.map {
+                  case (a, fin) =>
+                    (
+                      Either.left[A, B](a),
+                      fin(_: ExitCase).guarantee(f.join.flatMap(_.embedNever)))
+                }
+              }
+            case Outcome.Errored(ea) =>
+              cancelLoser(f) *> F.raiseError[(Either[A, B], ExitCase => F[Unit])](ea)
+            case Outcome.Canceled() =>
+              poll(f.join).onCancel(f.cancel).flatMap {
+                case Outcome.Succeeded(fb) =>
+                  fb.map { case (b, fin) => (Either.right[A, B](b), fin) }
+                case Outcome.Errored(eb) =>
+                  F.raiseError[(Either[A, B], ExitCase => F[Unit])](eb)
+                case Outcome.Canceled() =>
+                  poll(F.canceled) *> F.never[(Either[A, B], ExitCase => F[Unit])]
+              }
+          }
+        case Right((f, oc)) =>
+          oc match {
+            case Outcome.Succeeded(fb) =>
+              cancelLoser(f).start.flatMap { f =>
+                fb.map {
+                  case (b, fin) =>
+                    (
+                      Either.right[A, B](b),
+                      fin(_: ExitCase).guarantee(f.join.flatMap(_.embedNever)))
+                }
+              }
+            case Outcome.Errored(eb) =>
+              cancelLoser(f) *> F.raiseError[(Either[A, B], ExitCase => F[Unit])](eb)
+            case Outcome.Canceled() =>
+              poll(f.join).onCancel(f.cancel).flatMap {
+                case Outcome.Succeeded(fa) =>
+                  fa.map { case (a, fin) => (Either.left[A, B](a), fin) }
+                case Outcome.Errored(ea) =>
+                  F.raiseError[(Either[A, B], ExitCase => F[Unit])](ea)
+                case Outcome.Canceled() =>
+                  poll(F.canceled) *> F.never[(Either[A, B], ExitCase => F[Unit])]
+              }
+          }
+      }
+    }
 
   /**
    * Implementation for the `flatMap` operation, as described via the `cats.Monad` type class.
