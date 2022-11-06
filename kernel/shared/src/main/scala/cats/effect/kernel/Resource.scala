@@ -310,7 +310,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
             .flatMap(
               _.fold(
                 F.unit,
-                F.raiseError[Unit](_),
+                _ => F.unit,
                 _.flatMap(_._2.apply(ExitCase.Canceled))
               )
             )
