@@ -833,8 +833,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           val left = Resource.make(IO.unit)(_ => loser.complete(Left[Unit, Unit](())).void)
           val right = Resource.make(IO.unit)(_ => loser.complete(Right[Unit, Unit](())).void)
           Resource.race(left, right).use {
-            case Left(()) => loser.tryGet.map(_ must beSome(beRight[Unit])).void
-            case Right(()) => loser.tryGet.map(_ must beSome(beLeft[Unit])).void
+            case Left(()) => loser.get.map(_ must beRight[Unit]).void
+            case Right(()) => loser.get.map(_ must beLeft[Unit]).void
           }
         }
 
