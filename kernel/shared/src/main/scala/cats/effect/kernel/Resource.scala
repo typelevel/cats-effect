@@ -155,44 +155,17 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
   private[effect] def fold[B](
       onOutput: A => F[B],
       onRelease: F[Unit] => F[Unit]
-  )(implicit F: MonadCancel[F, Throwable]): F[B] = {
-    sealed trait Stack[AA]
-    case object Nil extends Stack[A]
-    final case class Frame[AA, BB](head: AA => Resource[F, BB], tail: Stack[BB])
-        extends Stack[AA]
-
-    // Indirection for calling `loop` needed because `loop` must be @tailrec
-    def continue[C](current: Resource[F, C], stack: Stack[C]): F[B] =
-      loop(current, stack)
-
-    // Interpreter that knows how to evaluate a Resource data structure;
-    // Maintains its own stack for dealing with Bind chains
-    @tailrec def loop[C](current: Resource[F, C], stack: Stack[C]): F[B] =
-      current match {
-        case Allocate(resource) =>
-          F.bracketFull(resource) {
-            case (a, _) =>
-              stack match {
-                case Nil => onOutput(a)
-                case Frame(head, tail) => continue(head(a), tail)
-              }
-          } {
-            case ((_, release), outcome) =>
-              onRelease(release(ExitCase.fromOutcome(outcome)))
+  )(implicit F: MonadCancel[F, Throwable]): F[B] =
+    F.uncancelable { poll =>
+      poll(allocatedCase).flatMap {
+        case (a, release) =>
+          poll(onOutput(a)).guaranteeCase { oc =>
+            onRelease(
+              release(oc.fold(ExitCase.Canceled, ExitCase.Errored(_), _ => ExitCase.Succeeded))
+            )
           }
-        case Bind(source, fs) =>
-          loop(source, Frame(fs, stack))
-        case Pure(v) =>
-          stack match {
-            case Nil => onOutput(v)
-            case Frame(head, tail) =>
-              loop(head(v), tail)
-          }
-        case Eval(fa) =>
-          fa.flatMap(a => continue(Resource.pure(a), stack))
       }
-    loop(this, Nil)
-  }
+    }
 
   /**
    * Allocates a resource and supplies it to the given function. The resource is released as
