@@ -335,11 +335,9 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    *   [[race]] for a simpler variant that returns the successful outcome.
    */
   def raceOutcome[A, B](fa: F[A], fb: F[B]): F[Either[Outcome[F, E, A], Outcome[F, E, B]]] =
-    uncancelable { poll =>
-      poll(raceOutcomeBoth(fa, fb)).map {
-        case Left((oc, _)) => Left(oc)
-        case Right((_, oc)) => Right(oc)
-      }
+    raceOutcomeBoth(fa, fb).map {
+      case Left((oc, _)) => Left(oc)
+      case Right((_, oc)) => Right(oc)
     }
 
   /**
@@ -366,9 +364,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    *   [[raceOutcome]] for a variant that returns the outcome of the winner.
    */
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
-    uncancelable { poll =>
-      poll(raceOutcomeBoth(fa, fb)).flatMap(oc => poll(embedRaceOutcome(oc)))
-    }
+    raceOutcomeBoth(fa, fb).flatMap(embedRaceOutcome(_))
 
   /**
    * Like [[race]], but in the case that neither fiber completes with [[Outcome.Canceled]],
@@ -383,13 +379,11 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    *   [[race]] for a non-biased variant
    */
   def raceBiased[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
-    uncancelable { poll =>
-      poll(raceOutcomeBoth(fa, fb)).flatMap { raceOutcome =>
-        raceOutcome.merge._2 match {
-          case Outcome.Succeeded(fb) => fb.map(Right(_))
-          case Outcome.Errored(eb) => raiseError(eb)
-          case Outcome.Canceled() => poll(embedRaceOutcome(raceOutcome))
-        }
+    raceOutcomeBoth(fa, fb).flatMap { raceOutcome =>
+      raceOutcome.merge._2 match {
+        case Outcome.Succeeded(fb) => fb.map(Right(_))
+        case Outcome.Errored(eb) => raiseError(eb)
+        case Outcome.Canceled() => embedRaceOutcome(raceOutcome)
       }
     }
 
