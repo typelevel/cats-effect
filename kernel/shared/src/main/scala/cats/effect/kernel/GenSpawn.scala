@@ -315,9 +315,19 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
     uncancelable { poll =>
       poll(racePair(fa, fb)).flatMap {
         case Left((oca, f)) =>
-          f.cancel.whenA(!oca.isCanceled) *> f.join.map(ocb => Left((oca, ocb)))
+          val joined =
+            if (oca.isCanceled)
+              poll(f.join)
+            else
+              f.cancel *> f.join
+          joined.map(ocb => Left((oca, ocb)))
         case Right((f, ocb)) =>
-          f.cancel.whenA(!ocb.isCanceled) *> f.join.map(oca => Right((oca, ocb)))
+          val joined =
+            if (ocb.isCanceled)
+              poll(f.join)
+            else
+              f.cancel *> f.join
+          joined.map(oca => Right((oca, ocb)))
       }
     }
 
