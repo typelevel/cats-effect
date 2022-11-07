@@ -366,31 +366,56 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    *   [[raceOutcome]] for a variant that returns the outcome of the winner.
    */
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
+    uncancelable(poll => poll(raceOutcomeBoth(fa, fb)).flatMap(embedRaceOutcome(_)))
+
+  /**
+   * Like [[race]], but in the case that neither fiber completes with [[Outcome.Canceled]],
+   * priority is given to the outcome of the second fiber. Hence, this method is right-biased.
+   *
+   * @param fa
+   *   the effect for the first racing fiber
+   * @param fb
+   *   the effect for the second racing fiber
+   *
+   * @see
+   *   [[race]] for a non-biased variant
+   */
+  def raceBiased[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
     uncancelable { poll =>
-      poll(raceOutcomeBoth(fa, fb)).flatMap {
-        case Left((oca, ocb)) =>
-          oca match {
-            case Outcome.Succeeded(fa) => fa.map(Left(_))
-            case Outcome.Errored(ea) => raiseError(ea)
-            case Outcome.Canceled() =>
-              ocb match {
-                case Outcome.Succeeded(fb) => fb.map(Right(_))
-                case Outcome.Errored(eb) => raiseError(eb)
-                case Outcome.Canceled() => poll(canceled) *> never
-              }
-          }
-        case Right((oca, ocb)) =>
-          ocb match {
-            case Outcome.Succeeded(fb) => fb.map(Right(_))
-            case Outcome.Errored(eb) => raiseError(eb)
-            case Outcome.Canceled() =>
-              oca match {
-                case Outcome.Succeeded(fa) => fa.map(Left(_))
-                case Outcome.Errored(ea) => raiseError(ea)
-                case Outcome.Canceled() => poll(canceled) *> never
-              }
-          }
+      poll(raceOutcomeBoth(fa, fb)).flatMap { raceOutcome =>
+        raceOutcome.merge._2 match {
+          case Outcome.Succeeded(fb) => fb.map(Left(_))
+          case Outcome.Errored(eb) => raiseError(eb)
+          case Outcome.Canceled() => embedRaceOutcome(raceOutcome)
+        }
       }
+    }
+
+  private[this] def embedRaceOutcome[A, B](
+      raceOutcome: Either[Outcome[F, E, A], Outcome[F, E, B]]): F[Either[A, B]] =
+    raceOutcome match {
+      case Left((oca, ocb)) =>
+        oca match {
+          case Outcome.Succeeded(fa) => fa.map(Left(_))
+          case Outcome.Errored(ea) => raiseError(ea)
+          case Outcome.Canceled() =>
+            ocb match {
+              case Outcome.Succeeded(fb) => fb.map(Right(_))
+              case Outcome.Errored(eb) => raiseError(eb)
+              case Outcome.Canceled() => poll(canceled) *> never
+            }
+        }
+      case Right((oca, ocb)) =>
+        ocb match {
+          case Outcome.Succeeded(fb) => fb.map(Right(_))
+          case Outcome.Errored(eb) => raiseError(eb)
+          case Outcome.Canceled() =>
+            oca match {
+              case Outcome.Succeeded(fa) => fa.map(Left(_))
+              case Outcome.Errored(ea) => raiseError(ea)
+              case Outcome.Canceled() => poll(canceled) *> never
+            }
+        }
     }
 
   /**
