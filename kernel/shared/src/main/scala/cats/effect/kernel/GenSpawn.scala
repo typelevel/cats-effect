@@ -366,7 +366,9 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    *   [[raceOutcome]] for a variant that returns the outcome of the winner.
    */
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
-    uncancelable(poll => poll(raceOutcomeBoth(fa, fb)).flatMap(embedRaceOutcome(_)))
+    uncancelable { poll =>
+      poll(raceOutcomeBoth(fa, fb)).flatMap(oc => poll(embedRaceOutcome(oc)))
+    }
 
   /**
    * Like [[race]], but in the case that neither fiber completes with [[Outcome.Canceled]],
@@ -384,15 +386,17 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
     uncancelable { poll =>
       poll(raceOutcomeBoth(fa, fb)).flatMap { raceOutcome =>
         raceOutcome.merge._2 match {
-          case Outcome.Succeeded(fb) => fb.map(Left(_))
+          case Outcome.Succeeded(fb) => fb.map(Right(_))
           case Outcome.Errored(eb) => raiseError(eb)
-          case Outcome.Canceled() => embedRaceOutcome(raceOutcome)
+          case Outcome.Canceled() => poll(embedRaceOutcome(raceOutcome))
         }
       }
     }
 
   private[this] def embedRaceOutcome[A, B](
-      raceOutcome: Either[Outcome[F, E, A], Outcome[F, E, B]]): F[Either[A, B]] =
+      raceOutcome: Either[
+        (Outcome[F, E, A], Outcome[F, E, B]),
+        (Outcome[F, E, A], Outcome[F, E, B])]): F[Either[A, B]] =
     raceOutcome match {
       case Left((oca, ocb)) =>
         oca match {
@@ -402,7 +406,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
             ocb match {
               case Outcome.Succeeded(fb) => fb.map(Right(_))
               case Outcome.Errored(eb) => raiseError(eb)
-              case Outcome.Canceled() => poll(canceled) *> never
+              case Outcome.Canceled() => canceled *> never
             }
         }
       case Right((oca, ocb)) =>
@@ -413,7 +417,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
             oca match {
               case Outcome.Succeeded(fa) => fa.map(Left(_))
               case Outcome.Errored(ea) => raiseError(ea)
-              case Outcome.Canceled() => poll(canceled) *> never
+              case Outcome.Canceled() => canceled *> never
             }
         }
     }
