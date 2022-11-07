@@ -301,6 +301,27 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
       : F[Either[(Outcome[F, E, A], Fiber[F, E, B]), (Fiber[F, E, A], Outcome[F, E, B])]]
 
   /**
+   * Races the evaluation of two fibers, cancels the loser, and returns the [[Outcome]] of both.
+   * If the race is canceled before one or both participants complete, then then whichever ones
+   * are incomplete are canceled.
+   *
+   * @param fa
+   *   the effect for the first racing fiber
+   * @param fb
+   *   the effect for the second racing fiber
+   */
+  def raceOutcomeBoth[A, B](fa: F[A], fb: F[B])
+      : F[Either[(Outcome[F, E, A], Outcome[F, E, B]), (Outcome[F, E, A], Outcome[F, E, B])]] =
+    uncancelable { poll =>
+      poll(racePair(fa, fb)).flatMap {
+        case Left((oca, f)) =>
+          f.cancel.whenA(!oca.isCanceled) *> f.join.map(ocb => Left((oca, ocb)))
+        case Right((f, ocb)) =>
+          f.cancel.whenA(!ocb.isCanceled) *> f.join.map(oca => Right((oca, ocb)))
+      }
+    }
+
+  /**
    * Races the evaluation of two fibers that returns the [[Outcome]] of the winner. The winner
    * of the race is considered to be the first fiber that completes with an outcome. The loser
    * of the race is canceled before returning.
@@ -315,9 +336,9 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    */
   def raceOutcome[A, B](fa: F[A], fb: F[B]): F[Either[Outcome[F, E, A], Outcome[F, E, B]]] =
     uncancelable { poll =>
-      poll(racePair(fa, fb)).flatMap {
-        case Left((oc, f)) => f.cancel.as(Left(oc))
-        case Right((f, oc)) => f.cancel.as(Right(oc))
+      poll(raceOutcomeBoth(fa, fb)).map {
+        case Left((oc, _)) => Left(oc)
+        case Right((_, oc)) => Right(oc)
       }
     }
 
@@ -346,24 +367,24 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    */
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
     uncancelable { poll =>
-      poll(racePair(fa, fb)).flatMap {
-        case Left((oc, f)) =>
-          oc match {
-            case Outcome.Succeeded(fa) => f.cancel *> fa.map(Left(_))
-            case Outcome.Errored(ea) => f.cancel *> raiseError(ea)
+      poll(raceOutcomeBoth(fa, fb)).flatMap {
+        case Left((oca, ocb)) =>
+          oca match {
+            case Outcome.Succeeded(fa) => fa.map(Left(_))
+            case Outcome.Errored(ea) => raiseError(ea)
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              ocb match {
                 case Outcome.Succeeded(fb) => fb.map(Right(_))
                 case Outcome.Errored(eb) => raiseError(eb)
                 case Outcome.Canceled() => poll(canceled) *> never
               }
           }
-        case Right((f, oc)) =>
-          oc match {
-            case Outcome.Succeeded(fb) => f.cancel *> fb.map(Right(_))
-            case Outcome.Errored(eb) => f.cancel *> raiseError(eb)
+        case Right((oca, ocb)) =>
+          ocb match {
+            case Outcome.Succeeded(fb) => fb.map(Right(_))
+            case Outcome.Errored(eb) => raiseError(eb)
             case Outcome.Canceled() =>
-              poll(f.join).onCancel(f.cancel).flatMap {
+              oca match {
                 case Outcome.Succeeded(fa) => fa.map(Left(_))
                 case Outcome.Errored(ea) => raiseError(ea)
                 case Outcome.Canceled() => poll(canceled) *> never
