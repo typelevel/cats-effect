@@ -108,12 +108,16 @@ for {
   _ <- english.cancel >> french.cancel >> spanish.cancel
 } yield ()
  */
+        const fast = "**Fast**: Cats Effect provides lightweight fibers for asynchronous, highly concurrent applications. Your code stays fast even under extreme load.";
+        const reliable = "**Reliable**: Keep your applications up and running under high resource contention with automatic resource safety, backpressure, and cancellation of unnecessary work.";
+        const ecosystem = "**Ecosystem**: Cats Effect powers a thriving ecosystem of streaming frameworks, database layers, HTTP servers, and much more!";
+        const community = "**Community**: Cats Effect is open source software maintained by the Typelevel community. We provide a friendly, safe, and welcoming environment for everyone. Join us on GitHub or Discord!";
+
         const Hook = () => (
             <Block background="light" align="left">
                 {[
                     {
-                        content:
-                            "Cats Effect is a high-performance, asynchronous, composable framework for building real-world applications in a purely functional style within the [Typelevel](https://typelevel.org) ecosystem. It provides a concrete tool, known as \"the `IO` monad\", for capturing and controlling *actions*, often referred to as \"effects\", that your program wishes to perform within a resource-safe, typed context with seamless support for concurrency and coordination. These effects may be asynchronous (callback-driven) or synchronous (directly returning values); they may return within microseconds or run infinitely.\n\nEven more importantly, Cats Effect defines a set of typeclasses which define what it means to *be* a purely functional runtime system. These abstractions power a thriving ecosystem consisting of [streaming](https://fs2.io) [frameworks](https://monix.io), JDBC [database layers](https://tpolecat.github.io/doobie/), HTTP [servers](https://http4s.org) and [clients](https://sttp.softwaremill.com/en/latest/), asynchronous clients for systems like [Redis](https://redis4cats.profunktor.dev) and MongoDB, and so much more! Additionally, you can leverage these abstractions within your own application to unlock powerful capabilities with little-or-no code changes, for example solving problems such as dependency injection, multiple error channels, shared state across modules, tracing, and more.",
+                        content: [fast, reliable, ecosystem, community].join("\n\n"),
                         image: `${baseUrl}img/hello-printing.png`,
                         imageAlign: 'right',
                     }
