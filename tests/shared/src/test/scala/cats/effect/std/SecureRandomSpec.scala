@@ -26,7 +26,17 @@ class SecureRandomSpec extends BaseSpec {
         bytes1 <- random1.nextBytes(128)
         random2 <- SecureRandom.javaSecuritySecureRandom[IO](2)
         bytes2 <- random2.nextBytes(256)
-      } yield bytes1.length == 128 && bytes2.length == 256
+        bytes3 <- random2.nextBytes(1024)
+      } yield bytes1.length == 128 && bytes2.length == 256 && bytes3.length == 1024
+    }
+
+    "overrides nextInt" in real {
+      for {
+        secureRandom <- SecureRandom.javaSecuritySecureRandom[IO]
+        secureInts <- secureRandom.nextInt.replicateA(3)
+        insecureRandom <- Random.scalaUtilRandomSeedInt[IO](0)
+        insecureInts <- insecureRandom.nextInt.replicateA(3)
+      } yield secureInts != insecureInts
     }
   }
 

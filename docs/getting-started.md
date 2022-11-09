@@ -6,7 +6,7 @@ title: Getting Started
 Add the following to your **build.sbt**:
 
 ```scala
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.13"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.14"
 ```
 
 Naturally, if you're using ScalaJS, you should replace the double `%%` with a triple `%%%`. If you're on Scala 2, it is *highly* recommended that you enable the [better-monadic-for](https://github.com/oleg-py/better-monadic-for) plugin, which fixes a number of surprising elements of the `for`-comprehension syntax in the Scala language:
@@ -62,7 +62,7 @@ We will learn more about constructs like `start` and `*>` in later pages, but fo
 Of course, the easiest way to play with Cats Effect is to try it out in a Scala REPL. We recommend using [Ammonite](https://ammonite.io/#Ammonite-REPL) for this kind of thing. To get started, run the following lines (if not using Ammonite, skip the first line and make sure that Cats Effect and its dependencies are correctly configured on the classpath):
 
 ```scala
-import $ivy.`org.typelevel::cats-effect:3.3.13`
+import $ivy.`org.typelevel::cats-effect:3.3.14`
 
 import cats.effect.unsafe.implicits._
 import cats.effect.IO
@@ -72,6 +72,20 @@ program.unsafeRunSync()
 ```
 
 Congratulations, you've just run your first `IO` within the REPL! The `unsafeRunSync()` function is not meant to be used within a normal application. As the name suggests, its implementation is unsafe in several ways, but it is very useful for REPL-based experimentation and sometimes useful for testing.
+
+### Cancelling a long-running REPL task
+
+`unsafeRunCancelable()` is another variant to launch a task, that allows a long-running task to be cancelled. This can be useful to clean up long or infinite tasks that have been spawned from the REPL.  
+
+```scala
+import cats.effect.unsafe.implicits._
+import cats.effect.IO
+
+lazy val loop: IO[Unit] = IO.println("loop until cancel..") >> IO.sleep(2.seconds) >> loop
+val cancel = loop.unsafeRunCancelable()
+```
+
+`unsafeRunCancelable` starts the loop task running, but also emits an invocable handle value which when invoked (ie `cancel()`) cancels the loop. This can be useful when running in SBT with the `console` command, where by default terminating the REPL doesn't terminate the process, and thus the task will remain executing in the background.
 
 ## Testing
 

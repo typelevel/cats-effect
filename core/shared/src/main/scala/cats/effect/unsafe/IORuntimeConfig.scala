@@ -24,7 +24,8 @@ final case class IORuntimeConfig private (
     val autoYieldThreshold: Int,
     val enhancedExceptions: Boolean,
     val traceBufferSize: Int,
-    val shutdownHookTimeout: Duration) {
+    val shutdownHookTimeout: Duration,
+    val reportUnhandledFiberErrors: Boolean) {
 
   private[unsafe] def this(cancelationCheckThreshold: Int, autoYieldThreshold: Int) =
     this(
@@ -32,20 +33,38 @@ final case class IORuntimeConfig private (
       autoYieldThreshold,
       IORuntimeConfig.DefaultEnhancedExceptions,
       IORuntimeConfig.DefaultTraceBufferSize,
-      IORuntimeConfig.DefaultShutdownHookTimeout)
+      IORuntimeConfig.DefaultShutdownHookTimeout,
+      IORuntimeConfig.DefaultReportUnhandledFiberErrors
+    )
 
   def copy(
       cancelationCheckThreshold: Int = this.cancelationCheckThreshold,
       autoYieldThreshold: Int = this.autoYieldThreshold,
       enhancedExceptions: Boolean = this.enhancedExceptions,
       traceBufferSize: Int = this.traceBufferSize,
-      shutdownHookTimeout: Duration = this.shutdownHookTimeout): IORuntimeConfig =
+      shutdownHookTimeout: Duration = this.shutdownHookTimeout,
+      reportUnhandledFiberErrors: Boolean = this.reportUnhandledFiberErrors): IORuntimeConfig =
     new IORuntimeConfig(
       cancelationCheckThreshold,
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
-      shutdownHookTimeout)
+      shutdownHookTimeout,
+      reportUnhandledFiberErrors)
+
+  private[unsafe] def copy(
+      cancelationCheckThreshold: Int,
+      autoYieldThreshold: Int,
+      enhancedExceptions: Boolean,
+      traceBufferSize: Int,
+      shutdownHookTimeout: Duration): IORuntimeConfig =
+    new IORuntimeConfig(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize,
+      shutdownHookTimeout,
+      IORuntimeConfig.DefaultReportUnhandledFiberErrors)
 
   // shims for binary compat
   private[unsafe] def this(
@@ -58,7 +77,24 @@ final case class IORuntimeConfig private (
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
-      IORuntimeConfig.DefaultShutdownHookTimeout)
+      IORuntimeConfig.DefaultShutdownHookTimeout,
+      IORuntimeConfig.DefaultReportUnhandledFiberErrors
+    )
+
+  // shims for binary compat
+  private[unsafe] def this(
+      cancelationCheckThreshold: Int,
+      autoYieldThreshold: Int,
+      enhancedExceptions: Boolean,
+      traceBufferSize: Int,
+      shutdownHookTimeout: Duration) =
+    this(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize,
+      shutdownHookTimeout,
+      IORuntimeConfig.DefaultReportUnhandledFiberErrors)
 
   private[unsafe] def copy(
       cancelationCheckThreshold: Int,
@@ -70,7 +106,8 @@ final case class IORuntimeConfig private (
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
-      shutdownHookTimeout)
+      shutdownHookTimeout,
+      reportUnhandledFiberErrors)
 
   private[unsafe] def copy(
       cancelationCheckThreshold: Int,
@@ -80,7 +117,8 @@ final case class IORuntimeConfig private (
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
-      shutdownHookTimeout)
+      shutdownHookTimeout,
+      reportUnhandledFiberErrors)
 
   private[effect] val traceBufferLogSize: Int =
     Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt
@@ -92,6 +130,7 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
   private[unsafe] def DefaultEnhancedExceptions = true
   private[unsafe] def DefaultTraceBufferSize = 16
   private[unsafe] def DefaultShutdownHookTimeout = Duration.Inf
+  private[unsafe] def DefaultReportUnhandledFiberErrors = true
 
   def apply(): IORuntimeConfig = Default
 
@@ -120,14 +159,31 @@ object IORuntimeConfig extends IORuntimeConfigCompanionPlatform {
       autoYieldThreshold: Int,
       enhancedExceptions: Boolean,
       traceBufferSize: Int,
-      shutdownHookTimeout: Duration): IORuntimeConfig = {
+      shutdownHookTimeout: Duration): IORuntimeConfig =
+    apply(
+      cancelationCheckThreshold,
+      autoYieldThreshold,
+      enhancedExceptions,
+      traceBufferSize,
+      shutdownHookTimeout,
+      DefaultReportUnhandledFiberErrors)
+
+  def apply(
+      cancelationCheckThreshold: Int,
+      autoYieldThreshold: Int,
+      enhancedExceptions: Boolean,
+      traceBufferSize: Int,
+      shutdownHookTimeout: Duration,
+      reportUnhandledFiberErrors: Boolean): IORuntimeConfig = {
     if (autoYieldThreshold % cancelationCheckThreshold == 0)
       new IORuntimeConfig(
         cancelationCheckThreshold,
         autoYieldThreshold,
         enhancedExceptions,
         1 << Math.round(Math.log(traceBufferSize.toDouble) / Math.log(2)).toInt,
-        shutdownHookTimeout)
+        shutdownHookTimeout,
+        reportUnhandledFiberErrors
+      )
     else
       throw new AssertionError(
         s"Auto yield threshold $autoYieldThreshold must be a multiple of cancelation check threshold $cancelationCheckThreshold")

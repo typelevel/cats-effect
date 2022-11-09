@@ -48,11 +48,17 @@ private[unsafe] abstract class IORuntimeConfigCompanionPlatform { this: IORuntim
       .flatMap(x => Try(Duration(x)).toOption)
       .getOrElse(DefaultShutdownHookTimeout)
 
+    val reportUnhandledFiberErrors = process
+      .env("CATS_EFFECT_REPORT_UNHANDLED_FIBER_ERRORS")
+      .flatMap(x => Try(x.toBoolean).toOption)
+      .getOrElse(DefaultReportUnhandledFiberErrors)
+
     apply(
       cancelationCheckThreshold,
       autoYieldThreshold,
       enhancedExceptions,
       traceBufferSize,
-      shutdownHookTimeout)
+      shutdownHookTimeout,
+      reportUnhandledFiberErrors)
   }
 }

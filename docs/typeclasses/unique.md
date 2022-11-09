@@ -3,7 +3,9 @@ id: unique
 title: Unique
 ---
 
-A typeclass which is a source of unique tokens via `unique`
+A typeclass which is a source of unique tokens via `unique`. This is a fairly
+low-level programming primitive, and is not usually suitable for identifying
+business entities at the level of application logic.
 
 ```scala
 trait Unique[F[_]] {
@@ -19,10 +21,13 @@ val token: F[Unique.Token] = Unique[F].unique
 (token, token).mapN { (x, y) => x === y } <-> Monad[F].pure(false)
 ```
 
-After a token becomes eligible for garbage collection, a subsequent evaluation 
-of `unique` may produce a new token with the same hash. Similarly, the guarantee 
-of uniqueness only applies within a single JVM or JavaScript runtime. If you 
-need a token that is unique across all space and time, use a 
+This uniqueness guarantee applies only in respect of equality comparison between
+`Unique.Token` instances; it is not possible to serialize these instances or
+convert them to another form. (The `hashCode` method, for example, is not guaranteed
+to return a unique value.) Therefore, these values are meaningful only within a single
+application process and cannot (for example) be shared across network boundaries,
+persisted to a database, or exposed to end-users. If you need globally unique token
+that is suitable for purposes such as these, use a
 [UUID](https://docs.oracle.com/javase/8/docs/api/java/util/UUID.html) instead.
 
 Both `Sync[F]` and `Spawn[F]` extend `Unique[F]` as both typeclasses trivially

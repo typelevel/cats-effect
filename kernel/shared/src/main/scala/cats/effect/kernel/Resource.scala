@@ -26,7 +26,7 @@ import cats.syntax.all._
 import scala.annotation.tailrec
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /**
  * `Resource` is a data structure which encodes the idea of executing an action which has an
@@ -902,8 +902,19 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    * In most real world cases, implementors of AutoCloseable are blocking as well, so the close
    * action runs in the blocking context.
    *
-   * Example:
-   * {{{
+   * @example
+   *   {{{
+   *   import cats.effect._
+   *   import scala.io.Source
+   *
+   *   def reader(data: String): Resource[IO, Source] =
+   *     Resource.fromAutoCloseable(IO.blocking {
+   *       Source.fromString(data)
+   *     })
+   *   }}}
+   *
+   * @example
+   *   {{{
    *   import cats.effect._
    *   import scala.io.Source
    *
@@ -911,7 +922,8 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    *     Resource.fromAutoCloseable(F.blocking {
    *       Source.fromString(data)
    *     })
-   * }}}
+   *   }}}
+   *
    * @param acquire
    *   The effect with the resource to acquire.
    * @param F
@@ -966,8 +978,12 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
   def suspend[F[_], A](hint: Sync.Type)(thunk: => A)(implicit F: Sync[F]): Resource[F, A] =
     Resource.eval(F.suspend(hint)(thunk))
 
-  def sleep[F[_]](time: FiniteDuration)(implicit F: GenTemporal[F, _]): Resource[F, Unit] =
+  def sleep[F[_]](time: Duration)(implicit F: GenTemporal[F, _]): Resource[F, Unit] =
     Resource.eval(F.sleep(time))
+
+  @deprecated("Use overload with Duration", "3.4.0")
+  def sleep[F[_]](time: FiniteDuration, F: GenTemporal[F, _]): Resource[F, Unit] =
+    sleep(time: Duration)(F)
 
   def cont[F[_], K, R](body: Cont[Resource[F, *], K, R])(implicit F: Async[F]): Resource[F, R] =
     Resource.applyFull { poll =>
@@ -1260,6 +1276,16 @@ abstract private[effect] class ResourceConcurrent[F[_]]
 
   override def both[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, (A, B)] =
     fa.both(fb)
+
+  override def memoize[A](fa: Resource[F, A]): Resource[F, Resource[F, A]] = {
+    Resource.eval(F.ref(false)).flatMap { allocated =>
+      val fa2 = F.uncancelable(poll => poll(fa.allocatedCase) <* allocated.set(true))
+      Resource
+        .makeCaseFull[F, F[(A, Resource.ExitCase => F[Unit])]](poll => poll(F.memoize(fa2)))(
+          (memo, exit) => allocated.get.ifM(memo.flatMap(_._2.apply(exit)), F.unit))
+        .map(memo => Resource.eval(memo.map(_._1)))
+    }
+  }
 }
 
 private[effect] trait ResourceClock[F[_]] extends Clock[Resource[F, *]] {

@@ -74,8 +74,14 @@ The primary mechanism which needs to be provided for `IO` to successfully implem
 
 This mechanism, by the way, corresponds *precisely* to the `IO.cede` effect: it cooperatively releases control to the other fibers, allowing them a chance to run before resuming the current fiber.
 
-With this primitive, fibers can be implemented by simply scheduling each one at a time. Each fiber runs until it reaches a *yield point* (usually an asynchronous call or a `cede` effect), at which point it yields back to the event loop and allows the other fibers to run. Eventually, those fibers will yield back around the queue until the first fiber has a chance to run again, and the process continues. Nothing is actually running *simultaneously*, but parallelism is still expressed as a concept in a way which is semantically compatible with the JVM, which allows libraries and application code to fully cross-compile despite the the differences in platform semantics.
+With this primitive, fibers can be implemented by simply scheduling each one at a time. Each fiber runs until it reaches a *yield point* (usually an asynchronous call or a `cede` effect), at which point it yields back to the event loop and allows the other fibers to run. Eventually, those fibers will yield back around the queue until the first fiber has a chance to run again, and the process continues. Nothing is actually running *simultaneously*, but parallelism is still expressed as a concept in a way which is semantically compatible with the JVM, which allows libraries and application code to fully cross-compile despite the differences in platform semantics.
 
 The *problem* is how to implement this yield operation in a fashion which is highly performant, compatible across all JavaScript environments, and doesn't interfere with other JavaScript functionality. Perhaps unsurprisingly, this is quite hard. Find the full story in the [scala-js-macrotask-executor](https://github.com/scala-js/scala-js-macrotask-executor) project's README.
 
 For the most part, you should never have to worry about any of this. Just understand that Cats Effect `IO` schedules fibers to play nicely with other asynchronous events such as I/O or DOM changes while avoiding overhead.
+
+## Scala Native
+
+The [Scala Native](https://github.com/scala-native/scala-native) runtime is [single-threaded](https://scala-native.org/en/latest/user/lang.html#multithreading), similarly to ScalaJS. That's why the `IO#unsafeRunSync` is not available.
+Be careful with `IO.blocking(...)` as it blocks the thread since there is no dedicated blocking thread pool. 
+For more in-depth details, see the [article](https://typelevel.org/blog/2022/09/19/typelevel-native.html#how-does-it-work) with explanations of how the Native runtime works. 

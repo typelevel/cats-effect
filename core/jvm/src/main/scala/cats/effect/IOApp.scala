@@ -59,10 +59,10 @@ import java.util.concurrent.atomic.AtomicInteger
  * produce an exit code of 1.
  *
  * Note that exit codes are an implementation-specific feature of the underlying runtime, as are
- * process arguments. Naturally, all JVMs support these functions, as does NodeJS, but some
- * JavaScript execution environments will be unable to replicate these features (or they simply
- * may not make sense). In such cases, exit codes may be ignored and/or argument lists may be
- * empty.
+ * process arguments. Naturally, all JVMs support these functions, as does Node.js and Scala
+ * Native, but some JavaScript execution environments will be unable to replicate these features
+ * (or they simply may not make sense). In such cases, exit codes may be ignored and/or argument
+ * lists may be empty.
  *
  * Note that in the case of the above example, we would actually be better off using
  * [[IOApp.Simple]] rather than `IOApp` directly, since we are neither using `args` nor are we
@@ -304,7 +304,7 @@ trait IOApp {
     // checked in openjdk 8-17; this attempts to detect when we're running under artificial environments, like sbt
     val isForked = Thread.currentThread().getId() == 1
 
-    if (runtime == null) {
+    val installed = if (runtime == null) {
       import unsafe.IORuntime
 
       val installed = IORuntime installGlobal {
@@ -331,14 +331,18 @@ trait IOApp {
           runtimeConfig)
       }
 
-      if (!installed) {
-        System
-          .err
-          .println(
-            "WARNING: Cats Effect global runtime already initialized; custom configurations will be ignored")
-      }
-
       _runtime = IORuntime.global
+
+      installed
+    } else {
+      unsafe.IORuntime.installGlobal(runtime)
+    }
+
+    if (!installed) {
+      System
+        .err
+        .println(
+          "WARNING: Cats Effect global runtime already initialized; custom configurations will be ignored")
     }
 
     if (isStackTracing) {
@@ -478,9 +482,8 @@ trait IOApp {
                 rt.halt(1)
             }
 
-          case null =>
-            println(
-              s"result is null but is interrupted? ${Thread.currentThread().isInterrupted()}")
+          case _ =>
+            throw new IllegalStateException(s"${result.getClass.getName} in MainThread queue")
         }
       }
     } catch {

@@ -160,7 +160,7 @@ object Semaphore {
 
     /*
      * Invariant:
-     *    (waiting.empty && permits >= 0) || (permits.nonEmpty && permits == 0)
+     *    (waiting.empty && permits >= 0) || (waiting.nonEmpty && permits == 0)
      */
     case class State(permits: Long, waiting: Q[Request])
     def initialState = State(n, Q())
