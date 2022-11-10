@@ -16,9 +16,7 @@
 
 package fiber // Get out of CE package b/c trace filtering
 
-import cats.Eval
 import cats.effect.{BaseSpec, DetectPlatform, IO}
-import cats.syntax.all._
 
 import scala.concurrent.duration._
 
@@ -41,7 +39,9 @@ class IOFiberSpec extends BaseSpec with DetectPlatform {
       }
 
       "toString a suspended fiber" in real {
-        def foreverNever = IO.async_[Unit](_ => "this is a unique lambda".pure[Eval].void.value)
+        def foreverNever = IO.async_[Unit] { cb =>
+          if (Thread.currentThread().hashCode() == 42) cb(Right(())) else ()
+        }
         val pattern =
           raw"cats.effect.IOFiber@[0-9a-f][0-9a-f]+ SUSPENDED(: async_? @ fiber.IOFiberSpec.foreverNever\$$[0-9]\(((.*IOFiberSpec.scala:[0-9]{2})|(Unknown Source))\))?"
         for {
