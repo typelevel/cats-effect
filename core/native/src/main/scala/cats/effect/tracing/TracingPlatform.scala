@@ -18,6 +18,7 @@ package cats.effect.tracing
 
 import scala.annotation.nowarn
 import scala.collection.mutable
+import scala.scalanative.meta.LinktimeInfo
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
@@ -25,21 +26,22 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
   private[this] val cache = mutable.Map.empty[Class[_], TracingEvent].withDefaultValue(null)
 
-  def calculateTracingEvent(key: Any): TracingEvent = {
-    if (isCachedStackTracing) {
-      val cls = key.getClass
-      val current = cache(cls)
-      if (current eq null) {
-        val event = buildEvent()
-        cache(cls) = event
-        event
-      } else current
-    } else if (isFullStackTracing) {
-      buildEvent()
-    } else {
-      null
-    }
-  }
+  def calculateTracingEvent(key: Any): TracingEvent =
+    if (LinktimeInfo.debugMode) {
+      if (isCachedStackTracing) {
+        val cls = key.getClass
+        val current = cache(cls)
+        if (current eq null) {
+          val event = buildEvent()
+          cache(cls) = event
+          event
+        } else current
+      } else if (isFullStackTracing) {
+        buildEvent()
+      } else {
+        null
+      }
+    } else null
 
   @nowarn("msg=never used")
   private[tracing] def applyStackTraceFilter(
