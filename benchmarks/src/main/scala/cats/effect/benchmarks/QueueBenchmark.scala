@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit
 @OutputTimeUnit(TimeUnit.MINUTES)
 class QueueBenchmark {
 
-  @Param(Array("100000"))
+  @Param(Array("65533"))
   var size: Int = _
 
   @Benchmark
@@ -60,6 +60,13 @@ class QueueBenchmark {
     Queue
       .boundedForConcurrent[IO, Unit](size / 8)
       .flatMap(enqueueDequeueContended(_))
+      .unsafeRunSync()
+
+  @Benchmark
+  def boundedConcurrentEnqueueDequeueContendedSingleConsumer(): Unit =
+    Queue
+      .boundedForConcurrent[IO, Unit](size / 8)
+      .flatMap(enqueueDequeueContendedSingleConsumer(_))
       .unsafeRunSync()
 
   @Benchmark
@@ -137,5 +144,17 @@ class QueueBenchmark {
     val takers = par(q.take, size / 4)
 
     offerers &> takers
+  }
+
+  private[this] def enqueueDequeueContendedSingleConsumer(q: Queue[IO, Unit]): IO[Unit] = {
+    def par(action: IO[Unit], num: Int): IO[Unit] =
+      if (num <= 10)
+        action
+      else
+        par(action, num / 2) &> par(action, num / 2)
+
+    val offerers = par(q.offer(()), size / 4)
+
+    offerers &> q.take.replicateA_(size / 4)
   }
 }
