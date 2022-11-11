@@ -16,11 +16,11 @@
 
 package cats.effect.metrics
 
-import java.util.concurrent.atomic.AtomicLong
-
 import cats.effect.IO
 
 import scala.concurrent.duration.FiniteDuration
+
+import java.util.concurrent.atomic.AtomicLong
 
 private[metrics] class CpuStarvationMbeanImpl private (
     counter: AtomicLong,

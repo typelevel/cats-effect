@@ -16,8 +16,8 @@
 
 package cats.effect
 
-import cats.effect.std.Console
 import cats.effect.metrics.JvmCpuStarvationMetrics
+import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
 import cats.syntax.all._
 

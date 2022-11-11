@@ -16,14 +16,15 @@
 
 package cats.effect.metrics
 
+import cats.effect.{IO, Resource}
+import cats.effect.std.Console
+
+import scala.concurrent.duration.FiniteDuration
+
 import java.io.{PrintWriter, StringWriter}
 import java.lang.management.ManagementFactory
 
-import cats.effect.std.Console
-import cats.effect.{IO, Resource}
 import javax.management.{MBeanServer, ObjectName}
-
-import scala.concurrent.duration.FiniteDuration
 
 private[effect] class JvmCpuStarvationMetrics private (mbean: CpuStarvationMbeanImpl)
     extends CpuStarvationMetrics {
