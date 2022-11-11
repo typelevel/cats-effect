@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit
 @OutputTimeUnit(TimeUnit.MINUTES)
 class QueueBenchmark {
 
-  @Param(Array("65533"))
+  @Param(Array("32768"))    // must be a power of 2
   var size: Int = _
 
   @Benchmark
@@ -82,6 +82,13 @@ class QueueBenchmark {
     Queue
       .boundedForAsync[IO, Unit](size / 8)
       .flatMap(enqueueDequeueContended(_))
+      .unsafeRunSync()
+
+  @Benchmark
+  def boundedAsyncEnqueueDequeueContendedSingleConsumer(): Unit =
+    Queue
+      .boundedForAsync[IO, Unit](size / 8)
+      .flatMap(enqueueDequeueContendedSingleConsumer(_))
       .unsafeRunSync()
 
   @Benchmark
@@ -136,7 +143,7 @@ class QueueBenchmark {
   private[this] def enqueueDequeueContended(q: Queue[IO, Unit]): IO[Unit] = {
     def par(action: IO[Unit], num: Int): IO[Unit] =
       if (num <= 10)
-        action
+        action.replicateA_(num)
       else
         par(action, num / 2) &> par(action, num / 2)
 
@@ -149,12 +156,10 @@ class QueueBenchmark {
   private[this] def enqueueDequeueContendedSingleConsumer(q: Queue[IO, Unit]): IO[Unit] = {
     def par(action: IO[Unit], num: Int): IO[Unit] =
       if (num <= 10)
-        action
+        action.replicateA_(num)
       else
         par(action, num / 2) &> par(action, num / 2)
 
-    val offerers = par(q.offer(()), size / 4)
-
-    offerers &> q.take.replicateA_(size / 4)
+    par(q.offer(()), size / 4) &> q.take.replicateA_(size / 4)
   }
 }
