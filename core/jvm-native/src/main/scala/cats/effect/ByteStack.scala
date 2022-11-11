@@ -18,6 +18,8 @@ package cats.effect
 
 private object ByteStack {
 
+  type T = Array[Int]
+
   final def toDebugString(stack: Array[Int], translate: Byte => String = _.toString): String = {
     val count = size(stack)
     ((count - 1) to 0 by -1)
