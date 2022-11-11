@@ -16,11 +16,12 @@
 
 package cats.effect
 
+import cats.effect.metrics.CpuStarvationMetrics
 import cats.effect.tracing.TracingConstants._
 
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
-import scala.scalajs.{js, LinkingInfo}
+import scala.scalajs.{LinkingInfo, js}
 import scala.util.Try
 
 /**
@@ -231,7 +232,10 @@ trait IOApp {
     var cancelCode = 1 // So this can be updated by external cancellation
     val fiber = Spawn[IO]
       .raceOutcome[ExitCode, Nothing](
-        CpuStarvationCheck.run(runtimeConfig).background.surround(run(argList)),
+        CpuStarvationCheck
+          .run(runtimeConfig, CpuStarvationMetrics.noOp)
+          .background
+          .surround(run(argList)),
         keepAlive)
       .flatMap {
         case Left(Outcome.Canceled()) =>

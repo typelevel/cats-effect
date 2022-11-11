@@ -17,6 +17,7 @@
 package cats.effect
 
 import cats.effect.std.Console
+import cats.effect.metrics.JvmCpuStarvationMetrics
 import cats.effect.tracing.TracingConstants._
 import cats.syntax.all._
 
@@ -367,9 +368,10 @@ trait IOApp {
     val ioa = run(args.toList)
 
     val fiber =
-      CpuStarvationCheck
-        .run(runtimeConfig)
-        .background
+      JvmCpuStarvationMetrics()
+        .flatMap { cpuStarvationMetrics =>
+          CpuStarvationCheck.run(runtimeConfig, cpuStarvationMetrics).background
+        }
         .surround(ioa)
         .unsafeRunFiber(
           {
