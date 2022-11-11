@@ -29,9 +29,10 @@ private[effect] object CpuStarvationCheck {
     def go(initial: FiniteDuration): IO[Nothing] =
       IO.sleep(runtimeConfig.cpuStarvationCheckInterval) >> IO.monotonic.flatMap { now =>
         val delta = now - initial
-        (Console[IO].errorln(warning) >> metrics.incCpuStarvationCount >> metrics
-          .recordClockDrift(delta - runtimeConfig.cpuStarvationCheckInterval)).whenA(delta >=
-          runtimeConfig.cpuStarvationCheckInterval * (1 + runtimeConfig.cpuStarvationCheckThreshold)) >>
+
+        metrics.recordClockDrift(delta - runtimeConfig.cpuStarvationCheckInterval) >>
+          (Console[IO].errorln(warning) >> metrics.incCpuStarvationCount).whenA(delta >=
+            runtimeConfig.cpuStarvationCheckInterval * (1 + runtimeConfig.cpuStarvationCheckThreshold)) >>
           go(now)
       }
 

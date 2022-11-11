@@ -20,4 +20,12 @@ private[metrics] trait CpuStarvationMbean {
    *   the current maximum clock drift observed in milliseconds.
    */
   def getMaxClockDriftMs(): Long
+
+  /**
+   * Tracks the current clock drift.
+   *
+   * @return
+   *   the current clock drift in milliseconds.
+   */
+  def getCurrentClockDriftMs(): Long
 }
