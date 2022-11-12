@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit
 @OutputTimeUnit(TimeUnit.MINUTES)
 class QueueBenchmark {
 
-  @Param(Array("32768"))    // must be a power of 2
+  @Param(Array("32768")) // must be a power of 2
   var size: Int = _
 
   @Benchmark
