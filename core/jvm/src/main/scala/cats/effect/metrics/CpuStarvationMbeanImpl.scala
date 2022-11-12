@@ -47,7 +47,7 @@ private[metrics] class CpuStarvationMbeanImpl private (
 
 }
 
-object CpuStarvationMbeanImpl {
+private[metrics] object CpuStarvationMbeanImpl {
   private[metrics] def apply(): IO[CpuStarvationMbeanImpl] = for {
     counter <- IO.delay(new AtomicLong(0))
     currentClockDrift <- IO.delay(new AtomicLong(0))

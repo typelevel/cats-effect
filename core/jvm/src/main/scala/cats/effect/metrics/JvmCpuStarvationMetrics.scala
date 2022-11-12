@@ -33,7 +33,7 @@ private[effect] class JvmCpuStarvationMetrics private (mbean: CpuStarvationMbean
   override def recordClockDrift(drift: FiniteDuration): IO[Unit] = mbean.recordDrift(drift)
 }
 
-object JvmCpuStarvationMetrics {
+private[effect] object JvmCpuStarvationMetrics {
   private[this] val mBeanObjectName = new ObjectName("cats.effect.metrics:type=CpuStarvation")
 
   private[this] def warning(th: Throwable) = {
