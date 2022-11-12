@@ -36,7 +36,7 @@ private[metrics] class CpuStarvationMbeanImpl private (
   def incStarvationCount: IO[Unit] = IO.delay(counter.incrementAndGet()).void
 
   def recordDrift(drift: FiniteDuration): IO[Unit] = {
-    lazy val driftMs = drift.toMillis
+    val driftMs = drift.toMillis
 
     val maxDrift =
       if (driftMs > 0) IO.delay(maxClockDrift.updateAndGet(_.max(driftMs))).void
