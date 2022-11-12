@@ -1141,7 +1141,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    *   IO async_ { cb =>
    *     exc.execute(new Runnable {
    *       def run() =
-   *         try cb(Right(body)) catch { case NonFatal(t) => cb(Left(t)) }
+   *         try cb(Right(body)) catch { case t if NonFatal(t) => cb(Left(t)) }
    *     })
    *   }
    * }}}
