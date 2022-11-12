@@ -46,6 +46,12 @@ private[effect] object JvmCpuStarvationMetrics {
        |""".stripMargin
   }
 
+  private [this] class NoOpCpuStarvationMetrics extends CpuStarvationMetrics {
+    override def incCpuStarvationCount: IO[Unit] = IO.unit
+
+    override def recordClockDrift(drift: FiniteDuration): IO[Unit] = IO.unit
+  }
+
   private[effect] def apply(): Resource[IO, CpuStarvationMetrics] = {
     val acquire: IO[(MBeanServer, JvmCpuStarvationMetrics)] = for {
       mBeanServer <- IO.delay(ManagementFactory.getPlatformMBeanServer)
@@ -59,7 +65,7 @@ private[effect] object JvmCpuStarvationMetrics {
       }
       .map(_._2)
       .handleErrorWith[CpuStarvationMetrics, Throwable] { th =>
-        Resource.eval(Console[IO].errorln(warning(th))).map(_ => CpuStarvationMetrics.noOp)
+        Resource.eval(Console[IO].errorln(warning(th))).map(_ => new NoOpCpuStarvationMetrics)
       }
   }
 }

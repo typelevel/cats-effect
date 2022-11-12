@@ -20,8 +20,12 @@ import cats.effect.IO
 
 import scala.concurrent.duration.FiniteDuration
 
-private[effect] trait CpuStarvationMetrics {
-  def incCpuStarvationCount: IO[Unit]
+private[effect] class NativeCpuStarvationMetrics extends CpuStarvationMetrics {
+  override def incCpuStarvationCount: IO[Unit] = IO.unit
 
-  def recordClockDrift(drift: FiniteDuration): IO[Unit]
+  override def recordClockDrift(drift: FiniteDuration): IO[Unit] = IO.unit
+}
+
+private [effect] object NativeCpuStarvationMetrics {
+  private[effect] def apply(): CpuStarvationMetrics = new NativeCpuStarvationMetrics
 }

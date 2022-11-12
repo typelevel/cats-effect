@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.effect.metrics.CpuStarvationMetrics
+import cats.effect.metrics.JsCpuStarvationMetrics
 import cats.effect.tracing.TracingConstants._
 
 import scala.concurrent.CancellationException
@@ -233,7 +233,7 @@ trait IOApp {
     val fiber = Spawn[IO]
       .raceOutcome[ExitCode, Nothing](
         CpuStarvationCheck
-          .run(runtimeConfig, CpuStarvationMetrics.noOp)
+          .run(runtimeConfig, JsCpuStarvationMetrics())
           .background
           .surround(run(argList)),
         keepAlive)
