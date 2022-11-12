@@ -93,7 +93,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
         // be unblocked by the offer
         _ <- IO
           .race(taker.joinWithNever, q.offer(()).delayBy(500.millis))
-          .timeoutTo(2.seconds, IO(false must beTrue))
+          .timeoutTo(5.seconds, IO(false must beTrue))
       } yield ()
 
       test.parReplicateA(if (isJS || isNative) 1 else 1000).as(ok)
