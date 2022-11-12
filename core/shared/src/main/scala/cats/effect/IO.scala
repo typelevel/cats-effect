@@ -201,12 +201,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    *   loser of the race
    */
   def bothOutcome[B](that: IO[B]): IO[(OutcomeIO[A @uncheckedVariance], OutcomeIO[B])] =
-    IO.uncancelable { poll =>
-      racePair(that).flatMap {
-        case Left((oc, f)) => poll(f.join).onCancel(f.cancel).map((oc, _))
-        case Right((f, oc)) => poll(f.join).onCancel(f.cancel).map((_, oc))
-      }
-    }
+    IO.asyncForIO.bothOutcome(this, that)
 
   /**
    * Runs the current and given IO in parallel, producing the pair of the results. If either
