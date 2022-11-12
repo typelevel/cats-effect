@@ -364,7 +364,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     Resource.make(startOn(ec))(_.cancel).map(_.join)
 
   def forceR[B](that: IO[B]): IO[B] =
-    handleError(_ => ()).productR(that)
+    void.voidError.productR(that)
 
   /**
    * Monadic bind on `IO`, used for sequentially composing two `IO` actions, where the value
@@ -997,6 +997,13 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def iterateWhile(p: A => Boolean): IO[A] = Monad[IO].iterateWhile(this)(p)
 
   def iterateUntil(p: A => Boolean): IO[A] = Monad[IO].iterateUntil(this)(p)
+
+  /**
+   * Suppresses any errors within an `IO[Unit]` value. Useful for terminating orphan fibers
+   * which drain their results into some external mechanism (such as a [[Deferred]]).
+   */
+  def voidError(implicit ev: A <:< Unit): IO[Unit] =
+    asInstanceOf[IO[Unit]].handleError(_ => ())
 }
 
 private[effect] trait IOLowPriorityImplicits {
