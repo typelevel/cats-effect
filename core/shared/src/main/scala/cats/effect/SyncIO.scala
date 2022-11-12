@@ -224,7 +224,7 @@ sealed abstract class SyncIO[+A] private () extends Serializable {
     import SyncIOConstants._
 
     var conts = ByteStack.create(8)
-    val objectState = new ArrayStack[AnyRef](16)
+    val objectState = ArrayStack[AnyRef](16)
 
     conts = ByteStack.push(conts, RunTerminusK)
 
