@@ -39,7 +39,7 @@ private[metrics] class CpuStarvationMbeanImpl private (
     val driftMs = drift.toMillis
 
     val maxDrift =
-      if (driftMs > 0) IO.delay(maxClockDrift.updateAndGet(_.max(driftMs))).void
+      if (driftMs > 0) IO.delay(maxClockDrift.updateAndGet(math.max(_, driftMs))).void
       else IO.unit
 
     IO.delay(currentClockDrift.set(driftMs)) >> maxDrift
