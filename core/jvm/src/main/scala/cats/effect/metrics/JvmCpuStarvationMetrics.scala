@@ -46,7 +46,7 @@ private[effect] object JvmCpuStarvationMetrics {
        |""".stripMargin
   }
 
-  private [this] class NoOpCpuStarvationMetrics extends CpuStarvationMetrics {
+  private[this] class NoOpCpuStarvationMetrics extends CpuStarvationMetrics {
     override def incCpuStarvationCount: IO[Unit] = IO.unit
 
     override def recordClockDrift(drift: FiniteDuration): IO[Unit] = IO.unit

@@ -26,6 +26,6 @@ private[effect] class JsCpuStarvationMetrics extends CpuStarvationMetrics {
   override def recordClockDrift(drift: FiniteDuration): IO[Unit] = IO.unit
 }
 
-private [effect] object JsCpuStarvationMetrics {
+private[effect] object JsCpuStarvationMetrics {
   private[effect] def apply(): CpuStarvationMetrics = new JsCpuStarvationMetrics
 }
