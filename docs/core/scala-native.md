@@ -3,7 +3,7 @@ id: scala-native
 title: Scala Native
 ---
 
-Cats Effect supports [Scala Native](https://github.com/scala-native/scala-native) since `3.4.0`.
+Cats Effect supports [Scala Native](https://github.com/scala-native/scala-native) since `3.3.14`.
 
 ## Scala Native example
 
