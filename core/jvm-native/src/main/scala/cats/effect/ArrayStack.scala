@@ -75,3 +75,11 @@ private final class ArrayStack[A <: AnyRef](
       buffer = buffer2
     }
 }
+
+private object ArrayStack {
+
+  def apply[A <: AnyRef](): ArrayStack[A] = new ArrayStack()
+
+  def apply[A <: AnyRef](size: Int): ArrayStack[A] = new ArrayStack(size)
+
+}
