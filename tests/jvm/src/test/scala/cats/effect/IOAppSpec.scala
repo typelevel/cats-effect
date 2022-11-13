@@ -199,6 +199,7 @@ class IOAppSpec extends Specification {
           val h = platform(CpuStarvation, List.empty)
           h.awaitStatus()
           val err = h.stderr()
+          err must not(contain("[WARNING] Failed to register Cats Effect CPU"))
           err must contain("[WARNING] Your CPU is probably starving")
         }
 
