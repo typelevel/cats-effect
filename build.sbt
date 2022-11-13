@@ -113,8 +113,8 @@ val Windows = "windows-latest"
 val MacOS = "macos-latest"
 
 val Scala212 = "2.12.17"
-val Scala213 = "2.13.8"
-val Scala3 = "3.2.0"
+val Scala213 = "2.13.10"
+val Scala3 = "3.2.1"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
 ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
@@ -767,6 +767,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       } else Seq()
     }
   )
+  .nativeSettings(tlFatalWarnings := false)
 
 /**
  * Test support for the core project, providing various helpful instances like ScalaCheck
@@ -882,6 +883,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.JavaSecureRandom$")
     )
   )
+  .nativeSettings(tlFatalWarnings := false)
 
 /**
  * A trivial pair of trivial example apps primarily used to show that IOApp works as a practical
