@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import cats.effect.metrics.NativeCpuStarvationMetrics
+
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
 
@@ -216,7 +218,12 @@ trait IOApp {
       IO.sleep(1.hour) >> keepAlive
 
     Spawn[IO]
-      .raceOutcome[ExitCode, Nothing](run(args.toList), keepAlive)
+      .raceOutcome[ExitCode, Nothing](
+        CpuStarvationCheck
+          .run(runtimeConfig, NativeCpuStarvationMetrics())
+          .background
+          .surround(run(args.toList)),
+        keepAlive)
       .flatMap {
         case Left(Outcome.Canceled()) =>
           IO.raiseError(new CancellationException("IOApp main fiber was canceled"))

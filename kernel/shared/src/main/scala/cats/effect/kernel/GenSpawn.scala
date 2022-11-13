@@ -387,7 +387,7 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    */
   def bothOutcome[A, B](fa: F[A], fb: F[B]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
     uncancelable { poll =>
-      racePair(fa, fb).flatMap {
+      poll(racePair(fa, fb)).flatMap {
         case Left((oc, f)) => poll(f.join).onCancel(f.cancel).tupleLeft(oc)
         case Right((f, oc)) => poll(f.join).onCancel(f.cancel).tupleRight(oc)
       }

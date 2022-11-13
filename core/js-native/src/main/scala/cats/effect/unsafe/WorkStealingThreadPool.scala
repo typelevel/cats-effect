@@ -28,8 +28,10 @@ private[effect] sealed abstract class WorkStealingThreadPool private ()
   def reportFailure(cause: Throwable): Unit
   private[effect] def reschedule(runnable: Runnable): Unit
   private[effect] def canExecuteBlockingCode(): Boolean
-  private[unsafe] def liveFibers()
-      : (Set[Runnable], Map[WorkerThread, (Option[Runnable], Set[Runnable])], Set[Runnable])
+  private[unsafe] def liveTraces(): (
+      Map[Runnable, Trace],
+      Map[WorkerThread, (Thread.State, Option[(Runnable, Trace)], Map[Runnable, Trace])],
+      Map[Runnable, Trace])
 }
 
 private[unsafe] sealed abstract class WorkerThread private () extends Thread {

@@ -83,8 +83,8 @@ private final class IOFiber[A](
 
   private[this] var localState: IOLocalState = initState
   private[this] var currentCtx: ExecutionContext = startEC
-  private[this] val objectState: ArrayStack[AnyRef] = new ArrayStack()
-  private[this] val finalizers: ArrayStack[IO[Unit]] = new ArrayStack()
+  private[this] val objectState: ArrayStack[AnyRef] = ArrayStack()
+  private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
   private[this] val callbacks: CallbackStack[A] = new CallbackStack(cb)
   private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: AnyRef = startIO
@@ -259,7 +259,7 @@ private final class IOFiber[A](
           val r =
             try cur.thunk()
             catch {
-              case NonFatal(t) =>
+              case t if NonFatal(t) =>
                 error = t
               case t: Throwable =>
                 onFatalFailure(t)
@@ -304,7 +304,7 @@ private final class IOFiber[A](
             val result =
               try f(v)
               catch {
-                case NonFatal(t) =>
+                case t if NonFatal(t) =>
                   error = t
                 case t: Throwable =>
                   onFatalFailure(t)
@@ -334,7 +334,7 @@ private final class IOFiber[A](
               val result =
                 try f(delay.thunk())
                 catch {
-                  case NonFatal(t) =>
+                  case t if NonFatal(t) =>
                     error = t
                   case t: Throwable =>
                     onFatalFailure(t)
@@ -374,7 +374,7 @@ private final class IOFiber[A](
           def next(v: Any): IO[Any] =
             try f(v)
             catch {
-              case NonFatal(t) =>
+              case t if NonFatal(t) =>
                 failed(t, 0)
               case t: Throwable =>
                 onFatalFailure(t)
@@ -400,7 +400,7 @@ private final class IOFiber[A](
               val result =
                 try f(delay.thunk())
                 catch {
-                  case NonFatal(t) =>
+                  case t if NonFatal(t) =>
                     failed(t, 0)
                   case t: Throwable =>
                     onFatalFailure(t)
@@ -456,7 +456,7 @@ private final class IOFiber[A](
               val result =
                 try delay.thunk()
                 catch {
-                  case NonFatal(t) =>
+                  case t if NonFatal(t) =>
                     // We need to augment the exception here because it doesn't
                     // get forwarded to the `failed` path.
                     Tracing.augmentThrowable(runtime.enhancedExceptions, t, tracingEvents)
@@ -743,6 +743,16 @@ private final class IOFiber[A](
              */
             state.wasFinalizing = finalizing
 
+            if (isStackTracing) {
+              state.handle = monitor()
+              finalizers.push(IO {
+                state.handle.deregister()
+                ()
+              })
+              // remove the above finalizer if the Get completes without getting cancelled
+              conts = ByteStack.push(conts, OnCancelK)
+            }
+
             /*
              * You should probably just read this as `suspended.compareAndSet(false, true)`.
              * This CAS should always succeed since we own the runloop,
@@ -750,9 +760,6 @@ private final class IOFiber[A](
              * which ensures we will always see the most up-to-date value
              * for `canceled` in `shouldFinalize`, ensuring no finalisation leaks
              */
-            if (isStackTracing) {
-              state.handle = monitor()
-            }
             suspended.getAndSet(true)
 
             /*
@@ -943,7 +950,7 @@ private final class IOFiber[A](
                   try {
                     scala.concurrent.blocking(cur.thunk())
                   } catch {
-                    case NonFatal(t) =>
+                    case t if NonFatal(t) =>
                       error = t
                     case t: Throwable =>
                       onFatalFailure(t)
@@ -1142,7 +1149,7 @@ private final class IOFiber[A](
         val transformed =
           try f(result)
           catch {
-            case NonFatal(t) =>
+            case t if NonFatal(t) =>
               error = t
             case t: Throwable =>
               onFatalFailure(t)
@@ -1161,7 +1168,7 @@ private final class IOFiber[A](
 
         try f(result)
         catch {
-          case NonFatal(t) =>
+          case t if NonFatal(t) =>
             failed(t, depth + 1)
           case t: Throwable =>
             onFatalFailure(t)
@@ -1233,7 +1240,7 @@ private final class IOFiber[A](
 
         try f(error)
         catch {
-          case NonFatal(t) =>
+          case t if NonFatal(t) =>
             failed(t, depth + 1)
           case t: Throwable =>
             onFatalFailure(t)
@@ -1338,14 +1345,14 @@ private final class IOFiber[A](
     val r =
       try cur.thunk()
       catch {
-        case NonFatal(t) =>
+        case t if NonFatal(t) =>
           error = t
         case t: Throwable =>
           onFatalFailure(t)
       }
 
     if (isStackTracing) {
-      // Remove the reference to the fiber monitor key
+      // Remove the reference to the fiber monitor handle
       objectState.pop().asInstanceOf[WeakBag.Handle].deregister()
     }
 
@@ -1376,7 +1383,7 @@ private final class IOFiber[A](
 
     try runnable.run()
     catch {
-      case NonFatal(t) =>
+      case t if NonFatal(t) =>
         currentCtx.reportFailure(t)
       case t: Throwable =>
         onFatalFailure(t)
@@ -1446,8 +1453,8 @@ private final class IOFiber[A](
 
   private[this] def evalOnFailureK(t: Throwable): IO[Any] = {
     if (isStackTracing) {
-      // Remove the reference to the fiber monitor key
-      objectState.pop()
+      // Remove the reference to the fiber monitor handle
+      objectState.pop().asInstanceOf[WeakBag.Handle].deregister()
     }
     val ec = objectState.pop().asInstanceOf[ExecutionContext]
     currentCtx = ec
@@ -1485,12 +1492,12 @@ private final class IOFiber[A](
   private[effect] def isDone: Boolean =
     resumeTag == DoneR
 
-  private[effect] def prettyPrintTrace(): String =
+  private[effect] def captureTrace(): Trace =
     if (tracingEvents ne null) {
       suspended.get()
-      Tracing.prettyPrint(tracingEvents)
+      Trace(tracingEvents)
     } else {
-      ""
+      Trace(RingBuffer.empty(1))
     }
 }
 

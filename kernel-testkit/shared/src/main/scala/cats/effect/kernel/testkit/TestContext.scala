@@ -159,7 +159,7 @@ final class TestContext private (_seed: Long) extends ExecutionContext { self =>
           if (current.tasks.remove(head)) {
             // execute task
             try head.task.run()
-            catch { case NonFatal(ex) => reportFailure(ex) }
+            catch { case ex if NonFatal(ex) => reportFailure(ex) }
             true
           } else {
             tickOne()
