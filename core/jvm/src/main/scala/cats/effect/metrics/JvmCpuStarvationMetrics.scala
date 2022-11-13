@@ -26,7 +26,7 @@ import java.lang.management.ManagementFactory
 
 import javax.management.{MBeanServer, ObjectName}
 
-private[effect] class JvmCpuStarvationMetrics private (mbean: CpuStarvationMbeanImpl)
+private[effect] class JvmCpuStarvationMetrics private (mbean: CpuStarvation)
     extends CpuStarvationMetrics {
   override def incCpuStarvationCount: IO[Unit] = mbean.incStarvationCount
 
@@ -40,7 +40,7 @@ private[effect] object JvmCpuStarvationMetrics {
     val exceptionWriter = new StringWriter()
     th.printStackTrace(new PrintWriter(exceptionWriter))
 
-    s"""[WARNING] Failed to register cats-effect CPU starvation MBean, proceeding with
+    s"""[WARNING] Failed to register Cats Effect CPU starvation MBean, proceeding with
        |no-operation versions. You will not see MBean metrics for CPU starvation.
        |Exception follows: \n ${exceptionWriter.toString}
        |""".stripMargin
@@ -55,7 +55,7 @@ private[effect] object JvmCpuStarvationMetrics {
   private[effect] def apply(): Resource[IO, CpuStarvationMetrics] = {
     val acquire: IO[(MBeanServer, JvmCpuStarvationMetrics)] = for {
       mBeanServer <- IO.delay(ManagementFactory.getPlatformMBeanServer)
-      mBean <- CpuStarvationMbeanImpl()
+      mBean <- CpuStarvation()
       _ <- IO.blocking(mBeanServer.registerMBean(mBean, mBeanObjectName))
     } yield (mBeanServer, new JvmCpuStarvationMetrics(mBean))
 

@@ -19,7 +19,7 @@ package cats.effect.metrics
 /**
  * An MBean interfaces for monitoring when CPU starvation occurs.
  */
-private[metrics] trait CpuStarvationMbean {
+private[metrics] trait CpuStarvationMBean {
 
   /**
    * Returns the number of times CPU starvation has occurred.

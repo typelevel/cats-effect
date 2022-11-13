@@ -22,11 +22,12 @@ import scala.concurrent.duration.FiniteDuration
 
 import java.util.concurrent.atomic.AtomicLong
 
-private[metrics] class CpuStarvationMbeanImpl private (
+private[metrics] class CpuStarvation private (
     counter: AtomicLong,
     currentClockDrift: AtomicLong,
     maxClockDrift: AtomicLong)
-    extends CpuStarvationMbean {
+    extends CpuStarvationMBean {
+
   override def getCpuStarvationCount(): Long = counter.get()
 
   override def getMaxClockDriftMs(): Long = maxClockDrift.get()
@@ -47,10 +48,10 @@ private[metrics] class CpuStarvationMbeanImpl private (
 
 }
 
-private[metrics] object CpuStarvationMbeanImpl {
-  private[metrics] def apply(): IO[CpuStarvationMbeanImpl] = for {
+private[metrics] object CpuStarvation {
+  private[metrics] def apply(): IO[CpuStarvation] = for {
     counter <- IO.delay(new AtomicLong(0))
     currentClockDrift <- IO.delay(new AtomicLong(0))
     maxClockDrift <- IO.delay(new AtomicLong(0))
-  } yield new CpuStarvationMbeanImpl(counter, currentClockDrift, maxClockDrift)
+  } yield new CpuStarvation(counter, currentClockDrift, maxClockDrift)
 }
