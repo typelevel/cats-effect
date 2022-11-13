@@ -151,8 +151,9 @@ package examples {
       // jitter to give the cpu starvation checker a chance to run at all
       val jitter = rand.nextIntBounded(100).flatMap(n => IO.sleep(n.millis))
 
-      (jitter >> IO(fib(42))).replicateA_(2).parReplicateA_(
-        Runtime.getRuntime().availableProcessors() * 4)
+      (jitter >> IO(fib(42)))
+        .replicateA_(2)
+        .parReplicateA_(Runtime.getRuntime().availableProcessors() * 4)
     }
   }
 }
