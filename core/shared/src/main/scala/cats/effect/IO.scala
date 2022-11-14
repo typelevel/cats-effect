@@ -1068,9 +1068,80 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     delay(thunk).flatten
 
   /**
+   * Suspends an asynchronous side effect with optional immediate result in `IO`.
+   *
+   * The given function `k` will be invoked during evaluation of the `IO` to:
+   *   - check if result is already available;
+   *   - "schedule" the asynchronous callback, where the callback of type `Either[Throwable, A]
+   *     \=> Unit` is the parameter passed to that function. Only the ''first'' invocation of
+   *     the callback will be effective! All subsequent invocations will be silently dropped.
+   *
+   * The process of registering the callback itself is suspended in `IO` (the outer `IO` of
+   * `IO[Either[Option[IO[Unit]], A]]`).
+   *
+   * The effect returns `Either[Option[IO[Unit]], A]` where:
+   *   - right side `A` is an immediate result of computation (callback invocation will be
+   *     dropped);
+   *   - left side `Option[IO[Unit]] `is an optional finalizer to be run in the event that the
+   *     fiber running `asyncCheckAttempt(k)` is canceled.
+   *
+   * For example, here is a simplified version of `IO.fromCompletableFuture`:
+   *
+   * {{{
+   * def fromCompletableFuture[A](fut: IO[CompletableFuture[A]]): IO[A] = {
+   *   fut.flatMap { cf =>
+   *     IO.asyncCheckAttempt { cb =>
+   *       if (cf.isDone) {
+   *         //Register immediately available result of the completable future or handle an error
+   *         IO(cf.get)
+   *           .map(Right(_))
+   *           .handleError { e =>
+   *             cb(Left(e))
+   *             Left(None)
+   *           }
+   *       } else {
+   *         IO {
+   *           //Invoke the callback with the result of the completable future
+   *           val stage = cf.handle[Unit] {
+   *             case (a, null) => cb(Right(a))
+   *             case (_, e) => cb(Left(e))
+   *           }
+   *
+   *           //Cancel the completable future if the fiber is canceled
+   *           Left(Some(IO(stage.cancel(false)).void))
+   *         }
+   *       }
+   *     }
+   *   }
+   * }
+   * }}}
+   *
+   * Note that `asyncCheckAttempt` is uncancelable during its registration.
+   *
+   * @see
+   *   [[async]] for a simplified variant without an option for immediate result
+   */
+  def asyncCheckAttempt[A](
+      k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[Unit]], A]]): IO[A] = {
+    val body = new Cont[IO, A, A] {
+      def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
+        G.uncancelable { poll =>
+          lift(k(resume)) flatMap {
+            case Right(a) => G.pure(a)
+            case Left(Some(fin)) => G.onCancel(poll(get), lift(fin))
+            case Left(None) => poll(get)
+          }
+        }
+      }
+    }
+
+    IOCont(body, Tracing.calculateTracingEvent(k))
+  }
+
+  /**
    * Suspends an asynchronous side effect in `IO`.
    *
-   * The given function will be invoked during evaluation of the `IO` to "schedule" the
+   * The given function `k` will be invoked during evaluation of the `IO` to "schedule" the
    * asynchronous callback, where the callback of type `Either[Throwable, A] => Unit` is the
    * parameter passed to that function. Only the ''first'' invocation of the callback will be
    * effective! All subsequent invocations will be silently dropped.
@@ -1102,8 +1173,13 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * }
    * }}}
    *
+   * Note that `async` is uncancelable during its registration.
+   *
    * @see
    *   [[async_]] for a simplified variant without a finalizer
+   * @see
+   *   [[asyncCheckAttempt]] for more generic version providing an optional immediate result of
+   *   computation
    */
   def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = {
     val body = new Cont[IO, A, A] {
@@ -1123,7 +1199,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   /**
    * Suspends an asynchronous side effect in `IO`.
    *
-   * The given function will be invoked during evaluation of the `IO` to "schedule" the
+   * The given function `k` will be invoked during evaluation of the `IO` to "schedule" the
    * asynchronous callback, where the callback is the parameter passed to that function. Only
    * the ''first'' invocation of the callback will be effective! All subsequent invocations will
    * be silently dropped.
@@ -1150,8 +1226,13 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * This function can be thought of as a safer, lexically-constrained version of `Promise`,
    * where `IO` is like a safer, lazy version of `Future`.
    *
+   * Also, note that `async` is uncancelable during its registration.
+   *
    * @see
-   *   [[async]]
+   *   [[async]] for more generic version providing a finalizer
+   * @see
+   *   [[asyncCheckAttempt]] for more generic version providing an optional immediate result of
+   *   computation and a finalizer
    */
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
     val body = new Cont[IO, A, A] {
@@ -1604,6 +1685,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[this] val _asyncForIO: kernel.Async[IO] = new kernel.Async[IO]
     with StackSafeMonad[IO] {
+
+    override def asyncCheckAttempt[A](
+        k: (Either[Throwable, A] => Unit) => IO[Either[Option[IO[Unit]], A]]): IO[A] =
+      IO.asyncCheckAttempt(k)
 
     override def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
       IO.async(k)
