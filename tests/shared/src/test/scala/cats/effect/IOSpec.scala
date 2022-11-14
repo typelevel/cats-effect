@@ -56,16 +56,18 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         i mustEqual 42
       }
 
-      "preserve monad identity on asyncCheckAttempt immediate result" in ticked { implicit ticker =>
-        val fa = IO.asyncCheckAttempt[Int](_ => IO(Right(42)))
-        fa.flatMap(i => IO.pure(i)) must completeAs(42)
-        fa must completeAs(42)
+      "preserve monad identity on asyncCheckAttempt immediate result" in ticked {
+        implicit ticker =>
+          val fa = IO.asyncCheckAttempt[Int](_ => IO(Right(42)))
+          fa.flatMap(i => IO.pure(i)) must completeAs(42)
+          fa must completeAs(42)
       }
 
-      "preserve monad identity on asyncCheckAttempt suspended result" in ticked { implicit ticker =>
-        val fa = IO.asyncCheckAttempt[Int](cb => IO(cb(Right(42))).as(Left(None)))
-        fa.flatMap(i => IO.pure(i)) must completeAs(42)
-        fa must completeAs(42)
+      "preserve monad identity on asyncCheckAttempt suspended result" in ticked {
+        implicit ticker =>
+          val fa = IO.asyncCheckAttempt[Int](cb => IO(cb(Right(42))).as(Left(None)))
+          fa.flatMap(i => IO.pure(i)) must completeAs(42)
+          fa must completeAs(42)
       }
 
       "preserve monad identity on async" in ticked { implicit ticker =>
@@ -441,13 +443,15 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       }
 
       "continue from the results of an asyncCheckAttempt immediate result produced prior to registration" in ticked {
-        implicit ticker => IO.asyncCheckAttempt[Int](_ => IO(Right(42))).map(_ + 2) must completeAs(44)
+        implicit ticker =>
+          val fa = IO.asyncCheckAttempt[Int](_ => IO(Right(42))).map(_ + 2)
+          fa must completeAs(44)
       }
 
       "continue from the results of an asyncCheckAttempt suspended result produced prior to registration" in ticked {
         implicit ticker =>
-          IO.asyncCheckAttempt[Int](cb => IO(cb(Right(42))).as(Left(None))).map(_ + 2) must completeAs(
-            44)
+          val fa = IO.asyncCheckAttempt[Int](cb => IO(cb(Right(42))).as(Left(None))).map(_ + 2)
+          fa must completeAs(44)
       }
 
       // format: off
@@ -464,9 +468,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "produce a failure when the registration raises an error after callback" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
 
-        IO.asyncCheckAttempt[Int](cb => IO(cb(Right(42)))
+        val fa = IO.asyncCheckAttempt[Int](cb => IO(cb(Right(42)))
           .flatMap(_ => IO.raiseError(TestException)))
-          .void must failAs(TestException)
+          .void
+        fa must failAs(TestException)
       }
       // format: on
 
@@ -475,7 +480,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
         var cb: Either[Throwable, Int] => Unit = null
 
-        val asyncCheckAttempt = IO.asyncCheckAttempt[Int] { cb0 => IO { cb = cb0 } *> IO.pure(Right(42)) }
+        val asyncCheckAttempt = IO.asyncCheckAttempt[Int] { cb0 =>
+          IO { cb = cb0 } *> IO.pure(Right(42))
+        }
 
         val test = for {
           fiber <- asyncCheckAttempt.start
@@ -517,7 +524,9 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
         var cb: Either[Throwable, Int] => Unit = null
 
-        val asyncCheckAttempt = IO.asyncCheckAttempt[Int] { cb0 => IO { cb = cb0 } *> IO.pure(Left(None)) }
+        val asyncCheckAttempt = IO.asyncCheckAttempt[Int] { cb0 =>
+          IO { cb = cb0 } *> IO.pure(Left(None))
+        }
 
         val test = for {
           fiber <- asyncCheckAttempt.start

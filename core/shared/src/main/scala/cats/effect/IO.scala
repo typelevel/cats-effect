@@ -1183,8 +1183,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * @see
    *   [[async_]] for a simplified variant without a finalizer
    * @see
-   *   [[asyncCheckAttempt]] for more generic version providing an optional immediate result
-   *   of computation
+   *   [[asyncCheckAttempt]] for more generic version providing an optional immediate result of
+   *   computation
    */
   def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = {
     val body = new Cont[IO, A, A] {
@@ -1236,8 +1236,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * @see
    *   [[async]] for more generic version providing a finalizer
    * @see
-   *   [[asyncCheckAttempt]] for more generic version providing an optional immediate result
-   *   of computation and a finalizer
+   *   [[asyncCheckAttempt]] for more generic version providing an optional immediate result of
+   *   computation and a finalizer
    */
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
     val body = new Cont[IO, A, A] {
