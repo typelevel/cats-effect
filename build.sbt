@@ -729,7 +729,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[DirectMissingMethodProblem](
           "cats.effect.unsafe.FiberAwareExecutionContext.liveFibers"),
         // introduced by #3222. Optimized ArrayStack internal API
-        ProblemFilters.exclude[Problem]("cats.effect.ArrayStack*")
+        ProblemFilters.exclude[Problem]("cats.effect.ArrayStack*"),
+        // mystery filters that became required in 3.4.0
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.tracing.TracingConstants.*")
       )
     },
     mimaBinaryIssueFilters ++= {
@@ -751,14 +754,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           ProblemFilters.exclude[MissingTypesProblem]("cats.effect.tracing.Tracing$"),
           ProblemFilters.exclude[DirectMissingMethodProblem](
             "cats.effect.tracing.Tracing.computeValue"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.tracing.TracingConstants.enhancedExceptions"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.tracing.TracingConstants.traceBufferLogSize"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.tracing.TracingConstants.traceBufferLogSize"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.tracing.TracingConstants.enhancedExceptions"),
           ProblemFilters.exclude[ReversedMissingMethodProblem](
             "cats.effect.unsafe.WorkStealingThreadPool.canExecuteBlockingCode"),
           ProblemFilters.exclude[ReversedMissingMethodProblem](
