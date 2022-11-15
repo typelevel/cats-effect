@@ -68,7 +68,7 @@ private[effect] abstract class IOFiberPlatform[A] extends AtomicBoolean(false) {
                       case ex: ClosedByInterruptException => throw ex
 
                       // this won't suppress InterruptedException:
-                      case NonFatal(t) => Left(t)
+                      case t if NonFatal(t) => Left(t)
                     }
 
                   // this is why it has to be a semaphore rather than an atomic boolean

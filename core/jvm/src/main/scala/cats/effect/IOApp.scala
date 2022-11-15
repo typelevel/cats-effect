@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.effect.metrics.JvmCpuStarvationMetrics
 import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
 import cats.syntax.all._
@@ -187,7 +188,7 @@ trait IOApp {
     Math.max(2, Runtime.getRuntime().availableProcessors())
 
   // arbitrary constant is arbitrary
-  private[this] val queue = new ArrayBlockingQueue[AnyRef](32)
+  private[this] lazy val queue = new ArrayBlockingQueue[AnyRef](32)
 
   /**
    * Executes the provided actions on the JVM's `main` thread. Note that this is, by definition,
@@ -208,7 +209,7 @@ trait IOApp {
     new ExecutionContext {
       def reportFailure(t: Throwable): Unit =
         t match {
-          case NonFatal(t) =>
+          case t if NonFatal(t) =>
             t.printStackTrace()
 
           case t =>
@@ -367,26 +368,31 @@ trait IOApp {
     val ioa = run(args.toList)
 
     val fiber =
-      ioa.unsafeRunFiber(
-        {
-          if (counter.decrementAndGet() == 0) {
-            queue.clear()
-          }
-          queue.put(new CancellationException("IOApp main fiber was canceled"))
-        },
-        { t =>
-          if (counter.decrementAndGet() == 0) {
-            queue.clear()
-          }
-          queue.put(t)
-        },
-        { a =>
-          if (counter.decrementAndGet() == 0) {
-            queue.clear()
-          }
-          queue.put(a)
+      JvmCpuStarvationMetrics()
+        .flatMap { cpuStarvationMetrics =>
+          CpuStarvationCheck.run(runtimeConfig, cpuStarvationMetrics).background
         }
-      )(runtime)
+        .surround(ioa)
+        .unsafeRunFiber(
+          {
+            if (counter.decrementAndGet() == 0) {
+              queue.clear()
+            }
+            queue.put(new CancellationException("IOApp main fiber was canceled"))
+          },
+          { t =>
+            if (counter.decrementAndGet() == 0) {
+              queue.clear()
+            }
+            queue.put(t)
+          },
+          { a =>
+            if (counter.decrementAndGet() == 0) {
+              queue.clear()
+            }
+            queue.put(a)
+          }
+        )(runtime)
 
     if (isStackTracing)
       runtime.fiberMonitor.monitorSuspended(fiber)
@@ -453,23 +459,24 @@ trait IOApp {
               // if we're unforked, the only way to report cancelation is to throw
               throw e
 
-          case NonFatal(t) =>
-            if (isForked) {
-              t.printStackTrace()
-              System.exit(1)
-            } else {
-              throw t
-            }
-
           case t: Throwable =>
-            t.printStackTrace()
-            rt.halt(1)
+            if (NonFatal(t)) {
+              if (isForked) {
+                t.printStackTrace()
+                System.exit(1)
+              } else {
+                throw t
+              }
+            } else {
+              t.printStackTrace()
+              rt.halt(1)
+            }
 
           case r: Runnable =>
             try {
               r.run()
             } catch {
-              case NonFatal(t) =>
+              case t if NonFatal(t) =>
                 if (isForked) {
                   t.printStackTrace()
                   System.exit(1)

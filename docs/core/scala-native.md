@@ -3,7 +3,7 @@ id: scala-native
 title: Scala Native
 ---
 
-Cats Effect supports [Scala Native](https://github.com/scala-native/scala-native) since `3.3.14`.
+Cats Effect supports [Scala Native](https://github.com/scala-native/scala-native) since `3.4.0`.
 
 ## Scala Native example
 
@@ -22,7 +22,7 @@ lazy val root = project.in(file("."))
   .enablePlugins(ScalaNativePlugin)
   .settings(
     name                := "cats-effect-3-hello-world",
-    libraryDependencies += "org.typelevel" %%% "cats-effect" % "3.3.14",
+    libraryDependencies += "org.typelevel" %%% "cats-effect" % "3.4.0",
     Compile / mainClass := Some("com.example.Main")
  )
 

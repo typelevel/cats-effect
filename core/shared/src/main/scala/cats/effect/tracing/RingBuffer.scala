@@ -37,14 +37,17 @@ private[effect] final class RingBuffer private (logSize: Int) {
    */
   def toList(): List[TracingEvent] = {
     var result = List.empty[TracingEvent]
-    val msk = mask
-    val idx = index
-    val start = math.max(idx - length, 0)
-    val end = idx
-    var i = start
-    while (i < end) {
-      result ::= buffer(i & msk)
-      i += 1
+    val buf = buffer
+    if (buf ne null) {
+      val msk = mask
+      val idx = index
+      val start = math.max(idx - length, 0)
+      val end = idx
+      var i = start
+      while (i < end) {
+        result ::= buf(i & msk)
+        i += 1
+      }
     }
     result
   }

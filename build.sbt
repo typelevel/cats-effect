@@ -289,7 +289,7 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 
 ThisBuild / autoAPIMappings := true
 
-val CatsVersion = "2.8.0"
+val CatsVersion = "2.9.0"
 val Specs2Version = "4.17.0"
 val ScalaCheckVersion = "1.17.0"
 val DisciplineVersion = "1.4.0"
@@ -551,11 +551,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread$Data"),
-      // introduced by #2732, lambda lifting for private[this] queue
-      ProblemFilters.exclude[ReversedMissingMethodProblem](
-        "cats.effect.IOApp.cats$effect$IOApp$_setter_$cats$effect$IOApp$$queue_="),
-      ProblemFilters.exclude[ReversedMissingMethodProblem](
-        "cats.effect.IOApp.cats$effect$IOApp$$queue"),
       // introduced by #2844, Thread local fallback weak bag
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.SynchronizedWeakBag"),
@@ -591,7 +586,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.NonDaemonThreadLogger.sleepIntervalMillis"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.NonDaemonThreadLogger.this"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.NonDaemonThreadLogger$")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.NonDaemonThreadLogger$"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -729,7 +725,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           "cats.effect.unsafe.PolyfillExecutionContext$"),
         ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.WorkerThread"),
         ProblemFilters.exclude[Problem]("cats.effect.IOFiberConstants.*"),
-        ProblemFilters.exclude[Problem]("cats.effect.SyncIOConstants.*")
+        ProblemFilters.exclude[Problem]("cats.effect.SyncIOConstants.*"),
+        // introduced by #3196. Changes in an internal API.
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.unsafe.FiberAwareExecutionContext.liveFibers"),
+        // introduced by #3222. Optimized ArrayStack internal API
+        ProblemFilters.exclude[Problem]("cats.effect.ArrayStack*")
       )
     },
     mimaBinaryIssueFilters ++= {
