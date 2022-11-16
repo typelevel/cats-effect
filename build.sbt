@@ -201,20 +201,20 @@ ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
 ThisBuild / githubWorkflowBuildMatrixExclusions := {
   val scalaJavaFilters = for {
-    scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
+    scala <- Seq("2.12", "3")
     java <- (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(OldGuardJava))
     if !(scala == Scala3 && (java == LatestJava || java == GraalVM))
   } yield MatrixExclude(Map("scala" -> scala, "java" -> java.render))
 
   val windowsAndMacScalaFilters =
-    (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).flatMap { scala =>
+    Seq("2.12", "3").flatMap { scala =>
       Seq(
         MatrixExclude(Map("os" -> Windows, "scala" -> scala)),
         MatrixExclude(Map("os" -> MacOS, "scala" -> scala)))
     }
 
   val jsScalaFilters = for {
-    scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
+    scala <- Seq("2.12", "3")
     ci <- jsCiVariants.tail
   } yield MatrixExclude(Map("ci" -> ci, "scala" -> scala))
 
@@ -239,9 +239,9 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
 
     javaFilters ++ Seq(
       MatrixExclude(Map("os" -> Windows, "ci" -> ci)),
-      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala212)),
+      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> "2.12")),
       // keep a native+2.13+macos job
-      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala3))
+      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> "3"))
     )
   }
 
