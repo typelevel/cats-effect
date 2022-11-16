@@ -138,7 +138,7 @@ jobs:
           cache: sbt
 
       - name: sbt update
-        if: matrix.java == 'temurin@8' && !steps.setup-java-temurin-8.outputs.cache-hit
+        if: matrix.java == 'temurin@8' && steps.setup-java-temurin-8.outputs.cache-hit == 'false'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' reload +update
 
@@ -161,7 +161,7 @@ jobs:
           cache: sbt
 
       - name: sbt update
-        if: matrix.java == 'temurin@11' && !steps.setup-java-temurin-11.outputs.cache-hit
+        if: matrix.java == 'temurin@11' && steps.setup-java-temurin-11.outputs.cache-hit == 'false'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' reload +update
 
@@ -184,7 +184,7 @@ jobs:
           cache: sbt
 
       - name: sbt update
-        if: matrix.java == 'temurin@17' && !steps.setup-java-temurin-17.outputs.cache-hit
+        if: matrix.java == 'temurin@17' && steps.setup-java-temurin-17.outputs.cache-hit == 'false'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' reload +update
 
@@ -207,7 +207,7 @@ jobs:
           cache: sbt
 
       - name: sbt update
-        if: matrix.java == 'graalvm@11' && !steps.setup-java-graalvm-11.outputs.cache-hit
+        if: matrix.java == 'graalvm@11' && steps.setup-java-graalvm-11.outputs.cache-hit == 'false'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' reload +update
 
@@ -308,7 +308,7 @@ jobs:
           cache: sbt
 
       - name: sbt update
-        if: matrix.java == 'temurin@8' && !steps.setup-java-temurin-8.outputs.cache-hit
+        if: matrix.java == 'temurin@8' && steps.setup-java-temurin-8.outputs.cache-hit == 'false'
         run: sbt '++ ${{ matrix.scala }}' reload +update
 
       - name: Download Java (temurin@11)
@@ -330,7 +330,7 @@ jobs:
           cache: sbt
 
       - name: sbt update
-        if: matrix.java == 'temurin@11' && !steps.setup-java-temurin-11.outputs.cache-hit
+        if: matrix.java == 'temurin@11' && steps.setup-java-temurin-11.outputs.cache-hit == 'false'
         run: sbt '++ ${{ matrix.scala }}' reload +update
 
       - name: Download Java (temurin@17)
@@ -352,7 +352,7 @@ jobs:
           cache: sbt
 
       - name: sbt update
-        if: matrix.java == 'temurin@17' && !steps.setup-java-temurin-17.outputs.cache-hit
+        if: matrix.java == 'temurin@17' && steps.setup-java-temurin-17.outputs.cache-hit == 'false'
         run: sbt '++ ${{ matrix.scala }}' reload +update
 
       - name: Download Java (graalvm@11)
@@ -374,7 +374,7 @@ jobs:
           cache: sbt
 
       - name: sbt update
-        if: matrix.java == 'graalvm@11' && !steps.setup-java-graalvm-11.outputs.cache-hit
+        if: matrix.java == 'graalvm@11' && steps.setup-java-graalvm-11.outputs.cache-hit == 'false'
         run: sbt '++ ${{ matrix.scala }}' reload +update
 
       - name: Submit Dependencies
