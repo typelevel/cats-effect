@@ -232,14 +232,14 @@ jobs:
         run: sbt githubWorkflowCheck
 
       - name: Check that scalafix has been run
-        if: matrix.scala != '3.2.1' && matrix.os != 'windows-latest'
+        if: matrix.scala != '3' && matrix.os != 'windows-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' 'root/scalafixAll --check'
 
       - shell: bash
         run: sbt '++ ${{ matrix.scala }}' '${{ matrix.ci }}'
 
-      - if: (matrix.scala == '2.13.10' || matrix.scala == '3.2.1') && matrix.ci == 'ciJVM'
+      - if: (matrix.scala == '2.13' || matrix.scala == '3') && matrix.ci == 'ciJVM'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' docs/mdoc
 
@@ -254,7 +254,7 @@ jobs:
         run: example/test-js.sh ${{ matrix.scala }}
 
       - name: Test GraalVM Native Image
-        if: matrix.scala == '2.13.10' && matrix.java == 'graalvm@11' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13' && matrix.java == 'graalvm@11' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' graalVMExample/nativeImage graalVMExample/nativeImageRun
 
@@ -264,7 +264,7 @@ jobs:
         run: example/test-native.sh ${{ matrix.scala }}
 
       - name: Scalafix tests
-        if: matrix.scala == '2.13.10' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
+        if: matrix.scala == '2.13' && matrix.ci == 'ciJVM' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           cd scalafix
