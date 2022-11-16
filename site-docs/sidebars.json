@@ -37,6 +37,7 @@
       "std/deferred",
       "std/dequeue",
       "std/dispatcher",
+      "std/env",
       "std/hotswap",
       "std/pqueue",
       "std/queue",
