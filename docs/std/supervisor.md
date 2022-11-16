@@ -20,15 +20,28 @@ A supervisor spawns fibers whose lifecycles are bound to that of the supervisor.
 
 ```scala
 trait Supervisor[F[_]] {
-
   def supervise[A](fa: F[A]): F[Fiber[F, Throwable, A]]
 }
 
 object Supervisor {
-  def apply[F[_]](implicit F: Concurrent[F]): Resource[F, Supervisor[F]]
+  def apply[F[_]](await: Boolean)(implicit F: Concurrent[F]): Resource[F, Supervisor[F]]
 }
 ```
 
 Any fibers created via the supervisor will be finalized when the supervisor itself
 is finalized via `Resource#use`.
 
+There are two finalization strategies according to the `await` parameter of the constructor:
+- `true` - wait for the completion of the active fibers
+- `false` - cancel the active fibers
+
+**Note:** if an effect that never completes is supervised by a `Supervisor` with the awaiting 
+termination policy, the termination of the `Supervisor` is indefinitely suspended:
+```scala mdoc:silent
+import cats.effect.IO
+import cats.effect.std.Supervisor
+
+Supervisor[IO](await = true).use { supervisor =>
+  supervisor.supervise(IO.never).void
+}
+```
