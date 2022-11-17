@@ -27,7 +27,7 @@ await-output() {
 cd $(dirname $0)/..
 
 echo -e "\e[32mRunning sbt...\e[0m"
-sbt ++ $1 exampleJVM/run &> >(tee $output) &
+sbt ++$1 exampleJVM/run &> >(tee $output) &
 
 await-output started
 echo -e "\e[32mKilling sbt\e[0m"

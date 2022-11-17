@@ -117,6 +117,7 @@ val Scala213 = "2.13.10"
 val Scala3 = "3.2.1"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
+ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value
 ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
 ThisBuild / tlJdkRelease := Some(8)
 
@@ -158,14 +159,14 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("root/scalafixAll --check"),
     name = Some("Check that scalafix has been run"),
     cond = Some(
-      s"matrix.scala != '3' && matrix.os != 'windows-latest'"
+      s"matrix.scala != '$Scala3' && matrix.os != 'windows-latest'"
     ) // windows has file lock issues due to shared sources
   ),
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
     List("docs/mdoc"),
     cond = Some(
-      s"(matrix.scala == '2.13' || matrix.scala == '3') && matrix.ci == 'ciJVM'")),
+      s"(matrix.scala == '$Scala213' || matrix.scala == '$Scala3') && matrix.ci == 'ciJVM'")),
   WorkflowStep.Run(
     List("example/test-jvm.sh ${{ matrix.scala }}"),
     name = Some("Test Example JVM App Within Sbt"),
@@ -180,7 +181,7 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("graalVMExample/nativeImage", "graalVMExample/nativeImageRun"),
     name = Some("Test GraalVM Native Image"),
     cond = Some(
-      s"matrix.scala == '2.13' && matrix.java == '${GraalVM.render}' && matrix.os == '$PrimaryOS'")
+      s"matrix.scala == '$Scala213' && matrix.java == '${GraalVM.render}' && matrix.os == '$PrimaryOS'")
   ),
   WorkflowStep.Run(
     List("example/test-native.sh ${{ matrix.scala }}"),
@@ -191,7 +192,7 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("cd scalafix", "sbt test"),
     name = Some("Scalafix tests"),
     cond =
-      Some(s"matrix.scala == '2.13' && matrix.ci == 'ciJVM' && matrix.os == '$PrimaryOS'")
+      Some(s"matrix.scala == '$Scala213' && matrix.ci == 'ciJVM' && matrix.os == '$PrimaryOS'")
   )
 )
 
@@ -201,20 +202,20 @@ ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> ciVariants
 
 ThisBuild / githubWorkflowBuildMatrixExclusions := {
   val scalaJavaFilters = for {
-    scala <- Seq("2.12", "3")
+    scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
     java <- (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(OldGuardJava))
     if !(scala == Scala3 && (java == LatestJava || java == GraalVM))
   } yield MatrixExclude(Map("scala" -> scala, "java" -> java.render))
 
   val windowsAndMacScalaFilters =
-    Seq("2.12", "3").flatMap { scala =>
+    (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213)).flatMap { scala =>
       Seq(
         MatrixExclude(Map("os" -> Windows, "scala" -> scala)),
         MatrixExclude(Map("os" -> MacOS, "scala" -> scala)))
     }
 
   val jsScalaFilters = for {
-    scala <- Seq("2.12", "3")
+    scala <- (ThisBuild / githubWorkflowScalaVersions).value.filterNot(Set(Scala213))
     ci <- jsCiVariants.tail
   } yield MatrixExclude(Map("ci" -> ci, "scala" -> scala))
 
@@ -239,9 +240,9 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := {
 
     javaFilters ++ Seq(
       MatrixExclude(Map("os" -> Windows, "ci" -> ci)),
-      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> "2.12")),
+      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala212)),
       // keep a native+2.13+macos job
-      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> "3"))
+      MatrixExclude(Map("os" -> MacOS, "ci" -> ci, "scala" -> Scala3))
     )
   }
 
