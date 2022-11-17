@@ -35,6 +35,9 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 import java.util.concurrent.atomic.AtomicBoolean
+import cats.effect.kernel.MonadCancel
+import org.scalacheck.Arbitrary
+import cats.kernel.Eq
 
 class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   // We need this for testing laws: prop runs can interfere with each other
@@ -1095,12 +1098,24 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     )
   }
 
+  // local newsupertype around IO, does not have a Sync instance, but still can Defer
+  type AlmostIO[+A]
+
+  implicit val almostIOmonadCancel: MonadCancel[AlmostIO, Throwable] =
+    MonadCancel[IO].asInstanceOf[MonadCancel[AlmostIO, Throwable]]
+
+  implicit def almostIOarbitrary[A](implicit io: Arbitrary[IO[A]]): Arbitrary[AlmostIO[A]] =
+    io.asInstanceOf[Arbitrary[AlmostIO[A]]]
+
+  implicit def almostIOEq[A](implicit io: Eq[IO[A]]): Eq[AlmostIO[A]] =
+    io.asInstanceOf[Eq[AlmostIO[A]]]
+
   {
     implicit val ticker = Ticker(TestContext())
 
     checkAll(
-      "Resource[IO, *]",
-      DeferTests[Resource[IO, *]].defer[Int]
+      "Resource[NotIO, *]",
+      DeferTests[Resource[AlmostIO, *]].defer[Int]
     )
   }
 
