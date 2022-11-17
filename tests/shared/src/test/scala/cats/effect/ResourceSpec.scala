@@ -1098,7 +1098,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     )
   }
 
-  // local newsupertype around IO, does not have a Sync instance, but still can Defer
+  // local newsupertype around IO, does not have a Sync instance, but still can be used in Resource tests
   type AlmostIO[+A]
 
   implicit val almostIOmonadCancel: MonadCancel[AlmostIO, Throwable] =
