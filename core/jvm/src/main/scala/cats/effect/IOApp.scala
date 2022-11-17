@@ -205,24 +205,29 @@ trait IOApp {
    * calling thread (for example, LWJGL). In these scenarios, it is recommended that the
    * absolute minimum possible amount of work is handed off to the main thread.
    */
-  protected lazy val MainThread: ExecutionContext =
-    new ExecutionContext {
-      def reportFailure(t: Throwable): Unit =
-        t match {
-          case t if NonFatal(t) =>
-            t.printStackTrace()
+  protected def MainThread: ExecutionContext =
+    if (queue eq queue)
+      new ExecutionContext {
+        def reportFailure(t: Throwable): Unit =
+          t match {
+            case t if NonFatal(t) =>
+              t.printStackTrace()
 
-          case t =>
-            runtime.shutdown()
-            queue.clear()
-            queue.put(t)
-        }
+            case t =>
+              runtime.shutdown()
+              queue.clear()
+              queue.put(t)
+          }
 
-      def execute(r: Runnable): Unit =
-        if (!queue.offer(r)) {
-          runtime.blocking.execute(() => queue.put(r))
-        }
-    }
+        def execute(r: Runnable): Unit =
+          if (!queue.offer(r)) {
+            runtime.blocking.execute(() => queue.put(r))
+          }
+      }
+    else
+      throw new UnsupportedOperationException(
+        "Your IOApp's super class has not been recompiled against Cats Effect 3.4.0+."
+      )
 
   /**
    * Configures the action to perform when unhandled errors are caught by the runtime. By
@@ -366,6 +371,9 @@ trait IOApp {
     val counter = new AtomicInteger(1)
 
     val ioa = run(args.toList)
+
+    // workaround for scala#12692, dotty#16352
+    val queue = this.queue
 
     val fiber =
       JvmCpuStarvationMetrics()
