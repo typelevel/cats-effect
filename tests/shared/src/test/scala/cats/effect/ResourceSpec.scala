@@ -1095,6 +1095,15 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     )
   }
 
+  {
+    implicit val ticker = Ticker(TestContext())
+
+    checkAll(
+      "Resource[IO, *]",
+      DeferTests[Resource[IO, *]].defer[Int]
+    )
+  }
+
   /*{
     implicit val ticker = Ticker(TestContext())
 
