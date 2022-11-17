@@ -22,13 +22,12 @@ import cats.effect.implicits._
 import cats.effect.kernel.MonadCancel
 import cats.effect.kernel.testkit.TestContext
 import cats.effect.laws.AsyncTests
-import cats.kernel.Eq
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
 import cats.syntax.all._
 
-import org.scalacheck.{Arbitrary, Cogen}
+import org.scalacheck.Cogen
 import org.scalacheck.Prop.forAll
 import org.specs2.ScalaCheck
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -1097,24 +1096,13 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     )
   }
 
-  // local newsupertype around IO, does not have a Sync instance, but still can be used in Resource tests
-  type AlmostIO[+A]
-
-  implicit val almostIOmonadCancel: MonadCancel[AlmostIO, Throwable] =
-    MonadCancel[IO].asInstanceOf[MonadCancel[AlmostIO, Throwable]]
-
-  implicit def almostIOarbitrary[A](implicit io: Arbitrary[IO[A]]): Arbitrary[AlmostIO[A]] =
-    io.asInstanceOf[Arbitrary[AlmostIO[A]]]
-
-  implicit def almostIOEq[A](implicit io: Eq[IO[A]]): Eq[AlmostIO[A]] =
-    io.asInstanceOf[Eq[AlmostIO[A]]]
-
   {
-    implicit val ticker = Ticker(TestContext())
+    import cats.effect.kernel.testkit.pure._
+    import cats.effect.kernel.testkit.PureConcGenerators._
 
     checkAll(
-      "Resource[NotIO, *]",
-      DeferTests[Resource[AlmostIO, *]].defer[Int]
+      "Resource[PureConc, *]",
+      DeferTests[Resource[PureConc[Throwable, *], *]].defer[Int]
     )
   }
 
