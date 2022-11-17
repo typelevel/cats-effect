@@ -22,24 +22,24 @@ import cats.effect.kernel._
 import cats.syntax.all._
 
 /**
- * A fiber-safe, concurrent, mutable reference.
+ * A synchronized, concurrent, mutable reference.
  *
  * Provides safe concurrent access and modification of its contents, by ensuring only one fiber
  * can operate on them at the time. Thus, '''all''' operations may semantically block the
  * calling fiber.
  *
  * {{{
- *  final class ParkingLot(data: AtomicCell[IO, ArraySeq[Boolean]], rnd: Random[IO]) {
- *    def getSpot: IO[Option[Int]] =
- * data.evalModify { spots =>
- * val availableSpots =
- * spots.view.zipWithIndex.collec {
- * case (idx, true) => idx
- * }.toList
- *
- * rnd.shuffleList(availableSpots).map(_.headOption)
- * }
- *  }
+ *   final class ParkingLot(data: AtomicCell[IO, ArraySeq[Boolean]], rnd: Random[IO]) {
+ *     def getSpot: IO[Option[Int]] =
+ *       data.evalModify { spots =>
+ *         val availableSpots = spots.zipWithIndex.collect { case (true, idx) => idx }
+ *         rnd.shuffleList(availableSpots).map { shuffled =>
+ *           val acquired = shuffled.headOption
+ *           val next = acquired.fold(spots)(a => spots.updated(a, false)) // mark the chosen spot as taken
+ *           (next, shuffled.headOption)
+ *         }
+ *       }
+ *   }
  * }}}
  *
  * @see

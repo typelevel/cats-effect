@@ -91,9 +91,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
         // with the bug, this will timeout since both will block
         // with the bug fix, either the join will return immediately, or it will
         // be unblocked by the offer
-        _ <- IO
-          .race(taker.joinWithNever, q.offer(()).delayBy(500.millis))
-          .timeoutTo(5.seconds, IO(false must beTrue))
+        _ <- IO.race(taker.joinWithNever, q.offer(()).delayBy(500.millis))
       } yield ()
 
       test.parReplicateA(if (isJS || isNative) 1 else 1000).as(ok)
@@ -272,18 +270,14 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
         offerers &> takers
       }
 
-      action.as(ok).timeoutTo(8.seconds, IO(false must beTrue))
+      action.as(ok)
     }
 
     "offer/take with a single consumer and high contention" in real {
       constructor(8) flatMap { q =>
         val offerer = List.fill(8)(List.fill(8)(0)).parTraverse_(_.traverse(q.offer(_)))
 
-        (offerer &> 0
-          .until(8 * 8)
-          .toList
-          .traverse_(_ => q.take)
-          .timeoutTo(8.seconds, IO(false must beTrue))).replicateA_(1000) *>
+        (offerer &> 0.until(8 * 8).toList.traverse_(_ => q.take)).replicateA_(1000) *>
           q.size.flatMap(s => IO(s mustEqual 0))
       }
     }
@@ -306,7 +300,7 @@ class BoundedQueueSpec extends BaseSpec with QueueTests[Queue] with DetectPlatfo
           }
         }
 
-        (offerer &> taker(0).timeoutTo(8.seconds, IO(false must beTrue))).replicateA_(1000) *>
+        (offerer &> taker(0)).replicateA_(1000) *>
           q.size.flatMap(s => IO(s mustEqual 0))
       }
     }
@@ -535,7 +529,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
         _ <-
           if (results.nonEmpty)
-            expected.await.timeoutTo(2.seconds, IO(false must beTrue))
+            expected.await
           else
             IO(skipped("did not take any results"))
       } yield ok
@@ -558,7 +552,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
 
         // release whatever we didn't receive
         _ <- expected.release.replicateA_(5 - results.length)
-        _ <- expected.await.timeoutTo(2.seconds, IO(false must beTrue))
+        _ <- expected.await
       } yield ()
 
       test.parReplicateA(10).as(ok)
@@ -679,7 +673,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
             offer2.cancel
           else
             // if neither offerer resumed, then we'll be false from offer1 and offer2.join will hang
-            offer2.join.timeoutTo(2.seconds, IO(false must beTrue))
+            offer2.join
       } yield ()
 
       test.parReplicateA(16).as(ok)
@@ -826,7 +820,7 @@ trait QueueTests[Q[_[_], _]] { self: BaseSpec =>
           case Some(_) => take2.cancel
 
           // if neither taker got the element, then we'll be None from take1 and take2.join will hang
-          case None => take2.join.timeoutTo(2.seconds, IO(false must beTrue))
+          case None => take2.join
         }
       } yield ()
 

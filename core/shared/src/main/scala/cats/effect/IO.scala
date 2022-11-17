@@ -364,7 +364,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     Resource.make(startOn(ec))(_.cancel).map(_.join)
 
   def forceR[B](that: IO[B]): IO[B] =
-    handleError(_ => ()).productR(that)
+    // cast is needed here to trick the compiler into avoiding the IO[Any]
+    asInstanceOf[IO[Unit]].handleError(_ => ()).productR(that)
 
   /**
    * Monadic bind on `IO`, used for sequentially composing two `IO` actions, where the value
@@ -2042,7 +2043,7 @@ private object SyncStep {
               case Left(io) => Left(io.attempt)
               case Right((a, limit)) => Right((a.asRight[Throwable], limit))
             }
-            .handleError(t => Right((t.asLeft[IO[B]], limit - 1)))
+            .handleError(t => (t.asLeft, limit - 1).asRight)
 
         case IO.HandleErrorWith(ioe, f, _) =>
           interpret(ioe, limit - 1)
