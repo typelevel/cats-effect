@@ -7,7 +7,7 @@ IFS=$'\n\t'        # http://redsymbol.net/articles/unofficial-bash-strict-mode/
 
 cd $(dirname $0)/..
 
-sbt ++$1 exampleNative/nativeLink
+sbt ++ $1 exampleNative/nativeLink
 
 output=$(mktemp)
 expected=$(mktemp)
