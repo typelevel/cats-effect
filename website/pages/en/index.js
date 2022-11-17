@@ -57,7 +57,7 @@ class HomeSplash extends React.Component {
                 <div className="inner">
                     <ProjectTitle tagline={siteConfig.tagline} title={siteConfig.title} />
                     <code className="hljs css language-sbt">
-                        <span className="hljs-string">"org.typelevel"</span> %% <span className="hljs-string">"cats-effect"</span> % <span className="hljs-string">"3.4.0"</span>
+                        <span className="hljs-string">"org.typelevel"</span> %% <span className="hljs-string">"cats-effect"</span> % <span className="hljs-string">"3.4.1"</span>
                     </code>
                     <PromoSection>
                         <Button target="_blank" href="https://scastie.scala-lang.org/yL2OsxhkTl6ZVoyiX68cEA">Try It!</Button>
