@@ -33,6 +33,7 @@
     ],
     "Standard Library": [
       "std/atomic-cell",
+      "std/backpressure",
       "std/console",
       "std/countdown-latch",
       "std/cyclic-barrier",
@@ -41,6 +42,7 @@
       "std/dispatcher",
       "std/env",
       "std/hotswap",
+      "std/mutex",
       "std/pqueue",
       "std/queue",
       "std/random",

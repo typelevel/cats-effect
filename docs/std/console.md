@@ -16,6 +16,8 @@ trait Console[F[_]] {
 }
 ```
 
+## Using `Console`
+
 ```scala mdoc:silent
 import cats.effect.IO
 import cats.effect.std.Console
