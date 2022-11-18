@@ -1186,6 +1186,9 @@ private[effect] trait ResourceHOInstances2 extends ResourceHOInstances3 {
       def F = F0
       def applicative = FA
     }
+
+  final implicit def catsEffectDeferForResource[F[_]]: Defer[Resource[F, *]] =
+    new ResourceDefer[F]
 }
 
 private[effect] trait ResourceHOInstances3 extends ResourceHOInstances4 {
@@ -1419,4 +1422,8 @@ abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resou
 
   def combineK[A](ra: Resource[F, A], rb: Resource[F, A]): Resource[F, A] =
     ra.combineK(rb)
+}
+
+private[effect] final class ResourceDefer[F[_]] extends Defer[Resource[F, *]] {
+  def defer[A](fa: => Resource[F, A]): Resource[F, A] = Resource.unit.flatMap(_ => fa)
 }
