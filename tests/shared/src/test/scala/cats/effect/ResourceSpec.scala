@@ -1102,7 +1102,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
     type F[A] = PureConc[Throwable, A]
 
-    val arbitraryPurConcResource: Arbitrary[Resource[F, Int]] =
+    val arbitraryPureConcResource: Arbitrary[Resource[F, Int]] =
       arbitraryResource[F, Int](implicitly, arbitraryPureConc, arbitraryPureConc, implicitly)
 
     checkAll(
