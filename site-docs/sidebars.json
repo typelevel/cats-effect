@@ -33,6 +33,7 @@
     ],
     "Standard Library": [
       "std/atomic-cell",
+      "std/console",
       "std/countdown-latch",
       "std/cyclic-barrier",
       "std/deferred",
