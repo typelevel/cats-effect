@@ -1109,7 +1109,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       "Resource[PureConc, *]",
       DeferTests[Resource[F, *]].defer[Int](
         implicitly,
-        arbitraryPurConcResource,
+        arbitraryPureConcResource,
         implicitly,
         implicitly
       )
