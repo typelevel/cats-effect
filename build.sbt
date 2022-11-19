@@ -117,6 +117,7 @@ val Scala213 = "2.13.10"
 val Scala3 = "3.2.1"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
+ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value
 ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
 ThisBuild / tlJdkRelease := Some(8)
 
