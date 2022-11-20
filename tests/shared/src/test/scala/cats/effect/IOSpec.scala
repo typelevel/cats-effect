@@ -1136,11 +1136,14 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       }
 
       "cancel a long sleep with a short one through evalOn" in real {
-        IO.sleep(10.seconds).race(IO.sleep(50.millis)).evalOn(ExecutionContext.global).flatMap {
-          res =>
-            IO {
-              res must beRight(())
-            }
+        IO.executionContext flatMap { ec =>
+          val ec2 = new ExecutionContext {
+            def execute(r: Runnable) = ec.execute(r)
+            def reportFailure(t: Throwable) = ec.reportFailure(t)
+          }
+
+          val ioa = IO.sleep(10.seconds).race(IO.sleep(50.millis))
+          ioa.evalOn(ec2) flatMap { res => IO(res must beRight(())) }
         }
       }
 
