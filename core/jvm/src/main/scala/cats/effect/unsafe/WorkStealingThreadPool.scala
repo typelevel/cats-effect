@@ -37,9 +37,12 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.{FiniteDuration, Duration}
 
+import java.time.Instant
+import java.time.temporal.ChronoField
+
 import java.util.Comparator
 import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -63,7 +66,8 @@ private[effect] final class WorkStealingThreadPool(
     private[unsafe] val blockerThreadPrefix: String, // prefix for the name of worker threads currently in a blocking region
     private[unsafe] val runtimeBlockingExpiration: Duration,
     reportFailure0: Throwable => Unit
-) extends ExecutionContextExecutor with Scheduler {
+) extends ExecutionContextExecutor
+    with Scheduler {
 
   import TracingConstants._
   import WorkStealingThreadPoolConstants._
@@ -523,15 +527,19 @@ private[effect] final class WorkStealingThreadPool(
 
   override def nowMillis(): Long = System.currentTimeMillis()
 
+  override def nowMicros(): Long = {
+    val now = Instant.now()
+    now.getEpochSecond() * 1000000 + now.getLong(ChronoField.MICRO_OF_SECOND)
+  }
+
   private[this] val RightUnit = IOFiber.RightUnit
 
   def sleepInternal(delay: FiniteDuration, callback: Right[Nothing, Unit] => Unit): Runnable = {
-    val pool = this
     val thread = Thread.currentThread()
 
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
-      if (worker.isOwnedBy(pool)) {
+      if (worker.isOwnedBy(this)) {
         worker.sleep(delay, callback)
       } else {
         sleep(delay, () => callback(RightUnit))
@@ -541,15 +549,23 @@ private[effect] final class WorkStealingThreadPool(
     }
   }
 
-  override def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-    val io = IO.uncancelable(poll => poll(IO.sleep(delay)).flatMap(_ => IO.delay(task.run())))
-    val fiber = new IOFiber[Unit](Map.empty, _ => (), io, this, IORuntime.global)   // TODO don't do this. don't ever do this. anything but this
-    reschedule(fiber)
+  private[this] val CancelSentinel: Runnable = () => ()
 
-    () => {
-      val cancel = fiber.cancel
-      val cancelFiber = new IOFiber[Unit](Map.empty, _ => (), cancel, this, IORuntime.global)   // TODO don't do this. don't ever do this. anything but this
-      reschedule(cancelFiber)
+  override def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
+    val signal = new AtomicReference[Runnable]
+
+    // note we'll retain the reference to task until the outer task is scheduled
+    execute { () =>
+      val cancel = sleepInternal(delay, _ => task.run())
+      if (!signal.compareAndSet(null, cancel)) {
+        cancel.run()
+      }
+    }
+
+    { () =>
+      if (!signal.compareAndSet(null, CancelSentinel)) {
+        signal.get().run()
+      }
     }
   }
 

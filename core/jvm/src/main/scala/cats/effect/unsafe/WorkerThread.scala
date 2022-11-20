@@ -562,7 +562,7 @@ private final class WorkerThread(
             } else {
               parkUntilNextSleeper()
             }
-            
+
             // After the worker thread has been unparked, look for work in the
             // external queue.
             state = 3
