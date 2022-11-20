@@ -22,11 +22,20 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 private final class SleepCallback private (
     val triggerTime: Long,
-    val callback: Right[Nothing, Unit] => Unit)
+    private[this] var _callback: Right[Nothing, Unit] => Unit)
     extends AtomicBoolean(true)
     with Runnable {
+
+  def callback(r: Right[Nothing, Unit]): Unit = {
+    val cb = _callback
+    if (cb != null) {
+      cb(r)
+    }
+  }
+
   override def run(): Unit = {
     lazySet(false)
+    _callback = null // avoid memory leaks
   }
 }
 
