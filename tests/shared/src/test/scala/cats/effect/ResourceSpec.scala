@@ -28,7 +28,9 @@ import cats.syntax.all._
 
 import org.scalacheck.Cogen
 import org.scalacheck.Prop.forAll
+// import org.scalacheck.rng.Seed
 import org.specs2.ScalaCheck
+// import org.specs2.scalacheck.Parameters
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.ExecutionContext
@@ -1074,7 +1076,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       "Resource[IO, *]",
       AsyncTests[Resource[IO, *]].async[Int, Int, Int](10.millis)
     ) /*(Parameters(seed =
-      Some(Seed.fromBase64("75d9nzLIEobZ3mfn0DvzUkMv-Jt7o7IyQyIvjqwkeVJ=").get)))*/
+      Some(Seed.fromBase64("0FaZxJyh_xN_NL3i_y7bNaLpaWuhO9qUPXmfxxgLIIN=").get)))*/
   }
 
   {
