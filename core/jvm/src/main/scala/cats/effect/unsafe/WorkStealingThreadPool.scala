@@ -35,11 +35,10 @@ import cats.effect.tracing.TracingConstants
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
-import scala.concurrent.duration.{FiniteDuration, Duration}
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 import java.time.Instant
 import java.time.temporal.ChronoField
-
 import java.util.Comparator
 import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}

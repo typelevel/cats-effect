@@ -23,7 +23,7 @@ import cats.effect.tracing.TracingConstants
 import scala.annotation.switch
 import scala.collection.mutable
 import scala.concurrent.{BlockContext, CanAwait}
-import scala.concurrent.duration.{FiniteDuration, Duration}
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.control.NonFatal
 
 import java.util.concurrent.{ArrayBlockingQueue, ThreadLocalRandom}

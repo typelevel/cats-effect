@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Typelevel
+ * Copyright 2020-2022 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,25 +20,26 @@ import cats.effect.IO
 import cats.effect.unsafe._
 import cats.syntax.all._
 
+import org.openjdk.jmh.annotations._
+
 import scala.concurrent.duration._
 
 import java.util.concurrent.TimeUnit
-import org.openjdk.jmh.annotations._
 
 /**
  * To do comparative benchmarks between versions:
  *
- *     benchmarks/run-benchmark SleepBenchmark
+ * benchmarks/run-benchmark SleepBenchmark
  *
  * This will generate results in `benchmarks/results`.
  *
  * Or to run the benchmark from within sbt:
  *
- *     jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.SleepBenchmark
+ * jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.SleepBenchmark
  *
- * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
- * Please note that benchmarks should be usually executed at least in
- * 10 iterations (as a rule of thumb), but more is better.
+ * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread". Please note that
+ * benchmarks should be usually executed at least in 10 iterations (as a rule of thumb), but
+ * more is better.
  */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))

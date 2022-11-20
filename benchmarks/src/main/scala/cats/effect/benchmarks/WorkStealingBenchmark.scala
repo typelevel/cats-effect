@@ -166,8 +166,8 @@ class WorkStealingBenchmark {
     }
 
     val compute = new WorkStealingThreadPool(
-      256, 
-      "io-compute", 
+      256,
+      "io-compute",
       "io-blocker",
       60.seconds,
       _.printStackTrace())
