@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.effect.metrics.JvmCpuStarvationMetrics
 import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
 import cats.syntax.all._
@@ -187,7 +188,7 @@ trait IOApp {
     Math.max(2, Runtime.getRuntime().availableProcessors())
 
   // arbitrary constant is arbitrary
-  private[this] val queue = new ArrayBlockingQueue[AnyRef](32)
+  private[this] lazy val queue = new ArrayBlockingQueue[AnyRef](32)
 
   /**
    * Executes the provided actions on the JVM's `main` thread. Note that this is, by definition,
@@ -204,24 +205,29 @@ trait IOApp {
    * calling thread (for example, LWJGL). In these scenarios, it is recommended that the
    * absolute minimum possible amount of work is handed off to the main thread.
    */
-  protected lazy val MainThread: ExecutionContext =
-    new ExecutionContext {
-      def reportFailure(t: Throwable): Unit =
-        t match {
-          case NonFatal(t) =>
-            t.printStackTrace()
+  protected def MainThread: ExecutionContext =
+    if (queue eq queue)
+      new ExecutionContext {
+        def reportFailure(t: Throwable): Unit =
+          t match {
+            case t if NonFatal(t) =>
+              t.printStackTrace()
 
-          case t =>
-            runtime.shutdown()
-            queue.clear()
-            queue.put(t)
-        }
+            case t =>
+              runtime.shutdown()
+              queue.clear()
+              queue.put(t)
+          }
 
-      def execute(r: Runnable): Unit =
-        if (!queue.offer(r)) {
-          runtime.blocking.execute(() => queue.put(r))
-        }
-    }
+        def execute(r: Runnable): Unit =
+          if (!queue.offer(r)) {
+            runtime.blocking.execute(() => queue.put(r))
+          }
+      }
+    else
+      throw new UnsupportedOperationException(
+        "Your IOApp's super class has not been recompiled against Cats Effect 3.4.0+."
+      )
 
   /**
    * Configures the action to perform when unhandled errors are caught by the runtime. By
@@ -362,27 +368,35 @@ trait IOApp {
 
     val ioa = run(args.toList)
 
+    // workaround for scala#12692, dotty#16352
+    val queue = this.queue
+
     val fiber =
-      ioa.unsafeRunFiber(
-        {
-          if (counter.decrementAndGet() == 0) {
-            queue.clear()
-          }
-          queue.put(new CancellationException("IOApp main fiber was canceled"))
-        },
-        { t =>
-          if (counter.decrementAndGet() == 0) {
-            queue.clear()
-          }
-          queue.put(t)
-        },
-        { a =>
-          if (counter.decrementAndGet() == 0) {
-            queue.clear()
-          }
-          queue.put(a)
+      JvmCpuStarvationMetrics()
+        .flatMap { cpuStarvationMetrics =>
+          CpuStarvationCheck.run(runtimeConfig, cpuStarvationMetrics).background
         }
-      )(runtime)
+        .surround(ioa)
+        .unsafeRunFiber(
+          {
+            if (counter.decrementAndGet() == 0) {
+              queue.clear()
+            }
+            queue.put(new CancellationException("IOApp main fiber was canceled"))
+          },
+          { t =>
+            if (counter.decrementAndGet() == 0) {
+              queue.clear()
+            }
+            queue.put(t)
+          },
+          { a =>
+            if (counter.decrementAndGet() == 0) {
+              queue.clear()
+            }
+            queue.put(a)
+          }
+        )(runtime)
 
     if (isStackTracing)
       runtime.fiberMonitor.monitorSuspended(fiber)
@@ -449,23 +463,24 @@ trait IOApp {
               // if we're unforked, the only way to report cancelation is to throw
               throw e
 
-          case NonFatal(t) =>
-            if (isForked) {
-              t.printStackTrace()
-              System.exit(1)
-            } else {
-              throw t
-            }
-
           case t: Throwable =>
-            t.printStackTrace()
-            rt.halt(1)
+            if (NonFatal(t)) {
+              if (isForked) {
+                t.printStackTrace()
+                System.exit(1)
+              } else {
+                throw t
+              }
+            } else {
+              t.printStackTrace()
+              rt.halt(1)
+            }
 
           case r: Runnable =>
             try {
               r.run()
             } catch {
-              case NonFatal(t) =>
+              case t if NonFatal(t) =>
                 if (isForked) {
                   t.printStackTrace()
                   System.exit(1)
