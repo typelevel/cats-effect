@@ -1006,7 +1006,8 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
               }
 
               nt(F.ref((_: ExitCase) => F.unit).map(_.mapK(nt))) flatMap { r =>
-                G.guaranteeCase((body[D].apply(cb, Kleisli.liftF(ga), nt2).run(r), r.get).tupled) {
+                G.guaranteeCase(
+                  (body[D].apply(cb, Kleisli.liftF(ga), nt2).run(r), r.get).tupled) {
                   case Outcome.Succeeded(_) => G.unit
                   case oc => r.get.flatMap(fin => nt(fin(ExitCase.fromOutcome(oc))))
                 }
