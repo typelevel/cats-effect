@@ -298,6 +298,8 @@ val CoopVersion = "1.2.0"
 
 val MacrotaskExecutorVersion = "1.1.0"
 
+val ScalacCompatVersion = "0.1.0"
+
 tlReplaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 addCommandAlias("release", "tlRelease")
 
@@ -437,6 +439,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(kernel, std)
   .settings(
     name := "cats-effect",
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "scalac-compat-annotation" % ScalacCompatVersion % CompileTime
+    ),
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
@@ -763,7 +768,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       } else Seq()
     }
   )
-  .nativeSettings(tlFatalWarnings := false)
 
 /**
  * Test support for the core project, providing various helpful instances like ScalaCheck
@@ -837,6 +841,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     name := "cats-effect-std",
     libraryDependencies ++= Seq(
+      "org.typelevel" %% "scalac-compat-annotation" % ScalacCompatVersion % CompileTime,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
       "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     ),
@@ -879,7 +884,6 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.std.JavaSecureRandom$")
     )
   )
-  .nativeSettings(tlFatalWarnings := false)
 
 /**
  * A trivial pair of trivial example apps primarily used to show that IOApp works as a practical
