@@ -1186,6 +1186,9 @@ private[effect] trait ResourceHOInstances2 extends ResourceHOInstances3 {
       def F = F0
       def applicative = FA
     }
+
+  final implicit def catsEffectDeferForResource[F[_]]: Defer[Resource[F, *]] =
+    new ResourceDefer[F]
 }
 
 private[effect] trait ResourceHOInstances3 extends ResourceHOInstances4 {
@@ -1206,30 +1209,46 @@ private[effect] trait ResourceHOInstances4 extends ResourceHOInstances5 {
 }
 
 private[effect] trait ResourceHOInstances5 {
-  implicit def catsEffectMonadForResource[F[_]](implicit F0: Monad[F]): Monad[Resource[F, *]] =
-    new ResourceMonad[F] {
-      def F = F0
-    }
+  implicit def catsEffectMonadForResource[F[_]]: Monad[Resource[F, *]] =
+    new ResourceMonad[F]
+
+  @deprecated("Use overload without constraint", "3.4.0")
+  def catsEffectMonadForResource[F[_]](F: Monad[F]): Monad[Resource[F, *]] = {
+    val _ = F
+    catsEffectMonadForResource[F]
+  }
 }
 
 abstract private[effect] class ResourceFOInstances0 extends ResourceFOInstances1 {
   implicit def catsEffectMonoidForResource[F[_], A](
-      implicit F0: Monad[F],
-      A0: Monoid[A]): Monoid[Resource[F, A]] =
+      implicit A0: Monoid[A]): Monoid[Resource[F, A]] =
     new ResourceMonoid[F, A] {
       def A = A0
-      def F = F0
     }
+
+  @deprecated("Use overload without monad constraint", "3.4.0")
+  def catsEffectMonoidForResource[F[_], A](
+      F0: Monad[F],
+      A0: Monoid[A]): Monoid[Resource[F, A]] = {
+    val _ = F0
+    catsEffectMonoidForResource(A0)
+  }
 }
 
 abstract private[effect] class ResourceFOInstances1 {
   implicit def catsEffectSemigroupForResource[F[_], A](
-      implicit F0: Monad[F],
-      A0: Semigroup[A]): ResourceSemigroup[F, A] =
+      implicit A0: Semigroup[A]): ResourceSemigroup[F, A] =
     new ResourceSemigroup[F, A] {
       def A = A0
-      def F = F0
     }
+
+  @deprecated("Use overload without monad constraint", "3.4.0")
+  def catsEffectSemigroupForResource[F[_], A](
+      F0: Monad[F],
+      A0: Semigroup[A]): ResourceSemigroup[F, A] = {
+    val _ = F0
+    catsEffectSemigroupForResource[F, A](A0)
+  }
 }
 
 abstract private[effect] class ResourceMonadCancel[F[_]]
@@ -1370,11 +1389,9 @@ abstract private[effect] class ResourceMonadError[F[_], E]
     Resource.raiseError[F, A, E](e)
 }
 
-abstract private[effect] class ResourceMonad[F[_]]
+private[effect] class ResourceMonad[F[_]]
     extends Monad[Resource[F, *]]
     with StackSafeMonad[Resource[F, *]] {
-
-  implicit protected def F: Monad[F]
 
   def pure[A](a: A): Resource[F, A] =
     Resource.pure(a)
@@ -1392,7 +1409,6 @@ abstract private[effect] class ResourceMonoid[F[_], A]
 }
 
 abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Resource[F, A]] {
-  implicit protected def F: Monad[F]
   implicit protected def A: Semigroup[A]
 
   def combine(rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
@@ -1406,4 +1422,8 @@ abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resou
 
   def combineK[A](ra: Resource[F, A], rb: Resource[F, A]): Resource[F, A] =
     ra.combineK(rb)
+}
+
+private[effect] final class ResourceDefer[F[_]] extends Defer[Resource[F, *]] {
+  def defer[A](fa: => Resource[F, A]): Resource[F, A] = Resource.unit.flatMap(_ => fa)
 }

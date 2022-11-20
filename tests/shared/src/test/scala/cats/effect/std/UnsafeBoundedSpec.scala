@@ -47,7 +47,7 @@ class UnsafeBoundedSpec extends BaseSpec {
           _ <- IO(results.toList must containTheSameElementsAs(0.until(length)))
         } yield ok
 
-        test.timeoutTo(8.seconds, IO(false must beTrue))
+        test.timeoutTo(16.seconds, IO(false must beTrue))
       }
 
       "parallel put and take" >> real {

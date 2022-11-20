@@ -1095,6 +1095,27 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     )
   }
 
+  {
+    import cats.effect.kernel.testkit.pure._
+    import cats.effect.kernel.testkit.PureConcGenerators.arbitraryPureConc
+    import org.scalacheck.Arbitrary
+
+    type F[A] = PureConc[Throwable, A]
+
+    val arbitraryPureConcResource: Arbitrary[Resource[F, Int]] =
+      arbitraryResource[F, Int](implicitly, arbitraryPureConc, arbitraryPureConc, implicitly)
+
+    checkAll(
+      "Resource[PureConc, *]",
+      DeferTests[Resource[F, *]].defer[Int](
+        implicitly,
+        arbitraryPureConcResource,
+        implicitly,
+        implicitly
+      )
+    )
+  }
+
   /*{
     implicit val ticker = Ticker(TestContext())
 

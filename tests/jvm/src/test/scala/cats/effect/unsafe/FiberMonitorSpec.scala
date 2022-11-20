@@ -44,6 +44,7 @@ class FiberMonitorSpec extends BaseSpec with TestInstances {
 
         _ <- cdl.release // allow further execution
         outcome <- fiber.join
+        _ <- IO.sleep(100.millis)
 
         _ <- IO(outcome must beEqualTo(Outcome.succeeded[IO, Throwable, Unit](IO.unit)))
         _ <- IO(fiber.toString must beMatching(completedPattern))

@@ -32,6 +32,7 @@
       "typeclasses/async"
     ],
     "Standard Library": [
+      "std/atomic-cell",
       "std/countdown-latch",
       "std/cyclic-barrier",
       "std/deferred",
