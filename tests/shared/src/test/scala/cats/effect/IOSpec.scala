@@ -19,7 +19,6 @@ package cats.effect
 import cats.effect.implicits._
 import cats.effect.laws.AsyncTests
 import cats.effect.testkit.TestContext
-import cats.effect.unsafe.WorkStealingThreadPool
 import cats.kernel.laws.SerializableLaws.serializable
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{AlignTests, SemigroupKTests}
@@ -1145,68 +1144,6 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
           val ioa = IO.sleep(10.seconds).race(IO.sleep(50.millis))
           ioa.evalOn(ec2) flatMap { res => IO(res must beRight(())) }
-        }
-      }
-
-      "run a timer which crosses into a blocking region" in realWithRuntime { rt =>
-        rt.scheduler match {
-          case sched: WorkStealingThreadPool =>
-            // we structure this test by calling the runtime directly to avoid nondeterminism
-            val delay = IO.async[Unit] { cb =>
-              IO {
-                // register a timer (use sleepInternal to ensure we get the worker-local version)
-                val cancel = sched.sleepInternal(1.second, cb)
-
-                // convert the worker to a blocker
-                scala.concurrent.blocking(())
-
-                Some(IO(cancel.run()))
-              }
-            }
-
-            // if the timer fires correctly, the timeout will not be hit
-            delay.race(IO.sleep(2.seconds)).flatMap(res => IO(res must beLeft)).map(_.toResult)
-
-          case _ => IO.pure(skipped("test not running against WSTP"))
-        }
-      }
-
-      "run timers exactly once when crossing into a blocking region" in realWithRuntime { rt =>
-        rt.scheduler match {
-          case sched: WorkStealingThreadPool =>
-            IO defer {
-              val ai = new AtomicInteger(0)
-
-              sched.sleepInternal(500.millis, { _ => ai.getAndIncrement(); () })
-
-              // if we aren't careful, this conversion can duplicate the timer
-              scala.concurrent.blocking {
-                IO.sleep(1.second) >> IO(ai.get() mustEqual 1).map(_.toResult)
-              }
-            }
-
-          case _ => IO.pure(skipped("test not running against WSTP"))
-        }
-      }
-
-      "run a timer registered on a blocker" in realWithRuntime { rt =>
-        rt.scheduler match {
-          case sched: WorkStealingThreadPool =>
-            // we structure this test by calling the runtime directly to avoid nondeterminism
-            val delay = IO.async[Unit] { cb =>
-              IO {
-                scala.concurrent.blocking {
-                  // register a timer (use sleepInternal to ensure we get the worker-local version)
-                  val cancel = sched.sleepInternal(1.second, cb)
-                  Some(IO(cancel.run()))
-                }
-              }
-            }
-
-            // if the timer fires correctly, the timeout will not be hit
-            delay.race(IO.sleep(2.seconds)).flatMap(res => IO(res must beLeft)).map(_.toResult)
-
-          case _ => IO.pure(skipped("test not running against WSTP"))
         }
       }
 
