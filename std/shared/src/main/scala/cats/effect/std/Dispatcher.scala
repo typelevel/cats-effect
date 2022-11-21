@@ -96,9 +96,9 @@ object Dispatcher {
   private[this] val Completed: Either[Throwable, Unit] = Right(())
 
   @deprecated(
-    since = "3.4.0",
     message =
-      "use '.parallel' or '.sequential' instead; the former corresponds to the current semantics of '.apply'")
+      "use '.parallel' or '.sequential' instead; the former corresponds to the current semantics of '.apply'",
+    since = "3.4.0")
   def apply[F[_]: Async]: Resource[F, Dispatcher[F]] = parallel[F](await = false)
 
   /**
