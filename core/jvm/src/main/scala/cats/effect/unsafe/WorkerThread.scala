@@ -52,6 +52,7 @@ private final class WorkerThread(
     private[this] val external: ScalQueue[AnyRef],
     // A worker-thread-local weak bag for tracking suspended fibers.
     private[this] var fiberBag: WeakBag[Runnable],
+    private[this] var sleepersQueue: SleepersQueue,
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
     private[this] val pool: WorkStealingThreadPool)
     extends Thread
@@ -100,8 +101,6 @@ private final class WorkerThread(
 
   val nameIndex: Int = pool.blockedWorkerThreadNamingIndex.incrementAndGet()
 
-  private[this] val sleepersQueue: SleepersQueue = SleepersQueue.empty
-
   // Constructor code.
   {
     // Worker threads are daemon threads.
@@ -147,6 +146,7 @@ private final class WorkerThread(
   }
 
   def sleep(delay: FiniteDuration, callback: Right[Nothing, Unit] => Unit): Runnable = {
+    // note that blockers aren't owned by the pool, meaning we only end up here if !blocking
     val sleepers = sleepersQueue
     val scb = SleepCallback.create(delay, callback, System.nanoTime(), sleepers)
     sleepers += scb
@@ -241,7 +241,6 @@ private final class WorkerThread(
     val self = this
     random = ThreadLocalRandom.current()
     val rnd = random
-    val sleepers = sleepersQueue
     val RightUnit = IOFiber.RightUnit
 
     /*
@@ -331,7 +330,7 @@ private final class WorkerThread(
     def parkUntilNextSleeper(): Unit = {
       if (!isInterrupted()) {
         val now = System.nanoTime()
-        val head = sleepers.head()
+        val head = sleepersQueue.head()
         val nanos = head.triggerTime - now
         LockSupport.parkNanos(pool, nanos)
 
@@ -343,26 +342,6 @@ private final class WorkerThread(
 
     while (!done.get()) {
 
-      if (sleepers.nonEmpty) {
-        val now = System.nanoTime()
-
-        var cont = true
-        while (cont) {
-          val head = sleepers.head()
-
-          val delay = head.triggerTime - now
-          if (delay <= 0) {
-            if (head.get()) {
-              head.callback(RightUnit)
-            }
-            sleepers.popHead()
-            cont = sleepers.nonEmpty
-          } else {
-            cont = false
-          }
-        }
-      }
-
       if (blocking) {
         // The worker thread was blocked before. It is no longer part of the
         // core pool and needs to be cached.
@@ -373,6 +352,7 @@ private final class WorkerThread(
         queue = null
         parked = null
         fiberBag = null
+        sleepersQueue = null
 
         // Add this thread to the cached threads data structure, to be picked up
         // by another thread in the future.
@@ -410,6 +390,27 @@ private final class WorkerThread(
         // Reset the state of the thread for resumption.
         blocking = false
         state = 4
+      }
+
+      val sleepers = sleepersQueue
+
+      if (sleepers.nonEmpty) {
+        val now = System.nanoTime()
+
+        var cont = true
+        while (cont) {
+          val head = sleepers.head()
+
+          if (head.triggerTime <= now) {
+            if (head.get()) {
+              head.callback(RightUnit)
+            }
+            sleepers.popHead()
+            cont = sleepers.nonEmpty
+          } else {
+            cont = false
+          }
+        }
       }
 
       ((state & ExternalQueueTicksMask): @switch) match {
@@ -713,7 +714,7 @@ private final class WorkerThread(
         // for unparking.
         val idx = index
         val clone =
-          new WorkerThread(idx, queue, parked, external, fiberBag, pool)
+          new WorkerThread(idx, queue, parked, external, fiberBag, sleepersQueue, pool)
         pool.replaceWorker(idx, clone)
         pool.blockedWorkerThreadCounter.incrementAndGet()
         clone.start()
@@ -728,6 +729,7 @@ private final class WorkerThread(
     queue = pool.localQueues(newIdx)
     parked = pool.parkedSignals(newIdx)
     fiberBag = pool.fiberBags(newIdx)
+    sleepersQueue = pool.sleepersQueues(newIdx)
 
     // Reset the name of the thread to the regular prefix.
     val prefix = pool.threadPrefix

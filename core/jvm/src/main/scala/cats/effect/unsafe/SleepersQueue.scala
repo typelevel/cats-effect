@@ -41,6 +41,8 @@ private final class SleepersQueue private () {
     count -= 1
     ()
   }
+
+  override def toString = s"SleepersQueue($queue, $count)"
 }
 
 private object SleepersQueue {
