@@ -31,8 +31,6 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 import scala.concurrent.{ExecutionContext, TimeoutException}
 import scala.concurrent.duration._
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import Prop.forAll
 
 class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
