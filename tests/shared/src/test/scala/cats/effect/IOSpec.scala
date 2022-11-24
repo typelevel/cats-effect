@@ -587,6 +587,21 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
       }
 
+      "bothOutcome" should {
+        "cancel" in ticked { implicit ticker =>
+          (for {
+            g1 <- IO.deferred[Unit]
+            g2 <- IO.deferred[Unit]
+            f <- IO
+              .bothOutcome(g1.complete(()) *> IO.never[Unit], g2.complete(()) *> IO.never[Unit])
+              .start
+            _ <- g1.get
+            _ <- g2.get
+            _ <- f.cancel
+          } yield ()) must completeAs(())
+        }
+      }
+
       "race" should {
         "succeed with faster side" in ticked { implicit ticker =>
           IO.race(IO.sleep(10.minutes) >> IO.pure(1), IO.pure(2)) must completeAs(Right(2))

@@ -16,6 +16,8 @@
 
 package cats.effect.tracing
 
+import cats.effect.{IOFiber, Trace}
+
 import scala.collection.mutable.ArrayBuffer
 
 private[effect] object Tracing extends TracingPlatform {
@@ -148,8 +150,8 @@ private[effect] object Tracing extends TracingPlatform {
       .collect { case ev: TracingEvent.StackTrace => getOpAndCallSite(ev.getStackTrace) }
       .filter(_ ne null)
 
-  def prettyPrint(events: RingBuffer): String = {
-    val frames = getFrames(events)
+  def prettyPrint(trace: Trace): String = {
+    val frames = trace.toList
 
     frames
       .zipWithIndex
@@ -159,5 +161,13 @@ private[effect] object Tracing extends TracingPlatform {
           s" $junc $frame"
       }
       .mkString(System.lineSeparator())
+  }
+
+  def captureTrace(runnable: Runnable): Option[(Runnable, Trace)] = {
+    runnable match {
+      case f: IOFiber[_] if f.isDone => None
+      case f: IOFiber[_] => Some(runnable -> f.captureTrace())
+      case _ => Some(runnable -> Trace(RingBuffer.empty(1)))
+    }
   }
 }

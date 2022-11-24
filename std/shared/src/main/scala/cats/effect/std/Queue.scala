@@ -26,7 +26,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.collection.mutable.ListBuffer
 
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, AtomicLongArray, AtomicReference}
+import java.util.concurrent.atomic.{AtomicLong, AtomicLongArray, AtomicReference}
 
 /**
  * A purely functional, concurrent data structure which allows insertion and retrieval of
@@ -71,30 +71,32 @@ object Queue {
    * @return
    *   an empty, bounded queue
    */
-  def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
-    F match {
-      case f0: Async[F] =>
-        if (capacity > 1) // jctools implementation cannot handle size = 1
-          boundedForAsync[F, A](capacity)(f0)
-        else
-          boundedForConcurrent[F, A](capacity)
+  def bounded[F[_], A](capacity: Int)(implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
+    assertNonNegative(capacity)
 
-      case _ =>
-        boundedForConcurrent[F, A](capacity)
+    // async queue can't handle capacity == 1 and allocates eagerly, so cap at 64k
+    if (1 < capacity && capacity < Short.MaxValue.toInt * 2) {
+      F match {
+        case f0: Async[F] =>
+          boundedForAsync[F, A](capacity)(f0)
+
+        case _ =>
+          boundedForConcurrent[F, A](capacity)
+      }
+    } else if (capacity > 0) {
+      boundedForConcurrent[F, A](capacity)
+    } else {
+      synchronous[F, A]
     }
+  }
 
   private[effect] def boundedForConcurrent[F[_], A](capacity: Int)(
-      implicit F: GenConcurrent[F, _]): F[Queue[F, A]] = {
-    assertNonNegative(capacity)
+      implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
     F.ref(State.empty[F, A]).map(new BoundedQueue(capacity, _))
-  }
 
   private[effect] def boundedForAsync[F[_], A](capacity: Int)(
-      implicit F: Async[F]): F[Queue[F, A]] = {
-    assertNonNegative(capacity)
-
+      implicit F: Async[F]): F[Queue[F, A]] =
     F.delay(new BoundedAsyncQueue(capacity))
-  }
 
   private[effect] def unboundedForConcurrent[F[_], A](
       implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
@@ -114,7 +116,7 @@ object Queue {
    *   a synchronous queue
    */
   def synchronous[F[_], A](implicit F: GenConcurrent[F, _]): F[Queue[F, A]] =
-    bounded(0)
+    F.ref(SyncState.empty[F, A]).map(new Synchronous(_))
 
   /**
    * Constructs an empty, unbounded queue for `F` data types that are
@@ -180,6 +182,95 @@ object Queue {
         s"$name queue capacity must be positive, was: $capacity")
     else ()
 
+  private final class Synchronous[F[_], A](stateR: Ref[F, SyncState[F, A]])(
+      implicit F: GenConcurrent[F, _])
+      extends Queue[F, A] {
+
+    def offer(a: A): F[Unit] =
+      F.deferred[Deferred[F, A]] flatMap { latch =>
+        F uncancelable { poll =>
+          val cleanupF = stateR modify {
+            case SyncState(offerers, takers) =>
+              val fallback = latch.tryGet flatMap {
+                case Some(offerer) => offerer.complete(a).void
+                case None => F.unit
+              }
+
+              SyncState(offerers.filter(_ ne latch), takers) -> fallback
+          }
+
+          val modificationF = stateR modify {
+            case SyncState(offerers, takers) if takers.nonEmpty =>
+              val (taker, tail) = takers.dequeue
+              SyncState(offerers, tail) -> taker.complete(a).void
+
+            case SyncState(offerers, takers) =>
+              SyncState(offerers.enqueue(latch), takers) ->
+                poll(latch.get).onCancel(cleanupF.flatten).flatMap(_.complete(a).void)
+          }
+
+          modificationF.flatten
+        }
+      }
+
+    def tryOffer(a: A): F[Boolean] = {
+      val modificationF = stateR modify {
+        case SyncState(offerers, takers) if takers.nonEmpty =>
+          val (taker, tail) = takers.dequeue
+          SyncState(offerers, tail) -> taker.complete(a).as(true)
+
+        case st =>
+          st -> F.pure(false)
+      }
+
+      modificationF.flatten.uncancelable
+    }
+
+    val take: F[A] =
+      F.deferred[A] flatMap { latch =>
+        val modificationF = stateR modify {
+          case SyncState(offerers, takers) if offerers.nonEmpty =>
+            val (offerer, tail) = offerers.dequeue
+            SyncState(tail, takers) -> offerer.complete(latch).void
+
+          case SyncState(offerers, takers) =>
+            SyncState(offerers, takers.enqueue(latch)) -> F.unit
+        }
+
+        val cleanupF = stateR update {
+          case SyncState(offerers, takers) =>
+            SyncState(offerers, takers.filter(_ ne latch))
+        }
+
+        F uncancelable { poll => modificationF.flatten *> poll(latch.get).onCancel(cleanupF) }
+      }
+
+    val tryTake: F[Option[A]] = {
+      val modificationF = stateR modify {
+        case SyncState(offerers, takers) if offerers.nonEmpty =>
+          val (offerer, tail) = offerers.dequeue
+          SyncState(tail, takers) -> F
+            .deferred[A]
+            .flatMap(d => offerer.complete(d) *> d.get.map(_.some))
+
+        case st =>
+          st -> none[A].pure[F]
+      }
+
+      modificationF.flatten.uncancelable
+    }
+
+    val size: F[Int] = F.pure(0)
+  }
+
+  private final case class SyncState[F[_], A](
+      offerers: ScalaQueue[Deferred[F, Deferred[F, A]]],
+      takers: ScalaQueue[Deferred[F, A]])
+
+  private object SyncState {
+    def empty[F[_], A]: SyncState[F, A] = SyncState(ScalaQueue(), ScalaQueue())
+  }
+
   private sealed abstract class AbstractQueue[F[_], A](
       capacity: Int,
       state: Ref[F, State[F, A]]
@@ -240,8 +331,14 @@ object Queue {
 
             case State(queue, size, takers, offerers) if queue.nonEmpty =>
               val (a, rest) = queue.dequeue
-              val (release, tail) = offerers.dequeue
-              State(rest, size - 1, takers, tail) -> release.complete(()).as(a)
+
+              // if we haven't made enough space for a new offerer, don't disturb the water
+              if (size - 1 < capacity) {
+                val (release, tail) = offerers.dequeue
+                State(rest, size - 1, takers, tail) -> release.complete(()).as(a)
+              } else {
+                State(rest, size - 1, takers, offerers) -> F.pure(a)
+              }
 
             case State(queue, size, takers, offerers) =>
               /*
@@ -312,6 +409,8 @@ object Queue {
   private final class BoundedQueue[F[_], A](capacity: Int, state: Ref[F, State[F, A]])(
       implicit F: GenConcurrent[F, _]
   ) extends AbstractQueue(capacity, state) {
+
+    require(capacity > 0)
 
     protected def onOfferNoCapacity(
         s: State[F, A],
@@ -589,16 +688,24 @@ object Queue {
         @tailrec
         def loop(i: Int): Unit = {
           if (i >= 0) {
+            var took = false
+
             val f =
               try {
-                offerers.take()
+                val back = offerers.take()
+                took = true
+                back
               } catch {
                 case FailureSignal => null
               }
 
-            if (f != null) {
-              f(EitherUnit)
-              loop(i - 1)
+            if (took) {
+              if (f != null) {
+                f(EitherUnit)
+                loop(i - 1)
+              } else {
+                loop(i)
+              }
             }
           }
         }
@@ -771,11 +878,25 @@ object Queue {
 
     0.until(bound).foreach(i => sequenceBuffer.set(i, i.toLong))
 
-    private[this] val length = new AtomicInteger(0)
-
     def debug(): String = buffer.mkString("[", ", ", "]")
 
-    def size(): Int = length.get()
+    @tailrec
+    def size(): Int = {
+      val before = head.get()
+      val currentTail = tail.get()
+      val after = head.get()
+
+      if (before == after) {
+        val size = currentTail - after
+
+        if (size < 0)
+          0
+        else
+          size.toInt
+      } else {
+        size()
+      }
+    }
 
     def put(data: A): Unit = {
       @tailrec
@@ -806,7 +927,6 @@ object Queue {
 
       buffer(project(currentTail)) = data.asInstanceOf[AnyRef]
       sequenceBuffer.incrementAndGet(project(currentTail))
-      length.incrementAndGet()
 
       ()
     }
@@ -841,7 +961,6 @@ object Queue {
       val back = buffer(project(currentHead)).asInstanceOf[A]
       buffer(project(currentHead)) = null
       sequenceBuffer.set(project(currentHead), currentHead + bound)
-      length.decrementAndGet()
 
       back
     }

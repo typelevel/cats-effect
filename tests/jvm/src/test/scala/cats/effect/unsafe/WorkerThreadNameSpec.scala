@@ -68,9 +68,13 @@ class WorkerThreadNameSpec extends BaseSpec with TestInstances {
         // Check that entering a blocking region changes the name
         blockerThreadName must startWith("io-blocker")
         // Check that the same thread is renamed again when it is readded to the compute pool
-        resetComputeThreads.exists {
-          case (name, id) => id == blockerThreadId && name.startsWith("io-compute")
-        } must beTrue
+        val resetBlockerThread = resetComputeThreads.collectFirst {
+          case (name, `blockerThreadId`) => name
+        }
+        resetBlockerThread must beSome[String].setMessage(
+          "blocker thread not found after reset")
+        resetBlockerThread must beSome((_: String).startsWith("io-compute"))
+          .setMessage("blocker thread name was not reset")
       }
     }
   }

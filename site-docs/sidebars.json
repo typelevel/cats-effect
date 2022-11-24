@@ -32,12 +32,17 @@
       "typeclasses/async"
     ],
     "Standard Library": [
+      "std/atomic-cell",
+      "std/backpressure",
+      "std/console",
       "std/countdown-latch",
       "std/cyclic-barrier",
       "std/deferred",
       "std/dequeue",
       "std/dispatcher",
+      "std/env",
       "std/hotswap",
+      "std/mutex",
       "std/pqueue",
       "std/queue",
       "std/random",

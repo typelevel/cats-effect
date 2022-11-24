@@ -42,11 +42,11 @@ running the code snippets in this tutorial, it is recommended to use the same
 ```scala
 name := "cats-effect-tutorial"
 
-version := "3.3.14"
+version := "3.4.1"
 
 scalaVersion := "2.13.6"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.14" withSources() withJavadoc()
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.4.1" withSources() withJavadoc()
 
 scalacOptions ++= Seq(
   "-feature",

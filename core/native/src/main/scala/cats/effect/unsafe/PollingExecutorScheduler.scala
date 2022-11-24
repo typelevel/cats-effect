@@ -102,7 +102,7 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
         val task = sleepQueue.poll()
         try task.runnable.run()
         catch {
-          case NonFatal(t) => reportFailure(t)
+          case t if NonFatal(t) => reportFailure(t)
           case t: Throwable => IOFiber.onFatalFailure(t)
         }
       }
@@ -113,7 +113,7 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
         val runnable = executeQueue.poll()
         try runnable.run()
         catch {
-          case NonFatal(t) => reportFailure(t)
+          case t if NonFatal(t) => reportFailure(t)
           case t: Throwable => IOFiber.onFatalFailure(t)
         }
         i += 1
