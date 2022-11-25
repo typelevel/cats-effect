@@ -160,25 +160,26 @@ class LensRefSpec extends BaseSpec with DetectPlatform { outer =>
       op must completeAs((Some("A"), Foo(1, -1)))
     }
 
-    "tryModify - fails to modify original value if it's already been modified concurrently" in ticked {
-      implicit ticker =>
-        val updateRefUnsafely: Ref[IO, Integer] => Unit = { (ref: Ref[IO, Integer]) =>
-          unsafeRun(ref.set(5))
-          ()
-        }
-
-        val op = for {
-          refA <- Ref[IO].of(Foo(0, -1))
-          refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-          result <- refB.tryModify { currentValue =>
-            updateRefUnsafely(refB)
-            (currentValue + 1, 10)
+    if (!isJS && !isNative) // concurrent modification impossible
+      "tryModify - fails to modify original value if it's already been modified concurrently" in ticked {
+        implicit ticker =>
+          val updateRefUnsafely: Ref[IO, Integer] => Unit = { (ref: Ref[IO, Integer]) =>
+            unsafeRun(ref.set(5))
+            ()
           }
-          a <- refA.get
-        } yield (result, a)
 
-        op must completeAs((None, Foo(5, -1)))
-    }
+          val op = for {
+            refA <- Ref[IO].of(Foo(0, -1))
+            refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
+            result <- refB.tryModify { currentValue =>
+              updateRefUnsafely(refB)
+              (currentValue + 1, 10)
+            }
+            a <- refA.get
+          } yield (result, a)
+
+          op must completeAs((None, Foo(5, -1)))
+      }
 
     "tryModifyState - successfully modifies underlying Ref" in ticked { implicit ticker =>
       val op = for {
