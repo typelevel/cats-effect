@@ -23,7 +23,7 @@ import cats.data.State
 
 import scala.concurrent.duration._
 
-class LensRefSpec extends BaseSpec { outer =>
+class LensRefSpec extends BaseSpec with DetectPlatform { outer =>
 
   val smallDelay: IO[Unit] = IO.sleep(20.millis)
 
@@ -128,25 +128,26 @@ class LensRefSpec extends BaseSpec { outer =>
       op must completeAs((true, Foo(1, -1)))
     }
 
-    "tryUpdate - fails to modify original value if it's already been modified concurrently" in ticked {
-      implicit ticker =>
-        val updateRefUnsafely: Ref[IO, Integer] => Unit = { (ref: Ref[IO, Integer]) =>
-          unsafeRun(ref.set(5))
-          ()
-        }
-
-        val op = for {
-          refA <- Ref[IO].of(Foo(0, -1))
-          refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-          result <- refB.tryUpdate { currentValue =>
-            updateRefUnsafely(refB)
-            currentValue + 1
+    if (!isJS && !isNative) // concurrent modification impossible
+      "tryUpdate - fails to modify original value if it's already been modified concurrently" in ticked {
+        implicit ticker =>
+          val updateRefUnsafely: Ref[IO, Integer] => Unit = { (ref: Ref[IO, Integer]) =>
+            unsafeRun(ref.set(5))
+            ()
           }
-          a <- refA.get
-        } yield (result, a)
 
-        op must completeAs((false, Foo(5, -1)))
-    }
+          val op = for {
+            refA <- Ref[IO].of(Foo(0, -1))
+            refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
+            result <- refB.tryUpdate { currentValue =>
+              updateRefUnsafely(refB)
+              currentValue + 1
+            }
+            a <- refA.get
+          } yield (result, a)
+
+          op must completeAs((false, Foo(5, -1)))
+      }
 
     "tryModify - successfully modifies underlying Ref" in ticked { implicit ticker =>
       val op = for {
