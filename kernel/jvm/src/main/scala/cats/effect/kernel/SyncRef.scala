@@ -22,10 +22,11 @@ import scala.annotation.tailrec
 
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 
-private abstract class AbstractSyncRef[F[_], A](implicit F: Sync[F]) extends Ref[F, A] {
+private final class SyncRef[F[_], A](@volatile private[this] var value: A)(implicit F: Sync[F])
+    extends Ref[F, A] {
 
   private[this] def ar =
-    SyncRef.updater.asInstanceOf[AtomicReferenceFieldUpdater[this.type, A]]
+    SyncRefConstants.updater.asInstanceOf[AtomicReferenceFieldUpdater[this.type, A]]
 
   final def get: F[A] = F.delay(ar.get(this))
 
@@ -103,5 +104,11 @@ private abstract class AbstractSyncRef[F[_], A](implicit F: Sync[F]) extends Ref
     val f = state.runF.value
     modify(a => f(a).value)
   }
+
+  def makeUpdater = AtomicReferenceFieldUpdater.newUpdater(
+    classOf[SyncRef[Option, Object]],
+    classOf[Object],
+    "value"
+  )
 
 }

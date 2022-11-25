@@ -19,16 +19,9 @@ package cats.effect.kernel;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 // defined in Java since Scala doesn't let us define static fields
-@SuppressWarnings({"rawtypes", "serial", "unchecked"})
-final class SyncRef extends AbstractSyncRef {
-
-  private volatile Object value;
-
-  SyncRef(Object F, Object value) {
-    super((Sync) F);
-    this.value = value;
-  }
+@SuppressWarnings({"rawtypes", "unchecked"})
+final class SyncRefConstants {
 
   static final AtomicReferenceFieldUpdater<SyncRef, Object> updater =
-      AtomicReferenceFieldUpdater.newUpdater(SyncRef.class, Object.class, "value");
+      new SyncRef(null, null).makeUpdater();
 }

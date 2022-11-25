@@ -238,8 +238,7 @@ object Ref {
    *   }
    * }}}
    */
-  def unsafe[F[_], A](a: A)(implicit F: Sync[F]): Ref[F, A] =
-    new SyncRef(F, a).asInstanceOf[Ref[F, A]]
+  def unsafe[F[_], A](a: A)(implicit F: Sync[F]): Ref[F, A] = new SyncRef(a)
 
   /**
    * Builds a `Ref` value for data types that are [[Sync]] Like [[of]] but initializes state

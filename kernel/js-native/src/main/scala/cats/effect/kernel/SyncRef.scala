@@ -21,8 +21,6 @@ import cats.data.State
 private final class SyncRef[F[_], A](private[this] var value: A)(implicit F: Sync[F])
     extends Ref[F, A] {
 
-  def this(F: Sync[F], value: A) = this(value)(F)
-
   def get: F[A] = F.delay(value)
 
   def set(a: A): F[Unit] = F.delay {
