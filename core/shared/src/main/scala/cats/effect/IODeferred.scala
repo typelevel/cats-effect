@@ -16,9 +16,9 @@
 
 package cats.effect
 
-import cats.~>
-import cats.syntax.all._
 import cats.effect.syntax.all._
+import cats.syntax.all._
+import cats.~>
 
 import java.util.concurrent.atomic.AtomicReference
 
