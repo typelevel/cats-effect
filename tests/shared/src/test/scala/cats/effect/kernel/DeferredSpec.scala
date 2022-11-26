@@ -22,12 +22,17 @@ import scala.concurrent.duration._
 
 class DeferredSpec extends BaseSpec { outer =>
 
-  sequential
+  "Deferred for Async" should {
+    tests(IO(Deferred.unsafe), IO(Deferred.unsafe))
+  }
 
-  "Deferred" >> {
+  "Deferred for IO" should {
+    tests(IO(new IODeferred), IO(new IODeferred))
+  }
 
+  def tests(deferredU: IO[Deferred[IO, Unit]], deferredI: IO[Deferred[IO, Int]]) = {
     "complete" in real {
-      val op = Deferred[IO, Int].flatMap { p => p.complete(0) *> p.get }
+      val op = deferredI.flatMap { p => p.complete(0) *> p.get }
 
       op.flatMap { res =>
         IO {
@@ -37,7 +42,7 @@ class DeferredSpec extends BaseSpec { outer =>
     }
 
     "complete is only successful once" in real {
-      val op = Deferred[IO, Int].flatMap { p => p.complete(0) *> p.complete(1).product(p.get) }
+      val op = deferredI.flatMap { p => p.complete(0) *> p.complete(1).product(p.get) }
 
       op.flatMap { res =>
         IO {
@@ -49,8 +54,8 @@ class DeferredSpec extends BaseSpec { outer =>
     "get blocks until set" in real {
       val op = for {
         state <- Ref[IO].of(0)
-        modifyGate <- Deferred[IO, Unit]
-        readGate <- Deferred[IO, Unit]
+        modifyGate <- deferredU
+        readGate <- deferredU
         _ <- (modifyGate.get *> state.update(_ * 2) *> readGate.complete(())).start
         _ <- (state.set(1) *> modifyGate.complete(())).start
         _ <- readGate.get
@@ -77,6 +82,7 @@ class DeferredSpec extends BaseSpec { outer =>
               case Outcome.Succeeded(ioi) => ioi.flatMap(i => r.set(Some(i)))
               case _ => IO.raiseError(new RuntimeException)
             }
+            .voidError
             .start
           _ <- IO.sleep(100.millis)
           _ <- p.complete(42)
@@ -92,7 +98,7 @@ class DeferredSpec extends BaseSpec { outer =>
     }
 
     "tryGet returns None for unset Deferred" in real {
-      val op = Deferred[IO, Unit].flatMap(_.tryGet)
+      val op = deferredU.flatMap(_.tryGet)
 
       op.flatMap { res =>
         IO {
@@ -103,7 +109,7 @@ class DeferredSpec extends BaseSpec { outer =>
 
     "tryGet returns Some() for set Deferred" in real {
       val op = for {
-        d <- Deferred[IO, Unit]
+        d <- deferredU
         _ <- d.complete(())
         result <- d.tryGet
       } yield result
@@ -125,8 +131,8 @@ class DeferredSpec extends BaseSpec { outer =>
           else IO.unit >> foreverAsync(i + 1)
 
         val task = for {
-          d <- Deferred[IO, Unit]
-          latch <- Deferred[IO, Unit]
+          d <- deferredU
+          latch <- deferredU
           fb <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
           _ <- latch.get
           _ <- d.complete(()).timeout(15.seconds).guarantee(fb.cancel)

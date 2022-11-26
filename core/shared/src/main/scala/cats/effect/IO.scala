@@ -802,6 +802,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def void: IO[Unit] =
     map(_ => ())
 
+  def voidError(implicit ev: A <:< Unit): IO[Unit] =
+    asInstanceOf[IO[Unit]].handleError(_ => ())
+
   /**
    * Converts the source `IO` into any `F` type that implements the [[LiftIO]] type class.
    */
@@ -1434,7 +1437,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def ref[A](a: A): IO[Ref[IO, A]] = IO(Ref.unsafe(a))
 
-  def deferred[A]: IO[Deferred[IO, A]] = IO(Deferred.unsafe)
+  def deferred[A]: IO[Deferred[IO, A]] = IO(new IODeferred[A])
 
   def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
       release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
