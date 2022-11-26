@@ -44,22 +44,30 @@ import java.util.concurrent.TimeUnit
 @OutputTimeUnit(TimeUnit.SECONDS)
 class DeferredBenchmark {
 
-  @Param(Array("10", "100", "1000", "10000"))
+  @Param(Array("10", "100", "1000"))
   var count: Int = _
 
   @Benchmark
   def get(): Unit = {
     IO.deferred[Unit]
-      .flatMap(d => d.complete(()) *> d.get.replicateA_(10))
-      .replicateA_(count)
+      .flatMap(d => d.complete(()) *> d.get.replicateA_(count))
+      .replicateA_(1000)
       .unsafeRunSync()
   }
 
   @Benchmark
   def complete(): Unit = {
     IO.deferred[Unit]
-      .flatMap { d => d.get.parReplicateA_(10) &> d.complete(()) }
-      .replicateA_(count)
+      .flatMap { d => d.get.parReplicateA_(count) &> d.complete(()) }
+      .replicateA_(1000)
+      .unsafeRunSync()
+  }
+
+  @Benchmark
+  def cancel(): Unit = {
+    IO.deferred[Unit]
+      .flatMap { d => d.get.start.replicateA(count).flatMap(_.traverse(_.cancel)) }
+      .replicateA_(1000)
       .unsafeRunSync()
   }
 }
