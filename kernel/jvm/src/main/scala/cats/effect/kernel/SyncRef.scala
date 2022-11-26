@@ -20,97 +20,88 @@ import cats.data.State
 
 import scala.annotation.tailrec
 
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
+import java.util.concurrent.atomic.AtomicReference
 
-private final class SyncRef[F[_], A](@volatile private[this] var value: A)(implicit F: Sync[F])
+private final class SyncRef[F[_], A] private[this] (ar: AtomicReference[A])(implicit F: Sync[F])
     extends Ref[F, A] {
 
-  private[this] def ar =
-    SyncRefConstants.updater.asInstanceOf[AtomicReferenceFieldUpdater[this.type, A]]
+  def this(a: A)(implicit F: Sync[F]) = this(new AtomicReference(a))
 
-  final def get: F[A] = F.delay(value)
+  def get: F[A] = F.delay(ar.get)
 
-  final def set(a: A): F[Unit] = F.delay {
-    value = a
-  }
+  def set(a: A): F[Unit] = F.delay(ar.set(a))
 
-  final override def getAndSet(a: A): F[A] = F.delay(ar.getAndSet(this, a))
+  override def getAndSet(a: A): F[A] = F.delay(ar.getAndSet(a))
 
-  final override def getAndUpdate(f: A => A): F[A] = {
+  override def getAndUpdate(f: A => A): F[A] = {
     @tailrec
     def spin: A = {
-      val a = ar.get(this)
+      val a = ar.get
       val u = f(a)
-      if (!ar.compareAndSet(this, a, u)) spin
+      if (!ar.compareAndSet(a, u)) spin
       else a
     }
     F.delay(spin)
   }
 
-  final def access: F[(A, A => F[Boolean])] =
+  def access: F[(A, A => F[Boolean])] =
     F.delay {
-      val snapshot = ar.get(this)
-      def setter = (a: A) => F.delay(ar.compareAndSet(this, snapshot, a))
+      val snapshot = ar.get
+      def setter = (a: A) => F.delay(ar.compareAndSet(snapshot, a))
       (snapshot, setter)
     }
 
-  final def tryUpdate(f: A => A): F[Boolean] =
+  def tryUpdate(f: A => A): F[Boolean] =
     F.map(tryModify(a => (f(a), ())))(_.isDefined)
 
-  final def tryModify[B](f: A => (A, B)): F[Option[B]] =
+  def tryModify[B](f: A => (A, B)): F[Option[B]] =
     F.delay {
-      val c = ar.get(this)
+      val c = ar.get
       val (u, b) = f(c)
-      if (ar.compareAndSet(this, c, u)) Some(b)
+      if (ar.compareAndSet(c, u)) Some(b)
       else None
     }
 
-  final def update(f: A => A): F[Unit] = {
+  def update(f: A => A): F[Unit] = {
     @tailrec
     def spin(): Unit = {
-      val a = ar.get(this)
+      val a = ar.get
       val u = f(a)
-      if (!ar.compareAndSet(this, a, u)) spin()
+      if (!ar.compareAndSet(a, u)) spin()
     }
     F.delay(spin())
   }
 
-  final override def updateAndGet(f: A => A): F[A] = {
+  override def updateAndGet(f: A => A): F[A] = {
     @tailrec
     def spin: A = {
-      val a = ar.get(this)
+      val a = ar.get
       val u = f(a)
-      if (!ar.compareAndSet(this, a, u)) spin
+      if (!ar.compareAndSet(a, u)) spin
       else u
     }
     F.delay(spin)
   }
 
-  final def modify[B](f: A => (A, B)): F[B] = {
+  def modify[B](f: A => (A, B)): F[B] = {
     @tailrec
     def spin: B = {
-      val c = ar.get(this)
+      val c = ar.get
       val (u, b) = f(c)
-      if (!ar.compareAndSet(this, c, u)) spin
+      if (!ar.compareAndSet(c, u)) spin
       else b
     }
     F.delay(spin)
   }
 
-  final def tryModifyState[B](state: State[A, B]): F[Option[B]] = {
+  def tryModifyState[B](state: State[A, B]): F[Option[B]] = {
     val f = state.runF.value
     tryModify(a => f(a).value)
   }
 
-  final def modifyState[B](state: State[A, B]): F[B] = {
+  def modifyState[B](state: State[A, B]): F[B] = {
     val f = state.runF.value
     modify(a => f(a).value)
   }
-
-  def makeUpdater = AtomicReferenceFieldUpdater.newUpdater(
-    classOf[SyncRef[Option, Object]],
-    classOf[Object],
-    "value"
-  )
 
 }
