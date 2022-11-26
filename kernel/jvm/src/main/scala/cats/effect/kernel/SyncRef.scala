@@ -28,9 +28,11 @@ private final class SyncRef[F[_], A](@volatile private[this] var value: A)(impli
   private[this] def ar =
     SyncRefConstants.updater.asInstanceOf[AtomicReferenceFieldUpdater[this.type, A]]
 
-  final def get: F[A] = F.delay(ar.get(this))
+  final def get: F[A] = F.delay(value)
 
-  final def set(a: A): F[Unit] = F.delay(ar.set(this, a))
+  final def set(a: A): F[Unit] = F.delay {
+    value = a
+  }
 
   final override def getAndSet(a: A): F[A] = F.delay(ar.getAndSet(this, a))
 
