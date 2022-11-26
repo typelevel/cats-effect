@@ -586,7 +586,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.NonDaemonThreadLogger.sleepIntervalMillis"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.NonDaemonThreadLogger.this"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.NonDaemonThreadLogger$")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.NonDaemonThreadLogger$"),
+      // introduced by #3284
+      // internal API change
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.CallbackStack.apply")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
