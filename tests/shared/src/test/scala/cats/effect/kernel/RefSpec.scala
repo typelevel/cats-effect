@@ -22,7 +22,7 @@ import cats.data.State
 
 import scala.concurrent.duration._
 
-class RefSpec extends BaseSpec { outer =>
+class RefSpec extends BaseSpec with DetectPlatform { outer =>
 
   val smallDelay: IO[Unit] = IO.sleep(20.millis)
 
@@ -103,23 +103,24 @@ class RefSpec extends BaseSpec { outer =>
       op must completeAs(true)
     }
 
-    "tryUpdate - should fail to update if modification has occurred" in ticked {
-      implicit ticker =>
-        val updateRefUnsafely: Ref[IO, Int] => Unit = { (ref: Ref[IO, Int]) =>
-          unsafeRun(ref.update(_ + 1))
-          ()
-        }
-
-        val op = for {
-          r <- Ref[IO].of(0)
-          result <- r.tryUpdate { currentValue =>
-            updateRefUnsafely(r)
-            currentValue + 1
+    if (!isJS && !isNative) // concurrent modification impossible
+      "tryUpdate - should fail to update if modification has occurred" in ticked {
+        implicit ticker =>
+          val updateRefUnsafely: Ref[IO, Int] => Unit = { (ref: Ref[IO, Int]) =>
+            unsafeRun(ref.update(_ + 1))
+            ()
           }
-        } yield result
 
-        op must completeAs(false)
-    }
+          val op = for {
+            r <- Ref[IO].of(0)
+            result <- r.tryUpdate { currentValue =>
+              updateRefUnsafely(r)
+              currentValue + 1
+            }
+          } yield result
+
+          op must completeAs(false)
+      }
 
     "tryModifyState - modification occurs successfully" in ticked { implicit ticker =>
       val op = for {
