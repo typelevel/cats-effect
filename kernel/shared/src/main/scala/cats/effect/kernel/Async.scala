@@ -94,7 +94,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
           lift(k(resume)) flatMap {
             case Right(a) => G.pure(a)
             case Left(Some(fin)) => G.onCancel(poll(get), lift(fin))
-            case Left(None) => poll(get)
+            case Left(None) => get
           }
         }
       }
@@ -156,7 +156,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * Polymorphic so it can be used in situations where an arbitrary effect is expected eg
    * [[Fiber.joinWithNever]]
    */
-  def never[A]: F[A] = async(_ => pure(none[F[Unit]]))
+  def never[A]: F[A] = async(_ => pure(Some(unit)))
 
   /**
    * Shift execution of the effect `fa` to the execution context `ec`. Execution is shifted back

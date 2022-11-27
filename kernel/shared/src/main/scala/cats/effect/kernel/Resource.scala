@@ -996,23 +996,22 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
               val nt2 = new (Resource[F, *] ~> D) {
                 def apply[A](rfa: Resource[F, A]) =
                   Kleisli { r =>
-                    nt(rfa.allocatedCase) flatMap {
-                      case (a, fin) =>
-                        r.update(f => (ec: ExitCase) => f(ec) !> (F.unit >> fin(ec))).as(a)
+                    G uncancelable { poll =>
+                      poll(nt(rfa.allocatedCase)) flatMap {
+                        case (a, fin) =>
+                          r.update(f => (ec: ExitCase) => f(ec) !> (F.unit >> fin(ec))).as(a)
+                      }
                     }
                   }
               }
 
-              for {
-                r <- nt(F.ref((_: ExitCase) => F.unit).map(_.mapK(nt)))
-
-                a <- G.guaranteeCase(body[D].apply(cb, Kleisli.liftF(ga), nt2).run(r)) {
+              nt(F.ref((_: ExitCase) => F.unit).map(_.mapK(nt))) flatMap { r =>
+                G.guaranteeCase(
+                  (body[D].apply(cb, Kleisli.liftF(ga), nt2).run(r), r.get).tupled) {
                   case Outcome.Succeeded(_) => G.unit
                   case oc => r.get.flatMap(fin => nt(fin(ExitCase.fromOutcome(oc))))
                 }
-
-                fin <- r.get
-              } yield (a, fin)
+              }
             }
           }
         }
