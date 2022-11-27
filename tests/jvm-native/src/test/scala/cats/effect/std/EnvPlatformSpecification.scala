@@ -17,20 +17,15 @@
 package cats.effect
 package std
 
-class EnvSpec extends BaseSpec with EnvPlatformSpecification {
-
-  "Env" should {
-    "retrieve a variable from the environment" in real {
-      Env[IO].get("HOME").flatMap(x => IO(x must beSome))
+trait EnvPlatformSpecification { self: BaseSpec =>
+  def platformSpecs = {
+    "platform" should {
+      "retrieve a variable from the properties" in real {
+        IO(System.setProperty("my-property", "foo")) >> Env[IO]
+          .get("my-property")
+          .flatMap(x => IO(x must beSome("foo")))
+      }
     }
-    "return none for non-existent environment variable" in real {
-      Env[IO].get("MADE_THIS_UP").flatMap(x => IO(x must beNone))
-    }
-    "provide an iterable of all the things" in real {
-      Env[IO].entries.flatMap(x => IO(x must not(beEmpty)))
-    }
-
-    platformSpecs
   }
 
 }

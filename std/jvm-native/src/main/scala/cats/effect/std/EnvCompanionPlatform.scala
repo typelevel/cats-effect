@@ -24,7 +24,9 @@ private[std] class EnvCompanionPlatform {
   private[std] final class SyncEnv[F[_]](implicit F: Sync[F]) extends Env[F] {
 
     def get(name: String): F[Option[String]] =
-      F.delay(Option(System.getenv(name))) // sys.env copies the entire env into a Map
+      F.delay(
+        Option(System.getProperty(name)).orElse(Option(System.getenv(name)))
+      ) // sys.env copies the entire env into a Map
 
     def entries: F[Iterable[(String, String)]] = F.delay(sys.env)
   }
