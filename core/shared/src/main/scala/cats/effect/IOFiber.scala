@@ -172,7 +172,7 @@ private final class IOFiber[A](
       val handle = registerListener(oc => cb(Right(oc)))
 
       if (handle == null)
-        None /* we were already invoked, so no `CallbackStack` needs to be managed */
+        Some(IO.unit) /* we were already invoked, so no `CallbackStack` needs to be managed */
       else
         Some(IO(handle.clearCurrent()))
     }

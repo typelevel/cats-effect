@@ -1188,7 +1188,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
         G.uncancelable { poll =>
           lift(k(resume)) flatMap {
             case Some(fin) => G.onCancel(poll(get), lift(fin))
-            case None => poll(get)
+            case None => get
           }
         }
       }
@@ -1238,7 +1238,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
     val body = new Cont[IO, A, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
-        G.uncancelable { poll => lift(IO.delay(k(resume))).flatMap(_ => poll(get)) }
+        G.uncancelable(_ => lift(IO.delay(k(resume))).flatMap(_ => get))
       }
     }
 
