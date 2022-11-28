@@ -20,44 +20,26 @@ package unsafe
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 
 import scala.concurrent.ExecutionContextExecutor
-import scala.util.control.NonFatal
+import scala.scalajs.concurrent.QueueExecutionContext
 
-import java.util.ArrayDeque
+private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
+    extends ExecutionContextExecutor {
 
-private final class BatchingMacrotaskExecutor(pollEvery: Int) extends ExecutionContextExecutor {
+  private[this] val MicrotaskExecutor = QueueExecutionContext.promises()
 
-  private[this] var needsReschedule: Boolean = true
+  private[this] var counter = 0
 
-  private[this] val executeQueue: ArrayDeque[Runnable] = new ArrayDeque
+  def reportFailure(t: Throwable): Unit = MacrotaskExecutor.reportFailure(t)
 
-  private[this] def executeTask = _executeTask
-  private[this] val _executeTask: Runnable = () => {
-    // do up to pollEvery tasks
-    var i = 0
-    while (i < pollEvery && !executeQueue.isEmpty()) {
-      val runnable = executeQueue.poll()
-      try runnable.run()
-      catch {
-        case NonFatal(t) => reportFailure(t)
-        case t: Throwable => IOFiber.onFatalFailure(t)
-      }
-      i += 1
-    }
+  def execute(runnable: Runnable): Unit =
+    MacrotaskExecutor.execute(runnable)
 
-    if (!executeQueue.isEmpty()) // we'll be right back after the (post) message
-      MacrotaskExecutor.execute(executeTask)
+  def schedule(runnable: Runnable): Unit = {
+    if (counter % batchSize == 0)
+      MacrotaskExecutor.execute(runnable)
     else
-      needsReschedule = true
-  }
-
-  def reportFailure(t: Throwable): Unit = t.printStackTrace()
-
-  def execute(runnable: Runnable): Unit = {
-    executeQueue.addLast(runnable)
-    if (needsReschedule) {
-      needsReschedule = false
-      MacrotaskExecutor.execute(executeTask)
-    }
+      MicrotaskExecutor.execute(runnable)
+    counter += 1
   }
 
 }
