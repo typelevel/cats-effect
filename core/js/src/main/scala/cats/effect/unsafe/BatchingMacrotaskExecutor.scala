@@ -37,7 +37,7 @@ private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
     MacrotaskExecutor.execute(runnable)
 
   def schedule(runnable: Runnable): Unit = {
-    if (counter < batchSize == 0) {
+    if (counter < batchSize) {
       MicrotaskExecutor.execute(runnable)
     } else {
       if (counter == batchSize)
