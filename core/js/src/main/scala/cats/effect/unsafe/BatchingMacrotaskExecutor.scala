@@ -29,16 +29,21 @@ private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
 
   private[this] var counter = 0
 
+  private[this] val resetCounter: Runnable = () => counter = 0
+
   def reportFailure(t: Throwable): Unit = MacrotaskExecutor.reportFailure(t)
 
   def execute(runnable: Runnable): Unit =
     MacrotaskExecutor.execute(runnable)
 
   def schedule(runnable: Runnable): Unit = {
-    if (counter % batchSize == 0)
-      MacrotaskExecutor.execute(runnable)
-    else
+    if (counter < batchSize == 0) {
       MicrotaskExecutor.execute(runnable)
+    } else {
+      if (counter == batchSize)
+        MacrotaskExecutor.execute(resetCounter)
+      MacrotaskExecutor.execute(runnable)
+    }
     counter += 1
   }
 
