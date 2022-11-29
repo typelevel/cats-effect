@@ -85,5 +85,15 @@ final class AtomicCellSpec extends BaseSpec {
 
       op must completeAs(true)
     }
+
+    "evalModify should properly suspend read" in ticked { implicit ticker =>
+      val op = for {
+        cell <- AtomicCell[IO].of(0)
+        _ <- cell.update(_ + 1).replicateA_(2)
+        r <- cell.get
+      } yield r == 2
+
+      op must completeAs(true)
+    }
   }
 }

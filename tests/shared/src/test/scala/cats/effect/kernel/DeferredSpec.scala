@@ -147,5 +147,20 @@ class DeferredSpec extends BaseSpec { outer =>
       }
     }
 
+    "issue #3283: complete must be uncancelable" in real {
+
+      import cats.syntax.all._
+
+      for {
+        d <- Deferred[IO, Int]
+        attemptCompletion = { (n: Int) => d.complete(n).void }
+        res <- List(
+          IO.race(attemptCompletion(1), attemptCompletion(2)).void,
+          d.get.void
+        ).parSequence
+        r <- IO { (res == List((), ())) must beTrue }
+      } yield r
+    }
+
   }
 }
