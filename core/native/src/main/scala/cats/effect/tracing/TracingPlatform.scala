@@ -16,14 +16,14 @@
 
 package cats.effect.tracing
 
-import scala.annotation.nowarn
+import org.typelevel.scalaccompat.annotation._
 
 private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
-  @nowarn("msg=never used")
+  @nowarn212("msg=never used")
   def calculateTracingEvent(key: Any): TracingEvent = null
 
-  @nowarn("msg=never used")
+  @nowarn212("msg=never used")
   private[tracing] def applyStackTraceFilter(
       callSiteClassName: String,
       callSiteMethodName: String,

@@ -38,7 +38,7 @@ import cats.syntax.all._
  * }
  * }}}
  *
- * '''Note''': This look is not reentrant, thus this `mutex.lock.surround(mutex.lock.use_)` will
+ * '''Note''': This lock is not reentrant, thus this `mutex.lock.surround(mutex.lock.use_)` will
  * deadlock.
  *
  * @see
