@@ -86,7 +86,7 @@ private[effect] object Tracing extends TracingPlatform {
       val callSiteMethodName = callSite.getMethodName
       val callSiteFileName = callSite.getFileName
 
-      if (callSiteClassName == "scala.scalanative.runtime.package$")
+      if (callSiteClassName == "cats.effect.IOFiber" && callSiteMethodName == "run")
         return null // short-circuit, effective end of stack
 
       if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName, callSiteFileName))
