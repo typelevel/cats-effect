@@ -24,10 +24,10 @@ private[effect] object Tracing extends TracingPlatform {
 
   import TracingConstants._
 
-  private[this] val TurnRight = "╰"
-  // private[this] val InverseTurnRight = "╭"
-  private[this] val Junction = "├"
-  // private[this] val Line = "│"
+  private[this] final val TurnRight = "╰"
+  // private[this] final val InverseTurnRight = "╭"
+  private[this] final val Junction = "├"
+  // private[this] final val Line = "│"
 
   private[tracing] def buildEvent(): TracingEvent = {
     new TracingEvent.StackTrace()
