@@ -1486,12 +1486,6 @@ private final class IOFiber[A](
     val opAndCallSite =
       Tracing.getFrames(tracingEvents).headOption.map(frame => s": $frame").getOrElse("")
 
-    System
-      .err
-      .println(tracingEvents.toList().collect {
-        case ev: TracingEvent.StackTrace => ev.getStackTrace.toList
-      })
-
     s"cats.effect.IOFiber@${System.identityHashCode(this).toHexString} $state$opAndCallSite"
   }
 
