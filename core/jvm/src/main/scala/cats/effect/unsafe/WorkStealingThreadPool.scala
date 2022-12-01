@@ -43,6 +43,7 @@ import java.util.Comparator
 import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 import java.util.concurrent.locks.LockSupport
+import scala.reflect.ClassTag
 
 /**
  * Work-stealing thread pool which manages a pool of [[WorkerThread]] s for the specific purpose
@@ -67,7 +68,8 @@ private[effect] final class WorkStealingThreadPool(
     system: PollingSystem,
     reportFailure0: Throwable => Unit
 ) extends ExecutionContextExecutor
-    with Scheduler {
+    with Scheduler
+    with EventLoop[Any] {
 
   import TracingConstants._
   import WorkStealingThreadPoolConstants._
@@ -126,7 +128,7 @@ private[effect] final class WorkStealingThreadPool(
       fiberBags(i) = fiberBag
       val sleepersQueue = SleepersQueue.empty
       sleepersQueues(i) = sleepersQueue
-      val poller = system()
+      val poller = system.makePoller()
       pollers(i) = poller
 
       val thread =
@@ -584,6 +586,20 @@ private[effect] final class WorkStealingThreadPool(
       }
     }
   }
+
+  def registrar(): Any = {
+    val pool = this
+    val thread = Thread.currentThread()
+
+    if (thread.isInstanceOf[WorkerThread]) {
+      val worker = thread.asInstanceOf[WorkerThread]
+      if (worker.isOwnedBy(pool)) return worker.poller()
+    }
+
+    throw new RuntimeException("Invoked from outside the WSTP")
+  }
+
+  protected def registrarTag: ClassTag[?] = system.pollerTag
 
   /**
    * Shut down the thread pool and clean up the pool state. Calling this method after the pool

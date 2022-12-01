@@ -17,11 +17,15 @@
 package cats.effect
 package unsafe
 
+import scala.reflect.ClassTag
+
 import java.util.concurrent.locks.LockSupport
 
 object SleepSystem extends PollingSystem {
 
-  def apply(): Poller = new Poller()
+  def pollerTag: ClassTag[Poller] = ClassTag(classOf[Poller])
+
+  def makePoller(): Poller = new Poller()
 
   final class Poller extends AbstractPoller {
 

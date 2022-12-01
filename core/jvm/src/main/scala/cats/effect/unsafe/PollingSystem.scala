@@ -22,14 +22,9 @@ import scala.reflect.ClassTag
 abstract class PollingSystem {
 
   type Poller <: AbstractPoller
+  def pollerTag: ClassTag[Poller]
 
-  def apply(): Poller
-
-  final def local()(implicit tag: ClassTag[Poller]): Option[Poller] =
-    Thread.currentThread() match {
-      case t: WorkerThread => tag.unapply(t.poller())
-      case _ => None
-    }
+  def makePoller(): Poller
 
   protected abstract class AbstractPoller {
     def poll(nanos: Long): Unit
