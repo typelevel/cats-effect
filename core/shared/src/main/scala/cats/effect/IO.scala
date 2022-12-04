@@ -802,8 +802,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def void: IO[Unit] =
     map(_ => ())
 
-  def voidError(implicit ev: A <:< Unit): IO[Unit] =
+  def voidError(implicit ev: A <:< Unit): IO[Unit] = {
+    val _ = ev
     asInstanceOf[IO[Unit]].handleError(_ => ())
+  }
 
   /**
    * Converts the source `IO` into any `F` type that implements the [[LiftIO]] type class.
