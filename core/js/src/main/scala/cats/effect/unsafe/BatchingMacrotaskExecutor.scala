@@ -17,9 +17,13 @@
 package cats.effect
 package unsafe
 
+import cats.effect.tracing.TracingConstants
+
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 
+import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
+import scala.scalajs.LinkingInfo
 import scala.scalajs.concurrent.QueueExecutionContext
 
 private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
@@ -34,17 +38,44 @@ private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
   def reportFailure(t: Throwable): Unit = MacrotaskExecutor.reportFailure(t)
 
   def execute(runnable: Runnable): Unit =
-    MacrotaskExecutor.execute(runnable)
+    MacrotaskExecutor.execute(monitor(runnable))
 
   def schedule(runnable: Runnable): Unit = {
     if (counter < batchSize) {
-      MicrotaskExecutor.execute(runnable)
+      MicrotaskExecutor.execute(monitor(runnable))
     } else {
       if (counter == batchSize)
         MacrotaskExecutor.execute(resetCounter)
-      MacrotaskExecutor.execute(runnable)
+      MacrotaskExecutor.execute(monitor(runnable))
     }
     counter += 1
   }
+
+  def liveTraces(): Map[IOFiber[_], Trace] =
+    fiberBag.iterator.filterNot(_.isDone).map(f => f -> f.captureTrace()).toMap
+
+  @inline private[this] def monitor(runnable: Runnable): Runnable =
+    if (LinkingInfo.developmentMode)
+      if (fiberBag ne null)
+        runnable match {
+          case r: IOFiber[_] =>
+            fiberBag += r
+            () => {
+              // We have to remove r _before_ running it, b/c it may be re-enqueued while running
+              // B/c JS is single-threaded, nobody can observe the bag while it is running anyway
+              fiberBag -= r
+              r.run()
+            }
+          case _ => runnable
+        }
+      else runnable
+    else
+      runnable
+
+  private[this] val fiberBag =
+    if (LinkingInfo.developmentMode && TracingConstants.isStackTracing && FiberMonitor.weakRefsAvailable)
+      mutable.Set.empty[IOFiber[_]]
+    else
+      null
 
 }
