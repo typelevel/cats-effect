@@ -742,7 +742,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[Problem]("cats.effect.ArrayStack*"),
         // mystery filters that became required in 3.4.0
         ProblemFilters.exclude[DirectMissingMethodProblem](
-          "cats.effect.tracing.TracingConstants.*")
+          "cats.effect.tracing.TracingConstants.*"),
+        // introduced by #3225, which replaced it with the BatchingMacrotaskExecutor
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.unsafe.FiberAwareExecutionContext")
       )
     },
     mimaBinaryIssueFilters ++= {
