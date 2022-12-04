@@ -19,6 +19,7 @@ package unsafe
 
 import cats.effect.std.CountDownLatch
 import cats.syntax.all._
+
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 
 import scala.concurrent.duration._
