@@ -113,10 +113,11 @@ val Windows = "windows-latest"
 val MacOS = "macos-latest"
 
 val Scala212 = "2.12.17"
-val Scala213 = "2.13.8"
-val Scala3 = "3.2.0"
+val Scala213 = "2.13.10"
+val Scala3 = "3.2.1"
 
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala212, Scala213)
+ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value
 ThisBuild / tlVersionIntroduced := Map("3" -> "3.1.1")
 ThisBuild / tlJdkRelease := Some(8)
 
@@ -289,13 +290,15 @@ ThisBuild / apiURL := Some(url("https://typelevel.org/cats-effect/api/3.x/"))
 
 ThisBuild / autoAPIMappings := true
 
-val CatsVersion = "2.8.0"
-val Specs2Version = "4.17.0"
+val CatsVersion = "2.9.0"
+val Specs2Version = "4.19.0"
 val ScalaCheckVersion = "1.17.0"
 val DisciplineVersion = "1.4.0"
 val CoopVersion = "1.2.0"
 
 val MacrotaskExecutorVersion = "1.1.0"
+
+val ScalacCompatVersion = "0.1.0"
 
 tlReplaceCommandAlias("ci", CI.AllCIs.map(_.toString).mkString)
 addCommandAlias("release", "tlRelease")
@@ -373,13 +376,16 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-core" % CatsVersion,
       "org.specs2" %%% "specs2-core" % Specs2Version % Test
+    ),
+    mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Ref$SyncRef")
     )
   )
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % MacrotaskExecutorVersion % Test
   )
   .nativeSettings(
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.4.0"
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.5.0"
   )
 
 /**
@@ -436,6 +442,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(kernel, std)
   .settings(
     name := "cats-effect",
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "scalac-compat-annotation" % ScalacCompatVersion % CompileTime
+    ),
     mimaBinaryIssueFilters ++= Seq(
       // introduced by #1837, removal of package private class
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.AsyncPropagateCancelation"),
@@ -586,7 +595,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.NonDaemonThreadLogger.sleepIntervalMillis"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.NonDaemonThreadLogger.this"),
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.NonDaemonThreadLogger$")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.NonDaemonThreadLogger$"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -726,7 +736,13 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[Problem]("cats.effect.IOFiberConstants.*"),
         ProblemFilters.exclude[Problem]("cats.effect.SyncIOConstants.*"),
         // introduced by #3196. Changes in an internal API.
-        ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.FiberAwareExecutionContext.liveFibers")
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.unsafe.FiberAwareExecutionContext.liveFibers"),
+        // introduced by #3222. Optimized ArrayStack internal API
+        ProblemFilters.exclude[Problem]("cats.effect.ArrayStack*"),
+        // mystery filters that became required in 3.4.0
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "cats.effect.tracing.TracingConstants.*")
       )
     },
     mimaBinaryIssueFilters ++= {
@@ -748,14 +764,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           ProblemFilters.exclude[MissingTypesProblem]("cats.effect.tracing.Tracing$"),
           ProblemFilters.exclude[DirectMissingMethodProblem](
             "cats.effect.tracing.Tracing.computeValue"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.tracing.TracingConstants.enhancedExceptions"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.tracing.TracingConstants.traceBufferLogSize"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.tracing.TracingConstants.traceBufferLogSize"),
-          ProblemFilters.exclude[DirectMissingMethodProblem](
-            "cats.effect.tracing.TracingConstants.enhancedExceptions"),
           ProblemFilters.exclude[ReversedMissingMethodProblem](
             "cats.effect.unsafe.WorkStealingThreadPool.canExecuteBlockingCode"),
           ProblemFilters.exclude[ReversedMissingMethodProblem](
@@ -837,6 +845,7 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     name := "cats-effect-std",
     libraryDependencies ++= Seq(
+      "org.typelevel" %% "scalac-compat-annotation" % ScalacCompatVersion % CompileTime,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
       "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test
     ),

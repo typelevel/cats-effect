@@ -42,11 +42,11 @@ running the code snippets in this tutorial, it is recommended to use the same
 ```scala
 name := "cats-effect-tutorial"
 
-version := "3.3.14"
+version := "3.4.2"
 
 scalaVersion := "2.13.6"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.14" withSources() withJavadoc()
+libraryDependencies += "org.typelevel" %% "cats-effect" % "3.4.2" withSources() withJavadoc()
 
 scalacOptions ++= Seq(
   "-feature",
@@ -507,18 +507,18 @@ to signal that the wrapped code will block the thread.  Cats-effect uses that
 info as a hint to optimize `IO` scheduling.
 
 Another difference with threads is that fibers are very cheap entities. We can
-spawn millions of them at ease without impacting the performance. 
+spawn millions of them at ease without impacting the performance.
 
 A worthy note is that you do not have to explicitly shut down fibers. If you spawn
-a fiber and it finishes actively running its `IO` it will get cleaned up by the 
+a fiber and it finishes actively running its `IO` it will get cleaned up by the
 garbage collector unless there is some other active memory reference to it. So basically
-you can treat a fiber as any other regular object, except that when the fiber is _running_ 
+you can treat a fiber as any other regular object, except that when the fiber is _running_
 (present tense), the cats-effect runtime itself keeps the fiber alive.
 
-This has some interesting implications as well. Like if you create an `IO.async` node and 
-register the callback with something, and you're in a Fiber which has no strong object 
-references anywhere else (i.e. you did some sort of fire-and-forget thing), then the callback 
-itself is the only strong reference to the fiber. Meaning if the registration fails or the 
+This has some interesting implications as well. Like if you create an `IO.async` node and
+register the callback with something, and you're in a Fiber which has no strong object
+references anywhere else (i.e. you did some sort of fire-and-forget thing), then the callback
+itself is the only strong reference to the fiber. Meaning if the registration fails or the
 system you registered with throws it away, the fiber will just gracefully disappear.
 
 Cats-effect implements some concurrency primitives to coordinate concurrent

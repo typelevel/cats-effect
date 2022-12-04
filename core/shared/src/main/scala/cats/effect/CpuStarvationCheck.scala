@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.effect.metrics.CpuStarvationMetrics
 import cats.effect.std.Console
 import cats.effect.unsafe.IORuntimeConfig
 import cats.syntax.all._
@@ -24,13 +25,13 @@ import scala.concurrent.duration.FiniteDuration
 
 private[effect] object CpuStarvationCheck {
 
-  def run(runtimeConfig: IORuntimeConfig): IO[Nothing] = {
+  def run(runtimeConfig: IORuntimeConfig, metrics: CpuStarvationMetrics): IO[Nothing] = {
     def go(initial: FiniteDuration): IO[Nothing] =
       IO.sleep(runtimeConfig.cpuStarvationCheckInterval) >> IO.monotonic.flatMap { now =>
         val delta = now - initial
-        Console[IO]
-          .errorln(warning)
-          .whenA(delta >=
+
+        metrics.recordClockDrift(delta - runtimeConfig.cpuStarvationCheckInterval) >>
+          (Console[IO].errorln(warning) >> metrics.incCpuStarvationCount).whenA(delta >=
             runtimeConfig.cpuStarvationCheckInterval * (1 + runtimeConfig.cpuStarvationCheckThreshold)) >>
           go(now)
       }

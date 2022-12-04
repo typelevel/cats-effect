@@ -62,22 +62,39 @@ import java.util.concurrent.atomic.AtomicReference
 trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
 
   /**
-   * The asynchronous FFI.
+   * Suspends an asynchronous side effect with optional immediate result in `F`.
    *
-   * `k` takes a callback of type `Either[Throwable, A] => Unit` to signal the result of the
-   * asynchronous computation. The execution of `async(k)` is semantically blocked until the
-   * callback is invoked.
+   * The given function `k` will be invoked during evaluation of `F` to:
+   *   - check if result is already available;
+   *   - "schedule" the asynchronous callback, where the callback of type `Either[Throwable, A]
+   *     \=> Unit` is the parameter passed to that function. Only the ''first'' invocation of
+   *     the callback will be effective! All subsequent invocations will be silently dropped.
    *
-   * `k` returns an `Option[F[Unit]]` which is an optional finalizer to be run in the event that
-   * the fiber running {{{async(k)}}} is canceled.
+   * The process of registering the callback itself is suspended in `F` (the outer `F` of
+   * `F[Either[Option[G[Unit]], A]]`).
+   *
+   * The effect returns `Either[Option[F[Unit]], A]` where:
+   *   - right side `A` is an immediate result of computation (callback invocation will be
+   *     dropped);
+   *   - left side `Option[F[Unit]] `is an optional finalizer to be run in the event that the
+   *     fiber running `asyncCheckAttempt(k)` is canceled.
+   *
+   * Also, note that `asyncCheckAttempt` is uncancelable during its registration.
+   *
+   * @see
+   *   [[async]] for a simplified variant without an option for immediate result
+   * @see
+   *   [[async_]] for a simplified variant without an option for immediate result or finalizer
    */
-  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
+  def asyncCheckAttempt[A](
+      k: (Either[Throwable, A] => Unit) => F[Either[Option[F[Unit]], A]]): F[A] = {
     val body = new Cont[F, A, A] {
       def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
         G.uncancelable { poll =>
           lift(k(resume)) flatMap {
-            case Some(fin) => G.onCancel(poll(get), lift(fin))
-            case None => poll(get)
+            case Right(a) => G.pure(a)
+            case Left(Some(fin)) => G.onCancel(poll(get), lift(fin))
+            case Left(None) => get
           }
         }
       }
@@ -87,8 +104,48 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   }
 
   /**
-   * A convenience version of [[Async.async]] for when we don't need to perform `F[_]` effects
-   * or perform finalization in the event of cancelation.
+   * Suspends an asynchronous side effect in `F`.
+   *
+   * The given function `k` will be invoked during evaluation of the `F` to "schedule" the
+   * asynchronous callback, where the callback of type `Either[Throwable, A] => Unit` is the
+   * parameter passed to that function. Only the ''first'' invocation of the callback will be
+   * effective! All subsequent invocations will be silently dropped.
+   *
+   * The process of registering the callback itself is suspended in `F` (the outer `F` of
+   * `F[Option[F[Unit]]]`).
+   *
+   * The effect returns `Option[F[Unit]]` which is an optional finalizer to be run in the event
+   * that the fiber running `async(k)` is canceled.
+   *
+   * Also, note that `async` is uncancelable during its registration.
+   *
+   * @see
+   *   [[async_]] for a simplified variant without a finalizer
+   * @see
+   *   [[asyncCheckAttempt]] for more generic version with option of providing immediate result
+   *   of computation
+   */
+  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] =
+    asyncCheckAttempt[A](cb => map(k(cb))(Left(_)))
+
+  /**
+   * Suspends an asynchronous side effect in `F`.
+   *
+   * The given function `k` will be invoked during evaluation of the `F` to "schedule" the
+   * asynchronous callback, where the callback is the parameter passed to that function. Only
+   * the ''first'' invocation of the callback will be effective! All subsequent invocations will
+   * be silently dropped.
+   *
+   * This function can be thought of as a safer, lexically-constrained version of `Promise`,
+   * where `IO` is like a safer, lazy version of `Future`.
+   *
+   * Also, note that `async` is uncancelable during its registration.
+   *
+   * @see
+   *   [[async]] for more generic version providing a finalizer
+   * @see
+   *   [[asyncCheckAttempt]] for more generic version with option of providing immediate result
+   *   of computation and finalizer
    */
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): F[A] =
     async[A](cb => as(delay(k(cb)), None))
@@ -99,7 +156,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * Polymorphic so it can be used in situations where an arbitrary effect is expected eg
    * [[Fiber.joinWithNever]]
    */
-  def never[A]: F[A] = async(_ => pure(none[F[Unit]]))
+  def never[A]: F[A] = async(_ => pure(Some(unit)))
 
   /**
    * Shift execution of the effect `fa` to the execution context `ec`. Execution is shifted back
@@ -179,9 +236,9 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * NOTE: This is a very low level api, end users should use `async` instead.
    * See cats.effect.kernel.Cont for more detail.
    *
-   * If you are an implementor, and you have `async`, `Async.defaultCont`
-   * provides an implementation of `cont` in terms of `async`.
-   * Note that if you use `defaultCont` you _have_ to override `async`.
+   * If you are an implementor, and you have `async` or `asyncCheckAttempt`,
+   * `Async.defaultCont` provides an implementation of `cont` in terms of `async`.
+   * Note that if you use `defaultCont` you _have_ to override `async/asyncCheckAttempt`.
    */
   def cont[K, R](body: Cont[F, K, R]): F[R]
 }

@@ -1074,7 +1074,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       "Resource[IO, *]",
       AsyncTests[Resource[IO, *]].async[Int, Int, Int](10.millis)
     ) /*(Parameters(seed =
-      Some(Seed.fromBase64("75d9nzLIEobZ3mfn0DvzUkMv-Jt7o7IyQyIvjqwkeVJ=").get)))*/
+      Some(Seed.fromBase64("0FaZxJyh_xN_NL3i_y7bNaLpaWuhO9qUPXmfxxgLIIN=").get)))*/
   }
 
   {
@@ -1092,6 +1092,27 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     checkAll(
       "Resource[IO, *]",
       SemigroupKTests[Resource[IO, *]].semigroupK[Int]
+    )
+  }
+
+  {
+    import cats.effect.kernel.testkit.pure._
+    import cats.effect.kernel.testkit.PureConcGenerators.arbitraryPureConc
+    import org.scalacheck.Arbitrary
+
+    type F[A] = PureConc[Throwable, A]
+
+    val arbitraryPureConcResource: Arbitrary[Resource[F, Int]] =
+      arbitraryResource[F, Int](implicitly, arbitraryPureConc, arbitraryPureConc, implicitly)
+
+    checkAll(
+      "Resource[PureConc, *]",
+      DeferTests[Resource[F, *]].defer[Int](
+        implicitly,
+        arbitraryPureConcResource,
+        implicitly,
+        implicitly
+      )
     )
   }
 

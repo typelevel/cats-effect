@@ -239,6 +239,12 @@ trait AsyncTests[F[_]] extends GenTemporalTests[F, Throwable] with SyncTests[F] 
       )
 
       val props = Seq(
+        "asyncCheckAttempt immediate is pure" -> forAll(
+          laws.asyncCheckAttemptImmediateIsPure[A] _),
+        "asyncCheckAttempt suspended right is async right" -> forAll(
+          laws.asyncCheckAttemptSuspendedRightIsAsyncRight[A] _),
+        "asyncCheckAttempt suspended left is async left" -> forAll(
+          laws.asyncCheckAttemptSuspendedLeftIsAsyncLeft[A] _),
         "async right is uncancelable sequenced pure" -> forAll(
           laws.asyncRightIsUncancelableSequencedPure[A] _),
         "async left is uncancelable sequenced raiseError" -> forAll(

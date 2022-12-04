@@ -25,7 +25,7 @@ import cats.syntax.all._
  * A purely functional mutex.
  *
  * A mutex is a concurrency primitive that can be used to give access to a resource to only one
- * fiber at a time; e.g. a [[cats.effect.kernel.Ref]]`
+ * fiber at a time; e.g. a [[cats.effect.kernel.Ref]].
  *
  * {{{
  * // Assuming some resource r that should not be used concurrently.
@@ -38,7 +38,7 @@ import cats.syntax.all._
  * }
  * }}}
  *
- * '''Note''': This look is not reentrant, thus this `mutex.lock.surround(mutex.lock.use_)` will
+ * '''Note''': This lock is not reentrant, thus this `mutex.lock.surround(mutex.lock.use_)` will
  * deadlock.
  *
  * @see

@@ -56,6 +56,20 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         i mustEqual 42
       }
 
+      "preserve monad identity on asyncCheckAttempt immediate result" in ticked {
+        implicit ticker =>
+          val fa = IO.asyncCheckAttempt[Int](_ => IO(Right(42)))
+          fa.flatMap(i => IO.pure(i)) must completeAs(42)
+          fa must completeAs(42)
+      }
+
+      "preserve monad identity on asyncCheckAttempt suspended result" in ticked {
+        implicit ticker =>
+          val fa = IO.asyncCheckAttempt[Int](cb => IO(cb(Right(42))).as(Left(None)))
+          fa.flatMap(i => IO.pure(i)) must completeAs(42)
+          fa must completeAs(42)
+      }
+
       "preserve monad identity on async" in ticked { implicit ticker =>
         val fa = IO.async[Int](cb => IO(cb(Right(42))).as(None))
         fa.flatMap(i => IO.pure(i)) must completeAs(42)
@@ -67,6 +81,12 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
       "capture errors in suspensions" in ticked { implicit ticker =>
         case object TestException extends RuntimeException
         IO(throw TestException) must failAs(TestException)
+      }
+
+      "resume error continuation within asyncCheckAttempt" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+        IO.asyncCheckAttempt[Unit](k => IO(k(Left(TestException))).as(Left(None))) must failAs(
+          TestException)
       }
 
       "resume error continuation within async" in ticked { implicit ticker =>
@@ -411,6 +431,164 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
 
     }
 
+    "asyncCheckAttempt" should {
+
+      "resume value continuation within asyncCheckAttempt with immediate result" in ticked {
+        implicit ticker => IO.asyncCheckAttempt[Int](_ => IO(Right(42))) must completeAs(42)
+      }
+
+      "resume value continuation within asyncCheckAttempt with suspended result" in ticked {
+        implicit ticker =>
+          IO.asyncCheckAttempt[Int](k => IO(k(Right(42))).as(Left(None))) must completeAs(42)
+      }
+
+      "continue from the results of an asyncCheckAttempt immediate result produced prior to registration" in ticked {
+        implicit ticker =>
+          val fa = IO.asyncCheckAttempt[Int](_ => IO(Right(42))).map(_ + 2)
+          fa must completeAs(44)
+      }
+
+      "continue from the results of an asyncCheckAttempt suspended result produced prior to registration" in ticked {
+        implicit ticker =>
+          val fa = IO.asyncCheckAttempt[Int](cb => IO(cb(Right(42))).as(Left(None))).map(_ + 2)
+          fa must completeAs(44)
+      }
+
+      // format: off
+      "produce a failure when the registration raises an error after result" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        IO.asyncCheckAttempt[Int](_ => IO(Right(42))
+          .flatMap(_ => IO.raiseError(TestException)))
+          .void must failAs(TestException)
+      }
+      // format: on
+
+      // format: off
+      "produce a failure when the registration raises an error after callback" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        val fa = IO.asyncCheckAttempt[Int](cb => IO(cb(Right(42)))
+          .flatMap(_ => IO.raiseError(TestException)))
+          .void
+        fa must failAs(TestException)
+      }
+      // format: on
+
+      "ignore asyncCheckAttempt callback" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        var cb: Either[Throwable, Int] => Unit = null
+
+        val asyncCheckAttempt = IO.asyncCheckAttempt[Int] { cb0 =>
+          IO { cb = cb0 } *> IO.pure(Right(42))
+        }
+
+        val test = for {
+          fiber <- asyncCheckAttempt.start
+          _ <- IO(ticker.ctx.tick())
+          _ <- IO(cb(Right(43)))
+          _ <- IO(ticker.ctx.tick())
+          _ <- IO(cb(Left(TestException)))
+          _ <- IO(ticker.ctx.tick())
+          value <- fiber.joinWithNever
+        } yield value
+
+        test must completeAs(42)
+      }
+
+      "ignore asyncCheckAttempt callback real" in real {
+        case object TestException extends RuntimeException
+
+        var cb: Either[Throwable, Int] => Unit = null
+
+        val test = for {
+          latch1 <- Deferred[IO, Unit]
+          latch2 <- Deferred[IO, Unit]
+          fiber <-
+            IO.asyncCheckAttempt[Int] { cb0 =>
+              IO { cb = cb0 } *> latch1.complete(()) *> latch2.get *> IO.pure(Right(42))
+            }.start
+          _ <- latch1.get
+          _ <- IO(cb(Right(43)))
+          _ <- IO(cb(Left(TestException)))
+          _ <- latch2.complete(())
+          value <- fiber.joinWithNever
+        } yield value
+
+        test.attempt.flatMap { n => IO(n mustEqual Right(42)) }
+      }
+
+      "repeated asyncCheckAttempt callback" in ticked { implicit ticker =>
+        case object TestException extends RuntimeException
+
+        var cb: Either[Throwable, Int] => Unit = null
+
+        val asyncCheckAttempt = IO.asyncCheckAttempt[Int] { cb0 =>
+          IO { cb = cb0 } *> IO.pure(Left(None))
+        }
+
+        val test = for {
+          fiber <- asyncCheckAttempt.start
+          _ <- IO(ticker.ctx.tick())
+          _ <- IO(cb(Right(42)))
+          _ <- IO(ticker.ctx.tick())
+          _ <- IO(cb(Right(43)))
+          _ <- IO(ticker.ctx.tick())
+          _ <- IO(cb(Left(TestException)))
+          _ <- IO(ticker.ctx.tick())
+          value <- fiber.joinWithNever
+        } yield value
+
+        test must completeAs(42)
+      }
+
+      "repeated asyncCheckAttempt callback real" in real {
+        case object TestException extends RuntimeException
+
+        var cb: Either[Throwable, Int] => Unit = null
+
+        val test = for {
+          latch1 <- Deferred[IO, Unit]
+          latch2 <- Deferred[IO, Unit]
+          fiber <-
+            IO.asyncCheckAttempt[Int] { cb0 =>
+              IO { cb = cb0 } *> latch1.complete(()) *> latch2.get *> IO.pure(Left(None))
+            }.start
+          _ <- latch1.get
+          _ <- IO(cb(Right(42)))
+          _ <- IO(cb(Right(43)))
+          _ <- IO(cb(Left(TestException)))
+          _ <- latch2.complete(())
+          value <- fiber.joinWithNever
+        } yield value
+
+        test.attempt.flatMap { n => IO(n mustEqual Right(42)) }
+      }
+
+      "allow for misordered nesting" in ticked { implicit ticker =>
+        var outerR = 0
+        var innerR = 0
+
+        val outer = IO.asyncCheckAttempt[Int] { cb1 =>
+          val inner = IO.asyncCheckAttempt[Int] { cb2 =>
+            IO(cb1(Right(1))) *>
+              IO.executionContext
+                .flatMap(ec => IO(ec.execute(() => cb2(Right(2)))))
+                .as(Left(None))
+          }
+
+          inner.flatMap(i => IO { innerR = i }).as(Left(None))
+        }
+
+        val test = outer.flatMap(i => IO { outerR = i })
+
+        test must completeAs(())
+        outerR mustEqual 1
+        innerR mustEqual 2
+      }
+    }
+
     "async" should {
 
       "resume value continuation within async" in ticked { implicit ticker =>
@@ -585,6 +763,21 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           } yield l2 -> r2) must completeAs(true -> true)
         }
 
+      }
+
+      "bothOutcome" should {
+        "cancel" in ticked { implicit ticker =>
+          (for {
+            g1 <- IO.deferred[Unit]
+            g2 <- IO.deferred[Unit]
+            f <- IO
+              .bothOutcome(g1.complete(()) *> IO.never[Unit], g2.complete(()) *> IO.never[Unit])
+              .start
+            _ <- g1.get
+            _ <- g2.get
+            _ <- f.cancel
+          } yield ()) must completeAs(())
+        }
       }
 
       "race" should {

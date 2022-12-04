@@ -20,7 +20,7 @@ at least 21.0.
 
 ## Native Image example
 
-Here's an example of an Hello world project compiled with GraalVM Native Image 
+Here's an example of an Hello world project compiled with GraalVM Native Image
 using [sbt-native-image plugin](https://github.com/scalameta/sbt-native-image).
 
 ```scala
@@ -33,7 +33,7 @@ ThisBuild / scalaVersion := "2.13.8"
 
 lazy val root = (project in file(".")).enablePlugins(NativeImagePlugin).settings(
   name                := "cats-effect-3-hello-world",
-  libraryDependencies += "org.typelevel" %% "cats-effect" % "3.3.14",
+  libraryDependencies += "org.typelevel" %% "cats-effect" % "3.4.2",
   Compile / mainClass := Some("com.example.Main"),
   nativeImageOptions  += "--no-fallback",
   nativeImageVersion  := "22.1.0" // It should be at least version 21.0.0
@@ -53,7 +53,7 @@ object Main extends IOApp.Simple {
 
 The code can be compiled using `sbt nativeImage` and a native-image executable can then
 be found under `target/native-image/cats-effect-3-hello-world`, and executed as any native
-executable with the benefit of a really fast startup time ([hyperfine](https://github.com/sharkdp/hyperfine) 
+executable with the benefit of a really fast startup time ([hyperfine](https://github.com/sharkdp/hyperfine)
 is a command line benchmarking tool written in Rust)
 
 ```sh
