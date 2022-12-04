@@ -45,15 +45,21 @@ import java.util.concurrent.TimeUnit
 class RefBenchmark {
 
   @Benchmark
-  def modify(): Unit = RefBenchmark.modify(10000)
+  def modifySpecialized(): Unit = RefBenchmark.modifySpecialized(10000)
 
   @Benchmark
-  def getAndUpdate(): Unit = RefBenchmark.getAndUpdate(10000)
+  def getAndUpdateSpecialized(): Unit = RefBenchmark.getAndUpdateSpecialized(10000)
+
+  @Benchmark
+  def modifyGeneric(): Unit = RefBenchmark.modifyGeneric(10000)
+
+  @Benchmark
+  def getAndUpdateGeneric(): Unit = RefBenchmark.getAndUpdateGeneric(10000)
 
 }
 
 object RefBenchmark {
-  def modify(iterations: Int): Unit = {
+  def modifySpecialized(iterations: Int): Unit = {
     Ref[IO].of(0L).flatMap { ref =>
       def loop(remaining: Int, acc: Long): IO[Long] = {
         if (remaining == 0) IO(acc)
@@ -63,8 +69,28 @@ object RefBenchmark {
     }
   }.void.unsafeRunSync()
 
-  def getAndUpdate(iterations: Int): Unit = {
+  def getAndUpdateSpecialized(iterations: Int): Unit = {
     Ref[IO].of(0L).flatMap { ref =>
+      def loop(remaining: Int, acc: Long): IO[Long] = {
+        if (remaining == 0) IO(acc)
+        else ref.getAndUpdate(_ + 1).flatMap(prev => loop(remaining - 1, acc + prev))
+      }
+      loop(iterations, 0L)
+    }
+  }.void.unsafeRunSync()
+
+  def modifyGeneric(iterations: Int): Unit = {
+    Ref[IO].of[Long](0L).flatMap { ref =>
+      def loop(remaining: Int, acc: Long): IO[Long] = {
+        if (remaining == 0) IO(acc)
+        else ref.modify(n => (n + 1, n)).flatMap(prev => loop(remaining - 1, acc + prev))
+      }
+      loop(iterations, 0L)
+    }
+  }.void.unsafeRunSync()
+
+  def getAndUpdateGeneric(iterations: Int): Unit = {
+    Ref[IO].of[Long](0L).flatMap { ref =>
       def loop(remaining: Int, acc: Long): IO[Long] = {
         if (remaining == 0) IO(acc)
         else ref.getAndUpdate(_ + 1).flatMap(prev => loop(remaining - 1, acc + prev))
