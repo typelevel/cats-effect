@@ -25,31 +25,51 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
 import scala.scalajs.LinkingInfo
 import scala.scalajs.concurrent.QueueExecutionContext
+import scala.util.control.NonFatal
+
+import java.util.ArrayDeque
 
 private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
     extends ExecutionContextExecutor {
 
   private[this] val MicrotaskExecutor = QueueExecutionContext.promises()
 
-  private[this] var counter = 0
+  private[this] var needsReschedule = true
+  private[this] val tasks = new ArrayDeque[Runnable](batchSize)
 
-  private[this] val resetCounter: Runnable = () => counter = 0
+  private[this] def executeBatchTask = _executeBatchTask
+  private[this] val _executeBatchTask: Runnable = () => {
+    // do up to batchSize tasks
+    var i = 0
+    while (i < batchSize && !tasks.isEmpty()) {
+      val runnable = tasks.poll()
+      try runnable.run()
+      catch {
+        case t if NonFatal(t) => reportFailure(t)
+        case t: Throwable => IOFiber.onFatalFailure(t)
+      }
+      i += 1
+    }
 
-  def reportFailure(t: Throwable): Unit = MacrotaskExecutor.reportFailure(t)
+    if (!tasks.isEmpty()) // we'll be right back after the (post) message
+      MacrotaskExecutor.execute(executeBatchTask)
+    else
+      needsReschedule = true
+  }
 
   def execute(runnable: Runnable): Unit =
     MacrotaskExecutor.execute(monitor(runnable))
 
   def schedule(runnable: Runnable): Unit = {
-    if (counter < batchSize) {
-      MicrotaskExecutor.execute(monitor(runnable))
-    } else {
-      if (counter == batchSize)
-        MacrotaskExecutor.execute(resetCounter)
-      MacrotaskExecutor.execute(monitor(runnable))
+    tasks.addLast(runnable)
+    if (needsReschedule) {
+      needsReschedule = false
+      // run immediately after the current task suspends
+      MicrotaskExecutor.execute(runnable)
     }
-    counter += 1
   }
+
+  def reportFailure(t: Throwable): Unit = MacrotaskExecutor.reportFailure(t)
 
   def liveTraces(): Map[IOFiber[_], Trace] =
     fiberBag.iterator.filterNot(_.isDone).map(f => f -> f.captureTrace()).toMap
