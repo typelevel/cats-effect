@@ -73,7 +73,7 @@ private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
 
     if (!fibers.isEmpty()) // we'll be right back after this (post) message
       MacrotaskExecutor.execute(executeBatchTask)
-    else // this batch task will need to be rescheduled when more tasks arrive
+    else // the batch task will need to be rescheduled when more fibers arrive
       needsReschedule = true
 
     // yield to the event loop
