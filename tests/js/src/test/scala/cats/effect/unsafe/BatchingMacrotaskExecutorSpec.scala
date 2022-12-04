@@ -57,10 +57,15 @@ class BatchingMacrotaskExecutorSpec extends BaseSpec {
         }
     }
 
-    // "limit batch sizes" in real {
-    //   def go: IO[Unit] = IO.defer(go).both(IO.defer(go)).void
-    //   go.timeoutTo(100.millis, IO.unit) *> IO(true must beTrue)
-    // }
+    "limit batch sizes" in real {
+      IO.ref(true).flatMap { continue =>
+        def go: IO[Unit] = continue.get.flatMap {
+          IO.defer(go).both(IO.defer(go)).void.whenA(_)
+        }
+        val stop = IO.sleep(100.millis) *> continue.set(false)
+        go.both(stop) *> IO(true must beTrue)
+      }
+    }
   }
 
 }
