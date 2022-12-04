@@ -61,11 +61,11 @@ private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
     MacrotaskExecutor.execute(monitor(runnable))
 
   def schedule(runnable: Runnable): Unit = {
-    tasks.addLast(runnable)
+    tasks.addLast(monitor(runnable))
     if (needsReschedule) {
       needsReschedule = false
       // run immediately after the current task suspends
-      MicrotaskExecutor.execute(runnable)
+      MicrotaskExecutor.execute(executeBatchTask)
     }
   }
 
