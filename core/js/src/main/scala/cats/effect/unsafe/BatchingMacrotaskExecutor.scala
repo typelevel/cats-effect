@@ -30,7 +30,7 @@ import scala.util.control.NonFatal
 import java.util.ArrayDeque
 
 /**
- * An `ExecutionContext` that improves throughput by providing a method to `schedule` tasks to
+ * An `ExecutionContext` that improves throughput by providing a method to `schedule` fibers to
  * execute in batches, instead of one task per event loop iteration. This optimization targets
  * the typical scenario where a UI or I/O event handler starts/resumes a small number of
  * short-lived fibers and then yields to the event loop.
@@ -49,23 +49,29 @@ private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
    * Whether the `executeBatchTask` needs to be rescheduled
    */
   private[this] var needsReschedule = true
-  private[this] val tasks = new ArrayDeque[Runnable](batchSize)
+  private[this] val fibers = new ArrayDeque[IOFiber[_]](batchSize)
 
   private[this] def executeBatchTask = _executeBatchTask
   private[this] val _executeBatchTask: Runnable = () => {
     // do up to batchSize tasks
     var i = 0
-    while (i < batchSize && !tasks.isEmpty()) {
-      val runnable = tasks.poll()
-      try runnable.run()
+    while (i < batchSize && !fibers.isEmpty()) {
+      val fiber = fibers.poll()
+
+      if (LinkingInfo.developmentMode)
+        if (fiberBag ne null)
+          fiberBag -= fiber
+
+      try fiber.run()
       catch {
         case t if NonFatal(t) => reportFailure(t)
         case t: Throwable => IOFiber.onFatalFailure(t)
       }
+
       i += 1
     }
 
-    if (!tasks.isEmpty()) // we'll be right back after this (post) message
+    if (!fibers.isEmpty()) // we'll be right back after this (post) message
       MacrotaskExecutor.execute(executeBatchTask)
     else // this batch task will need to be rescheduled when more tasks arrive
       needsReschedule = true
@@ -80,11 +86,16 @@ private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
     MacrotaskExecutor.execute(monitor(runnable))
 
   /**
-   * Schedule the `runnable` for the next available batch. This is often the currently executing
+   * Schedule the `fiber` for the next available batch. This is often the currently executing
    * batch.
    */
-  def schedule(runnable: Runnable): Unit = {
-    tasks.addLast(monitor(runnable))
+  def schedule(fiber: IOFiber[_]): Unit = {
+    if (LinkingInfo.developmentMode)
+      if (fiberBag ne null)
+        fiberBag += fiber
+
+    fibers.addLast(fiber)
+
     if (needsReschedule) {
       needsReschedule = false
       // start executing the batch immediately after the currently running task suspends
