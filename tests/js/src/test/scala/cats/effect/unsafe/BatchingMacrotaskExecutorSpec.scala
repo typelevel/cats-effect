@@ -26,7 +26,7 @@ import scala.concurrent.duration._
 class BatchingMacrotaskExecutorSpec extends BaseSpec {
 
   "BatchingMacrotaskExecutor" should {
-    "batch fibers" in real {
+    "batch fibers" in real { // fails if running on MacrotaskExecutor
       CountDownLatch[IO](10).flatMap { latch =>
         IO.ref(List.empty[Int]).flatMap { ref =>
           List.range(0, 10).traverse_ { i =>
@@ -40,7 +40,7 @@ class BatchingMacrotaskExecutorSpec extends BaseSpec {
       }
     }
 
-    "cede to macrotasks" in real {
+    "cede to macrotasks" in real { // fails if running on Promises EC
       IO.ref(false)
         .flatMap { ref =>
           ref.set(true).evalOn(MacrotaskExecutor).start *>
