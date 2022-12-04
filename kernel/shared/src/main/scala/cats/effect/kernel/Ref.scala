@@ -322,6 +322,30 @@ object Ref {
     def of[A](a: A): F[Ref[F, A]] = mk.refOf(a)
 
     /**
+     * Creates a thread-safe, concurrent mutable boolean initialized to the supplied value.
+     *
+     * @see
+     *   [[Ref.of]]
+     */
+    def of(b: Boolean): F[Ref[F, Boolean]] = mk.refOf(b)
+
+    /**
+     * Creates a thread-safe, concurrent mutable int initialized to the supplied value.
+     *
+     * @see
+     *   [[Ref.of]]
+     */
+    def of(i: Int): F[Ref[F, Int]] = mk.refOf(i)
+
+    /**
+     * Creates a thread-safe, concurrent mutable long initialized to the supplied value.
+     *
+     * @see
+     *   [[Ref.of]]
+     */
+    def of(l: Long): F[Ref[F, Long]] = mk.refOf(l)
+
+    /**
      * Creates a thread-safe, concurrent mutable reference initialized to the empty value.
      *
      * @see
