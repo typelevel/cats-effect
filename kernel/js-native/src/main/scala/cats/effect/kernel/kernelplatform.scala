@@ -14,22 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
-package object kernel extends kernelplatform {
-
-  type MonadCancelThrow[F[_]] = MonadCancel[F, Throwable]
-  val MonadCancelThrow = MonadCancel
-
-  type Spawn[F[_]] = GenSpawn[F, Throwable]
-  val Spawn = GenSpawn
-
-  type Temporal[F[_]] = GenTemporal[F, Throwable]
-  val Temporal = GenTemporal
-
-  type Concurrent[F[_]] = GenConcurrent[F, Throwable]
-  val Concurrent = GenConcurrent
-
-  type ParallelF[F[_], A] = Par.ParallelF[F, A]
-  val ParallelF = Par.ParallelF
+private[effect] trait kernelplatform {
+  private[kernel] type SyncBooleanRef[F[_]] = SyncRef[F, Boolean]
+  private[kernel] type SyncIntRef[F[_]] = SyncRef[F, Int]
+  private[kernel] type SyncLongRef[F[_]] = SyncRef[F, Long]
 }

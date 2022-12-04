@@ -22,7 +22,51 @@ import cats.data.State
 
 import scala.concurrent.duration._
 
-class RefSpec extends BaseSpec with DetectPlatform { outer =>
+class RefSpec extends BaseRefSpec[Integer] {
+  def mkRef(i: Integer) = IO.ref(i)
+  val clazz = classOf[SyncRef[IO, Integer]]
+  val a0 = 0
+  val a1 = 1
+  val a5 = 5
+  val f = _ + 1
+}
+
+class BooleanRefSpec extends BaseRefSpec[Boolean] {
+  def mkRef(b: Boolean) = IO.ref(b)
+  val clazz = classOf[SyncBooleanRef[IO]]
+  val a0 = false
+  val a1 = true
+  val a5 = true
+  val f = !_
+}
+
+class IntRefSpec extends BaseRefSpec[Int] {
+  def mkRef(i: Int) = IO.ref(i)
+  val clazz = classOf[SyncIntRef[IO]]
+  val a0 = 0
+  val a1 = 1
+  val a5 = 5
+  val f = _ + 1
+}
+
+class LongRefSpec extends BaseRefSpec[Long] {
+  def mkRef(l: Long) = IO.ref(l)
+  val clazz = classOf[SyncLongRef[IO]]
+  val a0 = 0L
+  val a1 = 1L
+  val a5 = 5L
+  val f = _ + 1
+}
+
+abstract class BaseRefSpec[A] extends BaseSpec with DetectPlatform { outer =>
+
+  def mkRef(a: A): IO[Ref[IO, A]]
+  def clazz: Class[_]
+
+  def a0: A
+  def a1: A
+  def a5: A
+  def f: A => A
 
   val smallDelay: IO[Unit] = IO.sleep(20.millis)
 
@@ -36,12 +80,16 @@ class RefSpec extends BaseSpec with DetectPlatform { outer =>
 
     // }
 
+    "specialize" in ticked { implicit ticker =>
+      mkRef(a0).map(clazz.isInstance(_)) must completeAs(true)
+    }
+
     "get and set successfully" in ticked { implicit ticker =>
       val op = for {
-        r <- Ref[IO].of(0)
-        getAndSetResult <- r.getAndSet(1)
+        r <- mkRef(a0)
+        getAndSetResult <- r.getAndSet(a1)
         getResult <- r.get
-      } yield getAndSetResult == 0 && getResult == 1
+      } yield getAndSetResult == a0 && getResult == a1
 
       op must completeAs(true)
 
@@ -49,32 +97,32 @@ class RefSpec extends BaseSpec with DetectPlatform { outer =>
 
     "get and update successfully" in ticked { implicit ticker =>
       val op = for {
-        r <- Ref[IO].of(0)
-        getAndUpdateResult <- r.getAndUpdate(_ + 1)
+        r <- mkRef(a0)
+        getAndUpdateResult <- r.getAndUpdate(f)
         getResult <- r.get
-      } yield getAndUpdateResult == 0 && getResult == 1
+      } yield getAndUpdateResult == a0 && getResult == a1
 
       op must completeAs(true)
     }
 
     "update and get successfully" in ticked { implicit ticker =>
       val op = for {
-        r <- Ref[IO].of(0)
-        updateAndGetResult <- r.updateAndGet(_ + 1)
+        r <- mkRef(a0)
+        updateAndGetResult <- r.updateAndGet(f)
         getResult <- r.get
-      } yield updateAndGetResult == 1 && getResult == 1
+      } yield updateAndGetResult == a1 && getResult == a1
 
       op must completeAs(true)
     }
 
     "access successfully" in ticked { implicit ticker =>
       val op = for {
-        r <- Ref[IO].of(0)
+        r <- mkRef(a0)
         valueAndSetter <- r.access
         (value, setter) = valueAndSetter
-        success <- setter(value + 1)
+        success <- setter(f(value))
         result <- r.get
-      } yield success && result == 1
+      } yield success && result == a1
 
       op must completeAs(true)
     }
@@ -82,23 +130,23 @@ class RefSpec extends BaseSpec with DetectPlatform { outer =>
     "access - setter should fail if value is modified before setter is called" in ticked {
       implicit ticker =>
         val op = for {
-          r <- Ref[IO].of(0)
+          r <- mkRef(a0)
           valueAndSetter <- r.access
           (value, setter) = valueAndSetter
-          _ <- r.set(5)
-          success <- setter(value + 1)
+          _ <- r.set(a5)
+          success <- setter(f(value))
           result <- r.get
-        } yield !success && result == 5
+        } yield !success && result == a5
 
         op must completeAs(true)
     }
 
     "tryUpdate - modification occurs successfully" in ticked { implicit ticker =>
       val op = for {
-        r <- Ref[IO].of(0)
-        result <- r.tryUpdate(_ + 1)
+        r <- mkRef(a0)
+        result <- r.tryUpdate(f)
         value <- r.get
-      } yield result && value == 1
+      } yield result && value == a1
 
       op must completeAs(true)
     }
@@ -106,16 +154,16 @@ class RefSpec extends BaseSpec with DetectPlatform { outer =>
     if (!isJS && !isNative) // concurrent modification impossible
       "tryUpdate - should fail to update if modification has occurred" in ticked {
         implicit ticker =>
-          val updateRefUnsafely: Ref[IO, Int] => Unit = { (ref: Ref[IO, Int]) =>
-            unsafeRun(ref.update(_ + 1))
+          val updateRefUnsafely: Ref[IO, A] => Unit = { (ref: Ref[IO, A]) =>
+            unsafeRun(ref.update(f))
             ()
           }
 
           val op = for {
-            r <- Ref[IO].of(0)
+            r <- mkRef(a0)
             result <- r.tryUpdate { currentValue =>
               updateRefUnsafely(r)
-              currentValue + 1
+              f(currentValue)
             }
           } yield result
 
@@ -124,18 +172,18 @@ class RefSpec extends BaseSpec with DetectPlatform { outer =>
 
     "tryModifyState - modification occurs successfully" in ticked { implicit ticker =>
       val op = for {
-        r <- Ref[IO].of(0)
-        result <- r.tryModifyState(State.pure(1))
-      } yield result.contains(1)
+        r <- mkRef(a0)
+        result <- r.tryModifyState(State.pure(a1))
+      } yield result.contains(a1)
 
       op must completeAs(true)
     }
 
     "modifyState - modification occurs successfully" in ticked { implicit ticker =>
       val op = for {
-        r <- Ref[IO].of(0)
-        result <- r.modifyState(State.pure(1))
-      } yield result == 1
+        r <- mkRef(a0)
+        result <- r.modifyState(State.pure(a1))
+      } yield result == a1
 
       op must completeAs(true)
     }

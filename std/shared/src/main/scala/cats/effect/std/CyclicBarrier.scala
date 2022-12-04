@@ -62,7 +62,7 @@ object CyclicBarrier {
 
     case class State(awaiting: Int, epoch: Long, unblock: Deferred[F, Unit])
 
-    F.deferred[Unit].map(State(capacity, 0, _)).flatMap(F.ref).map { state =>
+    F.deferred[Unit].map(State(capacity, 0, _)).flatMap(F.ref(_)).map { state =>
       new CyclicBarrier[F] {
         val await: F[Unit] =
           F.deferred[Unit].flatMap { gate =>

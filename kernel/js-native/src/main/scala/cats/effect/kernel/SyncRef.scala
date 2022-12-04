@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 import cats.data.State
 
-private final class SyncRef[F[_], A](private[this] var value: A)(implicit F: Sync[F])
+private[kernel] final class SyncRef[F[_], A](private[this] var value: A)(implicit F: Sync[F])
     extends Ref[F, A] {
 
   def get: F[A] = F.delay(value)

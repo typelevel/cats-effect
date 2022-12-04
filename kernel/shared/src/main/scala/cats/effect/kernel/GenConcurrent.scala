@@ -28,6 +28,12 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
   def ref[A](a: A): F[Ref[F, A]]
 
+  def ref(b: Boolean): F[Ref[F, Boolean]] = ref[Boolean](b)
+
+  def ref(i: Int): F[Ref[F, Int]] = ref[Int](i)
+
+  def ref(l: Long): F[Ref[F, Long]] = ref[Long](l)
+
   def deferred[A]: F[Deferred[F, A]]
 
   /**
@@ -244,6 +250,15 @@ object GenConcurrent {
     override def ref[A](a: A): OptionT[F, Ref[OptionT[F, *], A]] =
       OptionT.liftF(F.map(F.ref(a))(_.mapK(OptionT.liftK)))
 
+    override def ref(b: Boolean): OptionT[F, Ref[OptionT[F, *], Boolean]] =
+      OptionT.liftF(F.map(F.ref(b))(_.mapK(OptionT.liftK)))
+
+    override def ref(i: Int): OptionT[F, Ref[OptionT[F, *], Int]] =
+      OptionT.liftF(F.map(F.ref(i))(_.mapK(OptionT.liftK)))
+
+    override def ref(l: Long): OptionT[F, Ref[OptionT[F, *], Long]] =
+      OptionT.liftF(F.map(F.ref(l))(_.mapK(OptionT.liftK)))
+
     override def deferred[A]: OptionT[F, Deferred[OptionT[F, *], A]] =
       OptionT.liftF(F.map(F.deferred[A])(_.mapK(OptionT.liftK)))
 
@@ -262,6 +277,15 @@ object GenConcurrent {
 
     override def ref[A](a: A): EitherT[F, E0, Ref[EitherT[F, E0, *], A]] =
       EitherT.liftF(F.map(F.ref(a))(_.mapK(EitherT.liftK)))
+
+    override def ref(b: Boolean): EitherT[F, E0, Ref[EitherT[F, E0, *], Boolean]] =
+      EitherT.liftF(F.map(F.ref(b))(_.mapK(EitherT.liftK)))
+
+    override def ref(i: Int): EitherT[F, E0, Ref[EitherT[F, E0, *], Int]] =
+      EitherT.liftF(F.map(F.ref(i))(_.mapK(EitherT.liftK)))
+
+    override def ref(l: Long): EitherT[F, E0, Ref[EitherT[F, E0, *], Long]] =
+      EitherT.liftF(F.map(F.ref(l))(_.mapK(EitherT.liftK)))
 
     override def deferred[A]: EitherT[F, E0, Deferred[EitherT[F, E0, *], A]] =
       EitherT.liftF(F.map(F.deferred[A])(_.mapK(EitherT.liftK)))
@@ -282,6 +306,15 @@ object GenConcurrent {
 
     override def ref[A](a: A): Kleisli[F, R, Ref[Kleisli[F, R, *], A]] =
       Kleisli.liftF(F.map(F.ref(a))(_.mapK(Kleisli.liftK)))
+
+    override def ref(b: Boolean): Kleisli[F, R, Ref[Kleisli[F, R, *], Boolean]] =
+      Kleisli.liftF(F.map(F.ref(b))(_.mapK(Kleisli.liftK)))
+
+    override def ref(i: Int): Kleisli[F, R, Ref[Kleisli[F, R, *], Int]] =
+      Kleisli.liftF(F.map(F.ref(i))(_.mapK(Kleisli.liftK)))
+
+    override def ref(l: Long): Kleisli[F, R, Ref[Kleisli[F, R, *], Long]] =
+      Kleisli.liftF(F.map(F.ref(l))(_.mapK(Kleisli.liftK)))
 
     override def deferred[A]: Kleisli[F, R, Deferred[Kleisli[F, R, *], A]] =
       Kleisli.liftF(F.map(F.deferred[A])(_.mapK(Kleisli.liftK)))
@@ -305,6 +338,15 @@ object GenConcurrent {
     override def ref[A](a: A): IorT[F, L, Ref[IorT[F, L, *], A]] =
       IorT.liftF(F.map(F.ref(a))(_.mapK(IorT.liftK)))
 
+    override def ref(b: Boolean): IorT[F, L, Ref[IorT[F, L, *], Boolean]] =
+      IorT.liftF(F.map(F.ref(b))(_.mapK(IorT.liftK)))
+
+    override def ref(i: Int): IorT[F, L, Ref[IorT[F, L, *], Int]] =
+      IorT.liftF(F.map(F.ref(i))(_.mapK(IorT.liftK)))
+
+    override def ref(l: Long): IorT[F, L, Ref[IorT[F, L, *], Long]] =
+      IorT.liftF(F.map(F.ref(l))(_.mapK(IorT.liftK)))
+
     override def deferred[A]: IorT[F, L, Deferred[IorT[F, L, *], A]] =
       IorT.liftF(F.map(F.deferred[A])(_.mapK(IorT.liftK)))
 
@@ -327,6 +369,15 @@ object GenConcurrent {
 
     override def ref[A](a: A): WriterT[F, L, Ref[WriterT[F, L, *], A]] =
       WriterT.liftF(F.map(F.ref(a))(_.mapK(WriterT.liftK)))
+
+    override def ref(b: Boolean): WriterT[F, L, Ref[WriterT[F, L, *], Boolean]] =
+      WriterT.liftF(F.map(F.ref(b))(_.mapK(WriterT.liftK)))
+
+    override def ref(i: Int): WriterT[F, L, Ref[WriterT[F, L, *], Int]] =
+      WriterT.liftF(F.map(F.ref(i))(_.mapK(WriterT.liftK)))
+
+    override def ref(l: Long): WriterT[F, L, Ref[WriterT[F, L, *], Long]] =
+      WriterT.liftF(F.map(F.ref(l))(_.mapK(WriterT.liftK)))
 
     override def deferred[A]: WriterT[F, L, Deferred[WriterT[F, L, *], A]] =
       WriterT.liftF(F.map(F.deferred[A])(_.mapK(WriterT.liftK)))

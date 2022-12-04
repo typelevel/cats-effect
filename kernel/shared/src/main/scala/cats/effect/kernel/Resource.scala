@@ -969,6 +969,18 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
   def ref[F[_], A](a: A)(implicit F: GenConcurrent[F, _]): Resource[F, Ref[Resource[F, *], A]] =
     Resource.eval(F.ref(a)).map(_.mapK(Resource.liftK[F]))
 
+  def ref[F[_]](b: Boolean)(
+      implicit F: GenConcurrent[F, _]): Resource[F, Ref[Resource[F, *], Boolean]] =
+    Resource.eval(F.ref(b)).map(_.mapK(Resource.liftK[F]))
+
+  def ref[F[_]](i: Int)(
+      implicit F: GenConcurrent[F, _]): Resource[F, Ref[Resource[F, *], Int]] =
+    Resource.eval(F.ref(i)).map(_.mapK(Resource.liftK[F]))
+
+  def ref[F[_]](l: Long)(
+      implicit F: GenConcurrent[F, _]): Resource[F, Ref[Resource[F, *], Long]] =
+    Resource.eval(F.ref(l)).map(_.mapK(Resource.liftK[F]))
+
   def monotonic[F[_]](implicit F: Clock[F]): Resource[F, FiniteDuration] =
     Resource.eval(F.monotonic)
 
@@ -1291,6 +1303,15 @@ abstract private[effect] class ResourceConcurrent[F[_]]
 
   def ref[A](a: A): Resource[F, Ref[Resource[F, *], A]] =
     Resource.ref(a)
+
+  override def ref(b: Boolean): Resource[F, Ref[Resource[F, *], Boolean]] =
+    Resource.ref(b)
+
+  override def ref(i: Int): Resource[F, Ref[Resource[F, *], Int]] =
+    Resource.ref(i)
+
+  override def ref(l: Long): Resource[F, Ref[Resource[F, *], Long]] =
+    Resource.ref(l)
 
   override def both[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, (A, B)] =
     fa.both(fb)

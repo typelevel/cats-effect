@@ -1515,6 +1515,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def ref[A](a: A): IO[Ref[IO, A]] = IO(Ref.unsafe(a))
 
+  def ref(b: Boolean): IO[Ref[IO, Boolean]] = IO(Ref.unsafe(b))
+
+  def ref(i: Int): IO[Ref[IO, Int]] = IO(Ref.unsafe(i))
+
+  def ref(l: Long): IO[Ref[IO, Long]] = IO(Ref.unsafe(l))
+
   def deferred[A]: IO[Deferred[IO, A]] = IO(Deferred.unsafe)
 
   def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(

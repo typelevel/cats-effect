@@ -132,6 +132,9 @@ object Ref {
     "Cannot find an instance for Ref.Make. Add implicit evidence of Concurrent[${F}, _] or Sync[${F}] to scope to automatically derive one.")
   trait Make[F[_]] {
     def refOf[A](a: A): F[Ref[F, A]]
+    def refOf(b: Boolean): F[Ref[F, Boolean]] = refOf[Boolean](b)
+    def refOf(i: Int): F[Ref[F, Int]] = refOf[Int](i)
+    def refOf(l: Long): F[Ref[F, Long]] = refOf[Long](l)
   }
 
   object Make extends MakeInstances
@@ -140,6 +143,9 @@ object Ref {
     implicit def concurrentInstance[F[_]](implicit F: GenConcurrent[F, _]): Make[F] =
       new Make[F] {
         override def refOf[A](a: A): F[Ref[F, A]] = F.ref(a)
+        override def refOf(b: Boolean): F[Ref[F, Boolean]] = F.ref(b)
+        override def refOf(i: Int): F[Ref[F, Int]] = F.ref(i)
+        override def refOf(l: Long): F[Ref[F, Long]] = F.ref(l)
       }
   }
 
@@ -147,6 +153,9 @@ object Ref {
     implicit def syncInstance[F[_]](implicit F: Sync[F]): Make[F] =
       new Make[F] {
         override def refOf[A](a: A): F[Ref[F, A]] = F.delay(unsafe(a))
+        override def refOf(b: Boolean): F[Ref[F, Boolean]] = F.delay(unsafe(b))
+        override def refOf(i: Int): F[Ref[F, Int]] = F.delay(unsafe(i))
+        override def refOf(l: Long): F[Ref[F, Long]] = F.delay(unsafe(l))
       }
   }
 
@@ -180,6 +189,21 @@ object Ref {
    * }}}
    */
   def of[F[_], A](a: A)(implicit mk: Make[F]): F[Ref[F, A]] = mk.refOf(a)
+
+  /**
+   * Creates a thread-safe, concurrent mutable boolean initialized to the supplied value.
+   */
+  def of[F[_]](b: Boolean)(implicit mk: Make[F]): F[Ref[F, Boolean]] = mk.refOf(b)
+
+  /**
+   * Creates a thread-safe, concurrent mutable int initialized to the supplied value.
+   */
+  def of[F[_]](i: Int)(implicit mk: Make[F]): F[Ref[F, Int]] = mk.refOf(i)
+
+  /**
+   * Creates a thread-safe, concurrent mutable long initialized to the supplied value.
+   */
+  def of[F[_]](l: Long)(implicit mk: Make[F]): F[Ref[F, Long]] = mk.refOf(l)
 
   /**
    * Creates a Ref with empty content
@@ -244,6 +268,15 @@ object Ref {
    * }}}
    */
   def unsafe[F[_], A](a: A)(implicit F: Sync[F]): Ref[F, A] = new SyncRef(a)
+
+  private[effect] def unsafe[F[_]](b: Boolean)(implicit F: Sync[F]): Ref[F, Boolean] =
+    new SyncBooleanRef(b)
+
+  private[effect] def unsafe[F[_]](i: Int)(implicit F: Sync[F]): Ref[F, Int] =
+    new SyncIntRef(i)
+
+  private[effect] def unsafe[F[_]](l: Long)(implicit F: Sync[F]): Ref[F, Long] =
+    new SyncLongRef(l)
 
   /**
    * Builds a `Ref` value for data types that are [[Sync]] Like [[of]] but initializes state

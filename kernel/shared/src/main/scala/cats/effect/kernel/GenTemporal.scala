@@ -194,7 +194,7 @@ trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
         if (offset1 < offset2) cacheValues1 else cacheValues2
     }
 
-    minCacheValuesF.flatMap(ref).map { cacheValuesRef =>
+    minCacheValuesF.flatMap(ref(_)).map { cacheValuesRef =>
       monotonic.flatMap { timeNow =>
         cacheValuesRef.get.flatMap {
           case (cacheRefreshTime, offset) =>

@@ -22,7 +22,8 @@ import scala.annotation.tailrec
 
 import java.util.concurrent.atomic.AtomicReference
 
-private final class SyncRef[F[_], A] private[this] (ar: AtomicReference[A])(implicit F: Sync[F])
+private[kernel] final class SyncRef[F[_], A] private[this] (ar: AtomicReference[A])(
+    implicit F: Sync[F])
     extends Ref[F, A] {
 
   def this(a: A)(implicit F: Sync[F]) = this(new AtomicReference(a))
