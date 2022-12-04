@@ -29,11 +29,25 @@ import scala.util.control.NonFatal
 
 import java.util.ArrayDeque
 
+/**
+ * An `ExecutionContext` that improves throughput by providing a method to `schedule` tasks to
+ * execute in batches, instead of one task per event loop iteration. This optimization targets
+ * the typical scenario where a UI or I/O event handler starts/resumes a small number of
+ * short-lived fibers and then yields to the event loop.
+ *
+ * This `ExecutionContext` also maintains a fiber bag in development mode to enable fiber dumps.
+ *
+ * @param batchSize
+ *   the maximum number of batched runnables to execute before yielding to the event loop
+ */
 private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
     extends ExecutionContextExecutor {
 
   private[this] val MicrotaskExecutor = QueueExecutionContext.promises()
 
+  /**
+   * Whether the `executeBatchTask` needs to be rescheduled
+   */
   private[this] var needsReschedule = true
   private[this] val tasks = new ArrayDeque[Runnable](batchSize)
 
@@ -51,20 +65,30 @@ private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
       i += 1
     }
 
-    if (!tasks.isEmpty()) // we'll be right back after the (post) message
+    if (!tasks.isEmpty()) // we'll be right back after this (post) message
       MacrotaskExecutor.execute(executeBatchTask)
-    else
+    else // this batch task will need to be rescheduled when more tasks arrive
       needsReschedule = true
+
+    // yield to the event loop
   }
 
+  /**
+   * Execute the `runnable` in the next iteration of the event loop.
+   */
   def execute(runnable: Runnable): Unit =
     MacrotaskExecutor.execute(monitor(runnable))
 
+  /**
+   * Schedule the `runnable` for the next available batch. This is often the currently executing
+   * batch.
+   */
   def schedule(runnable: Runnable): Unit = {
     tasks.addLast(monitor(runnable))
     if (needsReschedule) {
       needsReschedule = false
-      // run immediately after the current task suspends
+      // start executing the batch immediately after the currently running task suspends
+      // this is safe b/c `needsReschedule` is set to `true` only upon yielding to the event loop
       MicrotaskExecutor.execute(executeBatchTask)
     }
   }
@@ -82,7 +106,7 @@ private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
             fiberBag += r
             () => {
               // We have to remove r _before_ running it, b/c it may be re-enqueued while running
-              // B/c JS is single-threaded, nobody can observe the bag while it is running anyway
+              // b/c JS is single-threaded, nobody can observe the bag while the fiber is running anyway
               fiberBag -= r
               r.run()
             }
