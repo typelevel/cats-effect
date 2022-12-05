@@ -38,7 +38,7 @@ import cats.data.Ior
 import cats.effect.instances.spawn
 import cats.effect.kernel.CancelScope
 import cats.effect.kernel.GenTemporal.handleDuration
-import cats.effect.std.{Console, Env, UUIDGen}
+import cats.effect.std.{Console, Env, Supervisor, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.syntax.all._
 
@@ -611,6 +611,15 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       flatMap(_ => replicateA_(n - 1))
 
   /**
+   * Starts this `IO` on the supervisor.
+   *
+   * @return
+   *   a [[cats.effect.kernel.Fiber]] that represents a handle to the started fiber.
+   */
+  def supervise(supervisor: Supervisor[IO]): IO[Fiber[IO, Throwable, A @uncheckedVariance]] =
+    supervisor.supervise(this)
+
+  /**
    * Logs the value of this `IO` _(even if it is an error or if it was cancelled)_ to the
    * standard output, using the implicit `cats.Show` instance.
    *
@@ -734,6 +743,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def timed: IO[(FiniteDuration, A)] =
     Clock[IO].timed(this)
+
+  /**
+   * Lifts this `IO` into a resource. The resource has a no-op release.
+   */
+  def toResource: Resource[IO, A] = Resource.eval(this)
 
   def product[B](that: IO[B]): IO[(A, B)] =
     flatMap(a => that.map(b => (a, b)))
