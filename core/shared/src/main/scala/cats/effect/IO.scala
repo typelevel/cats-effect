@@ -38,7 +38,7 @@ import cats.data.Ior
 import cats.effect.instances.spawn
 import cats.effect.kernel.CancelScope
 import cats.effect.kernel.GenTemporal.handleDuration
-import cats.effect.std.{Console, Env, Supervisor, UUIDGen}
+import cats.effect.std.{Backpressure, Console, Env, Supervisor, UUIDGen}
 import cats.effect.tracing.{Tracing, TracingEvent}
 import cats.syntax.all._
 
@@ -496,6 +496,15 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
    * would be completely silent and `IO` references would never terminate on evaluation.
    */
   def map[B](f: A => B): IO[B] = IO.Map(this, f, Tracing.calculateTracingEvent(f))
+
+  /**
+   * Applies rate limiting to this `IO` based on provided backpressure semantics.
+   *
+   * @return
+   *   an Option which denotes if this `IO` was run or not according to backpressure semantics
+   */
+  def metered(backpressure: Backpressure[IO]): IO[Option[A]] =
+    backpressure.metered(this)
 
   def onCancel(fin: IO[Unit]): IO[A] =
     IO.OnCancel(this, fin)
