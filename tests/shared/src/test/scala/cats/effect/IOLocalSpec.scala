@@ -96,21 +96,23 @@ class IOLocalSpec extends BaseSpec {
   }
 
   "IOLocal.lens" should {
-    def lens(iol: IO[IOLocal[(Int, String)]]): IO[(IOLocal[(Int, String)], IOLocal[Int])] =
-      iol.map(local => (local, local.lens(_._1)(p => i => (i, p._2))))
+    final case class Lenses(base: IOLocal[(Int, String)], lens: IOLocal[Int])
+
+    def create(iol: IO[IOLocal[(Int, String)]]): IO[Lenses] =
+      iol.map(local => Lenses(local, local.lens(_._1)(p => i => (i, p._2))))
 
     "return a default value" in ticked { implicit ticker =>
-      val io = lens(IOLocal((0, ""))).flatMap(_._2.get)
+      val io = create(IOLocal((0, ""))).flatMap(_.lens.get)
 
       io must completeAs(0)
     }
 
     "set and get a value" in ticked { implicit ticker =>
       val io = for {
-        (base, local) <- lens(IOLocal((0, "")))
-        _ <- local.set(10)
-        baseValue <- base.get
-        lensValue <- local.get
+        lenses <- create(IOLocal((0, "")))
+        _ <- lenses.lens.set(10)
+        baseValue <- lenses.base.get
+        lensValue <- lenses.lens.get
       } yield (baseValue, lensValue)
 
       io must completeAs((10, "") -> 10)
@@ -118,10 +120,10 @@ class IOLocalSpec extends BaseSpec {
 
     "preserve locals across async boundaries" in ticked { implicit ticker =>
       val io = for {
-        (_, local) <- lens(IOLocal((0, "")))
-        _ <- local.set(10)
+        lenses <- create(IOLocal((0, "")))
+        _ <- lenses.lens.set(10)
         _ <- IO.cede
-        value <- local.get
+        value <- lenses.lens.get
       } yield value
 
       io must completeAs(10)
@@ -129,9 +131,9 @@ class IOLocalSpec extends BaseSpec {
 
     "copy locals to children fibers" in ticked { implicit ticker =>
       val io = for {
-        (_, local) <- lens(IOLocal((0, "")))
-        _ <- local.set(10)
-        f <- local.get.start
+        lenses <- create(IOLocal((0, "")))
+        _ <- lenses.lens.set(10)
+        f <- lenses.lens.get.start
         value <- f.joinWithNever
       } yield value
 
@@ -140,11 +142,11 @@ class IOLocalSpec extends BaseSpec {
 
     "child local manipulation is invisible to parents" in ticked { implicit ticker =>
       val io = for {
-        (base, local) <- lens(IOLocal((10, "")))
-        f <- local.set(20).start
+        lenses <- create(IOLocal((10, "")))
+        f <- lenses.lens.set(20).start
         _ <- f.join
-        baseValue <- base.get
-        lensValue <- local.get
+        baseValue <- lenses.base.get
+        lensValue <- lenses.lens.get
       } yield (baseValue, lensValue)
 
       io must completeAs((10, "") -> 10)
@@ -152,10 +154,10 @@ class IOLocalSpec extends BaseSpec {
 
     "parent local manipulation is invisible to children" in ticked { implicit ticker =>
       val io = for {
-        (base, local) <- lens(IOLocal((0, "")))
+        lenses <- create(IOLocal((0, "")))
         d1 <- Deferred[IO, Unit]
-        f <- (d1.get *> (base.get, local.get).tupled).start
-        _ <- local.set(10)
+        f <- (d1.get *> (lenses.base.get, lenses.lens.get).tupled).start
+        _ <- lenses.lens.set(10)
         _ <- d1.complete(())
         value <- f.joinWithNever
       } yield value
@@ -165,10 +167,10 @@ class IOLocalSpec extends BaseSpec {
 
     "do not leak internal updates outside of a scope" in ticked { implicit ticker =>
       val io = for {
-        (base, local) <- lens(IOLocal((0, "")))
-        inside <- local.scope(1).surround(local.getAndSet(2))
-        baseOutside <- base.get
-        lensOutside <- local.get
+        lenses <- create(IOLocal((0, "")))
+        inside <- lenses.lens.scope(1).surround(lenses.lens.getAndSet(2))
+        baseOutside <- lenses.base.get
+        lensOutside <- lenses.lens.get
       } yield (inside, baseOutside, lensOutside)
 
       io must completeAs((1, (0, ""), 0))
