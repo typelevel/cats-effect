@@ -599,7 +599,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // introduced by #3284
       // internal API change
       ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.CallbackStack.apply"),
-      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope")
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.lens")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
