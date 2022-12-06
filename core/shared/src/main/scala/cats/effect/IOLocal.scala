@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import scala.collection.immutable.Map
+
 /**
  * [[IOLocal]] provides a handy way of manipulating a context on different scopes.
  *
@@ -206,29 +208,32 @@ object IOLocal {
   def apply[A](default: A): IO[IOLocal[A]] =
     IO {
       new IOLocal[A] { self =>
+        private[this] def getOrDefault(state: Map[IOLocal[_], Any]): A =
+          state.getOrElse(self, default).asInstanceOf[A]
+
         override def get: IO[A] =
-          IO.Local(state => (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
+          IO.Local(state => (state, getOrDefault(state)))
 
         override def set(value: A): IO[Unit] =
-          IO.Local(state => (state + (self -> value), ()))
+          IO.Local(state => (state.updated(self, value), ()))
 
         override def reset: IO[Unit] =
           IO.Local(state => (state - self, ()))
 
         override def update(f: A => A): IO[Unit] =
-          get.flatMap(a => set(f(a)))
+          IO.Local(state => (state.updated(self, f(getOrDefault(state))), ()))
 
         override def modify[B](f: A => (A, B)): IO[B] =
-          get.flatMap { a =>
-            val (a2, b) = f(a)
-            set(a2).as(b)
+          IO.Local { state =>
+            val (a2, b) = f(getOrDefault(state))
+            (state.updated(self, a2), b)
           }
 
         override def getAndSet(value: A): IO[A] =
-          get <* set(value)
+          IO.Local(state => (state.updated(self, value), getOrDefault(state)))
 
         override def getAndReset: IO[A] =
-          get <* reset
+          IO.Local(state => (state - self, getOrDefault(state)))
 
       }
     }
