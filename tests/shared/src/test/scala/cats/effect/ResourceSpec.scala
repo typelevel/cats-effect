@@ -599,7 +599,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         rightReleased must beTrue
       }
 
-      "passes along the exit case" in {
+      "propagate the exit case" in {
         import Resource.ExitCase
 
         "use succesfully, test left" >> ticked { implicit ticker =>
@@ -721,7 +721,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         }
       }
 
-      "passes along the exit case" in {
+      "propagate the exit case" in {
         import Resource.ExitCase
 
         "use succesfully, test left" >> ticked { implicit ticker =>
