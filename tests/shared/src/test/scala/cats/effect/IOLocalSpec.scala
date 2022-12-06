@@ -17,164 +17,135 @@
 package cats
 package effect
 
-import cats.syntax.apply._
+import cats.syntax.semigroup._
 
 class IOLocalSpec extends BaseSpec {
 
-  "IOLocal" should {
-    "return a default value" in ticked { implicit ticker =>
-      val io = IOLocal(0).flatMap(_.get)
+  ioLocalTests(
+    "IOLocal[Int]",
+    (i: Int) => IOLocal(i).map(l => (l, l))
+  )(0, 10, identity, identity)
 
-      io must completeAs(0)
+  ioLocalTests(
+    "IOLocal[(Int, String)].lens(_._1)(..)",
+    (p: (Int, String)) =>
+      IOLocal(p).map { l =>
+        val lens = l.lens(_._1) { case (_, s) => i => (i, s) }
+        (lens, lens)
+      }
+  )((0, ""), 10, _._1, identity)
+
+  ioLocalTests(
+    "IOLocal[(Int, String)].lens(_._1)(..) base",
+    (p: (Int, String)) =>
+      IOLocal(p).map { l =>
+        val lens = l.lens(_._1) { case (_, s) => i => (i, s) }
+        (lens, l)
+      }
+  )((0, ""), 10, identity, (_, ""))
+
+  ioLocalTests(
+    "IOLocal[(Int, String)].lens(_._1)(..) refracted",
+    (p: (Int, String)) =>
+      IOLocal(p).map { l =>
+        val lens = l.lens(_._1) { case (_, s) => i => (i, s) }
+        (l, lens)
+      }
+  )((0, ""), (10, "lorem"), _._1, _._1)
+
+  private def ioLocalTests[A, B: Semigroup, C: Eq: Show](
+      name: String,
+      localF: A => IO[(IOLocal[B], IOLocal[C])]
+  )(
+      initial: A,
+      update: B,
+      checkA: A => C,
+      checkB: B => C
+  ) = name should {
+    "return a default value" in ticked { implicit ticker =>
+      val io = localF(initial).flatMap(_._2.get)
+
+      io must completeAs(checkA(initial))
     }
 
     "set and get a value" in ticked { implicit ticker =>
-      val io = for {
-        local <- IOLocal(0)
-        _ <- local.set(10)
-        value <- local.get
-      } yield value
+      val io = localF(initial).flatMap {
+        case (writer, reader) =>
+          for {
+            _ <- writer.set(update)
+            value <- reader.get
+          } yield value
+      }
 
-      io must completeAs(10)
+      io must completeAs(checkB(update))
     }
 
     "preserve locals across async boundaries" in ticked { implicit ticker =>
-      val io = for {
-        local <- IOLocal(0)
-        _ <- local.set(10)
-        _ <- IO.cede
-        value <- local.get
-      } yield value
+      val io = localF(initial).flatMap {
+        case (writer, reader) =>
+          for {
+            _ <- writer.set(update)
+            _ <- IO.cede
+            value <- reader.get
+          } yield value
+      }
 
-      io must completeAs(10)
+      io must completeAs(checkB(update))
     }
 
     "copy locals to children fibers" in ticked { implicit ticker =>
-      val io = for {
-        local <- IOLocal(0)
-        _ <- local.set(10)
-        f <- local.get.start
-        value <- f.joinWithNever
-      } yield value
+      val io = localF(initial).flatMap {
+        case (writer, reader) =>
+          for {
+            _ <- writer.set(update)
+            f <- reader.get.start
+            value <- f.joinWithNever
+          } yield value
+      }
 
-      io must completeAs(10)
+      io must completeAs(checkB(update))
     }
 
     "child local manipulation is invisible to parents" in ticked { implicit ticker =>
-      val io = for {
-        local <- IOLocal(10)
-        f <- local.set(20).start
-        _ <- f.join
-        value <- local.get
-      } yield value
+      val io = localF(initial).flatMap {
+        case (writer, reader) =>
+          for {
+            f <- writer.set(update).start
+            _ <- f.join
+            value <- reader.get
+          } yield value
+      }
 
-      io must completeAs(10)
+      io must completeAs(checkA(initial))
     }
 
     "parent local manipulation is invisible to children" in ticked { implicit ticker =>
-      val io = for {
-        local <- IOLocal(0)
-        d1 <- Deferred[IO, Unit]
-        f <- (d1.get *> local.get).start
-        _ <- local.set(10)
-        _ <- d1.complete(())
-        value <- f.joinWithNever
-      } yield value
+      val io = localF(initial).flatMap {
+        case (writer, reader) =>
+          for {
+            d1 <- Deferred[IO, Unit]
+            f <- (d1.get *> reader.get).start
+            _ <- writer.set(update)
+            _ <- d1.complete(())
+            value <- f.joinWithNever
+          } yield value
+      }
 
-      io must completeAs(0)
+      io must completeAs(checkA(initial))
     }
 
     "do not leak internal updates outside of a scope" in ticked { implicit ticker =>
-      val io = for {
-        local <- IOLocal(0)
-        inside <- local.scope(1).surround(local.getAndSet(2))
-        outside <- local.get
-      } yield (inside, outside)
+      val io = localF(initial).flatMap {
+        case (writer, reader) =>
+          for {
+            inside <- writer.scope(update).surround(reader.get <* writer.set(update |+| update))
+            outside <- reader.get
+          } yield (inside, outside)
+      }
 
-      io must completeAs((1, 0))
-    }
-  }
-
-  "IOLocal.lens" should {
-    final case class Lenses(base: IOLocal[(Int, String)], lens: IOLocal[Int])
-
-    def create(iol: IO[IOLocal[(Int, String)]]): IO[Lenses] =
-      iol.map(local => Lenses(local, local.lens(_._1)(p => i => (i, p._2))))
-
-    "return a default value" in ticked { implicit ticker =>
-      val io = create(IOLocal((0, ""))).flatMap(_.lens.get)
-
-      io must completeAs(0)
+      io must completeAs((checkB(update), checkA(initial)))
     }
 
-    "set and get a value" in ticked { implicit ticker =>
-      val io = for {
-        lenses <- create(IOLocal((0, "")))
-        _ <- lenses.lens.set(10)
-        baseValue <- lenses.base.get
-        lensValue <- lenses.lens.get
-      } yield (baseValue, lensValue)
-
-      io must completeAs((10, "") -> 10)
-    }
-
-    "preserve locals across async boundaries" in ticked { implicit ticker =>
-      val io = for {
-        lenses <- create(IOLocal((0, "")))
-        _ <- lenses.lens.set(10)
-        _ <- IO.cede
-        value <- lenses.lens.get
-      } yield value
-
-      io must completeAs(10)
-    }
-
-    "copy locals to children fibers" in ticked { implicit ticker =>
-      val io = for {
-        lenses <- create(IOLocal((0, "")))
-        _ <- lenses.lens.set(10)
-        f <- lenses.lens.get.start
-        value <- f.joinWithNever
-      } yield value
-
-      io must completeAs(10)
-    }
-
-    "child local manipulation is invisible to parents" in ticked { implicit ticker =>
-      val io = for {
-        lenses <- create(IOLocal((10, "")))
-        f <- lenses.lens.set(20).start
-        _ <- f.join
-        baseValue <- lenses.base.get
-        lensValue <- lenses.lens.get
-      } yield (baseValue, lensValue)
-
-      io must completeAs((10, "") -> 10)
-    }
-
-    "parent local manipulation is invisible to children" in ticked { implicit ticker =>
-      val io = for {
-        lenses <- create(IOLocal((0, "")))
-        d1 <- Deferred[IO, Unit]
-        f <- (d1.get *> (lenses.base.get, lenses.lens.get).tupled).start
-        _ <- lenses.lens.set(10)
-        _ <- d1.complete(())
-        value <- f.joinWithNever
-      } yield value
-
-      io must completeAs((0, "") -> 0)
-    }
-
-    "do not leak internal updates outside of a scope" in ticked { implicit ticker =>
-      val io = for {
-        lenses <- create(IOLocal((0, "")))
-        inside <- lenses.lens.scope(1).surround(lenses.lens.getAndSet(2))
-        baseOutside <- lenses.base.get
-        lensOutside <- lenses.lens.get
-      } yield (inside, baseOutside, lensOutside)
-
-      io must completeAs((1, (0, ""), 0))
-    }
   }
 
 }
