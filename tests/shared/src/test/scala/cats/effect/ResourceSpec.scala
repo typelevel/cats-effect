@@ -720,6 +720,49 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           lhs eqv rhs
         }
       }
+
+      "passes along the exit case" in {
+        import Resource.ExitCase
+
+        "use succesfully, test left" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.combineK(Resource.unit).use(_ => IO.unit) must completeAs(())
+          got mustEqual ExitCase.Succeeded
+        }
+
+        "use errored, test left" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val ex = new Exception
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.combineK(Resource.unit).use(_ => IO.raiseError(ex)) must failAs(ex)
+          got mustEqual ExitCase.Errored(ex)
+        }
+
+        "left errored, test left" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val ex = new Exception
+          val r = Resource.onFinalizeCase(ec => IO { got = ec }) *>
+            Resource.eval(IO.raiseError(ex))
+          r.combineK(Resource.unit).use_ must completeAs(())
+          got mustEqual ExitCase.Succeeded
+        }
+
+        "left errored, test right" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val ex = new Exception
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          Resource.eval(IO.raiseError(ex)).combineK(r).use_ must completeAs(())
+          got mustEqual ExitCase.Succeeded
+        }
+
+        "use canceled, test left" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.combineK(Resource.unit).use(_ => IO.canceled) must selfCancel
+          got mustEqual ExitCase.Canceled
+        }
+      }
     }
 
     "surround" should {
