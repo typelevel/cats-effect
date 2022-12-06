@@ -16,8 +16,6 @@
 
 package cats.effect
 
-import scala.collection.immutable.Map
-
 /**
  * [[IOLocal]] provides a handy way of manipulating a context on different scopes.
  *
@@ -208,7 +206,7 @@ object IOLocal {
   def apply[A](default: A): IO[IOLocal[A]] =
     IO {
       new IOLocal[A] { self =>
-        private[this] def getOrDefault(state: Map[IOLocal[_], Any]): A =
+        private[this] def getOrDefault(state: IOLocalState): A =
           state.getOrElse(self, default).asInstanceOf[A]
 
         override def get: IO[A] =
