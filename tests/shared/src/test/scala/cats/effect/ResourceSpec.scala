@@ -598,6 +598,84 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         leftReleased must beTrue
         rightReleased must beTrue
       }
+
+      "passes along the exit case" in ticked { implicit ticker =>
+        import Resource.ExitCase
+
+        { // use successfully, test left
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.both(Resource.unit).use(_ => IO.unit) must completeAs(())
+          got mustEqual ExitCase.Succeeded
+        }
+
+        { // use successfully, test right
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          Resource.unit.both(r).use(_ => IO.unit) must completeAs(())
+          got mustEqual ExitCase.Succeeded
+        }
+
+        { // use errored, test left
+          var got: ExitCase = null
+          val ex = new Exception
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.both(Resource.unit).use(_ => IO.raiseError(ex)) must failAs(ex)
+          got mustEqual ExitCase.Errored(ex)
+        }
+
+        { // use errored, test right
+          var got: ExitCase = null
+          val ex = new Exception
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          Resource.unit.both(r).use(_ => IO.raiseError(ex)) must failAs(ex)
+          got mustEqual ExitCase.Errored(ex)
+        }
+
+        { // right errored, test left
+          var got: ExitCase = null
+          val ex = new Exception
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.both(Resource.eval(IO.sleep(1.second) *> IO.raiseError(ex))).use_ must failAs(ex)
+          got mustEqual ExitCase.Errored(ex)
+        }
+
+        { // left errored, test right
+          var got: ExitCase = null
+          val ex = new Exception
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          Resource.eval(IO.sleep(1.second) *> IO.raiseError(ex)).both(r).use_ must failAs(ex)
+          got mustEqual ExitCase.Errored(ex)
+        }
+
+        { // use canceled, test left
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.both(Resource.unit).use(_ => IO.canceled) must selfCancel
+          got mustEqual ExitCase.Canceled
+        }
+
+        { // use canceled, test right
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          Resource.unit.both(r).use(_ => IO.canceled) must selfCancel
+          got mustEqual ExitCase.Canceled
+        }
+
+        { // right canceled, test left
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.both(Resource.eval(IO.sleep(1.second) *> IO.canceled)).use_ must selfCancel
+          got mustEqual ExitCase.Canceled
+        }
+
+        { // left canceled, test right
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          Resource.eval(IO.sleep(1.second) *> IO.canceled).both(r).use_ must selfCancel
+          got mustEqual ExitCase.Canceled
+        }
+      }
     }
 
     "releases both resources on combineK" in ticked { implicit ticker =>
