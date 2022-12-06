@@ -280,72 +280,21 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
    */
   def both[B](
       that: Resource[F, B]
-  )(implicit F: Concurrent[F]): Resource[F, (A, B)] =
-    Resource
-      .makeCaseFull[F, ((A, ExitCase => F[Unit]), (B, ExitCase => F[Unit]))] {
-        (poll: Poll[F]) =>
-          poll(F.racePair(this.allocatedCase, that.allocatedCase)).flatMap {
-            case Left((oc, f)) =>
-              def cancelRight(ec: ExitCase): F[Unit] =
-                f.cancel *> f.join.flatMap(_.fold(F.unit, _ => F.unit, _.flatMap(_._2(ec))))
+  )(implicit F: Concurrent[F]): Resource[F, (A, B)] = {
+    type Update = (F[Unit] => F[Unit]) => F[Unit]
 
-              oc match {
-                case Outcome.Succeeded(fa) =>
-                  poll(f.join)
-                    .onCancel(
-                      F.void(
-                        F.both(
-                          fa.flatMap(_._2(ExitCase.Canceled)),
-                          cancelRight(ExitCase.Canceled)
-                        )
-                      )
-                    )
-                    .flatMap {
-                      case Outcome.Succeeded(fb) => F.product(fa, fb)
-                      case Outcome.Errored(ex) =>
-                        fa.flatMap(_._2(ExitCase.Errored(ex))) *> F.raiseError(ex)
-                      case Outcome.Canceled() =>
-                        fa.flatMap(_._2(ExitCase.Canceled)) *> F.canceled *> poll(F.never)
-                    }
-                case Outcome.Errored(ex) =>
-                  cancelRight(ExitCase.Errored(ex)) *> F.raiseError(ex)
-                case Outcome.Canceled() =>
-                  cancelRight(ExitCase.Canceled) *> F.canceled *> poll(F.never)
-              }
-            case Right((f, oc)) =>
-              def cancelLeft(ec: ExitCase): F[Unit] =
-                f.cancel *> f.join.flatMap(_.fold(F.unit, _ => F.unit, _.flatMap(_._2(ec))))
+    def allocate[C](r: Resource[F, C], storeFinalizer: Update): F[C] =
+      r.fold(_.pure[F], release => storeFinalizer(F.guarantee(_, release)))
 
-              oc match {
-                case Outcome.Succeeded(fb) =>
-                  poll(f.join)
-                    .onCancel(
-                      F.void(
-                        F.both(
-                          fb.flatMap(_._2(ExitCase.Canceled)),
-                          cancelLeft(ExitCase.Canceled)
-                        )
-                      )
-                    )
-                    .flatMap {
-                      case Outcome.Succeeded(fa) => F.product(fa, fb)
-                      case Outcome.Errored(ex) =>
-                        fb.flatMap(_._2(ExitCase.Errored(ex))) *> F.raiseError(ex)
-                      case Outcome.Canceled() =>
-                        fb.flatMap(_._2(ExitCase.Canceled)) *> F.canceled *> poll(F.never)
-                    }
-                case Outcome.Errored(ex) =>
-                  cancelLeft(ExitCase.Errored(ex)) *> F.raiseError(ex)
-                case Outcome.Canceled() =>
-                  cancelLeft(ExitCase.Canceled) *> F.canceled *> poll(F.never)
-              }
+    val bothFinalizers = F.ref(F.unit -> F.unit)
 
-          }
-      } {
-        case (((_, releaseLeft), (_, releaseRight)), ec) =>
-          F.void(F.both(releaseLeft(ec), releaseRight(ec)))
-      }
-      .map { case ((a, _), (b, _)) => (a, b) }
+    Resource.make(bothFinalizers)(_.get.flatMap(_.parTupled).void).evalMap { store =>
+      val thisStore: Update = f => store.update(_.bimap(f, identity))
+      val thatStore: Update = f => store.update(_.bimap(identity, f))
+
+      (allocate(this, thisStore), allocate(that, thatStore)).parTupled
+    }
+  }
 
   /**
    * Races the evaluation of two resource allocations and returns the result of the winner,
