@@ -103,7 +103,10 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
   /**
    * Like `modify` but the evaluation of the return value is wrapped in the effect type `F`.
    */
-  def flatModify[B](f: A => (A, F[B]))(implicit F: FlatMap[F]): F[B] = F.flatten(modify(f))
+  def flatModify[B, E](f: A => (A, F[B]))(implicit F: MonadCancel[F, E]): F[B] =
+    F.uncancelable { poll =>
+      modify(f).flatMap(fb => poll(fb))
+    }
 
   /**
    * Update the value of this ref with a state computation.
