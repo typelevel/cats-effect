@@ -599,24 +599,24 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         rightReleased must beTrue
       }
 
-      "passes along the exit case" in ticked { implicit ticker =>
+      "passes along the exit case" in {
         import Resource.ExitCase
 
-        { // use successfully, test left
+        "use succesfully, test left" >> ticked { implicit ticker =>
           var got: ExitCase = null
           val r = Resource.onFinalizeCase(ec => IO { got = ec })
           r.both(Resource.unit).use(_ => IO.unit) must completeAs(())
           got mustEqual ExitCase.Succeeded
         }
 
-        { // use successfully, test right
+        "use successfully, test right" >> ticked { implicit ticker =>
           var got: ExitCase = null
           val r = Resource.onFinalizeCase(ec => IO { got = ec })
           Resource.unit.both(r).use(_ => IO.unit) must completeAs(())
           got mustEqual ExitCase.Succeeded
         }
 
-        { // use errored, test left
+        "use errored, test left" >> ticked { implicit ticker =>
           var got: ExitCase = null
           val ex = new Exception
           val r = Resource.onFinalizeCase(ec => IO { got = ec })
@@ -624,7 +624,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           got mustEqual ExitCase.Errored(ex)
         }
 
-        { // use errored, test right
+        "use errored, test right" >> ticked { implicit ticker =>
           var got: ExitCase = null
           val ex = new Exception
           val r = Resource.onFinalizeCase(ec => IO { got = ec })
@@ -632,7 +632,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           got mustEqual ExitCase.Errored(ex)
         }
 
-        { // right errored, test left
+        "right errored, test left" >> ticked { implicit ticker =>
           var got: ExitCase = null
           val ex = new Exception
           val r = Resource.onFinalizeCase(ec => IO { got = ec })
@@ -640,7 +640,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           got mustEqual ExitCase.Errored(ex)
         }
 
-        { // left errored, test right
+        "left errored, test right" >> ticked { implicit ticker =>
           var got: ExitCase = null
           val ex = new Exception
           val r = Resource.onFinalizeCase(ec => IO { got = ec })
@@ -648,28 +648,28 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           got mustEqual ExitCase.Errored(ex)
         }
 
-        { // use canceled, test left
+        "use canceled, test left" >> ticked { implicit ticker =>
           var got: ExitCase = null
           val r = Resource.onFinalizeCase(ec => IO { got = ec })
           r.both(Resource.unit).use(_ => IO.canceled) must selfCancel
           got mustEqual ExitCase.Canceled
         }
 
-        { // use canceled, test right
+        "use canceled, test right" >> ticked { implicit ticker =>
           var got: ExitCase = null
           val r = Resource.onFinalizeCase(ec => IO { got = ec })
           Resource.unit.both(r).use(_ => IO.canceled) must selfCancel
           got mustEqual ExitCase.Canceled
         }
 
-        { // right canceled, test left
+        "right canceled, test left" >> ticked { implicit ticker =>
           var got: ExitCase = null
           val r = Resource.onFinalizeCase(ec => IO { got = ec })
           r.both(Resource.eval(IO.sleep(1.second) *> IO.canceled)).use_ must selfCancel
           got mustEqual ExitCase.Canceled
         }
 
-        { // left canceled, test right
+        "left canceled, test right" >> ticked { implicit ticker =>
           var got: ExitCase = null
           val r = Resource.onFinalizeCase(ec => IO { got = ec })
           Resource.eval(IO.sleep(1.second) *> IO.canceled).both(r).use_ must selfCancel
