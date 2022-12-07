@@ -102,6 +102,10 @@ abstract class Ref[F[_], A] extends RefSource[F, A] with RefSink[F, A] {
 
   /**
    * Like `modify` but the evaluation of the return value is wrapped in the effect type `F`.
+   *
+   * The operation is un-cancelable to ensure atomicity, otherwise the border between
+   * completing the modify and beginning the effect could result in the effect not being run
+   * even when the `Ref` is updated. Of course, the effect itself could still be cancelable.
    */
   def flatModify[B, E](f: A => (A, F[B]))(implicit F: MonadCancel[F, E]): F[B] =
     F.uncancelable { poll =>
