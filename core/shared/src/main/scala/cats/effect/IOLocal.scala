@@ -267,6 +267,14 @@ object IOLocal {
 
     final def lens[B](get: A => B)(set: A => B => A): IOLocal[B] = self match {
       case lens: IOLocalLens[aa, A] =>
+        // We process already created lens separately so
+        // we wont pay additional `.get.flatMap` price for every call of
+        // `set`, `update` or `modify` of resulting lens.
+        // After all, our getters and setters are pure,
+        // so `AndThen` allows us to safely compose them and
+        // proxy calls to the 'original' `IOLocal` independent of
+        // current nesting level.
+
         val getter = AndThen(lens.getter).andThen(get)
         val setter = AndThen((v: aa) => (lens.getter(v), lens.setter(v))).andThen {
           case (a, outerSet) => (b: B) => outerSet(set(a)(b))
