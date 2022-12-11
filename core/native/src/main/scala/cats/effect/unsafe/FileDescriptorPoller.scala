@@ -17,6 +17,10 @@
 package cats.effect
 package unsafe
 
+import scala.scalanative.annotation.alwaysinline
+import scala.scalanative.runtime._
+import scala.scalanative.unsafe._
+
 trait FileDescriptorPoller {
 
   /**
@@ -47,6 +51,14 @@ trait FileDescriptorPoller {
 
 object FileDescriptorPoller {
   trait Callback {
-    def apply(readReady: Boolean, writeReady: Boolean): Unit
+    def notifyFileDescriptorEvents(readReady: Boolean, writeReady: Boolean): Unit
+  }
+
+  object Callback {
+    @alwaysinline private[unsafe] def toPtr(cb: Callback): Ptr[Byte] =
+      fromRawPtr(Intrinsics.castObjectToRawPtr(cb))
+
+    @alwaysinline private[unsafe] def fromPtr[A](ptr: Ptr[Byte]): Callback =
+      Intrinsics.castRawPtrToObject(toRawPtr(ptr)).asInstanceOf[Callback]
   }
 }

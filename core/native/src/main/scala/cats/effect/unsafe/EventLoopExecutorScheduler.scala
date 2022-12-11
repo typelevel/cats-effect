@@ -120,7 +120,7 @@ private final class EventLoopExecutorScheduler(pollEvery: Int, system: PollingSy
         else
           -1
 
-      val needsPoll = system.poll(_poller, timeout)
+      val needsPoll = system.poll(_poller, timeout, reportFailure)
 
       continue = needsPoll || !executeQueue.isEmpty() || !sleepQueue.isEmpty()
     }
@@ -146,5 +146,14 @@ private final class EventLoopExecutorScheduler(pollEvery: Int, system: PollingSy
 }
 
 private object EventLoopExecutorScheduler {
-  lazy val global = new EventLoopExecutorScheduler(64, SleepSystem)
+  lazy val global = {
+    val system =
+      if (LinktimeInfo.isLinux)
+        EpollSystem(64)
+      else if (LinktimeInfo.isMac)
+        KqueueSystem(64)
+      else
+        SleepSystem
+    new EventLoopExecutorScheduler(64, system)
+  }
 }

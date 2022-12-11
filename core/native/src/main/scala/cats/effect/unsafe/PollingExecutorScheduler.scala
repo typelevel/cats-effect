@@ -31,7 +31,7 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
       type Poller = outer.type
       def makePoller(): Poller = outer
       def close(poller: Poller): Unit = ()
-      def poll(poller: Poller, nanos: Long): Boolean =
+      def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =
         if (nanos == -1) outer.poll(Duration.Inf) else outer.poll(nanos.nanos)
     }
   )

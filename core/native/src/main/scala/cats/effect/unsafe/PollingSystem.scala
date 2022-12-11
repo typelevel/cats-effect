@@ -36,6 +36,6 @@ abstract class PollingSystem {
    * @return
    *   whether poll should be called again (i.e., there are more events to be polled)
    */
-  def poll(poller: Poller, nanos: Long): Boolean
+  def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean
 
 }
