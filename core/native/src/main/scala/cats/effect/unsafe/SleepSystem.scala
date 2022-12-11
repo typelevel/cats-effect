@@ -14,11 +14,21 @@
  * limitations under the License.
  */
 
-package cats.effect.unsafe
+package cats.effect
+package unsafe
 
-private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
+object SleepSystem extends PollingSystem {
 
-  def createDefaultScheduler(): (Scheduler, () => Unit) =
-    (EventLoopExecutorScheduler.global, () => ())
+  type Poller = Unit
+
+  def makePoller(): Poller = ()
+
+  def close(poller: Poller): Unit = ()
+
+  def poll(poller: Poller, nanos: Long): Boolean = {
+    if (nanos > 0)
+      Thread.sleep(nanos / 1000000, (nanos % 1000000).toInt)
+    false
+  }
 
 }

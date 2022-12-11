@@ -20,9 +20,9 @@ import scala.concurrent.ExecutionContext
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
-  def defaultComputeExecutionContext: ExecutionContext = QueueExecutorScheduler
+  def defaultComputeExecutionContext: ExecutionContext = EventLoopExecutorScheduler.global
 
-  def defaultScheduler: Scheduler = QueueExecutorScheduler
+  def defaultScheduler: Scheduler = EventLoopExecutorScheduler.global
 
   private[this] var _global: IORuntime = null
 

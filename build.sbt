@@ -772,6 +772,14 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       } else Seq()
     }
   )
+  .nativeSettings(
+    mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.unsafe.PollingExecutorScheduler$SleepTask"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.QueueExecutorScheduler"),
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.unsafe.QueueExecutorScheduler$")
+    )
+  )
 
 /**
  * Test support for the core project, providing various helpful instances like ScalaCheck
