@@ -102,11 +102,7 @@ final class KqueueSystem private (maxEvents: Int) extends PollingSystem {
             if ((event.flags.toLong & EV_ERROR) != 0) {
 
               // TODO it would be interesting to propagate this failure via the callback
-              reportFailure(
-                new RuntimeException(
-                  s"kevent64: flags=${event.flags.toHexString} errno=${event.data}"
-                )
-              )
+              reportFailure(new IOException(fromCString(strerror(event.data.toInt))))
 
             } else if (callbacks.contains(event.ident.toLong)) {
               val filter = event.filter
