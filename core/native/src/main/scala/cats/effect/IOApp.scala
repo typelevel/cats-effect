@@ -20,6 +20,7 @@ import cats.effect.metrics.NativeCpuStarvationMetrics
 
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
+import scala.scalanative.meta.LinktimeInfo
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining
@@ -166,6 +167,21 @@ trait IOApp {
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
   /**
+   * The [[unsafe.PollingSystem]] used by the [[runtime]] which will evaluate the [[IO]]
+   * produced by `run`. It is very unlikely that users will need to override this method.
+   *
+   * [[unsafe.PollingSystem]] implementors may provide their own flavors of [[IOApp]] that
+   * override this method.
+   */
+  protected def pollingSystem: unsafe.PollingSystem =
+    if (LinktimeInfo.isLinux)
+      unsafe.EpollSystem(64)
+    else if (LinktimeInfo.isMac)
+      unsafe.KqueueSystem(64)
+    else
+      unsafe.SleepSystem
+
+  /**
    * The entry point for your application. Will be called by the runtime when the process is
    * started. If the underlying runtime supports it, any arguments passed to the process will be
    * made available in the `args` parameter. The numeric value within the resulting [[ExitCode]]
@@ -186,12 +202,8 @@ trait IOApp {
       import unsafe.IORuntime
 
       val installed = IORuntime installGlobal {
-        IORuntime(
-          IORuntime.defaultComputeExecutionContext,
-          IORuntime.defaultComputeExecutionContext,
-          IORuntime.defaultScheduler,
-          () => (),
-          runtimeConfig)
+        val loop = IORuntime.createEventLoop(pollingSystem)
+        IORuntime(loop, loop, loop, () => (), runtimeConfig)
       }
 
       _runtime = IORuntime.global
