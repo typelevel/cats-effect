@@ -100,6 +100,20 @@ class FileDescriptorPollerSpec extends BaseSpec {
         }
       }
     }
+
+    "notify of pre-existing readiness on registration" in real {
+      mkPipe.use {
+        case Pipe(readFd, writeFd) =>
+          IO.eventLoop[FileDescriptorPoller].map(_.get).flatMap { loop =>
+            val registerAndWait = IO.deferred[Unit].flatMap { gate =>
+              onRead(loop, readFd, gate.complete(()).void).surround(gate.get)
+            }
+
+            IO(write(writeFd, Array[Byte](42).at(0), 1.toULong)) *>
+              registerAndWait *> registerAndWait *> IO.pure(true)
+          }
+      }
+    }
   }
 
 }
