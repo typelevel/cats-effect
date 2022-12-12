@@ -33,7 +33,7 @@ import scala.util.control.NonFatal
 import java.io.IOException
 import java.util.ArrayDeque
 
-final object KqueueSystem extends PollingSystem {
+object KqueueSystem extends PollingSystem {
 
   import event._
   import eventImplicits._
