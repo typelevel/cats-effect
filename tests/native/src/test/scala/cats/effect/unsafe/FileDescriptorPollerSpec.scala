@@ -48,13 +48,13 @@ class FileDescriptorPollerSpec extends BaseSpec {
         }
     }
 
-  def onRead(poller: FileDescriptorPoller, fd: Int, cb: IO[Unit]): Resource[IO, Unit] =
+  def onRead(loop: EventLoop[FileDescriptorPoller], fd: Int, cb: IO[Unit]): Resource[IO, Unit] =
     Dispatcher
       .sequential[IO]
       .flatMap { dispatcher =>
         Resource.make {
           IO {
-            poller.registerFileDescriptor(fd, true, false) { (readReady, _) =>
+            loop.poller().registerFileDescriptor(fd, true, false) { (readReady, _) =>
               dispatcher.unsafeRunAndForget(cb.whenA(readReady))
             }
           }
@@ -66,17 +66,17 @@ class FileDescriptorPollerSpec extends BaseSpec {
     "notify read-ready events" in real {
       mkPipe.use {
         case (readFd, writeFd) =>
-          IO.eventLoop[FileDescriptorPoller].map(_.get.poller()).flatMap { poller =>
+          IO.eventLoop[FileDescriptorPoller].map(_.get).flatMap { loop =>
             Queue.unbounded[IO, Unit].flatMap { queue =>
-              onRead(poller, readFd, queue.offer(())).surround {
+              onRead(loop, readFd, queue.offer(())).surround {
                 for {
                   buf <- IO(new Array[Byte](4))
                   _ <- IO(write(writeFd, Array[Byte](1, 2, 3).at(0), 3.toULong))
-                  _ <- queue.take
-                  _ <- IO(read(readFd, buf.at(0), 3.toULong))
+                    .background
+                    .surround(queue.take *> IO(read(readFd, buf.at(0), 3.toULong)))
                   _ <- IO(write(writeFd, Array[Byte](42).at(0), 1.toULong))
-                  _ <- queue.take
-                  _ <- IO(read(readFd, buf.at(3), 1.toULong))
+                    .background
+                    .surround(queue.take *> IO(read(readFd, buf.at(3), 1.toULong)))
                 } yield buf.toList must be_==(List[Byte](1, 2, 3, 42))
               }
             }
