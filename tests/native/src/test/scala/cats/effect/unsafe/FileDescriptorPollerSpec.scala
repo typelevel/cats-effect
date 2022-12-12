@@ -20,6 +20,7 @@ package unsafe
 import cats.effect.std.{CountDownLatch, Dispatcher, Queue}
 import cats.syntax.all._
 
+import scala.concurrent.duration._
 import scala.scalanative.libc.errno._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.unistd._
@@ -111,6 +112,19 @@ class FileDescriptorPollerSpec extends BaseSpec {
 
             IO(write(writeFd, Array[Byte](42).at(0), 1.toULong)) *>
               registerAndWait *> registerAndWait *> IO.pure(true)
+          }
+      }
+    }
+
+    "not notify if not ready" in real {
+      mkPipe.use {
+        case Pipe(readFd, _) =>
+          IO.eventLoop[FileDescriptorPoller].map(_.get).flatMap { loop =>
+            val registerAndWait = IO.deferred[Unit].flatMap { gate =>
+              onRead(loop, readFd, gate.complete(()).void).surround(gate.get)
+            }
+
+            registerAndWait.as(false).timeoutTo(1.second, IO.pure(true))
           }
       }
     }
