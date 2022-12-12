@@ -17,6 +17,8 @@
 package cats.effect
 package unsafe
 
+import org.typelevel.scalaccompat.annotation._
+
 import scala.collection.mutable.LongMap
 import scala.scalanative.libc.errno._
 import scala.scalanative.posix.string._
@@ -177,6 +179,7 @@ object KqueueSystem {
     def cancel() = canceled = true
   }
 
+  @nowarn212
   @extern
   private[unsafe] object event {
     // Derived from https://opensource.apple.com/source/xnu/xnu-7195.81.3/bsd/sys/event.h.auto.html

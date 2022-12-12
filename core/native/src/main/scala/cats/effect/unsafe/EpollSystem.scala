@@ -17,6 +17,8 @@
 package cats.effect
 package unsafe
 
+import org.typelevel.scalaccompat.annotation._
+
 import scala.scalanative.libc.errno._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.unistd
@@ -113,6 +115,7 @@ final class EpollSystem private (maxEvents: Int) extends PollingSystem {
 object EpollSystem {
   def apply(maxEvents: Int): EpollSystem = new EpollSystem(maxEvents)
 
+  @nowarn212
   @extern
   private[unsafe] object epoll {
 
