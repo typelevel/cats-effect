@@ -177,7 +177,7 @@ trait IOApp {
     if (LinktimeInfo.isLinux)
       unsafe.EpollSystem
     else if (LinktimeInfo.isMac)
-      unsafe.KqueueSystem(64)
+      unsafe.KqueueSystem
     else
       unsafe.SleepSystem
 

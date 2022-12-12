@@ -151,7 +151,7 @@ private object EventLoopExecutorScheduler {
       if (LinktimeInfo.isLinux)
         EpollSystem
       else if (LinktimeInfo.isMac)
-        KqueueSystem(64)
+        KqueueSystem
       else
         SleepSystem
     new EventLoopExecutorScheduler(64, system)

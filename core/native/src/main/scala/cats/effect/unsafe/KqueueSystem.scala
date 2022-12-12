@@ -19,6 +19,7 @@ package unsafe
 
 import org.typelevel.scalaccompat.annotation._
 
+import scala.annotation.tailrec
 import scala.collection.mutable.LongMap
 import scala.scalanative.libc.errno._
 import scala.scalanative.posix.string._
@@ -32,17 +33,18 @@ import scala.util.control.NonFatal
 import java.io.IOException
 import java.util.ArrayDeque
 
-import KqueueSystem.EvAdd
-import KqueueSystem.event._
-import KqueueSystem.eventImplicits._
+final object KqueueSystem extends PollingSystem {
 
-final class KqueueSystem private (maxEvents: Int) extends PollingSystem {
+  import event._
+  import eventImplicits._
+
+  private final val MaxEvents = 64
 
   def makePoller(): Poller = {
     val fd = kqueue()
     if (fd == -1)
       throw new IOException(fromCString(strerror(errno)))
-    new Poller(fd, maxEvents)
+    new Poller(fd)
   }
 
   def close(poller: Poller): Unit = poller.close()
@@ -50,8 +52,7 @@ final class KqueueSystem private (maxEvents: Int) extends PollingSystem {
   def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =
     poller.poll(nanos, reportFailure)
 
-  final class Poller private[KqueueSystem] (private[KqueueSystem] val kqfd: Int, maxEvents: Int)
-      extends FileDescriptorPoller {
+  final class Poller private[KqueueSystem] (kqfd: Int) extends FileDescriptorPoller {
 
     private[this] val changes: ArrayDeque[EvAdd] = new ArrayDeque
     private[this] val callbacks: LongMap[FileDescriptorPoller.Callback] = new LongMap
@@ -83,6 +84,56 @@ final class KqueueSystem private (maxEvents: Int) extends PollingSystem {
         false // nothing to do here
       else {
 
+        val eventlist = stackalloc[kevent64_s](MaxEvents.toLong)
+
+        @tailrec
+        def processEvents(timeout: Ptr[timespec], changeCount: Int, flags: Int): Unit = {
+
+          val triggeredEvents =
+            kevent64(
+              kqfd,
+              changelist,
+              changeCount,
+              eventlist,
+              MaxEvents,
+              flags.toUInt,
+              timeout
+            )
+
+          if (triggeredEvents >= 0) {
+            var i = 0
+            var event = eventlist
+            while (i < triggeredEvents) {
+              if ((event.flags.toLong & EV_ERROR) != 0) {
+
+                // TODO it would be interesting to propagate this failure via the callback
+                reportFailure(new IOException(fromCString(strerror(event.data.toInt))))
+
+              } else if (callbacks.contains(event.ident.toLong)) {
+                val filter = event.filter
+                val cb = FileDescriptorPoller.Callback.fromPtr(event.udata)
+
+                try {
+                  cb.notifyFileDescriptorEvents(filter == EVFILT_READ, filter == EVFILT_WRITE)
+                } catch {
+                  case NonFatal(ex) =>
+                    reportFailure(ex)
+                }
+              }
+
+              i += 1
+              event += 1
+            }
+          } else {
+            throw new IOException(fromCString(strerror(errno)))
+          }
+
+          if (triggeredEvents >= MaxEvents)
+            processEvents(null, 0, KEVENT_FLAG_NONE) // drain the ready list
+          else
+            ()
+        }
+
         val timeoutSpec =
           if (timeout <= 0) null
           else {
@@ -92,38 +143,9 @@ final class KqueueSystem private (maxEvents: Int) extends PollingSystem {
             ts
           }
 
-        val eventlist = stackalloc[kevent64_s](maxEvents.toLong)
-        val flags = (if (timeout == 0) KEVENT_FLAG_IMMEDIATE else KEVENT_FLAG_NONE).toUInt
-        val triggeredEvents =
-          kevent64(kqfd, changelist, changeCount, eventlist, maxEvents, flags, timeoutSpec)
+        val flags = if (timeout == 0) KEVENT_FLAG_IMMEDIATE else KEVENT_FLAG_NONE
 
-        if (triggeredEvents >= 0) {
-          var i = 0
-          var event = eventlist
-          while (i < triggeredEvents) {
-            if ((event.flags.toLong & EV_ERROR) != 0) {
-
-              // TODO it would be interesting to propagate this failure via the callback
-              reportFailure(new IOException(fromCString(strerror(event.data.toInt))))
-
-            } else if (callbacks.contains(event.ident.toLong)) {
-              val filter = event.filter
-              val cb = FileDescriptorPoller.Callback.fromPtr(event.udata)
-
-              try {
-                cb.notifyFileDescriptorEvents(filter == EVFILT_READ, filter == EVFILT_WRITE)
-              } catch {
-                case NonFatal(ex) =>
-                  reportFailure(ex)
-              }
-            }
-
-            i += 1
-            event += 1
-          }
-        } else {
-          throw new IOException(fromCString(strerror(errno)))
-        }
+        processEvents(timeoutSpec, changeCount, flags)
 
         !changes.isEmpty() || callbacks.nonEmpty
       }
@@ -165,11 +187,6 @@ final class KqueueSystem private (maxEvents: Int) extends PollingSystem {
 
   }
 
-}
-
-object KqueueSystem {
-  def apply(maxEvents: Int): KqueueSystem = new KqueueSystem(maxEvents)
-
   private final class EvAdd(
       val fd: Int,
       val filter: Short,
@@ -181,7 +198,7 @@ object KqueueSystem {
 
   @nowarn212
   @extern
-  private[unsafe] object event {
+  private object event {
     // Derived from https://opensource.apple.com/source/xnu/xnu-7195.81.3/bsd/sys/event.h.auto.html
 
     final val EVFILT_READ = -1
@@ -211,7 +228,7 @@ object KqueueSystem {
 
   }
 
-  private[unsafe] object eventImplicits {
+  private object eventImplicits {
 
     implicit final class kevent64_sOps(kevent64_s: Ptr[kevent64_s]) {
       def ident: CUnsignedLongInt = !(kevent64_s.asInstanceOf[Ptr[CUnsignedLongInt]])
