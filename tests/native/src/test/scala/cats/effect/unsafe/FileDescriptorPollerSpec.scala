@@ -17,7 +17,7 @@
 package cats.effect
 package unsafe
 
-import cats.effect.std.{Dispatcher, Queue}
+import cats.effect.std.{CountDownLatch, Dispatcher, Queue}
 import cats.syntax.all._
 
 import scala.scalanative.libc.errno._
@@ -30,20 +30,22 @@ import java.io.IOException
 
 class FileDescriptorPollerSpec extends BaseSpec {
 
-  def mkPipe: Resource[IO, (Int, Int)] =
+  case class Pipe(readFd: Int, writeFd: Int)
+
+  def mkPipe: Resource[IO, Pipe] =
     Resource.make {
       IO {
         val fd = stackalloc[CInt](2)
         if (pipe(fd) != 0)
           throw new IOException(fromCString(strerror(errno)))
         else
-          (fd(0), fd(1))
+          Pipe(fd(0), fd(1))
       }
     } {
-      case (fd0, fd1) =>
+      case Pipe(readFd, writeFd) =>
         IO {
-          close(fd0)
-          close(fd1)
+          close(readFd)
+          close(writeFd)
           ()
         }
     }
@@ -63,9 +65,10 @@ class FileDescriptorPollerSpec extends BaseSpec {
       .void
 
   "FileDescriptorPoller" should {
+
     "notify read-ready events" in real {
       mkPipe.use {
-        case (readFd, writeFd) =>
+        case Pipe(readFd, writeFd) =>
           IO.eventLoop[FileDescriptorPoller].map(_.get).flatMap { loop =>
             Queue.unbounded[IO, Unit].flatMap { queue =>
               onRead(loop, readFd, queue.offer(())).surround {
@@ -81,6 +84,20 @@ class FileDescriptorPollerSpec extends BaseSpec {
               }
             }
           }
+      }
+    }
+
+    "handle lots of simultaneous events" in real {
+      mkPipe.replicateA(1000).use { pipes =>
+        IO.eventLoop[FileDescriptorPoller].map(_.get).flatMap { loop =>
+          CountDownLatch[IO](1000).flatMap { latch =>
+            pipes.traverse_(pipe => onRead(loop, pipe.readFd, latch.release)).surround {
+              IO { // trigger all the pipes at once
+                pipes.foreach(pipe => write(pipe.writeFd, Array[Byte](42).at(0), 1.toULong))
+              }.background.surround(latch.await.as(true))
+            }
+          }
+        }
       }
     }
   }
