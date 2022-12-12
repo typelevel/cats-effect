@@ -175,7 +175,7 @@ trait IOApp {
    */
   protected def pollingSystem: unsafe.PollingSystem =
     if (LinktimeInfo.isLinux)
-      unsafe.EpollSystem(64)
+      unsafe.EpollSystem
     else if (LinktimeInfo.isMac)
       unsafe.KqueueSystem(64)
     else

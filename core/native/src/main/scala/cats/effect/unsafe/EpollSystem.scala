@@ -19,6 +19,7 @@ package unsafe
 
 import org.typelevel.scalaccompat.annotation._
 
+import scala.annotation.tailrec
 import scala.scalanative.libc.errno._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.unistd
@@ -29,16 +30,18 @@ import scala.util.control.NonFatal
 import java.io.IOException
 import java.util.{Collections, IdentityHashMap, Set}
 
-import EpollSystem.epoll._
-import EpollSystem.epollImplicits._
+object EpollSystem extends PollingSystem {
 
-final class EpollSystem private (maxEvents: Int) extends PollingSystem {
+  import epoll._
+  import epollImplicits._
+
+  private[this] final val MaxEvents = 64
 
   def makePoller(): Poller = {
     val fd = epoll_create1(0)
     if (fd == -1)
       throw new IOException(fromCString(strerror(errno)))
-    new Poller(fd, maxEvents)
+    new Poller(fd)
   }
 
   def close(poller: Poller): Unit = poller.close()
@@ -46,8 +49,7 @@ final class EpollSystem private (maxEvents: Int) extends PollingSystem {
   def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =
     poller.poll(nanos, reportFailure)
 
-  final class Poller private[EpollSystem] (private[EpollSystem] val epfd: Int, maxEvents: Int)
-      extends FileDescriptorPoller {
+  final class Poller private[EpollSystem] (epfd: Int) extends FileDescriptorPoller {
 
     private[this] val callbacks: Set[FileDescriptorPoller.Callback] =
       Collections.newSetFromMap(new IdentityHashMap)
@@ -62,30 +64,40 @@ final class EpollSystem private (maxEvents: Int) extends PollingSystem {
       if (timeout <= 0 && noCallbacks)
         false // nothing to do here
       else {
-        val timeoutMillis = if (timeout == -1) -1 else (timeout / 1000000).toInt
+        val events = stackalloc[epoll_event](MaxEvents.toLong)
 
-        val events = stackalloc[epoll_event](maxEvents.toUInt)
+        @tailrec
+        def processEvents(timeout: Int): Unit = {
 
-        val triggeredEvents = epoll_wait(epfd, events, maxEvents, timeoutMillis)
+          val triggeredEvents = epoll_wait(epfd, events, MaxEvents, timeout)
 
-        if (triggeredEvents >= 0) {
-          var i = 0
-          while (i < triggeredEvents) {
-            val event = events + i.toLong
-            val cb = FileDescriptorPoller.Callback.fromPtr(event.data)
-            try {
-              val e = event.events.toInt
-              val readReady = (e & EPOLLIN) != 0
-              val writeReady = (e & EPOLLOUT) != 0
-              cb.notifyFileDescriptorEvents(readReady, writeReady)
-            } catch {
-              case ex if NonFatal(ex) => reportFailure(ex)
+          if (triggeredEvents >= 0) {
+            var i = 0
+            while (i < triggeredEvents) {
+              val event = events + i.toLong
+              val cb = FileDescriptorPoller.Callback.fromPtr(event.data)
+              try {
+                val e = event.events.toInt
+                val readReady = (e & EPOLLIN) != 0
+                val writeReady = (e & EPOLLOUT) != 0
+                cb.notifyFileDescriptorEvents(readReady, writeReady)
+              } catch {
+                case ex if NonFatal(ex) => reportFailure(ex)
+              }
+              i += 1
             }
-            i += 1
+          } else {
+            throw new IOException(fromCString(strerror(errno)))
           }
-        } else {
-          throw new IOException(fromCString(strerror(errno)))
+
+          if (triggeredEvents >= MaxEvents)
+            processEvents(0) // drain the ready list
+          else
+            ()
         }
+
+        val timeoutMillis = if (timeout == -1) -1 else (timeout / 1000000).toInt
+        processEvents(timeoutMillis)
 
         !callbacks.isEmpty()
       }
@@ -110,14 +122,9 @@ final class EpollSystem private (maxEvents: Int) extends PollingSystem {
     }
   }
 
-}
-
-object EpollSystem {
-  def apply(maxEvents: Int): EpollSystem = new EpollSystem(maxEvents)
-
   @nowarn212
   @extern
-  private[unsafe] object epoll {
+  private object epoll {
 
     final val EPOLL_CTL_ADD = 1
     final val EPOLL_CTL_DEL = 2
@@ -140,7 +147,7 @@ object EpollSystem {
 
   }
 
-  private[unsafe] object epollImplicits {
+  private object epollImplicits {
 
     implicit final class epoll_eventOps(epoll_event: Ptr[epoll_event]) {
       def events: CUnsignedInt = !(epoll_event.asInstanceOf[Ptr[CUnsignedInt]])

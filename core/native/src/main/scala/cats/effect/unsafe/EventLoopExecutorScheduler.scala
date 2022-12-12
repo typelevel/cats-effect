@@ -149,7 +149,7 @@ private object EventLoopExecutorScheduler {
   lazy val global = {
     val system =
       if (LinktimeInfo.isLinux)
-        EpollSystem(64)
+        EpollSystem
       else if (LinktimeInfo.isMac)
         KqueueSystem(64)
       else
