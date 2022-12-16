@@ -16,9 +16,9 @@
 
 package cats.effect
 
-import cats.effect.metrics.JvmCpuStarvationMetrics
 import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
+import cats.effect.unsafe.metrics.CpuStarvationSamplerMBean
 import cats.syntax.all._
 
 import scala.concurrent.{blocking, CancellationException, ExecutionContext}
@@ -375,11 +375,12 @@ trait IOApp {
     // workaround for scala#12692, dotty#16352
     val queue = this.queue
 
-    val fiber =
-      JvmCpuStarvationMetrics()
-        .flatMap { cpuStarvationMetrics =>
-          CpuStarvationCheck.run(runtimeConfig, cpuStarvationMetrics).background
-        }
+    val fiber = {
+      val cpuStarvationSampler = runtime.cpuStarvationSampler
+
+      CpuStarvationSamplerMBean
+        .register(cpuStarvationSampler)
+        .flatMap(_ => CpuStarvationCheck.run(runtimeConfig, cpuStarvationSampler).background)
         .surround(ioa)
         .unsafeRunFiber(
           {
@@ -401,6 +402,7 @@ trait IOApp {
             queue.put(a)
           }
         )(runtime)
+    }
 
     if (isStackTracing)
       runtime.fiberMonitor.monitorSuspended(fiber)

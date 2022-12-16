@@ -16,8 +16,6 @@
 
 package cats.effect
 
-import cats.effect.metrics.NativeCpuStarvationMetrics
-
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
 
@@ -220,7 +218,7 @@ trait IOApp {
     Spawn[IO]
       .raceOutcome[ExitCode, Nothing](
         CpuStarvationCheck
-          .run(runtimeConfig, NativeCpuStarvationMetrics())
+          .run(runtimeConfig, runtime.cpuStarvationSampler)
           .background
           .surround(run(args.toList)),
         keepAlive)

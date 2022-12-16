@@ -16,16 +16,16 @@
 
 package cats.effect
 
-import cats.effect.metrics.CpuStarvationMetrics
 import cats.effect.std.Console
 import cats.effect.unsafe.IORuntimeConfig
+import cats.effect.unsafe.metrics.CpuStarvationSampler
 import cats.syntax.all._
 
 import scala.concurrent.duration.FiniteDuration
 
 private[effect] object CpuStarvationCheck {
 
-  def run(runtimeConfig: IORuntimeConfig, metrics: CpuStarvationMetrics): IO[Nothing] = {
+  def run(runtimeConfig: IORuntimeConfig, metrics: CpuStarvationSampler): IO[Nothing] = {
     def go(initial: FiniteDuration): IO[Nothing] =
       IO.sleep(runtimeConfig.cpuStarvationCheckInterval) >> IO.monotonic.flatMap { now =>
         val delta = now - initial
