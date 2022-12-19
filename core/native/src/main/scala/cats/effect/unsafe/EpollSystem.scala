@@ -20,6 +20,7 @@ package unsafe
 import org.typelevel.scalaccompat.annotation._
 
 import scala.annotation.tailrec
+import scala.concurrent.ExecutionContext
 import scala.scalanative.libc.errno._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.unistd
@@ -37,89 +38,94 @@ object EpollSystem extends PollingSystem {
 
   private[this] final val MaxEvents = 64
 
-  def makePoller(): Poller = {
+  def makePoller(ec: ExecutionContext, data: () => PollData): Poller = new Poller
+
+  def makePollData(): PollData = {
     val fd = epoll_create1(0)
     if (fd == -1)
       throw new IOException(fromCString(strerror(errno)))
-    new Poller(fd)
+    new PollData(fd)
   }
 
-  def close(poller: Poller): Unit = poller.close()
+  def closePollData(data: PollData): Unit = data.close()
 
-  def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =
-    poller.poll(nanos, reportFailure)
+  def poll(data: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean =
+    data.poll(nanos, reportFailure)
 
-  final class Poller private[EpollSystem] (epfd: Int) extends FileDescriptorPoller {
+  final class Poller private[EpollSystem] ()
 
-    private[this] val callbacks: Set[FileDescriptorPoller.Callback] =
-      Collections.newSetFromMap(new IdentityHashMap)
+  final class PollData private[EpollSystem] (epfd: Int) {
+
+    // private[this] val callbacks: Set[FileDescriptorPoller.Callback] =
+    //   Collections.newSetFromMap(new IdentityHashMap)
 
     private[EpollSystem] def close(): Unit =
       if (unistd.close(epfd) != 0)
         throw new IOException(fromCString(strerror(errno)))
 
     private[EpollSystem] def poll(timeout: Long, reportFailure: Throwable => Unit): Boolean = {
-      val noCallbacks = callbacks.isEmpty()
+      // val noCallbacks = callbacks.isEmpty()
 
-      if (timeout <= 0 && noCallbacks)
-        false // nothing to do here
-      else {
-        val events = stackalloc[epoll_event](MaxEvents.toLong)
+      // if (timeout <= 0 && noCallbacks)
+      //   false // nothing to do here
+      // else {
+      //   val events = stackalloc[epoll_event](MaxEvents.toLong)
 
-        @tailrec
-        def processEvents(timeout: Int): Unit = {
+      //   @tailrec
+      //   def processEvents(timeout: Int): Unit = {
 
-          val triggeredEvents = epoll_wait(epfd, events, MaxEvents, timeout)
+      //     val triggeredEvents = epoll_wait(epfd, events, MaxEvents, timeout)
 
-          if (triggeredEvents >= 0) {
-            var i = 0
-            while (i < triggeredEvents) {
-              val event = events + i.toLong
-              val cb = FileDescriptorPoller.Callback.fromPtr(event.data)
-              try {
-                val e = event.events.toInt
-                val readReady = (e & EPOLLIN) != 0
-                val writeReady = (e & EPOLLOUT) != 0
-                cb.notifyFileDescriptorEvents(readReady, writeReady)
-              } catch {
-                case ex if NonFatal(ex) => reportFailure(ex)
-              }
-              i += 1
-            }
-          } else {
-            throw new IOException(fromCString(strerror(errno)))
-          }
+      //     if (triggeredEvents >= 0) {
+      //       var i = 0
+      //       while (i < triggeredEvents) {
+      //         val event = events + i.toLong
+      //         val cb = FileDescriptorPoller.Callback.fromPtr(event.data)
+      //         try {
+      //           val e = event.events.toInt
+      //           val readReady = (e & EPOLLIN) != 0
+      //           val writeReady = (e & EPOLLOUT) != 0
+      //           cb.notifyFileDescriptorEvents(readReady, writeReady)
+      //         } catch {
+      //           case ex if NonFatal(ex) => reportFailure(ex)
+      //         }
+      //         i += 1
+      //       }
+      //     } else {
+      //       throw new IOException(fromCString(strerror(errno)))
+      //     }
 
-          if (triggeredEvents >= MaxEvents)
-            processEvents(0) // drain the ready list
-          else
-            ()
-        }
+      //     if (triggeredEvents >= MaxEvents)
+      //       processEvents(0) // drain the ready list
+      //     else
+      //       ()
+      //   }
 
-        val timeoutMillis = if (timeout == -1) -1 else (timeout / 1000000).toInt
-        processEvents(timeoutMillis)
+      //   val timeoutMillis = if (timeout == -1) -1 else (timeout / 1000000).toInt
+      //   processEvents(timeoutMillis)
 
-        !callbacks.isEmpty()
-      }
+      //   !callbacks.isEmpty()
+      // }
+      ???
     }
 
-    def registerFileDescriptor(fd: Int, reads: Boolean, writes: Boolean)(
-        cb: FileDescriptorPoller.Callback): Runnable = {
-      val event = stackalloc[epoll_event]()
-      event.events =
-        (EPOLLET | (if (reads) EPOLLIN else 0) | (if (writes) EPOLLOUT else 0)).toUInt
-      event.data = FileDescriptorPoller.Callback.toPtr(cb)
+    // def registerFileDescriptor(fd: Int, reads: Boolean, writes: Boolean)(
+    //     cb: FileDescriptorPoller.Callback): Runnable = {
+    //   val event = stackalloc[epoll_event]()
+    //   event.events =
+    //     (EPOLLET | (if (reads) EPOLLIN else 0) | (if (writes) EPOLLOUT else 0)).toUInt
+    //   event.data = FileDescriptorPoller.Callback.toPtr(cb)
 
-      if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, event) != 0)
-        throw new IOException(fromCString(strerror(errno)))
-      callbacks.add(cb)
+    //   if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, event) != 0)
+    //     throw new IOException(fromCString(strerror(errno)))
+    //   callbacks.add(cb)
 
-      () => {
-        callbacks.remove(cb)
-        if (epoll_ctl(epfd, EPOLL_CTL_DEL, fd, null) != 0)
-          throw new IOException(fromCString(strerror(errno)))
-      }
-    }
+    //   () => {
+    //     callbacks.remove(cb)
+    //     if (epoll_ctl(epfd, EPOLL_CTL_DEL, fd, null) != 0)
+    //       throw new IOException(fromCString(strerror(errno)))
+    //   }
+    // }
   }
 
   @nowarn212

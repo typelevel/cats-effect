@@ -16,10 +16,6 @@
 
 package cats.effect
 
-import scala.scalanative.annotation.alwaysinline
-import scala.scalanative.runtime._
-import scala.scalanative.unsafe._
-
 trait FileDescriptorPoller {
 
   /**

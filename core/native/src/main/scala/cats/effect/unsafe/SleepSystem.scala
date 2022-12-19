@@ -17,15 +17,20 @@
 package cats.effect
 package unsafe
 
+import scala.concurrent.ExecutionContext
+
 object SleepSystem extends PollingSystem {
 
-  type Poller = Unit
+  final class Poller private[SleepSystem] ()
+  final class PollData private[SleepSystem] ()
 
-  def makePoller(): Poller = ()
+  def makePoller(ec: ExecutionContext, data: () => PollData): Poller = new Poller
 
-  def close(poller: Poller): Unit = ()
+  def makePollData(): PollData = new PollData
 
-  def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
+  def closePollData(poller: PollData): Unit = ()
+
+  def poll(poller: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
     if (nanos > 0)
       Thread.sleep(nanos / 1000000, (nanos % 1000000).toInt)
     false

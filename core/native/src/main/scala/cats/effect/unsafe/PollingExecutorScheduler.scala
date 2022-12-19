@@ -17,7 +17,7 @@
 package cats.effect
 package unsafe
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.concurrent.duration._
 
 @deprecated("Use default runtime with a custom PollingSystem", "3.5.0")
@@ -29,10 +29,12 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
     pollEvery,
     new PollingSystem {
       type Poller = outer.type
-      def makePoller(): Poller = outer
-      def close(poller: Poller): Unit = ()
-      def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =
-        if (nanos == -1) outer.poll(Duration.Inf) else outer.poll(nanos.nanos)
+      type PollData = outer.type
+      def makePoller(ec: ExecutionContext, data: () => PollData): Poller = outer
+      def makePollData(): PollData = outer
+      def closePollData(data: PollData): Unit = ()
+      def poll(data: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =
+        if (nanos == -1) data.poll(Duration.Inf) else data.poll(nanos.nanos)
     }
   )
 

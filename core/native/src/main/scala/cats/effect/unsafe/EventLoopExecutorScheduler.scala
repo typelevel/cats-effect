@@ -31,7 +31,9 @@ private final class EventLoopExecutorScheduler(pollEvery: Int, system: PollingSy
     with ExecutionContextExecutor
     with Scheduler {
 
-  private[this] val _poller = system.makePoller()
+  private[this] val pollData = system.makePollData()
+
+  val poller: Any = system.makePoller(this, () => pollData)
 
   private[this] var needsReschedule: Boolean = true
 
@@ -80,8 +82,6 @@ private final class EventLoopExecutorScheduler(pollEvery: Int, system: PollingSy
 
   def monotonicNanos() = System.nanoTime()
 
-  def poller(): Any = _poller
-
   private[this] def loop(): Unit = {
     needsReschedule = false
 
@@ -120,7 +120,7 @@ private final class EventLoopExecutorScheduler(pollEvery: Int, system: PollingSy
         else
           -1
 
-      val needsPoll = system.poll(_poller, timeout, reportFailure)
+      val needsPoll = system.poll(pollData, timeout, reportFailure)
 
       continue = needsPoll || !executeQueue.isEmpty() || !sleepQueue.isEmpty()
     }

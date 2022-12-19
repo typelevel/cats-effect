@@ -68,7 +68,7 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
 
   def eventLoop[Poller](implicit ct: ClassTag[Poller]): IO[Option[EventLoop[Poller]]] =
     IO.executionContext.map {
-      case loop: EventLoop[_] if ct.runtimeClass.isInstance(loop.poller()) =>
+      case loop: EventLoop[_] if ct.runtimeClass.isInstance(loop.poller) =>
         Some(loop.asInstanceOf[EventLoop[Poller]])
       case _ => None
     }

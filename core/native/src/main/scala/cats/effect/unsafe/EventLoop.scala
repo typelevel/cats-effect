@@ -19,8 +19,8 @@ package unsafe
 
 import scala.concurrent.ExecutionContext
 
-trait EventLoop[Poller] extends ExecutionContext {
+trait EventLoop[+Poller] extends ExecutionContext {
 
-  def poller(): Poller
+  def poller: Poller
 
 }

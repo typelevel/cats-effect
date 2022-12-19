@@ -17,13 +17,25 @@
 package cats.effect
 package unsafe
 
+import scala.concurrent.ExecutionContext
+
 abstract class PollingSystem {
 
+  /**
+   * The user-facing Poller interface.
+   */
   type Poller
 
-  def makePoller(): Poller
+  /**
+   * The thread-local data structure used for polling.
+   */
+  type PollData
 
-  def close(poller: Poller): Unit
+  def makePoller(ec: ExecutionContext, data: () => PollData): Poller
+
+  def makePollData(): PollData
+
+  def closePollData(poller: PollData): Unit
 
   /**
    * @param nanos
@@ -36,6 +48,6 @@ abstract class PollingSystem {
    * @return
    *   whether poll should be called again (i.e., there are more events to be polled)
    */
-  def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean
+  def poll(data: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean
 
 }
