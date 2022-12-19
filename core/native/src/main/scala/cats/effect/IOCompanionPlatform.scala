@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.effect.std.Console
-import cats.effect.unsafe.EventLoop
+import cats.effect.unsafe.EventLoopExecutorScheduler
 
 import scala.reflect.ClassTag
 
@@ -66,10 +66,10 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
   def readLine: IO[String] =
     Console[IO].readLine
 
-  def eventLoop[Poller](implicit ct: ClassTag[Poller]): IO[Option[EventLoop[Poller]]] =
+  def poller[Poller](implicit ct: ClassTag[Poller]): IO[Option[Poller]] =
     IO.executionContext.map {
-      case loop: EventLoop[_] if ct.runtimeClass.isInstance(loop.poller) =>
-        Some(loop.asInstanceOf[EventLoop[Poller]])
+      case loop: EventLoopExecutorScheduler if ct.runtimeClass.isInstance(loop.poller) =>
+        Some(loop.poller.asInstanceOf[Poller])
       case _ => None
     }
 }

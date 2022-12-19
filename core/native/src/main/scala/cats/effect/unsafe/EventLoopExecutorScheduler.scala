@@ -26,9 +26,8 @@ import scala.util.control.NonFatal
 
 import java.util.{ArrayDeque, PriorityQueue}
 
-private final class EventLoopExecutorScheduler(pollEvery: Int, system: PollingSystem)
-    extends EventLoop[Any]
-    with ExecutionContextExecutor
+private[effect] final class EventLoopExecutorScheduler(pollEvery: Int, system: PollingSystem)
+    extends ExecutionContextExecutor
     with Scheduler {
 
   private[this] val pollData = system.makePollData()
