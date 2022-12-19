@@ -27,8 +27,8 @@ trait FileDescriptorPoller {
    */
   def registerFileDescriptor(
       fileDescriptor: Int,
-      read: Boolean,
-      monitorWrites: Boolean
+      monitorReadReady: Boolean,
+      monitorWriteReady: Boolean
   ): Resource[IO, FileDescriptorPollHandle]
 
 }
