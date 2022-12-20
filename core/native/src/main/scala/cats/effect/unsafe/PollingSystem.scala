@@ -35,7 +35,7 @@ abstract class PollingSystem {
 
   def makePollData(): PollData
 
-  def closePollData(poller: PollData): Unit
+  def closePollData(data: PollData): Unit
 
   /**
    * @param nanos

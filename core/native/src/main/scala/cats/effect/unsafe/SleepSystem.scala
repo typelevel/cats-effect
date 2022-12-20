@@ -28,9 +28,9 @@ object SleepSystem extends PollingSystem {
 
   def makePollData(): PollData = new PollData
 
-  def closePollData(poller: PollData): Unit = ()
+  def closePollData(data: PollData): Unit = ()
 
-  def poll(poller: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
+  def poll(data: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
     if (nanos > 0)
       Thread.sleep(nanos / 1000000, (nanos % 1000000).toInt)
     false
