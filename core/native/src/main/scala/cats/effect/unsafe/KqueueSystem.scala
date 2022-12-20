@@ -17,11 +17,13 @@
 package cats.effect
 package unsafe
 
+import cats.effect.std.Semaphore
+import cats.syntax.all._
+
 import org.typelevel.scalaccompat.annotation._
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
-import scala.collection.mutable.LongMap
 import scala.scalanative.libc.errno._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.time._
@@ -29,10 +31,9 @@ import scala.scalanative.posix.timeOps._
 import scala.scalanative.posix.unistd
 import scala.scalanative.unsafe._
 import scala.scalanative.unsigned._
-import scala.util.control.NonFatal
 
 import java.io.IOException
-import java.util.ArrayDeque
+import java.util.HashMap
 
 object KqueueSystem extends PollingSystem {
 
@@ -41,7 +42,8 @@ object KqueueSystem extends PollingSystem {
 
   private final val MaxEvents = 64
 
-  def makePoller(ec: ExecutionContext, data: () => PollData): Poller = new Poller
+  def makePoller(ec: ExecutionContext, data: () => PollData): Poller =
+    new Poller(ec, data)
 
   def makePollData(): PollData = {
     val fd = kqueue()
@@ -53,153 +55,175 @@ object KqueueSystem extends PollingSystem {
   def closePollData(data: PollData): Unit = data.close()
 
   def poll(data: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean =
-    data.poll(nanos, reportFailure)
+    data.poll(nanos)
 
-  final class Poller private[KqueueSystem] ()
+  final class Poller private[KqueueSystem] (
+      ec: ExecutionContext,
+      data: () => PollData
+  ) extends FileDescriptorPoller {
+    def registerFileDescriptor(
+        fd: Int,
+        reads: Boolean,
+        writes: Boolean
+    ): Resource[IO, FileDescriptorPollHandle] =
+      Resource.eval {
+        (Semaphore[IO](1), Semaphore[IO](1)).mapN {
+          new PollHandle(ec, data, fd, _, _)
+        }
+      }
+  }
+
+  private final class PollHandle(
+      ec: ExecutionContext,
+      data: () => PollData,
+      fd: Int,
+      readSemaphore: Semaphore[IO],
+      writeSemaphore: Semaphore[IO]
+  ) extends FileDescriptorPollHandle {
+
+    private[this] val readEvent = KEvent(fd.toLong, EVFILT_READ)
+    private[this] val writeEvent = KEvent(fd.toLong, EVFILT_WRITE)
+
+    def pollReadRec[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
+      readSemaphore.permit.surround {
+        a.tailRecM { a =>
+          f(a).flatTap { r =>
+            if (r.isRight)
+              IO.unit
+            else
+              IO.async[Unit] { cb =>
+                IO {
+                  val kqueue = data()
+                  kqueue.evSet(readEvent, EV_ADD.toUShort, cb)
+                  Some(IO(kqueue.removeCallback(readEvent)))
+                }
+              }.evalOn(ec)
+          }
+        }
+      }
+
+    def pollWriteRec[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
+      writeSemaphore.permit.surround {
+        a.tailRecM { a =>
+          f(a).flatTap { r =>
+            if (r.isRight)
+              IO.unit
+            else
+              IO.async[Unit] { cb =>
+                IO {
+                  val kqueue = data()
+                  kqueue.evSet(writeEvent, EV_ADD.toUShort, cb)
+                  Some(IO(kqueue.removeCallback(writeEvent)))
+                }
+              }.evalOn(ec)
+          }
+        }
+      }
+
+  }
+
+  private final case class KEvent(ident: Long, filter: Short)
 
   final class PollData private[KqueueSystem] (kqfd: Int) {
 
-    private[this] val changes: ArrayDeque[EvAdd] = new ArrayDeque
-    // private[this] val callbacks: LongMap[FileDescriptorPoller.Callback] = new LongMap
+    private[this] val changelistArray = new Array[Byte](sizeof[kevent64_s].toInt * MaxEvents)
+    private[this] val changelist = changelistArray.at(0).asInstanceOf[Ptr[kevent64_s]]
+    private[this] var changeCount = 0
+
+    private[this] val callbacks = new HashMap[KEvent, Either[Throwable, Unit] => Unit]()
+
+    private[KqueueSystem] def evSet(
+        event: KEvent,
+        flags: CUnsignedShort,
+        cb: Either[Throwable, Unit] => Unit
+    ): Unit = {
+      val change = changelist + changeCount.toLong
+
+      change.ident = event.ident.toULong
+      change.filter = event.filter
+      change.flags = (flags.toInt | EV_ONESHOT).toUShort
+
+      callbacks.put(event, cb)
+
+      changeCount += 1
+    }
+
+    private[KqueueSystem] def removeCallback(event: KEvent): Unit = {
+      callbacks.remove(event)
+      ()
+    }
 
     private[KqueueSystem] def close(): Unit =
       if (unistd.close(kqfd) != 0)
         throw new IOException(fromCString(strerror(errno)))
 
-    private[KqueueSystem] def poll(timeout: Long, reportFailure: Throwable => Unit): Boolean = {
-      // val noCallbacks = callbacks.isEmpty
+    private[KqueueSystem] def poll(timeout: Long): Boolean = {
+      val noCallbacks = callbacks.isEmpty
 
-      // // pre-process the changes to filter canceled ones
-      // val changelist = stackalloc[kevent64_s](changes.size().toLong)
-      // var change = changelist
-      // var changeCount = 0
-      // while (!changes.isEmpty()) {
-      //   val evAdd = changes.poll()
-      //   if (!evAdd.canceled) {
-      //     change.ident = evAdd.fd.toULong
-      //     change.filter = evAdd.filter
-      //     change.flags = (EV_ADD | EV_CLEAR).toUShort
-      //     change.udata = FileDescriptorPoller.Callback.toPtr(evAdd.cb)
-      //     change += 1
-      //     changeCount += 1
-      //   }
-      // }
+      if (timeout <= 0 && noCallbacks && changeCount == 0)
+        false // nothing to do here
+      else {
 
-      // if (timeout <= 0 && noCallbacks && changeCount == 0)
-      //   false // nothing to do here
-      // else {
+        val eventlist = stackalloc[kevent64_s](MaxEvents.toLong)
 
-      //   val eventlist = stackalloc[kevent64_s](MaxEvents.toLong)
+        @tailrec
+        def processEvents(timeout: Ptr[timespec], changeCount: Int, flags: Int): Unit = {
 
-      //   @tailrec
-      //   def processEvents(timeout: Ptr[timespec], changeCount: Int, flags: Int): Unit = {
+          val triggeredEvents =
+            kevent64(
+              kqfd,
+              changelist,
+              changeCount,
+              eventlist,
+              MaxEvents,
+              flags.toUInt,
+              timeout
+            )
 
-      //     val triggeredEvents =
-      //       kevent64(
-      //         kqfd,
-      //         changelist,
-      //         changeCount,
-      //         eventlist,
-      //         MaxEvents,
-      //         flags.toUInt,
-      //         timeout
-      //       )
+          if (triggeredEvents >= 0) {
+            var i = 0
+            var event = eventlist
+            while (i < triggeredEvents) {
+              val cb = callbacks.remove(KEvent(event.ident.toLong, event.filter))
 
-      //     if (triggeredEvents >= 0) {
-      //       var i = 0
-      //       var event = eventlist
-      //       while (i < triggeredEvents) {
-      //         if ((event.flags.toLong & EV_ERROR) != 0) {
+              if (cb ne null)
+                cb(
+                  if ((event.flags.toLong & EV_ERROR) != 0)
+                    Left(new IOException(fromCString(strerror(event.data.toInt))))
+                  else Either.unit
+                )
 
-      //           // TODO it would be interesting to propagate this failure via the callback
-      //           reportFailure(new IOException(fromCString(strerror(event.data.toInt))))
+              i += 1
+              event += 1
+            }
+          } else {
+            throw new IOException(fromCString(strerror(errno)))
+          }
 
-      //         } else if (callbacks.contains(event.ident.toLong)) {
-      //           val filter = event.filter
-      //           val cb = FileDescriptorPoller.Callback.fromPtr(event.udata)
+          if (triggeredEvents >= MaxEvents)
+            processEvents(null, 0, KEVENT_FLAG_NONE) // drain the ready list
+          else
+            ()
+        }
 
-      //           try {
-      //             cb.notifyFileDescriptorEvents(filter == EVFILT_READ, filter == EVFILT_WRITE)
-      //           } catch {
-      //             case NonFatal(ex) =>
-      //               reportFailure(ex)
-      //           }
-      //         }
+        val timeoutSpec =
+          if (timeout <= 0) null
+          else {
+            val ts = stackalloc[timespec]()
+            ts.tv_sec = timeout / 1000000000
+            ts.tv_nsec = timeout % 1000000000
+            ts
+          }
 
-      //         i += 1
-      //         event += 1
-      //       }
-      //     } else {
-      //       throw new IOException(fromCString(strerror(errno)))
-      //     }
+        val flags = if (timeout == 0) KEVENT_FLAG_IMMEDIATE else KEVENT_FLAG_NONE
 
-      //     if (triggeredEvents >= MaxEvents)
-      //       processEvents(null, 0, KEVENT_FLAG_NONE) // drain the ready list
-      //     else
-      //       ()
-      //   }
+        processEvents(timeoutSpec, changeCount, flags)
+        changeCount = 0
 
-      //   val timeoutSpec =
-      //     if (timeout <= 0) null
-      //     else {
-      //       val ts = stackalloc[timespec]()
-      //       ts.tv_sec = timeout / 1000000000
-      //       ts.tv_nsec = timeout % 1000000000
-      //       ts
-      //     }
-
-      //   val flags = if (timeout == 0) KEVENT_FLAG_IMMEDIATE else KEVENT_FLAG_NONE
-
-      //   processEvents(timeoutSpec, changeCount, flags)
-
-      //   !changes.isEmpty() || callbacks.nonEmpty
-      // }
-      ???
+        !callbacks.isEmpty()
+      }
     }
 
-    // def registerFileDescriptor(fd: Int, reads: Boolean, writes: Boolean)(
-    //     cb: FileDescriptorPoller.Callback): Runnable = {
-
-    //   val readEvent =
-    //     if (reads)
-    //       new EvAdd(fd, EVFILT_READ, cb)
-    //     else null
-
-    //   val writeEvent =
-    //     if (writes)
-    //       new EvAdd(fd, EVFILT_WRITE, cb)
-    //     else null
-
-    //   if (readEvent != null)
-    //     changes.add(readEvent)
-    //   if (writeEvent != null)
-    //     changes.add(writeEvent)
-
-    //   callbacks(fd.toLong) = cb
-
-    //   () => {
-    //     // we do not need to explicitly unregister the fd with the kqueue,
-    //     // b/c it will be unregistered automatically when the fd is closed
-
-    //     // release the callback, so it can be GCed
-    //     callbacks.remove(fd.toLong)
-
-    //     // cancel the events, such that if they are currently pending in the
-    //     // changes queue awaiting registration, they will not be registered
-    //     if (readEvent != null) readEvent.cancel()
-    //     if (writeEvent != null) writeEvent.cancel()
-    //   }
-    // }
-
-  }
-
-  private final class EvAdd(
-      val fd: Int,
-      val filter: Short,
-      val cb: Any
-  ) {
-    var canceled = false
-    def cancel() = canceled = true
   }
 
   @nowarn212
@@ -215,6 +239,7 @@ object KqueueSystem extends PollingSystem {
 
     final val EV_ADD = 0x0001
     final val EV_DELETE = 0x0002
+    final val EV_ONESHOT = 0x0010
     final val EV_CLEAR = 0x0020
     final val EV_ERROR = 0x4000
 
