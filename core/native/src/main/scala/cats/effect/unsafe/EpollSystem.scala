@@ -17,16 +17,20 @@
 package cats.effect
 package unsafe
 
+import cats.effect.std.Semaphore
+import cats.syntax.all._
+
 import org.typelevel.scalaccompat.annotation._
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
+import scala.scalanative.annotation.alwaysinline
 import scala.scalanative.libc.errno._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.unistd
+import scala.scalanative.runtime._
 import scala.scalanative.unsafe._
 import scala.scalanative.unsigned._
-import scala.util.control.NonFatal
 
 import java.io.IOException
 import java.util.{Collections, IdentityHashMap, Set}
@@ -38,7 +42,8 @@ object EpollSystem extends PollingSystem {
 
   private[this] final val MaxEvents = 64
 
-  def makePoller(ec: ExecutionContext, data: () => PollData): Poller = new Poller
+  def makePoller(ec: ExecutionContext, data: () => PollData): Poller =
+    new Poller(ec, data)
 
   def makePollData(): PollData = {
     val fd = epoll_create1(0)
@@ -50,82 +55,192 @@ object EpollSystem extends PollingSystem {
   def closePollData(data: PollData): Unit = data.close()
 
   def poll(data: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean =
-    data.poll(nanos, reportFailure)
+    data.poll(nanos)
 
-  final class Poller private[EpollSystem] ()
+  final class Poller private[EpollSystem] (ec: ExecutionContext, data: () => PollData)
+      extends FileDescriptorPoller {
+
+    def registerFileDescriptor(
+        fd: Int,
+        reads: Boolean,
+        writes: Boolean
+    ): Resource[IO, FileDescriptorPollHandle] =
+      Resource
+        .make {
+          (Semaphore[IO](1), Semaphore[IO](1)).flatMapN { (readSemaphore, writeSemaphore) =>
+            IO {
+              val handle = new PollHandle(readSemaphore, writeSemaphore)
+              val unregister = data().register(fd, reads, writes, handle)
+              (handle, unregister)
+            }.evalOn(ec)
+          }
+        }(_._2)
+        .map(_._1)
+
+  }
+
+  private final class PollHandle(
+      readSemaphore: Semaphore[IO],
+      writeSemaphore: Semaphore[IO]
+  ) extends FileDescriptorPollHandle {
+
+    private[this] var readReadyCounter = 0
+    private[this] var readCallback: Either[Throwable, Int] => Unit = null
+
+    private[this] var writeReadyCounter = 0
+    private[this] var writeCallback: Either[Throwable, Int] => Unit = null
+
+    def notify(events: Int): Unit = {
+      if ((events & EPOLLIN) != 0) {
+        val counter = readReadyCounter + 1
+        readReadyCounter = counter
+        val cb = readCallback
+        readCallback = null
+        if (cb ne null) cb(Right(counter))
+      }
+      if ((events & EPOLLOUT) != 0) {
+        val counter = writeReadyCounter + 1
+        writeReadyCounter = counter
+        val cb = writeCallback
+        writeCallback = null
+        if (cb ne null) cb(Right(counter))
+      }
+    }
+
+    def pollReadRec[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
+      readSemaphore.permit.surround {
+        def go(a: A, before: Int): IO[B] =
+          f(a).flatMap {
+            case Left(a) =>
+              IO(readReadyCounter).flatMap { after =>
+                if (before != after)
+                  // there was a read-ready notification since we started, try again immediately
+                  go(a, after)
+                else
+                  IO.async[Int] { cb =>
+                    IO {
+                      readCallback = cb
+                      // check again before we suspend
+                      val now = readReadyCounter
+                      if (now != before) {
+                        cb(Right(now))
+                        readCallback = null
+                        None
+                      } else Some(IO(this.readCallback = null))
+                    }
+                  }.flatMap(go(a, _))
+              }
+            case Right(b) => IO.pure(b)
+          }
+
+        IO(readReadyCounter).flatMap(go(a, _))
+      }
+
+    def pollWriteRec[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
+      writeSemaphore.permit.surround {
+        def go(a: A, before: Int): IO[B] =
+          f(a).flatMap {
+            case Left(a) =>
+              IO(writeReadyCounter).flatMap { after =>
+                if (before != after)
+                  // there was a write-ready notification since we started, try again immediately
+                  go(a, after)
+                else
+                  IO.async[Int] { cb =>
+                    IO {
+                      writeCallback = cb
+                      // check again before we suspend
+                      val now = writeReadyCounter
+                      if (now != before) {
+                        cb(Right(now))
+                        writeCallback = null
+                        None
+                      } else Some(IO(this.writeCallback = null))
+                    }
+                  }.flatMap(go(a, _))
+              }
+            case Right(b) => IO.pure(b)
+          }
+
+        IO(writeReadyCounter).flatMap(go(a, _))
+      }
+
+  }
 
   final class PollData private[EpollSystem] (epfd: Int) {
 
-    // private[this] val callbacks: Set[FileDescriptorPoller.Callback] =
-    //   Collections.newSetFromMap(new IdentityHashMap)
+    private[this] val handles: Set[PollHandle] =
+      Collections.newSetFromMap(new IdentityHashMap)
 
     private[EpollSystem] def close(): Unit =
       if (unistd.close(epfd) != 0)
         throw new IOException(fromCString(strerror(errno)))
 
-    private[EpollSystem] def poll(timeout: Long, reportFailure: Throwable => Unit): Boolean = {
-      // val noCallbacks = callbacks.isEmpty()
+    private[EpollSystem] def poll(timeout: Long): Boolean = {
+      val noHandles = handles.isEmpty()
 
-      // if (timeout <= 0 && noCallbacks)
-      //   false // nothing to do here
-      // else {
-      //   val events = stackalloc[epoll_event](MaxEvents.toLong)
+      if (timeout <= 0 && noHandles)
+        false // nothing to do here
+      else {
+        val events = stackalloc[epoll_event](MaxEvents.toLong)
 
-      //   @tailrec
-      //   def processEvents(timeout: Int): Unit = {
+        @tailrec
+        def processEvents(timeout: Int): Unit = {
 
-      //     val triggeredEvents = epoll_wait(epfd, events, MaxEvents, timeout)
+          val triggeredEvents = epoll_wait(epfd, events, MaxEvents, timeout)
 
-      //     if (triggeredEvents >= 0) {
-      //       var i = 0
-      //       while (i < triggeredEvents) {
-      //         val event = events + i.toLong
-      //         val cb = FileDescriptorPoller.Callback.fromPtr(event.data)
-      //         try {
-      //           val e = event.events.toInt
-      //           val readReady = (e & EPOLLIN) != 0
-      //           val writeReady = (e & EPOLLOUT) != 0
-      //           cb.notifyFileDescriptorEvents(readReady, writeReady)
-      //         } catch {
-      //           case ex if NonFatal(ex) => reportFailure(ex)
-      //         }
-      //         i += 1
-      //       }
-      //     } else {
-      //       throw new IOException(fromCString(strerror(errno)))
-      //     }
+          if (triggeredEvents >= 0) {
+            var i = 0
+            while (i < triggeredEvents) {
+              val event = events + i.toLong
+              val handle = fromPtr(event.data)
+              handle.notify(event.events.toInt)
+              i += 1
+            }
+          } else {
+            throw new IOException(fromCString(strerror(errno)))
+          }
 
-      //     if (triggeredEvents >= MaxEvents)
-      //       processEvents(0) // drain the ready list
-      //     else
-      //       ()
-      //   }
+          if (triggeredEvents >= MaxEvents)
+            processEvents(0) // drain the ready list
+          else
+            ()
+        }
 
-      //   val timeoutMillis = if (timeout == -1) -1 else (timeout / 1000000).toInt
-      //   processEvents(timeoutMillis)
+        val timeoutMillis = if (timeout == -1) -1 else (timeout / 1000000).toInt
+        processEvents(timeoutMillis)
 
-      //   !callbacks.isEmpty()
-      // }
-      ???
+        !handles.isEmpty()
+      }
     }
 
-    // def registerFileDescriptor(fd: Int, reads: Boolean, writes: Boolean)(
-    //     cb: FileDescriptorPoller.Callback): Runnable = {
-    //   val event = stackalloc[epoll_event]()
-    //   event.events =
-    //     (EPOLLET | (if (reads) EPOLLIN else 0) | (if (writes) EPOLLOUT else 0)).toUInt
-    //   event.data = FileDescriptorPoller.Callback.toPtr(cb)
+    private[EpollSystem] def register(
+        fd: Int,
+        reads: Boolean,
+        writes: Boolean,
+        handle: PollHandle
+    ): IO[Unit] = {
+      val event = stackalloc[epoll_event]()
+      event.events =
+        (EPOLLET | (if (reads) EPOLLIN else 0) | (if (writes) EPOLLOUT else 0)).toUInt
+      event.data = toPtr(handle)
 
-    //   if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, event) != 0)
-    //     throw new IOException(fromCString(strerror(errno)))
-    //   callbacks.add(cb)
+      if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, event) != 0)
+        throw new IOException(fromCString(strerror(errno)))
+      handles.add(handle)
 
-    //   () => {
-    //     callbacks.remove(cb)
-    //     if (epoll_ctl(epfd, EPOLL_CTL_DEL, fd, null) != 0)
-    //       throw new IOException(fromCString(strerror(errno)))
-    //   }
-    // }
+      IO {
+        handles.remove(handle)
+        if (epoll_ctl(epfd, EPOLL_CTL_DEL, fd, null) != 0)
+          throw new IOException(fromCString(strerror(errno)))
+      }
+    }
+
+    @alwaysinline private[this] def toPtr(handle: PollHandle): Ptr[Byte] =
+      fromRawPtr(Intrinsics.castObjectToRawPtr(handle))
+
+    @alwaysinline private[this] def fromPtr[A](ptr: Ptr[Byte]): PollHandle =
+      Intrinsics.castRawPtrToObject(toRawPtr(ptr)).asInstanceOf[PollHandle]
   }
 
   @nowarn212
