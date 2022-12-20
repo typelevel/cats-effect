@@ -22,6 +22,7 @@ import cats.syntax.all._
 import scala.concurrent.duration._
 import scala.scalanative.libc.errno._
 import scala.scalanative.posix.errno._
+import scala.scalanative.posix.fcntl._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.unistd
 import scala.scalanative.unsafe._
