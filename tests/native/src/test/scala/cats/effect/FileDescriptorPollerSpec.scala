@@ -46,7 +46,7 @@ class FileDescriptorPollerSpec extends BaseSpec {
     def write(buf: Array[Byte], offset: Int, length: Int): IO[Unit] =
       writeHandle
         .pollWriteRec(()) { _ =>
-          IO(guard(unistd.write(readFd, buf.at(offset), length.toULong)))
+          IO(guard(unistd.write(writeFd, buf.at(offset), length.toULong)))
         }
         .void
 
@@ -114,13 +114,17 @@ class FileDescriptorPollerSpec extends BaseSpec {
     "handle lots of simultaneous events" in real {
       mkPipe.replicateA(1000).use { pipes =>
         CountDownLatch[IO](1000).flatMap { latch =>
-          pipes.traverse_(pipe => pipe.read(new Array[Byte](1), 0, 1).background).surround {
-            IO { // trigger all the pipes at once
-              pipes.foreach { pipe =>
-                unistd.write(pipe.writeFd, Array[Byte](42).at(0), 1.toULong)
-              }
-            }.background.surround(latch.await.as(true))
-          }
+          pipes
+            .traverse_ { pipe =>
+              (pipe.read(new Array[Byte](1), 0, 1) *> latch.release).background
+            }
+            .surround {
+              IO { // trigger all the pipes at once
+                pipes.foreach { pipe =>
+                  unistd.write(pipe.writeFd, Array[Byte](42).at(0), 1.toULong)
+                }
+              }.background.surround(latch.await.as(true))
+            }
         }
       }
     }
