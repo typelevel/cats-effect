@@ -63,30 +63,40 @@ class FileDescriptorPollerSpec extends BaseSpec {
   }
 
   def mkPipe: Resource[IO, Pipe] =
-    Resource.make {
-      IO {
-        val fd = stackalloc[CInt](2)
-        if (unistd.pipe(fd) != 0)
-          throw new IOException(fromCString(strerror(errno)))
-        else
-          (fd(0), fd(1))
-      }
-    } {
-      case (readFd, writeFd) =>
+    Resource
+      .make {
         IO {
-          unistd.close(readFd)
-          unistd.close(writeFd)
-          ()
+          val fd = stackalloc[CInt](2)
+          if (unistd.pipe(fd) != 0)
+            throw new IOException(fromCString(strerror(errno)))
+          (fd(0), fd(1))
         }
-    } >>= {
-      case (readFd, writeFd) =>
-        Resource.eval(IO.poller[FileDescriptorPoller].map(_.get)).flatMap { poller =>
-          (
-            poller.registerFileDescriptor(readFd, true, false),
-            poller.registerFileDescriptor(writeFd, false, true)
-          ).mapN(new Pipe(readFd, writeFd, _, _))
-        }
-    }
+      } {
+        case (readFd, writeFd) =>
+          IO {
+            unistd.close(readFd)
+            unistd.close(writeFd)
+            ()
+          }
+      }
+      .evalTap {
+        case (readFd, writeFd) =>
+          IO {
+            if (fcntl(readFd, F_SETFL, O_NONBLOCK) != 0)
+              throw new IOException(fromCString(strerror(errno)))
+            if (fcntl(writeFd, F_SETFL, O_NONBLOCK) != 0)
+              throw new IOException(fromCString(strerror(errno)))
+          }
+      }
+      .flatMap {
+        case (readFd, writeFd) =>
+          Resource.eval(IO.poller[FileDescriptorPoller].map(_.get)).flatMap { poller =>
+            (
+              poller.registerFileDescriptor(readFd, true, false),
+              poller.registerFileDescriptor(writeFd, false, true)
+            ).mapN(new Pipe(readFd, writeFd, _, _))
+          }
+      }
 
   "FileDescriptorPoller" should {
 
