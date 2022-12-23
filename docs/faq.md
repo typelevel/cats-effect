@@ -62,7 +62,7 @@ without the blocking combinator.
 
 If you're seeing this warning and have not changed any of the default configurations, it means that your application is taking at least *100 milliseconds* to respond to an external asynchronous event. In this case, the runtime is measuring this fact using a timer, but external events are also things such as new connections, request bodies, upstream responses, and such. In other words, **if you're seeing this morning, it means your response latencies are *at least* this long.**
 
-- If this level of application performance is not within acceptable bounds, please see the [Starvation Checker](core/starvation-checker.md) documentation for more discussion on how you can resolve the issue
+- If this level of application performance is not within acceptable bounds, please see the [starvation and tuning](core/starvation-and-tuning.md) documentation for more discussion on how you can resolve the issue
 - If 100 milliseconds is acceptable for your use-case, but you would still like to preserve checking with some higher time-bound, you can adjust this by overriding the `cpuStarvationCheckThreshold` coefficient (default: `0.1d`) in `IORuntimeConfig`
 - If you would like to entirely disable this check, you can do so by overriding the `cpuStarvationCheckInitialDelay` value within `IORuntimeConfig` to `Duration.Inf`
 
