@@ -48,3 +48,22 @@ Hello world
 ```
 
 See [here](core/scala-native.md) for details.
+
+## Dealing with Starvation
+
+Cats Effect 3.4.0 introduced a default-enabled *starvation checker*, which produces warnings like the following:
+
+```
+[WARNING] Your CPU is probably starving. Consider increasing the granularity
+of your delays or adding more cedes. This may also be a sign that you are
+unintentionally running blocking I/O operations (such as File or InetAddress)
+without the blocking combinator.
+```
+
+If you're seeing this warning and have not changed any of the default configurations, it means that your application is taking at least *100 milliseconds* to respond to an external asynchronous event. In this case, the runtime is measuring this fact using a timer, but external events are also things such as new connections, request bodies, upstream responses, and such. In other words, **if you're seeing this morning, it means your response latencies are *at least* this long.**
+
+- If this level of application performance is not within acceptable bounds, please see the [Starvation Checker](core/starvation-checker.md) documentation for more discussion on how you can resolve the issue
+- If 100 milliseconds is acceptable for your use-case, but you would still like to preserve checking with some higher time-bound, you can adjust this by overriding the `cpuStarvationCheckThreshold` coefficient (default: `0.1d`) in `IORuntimeConfig`
+- If you would like to entirely disable this check, you can do so by overriding the `cpuStarvationCheckInitialDelay` value within `IORuntimeConfig` to `Duration.Inf`
+
+Please understand that this warning is essentially never a false negative. Outside of some extremely rare circumstances, it accurately measures the responsiveness of your application runtime. However, as a corollary of this accuracy, it is measuring not only your application runtime, but also the system (and other adjacent processes on that system) on which your application is running. Thus, if you see this warning, it essentially always means that either the checker's definition of "responsiveness" (100 millisecond SLA) is different from what you expected, or it means that there is some legitimate problem *somewhere* in your application, your JVM, your kernel, your host environment, or all of the above.
