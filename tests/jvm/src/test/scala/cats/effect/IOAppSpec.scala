@@ -200,7 +200,7 @@ class IOAppSpec extends Specification {
           h.awaitStatus()
           val err = h.stderr()
           err must not(contain("[WARNING] Failed to register Cats Effect CPU"))
-          err must contain("[WARNING] Your CPU is probably starving")
+          err must contain("[WARNING] Your app's responsiveness")
         }
 
         "custom runtime installed as global" in {
