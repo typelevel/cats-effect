@@ -77,6 +77,6 @@ private final class IODeferred[A] extends Deferred[IO, A] {
   }
 }
 
-object IODeferred {
+private object IODeferred {
   private val Sentinel = new AnyRef
 }
