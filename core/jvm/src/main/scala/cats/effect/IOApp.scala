@@ -211,7 +211,7 @@ trait IOApp {
         def reportFailure(t: Throwable): Unit =
           t match {
             case t if NonFatal(t) =>
-              t.printStackTrace()
+              IOApp.this.reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime)
 
             case t =>
               runtime.shutdown()

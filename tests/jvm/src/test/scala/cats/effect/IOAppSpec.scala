@@ -309,6 +309,11 @@ class IOAppSpec extends Specification {
           val h = platform(EvalOnMainThread, List.empty)
           h.awaitStatus() mustEqual 0
         }
+
+        "use configurable reportFailure for MainThread" in {
+          val h = platform(MainThreadReportFailure, List.empty)
+          h.awaitStatus() mustEqual 0
+        }
       }
     }
     ()
