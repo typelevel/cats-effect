@@ -21,6 +21,7 @@ import cats.data.{Kleisli, OptionT}
 import cats.effect.implicits._
 import cats.effect.kernel.testkit.TestContext
 import cats.effect.laws.AsyncTests
+import cats.effect.testkit.TestControl
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
@@ -825,6 +826,29 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           ticker.ctx.advanceAndTick(1.second)
           winnerClosed must beTrue
           completed must beTrue
+      }
+
+      "closes the loser eagerly" in real {
+        val go = (
+          IO.ref(false),
+          IO.ref(false),
+          IO.deferred[Either[Unit, Unit]]
+        ).flatMapN { (acquiredLeft, acquiredRight, loserReleased) =>
+          val left = Resource.make(acquiredLeft.set(true))(_ =>
+            loserReleased.complete(Left[Unit, Unit](())).void)
+
+          val right = Resource.make(acquiredRight.set(true))(_ =>
+            loserReleased.complete(Right[Unit, Unit](())).void)
+
+          Resource.race(left, right).use {
+            case Left(()) =>
+              acquiredRight.get.ifM(loserReleased.get.map(_ must beRight[Unit]), IO.unit)
+            case Right(()) =>
+              acquiredLeft.get.ifM(loserReleased.get.map(_ must beLeft[Unit]).void, IO.unit)
+          }
+        }
+
+        TestControl.executeEmbed(go.replicateA_(100)).as(true)
       }
     }
 
