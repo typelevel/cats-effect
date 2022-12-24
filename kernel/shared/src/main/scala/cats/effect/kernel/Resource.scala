@@ -251,9 +251,9 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
    * _each_ of the two resources, nested finalizers are run in the usual reverse order of
    * acquisition.
    *
-   * The same [[ExitCase]] is propagated to every finalizer. If both resources acquired
-   * successfully, the [[ExitCase]] is determined by the outcome of [[use]]. Otherwise, it is
-   * determined by which resource failed or canceled first during acquisition.
+   * The same [[Resource.ExitCase]] is propagated to every finalizer. If both resources acquired
+   * successfully, the [[Resource.ExitCase]] is determined by the outcome of [[use]]. Otherwise,
+   * it is determined by which resource failed or canceled first during acquisition.
    *
    * Note that `Resource` also comes with a `cats.Parallel` instance that offers more convenient
    * access to the same functionality as `both`, for example via `parMapN`:
