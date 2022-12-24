@@ -30,6 +30,9 @@ import java.nio.charset.Charset
  * Effect type agnostic `Console` with common methods to write to and read from the standard
  * console. Suited only for extremely simple console input and output.
  *
+ * @note
+ *   `readLine` is not implemented for Scala.js. On Node.js consider using `fs2.io.stdin`.
+ *
  * @example
  *   {{{
  *  import cats.effect.IO

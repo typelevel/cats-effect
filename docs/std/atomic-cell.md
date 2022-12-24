@@ -20,6 +20,8 @@ abstract class AtomicCell[F[_], A] {
 }
 ```
 
+## Using `AtomicCell`
+
 The `AtomicCell` can be treated as a combination of `Semaphore` and `Ref`:
 ```scala mdoc:reset:silent
 import cats.effect.{IO, Ref}

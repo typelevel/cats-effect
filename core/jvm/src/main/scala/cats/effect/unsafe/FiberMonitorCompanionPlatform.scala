@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 
-package cats.effect
-package tracing
+package cats.effect.unsafe
 
-private[effect] object TracingConstants {
+import cats.effect.tracing.TracingConstants
 
-  private[this] final val stackTracingMode: String =
-    Option(System.getenv("CATS_EFFECT_TRACING_MODE")).filterNot(_.isEmpty).getOrElse("cached")
+import scala.concurrent.ExecutionContext
 
-  final val isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
-
-  final val isFullStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("full")
-
-  final val isStackTracing = isFullStackTracing || isCachedStackTracing
+private[unsafe] trait FiberMonitorCompanionPlatform {
+  def apply(compute: ExecutionContext): FiberMonitor = {
+    if (TracingConstants.isStackTracing && compute.isInstanceOf[WorkStealingThreadPool]) {
+      val wstp = compute.asInstanceOf[WorkStealingThreadPool]
+      new FiberMonitor(wstp)
+    } else {
+      new FiberMonitor(null)
+    }
+  }
 }
