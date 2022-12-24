@@ -74,7 +74,7 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
     callback = null
   }
 
-  def currentHandle(): CallbackStack.Handle = ()
+  def currentHandle(): CallbackStack.Handle = 0
 
   def clear(): Unit = lazySet(null)
 }
@@ -83,5 +83,5 @@ private object CallbackStack {
   def apply[A](cb: A => Unit): CallbackStack[A] =
     new CallbackStack(cb)
 
-  type Handle = Unit
+  type Handle = Byte
 }
