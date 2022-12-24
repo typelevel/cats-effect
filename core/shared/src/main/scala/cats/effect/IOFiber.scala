@@ -85,7 +85,7 @@ private final class IOFiber[A](
   private[this] var currentCtx: ExecutionContext = startEC
   private[this] val objectState: ArrayStack[AnyRef] = ArrayStack()
   private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
-  private[this] val callbacks: CallbackStack[A] = new CallbackStack(cb)
+  private[this] val callbacks: CallbackStack[OutcomeIO[A]] = new CallbackStack(cb)
   private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: AnyRef = startIO
   private[this] val runtime: IORuntime = rt
@@ -1120,7 +1120,8 @@ private final class IOFiber[A](
   }
 
   /* can return null, meaning that no CallbackStack needs to be later invalidated */
-  private[this] def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
+  private[this] def registerListener(
+      listener: OutcomeIO[A] => Unit): CallbackStack[OutcomeIO[A]] = {
     if (outcome == null) {
       val back = callbacks.push(listener)
 
