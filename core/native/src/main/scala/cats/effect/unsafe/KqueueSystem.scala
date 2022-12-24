@@ -96,8 +96,8 @@ object KqueueSystem extends PollingSystem {
                   val kqueue = data()
                   kqueue.evSet(readEvent, EV_ADD.toUShort, cb)
                   Some(IO(kqueue.removeCallback(readEvent)))
-                }
-              }.evalOn(ec)
+                }.evalOn(ec)
+              }
           }
         }
       }
@@ -114,8 +114,8 @@ object KqueueSystem extends PollingSystem {
                   val kqueue = data()
                   kqueue.evSet(writeEvent, EV_ADD.toUShort, cb)
                   Some(IO(kqueue.removeCallback(writeEvent)))
-                }
-              }.evalOn(ec)
+                }.evalOn(ec)
+              }
           }
         }
       }
