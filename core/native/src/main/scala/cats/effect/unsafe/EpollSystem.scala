@@ -117,16 +117,15 @@ object EpollSystem extends PollingSystem {
                   // there was a read-ready notification since we started, try again immediately
                   go(a, after)
                 else
-                  IO.async[Int] { cb =>
+                  IO.asyncCheckAttempt[Int] { cb =>
                     IO {
                       readCallback = cb
                       // check again before we suspend
                       val now = readReadyCounter
                       if (now != before) {
-                        cb(Right(now))
                         readCallback = null
-                        None
-                      } else Some(IO(this.readCallback = null))
+                        Right(now)
+                      } else Left(Some(IO(this.readCallback = null)))
                     }
                   }.flatMap(go(a, _))
               }
@@ -146,16 +145,15 @@ object EpollSystem extends PollingSystem {
                   // there was a write-ready notification since we started, try again immediately
                   go(a, after)
                 else
-                  IO.async[Int] { cb =>
+                  IO.asyncCheckAttempt[Int] { cb =>
                     IO {
                       writeCallback = cb
                       // check again before we suspend
                       val now = writeReadyCounter
                       if (now != before) {
-                        cb(Right(now))
                         writeCallback = null
-                        None
-                      } else Some(IO(this.writeCallback = null))
+                        Right(now)
+                      } else Left(Some(IO(this.writeCallback = null)))
                     }
                   }.flatMap(go(a, _))
               }
