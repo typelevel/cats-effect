@@ -26,7 +26,7 @@ private final class IODeferred[A] extends Deferred[IO, A] {
   import IODeferred.Sentinel
 
   private[this] val cell = new AtomicReference[AnyRef](Sentinel)
-  private[this] val callbacks = new CallbackStack[Right[Nothing, A]](null)
+  private[this] val callbacks = CallbackStack[Right[Nothing, A]](null)
 
   def complete(a: A): IO[Boolean] = IO {
     if (cell.compareAndSet(Sentinel, a.asInstanceOf[AnyRef])) {
@@ -47,13 +47,14 @@ private final class IODeferred[A] extends Deferred[IO, A] {
             MonadCancel[G] uncancelable { poll =>
               val gga = lift {
                 IO {
-                  val handle = callbacks.push(cb)
+                  val stack = callbacks.push(cb)
+                  val handle = stack.currentHandle()
 
                   val back = cell.get()
                   if (back eq Sentinel) {
-                    poll(get).onCancel(lift(IO(handle.clearCurrent())))
+                    poll(get).onCancel(lift(IO(stack.clearCurrent(handle))))
                   } else {
-                    handle.clearCurrent()
+                    stack.clearCurrent(handle)
                     back.asInstanceOf[A].pure[G]
                   }
                 }

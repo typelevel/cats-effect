@@ -85,7 +85,7 @@ private final class IOFiber[A](
   private[this] var currentCtx: ExecutionContext = startEC
   private[this] val objectState: ArrayStack[AnyRef] = ArrayStack()
   private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
-  private[this] val callbacks: CallbackStack[OutcomeIO[A]] = new CallbackStack(cb)
+  private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack(cb)
   private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: AnyRef = startIO
   private[this] val runtime: IORuntime = rt
@@ -169,12 +169,14 @@ private final class IOFiber[A](
   /* this is swapped for an `IO.pure(outcome)` when we complete */
   private[this] var _join: IO[OutcomeIO[A]] = IO.async { cb =>
     IO {
-      val handle = registerListener(oc => cb(Right(oc)))
+      val stack = registerListener(oc => cb(Right(oc)))
 
-      if (handle == null)
+      if (stack == null.asInstanceOf[CallbackStack[OutcomeIO[A]]])
         None /* we were already invoked, so no `CallbackStack` needs to be managed */
-      else
-        Some(IO(handle.clearCurrent()))
+      else {
+        val handle = stack.currentHandle()
+        Some(IO(stack.clearCurrent(handle)))
+      }
     }
   }
 
@@ -1013,7 +1015,7 @@ private final class IOFiber[A](
         }
       }
     } finally {
-      callbacks.lazySet(null) /* avoid leaks */
+      callbacks.clear() /* avoid leaks */
     }
 
     /*
@@ -1127,15 +1129,15 @@ private final class IOFiber[A](
 
       /* double-check */
       if (outcome != null) {
-        back.clearCurrent()
+        back.clearCurrent(back.currentHandle())
         listener(outcome) /* the implementation of async saves us from double-calls */
-        null
+        null.asInstanceOf[CallbackStack[OutcomeIO[A]]]
       } else {
         back
       }
     } else {
       listener(outcome)
-      null
+      null.asInstanceOf[CallbackStack[OutcomeIO[A]]]
     }
   }
 
