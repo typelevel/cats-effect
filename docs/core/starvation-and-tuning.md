@@ -55,17 +55,17 @@ val tick: IO[Unit] =
   // grab a time offset from when we started
   IO.monotonic flatMap { start =>
     // sleep for some long interval, then measure when we woke up
-    // get the difference (this will always be a bit more than 10.seconds)
-    IO.sleep(10.seconds) *> IO.monotonic.map(_ - start) flatMap { delta =>
+    // get the difference (this will always be a bit more than 1.second)
+    IO.sleep(1.second) *> IO.monotonic.map(_ - start) flatMap { delta =>
       // the delta here is the amount of *lag* in the scheduler
       // specifically, the time between requesting CPU access and actually getting it
-      IO.println("starvation detected").whenA(delta > 10.seconds * Threshold)
+      IO.println("starvation detected").whenA(delta > 1.second * Threshold)
     }
   }
 
 // add an initial delay
 // run the check infinitely, forked to a separate fiber
-val checker: IO[Unit] = (IO.sleep(10.seconds) *> tick.foreverM).start.void
+val checker: IO[Unit] = (IO.sleep(1.second) *> tick.foreverM).start.void
 ```
 
 There are some flaws in this type of test, most notably that it is measuring not only the CPU but also the overhead associated with `IO.sleep`, but for the most part it tends to do a very good job of isolating exactly and only the action of enqueuing a new asynchronous event into the Cats Effect runtime and then reacting to that action on the CPU.
@@ -483,7 +483,7 @@ object MyMain extends IOApp {
 
 ### Increasing/Decreasing Sensitivity
 
-By default, the checker will warn whenever the compute latency exceeds 100 milliseconds. This is calculated based on the `cpuStarvationCheckInterval` (default: `10.seconds`) multiplied by the `cpuStarvationCheckThreshold` (default: `0.1d`). In general, it is recommended that if you want to increase or decrease the sensitivity of the checker, you should do so by adjusting the interval (meaning that a more sensitive check will run more frequently):
+By default, the checker will warn whenever the compute latency exceeds 100 milliseconds. This is calculated based on the `cpuStarvationCheckInterval` (default: `1.second`) multiplied by the `cpuStarvationCheckThreshold` (default: `0.1d`). In general, it is recommended that if you want to increase or decrease the sensitivity of the checker, you should do so by adjusting the interval (meaning that a more sensitive check will run more frequently):
 
 ```scala mdoc:silent
 import scala.concurrent.duration._
