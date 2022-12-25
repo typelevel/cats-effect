@@ -159,7 +159,7 @@ ThisBuild / githubWorkflowBuild := Seq("JVM", "JS", "Native").map { platform =>
     List(s"root${platform}/scalafixAll --check"),
     name = Some(s"Check that scalafix has been run on $platform"),
     cond = Some(
-      s"matrix.ci == 'ci${platform}' && matrix.scala != '$Scala3' && matrix.os == '$PrimaryOS'"
+      s"matrix.ci == 'ci${platform}' && matrix.scala != '$Scala3' && matrix.java == '${OldGuardJava.render}' && matrix.os == '$PrimaryOS'"
     ) // windows has file lock issues due to shared sources
   )
 } ++ Seq(
