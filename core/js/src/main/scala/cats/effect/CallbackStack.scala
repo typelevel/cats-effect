@@ -18,12 +18,14 @@ package cats.effect
 
 import scala.scalajs.js
 
-private final class CallbackStack[A](private val callbacks: js.Array[A => Unit])
+private trait CallbackStack[A] extends js.Object
+
+private final class CallbackStackOps[A](private val callbacks: js.Array[A => Unit])
     extends AnyVal {
 
   @inline def push(next: A => Unit): CallbackStack[A] = {
     callbacks.push(next)
-    this
+    callbacks.asInstanceOf[CallbackStack[A]]
   }
 
   @inline def unsafeSetCallback(cb: A => Unit): Unit = {
@@ -61,7 +63,10 @@ private final class CallbackStack[A](private val callbacks: js.Array[A => Unit])
 
 private object CallbackStack {
   @inline def apply[A](cb: A => Unit): CallbackStack[A] =
-    new CallbackStack(js.Array(cb))
+    js.Array(cb).asInstanceOf[CallbackStack[A]]
+
+  @inline implicit def ops[A](stack: CallbackStack[A]): CallbackStackOps[A] =
+    new CallbackStackOps(stack.asInstanceOf[js.Array[A => Unit]])
 
   type Handle = Int
 }

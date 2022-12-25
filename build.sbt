@@ -751,9 +751,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
           "cats.effect.tracing.TracingConstants.*"),
         // introduced by #3324, which specialized CallbackStack for JS
         // internal API change
-        ProblemFilters.exclude[MissingTypesProblem]("cats.effect.CallbackStack"),
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("cats.effect.CallbackStack.push"),
-        ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.CallbackStack.this")
+        ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack")
       )
     },
     mimaBinaryIssueFilters ++= {

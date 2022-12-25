@@ -171,7 +171,7 @@ private final class IOFiber[A](
     IO {
       val stack = registerListener(oc => cb(Right(oc)))
 
-      if (stack == null.asInstanceOf[CallbackStack[OutcomeIO[A]]])
+      if (stack eq null)
         None /* we were already invoked, so no `CallbackStack` needs to be managed */
       else {
         val handle = stack.currentHandle()
@@ -1131,13 +1131,13 @@ private final class IOFiber[A](
       if (outcome != null) {
         back.clearCurrent(back.currentHandle())
         listener(outcome) /* the implementation of async saves us from double-calls */
-        null.asInstanceOf[CallbackStack[OutcomeIO[A]]]
+        null
       } else {
         back
       }
     } else {
       listener(outcome)
-      null.asInstanceOf[CallbackStack[OutcomeIO[A]]]
+      null
     }
   }
 
