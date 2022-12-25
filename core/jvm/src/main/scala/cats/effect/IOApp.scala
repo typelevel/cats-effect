@@ -165,6 +165,8 @@ trait IOApp {
    */
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
+  protected def pollingSystem: unsafe.PollingSystem = unsafe.SleepSystem
+
   /**
    * Controls the number of worker threads which will be allocated to the compute pool in the
    * underlying runtime. In general, this should be no ''greater'' than the number of physical
@@ -317,22 +319,19 @@ trait IOApp {
         val (compute, compDown) =
           IORuntime.createWorkStealingComputeThreadPool(
             threads = computeWorkerThreadCount,
-            reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime))
+            reportFailure = t => reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime),
+            pollingSystem = pollingSystem)
 
         val (blocking, blockDown) =
           IORuntime.createDefaultBlockingExecutionContext()
 
-        val (scheduler, schedDown) =
-          IORuntime.createDefaultScheduler()
-
         IORuntime(
           compute,
           blocking,
-          scheduler,
+          compute,
           { () =>
             compDown()
             blockDown()
-            schedDown()
           },
           runtimeConfig)
       }

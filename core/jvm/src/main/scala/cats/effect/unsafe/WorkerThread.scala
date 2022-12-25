@@ -23,12 +23,11 @@ import cats.effect.tracing.TracingConstants
 import scala.annotation.switch
 import scala.collection.mutable
 import scala.concurrent.{BlockContext, CanAwait}
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.control.NonFatal
 
 import java.util.concurrent.{ArrayBlockingQueue, ThreadLocalRandom}
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.locks.LockSupport
 
 /**
  * Implementation of the worker thread at the heart of the [[WorkStealingThreadPool]].
@@ -52,8 +51,10 @@ private final class WorkerThread(
     private[this] val external: ScalQueue[AnyRef],
     // A worker-thread-local weak bag for tracking suspended fibers.
     private[this] var fiberBag: WeakBag[Runnable],
+    private[this] var sleepersQueue: SleepersQueue,
+    private[this] var _poller: PollingSystem#Poller,
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
-    private[this] val pool: WorkStealingThreadPool)
+    pool: WorkStealingThreadPool)
     extends Thread
     with BlockContext {
 
@@ -110,6 +111,8 @@ private final class WorkerThread(
     setName(s"$prefix-$nameIndex")
   }
 
+  private[unsafe] def poller(): PollingSystem#Poller = _poller
+
   /**
    * Schedules the fiber for execution at the back of the local queue and notifies the work
    * stealing pool of newly available work.
@@ -142,6 +145,14 @@ private final class WorkerThread(
     } else {
       schedule(fiber)
     }
+  }
+
+  def sleep(delay: FiniteDuration, callback: Right[Nothing, Unit] => Unit): Runnable = {
+    // note that blockers aren't owned by the pool, meaning we only end up here if !blocking
+    val sleepers = sleepersQueue
+    val scb = SleepCallback.create(delay, callback, System.nanoTime(), sleepers)
+    sleepers += scb
+    scb
   }
 
   /**
@@ -232,6 +243,7 @@ private final class WorkerThread(
     val self = this
     random = ThreadLocalRandom.current()
     val rnd = random
+    val RightUnit = IOFiber.RightUnit
 
     /*
      * A counter (modulo `ExternalQueueTicks`) which represents the
@@ -306,7 +318,7 @@ private final class WorkerThread(
       var cont = true
       while (cont && !done.get()) {
         // Park the thread until further notice.
-        LockSupport.park(pool)
+        _poller.poll(-1)
 
         // the only way we can be interrupted here is if it happened *externally* (probably sbt)
         if (isInterrupted())
@@ -314,6 +326,19 @@ private final class WorkerThread(
         else
           // Spurious wakeup check.
           cont = parked.get()
+      }
+    }
+
+    def parkUntilNextSleeper(): Unit = {
+      if (!isInterrupted()) {
+        val now = System.nanoTime()
+        val head = sleepersQueue.head()
+        val nanos = head.triggerTime - now
+        _poller.poll(nanos)
+
+        if (parked.getAndSet(false)) {
+          pool.doneSleeping()
+        }
       }
     }
 
@@ -329,6 +354,8 @@ private final class WorkerThread(
         queue = null
         parked = null
         fiberBag = null
+        sleepersQueue = null
+        _poller = null.asInstanceOf[PollingSystem#Poller]
 
         // Add this thread to the cached threads data structure, to be picked up
         // by another thread in the future.
@@ -368,8 +395,32 @@ private final class WorkerThread(
         state = 4
       }
 
+      val sleepers = sleepersQueue
+
+      if (sleepers.nonEmpty) {
+        val now = System.nanoTime()
+
+        var cont = true
+        while (cont) {
+          val head = sleepers.head()
+
+          if (head.triggerTime <= now) {
+            if (head.get()) {
+              head.callback(RightUnit)
+            }
+            sleepers.popHead()
+            cont = sleepers.nonEmpty
+          } else {
+            cont = false
+          }
+        }
+      }
+
       ((state & ExternalQueueTicksMask): @switch) match {
         case 0 =>
+          // give the polling system a chance to discover events
+          _poller.poll(0)
+
           // Obtain a fiber or batch of fibers from the external queue.
           val element = external.poll(rnd)
           if (element.isInstanceOf[Array[Runnable]]) {
@@ -467,7 +518,12 @@ private final class WorkerThread(
               // Announce that the worker thread is parking.
               pool.transitionWorkerToParked()
               // Park the thread.
-              parkLoop()
+              if (sleepers.isEmpty) {
+                parkLoop()
+              } else {
+                parkUntilNextSleeper()
+              }
+
               // After the worker thread has been unparked, look for work in the
               // external queue.
               state = 3
@@ -508,7 +564,12 @@ private final class WorkerThread(
               pool.notifyIfWorkPending(rnd)
             }
             // Park the thread.
-            parkLoop()
+            if (sleepers.isEmpty) {
+              parkLoop()
+            } else {
+              parkUntilNextSleeper()
+            }
+
             // After the worker thread has been unparked, look for work in the
             // external queue.
             state = 3
@@ -659,7 +720,7 @@ private final class WorkerThread(
         // for unparking.
         val idx = index
         val clone =
-          new WorkerThread(idx, queue, parked, external, fiberBag, pool)
+          new WorkerThread(idx, queue, parked, external, fiberBag, sleepersQueue, _poller, pool)
         pool.replaceWorker(idx, clone)
         pool.blockedWorkerThreadCounter.incrementAndGet()
         clone.start()
@@ -674,6 +735,8 @@ private final class WorkerThread(
     queue = pool.localQueues(newIdx)
     parked = pool.parkedSignals(newIdx)
     fiberBag = pool.fiberBags(newIdx)
+    sleepersQueue = pool.sleepersQueues(newIdx)
+    _poller = pool.pollers(newIdx).asInstanceOf[PollingSystem#Poller]
 
     // Reset the name of the thread to the regular prefix.
     val prefix = pool.threadPrefix

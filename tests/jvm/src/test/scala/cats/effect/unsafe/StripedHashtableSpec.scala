@@ -32,8 +32,6 @@ class StripedHashtableSpec extends BaseSpec {
       val (blocking, blockDown) =
         IORuntime.createDefaultBlockingExecutionContext(threadPrefix =
           s"io-blocking-${getClass.getName}")
-      val (scheduler, schedDown) =
-        IORuntime.createDefaultScheduler(threadPrefix = s"io-scheduler-${getClass.getName}")
       val (compute, compDown) =
         IORuntime.createWorkStealingComputeThreadPool(
           threadPrefix = s"io-compute-${getClass.getName}",
@@ -42,11 +40,10 @@ class StripedHashtableSpec extends BaseSpec {
       IORuntime(
         compute,
         blocking,
-        scheduler,
+        compute,
         { () =>
           compDown()
           blockDown()
-          schedDown()
         },
         IORuntimeConfig()
       )
