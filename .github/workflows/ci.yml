@@ -207,11 +207,11 @@ jobs:
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' reload +update
 
-      - name: Setup NodeJS v16 LTS
+      - name: Setup NodeJS v18 LTS
         if: matrix.ci == 'ciJS'
-        uses: actions/setup-node@v2.4.0
+        uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
 
       - name: Install jsdom and source-map-support
         if: matrix.ci == 'ciJS'
