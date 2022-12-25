@@ -16,8 +16,9 @@
 
 package cats.effect.benchmarks
 
-import cats.effect.IO
+import cats.effect._
 import cats.effect.unsafe.implicits.global
+import cats.syntax.all._
 
 import org.openjdk.jmh.annotations._
 
@@ -26,13 +27,13 @@ import java.util.concurrent.TimeUnit
 /**
  * To do comparative benchmarks between versions:
  *
- * benchmarks/run-benchmark RedeemBenchmark
+ * benchmarks/run-benchmark DeferredBenchmark
  *
  * This will generate results in `benchmarks/results`.
  *
  * Or to run the benchmark from within sbt:
  *
- * Jmh / run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.RedeemBenchmark
+ * Jmh / run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.DeferredBenchmark
  *
  * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread". Please note that
  * benchmarks should be usually executed at least in 10 iterations (as a rule of thumb), but
@@ -41,34 +42,32 @@ import java.util.concurrent.TimeUnit
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class RedeemBenchmark {
+class DeferredBenchmark {
 
-  @Param(Array("10000"))
-  var size: Int = _
+  @Param(Array("10", "100", "1000"))
+  var count: Int = _
 
   @Benchmark
-  def happyPath(): Int = {
-    val id = identity[Int] _
-
-    def loop(i: Int): IO[Int] =
-      if (i < size) IO.pure(i + 1).redeem(_ => 0, id).flatMap(loop)
-      else IO.pure(i)
-
-    loop(0).unsafeRunSync()
+  def get(): Unit = {
+    IO.deferred[Unit]
+      .flatMap(d => d.complete(()) *> d.get.replicateA_(count))
+      .replicateA_(1000)
+      .unsafeRunSync()
   }
 
   @Benchmark
-  def errorRaised(): Int = {
-    val dummy = new RuntimeException("dummy")
-    val ioIncrement: Int => IO[Int] = x => IO.pure(x + 1)
-    val id = identity[Int] _
+  def complete(): Unit = {
+    IO.deferred[Unit]
+      .flatMap { d => d.get.parReplicateA_(count) &> d.complete(()) }
+      .replicateA_(1000)
+      .unsafeRunSync()
+  }
 
-    def loop(i: Int): IO[Int] =
-      if (i < size)
-        IO.raiseError[Int](dummy).flatMap(ioIncrement).redeem(_ => i + 1, id).flatMap(loop)
-      else
-        IO.pure(i)
-
-    loop(0).unsafeRunSync()
+  @Benchmark
+  def cancel(): Unit = {
+    IO.deferred[Unit]
+      .flatMap { d => d.get.start.replicateA(count).flatMap(_.traverse(_.cancel)) }
+      .replicateA_(1000)
+      .unsafeRunSync()
   }
 }

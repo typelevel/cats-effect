@@ -20,10 +20,10 @@ import scala.annotation.tailrec
 
 import java.util.concurrent.atomic.AtomicReference
 
-private final class CallbackStack[A](private[this] var callback: OutcomeIO[A] => Unit)
+private final class CallbackStack[A](private[this] var callback: A => Unit)
     extends AtomicReference[CallbackStack[A]] {
 
-  def push(next: OutcomeIO[A] => Unit): CallbackStack[A] = {
+  def push(next: A => Unit): CallbackStack[A] = {
     val attempt = new CallbackStack(next)
 
     @tailrec
@@ -40,7 +40,7 @@ private final class CallbackStack[A](private[this] var callback: OutcomeIO[A] =>
     loop()
   }
 
-  def unsafeSetCallback(cb: OutcomeIO[A] => Unit): Unit = {
+  def unsafeSetCallback(cb: A => Unit): Unit = {
     callback = cb
   }
 
@@ -49,7 +49,7 @@ private final class CallbackStack[A](private[this] var callback: OutcomeIO[A] =>
    * iff *any* callbacks were invoked.
    */
   @tailrec
-  def apply(oc: OutcomeIO[A], invoked: Boolean): Boolean = {
+  def apply(oc: A, invoked: Boolean): Boolean = {
     val cb = callback
 
     val invoked2 = if (cb != null) {

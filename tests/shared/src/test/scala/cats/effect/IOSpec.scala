@@ -1762,6 +1762,10 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         implicitly)
     }
 
+    "produce a specialized version of Deferred" in real {
+      IO.deferred[Unit].flatMap(d => IO(d must haveClass[IODeferred[_]]))
+    }
+
     platformSpecs
   }
 

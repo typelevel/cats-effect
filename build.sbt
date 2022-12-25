@@ -309,9 +309,9 @@ addCommandAlias(CI.JS.command, CI.JS.toString)
 addCommandAlias(CI.Firefox.command, CI.Firefox.toString)
 addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
 
-addCommandAlias(
+tlReplaceCommandAlias(
   "prePR",
-  "; root/clean; root/scalafixAll; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
+  "; root/clean; +root/headerCreate; root/scalafixAll; scalafmtSbt; +root/scalafmtAll")
 
 val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
@@ -596,6 +596,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.NonDaemonThreadLogger.this"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.NonDaemonThreadLogger$"),
+      // introduced by #3284
+      // internal API change
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.CallbackStack.apply"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope")
     ) ++ {
       if (tlIsScala3.value) {

@@ -14,6 +14,7 @@
       "tracing",
       "thread-model",
       "schedulers",
+      "core/starvation-and-tuning",
       "core/io-runtime-config",
       "core/native-image",
       "core/scala-native",
