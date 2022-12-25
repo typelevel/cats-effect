@@ -24,12 +24,12 @@ abstract class PollingSystem {
   /**
    * The user-facing Poller interface.
    */
-  type Poller
+  type Poller <: AnyRef
 
   /**
    * The thread-local data structure used for polling.
    */
-  type PollData
+  type PollData <: AnyRef
 
   def makePoller(ec: ExecutionContext, data: () => PollData): Poller
 
@@ -49,5 +49,7 @@ abstract class PollingSystem {
    *   whether poll should be called again (i.e., there are more events to be polled)
    */
   def poll(data: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean
+
+  def interrupt(targetThread: Thread, targetData: PollData): Unit
 
 }

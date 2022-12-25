@@ -17,28 +17,32 @@
 package cats.effect
 package unsafe
 
-import scala.reflect.ClassTag
+import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.locks.LockSupport
 
 object SleepSystem extends PollingSystem {
 
-  def pollerTag: ClassTag[Poller] = ClassTag(classOf[Poller])
+  final class Poller private[SleepSystem] ()
+  final class PollData private[SleepSystem] ()
 
-  def makePoller(): Poller = new Poller()
+  def makePoller(ec: ExecutionContext, data: () => PollData): Poller = new Poller
 
-  final class Poller extends AbstractPoller {
+  def makePollData(): PollData = new PollData
 
-    def poll(nanos: Long): Unit = {
-      if (nanos < 0)
-        LockSupport.park()
-      else if (nanos > 0)
-        LockSupport.parkNanos(nanos)
-      else
-        ()
-    }
+  def closePollData(data: PollData): Unit = ()
 
-    def interrupt(target: Thread): Unit =
-      LockSupport.unpark(target)
+  def poll(data: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
+    if (nanos < 0)
+      LockSupport.park()
+    else if (nanos > 0)
+      LockSupport.parkNanos(nanos)
+    else
+      ()
+    false
   }
+
+  def interrupt(targetThread: Thread, targetData: PollData): Unit =
+    LockSupport.unpark(targetThread)
+
 }

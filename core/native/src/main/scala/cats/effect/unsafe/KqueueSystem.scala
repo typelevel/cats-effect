@@ -57,6 +57,8 @@ object KqueueSystem extends PollingSystem {
   def poll(data: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean =
     data.poll(nanos)
 
+  def interrupt(targetThread: Thread, targetData: PollData): Unit = ()
+
   final class Poller private[KqueueSystem] (
       ec: ExecutionContext,
       data: () => PollData

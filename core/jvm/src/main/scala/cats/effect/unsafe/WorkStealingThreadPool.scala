@@ -43,7 +43,6 @@ import java.util.Comparator
 import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 import java.util.concurrent.locks.LockSupport
-import scala.reflect.ClassTag
 
 /**
  * Work-stealing thread pool which manages a pool of [[WorkerThread]] s for the specific purpose
@@ -68,8 +67,7 @@ private[effect] final class WorkStealingThreadPool(
     system: PollingSystem,
     reportFailure0: Throwable => Unit
 ) extends ExecutionContextExecutor
-    with Scheduler
-    with EventLoop[Any] {
+    with Scheduler {
 
   import TracingConstants._
   import WorkStealingThreadPoolConstants._
@@ -82,7 +80,8 @@ private[effect] final class WorkStealingThreadPool(
   private[unsafe] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
   private[unsafe] val fiberBags: Array[WeakBag[Runnable]] = new Array(threadCount)
   private[unsafe] val sleepersQueues: Array[SleepersQueue] = new Array(threadCount)
-  private[unsafe] val pollers: Array[AnyRef] = new Array(threadCount)
+  private[effect] val poller: Any = system.makePoller(this, () => pollData().asInstanceOf[system.PollData])
+  private[unsafe] val pollDatas: Array[AnyRef] = new Array[AnyRef](threadCount)
 
   /**
    * Atomic variable for used for publishing changes to the references in the `workerThreads`
@@ -128,8 +127,8 @@ private[effect] final class WorkStealingThreadPool(
       fiberBags(i) = fiberBag
       val sleepersQueue = SleepersQueue.empty
       sleepersQueues(i) = sleepersQueue
-      val poller = system.makePoller()
-      pollers(i) = poller
+      val pollData = system.makePollData()
+      pollDatas(i) = pollData
 
       val thread =
         new WorkerThread(
@@ -139,7 +138,8 @@ private[effect] final class WorkStealingThreadPool(
           externalQueue,
           fiberBag,
           sleepersQueue,
-          poller,
+          system,
+          pollData,
           this)
 
       workerThreads(i) = thread
@@ -587,19 +587,17 @@ private[effect] final class WorkStealingThreadPool(
     }
   }
 
-  def registrar(): Any = {
+  def pollData(): Any = {
     val pool = this
     val thread = Thread.currentThread()
 
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
-      if (worker.isOwnedBy(pool)) return worker.poller()
+      if (worker.isOwnedBy(pool)) return worker.pollData()
     }
 
     throw new RuntimeException("Invoked from outside the WSTP")
   }
-
-  protected def registrarTag: ClassTag[?] = system.pollerTag
 
   /**
    * Shut down the thread pool and clean up the pool state. Calling this method after the pool

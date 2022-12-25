@@ -35,6 +35,7 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
       def closePollData(data: PollData): Unit = ()
       def poll(data: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =
         if (nanos == -1) data.poll(Duration.Inf) else data.poll(nanos.nanos)
+      def interrupt(targetThread: Thread, targetData: PollData): Unit = ()
     }
   )
 

@@ -36,4 +36,6 @@ object SleepSystem extends PollingSystem {
     false
   }
 
+  def interrupt(targetThread: Thread, targetData: PollData): Unit = ()
+
 }
