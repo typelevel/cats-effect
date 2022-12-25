@@ -228,17 +228,17 @@ jobs:
         run: sbt githubWorkflowCheck
 
       - name: Check that scalafix has been run on JVM
-        if: matrix.ci == 'ciJVM' && matrix.scala != '3.2.1' && matrix.os != 'windows-latest'
+        if: matrix.ci == 'ciJVM' && matrix.scala != '3.2.1' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' 'rootJVM/scalafixAll --check'
 
       - name: Check that scalafix has been run on JS
-        if: matrix.ci == 'ciJS' && matrix.scala != '3.2.1' && matrix.os != 'windows-latest'
+        if: matrix.ci == 'ciJS' && matrix.scala != '3.2.1' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' 'rootJS/scalafixAll --check'
 
       - name: Check that scalafix has been run on Native
-        if: matrix.ci == 'ciNative' && matrix.scala != '3.2.1' && matrix.os != 'windows-latest'
+        if: matrix.ci == 'ciNative' && matrix.scala != '3.2.1' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: sbt '++ ${{ matrix.scala }}' 'rootNative/scalafixAll --check'
 
