@@ -42,7 +42,6 @@ import java.time.temporal.ChronoField
 import java.util.Comparator
 import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
-import java.util.concurrent.locks.LockSupport
 
 /**
  * Work-stealing thread pool which manages a pool of [[WorkerThread]] s for the specific purpose
@@ -256,7 +255,7 @@ private[effect] final class WorkStealingThreadPool(
         // impossible.
         workerThreadPublisher.get()
         val worker = workerThreads(index)
-        LockSupport.unpark(worker)
+        system.interrupt(worker, pollDatas(index).asInstanceOf[system.PollData])
         return true
       }
 
@@ -619,6 +618,7 @@ private[effect] final class WorkStealingThreadPool(
       var i = 0
       while (i < threadCount) {
         workerThreads(i).interrupt()
+        system.closePollData(pollDatas(i).asInstanceOf[system.PollData])
         i += 1
       }
 
