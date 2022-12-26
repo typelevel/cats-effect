@@ -56,17 +56,19 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
         var prev: CallbackNode = null
         var node = key.attachment().asInstanceOf[CallbackNode]
         while (node ne null) {
+          val next = node.next
+
           if ((node.interest & readyOps) != 0) { // execute callback and drop this node
             val cb = node.callback
             if (cb != null) cb(value)
-            if (prev ne null) prev.next = node.next
+            if (prev ne null) prev.next = next
           } else { // keep this node
             prev = node
             if (head eq null)
               head = node
           }
 
-          node = node.next
+          node = next
         }
 
         // reset interest in triggered ops
