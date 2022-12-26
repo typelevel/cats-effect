@@ -18,8 +18,8 @@ package cats.effect
 
 import cats.syntax.all._
 
-import java.nio.channels.Pipe
 import java.nio.ByteBuffer
+import java.nio.channels.Pipe
 import java.nio.channels.SelectionKey._
 
 class SelectorPollerSpec extends BaseSpec {

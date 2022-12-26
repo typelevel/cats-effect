@@ -20,8 +20,7 @@ package unsafe
 import scala.concurrent.ExecutionContext
 
 import java.nio.channels.SelectableChannel
-import java.nio.channels.spi.SelectorProvider
-import java.nio.channels.spi.AbstractSelector
+import java.nio.channels.spi.{AbstractSelector, SelectorProvider}
 
 import SelectorSystem._
 
