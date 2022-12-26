@@ -337,7 +337,7 @@ private final class WorkerThread(
       if (!isInterrupted()) {
         val now = System.nanoTime()
         val head = sleepersQueue.head()
-        val nanos = head.triggerTime - now
+        val nanos = Math.max(head.triggerTime - now, 0)
         system.poll(_pollData, nanos, reportFailure)
 
         if (parked.getAndSet(false)) {
