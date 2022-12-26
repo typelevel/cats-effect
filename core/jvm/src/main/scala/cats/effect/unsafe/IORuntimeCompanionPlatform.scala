@@ -38,7 +38,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       threadPrefix: String = "io-compute",
       blockerThreadPrefix: String = DefaultBlockerPrefix,
       runtimeBlockingExpiration: Duration = 60.seconds,
-      pollingSystem: PollingSystem = SleepSystem,
+      pollingSystem: PollingSystem = SelectorSystem(),
       reportFailure: Throwable => Unit = _.printStackTrace())
       : (WorkStealingThreadPool, () => Unit) = {
     val threadPool =

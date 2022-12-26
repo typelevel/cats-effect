@@ -165,7 +165,7 @@ trait IOApp {
    */
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
-  protected def pollingSystem: unsafe.PollingSystem = unsafe.SleepSystem
+  protected def pollingSystem: unsafe.PollingSystem = unsafe.SelectorSystem()
 
   /**
    * Controls the number of worker threads which will be allocated to the compute pool in the

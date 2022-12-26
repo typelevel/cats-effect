@@ -23,7 +23,9 @@ import java.nio.channels.SelectableChannel
 import java.nio.channels.spi.SelectorProvider
 import java.nio.channels.spi.AbstractSelector
 
-final class SelectorSystem(provider: SelectorProvider) extends PollingSystem {
+import SelectorSystem._
+
+final class SelectorSystem private (provider: SelectorProvider) extends PollingSystem {
 
   def makePoller(ec: ExecutionContext, data: () => PollData): Poller =
     new Poller(ec, data, provider)
@@ -131,6 +133,15 @@ final class SelectorSystem(provider: SelectorProvider) extends PollingSystem {
       private[SelectorSystem] val selector: AbstractSelector
   )
 
+}
+
+object SelectorSystem {
+
+  def apply(provider: SelectorProvider): SelectorSystem =
+    new SelectorSystem(provider)
+
+  def apply(): SelectorSystem = apply(SelectorProvider.provider())
+
   private final class Attachment(
       var interest: Int,
       var callbacks: CallbackNode
@@ -141,5 +152,4 @@ final class SelectorSystem(provider: SelectorProvider) extends PollingSystem {
       var callback: Either[Throwable, Int] => Unit,
       var next: CallbackNode
   )
-
 }

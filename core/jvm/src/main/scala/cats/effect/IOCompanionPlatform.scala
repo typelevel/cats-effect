@@ -18,6 +18,9 @@ package cats.effect
 
 import cats.effect.std.Console
 import cats.effect.tracing.Tracing
+import cats.effect.unsafe.WorkStealingThreadPool
+
+import scala.reflect.ClassTag
 
 import java.time.Instant
 import java.util.concurrent.{CompletableFuture, CompletionStage}
@@ -141,4 +144,11 @@ private[effect] abstract class IOCompanionPlatform { this: IO.type =>
    */
   def readLine: IO[String] =
     Console[IO].readLine
+
+  def poller[Poller](implicit ct: ClassTag[Poller]): IO[Option[Poller]] =
+    IO.executionContext.map {
+      case wstp: WorkStealingThreadPool if ct.runtimeClass.isInstance(wstp.poller) =>
+        Some(wstp.poller.asInstanceOf[Poller])
+      case _ => None
+    }
 }
