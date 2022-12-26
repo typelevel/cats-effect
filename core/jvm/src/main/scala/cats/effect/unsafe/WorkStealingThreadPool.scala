@@ -79,7 +79,8 @@ private[effect] final class WorkStealingThreadPool(
   private[unsafe] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
   private[unsafe] val fiberBags: Array[WeakBag[Runnable]] = new Array(threadCount)
   private[unsafe] val sleepersQueues: Array[SleepersQueue] = new Array(threadCount)
-  private[effect] val poller: Any = system.makePoller(this, () => pollData().asInstanceOf[system.PollData])
+  private[effect] val poller: Any =
+    system.makePoller(this, () => pollData().asInstanceOf[system.PollData])
   private[unsafe] val pollDatas: Array[AnyRef] = new Array[AnyRef](threadCount)
 
   /**
