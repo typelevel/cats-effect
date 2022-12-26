@@ -49,36 +49,29 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
         val key = ready.next()
         ready.remove()
 
-        val attachment = key.attachment().asInstanceOf[Attachment]
-        val interest = attachment.interest
         val readyOps = key.readyOps()
+        val value = Right(readyOps)
 
-        if ((interest & readyOps) != 0) {
-          val value = Right(readyOps)
-
-          var head: CallbackNode = null
-          var prev: CallbackNode = null
-          var node = attachment.callbacks
-          while (node ne null) {
-            if ((node.interest & readyOps) != 0) { // execute callback and drop this node
-              val cb = node.callback
-              if (cb != null) cb(value)
-              if (prev ne null) prev.next = node.next
-            } else { // keep this node
-              prev = node
-              if (head eq null)
-                head = node
-            }
-
-            node = node.next
+        var head: CallbackNode = null
+        var prev: CallbackNode = null
+        var node = key.attachment().asInstanceOf[CallbackNode]
+        while (node ne null) {
+          if ((node.interest & readyOps) != 0) { // execute callback and drop this node
+            val cb = node.callback
+            if (cb != null) cb(value)
+            if (prev ne null) prev.next = node.next
+          } else { // keep this node
+            prev = node
+            if (head eq null)
+              head = node
           }
 
-          // reset interest in triggered ops
-          val newInterest = interest & ~readyOps
-          attachment.interest = newInterest
-          attachment.callbacks = head
-          key.interestOps(newInterest)
+          node = node.next
         }
+
+        // reset interest in triggered ops
+        key.interestOps(key.interestOps() & ~readyOps)
+        key.attach(head)
       }
 
       !selector.keys().isEmpty()
@@ -99,22 +92,17 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
     def register(ch: SelectableChannel, ops: Int): IO[Int] = IO.async { cb =>
       IO {
         val selector = data().selector
-        val key = ch.register(selector, ops) // this overrides existing ops interest. annoying
-        val attachment = key.attachment().asInstanceOf[Attachment]
+        val key = ch.keyFor(selector)
 
-        val node = if (attachment eq null) { // newly registered on this selector
+        val node = if (key eq null) { // not yet registered on this selector
           val node = new CallbackNode(ops, cb, null)
-          key.attach(new Attachment(ops, node))
+          ch.register(selector, ops, node)
           node
         } else { // existing key
-          val interest = attachment.interest
-          val newInterest = interest | ops
-          if (interest != newInterest) { // need to restore the existing interest
-            attachment.interest = newInterest
-            key.interestOps(newInterest)
-          }
-          val node = new CallbackNode(ops, cb, attachment.callbacks)
-          attachment.callbacks = node
+          // mixin the new interest
+          key.interestOps(key.interestOps() | ops)
+          val node = new CallbackNode(ops, cb, key.attachment().asInstanceOf[CallbackNode])
+          key.attach(node)
           node
         }
 
@@ -143,11 +131,6 @@ object SelectorSystem {
     new SelectorSystem(provider)
 
   def apply(): SelectorSystem = apply(SelectorProvider.provider())
-
-  private final class Attachment(
-      var interest: Int,
-      var callbacks: CallbackNode
-  )
 
   private final class CallbackNode(
       var interest: Int,
