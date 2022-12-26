@@ -38,9 +38,8 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       threadPrefix: String = "io-compute",
       blockerThreadPrefix: String = DefaultBlockerPrefix,
       runtimeBlockingExpiration: Duration = 60.seconds,
-      pollingSystem: PollingSystem = SelectorSystem(),
-      reportFailure: Throwable => Unit = _.printStackTrace())
-      : (WorkStealingThreadPool, () => Unit) = {
+      reportFailure: Throwable => Unit = _.printStackTrace(),
+      pollingSystem: PollingSystem = SelectorSystem()): (WorkStealingThreadPool, () => Unit) = {
     val threadPool =
       new WorkStealingThreadPool(
         threads,
@@ -114,6 +113,24 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
         threadPool.shutdown()
       })
   }
+
+  @deprecated(
+    message = "Use overload which accepts a `PollingSystem`",
+    since = "3.5.0"
+  )
+  def createWorkStealingComputeThreadPool(
+      threads: Int,
+      threadPrefix: String,
+      blockerThreadPrefix: String,
+      runtimeBlockingExpiration: Duration,
+      reportFailure: Throwable => Unit): (WorkStealingThreadPool, () => Unit) =
+    createWorkStealingComputeThreadPool(
+      threads,
+      threadPrefix,
+      blockerThreadPrefix,
+      runtimeBlockingExpiration,
+      reportFailure,
+      SelectorSystem())
 
   @deprecated(
     message = "Replaced by the simpler and safer `createWorkStealingComputePool`",
