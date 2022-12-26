@@ -43,44 +43,46 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
     else if (millis > 0) selector.select(millis)
     else selector.select()
 
-    val ready = selector.selectedKeys().iterator()
-    while (ready.hasNext()) {
-      val key = ready.next()
-      ready.remove()
+    if (selector.isOpen()) { // closing selector interrupts select
+      val ready = selector.selectedKeys().iterator()
+      while (ready.hasNext()) {
+        val key = ready.next()
+        ready.remove()
 
-      val attachment = key.attachment().asInstanceOf[Attachment]
-      val interest = attachment.interest
-      val readyOps = key.readyOps()
+        val attachment = key.attachment().asInstanceOf[Attachment]
+        val interest = attachment.interest
+        val readyOps = key.readyOps()
 
-      if ((interest & readyOps) != 0) {
-        val value = Right(readyOps)
+        if ((interest & readyOps) != 0) {
+          val value = Right(readyOps)
 
-        var head: CallbackNode = null
-        var prev: CallbackNode = null
-        var node = attachment.callbacks
-        while (node ne null) {
-          if ((node.interest & readyOps) != 0) { // execute callback and drop this node
-            val cb = node.callback
-            if (cb != null) cb(value)
-            if (prev ne null) prev.next = node.next
-          } else { // keep this node
-            prev = node
-            if (head eq null)
-              head = node
+          var head: CallbackNode = null
+          var prev: CallbackNode = null
+          var node = attachment.callbacks
+          while (node ne null) {
+            if ((node.interest & readyOps) != 0) { // execute callback and drop this node
+              val cb = node.callback
+              if (cb != null) cb(value)
+              if (prev ne null) prev.next = node.next
+            } else { // keep this node
+              prev = node
+              if (head eq null)
+                head = node
+            }
+
+            node = node.next
           }
 
-          node = node.next
+          // reset interest in triggered ops
+          val newInterest = interest & ~readyOps
+          attachment.interest = newInterest
+          attachment.callbacks = head
+          key.interestOps(newInterest)
         }
-
-        // reset interest in triggered ops
-        val newInterest = interest & ~readyOps
-        attachment.interest = newInterest
-        attachment.callbacks = head
-        key.interestOps(newInterest)
       }
-    }
 
-    !selector.keys().isEmpty()
+      !selector.keys().isEmpty()
+    } else false
   }
 
   def interrupt(targetThread: Thread, targetData: PollData): Unit = {
