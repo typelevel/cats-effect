@@ -21,8 +21,16 @@ import java.nio.channels.spi.SelectorProvider
 
 trait SelectorPoller {
 
+  /**
+   * The [[java.nio.channels.spi.SelectorProvider]] that should be used to create
+   * [[java.nio.channels.SelectableChannel]]s that are compatible with this polling system.
+   */
   def provider: SelectorProvider
 
-  def register(ch: SelectableChannel, ops: Int): IO[Int]
+  /**
+   * Fiber-block until a [[java.nio.channels.SelectableChannel]] is ready on at least one of the
+   * designated operations. The returned value will indicate which operations are ready.
+   */
+  def select(ch: SelectableChannel, ops: Int): IO[Int]
 
 }

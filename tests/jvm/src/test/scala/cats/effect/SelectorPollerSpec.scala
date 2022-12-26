@@ -47,10 +47,10 @@ class SelectorPollerSpec extends BaseSpec {
           poller <- IO.poller[SelectorPoller].map(_.get)
           buf <- IO(ByteBuffer.allocate(4))
           _ <- IO(pipe.sink.write(ByteBuffer.wrap(Array(1, 2, 3)))).background.surround {
-            poller.register(pipe.source, OP_READ) *> IO(pipe.source.read(buf))
+            poller.select(pipe.source, OP_READ) *> IO(pipe.source.read(buf))
           }
           _ <- IO(pipe.sink.write(ByteBuffer.wrap(Array(42)))).background.surround {
-            poller.register(pipe.source, OP_READ) *> IO(pipe.source.read(buf))
+            poller.select(pipe.source, OP_READ) *> IO(pipe.source.read(buf))
           }
         } yield buf.array().toList must be_==(List[Byte](1, 2, 3, 42))
       }
@@ -60,7 +60,7 @@ class SelectorPollerSpec extends BaseSpec {
       mkPipe.use { pipe =>
         for {
           poller <- IO.poller[SelectorPoller].map(_.get)
-          _ <- poller.register(pipe.source, OP_READ).parReplicateA_(10) <&
+          _ <- poller.select(pipe.source, OP_READ).parReplicateA_(10) <&
             IO(pipe.sink.write(ByteBuffer.wrap(Array(1, 2, 3))))
         } yield ok
       }

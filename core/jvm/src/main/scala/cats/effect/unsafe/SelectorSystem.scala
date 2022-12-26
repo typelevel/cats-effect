@@ -91,7 +91,7 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
       val provider: SelectorProvider
   ) extends SelectorPoller {
 
-    def register(ch: SelectableChannel, ops: Int): IO[Int] = IO.async { cb =>
+    def select(ch: SelectableChannel, ops: Int): IO[Int] = IO.async { cb =>
       IO {
         val selector = data().selector
         val key = ch.keyFor(selector)
