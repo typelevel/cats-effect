@@ -19,6 +19,8 @@ package effect
 
 import cats.syntax.semigroup._
 
+import scala.annotation.tailrec
+
 class IOLocalSpec extends BaseSpec {
 
   ioLocalTests(
@@ -52,6 +54,30 @@ class IOLocalSpec extends BaseSpec {
         (l, lens)
       }
   )((0, ""), (10, "lorem"), _._1, _._1)
+
+  "IOLocal.lens" should {
+    "be stack safe" in ticked { implicit ticker =>
+      @tailrec def stackLens(lens: IOLocal[Int], height: Int): IOLocal[Int] =
+        if (height <= 0) lens
+        else stackLens(lens.lens(_ + 1)((_: Int) => (y: Int) => y - 1), height - 1)
+
+      val size = 16384
+      val io = for {
+        lens <- IOLocal(0)
+        stack = stackLens(lens, size)
+        d1 <- lens.get
+        d2 <- stack.get
+        _ <- stack.set(size)
+        s2 <- stack.get
+        s1 <- lens.get
+        _ <- stack.update(_ / 2)
+        u2 <- stack.get
+        u1 <- lens.get
+      } yield (d1, d2, s2, s1, u2, u1)
+
+      io must completeAs((0, size, size, 0, size / 2, -size / 2))
+    }
+  }
 
   private def ioLocalTests[A, B: Semigroup, C: Eq: Show](
       name: String,
