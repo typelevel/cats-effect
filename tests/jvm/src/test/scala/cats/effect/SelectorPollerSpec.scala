@@ -66,6 +66,15 @@ class SelectorPollerSpec extends BaseSpec {
       }
     }
 
+    "works after blocking" in real {
+      mkPipe.use { pipe =>
+        for {
+          poller <- IO.poller[SelectorPoller].map(_.get)
+          _ <- IO.blocking(())
+          _ <- poller.select(pipe.sink, OP_WRITE)
+        } yield ok
+      }
+    }
   }
 
 }
