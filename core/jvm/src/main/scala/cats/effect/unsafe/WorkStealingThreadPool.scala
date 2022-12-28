@@ -97,8 +97,10 @@ private[effect] final class WorkStealingThreadPool(
 
           if (thread.isInstanceOf[WorkerThread]) {
             val worker = thread.asInstanceOf[WorkerThread]
-            if (worker.isOwnedBy(pool)) ioa
-            else IO.cede *> ioa
+            if (worker.isOwnedBy(pool)) // we're good
+              ioa
+            else // possibly a blocking worker thread, possibly on another wstp
+              IO.cede *> ioa.evalOn(pool)
           } else ioa.evalOn(pool)
         }
       }
