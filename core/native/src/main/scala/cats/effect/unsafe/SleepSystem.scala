@@ -17,14 +17,14 @@
 package cats.effect
 package unsafe
 
-import scala.concurrent.ExecutionContext
+import cats.~>
 
 object SleepSystem extends PollingSystem {
 
   final class Poller private[SleepSystem] ()
   final class PollData private[SleepSystem] ()
 
-  def makePoller(ec: ExecutionContext, data: () => PollData): Poller = new Poller
+  def makePoller(delayWithData: (PollData => *) ~> IO): Poller = new Poller
 
   def makePollData(): PollData = new PollData
 

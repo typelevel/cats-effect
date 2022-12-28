@@ -17,7 +17,7 @@
 package cats.effect
 package unsafe
 
-import scala.concurrent.ExecutionContext
+import cats.~>
 
 import java.nio.channels.SelectableChannel
 import java.nio.channels.spi.{AbstractSelector, SelectorProvider}
@@ -26,8 +26,8 @@ import SelectorSystem._
 
 final class SelectorSystem private (provider: SelectorProvider) extends PollingSystem {
 
-  def makePoller(ec: ExecutionContext, data: () => PollData): Poller =
-    new Poller(ec, data, provider)
+  def makePoller(delayWithData: (PollData => *) ~> IO): Poller =
+    new Poller(delayWithData, provider)
 
   def makePollData(): PollData = new PollData(provider.openSelector())
 
@@ -85,14 +85,13 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
   }
 
   final class Poller private[SelectorSystem] (
-      ec: ExecutionContext,
-      data: () => PollData,
+      delayWithData: (PollData => *) ~> IO,
       val provider: SelectorProvider
   ) extends SelectorPoller {
 
     def select(ch: SelectableChannel, ops: Int): IO[Int] = IO.async { cb =>
-      IO {
-        val selector = data().selector
+      delayWithData { data =>
+        val selector = data.selector
         val key = ch.keyFor(selector)
 
         val node = if (key eq null) { // not yet registered on this selector
@@ -115,7 +114,7 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
             node.callback = null
           }
         }
-      }.evalOn(ec)
+      }
     }
 
   }

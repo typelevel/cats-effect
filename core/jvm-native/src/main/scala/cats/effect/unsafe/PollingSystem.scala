@@ -17,7 +17,7 @@
 package cats.effect
 package unsafe
 
-import scala.concurrent.ExecutionContext
+import cats.~>
 
 abstract class PollingSystem {
 
@@ -31,7 +31,7 @@ abstract class PollingSystem {
    */
   type PollData <: AnyRef
 
-  def makePoller(ec: ExecutionContext, data: () => PollData): Poller
+  def makePoller(delayWithData: (PollData => *) ~> IO): Poller
 
   def makePollData(): PollData
 

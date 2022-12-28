@@ -19,11 +19,11 @@ package unsafe
 
 import cats.effect.std.Semaphore
 import cats.syntax.all._
+import cats.~>
 
 import org.typelevel.scalaccompat.annotation._
 
 import scala.annotation.tailrec
-import scala.concurrent.ExecutionContext
 import scala.scalanative.annotation.alwaysinline
 import scala.scalanative.libc.errno._
 import scala.scalanative.posix.string._
@@ -42,8 +42,8 @@ object EpollSystem extends PollingSystem {
 
   private[this] final val MaxEvents = 64
 
-  def makePoller(ec: ExecutionContext, data: () => PollData): Poller =
-    new Poller(ec, data)
+  def makePoller(delayWithData: (PollData => *) ~> IO): Poller =
+    new Poller(delayWithData)
 
   def makePollData(): PollData = {
     val fd = epoll_create1(0)
@@ -59,7 +59,7 @@ object EpollSystem extends PollingSystem {
 
   def interrupt(targetThread: Thread, targetData: PollData): Unit = ()
 
-  final class Poller private[EpollSystem] (ec: ExecutionContext, data: () => PollData)
+  final class Poller private[EpollSystem] (delayWithData: (PollData => *) ~> IO)
       extends FileDescriptorPoller {
 
     def registerFileDescriptor(
@@ -70,11 +70,11 @@ object EpollSystem extends PollingSystem {
       Resource
         .make {
           (Semaphore[IO](1), Semaphore[IO](1)).flatMapN { (readSemaphore, writeSemaphore) =>
-            IO {
+            delayWithData { data =>
               val handle = new PollHandle(readSemaphore, writeSemaphore)
-              val unregister = data().register(fd, reads, writes, handle)
+              val unregister = data.register(fd, reads, writes, handle)
               (handle, unregister)
-            }.evalOn(ec)
+            }
           }
         }(_._2)
         .map(_._1)

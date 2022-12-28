@@ -19,11 +19,11 @@ package unsafe
 
 import cats.effect.std.Semaphore
 import cats.syntax.all._
+import cats.~>
 
 import org.typelevel.scalaccompat.annotation._
 
 import scala.annotation.tailrec
-import scala.concurrent.ExecutionContext
 import scala.scalanative.libc.errno._
 import scala.scalanative.posix.string._
 import scala.scalanative.posix.time._
@@ -42,8 +42,8 @@ object KqueueSystem extends PollingSystem {
 
   private final val MaxEvents = 64
 
-  def makePoller(ec: ExecutionContext, data: () => PollData): Poller =
-    new Poller(ec, data)
+  def makePoller(delayWithData: (PollData => *) ~> IO): Poller =
+    new Poller(delayWithData)
 
   def makePollData(): PollData = {
     val fd = kqueue()
@@ -60,8 +60,7 @@ object KqueueSystem extends PollingSystem {
   def interrupt(targetThread: Thread, targetData: PollData): Unit = ()
 
   final class Poller private[KqueueSystem] (
-      ec: ExecutionContext,
-      data: () => PollData
+      delayWithData: (PollData => *) ~> IO
   ) extends FileDescriptorPoller {
     def registerFileDescriptor(
         fd: Int,
@@ -70,14 +69,13 @@ object KqueueSystem extends PollingSystem {
     ): Resource[IO, FileDescriptorPollHandle] =
       Resource.eval {
         (Semaphore[IO](1), Semaphore[IO](1)).mapN {
-          new PollHandle(ec, data, fd, _, _)
+          new PollHandle(delayWithData, fd, _, _)
         }
       }
   }
 
   private final class PollHandle(
-      ec: ExecutionContext,
-      data: () => PollData,
+      delayWithData: (PollData => *) ~> IO,
       fd: Int,
       readSemaphore: Semaphore[IO],
       writeSemaphore: Semaphore[IO]
@@ -94,11 +92,10 @@ object KqueueSystem extends PollingSystem {
               IO.unit
             else
               IO.async[Unit] { cb =>
-                IO {
-                  val kqueue = data()
+                delayWithData { kqueue =>
                   kqueue.evSet(readEvent, EV_ADD.toUShort, cb)
                   Some(IO(kqueue.removeCallback(readEvent)))
-                }.evalOn(ec)
+                }
               }
           }
         }
@@ -112,11 +109,10 @@ object KqueueSystem extends PollingSystem {
               IO.unit
             else
               IO.async[Unit] { cb =>
-                IO {
-                  val kqueue = data()
+                delayWithData { kqueue =>
                   kqueue.evSet(writeEvent, EV_ADD.toUShort, cb)
                   Some(IO(kqueue.removeCallback(writeEvent)))
-                }.evalOn(ec)
+                }
               }
           }
         }
