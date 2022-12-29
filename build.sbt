@@ -599,7 +599,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.NonDaemonThreadLogger$"),
       // introduced by #3284
       // internal API change
-      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.CallbackStack.apply")
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.CallbackStack.apply"),
+      // introduced by #3324, which specialized CallbackStack for JS
+      // internal API change
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.CallbackStack.clearCurrent")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
@@ -745,7 +749,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[Problem]("cats.effect.ArrayStack*"),
         // mystery filters that became required in 3.4.0
         ProblemFilters.exclude[DirectMissingMethodProblem](
-          "cats.effect.tracing.TracingConstants.*")
+          "cats.effect.tracing.TracingConstants.*"),
+        // introduced by #3324, which specialized CallbackStack for JS
+        // internal API change
+        ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack")
       )
     },
     mimaBinaryIssueFilters ++= {
