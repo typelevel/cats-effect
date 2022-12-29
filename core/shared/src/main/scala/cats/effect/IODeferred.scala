@@ -31,6 +31,7 @@ private final class IODeferred[A] extends Deferred[IO, A] {
   def complete(a: A): IO[Boolean] = IO {
     if (cell.compareAndSet(Sentinel, a.asInstanceOf[AnyRef])) {
       val _ = callbacks(Right(a), false)
+      callbacks.lazySet(null) // avoid leaks
       true
     } else {
       false
