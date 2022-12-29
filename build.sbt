@@ -297,7 +297,7 @@ val ScalaCheckVersion = "1.17.0"
 val DisciplineVersion = "1.4.0"
 val CoopVersion = "1.2.0"
 
-val MacrotaskExecutorVersion = "1.1.0"
+val MacrotaskExecutorVersion = "1.1.1"
 
 val ScalacCompatVersion = "0.1.0"
 
