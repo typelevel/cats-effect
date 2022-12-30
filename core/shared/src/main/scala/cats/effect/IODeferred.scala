@@ -22,11 +22,12 @@ private final class IODeferred[A] extends Deferred[IO, A] {
   import IODeferred.Sentinel
 
   private[this] val cell = new AtomicReference[AnyRef](Sentinel)
-  private[this] val callbacks = new CallbackStack[Right[Nothing, A]](null)
+  private[this] val callbacks = CallbackStack[Right[Nothing, A]](null)
 
   def complete(a: A): IO[Boolean] = IO {
     if (cell.compareAndSet(Sentinel, a.asInstanceOf[AnyRef])) {
       val _ = callbacks(Right(a), false)
+      callbacks.clear() // avoid leaks
       true
     } else {
       false
@@ -38,13 +39,14 @@ private final class IODeferred[A] extends Deferred[IO, A] {
 
     if (back eq Sentinel) IO.asyncCheckAttempt { cb =>
       IO {
-        val handle = callbacks.push(cb)
+        val stack = callbacks.push(cb)
+        val handle = stack.currentHandle()
 
         val back = cell.get()
         if (back eq Sentinel) {
-          Left(Some(IO(handle.clearCurrent())))
+          Left(Some(IO(stack.clearCurrent(handle))))
         } else {
-          handle.clearCurrent()
+          stack.clearCurrent(handle)
           Right(back.asInstanceOf[A])
         }
       }
