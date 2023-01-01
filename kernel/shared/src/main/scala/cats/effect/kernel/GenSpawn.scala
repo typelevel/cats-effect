@@ -317,14 +317,14 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
         case Left((oca, f)) =>
           val joined =
             if (oca.isCanceled)
-              poll(f.join)
+              poll(f.join).onCancel(f.cancel)
             else
               f.cancel *> f.join
           joined.map(ocb => Left((oca, ocb)))
         case Right((f, ocb)) =>
           val joined =
             if (ocb.isCanceled)
-              poll(f.join)
+              poll(f.join).onCancel(f.cancel)
             else
               f.cancel *> f.join
           joined.map(oca => Right((oca, ocb)))
