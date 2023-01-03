@@ -56,7 +56,6 @@ private[effect] object JvmCpuStarvationMetrics {
     val acquire: IO[(MBeanServer, JvmCpuStarvationMetrics)] = for {
       mBeanServer <- IO.delay(ManagementFactory.getPlatformMBeanServer)
       mBean <- CpuStarvation()
-      _ <- IO.blocking(mBeanServer.registerMBean(mBean, mBeanObjectName))
       // To allow user-defined program to use the compute pool from the beginning,
       // here we use `IO.delay` rather than `IO.blocking`.
       _ <- IO.delay(mBeanServer.registerMBean(mBean, mBeanObjectName))
