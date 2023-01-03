@@ -57,6 +57,7 @@ private[effect] object JvmCpuStarvationMetrics {
       mBeanServer <- IO.delay(ManagementFactory.getPlatformMBeanServer)
       mBean <- CpuStarvation()
       _ <- IO.blocking(mBeanServer.registerMBean(mBean, mBeanObjectName))
+      _ <- IO.delay(mBeanServer.registerMBean(mBean, mBeanObjectName))
     } yield (mBeanServer, new JvmCpuStarvationMetrics(mBean))
 
     Resource
