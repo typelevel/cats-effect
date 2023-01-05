@@ -64,22 +64,55 @@ object Mutex {
    * Creates a new `Mutex`.
    */
   def apply[F[_]](implicit F: GenConcurrent[F, _]): F[Mutex[F]] =
-    Semaphore[F](n = 1).map(sem => new Impl(sem))
+    Ref.of[F, LockChain](Empty).map(state => new Impl[F](state))
 
   /**
    * Creates a new `Mutex`. Like `apply` but initializes state using another effect constructor.
    */
   def in[F[_], G[_]](implicit F: Sync[F], G: Async[G]): F[Mutex[G]] =
-    Semaphore.in[F, G](n = 1).map(sem => new Impl(sem))
+    Ref.in[F, G, LockChain](Empty).map(state => new Impl[G](state))
 
   // TODO: In case in a future cats-effect provides a way to identify fibers,
   // then this implementation can be made reentrant.
   // Or, we may also provide an alternative implementation using LiftIO + IOLocal
-  private final class Impl[F[_]](sem: Semaphore[F]) extends Mutex[F] {
+  private final class Impl[F[_]](state: Ref[F, LockChain])(implicit F: GenConcurrent[F, _])
+      extends Mutex[F] {
     override final val lock: Resource[F, Unit] =
-      sem.permit
+      Resource
+        .makeFull[F, Deferred[F, LockChain]] { poll =>
+          Deferred[F, LockChain].flatMap { lock =>
+            def loop(chain: LockChain): F[Deferred[F, LockChain]] = chain match {
+              case Cons(otherLock) =>
+                otherLock.asInstanceOf[Deferred[F, LockChain]].get.flatMap(loop)
+
+              case Empty =>
+                F.pure(lock)
+            }
+
+            state.getAndSet(Cons[F](lock)).flatMap { chain =>
+              F.onCancel(poll(loop(chain)), lock.complete(chain).void)
+            }
+          }
+        } { lock => lock.complete(Empty).void }
+        .void
 
     override def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Mutex[G] =
-      new Impl(sem.mapK(f))
+      new Mutex.TransformedMutex(this, f)
   }
+
+  private final class TransformedMutex[F[_], G[_]](
+      underlying: Mutex[F],
+      f: F ~> G
+  )(implicit F: MonadCancel[F, _], G: MonadCancel[G, _])
+      extends Mutex[G] {
+    override final val lock: Resource[G, Unit] =
+      underlying.lock.mapK(f)
+
+    override def mapK[H[_]](f: G ~> H)(implicit H: MonadCancel[H, _]): Mutex[H] =
+      new Mutex.TransformedMutex(this, f)
+  }
+
+  private sealed abstract class LockChain
+  private final case class Cons[F[_]](df: Deferred[F, LockChain]) extends LockChain
+  private case object Empty extends LockChain
 }
