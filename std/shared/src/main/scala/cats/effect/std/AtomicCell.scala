@@ -125,24 +125,40 @@ object AtomicCell {
   def apply[F[_]]: ApplyPartiallyApplied[F] =
     new ApplyPartiallyApplied(dummy = true)
 
-  private[std] final class ApplyPartiallyApplied[F[_]](private val dummy: Boolean)
-      extends AnyVal {
+  final class ApplyPartiallyApplied[F[_]](private val dummy: Boolean) extends AnyVal {
 
     /**
      * Initializes the `AtomicCell` using the provided value.
      */
-    def of[A](init: A)(implicit F: Async[F]): F[AtomicCell[F, A]] =
-      Mutex[F].map(mutex => new SyncImpl(init, mutex))
+    def of[A](init: A)(implicit F: Concurrent[F]): F[AtomicCell[F, A]] =
+      F match {
+        case f: Async[F] =>
+          AtomicCell.async(init)(f)
 
-    def concurrent[A](init: A)(implicit F: Concurrent[F]): F[AtomicCell[F, A]] =
-      (Ref.of[F, A](init), Mutex[F]).mapN { (ref, m) => new ConcurrentImpl(ref, m) }
+        case _ =>
+          AtomicCell.concurrent(init)
+      }
+
+    @deprecated("Use the version that only requires Concurrent", since = "3.5.0")
+    private[std] def of[A](init: A, F: Async[F]): F[AtomicCell[F, A]] =
+      of(init)(F)
 
     /**
      * Initializes the `AtomicCell` using the default empty value of the provided type.
      */
-    def empty[A](implicit M: Monoid[A], F: Async[F]): F[AtomicCell[F, A]] =
-      of(init = M.empty)
+    def empty[A](implicit M: Monoid[A], F: Concurrent[F]): F[AtomicCell[F, A]] =
+      of(M.empty)
+
+    @deprecated("Use the version that only requires Concurrent", since = "3.5.0")
+    private[std] def empty[A](M: Monoid[A], F: Async[F]): F[AtomicCell[F, A]] =
+      of(M.empty)(F)
   }
+
+  def async[F[_], A](init: A)(implicit F: Async[F]): F[AtomicCell[F, A]] =
+    Mutex[F].map(mutex => new AsyncImpl(init, mutex))
+
+  def concurrent[F[_], A](init: A)(implicit F: Concurrent[F]): F[AtomicCell[F, A]] =
+    (Ref.of[F, A](init), Mutex[F]).mapN { (ref, m) => new ConcurrentImpl(ref, m) }
 
   private final class ConcurrentImpl[F[_], A](
       ref: Ref[F, A],
@@ -177,7 +193,7 @@ object AtomicCell {
       evalModify(a => f(a).map(aa => (aa, aa)))
   }
 
-  private final class SyncImpl[F[_], A](
+  private final class AsyncImpl[F[_], A](
       init: A,
       mutex: Mutex[F]
   )(
