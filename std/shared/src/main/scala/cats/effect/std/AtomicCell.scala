@@ -132,7 +132,10 @@ object AtomicCell {
      * Initializes the `AtomicCell` using the provided value.
      */
     def of[A](init: A)(implicit F: Async[F]): F[AtomicCell[F, A]] =
-      Mutex[F].map(mutex => new Impl(init, mutex))
+      Mutex[F].map(mutex => new SyncImpl(init, mutex))
+
+    def concurrent[A](init: A)(implicit F: Concurrent[F]): F[AtomicCell[F, A]] =
+      (Ref.of[F, A](init), Mutex[F]).mapN { (ref, m) => new ConcurrentImpl(ref, m) }
 
     /**
      * Initializes the `AtomicCell` using the default empty value of the provided type.
@@ -141,7 +144,40 @@ object AtomicCell {
       of(init = M.empty)
   }
 
-  private final class Impl[F[_], A](
+  private final class ConcurrentImpl[F[_], A](
+      ref: Ref[F, A],
+      mutex: Mutex[F]
+  )(
+      implicit F: Concurrent[F]
+  ) extends AtomicCell[F, A] {
+    override def get: F[A] =
+      mutex.lock.surround(ref.get)
+
+    override def set(a: A): F[Unit] =
+      mutex.lock.surround(ref.set(a))
+
+    override def modify[B](f: A => (A, B)): F[B] =
+      evalModify(a => F.pure(f(a)))
+
+    override def evalModify[B](f: A => F[(A, B)]): F[B] =
+      mutex.lock.surround {
+        ref.get.flatMap(f).flatMap {
+          case (a, b) =>
+            ref.set(a).as(b)
+        }
+      }
+
+    override def evalUpdate(f: A => F[A]): F[Unit] =
+      evalModify(a => f(a).map(aa => (aa, ())))
+
+    override def evalGetAndUpdate(f: A => F[A]): F[A] =
+      evalModify(a => f(a).map(aa => (aa, a)))
+
+    override def evalUpdateAndGet(f: A => F[A]): F[A] =
+      evalModify(a => f(a).map(aa => (aa, aa)))
+  }
+
+  private final class SyncImpl[F[_], A](
       init: A,
       mutex: Mutex[F]
   )(
