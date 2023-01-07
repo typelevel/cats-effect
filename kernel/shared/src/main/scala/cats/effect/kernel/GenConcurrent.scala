@@ -74,13 +74,14 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
                 val eval = go.start.flatMap { fiber =>
                   deferredFiber.complete(fiber) *>
                     poll(fiber.join.flatMap(_.embed(productR(canceled)(never))))
+                      .onCancel(unsubscribe(deferredFiber))
                 }
 
                 Evaluating(deferredFiber, 1) -> eval
 
               case Evaluating(fiber, subscribers) =>
                 Evaluating(fiber, subscribers + 1) ->
-                  poll(fiber.get.flatMap(_.join).flatMap(_.embedNever))
+                  poll(fiber.get.flatMap(_.join).flatMap(_.embed(productR(canceled)(never))))
                     .onCancel(unsubscribe(fiber))
 
               case finished @ Finished(result) =>
