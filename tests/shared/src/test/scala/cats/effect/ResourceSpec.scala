@@ -1165,7 +1165,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           def releasedMustBe(i: Int) = released.get.map(_ must be_==(i)).void
 
           r.memoize.use { memo =>
-            memo.timeoutTo(1.second, Resource.unit).use_
+            memo.timeoutTo(1.second, Resource.unit[IO]).use_
           } *> acquiredMustBe(1) *> releasedMustBe(1)
         }.void must completeAs(())
       }
