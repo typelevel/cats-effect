@@ -26,8 +26,12 @@ import org.specs2.specification.core.Fragments
 import scala.concurrent.duration._
 
 final class MutexSpec extends BaseSpec {
-  "Mutex" should {
-    tests(Mutex[IO])
+  "ConcurrentMutex" should {
+    tests(Mutex.concurrent[IO])
+  }
+
+  "AsyncMutex" should {
+    tests(Mutex.async[IO])
   }
 
   "Mutex with dual constructors" should {

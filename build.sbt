@@ -887,7 +887,8 @@ lazy val std = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "cats.effect.std.Queue#DroppingQueue.onOfferNoCapacity"),
       // introduced by #3346
       // private stuff
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.std.Mutex#Impl.this")
+      ProblemFilters.exclude[MissingClassProblem](
+        "cats.effect.std.Mutex$Impl")
     )
   )
   .jsSettings(

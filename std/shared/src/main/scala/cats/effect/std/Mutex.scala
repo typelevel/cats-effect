@@ -65,10 +65,20 @@ object Mutex {
   /**
    * Creates a new `Mutex`.
    */
-  def apply[F[_]](implicit F: Async[F]): F[Mutex[F]] =
-    F.delay(
-      new AtomicReference[LockCell]()
-    ).map(state => new Impl[F](state))
+  def apply[F[_]](implicit F: Concurrent[F]): F[Mutex[F]] =
+    F match {
+      case ff: Async[F] =>
+        async[F](ff)
+
+      case _ =>
+        concurrent[F](F)
+    }
+
+  def async[F[_]](implicit F: Async[F]): F[Mutex[F]] =
+    in[F, F](F, F)
+
+  def concurrent[F[_]](implicit F: Concurrent[F]): F[Mutex[F]] =
+    Semaphore[F](n = 1).map(sem => new ConcurrentImpl[F](sem))
 
   /**
    * Creates a new `Mutex`. Like `apply` but initializes state using another effect constructor.
@@ -76,12 +86,17 @@ object Mutex {
   def in[F[_], G[_]](implicit F: Sync[F], G: Async[G]): F[Mutex[G]] =
     F.delay(
       new AtomicReference[LockCell]()
-    ).map(state => new Impl[G](state))
+    ).map(state => new AsyncImpl[G](state)(G))
 
-  // TODO: In case in a future cats-effect provides a way to identify fibers,
-  // then this implementation can be made reentrant.
-  // Or, we may also provide an alternative implementation using LiftIO + IOLocal
-  private final class Impl[F[_]](state: AtomicReference[LockCell])(implicit F: Async[F])
+  private final class ConcurrentImpl[F[_]](sem: Semaphore[F]) extends Mutex[F] {
+    override final val lock: Resource[F, Unit] =
+      sem.permit
+
+    override def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Mutex[G] =
+      new ConcurrentImpl(sem.mapK(f))
+  }
+
+  private final class AsyncImpl[F[_]](state: AtomicReference[LockCell])(implicit F: Async[F])
       extends Mutex[F] {
     // Cancels a Fiber waiting for the Mutex.
     private def cancel(thisCB: CB, thisCell: LockCell, previousCell: LockCell): F[Unit] =
@@ -109,7 +124,7 @@ object Mutex {
           if (!previousCell.compareAndSet(thisCB, nextCB)) {
             // However, in case the previous cell had already completed,
             // then the Mutex is free and we can awake our waiting fiber.
-            if (nextCB ne null) nextCB.apply(RUnit)
+            if (nextCB ne null) nextCB.apply(Either.unit)
           }
         }
       }
@@ -123,7 +138,7 @@ object Mutex {
           if (previousCell eq null) {
             // If the previous cell was null,
             // then the Mutex is free.
-            RUnit.asInstanceOf[Either[Option[F[Unit]], Unit]]
+            Either.unit
           } else {
             // Otherwise,
             // we check again that the previous cell haven't been completed yet,
@@ -131,7 +146,7 @@ object Mutex {
             if (!previousCell.compareAndSet(null, thisCB)) {
               // If it was already completed,
               // then the Mutex is free.
-              RUnit.asInstanceOf[Either[Option[F[Unit]], Unit]]
+              Either.unit
             } else {
               Left(Some(cancel(thisCB, thisCell, previousCell)))
             }
@@ -156,7 +171,7 @@ object Mutex {
           // our cell is probably not empty,
           // we must awake whatever Fiber is waiting for us.
           val nextCB = thisCell.getAndSet(Sentinel)
-          if (nextCB ne null) nextCB.apply(RUnit)
+          if (nextCB ne null) nextCB.apply(Either.unit)
         }
       }
 
@@ -178,9 +193,6 @@ object Mutex {
     override def mapK[H[_]](f: G ~> H)(implicit H: MonadCancel[H, _]): Mutex[H] =
       new Mutex.TransformedMutex(this, f)
   }
-
-  private val RUnit: Either[Throwable, Unit] =
-    Right(())
 
   private type CB = Either[Throwable, Unit] => Unit
 
