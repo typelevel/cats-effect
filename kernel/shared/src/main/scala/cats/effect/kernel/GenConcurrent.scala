@@ -61,14 +61,19 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
                       other
                   }
 
-                  fa.guaranteeCase {
-                    case Outcome.Canceled() =>
-                      tryComplete(Finished(Right(productR(canceled)(never))))
-                    case Outcome.Errored(err) =>
-                      tryComplete(Finished(Left(err)))
-                    case Outcome.Succeeded(fa) =>
-                      tryComplete(Finished(Right(fa)))
-                  }
+                  fa
+                    // hack around functor law breakage
+                    .flatMap(F.pure(_))
+                    .handleErrorWith(F.raiseError(_))
+                    // end hack
+                    .guaranteeCase {
+                      case Outcome.Canceled() =>
+                        tryComplete(Finished(Right(productR(canceled)(never))))
+                      case Outcome.Errored(err) =>
+                        tryComplete(Finished(Left(err)))
+                      case Outcome.Succeeded(fa) =>
+                        tryComplete(Finished(Right(fa)))
+                    }
                 }
 
                 val eval = go.start.flatMap { fiber =>
