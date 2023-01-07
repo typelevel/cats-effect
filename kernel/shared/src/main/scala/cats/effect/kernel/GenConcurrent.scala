@@ -63,7 +63,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
                   fa.guaranteeCase {
                     case Outcome.Canceled() =>
-                      tryComplete(Finished(Right(never)))
+                      tryComplete(Finished(Right(productR(canceled)(never))))
                     case Outcome.Errored(err) =>
                       tryComplete(Finished(Left(err)))
                     case Outcome.Succeeded(fa) =>
@@ -73,7 +73,7 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
                 val eval = go.start.flatMap { fiber =>
                   deferredFiber.complete(fiber) *>
-                    poll(fiber.join.flatMap(_.embedNever))
+                    poll(fiber.join.flatMap(_.embed(productR(canceled)(never))))
                 }
 
                 Evaluating(deferredFiber, 1) -> eval
