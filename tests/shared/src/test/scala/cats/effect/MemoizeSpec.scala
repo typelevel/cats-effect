@@ -190,19 +190,25 @@ class MemoizeSpec extends BaseSpec with Discipline {
     "Attempting to cancel a memoized effect with active subscribers is a no-op" in ticked {
       implicit ticker =>
         val op = for {
+          startCounter <- Ref[F].of(0)
           condition <- Deferred[F, Unit]
-          action = liftK(IO.sleep(200.millis)) >> condition.complete(())
+          action = startCounter.getAndUpdate(_ + 1) *>
+            liftK(IO.sleep(200.millis)) *>
+            condition.complete(())
           memoized <- Concurrent[F].memoize(action)
           fiber1 <- memoized.start
           _ <- liftK(IO.sleep(50.millis))
           fiber2 <- memoized.start
           _ <- liftK(IO.sleep(50.millis))
           _ <- fiber1.cancel
-          _ <- fiber2.join // Make sure no exceptions are swallowed by start
-          v <- condition
-            .get
-            .race(liftK(IO.sleep(1.second) *> IO.raiseError(new TimeoutException)))
-            .as(true)
+          _ <- fiber2
+            // Make sure no exceptions are swallowed by start
+            .join
+            // if we no-opped, then it should be completed by now
+            .race(liftK(IO.sleep(101.millis) *> IO.raiseError(new TimeoutException)))
+            .void
+          _ <- condition.get
+          v <- startCounter.get.map(_ == 1)
         } yield v
 
         val result = lowerK(op).unsafeToFuture()
