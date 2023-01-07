@@ -1155,6 +1155,20 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           .flatten
           .void must completeAs(())
       }
+      "does not leak if canceled" in ticked { implicit ticker =>
+        (IO.ref(0), IO.ref(0)).flatMapN { (acquired, released) =>
+          val r = Resource.make(IO.sleep(2.seconds) *> acquired.update(_ + 1).void) { _ =>
+            released.update(_ + 1)
+          }
+
+          def acquiredMustBe(i: Int) = acquired.get.map(_ must be_==(i)).void
+          def releasedMustBe(i: Int) = released.get.map(_ must be_==(i)).void
+
+          r.memoize.use { memo =>
+            memo.timeoutTo(1.second, Resource.unit).use_
+          } *> acquiredMustBe(1) *> releasedMustBe(1)
+        }.void must completeAs(())
+      }
     }
   }
 
