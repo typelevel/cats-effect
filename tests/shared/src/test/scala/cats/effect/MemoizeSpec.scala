@@ -100,6 +100,12 @@ class MemoizeSpec extends BaseSpec with Discipline {
       forAll { (fa: IO[Int]) => lowerK(Concurrent[F].memoize(liftK(fa)).flatten) eqv fa }
     }
 
+    "Concurrent.memoize uncancelable canceled and then flatten is identity" in ticked {
+      implicit ticker =>
+        val fa = Concurrent[F].uncancelable(_ => Concurrent[F].canceled)
+        lowerK(Concurrent[F].memoize(fa).flatten) eqv lowerK(fa)
+    }
+
     "Memoized effects can be canceled when there are no other active subscribers (1)" in ticked {
       implicit ticker =>
         val op = for {
