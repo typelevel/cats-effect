@@ -16,21 +16,18 @@
 
 package cats.effect
 
-import cats.effect.syntax.all._
-import cats.syntax.all._
-import cats.~>
-
 import java.util.concurrent.atomic.AtomicReference
 
 private final class IODeferred[A] extends Deferred[IO, A] {
   import IODeferred.Sentinel
 
   private[this] val cell = new AtomicReference[AnyRef](Sentinel)
-  private[this] val callbacks = new CallbackStack[Right[Nothing, A]](null)
+  private[this] val callbacks = CallbackStack[Right[Nothing, A]](null)
 
   def complete(a: A): IO[Boolean] = IO {
     if (cell.compareAndSet(Sentinel, a.asInstanceOf[AnyRef])) {
       val _ = callbacks(Right(a), false)
+      callbacks.clear() // avoid leaks
       true
     } else {
       false
@@ -40,32 +37,22 @@ private final class IODeferred[A] extends Deferred[IO, A] {
   def get: IO[A] = IO defer {
     val back = cell.get()
 
-    if (back eq Sentinel) {
-      IO.cont[A, A](new Cont[IO, A, A] {
-        def apply[G[_]: MonadCancelThrow] = {
-          (cb: Either[Throwable, A] => Unit, get: G[A], lift: IO ~> G) =>
-            MonadCancel[G] uncancelable { poll =>
-              val gga = lift {
-                IO {
-                  val handle = callbacks.push(cb)
+    if (back eq Sentinel) IO.asyncCheckAttempt { cb =>
+      IO {
+        val stack = callbacks.push(cb)
+        val handle = stack.currentHandle()
 
-                  val back = cell.get()
-                  if (back eq Sentinel) {
-                    poll(get).onCancel(lift(IO(handle.clearCurrent())))
-                  } else {
-                    handle.clearCurrent()
-                    back.asInstanceOf[A].pure[G]
-                  }
-                }
-              }
-
-              gga.flatten
-            }
+        val back = cell.get()
+        if (back eq Sentinel) {
+          Left(Some(IO(stack.clearCurrent(handle))))
+        } else {
+          stack.clearCurrent(handle)
+          Right(back.asInstanceOf[A])
         }
-      })
-    } else {
-      IO.pure(back.asInstanceOf[A])
+      }
     }
+    else
+      IO.pure(back.asInstanceOf[A])
   }
 
   def tryGet: IO[Option[A]] = IO {

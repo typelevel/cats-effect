@@ -69,5 +69,19 @@ private final class CallbackStack[A](private[this] var callback: A => Unit)
   /**
    * Removes the current callback from the queue.
    */
-  def clearCurrent(): Unit = callback = null
+  def clearCurrent(handle: CallbackStack.Handle): Unit = {
+    val _ = handle
+    callback = null
+  }
+
+  def currentHandle(): CallbackStack.Handle = 0
+
+  def clear(): Unit = lazySet(null)
+}
+
+private object CallbackStack {
+  def apply[A](cb: A => Unit): CallbackStack[A] =
+    new CallbackStack(cb)
+
+  type Handle = Byte
 }
