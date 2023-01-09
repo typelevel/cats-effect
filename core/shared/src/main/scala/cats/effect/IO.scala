@@ -1317,6 +1317,18 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def cede: IO[Unit] = Cede
 
   /**
+   * Functor map, but causes a reschedule before and after `f`
+   */
+  def cedeMap[A, B](fa: IO[A])(f: A => B): IO[B] =
+    (fa <* cede).map(a => f(a)).guarantee(cede)
+
+  /**
+   * causes a reschedule before and after `fa`
+   */
+  def intercede[A](fa: IO[A]): IO[A] =
+    cede *> fa.guarantee(cede)
+
+  /**
    * This is a low-level API which is meant for implementors, please use `background`, `start`,
    * `async`, or `Deferred` instead, depending on the use case
    */
