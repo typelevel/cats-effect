@@ -37,14 +37,17 @@ private[unsafe] abstract class IORuntimeMetricsCompanionPlatform {
       starvation: CpuStarvationSampler
   ): IORuntimeMetrics =
     new IORuntimeMetrics {
-      val cpuStarvation: CPUStarvationMetrics = CPUStarvationMetrics.fromMetrics(starvation)
-      val compute: Option[ComputeMetrics] = computeMetrics(ec)
+      val cpuStarvation: Option[CPUStarvationMetrics] =
+        Some(CPUStarvationMetrics.fromMetrics(starvation))
+
+      val compute: Option[ComputeMetrics] =
+        computeMetrics(ec)
     }
 
   private[unsafe] def noop: IORuntimeMetrics =
     new IORuntimeMetrics {
       val compute: Option[ComputeMetrics] = None
-      val cpuStarvation: CPUStarvationMetrics = CPUStarvationMetrics.noop
+      val cpuStarvation: Option[CPUStarvationMetrics] = None
     }
 
   private def computeMetrics(compute: ExecutionContext): Option[ComputeMetrics] =

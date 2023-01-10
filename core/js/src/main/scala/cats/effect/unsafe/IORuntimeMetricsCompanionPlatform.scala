@@ -29,13 +29,14 @@ private[unsafe] abstract class IORuntimeMetricsCompanionPlatform {
   ): IORuntimeMetrics = {
     val _ = ec
     new IORuntimeMetrics {
-      val cpuStarvation: CPUStarvationMetrics = CPUStarvationMetrics.fromMetrics(starvation)
+      val cpuStarvation: Option[CPUStarvationMetrics] =
+        Some(CPUStarvationMetrics.fromMetrics(starvation))
     }
   }
 
   private[unsafe] def noop: IORuntimeMetrics =
     new IORuntimeMetrics {
-      val cpuStarvation: CPUStarvationMetrics = CPUStarvationMetrics.noop
+      val cpuStarvation: Option[CPUStarvationMetrics] = None
     }
 
 }

@@ -19,7 +19,7 @@ package cats.effect.unsafe
 import cats.effect.unsafe.metrics.CpuStarvationSampler
 
 trait IORuntimeMetrics extends IORuntimeMetricsPlatform {
-  def cpuStarvation: IORuntimeMetrics.CPUStarvationMetrics
+  def cpuStarvation: Option[IORuntimeMetrics.CPUStarvationMetrics]
 }
 
 object IORuntimeMetrics extends IORuntimeMetricsCompanionPlatform {
