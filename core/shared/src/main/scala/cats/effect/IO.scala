@@ -498,6 +498,20 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def map[B](f: A => B): IO[B] = IO.Map(this, f, Tracing.calculateTracingEvent(f))
 
   /**
+   * Functor map, but causes a reschedule before and after `f`. For more information, checkout
+   * `cede` in the companion object.
+   */
+  def cedeMap[B](f: A => B): IO[B] =
+    (this <* IO.cede).map(a => f(a)).guarantee(IO.cede)
+
+  /**
+   * Causes a reschedule before and after `fa`. For more information, checkout `cede` in the
+   * companion object.
+   */
+  def intercede: IO[A] =
+    IO.cede *> this.guarantee(IO.cede)
+
+  /**
    * Applies rate limiting to this `IO` based on provided backpressure semantics.
    *
    * @return
@@ -1315,18 +1329,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * turn may be adjusted by overriding [[IOApp.runtimeConfig]].
    */
   def cede: IO[Unit] = Cede
-
-  /**
-   * Functor map, but causes a reschedule before and after `f`
-   */
-  def cedeMap[A, B](fa: IO[A])(f: A => B): IO[B] =
-    (fa <* cede).map(a => f(a)).guarantee(cede)
-
-  /**
-   * causes a reschedule before and after `fa`
-   */
-  def intercede[A](fa: IO[A]): IO[A] =
-    cede *> fa.guarantee(cede)
 
   /**
    * This is a low-level API which is meant for implementors, please use `background`, `start`,
