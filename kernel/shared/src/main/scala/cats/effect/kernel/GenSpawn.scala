@@ -286,22 +286,13 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
    * Functor map, but causes a reschedule before and after `f`
    */
   def cedeMap[A, B](fa: F[A])(f: A => B): F[B] =
-    for {
-      a <- fa
-      _ <- cede
-      b = f(a)
-      _ <- cede
-    } yield b
+    (fa <* cede).map(a => f(a)).guarantee(cede)
 
   /**
    * Causes a reschedule before and after `fa`
    */
   def intercede[A](fa: F[A]): F[A] =
-    for {
-      _ <- cede
-      a <- fa
-      _ <- cede
-    } yield a
+    cede *> fa.guarantee(cede)
 
   /**
    * A low-level primitive for racing the evaluation of two fibers that returns the [[Outcome]]
