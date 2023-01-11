@@ -283,6 +283,27 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] with Unique[F] {
   def cede: F[Unit]
 
   /**
+   * Functor map, but causes a reschedule before and after `f`
+   */
+  def cedeMap[A, B](fa: F[A])(f: A => B): F[B] =
+    for {
+      a <- fa
+      _ <- cede
+      b = f(a)
+      _ <- cede
+    } yield b
+
+  /**
+   * Causes a reschedule before and after `fa`
+   */
+  def intercede[A](fa: F[A]): F[A] =
+    for {
+      _ <- cede
+      a <- fa
+      _ <- cede
+    } yield a
+
+  /**
    * A low-level primitive for racing the evaluation of two fibers that returns the [[Outcome]]
    * of the winner and the [[Fiber]] of the loser. The winner of the race is considered to be
    * the first fiber that completes with an outcome.
