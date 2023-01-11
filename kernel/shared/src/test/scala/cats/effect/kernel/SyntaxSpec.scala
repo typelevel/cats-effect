@@ -139,6 +139,11 @@ class SyntaxSpec extends Specification {
       val result = target.bothOutcome(another)
       result: F[(Outcome[F, E, A], Outcome[F, E, B])]
     }
+
+    {
+      val result = target.intercede
+      result: F[A]
+    }
   }
 
   def spawnForwarder[F[_]: Spawn] =
