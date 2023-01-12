@@ -108,7 +108,7 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
 
     // anonymous lambdas can only be distinguished by Scala source-location, if available
     def isInternalScalaFile =
-      callSiteFileName ne null && !callSiteFileName.endsWith(".js") && isInternalFile(
+      (callSiteFileName ne null) && !callSiteFileName.endsWith(".js") && isInternalFile(
         callSiteFileName)
 
     // this is either a lambda or we are in Firefox
