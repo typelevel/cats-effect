@@ -43,7 +43,7 @@ private[tracing] abstract class TracingPlatform extends ClassValue[TracingEvent]
   private[tracing] def applyStackTraceFilter(
       callSiteClassName: String,
       callSiteMethodName: String,
-      callSiteFileName: String): Boolean =
+      callSiteFileName: Option[String]): Boolean =
     isInternalClass(callSiteClassName)
 
   private[tracing] def decodeMethodName(name: String): String =

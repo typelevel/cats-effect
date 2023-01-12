@@ -104,11 +104,11 @@ private[tracing] abstract class TracingPlatform { self: Tracing.type =>
   private[tracing] def applyStackTraceFilter(
       callSiteClassName: String,
       callSiteMethodName: String,
-      callSiteFileName: String): Boolean = {
+      callSiteFileName: Option[String]): Boolean = {
 
     // anonymous lambdas can only be distinguished by Scala source-location, if available
-    def isInternalScalaFile = !callSiteFileName.endsWith(".js") &&
-      isInternalFile(callSiteFileName)
+    def isInternalScalaFile =
+      callSiteFileName.exists(fileName => !fileName.endsWith(".js") && isInternalFile(fileName))
 
     // this is either a lambda or we are in Firefox
     def isInternalJSCode = callSiteClassName == "<jscode>" &&
