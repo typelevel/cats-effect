@@ -84,7 +84,7 @@ private[effect] object Tracing extends TracingPlatform {
       val callSite = stackTrace(idx)
       val callSiteClassName = callSite.getClassName
       val callSiteMethodName = callSite.getMethodName
-      val callSiteFileName = Option(callSite.getFileName)
+      val callSiteFileName = callSite.getFileName
 
       if (callSiteClassName == "cats.effect.IOFiber" && callSiteMethodName == "run")
         return null // short-circuit, effective end of stack
