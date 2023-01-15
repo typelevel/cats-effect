@@ -223,6 +223,15 @@ class MemoizeSpec extends BaseSpec with Discipline {
         result.value mustEqual Some(Success(true))
     }
 
+    "External cancelation does not affect subsequent access" in ticked { implicit ticker =>
+      IO.ref(0).flatMap { counter =>
+        val go = counter.getAndUpdate(_ + 1) <* IO.sleep(2.seconds)
+        go.memoize.flatMap { memo =>
+          memo.parReplicateA_(10).timeoutTo(1.second, IO.unit) *> memo
+        }
+      } must completeAs(1)
+    }
+
   }
 
   "Concurrent.memoize" >> {
