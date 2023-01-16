@@ -86,7 +86,7 @@ package examples {
 
     def run(args: List[String]): IO[ExitCode] =
       IO.raiseError(new Exception).startOn(MainThread) *>
-        IO.sleep(100.millis) *> IO(exitCode.get)
+        IO.sleep(1.second) *> IO(exitCode.get)
 
   }
 }
