@@ -23,7 +23,7 @@ import cats.syntax.all._
 
 import scala.concurrent.duration._
 
-class DispatcherSpec extends BaseSpec {
+class DispatcherSpec extends BaseSpec with DetectPlatform {
 
   override def executionTimeout = 30.seconds
 
@@ -34,6 +34,14 @@ class DispatcherSpec extends BaseSpec {
       sequential(D)
 
       awaitTermination(D)
+
+      "not hang" in real {
+        Dispatcher
+          .sequential[IO](await = true)
+          .use { dispatcher => IO(dispatcher.unsafeRunAndForget(IO.unit)) }
+          .replicateA(if (isJS || isNative) 1 else 10000)
+          .as(true)
+      }
     }
 
     "await = false" >> {

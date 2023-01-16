@@ -253,8 +253,6 @@ object Dispatcher {
             state: Array[AtomicReference[List[Registration]]]): F[Unit] = {
 
           val step = for {
-            _ <- F.delay(latch.set(Noop)) // reset latch
-
             regs <- F delay {
               val buffer = mutable.ListBuffer.empty[Registration]
               var i = 0
@@ -289,9 +287,10 @@ object Dispatcher {
               }
           } yield ()
 
-          // if we're marked as done, yield immediately to give other fibers a chance to shut us down
-          // we might loop on this a few times since we're marked as done before the supervisor is canceled
-          doneR.get.ifM(F.cede, step)
+          F.delay(latch.set(Noop)) *> // reset latch
+            // if we're marked as done, yield immediately to give other fibers a chance to shut us down
+            // we might loop on this a few times since we're marked as done before the supervisor is canceled
+            doneR.get.ifM(F.cede, step)
         }
 
         0.until(workers).toList traverse_ { n =>
