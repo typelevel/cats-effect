@@ -36,9 +36,7 @@ class DispatcherSpec extends BaseSpec with DetectPlatform {
       awaitTermination(D)
 
       "not hang" in real {
-        Dispatcher
-          .sequential[IO](await = true)
-          .use { dispatcher => IO(dispatcher.unsafeRunAndForget(IO.unit)) }
+        D.use(dispatcher => IO(dispatcher.unsafeRunAndForget(IO.unit)))
           .replicateA(if (isJS || isNative) 1 else 10000)
           .as(true)
       }
