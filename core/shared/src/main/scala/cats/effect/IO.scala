@@ -1543,7 +1543,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def ref[A](a: A): IO[Ref[IO, A]] = IO(Ref.unsafe(a))
 
-  def deferred[A]: IO[Deferred[IO, A]] = IO(new IODeferred[A])
+  def deferred[A]: IO[Deferred[IO, A]] = IO(Deferred.unsafe)
 
   def bracketFull[A, B](acquire: Poll[IO] => IO[A])(use: A => IO[B])(
       release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
