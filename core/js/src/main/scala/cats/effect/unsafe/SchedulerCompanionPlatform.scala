@@ -51,17 +51,18 @@ private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type
     }
 
     def browsers =
-      Try(js.Dynamic.global.performance.asInstanceOf[js.UndefOr[Performance]])
+      Try(js.Dynamic.global.performance.asInstanceOf[js.UndefOr[Performance]].filter(test))
         .toOption
         .flatMap(_.toOption)
-        .filter(test)
     def nodeJS =
-      Try(
+      Try {
         js.Dynamic
           .global
           .require("perf_hooks")
           .performance
-          .asInstanceOf[js.UndefOr[Performance]]).toOption.flatMap(_.toOption).filter(test)
+          .asInstanceOf[js.UndefOr[Performance]]
+          .filter(test)
+      }.toOption.flatMap(_.toOption)
 
     browsers.orElse(nodeJS).map { performance => () =>
       ((performance.timeOrigin + performance.now()) * 1000).toLong
