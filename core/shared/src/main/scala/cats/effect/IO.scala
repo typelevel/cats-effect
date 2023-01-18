@@ -1380,10 +1380,16 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * }}}
    *
    * @see
-   *   [[IO#unsafeToFuture]]
+   *   [[IO#unsafeToFuture]], [[fromFutureCancelable]]
    */
   def fromFuture[A](fut: IO[Future[A]]): IO[A] =
     asyncForIO.fromFuture(fut)
+
+  /**
+   * Like [[fromFuture]], but is cancelable via the provided finalizer.
+   */
+  def fromFutureCancelable[A](fut: IO[(Future[A], IO[Unit])]): IO[A] =
+    asyncForIO.fromFutureCancelable(fut)
 
   /**
    * Run two IO tasks concurrently, and return the first to finish, either in success or error.

@@ -1400,6 +1400,16 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         }
       }
 
+      "round trip cancelable through s.c.Future" in ticked { implicit ticker =>
+        forAll { (ioa: IO[Int]) =>
+          ioa eqv IO.fromFutureCancelable(
+            IO(ioa.unsafeToFutureCancelable()).map {
+              case (fut, fin) => (fut, IO.fromFuture(IO(fin())))
+            }
+          )
+        }
+      }
+
       "canceled through s.c.Future is errored" in ticked { implicit ticker =>
         val test =
           IO.fromFuture(IO(IO.canceled.as(-1).unsafeToFuture())).handleError(_ => 42)
