@@ -42,9 +42,9 @@ private[unsafe] class ReferenceQueue[T] {
   private[this] val enqueuedRefs = js.Array[Reference[_ <: T]]()
 
   private[this] val finalizationRegistry = {
-    new js.FinalizationRegistry[T, Reference[_ <: T], Reference[_ <: T]]({
+    new js.FinalizationRegistry[T, Reference[_ <: T], Reference[_ <: T]] {
       (ref: Reference[_ <: T]) => enqueue(ref)
-    })
+    }
   }
 
   private[ref] def register(ref: Reference[_ <: T], referent: T): Unit =
