@@ -67,6 +67,8 @@ If the `IO(...)` in the middle was run on the compute pool this would require:
 
 So in this case, the intermediate `IO(...)` is highly likely to run on a blocking thread. This enables the entire sequence to run on the same blocking thread, without any shifting.
 
+Note that this is just a specific example to demonstrate why running an non-blocking `IO(...)` on a blocking thread can be beneficial, but it is not the only situation in which you may observe this behavior.
+
 ## Dealing with Starvation
 
 Cats Effect 3.4.0 introduced a default-enabled *starvation checker*, which produces warnings like the following:
