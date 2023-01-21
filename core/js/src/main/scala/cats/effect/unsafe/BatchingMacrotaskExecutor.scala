@@ -129,8 +129,11 @@ private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
       runnable
 
   private[this] val fiberBag =
-    if (LinkingInfo.developmentMode && TracingConstants.isStackTracing && FiberMonitor.weakRefsAvailable)
-      mutable.Set.empty[IOFiber[_]]
+    if (LinkingInfo.developmentMode)
+      if (TracingConstants.isStackTracing && FiberMonitor.weakRefsAvailable)
+        mutable.Set.empty[IOFiber[_]]
+      else
+        null
     else
       null
 
