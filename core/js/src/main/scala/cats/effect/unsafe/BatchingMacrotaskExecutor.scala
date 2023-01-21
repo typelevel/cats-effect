@@ -51,32 +51,33 @@ private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
   private[this] var needsReschedule = true
   private[this] val fibers = new ArrayDeque[IOFiber[_]](batchSize)
 
-  private[this] def executeBatchTask = _executeBatchTask
-  private[this] val _executeBatchTask: Runnable = () => {
-    // do up to batchSize tasks
-    var i = 0
-    while (i < batchSize && !fibers.isEmpty()) {
-      val fiber = fibers.poll()
+  private[this] object executeBatchTask extends Runnable {
+    def run() = {
+      // do up to batchSize tasks
+      var i = 0
+      while (i < batchSize && !fibers.isEmpty()) {
+        val fiber = fibers.poll()
 
-      if (LinkingInfo.developmentMode)
-        if (fiberBag ne null)
-          fiberBag -= fiber
+        if (LinkingInfo.developmentMode)
+          if (fiberBag ne null)
+            fiberBag -= fiber
 
-      try fiber.run()
-      catch {
-        case t if NonFatal(t) => reportFailure(t)
-        case t: Throwable => IOFiber.onFatalFailure(t)
+        try fiber.run()
+        catch {
+          case t if NonFatal(t) => reportFailure(t)
+          case t: Throwable => IOFiber.onFatalFailure(t)
+        }
+
+        i += 1
       }
 
-      i += 1
+      if (!fibers.isEmpty()) // we'll be right back after this (post) message
+        MacrotaskExecutor.execute(this)
+      else // the batch task will need to be rescheduled when more fibers arrive
+        needsReschedule = true
+
+      // yield to the event loop
     }
-
-    if (!fibers.isEmpty()) // we'll be right back after this (post) message
-      MacrotaskExecutor.execute(executeBatchTask)
-    else // the batch task will need to be rescheduled when more fibers arrive
-      needsReschedule = true
-
-    // yield to the event loop
   }
 
   /**
