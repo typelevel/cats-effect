@@ -31,7 +31,7 @@ private final class JSArrayQueue[A] {
   private[this] var endIndex: Int = 1
   private[this] var empty: Boolean = true
 
-  @inline def isEmpty: Boolean = empty
+  @inline def isEmpty(): Boolean = empty
 
   @inline def take(): A = {
     val a = buffer(startIndex)

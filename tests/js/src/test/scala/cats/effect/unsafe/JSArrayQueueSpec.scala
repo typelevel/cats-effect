@@ -33,10 +33,10 @@ class JSArrayQueueSpec extends BaseSpec with ScalaCheck {
         stuff.foreach {
           case Some(i) => queue.offer(i)
           case None =>
-            if (!queue.isEmpty) taken += queue.take()
+            if (!queue.isEmpty()) taken += queue.take()
         }
 
-        while (!queue.isEmpty) taken += queue.take()
+        while (!queue.isEmpty()) taken += queue.take()
 
         taken.toList must beEqualTo(stuff.flatten)
       }
