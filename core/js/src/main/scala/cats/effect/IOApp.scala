@@ -128,6 +128,12 @@ import scala.util.Try
  * number of compute worker threads to "make room" for the I/O workers, such that they all sum
  * to the number of physical threads exposed by the kernel.
  *
+ * @note
+ *   While [[IOApp]] works perfectly fine for browser applications, in practice it brings little
+ *   value over calling [[IO.unsafeRunAndForget]]. You can use your UI framework's preferred API
+ *   for defining your application's entrypoint. On the other hand, Node.js applications must
+ *   use [[IOApp]] to behave correctly.
+ *
  * @see
  *   [[IO]]
  * @see
