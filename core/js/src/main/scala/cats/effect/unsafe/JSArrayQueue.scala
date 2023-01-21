@@ -65,7 +65,7 @@ private final class JSArrayQueue[A] {
           buffer(i) = null.asInstanceOf[A]
           i += 1
         }
-        endIndex *= 2
+        endIndex = buffer.length
       }
     }
 
