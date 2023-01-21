@@ -27,8 +27,6 @@ import scala.scalajs.LinkingInfo
 import scala.scalajs.concurrent.QueueExecutionContext
 import scala.util.control.NonFatal
 
-import java.util.ArrayDeque
-
 /**
  * An `ExecutionContext` that improves throughput by providing a method to `schedule` fibers to
  * execute in batches, instead of one task per event loop iteration. This optimization targets
@@ -51,14 +49,14 @@ private[effect] final class BatchingMacrotaskExecutor(
    * Whether the `executeBatchTask` needs to be rescheduled
    */
   private[this] var needsReschedule = true
-  private[this] val fibers = new ArrayDeque[IOFiber[_]](batchSize)
+  private[this] val fibers = new JSArrayQueue[IOFiber[_]]
 
   private[this] object executeBatchTask extends Runnable {
     def run() = {
       // do up to batchSize tasks
       var i = 0
       while (i < batchSize && !fibers.isEmpty()) {
-        val fiber = fibers.poll()
+        val fiber = fibers.take()
 
         if (LinkingInfo.developmentMode)
           if (fiberBag ne null)
@@ -97,7 +95,7 @@ private[effect] final class BatchingMacrotaskExecutor(
       if (fiberBag ne null)
         fiberBag += fiber
 
-    fibers.addLast(fiber)
+    fibers.offer(fiber)
 
     if (needsReschedule) {
       needsReschedule = false
