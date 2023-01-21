@@ -40,8 +40,10 @@ import java.util.ArrayDeque
  * @param batchSize
  *   the maximum number of batched runnables to execute before yielding to the event loop
  */
-private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
-    extends ExecutionContextExecutor {
+private[effect] final class BatchingMacrotaskExecutor(
+    batchSize: Int,
+    reportFailure0: Throwable => Unit
+) extends ExecutionContextExecutor {
 
   private[this] val MicrotaskExecutor = QueueExecutionContext.promises()
 
@@ -105,7 +107,7 @@ private[effect] final class BatchingMacrotaskExecutor(batchSize: Int)
     }
   }
 
-  def reportFailure(t: Throwable): Unit = MacrotaskExecutor.reportFailure(t)
+  def reportFailure(t: Throwable): Unit = reportFailure0(t)
 
   def liveTraces(): Map[IOFiber[_], Trace] =
     fiberBag.iterator.filterNot(_.isDone).map(f => f -> f.captureTrace()).toMap

@@ -21,7 +21,13 @@ import scala.concurrent.ExecutionContext
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
   def defaultComputeExecutionContext: ExecutionContext =
-    new BatchingMacrotaskExecutor(64)
+    createBatchingMacrotaskExecutor()
+
+  def createBatchingMacrotaskExecutor(
+      batchSize: Int = 64,
+      reportFailure: Throwable => Unit = _.printStackTrace()
+  ): ExecutionContext =
+    new BatchingMacrotaskExecutor(batchSize, reportFailure)
 
   def defaultScheduler: Scheduler = Scheduler.createDefaultScheduler()._1
 
