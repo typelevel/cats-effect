@@ -23,8 +23,7 @@ import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
-import scala.scalajs.LinkingInfo
-import scala.scalajs.concurrent.QueueExecutionContext
+import scala.scalajs.{js, LinkingInfo}
 import scala.util.control.NonFatal
 
 /**
@@ -43,7 +42,13 @@ private[effect] final class BatchingMacrotaskExecutor(
     reportFailure0: Throwable => Unit
 ) extends ExecutionContextExecutor {
 
-  private[this] val MicrotaskExecutor = QueueExecutionContext.promises()
+  private[this] val queueMicrotask: js.Function1[js.Function0[Any], Any] =
+    if (js.typeOf(js.Dynamic.global.queueMicrotask) == "function")
+      js.Dynamic.global.queueMicrotask.asInstanceOf[js.Function1[js.Function0[Any], Any]]
+    else {
+      val resolved = js.Dynamic.global.Promise.resolved(())
+      task => resolved.`then`(task)
+    }
 
   /**
    * Whether the `executeBatchTask` needs to be rescheduled
@@ -101,7 +106,8 @@ private[effect] final class BatchingMacrotaskExecutor(
       needsReschedule = false
       // start executing the batch immediately after the currently running task suspends
       // this is safe b/c `needsReschedule` is set to `true` only upon yielding to the event loop
-      MicrotaskExecutor.execute(executeBatchTask)
+      queueMicrotask(() => executeBatchTask.run())
+      ()
     }
   }
 
