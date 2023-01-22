@@ -31,7 +31,7 @@ private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type
         def sleep(delay: FiniteDuration, task: Runnable): Runnable =
           if (delay <= maxTimeout) {
             val handle = timers.setTimeout(delay)(task.run())
-            () => timers.clearTimeout(handle)
+            mkCancelRunnable(handle)
           } else {
             var cancel: Runnable = () => ()
             cancel = sleep(maxTimeout, () => cancel = sleep(delay - maxTimeout, task))
@@ -43,6 +43,14 @@ private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type
         override def nowMicros(): Long = nowMicrosImpl()
       },
       () => ())
+
+  private[this] val mkCancelRunnable: js.Function1[timers.SetTimeoutHandle, Runnable] =
+    if (js.typeOf(js.Dynamic.global.clearTimeout) == "function")
+      handle => () => timers.clearTimeout(handle)
+    else { // raw V8 doesn't support `clearTimeout`, so don't crash
+      val noop: Runnable = () => ()
+      _ => noop
+    }
 
   private[this] val nowMicrosImpl: js.Function0[Long] = {
     def test(performance: Performance) = {
