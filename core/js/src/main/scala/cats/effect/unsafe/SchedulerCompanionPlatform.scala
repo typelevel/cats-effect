@@ -44,7 +44,7 @@ private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type
       },
       () => ())
 
-  private[this] val nowMicrosImpl: () => Long = {
+  private[this] val nowMicrosImpl: js.Function0[Long] = {
     def test(performance: Performance) = {
       // take it for a spin
       !(performance.timeOrigin + performance.now()).isNaN
@@ -64,7 +64,7 @@ private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type
           .filter(test)
       }.toOption.flatMap(_.toOption)
 
-    browsers.orElse(nodeJS).map { performance => () =>
+    browsers.orElse(nodeJS).map[js.Function0[Long]] { performance => () =>
       ((performance.timeOrigin + performance.now()) * 1000).toLong
     } getOrElse { () => System.currentTimeMillis() * 1000 }
   }
