@@ -83,20 +83,20 @@ without the blocking combinator.
 <p>Before diving into how we can correct issues with CPU starvation, it is worth understanding the mechanism by which Cats Effect is measuring this effect. The code in question is surprisingly simple:</p>
 <pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> scala.concurrent.duration._
 
-<span class="hljs-keyword">val</span> <span class="hljs-type">Threshold</span> = <span class="hljs-number">0.1</span>d
+<span class="hljs-keyword">val</span> starvationThreshold = <span class="hljs-number">0.1</span>.seconds
+<span class="hljs-keyword">val</span> sleepInterval       = <span class="hljs-number">1.</span>second
 
 <span class="hljs-keyword">val</span> tick: <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] =
   <span class="hljs-comment">// grab a time offset from when we started</span>
   <span class="hljs-type">IO</span>.monotonic flatMap { start =&gt;
     <span class="hljs-comment">// sleep for some long interval, then measure when we woke up</span>
-    <span class="hljs-comment">// get the difference (this will always be a bit more than 1.second)</span>
-    <span class="hljs-type">IO</span>.sleep(<span class="hljs-number">1.</span>second) *&gt; <span class="hljs-type">IO</span>.monotonic.map(_ - start) flatMap { delta =&gt;
-      <span class="hljs-comment">// the delta here is the amount of *lag* in the scheduler</span>
-      <span class="hljs-comment">// specifically, the time between requesting CPU access and actually getting it</span>
-      <span class="hljs-type">IO</span>.println(<span class="hljs-string">"starvation detected"</span>).whenA(delta &gt; <span class="hljs-number">1.</span>second * <span class="hljs-type">Threshold</span>)
+    <span class="hljs-comment">// get the difference (this will always be a bit more than the interval we slept for)</span>
+    <span class="hljs-type">IO</span>.sleep(sleepInterval) *&gt; <span class="hljs-type">IO</span>.monotonic.map(_ - start) flatMap { delta =&gt;
+      <span class="hljs-comment">// the delta here is the sum of the sleep interval and the amount of *lag* in the scheduler</span>
+      <span class="hljs-comment">// specifically, the lag is the time between requesting CPU access and actually getting it</span>
+      <span class="hljs-type">IO</span>.println(<span class="hljs-string">"starvation detected"</span>).whenA(delta - sleepInterval &gt; starvationThreshold)
     }
   }
-
 <span class="hljs-comment">// add an initial delay</span>
 <span class="hljs-comment">// run the check infinitely, forked to a separate fiber</span>
 <span class="hljs-keyword">val</span> checker: <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = (<span class="hljs-type">IO</span>.sleep(<span class="hljs-number">1.</span>second) *&gt; tick.foreverM).start.void
