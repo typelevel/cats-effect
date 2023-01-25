@@ -61,9 +61,9 @@ IO.blocking(...) *> IO(...) *> IO.blocking(...)
 
 If the `IO(...)` in the middle was run on the compute pool this would require:
 
-1. recquisitioning a blocking thread, and running the first blocking op
+1. requisitioning a blocking thread, and running the first blocking op
 2. shifting back to the compute pool, for the non-blocking op
-3. recquisitioning another blocking thread, for the second blocking op
+3. requisitioning another blocking thread, for the second blocking op
 
 So in this case, the intermediate `IO(...)` is highly likely to run on a blocking thread. This enables the entire sequence to run on the same blocking thread, without any shifting.
 
