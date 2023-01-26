@@ -16,25 +16,21 @@
 
 package cats.effect
 
-import cats.Show
 import cats.effect.metrics.CpuStarvationMetrics
 import cats.effect.std.Console
 import cats.effect.unsafe.IORuntimeConfig
 import cats.syntax.all._
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
-private[effect] object CpuStarvationCheck {
+private[effect] object CpuStarvationCheck extends CpuStarvationCheckPlatform {
 
-  def run(
-      runtimeConfig: IORuntimeConfig,
-      metrics: CpuStarvationMetrics,
-      durationShow: Show[FiniteDuration]): IO[Nothing] = {
+  def run(runtimeConfig: IORuntimeConfig, metrics: CpuStarvationMetrics): IO[Nothing] = {
     import runtimeConfig._
 
     val threshold = cpuStarvationCheckInterval * (1 + cpuStarvationCheckThreshold)
 
     val warning: FiniteDuration => String =
-      mkWarning(cpuStarvationCheckInterval * cpuStarvationCheckThreshold, durationShow)
+      mkWarning(cpuStarvationCheckInterval * cpuStarvationCheckThreshold)
 
     def go(initial: FiniteDuration): IO[Nothing] =
       IO.sleep(cpuStarvationCheckInterval) >> IO.monotonic.flatMap { now =>
@@ -50,9 +46,8 @@ private[effect] object CpuStarvationCheck {
     IO.monotonic.flatMap(go(_)).delayBy(cpuStarvationCheckInitialDelay)
   }
 
-  private[this] def mkWarning(threshold: Duration, durationShow: Show[FiniteDuration])(
-      when: FiniteDuration) =
-    s"""|[WARNING] ${durationShow.show(when)} 
+  private[this] def mkWarning(threshold: Duration)(when: FiniteDuration) =
+    s"""|[WARNING] ${format(when)} 
         |Your app's responsiveness to a new asynchronous event (such as a
         |new connection, an upstream response, or a timer) was in excess of $threshold.
         |Your CPU is probably starving. Consider increasing the granularity
