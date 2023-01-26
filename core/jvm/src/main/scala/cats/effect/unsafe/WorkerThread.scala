@@ -370,6 +370,14 @@ private final class WorkerThread(
 
       ((state & ExternalQueueTicksMask): @switch) match {
         case 0 =>
+          // Currently doesn't exclude selecting the current thread. Does that matter?
+          // TODO prefetch pool.workerThread or Thread.State.BLOCKED ?
+          val idx = random.nextInt(pool.workerThreads.length)
+          val thread = pool.workerThreads(idx)
+          if (thread.getState() == Thread.State.BLOCKED) {
+            System.err.println(s"Oh noes :( ${thread.getStackTrace()}")
+          }
+
           // Obtain a fiber or batch of fibers from the external queue.
           val element = external.poll(rnd)
           if (element.isInstanceOf[Array[Runnable]]) {

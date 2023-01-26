@@ -71,7 +71,7 @@ private[effect] final class WorkStealingThreadPool(
   /**
    * References to worker threads and their local queues.
    */
-  private[this] val workerThreads: Array[WorkerThread] = new Array(threadCount)
+  private[unsafe] val workerThreads: Array[WorkerThread] = new Array(threadCount)
   private[unsafe] val localQueues: Array[LocalQueue] = new Array(threadCount)
   private[unsafe] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
   private[unsafe] val fiberBags: Array[WeakBag[Runnable]] = new Array(threadCount)
