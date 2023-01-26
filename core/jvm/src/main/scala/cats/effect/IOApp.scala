@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.Show
 import cats.effect.metrics.JvmCpuStarvationMetrics
 import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
@@ -25,6 +26,8 @@ import scala.concurrent.{blocking, CancellationException, ExecutionContext}
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.{ArrayBlockingQueue, CountDownLatch}
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -164,6 +167,14 @@ trait IOApp {
    * produced by `run`. It is very unlikely that users will need to override this method.
    */
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
+
+  /**
+   * The formatter used to display timestamps when CPU starvation is detected. It is defined
+   * here to allow various target platforms (e.g., JVM, JS) to utilize a convenient class.
+   */
+  private def finiteDurationShow: Show[FiniteDuration] = Show.show[FiniteDuration] { fd =>
+    DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochMilli(fd.toMillis))
+  }
 
   /**
    * Controls the number of worker threads which will be allocated to the compute pool in the
@@ -378,7 +389,9 @@ trait IOApp {
     val fiber =
       JvmCpuStarvationMetrics()
         .flatMap { cpuStarvationMetrics =>
-          CpuStarvationCheck.run(runtimeConfig, cpuStarvationMetrics).background
+          CpuStarvationCheck
+            .run(runtimeConfig, cpuStarvationMetrics, finiteDurationShow)
+            .background
         }
         .surround(ioa)
         .unsafeRunFiber(

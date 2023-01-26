@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.Show
 import cats.effect.metrics.JsCpuStarvationMetrics
 import cats.effect.tracing.TracingConstants._
 
@@ -168,6 +169,14 @@ trait IOApp {
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
   /**
+   * The formatter used to display timestamps when CPU starvation is detected. It is defined
+   * here to allow various target platforms (e.g., JVM, JS) to utilize a convenient class.
+   */
+  private def finiteDurationShow: Show[FiniteDuration] = Show.show[FiniteDuration] { fd =>
+    new js.Date(fd.toMillis.toDouble).toString
+  }
+
+  /**
    * The entry point for your application. Will be called by the runtime when the process is
    * started. If the underlying runtime supports it, any arguments passed to the process will be
    * made available in the `args` parameter. The numeric value within the resulting [[ExitCode]]
@@ -239,7 +248,7 @@ trait IOApp {
     val fiber = Spawn[IO]
       .raceOutcome[ExitCode, Nothing](
         CpuStarvationCheck
-          .run(runtimeConfig, JsCpuStarvationMetrics())
+          .run(runtimeConfig, JsCpuStarvationMetrics(), finiteDurationShow.show(_))
           .background
           .surround(run(argList)),
         keepAlive)
