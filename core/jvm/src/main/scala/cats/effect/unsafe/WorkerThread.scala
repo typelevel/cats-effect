@@ -372,6 +372,7 @@ private final class WorkerThread(
         case 0 =>
           // Currently doesn't exclude selecting the current thread. Does that matter?
           // TODO prefetch pool.workerThread or Thread.State.BLOCKED ?
+          // TODO make this configurable, off by default and check that branch elimination makes it free when off
           val idx = random.nextInt(pool.workerThreads.length)
           val thread = pool.workerThreads(idx)
           if (thread.getState() == Thread.State.BLOCKED) {
