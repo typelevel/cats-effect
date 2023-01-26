@@ -47,10 +47,9 @@ private[effect] object CpuStarvationCheck extends CpuStarvationCheckPlatform {
   }
 
   private[this] def mkWarning(threshold: Duration)(when: FiniteDuration) =
-    s"""|[WARNING] ${format(when)} 
-        |Your app's responsiveness to a new asynchronous event (such as a
-        |new connection, an upstream response, or a timer) was in excess of $threshold.
-        |Your CPU is probably starving. Consider increasing the granularity
+    s"""|${format(when)} [WARNING] Your app's responsiveness to a new asynchronous event 
+        |(such as a new connection, an upstream response, or a timer) was in excess of 
+        |$threshold. Your CPU is probably starving. Consider increasing the granularity
         |of your delays or adding more cedes. This may also be a sign that you are
         |unintentionally running blocking I/O operations (such as File or InetAddress)
         |without the blocking combinator.""".stripMargin
