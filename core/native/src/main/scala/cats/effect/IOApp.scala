@@ -16,14 +16,10 @@
 
 package cats.effect
 
-import cats.Show
 import cats.effect.metrics.NativeCpuStarvationMetrics
 
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
-
-import java.time.Instant
-import java.time.format.DateTimeFormatter
 
 /**
  * The primary entry point to a Cats Effect application. Extend this trait rather than defining
@@ -170,14 +166,6 @@ trait IOApp {
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
   /**
-   * The formatter used to display timestamps when CPU starvation is detected. It is defined
-   * here to allow various target platforms (e.g., JVM, JS) to utilize a convenient class.
-   */
-  private def finiteDurationShow: Show[FiniteDuration] = Show.show[FiniteDuration] { fd =>
-    DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochMilli(fd.toMillis))
-  }
-
-  /**
    * The entry point for your application. Will be called by the runtime when the process is
    * started. If the underlying runtime supports it, any arguments passed to the process will be
    * made available in the `args` parameter. The numeric value within the resulting [[ExitCode]]
@@ -232,7 +220,7 @@ trait IOApp {
     Spawn[IO]
       .raceOutcome[ExitCode, Nothing](
         CpuStarvationCheck
-          .run(runtimeConfig, NativeCpuStarvationMetrics(), finiteDurationShow)
+          .run(runtimeConfig, NativeCpuStarvationMetrics())
           .background
           .surround(run(args.toList)),
         keepAlive)
