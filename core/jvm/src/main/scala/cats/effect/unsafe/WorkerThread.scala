@@ -370,11 +370,13 @@ private final class WorkerThread(
 
       ((state & ExternalQueueTicksMask): @switch) match {
         case 0 =>
-          // Currently doesn't exclude selecting the current thread. Does that matter?
           // TODO prefetch pool.workerThread or Thread.State.BLOCKED ?
           // TODO make this configurable, off by default and check that branch elimination makes it free when off
-          val idx = random.nextInt(pool.workerThreads.length)
-          val thread = pool.workerThreads(idx)
+          var otherIdx = random.nextInt(pool.workerThreads.length)
+          while (otherIdx == idx) {
+            otherIdx = random.nextInt(pool.workerThreads.length)
+          }
+          val thread = pool.workerThreads(otherIdx)
           if (thread.getState() == Thread.State.BLOCKED) {
             System.err.println(s"Oh noes :( ${thread.getStackTrace()}")
           }
