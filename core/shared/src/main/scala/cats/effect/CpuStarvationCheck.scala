@@ -16,37 +16,44 @@
 
 package cats.effect
 
+import cats.Show
 import cats.effect.metrics.CpuStarvationMetrics
 import cats.effect.std.Console
 import cats.effect.unsafe.IORuntimeConfig
 import cats.syntax.all._
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
-
 private[effect] object CpuStarvationCheck {
 
-  def run(runtimeConfig: IORuntimeConfig, metrics: CpuStarvationMetrics): IO[Nothing] = {
+  def run(
+      runtimeConfig: IORuntimeConfig,
+      metrics: CpuStarvationMetrics,
+      durationShow: Show[FiniteDuration]): IO[Nothing] = {
     import runtimeConfig._
 
     val threshold = cpuStarvationCheckInterval * (1 + cpuStarvationCheckThreshold)
 
-    val warning = mkWarning(cpuStarvationCheckInterval * cpuStarvationCheckThreshold)
+    val warning: FiniteDuration => String =
+      mkWarning(cpuStarvationCheckInterval * cpuStarvationCheckThreshold, durationShow)
 
     def go(initial: FiniteDuration): IO[Nothing] =
       IO.sleep(cpuStarvationCheckInterval) >> IO.monotonic.flatMap { now =>
         val delta = now - initial
 
         metrics.recordClockDrift(delta - cpuStarvationCheckInterval) >>
-          (Console[IO].errorln(warning) *> metrics.incCpuStarvationCount)
-            .whenA(delta >= threshold) >>
-          go(now)
+          IO.realTime
+            .flatMap(fd =>
+              (Console[IO].errorln(warning(fd)) *> metrics.incCpuStarvationCount)
+                .whenA(delta >= threshold)) >> go(now)
       }
 
     IO.monotonic.flatMap(go(_)).delayBy(cpuStarvationCheckInitialDelay)
   }
 
-  private[this] def mkWarning(threshold: Duration) =
-    s"""|[WARNING] Your app's responsiveness to a new asynchronous event (such as a
+  private[this] def mkWarning(threshold: Duration, durationShow: Show[FiniteDuration])(
+      when: FiniteDuration) =
+    s"""|[WARNING] ${durationShow.show(when)} 
+        |Your app's responsiveness to a new asynchronous event (such as a
         |new connection, an upstream response, or a timer) was in excess of $threshold.
         |Your CPU is probably starving. Consider increasing the granularity
         |of your delays or adding more cedes. This may also be a sign that you are
