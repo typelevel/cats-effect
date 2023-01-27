@@ -17,6 +17,7 @@
 package catseffect
 
 import cats.effect.{ExitCode, IO, IOApp}
+import cats.effect.std.Console
 import cats.syntax.all._
 
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
@@ -117,7 +118,8 @@ package examples {
 
   // stub
   object BlockedThreads extends IOApp.Simple {
-    val run = IO.never
+    val run = Console[IO].errorln(
+      "[WARNING] A Cats Effect worker thread was detected to be in a blocked state")
   }
 
 }
