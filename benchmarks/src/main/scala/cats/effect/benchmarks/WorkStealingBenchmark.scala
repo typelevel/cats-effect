@@ -182,7 +182,8 @@ class WorkStealingBenchmark {
         "io-compute",
         "io-blocker",
         60.seconds,
-        _.printStackTrace())
+        _.printStackTrace(),
+        false)
 
     val cancelationCheckThreshold =
       System.getProperty("cats.effect.cancelation.check.threshold", "512").toInt
