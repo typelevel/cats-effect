@@ -34,6 +34,7 @@ const users = [
   ['Ocado Technology', 'https://ocadotechnology.com/'],
   ['On Air Entertainment', 'https://onairentertainment.com/'],
   ['oneFactor', 'https://onefactor.com'],
+  ['OTTO', 'https://www.otto.de/'],
   ['OVO Energy', 'https://www.ovoenergy.com'],
   ['Packlink', 'https://www.packlink.com'],
   ['Paidy', 'https://www.paidy.com'],
