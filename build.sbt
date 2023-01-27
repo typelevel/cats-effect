@@ -507,6 +507,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // introduced by #2256, Hide the package private constructor for `IORuntime`
       // changes to `cats.effect.unsafe` package private code
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.IORuntime.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.unsafe.IORuntime.createWorkStealingComputeThreadPool"),
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.unsafe.IORuntime.<init>$default$6"),
       // introduced by #2312, Address issues with the blocking mechanism of the thread pool
