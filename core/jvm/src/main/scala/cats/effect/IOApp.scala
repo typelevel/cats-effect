@@ -240,7 +240,7 @@ trait IOApp {
     Console[IO].printStackTrace(err)
 
   /**
-   * Configures whether to enabled blocked thread detection. This is relatively expensive so is
+   * Configures whether to enable blocked thread detection. This is relatively expensive so is
    * off by default and probably not something that you want to permanently enable in
    * production.
    *
