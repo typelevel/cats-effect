@@ -39,15 +39,16 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
       threadPrefix: String = "io-compute",
       blockerThreadPrefix: String = DefaultBlockerPrefix,
       runtimeBlockingExpiration: Duration = 60.seconds,
-      reportFailure: Throwable => Unit = _.printStackTrace())
-      : (WorkStealingThreadPool, () => Unit) = {
+      reportFailure: Throwable => Unit = _.printStackTrace(),
+      blockedThreadDetectionEnabled: Boolean = false): (WorkStealingThreadPool, () => Unit) = {
     val threadPool =
       new WorkStealingThreadPool(
         threads,
         threadPrefix,
         blockerThreadPrefix,
         runtimeBlockingExpiration,
-        reportFailure)
+        reportFailure,
+        blockedThreadDetectionEnabled)
 
     val unregisterMBeans =
       if (isStackTracing) {

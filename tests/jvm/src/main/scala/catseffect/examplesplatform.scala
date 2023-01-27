@@ -89,4 +89,16 @@ package examples {
         IO.sleep(1.second) *> IO(exitCode.get)
 
   }
+
+  object BlockedThreads extends IOApp.Simple {
+
+    override protected def blockedThreadDetectionEnabled = true
+
+    // Loop prevents other worker threads from being parked and hence not
+    // performing the blocked check
+    lazy val loop: IO[Unit] = IO.unit >> loop
+
+    val run =
+      loop.start >> IO(Thread.sleep(2.seconds.toMillis))
+  }
 }
