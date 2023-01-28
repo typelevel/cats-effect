@@ -19,7 +19,6 @@ package unsafe
 
 import cats.effect.std.Semaphore
 import cats.syntax.all._
-import cats.~>
 
 import org.typelevel.scalaccompat.annotation._
 
@@ -42,8 +41,8 @@ object KqueueSystem extends PollingSystem {
 
   private final val MaxEvents = 64
 
-  def makePoller(delayWithData: (PollData => *) ~> IO): Poller =
-    new Poller(delayWithData)
+  def makePoller(register: (PollData => Unit) => Unit): Poller =
+    new Poller(register)
 
   def makePollData(): PollData = {
     val fd = kqueue()
@@ -60,7 +59,7 @@ object KqueueSystem extends PollingSystem {
   def interrupt(targetThread: Thread, targetData: PollData): Unit = ()
 
   final class Poller private[KqueueSystem] (
-      delayWithData: (PollData => *) ~> IO
+      register: (PollData => Unit) => Unit
   ) extends FileDescriptorPoller {
     def registerFileDescriptor(
         fd: Int,
@@ -69,13 +68,13 @@ object KqueueSystem extends PollingSystem {
     ): Resource[IO, FileDescriptorPollHandle] =
       Resource.eval {
         (Semaphore[IO](1), Semaphore[IO](1)).mapN {
-          new PollHandle(delayWithData, fd, _, _)
+          new PollHandle(register, fd, _, _)
         }
       }
   }
 
   private final class PollHandle(
-      delayWithData: (PollData => *) ~> IO,
+      register: (PollData => Unit) => Unit,
       fd: Int,
       readSemaphore: Semaphore[IO],
       writeSemaphore: Semaphore[IO]
@@ -91,11 +90,14 @@ object KqueueSystem extends PollingSystem {
             if (r.isRight)
               IO.unit
             else
-              IO.async[Unit] { cb =>
-                delayWithData { kqueue =>
-                  kqueue.evSet(readEvent, EV_ADD.toUShort, cb)
-                  Some(IO(kqueue.removeCallback(readEvent)))
+              IO.async[Unit] { kqcb =>
+                IO.async_[Option[IO[Unit]]] { cb =>
+                  register { kqueue =>
+                    kqueue.evSet(readEvent, EV_ADD.toUShort, kqcb)
+                    cb(Right(Some(IO(kqueue.removeCallback(readEvent)))))
+                  }
                 }
+
               }
           }
         }
@@ -108,10 +110,12 @@ object KqueueSystem extends PollingSystem {
             if (r.isRight)
               IO.unit
             else
-              IO.async[Unit] { cb =>
-                delayWithData { kqueue =>
-                  kqueue.evSet(writeEvent, EV_ADD.toUShort, cb)
-                  Some(IO(kqueue.removeCallback(writeEvent)))
+              IO.async[Unit] { kqcb =>
+                IO.async_[Option[IO[Unit]]] { cb =>
+                  register { kqueue =>
+                    kqueue.evSet(writeEvent, EV_ADD.toUShort, kqcb)
+                    cb(Right(Some(IO(kqueue.removeCallback(writeEvent)))))
+                  }
                 }
               }
           }
@@ -260,9 +264,9 @@ object KqueueSystem extends PollingSystem {
   private object eventImplicits {
 
     implicit final class kevent64_sOps(kevent64_s: Ptr[kevent64_s]) {
-      def ident: CUnsignedLongInt = !(kevent64_s.asInstanceOf[Ptr[CUnsignedLongInt]])
+      def ident: CUnsignedLongInt = !kevent64_s.asInstanceOf[Ptr[CUnsignedLongInt]]
       def ident_=(ident: CUnsignedLongInt): Unit =
-        !(kevent64_s.asInstanceOf[Ptr[CUnsignedLongInt]]) = ident
+        !kevent64_s.asInstanceOf[Ptr[CUnsignedLongInt]] = ident
 
       def filter: CShort = !(kevent64_s.asInstanceOf[Ptr[CShort]] + 4)
       def filter_=(filter: CShort): Unit =

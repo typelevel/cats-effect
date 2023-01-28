@@ -17,8 +17,6 @@
 package cats.effect
 package unsafe
 
-import cats.~>
-
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
@@ -32,7 +30,7 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
     new PollingSystem {
       type Poller = outer.type
       type PollData = outer.type
-      def makePoller(delayWithData: (PollData => *) ~> IO): Poller = outer
+      def makePoller(register: (PollData => Unit) => Unit): Poller = outer
       def makePollData(): PollData = outer
       def closePollData(data: PollData): Unit = ()
       def poll(data: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =

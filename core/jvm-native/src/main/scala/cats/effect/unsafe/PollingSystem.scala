@@ -17,8 +17,6 @@
 package cats.effect
 package unsafe
 
-import cats.~>
-
 abstract class PollingSystem {
 
   /**
@@ -31,7 +29,7 @@ abstract class PollingSystem {
    */
   type PollData <: AnyRef
 
-  def makePoller(delayWithData: (PollData => *) ~> IO): Poller
+  def makePoller(register: (PollData => Unit) => Unit): Poller
 
   def makePollData(): PollData
 

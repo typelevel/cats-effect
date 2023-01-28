@@ -17,8 +17,6 @@
 package cats.effect
 package unsafe
 
-import cats.~>
-
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.concurrent.duration._
 import scala.scalanative.libc.errno
@@ -34,10 +32,7 @@ private[effect] final class EventLoopExecutorScheduler(pollEvery: Int, system: P
 
   private[this] val pollData = system.makePollData()
 
-  val poller: Any = system.makePoller(new ((system.PollData => *) ~> IO) {
-    def apply[A](thunk: system.PollData => A): IO[A] =
-      IO(thunk(pollData))
-  })
+  val poller: Any = system.makePoller(cb => cb(pollData))
 
   private[this] var needsReschedule: Boolean = true
 

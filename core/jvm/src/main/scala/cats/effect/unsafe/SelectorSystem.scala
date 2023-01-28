@@ -17,8 +17,6 @@
 package cats.effect
 package unsafe
 
-import cats.~>
-
 import java.nio.channels.SelectableChannel
 import java.nio.channels.spi.{AbstractSelector, SelectorProvider}
 
@@ -26,8 +24,8 @@ import SelectorSystem._
 
 final class SelectorSystem private (provider: SelectorProvider) extends PollingSystem {
 
-  def makePoller(delayWithData: (PollData => *) ~> IO): Poller =
-    new Poller(delayWithData, provider)
+  def makePoller(register: (PollData => Unit) => Unit): Poller =
+    new Poller(register, provider)
 
   def makePollData(): PollData = new PollData(provider.openSelector())
 
@@ -85,27 +83,32 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
   }
 
   final class Poller private[SelectorSystem] (
-      delayWithData: (PollData => *) ~> IO,
+      register: (PollData => Unit) => Unit,
       val provider: SelectorProvider
   ) extends SelectorPoller {
 
-    def select(ch: SelectableChannel, ops: Int): IO[Int] = IO.async { cb =>
-      delayWithData { data =>
-        val selector = data.selector
-        val key = ch.keyFor(selector)
+    def select(ch: SelectableChannel, ops: Int): IO[Int] = IO.async { selectCb =>
+      IO.async_[CallbackNode] { cb =>
+        register { data =>
+          val selector = data.selector
+          val key = ch.keyFor(selector)
 
-        val node = if (key eq null) { // not yet registered on this selector
-          val node = new CallbackNode(ops, cb, null)
-          ch.register(selector, ops, node)
-          node
-        } else { // existing key
-          // mixin the new interest
-          key.interestOps(key.interestOps() | ops)
-          val node = new CallbackNode(ops, cb, key.attachment().asInstanceOf[CallbackNode])
-          key.attach(node)
-          node
+          val node = if (key eq null) { // not yet registered on this selector
+            val node = new CallbackNode(ops, selectCb, null)
+            ch.register(selector, ops, node)
+            node
+          } else { // existing key
+            // mixin the new interest
+            key.interestOps(key.interestOps() | ops)
+            val node =
+              new CallbackNode(ops, selectCb, key.attachment().asInstanceOf[CallbackNode])
+            key.attach(node)
+            node
+          }
+
+          cb(Right(node))
         }
-
+      }.map { node =>
         Some {
           IO {
             // set all interest bits

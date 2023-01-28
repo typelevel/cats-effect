@@ -19,7 +19,6 @@ package unsafe
 
 import cats.effect.std.Semaphore
 import cats.syntax.all._
-import cats.~>
 
 import org.typelevel.scalaccompat.annotation._
 
@@ -42,8 +41,8 @@ object EpollSystem extends PollingSystem {
 
   private[this] final val MaxEvents = 64
 
-  def makePoller(delayWithData: (PollData => *) ~> IO): Poller =
-    new Poller(delayWithData)
+  def makePoller(register: (PollData => Unit) => Unit): Poller =
+    new Poller(register)
 
   def makePollData(): PollData = {
     val fd = epoll_create1(0)
@@ -59,7 +58,7 @@ object EpollSystem extends PollingSystem {
 
   def interrupt(targetThread: Thread, targetData: PollData): Unit = ()
 
-  final class Poller private[EpollSystem] (delayWithData: (PollData => *) ~> IO)
+  final class Poller private[EpollSystem] (register: (PollData => Unit) => Unit)
       extends FileDescriptorPoller {
 
     def registerFileDescriptor(
@@ -70,10 +69,12 @@ object EpollSystem extends PollingSystem {
       Resource
         .make {
           (Semaphore[IO](1), Semaphore[IO](1)).flatMapN { (readSemaphore, writeSemaphore) =>
-            delayWithData { data =>
-              val handle = new PollHandle(readSemaphore, writeSemaphore)
-              val unregister = data.register(fd, reads, writes, handle)
-              (handle, unregister)
+            IO.async_[(PollHandle, IO[Unit])] { cb =>
+              register { data =>
+                val handle = new PollHandle(readSemaphore, writeSemaphore)
+                val unregister = data.register(fd, reads, writes, handle)
+                cb(Right((handle, unregister)))
+              }
             }
           }
         }(_._2)
@@ -271,16 +272,16 @@ object EpollSystem extends PollingSystem {
   private object epollImplicits {
 
     implicit final class epoll_eventOps(epoll_event: Ptr[epoll_event]) {
-      def events: CUnsignedInt = !(epoll_event.asInstanceOf[Ptr[CUnsignedInt]])
+      def events: CUnsignedInt = !epoll_event.asInstanceOf[Ptr[CUnsignedInt]]
       def events_=(events: CUnsignedInt): Unit =
-        !(epoll_event.asInstanceOf[Ptr[CUnsignedInt]]) = events
+        !epoll_event.asInstanceOf[Ptr[CUnsignedInt]] = events
 
       def data: epoll_data_t =
-        !((epoll_event.asInstanceOf[Ptr[Byte]] + sizeof[CUnsignedInt])
-          .asInstanceOf[Ptr[epoll_data_t]])
+        !(epoll_event.asInstanceOf[Ptr[Byte]] + sizeof[CUnsignedInt])
+          .asInstanceOf[Ptr[epoll_data_t]]
       def data_=(data: epoll_data_t): Unit =
-        !((epoll_event.asInstanceOf[Ptr[Byte]] + sizeof[CUnsignedInt])
-          .asInstanceOf[Ptr[epoll_data_t]]) = data
+        !(epoll_event.asInstanceOf[Ptr[Byte]] + sizeof[CUnsignedInt])
+          .asInstanceOf[Ptr[epoll_data_t]] = data
     }
 
     implicit val epoll_eventTag: Tag[epoll_event] =

@@ -32,7 +32,6 @@ package unsafe
 
 import cats.effect.tracing.Tracing.captureTrace
 import cats.effect.tracing.TracingConstants
-import cats.~>
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
@@ -82,30 +81,21 @@ private[effect] final class WorkStealingThreadPool(
   private[unsafe] val sleepersQueues: Array[SleepersQueue] = new Array(threadCount)
   private[unsafe] val pollDatas: Array[AnyRef] = new Array[AnyRef](threadCount)
 
-  private[effect] val poller: Any =
-    system.makePoller(new ((system.PollData => *) ~> IO) {
-      def apply[A](thunk: system.PollData => A): IO[A] = {
-        val ioa = IO { // assume we are in the right place
-          val worker = Thread.currentThread().asInstanceOf[WorkerThread]
-          thunk(worker.pollData().asInstanceOf[system.PollData])
-        }
+  private[effect] val poller: Any = system.makePoller(register)
 
-        // figure out how to get to the right place
-        IO.defer {
-          val thread = Thread.currentThread()
-          val pool = WorkStealingThreadPool.this
+  private[this] def register(cb: system.PollData => Unit): Unit = {
 
-          if (thread.isInstanceOf[WorkerThread]) {
-            val worker = thread.asInstanceOf[WorkerThread]
-            if (worker.isOwnedBy(pool)) // we're good
-              ioa
-            else // possibly a blocking worker thread, possibly on another wstp
-              IO.cede *> ioa.evalOn(pool)
-          } else ioa.evalOn(pool)
-        }
-      }
-
-    })
+    // figure out where we are
+    val thread = Thread.currentThread()
+    val pool = WorkStealingThreadPool.this
+    if (thread.isInstanceOf[WorkerThread]) {
+      val worker = thread.asInstanceOf[WorkerThread]
+      if (worker.isOwnedBy(pool)) // we're good
+        cb(worker.pollData().asInstanceOf[system.PollData])
+      else // possibly a blocking worker thread, possibly on another wstp
+        scheduleExternal(() => register(cb))
+    } else scheduleExternal(() => register(cb))
+  }
 
   /**
    * Atomic variable for used for publishing changes to the references in the `workerThreads`
