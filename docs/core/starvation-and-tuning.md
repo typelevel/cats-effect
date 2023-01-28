@@ -3,7 +3,7 @@ id: starvation-and-tuning
 title: Starvation and Tuning
 ---
 
-All Cats Effect applications constructed via `IOApp` have an automatic mechanism which periodically checks to see if the application runtime is starving for compute resources. If you ever see warnings which look like the following, they are the result of this mechanism automatically detecting that the responsiveness of your application runtime is below the configured threshold.
+All Cats Effect applications constructed via `IOApp` have an automatic mechanism which periodically checks to see if the application runtime is starving for compute resources. If you ever see warnings which look like the following, they are the result of this mechanism automatically detecting that the responsiveness of your application runtime is below the configured threshold. Note that the timestamp is the time when the starvation was detected, which is not precisely the time when starvation (or the task that is responsible) began.
 
 ```
 2023-01-28T00:16:24.101Z [WARNING] Your app's responsiveness to a new asynchronous 
