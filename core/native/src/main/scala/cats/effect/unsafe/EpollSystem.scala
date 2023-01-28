@@ -41,24 +41,24 @@ object EpollSystem extends PollingSystem {
 
   private[this] final val MaxEvents = 64
 
-  def makePoller(register: (PollData => Unit) => Unit): Poller =
-    new Poller(register)
+  def makeGlobalPollingState(register: (Poller => Unit) => Unit): GlobalPollingState =
+    new GlobalPollingState(register)
 
-  def makePollData(): PollData = {
+  def makePoller(): Poller = {
     val fd = epoll_create1(0)
     if (fd == -1)
       throw new IOException(fromCString(strerror(errno)))
-    new PollData(fd)
+    new Poller(fd)
   }
 
-  def closePollData(data: PollData): Unit = data.close()
+  def closePoller(poller: Poller): Unit = poller.close()
 
-  def poll(data: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean =
-    data.poll(nanos)
+  def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =
+    poller.poll(nanos)
 
-  def interrupt(targetThread: Thread, targetData: PollData): Unit = ()
+  def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
 
-  final class Poller private[EpollSystem] (register: (PollData => Unit) => Unit)
+  final class GlobalPollingState private[EpollSystem] (register: (Poller => Unit) => Unit)
       extends FileDescriptorPoller {
 
     def registerFileDescriptor(
@@ -168,7 +168,7 @@ object EpollSystem extends PollingSystem {
 
   }
 
-  final class PollData private[EpollSystem] (epfd: Int) {
+  final class Poller private[EpollSystem] (epfd: Int) {
 
     private[this] val handles: Set[PollHandle] =
       Collections.newSetFromMap(new IdentityHashMap)

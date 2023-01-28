@@ -53,7 +53,7 @@ private final class WorkerThread(
     private[this] var fiberBag: WeakBag[Runnable],
     private[this] var sleepersQueue: SleepersQueue,
     private[this] val system: PollingSystem,
-    private[this] var __pollData: AnyRef,
+    __poller: AnyRef,
     // Reference to the `WorkStealingThreadPool` in which this thread operates.
     pool: WorkStealingThreadPool)
     extends Thread
@@ -65,7 +65,7 @@ private final class WorkerThread(
   // Index assigned by the `WorkStealingThreadPool` for identification purposes.
   private[this] var _index: Int = idx
 
-  private[this] var _pollData: system.PollData = __pollData.asInstanceOf[system.PollData]
+  private[this] var _poller: system.Poller = __poller.asInstanceOf[system.Poller]
 
   /**
    * Uncontented source of randomness. By default, `java.util.Random` is thread safe, which is a
@@ -114,7 +114,7 @@ private final class WorkerThread(
     setName(s"$prefix-$nameIndex")
   }
 
-  private[unsafe] def pollData(): Any = _pollData
+  private[unsafe] def poller(): Any = _poller
 
   /**
    * Schedules the fiber for execution at the back of the local queue and notifies the work
@@ -322,7 +322,7 @@ private final class WorkerThread(
       var cont = true
       while (cont && !done.get()) {
         // Park the thread until further notice.
-        system.poll(_pollData, -1, reportFailure)
+        system.poll(_poller, -1, reportFailure)
 
         // the only way we can be interrupted here is if it happened *externally* (probably sbt)
         if (isInterrupted())
@@ -338,7 +338,7 @@ private final class WorkerThread(
         val now = System.nanoTime()
         val head = sleepersQueue.head()
         val nanos = Math.max(head.triggerTime - now, 0)
-        system.poll(_pollData, nanos, reportFailure)
+        system.poll(_poller, nanos, reportFailure)
 
         if (parked.getAndSet(false)) {
           pool.doneSleeping()
@@ -359,7 +359,7 @@ private final class WorkerThread(
         parked = null
         fiberBag = null
         sleepersQueue = null
-        _pollData = null.asInstanceOf[system.PollData]
+        _poller = null.asInstanceOf[system.Poller]
 
         // Add this thread to the cached threads data structure, to be picked up
         // by another thread in the future.
@@ -423,7 +423,7 @@ private final class WorkerThread(
       ((state & ExternalQueueTicksMask): @switch) match {
         case 0 =>
           // give the polling system a chance to discover events
-          system.poll(_pollData, 0, reportFailure)
+          system.poll(_poller, 0, reportFailure)
 
           // Obtain a fiber or batch of fibers from the external queue.
           val element = external.poll(rnd)
@@ -731,7 +731,7 @@ private final class WorkerThread(
           fiberBag,
           sleepersQueue,
           system,
-          _pollData,
+          _poller,
           pool)
         pool.replaceWorker(idx, clone)
         pool.blockedWorkerThreadCounter.incrementAndGet()
@@ -748,7 +748,7 @@ private final class WorkerThread(
     parked = pool.parkedSignals(newIdx)
     fiberBag = pool.fiberBags(newIdx)
     sleepersQueue = pool.sleepersQueues(newIdx)
-    _pollData = pool.pollDatas(newIdx).asInstanceOf[system.PollData]
+    _poller = pool.pollers(newIdx).asInstanceOf[system.Poller]
 
     // Reset the name of the thread to the regular prefix.
     val prefix = pool.threadPrefix

@@ -20,20 +20,20 @@ package unsafe
 abstract class PollingSystem {
 
   /**
-   * The user-facing Poller interface.
+   * The user-facing interface.
    */
-  type Poller <: AnyRef
+  type GlobalPollingState <: AnyRef
 
   /**
    * The thread-local data structure used for polling.
    */
-  type PollData <: AnyRef
+  type Poller <: AnyRef
 
-  def makePoller(register: (PollData => Unit) => Unit): Poller
+  def makeGlobalPollingState(register: (Poller => Unit) => Unit): GlobalPollingState
 
-  def makePollData(): PollData
+  def makePoller(): Poller
 
-  def closePollData(data: PollData): Unit
+  def closePoller(poller: Poller): Unit
 
   /**
    * @param nanos
@@ -46,8 +46,8 @@ abstract class PollingSystem {
    * @return
    *   whether poll should be called again (i.e., there are more events to be polled)
    */
-  def poll(data: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean
+  def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean
 
-  def interrupt(targetThread: Thread, targetData: PollData): Unit
+  def interrupt(targetThread: Thread, targetPoller: Poller): Unit
 
 }

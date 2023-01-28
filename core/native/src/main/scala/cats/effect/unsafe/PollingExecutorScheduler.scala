@@ -28,14 +28,14 @@ abstract class PollingExecutorScheduler(pollEvery: Int)
   private[this] val loop = new EventLoopExecutorScheduler(
     pollEvery,
     new PollingSystem {
+      type GlobalPollingState = outer.type
       type Poller = outer.type
-      type PollData = outer.type
-      def makePoller(register: (PollData => Unit) => Unit): Poller = outer
-      def makePollData(): PollData = outer
-      def closePollData(data: PollData): Unit = ()
-      def poll(data: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =
-        if (nanos == -1) data.poll(Duration.Inf) else data.poll(nanos.nanos)
-      def interrupt(targetThread: Thread, targetData: PollData): Unit = ()
+      def makeGlobalPollingState(register: (Poller => Unit) => Unit): GlobalPollingState = outer
+      def makePoller(): Poller = outer
+      def closePoller(poller: Poller): Unit = ()
+      def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =
+        if (nanos == -1) poller.poll(Duration.Inf) else poller.poll(nanos.nanos)
+      def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
     }
   )
 

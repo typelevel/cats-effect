@@ -79,11 +79,11 @@ private[effect] final class WorkStealingThreadPool(
   private[unsafe] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
   private[unsafe] val fiberBags: Array[WeakBag[Runnable]] = new Array(threadCount)
   private[unsafe] val sleepersQueues: Array[SleepersQueue] = new Array(threadCount)
-  private[unsafe] val pollDatas: Array[AnyRef] = new Array[AnyRef](threadCount)
+  private[unsafe] val pollers: Array[AnyRef] = new Array[AnyRef](threadCount)
 
-  private[effect] val poller: Any = system.makePoller(register)
+  private[effect] val globalPollingState: Any = system.makeGlobalPollingState(register)
 
-  private[this] def register(cb: system.PollData => Unit): Unit = {
+  private[this] def register(cb: system.Poller => Unit): Unit = {
 
     // figure out where we are
     val thread = Thread.currentThread()
@@ -91,7 +91,7 @@ private[effect] final class WorkStealingThreadPool(
     if (thread.isInstanceOf[WorkerThread]) {
       val worker = thread.asInstanceOf[WorkerThread]
       if (worker.isOwnedBy(pool)) // we're good
-        cb(worker.pollData().asInstanceOf[system.PollData])
+        cb(worker.poller().asInstanceOf[system.Poller])
       else // possibly a blocking worker thread, possibly on another wstp
         scheduleExternal(() => register(cb))
     } else scheduleExternal(() => register(cb))
@@ -141,8 +141,8 @@ private[effect] final class WorkStealingThreadPool(
       fiberBags(i) = fiberBag
       val sleepersQueue = SleepersQueue.empty
       sleepersQueues(i) = sleepersQueue
-      val pollData = system.makePollData()
-      pollDatas(i) = pollData
+      val poller = system.makePoller()
+      pollers(i) = poller
 
       val thread =
         new WorkerThread(
@@ -153,7 +153,7 @@ private[effect] final class WorkStealingThreadPool(
           fiberBag,
           sleepersQueue,
           system,
-          pollData,
+          poller,
           this)
 
       workerThreads(i) = thread
@@ -270,7 +270,7 @@ private[effect] final class WorkStealingThreadPool(
         // impossible.
         workerThreadPublisher.get()
         val worker = workerThreads(index)
-        system.interrupt(worker, pollDatas(index).asInstanceOf[system.PollData])
+        system.interrupt(worker, pollers(index).asInstanceOf[system.Poller])
         return true
       }
 
@@ -621,7 +621,7 @@ private[effect] final class WorkStealingThreadPool(
       var i = 0
       while (i < threadCount) {
         workerThreads(i).interrupt()
-        system.closePollData(pollDatas(i).asInstanceOf[system.PollData])
+        system.closePoller(pollers(i).asInstanceOf[system.Poller])
         i += 1
       }
 

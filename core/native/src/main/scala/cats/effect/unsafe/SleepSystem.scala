@@ -19,21 +19,22 @@ package unsafe
 
 object SleepSystem extends PollingSystem {
 
+  final class GlobalPollingState private[SleepSystem] ()
   final class Poller private[SleepSystem] ()
-  final class PollData private[SleepSystem] ()
 
-  def makePoller(register: (PollData => Unit) => Unit): Poller = new Poller
+  def makeGlobalPollingState(register: (Poller => Unit) => Unit): GlobalPollingState =
+    new GlobalPollingState
 
-  def makePollData(): PollData = new PollData
+  def makePoller(): Poller = new Poller
 
-  def closePollData(data: PollData): Unit = ()
+  def closePoller(poller: Poller): Unit = ()
 
-  def poll(data: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
+  def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
     if (nanos > 0)
       Thread.sleep(nanos / 1000000, (nanos % 1000000).toInt)
     false
   }
 
-  def interrupt(targetThread: Thread, targetData: PollData): Unit = ()
+  def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
 
 }

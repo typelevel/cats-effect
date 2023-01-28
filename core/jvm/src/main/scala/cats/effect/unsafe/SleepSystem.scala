@@ -21,16 +21,17 @@ import java.util.concurrent.locks.LockSupport
 
 object SleepSystem extends PollingSystem {
 
+  final class GlobalPollingState private[SleepSystem] ()
   final class Poller private[SleepSystem] ()
-  final class PollData private[SleepSystem] ()
 
-  def makePoller(register: (PollData => Unit) => Unit): Poller = new Poller
+  def makeGlobalPollingState(register: (Poller => Unit) => Unit): GlobalPollingState =
+    new GlobalPollingState
 
-  def makePollData(): PollData = new PollData
+  def makePoller(): Poller = new Poller
 
-  def closePollData(data: PollData): Unit = ()
+  def closePoller(Poller: Poller): Unit = ()
 
-  def poll(data: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
+  def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
     if (nanos < 0)
       LockSupport.park()
     else if (nanos > 0)
@@ -40,7 +41,7 @@ object SleepSystem extends PollingSystem {
     false
   }
 
-  def interrupt(targetThread: Thread, targetData: PollData): Unit =
+  def interrupt(targetThread: Thread, targetPoller: Poller): Unit =
     LockSupport.unpark(targetThread)
 
 }

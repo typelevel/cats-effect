@@ -41,25 +41,25 @@ object KqueueSystem extends PollingSystem {
 
   private final val MaxEvents = 64
 
-  def makePoller(register: (PollData => Unit) => Unit): Poller =
-    new Poller(register)
+  def makeGlobalPollingState(register: (Poller => Unit) => Unit): GlobalPollingState =
+    new GlobalPollingState(register)
 
-  def makePollData(): PollData = {
+  def makePoller(): Poller = {
     val fd = kqueue()
     if (fd == -1)
       throw new IOException(fromCString(strerror(errno)))
-    new PollData(fd)
+    new Poller(fd)
   }
 
-  def closePollData(data: PollData): Unit = data.close()
+  def closePoller(poller: Poller): Unit = poller.close()
 
-  def poll(data: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean =
-    data.poll(nanos)
+  def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean =
+    poller.poll(nanos)
 
-  def interrupt(targetThread: Thread, targetData: PollData): Unit = ()
+  def interrupt(targetThread: Thread, targetPoller: Poller): Unit = ()
 
-  final class Poller private[KqueueSystem] (
-      register: (PollData => Unit) => Unit
+  final class GlobalPollingState private[KqueueSystem] (
+      register: (Poller => Unit) => Unit
   ) extends FileDescriptorPoller {
     def registerFileDescriptor(
         fd: Int,
@@ -74,7 +74,7 @@ object KqueueSystem extends PollingSystem {
   }
 
   private final class PollHandle(
-      register: (PollData => Unit) => Unit,
+      register: (Poller => Unit) => Unit,
       fd: Int,
       readSemaphore: Semaphore[IO],
       writeSemaphore: Semaphore[IO]
@@ -126,7 +126,7 @@ object KqueueSystem extends PollingSystem {
 
   private final case class KEvent(ident: Long, filter: Short)
 
-  final class PollData private[KqueueSystem] (kqfd: Int) {
+  final class Poller private[KqueueSystem] (kqfd: Int) {
 
     private[this] val changelistArray = new Array[Byte](sizeof[kevent64_s].toInt * MaxEvents)
     private[this] val changelist = changelistArray.at(0).asInstanceOf[Ptr[kevent64_s]]

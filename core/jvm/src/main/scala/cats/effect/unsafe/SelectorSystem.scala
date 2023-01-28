@@ -24,17 +24,17 @@ import SelectorSystem._
 
 final class SelectorSystem private (provider: SelectorProvider) extends PollingSystem {
 
-  def makePoller(register: (PollData => Unit) => Unit): Poller =
-    new Poller(register, provider)
+  def makeGlobalPollingState(register: (Poller => Unit) => Unit): GlobalPollingState =
+    new GlobalPollingState(register, provider)
 
-  def makePollData(): PollData = new PollData(provider.openSelector())
+  def makePoller(): Poller = new Poller(provider.openSelector())
 
-  def closePollData(data: PollData): Unit =
-    data.selector.close()
+  def closePoller(poller: Poller): Unit =
+    poller.selector.close()
 
-  def poll(data: PollData, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
+  def poll(poller: Poller, nanos: Long, reportFailure: Throwable => Unit): Boolean = {
     val millis = if (nanos >= 0) nanos / 1000000 else -1
-    val selector = data.selector
+    val selector = poller.selector
 
     if (millis == 0) selector.selectNow()
     else if (millis > 0) selector.select(millis)
@@ -77,13 +77,13 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
     } else false
   }
 
-  def interrupt(targetThread: Thread, targetData: PollData): Unit = {
-    targetData.selector.wakeup()
+  def interrupt(targetThread: Thread, targetPoller: Poller): Unit = {
+    targetPoller.selector.wakeup()
     ()
   }
 
-  final class Poller private[SelectorSystem] (
-      register: (PollData => Unit) => Unit,
+  final class GlobalPollingState private[SelectorSystem] (
+      register: (Poller => Unit) => Unit,
       val provider: SelectorProvider
   ) extends SelectorPoller {
 
@@ -122,7 +122,7 @@ final class SelectorSystem private (provider: SelectorProvider) extends PollingS
 
   }
 
-  final class PollData private[SelectorSystem] (
+  final class Poller private[SelectorSystem] (
       private[SelectorSystem] val selector: AbstractSelector
   )
 

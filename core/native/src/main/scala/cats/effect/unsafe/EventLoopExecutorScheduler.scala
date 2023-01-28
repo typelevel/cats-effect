@@ -30,9 +30,9 @@ private[effect] final class EventLoopExecutorScheduler(pollEvery: Int, system: P
     extends ExecutionContextExecutor
     with Scheduler {
 
-  private[this] val pollData = system.makePollData()
+  private[this] val poller = system.makePoller()
 
-  val poller: Any = system.makePoller(cb => cb(pollData))
+  val globalPollingState: Any = system.makeGlobalPollingState(cb => cb(poller))
 
   private[this] var needsReschedule: Boolean = true
 
@@ -119,7 +119,7 @@ private[effect] final class EventLoopExecutorScheduler(pollEvery: Int, system: P
         else
           -1
 
-      val needsPoll = system.poll(pollData, timeout, reportFailure)
+      val needsPoll = system.poll(poller, timeout, reportFailure)
 
       continue = needsPoll || !executeQueue.isEmpty() || !sleepQueue.isEmpty()
     }
