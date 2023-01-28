@@ -49,6 +49,26 @@ Hello world
 
 See [here](core/scala-native.md) for details.
 
+## Why is my `IO(...)` running on a blocking thread?
+
+Cats Effect guarantees that `IO.blocking(...)` will run on a blocking thread. However, in many situations it may also run a non-blocking operation `IO(...)` (or `IO.delay(...)`) on a blocking thread. Do not be alarmed! This is an optimization.
+
+Consider the following program:
+
+```scala
+IO.blocking(...) *> IO(...) *> IO.blocking(...)
+```
+
+If the `IO(...)` in the middle was run on the compute pool this would require:
+
+1. requisitioning a blocking thread, and running the first blocking op
+2. shifting back to the compute pool, for the non-blocking op
+3. requisitioning another blocking thread, for the second blocking op
+
+So in this case, the intermediate `IO(...)` is highly likely to run on a blocking thread. This enables the entire sequence to run on the same blocking thread, without any shifting. As soon as any asynchronous operation (or an auto-cede boundary) is encountered, the fiber will be shifted back to a compute thread. The tradeoff here is to create a small amount of unnecessary thread contention in exchange for avoiding unnecessary context shifts in many cases.
+
+Note that this is just a specific example to demonstrate why running an non-blocking `IO(...)` on a blocking thread can be beneficial, but it is not the only situation in which you may observe this behavior.
+
 ## Dealing with Starvation
 
 Cats Effect 3.4.0 introduced a default-enabled *starvation checker*, which produces warnings like the following:
