@@ -21,28 +21,36 @@ import cats.effect.std.Console
 import cats.effect.unsafe.IORuntimeConfig
 import cats.syntax.all._
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 private[effect] object CpuStarvationCheck {
 
   def run(runtimeConfig: IORuntimeConfig, metrics: CpuStarvationMetrics): IO[Nothing] = {
+    import runtimeConfig._
+
+    val threshold = cpuStarvationCheckInterval * (1 + cpuStarvationCheckThreshold)
+
+    val warning = mkWarning(cpuStarvationCheckInterval * cpuStarvationCheckThreshold)
+
     def go(initial: FiniteDuration): IO[Nothing] =
-      IO.sleep(runtimeConfig.cpuStarvationCheckInterval) >> IO.monotonic.flatMap { now =>
+      IO.sleep(cpuStarvationCheckInterval) >> IO.monotonic.flatMap { now =>
         val delta = now - initial
 
-        metrics.recordClockDrift(delta - runtimeConfig.cpuStarvationCheckInterval) >>
-          (Console[IO].errorln(warning) >> metrics.incCpuStarvationCount).whenA(delta >=
-            runtimeConfig.cpuStarvationCheckInterval * (1 + runtimeConfig.cpuStarvationCheckThreshold)) >>
+        metrics.recordClockDrift(delta - cpuStarvationCheckInterval) >>
+          (Console[IO].errorln(warning) *> metrics.incCpuStarvationCount)
+            .whenA(delta >= threshold) >>
           go(now)
       }
 
-    IO.monotonic.flatMap(go(_)).delayBy(runtimeConfig.cpuStarvationCheckInitialDelay)
+    IO.monotonic.flatMap(go(_)).delayBy(cpuStarvationCheckInitialDelay)
   }
 
-  private[this] val warning =
-    """[WARNING] Your CPU is probably starving. Consider increasing the granularity
-      |of your delays or adding more cedes. This may also be a sign that you are
-      |unintentionally running blocking I/O operations (such as File or InetAddress)
-      |without the blocking combinator.""".stripMargin
+  private[this] def mkWarning(threshold: Duration) =
+    s"""|[WARNING] Your app's responsiveness to a new asynchronous event (such as a
+        |new connection, an upstream response, or a timer) was in excess of $threshold.
+        |Your CPU is probably starving. Consider increasing the granularity
+        |of your delays or adding more cedes. This may also be a sign that you are
+        |unintentionally running blocking I/O operations (such as File or InetAddress)
+        |without the blocking combinator.""".stripMargin
 
 }

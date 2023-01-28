@@ -137,9 +137,9 @@ ThisBuild / githubWorkflowOSes := Seq(PrimaryOS, Windows, MacOS)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Use(
-    UseRef.Public("actions", "setup-node", "v2.4.0"),
-    name = Some("Setup NodeJS v16 LTS"),
-    params = Map("node-version" -> "16"),
+    UseRef.Public("actions", "setup-node", "v3"),
+    name = Some("Setup NodeJS v18 LTS"),
+    params = Map("node-version" -> "18"),
     cond = Some("matrix.ci == 'ciJS'")
   ),
   WorkflowStep.Run(
@@ -154,14 +154,15 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   )
 )
 
-ThisBuild / githubWorkflowBuild := Seq(
+ThisBuild / githubWorkflowBuild := Seq("JVM", "JS", "Native").map { platform =>
   WorkflowStep.Sbt(
-    List("root/scalafixAll --check"),
-    name = Some("Check that scalafix has been run"),
+    List(s"root${platform}/scalafixAll --check"),
+    name = Some(s"Check that scalafix has been run on $platform"),
     cond = Some(
-      s"matrix.scala != '$Scala3' && matrix.os != 'windows-latest'"
+      s"matrix.ci == 'ci${platform}' && matrix.scala != '$Scala3' && matrix.java == '${OldGuardJava.render}' && matrix.os == '$PrimaryOS'"
     ) // windows has file lock issues due to shared sources
-  ),
+  )
+} ++ Seq(
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
   WorkflowStep.Sbt(
     List("docs/mdoc"),
@@ -296,7 +297,7 @@ val ScalaCheckVersion = "1.17.0"
 val DisciplineVersion = "1.4.0"
 val CoopVersion = "1.2.0"
 
-val MacrotaskExecutorVersion = "1.1.0"
+val MacrotaskExecutorVersion = "1.1.1"
 
 val ScalacCompatVersion = "0.1.0"
 
@@ -309,9 +310,9 @@ addCommandAlias(CI.JS.command, CI.JS.toString)
 addCommandAlias(CI.Firefox.command, CI.Firefox.toString)
 addCommandAlias(CI.Chrome.command, CI.Chrome.toString)
 
-addCommandAlias(
+tlReplaceCommandAlias(
   "prePR",
-  "; root/clean; root/scalafixAll; scalafmtSbt; +root/scalafmtAll; +root/headerCreate")
+  "; root/clean; +root/headerCreate; root/scalafixAll; scalafmtSbt; +root/scalafmtAll")
 
 val jsProjects: Seq[ProjectReference] =
   Seq(kernel.js, kernelTestkit.js, laws.js, core.js, testkit.js, testsJS, std.js, example.js)
@@ -378,7 +379,8 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.specs2" %%% "specs2-core" % Specs2Version % Test
     ),
     mimaBinaryIssueFilters ++= Seq(
-      ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Ref$SyncRef")
+      ProblemFilters.exclude[MissingClassProblem]("cats.effect.kernel.Ref$SyncRef"),
+      ProblemFilters.exclude[Problem]("cats.effect.kernel.GenConcurrent#Memoize*")
     )
   )
   .jsSettings(
@@ -596,6 +598,13 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem](
         "cats.effect.NonDaemonThreadLogger.this"),
       ProblemFilters.exclude[MissingClassProblem]("cats.effect.NonDaemonThreadLogger$"),
+      // introduced by #3284
+      // internal API change
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("cats.effect.CallbackStack.apply"),
+      // introduced by #3324, which specialized CallbackStack for JS
+      // internal API change
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.CallbackStack.clearCurrent"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("cats.effect.IOLocal.scope")
     ) ++ {
       if (tlIsScala3.value) {
@@ -742,7 +751,15 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         ProblemFilters.exclude[Problem]("cats.effect.ArrayStack*"),
         // mystery filters that became required in 3.4.0
         ProblemFilters.exclude[DirectMissingMethodProblem](
-          "cats.effect.tracing.TracingConstants.*")
+          "cats.effect.tracing.TracingConstants.*"),
+        // introduced by #3225, which added the BatchingMacrotaskExecutor
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.unsafe.FiberAwareExecutionContext"),
+        ProblemFilters.exclude[IncompatibleMethTypeProblem](
+          "cats.effect.unsafe.ES2021FiberMonitor.this"),
+        // introduced by #3324, which specialized CallbackStack for JS
+        // internal API change
+        ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack")
       )
     },
     mimaBinaryIssueFilters ++= {

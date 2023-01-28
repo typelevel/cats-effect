@@ -154,7 +154,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
 
   private[effect] def fold[B](
       onOutput: A => F[B],
-      onRelease: F[Unit] => F[Unit]
+      onRelease: (ExitCase => F[Unit], ExitCase) => F[Unit]
   )(implicit F: MonadCancel[F, Throwable]): F[B] = {
     sealed trait Stack[AA]
     case object Nil extends Stack[A]
@@ -178,7 +178,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
               }
           } {
             case ((_, release), outcome) =>
-              onRelease(release(ExitCase.fromOutcome(outcome)))
+              onRelease(release, ExitCase.fromOutcome(outcome))
           }
         case Bind(source, fs) =>
           loop(source, Frame(fs, stack))
@@ -204,7 +204,7 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
    *   the result of applying [F] to
    */
   def use[B](f: A => F[B])(implicit F: MonadCancel[F, Throwable]): F[B] =
-    fold(f, identity)
+    fold(f, _.apply(_))
 
   /**
    * For a resource that allocates an action (type `F[B]`), allocate that action, run it and
@@ -251,6 +251,10 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
    * _each_ of the two resources, nested finalizers are run in the usual reverse order of
    * acquisition.
    *
+   * The same [[Resource.ExitCase]] is propagated to every finalizer. If both resources acquired
+   * successfully, the [[Resource.ExitCase]] is determined by the outcome of [[use]]. Otherwise,
+   * it is determined by which resource failed or canceled first during acquisition.
+   *
    * Note that `Resource` also comes with a `cats.Parallel` instance that offers more convenient
    * access to the same functionality as `both`, for example via `parMapN`:
    *
@@ -281,19 +285,31 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
   def both[B](
       that: Resource[F, B]
   )(implicit F: Concurrent[F]): Resource[F, (A, B)] = {
-    type Update = (F[Unit] => F[Unit]) => F[Unit]
+    type Finalizer = Resource.ExitCase => F[Unit]
+    type Update = (Finalizer => Finalizer) => F[Unit]
 
     def allocate[C](r: Resource[F, C], storeFinalizer: Update): F[C] =
-      r.fold(_.pure[F], release => storeFinalizer(F.guarantee(_, release)))
+      r.fold(
+        _.pure[F],
+        (release, _) => storeFinalizer(fin => ec => F.unit >> fin(ec).guarantee(release(ec)))
+      )
 
-    val bothFinalizers = F.ref(F.unit -> F.unit)
+    val noop: Finalizer = _ => F.unit
+    val bothFinalizers = F.ref((noop, noop))
 
-    Resource.make(bothFinalizers)(_.get.flatMap(_.parTupled).void).evalMap { store =>
-      val thisStore: Update = f => store.update(_.bimap(f, identity))
-      val thatStore: Update = f => store.update(_.bimap(identity, f))
+    Resource
+      .makeCase(bothFinalizers) { (finalizers, ec) =>
+        finalizers.get.flatMap {
+          case (thisFin, thatFin) =>
+            F.void(F.both(thisFin(ec), thatFin(ec)))
+        }
+      }
+      .evalMap { store =>
+        val thisStore: Update = f => store.update(_.bimap(f, identity))
+        val thatStore: Update = f => store.update(_.bimap(identity, f))
 
-      (allocate(this, thisStore), allocate(that, thatStore)).parTupled
-    }
+        F.both(allocate(this, thisStore), allocate(that, thatStore))
+      }
   }
 
   /**
@@ -303,7 +319,67 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
   def race[B](
       that: Resource[F, B]
   )(implicit F: Concurrent[F]): Resource[F, Either[A, B]] =
-    Concurrent[Resource[F, *]].race(this, that)
+    Resource.applyFull { poll =>
+      def cancelLoser[C](f: Fiber[F, Throwable, (C, ExitCase => F[Unit])]): F[Unit] =
+        f.cancel *>
+          f.join
+            .flatMap(
+              _.fold(
+                F.unit,
+                _ => F.unit,
+                _.flatMap(_._2.apply(ExitCase.Canceled))
+              )
+            )
+
+      poll(F.racePair(this.allocatedCase, that.allocatedCase)).flatMap {
+        case Left((oc, f)) =>
+          oc match {
+            case Outcome.Succeeded(fa) =>
+              cancelLoser(f).start.flatMap { f =>
+                fa.map {
+                  case (a, fin) =>
+                    (
+                      Either.left[A, B](a),
+                      fin(_: ExitCase).guarantee(f.join.flatMap(_.embedNever)))
+                }
+              }
+            case Outcome.Errored(ea) =>
+              F.raiseError[(Either[A, B], ExitCase => F[Unit])](ea).guarantee(cancelLoser(f))
+            case Outcome.Canceled() =>
+              poll(f.join).onCancel(f.cancel).flatMap {
+                case Outcome.Succeeded(fb) =>
+                  fb.map { case (b, fin) => (Either.right[A, B](b), fin) }
+                case Outcome.Errored(eb) =>
+                  F.raiseError[(Either[A, B], ExitCase => F[Unit])](eb)
+                case Outcome.Canceled() =>
+                  poll(F.canceled) *> F.never[(Either[A, B], ExitCase => F[Unit])]
+              }
+          }
+        case Right((f, oc)) =>
+          oc match {
+            case Outcome.Succeeded(fb) =>
+              cancelLoser(f).start.flatMap { f =>
+                fb.map {
+                  case (b, fin) =>
+                    (
+                      Either.right[A, B](b),
+                      fin(_: ExitCase).guarantee(f.join.flatMap(_.embedNever)))
+                }
+              }
+            case Outcome.Errored(eb) =>
+              F.raiseError[(Either[A, B], ExitCase => F[Unit])](eb).guarantee(cancelLoser(f))
+            case Outcome.Canceled() =>
+              poll(f.join).onCancel(f.cancel).flatMap {
+                case Outcome.Succeeded(fa) =>
+                  fa.map { case (a, fin) => (Either.left[A, B](a), fin) }
+                case Outcome.Errored(ea) =>
+                  F.raiseError[(Either[A, B], ExitCase => F[Unit])](ea)
+                case Outcome.Canceled() =>
+                  poll(F.canceled) *> F.never[(Either[A, B], ExitCase => F[Unit])]
+              }
+          }
+      }
+    }
 
   /**
    * Implementation for the `flatMap` operation, as described via the `cats.Monad` type class.
@@ -661,12 +737,19 @@ sealed abstract class Resource[F[_], +A] extends Serializable {
       implicit F: MonadCancel[F, Throwable],
       K: SemigroupK[F],
       G: Ref.Make[F]): Resource[F, B] =
-    Resource.make(Ref[F].of(F.unit))(_.get.flatten).evalMap { finalizers =>
-      def allocate(r: Resource[F, B]): F[B] =
-        r.fold(_.pure[F], (release: F[Unit]) => finalizers.update(_.guarantee(release)))
+    Resource
+      .makeCase(Ref[F].of((_: Resource.ExitCase) => F.unit))((fin, ec) =>
+        fin.get.flatMap(_(ec)))
+      .evalMap { finalizers =>
+        def allocate(r: Resource[F, B]): F[B] =
+          r.fold(
+            _.pure[F],
+            (release, _) =>
+              finalizers.update(fin => ec => F.unit >> fin(ec).guarantee(release(ec)))
+          )
 
-      K.combineK(allocate(this), allocate(that))
-    }
+        K.combineK(allocate(this), allocate(that))
+      }
 
 }
 
@@ -1295,13 +1378,19 @@ abstract private[effect] class ResourceConcurrent[F[_]]
   override def both[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, (A, B)] =
     fa.both(fb)
 
+  override def race[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, Either[A, B]] =
+    fa.race(fb)
+
   override def memoize[A](fa: Resource[F, A]): Resource[F, Resource[F, A]] = {
-    Resource.eval(F.ref(false)).flatMap { allocated =>
-      val fa2 = F.uncancelable(poll => poll(fa.allocatedCase) <* allocated.set(true))
+    Resource.eval(F.ref(List.empty[Resource.ExitCase => F[Unit]])).flatMap { release =>
+      val fa2 = F.uncancelable { poll =>
+        poll(fa.allocatedCase).flatMap { case (a, r) => release.update(r :: _).as(a) }
+      }
       Resource
-        .makeCaseFull[F, F[(A, Resource.ExitCase => F[Unit])]](poll => poll(F.memoize(fa2)))(
-          (memo, exit) => allocated.get.ifM(memo.flatMap(_._2.apply(exit)), F.unit))
-        .map(memo => Resource.eval(memo.map(_._1)))
+        .makeCaseFull[F, F[A]](poll => poll(F.memoize(fa2))) { (_, exit) =>
+          release.get.flatMap(_.foldMapM(_(exit)))
+        }
+        .map(memo => Resource.eval(memo))
     }
   }
 }

@@ -15,16 +15,9 @@
  */
 
 package cats.effect
-package tracing
 
-private[effect] object TracingConstants {
-
-  private[this] final val stackTracingMode: String =
-    Option(System.getenv("CATS_EFFECT_TRACING_MODE")).filterNot(_.isEmpty).getOrElse("cached")
-
-  final val isCachedStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("cached")
-
-  final val isFullStackTracing: Boolean = stackTracingMode.equalsIgnoreCase("full")
-
-  final val isStackTracing = isFullStackTracing || isCachedStackTracing
+private object Platform {
+  final val isJs = true
+  final val isJvm = false
+  final val isNative = false
 }

@@ -85,7 +85,7 @@ private final class IOFiber[A](
   private[this] var currentCtx: ExecutionContext = startEC
   private[this] val objectState: ArrayStack[AnyRef] = ArrayStack()
   private[this] val finalizers: ArrayStack[IO[Unit]] = ArrayStack()
-  private[this] val callbacks: CallbackStack[A] = new CallbackStack(cb)
+  private[this] val callbacks: CallbackStack[OutcomeIO[A]] = CallbackStack(cb)
   private[this] var resumeTag: Byte = ExecR
   private[this] var resumeIO: AnyRef = startIO
   private[this] val runtime: IORuntime = rt
@@ -169,12 +169,14 @@ private final class IOFiber[A](
   /* this is swapped for an `IO.pure(outcome)` when we complete */
   private[this] var _join: IO[OutcomeIO[A]] = IO.async { cb =>
     IO {
-      val handle = registerListener(oc => cb(Right(oc)))
+      val stack = registerListener(oc => cb(Right(oc)))
 
-      if (handle == null)
+      if (stack eq null)
         Some(IO.unit) /* we were already invoked, so no `CallbackStack` needs to be managed */
-      else
-        Some(IO(handle.clearCurrent()))
+      else {
+        val handle = stack.currentHandle()
+        Some(IO(stack.clearCurrent(handle)))
+      }
     }
   }
 
@@ -1021,7 +1023,7 @@ private final class IOFiber[A](
         }
       }
     } finally {
-      callbacks.lazySet(null) /* avoid leaks */
+      callbacks.clear() /* avoid leaks */
     }
 
     /*
@@ -1128,13 +1130,14 @@ private final class IOFiber[A](
   }
 
   /* can return null, meaning that no CallbackStack needs to be later invalidated */
-  private[this] def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
+  private[this] def registerListener(
+      listener: OutcomeIO[A] => Unit): CallbackStack[OutcomeIO[A]] = {
     if (outcome == null) {
       val back = callbacks.push(listener)
 
       /* double-check */
       if (outcome != null) {
-        back.clearCurrent()
+        back.clearCurrent(back.currentHandle())
         listener(outcome) /* the implementation of async saves us from double-calls */
         null
       } else {
@@ -1271,18 +1274,33 @@ private final class IOFiber[A](
   }
 
   private[this] def rescheduleFiber(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
-    if (ec.isInstanceOf[WorkStealingThreadPool]) {
-      val wstp = ec.asInstanceOf[WorkStealingThreadPool]
-      wstp.reschedule(fiber)
+    if (Platform.isJvm) {
+      if (ec.isInstanceOf[WorkStealingThreadPool]) {
+        val wstp = ec.asInstanceOf[WorkStealingThreadPool]
+        wstp.reschedule(fiber)
+      } else {
+        scheduleOnForeignEC(ec, fiber)
+      }
     } else {
       scheduleOnForeignEC(ec, fiber)
     }
   }
 
   private[this] def scheduleFiber(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
-    if (ec.isInstanceOf[WorkStealingThreadPool]) {
-      val wstp = ec.asInstanceOf[WorkStealingThreadPool]
-      wstp.execute(fiber)
+    if (Platform.isJvm) {
+      if (ec.isInstanceOf[WorkStealingThreadPool]) {
+        val wstp = ec.asInstanceOf[WorkStealingThreadPool]
+        wstp.execute(fiber)
+      } else {
+        scheduleOnForeignEC(ec, fiber)
+      }
+    } else if (Platform.isJs) {
+      if (ec.isInstanceOf[BatchingMacrotaskExecutor]) {
+        val bmte = ec.asInstanceOf[BatchingMacrotaskExecutor]
+        bmte.schedule(fiber)
+      } else {
+        scheduleOnForeignEC(ec, fiber)
+      }
     } else {
       scheduleOnForeignEC(ec, fiber)
     }

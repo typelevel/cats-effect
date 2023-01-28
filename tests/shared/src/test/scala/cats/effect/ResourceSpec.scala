@@ -21,6 +21,7 @@ import cats.data.{Kleisli, OptionT}
 import cats.effect.implicits._
 import cats.effect.kernel.testkit.TestContext
 import cats.effect.laws.AsyncTests
+import cats.effect.testkit.TestControl
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
@@ -598,6 +599,84 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         leftReleased must beTrue
         rightReleased must beTrue
       }
+
+      "propagate the exit case" in {
+        import Resource.ExitCase
+
+        "use succesfully, test left" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.both(Resource.unit).use(_ => IO.unit) must completeAs(())
+          got mustEqual ExitCase.Succeeded
+        }
+
+        "use successfully, test right" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          Resource.unit.both(r).use(_ => IO.unit) must completeAs(())
+          got mustEqual ExitCase.Succeeded
+        }
+
+        "use errored, test left" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val ex = new Exception
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.both(Resource.unit).use(_ => IO.raiseError(ex)) must failAs(ex)
+          got mustEqual ExitCase.Errored(ex)
+        }
+
+        "use errored, test right" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val ex = new Exception
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          Resource.unit.both(r).use(_ => IO.raiseError(ex)) must failAs(ex)
+          got mustEqual ExitCase.Errored(ex)
+        }
+
+        "right errored, test left" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val ex = new Exception
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.both(Resource.eval(IO.sleep(1.second) *> IO.raiseError(ex))).use_ must failAs(ex)
+          got mustEqual ExitCase.Errored(ex)
+        }
+
+        "left errored, test right" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val ex = new Exception
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          Resource.eval(IO.sleep(1.second) *> IO.raiseError(ex)).both(r).use_ must failAs(ex)
+          got mustEqual ExitCase.Errored(ex)
+        }
+
+        "use canceled, test left" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.both(Resource.unit).use(_ => IO.canceled) must selfCancel
+          got mustEqual ExitCase.Canceled
+        }
+
+        "use canceled, test right" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          Resource.unit.both(r).use(_ => IO.canceled) must selfCancel
+          got mustEqual ExitCase.Canceled
+        }
+
+        "right canceled, test left" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.both(Resource.eval(IO.sleep(1.second) *> IO.canceled)).use_ must selfCancel
+          got mustEqual ExitCase.Canceled
+        }
+
+        "left canceled, test right" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          Resource.eval(IO.sleep(1.second) *> IO.canceled).both(r).use_ must selfCancel
+          got mustEqual ExitCase.Canceled
+        }
+      }
     }
 
     "releases both resources on combineK" in ticked { implicit ticker =>
@@ -640,6 +719,70 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           val rhs = (Resource.eval(ot1) <+> Resource.eval(ot2)).use(OptionT.pure[IO](_)).value
 
           lhs eqv rhs
+        }
+      }
+
+      "propagate the exit case" in {
+        import Resource.ExitCase
+
+        "use succesfully, test left" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.combineK(Resource.unit).use(_ => IO.unit) must completeAs(())
+          got mustEqual ExitCase.Succeeded
+        }
+
+        "use errored, test left" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val ex = new Exception
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.combineK(Resource.unit).use(_ => IO.raiseError(ex)) must failAs(ex)
+          got mustEqual ExitCase.Errored(ex)
+        }
+
+        "left errored, test left" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val ex = new Exception
+          val r = Resource.onFinalizeCase(ec => IO { got = ec }) *>
+            Resource.eval(IO.raiseError(ex))
+          r.combineK(Resource.unit).use_ must completeAs(())
+          got mustEqual ExitCase.Succeeded
+        }
+
+        "left errored, test right" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val ex = new Exception
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          Resource.eval(IO.raiseError(ex)).combineK(r).use_ must completeAs(())
+          got mustEqual ExitCase.Succeeded
+        }
+
+        "left errored, use errored, test right" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val ex = new Exception
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          Resource
+            .eval(IO.raiseError(new Exception))
+            .combineK(r)
+            .use(_ => IO.raiseError(ex)) must failAs(ex)
+          got mustEqual ExitCase.Errored(ex)
+        }
+
+        "use canceled, test left" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          r.combineK(Resource.unit).use(_ => IO.canceled) must selfCancel
+          got mustEqual ExitCase.Canceled
+        }
+
+        "left errored, use canceled, test right" >> ticked { implicit ticker =>
+          var got: ExitCase = null
+          val r = Resource.onFinalizeCase(ec => IO { got = ec })
+          Resource
+            .eval(IO.raiseError(new Exception))
+            .combineK(r)
+            .use(_ => IO.canceled) must selfCancel
+          got mustEqual ExitCase.Canceled
         }
       }
     }
@@ -826,6 +969,29 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           winnerClosed must beTrue
           completed must beTrue
       }
+
+      "closes the loser eagerly" in real {
+        val go = (
+          IO.ref(false),
+          IO.ref(false),
+          IO.deferred[Either[Unit, Unit]]
+        ).flatMapN { (acquiredLeft, acquiredRight, loserReleased) =>
+          val left = Resource.make(acquiredLeft.set(true))(_ =>
+            loserReleased.complete(Left[Unit, Unit](())).void)
+
+          val right = Resource.make(acquiredRight.set(true))(_ =>
+            loserReleased.complete(Right[Unit, Unit](())).void)
+
+          Resource.race(left, right).use {
+            case Left(()) =>
+              acquiredRight.get.ifM(loserReleased.get.map(_ must beRight[Unit]), IO.pure(ok))
+            case Right(()) =>
+              acquiredLeft.get.ifM(loserReleased.get.map(_ must beLeft[Unit]).void, IO.pure(ok))
+          }
+        }
+
+        TestControl.executeEmbed(go.replicateA_(100)).as(true)
+      }
     }
 
     "start" >> {
@@ -988,6 +1154,20 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
           }
           .flatten
           .void must completeAs(())
+      }
+      "does not leak if canceled" in ticked { implicit ticker =>
+        (IO.ref(0), IO.ref(0)).flatMapN { (acquired, released) =>
+          val r = Resource.make(IO.sleep(2.seconds) *> acquired.update(_ + 1).void) { _ =>
+            released.update(_ + 1)
+          }
+
+          def acquiredMustBe(i: Int) = acquired.get.map(_ must be_==(i)).void
+          def releasedMustBe(i: Int) = released.get.map(_ must be_==(i)).void
+
+          r.memoize.use { memo =>
+            memo.timeoutTo(1.second, Resource.unit[IO]).use_
+          } *> acquiredMustBe(1) *> releasedMustBe(1)
+        }.void must completeAs(())
       }
     }
   }

@@ -105,7 +105,13 @@ package examples {
     def run(args: List[String]): IO[ExitCode] = IO.pure(ExitCode.Success)
   }
 
+  // stub
   object EvalOnMainThread extends IOApp {
+    def run(args: List[String]): IO[ExitCode] = IO.never
+  }
+
+  // stub
+  object MainThreadReportFailure extends IOApp {
     def run(args: List[String]): IO[ExitCode] = IO.never
   }
 
