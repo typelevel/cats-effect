@@ -23,6 +23,9 @@ import scala.concurrent.duration._
 
 object SleepDrift extends IOApp.Simple {
 
+  override val runtimeConfig =
+    super.runtimeConfig.copy(cpuStarvationCheckInitialDelay = Duration.Inf)
+
   val delayTwoMinutes = {
     def loop(n: Int): IO[Unit] = {
       if (n <= 0)
