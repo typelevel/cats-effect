@@ -201,7 +201,7 @@ class IOAppSpec extends Specification {
           val err = h.stderr()
           err must not(contain("[WARNING] Failed to register Cats Effect CPU"))
           err must contain("[WARNING] Your app's responsiveness")
-          // we use a regex because time has too many corner cases - a test run at just the wrong 
+          // we use a regex because time has too many corner cases - a test run at just the wrong
           // moment on new year's eve, etc
           err must beMatching(
             // (?s) allows matching across line breaks
