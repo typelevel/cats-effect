@@ -56,7 +56,7 @@ private[effect] final class BatchingMacrotaskExecutor(
   private[this] var needsReschedule = true
   private[this] val fibers = new JSArrayQueue[IOFiber[_]]
 
-  private[this] object executeBatchTask extends Runnable {
+  private[this] object executeBatchTaskRunnable extends Runnable {
     def run() = {
       // do up to batchSize tasks
       var i = 0
@@ -85,6 +85,9 @@ private[effect] final class BatchingMacrotaskExecutor(
     }
   }
 
+  private[this] val executeBatchTaskJSFunction: js.Function0[Any] =
+    () => executeBatchTaskRunnable.run()
+
   /**
    * Execute the `runnable` in the next iteration of the event loop.
    */
@@ -106,7 +109,7 @@ private[effect] final class BatchingMacrotaskExecutor(
       needsReschedule = false
       // start executing the batch immediately after the currently running task suspends
       // this is safe b/c `needsReschedule` is set to `true` only upon yielding to the event loop
-      queueMicrotask(() => executeBatchTask.run())
+      queueMicrotask(executeBatchTaskJSFunction)
       ()
     }
   }
