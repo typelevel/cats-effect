@@ -65,7 +65,7 @@ If the `IO(...)` in the middle was run on the compute pool this would require:
 2. shifting back to the compute pool, for the non-blocking op
 3. requisitioning another blocking thread, for the second blocking op
 
-So in this case, the intermediate `IO(...)` is highly likely to run on a blocking thread. This enables the entire sequence to run on the same blocking thread, without any shifting.
+So in this case, the intermediate `IO(...)` is highly likely to run on a blocking thread. This enables the entire sequence to run on the same blocking thread, without any shifting. As soon as any asynchronous operation (or an auto-cede boundary) is encountered, the fiber will be shifted back to a compute thread. The tradeoff here is to create a small amount of unnecessary thread contention in exchange for avoiding unnecessary context shifts in many cases.
 
 Note that this is just a specific example to demonstrate why running an non-blocking `IO(...)` on a blocking thread can be beneficial, but it is not the only situation in which you may observe this behavior.
 
