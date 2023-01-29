@@ -18,6 +18,7 @@ package cats.effect.unsafe
 
 import org.specs2.mutable.Specification
 
+import scala.annotation.tailrec
 import scala.concurrent.duration._
 
 class SleepCallbackSpec extends Specification {
@@ -31,6 +32,19 @@ class SleepCallbackSpec extends Specification {
       val expected = 600.millis.toNanos // delay.toNanos + now
 
       scb.triggerTime mustEqual expected
+    }
+
+    def dequeueAll(sleepers: SleepersQueue): List[SleepCallback] = {
+      @tailrec
+      def loop(sleepers: SleepersQueue, acc: List[SleepCallback]): List[SleepCallback] =
+        if (sleepers.isEmpty) acc.reverse
+        else {
+          val head = sleepers.head()
+          sleepers.popHead()
+          loop(sleepers, head :: acc)
+        }
+
+      loop(sleepers, Nil)
     }
 
     "be ordered according to the trigger time" in {
@@ -71,23 +85,42 @@ class SleepCallbackSpec extends Specification {
 
       sleepers.isEmpty must beFalse
 
-      def dequeueAll(sleepers: SleepersQueue): List[SleepCallback] = {
-        def loop(sleepers: SleepersQueue, acc: List[SleepCallback]): List[SleepCallback] =
-          if (sleepers.isEmpty) acc.reverse
-          else {
-            val head = sleepers.head()
-            sleepers.popHead()
-            loop(sleepers, head :: acc)
-          }
-
-        loop(sleepers, Nil)
-      }
-
       val ordering = dequeueAll(sleepers)
       val expectedOrdering = List(scb2, scb3, scb1)
 
       ordering mustEqual expectedOrdering
       ordering.map(_.triggerTime) mustEqual List(300, 350, 600).map(_.millis.toNanos)
+      sleepers.isEmpty must beTrue
+    }
+
+    "be ordered correctly even if Long overflows" in {
+      val sleepers = SleepersQueue.empty
+
+      val now1 = Long.MaxValue - 20L
+      val delay1 = 10.nanos
+      val expected1 = Long.MaxValue - 10L // no overflow yet
+
+      val now2 = Long.MaxValue - 5L
+      val delay2 = 10.nanos
+      val expected2 = Long.MinValue + 4L // overflow
+
+      val scb1 = SleepCallback.create(delay1, _ => (), now1, sleepers)
+      val scb2 = SleepCallback.create(delay2, _ => (), now2, sleepers)
+
+      scb1.triggerTime mustEqual expected1
+      scb2.triggerTime mustEqual expected2
+
+      (expected1 - expected2) must be lessThan 0
+      scb1 must be greaterThan scb2 // uses the reverse `Ordering` instance
+
+      sleepers += scb1
+      sleepers += scb2
+
+      val ordering = dequeueAll(sleepers)
+      val expectedOrdering = List(scb1, scb2)
+
+      ordering mustEqual expectedOrdering
+      ordering.map(_.triggerTime) mustEqual List(expected1, expected2)
       sleepers.isEmpty must beTrue
     }
 

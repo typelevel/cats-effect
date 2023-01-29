@@ -75,5 +75,5 @@ private object SleepCallback {
   }
 
   implicit val sleepCallbackReverseOrdering: Ordering[SleepCallback] =
-    Ordering.fromLessThan(_.triggerTime > _.triggerTime)
+    Ordering.fromLessThan(_.triggerTime - _.triggerTime > 0)
 }
