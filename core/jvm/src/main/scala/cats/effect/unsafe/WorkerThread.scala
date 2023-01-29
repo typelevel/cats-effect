@@ -401,7 +401,7 @@ private final class WorkerThread(
         while (cont) {
           val head = sleepers.head()
 
-          if (head.triggerTime <= now) {
+          if (head.triggerTime - now <= 0) {
             if (head.get()) {
               head.callback(RightUnit)
             }
