@@ -588,8 +588,8 @@ private final class IOFiber[A](
            * `asyncContinue`.
            *
            * If `get` wins, it gets the result from the `state`
-           * `AtomicRef` and it continues, while the callback just
-           * terminates (`stateLoop`, when `tag == 3`)
+           * `AtomicReference` and it continues, while the callback just
+           * terminates (`stateLoop`, when `(tag ne null) && (tag ne waiting)`)
            *
            * The two sides communicate with each other through
            * `state` to know who should take over, and through
@@ -677,32 +677,32 @@ private final class IOFiber[A](
                */
             }
 
+            val waiting = state.waiting
+
             /*
              * CAS loop to update the Cont state machine:
-             * 0 - Initial
-             * 1 - (Get) Waiting
-             * 2 - (Cb) Result
+             * null - initial
+             * waiting - (Get) waiting
+             * anything else - (Cb) result
              *
-             * If state is Initial or Waiting, update the state,
+             * If state is "initial" or "waiting", update the state,
              * and then if `get` has been flatMapped somewhere already
              * and is waiting for a result (i.e. it has suspended),
              * acquire runloop to continue.
              *
              * If not, `cb` arrived first, so it just sets the result and die off.
              *
-             * If `state` is `Result`, the callback has been already invoked, so no-op.
-             * (guards from double calls)
+             * If `state` is "result", the callback has been already invoked, so no-op
+             * (guards from double calls).
              */
             @tailrec
             def stateLoop(): Unit = {
               val tag = state.get()
-              if (tag <= ContStateWaiting) {
-                if (!state.compareAndSet(tag, ContStateWinner)) stateLoop()
-                else {
-                  state.result = result
-                  // The winner has to publish the result.
-                  state.set(ContStateResult)
-                  if (tag == ContStateWaiting) {
+              if ((tag eq null) || (tag eq waiting)) {
+                if (!state.compareAndSet(tag, result)) {
+                  stateLoop()
+                } else {
+                  if (tag eq waiting) {
                     /*
                      * `get` has been sequenced and is waiting
                      * reacquire runloop to continue
@@ -729,20 +729,20 @@ private final class IOFiber[A](
 
           /*
            * If get gets canceled but the result hasn't been computed yet,
-           * restore the state to Initial to ensure a subsequent `Get` in
+           * restore the state to "initial" (null) to ensure a subsequent `Get` in
            * a finalizer still works with the same logic.
            */
           val fin = IO {
-            state.compareAndSet(ContStateWaiting, ContStateInitial)
+            state.compareAndSet(state.waiting, null)
             ()
           }
           finalizers.push(fin)
           conts = ByteStack.push(conts, OnCancelK)
 
-          if (state.compareAndSet(ContStateInitial, ContStateWaiting)) {
+          if (state.compareAndSet(null, state.waiting)) {
             /*
-             * `state` was Initial, so `get` has arrived before the callback,
-             * it needs to set the state to `Waiting` and suspend: `cb` will
+             * `state` was "initial" (null), so `get` has arrived before the callback,
+             * it needs to set the state to "waiting" and suspend: `cb` will
              * resume with the result once that's ready
              */
 
@@ -796,30 +796,27 @@ private final class IOFiber[A](
             }
           } else {
             /*
-             * state was no longer Initial, so the callback has already been invoked
-             * and the state is Result.
-             * We leave the Result state unmodified so that `get` is idempotent.
+             * State was no longer "initial" (null), as the CAS above failed; so the
+             * callback has already been invoked and the state is "result".
+             * We leave the "result" state unmodified so that `get` is idempotent.
              *
-             * Note that it's impossible for `state` to be `Waiting` here:
+             * Note that it's impossible for `state` to be "waiting" here:
              * - `cont` doesn't allow concurrent calls to `get`, so there can't be
-             *    another `get` in `Waiting` when we execute this.
+             *    another `get` in "waiting" when we execute this.
              *
              * - If a previous `get` happened before this code, and we are in a `flatMap`
              *   or `handleErrorWith`, it means the callback has completed once
              *   (unblocking the first `get` and letting us execute), and the state is still
-             *   `Result`
+             *   "result".
              *
              * - If a previous `get` has been canceled and we are being called within an
              *  `onCancel` of that `get`, the finalizer installed on the `Get` node by `Cont`
-             *   has restored the state to `Initial` before the execution of this method,
+             *   has restored the state to "initial" before the execution of this method,
              *   which would have been caught by the previous branch unless the `cb` has
-             *   completed and the state is `Result`
+             *   completed and the state is "result"
              */
 
-            // Wait for the winner to publish the result.
-            while (state.get() != ContStateResult) ()
-
-            val result = state.result
+            val result = state.get()
 
             if (!shouldFinalize()) {
               /* we weren't canceled, so resume the runloop */
