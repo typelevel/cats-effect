@@ -319,12 +319,12 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         ioa must completeAs(44)
       }
 
-      "result in an null if lifting a pure null value" in ticked { implicit ticker =>
+      "result in a null if lifting a pure null value" in ticked { implicit ticker =>
         // convoluted in order to avoid scalac warnings
         IO.pure(null).map(_.asInstanceOf[Any]).map(_ == null) must completeAs(true)
       }
 
-      "result in an NPE if delaying a null value" in ticked { implicit ticker =>
+      "result in a null if delaying a null value" in ticked { implicit ticker =>
         IO(null).map(_.asInstanceOf[Any]).map(_ == null) must completeAs(true)
         IO.delay(null).map(_.asInstanceOf[Any]).map(_ == null) must completeAs(true)
       }
@@ -334,7 +334,6 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           .attempt
           .map(_.left.toOption.get.isInstanceOf[NullPointerException]) must completeAs(true)
       }
-
     }
 
     "fibers" should {
@@ -475,6 +474,53 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
         } yield value
 
         test.attempt.flatMap { n => IO(n mustEqual Right(42)) }
+      }
+
+      "calling async callback with null during registration (ticked)" in ticked {
+        implicit ticker =>
+          IO.async[Int] { cb => IO(cb(null)).as(None) }
+            .map(_ + 1)
+            .attempt
+            .flatMap(e =>
+              IO(e must beLeft(beAnInstanceOf[NullPointerException])).void) must completeAs(())
+      }
+
+      "calling async callback with null after registration (ticked)" in ticked {
+        implicit ticker =>
+          val test = for {
+            cbp <- Deferred[IO, Either[Throwable, Int] => Unit]
+            fib <- IO.async[Int] { cb => cbp.complete(cb).as(None) }.start
+            _ <- IO(ticker.ctx.tickAll())
+            cb <- cbp.get
+            _ <- IO(ticker.ctx.tickAll())
+            _ <- IO(cb(null))
+            e <- fib.joinWithNever.attempt
+            _ <- IO(e must beLeft(beAnInstanceOf[NullPointerException]))
+          } yield ()
+
+          test must completeAs(())
+      }
+
+      "calling async callback with null during registration (real)" in real {
+        IO.async[Int] { cb => IO(cb(null)).as(None) }
+          .map(_ + 1)
+          .attempt
+          .flatMap(e => IO(e must beLeft(beAnInstanceOf[NullPointerException])))
+      }
+
+      "calling async callback with null after registration (real)" in real {
+        for {
+          cbp <- Deferred[IO, Either[Throwable, Int] => Unit]
+          latch <- Deferred[IO, Unit]
+          fib <- IO.async[Int] { cb => cbp.complete(cb) *> latch.get.as(None) }.start
+          cb <- cbp.get
+          _r <- IO.both(
+            latch.complete(()) *> IO.sleep(0.1.second) *> IO(cb(null)),
+            fib.joinWithNever.attempt
+          )
+          (_, r) = _r
+          _ <- IO(r must beLeft(beAnInstanceOf[NullPointerException]))
+        } yield ok
       }
 
       "complete a fiber with Canceled under finalizer on poll" in ticked { implicit ticker =>
