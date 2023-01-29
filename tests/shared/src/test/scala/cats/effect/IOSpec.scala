@@ -514,10 +514,11 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           latch <- Deferred[IO, Unit]
           fib <- IO.async[Int] { cb => cbp.complete(cb) *> latch.get.as(None) }.start
           cb <- cbp.get
-          (_, r) <- IO.both(
+          _r <- IO.both(
             latch.complete(()) *> IO.sleep(0.1.second) *> IO(cb(null)),
             fib.joinWithNever.attempt
           )
+          (_, r) = _r
           _ <- IO(r must beLeft(beAnInstanceOf[NullPointerException]))
         } yield ok
       }
