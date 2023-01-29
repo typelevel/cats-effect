@@ -604,6 +604,14 @@ private final class IOFiber[A](
           val state = new ContState(finalizing)
 
           val cb: Either[Throwable, Any] => Unit = { e =>
+            // if someone called `cb` with `null`,
+            // we'll pretend it's an NPE:
+            val result = if (e eq null) {
+              Left(new NullPointerException())
+            } else {
+              e
+            }
+
             /*
              * We *need* to own the runloop when we return, so we CAS loop
              * on `suspended` (via `resume`) to break the race condition where
@@ -629,7 +637,7 @@ private final class IOFiber[A](
                   val ec = currentCtx
                   if (!shouldFinalize()) {
                     /* we weren't canceled or completed, so schedule the runloop for execution */
-                    e match {
+                    result match {
                       case Left(t) =>
                         resumeTag = AsyncContinueFailedR
                         objectState.push(t)
@@ -691,7 +699,7 @@ private final class IOFiber[A](
               if (tag <= ContStateWaiting) {
                 if (!state.compareAndSet(tag, ContStateWinner)) stateLoop()
                 else {
-                  state.result = e
+                  state.result = result
                   // The winner has to publish the result.
                   state.set(ContStateResult)
                   if (tag == ContStateWaiting) {
