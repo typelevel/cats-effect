@@ -481,7 +481,8 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
           IO.async[Int] { cb => IO(cb(null)).as(None) }
             .map(_ + 1)
             .attempt
-            .map(_.left.toOption.get.isInstanceOf[NullPointerException]) must completeAs(true)
+            .flatMap(e =>
+              IO(e must beLeft(beAnInstanceOf[NullPointerException])).void) must completeAs(())
       }
 
       "calling async callback with null after registration (ticked)" in ticked {
@@ -494,32 +495,31 @@ class IOSpec extends BaseSpec with Discipline with IOPlatformSpecification {
             _ <- IO(ticker.ctx.tickAll())
             _ <- IO(cb(null))
             e <- fib.joinWithNever.attempt
-          } yield e.left.toOption.get.isInstanceOf[NullPointerException]
+            _ <- IO(e must beLeft(beAnInstanceOf[NullPointerException]))
+          } yield ()
 
-          test must completeAs(true)
+          test must completeAs(())
       }
 
       "calling async callback with null during registration (real)" in real {
         IO.async[Int] { cb => IO(cb(null)).as(None) }
           .map(_ + 1)
           .attempt
-          .map(_.left.toOption.get.isInstanceOf[NullPointerException])
-          .flatMap { r => IO(r must beTrue) }
+          .flatMap(e => IO(e must beLeft(beAnInstanceOf[NullPointerException])))
       }
 
       "calling async callback with null after registration (real)" in real {
-        val test = for {
+        for {
           cbp <- Deferred[IO, Either[Throwable, Int] => Unit]
           latch <- Deferred[IO, Unit]
           fib <- IO.async[Int] { cb => cbp.complete(cb) *> latch.get.as(None) }.start
           cb <- cbp.get
-          r <- IO.both(
+          (_, r) <- IO.both(
             latch.complete(()) *> IO.sleep(0.1.second) *> IO(cb(null)),
             fib.joinWithNever.attempt
           )
-        } yield r._2.left.toOption.get.isInstanceOf[NullPointerException]
-
-        test.flatMap { r => IO(r must beTrue) }
+          _ <- IO(r must beLeft(beAnInstanceOf[NullPointerException]))
+        } yield ok
       }
 
       "complete a fiber with Canceled under finalizer on poll" in ticked { implicit ticker =>
