@@ -57,6 +57,7 @@ package examples {
     register(UndefinedProcessExit)
     register(CustomRuntime)
     register(CpuStarvation)
+    register(BlockedThreads)
 
     @nowarn("msg=never used")
     def main(paperweight: Array[String]): Unit = {
