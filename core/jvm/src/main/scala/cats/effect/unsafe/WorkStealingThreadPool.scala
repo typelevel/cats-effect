@@ -66,7 +66,8 @@ private[effect] final class WorkStealingThreadPool(
     private[unsafe] val runtimeBlockingExpiration: Duration,
     reportFailure0: Throwable => Unit,
     private[unsafe] val blockedThreadDetectionEnabled: Boolean
-) extends ExecutionContextExecutor with Scheduler {
+) extends ExecutionContextExecutor
+    with Scheduler {
 
   import TracingConstants._
   import WorkStealingThreadPoolConstants._
