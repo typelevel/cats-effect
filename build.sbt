@@ -752,6 +752,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         // mystery filters that became required in 3.4.0
         ProblemFilters.exclude[DirectMissingMethodProblem](
           "cats.effect.tracing.TracingConstants.*"),
+        // introduced by #3225, which added the BatchingMacrotaskExecutor
+        ProblemFilters.exclude[MissingClassProblem](
+          "cats.effect.unsafe.FiberAwareExecutionContext"),
+        ProblemFilters.exclude[IncompatibleMethTypeProblem](
+          "cats.effect.unsafe.ES2021FiberMonitor.this"),
         // introduced by #3324, which specialized CallbackStack for JS
         // internal API change
         ProblemFilters.exclude[IncompatibleTemplateDefProblem]("cats.effect.CallbackStack")

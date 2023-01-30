@@ -35,11 +35,13 @@ import cats.effect.tracing.TracingConstants
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
+import java.time.Instant
+import java.time.temporal.ChronoField
 import java.util.Comparator
 import java.util.concurrent.{ConcurrentSkipListSet, ThreadLocalRandom}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 import java.util.concurrent.locks.LockSupport
 
 /**
@@ -64,7 +66,7 @@ private[effect] final class WorkStealingThreadPool(
     private[unsafe] val runtimeBlockingExpiration: Duration,
     reportFailure0: Throwable => Unit,
     private[unsafe] val blockedThreadDetectionEnabled: Boolean
-) extends ExecutionContextExecutor {
+) extends ExecutionContextExecutor with Scheduler {
 
   import TracingConstants._
   import WorkStealingThreadPoolConstants._
@@ -76,6 +78,7 @@ private[effect] final class WorkStealingThreadPool(
   private[unsafe] val localQueues: Array[LocalQueue] = new Array(threadCount)
   private[unsafe] val parkedSignals: Array[AtomicBoolean] = new Array(threadCount)
   private[unsafe] val fiberBags: Array[WeakBag[Runnable]] = new Array(threadCount)
+  private[unsafe] val sleepersQueues: Array[SleepersQueue] = new Array(threadCount)
 
   /**
    * Atomic variable for used for publishing changes to the references in the `workerThreads`
@@ -119,8 +122,17 @@ private[effect] final class WorkStealingThreadPool(
       val index = i
       val fiberBag = new WeakBag[Runnable]()
       fiberBags(i) = fiberBag
+      val sleepersQueue = SleepersQueue.empty
+      sleepersQueues(i) = sleepersQueue
       val thread =
-        new WorkerThread(index, queue, parkedSignal, externalQueue, fiberBag, this)
+        new WorkerThread(
+          index,
+          queue,
+          parkedSignal,
+          externalQueue,
+          fiberBag,
+          sleepersQueue,
+          this)
       workerThreads(i) = thread
       i += 1
     }
@@ -358,6 +370,11 @@ private[effect] final class WorkStealingThreadPool(
     ()
   }
 
+  private[unsafe] def doneSleeping(): Unit = {
+    state.getAndAdd(DeltaSearching)
+    ()
+  }
+
   /**
    * Replaces the blocked worker thread with the provided index with a clone.
    *
@@ -514,6 +531,52 @@ private[effect] final class WorkStealingThreadPool(
    *   the unhandled throwable instances
    */
   override def reportFailure(cause: Throwable): Unit = reportFailure0(cause)
+
+  override def monotonicNanos(): Long = System.nanoTime()
+
+  override def nowMillis(): Long = System.currentTimeMillis()
+
+  override def nowMicros(): Long = {
+    val now = Instant.now()
+    now.getEpochSecond() * 1000000 + now.getLong(ChronoField.MICRO_OF_SECOND)
+  }
+
+  private[this] val RightUnit = IOFiber.RightUnit
+
+  def sleepInternal(delay: FiniteDuration, callback: Right[Nothing, Unit] => Unit): Runnable = {
+    val thread = Thread.currentThread()
+
+    if (thread.isInstanceOf[WorkerThread]) {
+      val worker = thread.asInstanceOf[WorkerThread]
+      if (worker.isOwnedBy(this)) {
+        worker.sleep(delay, callback)
+      } else {
+        sleep(delay, () => callback(RightUnit))
+      }
+    } else {
+      sleep(delay, () => callback(RightUnit))
+    }
+  }
+
+  private[this] val CancelSentinel: Runnable = () => ()
+
+  override def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
+    val signal = new AtomicReference[Runnable]
+
+    // note we'll retain the reference to task until the outer task is scheduled
+    execute { () =>
+      val cancel = sleepInternal(delay, _ => task.run())
+      if (!signal.compareAndSet(null, cancel)) {
+        cancel.run()
+      }
+    }
+
+    { () =>
+      if (!signal.compareAndSet(null, CancelSentinel)) {
+        signal.get().run()
+      }
+    }
+  }
 
   /**
    * Shut down the thread pool and clean up the pool state. Calling this method after the pool

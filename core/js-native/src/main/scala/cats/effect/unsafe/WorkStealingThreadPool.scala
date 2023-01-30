@@ -18,6 +18,7 @@ package cats.effect
 package unsafe
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 
 // Can you imagine a thread pool on JS? Have fun trying to extend or instantiate
 // this class. Unfortunately, due to the explicit branching, this type leaks
@@ -27,6 +28,13 @@ private[effect] sealed abstract class WorkStealingThreadPool private ()
   def execute(runnable: Runnable): Unit
   def reportFailure(cause: Throwable): Unit
   private[effect] def reschedule(runnable: Runnable): Unit
+  private[effect] def sleepInternal(
+      delay: FiniteDuration,
+      callback: Right[Nothing, Unit] => Unit): Runnable
+  private[effect] def sleep(
+      delay: FiniteDuration,
+      task: Runnable,
+      fallback: Scheduler): Runnable
   private[effect] def canExecuteBlockingCode(): Boolean
   private[unsafe] def liveTraces(): (
       Map[Runnable, Trace],

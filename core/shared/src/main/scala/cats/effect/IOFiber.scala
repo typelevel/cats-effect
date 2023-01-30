@@ -905,7 +905,15 @@ private final class IOFiber[A](
 
           val next = IO.async[Unit] { cb =>
             IO {
-              val cancel = runtime.scheduler.sleep(cur.delay, () => cb(RightUnit))
+              val scheduler = runtime.scheduler
+              val delay = cur.delay
+
+              val cancel =
+                if (scheduler.isInstanceOf[WorkStealingThreadPool])
+                  scheduler.asInstanceOf[WorkStealingThreadPool].sleepInternal(delay, cb)
+                else
+                  scheduler.sleep(delay, () => cb(RightUnit))
+
               Some(IO(cancel.run()))
             }
           }
@@ -1266,18 +1274,33 @@ private final class IOFiber[A](
   }
 
   private[this] def rescheduleFiber(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
-    if (ec.isInstanceOf[WorkStealingThreadPool]) {
-      val wstp = ec.asInstanceOf[WorkStealingThreadPool]
-      wstp.reschedule(fiber)
+    if (Platform.isJvm) {
+      if (ec.isInstanceOf[WorkStealingThreadPool]) {
+        val wstp = ec.asInstanceOf[WorkStealingThreadPool]
+        wstp.reschedule(fiber)
+      } else {
+        scheduleOnForeignEC(ec, fiber)
+      }
     } else {
       scheduleOnForeignEC(ec, fiber)
     }
   }
 
   private[this] def scheduleFiber(ec: ExecutionContext, fiber: IOFiber[_]): Unit = {
-    if (ec.isInstanceOf[WorkStealingThreadPool]) {
-      val wstp = ec.asInstanceOf[WorkStealingThreadPool]
-      wstp.execute(fiber)
+    if (Platform.isJvm) {
+      if (ec.isInstanceOf[WorkStealingThreadPool]) {
+        val wstp = ec.asInstanceOf[WorkStealingThreadPool]
+        wstp.execute(fiber)
+      } else {
+        scheduleOnForeignEC(ec, fiber)
+      }
+    } else if (Platform.isJs) {
+      if (ec.isInstanceOf[BatchingMacrotaskExecutor]) {
+        val bmte = ec.asInstanceOf[BatchingMacrotaskExecutor]
+        bmte.schedule(fiber)
+      } else {
+        scheduleOnForeignEC(ec, fiber)
+      }
     } else {
       scheduleOnForeignEC(ec, fiber)
     }

@@ -804,8 +804,8 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    * waiting on a lock, but if it does get acquired, release need to be guaranteed.
    *
    * Note that in this case the acquire action should know how to cleanup after itself in case
-   * it gets canceled, since Resource will only guarantee release when acquire succeeds and
-   * fails (and when the actions in `use` or `flatMap` fail, succeed, or get canceled)
+   * it gets canceled, since Resource will only guarantee release when acquire succeeds (and
+   * when the actions in `use` or `flatMap` fail, succeed, or get canceled)
    *
    * TODO make sure this api, which is more general than makeFull, doesn't allow for
    * interruptible releases
@@ -874,8 +874,8 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    * fiber waiting on a lock, but if it does get acquired, release need to be guaranteed.
    *
    * Note that in this case the acquire action should know how to cleanup after itself in case
-   * it gets canceled, since Resource will only guarantee release when acquire succeeds and
-   * fails (and when the actions in `use` or `flatMap` fail, succeed, or get canceled)
+   * it gets canceled, since Resource will only guarantee release when acquire succeeds (and
+   * when the actions in `use` or `flatMap` fail, succeed, or get canceled)
    *
    * @tparam F
    *   the effect type in which the resource is acquired and released
@@ -899,8 +899,8 @@ object Resource extends ResourceFOInstances0 with ResourceHOInstances0 with Reso
    * fiber waiting on a lock, but if it does get acquired, release need to be guaranteed.
    *
    * Note that in this case the acquire action should know how to cleanup after itself in case
-   * it gets canceled, since Resource will only guarantee release when acquire succeeds and
-   * fails (and when the actions in `use` or `flatMap` fail, succeed, or get canceled)
+   * it gets canceled, since Resource will only guarantee release when acquire succeeds (and
+   * when the actions in `use` or `flatMap` fail, succeed, or get canceled)
    *
    * @tparam F
    *   the effect type in which the resource is acquired and released
