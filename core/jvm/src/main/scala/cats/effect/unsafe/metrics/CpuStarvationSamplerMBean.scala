@@ -74,7 +74,9 @@ private[effect] object CpuStarvationSamplerMBean {
       for {
         mBeanServer <- IO.delay(ManagementFactory.getPlatformMBeanServer)
         mBean <- IO.pure(new StandardMBean(sampler, classOf[CpuStarvationSamplerMBean]))
-        _ <- IO.blocking(mBeanServer.registerMBean(mBean, mBeanObjectName))
+        // To allow user-defined program to use the compute pool from the beginning,
+        // here we use `IO.delay` rather than `IO.blocking`.
+        _ <- IO.delay(mBeanServer.registerMBean(mBean, mBeanObjectName))
       } yield mBeanServer
 
     def release(server: MBeanServer): IO[Unit] =
