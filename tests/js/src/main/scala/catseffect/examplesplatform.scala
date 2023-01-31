@@ -57,7 +57,6 @@ package examples {
     register(UndefinedProcessExit)
     register(CustomRuntime)
     register(CpuStarvation)
-    register(BlockedThreads)
 
     @nowarn("msg=never used")
     def main(paperweight: Array[String]): Unit = {
@@ -119,8 +118,7 @@ package examples {
 
   // stub
   object BlockedThreads extends IOApp.Simple {
-    val run = Console[IO].errorln(
-      "[WARNING] A Cats Effect worker thread was detected to be in a blocked state")
+    val run = IO.never
   }
 
 }

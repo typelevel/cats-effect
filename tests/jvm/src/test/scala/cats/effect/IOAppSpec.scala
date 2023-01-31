@@ -203,14 +203,6 @@ class IOAppSpec extends Specification {
           err must contain("[WARNING] Your app's responsiveness")
         }
 
-        "warn on blocked threads" in {
-          val h = platform(BlockedThreads, List.empty)
-          h.awaitStatus()
-          val err = h.stderr()
-          err must contain(
-            "[WARNING] A Cats Effect worker thread was detected to be in a blocked state")
-        }
-
         "custom runtime installed as global" in {
           val h = platform(CustomRuntime, List.empty)
           h.awaitStatus() mustEqual 0
@@ -322,6 +314,15 @@ class IOAppSpec extends Specification {
           val h = platform(MainThreadReportFailure, List.empty)
           h.awaitStatus() mustEqual 0
         }
+
+        "warn on blocked threads" in {
+          val h = platform(BlockedThreads, List.empty)
+          h.awaitStatus()
+          val err = h.stderr()
+          err must contain(
+            "[WARNING] A Cats Effect worker thread was detected to be in a blocked state")
+        }
+
       }
     }
     ()
