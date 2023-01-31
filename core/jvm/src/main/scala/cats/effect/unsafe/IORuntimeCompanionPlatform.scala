@@ -33,6 +33,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
 
   private[this] final val DefaultBlockerPrefix = "io-compute-blocker"
 
+  @deprecated("Preserved for binary-compatibility", "3.5.0")
   def createWorkStealingComputeThreadPool(
       threads: Int,
       threadPrefix: String,
