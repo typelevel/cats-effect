@@ -17,7 +17,6 @@
 package catseffect
 
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.effect.std.Console
 import cats.syntax.all._
 
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
