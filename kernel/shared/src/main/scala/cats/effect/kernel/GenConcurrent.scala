@@ -45,40 +45,71 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
     implicit val F: GenConcurrent[F, E] = this
 
     ref[Memoize[F, E, A]](Unevaluated()) map { state =>
-      def eval: F[A] =
-        deferred[Unit] flatMap { latch =>
+      // start running the effect, or subscribe if it already is
+      def evalOrSubscribe: F[A] =
+        deferred[Fiber[F, E, A]] flatMap { deferredFiber =>
           uncancelable { poll =>
             state.modify {
               case Unevaluated() =>
-                val go =
-                  poll(fa).guaranteeCase { outcome =>
-                    val stateAction = outcome match {
-                      case Outcome.Canceled() =>
-                        state.set(Unevaluated())
-                      case Outcome.Errored(err) =>
-                        state.set(Finished(Left(err)))
-                      case Outcome.Succeeded(fa) =>
-                        state.set(Finished(Right(fa)))
-                    }
-                    stateAction <* latch.complete(())
+                // run the effect, and if this fiber is still relevant set its result
+                val go = {
+                  def tryComplete(result: Memoize[F, E, A]): F[Unit] = state.update {
+                    case Evaluating(fiber, _) if fiber eq deferredFiber =>
+                      // we are the blessed fiber of this memo
+                      result
+                    case other => // our outcome is no longer relevant
+                      other
                   }
 
-                Evaluating(latch.get) -> go
+                  fa
+                    // hack around functor law breakage
+                    .flatMap(F.pure(_))
+                    .handleErrorWith(F.raiseError(_))
+                    // end hack
+                    .guaranteeCase {
+                      case Outcome.Canceled() =>
+                        tryComplete(Finished(Right(productR(canceled)(never))))
+                      case Outcome.Errored(err) =>
+                        tryComplete(Finished(Left(err)))
+                      case Outcome.Succeeded(fa) =>
+                        tryComplete(Finished(Right(fa)))
+                    }
+                }
 
-              case other =>
-                other -> poll(get)
+                val eval = go.start.flatMap { fiber =>
+                  deferredFiber.complete(fiber) *>
+                    poll(fiber.join.flatMap(_.embed(productR(canceled)(never))))
+                      .onCancel(unsubscribe(deferredFiber))
+                }
+
+                Evaluating(deferredFiber, 1) -> eval
+
+              case Evaluating(fiber, subscribers) =>
+                Evaluating(fiber, subscribers + 1) ->
+                  poll(fiber.get.flatMap(_.join).flatMap(_.embed(productR(canceled)(never))))
+                    .onCancel(unsubscribe(fiber))
+
+              case finished @ Finished(result) =>
+                finished -> fromEither(result).flatten
             }.flatten
           }
         }
 
-      def get: F[A] =
-        state.get flatMap {
-          case Unevaluated() => eval
-          case Evaluating(await) => await *> get
-          case Finished(efa) => fromEither(efa).flatten
-        }
+      def unsubscribe(expected: Deferred[F, Fiber[F, E, A]]): F[Unit] =
+        state.modify {
+          case Evaluating(fiber, subscribers) if fiber eq expected =>
+            if (subscribers == 1) // we are the last subscriber to this fiber
+              Unevaluated() -> fiber.get.flatMap(_.cancel)
+            else
+              Evaluating(fiber, subscribers - 1) -> unit
+          case other =>
+            other -> unit
+        }.flatten
 
-      get
+      state.get.flatMap {
+        case Finished(result) => fromEither(result).flatten
+        case _ => evalOrSubscribe
+      }
     }
   }
 
@@ -143,7 +174,10 @@ object GenConcurrent {
   private sealed abstract class Memoize[F[_], E, A]
   private object Memoize {
     final case class Unevaluated[F[_], E, A]() extends Memoize[F, E, A]
-    final case class Evaluating[F[_], E, A](await: F[Unit]) extends Memoize[F, E, A]
+    final case class Evaluating[F[_], E, A](
+        fiber: Deferred[F, Fiber[F, E, A]],
+        subscribers: Long
+    ) extends Memoize[F, E, A]
     final case class Finished[F[_], E, A](result: Either[E, F[A]]) extends Memoize[F, E, A]
   }
 

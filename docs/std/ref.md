@@ -9,6 +9,7 @@ A concurrent mutable reference.
 abstract class Ref[F[_], A] {
   def get: F[A]
   def set(a: A): F[Unit]
+  def updateAndGet(f: A => A): F[A]
   def modify[B](f: A => (A, B)): F[B]
   // ... and more
 }
@@ -27,48 +28,55 @@ upon object reference equality.
 
 ### Concurrent Counter
 
-This is probably one of the most common uses of this concurrency primitive.
+This is probably one of the most common uses of this concurrency primitive. 
 
-The workers will concurrently run and modify the value of the Ref so this is one possible outcome showing “#worker » currentCount”:
-
-```
-#2 >> 0
-#1 >> 0
-#3 >> 0
-#1 >> 0
-#3 >> 2
-#2 >> 1
-```
+In this example, the workers will concurrently run and update the value of the `Ref`.
 
 ```scala mdoc:reset:silent
-import cats.effect.{IO, Sync, Ref}
+//> using lib "org.typelevel::cats-effect:3.4.5"
+
+import cats.effect.{IO, IOApp, Sync}
+import cats.effect.kernel.Ref
 import cats.syntax.all._
 
-class Worker[F[_]](number: Int, ref: Ref[F, Int])(implicit F: Sync[F]) {
+class Worker[F[_]](id: Int, ref: Ref[F, Int])(implicit F: Sync[F]) {
 
-  private def putStrLn(value: String): F[Unit] = F.delay(println(value))
+  private def putStrLn(value: String): F[Unit] =
+    F.blocking(println(value))
 
   def start: F[Unit] =
     for {
       c1 <- ref.get
-      _  <- putStrLn(show"#$number >> $c1")
-      c2 <- ref.modify(x => (x + 1, x))
-      _  <- putStrLn(show"#$number >> $c2")
+      _  <- putStrLn(show"Worker #$id >> $c1")
+      c2 <- ref.updateAndGet(x => x + 1)
+      _  <- putStrLn(show"Worker #$id >> $c2")
     } yield ()
-
 }
 
-val program: IO[Unit] =
-  for {
-    ref <- Ref[IO].of(0)
-    w1  = new Worker[IO](1, ref)
-    w2  = new Worker[IO](2, ref)
-    w3  = new Worker[IO](3, ref)
-    _   <- List(
-             w1.start,
-             w2.start,
-             w3.start
-           ).parSequence.void
-  } yield ()
+object RefExample extends IOApp.Simple {
+
+  val run: IO[Unit] =
+    for {
+      ref <- Ref[IO].of(0)
+      w1 = new Worker[IO](1, ref)
+      w2 = new Worker[IO](2, ref)
+      w3 = new Worker[IO](3, ref)
+      _ <- List(
+        w1.start,
+        w2.start,
+        w3.start,
+      ).parSequence.void
+    } yield ()
+}
 ```
 
+This is one possible outcome showing “Worker #id » currentCount”:
+
+```
+Worker #1 >> 0
+Worker #3 >> 0
+Worker #2 >> 0
+Worker #2 >> 3
+Worker #1 >> 1
+Worker #3 >> 2
+```

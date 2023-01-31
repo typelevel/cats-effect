@@ -16,7 +16,8 @@
 
 package cats.effect.std
 
-import scala.annotation.nowarn
+import org.typelevel.scalaccompat.annotation._
+
 import scala.scalanative.libc.errno
 import scala.scalanative.unsafe._
 import scala.scalanative.unsigned._
@@ -61,7 +62,7 @@ private[std] trait SecureRandomCompanionPlatform {
 }
 
 @extern
-@nowarn
+@nowarn212
 private[std] object sysrandom {
   def getentropy(buf: Ptr[Byte], buflen: CSize): Int = extern
 }

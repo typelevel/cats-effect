@@ -81,6 +81,16 @@ class IOLocalSpec extends BaseSpec {
 
       io must completeAs(0)
     }
+
+    "do not leak internal updates outside of a scope" in ticked { implicit ticker =>
+      val io = for {
+        local <- IOLocal(0)
+        inside <- local.scope(1).surround(local.getAndSet(2))
+        outside <- local.get
+      } yield (inside, outside)
+
+      io must completeAs((1, 0))
+    }
   }
 
 }

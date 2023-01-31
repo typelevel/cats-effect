@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import cats.syntax.functor._
+
 /**
  * [[IOLocal]] provides a handy way of manipulating a context on different scopes.
  *
@@ -188,6 +190,27 @@ sealed trait IOLocal[A] {
    */
   def getAndReset: IO[A]
 
+  /**
+   * Creates a scope with the given value. The original value is restored upon the finalization
+   * of a resource. It means all changes made inside of the resource will not be propagated to
+   * the outside.
+   *
+   * @example
+   *
+   * {{{
+   *   for {
+   *     local <- IOLocal(42)
+   *     _     <- local.get // returns 42
+   *     _     <- local.scope(0).surround(local.getAndSet(1)) // returns 0
+   *     _     <- local.get // returns 42, even though 1 was set inside of the resource
+   *   } yield ()
+   * }}}
+   *
+   * @param value
+   *   the value to make a scope with
+   */
+  def scope(value: A): Resource[IO, Unit]
+
 }
 
 object IOLocal {
@@ -206,30 +229,35 @@ object IOLocal {
   def apply[A](default: A): IO[IOLocal[A]] =
     IO {
       new IOLocal[A] { self =>
+        private[this] def getOrDefault(state: IOLocalState): A =
+          state.getOrElse(self, default).asInstanceOf[A]
+
         override def get: IO[A] =
-          IO.Local(state => (state, state.get(self).map(_.asInstanceOf[A]).getOrElse(default)))
+          IO.Local(state => (state, getOrDefault(state)))
 
         override def set(value: A): IO[Unit] =
-          IO.Local(state => (state + (self -> value), ()))
+          IO.Local(state => (state.updated(self, value), ()))
 
         override def reset: IO[Unit] =
           IO.Local(state => (state - self, ()))
 
         override def update(f: A => A): IO[Unit] =
-          get.flatMap(a => set(f(a)))
+          IO.Local(state => (state.updated(self, f(getOrDefault(state))), ()))
 
         override def modify[B](f: A => (A, B)): IO[B] =
-          get.flatMap { a =>
-            val (a2, b) = f(a)
-            set(a2).as(b)
+          IO.Local { state =>
+            val (a2, b) = f(getOrDefault(state))
+            (state.updated(self, a2), b)
           }
 
         override def getAndSet(value: A): IO[A] =
-          get <* set(value)
+          IO.Local(state => (state.updated(self, value), getOrDefault(state)))
 
         override def getAndReset: IO[A] =
-          get <* reset
+          IO.Local(state => (state - self, getOrDefault(state)))
 
+        override def scope(value: A): Resource[IO, Unit] =
+          Resource.make(getAndSet(value))(p => set(p)).void
       }
     }
 

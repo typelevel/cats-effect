@@ -186,7 +186,7 @@ object Deferred {
             }
         }
 
-      F.defer(loop())
+      F.uncancelable(_ => F.defer(loop()))
     }
   }
 

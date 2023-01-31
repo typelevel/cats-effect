@@ -20,10 +20,10 @@ import scala.annotation.tailrec
 
 import java.util.concurrent.atomic.AtomicReference
 
-private final class CallbackStack[A](private[this] var callback: OutcomeIO[A] => Unit)
+private final class CallbackStack[A](private[this] var callback: A => Unit)
     extends AtomicReference[CallbackStack[A]] {
 
-  def push(next: OutcomeIO[A] => Unit): CallbackStack[A] = {
+  def push(next: A => Unit): CallbackStack[A] = {
     val attempt = new CallbackStack(next)
 
     @tailrec
@@ -40,7 +40,7 @@ private final class CallbackStack[A](private[this] var callback: OutcomeIO[A] =>
     loop()
   }
 
-  def unsafeSetCallback(cb: OutcomeIO[A] => Unit): Unit = {
+  def unsafeSetCallback(cb: A => Unit): Unit = {
     callback = cb
   }
 
@@ -49,7 +49,7 @@ private final class CallbackStack[A](private[this] var callback: OutcomeIO[A] =>
    * iff *any* callbacks were invoked.
    */
   @tailrec
-  def apply(oc: OutcomeIO[A], invoked: Boolean): Boolean = {
+  def apply(oc: A, invoked: Boolean): Boolean = {
     val cb = callback
 
     val invoked2 = if (cb != null) {
@@ -69,5 +69,19 @@ private final class CallbackStack[A](private[this] var callback: OutcomeIO[A] =>
   /**
    * Removes the current callback from the queue.
    */
-  def clearCurrent(): Unit = callback = null
+  def clearCurrent(handle: CallbackStack.Handle): Unit = {
+    val _ = handle
+    callback = null
+  }
+
+  def currentHandle(): CallbackStack.Handle = 0
+
+  def clear(): Unit = lazySet(null)
+}
+
+private object CallbackStack {
+  def apply[A](cb: A => Unit): CallbackStack[A] =
+    new CallbackStack(cb)
+
+  type Handle = Byte
 }

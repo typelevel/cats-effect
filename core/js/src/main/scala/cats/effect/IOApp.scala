@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.effect.std.Console
 import cats.effect.tracing.TracingConstants._
 
 import scala.concurrent.CancellationException
@@ -126,6 +127,12 @@ import scala.util.Try
  * number of compute worker threads to "make room" for the I/O workers, such that they all sum
  * to the number of physical threads exposed by the kernel.
  *
+ * @note
+ *   While [[IOApp]] works perfectly fine for browser applications, in practice it brings little
+ *   value over calling [[IO.unsafeRunAndForget]]. You can use your UI framework's preferred API
+ *   for defining your application's entrypoint. On the other hand, Node.js applications must
+ *   use [[IOApp]] to behave correctly.
+ *
  * @see
  *   [[IO]]
  * @see
@@ -161,6 +168,16 @@ trait IOApp {
   protected def runtimeConfig: unsafe.IORuntimeConfig = unsafe.IORuntimeConfig()
 
   /**
+   * Configures the action to perform when unhandled errors are caught by the runtime. By
+   * default, this simply delegates to [[cats.effect.std.Console!.printStackTrace]]. It is safe
+   * to perform any `IO` action within this handler; it will not block the progress of the
+   * runtime. With that said, some care should be taken to avoid raising unhandled errors as a
+   * result of handling unhandled errors, since that will result in the obvious chaos.
+   */
+  protected def reportFailure(err: Throwable): IO[Unit] =
+    Console[IO].printStackTrace(err)
+
+  /**
    * The entry point for your application. Will be called by the runtime when the process is
    * started. If the underlying runtime supports it, any arguments passed to the process will be
    * made available in the `args` parameter. The numeric value within the resulting [[ExitCode]]
@@ -181,12 +198,10 @@ trait IOApp {
       import unsafe.IORuntime
 
       val installed = IORuntime installGlobal {
-        IORuntime(
-          IORuntime.defaultComputeExecutionContext,
-          IORuntime.defaultComputeExecutionContext,
-          IORuntime.defaultScheduler,
-          () => (),
-          runtimeConfig)
+        val compute = IORuntime.createBatchingMacrotaskExecutor(reportFailure = t =>
+          reportFailure(t).unsafeRunAndForgetWithoutCallback()(runtime))
+
+        IORuntime(compute, compute, IORuntime.defaultScheduler, () => (), runtimeConfig)
       }
 
       _runtime = IORuntime.global

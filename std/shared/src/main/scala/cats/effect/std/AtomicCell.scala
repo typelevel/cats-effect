@@ -168,7 +168,7 @@ object AtomicCell {
 
     override def evalModify[B](f: A => F[(A, B)]): F[B] =
       mutex.lock.surround {
-        f(cell).flatMap {
+        F.delay(cell).flatMap(f).flatMap {
           case (a, b) =>
             F.delay {
               cell = a

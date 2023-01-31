@@ -48,8 +48,8 @@ private[effect] sealed abstract class FiberMonitor extends FiberMonitorShared {
  */
 private final class ES2021FiberMonitor(
     // A reference to the compute pool of the `IORuntime` in which this suspended fiber bag
-    // operates. `null` if the compute pool of the `IORuntime` is not a `FiberAwareExecutionContext`.
-    private[this] val compute: FiberAwareExecutionContext
+    // operates. `null` if the compute pool of the `IORuntime` is not a `BatchingMacrotaskExecutor`.
+    private[this] val compute: BatchingMacrotaskExecutor
 ) extends FiberMonitor {
   private[this] val bag = new WeakBag[IOFiber[_]]()
 
@@ -102,9 +102,9 @@ private final class NoOpFiberMonitor extends FiberMonitor {
 private[effect] object FiberMonitor {
   def apply(compute: ExecutionContext): FiberMonitor = {
     if (LinkingInfo.developmentMode && weakRefsAvailable) {
-      if (compute.isInstanceOf[FiberAwareExecutionContext]) {
-        val faec = compute.asInstanceOf[FiberAwareExecutionContext]
-        new ES2021FiberMonitor(faec)
+      if (compute.isInstanceOf[BatchingMacrotaskExecutor]) {
+        val bmec = compute.asInstanceOf[BatchingMacrotaskExecutor]
+        new ES2021FiberMonitor(bmec)
       } else {
         new ES2021FiberMonitor(null)
       }

@@ -24,17 +24,21 @@ private[effect] object Tracing extends TracingPlatform {
 
   import TracingConstants._
 
-  private[this] val TurnRight = "╰"
-  // private[this] val InverseTurnRight = "╭"
-  private[this] val Junction = "├"
-  // private[this] val Line = "│"
+  private[this] final val TurnRight = "╰"
+  // private[this] final val InverseTurnRight = "╭"
+  private[this] final val Junction = "├"
+  // private[this] final val Line = "│"
 
   private[tracing] def buildEvent(): TracingEvent = {
     new TracingEvent.StackTrace()
   }
 
   private[this] final val runLoopFilter: Array[String] =
-    Array("cats.effect.", "scala.runtime.", "scala.scalajs.runtime.")
+    Array(
+      "cats.effect.",
+      "scala.runtime.",
+      "scala.scalajs.runtime.",
+      "scala.scalanative.runtime.")
 
   private[tracing] final val stackTraceClassNameFilter: Array[String] = Array(
     "cats.",
@@ -81,6 +85,9 @@ private[effect] object Tracing extends TracingPlatform {
       val callSiteClassName = callSite.getClassName
       val callSiteMethodName = callSite.getMethodName
       val callSiteFileName = callSite.getFileName
+
+      if (callSiteClassName == "cats.effect.IOFiber" && callSiteMethodName == "run")
+        return null // short-circuit, effective end of stack
 
       if (!applyStackTraceFilter(callSiteClassName, callSiteMethodName, callSiteFileName))
         return combineOpAndCallSite(methodSite, callSite)

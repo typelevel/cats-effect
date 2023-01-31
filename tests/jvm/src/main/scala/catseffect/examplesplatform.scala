@@ -20,9 +20,10 @@ import cats.effect.{ExitCode, IO, IOApp}
 import cats.syntax.all._
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 
 import java.io.File
+import java.util.concurrent.atomic.AtomicReference
 
 package object examples {
   def exampleExecutionContext = ExecutionContext.global
@@ -74,5 +75,18 @@ package examples {
         case 1L => ExitCode.Success
         case _ => ExitCode.Error
       }
+  }
+
+  object MainThreadReportFailure extends IOApp {
+
+    val exitCode = new AtomicReference[ExitCode](ExitCode.Error)
+
+    override def reportFailure(err: Throwable): IO[Unit] =
+      IO(exitCode.set(ExitCode.Success))
+
+    def run(args: List[String]): IO[ExitCode] =
+      IO.raiseError(new Exception).startOn(MainThread) *>
+        IO.sleep(1.second) *> IO(exitCode.get)
+
   }
 }
