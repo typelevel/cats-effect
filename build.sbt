@@ -604,7 +604,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // introduced by #3324, which specialized CallbackStack for JS
       // internal API change
       ProblemFilters.exclude[DirectMissingMethodProblem](
-        "cats.effect.CallbackStack.clearCurrent")
+        "cats.effect.CallbackStack.clearCurrent"),
+      // #3393, ContState is a private class:
+      ProblemFilters.exclude[MissingTypesProblem]("cats.effect.ContState"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result_="),
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
