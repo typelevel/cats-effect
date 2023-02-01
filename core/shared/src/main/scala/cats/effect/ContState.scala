@@ -42,7 +42,7 @@ private final class ContState(var wasFinalizing: Boolean)
   var handle: WeakBag.Handle = _
 }
 
-private final object ContState {
+private object ContState {
 
   /**
    * This is a sentinel, signifying a "waiting" state of `ContState`; only its identity is
