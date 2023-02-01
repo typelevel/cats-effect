@@ -44,10 +44,4 @@ private object IOFiberConstants {
   final val AutoCedeR = 7
   final val ExecuteRunnableR = 8
   final val DoneR = 9
-
-  // unused, but remains here for bincompat:
-  final val ContStateInitial = 0
-  final val ContStateWaiting = 1
-  final val ContStateWinner = 2
-  final val ContStateResult = 3
 }
