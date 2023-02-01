@@ -44,4 +44,10 @@ final class IOFiberConstants {
   static final byte AutoCedeR = 7;
   static final byte ExecuteRunnableR = 8;
   static final byte DoneR = 9;
+
+  // unused, but remains here for bincompat:
+  static final int ContStateInitial = 0;
+  static final int ContStateWaiting = 1;
+  static final int ContStateWinner = 2;
+  static final int ContStateResult = 3;
 }
