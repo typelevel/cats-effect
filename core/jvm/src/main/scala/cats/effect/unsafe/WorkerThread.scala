@@ -415,7 +415,7 @@ private final class WorkerThread(
 
       ((state & ExternalQueueTicksMask): @switch) match {
         case 0 =>
-          if (pool.blockedThreadDetectionEnabled) {
+          if (pool.blockedThreadDetectionEnabled && pool.workerThreads.length > 1) {
             // TODO prefetch pool.workerThread or Thread.State.BLOCKED ?
             // TODO check that branch elimination makes it free when off
             var otherIdx = random.nextInt(pool.workerThreads.length)
