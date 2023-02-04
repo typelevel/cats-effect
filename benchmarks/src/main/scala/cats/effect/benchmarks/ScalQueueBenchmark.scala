@@ -42,10 +42,10 @@ import java.util.concurrent.{ConcurrentLinkedQueue, CountDownLatch, ThreadLocalR
 @OutputTimeUnit(TimeUnit.MINUTES)
 class ScalQueueBenchmark {
 
-  @Param(Array("131072"))   // 2^17
+  @Param(Array("131072")) // 2^17
   var size: Int = _
 
-  @Param(Array("4"))    // keep this a power of 2
+  @Param(Array("4")) // keep this a power of 2
   var threads: Int = _
 
   val thing = new AnyRef

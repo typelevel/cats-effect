@@ -610,10 +610,14 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result"),
       ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.ContState.result_="),
       // #3393, IOFiberConstants is a (package) private class/object:
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOFiberConstants.ContStateInitial"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOFiberConstants.ContStateWaiting"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOFiberConstants.ContStateWinner"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("cats.effect.IOFiberConstants.ContStateResult"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateInitial"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateWaiting"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateWinner"),
+      ProblemFilters.exclude[DirectMissingMethodProblem](
+        "cats.effect.IOFiberConstants.ContStateResult")
     ) ++ {
       if (tlIsScala3.value) {
         // Scala 3 specific exclusions
