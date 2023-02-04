@@ -154,10 +154,10 @@ object AtomicCell {
       of(M.empty)(F)
   }
 
-  def async[F[_], A](init: A)(implicit F: Async[F]): F[AtomicCell[F, A]] =
+  private[effect] def async[F[_], A](init: A)(implicit F: Async[F]): F[AtomicCell[F, A]] =
     Mutex[F].map(mutex => new AsyncImpl(init, mutex))
 
-  def concurrent[F[_], A](init: A)(implicit F: Concurrent[F]): F[AtomicCell[F, A]] =
+  private[effect] def concurrent[F[_], A](init: A)(implicit F: Concurrent[F]): F[AtomicCell[F, A]] =
     (Ref.of[F, A](init), Mutex[F]).mapN { (ref, m) => new ConcurrentImpl(ref, m) }
 
   private final class ConcurrentImpl[F[_], A](
