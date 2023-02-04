@@ -201,15 +201,15 @@ sealed trait IOLocal[A] {
    *   for {
    *     local <- IOLocal(42)
    *     _     <- local.get // returns 42
-   *     _     <- local.scope(0).surround(local.getAndSet(1)) // returns 0
+   *     _     <- local.scope(current => current + 1).surround(local.getAndSet(1)) // returns 43
    *     _     <- local.get // returns 42, even though 1 was set inside of the resource
    *   } yield ()
    * }}}
    *
-   * @param value
-   *   the value to make a scope with
+   * @param f
+   *   the function to make a new scope
    */
-  def scope(value: A): Resource[IO, Unit]
+  def scope(f: A => A): Resource[IO, Unit]
 
 }
 
@@ -256,8 +256,8 @@ object IOLocal {
         override def getAndReset: IO[A] =
           IO.Local(state => (state - self, getOrDefault(state)))
 
-        override def scope(value: A): Resource[IO, Unit] =
-          Resource.make(getAndSet(value))(p => set(p)).void
+        override def scope(f: A => A): Resource[IO, Unit] =
+          Resource.make(modify(a => (f(a), a)))(p => set(p)).void
       }
     }
 
