@@ -3,12 +3,14 @@ id: starvation-and-tuning
 title: Starvation and Tuning
 ---
 
-All Cats Effect applications constructed via `IOApp` have an automatic mechanism which periodically checks to see if the application runtime is starving for compute resources. If you ever see warnings which look like the following, they are the result of this mechanism automatically detecting that the responsiveness of your application runtime is below the configured threshold.
+All Cats Effect applications constructed via `IOApp` have an automatic mechanism which periodically checks to see if the application runtime is starving for compute resources. If you ever see warnings which look like the following, they are the result of this mechanism automatically detecting that the responsiveness of your application runtime is below the configured threshold. Note that the timestamp is the time when the starvation was detected, which is not precisely the time when starvation (or the task that is responsible) began.
 
 ```
-[WARNING] Your CPU is probably starving. Consider increasing the granularity
-of your delays or adding more cedes. This may also be a sign that you are
-unintentionally running blocking I/O operations (such as File or InetAddress)
+2023-01-28T00:16:24.101Z [WARNING] Your app's responsiveness to a new asynchronous 
+event (such as a new connection, an upstream response, or a timer) was in excess
+of 40 milliseconds. Your CPU is probably starving. Consider increasing the 
+granularity of your delays or adding more cedes. This may also be a sign that you
+are unintentionally running blocking I/O operations (such as File or InetAddress)
 without the blocking combinator.
 ```
 
@@ -49,20 +51,20 @@ Before diving into how we can correct issues with CPU starvation, it is worth un
 ```scala mdoc:silent
 import scala.concurrent.duration._
 
-val Threshold = 0.1d
+val starvationThreshold = 0.1.seconds
+val sleepInterval       = 1.second
 
 val tick: IO[Unit] =
   // grab a time offset from when we started
   IO.monotonic flatMap { start =>
     // sleep for some long interval, then measure when we woke up
-    // get the difference (this will always be a bit more than 1.second)
-    IO.sleep(1.second) *> IO.monotonic.map(_ - start) flatMap { delta =>
-      // the delta here is the amount of *lag* in the scheduler
-      // specifically, the time between requesting CPU access and actually getting it
-      IO.println("starvation detected").whenA(delta > 1.second * Threshold)
+    // get the difference (this will always be a bit more than the interval we slept for)
+    IO.sleep(sleepInterval) *> IO.monotonic.map(_ - start) flatMap { delta =>
+      // the delta here is the sum of the sleep interval and the amount of *lag* in the scheduler
+      // specifically, the lag is the time between requesting CPU access and actually getting it
+      IO.println("starvation detected").whenA(delta - sleepInterval > starvationThreshold)
     }
   }
-
 // add an initial delay
 // run the check infinitely, forked to a separate fiber
 val checker: IO[Unit] = (IO.sleep(1.second) *> tick.foreverM).start.void
